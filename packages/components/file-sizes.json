@@ -3961,11 +3961,115 @@
       "bytes": 5887,
       "lines": 175
     },
+    "infinite-canvas/__screenshots__/infinite-canvas.component.spec.ts/InfiniteCanvasComponent--phase-1---transform--pointer--keyboard--a-release-delivered-outside-the-root-still-ends-the-gesture-forgets-a-pointer-released-on-the-document--not-on-the-canvas-1.png": {
+      "bytes": 14525,
+      "lines": 25
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.component.spec.ts/InfiniteCanvasComponent--phase-1---transform--pointer--keyboard--a-release-delivered-outside-the-root-still-ends-the-gesture-forgets-an-item-press-released-on-the-document--not-on-the-canvas-1.png": {
+      "bytes": 14525,
+      "lines": 25
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.component.spec.ts/InfiniteCanvasComponent--phase-1---transform--pointer--keyboard--a-release-delivered-outside-the-root-still-ends-the-gesture-forgets-an-item-press-when-the-canvas-loses-focus-1.png": {
+      "bytes": 14525,
+      "lines": 25
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.edge-renderer.spec.ts/CanvasEdgeRenderer-an-edge-stays-clickable-across-the-edit-that-moved-it-keeps-its-drawn-stamp-when-its-geometry-is-replaced-1.png": {
+      "bytes": 3870,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.edge-renderer.spec.ts/CanvasEdgeRenderer-hit-testing-follows-what-was-drawn-does-not-hit-an-edge-the-last-frame-did-not-draw-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.edge-renderer.spec.ts/CanvasEdgeRenderer-sampling-above-the-path-cap-degrades-smoothly-at-the-cap-instead-of-halving-the-picture-1.png": {
+      "bytes": 3868,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.edge-renderer.spec.ts/CanvasEdgeRenderer-sampling-above-the-path-cap-samples-on-what-is-VISIBLE--not-on-how-much-is-cached-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.edge-renderer.spec.ts/CanvasEdgeRenderer-T-12---the-backing-store-is-scaled-by-devicePixelRatio--UC-10--draws-at-device-resolution--so-a-DPR-2-stroke-lands-on-device-pixels-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.edge-renderer.spec.ts/CanvasEdgeRenderer-T-7---an-edge-with-both-endpoints-off-screen-still-draws--UC-6--clears-the-previous-frame-before-drawing-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.edge-renderer.spec.ts/CanvasEdgeRenderer-T-7---an-edge-with-both-endpoints-off-screen-still-draws--UC-6--draws-a-long-edge-that-merely-crosses-the-viewport-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.edge-renderer.spec.ts/CanvasEdgeRenderer-world-space-path-cache-and-batching-honours-a-pan-by-drawing-the-edge-at-the-panned-position-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.edge-renderer.spec.ts/CanvasEdgeRenderer-world-space-path-cache-and-batching-issues-ONE-stroke-per-style--not-one-per-edge-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.edge-renderer.spec.ts/CanvasEdgeRenderer-world-space-path-cache-and-batching-keeps-the-on-screen-stroke-width-constant-across-zoom-levels-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.edge-renderer.spec.ts/CanvasEdgeRenderer-world-space-path-cache-and-batching-separates-batches-by-width-and-dash-as-well-as-colour-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.edge-renderer.spec.ts/panning-a-large-board-does-not-accumulate-paths-without-limit-does-not-trim-while-the-built-set-is-small-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.edge-renderer.spec.ts/panning-a-large-board-does-not-accumulate-paths-without-limit-holds-a-bounded-number-of-paths-however-far-you-pan-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.edge-renderer.spec.ts/setEdges-builds-no-path-until-an-edge-is-actually-drawn-builds-a-path-for-a-hit-test--because-that-needs-the-real-curve-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.edge-renderer.spec.ts/setEdges-builds-no-path-until-an-edge-is-actually-drawn-builds-only-the-paths-a-drawn-viewport-needed-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.edge-renderer.spec.ts/setEdges-builds-no-path-until-an-edge-is-actually-drawn-drops-the-built-path-when-the-edge-actually-moves-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.edge-renderer.spec.ts/setEdges-builds-no-path-until-an-edge-is-actually-drawn-keeps-a-path-it-already-built-when-the-viewport-returns-to-it-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.edge-renderer.spec.ts/setEdges-builds-no-path-until-an-edge-is-actually-drawn-knows-every-edge-and-has-built-no-path-at-all-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.edge-renderer.spec.ts/setEdges-builds-only-the-paths-that-actually-changed-builds-every-path-when-the-shared-hub-moves--because-every-edge-moved-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
     "infinite-canvas/__screenshots__/infinite-canvas.edge-renderer.spec.ts/setEdges-builds-only-the-paths-that-actually-changed-builds-nothing-at-all-when-nothing-moved-1.png": {
       "bytes": 4290,
       "lines": 3
     },
     "infinite-canvas/__screenshots__/infinite-canvas.edge-renderer.spec.ts/setEdges-builds-only-the-paths-that-actually-changed-builds-one-path-when-one-leaf-moves--not-twenty-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.edge-renderer.spec.ts/setEdges-keeps-paths-for-a-rebuilt-edge-list-that-did-not-move-keeps-the-paths-when-only-the-descriptor-objects-are-new-1.png": {
+      "bytes": 3868,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.edge-renderer.spec.ts/setEdges-keeps-the-paths-whose-edges-did-not-move-discards-every-path-when-the-shared-hub-moves--because-every-edge-moved-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.edge-renderer.spec.ts/setEdges-keeps-the-paths-whose-edges-did-not-move-discards-one-path-when-one-leaf-moves--not-twenty-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.edge-renderer.spec.ts/setEdges-keeps-the-paths-whose-edges-did-not-move-keeps-every-path-when-nothing-moved-1.png": {
       "bytes": 4290,
       "lines": 3
     },
@@ -3977,11 +4081,51 @@
       "bytes": 4290,
       "lines": 3
     },
+    "infinite-canvas/__screenshots__/infinite-canvas.edge-renderer.spec.ts/T-1---anchor-offsets-and-curve-style--node-editor-prerequisite--anchors-and-curves-compose-with-the-existing-batching-still-collapses-same-styled-edges-into-one-stroke-call-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.edge-renderer.spec.ts/T-1---anchor-offsets-and-curve-style--node-editor-prerequisite--curve---bezier--bows-the-edge-out-horizontally-bounds-the-curve-by-its-control-hull--so-a-near-vertical-edge-is-not-culled-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
     "infinite-canvas/__screenshots__/infinite-canvas.item-layer.spec.ts/CanvasItemLayer---a-drag-re-indexes-only-what-moved-re-inserts-nothing-when-one-item-moves-inside-its-cell-1.png": {
       "bytes": 4290,
       "lines": 3
     },
     "infinite-canvas/__screenshots__/infinite-canvas.item-layer.spec.ts/CanvasItemLayer---a-drag-re-indexes-only-what-moved-re-inserts-only-the-item-that-crossed-a-cell-boundary-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.item-layer.spec.ts/CanvasItemLayer---CanvasItemViewPool--virtualization-and-recycling--T-17---no-view-leak-across-sustained-panning-caps-the-pool-and-destroys-the-excess-instead-of-hoarding-it-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.item-layer.spec.ts/CanvasItemLayer---CanvasItemViewPool--virtualization-and-recycling--T-17---no-view-leak-across-sustained-panning-clear---unmounts-and-destroys-everything-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.item-layer.spec.ts/CanvasItemLayer---CanvasItemViewPool--virtualization-and-recycling--T-17---no-view-leak-across-sustained-panning-releasing-the-same-view-twice-is-a-no-op-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.item-layer.spec.ts/CanvasItemLayer---CanvasItemViewPool--virtualization-and-recycling--T-5---only-viewport---overscan-items-are-in-the-DOM-at-10k-includes-items-outside-the-viewport-but-inside-the-overscan-margin-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.item-layer.spec.ts/CanvasItemLayer---CanvasItemViewPool--virtualization-and-recycling--T-5---only-viewport---overscan-items-are-in-the-DOM-at-10k-mounts-every-item-stacked-at-the-same-coordinate-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.item-layer.spec.ts/CanvasItemLayer---CanvasItemViewPool--virtualization-and-recycling--T-5---only-viewport---overscan-items-are-in-the-DOM-at-10k-renders-the-projected-template-with-the-item-and-its-index-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.item-layer.spec.ts/CanvasItemLayer---CanvasItemViewPool--virtualization-and-recycling--T-6---pool-recycles--recycle-count-rises-while-create-count-plateaus-creates-only-up-to-the-peak-visible-count--then-recycles-forever-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.item-layer.spec.ts/CanvasItemLayer---CanvasItemViewPool--virtualization-and-recycling--T-6---pool-recycles--recycle-count-rises-while-create-count-plateaus-reuses-the-very-same-view-object-rather-than-rebuilding-it-1.png": {
       "bytes": 4290,
       "lines": 3
     },
@@ -3993,9 +4137,69 @@
       "bytes": 4226,
       "lines": 3
     },
+    "infinite-canvas/__screenshots__/infinite-canvas.item-layer.spec.ts/CanvasItemLayer---the-shared-id-index-tracks-moves-forgets-an-item-that-left-the-set-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.item-layer.spec.ts/CanvasItemLayer---the-shared-id-index-tracks-moves-returns-the-MOVED-object-after-a-drag-frame--not-the-old-one-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.item-layer.spec.ts/CanvasItemLayer---zooming-out-cannot-mount-the-whole-board-drops-from-every-edge-alike--not-the-whole-bottom-of-the-screen-1.png": {
+      "bytes": 6645,
+      "lines": 5
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.item-layer.spec.ts/CanvasItemLayer---zooming-out-cannot-mount-the-whole-board-keeps-a-wide-item-that-covers-the-screen--not-just-small-ones-near-the-middle-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.item-layer.spec.ts/CanvasItemLayer---zooming-out-cannot-mount-the-whole-board-keeps-items-near-the-middle-of-the-screen--not-an-arbitrary-corner-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.item-layer.spec.ts/CanvasItemLayer---zooming-out-cannot-mount-the-whole-board-mounts-every-item-in-view-once-zoomed-in-far-enough-to-afford-them-1.png": {
+      "bytes": 4390,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.item-layer.spec.ts/CanvasItemLayer---zooming-out-cannot-mount-the-whole-board-mounts-exactly-the-nearest-items--not-merely-nearby-ones-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.item-layer.spec.ts/CanvasItemLayer---zooming-out-cannot-mount-the-whole-board-mounts-no-more-than-the-cap-however-far-out-you-zoom-1.png": {
+      "bytes": 7420,
+      "lines": 7
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.item-layer.spec.ts/CanvasItemLayer---zooming-out-cannot-mount-the-whole-board-releases-views-back-to-the-pool-when-the-cap-pushes-items-out-1.png": {
+      "bytes": 7420,
+      "lines": 7
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.item-layer.spec.ts/CanvasItemLayer---zooming-out-cannot-mount-the-whole-board-shows-what-you-zoom-in-on--rather-than-the-set-it-first-mounted-1.png": {
+      "bytes": 6812,
+      "lines": 5
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.item-layer.spec.ts/CanvasItemLayer---zooming-out-cannot-mount-the-whole-board-still-mounts-everything-when-everything-fits-under-the-cap-1.png": {
+      "bytes": 4390,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.item-layer.spec.ts/CanvasItemViewPool-holds-everything-the-layer-will-mount-recycles-rather-than-recreating-when-the-mounted-set-churns-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
     "infinite-canvas/__screenshots__/infinite-canvas.perf.spec.ts/infinite-canvas-performance-gates--T-8--T-9--T-8---a-pan-frame-of-a-10k-graph-holds-the-frame-budget-1.png": {
       "bytes": 37532,
       "lines": 73
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.pointer.spec.ts/CanvasPointerMachine-a-release-that-never-arrived-must-not-turn-the-mouse-into-a-pinch-does-not-begin-a-pinch-when-the-same-pointer-id-presses-twice-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.pointer.spec.ts/CanvasPointerMachine-a-release-that-never-arrived-must-not-turn-the-mouse-into-a-pinch-replaces-a-stale-ITEM-press-too--which-is-the-reported-gesture-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.pointer.spec.ts/CanvasPointerMachine-a-release-that-never-arrived-must-not-turn-the-mouse-into-a-pinch-treats-the-second-press-as-a-first-press--from-its-own-origin-1.png": {
+      "bytes": 4290,
+      "lines": 3
     },
     "infinite-canvas/addons/node-editor-context-menu/__screenshots__/node-editor-context-menu.touch.spec.ts/long-press-opens-the-context-menu-ignores-the-platform-contextmenu-during-a-two-finger-gesture-1.png": {
       "bytes": 17581,
@@ -4029,7 +4233,23 @@
       "bytes": 1768,
       "lines": 55
     },
+    "infinite-canvas/addons/node-editor-groups/__screenshots__/node-editor-groups.component.spec.ts/zones-off-screen-are-not-rendered-drops-a-zone-the-viewport-is-nowhere-near-1.png": {
+      "bytes": 13980,
+      "lines": 10
+    },
+    "infinite-canvas/addons/node-editor-groups/__screenshots__/node-editor-groups.component.spec.ts/zones-off-screen-are-not-rendered-keeps-a-zone-just-outside--because-a-pan-should-not-churn-the-DOM-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor-groups/__screenshots__/node-editor-groups.utils.spec.ts/membership-is-containment--not-overlap-puts-a-node-in-a-nested-group-in-BOTH-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
     "infinite-canvas/addons/node-editor-groups/__screenshots__/node-editor-groups.utils.spec.ts/membership-matches-an-exhaustive-scan-agrees-on-a-dense-scatter-of-overlapping-groups-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor-groups/__screenshots__/node-editor-groups.utils.spec.ts/membership-matches-an-exhaustive-scan-agrees-on-far-flung-groups-that-share-no-cell-1.png": {
       "bytes": 4290,
       "lines": 3
     },
@@ -4037,7 +4257,31 @@
       "bytes": 4290,
       "lines": 3
     },
+    "infinite-canvas/addons/node-editor-groups/__screenshots__/node-editor-groups.utils.spec.ts/membership-matches-an-exhaustive-scan-keeps-every-group-present--including-the-empty-ones-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
     "infinite-canvas/addons/node-editor-groups/__screenshots__/node-editor-groups.utils.spec.ts/membership-matches-an-exhaustive-scan-survives-degenerate-input-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor-groups/__screenshots__/node-editor-groups.utils.spec.ts/the-membership-memo-answers-for-the-graph-it-was-given-does-not-answer-for-a-different-set-of-groups-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor-groups/__screenshots__/node-editor-groups.utils.spec.ts/the-membership-memo-answers-for-the-graph-it-was-given-hands-back-the-very-same-answer-for-the-very-same-node-list-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor-groups/__screenshots__/node-editor-groups.utils.spec.ts/the-membership-memo-answers-for-the-graph-it-was-given-keeps-the-answer-for-the-nodes-that-did-not-move-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor-groups/__screenshots__/node-editor-groups.utils.spec.ts/the-membership-memo-answers-for-the-graph-it-was-given-lets-go-of-a-node-that-moved-out-of-the-group-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor-groups/__screenshots__/node-editor-groups.utils.spec.ts/the-membership-memo-answers-for-the-graph-it-was-given-picks-up-a-node-that-moved-into-the-group-1.png": {
       "bytes": 4290,
       "lines": 3
     },
@@ -4050,16 +4294,16 @@
       "lines": 87
     },
     "infinite-canvas/addons/node-editor-groups/node-editor-groups.component.html": {
-      "bytes": 3469,
-      "lines": 89
+      "bytes": 3583,
+      "lines": 90
     },
     "infinite-canvas/addons/node-editor-groups/node-editor-groups.component.spec.ts": {
-      "bytes": 15149,
-      "lines": 372
+      "bytes": 17481,
+      "lines": 423
     },
     "infinite-canvas/addons/node-editor-groups/node-editor-groups.component.ts": {
-      "bytes": 10420,
-      "lines": 301
+      "bytes": 13102,
+      "lines": 361
     },
     "infinite-canvas/addons/node-editor-groups/node-editor-groups.locales.ts": {
       "bytes": 1500,
@@ -4070,12 +4314,24 @@
       "lines": 40
     },
     "infinite-canvas/addons/node-editor-groups/node-editor-groups.utils.spec.ts": {
-      "bytes": 11009,
-      "lines": 287
+      "bytes": 14252,
+      "lines": 350
     },
     "infinite-canvas/addons/node-editor-groups/node-editor-groups.utils.ts": {
-      "bytes": 7041,
-      "lines": 199
+      "bytes": 12363,
+      "lines": 328
+    },
+    "infinite-canvas/addons/node-editor-history/__screenshots__/node-editor-history.component.spec.ts/NodeEditorHistoryComponent-inspecting-a-run-names-the-slowest-node--which-is-the-one-worth-naming-1.png": {
+      "bytes": 29631,
+      "lines": 29
+    },
+    "infinite-canvas/addons/node-editor-history/__screenshots__/node-editor-history.utils.spec.ts/the-run-wide-readouts-do-not-read-the-retained-prefix-names-a-slowest-node-that-is-no-longer-in-the-list-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor-history/__screenshots__/node-editor-history.utils.spec.ts/the-run-wide-readouts-do-not-read-the-retained-prefix-shares-against-the-whole-run--not-the-prefix-1.png": {
+      "bytes": 4290,
+      "lines": 3
     },
     "infinite-canvas/addons/node-editor-history/index.ts": {
       "bytes": 231,
@@ -4086,36 +4342,36 @@
       "lines": 199
     },
     "infinite-canvas/addons/node-editor-history/node-editor-history.component.spec.ts": {
-      "bytes": 10791,
-      "lines": 305
+      "bytes": 11942,
+      "lines": 328
     },
     "infinite-canvas/addons/node-editor-history/node-editor-history.component.ts": {
-      "bytes": 6103,
-      "lines": 180
+      "bytes": 6339,
+      "lines": 181
     },
     "infinite-canvas/addons/node-editor-history/node-editor-history.locales.ts": {
-      "bytes": 7923,
-      "lines": 250
+      "bytes": 8490,
+      "lines": 261
     },
     "infinite-canvas/addons/node-editor-history/node-editor-history.store.spec.ts": {
-      "bytes": 9564,
-      "lines": 274
+      "bytes": 11360,
+      "lines": 315
     },
     "infinite-canvas/addons/node-editor-history/node-editor-history.store.ts": {
-      "bytes": 4971,
-      "lines": 142
+      "bytes": 6441,
+      "lines": 175
     },
     "infinite-canvas/addons/node-editor-history/node-editor-history.types.ts": {
-      "bytes": 2063,
-      "lines": 58
+      "bytes": 2692,
+      "lines": 69
     },
     "infinite-canvas/addons/node-editor-history/node-editor-history.utils.spec.ts": {
-      "bytes": 7434,
-      "lines": 215
+      "bytes": 9318,
+      "lines": 256
     },
     "infinite-canvas/addons/node-editor-history/node-editor-history.utils.ts": {
-      "bytes": 4271,
-      "lines": 111
+      "bytes": 4696,
+      "lines": 116
     },
     "infinite-canvas/addons/node-editor-layout/index.ts": {
       "bytes": 38,
@@ -4126,8 +4382,16 @@
       "lines": 309
     },
     "infinite-canvas/addons/node-editor-layout/node-editor-layout.ts": {
-      "bytes": 16352,
-      "lines": 443
+      "bytes": 17861,
+      "lines": 474
+    },
+    "infinite-canvas/addons/node-editor-minimap/__screenshots__/node-editor-minimap.component.spec.ts/the-minimap-draws-a-sample--not-the-whole-graph-caps-the-boxes-it-fills-however-many-nodes-exist-1.png": {
+      "bytes": 10372,
+      "lines": 11
+    },
+    "infinite-canvas/addons/node-editor-minimap/__screenshots__/node-editor-minimap.component.spec.ts/the-minimap-draws-a-sample--not-the-whole-graph-does-not-reallocate-the-backing-store-on-a-repaint-that-did-not-resize-1.png": {
+      "bytes": 6902,
+      "lines": 10
     },
     "infinite-canvas/addons/node-editor-minimap/index.ts": {
       "bytes": 141,
@@ -4138,12 +4402,12 @@
       "lines": 66
     },
     "infinite-canvas/addons/node-editor-minimap/node-editor-minimap.component.spec.ts": {
-      "bytes": 10442,
-      "lines": 268
+      "bytes": 13877,
+      "lines": 355
     },
     "infinite-canvas/addons/node-editor-minimap/node-editor-minimap.component.ts": {
-      "bytes": 9169,
-      "lines": 262
+      "bytes": 12013,
+      "lines": 331
     },
     "infinite-canvas/addons/node-editor-minimap/node-editor-minimap.locales.ts": {
       "bytes": 1292,
@@ -4258,15 +4522,15 @@
       "lines": 185
     },
     "infinite-canvas/addons/node-editor-subgraph/__screenshots__/node-editor-subgraph.dynamic-ports.spec.ts/a-subgraph-node-built-by-the-user--in-a-mounted-editor-carries-a-value-through-the-port-it-grew-1.png": {
-      "bytes": 18476,
-      "lines": 38
+      "bytes": 18719,
+      "lines": 47
     },
     "infinite-canvas/addons/node-editor-subgraph/__screenshots__/node-editor-subgraph.dynamic-ports.spec.ts/a-subgraph-node-built-by-the-user--in-a-mounted-editor-draws-a-port-on-the-card-once-a-boundary-node-is-added-inside-1.png": {
-      "bytes": 18400,
-      "lines": 41
+      "bytes": 18314,
+      "lines": 23
     },
     "infinite-canvas/addons/node-editor-subgraph/__screenshots__/node-editor-subgraph.dynamic-ports.spec.ts/a-subgraph-node-built-by-the-user--in-a-mounted-editor-lets-two-nodes-of-the-same-type-carry-different-ports-1.png": {
-      "bytes": 20875,
+      "bytes": 20975,
       "lines": 39
     },
     "infinite-canvas/addons/node-editor-subgraph/__screenshots__/node-editor-subgraph.spec.ts/a-subgraph-nested-inside-a-subgraph-evaluates-an-inner-subgraph-whose-type-was-registered-after-the-fact-1.png": {
@@ -4381,6 +4645,122 @@
       "bytes": 2729,
       "lines": 72
     },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.a11y.spec.ts/NodeEditorComponent-accessibility--T-10--the-spatial-view-carries-its-own-labels-keeps-exactly-one-roving-tab-stop-1.png": {
+      "bytes": 20211,
+      "lines": 32
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-a-move-reaches-the-undo-stack-however-it-was-made-does-not-reach-past-the-drag-to-an-earlier-edit-1.png": {
+      "bytes": 28451,
+      "lines": 61
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-a-move-reaches-the-undo-stack-however-it-was-made-redoes-the-drag-it-just-undid-1.png": {
+      "bytes": 28886,
+      "lines": 54
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-a-move-reaches-the-undo-stack-however-it-was-made-undoes-a-keyboard-nudge-1.png": {
+      "bytes": 17164,
+      "lines": 45
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-a-move-reaches-the-undo-stack-however-it-was-made-undoes-a-pointer-drag--putting-the-node-back-where-it-started-1.png": {
+      "bytes": 28451,
+      "lines": 61
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-connecting-and-deleting-survive-a-round-trip-gives-a-re-added-node-back-the-state-it-was-seeded-with-1.png": {
+      "bytes": 28395,
+      "lines": 36
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-connecting-and-deleting-survive-a-round-trip-gives-a-restored-node-back-the-state-it-held-1.png": {
+      "bytes": 28174,
+      "lines": 47
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-connecting-and-deleting-survive-a-round-trip-has-nothing-to-undo-after-a-refused-drop-1.png": {
+      "bytes": 28597,
+      "lines": 45
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-connecting-and-deleting-survive-a-round-trip-keeps-the-wire-when-the-drop-is-refused-1.png": {
+      "bytes": 28023,
+      "lines": 52
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-connecting-and-deleting-survive-a-round-trip-redoes-an-unplug--taking-the-wire-away-again-1.png": {
+      "bytes": 28597,
+      "lines": 45
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-connecting-and-deleting-survive-a-round-trip-undoes-a-connection-made-with-the-keyboard-1.png": {
+      "bytes": 28761,
+      "lines": 41
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-connecting-and-deleting-survive-a-round-trip-undoes-a-reconnection--putting-the-displaced-wire-back-1.png": {
+      "bytes": 28325,
+      "lines": 32
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-connecting-and-deleting-survive-a-round-trip-undoes-and-redoes-a-connection-made-with-the-pointer-1.png": {
+      "bytes": 28083,
+      "lines": 58
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-connecting-and-deleting-survive-a-round-trip-undoes-the-wire-it-just-made--not-another-one-1.png": {
+      "bytes": 34236,
+      "lines": 73
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-connecting-and-deleting-survive-a-round-trip-undoes-unplugging-a-wire-into-empty-space-1.png": {
+      "bytes": 28367,
+      "lines": 45
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-connecting-on-a-touch-device-moves-a-node-with-a-finger-1.png": {
+      "bytes": 27221,
+      "lines": 51
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-7-dragging-applies-one-move-per-frame--however-many-pointer-events-arrive-1.png": {
+      "bytes": 27141,
+      "lines": 60
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-7-dragging-keeps-the-card-under-the-pointer-when-the-graph-is-written-mid-drag-1.png": {
+      "bytes": 28861,
+      "lines": 45
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-7-dragging-moves-the-pressed-node-1.png": {
+      "bytes": 28577,
+      "lines": 52
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-7-dragging-moves-the-whole-selection-when-a-selected-node-is-dragged-1.png": {
+      "bytes": 27554,
+      "lines": 48
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-7-dragging-snaps-to-the-grid-when-one-is-set-1.png": {
+      "bytes": 27696,
+      "lines": 45
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-9-keyboard-connects-two-ports-with-Enter--Tab--Enter-1.png": {
+      "bytes": 28007,
+      "lines": 53
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-9-keyboard-hands-Shift-Tab-back-before-the-first-port-1.png": {
+      "bytes": 28902,
+      "lines": 51
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-9-keyboard-hands-Tab-back-to-the-browser-after-the-last-port-1.png": {
+      "bytes": 28562,
+      "lines": 48
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-9-keyboard-ignores-a-direction-with-nothing-in-it-1.png": {
+      "bytes": 26852,
+      "lines": 47
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-9-keyboard-moves-focus-to-the-nearest-node-in-the-arrow-direction-1.png": {
+      "bytes": 24868,
+      "lines": 40
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-9-keyboard-nudges-by-one-grid-cell-when-snapping-is-on-1.png": {
+      "bytes": 17071,
+      "lines": 49
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-9-keyboard-starts-from-the-beginning-on-a-different-node-1.png": {
+      "bytes": 28219,
+      "lines": 49
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-the-keyboard-and-the-pointer-agree-about-what-is-allowed-refuses-the-same-pair-either-way--for-the-same-reason-1.png": {
+      "bytes": 27962,
+      "lines": 60
+    },
     "infinite-canvas/addons/node-editor/__screenshots__/node-editor.direction.spec.ts/port-geometry-does-not-follow-writing-direction-anchors-edges-at-the-same-world-offsets-the-dots-are-drawn-at-1.png": {
       "bytes": 5194,
       "lines": 3
@@ -4391,6 +4771,18 @@
     },
     "infinite-canvas/addons/node-editor/__screenshots__/node-editor.direction.spec.ts/port-geometry-does-not-follow-writing-direction-keeps-the-input-on-the-left-edge-and-the-output-on-the-right--in-both-1.png": {
       "bytes": 5255,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.disposal.spec.ts/a-node-that-is-gone-gets-nothing-back-ignores-an-emit-that-arrives-after-the-node-was-removed-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.disposal.spec.ts/a-node-that-is-gone-gets-nothing-back-ignores-an-emit-that-arrives-after-the-runtime-was-disposed-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.disposal.spec.ts/the-runtime-does-not-accumulate-what-nobody-reads-keeps-the-computed-log-bounded-however-many-runs-happen-1.png": {
+      "bytes": 4290,
       "lines": 3
     },
     "infinite-canvas/addons/node-editor/__screenshots__/node-editor.disposal.spec.ts/the-runtime-lets-go-of-a-graph-that-held-a-cycle-retains-nothing-after-a-cyclic-graph-is-disposed-outright-1.png": {
@@ -4421,7 +4813,71 @@
       "bytes": 4290,
       "lines": 3
     },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.graph.spec.ts/toCanvasEdges-reuses-the-descriptor-of-an-edge-that-did-not-move-honours-a-caller-supplied-index-instead-of-building-its-own-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.graph.spec.ts/toCanvasEdges-reuses-the-descriptor-of-an-edge-that-did-not-move-rebuilds-a-descriptor-whose-selection-changed--with-nothing-moved-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.graph.spec.ts/toCanvasEdges-reuses-the-descriptor-of-an-edge-that-did-not-move-rebuilds-every-edge-when-the-shared-hub-moves-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.graph.spec.ts/toCanvasEdges-reuses-the-descriptor-of-an-edge-that-did-not-move-rebuilds-only-the-edges-touching-the-node-that-moved-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.history.spec.ts/every-command-has-a-true-inverse-rewire-with-the-same-id-on-both-halves-keeps-the-wire-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.integration.spec.ts/a-long-evaluation-is-not-silent-announces-that-it-started-and-that-it-finished-1.png": {
+      "bytes": 33137,
+      "lines": 97
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.integration.spec.ts/RT-11-the-motivating-example--typing-streams-downstream-reports-a-required-input-that-is-not-connected-1.png": {
+      "bytes": 26213,
+      "lines": 54
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.integration.spec.ts/RT-12-controls-inside-a-node-are-usable-DOES-drag-when-the-press-lands-on-the-header-1.png": {
+      "bytes": 32440,
+      "lines": 97
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.integration.spec.ts/the-drain-lets-the-browser-breathe-gives-up-waiting-for-a-frame-that-never-comes-1.png": {
+      "bytes": 31956,
+      "lines": 86
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.integration.spec.ts/the-drain-lets-the-browser-breathe-runs-an-animation-frame-between-two-computes-1.png": {
+      "bytes": 31758,
+      "lines": 85
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.integration.spec.ts/the-drain-lets-the-browser-breathe-waits-for-a-real-animation-frame--not-a-microtask-1.png": {
+      "bytes": 31594,
+      "lines": 90
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.integration.spec.ts/the-drain-lets-the-browser-breathe-yields-to-the-event-loop--not-to-the-microtask-queue-1.png": {
+      "bytes": 31570,
+      "lines": 86
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.integration.spec.ts/the-highlight-on-a-node-that-just-ran-lights-the-nodes-that-ran--then-lets-the-light-go-out-1.png": {
+      "bytes": 29730,
+      "lines": 51
+    },
     "infinite-canvas/addons/node-editor/__screenshots__/node-editor.layout.spec.ts/portAnchor-returns-null-for-an-unknown-port-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.layout.spec.ts/withDerivedHeights-keeps-the-nodes-that-follow-a-changed-one-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.layout.spec.ts/withDerivedHeights-remembers-what-it-derived-re-derives-when-the-body-height-changed-but-the-node-did-not-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.layout.spec.ts/withDerivedHeights-remembers-what-it-derived-re-derives-when-the-metrics-changed-but-the-node-did-not-1.png": {
       "bytes": 4290,
       "lines": 3
     },
@@ -4489,6 +4945,26 @@
       "bytes": 4290,
       "lines": 3
     },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.materialize.spec.ts/an-authored-field-survives-its-type-leaves-an-authored-node-alone-entirely--allocating-nothing-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.materialize.spec.ts/materialisation-is-remembered-per-node-allocates-only-for-the-node-that-a-drag-replaced-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.materialize.spec.ts/materialisation-is-remembered-per-node-does-not-let-one-definition-table-answer-for-another-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.materialize.spec.ts/materialisation-is-remembered-per-node-keeps-the-nodes-that-follow-a-materialised-one-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.materialize.spec.ts/materialisation-is-remembered-per-node-returns-the-identical-objects-when-handed-the-same-nodes-again-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
     "infinite-canvas/addons/node-editor/__screenshots__/node-editor.materialize.spec.ts/withMaterializedTypes-copies-ports--title-and-accent-off-the-definition-1.png": {
       "bytes": 4290,
       "lines": 3
@@ -4521,6 +4997,90 @@
       "bytes": 4290,
       "lines": 3
     },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.multitouch.spec.ts/a-second-finger-takes-over-from-an-edit-abandons-a-half-drawn-connection-too-1.png": {
+      "bytes": 22031,
+      "lines": 36
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.multitouch.spec.ts/a-second-finger-takes-over-from-an-edit-does-not-disturb-a-mouse-drag-1.png": {
+      "bytes": 19710,
+      "lines": 38
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.multitouch.spec.ts/a-second-finger-takes-over-from-an-edit-puts-a-half-dragged-node-back-when-a-second-finger-lands-1.png": {
+      "bytes": 19359,
+      "lines": 29
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.multitouch.spec.ts/a-wire-unplugged-by-a-gesture-that-is-then-abandoned-comes-back-comes-back-on-Escape-1.png": {
+      "bytes": 19372,
+      "lines": 43
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.multitouch.spec.ts/a-wire-unplugged-by-a-gesture-that-is-then-abandoned-comes-back-comes-back-when-a-second-finger-takes-over-1.png": {
+      "bytes": 23022,
+      "lines": 27
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.multitouch.spec.ts/a-wire-unplugged-by-a-gesture-that-is-then-abandoned-comes-back-comes-back-when-the-system-cancels-the-pointer-1.png": {
+      "bytes": 19749,
+      "lines": 36
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.perf.spec.ts/ENFORCED---a-full-drain-stays-linear-in-the-size-of-the-graph-counts-something-proportional-to-the-graph-in-the-first-place-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.perf.spec.ts/ENFORCED---a-full-drain-stays-linear-in-the-size-of-the-graph-doubling-the-node-count-does-not-square-the-readiness-work-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.perf.spec.ts/ENFORCED---building-a-graph-dirties-each-node-once-visits-each-node-about-once--not-once-per-incoming-edge-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.perf.spec.ts/ENFORCED---streams-do-not-leak-leaves-zero-open-iterators-after-the-edge-is-disconnected-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.runtime.events.spec.ts/a-run-bigger-than-the-event-cap-keeps-a-prefix--and-totals-that-describe-the-whole-run-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.runtime.spec.ts/a-hung-node--a-stale-remote-answer--and-a-node-that-opted-out-does-not-wedge-the-runtime-when-a-compute-never-settles-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.runtime.spec.ts/a-hung-node--a-stale-remote-answer--and-a-node-that-opted-out-leaves-a-remote-node-dirty-when-it-was-edited-mid-request-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.runtime.spec.ts/a-hung-node--a-stale-remote-answer--and-a-node-that-opted-out-skips-a-non-reactive-node-on-an-automatic-pass--and-runs-it-on-an-explicit-one-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.runtime.spec.ts/RT-5-streams-propagates-every-yield-and-tears-the-iterator-down-on-disconnect-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.runtime.spec.ts/RT-7-run-and-step-is-still-right-after-an-edit--not-just-after-a-step-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.runtime.spec.ts/RT-9-graph-problems-clears-a-problem-once-it-is-resolved-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.runtime.spec.ts/setGraph-notices-everything-it-models--and-skips-what-it-does-not-notices-a-renamed-node--because-its-problems-are-worded-from-the-title-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.runtime.spec.ts/setGraph-notices-everything-it-models--and-skips-what-it-does-not-notices-a-type-it-no-longer-recognises-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.runtime.spec.ts/setGraph-notices-everything-it-models--and-skips-what-it-does-not-notices-ports-that-changed-without-the-node-id-changing-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.runtime.spec.ts/setGraph-notices-everything-it-models--and-skips-what-it-does-not-re-runs-a-node-that-was-given-a-different-type-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
     "infinite-canvas/addons/node-editor/__screenshots__/node-editor.runtime.spec.ts/what-lands-on-a-node--after-the-wiring-changes-copes-with-a-node-nothing-is-wired-to-1.png": {
       "bytes": 4290,
       "lines": 3
@@ -4530,6 +5090,78 @@
       "lines": 3
     },
     "infinite-canvas/addons/node-editor/__screenshots__/node-editor.runtime.spec.ts/what-lands-on-a-node--after-the-wiring-changes-forgets-a-connection-that-was-removed-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.runtime.spec.ts/what-lands-on-a-node--after-the-wiring-changes-reports-a-required-input-again-once-its-wire-is-gone-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.slicing.spec.ts/a-drain-that-yields-carries-the-deadline-ACROSS-layers--not-per-layer-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.slicing.spec.ts/a-drain-that-yields-yields-when-the-budget-is-spent--and-still-runs-everything-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.slicing.spec.ts/a-hostile-yieldTo-cannot-break-the-runtime-is-not-held-hostage-by-one-that-never-resolves-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.slicing.spec.ts/a-hostile-yieldTo-cannot-break-the-runtime-treats-one-that-throws-as-absent-and-finishes-the-drain-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.slicing.spec.ts/stopping-a-run-ends-the-drain--files-it-as-cancelled--and-leaves-the-graph-resumable-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.slicing.spec.ts/stopping-a-run-leaves-no-node-stuck-running-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.slicing.spec.ts/what-a-gap-lets-happen-does-not-execute-a-node-removed-during-a-yield-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.slicing.spec.ts/what-a-gap-lets-happen-does-not-start-a-node-whose-readiness-was-withdrawn-during-a-yield-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.slicing.spec.ts/what-a-gap-lets-happen-stops-when-the-runtime-is-disposed-mid-slice-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.validate.spec.ts/an-indexed-graph-answers-exactly-as-an-unindexed-one-agrees-about-a-longer-chain-when-cycles-are-refused-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.validate.spec.ts/an-indexed-graph-answers-exactly-as-an-unindexed-one-agrees-about-an-unknown-node-or-port-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.validate.spec.ts/an-indexed-graph-answers-exactly-as-an-unindexed-one-agrees-about-cycles-when-cycles-are-refused-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.validate.spec.ts/an-indexed-graph-answers-exactly-as-an-unindexed-one-agrees-about-typed-ports-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.validate.spec.ts/an-indexed-graph-answers-exactly-as-an-unindexed-one-agrees-on-a-multiple-input--which-is-never-occupied-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.validate.spec.ts/an-indexed-graph-answers-exactly-as-an-unindexed-one-agrees-on-an-empty-graph-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.validate.spec.ts/an-indexed-graph-answers-exactly-as-an-unindexed-one-agrees-on-an-occupied-single-input-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.validate.spec.ts/an-indexed-graph-answers-exactly-as-an-unindexed-one-agrees-when-a-connection-already-exists-1.png": {
       "bytes": 4290,
       "lines": 3
     },
@@ -4566,52 +5198,52 @@
       "lines": 57
     },
     "infinite-canvas/addons/node-editor/node-editor.component.html": {
-      "bytes": 4630,
+      "bytes": 4764,
       "lines": 137
     },
     "infinite-canvas/addons/node-editor/node-editor.component.spec.ts": {
-      "bytes": 26170,
-      "lines": 642
+      "bytes": 47669,
+      "lines": 1113
     },
     "infinite-canvas/addons/node-editor/node-editor.component.ts": {
-      "bytes": 70522,
-      "lines": 1872
+      "bytes": 94419,
+      "lines": 2446
     },
     "infinite-canvas/addons/node-editor/node-editor.direction.spec.ts": {
       "bytes": 4622,
       "lines": 123
     },
     "infinite-canvas/addons/node-editor/node-editor.disposal.spec.ts": {
-      "bytes": 10308,
-      "lines": 287
+      "bytes": 14874,
+      "lines": 401
     },
     "infinite-canvas/addons/node-editor/node-editor.graph.spec.ts": {
-      "bytes": 8206,
-      "lines": 211
+      "bytes": 11623,
+      "lines": 292
     },
     "infinite-canvas/addons/node-editor/node-editor.graph.ts": {
-      "bytes": 6697,
-      "lines": 198
+      "bytes": 8932,
+      "lines": 262
     },
     "infinite-canvas/addons/node-editor/node-editor.history.spec.ts": {
-      "bytes": 9087,
-      "lines": 230
+      "bytes": 11927,
+      "lines": 289
     },
     "infinite-canvas/addons/node-editor/node-editor.history.ts": {
-      "bytes": 8872,
-      "lines": 258
+      "bytes": 10513,
+      "lines": 286
     },
     "infinite-canvas/addons/node-editor/node-editor.integration.spec.ts": {
-      "bytes": 11602,
-      "lines": 322
+      "bytes": 17856,
+      "lines": 468
     },
     "infinite-canvas/addons/node-editor/node-editor.layout.spec.ts": {
-      "bytes": 8616,
-      "lines": 225
+      "bytes": 12686,
+      "lines": 316
     },
     "infinite-canvas/addons/node-editor/node-editor.layout.ts": {
-      "bytes": 6572,
-      "lines": 172
+      "bytes": 8604,
+      "lines": 225
     },
     "infinite-canvas/addons/node-editor/node-editor.legibility.spec.ts": {
       "bytes": 11192,
@@ -4622,44 +5254,44 @@
       "lines": 96
     },
     "infinite-canvas/addons/node-editor/node-editor.locales.ts": {
-      "bytes": 20104,
-      "lines": 398
+      "bytes": 21806,
+      "lines": 420
     },
     "infinite-canvas/addons/node-editor/node-editor.materialize.spec.ts": {
-      "bytes": 7815,
-      "lines": 184
+      "bytes": 10894,
+      "lines": 249
     },
     "infinite-canvas/addons/node-editor/node-editor.materialize.ts": {
-      "bytes": 3231,
-      "lines": 75
+      "bytes": 5626,
+      "lines": 141
     },
     "infinite-canvas/addons/node-editor/node-editor.multitouch.spec.ts": {
-      "bytes": 6723,
-      "lines": 187
+      "bytes": 11346,
+      "lines": 301
     },
     "infinite-canvas/addons/node-editor/node-editor.perf.spec.ts": {
-      "bytes": 11876,
-      "lines": 323
+      "bytes": 17493,
+      "lines": 440
     },
     "infinite-canvas/addons/node-editor/node-editor.replay.spec.ts": {
       "bytes": 6875,
       "lines": 203
     },
     "infinite-canvas/addons/node-editor/node-editor.runtime.events.spec.ts": {
-      "bytes": 9675,
-      "lines": 281
+      "bytes": 11334,
+      "lines": 313
     },
     "infinite-canvas/addons/node-editor/node-editor.runtime.spec.ts": {
-      "bytes": 31645,
-      "lines": 821
+      "bytes": 42207,
+      "lines": 1070
     },
     "infinite-canvas/addons/node-editor/node-editor.runtime.ts": {
-      "bytes": 55015,
-      "lines": 1486
+      "bytes": 89313,
+      "lines": 2228
     },
     "infinite-canvas/addons/node-editor/node-editor.runtime.types.ts": {
-      "bytes": 10824,
-      "lines": 304
+      "bytes": 12216,
+      "lines": 327
     },
     "infinite-canvas/addons/node-editor/node-editor.serialize.spec.ts": {
       "bytes": 6287,
@@ -4668,6 +5300,10 @@
     "infinite-canvas/addons/node-editor/node-editor.serialize.ts": {
       "bytes": 8209,
       "lines": 244
+    },
+    "infinite-canvas/addons/node-editor/node-editor.slicing.spec.ts": {
+      "bytes": 13680,
+      "lines": 344
     },
     "infinite-canvas/addons/node-editor/node-editor.stories.ts": {
       "bytes": 14929,
@@ -4686,16 +5322,16 @@
       "lines": 107
     },
     "infinite-canvas/addons/node-editor/node-editor.validate.spec.ts": {
-      "bytes": 7262,
-      "lines": 186
+      "bytes": 11191,
+      "lines": 288
     },
     "infinite-canvas/addons/node-editor/node-editor.validate.ts": {
-      "bytes": 4974,
-      "lines": 146
+      "bytes": 8351,
+      "lines": 227
     },
     "infinite-canvas/addons/node-editor/node-editor.workload.spec.ts": {
-      "bytes": 13527,
-      "lines": 406
+      "bytes": 21417,
+      "lines": 567
     },
     "infinite-canvas/addons/node-editor/sub/node-editor-node.component.html": {
       "bytes": 6327,
@@ -4734,56 +5370,56 @@
       "lines": 56
     },
     "infinite-canvas/infinite-canvas.component.spec.ts": {
-      "bytes": 13146,
-      "lines": 370
+      "bytes": 15927,
+      "lines": 430
     },
     "infinite-canvas/infinite-canvas.component.ts": {
-      "bytes": 23144,
-      "lines": 684
+      "bytes": 27249,
+      "lines": 758
     },
     "infinite-canvas/infinite-canvas.edge-renderer.spec.ts": {
-      "bytes": 20939,
-      "lines": 565
+      "bytes": 34566,
+      "lines": 890
     },
     "infinite-canvas/infinite-canvas.edge-renderer.ts": {
-      "bytes": 12129,
-      "lines": 354
+      "bytes": 25435,
+      "lines": 703
     },
     "infinite-canvas/infinite-canvas.integration.spec.ts": {
       "bytes": 12250,
       "lines": 340
     },
     "infinite-canvas/infinite-canvas.item-layer.spec.ts": {
-      "bytes": 17960,
-      "lines": 510
+      "bytes": 34349,
+      "lines": 926
     },
     "infinite-canvas/infinite-canvas.item-layer.ts": {
-      "bytes": 9034,
-      "lines": 241
+      "bytes": 21330,
+      "lines": 537
     },
     "infinite-canvas/infinite-canvas.item-pool.ts": {
-      "bytes": 6412,
-      "lines": 181
+      "bytes": 7099,
+      "lines": 192
     },
     "infinite-canvas/infinite-canvas.perf.spec.ts": {
       "bytes": 12317,
       "lines": 344
     },
     "infinite-canvas/infinite-canvas.pointer.spec.ts": {
-      "bytes": 12760,
-      "lines": 346
+      "bytes": 15719,
+      "lines": 407
     },
     "infinite-canvas/infinite-canvas.pointer.ts": {
-      "bytes": 10788,
-      "lines": 316
+      "bytes": 12243,
+      "lines": 339
     },
     "infinite-canvas/infinite-canvas.spatial-hash.spec.ts": {
       "bytes": 7660,
       "lines": 223
     },
     "infinite-canvas/infinite-canvas.spatial-hash.ts": {
-      "bytes": 6598,
-      "lines": 210
+      "bytes": 8387,
+      "lines": 243
     },
     "infinite-canvas/infinite-canvas.stories.ts": {
       "bytes": 7250,
