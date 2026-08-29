@@ -1,14 +1,18 @@
 # Sliced evaluation — 100,000 nodes with logic actually running
 
-> **Status:** revision 2, after three plan reviews. Not yet implemented.
+> **Status:** revision 3, after four plan reviews. Not yet implemented.
 > **Branch:** `feat/infinite-canvas-subgraphs`, on top of `0bcad096`.
 >
 > Revision 1 was reviewed by three independent agents before any code was
-> written. They found **eleven** defects in it, none of which the test list in
-> revision 1 would have caught — including one that made the feature a no-op on
-> the very graph it was designed for, and one that produced silently wrong
-> values. Their findings are folded in below; §9 records what was wrong with
-> revision 1 so the reasoning is not lost.
+> written; they found **eleven** defects, none of which revision 1's own tests
+> would have caught. Revision 2 folded those in and was reviewed again — and
+> **two of its fixes were themselves wrong** (`cancel()` hung the drain; the
+> yield chain was ordered so it never painted), one was unimplementable as
+> written, and one recorded an unverified claim as fact. Revision 3 corrects
+> those. §9 records what each draft got wrong, so the reasoning survives.
+>
+> Sequence so far: 11 defects found in rev 1, 8 in rev 2. None of them cost a
+> line of implementation.
 
 ---
 
@@ -67,21 +71,44 @@ across the build or only the drain, or the number is meaningless.**
 
 ### 2.1 Where the yield goes
 
-Inside `execute()`, not in the `drain()` loop:
+Inside `execute()`, not in the `drain()` loop.
 
-- `drain()`'s `while` is guarded by `MAX_DRAIN_ITERATIONS` (100,000) to catch a
-  non-converging graph. Slicing in the outer loop would make a large graph trip
-  a guard meant to catch a bug.
-- `runnableNow()` copies `readySet` per call.
+**The primary reason is correctness, not tidiness.** `readySet` is NOT a set of
+unstarted nodes: `execute` does not remove a node when it starts it, only
+`settle` and `markDirty` do, and a started-but-unsettled node is still dirty —
+so `refresh()` (which rebuilds `readySet` from `dirty`) can put a *currently
+running* node back into it. The design is safe only because `execute` captures
+`local[]` ONCE, before the loop, and every `runnableNow()` call happens after
+`await this.execute(batch)` has awaited every promise the loop started. No
+re-derived batch is ever consumed while a node it names is in flight.
+
+Move the yield into `drain()`'s loop — the obvious future "simplification" —
+and the re-derived batch names the running node, `executeLocal` runs it a
+second time and `beginRun` aborts the first. For a `reactive: false` node (an
+HTTP POST, the case that flag exists for) that is a duplicate request. **The
+`local[]` capture site needs a comment saying it must not be re-derived.**
+
+Secondary reasons: `drain()`'s `while` is guarded by `MAX_DRAIN_ITERATIONS`
+(100,000) to catch a non-converging graph, and slicing in the outer loop would
+make a large graph trip a guard meant to catch a bug; and `runnableNow()`
+copies `readySet` per call.
 
 ### 2.2 The deadline is a RUNTIME field, not a per-layer local
 
-**This is the correction that makes the feature work at all.** A budget scoped
-to one `execute(batch)` call resets on every layer. The demo's topology is a
-chain (`connection → table → describe → query`), so layers are narrow; in the
-deep limit one node per layer. Each `execute` would start one compute, never
-reach the budget, reset, and return — **the drain would never yield**, on
-exactly the graph this plan exists for, while passing every test in revision 1.
+A budget scoped to one `execute(batch)` call resets on every layer, so on a
+deep, narrow graph the budget is never reached and the drain never yields.
+
+**Revision 2 claimed that was true of THIS demo. It is not — verified.**
+`buildWorkload` uses `TABLES_PER_DB = 8`, so `perDb = 25` and 100k gives ~4,000
+databases: the layers are 4,000 / 32,000 / 32,000 / 32,000. Wide, not narrow. A
+per-layer budget would yield ~27 times inside layer 2 alone. Revision 2 took a
+reviewer's claim and recorded it as fact without checking the arithmetic, in a
+document written to stop exactly that.
+
+The runtime-level deadline is still the right design — it is correct for
+genuinely deep chains, and §3 deliberately proposes deepening this graph past
+four layers, which moves it toward that shape. But it is a defence, not the
+reason the current demo fails.
 
 ```ts
 private sliceDeadline = 0;   // runtime field
@@ -153,12 +180,24 @@ ghost node, fire `onNodeSettled` into the editor, and flip the whole run to
 
 A composite, not bare `requestAnimationFrame`:
 
-1. **`scheduler.yield()`** where available — the standardised primitive,
-   resumes at continuation priority (so the drain is not starved behind tasks
-   queued during the gap), and runs in a hidden tab.
-2. **`requestAnimationFrame`** — the only thing that guarantees a frame was
-   painted, which is goal 3.
-3. **`setTimeout`** — the floor.
+**`requestAnimationFrame` raced against `setTimeout(…, ~16)`.** That pair is
+the whole mechanism: rAF for the guaranteed paint (goal 3), the timeout as the
+hidden-tab floor.
+
+**`scheduler.yield()` must NOT lead the chain.** Revision 2 put it first on a
+reviewer's recommendation and that defeats the deliverable: it resumes at
+*continuation* priority — ahead of rendering — precisely so the caller is not
+descheduled. In Chrome (the only engine that ships it) leg 1 would always win,
+so no frame is ever guaranteed and the wavefront is never visible in the
+browser the change takes effect in. Two further problems: `scheduler` is not in
+`lib.dom.d.ts`, so it needs a hand-written interface (a `globalThis as any`
+cast fails the Sonar gate); and resuming ahead of rendering also resumes ahead
+of Angular's change detection, so the editor's `setGraph` effect has not yet
+applied a mid-run edit when the `readySet` guard is consulted — the guard's
+protection depends on the gap being long enough for CD to flush.
+
+It is at best an *additional* micro-gap for input responsiveness inside a
+slice. Not the paint leg, and not first.
 
 rAF alone is a **permanent wedge in a hidden tab**: no frames, so
 `await yieldTo()` never returns, `draining` never clears, and every later
@@ -187,29 +226,41 @@ and defended:
   propagate abandons the drain mid-layer with nodes stuck `running`, and
   rejects `run()` for a fault in a presentation callback.
 
-### 2.6 Per-slice batching of signal writes
+### 2.6 What a yield actually costs, and where to batch
 
-**Revision 1 budgeted compute and ignored the rest of the frame.** Today all
-100k settles happen inside one block, so Angular (zoneless) runs change
-detection *once*, at the end. The moment we yield, every gap flushes CD.
+**Revision 2 budgeted the wrong thing.** `markRecentlyRan`'s ~2×10⁷ consumer
+visits happen *today*, unchanged by slicing — a signal write notifies its live
+consumers synchronously whether or not change detection runs. What slicing
+ADDS is one CD pass per gap.
 
-Per settle, today: `onNodeSettled` → `markRecentlyRan` writes
-`recentlyRanVersion` (a signal Angular walks the live-consumer list for, and
-`recentlyRan(node.id)` is bound on every mounted card — ~200-600 consumers), and
-`refreshAfter` calls `bumpReady()`. At 100k that is ~2×10⁷ consumer visits of
-pure bookkeeping plus 100,000 zoneless CD notifications.
+And the dominant per-gap cost is not the highlight at all. `[items]` is bound
+to `sizedNodes()`, which reads **every node's state signal**. So one
+`ctx.setState` from any compute invalidates, per gap:
 
-So:
+- `sizedNodes` — materialise + heights over 100k;
+- `toCanvasEdges` — 96k;
+- `edgeRenderer.setEdges` — a full 96k sweep its own JSDoc measures at **14ms
+  at this scale**;
+- `itemLayer.setItems` → `tryMoveOnly`'s 100k identity walk → `invalidate()` →
+  a **full re-cull next frame**;
+- `runtime.setGraph`'s diff (`sameShape` short-circuits on position, not on a
+  changed `ports` array).
 
-- `markRecentlyRan` accumulates into its map and bumps the version **once per
-  slice**, not per settle.
-- The demo's progress readout accumulates into a plain field and publishes per
-  slice, never per event.
-- `recentlyRanUntil` gets a bound: a highlight for a node that has never been
-  mounted is bookkeeping for nobody. And `nextSweepDelay()` must not be O(n)
-  per sweep — with entries arriving continuously and a 900ms window the next
-  deadline is always ~a frame away, so it re-arms every ~16ms and walks a
-  60-100k map twice each time, for the run's duration plus 900ms.
+That is ≥50ms per gap and **no `sliceMs` value fixes it.** Today's demo
+computes only *read* `ctx.state`, so it never fires — but §3 says give them
+real cost, and any state write detonates this. §7's measurement must be
+designed to see this mechanism specifically, or it will report "the budget is
+fine" while the page stutters.
+
+**Where batching can even happen.** There is no "end of slice" seam in the
+editor: `markRecentlyRan` is called from `onNodeSettled`, and only the runtime
+knows a slice ended. The one seam that exists is **the editor's own `yieldTo`
+callback** — flush, then yield. That leaves two cases it never reaches, both of
+which must be handled explicitly or the highlight never appears:
+
+- the **final slice**, with no yield after it → flush on `onRunFinished`;
+- settles with **no session at all** — `report()` uses `this.session?.id ?? 0`,
+  and stream emissions via `consume` settle outside any run.
 
 ### 2.7 `durationMs` must not become a lie
 
@@ -224,21 +275,49 @@ the run-history panel.
 
 ### 2.8 Cancellation
 
-Runs now last seconds, so a Run button without a Stop is not acceptable —
-and today **nothing** can stop a run: `abortRun` is private and per-node,
-`dispose()` is terminal and never resets, and the editor exposes only
-`run`/`step`/`readyNodes`.
+Runs now last seconds, so Run without Stop is not acceptable — and today
+**nothing** can stop a run: `abortRun` is private and per-node, `dispose()` is
+terminal and never resets, and the editor exposes only `run`/`step`/
+`readyNodes`.
 
-`cancel()` on the runtime, surfaced on the editor beside `run()`:
+**Revision 2's sketch was wrong in three ways**, all verified:
 
-- set a cancel flag (checked at the same points as `disposed`, §2.3);
-- abort in-flight runs and the `remoteBatches` controllers;
-- close the session via `leaveSession()` so `onRunFinished` still fires —
-  otherwise `RunHistoryStore.openGraphs` retains a whole-graph snapshot for a
-  run that never finishes, which is what its `openCount` getter exists to
-  expose;
-- **leave the graph dirty**, so a later Run resumes rather than restarts;
+1. **It hangs.** `execute` returning early on `cancelled` while the graph stays
+   dirty means nothing leaves `readySet`, so `runnableNow()` returns the
+   identical batch and `drain()` spins. `run()`'s outer loop has the same
+   shape and allocates a 100,000-element array per iteration, and `await` on an
+   already-resolved async function is a microtask — so Stop on a 100k board
+   freezes the tab, then eventually throws `evaluation did not converge`, a lie
+   about a graph that converges fine. `dispose()` escapes this only because it
+   clears `readySet`.
+2. **`leaveSession()` is the wrong exit.** It decrements `runDepth` and returns
+   early while depth > 0, and mid-drain the depth is routinely ≥2 because the
+   editor's effect fires `run({automatic:true})` on every graph/state change
+   and those nest. So it would NOT fire `onRunFinished` — the exact
+   `openGraphs` leak it was invoked to avoid — and it corrupts the depth for
+   the real `finally` in `run()` and `step()`.
+3. **It strands nodes.** Aborting in-flight runs makes `raceAbort` resolve
+   `ABANDONED` and `executeLocal` return **without settling**, so every started
+   node keeps `status: 'running'` for ever: spinners on screen, and never
+   re-picked as stale. And aborting the remote controllers falls through a
+   `disposed`-only guard, settling the whole batch as `'error'` — so pressing
+   Stop files the run in history as a failure.
+
+So `cancel()` must:
+
+- be checked in **`drain()`'s loop condition and `run()`'s**, both returning
+  cleanly — not only inside `execute`;
+- **force-close the session itself**: emit `onRunFinished` directly, set
+  `runDepth = 0`, null the session — never via `leaveSession()`;
+- **reset aborted nodes to `'stale'`**, leaving them dirty so a later Run
+  resumes;
+- extend every remote-path `this.disposed` guard to `disposed || cancelled`;
+- report **`status: 'cancelled'`** on `RunFinishedEvent` (required field, no
+  optional hedging), not `'done'` for a partial run;
 - clear the flag on the next `run()`.
+
+Test 8 must assert termination **with a real timeout**, or a regression hangs
+the suite instead of failing it.
 
 ### 2.9 Run-history memory
 
@@ -261,15 +340,67 @@ open question, which it asked and then contradicted in its body. Consumers of
 | `slowestNode` (`history.utils.ts:61`) | the genuinely slowest node is the one most likely to have settled early and been dropped — names the wrong node |
 | `shareOfRun` (`history.utils.ts:70`) | denominator sums only the retained tail |
 
-So the cap ships **with** a `settledCount` total carried through
-`RunFinishedEvent` → `RunRecord` to those readouts. The graph-snapshot
-retention is sized/bounded separately.
+A count repairs only the first row. `slowestNode` reduces over the retained
+tail, and no count can tell it which node was slowest; `shareOfRun`'s
+denominator is a sum over the tail, and no count restores it. A fourth
+consumer is worse: **`replayFrame`** builds its frame from `run.nodes`, and the
+editor falls back *per node* to live values when the frame lacks an entry — so
+a capped replay silently mixes recorded and live values with nothing marking
+which is which.
+
+So the cap ships with **three** required fields on `RunFinishedEvent` →
+`RunRecord`: `settledCount`, a running **max-duration event**, and a running
+**duration total**. Pick one eviction policy and say it — revision 2 stated
+both "keeping the most recent" and "stops growing past the cap". For replay,
+drop-oldest is the worse choice, because upstream sources settle first and
+their values are exactly what a replay needs.
+
+**Do not copy `MAX_RECORDED_COMPUTES`' `shift()`.** A 5,000-element `shift`
+× 100,000 settles is ≈500M element moves added to the hot settle path —
+recreating the cost profile this work exists to remove. Ring buffer with a
+write cursor, or drop-newest plus a counter.
+
+And state what the cap does **not** buy: `report` still builds
+`{...inputs}`/`{...outputs}` clones and still fires `onNodeSettled` 100,000
+times. It bounds retention, not allocation or emission.
+
+The graph-snapshot retention is sized separately.
 
 ### 2.10 Accessibility
 
 A multi-second board change is silent to a screen reader today. The live
 region exists and announces every edit, but nothing announces evaluation. Add
 one polite announcement at start and one at finish (not per node).
+
+### 2.11 A live run collides with the drag path — verified
+
+The drag path committed in `0bcad096` keeps `nodes` unwritten during a gesture
+and commits once on release. That was safe because nothing else changed `nodes`
+mid-drag. A live run breaks the assumption: a settle can `setState`, and
+`sizedNodes` reads every node's state signal, so a settle produces a new node
+array which flows into `[items]` → `setItems` → `tryMoveOnly`.
+
+Whether the dragged card is yanked back depends on a cache policy:
+
+- `withMaterializedTypes` caches a materialised node **keyed on the node
+  object**, unless `isStateDependent` — i.e. the type declares `portsFor`.
+- **Static-port types** hit that cache, so a recompute hands back the *same*
+  object, `tryMoveOnly` sees `before === after` and skips it. The card stays
+  under the finger.
+- **Dynamic-port types** (subgraphs, any type with `portsFor`) are
+  re-materialised every recompute — a **new object each time**, still carrying
+  the pre-drag GRAPH position — so `tryMoveOnly` calls `hash.move` and the card
+  **snaps back to where the gesture started**, potentially once per frame.
+
+The stress demo's four types all have static ports, so it will not reproduce
+there. That makes it more dangerous, not less: the demo looks fine and a
+consumer dragging a subgraph node during a live run sees the card fight them.
+
+This is a defect in the SHIPPED drag path, not only in this plan — it needs any
+`sizedNodes` recompute mid-gesture, which a live run makes routine. It needs
+its own fix (most likely: the editor re-applies `drag.live` on top of any
+`sizedNodes` change while a gesture is in flight) and its own test, and that
+work belongs **before** the demo starts running logic at 100k.
 
 ---
 
@@ -341,17 +472,29 @@ by.
 13. A `yieldTo` that throws is treated as absent; the drain completes.
 14. A `yieldTo` that never resolves does not wedge the runtime (raced against
     dispose/cancel).
+15. **`cancel()` terminates**, asserted under a real timeout so a regression
+    fails rather than hanging the suite. *Break:* leave the graph dirty without
+    breaking `drain()`'s and `run()`'s loop conditions → spins.
+16. **`cancel()` leaves no node `running`** and files the run as `cancelled`,
+    not `done` or `error`.
+17. **A dragged node is not yanked back by a settle mid-gesture** — with a
+    `portsFor` type, which is the only shape that reproduces it (§2.11).
+    *Break:* drop the drag-overlay re-apply → the card returns to its graph
+    position.
+18. **`step()` does not yield** for its single node (the deadline must not be
+    left in the past by a previous drain).
 
 Editor:
 
-15. The editor configures a yield.
-16. **A real frame runs between two computes** — schedule a rAF before `run()`
+19. The editor configures a yield.
+20. **A real frame runs between two computes** — schedule a rAF before `run()`
     and assert it interleaved with the recorded compute order. *This is the
     only test that fails when the yield degrades to a microtask*, and it is the
     one the whole change exists to satisfy.
-17. The pending frame is cancelled on destroy.
-18. Signal writes are batched per slice, not per settle. *Break:* bump per
-    settle → the count scales with nodes rather than slices.
+21. The pending frame is cancelled on destroy.
+22. Signal writes are batched per slice, not per settle — including the final
+    slice, and settles with no session. *Break:* bump per settle → the count
+    scales with nodes rather than slices.
 
 Every test gets the standard sabotage pass.
 
@@ -359,23 +502,27 @@ Every test gets the standard sabotage pass.
 
 ## 6. Order of work
 
-1. `durationMs` stamp (§2.7) — one line, independent, and wrong today the
-   moment anything slices.
-2. Session cap + `settledCount` + history readouts (§2.9).
-3. `sliceDeadline`, `yieldTo`/`sliceMs`, sliced `execute` with the `readySet`
-   guard (§2.2-2.5) + tests 1-14.
-4. `cancel()` (§2.8).
-5. Per-slice signal batching (§2.6) + test 18.
-6. Editor opt-in, composite yield, destroy handling (§2.4) + tests 15-17.
-7. **Split measurement** (§7) — before the demo work, so we know whether the
-   budget or CD is the limit.
-8. Demo: Run/Stop, real compute cost, deeper chain, framing, control gating
-   (§3, §4).
-9. Device measurement, then SonarQube.
+Re-ordered after the rev-2 review: the split measurement moves early, because
+it decides whether `sliceMs` is even the right lever, and the drag fix moves
+first, because it is a defect in shipped code.
+
+1. **The drag-vs-settle fix** (§2.11) + test 17 — shipped code is defective
+   today for `portsFor` types; independent of everything else here.
+2. `durationMs` stamp (§2.7) — one line, wrong the moment anything slices.
+3. Session cap + `settledCount` + max-duration + duration total + the four
+   history readouts (§2.9).
+4. `sliceDeadline`, `yieldTo`/`sliceMs`, sliced `execute` with the `readySet`
+   guard (§2.1–2.5) + tests 1–14, 18.
+5. **The split measurement** (§7) — before any tuning or demo work, so we know
+   whether compute or change detection is the limit.
+6. `cancel()` (§2.8) + tests 15–16.
+7. Editor opt-in, composite yield, destroy handling (§2.4) + tests 19–21.
+8. Per-slice batching at the `yieldTo` seam (§2.6) + test 22.
+9. Demo: Run/Stop, real compute cost, deeper chain, framing, control gating,
+   a11y announcements (§3, §4, §2.10).
+10. Device measurement, then SonarQube.
 
 Follow-up, not in this change: slicing the cold build (§1).
-
----
 
 ## 7. Verification
 
@@ -410,7 +557,7 @@ term. Start at 8ms, and let the measurement decide.
 
 ---
 
-## 9. What revision 1 got wrong
+## 9. What each draft got wrong
 
 Recorded so the reasoning survives, per the project's living-spec rule.
 
@@ -427,3 +574,16 @@ Recorded so the reasoning survives, per the project's living-spec rule.
 | 9 | "The flow effect needs nothing new" | Would show one flash, not a wave. |
 | 10 | Run with no Stop | Nothing today can stop a multi-second run. |
 | 11 | Cold build dismissed on one number | It is five steps, ~1s+, and plausibly the larger half of the felt cost. |
+
+### Revision 2
+
+| # | Defect | Consequence |
+|---|---|---|
+| 12 | `cancel()` returned early while leaving the graph dirty | `drain()` and `run()` both spin on an unchanged `readySet`; Stop freezes the tab, then throws a false "did not converge" |
+| 13 | `cancel()` exiting via `leaveSession()` | `runDepth` is routinely ≥2 mid-drain, so `onRunFinished` never fires — the exact leak it was invoked to prevent — and the depth is corrupted for later runs |
+| 14 | `cancel()` aborting in-flight runs | `raceAbort` resolves `ABANDONED` and `executeLocal` returns without settling: nodes stuck `running` for ever, remote batches filed as `error` |
+| 15 | `scheduler.yield()` first in the yield chain | Resumes at continuation priority — ahead of rendering AND ahead of Angular CD. In Chrome leg 1 always wins, so no frame is painted and the wavefront, the whole deliverable, is never seen |
+| 16 | §2.6 batching "in the editor" | No seam exists; only the runtime knows a slice ended. The `yieldTo` callback is the seam, and it misses the final slice and session-less settles |
+| 17 | §2.6 budgeting `markRecentlyRan` | Those consumer visits happen today regardless. The cost slicing ADDS is a CD pass per gap, dominated by the `sizedNodes` → edges → re-cull chain at ≥50ms, which no `sliceMs` fixes |
+| 18 | "The demo is chain-shaped, so a per-layer budget never yields" | **False, and mine** — repeated from a reviewer without checking. Layers are 4,000 / 32,000 × 3. The runtime deadline is still right, for different reasons |
+| 19 | `settledCount` alone repairing the history | A count cannot restore `slowestNode`, `shareOfRun`'s denominator, or `replayFrame`'s per-node fallback |
