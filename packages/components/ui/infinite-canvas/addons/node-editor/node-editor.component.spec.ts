@@ -292,6 +292,61 @@ describe('NodeEditorComponent', () => {
             expect(at('a')).toEqual(landed);
         });
 
+        it('keeps the card under the pointer when the graph is written mid-drag', async () => {
+            /*
+             * A drag leaves `nodes` alone until release, so for the whole
+             * gesture the engine's copy of the dragged card is ahead of the
+             * graph. Anything that writes `nodes` in between hands the engine
+             * an array where that card is still at its pre-drag position, and
+             * it moves it back — out from under the finger.
+             *
+             * Ctrl+Z reaches it with nothing exotic: the undo path has no
+             * gesture guard and replaces the whole array. An async compute
+             * setting state on a `portsFor` node does the same, and a live
+             * evaluation would make it constant.
+             *
+             * Asserted on the rendered transform, because the signal is
+             * deliberately NOT updated during a gesture — reading `nodes()`
+             * here would assert the thing the design removed.
+             */
+            const at = cardAt;
+
+            /*
+             * A real command on the stack, through the editor — a direct write
+             * to the host signal records nothing, so Ctrl+Z would be a no-op
+             * and the test would pass with the fix removed. It also has to
+             * CHANGE THE LENGTH: undoing a move leaves every other node's
+             * identity intact, so the engine's diff skips them. Restoring a
+             * deleted node does not, and forces a full rebuild at graph
+             * positions — which is the path that reaches the dragged card.
+             */
+            const editor = fixture.debugElement.children[0].componentInstance as NodeEditorComponent;
+            host.selection.set({ nodes: ['c'], connections: [] });
+            await settle();
+            editor.deleteSelection();
+            await settle();
+            expect(host.nodes()).toHaveLength(2);
+
+            pointer(nodeEl('a'), 'pointerdown', { clientX: 40, clientY: 40 });
+            await settle();
+            pointer(root, 'pointermove', { clientX: 190, clientY: 40 });
+            await settle();
+
+            const dragged = at('a');
+            expect(dragged.x).toBe(START_A.x + 150);
+
+            // A graph write, mid-gesture, from somewhere else entirely.
+            key(root, { key: 'z', ctrlKey: true });
+            await settle();
+            expect(host.nodes()).toHaveLength(3);
+
+            expect(at('a')).toEqual(dragged);
+
+            pointer(root, 'pointerup', { clientX: 190, clientY: 40 });
+            await settle();
+            expect(host.nodes().find(n => n.id === 'a')?.x).toBe(START_A.x + 150);
+        });
+
         it('moves the whole selection when a selected node is dragged', async () => {
             pointer(nodeEl('a'), 'pointerdown', { clientX: 10, clientY: 10 });
             await settle();

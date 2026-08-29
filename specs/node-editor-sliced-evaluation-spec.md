@@ -396,11 +396,26 @@ The stress demo's four types all have static ports, so it will not reproduce
 there. That makes it more dangerous, not less: the demo looks fine and a
 consumer dragging a subgraph node during a live run sees the card fight them.
 
-This is a defect in the SHIPPED drag path, not only in this plan — it needs any
-`sizedNodes` recompute mid-gesture, which a live run makes routine. It needs
-its own fix (most likely: the editor re-applies `drag.live` on top of any
-`sizedNodes` change while a gesture is in flight) and its own test, and that
-work belongs **before** the demo starts running logic at 100k.
+**FIXED, ahead of everything else here.** It turned out to be reachable with
+nothing exotic at all, and not only for `portsFor` types: **Ctrl+Z during a
+drag**. The undo path has no gesture guard and replaces the whole array, and
+when the undone command CHANGES THE LENGTH (restoring a deleted node), the
+engine cannot take its identity-diff shortcut and rebuilds every item at its
+graph position — so the dragged card jumps back. Undoing a *move* does not
+reach it, because unchanged nodes keep their identity; the first version of
+the test asserted exactly that and passed with the fix removed.
+
+The fix is an `afterRenderEffect` that, while a gesture is live, rebuilds only
+the dragged ids from the new sized objects and re-issues `moveItems` — O(dragged),
+through the seam the gesture already uses, after the engine has taken the new
+items. Verified by reverting it: the card snaps from x=160 to x=10 mid-drag.
+
+One correction this forces to §2.6: `materializeNode` reads state ONLY for
+types declaring `portsFor`, so `sizedNodes` depends on the state signals of
+dynamic-port nodes only. The ≥50ms per-gap chain is therefore conditional on
+those types rather than universal — which lands it squarely on subgraph nodes,
+this branch's headline feature, but spares a static-port graph like the
+demo's.
 
 ---
 

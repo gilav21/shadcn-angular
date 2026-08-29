@@ -1,4 +1,5 @@
 import {
+  afterRenderEffect,
   ChangeDetectionStrategy,
   Component,
   ContentChild,
@@ -1725,6 +1726,40 @@ export class NodeEditorComponent {
       live: null,
     };
   }
+
+  /**
+   * Put the dragged cards back where the FINGER is, after any graph write.
+   *
+   * A drag deliberately leaves `nodes` alone until it is released, so the
+   * engine's copy of a dragged card is ahead of the graph for the whole
+   * gesture. Anything that writes `nodes` mid-drag hands the engine an array
+   * in which those cards are still at their pre-drag positions, and it
+   * dutifully moves them back — the card jumps out from under the pointer.
+   *
+   * It is reachable today, with nothing exotic: Ctrl+Z during a drag (the
+   * undo path has no gesture guard and replaces the whole array), an async
+   * `compute` resolving mid-gesture and setting state on a node whose type
+   * declares `portsFor`, or any addon writing the `nodes` input. A live
+   * evaluation would make it routine.
+   *
+   * Bounded by the number of dragged nodes, not the size of the graph, and it
+   * reuses the same seam the gesture already moves through. `afterRenderEffect`
+   * rather than `effect`, so it lands after the engine has taken the new
+   * items — putting them back before they arrive would achieve nothing.
+   */
+  private readonly keepDraggedCardsUnderThePointer = afterRenderEffect(() => {
+    const byId = this.nodesById();
+    const live = this.drag?.live;
+    if (!live || live.size === 0) return;
+
+    const rebuilt: EditorNode[] = [];
+    for (const [nodeId, at] of live) {
+      const sized = byId.get(nodeId);
+      if (sized) rebuilt.push({ ...sized, ...at });
+    }
+
+    if (rebuilt.length > 0) this.canvas().moveItems(rebuilt);
+  });
 
   private updateDrag(at: DragPoint): void {
     const drag = this.drag;
