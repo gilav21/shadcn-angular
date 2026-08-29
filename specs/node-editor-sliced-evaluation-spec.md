@@ -556,6 +556,32 @@ and `MAX_BUILT_PATHS`, both of which this codebase got wrong. It is defensible
 only if the split measurement above shows compute is actually the dominant
 term. Start at 8ms, and let the measurement decide.
 
+### Measured, on the desktop
+
+100,000 nodes, 96,000 connections, 4,000 zones, computes at ~50µs:
+
+| | |
+|---|---|
+| slice | **8.0ms** — the drain spends its whole budget |
+| gap | **3.9ms** — change detection, layout and paint, together |
+| settled | 100,000 |
+
+So the cycle is ~11.9ms against a 16.7ms frame, and the drain is about
+two-thirds of it.
+
+**This settles the open question: `sliceMs` IS the lever on this graph.** The
+review's largest worry — that the per-gap change-detection cost would dominate
+and no budget value would help — does not materialise here, and the reason it
+does not is the same conditional that made §2.11 conditional: the invalidation
+chain (`sizedNodes` → edge descriptors → 96k sweep → re-cull) fires only for
+types declaring `portsFor`, and the demo's four types declare static ports. A
+graph built from subgraph nodes would be the case to re-measure, and that is
+where the number would be expected to invert.
+
+Still to measure: the same split on the phone, and the slowest frame WHILE
+evaluating (press Measure and Run together) — the acceptance test in §7 is the
+frame time under evaluation, not the split alone.
+
 ---
 
 ## 8. Deferred, deliberately
