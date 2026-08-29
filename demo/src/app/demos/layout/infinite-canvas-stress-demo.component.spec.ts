@@ -122,6 +122,43 @@ describe('InfiniteCanvasStressDemoComponent', () => {
     expect(demo.settled()).toBeGreaterThan(0);
   }, 30_000);
 
+  it('still lights the nodes it runs', async () => {
+    /*
+     * The page's whole point is watching the wave move. The editor lights a
+     * node from its OWN settle handler, so measuring the run by assigning
+     * over that handler turns the flow effect off entirely — a hundred
+     * thousand nodes evaluated with nothing to see, which is what shipped and
+     * what this pins.
+     */
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    await setup();
+    vi.runOnlyPendingTimers();
+    fixture.detectChanges();
+    vi.useRealTimers();
+
+    const demo = fixture.componentInstance as unknown as {
+      run(): Promise<void>;
+      stop(): void;
+    };
+
+    /*
+     * Sampled WHILE it runs, which is the only time there is anything to see.
+     * A run is spread over a few seconds and the highlight lasts under one, so
+     * by the time it finishes the cards that settled first have long gone dark
+     * — asserting afterwards tested the wrong moment and failed for the right
+     * reason.
+     */
+    const running = demo.run();
+    await new Promise(resolve => setTimeout(resolve, 300));
+    fixture.detectChanges();
+
+    const lit = (fixture.nativeElement as HTMLElement).querySelectorAll('[data-ran="true"]');
+    expect(lit.length).toBeGreaterThan(0);
+
+    demo.stop();
+    await running;
+  }, 30_000);
+
   it('counts the nodes of a run that never yields', async () => {
     /*
      * The final slice has no gap after it, so anything counted there is

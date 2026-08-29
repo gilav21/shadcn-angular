@@ -43,23 +43,30 @@ const SCALES = [1_000, 10_000, 50_000, 100_000] as const;
 type Scale = (typeof SCALES)[number];
 
 /**
- * Roughly how long one node's `compute` takes, in milliseconds.
+ * How long a whole evaluation should take, in milliseconds.
  *
- * The four types used to be identity passthroughs at a few microseconds each,
- * which made the headline — a hundred thousand nodes *with logic* — a lie, and
- * made the wavefront impossible to watch: an eight-millisecond slice started
- * something like twelve hundred nodes, so every card on screen lit within a
- * frame or two and went dark together. With real work in them a slice covers
- * tens of nodes and the wave crosses the board at a speed a person can see.
- *
- * A hundred thousand of these is several seconds of evaluation, which is why
- * Stop exists.
+ * Spread across however many nodes there are, rather than a fixed cost per
+ * node. A fixed cost cannot be watched at either end: the four types used to
+ * be identity passthroughs at a few microseconds, so a thousand nodes finished
+ * before the first paint; and at fifty microseconds each a hundred thousand
+ * nodes take ten seconds while a thousand still finish in a tenth of one.
+ * Pinning the RUN rather than the node keeps the wave at a speed a person can
+ * follow at every size the page offers.
  */
-const COMPUTE_MS = 0.05;
+const RUN_MS = 4_000;
 
-/** Busy work that cannot be optimised away, and returns something usable. */
+/** Per-node budget, set when a graph is built. See {@link RUN_MS}. */
+let computeMs = 0.05;
+
+/**
+ * Busy work that cannot be optimised away, and returns something usable.
+ *
+ * A spin rather than a sleep, because the point is to occupy the thread the
+ * way a real `compute` would — an `await` would hand the time back and measure
+ * nothing.
+ */
 function think(seed: number): number {
-  const until = performance.now() + COMPUTE_MS;
+  const until = performance.now() + computeMs;
   let value = seed;
   while (performance.now() < until) {
     value = (value * 31 + 7) % 100_000;
@@ -279,10 +286,19 @@ export class InfiniteCanvasStressDemoComponent {
     this.settledSinceGap = 0;
     this.sliceStarted = performance.now();
 
-    const countSettled = (): void => {
+    /*
+     * CHAINED, not replaced.
+     *
+     * The editor sets this handler itself, and it is what lights a node that
+     * just ran — assigning over it silently turned the whole flow effect off,
+     * which is exactly how the first version of this page evaluated a hundred
+     * thousand nodes with nothing whatsoever to watch.
+     */
+    const editorsOwn = runtime.onNodeSettled;
+    runtime.onNodeSettled = (event): void => {
+      editorsOwn?.(event);
       this.settledSinceGap++;
     };
-    runtime.onNodeSettled = countSettled;
 
     runtime.yieldTo = async (): Promise<void> => {
       this.gapStarted = performance.now();
@@ -301,7 +317,7 @@ export class InfiniteCanvasStressDemoComponent {
       await runtime.run();
     } finally {
       runtime.yieldTo = yieldTo;
-      runtime.onNodeSettled = null;
+      runtime.onNodeSettled = editorsOwn;
       this.settled.update(count => count + this.settledSinceGap);
       this.evaluating.set(false);
       this.countCards();
@@ -340,6 +356,11 @@ export class InfiniteCanvasStressDemoComponent {
     clearTimeout(this.buildHandle);
     this.buildHandle = setTimeout(() => {
       const built = buildWorkload(scale);
+
+      // Spread one run's worth of work over however many nodes there are, so
+      // the wave moves at the same speed at every size. See `RUN_MS`.
+      computeMs = RUN_MS / Math.max(1, built.nodes.length);
+
       this.nodes.set(built.nodes);
       this.connections.set(built.connections);
       this.groups.set(built.groups);
