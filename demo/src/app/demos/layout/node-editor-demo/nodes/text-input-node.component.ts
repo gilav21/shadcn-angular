@@ -28,6 +28,7 @@ export interface TextInputState {
       [attr.aria-label]="'Value for ' + ctx.nodeId"
       (input)="onInput($event)"
       data-testid="text-input-node"
+      dir="auto"
     />
   `,
 })

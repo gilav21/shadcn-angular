@@ -20,7 +20,7 @@ import {
   type CanvasItemContext,
 } from './infinite-canvas-item.directive';
 import { CanvasEdgeRenderer } from './infinite-canvas.edge-renderer';
-import { CanvasItemLayer } from './infinite-canvas.item-layer';
+import { CanvasItemLayer, DEFAULT_MAX_MOUNTED } from './infinite-canvas.item-layer';
 import { CanvasItemViewPool } from './infinite-canvas.item-pool';
 import {
   CanvasPointerMachine,
@@ -106,7 +106,26 @@ function emptyItemContext<T extends CanvasItem>(): CanvasItemContext<T> {
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './infinite-canvas.component.html',
   styleUrl: './infinite-canvas.component.css',
-  host: { class: 'contents' },
+  host: {
+    class: 'contents',
+    /*
+     * The release is caught on the WINDOW as well as on the root.
+     *
+     * A press is recorded when it lands on the root, but the matching release
+     * is delivered wherever the pointer happens to be — and for a node drag
+     * that is often not inside the root at all. The capturing element is a
+     * virtualised card, so recycling it mid-drag detaches it and its
+     * `lostpointercapture` goes to a node no longer in the document; a drop
+     * over a group frame or the pending-wire overlay lands on a SIBLING of
+     * the canvas. Either way the editor ends its drag and the engine is never
+     * told, leaving a pointer down for ever.
+     *
+     * Only acts on a pointer this engine actually tracks, so the listener is
+     * inert for every other press on the page.
+     */
+    '(window:pointerup)': 'onWindowRelease($event)',
+    '(window:pointercancel)': 'onWindowRelease($event)',
+  },
 })
 export class InfiniteCanvasComponent<T extends CanvasItem = CanvasItem> implements AfterViewInit, OnDestroy {
   /**
@@ -205,15 +224,19 @@ export class InfiniteCanvasComponent<T extends CanvasItem = CanvasItem> implemen
       this.requestFrame();
     });
 
+    /*
+     * One effect for both, because it already depended on both.
+     *
+     * There were two: this one, and a second that rebuilt the edges again. Both
+     * read `items` and `edges` — the read of `edges` here is inside the
+     * `rebuildEdges` call — so every change to either ran both, and every
+     * `Path2D` in the graph was built twice for one edit. The second was pure
+     * duplication, not a separate concern.
+     */
     effect(() => {
       const items = this.items();
       this.rebuildLayer(items);
       this.rebuildEdges(items, this.edges());
-      this.requestFrame();
-    });
-
-    effect(() => {
-      this.rebuildEdges(this.items(), this.edges());
       this.requestFrame();
     });
   }
@@ -329,6 +352,28 @@ export class InfiniteCanvasComponent<T extends CanvasItem = CanvasItem> implemen
    * defined: **items win over edges**, matching what the user sees, since the
    * item layer is painted above the edge canvas.
    */
+  /**
+   * Moves a few items now, without going through `items`.
+   *
+   * The drag path. Replacing the `items` input makes every derivation above
+   * this component re-run over the whole graph — materialising, heights, the
+   * id maps, the edge descriptors, the runtime's shape check — to express
+   * that one node moved four pixels. Measured at fifty milliseconds a frame
+   * at a hundred thousand nodes on a desktop, which is a quarter of a second
+   * on a phone, and it is why panning was smooth while dragging was not:
+   * panning never replaces that array.
+   *
+   * The caller keeps the moved objects and hands the whole array back once,
+   * on drop, so every memo downstream sees the edit exactly once.
+   */
+  moveItems(moved: readonly T[]): void {
+    if (moved.length === 0) return;
+
+    this.layer?.moveItems(moved);
+    this.edgeRenderer?.moveItems(moved);
+    this.requestFrame();
+  }
+
   hitTest(point: CanvasPoint): CanvasHit | null {
     const world = this.screenToWorld(point);
 
@@ -407,6 +452,12 @@ export class InfiniteCanvasComponent<T extends CanvasItem = CanvasItem> implemen
     if (wasInteracting) this.endInteractionIfIdle();
   }
 
+  /** The safety net described on `host`. See {@link onPointerUp}. */
+  onWindowRelease(event: PointerEvent): void {
+    if (!this.machine.tracks(event.pointerId)) return;
+    this.onPointerUp(event);
+  }
+
   /**
    * Split out so the mode check gets fresh control-flow analysis — reading the
    * getter again inside `onPointerUp` sees the type narrowed by its own guard.
@@ -419,9 +470,17 @@ export class InfiniteCanvasComponent<T extends CanvasItem = CanvasItem> implemen
   onBlur(): void {
     this.machine.setSpacePressed(false);
     this.spacePressed.set(false);
-    if (this.machine.mode === 'idle') return;
+
+    /*
+     * Cancel whatever the mode, so tracked pointers go too.
+     *
+     * A press that landed on an ITEM is tracked with mode `idle` — that is
+     * the whole point of tracking it — so returning early here left it down
+     * for ever, and this is the one place that could have swept it up.
+     */
+    const interacting = this.machine.mode !== 'idle';
     this.machine.cancel();
-    this.endInteraction();
+    if (interacting) this.endInteraction();
   }
 
   onWheel(event: WheelEvent): void {
@@ -496,6 +555,14 @@ export class InfiniteCanvasComponent<T extends CanvasItem = CanvasItem> implemen
       template,
       this.viewportRef().nativeElement,
       emptyItemContext<T>,
+      /*
+       * The pool must hold at least as many views as the layer will mount.
+       * Left at its own smaller default, every cull past that number destroyed
+       * the surplus and the next one built them again - hundreds of embedded
+       * views created and thrown away on every pan at a wide zoom, which is
+       * the most expensive thing either class does.
+       */
+      DEFAULT_MAX_MOUNTED,
     );
     this.layer ??= new CanvasItemLayer<T>(this.pool);
     this.layer.setItems(items);
@@ -659,9 +726,20 @@ export class InfiniteCanvasComponent<T extends CanvasItem = CanvasItem> implemen
     this.edgeRenderer?.resize(this.size.width, this.size.height, globalThis.devicePixelRatio || 1);
   }
 
+  /**
+   * Hands the edge renderer the current edges and a way to resolve an item.
+   *
+   * The index comes from the layer, which already maintains one, rather than
+   * being built here. Building it here meant a fresh Map of every item on
+   * every call - and the call happens on every frame of a drag, so at a
+   * hundred thousand items that was a hundred-thousand-entry Map allocated and
+   * discarded sixty times a second, purely to look up the two endpoints of
+   * each edge.
+   */
   private rebuildEdges(items: readonly T[], edges: readonly CanvasEdge[]): void {
     if (!this.edgeRenderer) return;
-    this.edgeRenderer.setEdges(edges, new Map(items.map(item => [item.id, item])));
+    const byId = this.layer?.itemsById ?? new Map(items.map(item => [item.id, item]));
+    this.edgeRenderer.setEdges(edges, byId);
   }
 
   private paintGrid(viewport: CanvasViewport): void {

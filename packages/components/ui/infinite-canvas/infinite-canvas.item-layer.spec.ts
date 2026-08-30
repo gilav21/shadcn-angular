@@ -2,8 +2,9 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Component, TemplateRef, ViewContainerRef, viewChild } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import type { CanvasItemContext } from './infinite-canvas-item.directive';
-import { CanvasItemLayer } from './infinite-canvas.item-layer';
+import { CanvasItemLayer, DEFAULT_MAX_MOUNTED } from './infinite-canvas.item-layer';
 import { CanvasItemViewPool } from './infinite-canvas.item-pool';
+import { SpatialHash } from './infinite-canvas.spatial-hash';
 import type { CanvasItem, CanvasRect } from './infinite-canvas.types';
 
 @Component({
@@ -264,6 +265,15 @@ describe('CanvasItemLayer + CanvasItemViewPool (virtualization and recycling)', 
       expect(layer.mountedCount).toBe(0);
       expect(mountedHosts()).toHaveLength(0);
       expect(pool.totalViews).toBe(0);
+
+      /*
+       * The id index goes too. It is handed out LIVE to the edge rebuild, so
+       * leaving it populated both retains every item a `clear()` was meant to
+       * release and answers with items that are no longer there — the
+       * renderer resolving endpoints to gone nodes and drawing wires to
+       * stale positions.
+       */
+      expect(layer.itemsById.size).toBe(0);
     });
 
     it('releasing the same view twice is a no-op', () => {
@@ -323,5 +333,594 @@ describe('CanvasItemLayer + CanvasItemViewPool (virtualization and recycling)', 
     it('falls back when every item is zero-sized', () => {
       expect(CanvasItemLayer.cellSizeFor([{ id: 1, x: 0, y: 0, width: 0, height: 0 }])).toBe(256);
     });
+  });
+});
+
+/*
+ * The drag frame: `setItems` takes a fast path when the array is the same
+ * length, in the same order, with only some items replaced — which is exactly
+ * what dragging produces, because the editor rebuilds only the nodes it moved.
+ *
+ * The risk is a moved item left in its old bucket, so every test here asks the
+ * INDEX where things are rather than trusting the call returned. Forcing the
+ * fast path to be taken unconditionally was verified to fail these.
+ */
+describe('CanvasItemLayer — the drag fast path', () => {
+  let fixture: ComponentFixture<HostComponent>;
+  let pool: CanvasItemViewPool<CanvasItemContext>;
+  let layer: CanvasItemLayer<CanvasItem>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({ imports: [HostComponent] }).compileComponents();
+    fixture = TestBed.createComponent(HostComponent);
+    fixture.detectChanges();
+
+    const host = fixture.componentInstance;
+    pool = new CanvasItemViewPool<CanvasItemContext>(
+      host.anchor(),
+      host.tpl(),
+      host.mount().nativeElement,
+      () => ({ $implicit: undefined as unknown as CanvasItem, index: 0 }),
+    );
+    layer = new CanvasItemLayer<CanvasItem>(pool);
+  });
+
+  afterEach(() => {
+    pool.clear();
+    fixture.destroy();
+  });
+
+  /** Ids the layer would mount for a rect, via a cull pass. */
+  function visibleIn(rect: CanvasRect): (string | number)[] {
+    layer.invalidate();
+    layer.update(rect, 0);
+    fixture.detectChanges();
+    return [...fixture.nativeElement.querySelectorAll('.cell')]
+      .map((el: Element) => el.getAttribute('data-id'))
+      .filter((id): id is string => id !== null)
+      .sort((a, b) => a.localeCompare(b));
+  }
+
+  const NEAR: CanvasRect = { x: 0, y: 0, width: 300, height: 300 };
+  const FAR: CanvasRect = { x: 9000, y: 9000, width: 300, height: 300 };
+
+  it('finds an item at its new position, not its old one', () => {
+    const items = grid(40);
+    layer.setItems(items);
+    expect(visibleIn(NEAR)).toContain('0');
+    expect(visibleIn(FAR)).toEqual([]);
+
+    // Same array shape, one item replaced — the drag frame.
+    const dragged = items.map(item =>
+      item.id === 0 ? { ...item, x: 9050, y: 9050 } : item,
+    );
+    layer.setItems(dragged);
+
+    expect(visibleIn(FAR)).toContain('0');
+    expect(visibleIn(NEAR)).not.toContain('0');
+  });
+
+  it('keeps every other item indexed while one moves', () => {
+    const items = grid(40);
+    layer.setItems(items);
+    const before = visibleIn(NEAR).filter(id => id !== '0');
+
+    layer.setItems(items.map(item => (item.id === 0 ? { ...item, x: 9050, y: 9050 } : item)));
+    expect(visibleIn(NEAR).filter(id => id !== '0')).toEqual(before);
+    expect(layer.itemCount).toBe(items.length);
+  });
+
+  it('falls back to a rebuild when the ids change at the same length', () => {
+    const items = grid(10);
+    layer.setItems(items);
+
+    const renamed = items.map(item => ({ ...item, id: `x${item.id}` }));
+    layer.setItems(renamed);
+
+    expect(layer.itemCount).toBe(10);
+    expect(visibleIn(NEAR)).toContain('x0');
+    expect(visibleIn(NEAR)).not.toContain('0');
+  });
+
+  it('rebuilds when an item is added or removed', () => {
+    const items = grid(10);
+    layer.setItems(items);
+    layer.setItems(items.slice(0, 5));
+    expect(layer.itemCount).toBe(5);
+
+    layer.setItems(grid(12));
+    expect(layer.itemCount).toBe(12);
+  });
+
+  it('handles every item moving at once, as a select-all drag does', () => {
+    const items = grid(30);
+    layer.setItems(items);
+    layer.setItems(items.map(item => ({ ...item, x: item.x + 9000, y: item.y + 9000 })));
+
+    expect(visibleIn(NEAR)).toEqual([]);
+    expect(visibleIn(FAR).length).toBeGreaterThan(0);
+    expect(layer.itemCount).toBe(30);
+  });
+});
+
+/*
+ * The regression gate for the drag fast path.
+ *
+ * Counting spatial-hash insertions is exact and cannot flake, unlike the
+ * milliseconds the workload benchmark logs. Reverting `setItems` to a full
+ * rebuild would re-insert every item on every frame of a drag and break no
+ * other test.
+ */
+describe('CanvasItemLayer — a drag re-indexes only what moved', () => {
+  let fixture: ComponentFixture<HostComponent>;
+  let pool: CanvasItemViewPool<CanvasItemContext>;
+  let layer: CanvasItemLayer<CanvasItem>;
+  let inserts: number;
+  let restore: () => void;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({ imports: [HostComponent] }).compileComponents();
+    fixture = TestBed.createComponent(HostComponent);
+    fixture.detectChanges();
+
+    const host = fixture.componentInstance;
+    pool = new CanvasItemViewPool<CanvasItemContext>(
+      host.anchor(),
+      host.tpl(),
+      host.mount().nativeElement,
+      () => ({ $implicit: undefined as unknown as CanvasItem, index: 0 }),
+    );
+    layer = new CanvasItemLayer<CanvasItem>(pool);
+
+    inserts = 0;
+    const proto = SpatialHash.prototype as unknown as { insert: (item: CanvasItem) => void };
+    const real = proto.insert;
+    proto.insert = function counted(item: CanvasItem): void {
+      inserts++;
+      real.call(this, item);
+    };
+    restore = () => {
+      proto.insert = real;
+    };
+  });
+
+  afterEach(() => {
+    restore();
+    pool.clear();
+    fixture.destroy();
+  });
+
+  it('re-inserts nothing when one item moves inside its cell', () => {
+    const items = grid(200);
+    layer.setItems(items);
+    inserts = 0;
+
+    layer.setItems(items.map(i => (i.id === 5 ? { ...i, x: i.x + 2, y: i.y + 2 } : i)));
+    expect(inserts).toBe(0);
+  });
+
+  it('re-inserts only the item that crossed a cell boundary', () => {
+    const items = grid(200);
+    layer.setItems(items);
+    inserts = 0;
+
+    layer.setItems(items.map(i => (i.id === 5 ? { ...i, x: 90_000, y: 90_000 } : i)));
+    expect(inserts).toBe(1);
+  });
+
+  it('rebuilds the whole index only when the set itself changed', () => {
+    const items = grid(200);
+    layer.setItems(items);
+    inserts = 0;
+
+    layer.setItems(items.slice(0, 199));
+    expect(inserts).toBe(199);
+  });
+});
+
+/*
+ * The regression gate for the mount cap.
+ *
+ * Culling bounds the mounted set by the VIEWPORT, which is right until someone
+ * zooms out: the world rect then covers the whole board, every item counts as
+ * visible, and a real component is mounted for each. A 100,000-node graph
+ * zoomed out mounted 2,022 cards and froze the tab.
+ *
+ * Counting mounted views is exact and cannot flake.
+ */
+describe('CanvasItemLayer — zooming out cannot mount the whole board', () => {
+  let fixture: ComponentFixture<HostComponent>;
+  let pool: CanvasItemViewPool<CanvasItemContext>;
+
+  function layerWithCap(cap: number): CanvasItemLayer<CanvasItem> {
+    return new CanvasItemLayer<CanvasItem>(pool, cap);
+  }
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({ imports: [HostComponent] }).compileComponents();
+    fixture = TestBed.createComponent(HostComponent);
+    fixture.detectChanges();
+
+    const host = fixture.componentInstance;
+    pool = new CanvasItemViewPool<CanvasItemContext>(
+      host.anchor(),
+      host.tpl(),
+      host.mount().nativeElement,
+      () => ({ $implicit: undefined as unknown as CanvasItem, index: 0 }),
+    );
+  });
+
+  afterEach(() => {
+    pool.clear();
+    fixture.destroy();
+  });
+
+  /** The whole board at once, as a full zoom-out asks for. */
+  const EVERYTHING: CanvasRect = { x: -1e6, y: -1e6, width: 2e6, height: 2e6 };
+
+  /** The ids currently rendered, read from the DOM rather than the layer. */
+  function mountedIds(): number[] {
+    fixture.detectChanges();
+    return [...fixture.nativeElement.querySelectorAll('.cell')]
+      .map((el: Element) => Number(el.getAttribute('data-id')))
+      .filter((id: number) => !Number.isNaN(id))
+      .sort((a: number, b: number) => a - b);
+  }
+
+  it('mounts no more than the cap however far out you zoom', () => {
+    const layer = layerWithCap(50);
+    layer.setItems(grid(2000));
+
+    layer.update(EVERYTHING, 0);
+    expect(layer.mountedCount).toBeLessThanOrEqual(50);
+  });
+
+  it('still mounts everything when everything fits under the cap', () => {
+    const layer = layerWithCap(500);
+    layer.setItems(grid(40));
+
+    layer.update(EVERYTHING, 0);
+    expect(layer.mountedCount).toBe(40);
+  });
+
+  it('mounts exactly the nearest items, not merely nearby ones', () => {
+    /*
+     * The selection is a heap of the best `cap` rather than a sort of
+     * everything — this branch gives up the hysteresis deliberately, so it
+     * runs on every frame, and copying and fully ordering a hundred thousand
+     * items to keep six hundred was the single largest per-frame cost in the
+     * engine.
+     *
+     * A heap that is subtly wrong still returns items from roughly the right
+     * area, which every other test here would accept. This one names them:
+     * the mounted set must equal the nearest `cap` by centre distance,
+     * computed independently.
+     */
+    const cap = 20;
+    const layer = layerWithCap(cap);
+    const items = grid(2000);
+    layer.setItems(items);
+
+    /*
+     * Offset by a non-multiple of the grid step, deliberately.
+     *
+     * On a round viewport the twentieth and twenty-first nearest items are
+     * EQUIDISTANT to six decimal places — mirrored offsets of the same centre
+     * — and the two sides then disagree for a reason that is not a bug: the
+     * oracle breaks the tie by array order (`sort` is stable), while the heap
+     * breaks it by arrival order. The test would pass today and turn red the
+     * day the hash changed its cell size or its bucket iteration, looking
+     * exactly like a heap fault. Shifted, no two items tie.
+     */
+    const view: CanvasRect = { x: 3037, y: 453, width: 1400, height: 1000 };
+    layer.update(view, 0);
+    fixture.detectChanges();
+
+    const centreX = view.x + view.width / 2;
+    const centreY = view.y + view.height / 2;
+    // The same measure the layer uses: to the nearest part of the box, not to
+    // its centre. On this uniform grid the two agree, but an oracle that
+    // measures something else is only accidentally right.
+    const distance = (item: CanvasItem): number =>
+      Math.hypot(
+        Math.max(item.x - centreX, 0, centreX - (item.x + item.width)),
+        Math.max(item.y - centreY, 0, centreY - (item.y + item.height)),
+      );
+
+    const expected = [...items]
+      .sort((a, b) => distance(a) - distance(b))
+      .slice(0, cap)
+      .map(item => Number(item.id))
+      .sort((a, b) => a - b);
+
+    const mounted = [...fixture.nativeElement.querySelectorAll('.cell')]
+      .map((el: Element) => Number(el.getAttribute('data-id')))
+      .filter((id: number) => !Number.isNaN(id))
+      .sort((a: number, b: number) => a - b);
+
+    expect(mounted).toEqual(expected);
+  });
+
+  it('keeps a wide item that covers the screen, not just small ones near the middle', () => {
+    /*
+     * Ranked by the nearest part of the box, not by its centre.
+     *
+     * A node wide enough to span the viewport has its centre far outside it,
+     * so ranking by centres puts it behind every small node clustered in the
+     * middle — it is dropped, and the edge renderer goes on drawing its wires
+     * into the gap where it should be. It is the item MOST on screen.
+     *
+     * The cluster has to exceed the cap, or nothing is rationed and both
+     * measures agree by default.
+     */
+    const cap = 20;
+    const layer = layerWithCap(cap);
+
+    const wide: CanvasItem = { id: 9999, x: -20_000, y: 500, width: 41_000, height: 100 };
+    const cluster: CanvasItem[] = [];
+    for (let i = 0; i < 60; i++) {
+      cluster.push({ id: i, x: 700 + (i % 10) * 40, y: 300 + Math.floor(i / 10) * 40, width: 20, height: 20 });
+    }
+    layer.setItems([wide, ...cluster]);
+
+    layer.update({ x: 500, y: 200, width: 800, height: 600 }, 0);
+    fixture.detectChanges();
+
+    const mounted = [...fixture.nativeElement.querySelectorAll('.cell')].map((el: Element) =>
+      Number(el.getAttribute('data-id')),
+    );
+
+    expect(mounted).toHaveLength(cap);
+    expect(mounted).toContain(9999);
+  });
+
+  it('drops from every edge alike, not the whole bottom of the screen', () => {
+    /*
+     * The cap is rationed by distance from the middle. Taking the first N the
+     * index returns takes them in BUCKET order, which is row-major: the cap
+     * gets spent on the top rows and the entire bottom band of the screen
+     * goes blank, with the edge renderer still drawing wires into it.
+     *
+     * The earlier centring test cannot catch that on its own, because the
+     * region used to be cropped tightly around the viewport centre first —
+     * so a row-major slice of a small centred rect straddles the centre
+     * anyway. This one leaves the region at the full viewport and asks for
+     * cards from the bottom of it.
+     */
+    const layer = layerWithCap(20);
+    layer.setItems(grid(2000));
+
+    // grid(): 100 columns, 200 apart. This rect holds ~36 items, well over 20.
+    layer.update({ x: 0, y: 0, width: 1000, height: 1000 }, 0);
+    fixture.detectChanges();
+
+    const mounted = [...fixture.nativeElement.querySelectorAll('.cell')]
+      .map((el: Element) => Number(el.getAttribute('data-id')))
+      .filter((id: number) => !Number.isNaN(id));
+    const rowOf = (id: number): number => Math.floor(id / 100);
+
+    expect(mounted.length).toBeGreaterThan(0);
+    /*
+     * Row 4 or 5 — the BOTTOM of the rect. Six items fit per row here, so a
+     * row-major slice of twenty reaches into row 3 on its own; asking for
+     * row >= 3 passes with the bug still in. The bottom two rows are what
+     * only a centred rationing keeps.
+     */
+    expect(mounted.some(id => rowOf(id) >= 4)).toBe(true);
+    expect(mounted.some(id => rowOf(id) <= 1)).toBe(true);
+  });
+
+  it('keeps items near the middle of the screen, not an arbitrary corner', () => {
+    const layer = layerWithCap(20);
+    // grid(): 100 columns, 200 apart — so column 50, row 5 sits near (10000, 1000).
+    layer.setItems(grid(2000));
+
+    const centred: CanvasRect = { x: 9000, y: 0, width: 2000, height: 2000 };
+    layer.update(centred, 0);
+    fixture.detectChanges();
+
+    const mounted = [...fixture.nativeElement.querySelectorAll('.cell')]
+      .map((el: Element) => Number(el.getAttribute('data-id')))
+      .filter((id: number) => !Number.isNaN(id));
+
+    expect(mounted.length).toBeGreaterThan(0);
+
+    /*
+     * Straddling the centre is the assertion, not merely "inside the region".
+     * Taking the first N of the query answer also lands inside the region —
+     * the hash returns cells in row-major order, so an arbitrary slice is the
+     * TOP-LEFT corner of it, and a looser check passed that happily. What
+     * separates a centred selection from a corner one is items on both sides
+     * of the middle.
+     */
+    const items = grid(2000);
+    const ys = mounted.map(id => items[id].y);
+    const centreY = 1000;
+    expect(Math.min(...ys)).toBeLessThan(centreY);
+    expect(Math.max(...ys)).toBeGreaterThan(centreY);
+
+    for (const id of mounted) {
+      expect(items[id].x).toBeGreaterThanOrEqual(8000);
+      expect(items[id].x).toBeLessThanOrEqual(12000);
+    }
+  });
+
+  /*
+   * The regression the cap itself caused.
+   *
+   * `safeRect` means "the rect the mounted items came from", and the whole
+   * hysteresis rests on that. Mounting a SUBSET of the region quietly broke
+   * the sentence: zooming in shrinks the viewport, the old rect still contains
+   * it, so nothing re-culled and the same few hundred cards stayed on screen
+   * while the ones being zoomed towards never appeared. Everything looked
+   * faster and was completely unusable.
+   */
+  it('shows what you zoom in on, rather than the set it first mounted', () => {
+    const layer = layerWithCap(50);
+    layer.setItems(grid(2000));
+
+    layer.update(EVERYTHING, 0);
+    const zoomedOut = mountedIds();
+
+    // Zoom right in on a corner of the board that the capped set cannot hold.
+    const corner: CanvasRect = { x: 19_000, y: 3_400, width: 900, height: 500 };
+    layer.update(corner, 0);
+    const zoomedIn = mountedIds();
+
+    expect(zoomedIn.length).toBeGreaterThan(0);
+    expect(zoomedIn).not.toEqual(zoomedOut);
+
+    const items = grid(2000);
+    for (const id of zoomedIn) {
+      expect(items[id].x).toBeGreaterThanOrEqual(18_000);
+    }
+  });
+
+  it('mounts every item in view once zoomed in far enough to afford them', () => {
+    const layer = layerWithCap(50);
+    const items = grid(2000);
+    layer.setItems(items);
+    layer.update(EVERYTHING, 0);
+
+    const window: CanvasRect = { x: 0, y: 0, width: 300, height: 300 };
+    layer.update(window, 0);
+
+    /*
+     * The property, not a count. More than the four in the window may well be
+     * mounted - the capped pass already covered this corner, and re-using that
+     * set is correct - but nothing that is ON SCREEN may be missing from it.
+     */
+    const mounted = new Set(mountedIds());
+    const inView = items.filter(
+      item =>
+        item.x <= window.x + window.width &&
+        window.x <= item.x + item.width &&
+        item.y <= window.y + window.height &&
+        window.y <= item.y + item.height,
+    );
+
+    expect(inView.length).toBeGreaterThan(0);
+    for (const item of inView) expect(mounted.has(Number(item.id))).toBe(true);
+  });
+
+  it('releases views back to the pool when the cap pushes items out', () => {
+    const layer = layerWithCap(30);
+    layer.setItems(grid(2000));
+
+    layer.update({ x: 0, y: 0, width: 1000, height: 1000 }, 0);
+    const first = layer.mountedCount;
+    layer.update(EVERYTHING, 0);
+
+    expect(first).toBeGreaterThan(0);
+    expect(layer.mountedCount).toBeLessThanOrEqual(30);
+  });
+});
+
+/*
+ * Pool capacity against mount capacity.
+ *
+ * The pool caps how many detached views it will hoard; the layer caps how many
+ * it will mount. Left independent, the smaller pool default meant every cull
+ * past its size destroyed the surplus and the next one built them again -
+ * hundreds of embedded views created and thrown away on every pan at a wide
+ * zoom. Not a leak: the opposite, a refusal to keep anything.
+ */
+describe('CanvasItemViewPool holds everything the layer will mount', () => {
+  let fixture: ComponentFixture<HostComponent>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({ imports: [HostComponent] }).compileComponents();
+    fixture = TestBed.createComponent(HostComponent);
+    fixture.detectChanges();
+  });
+
+  afterEach(() => fixture.destroy());
+
+  it('recycles rather than recreating when the mounted set churns', () => {
+    const host = fixture.componentInstance;
+    const pool = new CanvasItemViewPool<CanvasItemContext>(
+      host.anchor(),
+      host.tpl(),
+      host.mount().nativeElement,
+      () => ({ $implicit: undefined as unknown as CanvasItem, index: 0 }),
+      DEFAULT_MAX_MOUNTED,
+    );
+    const layer = new CanvasItemLayer<CanvasItem>(pool, DEFAULT_MAX_MOUNTED);
+    layer.setItems(grid(4000));
+
+    // A wide view, then a narrow one, then wide again: the surplus must have
+    // been kept, not destroyed and rebuilt.
+    layer.update({ x: 0, y: 0, width: 6000, height: 6000 }, 0);
+    const afterFirst = pool.createCount;
+
+    layer.update({ x: 0, y: 0, width: 300, height: 300 }, 0);
+    layer.update({ x: 0, y: 0, width: 6000, height: 6000 }, 0);
+
+    expect(pool.recycleCount).toBeGreaterThan(0);
+    expect(pool.createCount).toBe(afterFirst);
+    pool.clear();
+  });
+});
+
+/*
+ * The index the edge renderer resolves endpoints through.
+ *
+ * It used to build its own Map of every item on every call, which at a hundred
+ * thousand items was a hundred-thousand-entry Map per drag frame. Sharing the
+ * layer's is only safe while the layer's is CURRENT - and the drag fast path
+ * deliberately skips the full rebuild, so it has to write the moved items
+ * itself. A stale entry here is an edge anchored to where a node used to be.
+ */
+describe('CanvasItemLayer — the shared id index tracks moves', () => {
+  let fixture: ComponentFixture<HostComponent>;
+  let pool: CanvasItemViewPool<CanvasItemContext>;
+  let layer: CanvasItemLayer<CanvasItem>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({ imports: [HostComponent] }).compileComponents();
+    fixture = TestBed.createComponent(HostComponent);
+    fixture.detectChanges();
+    const host = fixture.componentInstance;
+    pool = new CanvasItemViewPool<CanvasItemContext>(
+      host.anchor(),
+      host.tpl(),
+      host.mount().nativeElement,
+      () => ({ $implicit: undefined as unknown as CanvasItem, index: 0 }),
+    );
+    layer = new CanvasItemLayer<CanvasItem>(pool);
+  });
+
+  afterEach(() => {
+    pool.clear();
+    fixture.destroy();
+  });
+
+  it('resolves every item after a full set', () => {
+    const items = grid(50);
+    layer.setItems(items);
+
+    expect(layer.itemsById.size).toBe(50);
+    expect(layer.itemsById.get(7)).toBe(items[7]);
+  });
+
+  it('returns the MOVED object after a drag frame, not the old one', () => {
+    const items = grid(50);
+    layer.setItems(items);
+
+    const dragged = items.map(item => (item.id === 7 ? { ...item, x: 9000, y: 9000 } : item));
+    layer.setItems(dragged);
+
+    expect(layer.itemsById.get(7)).toBe(dragged[7]);
+    expect(layer.itemsById.get(7)?.x).toBe(9000);
+    // Everything else is still the identical object it always was.
+    expect(layer.itemsById.get(8)).toBe(items[8]);
+  });
+
+  it('forgets an item that left the set', () => {
+    layer.setItems(grid(50));
+    layer.setItems(grid(10));
+
+    expect(layer.itemsById.size).toBe(10);
+    expect(layer.itemsById.has(20)).toBe(false);
   });
 });

@@ -1,0 +1,141 @@
+<div class="flex flex-col gap-4 sm:gap-6">
+  <header class="flex flex-col gap-2">
+    <h2 class="text-xl font-semibold tracking-tight sm:text-2xl">{{ t().heading }}</h2>
+    <p class="max-w-[70ch] text-sm text-muted-foreground" dir="auto">{{ t().description }}</p>
+  </header>
+
+  <div class="flex flex-wrap items-center gap-2">
+    <span class="text-sm font-medium">{{ t().scale }}</span>
+    @for (option of scales; track option) {
+      <ui-button
+        size="sm"
+        [variant]="option === scale() ? 'default' : 'outline'"
+        [disabled]="building()"
+        (click)="select(option)"
+      >
+        {{ format(option) }}
+      </ui-button>
+    }
+
+    <span class="mx-1 h-5 w-px bg-border" aria-hidden="true"></span>
+
+    <ui-button
+      size="sm"
+      [variant]="showGroups() ? 'default' : 'outline'"
+      [disabled]="building()"
+      (click)="toggleGroups()"
+    >
+      {{ t().groups }}
+    </ui-button>
+
+    <ui-button size="sm" variant="secondary" [disabled]="building() || measuring()" (click)="measure()">
+      {{ measuring() ? t().measuring : t().measure }}
+    </ui-button>
+
+    <span class="mx-1 h-5 w-px bg-border" aria-hidden="true"></span>
+
+    <ui-button size="sm" [disabled]="building() || evaluating()" (click)="run()">
+      {{ t().run }}
+    </ui-button>
+
+    <!--
+      Stop is not a nicety. A hundred thousand nodes with real work in them is
+      several seconds of evaluation, and until now the only way out of one was
+      to leave the page.
+    -->
+    <ui-button size="sm" variant="outline" [disabled]="!evaluating()" (click)="stop()">
+      {{ t().stop }}
+    </ui-button>
+
+    @if (evaluating()) {
+      <span class="text-sm text-muted-foreground" role="status">
+        {{ t().evaluating }} {{ format(settled()) }}
+      </span>
+    }
+
+    @if (building()) {
+      <span class="text-sm text-muted-foreground" role="status">{{ t().building }}</span>
+    }
+  </div>
+
+  <dl class="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-3 lg:grid-cols-6">
+    <div class="flex flex-col gap-1 bg-background p-3">
+      <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{{ t().nodes }}</dt>
+      <dd class="font-mono text-lg font-bold tabular-nums">{{ format(nodes().length) }}</dd>
+    </div>
+    <div class="flex flex-col gap-1 bg-background p-3">
+      <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{{ t().connections }}</dt>
+      <dd class="font-mono text-lg font-bold tabular-nums">{{ format(connections().length) }}</dd>
+    </div>
+    <div class="flex flex-col gap-1 bg-background p-3">
+      <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{{ t().groupCount }}</dt>
+      <dd class="font-mono text-lg font-bold tabular-nums">
+        {{ showGroups() ? format(groups().length) : 0 }}
+      </dd>
+    </div>
+    <div class="flex flex-col gap-1 bg-background p-3">
+      <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{{ t().cardsInDom }}</dt>
+      <dd class="font-mono text-lg font-bold tabular-nums text-primary">{{ format(cardsInDom()) }}</dd>
+    </div>
+    <div class="flex flex-col gap-1 bg-background p-3">
+      <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{{ t().frameWorst }}</dt>
+      <dd
+        class="font-mono text-lg font-bold tabular-nums"
+        [class.text-green-600]="withinBudget()"
+        [class.dark:text-green-400]="withinBudget()"
+        [class.text-destructive]="worst() !== null && !withinBudget()"
+      >
+        {{ ms(worst()) }}
+      </dd>
+    </div>
+    <div class="flex flex-col gap-1 bg-background p-3">
+      <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{{ t().overBudget }}</dt>
+      <dd class="font-mono text-lg font-bold tabular-nums">{{ overBudgetLabel() }}</dd>
+    </div>
+    <div class="flex flex-col gap-1 bg-background p-3">
+      <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{{ t().settled }}</dt>
+      <dd class="font-mono text-lg font-bold tabular-nums">{{ format(settled()) }}</dd>
+    </div>
+    <div class="flex flex-col gap-1 bg-background p-3">
+      <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{{ t().sliceGap }}</dt>
+      <dd class="font-mono text-lg font-bold tabular-nums">{{ ms(sliceMs()) }} / {{ ms(gapMs()) }}</dd>
+    </div>
+  </dl>
+
+  <p class="text-xs text-muted-foreground">
+    {{ t().hint }} · {{ t().budget }}<br />{{ t().cadenceNote }}<br />{{ t().sliceGapNote }}
+  </p>
+
+  <div class="relative w-full overflow-hidden rounded-lg border">
+    <ui-node-editor
+      #editor
+      class="h-[350px] w-full sm:h-[450px] md:h-[600px]"
+      [(nodes)]="nodes"
+      [(connections)]="connections"
+      [definitions]="definitions"
+      [live]="false"
+      [ariaLabel]="t().heading"
+      (pointerup)="countCards()"
+      (viewportChange)="onViewportChange()"
+    >
+      @if (showGroups()) {
+        <!--
+          Culled to the viewport. Four thousand zones is twelve thousand
+          elements and nobody can see more than a handful of them, so the
+          overlay is given the rectangle actually on screen and renders what
+          falls inside it.
+
+          `renderedNodes()` is the whole graph, not the mounted set, whatever
+          its name suggests — membership needs every node, because a count of
+          only the visible members is a wrong count.
+        -->
+        <ui-node-editor-groups
+          [(groups)]="groups"
+          [nodes]="editor.renderedNodes()"
+          [viewport]="viewport()"
+          [readonlyGroups]="true"
+        />
+      }
+    </ui-node-editor>
+  </div>
+</div>

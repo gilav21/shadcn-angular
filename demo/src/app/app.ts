@@ -222,8 +222,9 @@ export class AppComponent {
     { id: 'resizable', name: 'Resizable', category: 'Layout', icon: '↔️' },
     { id: 'scroll-area', name: 'Scroll Area', category: 'Layout', icon: '📜' },
     { id: 'sidebar', name: 'Sidebar', category: 'Layout', icon: '📎' },
+    // One entry: the node editor is this canvas's edit mode, on the same page.
     { id: 'infinite-canvas', name: 'Infinite Canvas', category: 'Layout', icon: '🗺️' },
-    { id: 'node-editor', name: 'Node Editor', category: 'Layout', icon: '🕸️' },
+    { id: 'infinite-canvas-stress', name: 'Infinite Canvas Stress', category: 'Layout', icon: '📈' },
     { id: 'virtual-scroll', name: 'Virtual Scroll', category: 'Layout', icon: '📜' },
 
     // Navigation

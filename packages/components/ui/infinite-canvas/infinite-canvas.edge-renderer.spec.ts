@@ -247,6 +247,105 @@ describe('CanvasEdgeRenderer', () => {
     });
   });
 
+  describe('sampling above the path cap', () => {
+    /** `count` edges between the same two items, so every one of them is visible. */
+    function manyEdges(count: number): CanvasEdge[] {
+      const edges: CanvasEdge[] = [];
+      for (let i = 0; i < count; i++) edges.push({ id: `e${i}`, source: 'a', target: 'b' });
+      return edges;
+    }
+
+    it('degrades smoothly at the cap instead of halving the picture', () => {
+      /*
+       * An integer stride is a step, not a taper: `ceil(4001 / 4000)` is 2, so
+       * ONE edge over the cap drew every second edge and two thousand wires
+       * disappeared — at a zoom where they were perfectly legible. The sample
+       * is a fraction, so one over the cap costs one edge.
+       */
+      renderer.setEdges(manyEdges(4001), ITEMS);
+      renderer.draw(IDENTITY, { x: -1000, y: -1000, width: 4000, height: 4000 });
+
+      expect(renderer.builtPathCount).toBeGreaterThan(3900);
+      expect(renderer.builtPathCount).toBeLessThanOrEqual(4000);
+    });
+
+    it('samples on what is VISIBLE, not on how much is cached', () => {
+      /*
+       * A big board panned to a sparse corner draws every wire it can see.
+       * Dividing the cap by the CACHE size instead would give a board of
+       * 96,000 edges a sample fraction near zero everywhere — pan to a corner
+       * with fifty wires on screen and two of them appear. Both cap tests
+       * above have every edge visible, so `visible === cache.size` there and
+       * the mistake is invisible to them.
+       */
+      const far = itemMap([
+        { id: 'a', x: 0, y: 0, width: 10, height: 10 },
+        { id: 'b', x: 200, y: 0, width: 10, height: 10 },
+        { id: 'c', x: 50_000, y: 50_000, width: 10, height: 10 },
+        { id: 'd', x: 50_200, y: 50_000, width: 10, height: 10 },
+      ]);
+
+      const edges = manyEdges(4_001);
+      for (let i = 0; i < 3; i++) {
+        edges.push({ id: `far${i}`, source: 'c', target: 'd' });
+      }
+      renderer.setEdges(edges, far);
+
+      // A viewport holding only the three distant wires.
+      renderer.draw(IDENTITY, { x: 49_000, y: 49_000, width: 2_000, height: 2_000 });
+
+      expect(renderer.builtPathCount).toBe(3);
+    });
+
+    it('draws everything when the count is under the cap', () => {
+      renderer.setEdges(manyEdges(100), ITEMS);
+      renderer.draw(IDENTITY, { x: -1000, y: -1000, width: 4000, height: 4000 });
+
+      expect(renderer.builtPathCount).toBe(100);
+    });
+  });
+
+  describe('hit testing follows what was drawn', () => {
+    it('does not hit an edge the last frame did not draw', () => {
+      /*
+       * Above the cap the drawn set is a sample and the cache is everything.
+       * Hit-testing the cache let a click on blank canvas select a wire nobody
+       * could see, and Delete then removed it. Here the frame drew a region
+       * the edge is not in, which is the same state: present, not painted.
+       */
+      renderer.setEdges([{ id: 'e', source: 'a', target: 'b' }], ITEMS);
+      renderer.draw(IDENTITY, { x: 10_000, y: 10_000, width: 100, height: 100 });
+
+      expect(renderer.hitTest(100, 5, IDENTITY)).toBeNull();
+
+      renderer.draw(IDENTITY, { x: -1000, y: -1000, width: 4000, height: 4000 });
+      expect(renderer.hitTest(100, 5, IDENTITY)?.id).toBe('e');
+    });
+  });
+
+  describe('an edge stays clickable across the edit that moved it', () => {
+    it('keeps its drawn stamp when its geometry is replaced', () => {
+      /*
+       * `hitTest` only considers what the last frame drew, and a replaced
+       * cache entry started at zero — so the handful of edges attached to a
+       * node you just dragged went un-clickable until the next paint. The
+       * edit that replaces them IS a drag, so the window is not rare.
+       */
+      renderer.setEdges([{ id: 'e', source: 'a', target: 'b' }], ITEMS);
+      renderer.draw(IDENTITY, { x: -1000, y: -1000, width: 4000, height: 4000 });
+      expect(renderer.hitTest(100, 5, IDENTITY)?.id).toBe('e');
+
+      // The source moved: same edge id, new geometry, no repaint yet.
+      const moved = itemMap([
+        { id: 'a', x: 0, y: 40, width: 10, height: 10 },
+        { id: 'b', x: 200, y: 40, width: 10, height: 10 },
+      ]);
+      renderer.setEdges([{ id: 'e', source: 'a', target: 'b' }], moved);
+
+      expect(renderer.hitTest(100, 45, IDENTITY)?.id).toBe('e');
+    });
+  });
+
   describe('construction', () => {
     it('throws a clear error when no 2D context is available', () => {
       const broken = document.createElement('canvas');
@@ -394,5 +493,398 @@ describe('T-1 — anchor offsets and curve style (node-editor prerequisite)', ()
       );
       expect(renderer.draw(IDENTITY, VIEW)).toBe(1);
     });
+  });
+});
+
+/*
+ * `setEdges` keeps the Path2D of any edge whose endpoints and style are
+ * unchanged, because the editor hands it a freshly built edge list on every
+ * frame of a drag. Reuse that is even slightly too eager draws a stale edge.
+ *
+ * These assert through `hitTest`, which resolves against the CACHED path with
+ * `isPointInStroke`. Probing rendered pixels was tried first and was useless:
+ * the colour and width are re-read from the refreshed edge at draw time, so a
+ * stale path still painted the right colour in the right place often enough
+ * to pass. Making reuse unconditional was verified to fail these.
+ */
+describe('setEdges reuses paths only when nothing that shapes them changed', () => {
+  let canvas: HTMLCanvasElement;
+  let renderer: CanvasEdgeRenderer;
+
+  beforeEach(() => {
+    canvas = document.createElement('canvas');
+    document.body.append(canvas);
+    renderer = new CanvasEdgeRenderer(canvas);
+    renderer.resize(400, 300, 1);
+  });
+
+  afterEach(() => canvas.remove());
+
+  const edge = (over: Partial<CanvasEdge> = {}): CanvasEdge => ({
+    id: 'e',
+    source: 'a',
+    target: 'b',
+    curve: 'line',
+    width: 2,
+    ...over,
+  });
+
+  /** 'b' dropped 100 world units, so the edge slopes through (105, 55). */
+  const DROPPED = itemMap([
+    { id: 'a', x: 0, y: 0, width: 10, height: 10 },
+    { id: 'b', x: 200, y: 100, width: 10, height: 10 },
+  ]);
+
+  it('re-anchors the cached path when an endpoint item moves', () => {
+    renderer.setEdges([edge()], ITEMS);
+    expect(renderer.hitTest(105, 5, IDENTITY)?.id).toBe('e');
+    expect(renderer.hitTest(105, 55, IDENTITY)).toBeNull();
+
+    renderer.setEdges([edge()], DROPPED);
+    expect(renderer.hitTest(105, 55, IDENTITY)?.id).toBe('e');
+    expect(renderer.hitTest(105, 5, IDENTITY)).toBeNull();
+  });
+
+  it('re-anchors when the port offset moves but the item does not', () => {
+    renderer.setEdges([edge()], ITEMS);
+    expect(renderer.hitTest(105, 5, IDENTITY)?.id).toBe('e');
+
+    renderer.setEdges([edge({ targetAnchor: { x: 5, y: 105 } })], ITEMS);
+    expect(renderer.hitTest(105, 55, IDENTITY)?.id).toBe('e');
+  });
+
+  it('keeps the path when nothing moved at all', () => {
+    renderer.setEdges([edge()], ITEMS);
+    renderer.setEdges([edge()], itemMap([...ITEMS.values()].map(item => ({ ...item }))));
+    expect(renderer.hitTest(105, 5, IDENTITY)?.id).toBe('e');
+    expect(renderer.edgeCount).toBe(1);
+  });
+
+  it('forgets an edge that left the list', () => {
+    renderer.setEdges([edge({ id: 'e1' }), edge({ id: 'e2' })], ITEMS);
+    expect(renderer.edgeCount).toBe(2);
+    renderer.setEdges([edge({ id: 'e1' })], ITEMS);
+    expect(renderer.edgeCount).toBe(1);
+  });
+
+  it('drops an edge whose item vanished, and restores it when it returns', () => {
+    renderer.setEdges([edge()], ITEMS);
+    expect(renderer.edgeCount).toBe(1);
+
+    renderer.setEdges([edge()], itemMap([{ id: 'a', x: 0, y: 0, width: 10, height: 10 }]));
+    expect(renderer.edgeCount).toBe(0);
+
+    renderer.setEdges([edge()], ITEMS);
+    expect(renderer.hitTest(105, 5, IDENTITY)?.id).toBe('e');
+  });
+});
+
+/*
+ * The regression gate for the path cache.
+ *
+ * Reverting `setEdges` to "clear and rebuild everything" would discard every
+ * correct path on every frame of a drag and break no other test.
+ *
+ * Counted through `builtPathCount` rather than by patching the `Path2D`
+ * constructor. The constructor count was the right instrument until paths went
+ * lazy; after that it measured `setEdges`, which correctly builds nothing, and
+ * so reported zero for a healthy renderer. What the cache actually promises is
+ * that a path SURVIVES a frame in which its edge did not move, and survival is
+ * what this asks about.
+ */
+describe('setEdges keeps the paths whose edges did not move', () => {
+  let canvas: HTMLCanvasElement;
+  let renderer: CanvasEdgeRenderer;
+
+  beforeEach(() => {
+    canvas = document.createElement('canvas');
+    document.body.append(canvas);
+    renderer = new CanvasEdgeRenderer(canvas);
+    renderer.resize(400, 300, 1);
+  });
+
+  afterEach(() => canvas.remove());
+
+  /** A fan of `count` edges from one hub, all inside one viewport. */
+  function fan(count: number): { edges: CanvasEdge[]; items: Map<string | number, CanvasItem> } {
+    const items: CanvasItem[] = [{ id: 'hub', x: 0, y: 0, width: 10, height: 10 }];
+    const edges: CanvasEdge[] = [];
+    for (let i = 0; i < count; i++) {
+      items.push({ id: `n${i}`, x: 100 + i * 10, y: 50, width: 10, height: 10 });
+      edges.push({ id: `e${i}`, source: 'hub', target: `n${i}`, curve: 'line' });
+    }
+    return { edges, items: itemMap(items) };
+  }
+
+  const WHOLE: CanvasRect = { x: -100, y: -100, width: 800, height: 600 };
+
+  /** Draws once so every visible edge has a path, then reports the count. */
+  function warm(edges: CanvasEdge[], items: Map<string | number, CanvasItem>): number {
+    renderer.setEdges(edges, items);
+    renderer.draw(IDENTITY, WHOLE);
+    return renderer.builtPathCount;
+  }
+
+  it('keeps every path when nothing moved', () => {
+    const { edges, items } = fan(20);
+    expect(warm(edges, items)).toBe(20);
+
+    renderer.setEdges(edges, items);
+    expect(renderer.builtPathCount).toBe(20);
+  });
+
+  it('discards one path when one leaf moves, not twenty', () => {
+    const { edges, items } = fan(20);
+    expect(warm(edges, items)).toBe(20);
+
+    const moved = new Map(items);
+    moved.set('n7', { id: 'n7', x: 240, y: 500, width: 10, height: 10 });
+    renderer.setEdges(edges, moved);
+
+    expect(renderer.builtPathCount).toBe(19);
+  });
+
+  it('discards every path when the shared hub moves, because every edge moved', () => {
+    const { edges, items } = fan(20);
+    expect(warm(edges, items)).toBe(20);
+
+    const moved = new Map(items);
+    moved.set('hub', { id: 'hub', x: 0, y: 400, width: 10, height: 10 });
+    renderer.setEdges(edges, moved);
+
+    expect(renderer.builtPathCount).toBe(0);
+  });
+});
+
+
+/*
+ * The regression gate for lazy paths.
+ *
+ * A `Path2D` is a native object. Building one per edge in the GRAPH rather
+ * than per edge on the SCREEN is what made a 100,000-node board freeze a
+ * phone: 96,000 of them built in one blocking pass before anything could be
+ * shown, and held for the life of the page. Its cost never appeared in the JS
+ * heap, because that is not where it lives.
+ *
+ * Counting built paths is exact and cannot flake.
+ */
+describe('setEdges builds no path until an edge is actually drawn', () => {
+  let canvas: HTMLCanvasElement;
+  let renderer: CanvasEdgeRenderer;
+
+  beforeEach(() => {
+    canvas = document.createElement('canvas');
+    document.body.append(canvas);
+    renderer = new CanvasEdgeRenderer(canvas);
+    renderer.resize(400, 300, 1);
+  });
+
+  afterEach(() => canvas.remove());
+
+  /** `count` edges spread far apart, so a viewport can only hold a few. */
+  function spread(count: number): {
+    edges: CanvasEdge[];
+    items: Map<string | number, CanvasItem>;
+  } {
+    const items: CanvasItem[] = [];
+    const edges: CanvasEdge[] = [];
+    for (let i = 0; i < count; i++) {
+      items.push({ id: `a${i}`, x: i * 5000, y: 0, width: 10, height: 10 });
+      items.push({ id: `b${i}`, x: i * 5000 + 100, y: 0, width: 10, height: 10 });
+      edges.push({ id: `e${i}`, source: `a${i}`, target: `b${i}`, curve: 'bezier' });
+    }
+    return { edges, items: itemMap(items) };
+  }
+
+  it('knows every edge and has built no path at all', () => {
+    const { edges, items } = spread(200);
+    renderer.setEdges(edges, items);
+
+    expect(renderer.edgeCount).toBe(200);
+    expect(renderer.builtPathCount).toBe(0);
+  });
+
+  it('builds only the paths a drawn viewport needed', () => {
+    const { edges, items } = spread(200);
+    renderer.setEdges(edges, items);
+
+    // A viewport over the first edge only.
+    renderer.draw(IDENTITY, { x: -50, y: -50, width: 300, height: 300 });
+
+    expect(renderer.builtPathCount).toBe(1);
+    expect(renderer.edgeCount).toBe(200);
+  });
+
+  it('keeps a path it already built when the viewport returns to it', () => {
+    const { edges, items } = spread(200);
+    renderer.setEdges(edges, items);
+
+    renderer.draw(IDENTITY, { x: -50, y: -50, width: 300, height: 300 });
+    renderer.draw(IDENTITY, { x: 4950, y: -50, width: 300, height: 300 });
+    renderer.draw(IDENTITY, { x: -50, y: -50, width: 300, height: 300 });
+
+    // Two viewports visited, two paths built — not three.
+    expect(renderer.builtPathCount).toBe(2);
+  });
+
+  it('builds a path for a hit test, because that needs the real curve', () => {
+    const { edges, items } = spread(200);
+    renderer.setEdges(edges, items);
+    expect(renderer.builtPathCount).toBe(0);
+
+    renderer.hitTest(55, 5, IDENTITY);
+    expect(renderer.builtPathCount).toBeGreaterThan(0);
+  });
+
+  it('drops the built path when the edge actually moves', () => {
+    const { edges, items } = spread(3);
+    renderer.setEdges(edges, items);
+    renderer.draw(IDENTITY, { x: -50, y: -50, width: 300, height: 300 });
+    expect(renderer.builtPathCount).toBe(1);
+
+    const moved = new Map(items);
+    moved.set('b0', { id: 'b0', x: 100, y: 900, width: 10, height: 10 });
+    renderer.setEdges(edges, moved);
+
+    // Rebuilt from scratch, so nothing is carrying the old shape.
+    expect(renderer.builtPathCount).toBe(0);
+  });
+});
+
+/*
+ * The leak that lazy paths introduced.
+ *
+ * Building a path on first draw fixed the load. Never giving one back made the
+ * same failure arrive slowly instead: panning a large board visits new edges
+ * continuously, so the built set creeps back towards every edge in the graph.
+ * A minute of panning froze the page again, recovered when the collector
+ * eventually caught up, and froze again within seconds — while only ninety-odd
+ * cards were on screen, because the cards were never what was holding memory.
+ *
+ * Counting held paths is exact and cannot flake.
+ */
+describe('panning a large board does not accumulate paths without limit', () => {
+  let canvas: HTMLCanvasElement;
+  let renderer: CanvasEdgeRenderer;
+
+  beforeEach(() => {
+    canvas = document.createElement('canvas');
+    document.body.append(canvas);
+    renderer = new CanvasEdgeRenderer(canvas);
+    renderer.resize(400, 300, 1);
+  });
+
+  afterEach(() => canvas.remove());
+
+  /** A long ribbon of edges, so a pan keeps meeting new ones. */
+  function ribbon(count: number): {
+    edges: CanvasEdge[];
+    items: Map<string | number, CanvasItem>;
+  } {
+    const items: CanvasItem[] = [];
+    const edges: CanvasEdge[] = [];
+    for (let i = 0; i < count; i++) {
+      items.push({ id: `a${i}`, x: i * 300, y: 0, width: 10, height: 10 });
+      items.push({ id: `b${i}`, x: i * 300 + 120, y: 0, width: 10, height: 10 });
+      edges.push({ id: `e${i}`, source: `a${i}`, target: `b${i}`, curve: 'bezier' });
+    }
+    return { edges, items: itemMap(items) };
+  }
+
+  /** Walks the viewport across the whole ribbon, one screen at a time. */
+  function panAcross(steps: number): void {
+    for (let i = 0; i < steps; i++) {
+      renderer.draw(IDENTITY, { x: i * 300, y: -50, width: 400, height: 200 });
+    }
+  }
+
+  it('holds a bounded number of paths however far you pan', () => {
+    const { edges, items } = ribbon(9000);
+    renderer.setEdges(edges, items);
+
+    panAcross(9000);
+
+    expect(renderer.edgeCount).toBe(9000);
+    expect(renderer.builtPathCount).toBeLessThanOrEqual(5000);
+  });
+
+  it('still holds the paths for what is currently on screen', () => {
+    const { edges, items } = ribbon(9000);
+    renderer.setEdges(edges, items);
+    panAcross(9000);
+
+    const here: CanvasRect = { x: 600, y: -50, width: 400, height: 200 };
+    renderer.draw(IDENTITY, here);
+    const afterFirst = renderer.builtPathCount;
+
+    // Drawing the same place again must build nothing new.
+    renderer.draw(IDENTITY, here);
+    expect(renderer.builtPathCount).toBe(afterFirst);
+  });
+
+  it('does not trim while the built set is small', () => {
+    const { edges, items } = ribbon(20);
+    renderer.setEdges(edges, items);
+    panAcross(20);
+
+    // Twenty is nowhere near the limit, so every one visited is still held.
+    expect(renderer.builtPathCount).toBe(20);
+  });
+});
+
+/*
+ * The case every other reuse test misses.
+ *
+ * They pass the SAME edge objects back, so the identity short-circuit answers
+ * before the value comparison is ever reached. A caller that rebuilds its edge
+ * array each frame - which is the normal thing to do, and what the editor did
+ * before it started caching descriptors - hands over fresh objects carrying
+ * identical numbers, and that is the path `reusable` exists for.
+ *
+ * Dropping the built path before that check, rather than after it, defeated
+ * the cache completely for such a caller while every test stayed green.
+ */
+describe('setEdges keeps paths for a rebuilt edge list that did not move', () => {
+  let canvas: HTMLCanvasElement;
+  let renderer: CanvasEdgeRenderer;
+
+  beforeEach(() => {
+    canvas = document.createElement('canvas');
+    document.body.append(canvas);
+    renderer = new CanvasEdgeRenderer(canvas);
+    renderer.resize(400, 300, 1);
+  });
+
+  afterEach(() => canvas.remove());
+
+  /** A fresh array of fresh objects, carrying the same numbers every time. */
+  const rebuild = (): CanvasEdge[] => [
+    { id: 'e1', source: 'a', target: 'b', curve: 'line' },
+    { id: 'e2', source: 'a', target: 'b', curve: 'bezier' },
+  ];
+
+  it('keeps the paths when only the descriptor objects are new', () => {
+    renderer.setEdges(rebuild(), ITEMS);
+    renderer.draw(IDENTITY, VIEW);
+    expect(renderer.builtPathCount).toBe(2);
+
+    renderer.setEdges(rebuild(), ITEMS);
+    expect(renderer.builtPathCount).toBe(2);
+
+    renderer.setEdges(rebuild(), ITEMS);
+    expect(renderer.builtPathCount).toBe(2);
+  });
+
+  it('still discards them when the rebuilt list carries a moved endpoint', () => {
+    renderer.setEdges(rebuild(), ITEMS);
+    renderer.draw(IDENTITY, VIEW);
+    expect(renderer.builtPathCount).toBe(2);
+
+    const moved = itemMap([
+      { id: 'a', x: 0, y: 0, width: 10, height: 10 },
+      { id: 'b', x: 200, y: 400, width: 10, height: 10 },
+    ]);
+    renderer.setEdges(rebuild(), moved);
+    expect(renderer.builtPathCount).toBe(0);
   });
 });

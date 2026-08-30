@@ -1,0 +1,2228 @@
+/**
+ * The dataflow runtime: what turns a drawing of a graph into a running one.
+ *
+ * Deliberately a plain class with no Angular dependency beyond `signal` for
+ * read-out, and — the constraint that matters most — **no global or singleton
+ * state of any kind**. That is what keeps nested graphs (subgraphs) buildable
+ * later as an addon: a `subgraph` node type is simply a node whose `compute`
+ * owns another instance of this class. One convenience singleton closes that
+ * door quietly, so it is the first thing to check when reviewing a change here.
+ *
+ * Algorithms and their justification: `specs/node-editor-runtime-design.md`.
+ * Every one of them was proved by a throwaway spike before this file existed.
+ */
+import { computed, signal, type Signal, type WritableSignal } from '@angular/core';
+import type { EditorNode, NodeConnection, NodeId } from './node-editor.types';
+import type {
+  GraphProblem,
+  NodeSettledEvent,
+  NodeStatus,
+  NodePortDefinition,
+  NodeTypeDefinition,
+  PortValues,
+  RemoteExecutor,
+  RemoteRequest,
+  RemoteResult,
+  RunFinishedEvent,
+  RunStartedEvent,
+  StalenessPolicy,
+} from './node-editor.runtime.types';
+
+interface ActiveRun {
+  readonly id: number;
+  readonly controller: AbortController;
+  /**
+   * The dirtiness this run set out to answer.
+   *
+   * `settle` uses it to tell "finished" from "finished, but the node was
+   * edited again while I was away". The LOCAL path captured this itself; the
+   * remote path had nowhere to keep it, so it settled without one — and a
+   * remote node edited while its request was in flight was marked clean and
+   * left showing an answer computed from the old input, until something
+   * unrelated happened to dirty it again.
+   */
+  readonly version: number;
+}
+
+/** The evaluation pass in flight, accumulating what settles inside it. */
+interface RunSession {
+  readonly id: number;
+  readonly startedAt: number;
+  readonly startedTick: number;
+  /** Capped at {@link MAX_SESSION_EVENTS}; the totals below cover the rest. */
+  readonly nodes: NodeSettledEvent[];
+  settledCount: number;
+  durationTotalMs: number;
+  slowest: NodeSettledEvent | null;
+  errored: boolean;
+}
+
+/** Monotonic where available; `performance` is absent in some SSR shims. */
+function tick(): number {
+  return globalThis.performance?.now() ?? Date.now();
+}
+
+/** Counters the performance suite asserts on. Counts, never wall-clock. */
+export interface RuntimeMetrics {
+  /**
+   * Nodes whose `compute` actually ran, most recent last.
+   *
+   * Capped, because it is a diagnostic that nothing in the library reads and
+   * an editor runs its graph on every keystroke. {@link computedTotal} is the
+   * count that trimming would otherwise hide.
+   */
+  readonly computed: readonly NodeId[];
+  /** How many computes have happened, whether or not each is still listed. */
+  readonly computedTotal: number;
+  /** Calls made to `executeRemote`. K ready remote nodes must cost 1. */
+  readonly remoteCalls: number;
+  /** Times the topological order was repaired. */
+  readonly reorders: number;
+  /** Async iterators still open. Must return to 0 after a disconnect. */
+  readonly openIterators: number;
+  /**
+   * Nodes this runtime still holds anything for.
+   *
+   * A count, like the rest of these, and for the same reason: a leak is a
+   * number that fails to come back down, and nothing else in a test can see
+   * one. Removing a node must return this to what it was, and `dispose` must
+   * take it to zero — an editor that mounts and unmounts a hundred graphs
+   * should not be carrying the first one around.
+   */
+  readonly retained: number;
+  /**
+   * Nodes examined while working out what to run and what is wrong.
+   *
+   * A COUNT, so the cost of a drain can be asserted rather than timed. The
+   * ready set used to be recomputed over the whole dirty set on every settle,
+   * and since the dirty set starts at every node and sheds one per settle,
+   * a full drain was N^2/2 — about two minutes of blocked main thread at a
+   * hundred thousand nodes, which is what the device testing reported.
+   *
+   * Reverting that fix is behaviourally identical and quadratically slower,
+   * so nothing but a number can catch it coming back: the perf suite logs
+   * milliseconds and never fails, and a timing gate on a loaded Windows box
+   * flakes. This grows linearly with the graph and quadratically without.
+   *
+   * It counts the cycle and problem sweeps too, not only the ready set. Those
+   * run on the same per-settle path and are kept off it ONLY by their stale
+   * flags, so deleting a flag is the same quadratic by another route — and a
+   * counter that watched one of the two would have said nothing about it.
+   */
+  readonly readyScans: number;
+  /**
+   * Nodes visited while propagating dirtiness.
+   *
+   * A count, for the same reason as {@link readyScans}: building a graph
+   * dirties the descendants of every connection, and doing that once per
+   * connection re-walks the same nodes once per incoming edge. On a board with
+   * ninety-six thousand connections that is the difference between visiting
+   * each node once and visiting it as many times as it has ancestors — a
+   * difference invisible to every functional test and to a wall clock noisy
+   * enough to swing eighty milliseconds between identical runs.
+   */
+  readonly dirtyScans: number;
+}
+
+/**
+ * The two sentences the runtime writes into `problems`.
+ *
+ * A settable object rather than an injected locale, because this class is
+ * deliberately free of Angular and of any global: it is instantiated inside
+ * another runtime's evaluation when a subgraph runs, and reaching for DI here
+ * would put a container in that path. The editor assigns these from its own
+ * locale; a runtime used on its own still says something sensible.
+ */
+export interface RuntimeMessages {
+  /** A node that cannot run because it sits in a cycle. */
+  cycle(title: string): string;
+  /** A required input with nothing wired to it. */
+  requiredInput(title: string, port: string): string;
+}
+
+const DEFAULT_MESSAGES: RuntimeMessages = {
+  cycle: title => `“${title}” is part of a loop, so it cannot run.`,
+  requiredInput: (title, port) => `“${title}” needs “${port}” connected.`,
+};
+
+/** Shared, so a node with nothing wired to it allocates nothing to find that out. */
+const NO_CONNECTIONS: readonly NodeConnection[] = [];
+
+const DEFAULT_STALENESS: StalenessPolicy = 'cancel';
+/** Guards a pathological graph from spinning forever rather than hanging silently. */
+const MAX_DRAIN_ITERATIONS = 100_000;
+
+/**
+ * The outputs of a node that has not produced any.
+ *
+ * Shared and frozen: a fresh `{}` per node is a hundred thousand objects for a
+ * board where most of them are replaced the first time anything runs, and
+ * never written through in the meantime — `applyOutputs` always assigns a new
+ * object rather than mutating this one.
+ */
+const EMPTY_PORTS: PortValues = Object.freeze({});
+
+/**
+ * How many settle events one run keeps.
+ *
+ * Each holds a copy of a node's inputs and outputs, so an uncapped run over a
+ * hundred thousand nodes retains a hundred thousand events and two hundred
+ * thousand cloned objects until the run is released.
+ *
+ * The FIRST this many are kept rather than the most recent: a replay is built
+ * from these, and the upstream sources — which settle first — are what it
+ * needs. Keeping the tail would also mean an array shift per settle on the
+ * hot path, which is the cost profile this bound exists to avoid.
+ */
+const MAX_SESSION_EVENTS = 5_000;
+
+/**
+ * How many computed-node ids the metrics keep.
+ *
+ * Generous enough that any assertion on a single run sees all of it - the
+ * largest anywhere is a few thousand - and small enough both that a live
+ * editor cannot accumulate a log nothing reads, and that a test can actually
+ * reach the limit. A cap no test can cross is a cap no test can check.
+ */
+const MAX_RECORDED_COMPUTES = 5_000;
+
+/** Returned by {@link raceAbort} when the run was given up on. */
+const ABANDONED = Symbol('abandoned');
+
+/**
+ * The work's result, or {@link ABANDONED} if the signal fires first.
+ *
+ * Deliberately RESOLVES rather than rejects on abort: an abandoned run is not
+ * a failure of the node, and rejecting would settle it as errored and show the
+ * user a problem that is not theirs.
+ */
+function raceAbort<T>(work: T | PromiseLike<T>, signal: AbortSignal): Promise<T | typeof ABANDONED> {
+  if (signal.aborted) return Promise.resolve(ABANDONED);
+
+  return new Promise<T | typeof ABANDONED>((resolve, reject) => {
+    const abandon = (): void => resolve(ABANDONED);
+    signal.addEventListener('abort', abandon, { once: true });
+
+    Promise.resolve(work).then(
+      value => {
+        signal.removeEventListener('abort', abandon);
+        resolve(value);
+      },
+      cause => {
+        signal.removeEventListener('abort', abandon);
+        reject(cause instanceof Error ? cause : new Error(String(cause)));
+      },
+    );
+  });
+}
+
+export class NodeGraphRuntime {
+  // ---- graph -------------------------------------------------------------
+  private readonly definitions = new Map<string, NodeTypeDefinition>();
+  private readonly nodes = new Map<NodeId, EditorNode>();
+  private connections: readonly NodeConnection[] = [];
+  private readonly outgoing = new Map<NodeId, Set<NodeId>>();
+  private readonly incoming = new Map<NodeId, Set<NodeId>>();
+  /**
+   * Connections grouped by the node they arrive at.
+   *
+   * Resolving a node's inputs and reporting its unconnected required ports both
+   * ask "what lands here", and both used to answer by scanning every connection
+   * in the graph — once per port, per node, per pass. On a graph of any size
+   * that is the dominant cost of an edit: `refresh` walks every node, so a
+   * single keystroke in one text field was O(nodes x ports x connections).
+   *
+   * Measured before this index, one `setState`: 0.4ms at 250 nodes, 3.0ms at
+   * 1000 — 7.5x for 4x the graph, when linear would be 4x.
+   *
+   * Rebuilt wholesale in `setConnections`, which is the only writer.
+   */
+  private readonly connectionsByTarget = new Map<NodeId, NodeConnection[]>();
+
+  // ---- topological order (design §1) -------------------------------------
+  private order: NodeId[] = [];
+  private readonly position = new Map<NodeId, number>();
+
+  // ---- evaluation (design §2, §3) ----------------------------------------
+  private readonly dirty = new Set<NodeId>();
+  private readonly readySet = new Set<NodeId>();
+  /**
+   * Bumped every time a node is marked dirty.
+   *
+   * A run captures the version it set out to satisfy. If the node is dirtied
+   * again while that run is in flight, the version moves on and `settle` must
+   * NOT clear the dirtiness — the newer change has not been addressed yet.
+   */
+  private readonly dirtyVersion = new Map<NodeId, number>();
+
+  // ---- values and memoisation (design §4) --------------------------------
+  private readonly outputValues = new Map<NodeId, PortValues>();
+  private readonly stateValues = new Map<NodeId, unknown>();
+  /**
+   * Node status, behind the signals rather than inside them.
+   *
+   * A signal per node is an object, a producer record and a place in the
+   * reactive graph — and building a hundred-thousand-node board minted one for
+   * every node's state AND one for its status before anything had asked to see
+   * either. Almost none are ever read: the ones that matter belong to the few
+   * hundred cards actually mounted. The value lives here; the signal is minted
+   * on the first read and seeded from here, so a reader still sees the truth.
+   */
+  private readonly statusValues = new Map<NodeId, NodeStatus>();
+  private readonly lastInputs = new Map<NodeId, PortValues>();
+  private readonly lastState = new Map<NodeId, unknown>();
+  private readonly emitSeq = new Map<string, number>();
+  private seq = 0;
+
+  // ---- async (design §6, §7) ---------------------------------------------
+  private readonly active = new Map<NodeId, ActiveRun>();
+  private readonly iterators = new Map<NodeId, AsyncIterator<unknown>>();
+  /**
+   * Remote batches still in flight.
+   *
+   * Each hands its `signal` to `executeRemote` and asks the consumer to honour
+   * it, then had nothing that could ever fire it: the controller was a local
+   * that went out of scope, and the two `abort` calls in the file both act on
+   * a per-node run instead. So a disposed runtime left its request running,
+   * and the `for await` below kept the runtime — and the executor closure,
+   * which reaches the component — alive behind it.
+   *
+   * A set rather than a field: nothing today runs two batches at once, but a
+   * missed abort is exactly the failure this exists to prevent.
+   */
+  private readonly remoteBatches = new Set<AbortController>();
+  private runCounter = 0;
+  private disposed = false;
+  /**
+   * Set by {@link cancel}, cleared by the next {@link run}.
+   *
+   * Distinct from `disposed`, which is terminal: a cancelled runtime is a
+   * working one whose graph is still dirty, waiting to be asked again.
+   */
+  private cancelled = false;
+  /** The drain in flight, if any. See {@link run}. */
+  private draining: Promise<void> | null = null;
+  /** Whether {@link draining} honours `reactive: false`. See {@link drainOnce}. */
+  private drainingAutomatic = false;
+
+  /**
+   * Whether a drain is in flight, read through a getter.
+   *
+   * `this.draining` is narrowed to non-null by the guard at the top of
+   * {@link drainOnce}, and the narrowing survives the `await` even though the
+   * field does not — so the re-check for a drain someone else started reads
+   * as always true. A getter is not narrowed.
+   */
+  private get drainInFlight(): boolean {
+    return this.draining !== null;
+  }
+
+  // ---- reactive read-out --------------------------------------------------
+  private readonly statusSignals = new Map<NodeId, WritableSignal<NodeStatus>>();
+  private readonly outputSignals = new Map<NodeId, WritableSignal<PortValues>>();
+  private readonly inputSignals = new Map<NodeId, WritableSignal<PortValues>>();
+  private readonly stateSignals = new Map<NodeId, WritableSignal<unknown>>();
+  private readonly errorSignals = new Map<NodeId, WritableSignal<unknown>>();
+  private readonly problemsSignal = signal<readonly GraphProblem[]>([]);
+  /**
+   * Whether the reported problems could have changed since they were last built.
+   *
+   * Building them walks every node in the graph, and `refresh` runs once per
+   * node that settles — so a full evaluation rebuilt them N times, making a run
+   * O(N x N) for a list that had not changed between any two of those rebuilds.
+   * At ten thousand nodes that was the difference between a moment and half a
+   * minute.
+   *
+   * A problem depends on the SHAPE of the graph — its nodes, their definitions,
+   * what is wired to their required inputs — plus, for a node in a loop, that
+   * it is in one. None of that changes because a node finished computing, so a
+   * settle no longer rebuilds them; the things that genuinely move them set
+   * this instead.
+   */
+  private problemsStale = true;
+  /**
+   * Whether the loop analysis has to run again.
+   *
+   * Tarjan over the dirty subgraph, once per node that settles, was the other
+   * half of a quadratic run: the dirty set starts at every node and shrinks by
+   * one per settle, so the passes summed to N squared.
+   *
+   * Shrinking a graph cannot create a loop in it. So the analysis is only owed
+   * when something is ADDED to the dirty set, or the shape changes — never
+   * when a node finishes. Readiness itself is unaffected either way: a node in
+   * a loop always has a dirty upstream, so the readiness rule already refuses
+   * it. What this pass really produces is the `cycle` STATUS, and that cannot
+   * change while the set only shrinks.
+   */
+  private cyclesStale = true;
+  /** Who was in a cycle when the problems were last built. */
+  private cycleMembers = new Set<NodeId>();
+  /**
+   * Bumped whenever `readySet` changes; `ready` rebuilds its array from it.
+   *
+   * Publishing `[...readySet]` eagerly cost one array the width of the
+   * frontier on EVERY settle — on a hundred thousand nodes with a frontier of
+   * four thousand, four hundred million writes to keep a signal current that
+   * nothing in the drain reads. A version counter is O(1) to bump, and the
+   * consumers that do read `ready` still see a fresh array the moment they ask.
+   */
+  private readonly readyVersion = signal(0);
+
+  /** Backend hand-off. `null` means every node runs locally. */
+  executeRemote: RemoteExecutor | null = null;
+
+  /**
+   * How the drain hands the host a chance to paint. `null` never yields.
+   *
+   * A drain resolves its awaits in MICROTASKS, which do not let the browser
+   * paint — so every layer runs back to back in one block of main thread, and
+   * a hundred thousand nodes is a frozen page. Set this and the drain stops
+   * for a moment whenever it has spent {@link sliceMs} starting computes.
+   *
+   * It must yield to the EVENT LOOP, not the microtask queue:
+   * `() => Promise.resolve()` type-checks, satisfies every test that only
+   * counts calls, and paints nothing. The editor supplies an animation frame
+   * raced against a timer — a bare `requestAnimationFrame` never fires in a
+   * hidden tab, which would leave a drain waiting for ever.
+   *
+   * Defaults to `null` so a runtime is deterministic for its own tests, for a
+   * headless consumer, and for a child runtime nested inside another's
+   * `compute`, where spanning frames would change abort semantics.
+   */
+  yieldTo: (() => Promise<void>) | null = null;
+
+  /**
+   * Milliseconds a slice may spend STARTING computes before it yields.
+   *
+   * It bounds how many computes are started between gaps, not how long any one
+   * of them takes — a single `compute` that burns half a second cannot be
+   * interrupted by anything.
+   */
+  sliceMs = 8;
+
+  /** Wording for the problems this reports. Replaced by the editor per locale. */
+  messages: RuntimeMessages = DEFAULT_MESSAGES;
+
+  /**
+   * Run lifecycle, for the run-history addon.
+   *
+   * Plain callbacks rather than signals: history is a stream of things that
+   * happened, and a signal only ever holds the latest — an observer that
+   * missed a tick would silently lose a run.
+   */
+  onRunStarted: ((event: RunStartedEvent) => void) | null = null;
+  onNodeSettled: ((event: NodeSettledEvent) => void) | null = null;
+  onRunFinished: ((event: RunFinishedEvent) => void) | null = null;
+
+  // ---- run sessions -------------------------------------------------------
+  private session: RunSession | null = null;
+  private sessionCounter = 0;
+  /** Re-entrant `run()` callers. The pass closes when the last one leaves. */
+  private runDepth = 0;
+  /** When each node's current attempt started, for its duration. */
+  private readonly startedTicks = new Map<NodeId, number>();
+
+  // ---- instrumentation ----------------------------------------------------
+  /**
+   * Which nodes were computed, for the metrics getter.
+   *
+   * Bounded, because it is a diagnostic and nothing in the library reads it.
+   * `resetMetrics` is the only thing that shrank it and has no caller outside
+   * the specs, so in a live editor this was an append-only log with no reader
+   * and no reaper: every keystroke runs the graph, every computed node pushes
+   * an id, and on a large graph that is millions of entries within minutes of
+   * ordinary editing.
+   *
+   * The oldest go rather than the newest, so what it holds is the most recent
+   * work - which is what a diagnostic is read for - and `computedTotal` keeps
+   * the true count that trimming would otherwise hide.
+   */
+  private readonly computedNodes: NodeId[] = [];
+  private computedTotal = 0;
+  private remoteCalls = 0;
+  private reorders = 0;
+  /** See {@link RuntimeMetrics.readyScans}. */
+  private readyScans = 0;
+  /** See {@link RuntimeMetrics.dirtyScans}. */
+  private dirtyScans = 0;
+  /**
+   * When the slice in flight must yield, as a `tick()` reading.
+   *
+   * A runtime field, not a local in `execute`: `execute` runs once per LAYER,
+   * so a deadline scoped to it restarts on every layer and a deep, narrow
+   * graph would never reach it. Reset only when a yield actually happens.
+   */
+  private sliceDeadline = 0;
+  /** Aborted on dispose, so a yield that never resolves cannot hold a drain. */
+  private readonly disposal = new AbortController();
+
+  get metrics(): RuntimeMetrics {
+    return {
+      computed: [...this.computedNodes],
+      computedTotal: this.computedTotal,
+      remoteCalls: this.remoteCalls,
+      reorders: this.reorders,
+      openIterators: this.iterators.size,
+      retained: this.retainedNodes().size,
+      readyScans: this.readyScans,
+      dirtyScans: this.dirtyScans,
+    };
+  }
+
+  /**
+   * Every per-node container, so none can be forgotten in one place and not
+   * another.
+   *
+   * Typed on `keys()` rather than on `ReadonlyMap` so the bare Sets belong
+   * here too. They were left out while the signature demanded a Map, which
+   * made this list quietly untrue and left `metrics.retained` — the only leak
+   * assertion there is — blind to the position and ready-order bookkeeping.
+   * That is precisely the bookkeeping most likely to strand an id, since it is
+   * written on every settle rather than only when a node is added.
+   *
+   * `emitSeq` is deliberately absent: it is keyed `${node}:${port}`, so its
+   * keys are not node ids and splitting them back would invent string ids for
+   * numeric nodes. It is pruned by prefix in `removeNode` and asserted there
+   * directly.
+   */
+  private perNodeMaps(): readonly { keys(): IterableIterator<NodeId> }[] {
+    return [
+      this.nodes,
+      this.outgoing,
+      this.incoming,
+      this.connectionsByTarget,
+      this.position,
+      this.dirty,
+      this.readySet,
+      this.cycleMembers,
+      this.dirtyVersion,
+      this.outputValues,
+      this.stateValues,
+      this.lastInputs,
+      this.lastState,
+      this.active,
+      this.iterators,
+      this.statusSignals,
+      this.statusValues,
+      this.outputSignals,
+      this.inputSignals,
+      this.stateSignals,
+      this.errorSignals,
+      this.startedTicks,
+    ];
+  }
+
+  private retainedNodes(): ReadonlySet<NodeId> {
+    const ids = new Set<NodeId>();
+    for (const map of this.perNodeMaps()) {
+      for (const id of map.keys()) ids.add(id);
+    }
+    return ids;
+  }
+
+  resetMetrics(): void {
+    this.computedNodes.length = 0;
+    this.computedTotal = 0;
+    this.remoteCalls = 0;
+    this.reorders = 0;
+    this.readyScans = 0;
+    this.dirtyScans = 0;
+  }
+
+  readonly problems: Signal<readonly GraphProblem[]> = this.problemsSignal.asReadonly();
+  /** What `step()` would execute next. */
+  readonly ready: Signal<readonly NodeId[]> = computed(() => {
+    this.readyVersion();
+    return [...this.readySet];
+  });
+
+  // =========================================================== graph mutation
+
+  setDefinitions(definitions: readonly NodeTypeDefinition[]): void {
+    this.definitions.clear();
+    for (const definition of definitions) this.definitions.set(definition.id, definition);
+    for (const id of this.nodes.keys()) this.markDirty(id);
+    this.invalidateProblems();
+    this.refresh();
+  }
+
+  definition(nodeId: NodeId): NodeTypeDefinition | undefined {
+    const type = this.nodes.get(nodeId)?.type;
+    return type === undefined ? undefined : this.definitions.get(type);
+  }
+
+  /**
+   * The ports THIS node has, which is not always what its type declares.
+   *
+   * A type with `portsFor` derives its ports from each node's own state — a
+   * subgraph, whose inner boundary nodes are its outer ports. Reading
+   * `definition.ports` directly would give every instance the type's ports, so
+   * a user-built subgraph would draw the ports it grew and then carry no
+   * values through any of them: input resolution would not find them, and
+   * nothing would reach `compute`.
+   *
+   * Read through this everywhere a node's ports are resolved.
+   */
+  private portsOf(nodeId: NodeId, definition: NodeTypeDefinition): readonly NodePortDefinition[] {
+    if (!definition.portsFor) return definition.ports;
+    return definition.portsFor(this.stateSignal(nodeId)());
+  }
+
+  /**
+   * Replace the graph.
+   *
+   * Diffed rather than rebuilt: a rebuild would drop every cached output and
+   * re-run the whole graph on any edit, which is precisely what R13 bans.
+   */
+  setGraph(nodes: readonly EditorNode[], connections: readonly NodeConnection[]): void {
+    if (this.disposed) return;
+    if (this.sameShape(nodes, connections)) return;
+
+    const incomingIds = new Set(nodes.map(n => n.id));
+    // Collected first: `removeNode` deletes from `this.nodes`, and mutating a
+    // collection while iterating it is a trap even where the spec allows it.
+    const removed = [...this.nodes.keys()].filter(id => !incomingIds.has(id));
+    for (const id of removed) this.removeNode(id);
+    // Once for the whole batch, not once per node — see `compactOrder`.
+    if (removed.length > 0) this.compactOrder();
+    for (const node of nodes) {
+      if (this.nodes.has(node.id)) this.nodes.set(node.id, node);
+      else this.addNode(node);
+    }
+    this.setConnections(connections);
+    this.invalidateProblems();
+    this.refresh();
+  }
+
+  /**
+   * Whether this graph differs from the held one in anything the runtime models.
+   *
+   * A position is not part of that model - the runtime never reads `x` or `y` -
+   * but the editor re-feeds it from an effect on the rendered node list, and a
+   * drag replaces that list on every pointermove. So every frame of a drag was
+   * paying a full structural diff to discover that nothing it cares about had
+   * changed: allocating an id Set over every node, walking every node, and
+   * re-diffing every connection. Measured at 54.5ms per frame on a graph of
+   * 100,000 nodes, which was more than the whole rest of the frame put
+   * together.
+   *
+   * Comparing instead the four fields that DO matter - the identity, the type
+   * it computes with, the title its problems are worded from, and the ports its
+   * inputs resolve through - costs a walk with no allocation at all. `ports`
+   * compares by reference deliberately: materialisation hands back the
+   * definition's own array, and a type whose ports depend on state produces a
+   * fresh one, so a subgraph gaining a boundary node is correctly NOT the same
+   * shape.
+   */
+  private sameShape(nodes: readonly EditorNode[], connections: readonly NodeConnection[]): boolean {
+    if (connections !== this.connections) return false;
+    if (nodes.length !== this.nodes.size) return false;
+
+    for (const node of nodes) {
+      if (!this.sameNode(node)) return false;
+    }
+    return true;
+  }
+
+  /** Whether the held node differs from this one in anything modelled. */
+  private sameNode(node: EditorNode): boolean {
+    const held = this.nodes.get(node.id);
+    if (held === undefined) return false;
+    if (held === node) return true;
+    return held.type === node.type && held.title === node.title && held.ports === node.ports;
+  }
+
+  private addNode(node: EditorNode): void {
+    this.nodes.set(node.id, node);
+    this.order.push(node.id);
+    this.position.set(node.id, this.order.length - 1);
+    /*
+     * No adjacency sets, and no output object, until there is something to put
+     * in them.
+     *
+     * Every reader already tolerates a missing entry — `?? []` at each of
+     * them — because a node can legitimately have no edges in one direction.
+     * Pre-creating both meant two hundred thousand empty Sets for a board
+     * where half of them stay empty for ever: sources have no incoming, sinks
+     * no outgoing. `setConnections` mints the ones an edge actually needs.
+     */
+
+    /*
+     * A state written for this id BEFORE the node arrived wins over the type's
+     * initial state.
+     *
+     * `setState` then `setGraph` is the order a consumer restoring a document
+     * naturally writes — `deserializeGraph` hands back `states` separately from
+     * `nodes`, and subgraph navigation re-mounts a node that was removed while
+     * another graph was on screen. Seeding `initialState()` unconditionally
+     * threw those writes away, silently: the graph came back with the right
+     * shape and the wrong values, and for a subgraph, whose state IS its inner
+     * graph, it came back empty.
+     *
+     * `has` rather than `?? `: `undefined` is a legitimate state, and a node
+     * whose state was deliberately set to it must not fall back to the type.
+     */
+    this.outputValues.set(node.id, EMPTY_PORTS);
+
+    const initial = this.stateValues.has(node.id)
+      ? this.stateValues.get(node.id)
+      : this.definitions.get(node.type ?? '')?.initialState?.();
+    this.stateValues.set(node.id, initial);
+    // Not `stateSignal(...).set(...)`: minting one here builds a signal for
+    // every node in the graph before anything has asked to read one.
+    this.stateSignals.get(node.id)?.set(initial);
+
+    /*
+     * Inlined rather than `markDirty(node.id)`.
+     *
+     * A node being added has no edges yet — `setConnections` runs after this —
+     * so the descendant walk is the node itself, and paying for a `Set` and an
+     * array to discover that, a hundred thousand times, is the single largest
+     * allocation in building a graph.
+     */
+    this.cyclesStale = true;
+    this.dirtyVersion.set(node.id, (this.dirtyVersion.get(node.id) ?? 0) + 1);
+    this.dirty.add(node.id);
+    this.setStatus(node.id, 'stale');
+    this.readySet.delete(node.id);
+  }
+
+  private removeNode(id: NodeId): void {
+    this.abortRun(id);
+    this.teardownIterator(id);
+    this.nodes.delete(id);
+    this.outputValues.delete(id);
+    this.stateValues.delete(id);
+    this.lastInputs.delete(id);
+    this.lastState.delete(id);
+    this.dirty.delete(id);
+    this.readySet.delete(id);
+    this.dirtyVersion.delete(id);
+    this.startedTicks.delete(id);
+
+    /*
+     * A node in a cycle takes the cycle with it.
+     *
+     * `cycleMembers` was the one per-node container nothing pruned, and the
+     * flag that would have rebuilt it is only raised by `markDirty`, which
+     * correctly ignores a node the graph no longer has. So a graph that once
+     * held a loop kept those ids for the runtime's lifetime, and emptying it
+     * left `metrics.retained` above zero — the exact number that exists to
+     * prove nothing is retained.
+     *
+     * Raising the flag as well as pruning the set, because removing one node
+     * of a loop breaks the loop: the remaining members are no longer in a
+     * cycle, and only a rebuild can say so.
+     */
+    this.cycleMembers.delete(id);
+    this.cyclesStale = true;
+
+    /*
+     * The read-out signals go too.
+     *
+     * They were the one thing a removed node left behind, and nothing ever
+     * collected them: five maps growing by one entry per node for the lifetime
+     * of the editor. A graph that adds and removes as you work — which is what
+     * a graph editor is for — carried every node it had ever shown.
+     *
+     * Safe to drop because a node's view captures the signals it needs when
+     * its context is built, so an existing card keeps reading the object it
+     * already holds; only a LATER lookup makes a fresh one, and by then the
+     * node is gone.
+     */
+    this.statusSignals.delete(id);
+    this.statusValues.delete(id);
+    this.outputSignals.delete(id);
+    this.inputSignals.delete(id);
+    this.stateSignals.delete(id);
+    this.errorSignals.delete(id);
+
+    // Keyed by `node:port`, so they cannot be reached by id alone.
+    const prefix = `${String(id)}:`;
+    // Deleting from a Map while walking it is well defined — the entry being
+    // removed is the one just visited, and any later one is simply skipped —
+    // so there is nothing to copy first.
+    for (const key of this.emitSeq.keys()) {
+      if (key.startsWith(prefix)) this.emitSeq.delete(key);
+    }
+
+    for (const peer of this.outgoing.get(id) ?? []) this.incoming.get(peer)?.delete(id);
+    for (const peer of this.incoming.get(id) ?? []) this.outgoing.get(peer)?.delete(id);
+    this.outgoing.delete(id);
+    this.incoming.delete(id);
+  }
+
+  /**
+   * Drop every removed node from the order, and renumber, in one pass.
+   *
+   * `removeNode` used to rebuild the order array and renumber every position
+   * for each node it removed — both O(N), both per node, so clearing a graph
+   * cost O(N x N). Measured: 6ms at 500 nodes, 65ms at 2000, 1,185ms at 8000,
+   * for sixteen times the nodes and a hundred and eighty times the work.
+   *
+   * The order is only read between batches, so compacting once at the end of
+   * one is the same answer for a fraction of the cost. `removeNode` is called
+   * from exactly one place — the removal loop in `setGraph` — which is what
+   * makes that safe to rely on.
+   */
+  private compactOrder(): void {
+    this.order = this.order.filter(id => this.nodes.has(id));
+    this.reindex();
+  }
+
+  /** One compaction pass, rather than an O(N) shift per delete (design §1). */
+  private reindex(): void {
+    this.position.clear();
+    this.order.forEach((n, i) => this.position.set(n, i));
+  }
+
+  private setConnections(next: readonly NodeConnection[]): void {
+    const before = new Map(this.connections.map(c => [c.id, c]));
+    const after = new Map(next.map(c => [c.id, c]));
+
+    /*
+     * Same id, different endpoints, counts as gone and come back.
+     *
+     * The diff was by id alone, so re-pointing a connection while keeping its
+     * id changed nothing: the old target kept the value it had and the new one
+     * never heard. The editor happens to give a rewired edge a fresh id, which
+     * is why this went unseen — but a document restored from serialised state,
+     * or any consumer editing `connections` directly, has no such habit.
+     */
+    const rewired = (a: NodeConnection, b: NodeConnection): boolean =>
+      a.source !== b.source ||
+      a.sourcePort !== b.sourcePort ||
+      a.target !== b.target ||
+      a.targetPort !== b.targetPort;
+
+    const orphaned: NodeId[] = [];
+    for (const [id, connection] of before) {
+      const replacement = after.get(id);
+      if (!replacement || rewired(connection, replacement)) {
+        // design §7 — an edge going away must tear its stream down.
+        this.teardownIterator(connection.source);
+        orphaned.push(connection.target);
+      }
+    }
+    this.markDirtyAll(orphaned);
+    this.connections = next;
+    this.rebuildAdjacency();
+    this.rebuildTargetIndex();
+
+    const arrived: NodeId[] = [];
+    for (const [id, connection] of after) {
+      const previous = before.get(id);
+      if (previous && !rewired(previous, connection)) continue;
+      this.repairOrder(connection.source, connection.target);
+      arrived.push(connection.target);
+    }
+    this.markDirtyAll(arrived);
+  }
+
+  private rebuildTargetIndex(): void {
+    this.connectionsByTarget.clear();
+    for (const connection of this.connections) {
+      const existing = this.connectionsByTarget.get(connection.target);
+      if (existing) existing.push(connection);
+      else this.connectionsByTarget.set(connection.target, [connection]);
+    }
+  }
+
+  /** What lands on this node. Empty array shared, so asking costs no allocation. */
+  private incomingFor(nodeId: NodeId): readonly NodeConnection[] {
+    return this.connectionsByTarget.get(nodeId) ?? NO_CONNECTIONS;
+  }
+
+  private rebuildAdjacency(): void {
+    for (const set of this.outgoing.values()) set.clear();
+    for (const set of this.incoming.values()) set.clear();
+    for (const c of this.connections) {
+      this.edgesFrom(c.source).add(c.target);
+      this.edgesInto(c.target).add(c.source);
+    }
+  }
+
+  /**
+   * Write a node's state — including before that node exists.
+   *
+   * Dropping a write for an unknown id was the quiet half of a bug the
+   * subgraph addon made visible. `deserializeGraph` returns `states` beside
+   * `nodes`, and swapping which graph is on screen re-mounts a node that was
+   * removed while another one was showing, so "set the state, then set the
+   * graph" is an order consumers reach for and one this refused to honour: the
+   * value went nowhere and the node came back holding `initialState()`.
+   *
+   * Recorded rather than applied when the node is absent — there is nothing to
+   * schedule yet, and {@link addNode} picks the value up when it arrives.
+   */
+  setState(nodeId: NodeId, next: unknown): void {
+    if (this.disposed) return;
+    this.stateValues.set(nodeId, next);
+    this.stateSignals.get(nodeId)?.set(next);
+    if (!this.nodes.has(nodeId)) return;
+    this.markDirty(nodeId);
+    // Dynamic ports come from state, so an edit can add or remove a problem.
+    this.invalidateProblems();
+    this.refresh();
+  }
+
+  // ================================================= topological order (§1)
+
+  /**
+   * Pearce–Kelly. When the existing order already satisfies the new edge this
+   * is O(1), which is the common case because nodes are created upstream-first.
+   * Otherwise only the region between the endpoints is touched — never N.
+   */
+  private repairOrder(source: NodeId, target: NodeId): void {
+    const from = this.position.get(source);
+    const to = this.position.get(target);
+    if (from === undefined || to === undefined || from < to) return;
+
+    const forward = this.collectForward(target, from);
+    if (forward === null) return;            // closes a cycle; §5 handles it
+    const backward = this.collectBackward(source, to);
+
+    const byPosition = (a: NodeId, b: NodeId): number =>
+      (this.position.get(a) ?? 0) - (this.position.get(b) ?? 0);
+
+    const slots = [...backward, ...forward].map(n => this.position.get(n) ?? 0);
+    slots.sort((a, b) => a - b);
+
+    const orderedBackward = [...backward];
+    orderedBackward.sort(byPosition);
+    const orderedForward = [...forward];
+    orderedForward.sort(byPosition);
+    const reordered = [...orderedBackward, ...orderedForward];
+
+    slots.forEach((slot, i) => {
+      this.order[slot] = reordered[i];
+      this.position.set(reordered[i], slot);
+    });
+    this.reorders++;
+  }
+
+  /** Nodes reachable from `start` within the affected region, or null on a cycle. */
+  private collectForward(start: NodeId, limit: number): NodeId[] | null {
+    const seen = new Set<NodeId>();
+    const found: NodeId[] = [];
+    const stack = [start];
+    while (stack.length > 0) {
+      const node = stack.pop() as NodeId;
+      if (seen.has(node)) continue;
+      seen.add(node);
+      found.push(node);
+      for (const next of this.outgoing.get(node) ?? []) {
+        const at = this.position.get(next) ?? Number.POSITIVE_INFINITY;
+        if (at > limit) continue;
+        if (at === limit) return null;        // reached the source: a cycle
+        stack.push(next);
+      }
+    }
+    return found;
+  }
+
+  private collectBackward(start: NodeId, limit: number): NodeId[] {
+    const seen = new Set<NodeId>();
+    const found: NodeId[] = [];
+    const stack = [start];
+    while (stack.length > 0) {
+      const node = stack.pop() as NodeId;
+      if (seen.has(node)) continue;
+      seen.add(node);
+      found.push(node);
+      for (const prev of this.incoming.get(node) ?? []) {
+        if ((this.position.get(prev) ?? Number.NEGATIVE_INFINITY) >= limit) stack.push(prev);
+      }
+    }
+    return found;
+  }
+
+  // ================================================== dirty and ready (§2,§3)
+
+  /**
+   * Dirty everything downstream of ALL of `starts`, in one walk.
+   *
+   * `markDirty` allocates a visited set and a stack per call, and rebuilding a
+   * graph calls it once per connection: ninety-six thousand walks over the
+   * same descendants, each paying for its own bookkeeping and re-visiting
+   * nodes an earlier one had already reached. Sharing the visited set makes it
+   * one walk that touches each node once.
+   *
+   * A node reachable from two of the starts has its version bumped once here
+   * rather than twice, which is the more honest count anyway: this is one
+   * edit, so it is one change in dirtiness.
+   */
+  private markDirtyAll(starts: Iterable<NodeId>): void {
+    const seen = new Set<NodeId>();
+    const stack: NodeId[] = [];
+    for (const start of starts) stack.push(start);
+    this.walkDirty(stack, seen);
+  }
+
+  private markDirty(start: NodeId): void {
+    // A local `seen` set rather than skipping already-dirty nodes: the version
+    // has to be bumped even for a node that is currently running, or its
+    // settle would clear a dirtiness it never addressed. `seen` still keeps a
+    // diamond's tail visited once, and a cycle from looping forever.
+    this.walkDirty([start], new Set<NodeId>());
+  }
+
+  /** The dirtying walk itself, shared by {@link markDirty} and its batch form. */
+  private walkDirty(stack: NodeId[], seen: Set<NodeId>): void {
+    while (stack.length > 0) {
+      this.dirtyScans++;
+      const node = stack.pop() as NodeId;
+      if (seen.has(node)) continue;
+      seen.add(node);
+
+      /*
+       * A node that is gone cannot be dirty.
+       *
+       * Removing a graph re-set its connections, and dirtying their endpoints
+       * wrote a version back for every node just deleted — one entry per
+       * connection, resurrected a moment after being released. It computed
+       * nothing and was never read; it simply stayed. `retained` counts it,
+       * which is how it was found at all.
+       */
+      if (!this.nodes.has(node)) continue;
+
+      this.cyclesStale = true;
+      this.dirtyVersion.set(node, (this.dirtyVersion.get(node) ?? 0) + 1);
+      this.dirty.add(node);
+      this.setStatus(node, 'stale');
+      this.readySet.delete(node);
+      for (const next of this.outgoing.get(node) ?? []) stack.push(next);
+    }
+  }
+
+  /** Re-dirty everything downstream of a node, without re-running the node. */
+  private propagateFrom(nodeId: NodeId): void {
+    for (const next of this.outgoing.get(nodeId) ?? []) this.markDirty(next);
+    this.refresh();
+  }
+
+  /** The outgoing set for a node, created on first use. */
+  private edgesFrom(nodeId: NodeId): Set<NodeId> {
+    let edges = this.outgoing.get(nodeId);
+    if (!edges) {
+      edges = new Set<NodeId>();
+      this.outgoing.set(nodeId, edges);
+    }
+    return edges;
+  }
+
+  /** The incoming set for a node, created on first use. */
+  private edgesInto(nodeId: NodeId): Set<NodeId> {
+    let edges = this.incoming.get(nodeId);
+    if (!edges) {
+      edges = new Set<NodeId>();
+      this.incoming.set(nodeId, edges);
+    }
+    return edges;
+  }
+
+  /** The dirtiness a run is setting out to satisfy. */
+  private versionOf(nodeId: NodeId): number {
+    return this.dirtyVersion.get(nodeId) ?? 0;
+  }
+
+  /**
+   * Recompute the ready set over the DIRTY subgraph only.
+   *
+   * Bounded by the dirty set, never by N — which is the property R13 requires
+   * and the perf suite asserts.
+   */
+  /** Tell `ready` its array is out of date. */
+  private bumpReady(): void {
+    this.readyVersion.update(version => version + 1);
+  }
+
+  /**
+   * Re-decide whether ONE node is ready, in place.
+   *
+   * The whole-graph sweep below is right for a structural change, and wrong
+   * for a settle: the dirty set starts at every node and sheds one per settle,
+   * so calling it from there summed to N^2/2 — in this very function, whose
+   * `problemsStale` and `cyclesStale` flags exist because the same shape was
+   * found and fixed for its two OTHER loops.
+   */
+  private reconsider(nodeId: NodeId): void {
+    this.readyScans++;
+    if (!this.dirty.has(nodeId) || this.readySet.has(nodeId)) return;
+    for (const up of this.incoming.get(nodeId) ?? []) if (this.dirty.has(up)) return;
+    this.readySet.add(nodeId);
+  }
+
+  /**
+   * Readiness after `nodeId` settled.
+   *
+   * Removing a node from the dirty set can only unblock the nodes DOWNSTREAM
+   * of it — nothing else in the graph changed — so those are the only ones
+   * worth asking about. Bounded by the node's out-degree instead of by N.
+   */
+  private refreshAfter(nodeId: NodeId): void {
+    for (const down of this.outgoing.get(nodeId) ?? []) this.reconsider(down);
+    this.settleStaleFlags();
+    this.bumpReady();
+  }
+
+  /** The deferred rebuilds `refresh` and `refreshAfter` both have to flush. */
+  private settleStaleFlags(): void {
+    if (this.cyclesStale) {
+      this.cyclesStale = false;
+      this.excludeCycles();
+    }
+    if (this.problemsStale) {
+      this.problemsStale = false;
+      this.problemsSignal.set(this.collectProblems());
+    }
+  }
+
+  private refresh(): void {
+    this.readySet.clear();
+    for (const node of this.dirty) {
+      this.readyScans++;
+      let pending = 0;
+      for (const up of this.incoming.get(node) ?? []) if (this.dirty.has(up)) pending++;
+      if (pending === 0) this.readySet.add(node);
+    }
+    if (this.cyclesStale) {
+      this.cyclesStale = false;
+      this.excludeCycles();
+    }
+    this.bumpReady();
+
+    if (this.problemsStale) {
+      this.problemsStale = false;
+      this.problemsSignal.set(this.collectProblems());
+    }
+  }
+
+  /**
+   * Note that the problems have to be built again.
+   *
+   * Called by everything that changes the shape of the graph, or a node's
+   * state — dynamic ports mean a subgraph's required inputs come from its
+   * state, so an edit there can add or remove a problem.
+   */
+  private invalidateProblems(): void {
+    this.problemsStale = true;
+  }
+
+  /** Tarjan over the dirty subgraph; SCC members can never become ready (§5). */
+  /** A change in who sits in a loop is the one evaluation-time input to a problem. */
+  private noteCycleMembers(members: ReadonlySet<NodeId>): void {
+    if (members.size === this.cycleMembers.size) {
+      let same = true;
+      for (const id of members) {
+        if (!this.cycleMembers.has(id)) {
+          same = false;
+          break;
+        }
+      }
+      if (same) return;
+    }
+    this.cycleMembers = new Set(members);
+    this.invalidateProblems();
+  }
+
+  private excludeCycles(): void {
+    /** Who this pass put in a loop, so a change in that can rebuild the problems. */
+    this.readyScans += this.dirty.size;
+    const found = new Set<NodeId>();
+    const index = new Map<NodeId, number>();
+    const low = new Map<NodeId, number>();
+    const onStack = new Set<NodeId>();
+    const stack: NodeId[] = [];
+    let counter = 0;
+
+    const connect = (v: NodeId): void => {
+      index.set(v, counter);
+      low.set(v, counter);
+      counter++;
+      stack.push(v);
+      onStack.add(v);
+
+      for (const w of this.outgoing.get(v) ?? []) {
+        if (!this.dirty.has(w)) continue;
+        if (!index.has(w)) {
+          connect(w);
+          low.set(v, Math.min(low.get(v) ?? 0, low.get(w) ?? 0));
+        } else if (onStack.has(w)) {
+          low.set(v, Math.min(low.get(v) ?? 0, index.get(w) ?? 0));
+        }
+      }
+
+      if (low.get(v) === index.get(v)) closeComponent(v);
+    };
+
+    const closeComponent = (root: NodeId): void => {
+      const component: NodeId[] = [];
+      let node: NodeId;
+      do {
+        node = stack.pop() as NodeId;
+        onStack.delete(node);
+        component.push(node);
+      } while (node !== root);
+      for (const member of this.markCycle(component)) found.add(member);
+    };
+
+    for (const node of this.dirty) if (!index.has(node)) connect(node);
+
+    this.noteCycleMembers(found);
+  }
+
+  /**
+   * A component is a cycle when it has more than one node, or a self-edge.
+   *
+   * Returns the members it marked, so the caller can tell whether the set of
+   * nodes in a loop has changed — the one thing an evaluation does that a
+   * reported problem depends on.
+   */
+  private markCycle(component: readonly NodeId[]): readonly NodeId[] {
+    const selfEdge =
+      component.length === 1 && (this.outgoing.get(component[0])?.has(component[0]) ?? false);
+    if (component.length === 1 && !selfEdge) return [];
+    for (const node of component) {
+      this.setStatus(node, 'cycle');
+      this.readySet.delete(node);
+    }
+    return component;
+  }
+
+  // ====================================================== input resolution (§8)
+
+  private resolveInputs(nodeId: NodeId): PortValues {
+    const definition = this.definition(nodeId);
+    const values: PortValues = {};
+    if (!definition) return values;
+
+    for (const port of this.portsOf(nodeId, definition)) {
+      if (port.direction !== 'in') continue;
+      const conns = this.incomingFor(nodeId).filter(c => c.targetPort === port.id);
+
+      if (conns.length === 0) {
+        values[port.id] = port.default;
+      } else if (port.multi === 'collect') {
+        values[port.id] = conns.map(c => this.outputValues.get(c.source)?.[c.sourcePort]);
+      } else if (port.multi === 'latest') {
+        const newest = conns.reduce(
+          (best, c) => (this.emittedAt(c) > this.emittedAt(best) ? c : best),
+          conns[0],
+        );
+        values[port.id] = this.outputValues.get(newest.source)?.[newest.sourcePort];
+      } else {
+        values[port.id] = this.outputValues.get(conns[0].source)?.[conns[0].sourcePort];
+      }
+    }
+    return values;
+  }
+
+  /** When a connection's source port last produced a value. */
+  private emittedAt(connection: NodeConnection): number {
+    return this.emitSeq.get(`${connection.source}:${connection.sourcePort}`) ?? -1;
+  }
+
+  /**
+   * design §4 — collect ports MUST compare element-wise.
+   *
+   * They resolve to a new array on every pass, so an identity check would
+   * report a change every time and memoisation would never fire anywhere.
+   */
+  private inputsUnchanged(nodeId: NodeId, resolved: PortValues): boolean {
+    const previous = this.lastInputs.get(nodeId);
+    if (!previous) return false;
+    const definition = this.definition(nodeId);
+    if (!definition) return false;
+
+    for (const port of this.portsOf(nodeId, definition)) {
+      if (port.direction !== 'in') continue;
+      const next = resolved[port.id];
+      const last = previous[port.id];
+
+      const same = port.multi === 'collect'
+        ? sameCollected(next, last)
+        : Object.is(next, last);
+      if (!same) return false;
+    }
+    return true;
+  }
+
+  // ================================================================ execution
+
+  /**
+   * Execute exactly one ready node — the one furthest upstream.
+   *
+   * Any ready node would be *correct*: they are ready precisely because
+   * nothing they depend on is outstanding. But stepping is something a person
+   * watches, and taking whichever node happened to be inserted first made the
+   * graph light up in an order with no visible logic — a node on the right
+   * running before one on the left, for reasons only the insertion order knew.
+   * Reported as "it seems like the nodes AFTER the derived area update before
+   * it, am I missing something?" Nothing was missing; the order was arbitrary.
+   *
+   * Taking the lowest topological position makes a step walk the graph the way
+   * it reads. It costs a scan of the ready set, which only `step` pays —
+   * `run()` still drains the whole set at once and does not care.
+   */
+  async step(): Promise<void> {
+    // Never step into a drain that is already in flight, for the same reason
+    // two drains cannot overlap.
+    if (this.draining) await this.draining;
+    if (this.readySet.size === 0) return;
+
+    // Its own deadline: a `step` inherits whatever a previous drain left
+    // behind, which is always in the past, and would yield before its one node.
+    this.sliceDeadline = tick() + this.sliceMs;
+
+    let next: NodeId | null = null;
+    let best = Number.POSITIVE_INFINITY;
+    for (const nodeId of this.readySet) {
+      const at = this.position.get(nodeId) ?? Number.POSITIVE_INFINITY;
+      if (at < best) {
+        best = at;
+        next = nodeId;
+      }
+    }
+    if (next === null) return;
+
+    this.enterSession();
+    try {
+      await this.execute([next]);
+    } finally {
+      this.leaveSession();
+    }
+  }
+
+  /**
+   * Drain until nothing is ready.
+   *
+   * ### Why this is serialised
+   *
+   * Two overlapping drains corrupt results, and quietly. Both pick up the same
+   * ready node, so `beginRun` bumps its run id; the first drain's result is
+   * then discarded as stale — correctly, by design — but a downstream node in
+   * the *other* drain may already have read the output slot before either
+   * write landed, computed from an empty value, and settled.
+   *
+   * That is exactly what happened once the editor called `run()` on every
+   * state change while its own effect was also calling it: the source node
+   * held the right value and everything downstream of it held an empty one.
+   * Found by the integration test, not by the runtime's own suite, because it
+   * takes two callers to produce it.
+   */
+  async run(options?: { readonly automatic?: boolean }): Promise<void> {
+    // Nothing to do starts no pass at all, so an idle editor calling `run()`
+    // on every keystroke does not fill the history with empty runs.
+    if (this.readySet.size === 0) return;
+
+    /*
+     * The mode belongs to the PASS, not to the runtime.
+     *
+     * It used to be an instance field saved and restored around the awaits,
+     * which two overlapping callers could not share: the editor's effect
+     * firing `run({automatic: true})` while a person's explicit Run was
+     * mid-drain flipped the flag under it, and the manual pass then silently
+     * skipped every `reactive: false` node the person had asked to run. The
+     * mirror case fired everyone's HTTP POST node on a keystroke — the very
+     * damage the flag was added to prevent.
+     */
+    const automatic = options?.automatic === true;
+    this.cancelled = false;
+    if (this.runnableNow(automatic).length === 0) return;
+
+    this.enterSession();
+    try {
+      /*
+       * `cancelled` is checked HERE as well as in the drain.
+       *
+       * Cancelling deliberately leaves the graph dirty so a later run resumes
+       * — which means nothing has left `readySet`, so this condition is still
+       * true and `drainOnce` would be called again for ever. Each iteration
+       * copies the ready set, and awaiting an already-resolved async function
+       * is a microtask, so it would never even yield: a frozen tab rather
+       * than an error.
+       */
+      while (!this.cancelled && this.runnableNow(automatic).length > 0) {
+        await this.drainOnce(automatic);
+      }
+    } finally {
+      this.leaveSession();
+    }
+  }
+
+  /**
+   * One drain — or a join of the one already in flight.
+   *
+   * Joining then returning to the loop is deliberate: work dirtied while a
+   * drain ran may have arrived after it made its final decision to stop, so
+   * the caller re-checks rather than assuming the graph is settled.
+   */
+  private async drainOnce(automatic: boolean): Promise<void> {
+    if (this.draining) {
+      /*
+       * Joining is only good enough when the drain in flight is at least as
+       * permissive as this pass.
+       *
+       * An automatic drain will never run a `reactive: false` node — that is
+       * the whole point of it — so a manual `run()` that joined one made no
+       * progress at all and returned to an unbounded `while` loop. Waiting
+       * and then starting its own is what the caller asked for.
+       */
+      const inFlight = this.draining;
+      const joinedAutomatic = this.drainingAutomatic;
+      await inFlight;
+      if (automatic || !joinedAutomatic) return;
+      if (this.drainInFlight) return;
+    }
+
+    const drain = this.drain(automatic);
+    this.draining = drain;
+    this.drainingAutomatic = automatic;
+    try {
+      await drain;
+    } finally {
+      if (this.draining === drain) this.draining = null;
+    }
+  }
+
+  /**
+   * Join the pass in flight, or open one.
+   *
+   * The editor calls `run()` from several places at once — an effect, a state
+   * change, every stream emission. Treating each as its own run would report
+   * three runs for what a person did once, so callers nest.
+   */
+  private enterSession(): void {
+    this.runDepth++;
+    if (this.session) return;
+
+    this.session = {
+      id: ++this.sessionCounter,
+      startedAt: Date.now(),
+      startedTick: tick(),
+      nodes: [],
+      settledCount: 0,
+      durationTotalMs: 0,
+      slowest: null,
+      errored: false,
+    };
+    this.onRunStarted?.({
+      runId: this.session.id,
+      startedAt: this.session.startedAt,
+      nodes: [...this.readySet],
+    });
+  }
+
+  private leaveSession(): void {
+    this.runDepth = Math.max(0, this.runDepth - 1);
+    const session = this.session;
+    if (this.runDepth > 0 || !session) return;
+
+    this.session = null;
+    this.onRunFinished?.({
+      runId: session.id,
+      startedAt: session.startedAt,
+      durationMs: tick() - session.startedTick,
+      nodes: session.nodes,
+      settledCount: session.settledCount,
+      durationTotalMs: session.durationTotalMs,
+      slowest: session.slowest,
+      // Read from the session, not from `nodes`: a run whose only error
+      // settled past the cap is still an error.
+      status: session.errored ? 'error' : 'done',
+    });
+  }
+
+  private async drain(automatic: boolean): Promise<void> {
+    this.sliceDeadline = tick() + this.sliceMs;
+    let guard = 0;
+    let batch = this.runnableNow(automatic);
+    while (!this.cancelled && batch.length > 0) {
+      if (++guard > MAX_DRAIN_ITERATIONS) {
+        throw new Error('node-editor: evaluation did not converge');
+      }
+      await this.execute(batch);
+      batch = this.runnableNow(automatic);
+    }
+  }
+
+  /**
+   * The ready nodes this pass is allowed to run.
+   *
+   * Everything ready, unless the pass is automatic — one the EDITOR started
+   * because something changed, rather than one a person asked for. A type
+   * marked `reactive: false` is skipped there and left dirty, so it runs on
+   * the next explicit `run()` or `step()` instead.
+   *
+   * The flag was declared, typed and documented ("`false` for anything with
+   * side effects, which waits for an explicit run") and never read by
+   * anything. A consumer marking their HTTP POST node non-reactive got it
+   * fired on every keystroke regardless, and the damage landed outside the
+   * library where we could not see it.
+   *
+   * The loop above re-asks rather than draining `readySet` directly, because
+   * skipped nodes stay in it — draining it would never terminate.
+   */
+  private runnableNow(automatic: boolean): NodeId[] {
+    const ready = [...this.readySet];
+    if (!automatic) return ready;
+    return ready.filter(nodeId => this.definition(nodeId)?.reactive !== false);
+  }
+
+  private async execute(batch: readonly NodeId[]): Promise<void> {
+    const local: NodeId[] = [];
+    const remote: NodeId[] = [];
+
+    /*
+     * The remote half is stamped for the batch, because it genuinely IS one
+     * batched call. The local half is stamped per node, in `executeLocal`
+     * just before its compute begins.
+     *
+     * Stamping the whole batch up front was near enough while a layer ran in
+     * one unbroken block. It stops being true the moment a layer can span
+     * frames: a node started a second into the layer would report a second of
+     * `durationMs` for a six-microsecond compute, and every consumer of it —
+     * the run-history panel's per-node timings, `slowestNode`, `shareOfRun` —
+     * would be quietly wrong rather than visibly broken.
+     */
+    const startedTick = tick();
+    for (const node of batch) {
+      const isRemote = this.definition(node)?.remote === true;
+      if (isRemote) this.startedTicks.set(node, startedTick);
+      (isRemote ? remote : local).push(node);
+    }
+    /*
+     * `local` is captured ONCE, above, and must never be re-derived inside
+     * this loop.
+     *
+     * `readySet` is not a set of unstarted nodes — `execute` does not remove a
+     * node when it starts one, and a started-but-unsettled node is still
+     * dirty, so `refresh()` can put a RUNNING node back into it. This stays
+     * safe only because every `runnableNow()` call happens after `execute` has
+     * awaited everything it started. Re-deriving the batch here would hand the
+     * same node to `executeLocal` twice; for a `reactive: false` node — an
+     * HTTP POST, the case that flag exists for — that is a duplicate request.
+     */
+    const remoteWork = this.executeRemoteBatch(remote);
+    await Promise.all([this.startLocal(local), remoteWork]);
+  }
+
+  /**
+   * Starts a layer's local computes, pausing for a frame when the slice is up.
+   *
+   * `local` is captured by the caller and must never be re-derived here — see
+   * the note in {@link execute}.
+   */
+  private async startLocal(local: readonly NodeId[]): Promise<void> {
+    const started: Promise<void>[] = [];
+
+    for (const nodeId of local) {
+      if (this.disposed || this.cancelled) break;
+
+      /*
+       * Re-validated before every start, which is what makes cutting a layer
+       * mid-flight safe.
+       *
+       * A gap lets anything happen: an edit, a delete, a graph swap, or a
+       * sibling's own `setState` — and `markDirty`, `markCycle` and `setGraph`
+       * all WITHDRAW readiness. Starting a node whose readiness was withdrawn
+       * computes it from a stale upstream, and because it captures its version
+       * after the bump, it settles CLEAN. Nothing ever recomputes it: a
+       * permanently wrong value with no error and no stale badge. Skipping is
+       * self-healing — the node stays dirty and the next layer takes it in
+       * proper order.
+       */
+      if (!this.readySet.has(nodeId)) continue;
+
+      if (this.yieldTo !== null && tick() >= this.sliceDeadline) {
+        await this.yieldForSlice();
+        if (this.disposed || this.cancelled) break;
+        if (!this.readySet.has(nodeId)) continue;
+      }
+
+      started.push(this.executeLocal(nodeId));
+    }
+
+    await Promise.all(started);
+  }
+
+  /**
+   * Gives the host a moment, and cannot be held hostage by it.
+   *
+   * `yieldTo` is consumer-editable source. One that never resolves would
+   * otherwise hold `draining` for ever and every later `run()` and `step()`
+   * awaits that — the same wedge `raceAbort` exists to prevent one layer down
+   * — so it is raced against disposal. One that throws is a fault in a
+   * presentation-layer callback and must not abandon a drain mid-layer with
+   * nodes left `running`, so it is treated as absent from then on.
+   */
+  private async yieldForSlice(): Promise<void> {
+    const yieldTo = this.yieldTo;
+    if (!yieldTo) return;
+
+    try {
+      await raceAbort(yieldTo(), this.disposal.signal);
+    } catch {
+      this.yieldTo = null;
+    }
+
+    this.sliceDeadline = tick() + this.sliceMs;
+  }
+
+  private async executeLocal(nodeId: NodeId): Promise<void> {
+    const definition = this.definition(nodeId);
+    if (!definition) {
+      this.settle(nodeId, 'error');
+      return;
+    }
+
+    // Captured before any await: the dirtiness this run is answering.
+    const version = this.versionOf(nodeId);
+    const inputs = this.resolveInputs(nodeId);
+    if (
+      this.inputsUnchanged(nodeId, inputs) &&
+      Object.is(this.stateValues.get(nodeId), this.lastState.get(nodeId))
+    ) {
+      this.settle(nodeId, 'done', version);  // memo hit — no compute, no propagation
+      return;
+    }
+    this.recordInputs(nodeId, inputs);
+    this.lastState.set(nodeId, this.stateValues.get(nodeId));
+
+    if (!definition.compute) {
+      this.settle(nodeId, 'done', version);
+      return;
+    }
+
+    this.startedTicks.set(nodeId, tick());
+    const run = this.beginRun(nodeId, definition);
+    this.recordComputed(nodeId);
+    this.setStatus(nodeId, 'running');
+
+    try {
+      const result = definition.compute(this.resolveInputs(nodeId), {
+        state: this.stateValues.get(nodeId),
+        signal: run.controller.signal,
+        setState: next => this.setState(nodeId, next),
+        emit: (portId, value) => this.applyOutputs(nodeId, run.id, definition, { [portId]: value }),
+      });
+
+      if (isAsyncIterable(result)) {
+        /*
+         * A stream does NOT block the drain.
+         *
+         * Awaiting it would hold the drain open for as long as the generator
+         * keeps yielding — forever, for a websocket or a poller — and every
+         * later evaluation in the graph would queue behind it. The node
+         * settles now, on the value it already has, and each later emission
+         * propagates on its own.
+         */
+        void this.consume(nodeId, run.id, definition, result);
+        this.settle(nodeId, 'done', version);
+        return;
+      }
+      /*
+       * The wait ends when the run is abandoned, even if the promise never
+       * settles.
+       *
+       * A `compute` that never resolves - a fetch with no timeout, a node
+       * waiting on a confirmation that never comes - used to wedge the WHOLE
+       * runtime permanently. This await sits inside the drain, the drain is
+       * held in `draining`, and every later `run()` and `step()` awaits that.
+       * Deleting the offending node did not help: `beginRun` aborts the
+       * previous controller, but nothing settled the promise, so the await
+       * never returned and `draining` was never cleared.
+       *
+       * Racing the run's own abort signal costs nothing in the normal case and
+       * means an abandoned run releases the drain. A node nobody abandons
+       * still waits for ever, which is correct - it may simply be slow.
+       */
+      const value = await raceAbort(result, run.controller.signal);
+      if (value === ABANDONED) return;
+
+      this.applyOutputs(nodeId, run.id, definition, value);
+      this.settle(nodeId, 'done', version);
+    } catch (cause: unknown) {
+      this.errorSignal(nodeId).set(cause);
+      this.settle(nodeId, 'error', version);
+    }
+  }
+
+  private beginRun(nodeId: NodeId, definition: NodeTypeDefinition): ActiveRun {
+    const previous = this.active.get(nodeId);
+    if (previous && (definition.staleness ?? DEFAULT_STALENESS) === 'cancel') {
+      previous.controller.abort();
+    }
+    const run: ActiveRun = {
+      id: ++this.runCounter,
+      controller: new AbortController(),
+      version: this.versionOf(nodeId),
+    };
+    this.active.set(nodeId, run);
+    return run;
+  }
+
+  /** design §6 — only `apply` lets a superseded run win. */
+  /** Records a computed node for the metrics, keeping the record bounded. */
+  private recordComputed(nodeId: NodeId): void {
+    this.computedTotal++;
+    if (this.computedNodes.length >= MAX_RECORDED_COMPUTES) this.computedNodes.shift();
+    this.computedNodes.push(nodeId);
+  }
+
+  private applyOutputs(
+    nodeId: NodeId,
+    runId: number,
+    definition: NodeTypeDefinition,
+    value: PortValues,
+  ): void {
+    /*
+     * A node that is gone gets nothing back.
+     *
+     * `markDirty` already refuses to touch a node the graph no longer has;
+     * this path did not, and it is the one a late callback arrives on.
+     * `compute` is handed an `emit` closed over its node id, so a consumer
+     * still emitting from an interval or a socket after its node was deleted
+     * wrote `outputValues`, LAZILY RECREATED an `outputSignals` entry, and
+     * added to `emitSeq` - for an id nothing prunes again, because only
+     * `removeNode` prunes and it runs only for ids the graph still has. The
+     * staleness check below cannot cover it: `abortRun` has already dropped
+     * the `active` entry, so `current` is undefined and nothing looks stale.
+     */
+    if (this.disposed || !this.nodes.has(nodeId)) return;
+
+    const current = this.active.get(nodeId);
+    const stale = current !== undefined && current.id !== runId;
+    if (stale && (definition.staleness ?? DEFAULT_STALENESS) !== 'apply') return;
+
+    /*
+     * A `compute` that returned nothing has emitted nothing.
+     *
+     * `Object.keys(undefined)` throws, and the throw is caught upstream — so a
+     * node type whose compute falls off the end, or is a `void` arrow, settled
+     * as ERRORED carrying "Cannot convert undefined or null to object". That
+     * is a true statement about our code and tells the author nothing about
+     * theirs. Returning no outputs is a legitimate thing for a node to do.
+     */
+    // Typed as `PortValues`, so the compiler calls this dead — but the type
+    // is a promise the CONSUMER makes, and a plain-JS node type or a `void`
+    // arrow breaks it without ever seeing a compiler. The cast says that out
+    // loud rather than letting the check look like an oversight.
+    if ((value as PortValues | undefined) === undefined) return;
+
+    const merged = { ...this.outputValues.get(nodeId), ...value };
+    this.outputValues.set(nodeId, merged);
+    this.outputSignal(nodeId).set(merged);
+    for (const key of Object.keys(value)) this.emitSeq.set(`${nodeId}:${key}`, ++this.seq);
+  }
+
+  /** design §7 — every yield propagates; the iterator is tracked for teardown. */
+  private async consume(
+    nodeId: NodeId,
+    runId: number,
+    definition: NodeTypeDefinition,
+    iterable: AsyncIterable<unknown>,
+  ): Promise<void> {
+    const iterator = iterable[Symbol.asyncIterator]();
+    this.iterators.set(nodeId, iterator);
+    try {
+      while (true) {
+        const { value, done } = await iterator.next();
+        if (done === true) break;
+        if (this.active.get(nodeId)?.id !== runId) break;      // superseded
+        this.applyOutputs(nodeId, runId, definition, value as PortValues);
+        // The node itself settled when the stream started, so downstream has
+        // to be re-dirtied for each emission to reach it.
+        this.propagateFrom(nodeId);
+        void this.run();
+      }
+    } catch (cause: unknown) {
+      this.errorSignal(nodeId).set(cause);
+      this.setStatus(nodeId, 'error');
+    } finally {
+      if (this.iterators.get(nodeId) === iterator) this.iterators.delete(nodeId);
+    }
+  }
+
+  private teardownIterator(nodeId: NodeId): void {
+    const iterator = this.iterators.get(nodeId);
+    if (!iterator) return;
+    this.iterators.delete(nodeId);
+    // Runs the generator's `finally`, which is where a real node closes its
+    // socket. Without this, disconnecting an edge leaks the stream.
+    void iterator.return?.(undefined);
+  }
+
+  private abortRun(nodeId: NodeId): void {
+    this.active.get(nodeId)?.controller.abort();
+    this.active.delete(nodeId);
+  }
+
+  /** design §9 — every ready remote node in a tick is ONE call. */
+  private async executeRemoteBatch(batch: readonly NodeId[]): Promise<void> {
+    if (batch.length === 0) return;
+
+    if (!this.executeRemote) {
+      for (const nodeId of batch) this.settle(nodeId, 'error');
+      this.problemsSignal.set(this.collectProblems());
+      return;
+    }
+
+    const controller = new AbortController();
+    this.remoteBatches.add(controller);
+    const requests = batch
+      .map(nodeId => this.buildRemoteRequest(nodeId))
+      .filter((request): request is RemoteRequest => request !== null);
+
+    this.remoteCalls++;
+    try {
+      await this.consumeRemote(this.executeRemote(requests, controller.signal));
+    } catch (cause: unknown) {
+      // A cancelled batch is not a failed one: aborting the controller lands
+      // here, and reporting it would file the user's Stop as an error.
+      if (this.disposed || this.cancelled) return;
+      for (const nodeId of batch) {
+        this.errorSignal(nodeId).set(cause);
+        this.settle(nodeId, 'error');
+      }
+    } finally {
+      this.remoteBatches.delete(controller);
+    }
+  }
+
+  /**
+   * Apply what the backend sent back, however it chose to send it.
+   *
+   * Split out so the batch method stays readable, and because both shapes need
+   * the same guard: a consumer that keeps feeding a stream after teardown
+   * would otherwise write results into a runtime that has let go of everything
+   * else.
+   */
+  private async consumeRemote(
+    results: Promise<readonly RemoteResult[]> | AsyncIterable<RemoteResult>,
+  ): Promise<void> {
+    if (isAsyncIterable(results)) {
+      for await (const result of results) {
+        if (this.disposed || this.cancelled) return;
+        this.applyRemoteResult(result);
+      }
+      return;
+    }
+
+    const settled = await results;
+    if (this.disposed || this.cancelled) return;
+    for (const result of settled) this.applyRemoteResult(result);
+  }
+
+  /** Starts a run for one remote node and describes it for the executor. */
+  private buildRemoteRequest(nodeId: NodeId): RemoteRequest | null {
+    const definition = this.definition(nodeId);
+    if (!definition) return null;
+
+    const run = this.beginRun(nodeId, definition);
+    this.recordComputed(nodeId);
+    this.setStatus(nodeId, 'running');
+
+    const inputs = this.resolveInputs(nodeId);
+    this.recordInputs(nodeId, inputs);
+    this.lastState.set(nodeId, this.stateValues.get(nodeId));
+
+    return {
+      runId: run.id,
+      nodeId,
+      type: this.nodes.get(nodeId)?.type ?? '',
+      inputs,
+      state: this.stateValues.get(nodeId),
+    };
+  }
+
+  private applyRemoteResult(result: RemoteResult): void {
+    const definition = this.definition(result.nodeId);
+    if (!definition) return;
+
+    /*
+     * Settle against the version this run set out to answer.
+     *
+     * Without it a remote node edited while its request was in flight came
+     * back "done" and CLEAN, showing an answer computed from the input it no
+     * longer has — and nothing would recompute it until something unrelated
+     * dirtied it again. The local path has always passed a version here; the
+     * remote path passed none, so the staleness check it exists for could
+     * never fire.
+     *
+     * A result whose run is no longer the active one is not this node's
+     * answer at all, and `settle` is not called for it.
+     */
+    const run = this.active.get(result.nodeId);
+    const version = run?.id === result.runId ? run.version : undefined;
+
+    if (!result.ok) {
+      this.errorSignal(result.nodeId).set(result.error);
+      this.settle(result.nodeId, 'error', version);
+      return;
+    }
+    this.applyOutputs(result.nodeId, result.runId, definition, result.outputs);
+    if (result.done !== false) this.settle(result.nodeId, 'done', version);
+  }
+
+  private settle(nodeId: NodeId, status: NodeStatus, version?: number): void {
+    // Re-dirtied while this run was in flight: the newer change is still
+    // outstanding, so leave the node dirty for the drain to pick up again.
+    if (version !== undefined && this.versionOf(nodeId) !== version) {
+      this.setStatus(nodeId, 'stale');
+      this.readySet.delete(nodeId);
+
+      // Still dirty, and its upstreams may well be clean by now — so ask
+      // about the node ITSELF, or the drain never picks it up again.
+      this.reconsider(nodeId);
+      this.settleStaleFlags();
+      this.bumpReady();
+      return;
+    }
+
+    this.dirty.delete(nodeId);
+    this.readySet.delete(nodeId);
+    if (this.statusOf(nodeId) !== 'cycle') this.setStatus(nodeId, status);
+    this.report(nodeId, status);
+    this.refreshAfter(nodeId);
+  }
+
+  /** Publish what this node did, and file it under the pass in flight. */
+  private report(nodeId: NodeId, status: NodeStatus): void {
+    const startedTick = this.startedTicks.get(nodeId);
+    this.startedTicks.delete(nodeId);
+
+    const event: NodeSettledEvent = {
+      runId: this.session?.id ?? 0,
+      nodeId,
+      status,
+      inputs: { ...this.inputSignal(nodeId)() },
+      outputs: { ...this.outputValues.get(nodeId) },
+      error: status === 'error' ? this.errorSignal(nodeId)() : undefined,
+      durationMs: startedTick === undefined ? 0 : tick() - startedTick,
+    };
+    this.record(event);
+    this.onNodeSettled?.(event);
+  }
+
+  /** Files one settle against the run in flight, within the event cap. */
+  private record(event: NodeSettledEvent): void {
+    const session = this.session;
+    if (!session) return;
+
+    session.settledCount++;
+    session.durationTotalMs += event.durationMs;
+    if (event.status === 'error') session.errored = true;
+    if (!session.slowest || event.durationMs > session.slowest.durationMs) {
+      session.slowest = event;
+    }
+    if (session.nodes.length < MAX_SESSION_EVENTS) session.nodes.push(event);
+  }
+
+  // ================================================================ problems
+
+  private collectProblems(): readonly GraphProblem[] {
+    const problems: GraphProblem[] = [];
+    this.readyScans += this.nodes.size;
+    for (const [nodeId, node] of this.nodes) problems.push(...this.problemsFor(nodeId, node));
+    return problems;
+  }
+
+  private problemsFor(nodeId: NodeId, node: EditorNode): readonly GraphProblem[] {
+    const definition = this.definition(nodeId);
+    if (!definition) {
+      if (node.type === undefined) return [];
+      return [{
+        kind: 'unknown-type',
+        nodeId,
+        message: `“${node.title}” has type “${node.type}”, which is not registered.`,
+        severity: 'error',
+      }];
+    }
+
+    const problems: GraphProblem[] = [];
+    if (definition.remote === true && !this.executeRemote) {
+      problems.push({
+        kind: 'remote-without-executor',
+        nodeId,
+        message: `“${node.title}” runs on a backend, but no executor is bound.`,
+        severity: 'error',
+      });
+    }
+    if (this.statusOf(nodeId) === 'cycle') {
+      problems.push({
+        kind: 'cycle',
+        nodeId,
+        message: this.messages.cycle(node.title ?? String(nodeId)),
+        severity: 'error',
+      });
+    }
+    problems.push(...this.missingRequiredInputs(nodeId, node, definition));
+    return problems;
+  }
+
+  private missingRequiredInputs(
+    nodeId: NodeId,
+    node: EditorNode,
+    definition: NodeTypeDefinition,
+  ): readonly GraphProblem[] {
+    return this.portsOf(nodeId, definition)
+      .filter(port => port.direction === 'in' && port.required === true)
+      .filter(port => !this.incomingFor(nodeId).some(c => c.targetPort === port.id))
+      .map(port => ({
+        kind: 'required-input-unconnected' as const,
+        nodeId,
+        portId: port.id,
+        message: this.messages.requiredInput(node.title ?? String(nodeId), port.label),
+        severity: 'error' as const,
+      }));
+  }
+
+  // ============================================================== read-out
+
+  status(nodeId: NodeId): Signal<NodeStatus> {
+    return this.statusSignal(nodeId).asReadonly();
+  }
+
+  outputs(nodeId: NodeId): Signal<PortValues> {
+    return this.outputSignal(nodeId).asReadonly();
+  }
+
+  /**
+   * The values currently arriving on a node's inputs.
+   *
+   * Read by a node's view, which is how a node with no `compute` at all — the
+   * browser node in the motivating example — still reacts to its upstream.
+   */
+  inputs(nodeId: NodeId): Signal<PortValues> {
+    return this.inputSignal(nodeId).asReadonly();
+  }
+
+  /** Stores the resolved inputs for both memoisation and the view. */
+  private recordInputs(nodeId: NodeId, inputs: PortValues): void {
+    this.lastInputs.set(nodeId, inputs);
+    this.inputSignal(nodeId).set(inputs);
+  }
+
+  private inputSignal(nodeId: NodeId): WritableSignal<PortValues> {
+    let existing = this.inputSignals.get(nodeId);
+    if (!existing) {
+      existing = signal<PortValues>({});
+      this.inputSignals.set(nodeId, existing);
+    }
+    return existing;
+  }
+
+  state(nodeId: NodeId): Signal<unknown> {
+    return this.stateSignal(nodeId).asReadonly();
+  }
+
+  /**
+   * The state a node holds right now, without creating anything.
+   *
+   * `state()` builds a signal on demand, so asking it about a node the runtime
+   * has never seen leaves an entry behind for an id that may never arrive.
+   * History needs to READ state for nodes on their way in and out — exactly
+   * the ids that may not be registered — so it reads the values map directly.
+   *
+   * By REFERENCE, not a copy. A consumer whose `compute` mutates its state
+   * object in place and sets it again is mutating the same object any command
+   * built from this call is holding, so such a command restores the latest
+   * state rather than the state at the time it was recorded. State is
+   * arbitrary — inner graphs, class instances, things `structuredClone`
+   * refuses — so it is not copied here; a consumer that wants a snapshot
+   * treats its state as immutable, which everything else in the runtime
+   * already assumes.
+   */
+  peekState(nodeId: NodeId): unknown {
+    return this.stateValues.get(nodeId);
+  }
+
+
+  error(nodeId: NodeId): Signal<unknown> {
+    return this.errorSignal(nodeId).asReadonly();
+  }
+
+  private statusSignal(nodeId: NodeId): WritableSignal<NodeStatus> {
+    let existing = this.statusSignals.get(nodeId);
+    if (!existing) {
+      existing = signal<NodeStatus>(this.statusValues.get(nodeId) ?? 'idle');
+      this.statusSignals.set(nodeId, existing);
+    }
+    return existing;
+  }
+
+  /** The status without minting a signal for a node nobody is watching. */
+  private statusOf(nodeId: NodeId): NodeStatus {
+    return this.statusValues.get(nodeId) ?? 'idle';
+  }
+
+  private outputSignal(nodeId: NodeId): WritableSignal<PortValues> {
+    let existing = this.outputSignals.get(nodeId);
+    if (!existing) {
+      existing = signal<PortValues>({});
+      this.outputSignals.set(nodeId, existing);
+    }
+    return existing;
+  }
+
+  private stateSignal(nodeId: NodeId): WritableSignal<unknown> {
+    let existing = this.stateSignals.get(nodeId);
+    if (!existing) {
+      existing = signal<unknown>(this.stateValues.get(nodeId));
+      this.stateSignals.set(nodeId, existing);
+    }
+    return existing;
+  }
+
+  private errorSignal(nodeId: NodeId): WritableSignal<unknown> {
+    let existing = this.errorSignals.get(nodeId);
+    if (!existing) {
+      existing = signal<unknown>(null);
+      this.errorSignals.set(nodeId, existing);
+    }
+    return existing;
+  }
+
+  private setStatus(nodeId: NodeId, status: NodeStatus): void {
+    this.statusValues.set(nodeId, status);
+    // Only if someone is actually watching this node.
+    this.statusSignals.get(nodeId)?.set(status);
+  }
+
+  /** Abort everything in flight and refuse further work. */
+  /**
+   * Stops the run in flight, leaving the graph ready to resume.
+   *
+   * Runs can last seconds once they are sliced, so a person needs a way out —
+   * and nothing here offered one: `dispose()` is terminal and never resets, and
+   * aborting a single node's controller is per node, not per run.
+   *
+   * It closes the session ITSELF rather than through `leaveSession`, which
+   * returns early while nested runs are outstanding — and mid-drain they
+   * routinely are, because the editor fires an automatic run on every graph
+   * and state change. Going that way would skip `onRunFinished` entirely, and
+   * a consumer holding a whole-graph snapshot for the open run would keep it
+   * for ever.
+   *
+   * Nodes that were mid-compute go back to `stale` rather than being left
+   * `running`: aborting them means their `executeLocal` returns without
+   * settling, so without this they would spin on screen for the life of the
+   * page and never be picked up again.
+   */
+  cancel(): void {
+    if (this.disposed) return;
+    this.cancelled = true;
+
+    for (const controller of this.remoteBatches) controller.abort();
+    this.remoteBatches.clear();
+
+    for (const [nodeId, run] of this.active) {
+      run.controller.abort();
+      if (this.nodes.has(nodeId)) this.setStatus(nodeId, 'stale');
+    }
+    this.active.clear();
+
+    const session = this.session;
+    if (!session) return;
+
+    this.session = null;
+    this.runDepth = 0;
+    this.onRunFinished?.({
+      runId: session.id,
+      startedAt: session.startedAt,
+      durationMs: tick() - session.startedTick,
+      nodes: session.nodes,
+      settledCount: session.settledCount,
+      durationTotalMs: session.durationTotalMs,
+      slowest: session.slowest,
+      status: 'cancelled',
+    });
+  }
+
+  dispose(): void {
+    this.disposal.abort();
+    this.disposed = true;
+    // Snapshotted: both loops delete from the collection they read.
+    const running = [...this.active.keys()];
+    const streaming = [...this.iterators.keys()];
+    for (const nodeId of running) this.abortRun(nodeId);
+    for (const nodeId of streaming) this.teardownIterator(nodeId);
+
+    // The signal the executor was asked to honour, finally fired.
+    for (const controller of this.remoteBatches) controller.abort();
+    this.remoteBatches.clear();
+    /*
+     * A drain waiting on a promise that never settles would otherwise keep
+     * every later `run()` queued behind it on a runtime that is finished with.
+     * Aborting the active runs above is what lets that await return; this drops
+     * the reference so nothing waits on it either way.
+     */
+    this.draining = null;
+
+    this.dirty.clear();
+    this.readySet.clear();
+    this.startedTicks.clear();
+
+    /*
+     * Everything else, because a disposed runtime is finished with.
+     *
+     * A subgraph builds one of these per evaluation and throws it away, so
+     * anything left holding on here is held once per run of every nested
+     * graph. Aborting the work was not the same as letting go of it.
+     */
+    this.nodes.clear();
+    this.definitions.clear();
+    this.connections = [];
+    this.outgoing.clear();
+    this.incoming.clear();
+    this.connectionsByTarget.clear();
+    this.order = [];
+    this.position.clear();
+    this.cycleMembers.clear();
+    this.dirtyVersion.clear();
+    this.outputValues.clear();
+    this.stateValues.clear();
+    this.lastInputs.clear();
+    this.lastState.clear();
+    this.emitSeq.clear();
+    this.statusSignals.clear();
+    this.statusValues.clear();
+    this.outputSignals.clear();
+    this.inputSignals.clear();
+    this.stateSignals.clear();
+    this.errorSignals.clear();
+    this.computedNodes.length = 0;
+    this.session = null;
+
+    /*
+     * And the callbacks, which are the ones that hold a whole component.
+     *
+     * `onRunStarted = event => this.runStarted.emit(event)` closes over the
+     * editor. Leaving it attached to a runtime someone else still references
+     * keeps the component, its template and its nodes alive behind it.
+     */
+    this.onRunStarted = null;
+    this.onNodeSettled = null;
+    this.onRunFinished = null;
+    this.executeRemote = null;
+  }
+}
+
+/**
+ * Whether two resolved `collect` values are equal.
+ *
+ * Element-wise, because a collect port resolves to a NEW array on every pass —
+ * an identity check would report a change every time and memoisation would
+ * never fire anywhere in the graph (design §4). Falls back to identity when
+ * either side is not an array, which also makes two absent values equal.
+ */
+function sameCollected(next: unknown, last: unknown): boolean {
+  if (!Array.isArray(next) || !Array.isArray(last)) return Object.is(next, last);
+  return next.length === last.length && next.every((value, i) => Object.is(value, last[i]));
+}
+
+function isAsyncIterable(value: unknown): value is AsyncIterable<unknown> {
+  return typeof value === 'object' && value !== null && Symbol.asyncIterator in value;
+}

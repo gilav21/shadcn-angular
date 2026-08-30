@@ -1,0 +1,20 @@
+<!--
+  Colour and size go through style BINDINGS, not a composed style string:
+  Angular sanitises each property, and a value that fails `safeColor` never
+  reaches the DOM at all because the binding is null.
+
+  The text itself is interpolated. It must never be innerHTML — a graph can
+  put anything in a string, and this node is the point where graph data becomes
+  a document.
+-->
+<p
+  class="min-h-8 truncate rounded-md border px-2 py-1.5 text-sm"
+  [class]="classes()"
+  [style.color]="color$()"
+  [style.backgroundColor]="background$()"
+  [style.fontSize.px]="size$()"
+  [attr.data-slot]="'node-editor-text-output'"
+  dir="auto"
+>
+  {{ shown() }}
+</p>

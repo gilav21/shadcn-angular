@@ -131,23 +131,44 @@ export class SpatialHash<T extends SpatialItem> {
    * Either way the work is bounded by `min(cells, items)`.
    */
   query(rect: CanvasRect): T[] {
+    return this.queryInto(rect, [], new Set<T>());
+  }
+
+  /**
+   * {@link query}, into buffers the CALLER owns and reuses.
+   *
+   * A query allocates an array and a dedup Set, which is nothing once and a
+   * great deal a hundred thousand times: asking which group holds each node
+   * on a board of 100,000 allocated 200,000 containers per drag frame to
+   * produce a member count. A caller looping over nodes can hand the same two
+   * in every time; both are cleared here, so each call still answers only
+   * about `rect`.
+   *
+   * The returned array IS `out` — do not retain it across calls.
+   */
+  queryInto(rect: CanvasRect, out: T[], seen: Set<T>): T[] {
+    out.length = 0;
+    seen.clear();
+
     const minX = Math.floor(rect.x / this.cellSize);
     const minY = Math.floor(rect.y / this.cellSize);
     const maxX = Math.floor((rect.x + rect.width) / this.cellSize);
     const maxY = Math.floor((rect.y + rect.height) / this.cellSize);
 
     const spannedCells = (maxX - minX + 1) * (maxY - minY + 1);
-    if (spannedCells > this.registry.size) return this.linearQuery(rect);
-
-    const found: T[] = [];
-    const seen = new Set<T>();
+    if (spannedCells > this.registry.size) {
+      for (const { item } of this.registry.values()) {
+        if (intersects(item, rect)) out.push(item);
+      }
+      return out;
+    }
 
     for (let cy = minY; cy <= maxY; cy++) {
       for (let cx = minX; cx <= maxX; cx++) {
-        this.collectCell(`${cx},${cy}`, rect, seen, found);
+        this.collectCell(`${cx},${cy}`, rect, seen, out);
       }
     }
-    return found;
+    return out;
   }
 
   /** Appends a bucket's not-yet-seen, intersecting items to `found`. */
@@ -162,15 +183,6 @@ export class SpatialHash<T extends SpatialItem> {
     }
   }
 
-  /** Fallback for query rects that span more cells than the index holds items. */
-  private linearQuery(rect: CanvasRect): T[] {
-    const found: T[] = [];
-    for (const { item } of this.registry.values()) {
-      if (intersects(item, rect)) found.push(item);
-    }
-    return found;
-  }
-
   /** Every indexed item whose box contains the world point. */
   queryPoint(x: number, y: number): T[] {
     return this.query({ x, y, width: 0, height: 0 });
@@ -182,6 +194,27 @@ export class SpatialHash<T extends SpatialItem> {
     const minY = Math.floor(item.y / this.cellSize);
     const maxX = Math.floor((item.x + item.width) / this.cellSize);
     const maxY = Math.floor((item.y + item.height) / this.cellSize);
+
+    /*
+     * A box that is not a box gets no cells.
+     *
+     * `for (cx = minX; cx <= maxX; cx++)` against an infinite or NaN bound
+     * never terminates, and it allocates a string every turn — one item with
+     * `width: Infinity`, or an `x` that arrived as NaN from a malformed
+     * document, hangs the tab and then exhausts memory. This is consumer data:
+     * the index is rebuilt from whatever array is handed to `setItems`.
+     *
+     * Registering nothing is the right answer rather than a thrown error. The
+     * item keeps its place in the list and still renders; it is only absent
+     * from spatial QUERIES, so it cannot be culled into view or hit-tested —
+     * which is the honest outcome for a shape with no position.
+     *
+     * `query` already guards its own loop this way, bailing to a linear scan
+     * when a rect spans more cells than the index holds items. This loop had
+     * no such guard.
+     */
+    if (!Number.isFinite(minX) || !Number.isFinite(minY)) return [];
+    if (!Number.isFinite(maxX) || !Number.isFinite(maxY)) return [];
 
     const keys: string[] = [];
     for (let cy = minY; cy <= maxY; cy++) {

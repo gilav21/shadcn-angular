@@ -6,7 +6,7 @@ import {
     type NodeConnection,
     type NodeContext,
     type NodeTypeDefinition,
-} from '@/components/ui/node-editor';
+} from '@/components/ui/infinite-canvas/addons/node-editor';
 
 /**
  * Harness for the `node-editor` component.

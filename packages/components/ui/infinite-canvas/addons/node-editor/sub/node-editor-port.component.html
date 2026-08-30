@@ -1,0 +1,52 @@
+@let current = port();
+
+<!--
+  The row is laid out left to right whatever the document does.
+
+  Its flex axis follows the inline direction, so in a right-to-left page the
+  dot and label swapped ends and no longer matched the physical inset that puts
+  the dot on the node boundary. The wire anchors at a world coordinate, which
+  has no direction, so the row must not have one either.
+
+  The label inside still takes its own direction — see the span below.
+-->
+<button
+  type="button"
+  tabindex="-1"
+  dir="ltr"
+  [class]="rowClasses()"
+  [style.top.px]="top()"
+  [style.height.px]="metrics().rowHeight"
+  [disabled]="current.disabled"
+  [attr.data-slot]="'node-editor-port'"
+  [attr.data-node]="node().id"
+  [attr.data-port]="current.id"
+  [attr.data-direction]="current.direction"
+  [attr.data-connected]="connected() ? 'true' : null"
+  [attr.data-drop]="dropState()"
+  [attr.data-connectable]="isConnectable()"
+  [attr.title]="hint()"
+  [attr.aria-label]="ariaLabel()"
+>
+  <span [class]="dotClasses()" [attr.data-slot]="'node-editor-port-dot'"></span>
+  <!--
+    The label carries its own line height rather than the row's tighter one.
+    Truncation hides anything outside the line box, and a box of exactly one em
+    leaves no room for what hangs below the baseline — so a label read fine
+    until it had a descender, and then the tail of a y or a g was sliced off.
+    The row still centres on the dot; the taller line only gives the glyphs
+    their height back, well inside the 24px row.
+
+    Automatic text direction because a port label is content, not chrome: a
+    Hebrew or Arabic label should read right to left even on a left-to-right
+    canvas, and a Latin one left to right on a right-to-left canvas, rather
+    than inheriting whichever way the page runs and taking its punctuation to
+    the wrong end.
+  -->
+  <span
+    class="max-w-[72px] truncate leading-[1.45]"
+    dir="auto"
+    [attr.data-slot]="'node-editor-port-label'"
+    >{{ current.label }}</span
+  >
+</button>

@@ -37,16 +37,55 @@ import type {
 
 interface CachedEdge {
   edge: CanvasEdge;
-  path: Path2D;
+  /**
+   * The `collectVisible` pass that last DREW this edge.
+   *
+   * Above the cap only a sample is drawn, and what is not drawn must not be
+   * hit-testable. Starts at 0, which matches the initial `drawSweep` — so
+   * before the first frame everything is hit-testable, as it was.
+   */
+  drawn: number;
+  /**
+   * The `setEdges` pass that last saw this entry alive.
+   *
+   * Stamped instead of collecting every live id into a Set: the Set was
+   * allocated fresh on each call and filled with all 96,000 ids, on every
+   * frame of a drag that adds and removes nothing at all.
+   */
+  sweep: number;
+  /** Built on first draw or hit test, never at load. See `pathOf`. */
+  path: Path2D | null;
   /** World-space bounding box, used to cull before stroking. */
   bounds: CanvasRect;
   styleKey: string;
+  /** The endpoints `path` was built from, so an unmoved edge can keep it. */
+  from: CanvasPoint;
+  to: CanvasPoint;
+  /**
+   * The item objects those endpoints were read from.
+   *
+   * Identity, not geometry: if the descriptor and both items are the same
+   * objects as last time, nothing that feeds this path can have changed, and
+   * the two anchor points need not be computed at all. Items are replaced
+   * rather than mutated everywhere in this engine, which is what makes an
+   * identity check sound here.
+   */
+  sourceItem: CanvasItem;
+  targetItem: CanvasItem;
 }
 
 /** Extra world units added to an edge's AABB so thick strokes are not clipped. */
 const AABB_PADDING = 2;
 /** Screen-pixel radius within which a point counts as hitting an edge. */
 const HIT_TOLERANCE_PX = 6;
+/**
+ * Most edges allowed to hold a built path at once.
+ *
+ * Comfortably more than any one viewport shows, so panning back and forth over
+ * the same region rebuilds nothing, and far short of the count that made the
+ * page stop responding.
+ */
+const MAX_BUILT_PATHS = 4_000;
 const DEFAULT_EDGE_WIDTH = 1.5;
 const DEFAULT_EDGE_COLOR = 'currentColor';
 
@@ -57,6 +96,19 @@ export class CanvasEdgeRenderer {
   private dpr = 1;
   private cssWidth = 0;
   private cssHeight = 0;
+  /** How many cached edges currently hold a built path. */
+  private builtPaths = 0;
+  /** Counter behind {@link CachedEdge.sweep}. */
+  private sweep = 0;
+  /** Counter behind {@link CachedEdge.drawn}. */
+  private drawSweep = 0;
+  /**
+   * Which edges touch each item, for {@link moveItems}.
+   *
+   * Maintained as the cache is built, because the alternative on a drag frame
+   * is walking all 96,000 edges to find the eight that moved.
+   */
+  private readonly edgesByItem = new Map<string | number, Set<string | number>>();
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     const ctx = canvas.getContext('2d');
@@ -67,6 +119,21 @@ export class CanvasEdgeRenderer {
   /** Cached edges, whether or not they are currently visible. */
   get edgeCount(): number {
     return this.cache.size;
+  }
+
+  /**
+   * How many edges have had a `Path2D` built for them.
+   *
+   * Exposed so a test can prove the expensive half of an edge is NOT built
+   * until it is drawn — the whole reason a hundred-thousand-edge board loads
+   * at all. `edgeCount` counts what is known; this counts what was paid for.
+   */
+  get builtPathCount(): number {
+    let built = 0;
+    for (const cached of this.cache.values()) {
+      if (cached.path) built++;
+    }
+    return built;
   }
 
   /**
@@ -93,26 +160,186 @@ export class CanvasEdgeRenderer {
    * change — **not** on pan or zoom, which reuse the cache untouched.
    */
   setEdges(edges: readonly CanvasEdge[], itemsById: ReadonlyMap<string | number, CanvasItem>): void {
-    this.cache.clear();
+    const sweep = ++this.sweep;
 
     for (const edge of edges) {
       const source = itemsById.get(edge.source);
       const target = itemsById.get(edge.target);
-      if (!source || !target) continue;
-      this.cache.set(
-        edge.id,
-        buildCachedEdge(
-          edge,
-          anchorOf(source, edge.sourceAnchor),
-          anchorOf(target, edge.targetAnchor),
-        ),
-      );
+      if (source && target) this.refreshEdge(edge, source, target, sweep);
     }
+
+    // Deleting from a Map while iterating it is defined behaviour: an entry
+    // removed before the walk reaches it is simply not visited. So no copy of
+    // the key set is needed, and at 96,000 edges a copy is not free.
+    for (const [id, cached] of this.cache) {
+      if (cached.sweep === sweep) continue;
+      if (cached.path) this.builtPaths--;
+      this.forget(cached);
+      this.cache.delete(id);
+    }
+  }
+
+  /**
+   * Re-anchors only the edges attached to items that just moved.
+   *
+   * The drag path, paired with `CanvasItemLayer.moveItems`. `setEdges` walks
+   * every edge to discover that eight of ninety-six thousand changed — 14ms a
+   * frame at this scale — and dragging a node changes nothing else about the
+   * graph, so nothing else is touched here.
+   */
+  moveItems(moved: readonly CanvasItem[]): void {
+    for (const item of moved) {
+      const touched = this.edgesByItem.get(item.id);
+      if (!touched) continue;
+
+      for (const edgeId of touched) {
+        const cached = this.cache.get(edgeId);
+        if (cached) this.reanchor(cached, item);
+      }
+    }
+  }
+
+  /** Re-derives one cached edge's endpoints after `item` moved. */
+  private reanchor(cached: CachedEdge, item: CanvasItem): void {
+    if (cached.sourceItem.id === item.id) cached.sourceItem = item;
+    if (cached.targetItem.id === item.id) cached.targetItem = item;
+
+    cached.from = anchorOf(cached.sourceItem, cached.edge.sourceAnchor);
+    cached.to = anchorOf(cached.targetItem, cached.edge.targetAnchor);
+    cached.bounds = boundsOfEdge(cached.edge, cached.from, cached.to);
+
+    if (!cached.path) return;
+    cached.path = null;
+    this.builtPaths--;
+  }
+
+  /** Drops an edge from the item index it was registered under. */
+  private forget(cached: CachedEdge): void {
+    this.edgesByItem.get(cached.edge.source)?.delete(cached.edge.id);
+    this.edgesByItem.get(cached.edge.target)?.delete(cached.edge.id);
+  }
+
+  /** Registers an edge under both of its endpoints. */
+  private remember(edge: CanvasEdge): void {
+    for (const itemId of [edge.source, edge.target]) {
+      let touching = this.edgesByItem.get(itemId);
+      if (!touching) {
+        touching = new Set<string | number>();
+        this.edgesByItem.set(itemId, touching);
+      }
+      touching.add(edge.id);
+    }
+  }
+
+  /** Brings one edge's cache entry up to date, and stamps it as live. */
+  private refreshEdge(
+    edge: CanvasEdge,
+    source: CanvasItem,
+    target: CanvasItem,
+    sweep: number,
+  ): void {
+    /*
+     * The cheapest question first: is anything different at all?
+     *
+     * The editor hands back the SAME descriptor object for a connection whose
+     * endpoints did not move, so for 95,992 of 96,000 edges this is three
+     * reference comparisons and nothing else — no anchor points allocated, no
+     * fields compared.
+     */
+    const known = this.cache.get(edge.id);
+    if (known && untouched(known, edge, source, target)) {
+      known.sweep = sweep;
+      return;
+    }
+
+    const from = anchorOf(source, edge.sourceAnchor);
+    const to = anchorOf(target, edge.targetAnchor);
+
+    /*
+     * Keep the path when nothing that shapes it moved.
+     *
+     * The editor hands us a freshly built edge list on every frame of a drag,
+     * so the objects are always new — but the NUMBERS in them are identical
+     * for every edge that did not move, and dragging one node moves 8 edges
+     * out of 96,000. Rebuilding all of them meant discarding 95,992 correct
+     * Path2Ds and constructing them again, which is the single most expensive
+     * thing this class can be asked to do.
+     */
+    if (known && reusable(known, edge, from, to)) {
+      known.edge = edge;
+      known.sourceItem = source;
+      known.targetItem = target;
+      known.sweep = sweep;
+      return;
+    }
+
+    // Only here, where the entry is genuinely replaced. Dropping the path
+    // before the reuse check above discarded it for every edge whose
+    // DESCRIPTOR was rebuilt even when its geometry was untouched — which is
+    // every edge, for any caller that rebuilds its edge array each frame.
+    if (known?.path) this.builtPaths--;
+    if (known) this.forget(known);
+    this.remember(edge);
+    const built = buildCachedEdge(edge, from, to, source, target);
+    built.sweep = sweep;
+
+    /*
+     * A replaced entry keeps the pass that last drew it.
+     *
+     * `hitTest` only considers edges the last frame drew, and a fresh entry
+     * starts at 0 — so the eight edges attached to a node you just moved
+     * became un-clickable until the next paint. A pointerdown landing in that
+     * window is not a rare thing: the edit that replaced them was a drag.
+     */
+    built.drawn = known?.drawn ?? 0;
+    this.cache.set(edge.id, built);
   }
 
   /** Drops every cached path. */
   clear(): void {
     this.cache.clear();
+    this.edgesByItem.clear();
+    this.builtPaths = 0;
+  }
+
+  /**
+   * The edge's world-space `Path2D`, built on first use and kept after.
+   *
+   * Building one per edge in the GRAPH rather than per edge on the SCREEN is
+   * what made a 100,000-node board unusable: 96,000 native objects in one
+   * blocking pass at load, whose cost never appeared in the JS heap because
+   * that is not where it lives.
+   *
+   * Building them lazily and never letting them go is the same bug arriving
+   * slowly. Panning a large board visits new edges continuously, so the built
+   * set creeps back towards every edge in the graph: a minute of panning froze
+   * the page again, recovered when the collector eventually caught up, and
+   * froze again within seconds. {@link trimTo} is the other half of this, and
+   * without it this method is a leak with a delay on it.
+   */
+  private pathOf(cached: CachedEdge): Path2D {
+    if (cached.path) return cached.path;
+
+    const path = new Path2D();
+    path.moveTo(cached.from.x, cached.from.y);
+
+    const control = controlPoints(cached.edge, cached.from, cached.to);
+    if (control) {
+      path.bezierCurveTo(
+        control.c1.x,
+        control.c1.y,
+        control.c2.x,
+        control.c2.y,
+        cached.to.x,
+        cached.to.y,
+      );
+    } else {
+      path.lineTo(cached.to.x, cached.to.y);
+    }
+
+    cached.path = path;
+    this.builtPaths++;
+    return path;
   }
 
   /**
@@ -172,23 +399,80 @@ export class CanvasEdgeRenderer {
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
+    /*
+     * Only edges the last frame actually DREW.
+     *
+     * Above the cap the drawn set is a sample and the cache is everything, so
+     * hit-testing the cache let a click on apparently blank canvas select a
+     * wire nobody could see — and then Delete removed it. An edge that is not
+     * on the screen is not under the pointer.
+     */
     let hit: CanvasEdge | null = null;
     for (const cached of this.cache.values()) {
+      if (cached.drawn !== this.drawSweep) continue;
       if (!rectsIntersect(cached.bounds, probe)) continue;
       ctx.lineWidth = Math.max(tolerance * 2, (cached.edge.width ?? DEFAULT_EDGE_WIDTH) / viewport.zoom);
-      if (ctx.isPointInStroke(cached.path, worldX, worldY)) hit = cached.edge;
+      if (ctx.isPointInStroke(this.pathOf(cached), worldX, worldY)) hit = cached.edge;
     }
 
     ctx.restore();
     return hit;
   }
 
-  /** Groups the visible edges into one `Path2D` per stroke style. */
+  /**
+   * Groups the visible edges into one `Path2D` per stroke style.
+   *
+   * Capped, because "visible" is not a small number when you zoom out. Lazy
+   * path building was added so a 96,000-edge board did not construct 96,000
+   * native objects on load — and then zoom-to-fit put every one of those
+   * edges inside the world rect and built them all in a single blocking
+   * frame anyway, with nothing offscreen left for the trim to reclaim.
+   *
+   * Above the cap the pass keeps an even sample instead. At that zoom an edge
+   * is a fraction of a pixel and the honest picture is a smear either way; an
+   * even sample is the same smear at a bounded cost, and it is the trick the
+   * minimap already uses for the same reason.
+   *
+   * The sample is a FRACTION, not an integer stride. `ceil(n / cap)` is a
+   * step: at one edge over the cap it jumps from every edge to every second
+   * one, so 4,001 visible edges drew 2,001 and two thousand wires vanished at
+   * a zoom where they were perfectly legible. Keeping `cap / n` of them draws
+   * 4,000 of the 4,001, and the picture degrades as smoothly as the count
+   * rises.
+   */
   private collectVisible(worldRect: CanvasRect): Map<string, StyleBatch> {
     const batches = new Map<string, StyleBatch>();
+    const drawPass = ++this.drawSweep;
+
+    // Only worth counting when the whole cache could exceed the cap; below
+    // that the answer is `1` and the extra pass over 96,000 AABBs is waste.
+    const visible = this.cache.size > MAX_BUILT_PATHS ? this.countVisible(worldRect) : 0;
+    const keep = visible > MAX_BUILT_PATHS ? MAX_BUILT_PATHS / visible : 1;
+    let credit = 0;
+    /*
+     * Give back the paths of edges that are not on screen, once too many are
+     * being held. Folded into the pass that already walks the cache, and only
+     * armed when the count is over the limit, so an ordinary frame pays one
+     * comparison for it.
+     */
+    const trimming = this.builtPaths > MAX_BUILT_PATHS;
 
     for (const cached of this.cache.values()) {
-      if (!rectsIntersect(cached.bounds, worldRect)) continue;
+      if (!rectsIntersect(cached.bounds, worldRect)) {
+        this.release(cached, trimming);
+        continue;
+      }
+
+      if (keep < 1) {
+        credit += keep;
+        if (credit < 1) {
+          this.release(cached, trimming);
+          continue;
+        }
+        credit -= 1;
+      }
+
+      cached.drawn = drawPass;
 
       let batch = batches.get(cached.styleKey);
       if (!batch) {
@@ -200,9 +484,37 @@ export class CanvasEdgeRenderer {
         };
         batches.set(cached.styleKey, batch);
       }
-      batch.path.addPath(cached.path);
+      batch.path.addPath(this.pathOf(cached));
     }
     return batches;
+  }
+
+  /**
+   * Give an edge's path back, if too many are being held.
+   *
+   * Only when `trimming`: freeing regardless discards paths that cost nothing
+   * to keep, and since a pan shifts which edge lands on which sample slot,
+   * they would be rebuilt on the very next frame.
+   */
+  private release(cached: CachedEdge, trimming: boolean): void {
+    if (!trimming || !cached.path) return;
+    cached.path = null;
+    this.builtPaths--;
+  }
+
+  /**
+   * How many edges the world rect holds, without building anything.
+   *
+   * One extra AABB pass over the cache. It buys the stride, which is the
+   * difference between building a bounded number of paths and building all of
+   * them — and an AABB test is arithmetic where a `Path2D` is an allocation.
+   */
+  private countVisible(worldRect: CanvasRect): number {
+    let visible = 0;
+    for (const cached of this.cache.values()) {
+      if (rectsIntersect(cached.bounds, worldRect)) visible++;
+    }
+    return visible;
   }
 }
 
@@ -244,40 +556,148 @@ function bezierReach(from: CanvasPoint, to: CanvasPoint): number {
   return Math.max(Math.abs(to.x - from.x) * BEZIER_TENSION, BEZIER_MIN_REACH);
 }
 
-function buildCachedEdge(edge: CanvasEdge, from: CanvasPoint, to: CanvasPoint): CachedEdge {
-  const path = new Path2D();
-  path.moveTo(from.x, from.y);
+/**
+ * Whether nothing that feeds this edge's path has changed since last time.
+ *
+ * Three reference comparisons, which is all it takes: the editor hands back
+ * the SAME descriptor object for a connection whose endpoints did not move,
+ * and items are replaced rather than mutated, so identity settles the question
+ * without computing an anchor or comparing a field.
+ */
+function untouched(
+  known: CachedEdge | undefined,
+  edge: CanvasEdge,
+  source: CanvasItem,
+  target: CanvasItem,
+): boolean {
+  if (known === undefined) return false;
+  return known.edge === edge && known.sourceItem === source && known.targetItem === target;
+}
 
-  // The bounds must contain the CONTROL points, not just the endpoints. A
-  // cubic never leaves its control hull, so hull bounds are always safe; the
-  // curve's true extent is tighter, but culling an edge that is actually
-  // on-screen is a visible bug and a slightly loose AABB is not.
-  const xs = [from.x, to.x];
-  const ys = [from.y, to.y];
+/** The style fields the batching key is built from. */
+function styleKeyOf(edge: CanvasEdge): string {
+  return `${edge.color ?? DEFAULT_EDGE_COLOR}|${edge.width ?? DEFAULT_EDGE_WIDTH}|${(edge.dash ?? []).join(',')}`;
+}
 
-  if (edge.curve === 'bezier') {
-    const reach = bezierReach(from, to);
-    const c1 = { x: from.x + reach, y: from.y };
-    const c2 = { x: to.x - reach, y: to.y };
-    path.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, to.x, to.y);
-    xs.push(c1.x, c2.x);
-    ys.push(c1.y, c2.y);
-  } else {
-    path.lineTo(to.x, to.y);
+/** Whether two dash patterns would stroke identically. */
+function sameDash(a: readonly number[] | undefined, b: readonly number[] | undefined): boolean {
+  if (a === b) return true;
+  const left = a ?? [];
+  const right = b ?? [];
+  if (left.length !== right.length) return false;
+  for (let i = 0; i < left.length; i++) {
+    if (!Object.is(left[i], right[i])) return false;
+  }
+  return true;
+}
+
+/**
+ * Whether a cached path is still the right one for this edge.
+ *
+ * Compares the style FIELDS rather than the style key, deliberately. Building
+ * the key is a template string over an array join, and doing that for every
+ * edge on every frame just to decide not to rebuild it cost more than half of
+ * what the cache saves — 96,000 throwaway strings a frame to avoid 96,000
+ * Path2Ds. The key is still built once per edge, inside `buildCachedEdge`,
+ * where it is actually used for batching.
+ *
+ * `Object.is` rather than `===` on the numbers: the question is literally "is
+ * this the same value I built the path from", not "are these two floats near
+ * enough", so a tolerance would be wrong as well as slower — a node moved by a
+ * millionth of a unit genuinely needs its path rebuilt.
+ */
+function reusable(cached: CachedEdge, edge: CanvasEdge, from: CanvasPoint, to: CanvasPoint): boolean {
+  const before = cached.edge;
+  return (
+    Object.is(cached.from.x, from.x) &&
+    Object.is(cached.from.y, from.y) &&
+    Object.is(cached.to.x, to.x) &&
+    Object.is(cached.to.y, to.y) &&
+    before.curve === edge.curve &&
+    before.color === edge.color &&
+    before.width === edge.width &&
+    sameDash(before.dash, edge.dash)
+  );
+}
+
+/** The cubic's control points, or null for a straight edge. */
+function controlPoints(
+  edge: CanvasEdge,
+  from: CanvasPoint,
+  to: CanvasPoint,
+): { c1: CanvasPoint; c2: CanvasPoint } | null {
+  if (edge.curve !== 'bezier') return null;
+  const reach = bezierReach(from, to);
+  return { c1: { x: from.x + reach, y: from.y }, c2: { x: to.x - reach, y: to.y } };
+}
+
+/**
+ * The edge's world-space AABB.
+ *
+ * Must contain the CONTROL points, not just the endpoints. A cubic never
+ * leaves its control hull, so hull bounds are always safe; the curve's true
+ * extent is tighter, but culling an edge that is actually on screen is a
+ * visible bug and a slightly loose AABB is not.
+ *
+ * Computed eagerly for every edge, because culling needs it - but it is only
+ * arithmetic, which is the entire point of separating it from the path.
+ */
+interface Span {
+  min: number;
+  max: number;
+}
+
+function span(a: number, b: number): Span {
+  return a < b ? { min: a, max: b } : { min: b, max: a };
+}
+
+function extend(into: Span, value: number): void {
+  if (value < into.min) into.min = value;
+  else if (value > into.max) into.max = value;
+}
+
+function boundsOfEdge(edge: CanvasEdge, from: CanvasPoint, to: CanvasPoint): CanvasRect {
+  // Two small spans rather than two arrays gathered and spread through
+  // Math.min/max. The arrays were nothing at fifty edges and were 192,000
+  // allocations at ninety-six thousand, on the one pass that has to finish
+  // before the board can be shown at all.
+  const x = span(from.x, to.x);
+  const y = span(from.y, to.y);
+
+  const control = controlPoints(edge, from, to);
+  if (control) {
+    extend(x, control.c1.x);
+    extend(x, control.c2.x);
+    extend(y, control.c1.y);
+    extend(y, control.c2.y);
   }
 
-  const minX = Math.min(...xs);
-  const minY = Math.min(...ys);
-
   return {
+    x: x.min - AABB_PADDING,
+    y: y.min - AABB_PADDING,
+    width: x.max - x.min + AABB_PADDING * 2,
+    height: y.max - y.min + AABB_PADDING * 2,
+  };
+}
+
+
+function buildCachedEdge(
+  edge: CanvasEdge,
+  from: CanvasPoint,
+  to: CanvasPoint,
+  sourceItem: CanvasItem,
+  targetItem: CanvasItem,
+): CachedEdge {
+  return {
+    sweep: 0,
+    drawn: 0,
     edge,
-    path,
-    bounds: {
-      x: minX - AABB_PADDING,
-      y: minY - AABB_PADDING,
-      width: Math.max(...xs) - minX + AABB_PADDING * 2,
-      height: Math.max(...ys) - minY + AABB_PADDING * 2,
-    },
-    styleKey: `${edge.color ?? DEFAULT_EDGE_COLOR}|${edge.width ?? DEFAULT_EDGE_WIDTH}|${(edge.dash ?? []).join(',')}`,
+    path: null,
+    bounds: boundsOfEdge(edge, from, to),
+    styleKey: styleKeyOf(edge),
+    from,
+    to,
+    sourceItem,
+    targetItem,
   };
 }

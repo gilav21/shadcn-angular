@@ -78,7 +78,7 @@ radius is the entire registry, which is why this is worth its own paragraph.
 
 ```ts
 attach: {
-  import: "NodeEditorProblemsComponent from './ui/node-editor/addons/problems'",
+  import: "NodeEditorProblemsComponent from './ui/infinite-canvas/addons/node-editor-problems'",
   selector: 'ui-node-editor-problems',
 },
 ```
@@ -382,7 +382,58 @@ document for free and every instance owns its own copy.
 
 ---
 
-## 8. Genre bundles
+## 8. `node-editor-stdlib` — the basic toolbox
+
+**Priority: 8.** Added because §7 shipped a subgraph builder with nothing to
+build out of.
+
+| | |
+|---|---|
+| Requires from base | nothing — a set of `NodeTypeDefinition`s |
+| Writes to base | nothing |
+
+The shipped node types were three examples — upper-case, count, slow-step —
+which demonstrate the engine and compose into nothing. A user handed a subgraph
+builder and three examples cannot express a transformer, so the builder was a
+promise the library could not keep.
+
+This is the toolbox that makes the promise good: text, number, logic, object,
+list and convert operations, plus one coercion policy shared by all of them.
+
+**The rule that matters is in `node-editor-stdlib.coerce.ts`: an absent value
+is the empty one, never an error.** A half-built graph is the normal state of a
+graph being built, so a toolbox that throws while you are still wiring it up is
+a toolbox people stop using. Every node states, in one place, what it does with
+a value it did not expect, rather than each `compute` inventing its own rule
+and the graph behaving differently depending on which node you reached.
+
+Tasks: L1 coercion policy ✅ · L2 text ops ✅ · L3 number ops ✅ · L4 logic ops
+✅ · L5 object ops ✅ · L6 list ops ✅ · L7 convert ops ✅ · L8 a composed
+transformer built and run in a real runtime, rather than asserted a piece at a
+time ✅.
+
+## 9. `node-editor-text-output` — a display that takes its style as data
+
+**Priority: 9.** The other half of §8: a toolbox that can compute a value is
+still mute without something to show it.
+
+| | |
+|---|---|
+| Requires from base | `NODE_CONTEXT` |
+| Writes to base | nothing — it *is* a node type with a view |
+
+A terminal node that renders whatever reaches it, with size and colour driven
+by input values rather than by a fixed template — so a graph can compute its
+own presentation, which is the first step towards the "visual app" genre in
+§10 without committing to it.
+
+**Colour is a style sink and is treated as one.** `safeColor` rejects anything
+that is not a plain colour, and the size is clamped between a documented
+minimum and maximum. A value arriving from a graph the user assembled is
+untrusted input like any other; it reaches a `style` binding, so it is
+validated before it gets there rather than after.
+
+## 10. Genre bundles
 
 Not components — curated **collections of node types** built on the base, which
 is what R1 means by "addons for workflow automation, dataflow and visual app
@@ -403,7 +454,7 @@ never sees a credential, which is a security property worth keeping.
 
 ---
 
-## 9. Build order and honesty about scope
+## 11. Build order and honesty about scope
 
 The suite is large. It lands in this order, each piece independently useful:
 

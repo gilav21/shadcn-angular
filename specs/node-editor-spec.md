@@ -262,10 +262,43 @@ carries `data-slot`.
 
 ---
 
+## 7.1 Where this lives: the canvas's edit mode
+
+The editor began as its own top-level component, `ui/node-editor/`, sitting
+beside `ui/infinite-canvas/`. It is now `ui/infinite-canvas/addons/node-editor/`,
+and its addons are siblings under the same folder.
+
+**This is a naming decision, not an architectural one.** The node editor was
+always built on the canvas and never usable without it — it is what the canvas
+does when you are editing a graph, the same way a text editor is what a
+document view does when you are editing text. Two top-level names for one
+capability made consumers choose between them, and the choice was never real:
+installing the editor always pulled the canvas anyway.
+
+Consequences worth stating, because each one bit during the move:
+
+- Registry paths are `infinite-canvas/addons/<addon>/…`, and every addon's
+  `attach.import` string changed with them. A stale path there fails silently:
+  the manifest is rejected, the CLI falls back to its bundled snapshot, and the
+  only symptom is a component installing at the wrong version.
+- The registry model is two levels — `ui/<component>/addons/<addon>/`. Addons
+  do not nest further, so `node-editor-groups` is a sibling of `node-editor`
+  rather than a child of it, and its name carries the relationship instead.
+- An addon that reaches into the canvas engine imports it through the barrel
+  (`from '../..'`), never by file path. A deep import defeats the sync's
+  component-boundary detection, and the manifest then lists the engine's files
+  as the ADDON's files — so installing the addon copies `infinite-canvas.*`
+  source into the consumer's tree instead of depending on the component. The
+  groups addon did exactly this when it began using the spatial hash; the fix
+  is the barrel import, which turns those two stray files into a declared
+  `dependencies: ["infinite-canvas"]`.
+
+---
+
 ## 8. Files
 
 ```text
-packages/components/ui/node-editor/
+packages/components/ui/infinite-canvas/addons/node-editor/
   index.ts
   node-editor.component.ts / .html / .css
   node-editor.types.ts
@@ -402,6 +435,72 @@ Recorded because each is a class of defect, not a one-off:
 Items 4, 5 and 6 are the same failure mode this project keeps meeting: **a gate
 that asserts a proxy rather than the outcome.** Worth stating plainly, because
 it is now the most common source of wasted work here.
+
+### Review gate
+
+| | |
+|---|---|
+| Branch | `feat/infinite-canvas-subgraphs` |
+| Completed | 2026-08-28 |
+| Score | **92 / 100** (iteration 2; iteration 1 scored 88) |
+| Reviewers | two independent, fresh-context |
+| Sabotage pass | 25 sabotages, 4 found nothing — all four fixed and re-verified |
+| Suite | 11,898 tests, 0 failures |
+| SonarQube | 0 violations, 0 new violations, 0 bugs, 0 code smells, 91.1% coverage |
+
+Iteration 1 rejected the branch for a deep import of the canvas engine from an
+addon, which made the manifest list the engine's files as the ADDON's — so
+installing `node-editor-groups` copied `infinite-canvas.spatial-hash.ts` and
+`infinite-canvas.types.ts` into the consumer's tree. §7.1 now records the trap.
+
+Iteration 2 passed at 92 and still found the `cycleMembers` leak in item 13,
+which was fixed rather than shipped: a score above the bar is not a licence to
+ship a known defect.
+
+### What the sabotage pass caught that a green suite did not
+
+Added when the fold and the performance work went through the review gate. The
+method: for every test the branch adds or changes, break the behaviour it
+claims to guard — deriving the break from the CONTRACT, never from reading the
+test's assertions — and confirm it goes red. Twenty-two sabotages; four of them
+found nothing, which is the point.
+
+10. **A test that could not fail.** Five new tests for the edge-path cache
+    probed rendered pixels. Colour and width are re-read from the refreshed
+    edge at draw time, so a stale path in the WRONG PLACE still painted the
+    right colour: making the cache reuse unconditional left all 1,064 canvas
+    tests green. Rewritten to assert through `hitTest`, which resolves against
+    the cached path itself, the same sabotage fails immediately. This is item
+    4/5/6's failure mode once more — a proxy, not the outcome.
+11. **A documented behaviour nothing guarded.** `materialize`'s promise that
+    "a node that already carries a field keeps it" had no test: letting the
+    definition's label clobber an authored title left all 834 specs in the
+    folder green.
+12. **A defensive branch whose platform had no test.** `onLongPress` checks the
+    finger count on touchmove as well as touchstart, for a platform that
+    reports the extra contact only on the move. Every other two-finger test
+    announces the second finger with a touchstart, which the OTHER guard
+    catches — so the case the branch exists for was never exercised. That is
+    the context menu opening under a pinch.
+13. **A leak in the container the metric could not see.** `metrics.retained`
+    enumerated sixteen of twenty-one per-node containers, because its signature
+    demanded a `Map` and five are `Set`s. Widening it exposed `cycleMembers`,
+    which nothing pruned on removal and nothing cleared on dispose — so a
+    runtime that had held a cycle never returned to zero. Every disposal test
+    used a chain, and a chain is the one shape that cannot populate it.
+
+Item 13 is worth its own sentence: **fixing the measurement is what exposed the
+bug the measurement was blind to.** A leak metric that quietly omits containers
+is worse than none, because it is cited as proof.
+
+### A gate that measures milliseconds gates nothing
+
+The workload benchmark logs timings and asserts none of them, deliberately — a
+duration on a loaded machine is not a fact. But that left the whole performance
+pass ungated: reverting either optimisation broke no test. Both are now gated
+on COUNTS, which are exact and cannot flake — constructed `Path2D`s and
+`SpatialHash.insert` calls. One leaf moving builds 1 path of 20; the shared hub
+moving builds all 20; a node moved inside its cell re-inserts nothing.
 
 ### Not done
 
