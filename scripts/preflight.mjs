@@ -116,7 +116,7 @@ function impactedStages(base) {
     stages.push({
       id: 'lint',
       label: `ESLint (${lintable.length} changed file(s))`,
-      command: `npx eslint ${lintable.join(' ')}`,
+      command: `npx eslint --cache --cache-location node_modules/.cache/eslint/ ${lintable.join(' ')}`,
     });
   }
   // Whole-program by nature: a changed file can break a type anywhere, so these
@@ -125,6 +125,13 @@ function impactedStages(base) {
     { id: 'typecheck', label: 'tsc + Angular template typecheck', command: 'npm run typecheck && npm run typecheck:templates' },
     { id: 'registry', label: 'Registry drift (sync-registry, report mode)', command: 'npm run check:registry' },
     { id: 'completeness', label: 'Story / demo-route / e2e completeness gate', command: 'npm run check:completeness' },
+    // Never scoped away: this suite holds the generated-docs drift detectors
+    // (gen-llms / gen-component-docs / gen-readme compare the committed
+    // artifacts byte-for-byte against a fresh build). A component that grows a
+    // public input invalidates those artifacts without touching one CLI file,
+    // so a diff-scoped push is exactly the push that has to run them. ~16s.
+    // No --coverage here either — see header.
+    { id: 'test-cli', label: 'CLI unit tests (incl. generated-docs drift detectors)', command: 'npm run test:cli -- --run' },
     // No --coverage: the ratchet needs a full run to mean anything. See header.
     { id: 'test', label: 'Component unit tests related to the diff', command: `npm run test:ci -- --changed ${base}` },
   );

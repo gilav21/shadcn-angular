@@ -1,14 +1,15 @@
-// Pre-commit a11y gate — runs the axe (a11y) Storybook pass over ONLY the
-// components the staged files touch.
+// Scoped a11y gate — runs the axe (a11y) Storybook pass over ONLY the
+// components the diff touches. The pre-push hook runs it with `--since
+// <merge-base>`; run it by hand without arguments to audit the staged set.
 //
 // Why scoped: the full axe pass (`npm run test-storybook:a11y`) is ~93s of
-// browser time on top of the Storybook boot. Paying that on every commit is the
-// fastest known route to `git commit --no-verify` becoming muscle memory, at
-// which point the hook protects nothing. So the commit-time gate audits the
-// components you actually touched; the FULL axe pass still runs at push time
-// (`npm run hook:pre-push`), so nothing reaches the remote unaudited.
+// browser time on top of the ~25s Storybook boot. Paying that on every push is
+// the fastest known route to `git push --no-verify` becoming muscle memory, at
+// which point the hook protects nothing. So the gate audits the components you
+// actually touched, and gives scoping up (full pass) whenever a shared file is
+// in the diff — see GLOBAL_MATCHERS.
 //
-// Three outcomes, decided from `git diff --cached`:
+// Three outcomes, decided from the diff:
 //
 //   1. nothing a11y-relevant staged (docs, CLI, e2e, scripts …)
 //      → skipped entirely, ~0s.

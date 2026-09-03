@@ -43,11 +43,13 @@ jobs:
       # so its node_modules is sized to a real consumer's tree, not
       # workspace-hoisted.
       #
-      # Uses `npm install` rather than `npm ci` because the lockfile is
-      # platform-specific for optional native deps (rolldown bindings,
-      # esbuild platform packages). `npm ci` rejects the lockfile when
-      # it lacks the Linux variants; `npm install` is happy to resolve
-      # them at install time without writing the lockfile back.
+      # Uses `npm install` rather than `npm ci` so this job never depends on
+      # the lockfile carrying the Linux variants of optional native deps
+      # (rolldown bindings, esbuild platform packages). The committed lock
+      # is relocked on Linux (`npm run relock`) precisely so it does carry
+      # them for Netlify's `npm ci`, but a lock regenerated on Windows drops
+      # them again; `npm install` resolves whatever is missing at install
+      # time without writing the lockfile back, so it is robust either way.
       - name: Install root deps
         run: npm install --no-audit --no-fund
 
