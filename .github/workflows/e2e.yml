@@ -45,11 +45,10 @@ jobs:
       #
       # Uses `npm install` rather than `npm ci` so this job never depends on
       # the lockfile carrying the Linux variants of optional native deps
-      # (rolldown bindings, esbuild platform packages). The committed lock
-      # is relocked on Linux (`npm run relock`) precisely so it does carry
-      # them for Netlify's `npm ci`, but a lock regenerated on Windows drops
-      # them again; `npm install` resolves whatever is missing at install
-      # time without writing the lockfile back, so it is robust either way.
+      # (rolldown bindings, esbuild platform packages). A lock regenerated on
+      # Windows records only win32 binaries; `npm install` resolves whatever
+      # is missing at install time without writing the lockfile back. Netlify
+      # installs the same way, so nothing needs a Linux-complete lockfile.
       - name: Install root deps
         run: npm install --no-audit --no-fund
 

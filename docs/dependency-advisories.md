@@ -20,21 +20,27 @@ are deliberately left open. Re-check with `npm audit` after any dependency chang
   published CLI, whose runtime dependencies do not include `less`.
 - **Rejected workaround:** overriding `less` to `^4.9.1` (which swaps
   `image-size` for `probe-image-size`) forces `less` off the exact `4.4.2` that
-  `@angular-devkit/build-angular` pins, and npm resolves that change by pruning
-  the cross-platform optional native binaries (`@rolldown/binding-linux-*`,
-  `@parcel/watcher-linux-*`, `@napi-rs/nice-*`, `lmdb`) from the lockfile, which
-  breaks `npm ci` on the Linux CI and Netlify builders. Not worth it for a
-  build-time DoS that cannot be triggered here.
+  `@angular-devkit/build-angular` pins. When it was tried, npm removed
+  `image-size` without actually adding `probe-image-size` — an accidental
+  prune, not an upgrade. Not worth chasing for a build-time DoS that cannot be
+  triggered here.
 
 Revisit when `image-size` publishes a fixed release, or when
 `@angular-devkit/build-angular` moves its `less` pin forward on its own.
 
 ## Lockfile maintenance note
 
-Regenerating `package-lock.json` on Windows — whether from scratch or via an
-incremental `npm install` — prunes optional native binaries for other platforms
-and silently drops entries the Linux builders need. Master's lockfile also
-carries pre-existing drift that any refresh will collapse. When a bump only needs
-a handful of versions changed, edit those entries in place (version, `resolved`,
-`integrity`, and any exact dependency pins) and prove the result with `npm ci`,
-rather than letting npm rewrite the whole tree.
+Regenerating `package-lock.json` on Windows records only win32 variants of the
+optional native binaries (esbuild, rollup, lightningcss, …). That is fine:
+both builders that install this repo — the e2e workflow and Netlify — run
+`npm install --no-audit --no-fund`, which resolves the missing variants at
+install time and never writes the lock back. Nothing needs a Linux-complete
+lockfile, and the WSL "relock" scripts that used to produce one are gone.
+
+What still deserves care is the *diff*: a fresh resolve on top of a stale lock
+can float `^` ranges and, as seen on 2026-09-03, an incremental `npm install`
+against drifted entries dropped `@angular/animations`/`forms`/`router` outright.
+After any regeneration, read the lock diff for removed packages and unexpected
+version moves, and prove the result with `npm ci` before committing. For a
+handful of pinned bumps, editing the entries in place (version, `resolved`,
+`integrity`) keeps the diff to exactly the intended change.

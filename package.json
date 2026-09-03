@@ -60,10 +60,7 @@
     "new:component": "tsx packages/cli/scripts/new-component.ts",
     "test:portable": "vitest run --config vitest.portable.config.ts",
     "verify:portable": "tsx packages/cli/scripts/verify-portable.ts",
-    "verify:jest": "node e2e/jest-fixture/run.mjs",
-    "relock": "wsl.exe -d Ubuntu -- bash ./scripts/relock-linux.sh",
-    "verify:netlify": "wsl.exe -d Ubuntu -- bash ./scripts/netlify-repro.sh",
-    "verify:linux": "wsl.exe -d Ubuntu -- bash ./scripts/linux-verify.sh"
+    "verify:jest": "node e2e/jest-fixture/run.mjs"
   },
   "simple-git-hooks": {
     "pre-commit": "npm run hook:pre-commit",
