@@ -4406,7 +4406,7 @@
       "lines": 355
     },
     "infinite-canvas/addons/node-editor-minimap/node-editor-minimap.component.ts": {
-      "bytes": 12013,
+      "bytes": 12344,
       "lines": 331
     },
     "infinite-canvas/addons/node-editor-minimap/node-editor-minimap.locales.ts": {
@@ -5206,8 +5206,8 @@
       "lines": 1113
     },
     "infinite-canvas/addons/node-editor/node-editor.component.ts": {
-      "bytes": 94419,
-      "lines": 2446
+      "bytes": 94415,
+      "lines": 2444
     },
     "infinite-canvas/addons/node-editor/node-editor.direction.spec.ts": {
       "bytes": 4622,
