@@ -188,7 +188,7 @@ function publishAndTag(nextVersion: string, branch: string, args: ReleaseArgs): 
         `git ${add.join(' ')}`,
         `git ${commit.join(' ')}`,
         'npm publish  (packages/cli — prepublishOnly rebuilds dist/)',
-        `git tag ${tag}`,
+        `git tag -a ${tag} -m ${tag}`,
         `git push origin ${branch} --follow-tags`,
     ];
 
@@ -205,7 +205,12 @@ function publishAndTag(nextVersion: string, branch: string, args: ReleaseArgs): 
     git(...add);
     git(...commit);
     npm('publish', CLI_DIR);
-    git('tag', tag);
+    // Annotated, not lightweight: `git push --follow-tags` pushes ONLY annotated
+    // tags, so a bare `git tag <name>` is created locally and then silently left
+    // behind by the push. That is how cli-v0.0.50 and cli-v0.0.51 ended up
+    // published to npm with no tag anywhere on origin — and why the
+    // publish-required verdict above was computing against a stale base.
+    git('tag', '-a', tag, '-m', tag);
     git('push', 'origin', branch, '--follow-tags');
     console.log(`\nPublished and tagged ${tag}.`);
 }
