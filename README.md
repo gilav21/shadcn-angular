@@ -21,7 +21,7 @@ Registry today: 152 components, 28 opt-in addons, 10 composed blocks.
 
 | | Developed against | Verified in a consumer install |
 |---|---|---|
-| Angular | 21.2.17 | 20.3.0 |
+| Angular | 21.2.22 | 20.3.0 |
 | TypeScript | 5.9.2 | 5.9.2 |
 
 "Verified in a consumer install" is not a compatibility promise on paper: every release runs the e2e suite, which `init`s a pristine Angular app, `add`s components into it exactly as a user would, and builds it with `strictTemplates`. Angular 20 and 21 are both covered.
