@@ -21,31 +21,39 @@ Wait ~1 minute, then open <http://localhost:9000> (default login `admin` /
 `admin`, it forces a password change). Create a project named `shadcn-angular`
 and generate an **analysis token** (My Account → Security → Generate Token).
 
-## 1b. Generate test coverage (optional, but SonarQube shows 0% without it)
+## 1b. Test coverage — true at the verdict, not re-measured every rescan
 
 SonarQube does **not** compute coverage — it only displays an lcov report you
-feed it. Generate one from the test suite first:
+feed it, and **issue detection never reads it**. So there are two commands:
 
 ```bash
-npm run coverage
+npm run sonar        # scan only — iterate on issues; warns if coverage is stale
+npm run sonar:gate   # the done-gate — coverage guaranteed current, then scan
 ```
 
-This runs the browser test suite with v8 coverage, writes `coverage/lcov.info`,
-and normalizes its paths to forward slashes (so the Linux scanner can match
-them). It's slower than a normal test run. The scan then picks it up via
+`npm run coverage` runs both suites with v8 coverage **in parallel** (browser
+~100s, CLI ~16s alongside it; measured 2026-09-03), normalizes the lcov paths to
+forward slashes for the Linux scanner, and writes `coverage/.tree-hash` — a
+fingerprint of the working tree the report measured (`scripts/tree-hash.mjs`:
+tracked blobs + uncommitted diff + untracked files). `sonar:gate` compares that
+fingerprint to the tree it is about to scan and only re-runs coverage when they
+differ, so an unchanged tree never pays the 100s twice; `sonar` just prints a
+warning when they differ. The scan picks the reports up via
 `sonar.javascript.lcov.reportPaths` in `sonar-project.properties`.
 
 ## 2. Run the scan (each time you want a report)
 
-Set your token and run `npm run sonar` — it runs the scanner in Docker (nothing
-to install, reuses the Docker you already have):
+Set your token and run `npm run sonar` (or `npm run sonar:gate`) — it runs the
+scanner in Docker (nothing to install, reuses the Docker you already have):
 
 **Windows (PowerShell):**
+
 ```powershell
 $env:SONAR_TOKEN="<your-token>"; npm run sonar
 ```
 
 **macOS / Linux:**
+
 ```bash
 SONAR_TOKEN=<your-token> npm run sonar
 ```
@@ -64,6 +72,7 @@ docker run --rm \
   -v "$(pwd):/usr/src" \
   sonarsource/sonar-scanner-cli
 ```
+
 (On Linux you can also use `--network host` and `http://localhost:9000`.)
 </details>
 

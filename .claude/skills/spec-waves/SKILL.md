@@ -231,8 +231,8 @@ dependency installs plus three concurrent Sonar scans on one machine. A single
 single test. The bottleneck was disk, not CPU or the model.
 
 Each worktree needs its own `node_modules`, and each task runs
-`npm run coverage` (full suite) plus a ~10-minute Sonar scan. That is a lot of
-I/O multiplied by N.
+`npm run sonar:gate` (coverage over the full suite plus the Sonar scan). That is
+a lot of I/O multiplied by N.
 
 Mitigations, in order of preference:
 
@@ -417,8 +417,7 @@ npm run check:registry     # must be clean — proves the regeneration is right
 npm run lint
 npm run typecheck
 npm run test-visual        # full suite; zero failures tolerated
-npm run coverage
-npm run sonar              # full server scan, zero new issues
+npm run sonar:gate         # coverage (re-measured only if stale) + full server scan, zero new issues
 npm run e2e:impact -- --base <base>   # then run the impacted subset
 ```
 

@@ -74,7 +74,7 @@ recorded floor**. It does **not** mean:
   tree, not a quality bar. New code can be entirely untested and still clear
   them as long as the aggregate does not drop below the floor.
 - **SonarQube is clean** — needs Docker + a token; still a separate, manual
-  done-gate (`.claude/CLAUDE.md` §4).
+  done-gate: `npm run sonar:gate` (`.claude/CLAUDE.md` §4).
 - **it renders correctly** — nothing in `preflight` looks at a rendered
   component. The Storybook axe pass that does is run by the **hooks**, not by
   `preflight` (see below).
@@ -84,8 +84,9 @@ Deliberately **not** in preflight:
 - `test-storybook:a11y` — it is a *hook* stage, not a preflight stage, so that
   `preflight` stays a pure static/unit gate and the browser work happens once.
 - `e2e` — ~7 min, and CI already runs the impacted subset per PR.
-- `sonar` — needs Docker + a token; run it before declaring a task done
-  (`.claude/CLAUDE.md` §4).
+- `sonar:gate` — needs Docker + a token; run it before declaring a task done
+  (`.claude/CLAUDE.md` §4). It re-measures coverage only when the tree
+  fingerprint says the last report is stale, so it is ~100s + the scan at most.
 
 ## Git hooks
 

@@ -216,9 +216,9 @@ A task row may be marked ✅ Done only when **all** of these pass:
 1. **Fully tested** — every test named for this task is written and passing.
 2. **Fully covered** — no uncovered lines introduced in the files touched.
 3. **Zero lint errors** — `npm run lint` clean.
-4. **Zero SonarQube issues** — the **full server scan** (`npm run coverage`
-   then `npm run sonar` against `http://localhost:9000`) run and clean on the
-   changed code. eslint is NOT a substitute. If the token, server, or Docker
+4. **Zero SonarQube issues** — the **full server scan** (`npm run sonar:gate`
+   against `http://localhost:9000` — coverage re-measured unless the tree
+   fingerprint proves it current) run and clean on the changed code. eslint is NOT a substitute. If the token, server, or Docker
    is unavailable, the task is **blocked, not done** — stop and tell the user.
 5. **Review gate ≥ 91** — invoke the `review-gate` skill and reach a score of
    at least 91 from a fresh independent reviewer.
