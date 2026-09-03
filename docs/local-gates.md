@@ -22,6 +22,21 @@ ESLint and tsc keep their caches under `node_modules/.cache/`, so a full
 tsc 11s → 4s, measured 2026-09-03). `ngc` has no incremental mode and stays at
 ~23s; it is the floor.
 
+### The inner loop
+
+The browser suite compiles with the Analog plugin's `fastCompile`, which skips
+Angular's template type-checking inside vitest — `ngc` is the template gate, and
+every path above runs it. One spec file is ~7s wall (was 35s); the full suite is
+~60s (was ~100s). So after an edit:
+
+```bash
+npx vitest --run packages/components/ui/<name>/<name>.component.spec.ts  # ~7s
+npx vitest packages/components/ui/<name>/                                # watch mode
+```
+
+`npm run typecheck:templates` is the one thing the fast path will not tell you
+about; run it (or `check:all`) before you push if you touched a template.
+
 ```bash
 npm run preflight                 # all stages
 npm run preflight -- --list       # stage ids
