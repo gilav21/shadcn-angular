@@ -84,6 +84,9 @@ function classify(files) {
   let global = false;
 
   for (const file of files) {
+    // A unit spec cannot change what a story renders, so it cannot change what
+    // axe sees. Stories are NOT skipped — they are exactly what gets audited.
+    if (file.endsWith('.spec.ts')) continue;
     if (GLOBAL_MATCHERS.some((matcher) => matcher.test(file))) {
       global = true;
       continue;
