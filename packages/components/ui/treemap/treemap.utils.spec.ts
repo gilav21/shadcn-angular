@@ -183,15 +183,23 @@ describe('treemap utils', () => {
 
         // Guards the complexity, which a wall-clock number alone cannot: squarify
         // is O(n log n), so doubling the input must not quadruple the work.
+        //
+        // The small run must be measurable, or the ratio measures the timer, not
+        // the algorithm. `performance.now()` in a non-isolated browser context is
+        // coarsened to ~0.1ms, so with a 0.05ms floor the 1000-node run read as
+        // "0.05" and a 2000-node run of 0.3ms — pure scheduling noise under a
+        // loaded worker — failed the 4x bound. The inputs are sized so the small
+        // run is well above timer resolution, and the floor is 0.5ms: a genuinely
+        // quadratic squarify at 4000 nodes costs far more than 4x that.
         it('scales sub-quadratically with the node count', () => {
             const rect = { x: 0, y: 0, width: 1200, height: 800 };
-            const small = Array.from({ length: 1000 }, (_, i) => 1000 - i);
-            const large = Array.from({ length: 2000 }, (_, i) => 2000 - i);
+            const small = Array.from({ length: 2000 }, (_, i) => 2000 - i);
+            const large = Array.from({ length: 4000 }, (_, i) => 4000 - i);
 
             const t1 = bestOf(() => squarify(small, rect));
             const t2 = bestOf(() => squarify(large, rect));
 
-            expect(t2).toBeLessThan(Math.max(t1, 0.05) * 4);
+            expect(t2).toBeLessThan(Math.max(t1, 0.5) * 4);
         });
     });
 

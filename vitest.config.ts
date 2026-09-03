@@ -7,7 +7,14 @@ import { playwright } from '@vitest/browser-playwright';
 
 export default defineConfig(({ mode: _mode }) => ({
     plugins: [angular({
-        tsconfig: 'tsconfig.json'
+        tsconfig: 'tsconfig.json',
+        // Single-pass compile that skips Angular's template type-checking.
+        // Template and input type errors are caught by `ngc` (`npm run
+        // typecheck:templates`), which every gate runs — so this suite does
+        // not need to pay for them a second time. Measured 2026-09-03: one
+        // spec file 35s → 7s wall, the full 509-file suite 99s → 61s, same
+        // 10,636 tests passing.
+        fastCompile: true,
     })],
     resolve: {
         alias: {
@@ -123,14 +130,17 @@ export default defineConfig(({ mode: _mode }) => ({
                 '**/testing/vitest-compat.ts',
             ],
             // Ratchet, not aspiration: set just below the levels measured on
-            // 2026-07-12 (statements 88.98 / branches 74.33 / functions 91.51 /
-            // lines 91.39). Raise them when coverage rises; never lower them to
-            // make a run pass.
+            // 2026-09-03 under `fastCompile` (statements 95.77 / branches 86.33 /
+            // functions 98.24 / lines 97.61). The jump from the 2026-07-12 floor
+            // (88.98 / 74.33 / 91.51 / 91.39) is the compiler, not the tests: the
+            // fast path emits far less generated code per component, so the
+            // same tests cover a larger share of what v8 sees. Raise them when
+            // coverage rises; never lower them to make a run pass.
             thresholds: {
-                statements: 87,
-                branches: 73,
-                functions: 90,
-                lines: 90,
+                statements: 94,
+                branches: 84,
+                functions: 97,
+                lines: 96,
             },
         },
         // Vitest browser config.
