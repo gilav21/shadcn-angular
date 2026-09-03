@@ -359,21 +359,33 @@ reference implementation for this pattern.
 
 > **🔴 MANDATORY DONE GATE — non-negotiable.** Work is **NOT done** until the
 > **full SonarQube server scan** has been run against the local server
-> (`http://localhost:9000`) via `npm run sonar` and **every** issue it reports
-> on the changed code is fixed (zero new issues). This is a hard gate before
-> declaring any task, plan, or PR complete — **eslint / `eslint-plugin-sonarjs`
-> is NOT a substitute** (it catches a subset; the server adds cognitive-
-> complexity S3776, duplication, and type-aware rules the plugin doesn't mirror).
+> (`http://localhost:9000`) via `npm run sonar:gate` and **every** issue it
+> reports on the changed code is fixed (zero new issues). This is a hard gate
+> before declaring any task, plan, or PR complete — **eslint /
+> `eslint-plugin-sonarjs` is NOT a substitute** (it catches a subset; the server
+> adds cognitive-complexity S3776, duplication, and type-aware rules the plugin
+> doesn't mirror).
+>
+> Two commands, one rule — coverage must be **true at the verdict**:
+>
+> - `npm run sonar` — scan only. Use it while iterating on issues: issue
+>   detection never reads coverage, so its findings are complete. It warns
+>   loudly when the coverage report it uploads was measured on a different tree.
+> - `npm run sonar:gate` — the done-gate. Runs `npm run coverage` (both legs in
+>   parallel, ~100s) unless the tree fingerprint in `coverage/.tree-hash` proves
+>   the existing report already describes this exact tree, then scans. Never
+>   declare done on `npm run sonar` alone.
 >
 > Required sequence before "done":
-> 1. `npm run coverage` — generates `coverage/lcov.info` + `coverage-cli/lcov.info`
->    the scan consumes (run it first, or the scan reports 0% and skews findings).
-> 2. `npm run sonar` — runs the Dockerized `sonar-scanner-cli` against
->    `localhost:9000`. Needs `SONAR_TOKEN` (in `packages/.env`, root `.env`, or
->    the environment) and Docker running. If the token is missing, **STOP and
->    ask the human for it** — do not declare done on the eslint subset alone.
-> 3. Open the project in SonarQube (`http://localhost:9000`, project
+>
+> 1. `npm run sonar:gate` — Dockerized `sonar-scanner-cli` against
+>    `localhost:9000`, with coverage guaranteed current. Needs `SONAR_TOKEN` (in
+>    `packages/.env`, root `.env`, or the environment) and Docker running. If
+>    the token is missing, **STOP and ask the human for it** — do not declare
+>    done on the eslint subset alone.
+> 2. Open the project in SonarQube (`http://localhost:9000`, project
 >    `shadcn-angular`), fix **all** new issues on the changed files, and re-scan
+>    (`npm run sonar` while fixing, `npm run sonar:gate` for the final verdict)
 >    until the changed code is clean. Only genuine false positives may be
 >    excluded, and only via `sonar-project.properties` with a documented
 >    rationale in `docs/sonarqube-accepted-findings.md` (never inline
@@ -474,9 +486,10 @@ Before submitting a component, verify:
 - [ ] No unused declarations (imports, variables, parameters, types) —
   no `ts(6133)` errors
 - [ ] Strict typing (no `any`, handles `undefined`)
-- [ ] **SonarQube server scan run** (`npm run coverage` then `npm run sonar`
-  against `localhost:9000`) and **all** reported issues fixed — the mandatory
-  DONE gate in Section 4. eslint alone does NOT satisfy this.
+- [ ] **SonarQube server scan run** (`npm run sonar:gate` against
+  `localhost:9000` — coverage re-measured unless the tree fingerprint proves it
+  current) and **all** reported issues fixed — the mandatory DONE gate in
+  Section 4. eslint alone does NOT satisfy this.
 - [ ] SonarQube zero issues — all rules in Section 4 above are followed
 - [ ] No cognitive complexity > 15 in any function
 - [ ] All class members that aren't reassigned are `readonly`
@@ -808,10 +821,11 @@ When generating or modifying components:
    aren't. Watch for `ts(6133)` errors.
 10. **SonarQube compliance** — follow ALL rules in Section 4
     "SonarQube Compliance". **Before declaring ANY work done, run the full
-    SonarQube server scan** (`npm run coverage` then `npm run sonar` against
-    `localhost:9000`) and fix every reported issue — this is the mandatory DONE
-    gate; eslint is not a substitute. If the token/server/Docker is unavailable,
-    STOP and ask the human — the task is blocked, not done. Key rule points:
+    SonarQube server scan** (`npm run sonar:gate` against `localhost:9000`;
+    `npm run sonar` alone is for iterating) and fix every reported issue — this
+    is the mandatory DONE gate; eslint is not a substitute. If the
+    token/server/Docker is unavailable, STOP and ask the human — the task is
+    blocked, not done. Key rule points:
     - Mark never-reassigned members `readonly` (signals, computed, viewChild,
       arrow properties)
     - Use modern APIs: `Number.isNaN`, `Number.parseFloat`, `Math.hypot`,
@@ -839,9 +853,11 @@ When generating or modifying components:
     `initArgs`-override specs belong in `EXPLICIT_SPECS`.
 14. **🔴 Final DONE gate — SonarQube server scan.** This is the LAST step before
     declaring any task/plan/PR complete, and it is mandatory:
-    `npm run coverage` → `npm run sonar` (Dockerized scanner against
+    `npm run sonar:gate` (coverage re-measured unless the tree fingerprint
+    proves it current, then the Dockerized scanner against
     `http://localhost:9000`, project `shadcn-angular`) → open the server, fix
-    **every** new issue on the changed files, re-scan until clean. eslint /
+    **every** new issue on the changed files, re-scan (`npm run sonar` while
+    fixing, `npm run sonar:gate` for the verdict) until clean. eslint /
     `eslint-plugin-sonarjs` does NOT satisfy this gate. If `SONAR_TOKEN`, the
     server, or Docker is unavailable, the work is **blocked, not done** — say so
     and ask the human; never claim SonarQube compliance from the eslint subset.
