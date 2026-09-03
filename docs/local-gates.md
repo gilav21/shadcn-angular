@@ -11,11 +11,16 @@ costs ~1 minute, not a full test run:
 
 | # | stage          | what it runs                                        |
 |---|----------------|-----------------------------------------------------|
-| 1 | `lint`         | `check:all` — eslint + tsc + Angular template typecheck |
+| 1 | `lint`         | `check:all` — eslint (cached) + tsc (incremental) + Angular template typecheck |
 | 2 | `registry`     | `sync-registry.ts` in report mode — exits 1 on drift |
 | 3 | `completeness` | `check-completeness.ts` — story / demo route / e2e   |
-| 4 | `test-cli`     | CLI unit tests (node) **with coverage** — trips the ratchet in `vitest.config.cli.ts` |
-| 5 | `test`         | component unit tests (headless browser) **with coverage** — trips the ratchet in `vitest.config.ts` |
+| 4 | `test-cli`     | CLI unit tests (node). Holds the generated-docs drift detectors, so it is **never scoped away**. Coverage on a full run |
+| 5 | `test`         | component unit tests (headless browser). With coverage on a full run |
+
+ESLint and tsc keep their caches under `node_modules/.cache/`, so a full
+`check:all` is ~2 min cold and well under a minute warm (eslint 103s → 3s,
+tsc 11s → 4s, measured 2026-09-03). `ngc` has no incremental mode and stays at
+~23s; it is the floor.
 
 ```bash
 npm run preflight                 # all stages
@@ -25,25 +30,27 @@ npm run preflight -- --skip test  # skip a stage by id (repeatable)
 
 It prints a per-stage wall-clock summary and names the stage that failed.
 
-### Why the test stages run with coverage
+### The coverage ratchets gate releases, not pushes
 
 The coverage thresholds in `vitest.config.ts` / `vitest.config.cli.ts` only
-evaluate under `--coverage`. Nothing but `npm run coverage` used to pass that
-flag, and nothing invoked it — so the "ratchet" gated **nothing**: half the
-tests could be deleted and every gate still went green. Both test stages now run
-with coverage, so a coverage regression fails the push. Measured cost of the
-instrumentation (2026-07-13, warm): CLI 5s → 6s, component suite 50s → 69s.
+evaluate under `--coverage`. A **full** `npm run preflight` runs both test
+stages instrumented, and `npm run release:cli` runs the full preflight — so a
+release cannot lower coverage below the recorded floor.
 
-`npm run release:cli` runs `preflight`, so a release is covered by the same
-ratchet; there is no separate coverage stage to forget.
+The **pre-push hook does not**. It runs `preflight --since <merge-base>`, which
+never instruments: coverage instrumentation inflates setup/import across ~500
+browser spec files and pushes timing-sensitive specs past their timeouts, so the
+hook would start failing on the instrumentation rather than on the code. Be
+clear about what that means: a push *can* lower coverage; a release cannot. If
+you want the ratchet's verdict before pushing, run `npm run preflight` by hand.
 
 ### What the pre-push gate does NOT guarantee
 
 Be honest about the blast radius. A green `preflight` means: it lints, it
 type-checks (incl. Angular templates), the registry is not drifted, every
-component has a story + routed demo + e2e *entry*, both unit suites pass, and
-line/branch/function coverage is **at or above the recorded floor**. It does
-**not** mean:
+component has a story + routed demo + e2e *entry*, both unit suites pass, and —
+on a full run only — line/branch/function coverage is **at or above the
+recorded floor**. It does **not** mean:
 
 - **the e2e suite passes** — `preflight` never runs it (~7 min). Run
   `npm run e2e:impact -- --base origin/master` (or the full `npm run e2e`)
@@ -73,42 +80,45 @@ zero-dependency, no postinstall binary download, and the hook body is a single
 `npm run …` line, so nothing bash-specific runs on Windows). Re-install
 manually with `npx simple-git-hooks`.
 
-| hook       | runs                                    | measured wall-clock (2026-07-13) |
+| hook       | runs                                    | measured wall-clock (2026-09-03) |
 |------------|-----------------------------------------|--------------------|
-| pre-commit | `lint-staged` → `eslint --fix` on staged files, then **`a11y:staged`** — axe over the staged components' stories | **~4 s** (docs/CLI-only commit — axe skipped) · **~40 s** (one component, cold Storybook) · **~11 s** (one component, Storybook already running) |
-| pre-push   | `preflight` (2m 47s — incl. coverage) + **`test-storybook:a11y`** (1m 19s: 25 s boot + 51 s for 926 stories **with axe on**) | **~4 m 06 s** |
+| pre-commit | `lint-staged` → `eslint --fix` on staged files. Nothing else — a commit is local; the audits run at push | a few seconds |
+| pre-push   | `preflight --since <merge-base>`, then `a11y-staged --since` — details below | scoped **~1–2 min** · tripwired **~4 min** |
+
+The scoped pre-push runs: eslint on the changed files, tsc + Angular template
+typecheck, registry, completeness, **`test-cli`** (always), the component tests
+related to the diff, then axe over the touched components' stories. When the
+diff touches shared `lib/`, the CLI, tooling or the manifests (`TRIPWIRES` in
+`preflight.mjs`) scoping is given up and the full, uninstrumented gate runs.
+
+The merge-base scoping means "what this branch adds", not "what the last commit
+touched" — rebasing or amending cannot shrink the audited set.
 
 ### The a11y (axe) gate
 
 `.storybook/test-runner.ts` runs every story through axe when `STORYBOOK_A11Y=1`.
 The full pass is green (926/926) and **must stay green — fix the component,
-never the assertion**. It is wired into both hooks, at different scopes:
+never the assertion**. It runs in the **pre-push** hook, scoped to the diff
+(`scripts/a11y-staged.mjs --since <merge-base>`):
 
-- **pre-commit → scoped** (`scripts/a11y-staged.mjs`). It reads
-  `git diff --cached` and audits only what you touched:
+| in the diff | what runs |
+|---|---|
+| nothing UI-ish (docs, CLI, e2e, scripts) | nothing — skipped, ~0 s |
+| `packages/components/ui/<name>/**` | axe over *those components'* `*.stories.ts` only |
+| a **global** file (`.storybook/**`, `lib/**`, any `*.css`, a flat file under `ui/`) or a component with no story | the **full** pass: 926 stories, ~76 s |
 
-  | staged                                                        | what runs |
-  |---------------------------------------------------------------|-----------|
-  | nothing UI-ish (docs, CLI, e2e, scripts)                       | nothing — skipped, ~0 s |
-  | `packages/components/ui/<name>/**`                              | axe over *that component's* `*.stories.ts` only |
-  | a **global** file — `.storybook/**`, `packages/components/lib/**`, any `*.css`, or a flat shared directive/pipe directly under `ui/` | the **full** axe pass |
+The global fallback is the point: a change to `lib/a11y.ts` or to the global
+stylesheet can break the a11y of any component, so scoping it to the (empty)
+set of touched components would be a false green.
 
-  The global fallback is the point: a change to `lib/a11y.ts` or to the global
-  stylesheet can break the a11y of any component, so scoping it to the (empty)
-  set of touched components would be a false green.
+**Honest cost.** Booting Storybook (~25 s) dominates a scoped run: auditing one
+component's stories is ~5–10 s, everything else is boot. It is paid once per
+push, not once per commit. If you keep `npm run storybook` running while you
+work, the hook reuses it and the scoped pass costs ~11 s.
 
-- **pre-push → full.** `test-storybook:a11y` replaces the old plain
-  `test-storybook` in the push hook. It is a strict superset — same stories,
-  same play functions, plus the axe assertions — so nothing was dropped, and the
-  hook got *cheaper* than running both (net **+11 s** over the old pre-push).
-
-**Honest cost.** Booting Storybook (~25 s) dominates the scoped run: auditing one
-component's stories is ~5–10 s, everything else is boot. If you keep
-`npm run storybook` running while you work, the hook reuses it and a scoped
-commit costs ~11 s; from cold it is ~40 s. That is the deliberate trade: a
-commit that touches a component pays ~40 s to learn *immediately* that it broke
-`button-name` or `color-contrast`, instead of finding out minutes later at push
-time — and a commit that touches no component pays nothing.
+To audit a component *before* pushing, run it directly:
+`node scripts/a11y-staged.mjs` (staged files) or `npm run test-storybook:a11y`
+(everything).
 
 ### The escape hatch
 
