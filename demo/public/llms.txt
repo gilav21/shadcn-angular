@@ -2333,7 +2333,7 @@ Titled frames behind the nodes and freestanding comments, both purely visual.
 - Category: layout
 - Depends on: `infinite-canvas`, `infinite-canvas/node-editor`
 - npm dependencies: none
-- Inputs: `class: string = ''`, `comments: readonly NodeComment[] = []`, `groups: readonly NodeGroup[] = []`, `nodes: readonly EditorNode[] = []`, `readonlyGroups: boolean = false`
+- Inputs: `class: string = ''`, `comments: readonly NodeComment[] = []`, `groups: readonly NodeGroup[] = []`, `nodes: readonly EditorNode[] = []`, `readonlyGroups: boolean = false`, `viewport: CanvasRect | null = null`
 - Outputs: `comments: readonly NodeComment[]`, `groupActivated: NodeGroup`, `groupMoved: GroupMoveEvent`, `groups: readonly NodeGroup[]`
 
 ```html
