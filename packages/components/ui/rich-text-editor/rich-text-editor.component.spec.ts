@@ -6630,3 +6630,371 @@ describe('RichTextEditorComponent — reactive forms disabled state', () => {
         expect(rte.isDisabled()).toBe(true);
     });
 });
+
+// ── Markdown input rules ──────────────────────────────────────────────────
+// The editor turns a completed Markdown marker into real formatting as the
+// author types. These drive the real typing path: mutate the editable DOM the
+// way a keystroke would, place the caret, then dispatch the `input` event the
+// browser would have raised.
+describe('RichTextEditorComponent markdown input rules', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector(
+            '[data-slot="rich-text-editor"]'
+        ) as HTMLDivElement;
+    });
+
+    /**
+     * Simulate typing `text` at the end of the given block: append the
+     * characters to its leading text node, put the caret after them, and raise
+     * the `input` event the browser raises once the character has landed.
+     */
+    const typeInto = (block: HTMLElement, text: string, inputType = 'insertText'): void => {
+        const existing = block.firstChild;
+        const textNode =
+            existing && existing.nodeType === Node.TEXT_NODE
+                ? (existing as Text)
+                : (block.insertBefore(document.createTextNode(''), block.firstChild) as Text);
+        textNode.data += text;
+        setCaretAt(textNode, textNode.data.length);
+        editor.dispatchEvent(
+            new InputEvent('input', {
+                bubbles: true,
+                inputType,
+                data: text.at(-1) ?? '',
+            })
+        );
+        fixture.detectChanges();
+    };
+
+    /** Replace the editor content with `html` and return its first element child. */
+    const seed = (html: string): HTMLElement => {
+        editor.innerHTML = html;
+        return editor.firstElementChild as HTMLElement;
+    };
+
+    /** The element the collapsed caret currently sits in. */
+    const caretElement = (): HTMLElement | null => {
+        const selection = document.getSelection();
+        if (!selection || selection.rangeCount === 0) return null;
+        const node = selection.getRangeAt(0).startContainer;
+        return node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as HTMLElement);
+    };
+
+    /** Type a marker that sits before existing text, with the caret after it. */
+    const typeMarkerBefore = (block: HTMLElement, full: string, caretOffset: number): void => {
+        const textNode = block.firstChild as Text;
+        textNode.data = full;
+        setCaretAt(textNode, caretOffset);
+        editor.dispatchEvent(
+            new InputEvent('input', { bubbles: true, inputType: 'insertText', data: ' ' })
+        );
+        fixture.detectChanges();
+    };
+
+    // T-9 — the headline rule, on an empty paragraph.
+    it('turns "# " in an empty paragraph into an h1 holding the caret, with no marker text', () => {
+        const block = seed('<p><br></p>');
+        typeInto(block, '# ');
+
+        const heading = editor.querySelector('h1');
+        expect(heading).not.toBeNull();
+        expect(editor.querySelector('p')).toBeNull();
+        expect(heading?.textContent?.replaceAll('\u200B', '').trim()).toBe('');
+        expect(heading?.contains(caretElement())).toBe(true);
+    });
+
+    it('turns "## " into an h2 and "### " into an h3', () => {
+        typeInto(seed('<p><br></p>'), '## ');
+        expect(editor.querySelector('h2')).not.toBeNull();
+
+        seed('<p><br></p>');
+        typeInto(editor.firstElementChild as HTMLElement, '### ');
+        expect(editor.querySelector('h3')).not.toBeNull();
+    });
+
+    it('does not fire on "#### " — h4 is not a rule', () => {
+        typeInto(seed('<p><br></p>'), '#### ');
+        expect(editor.querySelector('h4')).toBeNull();
+        expect(editor.textContent).toContain('#');
+    });
+
+    // T-10 — the marker is stripped but the text after it survives.
+    it('keeps text that already followed the caret: "# " before "Title" yields <h1>Title</h1>', () => {
+        typeMarkerBefore(seed('<p>Title</p>'), '# Title', 2);
+
+        const heading = editor.querySelector('h1');
+        expect(heading).not.toBeNull();
+        expect(heading?.textContent).toBe('Title');
+    });
+
+    // T-11 — list rules.
+    it('wraps the paragraph in ul > li for "- " and puts the caret in the item', () => {
+        typeInto(seed('<p><br></p>'), '- ');
+
+        const item = editor.querySelector('ul > li');
+        expect(item).not.toBeNull();
+        expect(item?.contains(caretElement())).toBe(true);
+    });
+
+    it('wraps the paragraph in ul > li for "* "', () => {
+        typeInto(seed('<p><br></p>'), '* ');
+        expect(editor.querySelector('ul > li')).not.toBeNull();
+    });
+
+    it('wraps the paragraph in ol > li for "1. "', () => {
+        typeInto(seed('<p><br></p>'), '1. ');
+
+        const item = editor.querySelector('ol > li');
+        expect(item).not.toBeNull();
+        expect(item?.contains(caretElement())).toBe(true);
+    });
+
+    // T-12 — blockquote.
+    it('re-tags the paragraph as a blockquote for "> "', () => {
+        typeInto(seed('<p><br></p>'), '> ');
+
+        expect(editor.querySelector('blockquote')).not.toBeNull();
+        expect(editor.querySelector('p')).toBeNull();
+    });
+
+    // T-13 — task items, checked and unchecked, with trailing text.
+    it('creates an unchecked task item for "[] "', () => {
+        typeInto(seed('<p><br></p>'), '[] ');
+
+        const item = editor.querySelector('ul[data-task-list] > li[data-task]') as HTMLElement;
+        expect(item).not.toBeNull();
+        expect(item.dataset['checked']).toBe('false');
+        expect(item.querySelector('input[type="checkbox"]')).not.toBeNull();
+    });
+
+    it('creates a checked task item with a checked box for "[x] "', () => {
+        typeInto(seed('<p><br></p>'), '[x] ');
+
+        const item = editor.querySelector('ul[data-task-list] > li[data-task]') as HTMLElement;
+        expect(item).not.toBeNull();
+        expect(item.dataset['checked']).toBe('true');
+        expect((item.querySelector('input[type="checkbox"]') as HTMLInputElement).checked).toBe(true);
+    });
+
+    it('keeps trailing text as the task item text', () => {
+        typeMarkerBefore(seed('<p>buy milk</p>'), '[] buy milk', 3);
+
+        const item = editor.querySelector('ul[data-task-list] > li[data-task]');
+        expect(item?.textContent?.replaceAll('\u00A0', '').trim()).toBe('buy milk');
+    });
+
+    // T-14 — the horizontal rule, the one marker with no terminator.
+    it('replaces the paragraph with an hr plus an empty paragraph holding the caret for "---"', () => {
+        typeInto(seed('<p><br></p>'), '---');
+
+        expect(editor.querySelector('hr')).not.toBeNull();
+        const paragraph = editor.querySelector('hr + p');
+        expect(paragraph).not.toBeNull();
+        expect(paragraph?.contains(caretElement())).toBe(true);
+        expect(editor.textContent?.replaceAll('\u200B', '')).not.toContain('-');
+    });
+
+    // T-15 — the code fence, on both terminators.
+    it('turns "```ts" plus a space into a pre > code carrying the language', () => {
+        typeInto(seed('<p><br></p>'), '```ts ');
+
+        const code = editor.querySelector('pre > code') as HTMLElement;
+        expect(code).not.toBeNull();
+        expect(code.dataset['language']).toBe('ts');
+        expect(code.className).toContain('language-ts');
+    });
+
+    it('turns "```" plus Enter into a plain pre > code and prevents the Enter', () => {
+        const block = seed('<p><br></p>');
+        const textNode = block.insertBefore(document.createTextNode('```'), block.firstChild) as Text;
+        setCaretAt(textNode, 3);
+
+        const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+        component.onKeydown(enter);
+        fixture.detectChanges();
+
+        expect(enter.defaultPrevented).toBe(true);
+        const code = editor.querySelector('pre > code') as HTMLElement;
+        expect(code).not.toBeNull();
+        expect(code.dataset['language']).toBeUndefined();
+    });
+
+    // T-22 — every guard that must stop a rule from firing.
+    describe('guards', () => {
+        it('does not fire when the marker is not the whole prefix ("foo - ")', () => {
+            typeInto(seed('<p>foo </p>'), '- ');
+
+            expect(editor.querySelector('ul')).toBeNull();
+            expect(editor.textContent).toContain('foo -');
+        });
+
+        // Each of these seeds an EMPTY structure, so the marker really is the
+        // whole text before the caret. Only the structural guard can stop the
+        // transform — with the guard removed, every one of them fires.
+        it('does not fire inside a list item', () => {
+            const item = seed('<ul><li><br></li></ul>').querySelector('li') as HTMLElement;
+            typeInto(item, '# ');
+
+            expect(editor.querySelector('h1')).toBeNull();
+            expect(editor.querySelector('li')?.textContent).toContain('#');
+        });
+
+        it('does not fire inside a table cell', () => {
+            const cell = seed('<table><tbody><tr><td><br></td></tr></tbody></table>')
+                .querySelector('td') as HTMLElement;
+            typeInto(cell, '# ');
+
+            expect(editor.querySelector('h1')).toBeNull();
+            expect(editor.querySelector('td')?.textContent).toContain('#');
+        });
+
+        it('does not fire inside a pre', () => {
+            const code = seed('<pre><code></code></pre>').querySelector('code') as HTMLElement;
+            typeInto(code, '# ');
+
+            expect(editor.querySelector('h1')).toBeNull();
+            expect(editor.querySelector('pre')?.textContent).toContain('#');
+        });
+
+        it('does not fire inside a summary', () => {
+            const summary = seed('<details><summary><br></summary><p>b</p></details>')
+                .querySelector('summary') as HTMLElement;
+            typeInto(summary, '# ');
+
+            expect(editor.querySelector('h1')).toBeNull();
+            expect(editor.querySelector('summary')?.textContent).toContain('#');
+        });
+
+        it('does not fire inside an existing heading', () => {
+            typeInto(seed('<h2><br></h2>'), '# ');
+
+            expect(editor.querySelector('h1')).toBeNull();
+            expect(editor.querySelector('h2')?.textContent).toContain('#');
+        });
+
+        it('does not fire in a paragraph nested inside a list item', () => {
+            const paragraph = seed('<ul><li><p><br></p></li></ul>').querySelector('p') as HTMLElement;
+            typeInto(paragraph, '# ');
+
+            expect(editor.querySelector('h1')).toBeNull();
+            expect(editor.querySelector('li')?.textContent).toContain('#');
+        });
+
+        it('does not fire when [markdownShortcuts] is false', () => {
+            fixture.componentRef.setInput('markdownShortcuts', false);
+            fixture.detectChanges();
+
+            typeInto(seed('<p><br></p>'), '# ');
+
+            expect(editor.querySelector('h1')).toBeNull();
+            expect(editor.textContent).toContain('#');
+        });
+
+        // `onInput` already returns early while readonly, so this drives the
+        // rule engine directly: the guard has to live inside it too, or a
+        // programmatic DOM mutation would still reformat a locked editor.
+        it('does not fire while readonly, even reached directly', () => {
+            fixture.componentRef.setInput('readonly', true);
+            fixture.detectChanges();
+
+            const block = seed('<p><br></p>');
+            const textNode = block.insertBefore(document.createTextNode('# '), block.firstChild) as Text;
+            setCaretAt(textNode, 2);
+            const applied = (
+                component as unknown as { applyInputRules(event: Event): boolean }
+            ).applyInputRules(new InputEvent('input', { inputType: 'insertText', data: ' ' }));
+
+            expect(applied).toBe(false);
+            expect(editor.querySelector('h1')).toBeNull();
+        });
+
+        it('does not fire while the form has disabled the editor, even reached directly', () => {
+            component.setDisabledState(true);
+            fixture.detectChanges();
+
+            const block = seed('<p><br></p>');
+            const textNode = block.insertBefore(document.createTextNode('# '), block.firstChild) as Text;
+            setCaretAt(textNode, 2);
+            const applied = (
+                component as unknown as { applyInputRules(event: Event): boolean }
+            ).applyInputRules(new InputEvent('input', { inputType: 'insertText', data: ' ' }));
+
+            expect(applied).toBe(false);
+            expect(editor.querySelector('h1')).toBeNull();
+        });
+
+        it('does not fire mid-composition (insertCompositionText)', () => {
+            typeInto(seed('<p><br></p>'), '# ', 'insertCompositionText');
+
+            expect(editor.querySelector('h1')).toBeNull();
+            expect(editor.textContent).toContain('#');
+        });
+
+        it('fires for a plain Event with no inputType (the test-only path)', () => {
+            const block = seed('<p><br></p>');
+            const textNode = block.insertBefore(document.createTextNode('# '), block.firstChild) as Text;
+            setCaretAt(textNode, 2);
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+
+            expect(editor.querySelector('h1')).not.toBeNull();
+        });
+
+        it('wraps a bare top-level text node in a paragraph before transforming it', () => {
+            editor.innerHTML = '';
+            const textNode = editor.appendChild(document.createTextNode('# ')) as Text;
+            setCaretAt(textNode, 2);
+            editor.dispatchEvent(
+                new InputEvent('input', { bubbles: true, inputType: 'insertText', data: ' ' })
+            );
+            fixture.detectChanges();
+
+            expect(editor.querySelector('h1')).not.toBeNull();
+        });
+    });
+
+    // T-23 — observers must see the world after the transform, not before.
+    it('notifies input observers with the post-transform text', () => {
+        const observed: string[] = [];
+        component.registerInputObserver((text: string) => observed.push(text));
+
+        typeInto(seed('<p><br></p>'), '# ');
+
+        expect(observed.length).toBeGreaterThan(0);
+        expect(observed.at(-1)).not.toContain('#');
+    });
+
+    // T-25 — the outputs a consumer binds to.
+    it('emits htmlChange once per transform, carrying the transformed html', () => {
+        const emissions: string[] = [];
+        component.htmlChange.subscribe((html: string) => emissions.push(html));
+
+        typeInto(seed('<p><br></p>'), '# ');
+
+        expect(emissions).toHaveLength(1);
+        expect(emissions[0]).toContain('<h1');
+    });
+
+    it('emits the transformed markdown in markdown mode', () => {
+        fixture.componentRef.setInput('mode', 'markdown');
+        fixture.detectChanges();
+
+        const emissions: string[] = [];
+        component.registerOnChange((value: string) => emissions.push(value));
+
+        typeMarkerBefore(seed('<p>Title</p>'), '# Title', 2);
+
+        expect(emissions.at(-1)?.trim()).toBe('# Title');
+    });
+});

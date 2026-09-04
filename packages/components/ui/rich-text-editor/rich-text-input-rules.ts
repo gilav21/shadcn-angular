@@ -91,7 +91,7 @@ const BLOCK_RULES: readonly BlockRuleDefinition[] = [
  * stripped by the caller; `terminator` says which character completed it
  * (`' '` for a typed space, `'\n'` for Enter, `''` for any other input, which
  * only `---` accepts). Non-breaking spaces are normalised first, because a
- * contenteditable surface stores a trailing typed space as ` `.
+ * contenteditable surface stores a trailing typed space as a non-breaking one.
  *
  * Returns `null` when nothing matches — the overwhelmingly common case, so the
  * table is walked with cheap anchored patterns and no allocation.
@@ -100,7 +100,7 @@ export function matchBlockInputRule(
     textBeforeCaret: string,
     terminator: BlockRuleTerminator,
 ): BlockInputRuleMatch | null {
-    const normalized = textBeforeCaret.replaceAll(' ', ' ');
+    const normalized = textBeforeCaret.replaceAll('\u00A0', ' ');
     const marker = terminator === '' ? normalized.trimEnd() : normalized;
     const effectiveTerminator = terminator === '' && marker !== normalized ? ' ' : terminator;
 

@@ -37,6 +37,11 @@ import {
     type RichTextHistoryEntrySnapshot,
 } from './rich-text-editor.host';
 import { RichTextLocale, RICH_TEXT_LOCALES } from './rich-text-locales';
+import {
+    matchBlockInputRule,
+    matchInlineInputRule,
+    type BlockInputRuleMatch,
+} from './rich-text-input-rules';
 import { createLocaleBindings, interpolate } from '../../lib/i18n/i18n.utils';
 import type { LocaleInput } from '../../lib/i18n/i18n.types';
 
@@ -231,6 +236,23 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     /** Makes the editor non-editable but still selectable/copyable. Hides the toolbar. */
     readonly = input<boolean>(false);
+
+    /**
+     * Whether a completed Markdown marker typed into the editor turns into real
+     * formatting: `# ` / `## ` / `### ` into headings, `- ` / `* ` and `1. `
+     * into lists, `> ` into a blockquote, `[] ` / `[x] ` into a task item,
+     * `---` into a horizontal rule, ``` (optionally with a language, then Space
+     * or Enter) into a code block, and `**bold**`, `*italic*`, `` `code` ``
+     * into their inline elements.
+     *
+     * Each transform is exactly one undo step, and pressing Backspace
+     * immediately afterwards puts the literal characters back — so a marker can
+     * still be typed as text when that is what was meant.
+     *
+     * Set it to `false` for an editor whose authors type Markdown markers they
+     * expect to stay literal.
+     */
+    markdownShortcuts = input<boolean>(true);
 
 
     /** Show a character count below the editor. */
@@ -780,6 +802,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (this.isDisabled() || this.readonly()) return;
 
         const div = event.target as HTMLDivElement;
+        const transformed = this.applyInputRules(event);
         const html = this.sanitizer.sanitize(div.innerHTML).replaceAll('\u200B', '');
 
         const triggerTextContent = this.buildTriggerAwareText(div.innerHTML);
@@ -798,7 +821,9 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             : html;
         this.onChange(outputValue);
 
-        if (!this.isUndoRedo) {
+        if (transformed) {
+            this.pushHistory();
+        } else if (!this.isUndoRedo) {
             this.scheduleDebouncedHistoryPush();
         }
         this.isUndoRedo = false;
@@ -828,6 +853,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     onKeydown(event: KeyboardEvent): void {
         if (this.dispatchKeydownInterceptors(event)) return;
         if (this.shortcutHandle?.dispatch(event)) return;
+
+        if (event.key === 'Backspace' && this.revertLastInputRule()) {
+            event.preventDefault();
+            return;
+        }
+        this.lastInputRule = null;
 
         if (event.key === 'Escape') {
             this.showFloatingToolbar.set(false);
@@ -862,10 +893,39 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
         const range = selection.getRangeAt(0);
 
+        if (this.handleEnterOnCodeFence(event)) return;
         if (this.handleEnterInTaskList(event, selection)) return;
         if (this.handleEnterInSummary(event, range, selection)) return;
         if (this.handleEnterAtDetailsEnd(event, range, selection)) return;
         this.handleEnterInCodeBlock(event, range, selection);
+    }
+
+    /**
+     * Opens a code block when Enter completes a ``` fence. Keydown-driven, so
+     * no `input` event follows to push the history entry — this path syncs and
+     * pushes for itself, the way every other command does.
+     */
+    private handleEnterOnCodeFence(event: KeyboardEvent): boolean {
+        if (!this.markdownShortcuts() || this.isDisabled() || this.readonly()) return false;
+
+        const context = this.inputRuleContext();
+        if (!context) return false;
+        if (context.blockPrefix.length > RichTextEditorComponent.MAX_BLOCK_MARKER_LENGTH) return false;
+
+        const block = this.blockRuleTarget(context.block);
+        if (!block) return false;
+
+        const match = matchBlockInputRule(context.blockPrefix, '\n');
+        if (!match) return false;
+
+        event.preventDefault();
+        this.snapshotBeforeTransform();
+        this.removeLeadingCharacters(block, match.markerLength - 1);
+        this.lastInputRule = { block: this.buildBlockForRule(block, match) };
+        this.syncContentFromEditor();
+        this.pushHistory();
+        this.updateActiveFormats();
+        return true;
     }
 
     private handleEnterInTaskList(event: KeyboardEvent, selection: Selection): boolean {
@@ -1179,6 +1239,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * does not flicker it away.
      */
     onBlur(event?: FocusEvent): void {
+        this.lastInputRule = null;
         const selection = this.document.getSelection();
         if (selection && selection.rangeCount > 0) {
             this.savedRange = selection.getRangeAt(0).cloneRange();
@@ -4219,6 +4280,441 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         list.appendChild(item);
         block.parentNode?.replaceChild(list, block);
         return item;
+    }
+
+    /**
+     * The tag names a block rule may transform. Anything else — a list item, a
+     * table cell, a `<pre>`, a `<summary>`, an existing heading — is a block the
+     * author already chose, so a marker typed into it stays literal text.
+     */
+    private static readonly INPUT_RULE_BLOCK_TAGS = new Set(['P', 'DIV']);
+
+    /**
+     * Ancestors that veto a block rule even when the caret's own block is a
+     * plain paragraph, because the paragraph is nested inside a structure the
+     * rule would otherwise tear apart.
+     */
+    private static readonly INPUT_RULE_FORBIDDEN_ANCESTORS = 'pre, li, td, th, summary';
+
+    /**
+     * Inline ancestors that veto an inline rule: the marker either already sits
+     * in code (where Markdown is literal) or inside a chip another feature owns.
+     */
+    private static readonly INLINE_RULE_FORBIDDEN_ANCESTORS =
+        'code, pre, a, [data-mention], [data-tag], [data-action-click], [data-action-hover]';
+
+    /**
+     * The longest block marker plus its terminator (```` ``` ```` + a 16-char
+     * language + a space). A caret prefix longer than this cannot complete a
+     * block rule, which is what keeps the check off the block's full text on
+     * every keystroke of a long paragraph.
+     */
+    private static readonly MAX_BLOCK_MARKER_LENGTH = 24;
+
+    /**
+     * `inputType` prefixes and values that never complete a Markdown marker:
+     * deletions and history replays are not authoring, formatting commands have
+     * already decided the block, and a composition is still open (the committed
+     * `insertText` that follows is the one that counts).
+     */
+    private static readonly INPUT_RULE_IGNORED_TYPES = ['delete', 'history', 'format'];
+
+    /**
+     * The transform the last input rule performed, and the element it produced.
+     * Backspace consults it to offer the one-keystroke revert; any other key,
+     * input, click or blur clears it, so the revert window is exactly the
+     * keystroke immediately after the transform.
+     */
+    private lastInputRule: { block: HTMLElement } | null = null;
+
+    /**
+     * Applies a Markdown input rule to the caret's block or text, if the
+     * characters that just landed completed one. Called at the top of
+     * {@link onInput}, before the DOM is read for the model or handed to input
+     * observers, so a slash or mention addon sees the post-transform text.
+     *
+     * Returns whether a transform happened — the caller turns that into a single
+     * history entry instead of the usual debounced push.
+     */
+    private applyInputRules(event: Event): boolean {
+        if (!this.markdownShortcuts() || this.isUndoRedo) return false;
+        if (this.isDisabled() || this.readonly()) return false;
+
+        const inputType = (event as InputEvent).inputType ?? 'insertText';
+        if (this.isIgnoredInputType(inputType)) return false;
+
+        const context = this.inputRuleContext();
+        if (!context) return false;
+
+        return this.tryBlockRule(context, inputType) || this.tryInlineRule(context);
+    }
+
+    /** Whether an `inputType` is one Markdown rules deliberately sit out. */
+    private isIgnoredInputType(inputType: string): boolean {
+        if (inputType === 'insertCompositionText') return true;
+        return RichTextEditorComponent.INPUT_RULE_IGNORED_TYPES.some((prefix) =>
+            inputType.startsWith(prefix)
+        );
+    }
+
+    /**
+     * The caret's position expressed the way the rules need it: the block it
+     * sits in, its text node and offset, and the block's text before it.
+     *
+     * `null` whenever there is no collapsed caret inside this editor — a
+     * selection replacement or a caret in another editor is never a rule.
+     */
+    private inputRuleContext(): {
+        block: HTMLElement;
+        textNode: Text | null;
+        offset: number;
+        blockPrefix: string;
+    } | null {
+        const editor = this.getEditorElement();
+        const selection = this.document.getSelection();
+        if (!editor || !selection || selection.rangeCount === 0 || !selection.isCollapsed) return null;
+
+        const range = selection.getRangeAt(0);
+        if (!editor.contains(range.startContainer)) return null;
+
+        const startNode = range.startContainer;
+        const textNode = startNode.nodeType === Node.TEXT_NODE ? (startNode as Text) : null;
+        const block = this.closestInputRuleBlock(startNode, editor);
+        if (!block) return null;
+
+        const prefixRange = this.document.createRange();
+        prefixRange.setStart(block, 0);
+        prefixRange.setEnd(range.startContainer, range.startOffset);
+        const blockPrefix = prefixRange.toString().replaceAll('​', '');
+
+        return { block, textNode, offset: range.startOffset, blockPrefix };
+    }
+
+    /**
+     * The element a rule would transform: the caret's nearest block-level
+     * ancestor, or the editor root itself when the caret sits in a bare
+     * top-level text node that no block wraps yet.
+     */
+    private closestInputRuleBlock(startNode: Node, editor: HTMLElement): HTMLElement | null {
+        const start = startNode.nodeType === Node.TEXT_NODE ? startNode.parentElement : (startNode as HTMLElement);
+        if (!start) return null;
+        const block = start.closest<HTMLElement>('p, div, h1, h2, h3, h4, h5, h6, li, td, th, pre, blockquote, summary');
+        if (block && editor.contains(block) && block !== editor) return block;
+        return editor;
+    }
+
+    /**
+     * Applies a block rule when the caret's prefix is a complete marker and the
+     * block is one a rule may claim. The marker is removed before the block is
+     * rebuilt, so the transform leaves only the author's own text behind.
+     */
+    private tryBlockRule(
+        context: { block: HTMLElement; blockPrefix: string },
+        inputType: string
+    ): boolean {
+        if (context.blockPrefix.length > RichTextEditorComponent.MAX_BLOCK_MARKER_LENGTH) return false;
+
+        const block = this.blockRuleTarget(context.block);
+        if (!block) return false;
+
+        const terminator = this.blockRuleTerminator(context.blockPrefix, inputType);
+        const markerText = terminator === '' ? context.blockPrefix : context.blockPrefix.slice(0, -1);
+        const match = matchBlockInputRule(markerText, terminator);
+        if (!match) return false;
+
+        this.snapshotBeforeTransform();
+        this.removeLeadingCharacters(block, match.markerLength);
+        const produced = this.buildBlockForRule(block, match);
+        this.lastInputRule = { block: produced };
+        return true;
+    }
+
+    /**
+     * The element a block rule may rewrite, or `null` when the caret's block is
+     * one the author already chose. A bare text node directly under the editor
+     * is wrapped in a paragraph first, so the rules behave the same whether or
+     * not the browser has created a block yet.
+     */
+    private blockRuleTarget(block: HTMLElement): HTMLElement | null {
+        const editor = this.getEditorElement();
+        if (editor && block === editor) return this.wrapBareTextInParagraph(editor);
+        if (!RichTextEditorComponent.INPUT_RULE_BLOCK_TAGS.has(block.tagName)) return null;
+        if (block.closest(RichTextEditorComponent.INPUT_RULE_FORBIDDEN_ANCESTORS)) return null;
+        return block;
+    }
+
+    /**
+     * Moves the editor's bare top-level nodes into a paragraph and restores the
+     * caret inside it, returning that paragraph. Only reached when the browser
+     * left typed characters unwrapped.
+     */
+    private wrapBareTextInParagraph(editor: HTMLElement): HTMLElement | null {
+        const selection = this.document.getSelection();
+        if (!selection || selection.rangeCount === 0) return null;
+        const { startContainer, startOffset } = selection.getRangeAt(0);
+
+        const paragraph = this.document.createElement('p');
+        while (editor.firstChild) {
+            paragraph.appendChild(editor.firstChild);
+        }
+        editor.appendChild(paragraph);
+
+        const restored = this.document.createRange();
+        restored.setStart(startContainer, startOffset);
+        restored.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(restored);
+        return paragraph;
+    }
+
+    /**
+     * Which character completed the marker: a space when one was just typed (or
+     * already ends the prefix, which is how a synthetic test event reads), and
+     * otherwise nothing — the empty terminator only `---` accepts.
+     */
+    private blockRuleTerminator(blockPrefix: string, inputType: string): ' ' | '' {
+        const endsWithSpace = /[ \u00A0]$/.test(blockPrefix);
+        return inputType === 'insertText' && endsWithSpace ? ' ' : '';
+    }
+
+    /** Deletes the first `count` characters of a block's text, marker included. */
+    private removeLeadingCharacters(block: HTMLElement, count: number): void {
+        const range = this.document.createRange();
+        range.setStart(block, 0);
+        range.collapse(true);
+
+        let remaining = count;
+        const walker = this.document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+        while (remaining > 0 && walker.nextNode()) {
+            const textNode = walker.currentNode as Text;
+            const take = Math.min(remaining, textNode.data.length);
+            textNode.deleteData(0, take);
+            remaining -= take;
+        }
+    }
+
+    /**
+     * Rebuilds the block as the matched rule asks and leaves the caret where the
+     * author would continue typing, returning the element the rule produced.
+     */
+    private buildBlockForRule(block: HTMLElement, match: BlockInputRuleMatch): HTMLElement {
+        switch (match.kind) {
+            case 'heading1':
+            case 'heading2':
+            case 'heading3':
+                return this.finishBlockRule(this.replaceBlockTag(block, `h${match.kind.at(-1)}`));
+            case 'bulletList':
+                return this.finishBlockRule(this.wrapBlockInList(block, 'ul'));
+            case 'orderedList':
+                return this.finishBlockRule(this.wrapBlockInList(block, 'ol'));
+            case 'blockquote':
+                return this.finishBlockRule(this.replaceBlockTag(block, 'blockquote'));
+            case 'taskUnchecked':
+                return this.buildTaskBlock(block, false);
+            case 'taskChecked':
+                return this.buildTaskBlock(block, true);
+            case 'horizontalRule':
+                return this.buildHorizontalRuleBlock(block);
+            default:
+                return this.buildCodeBlockForRule(block, match.language ?? '');
+        }
+    }
+
+    /** Places the caret at the start of a rule's new block and returns it. */
+    private finishBlockRule(block: HTMLElement): HTMLElement {
+        this.placeCaretAtStartOfBlock(block);
+        return block;
+    }
+
+    /** Collapses the caret to the very start of a block's content. */
+    private placeCaretAtStartOfBlock(block: HTMLElement): void {
+        const selection = this.document.getSelection();
+        if (!selection) return;
+
+        if (this.isEmptyBlock(block)) {
+            block.innerHTML = '';
+            const placeholder = this.document.createTextNode('');
+            block.appendChild(placeholder);
+            const range = this.document.createRange();
+            range.setStart(placeholder, 0);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            return;
+        }
+
+        const walker = this.document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+        const first = walker.nextNode();
+        const range = this.document.createRange();
+        if (first) {
+            range.setStart(first, 0);
+        } else {
+            range.setStart(block, 0);
+        }
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
+
+    /**
+     * Replaces the block with a task-list item carrying its remaining text,
+     * built the same way {@link insertTaskList} builds one so both paths produce
+     * the structure the sanitizer and the Enter rules already understand.
+     */
+    private buildTaskBlock(block: HTMLElement, checked: boolean): HTMLElement {
+        const list = this.document.createElement('ul');
+        list.dataset['taskList'] = '';
+        const item = this.createTaskListItem(checked);
+        const textSpan = item.querySelector('span') as HTMLElement;
+
+        if (!this.isEmptyBlock(block)) {
+            textSpan.textContent = '';
+            while (block.firstChild) {
+                textSpan.appendChild(block.firstChild);
+            }
+        }
+
+        list.appendChild(item);
+        block.parentNode?.replaceChild(list, block);
+        this.placeCaretAtStartOfBlock(textSpan);
+        return item;
+    }
+
+    /**
+     * One task-list item: the checkbox the reader toggles plus the span holding
+     * its text, seeded with a non-breaking space so an empty item still has a
+     * caret position.
+     */
+    private createTaskListItem(checked: boolean): HTMLElement {
+        const item = this.document.createElement('li');
+        item.dataset['task'] = '';
+        item.dataset['checked'] = String(checked);
+        const checkbox = this.document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = checked;
+        const textSpan = this.document.createElement('span');
+        textSpan.appendChild(this.document.createTextNode(' '));
+        item.appendChild(checkbox);
+        item.appendChild(textSpan);
+        return item;
+    }
+
+    /**
+     * Replaces the block with a rule followed by the empty paragraph the author
+     * carries on typing in. Built here rather than through
+     * {@link insertHorizontalRule}, which inserts at the caret and pushes its
+     * own history entry.
+     */
+    private buildHorizontalRuleBlock(block: HTMLElement): HTMLElement {
+        const rule = this.document.createElement('hr');
+        const paragraph = this.document.createElement('p');
+        paragraph.innerHTML = '<br>';
+        block.parentNode?.replaceChild(paragraph, block);
+        paragraph.parentNode?.insertBefore(rule, paragraph);
+        this.placeCaretAtStartOfBlock(paragraph);
+        return paragraph;
+    }
+
+    /**
+     * Replaces the block with a fenced code block holding whatever text
+     * followed the fence, or a newline when it was empty — the same shape
+     * {@link insertCodeBlock} produces, so the Enter-to-exit rule works in it.
+     */
+    private buildCodeBlockForRule(block: HTMLElement, language: string): HTMLElement {
+        const pre = this.document.createElement('pre');
+        const code = this.document.createElement('code');
+        if (language) {
+            code.dataset['language'] = language;
+            code.className = `language-${language}`;
+            pre.dataset['language'] = language;
+        }
+        code.textContent = block.textContent?.replaceAll('​', '') || '\n';
+        pre.appendChild(code);
+        block.parentNode?.replaceChild(pre, block);
+        this.placeCaretAtStartOfBlock(code);
+        return code;
+    }
+
+    /**
+     * Captures the pre-transform DOM — markers and all — as its own history
+     * entry, so a single undo restores the literal characters the author typed
+     * and the transform costs exactly one step.
+     */
+    private snapshotBeforeTransform(): void {
+        this.flushPendingHistoryPush();
+        this.syncContentFromEditor();
+        this.pushHistory();
+    }
+
+    /**
+     * Applies an inline rule when the text before the caret ends in a completed
+     * wrapper. The wrapper's markers are dropped, its body moves into the new
+     * element, and the caret is parked in a zero-width text node after it so the
+     * browser does not keep typing inside the new `<strong>`.
+     */
+    private tryInlineRule(context: { block: HTMLElement; textNode: Text | null; offset: number }): boolean {
+        const { textNode, offset, block } = context;
+        if (!textNode || block.tagName === 'PRE') return false;
+        if (textNode.parentElement?.closest(RichTextEditorComponent.INLINE_RULE_FORBIDDEN_ANCESTORS)) {
+            return false;
+        }
+
+        const match = matchInlineInputRule(textNode.data.slice(0, offset));
+        if (!match) return false;
+
+        this.snapshotBeforeTransform();
+
+        const tail = textNode.splitText(match.start);
+        tail.deleteData(0, match.end - match.start);
+
+        const element = this.document.createElement(
+            this.inlineRuleTagName(match.kind)
+        );
+        element.textContent = match.text;
+        tail.parentNode?.insertBefore(element, tail);
+
+        const caretNode = this.document.createTextNode('​');
+        tail.parentNode?.insertBefore(caretNode, tail);
+        const selection = this.document.getSelection();
+        if (selection) {
+            const range = this.document.createRange();
+            range.setStart(caretNode, 1);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+
+        this.lastInputRule = { block: element };
+        return true;
+    }
+
+    /** The element an inline rule builds for a matched wrapper. */
+    private inlineRuleTagName(kind: 'strong' | 'em' | 'code'): string {
+        if (kind === 'strong') return 'strong';
+        return kind === 'em' ? 'em' : 'code';
+    }
+
+    /**
+     * Restores the literal characters of the transform that just ran, when
+     * Backspace is the very next keystroke and the caret has not left the block
+     * the rule produced. Reuses {@link undo}, so the revert lands the caret
+     * where the author was and redo re-applies the transform.
+     */
+    private revertLastInputRule(): boolean {
+        const recorded = this.lastInputRule;
+        if (!recorded) return false;
+
+        const selection = this.document.getSelection();
+        const inBlock =
+            !!selection &&
+            selection.rangeCount > 0 &&
+            selection.isCollapsed &&
+            recorded.block.contains(selection.getRangeAt(0).startContainer);
+        if (!inBlock) return false;
+
+        this.undo();
+        this.lastInputRule = null;
+        return true;
     }
 
     private isEmptyBlock(block: HTMLElement): boolean {
