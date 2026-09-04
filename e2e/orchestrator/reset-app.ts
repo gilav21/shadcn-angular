@@ -1,5 +1,7 @@
+import path from 'node:path';
+
 import { capture, run } from './spawn.js';
-import { REPO_ROOT } from './paths.js';
+import { FIXTURE_APP, REPO_ROOT } from './paths.js';
 
 /**
  * Restores the fixture-app to its committed pristine state.
@@ -15,9 +17,18 @@ import { REPO_ROOT } from './paths.js';
  * the clean — that's the whole point: re-installing all 600+ Angular
  * transitive deps every component would dominate runtime.
  */
-export async function resetFixtureApp(): Promise<void> {
-    await run('git', ['checkout', 'HEAD', '--', 'e2e/fixture-app'], { cwd: REPO_ROOT });
-    await run('git', ['clean', '-fd', 'e2e/fixture-app/'], { cwd: REPO_ROOT });
+export async function resetFixtureApp(fixtureApp: string = FIXTURE_APP): Promise<void> {
+    const rel = relFixture(fixtureApp);
+    await run('git', ['checkout', 'HEAD', '--', rel], { cwd: REPO_ROOT });
+    await run('git', ['clean', '-fd', `${rel}/`], { cwd: REPO_ROOT });
+}
+
+/**
+ * Repo-relative, forward-slashed path of a fixture — git pathspecs are
+ * POSIX-style even on Windows, where `path.relative` yields backslashes.
+ */
+function relFixture(fixtureApp: string): string {
+    return path.relative(REPO_ROOT, fixtureApp).replaceAll('\\', '/');
 }
 
 /**
@@ -27,17 +38,17 @@ export async function resetFixtureApp(): Promise<void> {
  *
  * Returns the list of dirty paths (empty array = clean).
  */
-export async function dirtyPaths(): Promise<string[]> {
+export async function dirtyPaths(fixtureApp: string = FIXTURE_APP): Promise<string[]> {
     const stdout = await capture(
         'git',
-        ['status', '--porcelain', '--', 'e2e/fixture-app'],
+        ['status', '--porcelain', '--', relFixture(fixtureApp)],
         { cwd: REPO_ROOT },
     );
     return stdout.split('\n').map(l => l.trim()).filter(Boolean);
 }
 
-export async function assertFixtureClean(label: string): Promise<void> {
-    const dirty = await dirtyPaths();
+export async function assertFixtureClean(label: string, fixtureApp: string = FIXTURE_APP): Promise<void> {
+    const dirty = await dirtyPaths(fixtureApp);
     if (dirty.length > 0) {
         throw new Error(
             `Fixture is not clean ${label}:\n` +

@@ -27,6 +27,13 @@ export default tseslint.config(
       'coverage*/**',
       '.storybook/**',
       'e2e/fixture-app/**',
+      // The Angular 21 fixture the compiled-package e2e legs install into —
+      // a second pristine consumer app, not source (same reason as above).
+      'e2e/fixture-app-21/**',
+      // Generated verbatim copies of a registry closure, produced by
+      // `stage:package` and compiled by ng-packagr. Linting them would report
+      // every component's findings a second time, in files nobody edits.
+      'packages/*-package/src/**',
       // The parallel e2e runner clones that same fixture per worker into
       // `e2e/.workers/w<N>/fixture-app/`, which `.gitignore` already covers
       // (`e2e/.workers/`). Listing only `e2e/fixture-app/**` above matched the

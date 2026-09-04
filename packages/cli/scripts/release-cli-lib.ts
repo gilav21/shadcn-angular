@@ -115,10 +115,14 @@ export const RELEASE_PATHS = ['packages/cli/package.json', 'packages/cli/CHANGEL
  * NOT swept into the release and pushed. The dry-run preview renders from these
  * same arrays, so the rehearsal cannot drift from the real run.
  */
-export function releaseCommitArgv(tag: string): { add: string[]; commit: string[] } {
+export function releaseCommitArgv(
+    tag: string,
+    paths: readonly string[] = RELEASE_PATHS,
+    scope = 'cli',
+): { add: string[]; commit: string[] } {
     return {
-        add: ['add', '--', ...RELEASE_PATHS],
-        commit: ['commit', '-m', `chore(cli): release ${tag}`, '--', ...RELEASE_PATHS],
+        add: ['add', '--', ...paths],
+        commit: ['commit', '-m', `chore(${scope}): release ${tag}`, '--', ...paths],
     };
 }
 
@@ -327,16 +331,27 @@ const CHANGELOG_HEADER = [
     '',
 ].join('\n');
 
-/** Prepends a release block below the changelog header, creating the file body if absent. */
-export function prependRelease(existing: string | null, block: string): string {
+/**
+ * Prepends a release block below the changelog header, creating the file body
+ * if absent.
+ *
+ * `header` is parameterised for the compiled npm packages, which keep their own
+ * CHANGELOGs; it defaults to the CLI's header so every existing caller — and
+ * `release-cli.spec.ts` — is unaffected.
+ */
+export function prependRelease(
+    existing: string | null,
+    block: string,
+    header: string = CHANGELOG_HEADER,
+): string {
     if (!existing?.trimStart().startsWith('# Changelog')) {
-        return `${CHANGELOG_HEADER}\n${block.trimEnd()}\n`;
+        return `${header}\n${block.trimEnd()}\n`;
     }
     const headerEnd = existing.indexOf('\n## ');
     if (headerEnd === -1) {
         return `${existing.trimEnd()}\n\n${block.trimEnd()}\n`;
     }
-    const header = existing.slice(0, headerEnd);
+    const existingHeader = existing.slice(0, headerEnd);
     const rest = existing.slice(headerEnd + 1);
-    return `${header}\n\n${block.trimEnd()}\n\n${rest.trimEnd()}\n`;
+    return `${existingHeader}\n\n${block.trimEnd()}\n\n${rest.trimEnd()}\n`;
 }
