@@ -6975,12 +6975,54 @@ describe('RichTextEditorComponent markdown input rules', () => {
             expect(editor.querySelector('ul')).toBeNull();
         });
 
+        // A contenteditable materialises the space that completes a marker as a
+        // non-breaking one, so the real browser path depends on this branch:
+        // narrow the terminator test to a plain space and "# " stops firing
+        // everywhere it matters.
+        it('accepts a non-breaking space as the terminating space', () => {
+            const block = seed('<p><br></p>');
+            const textNode = block.insertBefore(
+                document.createTextNode('# '),
+                block.firstChild
+            ) as Text;
+            setCaretAt(textNode, 2);
+            editor.dispatchEvent(
+                new InputEvent('input', { bubbles: true, inputType: 'insertText', data: ' ' })
+            );
+            fixture.detectChanges();
+
+            expect(editor.querySelector('h1')).not.toBeNull();
+        });
+
+        // §D.4.3 step 1: a rule needs a collapsed caret. With a range selected
+        // the author is replacing text, not completing a marker, and the
+        // block-prefix read would not describe where the caret ends up.
+        it('does not fire while a range is selected rather than a caret', () => {
+            const block = seed('<p>abc</p>');
+            const textNode = block.firstChild as Text;
+            textNode.data = '# abc';
+
+            const selection = document.getSelection();
+            const range = document.createRange();
+            range.setStart(textNode, 2);
+            range.setEnd(textNode, 4);
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+
+            const applied = (
+                component as unknown as { applyInputRules(event: Event): boolean }
+            ).applyInputRules(new InputEvent('input', { inputType: 'insertText', data: ' ' }));
+
+            expect(applied).toBe(false);
+            expect(editor.querySelector('h1')).toBeNull();
+        });
+
         // Undo restores the literal markers. If the input event that an undo
         // replay raises were treated as authoring, the rule would fire again
         // and the markers the author asked to get back would vanish at once.
         it('does not fire while replaying an undo', () => {
             const block = seed('<p><br></p>');
-            const textNode = block.insertBefore(document.createTextNode('# '), block.firstChild) as Text;
+            const textNode = block.insertBefore(document.createTextNode('# '), block.firstChild) as Text;
             setCaretAt(textNode, 2);
             (component as unknown as { isUndoRedo: boolean }).isUndoRedo = true;
 
