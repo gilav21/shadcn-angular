@@ -58,10 +58,10 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "shadcn-angular-e2e-fixture:build:production"
+              "buildTarget": "shadcn-angular-e2e-fixture-21:build:production"
             },
             "development": {
-              "buildTarget": "shadcn-angular-e2e-fixture:build:development"
+              "buildTarget": "shadcn-angular-e2e-fixture-21:build:development"
             }
           },
           "defaultConfiguration": "development"
