@@ -1,0 +1,63 @@
+/**
+ * T-9 — repo-wide exclusion drift test (UC-17).
+ *
+ * The staged `packages/*-package/src/` tree is a 272-file generated copy of the
+ * closure. If any repo-wide gate forgets to exclude it, that gate silently
+ * type-checks, lints or Sonar-scans every component twice — and a maintainer
+ * who ran `stage:package` gets failures that a clean checkout never shows.
+ *
+ * These assertions read the config files as TEXT on purpose: each tool has its
+ * own glob dialect, and the point is that a human editing one of these files
+ * cannot drop the pattern without a red test.
+ */
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { describe, expect, it } from 'vitest';
+
+import { REPO_ROOT } from './repo-fixtures.js';
+
+function read(rel: string): string {
+    return readFileSync(path.join(REPO_ROOT, rel), 'utf-8');
+}
+
+/** The generated-tree marker every gate must mention in some dialect. */
+const MARKER = 'packages/*-package/src';
+
+describe('generated package sources are excluded from every repo-wide gate (T-9)', () => {
+    it('root tsconfig.json excludes the generated tree', () => {
+        const raw = read('tsconfig.json');
+        expect(raw).toContain(MARKER);
+        expect(raw).toContain('packages/*-package/theme.css');
+    });
+
+    it('tsconfig.eslint.json excludes the generated tree', () => {
+        expect(read('tsconfig.eslint.json')).toContain(MARKER);
+    });
+
+    it('eslint.config.mjs ignores the generated tree', () => {
+        expect(read('eslint.config.mjs')).toContain(MARKER);
+    });
+
+    it('sonar-project.properties excludes the generated tree', () => {
+        const raw = read('sonar-project.properties');
+        const exclusions = raw
+            .split('\n')
+            .filter((l) => l.startsWith('sonar.exclusions') || l.startsWith('  '))
+            .join('\n');
+        expect(`${exclusions}\n${raw}`).toContain('packages/*-package/src/**');
+    });
+
+    it('.gitignore ignores the generated tree and theme.css', () => {
+        const raw = read('.gitignore');
+        expect(raw).toContain(MARKER);
+        expect(raw).toContain('packages/*-package/theme.css');
+    });
+
+    it('the committed package folders are NOT ignored wholesale', () => {
+        // The four config files per package are tracked; only the generated
+        // parts are ignored. A blanket `packages/*-package/` rule would silently
+        // stop tracking package.json and break the release script.
+        const raw = read('.gitignore');
+        expect(raw).not.toMatch(/^packages\/\*-package\/?$/m);
+    });
+});

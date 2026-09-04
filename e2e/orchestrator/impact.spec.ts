@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseRegistryEntries, diffRegistryEntries, blockForFile } from './impact';
+import { parseRegistryEntries, diffRegistryEntries, blockForFile, computeImpact } from './impact';
 import { registry, getComponentNames } from '../../packages/cli/src/registry/index.js';
 import { ALL_COMPONENTS, specLabel } from './specs.js';
 
@@ -131,6 +131,56 @@ describe('block impact analysis', () => {
             const scheduled = ALL_COMPONENTS.some(s => s.names.includes(name));
             expect(scheduled, `no e2e spec installs block "${name}"`).toBe(true);
             expect(labels.has(name), `no spec labelled "${name}"`).toBe(true);
+        }
+    });
+});
+
+// ── T-18 — package impact rules ────────────────────────────────────────────
+//
+// The pkg-* legs are the slowest in the suite (tarball build + prod build +
+// serve, ~2 min each), so scheduling them on an unrelated component change
+// would be a real cost. These assertions pin both directions: the closure
+// schedules them, and `accordion` does not.
+describe('package spec impact (T-18)', () => {
+    function subsetFor(file: string): readonly string[] {
+        const result = computeImpact('HEAD', [file]);
+        expect(result.kind, `${file} -> ${result.kind}`).toBe('subset');
+        return result.specs;
+    }
+
+    it('an RTE addon file schedules pkg-rte and pkg-mixed', () => {
+        const specs = subsetFor(
+            'packages/components/ui/rich-text-editor/addons/emoji/rich-text-emoji.directive.ts',
+        );
+        expect(specs).toContain('pkg-rte');
+        expect(specs).toContain('pkg-mixed');
+        expect(specs).not.toContain('pkg-data-table');
+    });
+
+    it('the data-table component schedules pkg-data-table only', () => {
+        const specs = subsetFor('packages/components/ui/data-table/data-table.component.ts');
+        expect(specs).toContain('pkg-data-table');
+        expect(specs).not.toContain('pkg-rte');
+    });
+
+    it('a package folder file schedules that package’s own specs', () => {
+        const rte = subsetFor('packages/rte-package/README.md');
+        expect(rte).toEqual(expect.arrayContaining(['pkg-rte', 'pkg-mixed']));
+        expect(rte).not.toContain('pkg-data-table');
+
+        const dt = subsetFor('packages/data-table-package/ng-package.json');
+        expect(dt).toContain('pkg-data-table');
+        expect(dt).not.toContain('pkg-rte');
+    });
+
+    it('the stage script is under the packages/cli tripwire, so it runs everything', () => {
+        expect(computeImpact('HEAD', ['packages/cli/scripts/stage-package-lib.ts']).kind).toBe('all');
+    });
+
+    it('an unrelated component schedules no package spec', () => {
+        const specs = subsetFor('packages/components/ui/accordion/accordion.component.ts');
+        for (const label of ['pkg-rte', 'pkg-data-table', 'pkg-mixed']) {
+            expect(specs, label).not.toContain(label);
         }
     });
 });
