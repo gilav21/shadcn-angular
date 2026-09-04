@@ -36,6 +36,38 @@ const FIXTURE_PKG_JSON = `{
 }
 `;
 
+/** Minimal stand-ins for the CLI modules `stage-package-lib` imports. */
+const FIXTURE_RESOLVE = `import { registry } from '../registry/index.js';
+export function resolveDependencies(names) {
+    const all = new Set();
+    const walk = (name) => {
+        if (all.has(name) || !registry[name]) return;
+        all.add(name);
+        for (const dep of registry[name].dependencies ?? []) walk(dep);
+    };
+    for (const name of names) walk(name);
+    return all;
+}
+`;
+
+const FIXTURE_REGISTRY = `export const registry = {
+    'rich-text-editor': {
+        name: 'rich-text-editor',
+        files: ['rich-text-editor/rich-text-editor.component.ts'],
+        libFiles: [],
+    },
+    'rich-text-editor/full': {
+        name: 'rich-text-editor/full',
+        files: ['rich-text-editor/addons/full/index.ts'],
+        libFiles: [],
+    },
+    'data-table': { name: 'data-table', files: ['data-table/data-table.component.ts'], libFiles: [] },
+    'data-table/context-menu': { name: 'data-table/context-menu', files: [], libFiles: [] },
+    'data-table/export': { name: 'data-table/export', files: [], libFiles: [] },
+    'data-table/pivot': { name: 'data-table/pivot', files: [], libFiles: [] },
+};
+`;
+
 type Change = 'closure' | 'unrelated';
 
 function seedFixture(change: Change): string {
@@ -46,6 +78,16 @@ function seedFixture(change: Change): string {
         'release-cli-lib.ts',
         'stage-package-lib.ts',
     ]);
+    // `stage-package-lib` reaches into the CLI's registry and resolver to derive
+    // the closure. In a throwaway repo those do not exist, so the fixture gets a
+    // tiny stand-in: a two-component registry whose closure is one RTE file.
+    // That keeps the release script's own contract (verdict → bump → commit →
+    // annotated tag → STOP) under test without dragging in the real 1029-entry
+    // registry, which would make the fixture's verdict depend on the whole
+    // component library.
+    write(root, 'packages/cli/src/core/resolve.ts', FIXTURE_RESOLVE);
+    write(root, 'packages/cli/src/registry/index.ts', FIXTURE_REGISTRY);
+    write(root, 'packages/cli/src/templates/styles.ts', 'export function getStylesTemplate(): string { return ""; }\n');
     write(root, 'packages/rte-package/package.json', FIXTURE_PKG_JSON);
     write(root, 'packages/components/ui/rich-text-editor/rich-text-editor.component.ts', 'export const A = 1;\n');
     write(root, 'packages/components/ui/accordion/accordion.component.ts', 'export const B = 1;\n');
