@@ -81,6 +81,7 @@ function buildInstallCommands(branchDefault: string): string[] {
     '    ' + chalk.gray('-o, --overwrite') + '      Overwrite existing files whole-file (no 3-way merge)',
     '    ' + chalk.gray('-a, --all') + '            Add all available components',
     '    ' + chalk.gray('--with') + ' <addons>      Include addon(s): parent/addon, comma-separated, or "all"',
+    '    ' + chalk.gray('--preset') + ' <name>      Pre-select a named addon bundle (see `why <component>`)',
     '    ' + chalk.gray('--no-addons') + '          Skip optional addons without prompting',
     '    ' + chalk.gray('-p, --path') + ' <path>     Custom install path',
     '    ' + chalk.gray('--remote') + '             Force remote fetch from GitHub registry',
@@ -163,6 +164,8 @@ function buildAddonsSection(): string[] {
     '  ' + chalk.cyan('apply <parent/addon>') + ' installs the addon (if missing) and wires it into',
     '  your component usage, e.g. ' + chalk.cyan('apply data-table/context-menu') + '.',
     '  Install without wiring via ' + chalk.cyan('add --with <parent/addon>') + '; opt out with ' + chalk.cyan('--no-addons') + '.',
+    '  Bases that declare presets can be installed as a named addon bundle with',
+    '  ' + chalk.cyan('add <base> --preset <name>') + ' — ' + chalk.cyan('why <base>') + ' lists them; ' + chalk.cyan('--preset core') + ' means no addons.',
     '',
   ];
 }

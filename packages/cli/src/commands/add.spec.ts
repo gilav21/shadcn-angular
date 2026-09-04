@@ -634,6 +634,10 @@ describe('promptOptionalDependencies', () => {
 });
 
 describe('promptAddons', () => {
+  // Without this, `prompts` call counts leak between cases and the
+  // "does not prompt" assertions below see earlier tests' calls.
+  beforeEach(() => vi.mocked(prompts).mockClear());
+
   it('returns [] when no resolved component declares addons', async () => {
     const resolved = new Set<ComponentName>(['button', 'badge']);
     expect(await promptAddons(resolved, { branch: 'master' })).toEqual([]);

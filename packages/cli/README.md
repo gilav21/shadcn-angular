@@ -87,6 +87,7 @@ npx @gilav21/shadcn-angular add
 | `-o, --overwrite` | Overwrite existing files whole-file (`add` never 3-way merges) |
 | `-a, --all` | Install every available component |
 | `--with <addons>` | Install addon(s) too — `parent/addon` keys, comma-separated, or `all` |
+| `--preset <name>` | Pre-select a named addon bundle (see `why <component>` → Presets) |
 | `--no-addons` | Skip optional addons without prompting |
 | `-p, --path <path>` | Custom install directory (overrides `components.json`) |
 | `--remote` | Force fetch from GitHub (skip local registry) |
@@ -127,7 +128,24 @@ Related `add` flags:
 
 - **`add --with <parent/addon>`** — install the addon's files alongside the base
   (comma-separated keys, or `all`) **without** wiring them in.
+- **`add --preset <name>`** — install a named bundle of addons. Bases that
+  declare presets list them in `why <base>`; `--preset core` means "base only,
+  don't ask". With `--yes` the bundle installs non-interactively; without it the
+  addon prompt opens with the preset's addons pre-selected so you can adjust.
 - **`add --no-addons`** — skip the addon prompt entirely (useful in CI).
+
+### Presets
+
+```bash
+npx @gilav21/shadcn-angular why rich-text-editor
+#   Presets: core (0 addons), writing (4), media (3), styling (3), everything (14)
+
+npx @gilav21/shadcn-angular add rich-text-editor --preset writing --yes
+npx @gilav21/shadcn-angular add data-table --preset reporting
+```
+
+`--preset` composes with `--with` (the union installs) and is overridden by
+`--all`. It contradicts `--no-addons`, which exits 1.
 
 ## Installing component tests
 

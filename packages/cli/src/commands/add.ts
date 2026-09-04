@@ -22,6 +22,7 @@ import {
     type InstallSummaryGroup,
 } from '../core/plan.js';
 import { performInstall, expandForTests } from '../core/install.js';
+import { resolvePreset, PresetError } from '../core/presets.js';
 import { resolveTestInstall } from '../utils/test-runner.js';
 
 export { fetchAndTransform } from '../core/fetch.js';
@@ -162,14 +163,58 @@ function selectAddonsByFlag(withValue: string, choices: AddonChoice[]): Componen
 }
 
 /**
+ * Keep only preselected keys this registry actually offers. A stale live
+ * manifest can name an addon that no longer exists; warn and continue rather
+ * than failing the whole install over it.
+ */
+function offeredPreselection(
+    preselected: readonly ComponentName[], choices: AddonChoice[], preset: string | undefined,
+): ComponentName[] {
+    const offered = new Set(choices.map(c => c.name));
+    const kept: ComponentName[] = [];
+    for (const key of preselected) {
+        if (offered.has(key)) kept.push(key);
+        else {
+            console.warn(chalk.yellow(
+                `Preset "${preset ?? ''}" lists ${key}, which this registry does not offer — skipping.`,
+            ));
+        }
+    }
+    return kept;
+}
+
+/** Union two addon lists, preserving first-seen order. */
+function unionAddons(a: readonly ComponentName[], b: readonly ComponentName[]): ComponentName[] {
+    return [...new Set([...a, ...b])];
+}
+
+/**
+ * The non-interactive decision table for which addons to install. Returns
+ * `null` when the developer must be asked (the interactive path).
+ */
+function selectAddons(
+    options: AddOptions, choices: AddonChoice[], preselected: readonly ComponentName[],
+): ComponentName[] | null {
+    if (options.addons === false) return [];
+    if (options.all) return choices.map(c => c.name as ComponentName);
+    if (options.with !== undefined) {
+        return unionAddons(preselected, selectAddonsByFlag(options.with, choices));
+    }
+    if (options.yes) return [...preselected];
+    return null;
+}
+
+/**
  * Offer the addons declared by the resolved base components. Addons are opt-in
- * (lean by default): `--no-addons`/`--yes` install none, `--with <list|all>`
- * selects non-interactively, `--all` includes every available addon, and
- * otherwise an interactive multiselect is shown (nothing selected by default).
+ * (lean by default): `--no-addons` installs none, `--with <list|all>` selects
+ * non-interactively, `--all` includes every available addon, `--yes` takes
+ * `preselected` (empty unless `--preset` named a bundle), and otherwise an
+ * interactive multiselect opens with `preselected` ticked.
  */
 export async function promptAddons(
     resolved: Set<ComponentName>,
     options: AddOptions,
+    preselected: readonly ComponentName[] = [],
 ): Promise<ComponentName[]> {
     const seen = new Set<string>();
     const choices: AddonChoice[] = [];
@@ -186,18 +231,22 @@ export async function promptAddons(
     }
 
     if (choices.length === 0) return [];
-    if (options.addons === false) return [];
-    if (options.with !== undefined) return selectAddonsByFlag(options.with, choices);
-    if (options.yes) return [];
-    if (options.all) return choices.map(c => c.name as ComponentName);
 
+    const offered = offeredPreselection(preselected, choices, options.preset);
+    const decided = selectAddons(options, choices, offered);
+    if (decided) return decided;
+
+    const preselectedSet = new Set<string>(offered);
     const { selected } = await prompts({
         type: 'multiselect',
         name: 'selected',
-        message: 'Optional addons available:',
+        message: options.preset
+            ? `Optional addons available (preset "${options.preset}" pre-selected):`
+            : 'Optional addons available:',
         choices: choices.map(c => ({
             title: c.name + ' ' + chalk.dim('- ' + c.description + ' (for ' + c.parent + ')'),
             value: c.name,
+            selected: preselectedSet.has(c.name),
         })),
         hint: '- Space to select, Enter to confirm (or press Enter to skip)',
     }, { onCancel });
@@ -468,12 +517,35 @@ function printInstallResult(
     console.log('');
 }
 
+/**
+ * Resolve `--preset <name>` to the addon keys it pre-selects, or exit 1 with
+ * the reason. Returns `[]` when no preset was named. `--no-addons` contradicts
+ * `--preset`, so that combination is rejected before any prompt is shown.
+ */
+function resolvePresetOrExit(
+    componentsToAdd: ComponentName[], options: AddOptions,
+): ComponentName[] {
+    if (options.preset === undefined) return [];
+    if (options.addons === false) {
+        console.log(chalk.red('--preset and --no-addons contradict each other — drop one.'));
+        process.exit(1);
+    }
+    try {
+        return resolvePreset(componentsToAdd, options.preset).addons;
+    } catch (error) {
+        if (!(error instanceof PresetError)) throw error;
+        console.log(chalk.red(error.message));
+        process.exit(1);
+    }
+}
+
 async function resolveComponentsAndConflicts(
     componentsToAdd: ComponentName[], options: AddOptions, config: Config, cwd: string, includeTests: boolean,
+    preselectedAddons: readonly ComponentName[] = [],
 ): Promise<{ allComponents: Set<ComponentName>; extraDeps: ComponentName[]; componentPath: string | undefined; blocksPath: string | undefined; conflicts: ConflictCheckResult }> {
     const resolvedComponents = resolveDependencies(componentsToAdd);
     const optionalChoices = await promptOptionalDependencies(resolvedComponents, options);
-    const addonChoices = await promptAddons(resolvedComponents, options);
+    const addonChoices = await promptAddons(resolvedComponents, options, preselectedAddons);
     const extras = [...optionalChoices, ...addonChoices];
     const closure = extras.length > 0
         ? resolveDependencies([...resolvedComponents, ...extras])
@@ -515,10 +587,14 @@ export async function add(components: string[], options: AddOptions): Promise<vo
 
     validateComponents(componentsToAdd);
 
+    const preselectedAddons = resolvePresetOrExit(componentsToAdd, options);
+
     const { includeTests, runner } = await resolveTestInstall(config, options, cwd);
 
     const { allComponents, extraDeps, componentPath, blocksPath, conflicts } =
-        await resolveComponentsAndConflicts(componentsToAdd, options, config, cwd, includeTests);
+        await resolveComponentsAndConflicts(
+            componentsToAdd, options, config, cwd, includeTests, preselectedAddons,
+        );
     const { toInstall, toSkip, conflicting, contentCache } = conflicts;
 
     const toOverwrite = await promptOverwrite(conflicting, options,
@@ -534,19 +610,44 @@ export async function add(components: string[], options: AddOptions): Promise<vo
     }
     if (toInstall.length === 0 && toOverwrite.length === 0) { printNothingToInstall(toSkip, declined); printAvailableAddons(addonHints); return; }
 
+    await runInstall({
+        componentsToAdd, extraDeps, toOverwrite, cwd, config, options,
+        componentPath, blocksPath, conflicts, includeTests, runner,
+        grouping, addonHints,
+    });
+}
+
+/** Execute the planned install and report it. Exits 1 on failure. */
+async function runInstall(input: {
+    readonly componentsToAdd: ComponentName[];
+    readonly extraDeps: ComponentName[];
+    readonly toOverwrite: ComponentName[];
+    readonly cwd: string;
+    readonly config: Config;
+    readonly options: AddOptions;
+    readonly componentPath: string | undefined;
+    readonly blocksPath: string | undefined;
+    readonly conflicts: ConflictCheckResult;
+    readonly includeTests: boolean;
+    readonly runner: 'vitest' | 'jest';
+    readonly grouping: { readonly requested: readonly string[]; readonly chosen: readonly string[] };
+    readonly addonHints: AddonHint[];
+}): Promise<void> {
     const spinner = ora('Installing components...').start();
     try {
         const result = await performInstall({
-            components: componentsToAdd, optionalDeps: extraDeps,
+            components: input.componentsToAdd, optionalDeps: input.extraDeps,
             // The overwrite set came from an explicit choice (the --overwrite flag
             // or the interactive overwrite prompt), so it's a whole-file clobber,
             // not a 3-way merge.
-            overwrite: toOverwrite, forceOverwrite: true, cwd, config, options,
-            path: componentPath, blocksPath, precomputedConflicts: conflicts,
-            includeTests, testRunner: runner,
+            overwrite: input.toOverwrite, forceOverwrite: true,
+            cwd: input.cwd, config: input.config, options: input.options,
+            path: input.componentPath, blocksPath: input.blocksPath,
+            precomputedConflicts: input.conflicts,
+            includeTests: input.includeTests, testRunner: input.runner,
         });
-        printInstallResult(result, spinner, grouping);
-        printAvailableAddons(addonHints);
+        printInstallResult(result, spinner, input.grouping);
+        printAvailableAddons(input.addonHints);
     } catch (error) {
         spinner.fail('Failed to add components');
         console.error(error);

@@ -5,6 +5,7 @@ import path from 'node:path';
 import { isComponentName, type ComponentName } from '../../registry/index.js';
 import { performInstall } from '../../core/install.js';
 import { collectBreakingChanges } from '../../core/plan.js';
+import { resolvePreset, PresetError } from '../../core/presets.js';
 import { hasUnresolvedConflicts } from '../../core/merge.js';
 import { scanStaleSelectors } from '../../core/codemod.js';
 import { initProject } from '../../core/init-core.js';
@@ -123,6 +124,7 @@ function registerAddTool(server: ToolHost, cwd: string): void {
             names: z.array(z.string()).min(1),
             overwrite: z.array(z.string()).optional().describe('Component names whose conflicting local files may be overwritten.'),
             optionalDeps: z.array(z.string()).optional(),
+            preset: z.string().optional().describe('A named addon bundle declared by one of `names` (see `why` → presets); its addons are installed alongside any optionalDeps.'),
             path: z.string().optional(),
             includeTests: z.boolean().optional().describe('Also install each component\'s unit tests (persists tests.include in components.json).'),
             testRunner: z.enum(['vitest', 'jest']).optional().describe('Runner the installed tests target; auto-detected when omitted.'),
@@ -135,10 +137,19 @@ function registerAddTool(server: ToolHost, cwd: string): void {
         const options = await resolveSource(args, config);
         const invalid = validateNames(args.names);
         if (invalid.length) return err(`Unknown component(s): ${invalid.join(', ')}`);
+        let presetAddons: ComponentName[] = [];
+        if (args.preset !== undefined) {
+            try {
+                presetAddons = resolvePreset(args.names, args.preset).addons;
+            } catch (error) {
+                if (!(error instanceof PresetError)) throw error;
+                return err(error.message);
+            }
+        }
         const tests = await resolveTestInstall(config, { includeTests: args.includeTests, runner: args.testRunner, yes: true }, cwd);
         const result = await performInstall({
             components: args.names as ComponentName[],
-            optionalDeps: (args.optionalDeps ?? []) as ComponentName[],
+            optionalDeps: [...(args.optionalDeps ?? []), ...presetAddons] as ComponentName[],
             overwrite: (args.overwrite ?? []) as ComponentName[],
             cwd, config, options, path: args.path,
             includeTests: tests.includeTests, testRunner: tests.runner,

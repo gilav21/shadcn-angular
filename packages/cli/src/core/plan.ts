@@ -17,6 +17,8 @@ export interface AddOptions extends FetchOptions {
     with?: string;
     /** `add`: `false` (via `--no-addons`) skips all addon prompts/installs. */
     addons?: boolean;
+    /** `add`: a named addon bundle to pre-select (see `why <component>` → Presets). */
+    preset?: string;
     /** `add`/`update`: `--include-tests` opts this invocation into shipping specs. */
     includeTests?: boolean;
     /** `add`/`update`: `false` (via `--no-tests`) forces specs off for this invocation. */
