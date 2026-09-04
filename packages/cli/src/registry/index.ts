@@ -101,6 +101,13 @@ export interface ComponentDefinition {
    */
   readonly addons?: readonly string[];
   /**
+   * For addon-capable bases: named addon bundles `add --preset <name>`
+   * pre-selects. Keys are preset names; values are `parent/addon` keys that
+   * MUST also appear in `addons`. `core` (an empty list) means "no addons,
+   * don't ask". Optional and additive — CLIs that predate it ignore the key.
+   */
+  readonly presets?: Readonly<Record<string, readonly string[]>>;
+  /**
    * Machine-readable breaking-change log surfaced by `get_install_plan` /
    * `update`, so a public-API break (a renamed selector/output, a hardened
    * input type) is announced before files are written instead of only showing
@@ -421,6 +428,12 @@ export const registry = defineRegistry({
     testFiles: ['data-table/data-table-advanced-filter.spec.ts', 'data-table/data-table-ai.spec.ts', 'data-table/data-table-autofit.spec.ts', 'data-table/data-table-column-builder.spec.ts', 'data-table/data-table-fill.spec.ts', 'data-table/data-table-grid-semantics.spec.ts', 'data-table/data-table-paste.spec.ts', 'data-table/data-table-query.spec.ts', 'data-table/data-table-view-state.spec.ts', 'data-table/data-table-virtual-scroll.spec.ts', 'data-table/data-table.component.spec.ts', 'data-table/data-table.coverage.spec.ts', 'data-table/data-table.host.spec.ts', 'data-table/sub/data-table-column-header.component.spec.ts', 'data-table/sub/data-table-date-filter.component.spec.ts', 'data-table/sub/data-table-multiselect-filter.component.spec.ts', 'data-table/sub/data-table-pagination.component.spec.ts'],
     libFiles: ['addon-slots.ts', 'ai.ts', 'component-pool.service.ts', 'i18n/calendar.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'touch.ts'],
     addons: ['data-table/context-menu', 'data-table/export', 'data-table/pivot'],
+    presets: {
+      core: [],
+      menus: ['data-table/context-menu'],
+      reporting: ['data-table/export', 'data-table/pivot'],
+      everything: ['data-table/context-menu', 'data-table/export', 'data-table/pivot'],
+    },
     breaking: [
       { kind: 'input', from: '[rowActions] / [showRowActionsColumn] / [showRowActionsContextMenu] on <ui-data-table>', to: 'the uiDtContextMenu directive', note: 'Right-click / row-action menus moved to the opt-in context-menu addon. Run `npx @gilav21/shadcn-angular apply data-table/context-menu`, add `uiDtContextMenu` to the <ui-data-table> tag, and move [rowActions] onto it. [showRowActionsColumn] has no replacement — the dedicated actions column is gone, remove that binding.', codemod: 'none', suggestedAddon: 'data-table/context-menu' },
       { kind: 'input', from: '[enableColumnMenu] on <ui-data-table>', to: 'the uiDtContextMenu directive', note: 'The per-column sort/pin/hide header menu moved to the context-menu addon. Add `uiDtContextMenu` and move [enableColumnMenu] onto it.', codemod: 'none', suggestedAddon: 'data-table/context-menu' },
@@ -962,6 +975,20 @@ export const registry = defineRegistry({
     description: 'WYSIWYG editor with toolbar, formatting, mentions, images, and markdown.',
     tags: ['rich-text-editor', 'wysiwyg', 'editor', 'text', 'formatting'],
     addons: ['rich-text-editor/actions', 'rich-text-editor/emoji', 'rich-text-editor/slash-commands', 'rich-text-editor/history', 'rich-text-editor/colors', 'rich-text-editor/typography', 'rich-text-editor/links', 'rich-text-editor/tables', 'rich-text-editor/images', 'rich-text-editor/mentions', 'rich-text-editor/file-import', 'rich-text-editor/ai', 'rich-text-editor/outline', 'rich-text-editor/full'],
+    presets: {
+      core: [],
+      writing: ['rich-text-editor/slash-commands', 'rich-text-editor/links', 'rich-text-editor/history', 'rich-text-editor/outline'],
+      media: ['rich-text-editor/images', 'rich-text-editor/tables', 'rich-text-editor/file-import'],
+      styling: ['rich-text-editor/colors', 'rich-text-editor/typography', 'rich-text-editor/emoji'],
+      // The 13 feature addons plus the `full` composite, so a consumer copying
+      // the demo's one-liner `uiRteFull` template actually has that marker.
+      everything: [
+        'rich-text-editor/actions', 'rich-text-editor/ai', 'rich-text-editor/colors', 'rich-text-editor/emoji',
+        'rich-text-editor/file-import', 'rich-text-editor/history', 'rich-text-editor/images', 'rich-text-editor/links',
+        'rich-text-editor/mentions', 'rich-text-editor/outline', 'rich-text-editor/slash-commands',
+        'rich-text-editor/tables', 'rich-text-editor/typography', 'rich-text-editor/full',
+      ],
+    },
     files: ['rich-text-editor/index.ts', 'rich-text-editor/rich-text-command-registry.service.ts', 'rich-text-editor/rich-text-editor.component.html', 'rich-text-editor/rich-text-editor.component.ts', 'rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-locales.ts', 'rich-text-editor/rich-text-markdown.service.ts', 'rich-text-editor/rich-text-paste-normalizer.service.ts', 'rich-text-editor/rich-text-sanitizer.service.ts', 'rich-text-editor/sub/rich-text-toolbar.component.css', 'rich-text-editor/sub/rich-text-toolbar.component.html', 'rich-text-editor/sub/rich-text-toolbar.component.ts'],
     dependencies: ['separator'],
     testFiles: ['rich-text-editor/rich-text-command-registry.service.spec.ts', 'rich-text-editor/rich-text-editor.component.spec.ts', 'rich-text-editor/rich-text-markdown.service.spec.ts', 'rich-text-editor/rich-text-paste-normalizer.service.spec.ts', 'rich-text-editor/rich-text-sanitizer.service.spec.ts', 'rich-text-editor/sub/rich-text-toolbar.component.spec.ts'],

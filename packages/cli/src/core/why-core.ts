@@ -30,6 +30,8 @@ export interface ComponentRecord {
     npmDependencies: readonly string[];
     /** Opt-in addons a base component ships. */
     addons: readonly string[];
+    /** Named addon bundles `add --preset <name>` pre-selects, when declared. */
+    presets?: Readonly<Record<string, readonly string[]>>;
     /** Addon entries only: the base they attach to. */
     parent?: string;
     /** Addon entries only: how they attach (import + selector). */
@@ -59,6 +61,7 @@ export function buildComponentRecord(name: ComponentName): ComponentRecord {
         // Addon discovery: a base lists its opt-in addons; an addon entry
         // exposes how to attach it (apply via the CLI `apply <name>`).
         addons: def.addons ?? [],
+        ...(def.presets ? { presets: def.presets } : {}),
         ...(def.type === 'addon'
             ? {
                 parent: def.parent,

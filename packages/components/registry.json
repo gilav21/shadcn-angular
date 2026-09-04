@@ -888,6 +888,21 @@
       "data-table/export",
       "data-table/pivot"
     ],
+    "presets": {
+      "core": [],
+      "menus": [
+        "data-table/context-menu"
+      ],
+      "reporting": [
+        "data-table/export",
+        "data-table/pivot"
+      ],
+      "everything": [
+        "data-table/context-menu",
+        "data-table/export",
+        "data-table/pivot"
+      ]
+    },
     "breaking": [
       {
         "kind": "input",
@@ -2578,6 +2593,41 @@
       "rich-text-editor/outline",
       "rich-text-editor/full"
     ],
+    "presets": {
+      "core": [],
+      "writing": [
+        "rich-text-editor/slash-commands",
+        "rich-text-editor/links",
+        "rich-text-editor/history",
+        "rich-text-editor/outline"
+      ],
+      "media": [
+        "rich-text-editor/images",
+        "rich-text-editor/tables",
+        "rich-text-editor/file-import"
+      ],
+      "styling": [
+        "rich-text-editor/colors",
+        "rich-text-editor/typography",
+        "rich-text-editor/emoji"
+      ],
+      "everything": [
+        "rich-text-editor/actions",
+        "rich-text-editor/ai",
+        "rich-text-editor/colors",
+        "rich-text-editor/emoji",
+        "rich-text-editor/file-import",
+        "rich-text-editor/history",
+        "rich-text-editor/images",
+        "rich-text-editor/links",
+        "rich-text-editor/mentions",
+        "rich-text-editor/outline",
+        "rich-text-editor/slash-commands",
+        "rich-text-editor/tables",
+        "rich-text-editor/typography",
+        "rich-text-editor/full"
+      ]
+    },
     "files": [
       "rich-text-editor/index.ts",
       "rich-text-editor/rich-text-command-registry.service.ts",
