@@ -66,6 +66,20 @@ const PRESETS: Record<PresetKey, AddonKey[]> = {
   everything: ADDON_KEYS,
 };
 
+/**
+ * The preset whose addon set is exactly `enabled`, or null when the selection
+ * matches none. `core` matches the empty set, so "nothing enabled" emits
+ * `--preset core` rather than an empty `--with`.
+ */
+function presetFor(enabled: readonly AddonKey[]): PresetKey | null {
+  for (const [name, keys] of Object.entries(PRESETS) as [PresetKey, AddonKey[]][]) {
+    if (keys.length !== enabled.length) continue;
+    const wanted = new Set<AddonKey>(keys);
+    if (enabled.every((k) => wanted.has(k))) return name;
+  }
+  return null;
+}
+
 interface AddonGroup {
   readonly labelKey: keyof RichTextEditorAddonsDemoLocale;
   readonly keys: AddonKey[];
@@ -225,11 +239,11 @@ export class RichTextEditorAddonsDemoComponent {
 
   protected readonly installCommands = computed(() => {
     const enabled = this.enabledKeys();
-    const lines = ['npx @gilav21/shadcn-angular add rich-text-editor'];
-    for (const key of enabled) {
-      lines.push(`npx @gilav21/shadcn-angular apply rich-text-editor/${ADDON_META[key].registry}`);
-    }
-    return `${this.t().commandsBaseNote}\n${lines.join('\n')}`;
+    const base = 'npx @gilav21/shadcn-angular add rich-text-editor';
+    const preset = presetFor(enabled);
+    const keys = enabled.map((k) => 'rich-text-editor/' + ADDON_META[k].registry).join(',');
+    const command = preset ? `${base} --preset ${preset}` : `${base} --with ${keys}`;
+    return `${this.t().commandsBaseNote}\n${command}`;
   });
 
   protected setAddon(key: AddonKey, enabled: boolean): void {
