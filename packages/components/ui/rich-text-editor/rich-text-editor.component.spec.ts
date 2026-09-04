@@ -7022,6 +7022,54 @@ describe('RichTextEditorComponent markdown input rules', () => {
     // T-19/T-20/T-21 — the transform is one undo step, and Backspace right
     // after it puts the literal characters back. These are the mechanism the
     // spec's "exactly one undo step" promise rests on.
+
+    // The empty fence has to keep the newline `insertCodeBlock` also seeds, or
+    // `handleEnterInCodeBlock` can never see "the text already ends with \n"
+    // and Enter appends forever instead of leaving the block.
+    it('seeds an empty rule-created code block with the newline the exit rule needs', () => {
+        typeInto(seed('<p><br></p>'), '``` ');
+
+        const code = editor.querySelector('pre > code') as HTMLElement;
+        expect(code).not.toBeNull();
+        expect(code.textContent).toBe('\n');
+    });
+
+    it('leaves a code block created by the rule on the second Enter, as insertCodeBlock does', () => {
+        typeInto(seed('<p><br></p>'), '``` ');
+        const code = editor.querySelector('pre > code') as HTMLElement;
+        setCaretAt(code.firstChild as Text, (code.firstChild as Text).data.length);
+
+        const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+        component.onKeydown(enter);
+        fixture.detectChanges();
+
+        expect(editor.querySelector('pre > code')?.textContent).not.toContain('\n\n');
+    });
+
+    // §D.4.3 lists `onInput` among the hooks that close the revert window. An
+    // input that arrives without a preceding keydown — an IME commit, an
+    // autocomplete, `insertReplacementText` — must still end it, or Backspace
+    // undoes the whole transform instead of deleting one character.
+    it('closes the revert window on a later input that no keydown preceded', () => {
+        const block = seed('<p><br></p>');
+        typeInto(block, '# ');
+        const heading = editor.querySelector('h1') as HTMLElement;
+        expect(heading).not.toBeNull();
+
+        typeInto(heading, 'abc');
+
+        const backspace = new KeyboardEvent('keydown', {
+            key: 'Backspace',
+            bubbles: true,
+            cancelable: true,
+        });
+        component.onKeydown(backspace);
+        fixture.detectChanges();
+
+        expect(backspace.defaultPrevented).toBe(false);
+        expect(editor.querySelector('h1')).not.toBeNull();
+    });
+
     describe('one undo step and the Backspace revert', () => {
         /** Press a key through the component's real keydown path. */
         const press = (key: string): KeyboardEvent => {

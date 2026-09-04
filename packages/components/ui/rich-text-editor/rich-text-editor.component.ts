@@ -801,6 +801,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (this.isDisabled() || this.readonly()) return;
 
         const div = event.target as HTMLDivElement;
+        this.lastInputRule = null;
         const transformed = this.applyInputRules(event);
         const html = this.sanitizer.sanitize(div.innerHTML).replaceAll('\u200B', '');
 
@@ -4388,7 +4389,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const prefixRange = this.document.createRange();
         prefixRange.setStart(block, 0);
         prefixRange.setEnd(range.startContainer, range.startOffset);
-        const blockPrefix = prefixRange.toString().replaceAll('​', '');
+        const blockPrefix = prefixRange.toString().replaceAll('\u200B', '');
 
         return { block, textNode, offset: range.startOffset, blockPrefix };
     }
@@ -4536,16 +4537,28 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     /** Collapses the caret to the very start of a block's content. */
+    /**
+     * A text node at the very start of a visually empty block for the caret to
+     * sit in: the block's own first text node when it has one — a code block's
+     * seeded newline counts, and must survive so the Enter-to-exit rule can see
+     * it — otherwise a fresh empty node replacing the `<br>` placeholder.
+     */
+    private emptyBlockCaretTarget(block: HTMLElement): Text {
+        const walker = this.document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+        const existing = walker.nextNode() as Text | null;
+        if (existing) return existing;
+
+        block.innerHTML = '';
+        return block.appendChild(this.document.createTextNode('')) as Text;
+    }
+
     private placeCaretAtStartOfBlock(block: HTMLElement): void {
         const selection = this.document.getSelection();
         if (!selection) return;
 
         if (this.isEmptyBlock(block)) {
-            block.innerHTML = '';
-            const placeholder = this.document.createTextNode('');
-            block.appendChild(placeholder);
             const range = this.document.createRange();
-            range.setStart(placeholder, 0);
+            range.setStart(this.emptyBlockCaretTarget(block), 0);
             range.collapse(true);
             selection.removeAllRanges();
             selection.addRange(range);
@@ -4637,7 +4650,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             code.className = `language-${language}`;
             pre.dataset['language'] = language;
         }
-        code.textContent = block.textContent?.replaceAll('​', '') || '\n';
+        code.textContent = block.textContent?.replaceAll('\u200B', '') || '\n';
         pre.appendChild(code);
         block.parentNode?.replaceChild(pre, block);
         this.placeCaretAtStartOfBlock(code);
@@ -4682,7 +4695,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         element.textContent = match.text;
         tail.parentNode?.insertBefore(element, tail);
 
-        const caretNode = this.document.createTextNode('​');
+        const caretNode = this.document.createTextNode('\u200B');
         tail.parentNode?.insertBefore(caretNode, tail);
         const selection = this.document.getSelection();
         if (selection) {
