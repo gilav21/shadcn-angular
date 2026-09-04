@@ -83,7 +83,7 @@ async function runOne(spec: ComponentSpec, flags: CliFlags, worker: Worker): Pro
 
         const remoteArgs = remoteCliArgs(flags);
         await runCli([...(spec.initArgs ?? ['init', '--yes']), ...remoteArgs], worker.fixtureApp);
-        await runCli(['add', ...spec.names, '--yes', ...remoteArgs], worker.fixtureApp);
+        await runCli(['add', ...spec.names, ...(spec.addArgs ?? []), '--yes', ...remoteArgs], worker.fixtureApp);
         await npmInstall(worker.fixtureApp);
 
         installHarness(specHarness(spec), worker.fixtureApp);
