@@ -303,7 +303,10 @@ export async function planInstall(input: InstallInput): Promise<InstallPlan> {
     const targetDir = resolveTargetDir(input);
     const prefix = getPrefix(input.config);
     const result = await detectConflicts(all, targetDir, input.options, input.config.aliases.utils, prefix);
-    return summarizePlan(result, all);
+    return summarizePlan(result, all, {
+        requested: input.components,
+        chosen: input.optionalDeps ?? [],
+    });
 }
 
 /**

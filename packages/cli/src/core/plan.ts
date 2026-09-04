@@ -193,6 +193,102 @@ export function printBreakingChanges(components: Iterable<ComponentName>): void 
     }
 }
 
+// ---------------------------------------------------------------------------
+// Grouped install summary
+// ---------------------------------------------------------------------------
+
+/** One component in a summary group, with the number of files it ships. */
+export interface InstallSummaryComponent {
+    readonly name: string;
+    readonly files: number;
+}
+
+/** A named bucket of the install: its components and their combined file count. */
+export interface InstallSummaryGroup {
+    readonly components: readonly InstallSummaryComponent[];
+    readonly files: number;
+}
+
+/**
+ * What an install actually writes, split by *why* each component is there:
+ * asked for, chosen as an addon/companion, or pulled in as a shared primitive.
+ * One classifier feeds the `add` dry-run, the post-install report and the MCP
+ * `get_install_plan` tool so the three can never drift.
+ */
+export interface InstallSummary {
+    /** Components the user named on the command line. */
+    readonly requested: InstallSummaryGroup;
+    /** Addons and optional companions the user explicitly chose. */
+    readonly addons: InstallSummaryGroup;
+    /** Closure members that are neither requested nor chosen — shared primitives. */
+    readonly shared: InstallSummaryGroup;
+    /** Already present and identical; nothing was written for these. */
+    readonly skipped: InstallSummaryGroup;
+    /** Conflicting components whose local edits were kept. */
+    readonly declined: readonly string[];
+    /** Distinct shared lib files across the written set (deduped, not summed). */
+    readonly libFiles: number;
+    /** requested + addons + shared file counts. Skipped and declined are excluded. */
+    readonly totalFiles: number;
+    /** True when `addons` holds a non-addon companion — drives the group heading. */
+    readonly hasCompanions: boolean;
+}
+
+/** Files a registry entry ships (0 for a name the manifest does not know). */
+function fileCount(name: string): number {
+    return registry[name as ComponentName]?.files.length ?? 0;
+}
+
+function toGroup(names: readonly string[]): InstallSummaryGroup {
+    const components = names.map(name => ({ name, files: fileCount(name) }));
+    return { components, files: components.reduce((sum, c) => sum + c.files, 0) };
+}
+
+/**
+ * Classify every written component into requested / chosen / shared, count
+ * files from the in-memory registry (no I/O, offline-safe) and dedupe lib
+ * files across the whole written set.
+ */
+export function buildInstallSummary(input: {
+    readonly requested: readonly string[];
+    readonly chosen: readonly string[];
+    readonly written: readonly string[];
+    readonly skipped: readonly string[];
+    readonly declined: readonly string[];
+}): InstallSummary {
+    const requestedSet = new Set(input.requested);
+    const chosenSet = new Set(input.chosen);
+
+    const requested: string[] = [];
+    const addons: string[] = [];
+    const shared: string[] = [];
+    for (const name of input.written) {
+        if (requestedSet.has(name)) requested.push(name);
+        else if (chosenSet.has(name)) addons.push(name);
+        else shared.push(name);
+    }
+
+    const libFiles = new Set<string>();
+    for (const name of input.written) {
+        for (const file of registry[name as ComponentName]?.libFiles ?? []) libFiles.add(file);
+    }
+
+    const requestedGroup = toGroup(requested);
+    const addonsGroup = toGroup(addons);
+    const sharedGroup = toGroup(shared);
+
+    return {
+        requested: requestedGroup,
+        addons: addonsGroup,
+        shared: sharedGroup,
+        skipped: toGroup(input.skipped),
+        declined: [...input.declined],
+        libFiles: libFiles.size,
+        totalFiles: requestedGroup.files + addonsGroup.files + sharedGroup.files,
+        hasCompanions: addons.some(n => registry[n as ComponentName]?.type !== 'addon'),
+    };
+}
+
 /** Serializable plan summary for the MCP `get_install_plan` tool. */
 export interface InstallPlan {
     toInstall: string[];
@@ -204,11 +300,14 @@ export interface InstallPlan {
     breakingChanges: ComponentBreaking[];
     /** Addon keys suggested as the fix for the plan's breaking changes (deduped, sorted). */
     suggestedAddons: string[];
+    /** The plan grouped by why each component is in it (see `buildInstallSummary`). */
+    summary: InstallSummary;
 }
 
 export function summarizePlan(
     result: ConflictCheckResult,
     allComponents: Set<ComponentName>,
+    grouping: { readonly requested?: readonly string[]; readonly chosen?: readonly string[] } = {},
 ): InstallPlan {
     const npm = new Set<string>();
     for (const name of allComponents) {
@@ -223,5 +322,12 @@ export function summarizePlan(
         npmDependencies: [...npm],
         breakingChanges,
         suggestedAddons: collectSuggestedAddons(breakingChanges),
+        summary: buildInstallSummary({
+            requested: grouping.requested ?? [],
+            chosen: grouping.chosen ?? [],
+            written: result.toInstall,
+            skipped: result.toSkip,
+            declined: result.conflicting,
+        }),
     };
 }

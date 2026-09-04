@@ -15,8 +15,11 @@ import {
 import { resolveDependencies } from '../core/resolve.js';
 import {
     detectConflicts,
+    buildInstallSummary,
     type AddOptions,
     type ConflictCheckResult,
+    type InstallSummary,
+    type InstallSummaryGroup,
 } from '../core/plan.js';
 import { performInstall, expandForTests } from '../core/install.js';
 import { resolveTestInstall } from '../utils/test-runner.js';
@@ -316,21 +319,81 @@ function printNothingToInstall(toSkip: string[], declined: ComponentName[]): voi
     }
 }
 
+/** `2 components, 7 files` — the parenthetical after a group heading. */
+function groupCaption(group: InstallSummaryGroup): string {
+    const count = group.components.length;
+    return `${count} component${count === 1 ? '' : 's'}, ${group.files} file${group.files === 1 ? '' : 's'}`;
+}
+
+/** One heading + one line per component. Empty groups print nothing (UC-6). */
+function printSummaryGroup(heading: string, group: InstallSummaryGroup): void {
+    if (group.components.length === 0) return;
+    console.log('  ' + chalk.bold(`${heading} (${groupCaption(group)})`));
+    for (const c of group.components) {
+        console.log(chalk.dim('    + ') + chalk.cyan(c.name) + chalk.dim(` (${c.files} files)`));
+    }
+}
+
+/**
+ * The grouped block: what you asked for, what you chose, and the shared
+ * primitives that came along — each with counts, then the `why` pointer.
+ */
+function printGroupedSummary(summary: InstallSummary): void {
+    if (summary.totalFiles === 0 && summary.skipped.components.length === 0) return;
+    printSummaryGroup('Requested', summary.requested);
+    printSummaryGroup(
+        summary.hasCompanions ? 'Addons & companions chosen' : 'Addons chosen',
+        summary.addons,
+    );
+    printSummaryGroup(
+        'Shared UI components other components reuse — not yet in your project',
+        summary.shared,
+    );
+    printSummaryGroup('Already in your project — skipped', summary.skipped);
+    if (summary.libFiles > 0) {
+        console.log(chalk.dim(`  + ${summary.libFiles} shared lib files (utils, i18n, …)`));
+    }
+    console.log('\n  ' + chalk.dim('Why is a component here?  ')
+        + chalk.cyan('npx @gilav21/shadcn-angular why <name>'));
+}
+
+/** The whole `--dry-run` report: plan headlines, grouped block, addon hints. */
+function reportDryRun(input: {
+    readonly toInstall: ComponentName[];
+    readonly toOverwrite: ComponentName[];
+    readonly toSkip: string[];
+    readonly declined: ComponentName[];
+    readonly grouping: { readonly requested: readonly string[]; readonly chosen: readonly string[] };
+    readonly addonHints: AddonHint[];
+}): void {
+    const summary = buildInstallSummary({
+        ...input.grouping,
+        written: [...input.toInstall, ...input.toOverwrite],
+        skipped: input.toSkip,
+        declined: input.declined,
+    });
+    printDryRunSummary(input.toInstall, input.toOverwrite, input.toSkip, input.declined, summary);
+    printAvailableAddons(input.addonHints);
+}
+
 function printDryRunSummary(
     toInstall: ComponentName[],
     toOverwrite: ComponentName[],
     toSkip: string[],
     declined: ComponentName[],
+    summary: InstallSummary,
 ): void {
     console.log(chalk.bold('\n[Dry Run] No changes will be made.\n'));
     if (toInstall.length > 0) {
-        console.log(chalk.green(`  Would install ${toInstall.length} component(s):`));
+        console.log(chalk.green(`  Would install ${toInstall.length} component(s) — ${summary.totalFiles} files:`));
         for (const name of toInstall) console.log(chalk.dim('    + ') + chalk.cyan(name));
     }
     if (toOverwrite.length > 0) {
         console.log(chalk.yellow(`  Would overwrite ${toOverwrite.length} component(s):`));
         for (const name of toOverwrite) console.log(chalk.dim('    ~ ') + chalk.yellow(name));
     }
+    console.log('');
+    printGroupedSummary(summary);
     printSkipSummary(toSkip, declined);
     console.log('');
 }
@@ -371,11 +434,22 @@ async function resolveBlockDestination(
 // Main entry point
 // ---------------------------------------------------------------------------
 
-function printInstallResult(result: { installed: ComponentName[]; warnings: string[]; skipped: string[]; declined: ComponentName[]; pruned: string[] }, spinner: Ora): void {
+function printInstallResult(
+    result: { installed: ComponentName[]; warnings: string[]; skipped: string[]; declined: ComponentName[]; pruned: string[] },
+    spinner: Ora,
+    grouping: { readonly requested: readonly string[]; readonly chosen: readonly string[] },
+): void {
     if (result.installed.length > 0) {
+        const summary = buildInstallSummary({
+            requested: grouping.requested,
+            chosen: grouping.chosen,
+            written: result.installed,
+            skipped: result.skipped,
+            declined: result.declined,
+        });
         spinner.succeed(chalk.green(`Success! Added ${result.installed.length} component(s)`));
-        console.log('\n' + chalk.dim('Components added:'));
-        for (const name of result.installed) console.log(chalk.dim('  - ') + chalk.cyan(name));
+        console.log('\n' + chalk.dim(`Components added — ${summary.totalFiles} files:`));
+        printGroupedSummary(summary);
     } else {
         spinner.info('No new components installed.');
     }
@@ -447,7 +521,11 @@ export async function add(components: string[], options: AddOptions): Promise<vo
     const declined = conflicting.filter(c => !toOverwrite.includes(c));
 
     const addonHints = collectAvailableAddons(allComponents);
-    if (options.dryRun) { printDryRunSummary(toInstall, toOverwrite, toSkip, declined); printAvailableAddons(addonHints); return; }
+    const grouping = { requested: componentsToAdd, chosen: extraDeps };
+    if (options.dryRun) {
+        reportDryRun({ toInstall, toOverwrite, toSkip, declined, grouping, addonHints });
+        return;
+    }
     if (toInstall.length === 0 && toOverwrite.length === 0) { printNothingToInstall(toSkip, declined); printAvailableAddons(addonHints); return; }
 
     const spinner = ora('Installing components...').start();
@@ -461,7 +539,7 @@ export async function add(components: string[], options: AddOptions): Promise<vo
             path: componentPath, blocksPath, precomputedConflicts: conflicts,
             includeTests, testRunner: runner,
         });
-        printInstallResult(result, spinner);
+        printInstallResult(result, spinner, grouping);
         printAvailableAddons(addonHints);
     } catch (error) {
         spinner.fail('Failed to add components');

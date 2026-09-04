@@ -369,3 +369,64 @@ describe('MCP concurrency — two tool calls on different branches', () => {
     expect(firstText(onMaster)).not.toContain('branch-');
   }, 20_000);
 });
+
+// ---------------------------------------------------------------------------
+// get_install_plan — grouped summary (UC-7 / T-10)
+// ---------------------------------------------------------------------------
+
+describe('MCP get_install_plan summary', () => {
+  let client: Client;
+  let projectDir: string;
+
+  const callTool = async (
+    name: string,
+    args: Record<string, unknown> = {},
+  ): Promise<ToolCallResult> =>
+    (await client.callTool({ name, arguments: args })) as unknown as ToolCallResult;
+
+  beforeAll(async () => {
+    projectDir = await fs.mkdtemp(path.join(os.tmpdir(), 'shadcn-mcp-summary-'));
+    await fs.writeJson(path.join(projectDir, 'components.json'), getDefaultConfig());
+
+    const server = createMcpServer(projectDir);
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    client = new Client({ name: 'summary', version: '0' });
+    await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+  });
+
+  afterAll(async () => {
+    await client.close();
+    await fs.remove(projectDir);
+  });
+
+  afterEach(async () => {
+    vi.restoreAllMocks();
+    __resetRegistryManifestCache();
+    await loadRegistry({});
+  });
+
+  it('returns the grouped summary on the plan result (T-10)', async () => {
+    const res = await callTool('get_install_plan', { names: ['badge'] });
+
+    expect(res.isError, firstText(res)).toBeFalsy();
+    const plan = JSON.parse(firstText(res)) as {
+      summary: {
+        requested: { components: { name: string; files: number }[]; files: number };
+        shared: { components: { name: string }[] };
+        addons: { components: { name: string }[] };
+        skipped: { components: { name: string }[] };
+        totalFiles: number;
+        libFiles: number;
+      };
+    };
+
+    expect(plan.summary).toBeDefined();
+    expect(plan.summary.requested.components.map(c => c.name)).toEqual(['badge']);
+    expect(plan.summary.requested.files).toBeGreaterThan(0);
+    expect(plan.summary.shared.components.map(c => c.name)).toContain('skeleton');
+    expect(plan.summary.addons.components).toEqual([]);
+    expect(plan.summary.skipped.components).toEqual([]);
+    // badge alone is not the whole plan — the shared dependency's files count too.
+    expect(plan.summary.totalFiles).toBeGreaterThan(plan.summary.requested.files);
+  }, 20_000);
+});

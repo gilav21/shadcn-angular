@@ -1089,6 +1089,84 @@ describe('add()', () => {
     expect(output()).toContain('data-table/context-menu');
     expect(output()).toContain('apply data-table/context-menu');
   });
+
+  // -------------------------------------------------------------------------
+  // Grouped install summary (UC-1 … UC-6)
+  // -------------------------------------------------------------------------
+
+  it('--dry-run prints Requested / Shared groups with counts, the total and the why hint (T-6)', async () => {
+    await add(['badge'], { branch: 'master', remote: true, dryRun: true, yes: true });
+
+    const text = output();
+    // Existing headlines must survive verbatim (V2).
+    expect(text).toContain('[Dry Run] No changes will be made.');
+    expect(text).toContain('Would install');
+    // New grouped block.
+    expect(text).toContain('Requested');
+    expect(text).toContain(`badge (${registry['badge'].files.length} files)`);
+    expect(text).toContain('Shared UI components');
+    expect(text).toContain(`skeleton (${registry['skeleton'].files.length} files)`);
+    expect(text).toContain('Why is a component here?');
+    expect(text).toContain('npx @gilav21/shadcn-angular why <name>');
+  });
+
+  it('prints the grouped block after Success! built from result.installed (T-7)', async () => {
+    asMock(performInstall).mockResolvedValue(installResult({ installed: ['badge', 'skeleton'] }));
+
+    await add(['badge'], { branch: 'master', remote: true, yes: true });
+
+    expect(spinnerText(spinner.succeed)).toContain('Success! Added 2 component(s)');
+    const text = output();
+    expect(text).toContain('Requested');
+    expect(text).toContain(`badge (${registry['badge'].files.length} files)`);
+    expect(text).toContain('Shared UI components');
+    expect(text).toContain(`skeleton (${registry['skeleton'].files.length} files)`);
+    expect(text).toContain('Why is a component here?');
+  });
+
+  it('builds the grouped block from what was written, not from the plan (T-7)', async () => {
+    // The plan covers badge + skeleton, but skeleton was already present and
+    // skipped — only badge was actually written. The written groups must not
+    // count it, and the total must be badge's files alone.
+    asMock(performInstall).mockResolvedValue(
+      installResult({ installed: ['badge'], skipped: ['skeleton'] }),
+    );
+
+    await add(['badge'], { branch: 'master', remote: true, yes: true });
+
+    const text = output();
+    expect(text).toContain(`Components added — ${registry['badge'].files.length} files:`);
+    expect(text).toContain(`badge (${registry['badge'].files.length} files)`);
+    // skeleton belongs to the skipped group, never to Shared.
+    expect(text).not.toContain('Shared UI components');
+    expect(text).toContain('Already in your project');
+  });
+
+  it('omits empty groups and keeps the "skipped (up to date)" line (T-8)', async () => {
+    asMock(performInstall).mockResolvedValue(
+      installResult({ installed: ['badge'], skipped: ['skeleton'] }),
+    );
+
+    await add(['badge'], { branch: 'master', remote: true, yes: true });
+
+    const text = output();
+    expect(text).toContain('Components skipped (up to date):');
+    expect(text).toContain('Already in your project');
+    // badge was written, so nothing is in the addons group → no heading.
+    expect(text).not.toContain('Addons chosen');
+    expect(text).not.toMatch(/\(0 components?, 0 files\)/);
+  });
+
+  it('keeps the "kept local changes" line and prints no grouped block when nothing was written (T-8)', async () => {
+    filesPresentAndChanged();
+    asMock(prompts).mockResolvedValue({ selected: [] });
+
+    await add(['badge'], { branch: 'master', remote: true });
+
+    const text = output();
+    expect(text).toContain('kept local changes');
+    expect(text).not.toContain('Why is a component here?');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -1163,6 +1241,7 @@ describe('add() block destination', () => {
     expect(call.path).toBe('src/ui');
     expect(call.blocksPath).toBeUndefined();
   });
+
 });
 
 // ---------------------------------------------------------------------------

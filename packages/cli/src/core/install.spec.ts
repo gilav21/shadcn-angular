@@ -6,7 +6,7 @@ import { isPristineLib } from './lib-reconcile.js';
 import { installPackages } from '../utils/package-manager.js';
 import { writeShortcutRegistryIndex } from '../utils/shortcut-registry.js';
 import { fetchAndTransform, fetchLibContent } from './fetch.js';
-import type { ComponentName } from '../registry/index.js';
+import { registry, type ComponentName } from '../registry/index.js';
 import type { ConflictCheckResult } from './plan.js';
 
 vi.mock('fs-extra', () => ({
@@ -182,6 +182,30 @@ describe('planInstall', () => {
     const plan = await planInstall({ ...base, components: ['badge'] });
     expect(plan.toInstall).toContain('badge');
     expect(plan.conflicting).toEqual([]);
+  });
+
+  it('returns the grouped summary: requested vs shared, with file counts (T-9)', async () => {
+    const plan = await planInstall({ ...base, components: ['badge'] });
+
+    expect(plan.summary.requested.components.map(c => c.name)).toEqual(['badge']);
+    expect(plan.summary.requested.files).toBe(registry['badge'].files.length);
+    // `skeleton` is pulled in as a dependency, never requested.
+    expect(plan.summary.shared.components.map(c => c.name)).toContain('skeleton');
+    expect(plan.summary.totalFiles).toBe(
+      registry['badge'].files.length + registry['skeleton'].files.length,
+    );
+  });
+
+  it('groups optionalDeps under addons in the summary (T-9)', async () => {
+    const plan = await planInstall({
+      ...base,
+      components: ['rich-text-editor'],
+      optionalDeps: ['rich-text-editor/links'],
+    });
+
+    expect(plan.summary.requested.components.map(c => c.name)).toEqual(['rich-text-editor']);
+    expect(plan.summary.addons.components.map(c => c.name)).toContain('rich-text-editor/links');
+    expect(plan.summary.libFiles).toBeGreaterThan(0);
   });
 });
 
