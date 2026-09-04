@@ -38,3 +38,10 @@ packages/.env
 
 # Per-worker e2e fixture clones (parallel orchestrator)
 e2e/.workers/
+
+# Compiled-package sources, regenerated from the registry closure by
+# `npm run stage:package -- <id>`. The package CONFIG (package.json,
+# ng-package.json, tsconfig.lib.json, README.md, CHANGELOG.md) IS tracked —
+# only the generated snapshot and its theme asset are not.
+packages/*-package/src/
+packages/*-package/theme.css
