@@ -34,7 +34,7 @@ export class RichTextFileImportButtonComponent {
     protected readonly icon: SafeHtml = this.domSanitizer.bypassSecurityTrustHtml(IMPORT_ICON);
 
     protected readonly interactionDisabled = computed(
-        () => this.host.disabled() || this.host.readonly(),
+        () => this.host.isDisabled() || this.host.readonly(),
     );
 
     protected readonly buttonClasses = computed(() => cn(

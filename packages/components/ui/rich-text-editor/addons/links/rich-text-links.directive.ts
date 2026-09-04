@@ -171,7 +171,7 @@ export class RichTextLinksDirective {
     }
 
     private openInsertOverlay(caretHint?: { x: number; y: number }): void {
-        if (this.host.disabled() || this.host.readonly()) return;
+        if (this.host.isDisabled() || this.host.readonly()) return;
         const sel = this.host.selection();
         this.host.saveSelection();
         const ref = this.createOverlay(sel.text, '', false, this.selectionRect(sel.range, caretHint));
@@ -279,7 +279,7 @@ export class RichTextLinksDirective {
     }
 
     private probeEditableLink(): void {
-        if (this.host.disabled() || this.host.readonly()) return;
+        if (this.host.isDisabled() || this.host.readonly()) return;
         const el = this.host.selection().closestWithAttrs(['href']);
         const anchor = el?.tagName === 'A' && el.isContentEditable ? (el as HTMLAnchorElement) : null;
         if (!anchor) {

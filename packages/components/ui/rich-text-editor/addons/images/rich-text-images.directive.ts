@@ -439,7 +439,7 @@ export class RichTextImagesDirective {
     }
 
     private scanForBase64Images(): void {
-        if (!this.uiRteImagesUploader() || this.host.disabled() || this.host.readonly()) return;
+        if (!this.uiRteImagesUploader() || this.host.isDisabled() || this.host.readonly()) return;
         const editor = this.host.contentRoot;
         if (!editor) return;
         for (const img of Array.from(editor.querySelectorAll('img'))) {

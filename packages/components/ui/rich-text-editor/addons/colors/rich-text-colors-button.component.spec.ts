@@ -13,6 +13,7 @@ import { RichTextEditorAddonHost, RichTextToolbarViewContext } from '../..';
 
 interface MockHost {
     disabled: WritableSignal<boolean>;
+    isDisabled: WritableSignal<boolean>;
     readonly: WritableSignal<boolean>;
 }
 
@@ -49,7 +50,8 @@ describe('RichTextColorsButtonComponent', () => {
     let ctx: ReturnType<typeof buildContext>;
 
     function render(kind: RichTextColorKind, compact?: boolean): HTMLElement {
-        host = { disabled: signal(false), readonly: signal(false) };
+        const disabledSignal = signal(false);
+        host = { disabled: disabledSignal, isDisabled: disabledSignal, readonly: signal(false) };
         ctx = buildContext(kind);
         const providers: Provider[] = [
             { provide: RichTextEditorAddonHost, useValue: host },

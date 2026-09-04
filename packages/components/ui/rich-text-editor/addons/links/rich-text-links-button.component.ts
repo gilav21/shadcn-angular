@@ -46,7 +46,7 @@ export class RichTextLinksButtonComponent {
     protected readonly icon: SafeHtml = this.domSanitizer.bypassSecurityTrustHtml(LINK_ICON);
 
     protected readonly interactionDisabled = computed(
-        () => this.host.disabled() || this.host.readonly(),
+        () => this.host.isDisabled() || this.host.readonly(),
     );
 
     protected readonly buttonClasses = computed(() => cn(

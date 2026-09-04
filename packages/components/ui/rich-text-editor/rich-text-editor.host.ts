@@ -149,8 +149,18 @@ export abstract class RichTextEditorAddonHost {
      * keyboard flashing while focus returns from the overlay.
      */
     abstract insertTextFromOverlay(text: string): void;
-    /** Whether the editor is disabled. */
+    /**
+     * The editor's `[disabled]` input alone. Addons guarding an interaction want
+     * {@link isDisabled}, which also accounts for a reactive form having
+     * disabled the control.
+     */
     abstract readonly disabled: Signal<boolean>;
+    /**
+     * Whether the editor is effectively disabled — the `[disabled]` input OR a
+     * reactive form's own disabled state (`control.disable()`). Every addon
+     * interaction guard reads this.
+     */
+    abstract readonly isDisabled: Signal<boolean>;
     /** Whether the editor is read-only. */
     abstract readonly readonly: Signal<boolean>;
     /** The contenteditable content root (for popover anchoring + scoped styles). */

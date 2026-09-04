@@ -81,13 +81,13 @@ export class RichTextEditorDemoComponent {
     protected readonly emptyMarkdown = signal('');
     protected readonly control = new FormControl('<p>form</p>', { nonNullable: true });
 
-    /** The `[disabled]` input — the path that actually locks the editor today. */
+    /** The `[disabled]` input — one of the two independent locking paths. */
     protected readonly inputDisabled = signal(false);
 
     /**
-     * `control.disable()` / `enable()`. The editor's CVA has no
-     * `setDisabledState`, so this currently does NOT reach it — the spec test
-     * pins that as a known gap rather than asserting a fix that does not exist.
+     * `control.disable()` / `enable()`. Reaches the editor through the CVA's
+     * `setDisabledState`, which OR-s with the `[disabled]` input — so either
+     * path locks the editor and neither overrides the other.
      */
     protected toggleFormDisabled(): void {
         if (this.control.disabled) {

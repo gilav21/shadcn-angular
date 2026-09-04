@@ -53,7 +53,7 @@ export class RichTextTablesButtonComponent {
     protected readonly icon: SafeHtml = this.domSanitizer.bypassSecurityTrustHtml(TABLE_ICON);
 
     protected readonly interactionDisabled = computed(
-        () => this.host.disabled() || this.host.readonly(),
+        () => this.host.isDisabled() || this.host.readonly(),
     );
 
     protected readonly buttonClasses = computed(() => cn(

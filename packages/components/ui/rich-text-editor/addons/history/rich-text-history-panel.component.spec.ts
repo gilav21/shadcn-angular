@@ -62,6 +62,7 @@ function snapshot(index: number): RichTextHistoryEntrySnapshot {
 
 interface MockHost {
     disabled: ReturnType<typeof signal<boolean>>;
+    isDisabled: ReturnType<typeof signal<boolean>>;
     readonly: ReturnType<typeof signal<boolean>>;
     currentHistoryIndex: ReturnType<typeof signal<number>>;
     historyEntries: ReturnType<typeof signal<RichTextHistoryEntrySnapshot[]>>;
@@ -104,6 +105,7 @@ describe('RichTextHistoryPanelComponent', () => {
     async function setup(): Promise<void> {
         host = {
             disabled: signal(false),
+            isDisabled: signal(false),
             readonly: signal(false),
             currentHistoryIndex: signal(1),
             historyEntries: signal([snapshot(0), snapshot(1), snapshot(2)]),

@@ -81,7 +81,7 @@ export class RichTextTablesDirective {
     }
 
     private insertTable(rows: number, cols: number): void {
-        if (this.host.disabled() || this.host.readonly()) return;
+        if (this.host.isDisabled() || this.host.readonly()) return;
         this.host.restoreSelection();
         this.host.insertHtmlAtCaret(tableHtml(rows, cols));
         this.tableInsert.emit({ rows, cols });

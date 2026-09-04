@@ -64,7 +64,7 @@ export class RichTextTypographyButtonComponent {
     protected readonly panelClasses = this.context.kind === 'size' ? 'w-48' : 'w-56';
 
     protected readonly interactionDisabled = computed(
-        () => this.host.disabled() || this.host.readonly(),
+        () => this.host.isDisabled() || this.host.readonly(),
     );
 
     protected readonly buttonClasses = computed(() => cn(

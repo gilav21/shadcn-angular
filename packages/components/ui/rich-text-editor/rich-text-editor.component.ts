@@ -223,7 +223,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     /** CSS `max-height` for the editable area (scrolls beyond this). Accepts any CSS length value. */
     maxHeight = input<string>('400px');
 
-    /** Disables the editor entirely — no input, no toolbar, no interactions. */
+    /**
+     * Disables the editor entirely — no input, no toolbar, no interactions.
+     * OR-ed with the form's own disabled state; see {@link isDisabled}.
+     */
     disabled = input<boolean>(false);
 
     /** Makes the editor non-editable but still selectable/copyable. Hides the toolbar. */
@@ -397,10 +400,23 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private onChange: (value: string) => void = () => { };
     private onTouched: () => void = () => { };
 
+    /**
+     * The form's disabled state, written only by {@link setDisabledState}. Kept
+     * separate from the {@link disabled} input so neither path overrides the
+     * other — the effective state is {@link isDisabled}.
+     */
+    private readonly formDisabled = signal(false);
+
+    /**
+     * The effective disabled state: the {@link disabled} input OR the form's
+     * own state. Every behavioural guard reads this, not the raw input.
+     */
+    readonly isDisabled = computed(() => this.disabled() || this.formDisabled());
+
     editorContainerClasses = computed(() =>
         cn(
             editorVariants({ variant: this.variant(), size: this.size() }),
-            this.disabled() && 'opacity-50 cursor-not-allowed',
+            this.isDisabled() && 'opacity-50 cursor-not-allowed',
             this.readonly() && 'bg-muted',
             this.class()
         )
@@ -674,7 +690,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     private buildShortcutBindings(): ShortcutRegistration[] {
-        const canEdit = (): boolean => !this.disabled() && !this.readonly();
+        const canEdit = (): boolean => !this.isDisabled() && !this.readonly();
         return [
             ...this.buildFormattingShortcuts(canEdit),
             ...this.buildNavigationShortcuts(canEdit),
@@ -736,6 +752,17 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     /**
+     * `ControlValueAccessor` — adopt the form's disabled state, so a reactive
+     * form's `control.disable()` / `enable()` (and `new FormControl({ value,
+     * disabled: true })`) locks and unlocks the editor. Stored apart from the
+     * {@link disabled} input so neither path overrides the other; the editor is
+     * locked while either says so — see {@link isDisabled}.
+     */
+    setDisabledState(isDisabled: boolean): void {
+        this.formDisabled.set(isDisabled);
+    }
+
+    /**
      * Template-bound `input` handler on the editable area — the typing path.
      * Sanitizes the DOM into the model (stripping the zero-width joiners the
      * floating toolbar leaves behind), publishes the trigger-aware text and caret
@@ -744,8 +771,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * calls the form's `onChange`, and schedules the debounced history push —
      * skipped for the one input event replaying an undo/redo, which must not
      * become a new entry.
+     *
+     * Swallowed while disabled or readonly: `contenteditable="false"` stops a
+     * real keystroke, but a programmatic DOM mutation still raises `input`, and
+     * a locked editor must never write that back into the form.
      */
     onInput(event: Event): void {
+        if (this.isDisabled() || this.readonly()) return;
+
         const div = event.target as HTMLDivElement;
         const html = this.sanitizer.sanitize(div.innerHTML).replaceAll('\u200B', '');
 
@@ -1015,7 +1048,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         event.preventDefault();
         this.flushPendingHistoryPush();
 
-        if (this.disabled() || this.readonly()) {
+        if (this.isDisabled() || this.readonly()) {
             return;
         }
 
@@ -1072,7 +1105,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * drop) and raising {@link dragOver}, which drives the drop-zone highlight.
      */
     onEditorDragOver(event: DragEvent): void {
-        if (this.disabled() || this.readonly()) return;
+        if (this.isDisabled() || this.readonly()) return;
 
         const hasFiles = event.dataTransfer?.types?.includes('Files') ?? false;
         if (!hasFiles) return;
@@ -1121,7 +1154,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     async onEditorDrop(event: DragEvent): Promise<void> {
         this.dragOver.set(false);
-        if (this.disabled() || this.readonly()) return;
+        if (this.isDisabled() || this.readonly()) return;
 
         if (this.dispatchDropInterceptors(event)) {
             return;
@@ -1249,7 +1282,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * node so typing continues outside it.
      */
     onFormatCommand(command: string): void {
-        if (this.readonly() || this.disabled()) return;
+        if (this.readonly() || this.isDisabled()) return;
 
         this.restoreSelection();
         this.flushPendingHistoryPush();
@@ -1392,7 +1425,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * recorded.
      */
     onFloatingFormatCommand(command: string): void {
-        if (this.readonly() || this.disabled()) return;
+        if (this.readonly() || this.isDisabled()) return;
         this.flushPendingHistoryPush();
 
         const selection = this.document.getSelection();
@@ -1985,7 +2018,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * drag. Idle while a resize is already running, or when disabled/readonly.
      */
     onEditorMouseMove(event: MouseEvent): void {
-        if (this.tableResizeState || this.readonly() || this.disabled()) return;
+        if (this.tableResizeState || this.readonly() || this.isDisabled()) return;
         const target = event.target as HTMLElement;
         const cell = target.closest<HTMLTableCellElement>('td, th');
         const editorEl = this.editorDiv?.nativeElement;
@@ -2021,7 +2054,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * equivalent.
      */
     onEditorMouseDown(event: MouseEvent): void {
-        if (this.readonly() || this.disabled()) return;
+        if (this.readonly() || this.isDisabled()) return;
         const target = event.target as HTMLElement;
         const cell = target.closest<HTMLTableCellElement>('td, th');
         const isRightClick = event.button === 2;
@@ -2147,7 +2180,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * touch path.
      */
     onEditorTouchStart(event: TouchEvent): void {
-        if (this.readonly() || this.disabled()) return;
+        if (this.readonly() || this.isDisabled()) return;
         const target = event.target as HTMLElement;
         const cell = target.closest<HTMLTableCellElement>('td, th');
 

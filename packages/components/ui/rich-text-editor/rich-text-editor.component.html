@@ -2,7 +2,7 @@
   <ui-rich-text-toolbar
     [items]="toolbarItems()"
     [activeFormats]="activeFormats()"
-    [disabled]="disabled()"
+    [disabled]="isDisabled()"
     [readonly]="readonly()"
     [locale]="resolvedLocale()"
     (formatCommand)="onFormatCommand($event)"
@@ -15,7 +15,8 @@
   <div
     #editorDiv
     tabindex="0"
-    [attr.contenteditable]="!disabled() && !readonly()"
+    [attr.contenteditable]="!isDisabled() && !readonly()"
+    [attr.aria-disabled]="isDisabled()"
     [class]="editableClasses()"
     [attr.placeholder]="placeholder() || resolvedLocale().editor.placeholder"
     [attr.aria-label]="ariaLabel() || resolvedLocale().editor.ariaLabel"
@@ -103,7 +104,7 @@
         [items]="['bold', 'italic', 'underline', 'separator', 'clear']"
         [activeFormats]="emptyFormats"
         [compact]="true"
-        [disabled]="disabled()"
+        [disabled]="isDisabled()"
         [readonly]="readonly()"
         [locale]="resolvedLocale()"
         (formatCommand)="onFloatingFormatCommand($event)"

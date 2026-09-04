@@ -144,7 +144,7 @@ export class RichTextSlashCommandsDirective {
 
 
     private onInputObserved(text: string, caret: number): void {
-        if (!this.slashEnabled() || this.host.disabled() || this.host.readonly()) {
+        if (!this.slashEnabled() || this.host.isDisabled() || this.host.readonly()) {
             this.close();
             return;
         }
@@ -169,7 +169,7 @@ export class RichTextSlashCommandsDirective {
     private computeFilteredCommands(): RichTextSlashCommand[] {
         const availability: RichTextSlashCommandAvailabilityContext = {
             query: this.query,
-            disabled: this.host.disabled(),
+            disabled: this.host.isDisabled(),
             readonly: this.host.readonly(),
             hasSelection: this.host.selection().text.length > 0,
         };
@@ -242,7 +242,7 @@ export class RichTextSlashCommandsDirective {
      * command's own mutation lands as a separate, independently undoable step.
      */
     private async select(command: RichTextSlashCommand | undefined): Promise<void> {
-        if (!command || this.host.disabled() || this.host.readonly()) {
+        if (!command || this.host.isDisabled() || this.host.readonly()) {
             return;
         }
         const root = this.host.contentRoot;

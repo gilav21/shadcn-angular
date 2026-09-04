@@ -9,6 +9,7 @@ import { RichTextEditorAddonHost, RichTextToolbarViewContext } from '../..';
 
 interface MockHost {
     disabled: WritableSignal<boolean>;
+    isDisabled: WritableSignal<boolean>;
     readonly: WritableSignal<boolean>;
 }
 
@@ -29,7 +30,8 @@ describe('RichTextEmojiButtonComponent', () => {
     let ctx: ReturnType<typeof buildContext>;
 
     function render(compact?: boolean): HTMLElement {
-        host = { disabled: signal(false), readonly: signal(false) };
+        const disabledSignal = signal(false);
+        host = { disabled: disabledSignal, isDisabled: disabledSignal, readonly: signal(false) };
         ctx = buildContext();
         const providers: Provider[] = [
             { provide: RichTextEditorAddonHost, useValue: host },

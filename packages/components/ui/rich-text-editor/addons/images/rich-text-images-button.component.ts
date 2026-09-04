@@ -50,7 +50,7 @@ export class RichTextImagesButtonComponent {
     protected readonly showUpload = computed(() => this.context.sources() !== 'url');
 
     protected readonly interactionDisabled = computed(
-        () => this.host.disabled() || this.host.readonly(),
+        () => this.host.isDisabled() || this.host.readonly(),
     );
 
     protected readonly buttonClasses = computed(() => cn(

@@ -1,6 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { FormsModule } from '@angular/forms';
+import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RichTextEditorComponent } from './rich-text-editor.component';
 import { RichTextEditorAddonHost } from './rich-text-editor.host';
@@ -2238,26 +2238,118 @@ describe('RichTextEditorComponent — toolbar actions (link, image, color, font)
         expect(span).toBeTruthy();
     });
 
-    // FINDING (recorded in the spec as C-15): the CVA implements writeValue,
-    // registerOnChange and registerOnTouched but NOT setDisabledState, so a
-    // reactive form's control.disable() does not reach the editor at all — the
-    // editable area stays editable and every toolbar button stays live. The
-    // `[disabled]` input is the only working path today. This test pins the
-    // current behaviour so the gap is visible and a later fix has a red test
-    // to turn green; see the spec's Task 5 retrospective for why the fix is
-    // out of scope here (it collides with @angular-eslint/no-input-rename and
-    // with this spec's "no editing-behaviour change" boundary).
-    it('does NOT yet honour a reactive form disabling the control (known gap)', () => {
+    // Was pinned as spec correction C-15 (the CVA had no setDisabledState, so a
+    // reactive form's control.disable() never reached the editor). Fixed: the
+    // form's disabled state now lands in a private signal that is OR-ed with the
+    // public [disabled] input, so both paths work and neither overrides the
+    // other. These tests now assert the CORRECT behaviour.
+    it('honours a reactive form disabling the control through setDisabledState', () => {
         const surface = component as unknown as Record<string, unknown>;
-        expect('setDisabledState' in surface).toBe(false);
-        expect(editor.getAttribute('contenteditable')).toBe('true');
+        expect(typeof surface['setDisabledState']).toBe('function');
+
+        component.setDisabledState(true);
+        fixture.detectChanges();
+
+        expect(component.isDisabled()).toBe(true);
+        expect(editor.getAttribute('contenteditable')).toBe('false');
+        expect(editor.getAttribute('aria-disabled')).toBe('true');
     });
 
-    it('locks the editor through the [disabled] input, which is the working path', () => {
+    it('re-enables the editor when the form control is enabled again', () => {
+        component.setDisabledState(true);
+        fixture.detectChanges();
+        expect(editor.getAttribute('contenteditable')).toBe('false');
+
+        component.setDisabledState(false);
+        fixture.detectChanges();
+
+        expect(component.isDisabled()).toBe(false);
+        expect(editor.getAttribute('contenteditable')).toBe('true');
+        expect(editor.getAttribute('aria-disabled')).toBe('false');
+    });
+
+    it('locks the editor through the [disabled] input, independently of the form', () => {
         fixture.componentRef.setInput('disabled', true);
         fixture.detectChanges();
         expect(component.disabled()).toBe(true);
+        expect(component.isDisabled()).toBe(true);
         expect(editor.getAttribute('contenteditable')).toBe('false');
+    });
+
+    it('keeps the [disabled] input and the form state independent — neither overrides the other', () => {
+        // Both true.
+        fixture.componentRef.setInput('disabled', true);
+        component.setDisabledState(true);
+        fixture.detectChanges();
+        expect(component.isDisabled()).toBe(true);
+
+        // Form enables, but the input still says disabled.
+        component.setDisabledState(false);
+        fixture.detectChanges();
+        expect(component.isDisabled()).toBe(true);
+        expect(editor.getAttribute('contenteditable')).toBe('false');
+
+        // Input enables, but the form still says disabled.
+        fixture.componentRef.setInput('disabled', false);
+        component.setDisabledState(true);
+        fixture.detectChanges();
+        expect(component.isDisabled()).toBe(true);
+        expect(editor.getAttribute('contenteditable')).toBe('false');
+
+        // Both false — only now is it editable. The public input echoes only
+        // itself, never the form's state.
+        component.setDisabledState(false);
+        fixture.detectChanges();
+        expect(component.disabled()).toBe(false);
+        expect(component.isDisabled()).toBe(false);
+        expect(editor.getAttribute('contenteditable')).toBe('true');
+    });
+
+    it('blocks toolbar commands while the form has disabled the control', () => {
+        component.writeValue('<p>plain</p>');
+        fixture.detectChanges();
+        selectContents(editor.querySelector('p')!);
+
+        component.setDisabledState(true);
+        fixture.detectChanges();
+
+        component.onFormatCommand('bold');
+        expect(editor.querySelector('strong')).toBeNull();
+        expect(editor.querySelector('b')).toBeNull();
+
+        component.onFloatingFormatCommand('italic');
+        expect(editor.querySelector('em')).toBeNull();
+        expect(editor.querySelector('i')).toBeNull();
+    });
+
+    it('swallows paste and drop while the form has disabled the control', async () => {
+        const pasteSeen = vi.fn().mockReturnValue(true);
+        const dropSeen = vi.fn().mockReturnValue(true);
+        component.registerPasteInterceptor(pasteSeen);
+        component.registerDropInterceptor(dropSeen);
+
+        const paste = new Event('paste') as ClipboardEvent;
+        Object.defineProperty(paste, 'clipboardData', {
+            value: { getData: () => 'pasted', types: ['text/plain'], files: [] },
+        });
+        const drop = new Event('drop') as DragEvent;
+        Object.defineProperty(drop, 'dataTransfer', {
+            value: { getData: () => 'dropped', types: ['text/plain'], files: [] },
+        });
+
+        component.onPaste(paste);
+        await component.onEditorDrop(drop);
+        expect(pasteSeen).toHaveBeenCalledTimes(1);
+        expect(dropSeen).toHaveBeenCalledTimes(1);
+
+        component.setDisabledState(true);
+        fixture.detectChanges();
+
+        component.onPaste(paste);
+        await component.onEditorDrop(drop);
+
+        expect(pasteSeen).toHaveBeenCalledTimes(1);
+        expect(dropSeen).toHaveBeenCalledTimes(1);
     });
 
     // T-10 — Rec 16: the `customToolbarItems` extension path is deleted, not
@@ -6302,5 +6394,223 @@ describe('RichTextEditorComponent — targeted branch coverage top-up', () => {
         const li = editor.querySelector('li')!;
         expect(priv().wrapBlockInList(li, 'ul')).toBe(li);
         expect(editor.querySelector('ul')).toBeTruthy();
+    });
+});
+
+describe('RichTextEditorComponent — reactive forms disabled state', () => {
+    @Component({
+        standalone: true,
+        imports: [ReactiveFormsModule, RichTextEditorComponent],
+        template: `<ui-rich-text-editor [formControl]="control" [disabled]="inputDisabled()" [dir]="dir" />`,
+    })
+    class FormHostComponent {
+        control = new FormControl('<p>form</p>', { nonNullable: true });
+        readonly inputDisabled = signal(false);
+        dir: 'ltr' | 'rtl' = 'ltr';
+    }
+
+    let fixture: ComponentFixture<FormHostComponent>;
+    let host: FormHostComponent;
+    let rte: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    const wire = () => {
+        fixture.detectChanges();
+        const el = fixture.nativeElement as HTMLElement;
+        rte = fixture.debugElement.children[0].componentInstance as RichTextEditorComponent;
+        editor = el.querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+    };
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [FormHostComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(FormHostComponent);
+        host = fixture.componentInstance;
+    });
+
+    it('control.disable() reaches the editor and locks the editable area', () => {
+        wire();
+        expect(editor.getAttribute('contenteditable')).toBe('true');
+
+        host.control.disable();
+        fixture.detectChanges();
+
+        expect(rte.isDisabled()).toBe(true);
+        expect(editor.getAttribute('contenteditable')).toBe('false');
+        expect(editor.getAttribute('aria-disabled')).toBe('true');
+    });
+
+    it('control.enable() restores editing', () => {
+        wire();
+        host.control.disable();
+        fixture.detectChanges();
+        expect(editor.getAttribute('contenteditable')).toBe('false');
+
+        host.control.enable();
+        fixture.detectChanges();
+
+        expect(rte.isDisabled()).toBe(false);
+        expect(editor.getAttribute('contenteditable')).toBe('true');
+    });
+
+    it('a FormControl constructed with disabled:true starts the editor locked', () => {
+        host.control = new FormControl({ value: '<p>form</p>', disabled: true }, { nonNullable: true });
+        wire();
+
+        expect(rte.isDisabled()).toBe(true);
+        expect(editor.getAttribute('contenteditable')).toBe('false');
+    });
+
+    it('control.disable() blocks typing — the model does not change', () => {
+        wire();
+        host.control.disable();
+        fixture.detectChanges();
+
+        const before = host.control.value;
+        editor.innerHTML = '<p>form typed</p>';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        fixture.detectChanges();
+
+        expect(host.control.value).toBe(before);
+    });
+
+    it('control.disable() blocks toolbar format commands', () => {
+        wire();
+        rte.writeValue('<p>plain</p>');
+        fixture.detectChanges();
+        const p = editor.querySelector('p')!;
+        const selection = document.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(p);
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+
+        host.control.disable();
+        fixture.detectChanges();
+
+        rte.onFormatCommand('bold');
+
+        expect(editor.querySelector('strong')).toBeNull();
+        expect(editor.querySelector('b')).toBeNull();
+    });
+
+    // The paste/drop guards return before the addon interceptor chain is
+    // dispatched, so a registered interceptor is the observable proof that the
+    // guard fired — the base itself inserts nothing for a plain-text drop, and
+    // a caret-less paste is a no-op regardless of the guard.
+    it('control.disable() swallows paste before any interceptor sees it', () => {
+        wire();
+        const seen = vi.fn().mockReturnValue(true);
+        rte.registerPasteInterceptor(seen);
+
+        const paste = new Event('paste') as ClipboardEvent;
+        Object.defineProperty(paste, 'clipboardData', {
+            value: { getData: () => 'pasted', types: ['text/plain'], files: [] },
+        });
+
+        rte.onPaste(paste);
+        expect(seen).toHaveBeenCalledTimes(1);
+
+        host.control.disable();
+        fixture.detectChanges();
+
+        rte.onPaste(paste);
+        expect(seen).toHaveBeenCalledTimes(1);
+    });
+
+    it('control.disable() swallows drop before any interceptor sees it', async () => {
+        wire();
+        const seen = vi.fn().mockReturnValue(true);
+        rte.registerDropInterceptor(seen);
+
+        const drop = new Event('drop') as DragEvent;
+        Object.defineProperty(drop, 'dataTransfer', {
+            value: { getData: () => 'dropped', types: ['text/plain'], files: [] },
+        });
+
+        await rte.onEditorDrop(drop);
+        expect(seen).toHaveBeenCalledTimes(1);
+
+        host.control.disable();
+        fixture.detectChanges();
+
+        await rte.onEditorDrop(drop);
+        expect(seen).toHaveBeenCalledTimes(1);
+    });
+
+    it('control.disable() disables every docked toolbar button', () => {
+        wire();
+        const enabled = Array.from(
+            (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('[role="toolbar"] button'),
+        );
+        expect(enabled.length).toBeGreaterThan(0);
+        expect(enabled.every(b => b.disabled)).toBe(false);
+
+        host.control.disable();
+        fixture.detectChanges();
+
+        const buttons = Array.from(
+            (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('[role="toolbar"] button'),
+        );
+        expect(buttons.length).toBeGreaterThan(0);
+        expect(buttons.every(b => b.disabled)).toBe(true);
+    });
+
+    it('the [disabled] input keeps working while the form control is enabled', () => {
+        wire();
+        host.inputDisabled.set(true);
+        fixture.detectChanges();
+
+        expect(host.control.disabled).toBe(false);
+        expect(rte.isDisabled()).toBe(true);
+        expect(editor.getAttribute('contenteditable')).toBe('false');
+    });
+
+    it('the form state does not leak into the public [disabled] input', () => {
+        wire();
+        host.control.disable();
+        fixture.detectChanges();
+
+        expect(rte.disabled()).toBe(false);
+        expect(rte.isDisabled()).toBe(true);
+    });
+
+    it('locks the same way in RTL', () => {
+        host.dir = 'rtl';
+        wire();
+        host.control.disable();
+        fixture.detectChanges();
+
+        expect(editor.getAttribute('contenteditable')).toBe('false');
+        expect(rte.isDisabled()).toBe(true);
+    });
+
+    // Touch table-cell selection is gated on the same guard. Its observable
+    // effect is the private tableCellSelecting flag, which a form-disabled
+    // editor must never set.
+    it('touch table-cell selection is a no-op while the form has disabled the control', () => {
+        wire();
+        rte.writeValue('<table><tbody><tr><td>a</td><td>b</td></tr></tbody></table>');
+        fixture.detectChanges();
+        const cell = editor.querySelector('td')!;
+        const selecting = () => (rte as unknown as { tableCellSelecting: boolean }).tableCellSelecting;
+
+        const fire = () => {
+            const touch = new Event('touchstart', { bubbles: true }) as TouchEvent;
+            Object.defineProperty(touch, 'target', { value: cell });
+            rte.onEditorTouchStart(touch);
+        };
+
+        fire();
+        expect(selecting()).toBe(true);
+        (rte as unknown as { tableCellSelecting: boolean }).tableCellSelecting = false;
+
+        host.control.disable();
+        fixture.detectChanges();
+
+        fire();
+        expect(selecting()).toBe(false);
+        expect(rte.isDisabled()).toBe(true);
     });
 });

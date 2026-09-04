@@ -171,7 +171,7 @@ export class RichTextFileImportDirective {
 
 
     private async importFile(file: File): Promise<void> {
-        if (!this.uiRteFileImport() || this.host.readonly() || this.host.disabled()) return;
+        if (!this.uiRteFileImport() || this.host.readonly() || this.host.isDisabled()) return;
         this.host.flushPendingHistoryPush();
 
         const header = new Uint8Array(await file.slice(0, HEADER_BYTES).arrayBuffer());

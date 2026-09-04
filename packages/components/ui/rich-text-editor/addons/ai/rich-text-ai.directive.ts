@@ -175,7 +175,7 @@ export class RichTextAiDirective {
 
     private isSelectionActive(selection: Selection | null): boolean {
         if (!selection || selection.isCollapsed || selection.rangeCount === 0) return false;
-        if (!this.hasProvider() || this.host.readonly() || this.host.disabled()) return false;
+        if (!this.hasProvider() || this.host.readonly() || this.host.isDisabled()) return false;
         return this.host.contentRoot.contains(selection.anchorNode);
     }
 

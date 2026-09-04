@@ -158,7 +158,7 @@ export class RichTextActionsDirective {
     }
 
     private canAttach(): boolean {
-        if (this.host.disabled() || this.host.readonly()) return false;
+        if (this.host.isDisabled() || this.host.readonly()) return false;
         const sel = this.host.selection();
         return sel.kind !== 'none' || !!sel.closestWithAttrs(ACTION_ATTRS);
     }
@@ -265,7 +265,7 @@ export class RichTextActionsDirective {
     }
 
     private refreshPopover(): void {
-        if (this.host.disabled() || this.host.readonly()) {
+        if (this.host.isDisabled() || this.host.readonly()) {
             this.hidePopover();
             return;
         }

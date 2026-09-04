@@ -80,7 +80,7 @@ describe('RichTextImagesButtonComponent', () => {
         await TestBed.configureTestingModule({
             imports: [RichTextImagesButtonComponent],
             providers: [
-                { provide: RichTextEditorAddonHost, useValue: { disabled, readonly } },
+                { provide: RichTextEditorAddonHost, useValue: { disabled, isDisabled: disabled, readonly } },
                 { provide: RICH_TEXT_IMAGES_BUTTON_CONTEXT, useValue: context },
                 ...(withToolbarView ? [{ provide: RichTextToolbarViewContext, useValue: { compact } }] : []),
             ],

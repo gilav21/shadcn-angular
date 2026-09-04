@@ -38,7 +38,7 @@ describe('RichTextLinksButtonComponent', () => {
         await TestBed.configureTestingModule({
             imports: [RichTextLinksButtonComponent],
             providers: [
-                { provide: RichTextEditorAddonHost, useValue: { disabled, readonly } },
+                { provide: RichTextEditorAddonHost, useValue: { disabled, isDisabled: disabled, readonly } },
                 { provide: RICH_TEXT_LINKS_BUTTON_CONTEXT, useValue: context },
             ],
         }).compileComponents();

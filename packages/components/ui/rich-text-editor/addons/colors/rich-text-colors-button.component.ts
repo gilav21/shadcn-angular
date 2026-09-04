@@ -81,7 +81,7 @@ export class RichTextColorsButtonComponent {
     );
 
     protected readonly interactionDisabled = computed(
-        () => this.host.disabled() || this.host.readonly(),
+        () => this.host.isDisabled() || this.host.readonly(),
     );
 
     /**

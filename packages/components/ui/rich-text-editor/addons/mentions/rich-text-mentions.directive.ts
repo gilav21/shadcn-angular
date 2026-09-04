@@ -145,7 +145,7 @@ export class RichTextMentionsDirective {
 
 
     private onInput(): void {
-        if (this.host.disabled() || this.host.readonly()) {
+        if (this.host.isDisabled() || this.host.readonly()) {
             this.close();
             return;
         }
