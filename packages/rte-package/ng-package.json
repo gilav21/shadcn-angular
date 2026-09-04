@@ -1,0 +1,9 @@
+{
+  "$schema": "../../node_modules/ng-packagr/ng-package.schema.json",
+  "dest": "../../dist/rte-package",
+  "lib": {
+    "entryFile": "src/public-api.ts"
+  },
+  "assets": ["theme.css"],
+  "allowedNonPeerDependencies": ["class-variance-authority", "clsx", "tailwind-merge", "tslib"]
+}

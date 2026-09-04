@@ -1,0 +1,35 @@
+{
+  "name": "@gilav21/shadcn-angular-rte",
+  "version": "0.1.0",
+  "description": "Compiled Angular rich-text editor from shadcn-angular: base editor + all 13 addons (RTE_FULL). Same ui-* selectors and inputs as the CLI copy model.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gilav21/shadcn-angular.git",
+    "directory": "packages/rte-package"
+  },
+  "keywords": [
+    "angular",
+    "shadcn",
+    "rich-text-editor",
+    "wysiwyg",
+    "tailwind"
+  ],
+  "sideEffects": false,
+  "exports": {
+    "./theme.css": "./theme.css"
+  },
+  "peerDependencies": {
+    "@angular/common": "^21.0.0",
+    "@angular/core": "^21.0.0",
+    "@angular/forms": "^21.0.0",
+    "@angular/platform-browser": "^21.0.0",
+    "rxjs": "^7.8.0"
+  },
+  "dependencies": {
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^3.4.0",
+    "tslib": "^2.3.0"
+  }
+}

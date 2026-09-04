@@ -111,6 +111,7 @@
     "jsdom": "^27.4.0",
     "lint-staged": "^17.0.8",
     "lmdb": "^3.5.4",
+    "ng-packagr": "^21.2.7",
     "playwright": "^1.57.0",
     "postcss": "^8.5.10",
     "rollup": "^4.60.1",
