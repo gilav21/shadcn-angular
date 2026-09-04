@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseRegistryEntries, diffRegistryEntries, blockForFile } from './impact';
+import { parseRegistryEntries, diffRegistryEntries, blockForFile, addFileImpact } from './impact';
 import { registry, getComponentNames } from '../../packages/cli/src/registry/index.js';
 import { ALL_COMPONENTS, specLabel } from './specs.js';
 
@@ -158,10 +158,24 @@ describe('rich-text-editor base harness', () => {
     });
 
     it('schedules the base label and every rte-* label for an editor source change', () => {
-        const scheduled = ALL_COMPONENTS
-            .filter(s => s.names.includes('rich-text-editor'))
-            .map(specLabel);
-        expect(scheduled).toContain('rich-text-editor');
-        expect(scheduled.filter(l => l.startsWith('rte-')).length).toBeGreaterThanOrEqual(14);
+        // Drive the real analyzer, not a reimplementation of its filter — a
+        // broken addFileImpact must fail this test.
+        const impacted = new Set<string>();
+        const full = addFileImpact(
+            ['packages/components/ui/rich-text-editor/rich-text-editor.component.ts'],
+            impacted,
+        );
+        expect(full).toBe(true);
+        expect(impacted.has('rich-text-editor')).toBe(true);
+        expect([...impacted].filter(l => l.startsWith('rte-')).length).toBeGreaterThanOrEqual(14);
+    });
+
+    it('scopes a change inside the base harness folder to just that label', () => {
+        const impacted = new Set<string>();
+        expect(addFileImpact(
+            ['e2e/harness/rich-text-editor/rich-text-editor-demo.component.ts'],
+            impacted,
+        )).toBe(true);
+        expect([...impacted]).toEqual(['rich-text-editor']);
     });
 });

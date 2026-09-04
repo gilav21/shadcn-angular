@@ -2238,6 +2238,28 @@ describe('RichTextEditorComponent — toolbar actions (link, image, color, font)
         expect(span).toBeTruthy();
     });
 
+    // FINDING (recorded in the spec as C-15): the CVA implements writeValue,
+    // registerOnChange and registerOnTouched but NOT setDisabledState, so a
+    // reactive form's control.disable() does not reach the editor at all — the
+    // editable area stays editable and every toolbar button stays live. The
+    // `[disabled]` input is the only working path today. This test pins the
+    // current behaviour so the gap is visible and a later fix has a red test
+    // to turn green; see the spec's Task 5 retrospective for why the fix is
+    // out of scope here (it collides with @angular-eslint/no-input-rename and
+    // with this spec's "no editing-behaviour change" boundary).
+    it('does NOT yet honour a reactive form disabling the control (known gap)', () => {
+        const surface = component as unknown as Record<string, unknown>;
+        expect('setDisabledState' in surface).toBe(false);
+        expect(editor.getAttribute('contenteditable')).toBe('true');
+    });
+
+    it('locks the editor through the [disabled] input, which is the working path', () => {
+        fixture.componentRef.setInput('disabled', true);
+        fixture.detectChanges();
+        expect(component.disabled()).toBe(true);
+        expect(editor.getAttribute('contenteditable')).toBe('false');
+    });
+
     // T-10 — Rec 16: the `customToolbarItems` extension path is deleted, not
     // deprecated. A template still binding it now fails to compile (NG8002)
     // instead of silently rendering nothing.

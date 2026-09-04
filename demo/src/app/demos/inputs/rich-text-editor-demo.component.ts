@@ -13,7 +13,24 @@ import {
 // One import line for everything, exactly as a consumer who ran
 // `add rich-text-editor/full` writes it. RTE_FULL is every addon directive;
 // the individual classes are named re-exports of the same generated barrel.
-import { RTE_FULL } from '../../../../../packages/components/ui/rich-text-editor/addons/full';
+// One import statement for everything, exactly as a consumer who ran
+// `add rich-text-editor/full` writes it: `RTE_FULL` is the whole set, and the
+// named classes beside it are re-exports of the same generated barrel. This
+// page names the twelve it previews rather than spreading RTE_FULL, so each
+// one's API docs resolve to this route.
+import {
+  RichTextAiDirective,
+  RichTextColorsDirective,
+  RichTextEmojiDirective,
+  RichTextHistoryDirective,
+  RichTextImagesDirective,
+  RichTextLinksDirective,
+  RichTextMentionsDirective,
+  RichTextOutlineDirective,
+  RichTextSlashCommandsDirective,
+  RichTextTablesDirective,
+  RichTextTypographyDirective,
+} from '../../../../../packages/components/ui/rich-text-editor/addons/full';
 // Types come from the owning addon's barrel — the full barrel re-exports
 // directive CLASSES only, by design (the NG3004 fix).
 import type {
@@ -28,7 +45,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
 @Component({
   selector: 'app-rich-text-editor-demo',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DocsForComponent, FormsModule, RichTextEditorComponent, RTE_FULL, SwitchComponent, InputComponent, SelectComponent],
+  imports: [DocsForComponent, FormsModule, RichTextEditorComponent, RichTextEmojiDirective, RichTextSlashCommandsDirective, RichTextHistoryDirective, RichTextColorsDirective, RichTextTypographyDirective, RichTextLinksDirective, RichTextTablesDirective, RichTextImagesDirective, RichTextMentionsDirective, RichTextAiDirective, RichTextOutlineDirective, SwitchComponent, InputComponent, SelectComponent],
   template: `
     <section class="space-y-6">
       <h2 id="rich-text-editor" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>

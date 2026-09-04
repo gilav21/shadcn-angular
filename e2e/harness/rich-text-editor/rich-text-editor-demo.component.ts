@@ -54,10 +54,18 @@ import { RichTextEditorComponent } from '@/components/ui/rich-text-editor';
 
             <section>
                 <h2 class="mb-2 font-semibold">Reactive form</h2>
-                <ui-rich-text-editor data-testid="editor-form" mode="html" [formControl]="control" />
+                <ui-rich-text-editor
+                    data-testid="editor-form"
+                    mode="html"
+                    [disabled]="inputDisabled()"
+                    [formControl]="control"
+                />
                 <pre data-testid="form-value" class="sr-only">{{ control.value }}</pre>
-                <button type="button" data-testid="toggle-disabled" (click)="toggleDisabled()">
-                    toggle disabled
+                <button type="button" data-testid="toggle-form-disabled" (click)="toggleFormDisabled()">
+                    toggle control.disable()
+                </button>
+                <button type="button" data-testid="toggle-input-disabled" (click)="toggleInputDisabled()">
+                    toggle [disabled]
                 </button>
             </section>
         </main>
@@ -73,11 +81,23 @@ export class RichTextEditorDemoComponent {
     protected readonly emptyMarkdown = signal('');
     protected readonly control = new FormControl('<p>form</p>', { nonNullable: true });
 
-    protected toggleDisabled(): void {
+    /** The `[disabled]` input — the path that actually locks the editor today. */
+    protected readonly inputDisabled = signal(false);
+
+    /**
+     * `control.disable()` / `enable()`. The editor's CVA has no
+     * `setDisabledState`, so this currently does NOT reach it — the spec test
+     * pins that as a known gap rather than asserting a fix that does not exist.
+     */
+    protected toggleFormDisabled(): void {
         if (this.control.disabled) {
             this.control.enable();
         } else {
             this.control.disable();
         }
+    }
+
+    protected toggleInputDisabled(): void {
+        this.inputDisabled.update(v => !v);
     }
 }

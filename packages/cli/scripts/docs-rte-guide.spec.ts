@@ -22,6 +22,24 @@ const README = path.join(REPO_ROOT, 'README.md');
 
 const read = (file: string): string => readFileSync(file, 'utf-8');
 
+/**
+ * Every identifier that appears inside a backtick code span in the guide,
+ * including each identifier within a compound span like
+ * `saveSelection() / restoreSelection()`. Checking membership here rather than
+ * a bare `guide.includes(name)` is what stops a short member name such as
+ * `compact` from being "documented" by an incidental word in the prose.
+ */
+function codeSpanIdentifiers(guide: string): Set<string> {
+    // Drop fenced blocks first: their ``` delimiters otherwise pair with the
+    // inline spans around them and swallow whole sections.
+    const prose = guide.replaceAll(/```[\s\S]*?```/g, '\n');
+    const out = new Set<string>();
+    for (const span of prose.matchAll(/`([^`\n]+)`/g)) {
+        for (const ident of span[1].matchAll(/[A-Za-z][\w-]*/g)) out.add(ident[0]);
+    }
+    return out;
+}
+
 /** Every abstract member declared on `RichTextEditorAddonHost`, in source order. */
 function hostMembers(): string[] {
     const names: string[] = [];
@@ -65,9 +83,9 @@ function exampleBody(): string {
  * example drifts from the file the demo actually runs.
  */
 describe('docs/rich-text-editor.md drift', () => {
-    it('names every abstract member of RichTextEditorAddonHost', () => {
-        const guide = read(GUIDE);
-        const missing = hostMembers().filter(m => !guide.includes(m));
+    it('names every abstract member of RichTextEditorAddonHost in code style', () => {
+        const spans = codeSpanIdentifiers(read(GUIDE));
+        const missing = hostMembers().filter(m => !spans.has(m));
         expect(missing).toEqual([]);
     });
 
@@ -75,12 +93,13 @@ describe('docs/rich-text-editor.md drift', () => {
         const hooks = hostMembers().filter(m => m.startsWith('register'));
         expect(hooks).toHaveLength(8);
         const guide = read(GUIDE);
-        for (const hook of hooks) expect(guide, hook).toContain(hook);
+        // Each hook must appear with its call signature, not just its name.
+        for (const hook of hooks) expect(guide, hook).toContain(`${hook}(`);
     });
 
-    it('names every rich-text addon', () => {
-        const guide = read(GUIDE);
-        const missing = addonShortNames().filter(a => !guide.includes(a));
+    it('names every rich-text addon in code style', () => {
+        const spans = codeSpanIdentifiers(read(GUIDE));
+        const missing = addonShortNames().filter(a => !spans.has(a));
         expect(missing).toEqual([]);
     });
 
@@ -122,7 +141,20 @@ describe('rich-text-editor demo imports', () => {
         expect(valueImports).toEqual([]);
     });
 
-    it('still declares RTE_FULL among its component imports', () => {
-        expect(demo()).toContain('RTE_FULL');
+    it('draws every addon directive it declares from that one statement', () => {
+        const stmt = /import \{([^}]*)\} from '[^']*rich-text-editor\/addons\/full';/.exec(demo());
+        expect(stmt).not.toBeNull();
+        const fromFull = new Set(
+            (stmt as RegExpExecArray)[1].split(',').map(n => n.trim()).filter(Boolean),
+        );
+        const declared = /imports: \[([^\]]*)\]/.exec(demo()) as RegExpExecArray;
+        const addonDirectives = declared[1]
+            .split(',')
+            .map(n => n.trim())
+            .filter(n => /^RichText\w+Directive$/.test(n));
+        // Twelve addon directives on this page, every one of them a named
+        // re-export of the single `addons/full` import above.
+        expect(addonDirectives.length).toBeGreaterThanOrEqual(11);
+        expect(addonDirectives.filter(n => !fromFull.has(n))).toEqual([]);
     });
 });

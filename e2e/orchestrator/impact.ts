@@ -300,7 +300,7 @@ function addLabelsForComponent(component: string, impacted: Set<string>): void {
  * false when a file forces a full run (a new harness folder without a
  * registered spec); true otherwise.
  */
-function addFileImpact(remaining: readonly string[], impacted: Set<string>): boolean {
+export function addFileImpact(remaining: readonly string[], impacted: Set<string>): boolean {
     for (const file of remaining) {
         // Per-harness changes scope to exactly that label.
         const harness = /^e2e\/harness\/([^/]+)\//.exec(file);

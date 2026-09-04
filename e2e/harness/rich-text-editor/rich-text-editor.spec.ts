@@ -133,12 +133,12 @@ test('markdown mode renders the seeded markdown and round-trips edits', async ({
     // An empty markdown editor renders its placeholder and emits nothing.
     await expect(page.getByTestId('editor-markdown-empty-output')).toHaveText('');
     await expect(editable(page, 'editor-markdown-empty')).toHaveAttribute(
-        'data-placeholder',
+        'placeholder',
         'Write something...',
     );
 });
 
-test('a FormControl drives the editor and disable() locks it', async ({ page }) => {
+test('a FormControl drives the editor, and [disabled] locks it', async ({ page }) => {
     await page.goto('/');
     const form = editable(page, 'editor-form');
     const value = page.getByTestId('form-value');
@@ -151,10 +151,18 @@ test('a FormControl drives the editor and disable() locks it', async ({ page }) 
     await page.keyboard.type(' typed');
     await expect(value).toContainText('typed');
 
-    await page.getByTestId('toggle-disabled').click();
+    // KNOWN GAP (spec correction C-15): the editor's ControlValueAccessor has
+    // no setDisabledState, so `control.disable()` does NOT reach it — only the
+    // [disabled] input does. This harness found that; the assertions below pin
+    // today's real behaviour so the gap is visible rather than silently green.
+    await page.getByTestId('toggle-form-disabled').click();
+    await expect(form).toHaveAttribute('contenteditable', 'true');
+
+    // The [disabled] input, which is the working path, does lock it: the docked
+    // toolbar stays rendered (it hides only for readonly) and every button is
+    // [disabled].
+    await page.getByTestId('toggle-input-disabled').click();
     await expect(form).toHaveAttribute('contenteditable', 'false');
-    // The docked toolbar stays rendered when disabled (it hides only for
-    // readonly) — every button is [disabled] instead.
     const buttons = page.locator('[data-testid="editor-form"] [role="toolbar"] button');
     const count = await buttons.count();
     expect(count).toBeGreaterThan(0);
@@ -166,7 +174,7 @@ test('a FormControl drives the editor and disable() locks it', async ({ page }) 
     await page.keyboard.type(' ignored');
     await expect(value).toHaveText(locked);
 
-    await page.getByTestId('toggle-disabled').click();
+    await page.getByTestId('toggle-input-disabled').click();
     await expect(form).toHaveAttribute('contenteditable', 'true');
     await expect(buttons.first()).toBeEnabled();
 });
