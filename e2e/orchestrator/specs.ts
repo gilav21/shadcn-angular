@@ -29,11 +29,29 @@ import {
     suggestComponentName,
 } from '../../packages/cli/src/registry/index.js';
 
+/** The compiled npm packages an e2e spec can install (see `stage-package-lib`). */
+export const PACKAGE_IDS = ['rte', 'data-table'] as const;
+export type PackageId = (typeof PACKAGE_IDS)[number];
+
+/**
+ * Which pristine consumer app a spec runs in. `ng20` is `e2e/fixture-app`, the
+ * Angular 20 fixture every copy-model spec uses; `ng21` is `e2e/fixture-app-21`.
+ *
+ * The compiled packages declare a peer range covering both majors (spec C-17),
+ * so their legs run in BOTH — that pair of runs is the evidence behind the
+ * README's claim that Angular 20 and 21 are supported.
+ */
+export const FIXTURE_IDS = ['ng20', 'ng21'] as const;
+export type FixtureId = (typeof FIXTURE_IDS)[number];
+
 export interface ComponentSpec {
     /**
      * Components to install via `add`. Single-element list for the simple
      * case; multi-element list runs `add <a> <b> <c> --yes` so the
      * dependency-resolution and parallel-install paths get exercised.
+     *
+     * May be EMPTY only when `packages` is non-empty: a package spec installs a
+     * tarball instead of copying sources, so it has no components to add.
      */
     readonly names: readonly string[];
     /** Optional `init` CLI args. Defaults to `init --yes`. */
@@ -50,6 +68,19 @@ export interface ComponentSpec {
      * `--prefix` test).
      */
     readonly harnessFolder?: string;
+    /**
+     * Compiled npm packages to build (`npm pack`) and install into the fixture
+     * before the harness is copied in. Built once per run, then shared by every
+     * label that needs them.
+     */
+    readonly packages?: readonly PackageId[];
+    /** Which pristine fixture to run in. Defaults to `'ng20'`. */
+    readonly fixture?: FixtureId;
+}
+
+/** Resolved fixture for a spec — the Angular 20 app unless stated otherwise. */
+export function specFixture(spec: ComponentSpec): FixtureId {
+    return spec.fixture ?? 'ng20';
 }
 
 /** Resolved label for a spec — falls back to first component name. */
@@ -275,6 +306,36 @@ const EXPLICIT_SPECS: readonly ComponentSpec[] = [
         label: 'prefix-button',
         initArgs: ['init', '--yes', '--prefix', 'acme'],
     },
+    // ── Compiled npm packages ──────────────────────────────────────────────
+    //
+    // These install a real `npm pack` tarball instead of copying sources, so
+    // `names` is empty and `packages` carries the work. They must be EXPLICIT
+    // entries: auto-discovery would turn `e2e/harness/pkg-rte/` into
+    // `{ names: ['pkg-rte'] }`, and `validateSpecs` would then abort the whole
+    // orchestrator on an unknown component name.
+    //
+    // Each package is proven on BOTH supported Angular majors (spec C-17): the
+    // ng20 pair is what backs the README's Angular-20 claim, the ng21 pair the
+    // Angular-21 one.
+    { names: [], packages: ['rte'], fixture: 'ng20', label: 'pkg-rte' },
+    { names: [], packages: ['data-table'], fixture: 'ng20', label: 'pkg-data-table' },
+    {
+        names: [],
+        packages: ['rte'],
+        fixture: 'ng21',
+        label: 'pkg-rte-ng21',
+        harnessFolder: 'pkg-rte',
+    },
+    {
+        names: [],
+        packages: ['data-table'],
+        fixture: 'ng21',
+        label: 'pkg-data-table-ng21',
+        harnessFolder: 'pkg-data-table',
+    },
+    // Mixed mode: CLI-copied `button` AND the compiled editor in ONE app,
+    // proving selector coexistence and that neither DI graph breaks the other.
+    { names: ['button'], packages: ['rte'], fixture: 'ng20', label: 'pkg-mixed' },
 ];
 
 const HARNESS_DIR = path.resolve(
@@ -299,8 +360,22 @@ function discoverHarnessFolders(): string[] {
     return out.sort((a, b) => a.localeCompare(b));
 }
 
-function validateSpecs(specs: readonly ComponentSpec[]): void {
+export function validateSpecs(specs: readonly ComponentSpec[]): void {
     for (const spec of specs) {
+        // A spec that installs nothing would silently serve an empty app and
+        // "pass". `packages` is the only reason `names` may be empty.
+        if (spec.names.length === 0 && !spec.packages?.length) {
+            throw new Error(
+                `[e2e:specs] spec "${spec.label ?? '(unlabelled)'}" has neither names nor packages — ` +
+                'it would install nothing. Add a component to `names` or a package to `packages`.',
+            );
+        }
+        if (spec.names.length === 0 && !spec.label) {
+            throw new Error(
+                '[e2e:specs] a spec with no `names` must carry an explicit `label` ' +
+                '(the label otherwise defaults to names[0], which is undefined).',
+            );
+        }
         for (const name of spec.names) {
             if (isComponentName(name)) continue;
             const suggestion = suggestComponentName(name);

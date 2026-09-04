@@ -40,7 +40,8 @@ import {
     registry,
     type ComponentName,
 } from '../../packages/cli/src/registry/index.js';
-import { ALL_COMPONENTS, specLabel } from './specs.js';
+import { ALL_COMPONENTS, specLabel, type ComponentSpec } from './specs.js';
+import { PACKAGE_ROOTS } from '../../packages/cli/scripts/stage-package-lib.js';
 
 const REGISTRY_FILE = 'packages/cli/src/registry/index.ts';
 
@@ -75,21 +76,46 @@ const TRIPWIRES: readonly RegExp[] = [
 function specsTouchingComponent(name: string): readonly string[] {
     const labels: string[] = [];
     for (const spec of ALL_COMPONENTS) {
-        if (spec.names.includes(name)) labels.push(specLabel(spec));
+        if (spec.names.includes(name) || specPackagesCover(spec, name)) {
+            labels.push(specLabel(spec));
+        }
     }
     return labels;
+}
+
+/**
+ * Whether a package spec ships the given component — i.e. whether the component
+ * is a ROOT of one of the packages the spec installs.
+ *
+ * Roots only, deliberately. A package's closure also contains `button`, `badge`
+ * and ~30 more shared components; scheduling the slow package legs (tarball
+ * build + production build + serve) on every one of those would make them run
+ * for most changes in the repo. The roots are what the package IS.
+ */
+function specPackagesCover(spec: ComponentSpec, name: string): boolean {
+    return (spec.packages ?? []).some((id) =>
+        (PACKAGE_ROOTS[id] as readonly string[]).includes(name),
+    );
 }
 
 /**
  * Spec label whose harness folder matches the given directory name, or
  * null if none does. Harness-only changes scope to exactly that spec.
  */
-function specForHarnessFolder(folder: string): string | null {
+function specsForHarnessFolder(folder: string): readonly string[] {
+    const labels: string[] = [];
     for (const spec of ALL_COMPONENTS) {
         const harness = spec.harnessFolder ?? specLabel(spec);
-        if (harness === folder) return specLabel(spec);
+        if (harness === folder) labels.push(specLabel(spec));
     }
-    return null;
+    return labels;
+}
+
+/** Every spec label that installs the given compiled package, on any fixture. */
+function specsInstallingPackage(id: string): readonly string[] {
+    return ALL_COMPONENTS
+        .filter((spec) => (spec.packages ?? []).includes(id as never))
+        .map(specLabel);
 }
 
 /**
@@ -228,13 +254,13 @@ function changedRegistryEntries(base: string): Set<string> | null {
     }
 }
 
-interface ImpactResult {
+export interface ImpactResult {
     readonly kind: 'all' | 'none' | 'subset';
     /** Only populated when kind === 'subset'. */
     readonly specs: readonly string[];
 }
 
-function computeImpact(base: string, changedFiles: readonly string[]): ImpactResult {
+export function computeImpact(base: string, changedFiles: readonly string[]): ImpactResult {
     if (changedFiles.length === 0) {
         return { kind: 'none', specs: [] };
     }
@@ -302,33 +328,44 @@ function addLabelsForComponent(component: string, impacted: Set<string>): void {
  */
 function addFileImpact(remaining: readonly string[], impacted: Set<string>): boolean {
     for (const file of remaining) {
-        // Per-harness changes scope to exactly that label.
-        const harness = /^e2e\/harness\/([^/]+)\//.exec(file);
-        if (harness) {
-            const label = specForHarnessFolder(harness[1]);
-            if (!label) {
-                // New harness folder without a spec entry yet → safest
-                // to run everything so the orchestrator surfaces the
-                // missing registration.
-                return false;
-            }
-            impacted.add(label);
-            continue;
-        }
-
-        // Registry-driven component lookup. Any file under
-        // packages/components/{ui,lib} that the registry knows about
-        // maps to one (or many, for libFiles) components; impact those
-        // components + everything depending on them, then translate to
-        // specs.
-        for (const c of affectedComponentsForFile(file)) {
-            addLabelsForComponent(c, impacted);
-        }
-
-        // Anything else (docs, demo app, storybook configs, scripts
-        // outside packages/cli, etc.) is irrelevant to the e2e pipeline.
-        // Ignore.
+        if (!addOneFileImpact(file, impacted)) return false;
     }
+    return true;
+}
+
+/** Returns false when the file forces a full run. */
+function addOneFileImpact(file: string, impacted: Set<string>): boolean {
+    // A compiled package's own folder (package.json, README, ng-package,
+    // tsconfig) changes what that package IS, so run its legs — on every
+    // fixture, since the peer range spans two Angular majors.
+    const pkg = /^packages\/(rte|data-table)-package\//.exec(file);
+    if (pkg) {
+        for (const label of specsInstallingPackage(pkg[1])) impacted.add(label);
+        return true;
+    }
+
+    // Per-harness changes scope to exactly that harness's labels. (A pkg-*
+    // folder is shared by its ng20 and ng21 specs, so this can be several.)
+    const harness = /^e2e\/harness\/([^/]+)\//.exec(file);
+    if (harness) {
+        const labels = specsForHarnessFolder(harness[1]);
+        // New harness folder without a spec entry yet → safest to run
+        // everything so the orchestrator surfaces the missing registration.
+        if (labels.length === 0) return false;
+        for (const label of labels) impacted.add(label);
+        return true;
+    }
+
+    // Registry-driven component lookup. Any file under
+    // packages/components/{ui,lib} that the registry knows about maps to one
+    // (or many, for libFiles) components; impact those components + everything
+    // depending on them, then translate to specs.
+    for (const c of affectedComponentsForFile(file)) {
+        addLabelsForComponent(c, impacted);
+    }
+
+    // Anything else (docs, demo app, storybook configs, scripts outside
+    // packages/cli, etc.) is irrelevant to the e2e pipeline. Ignore.
     return true;
 }
 

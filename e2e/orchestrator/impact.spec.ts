@@ -148,28 +148,28 @@ describe('package spec impact (T-18)', () => {
         return result.specs;
     }
 
-    it('an RTE addon file schedules pkg-rte and pkg-mixed', () => {
+    it('an RTE addon file schedules the rte package legs on both majors', () => {
         const specs = subsetFor(
             'packages/components/ui/rich-text-editor/addons/emoji/rich-text-emoji.directive.ts',
         );
-        expect(specs).toContain('pkg-rte');
-        expect(specs).toContain('pkg-mixed');
+        expect(specs).toEqual(expect.arrayContaining(['pkg-rte', 'pkg-rte-ng21', 'pkg-mixed']));
         expect(specs).not.toContain('pkg-data-table');
+        expect(specs).not.toContain('pkg-data-table-ng21');
     });
 
-    it('the data-table component schedules pkg-data-table only', () => {
+    it('the data-table component schedules the data-table legs only', () => {
         const specs = subsetFor('packages/components/ui/data-table/data-table.component.ts');
-        expect(specs).toContain('pkg-data-table');
+        expect(specs).toEqual(expect.arrayContaining(['pkg-data-table', 'pkg-data-table-ng21']));
         expect(specs).not.toContain('pkg-rte');
     });
 
-    it('a package folder file schedules that package’s own specs', () => {
+    it('a package folder file schedules that package’s own specs on both majors', () => {
         const rte = subsetFor('packages/rte-package/README.md');
-        expect(rte).toEqual(expect.arrayContaining(['pkg-rte', 'pkg-mixed']));
+        expect(rte).toEqual(expect.arrayContaining(['pkg-rte', 'pkg-rte-ng21', 'pkg-mixed']));
         expect(rte).not.toContain('pkg-data-table');
 
         const dt = subsetFor('packages/data-table-package/ng-package.json');
-        expect(dt).toContain('pkg-data-table');
+        expect(dt).toEqual(expect.arrayContaining(['pkg-data-table', 'pkg-data-table-ng21']));
         expect(dt).not.toContain('pkg-rte');
     });
 
@@ -179,7 +179,7 @@ describe('package spec impact (T-18)', () => {
 
     it('an unrelated component schedules no package spec', () => {
         const specs = subsetFor('packages/components/ui/accordion/accordion.component.ts');
-        for (const label of ['pkg-rte', 'pkg-data-table', 'pkg-mixed']) {
+        for (const label of ['pkg-rte', 'pkg-rte-ng21', 'pkg-data-table', 'pkg-data-table-ng21', 'pkg-mixed']) {
             expect(specs, label).not.toContain(label);
         }
     });

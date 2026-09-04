@@ -14,6 +14,7 @@ import {
     ALL_COMPONENTS,
     PACKAGE_IDS,
     type ComponentSpec,
+    specFixture,
     specHarness,
     specLabel,
     validateSpecs,
@@ -25,20 +26,32 @@ function byLabel(label: string): ComponentSpec | undefined {
 
 describe('package specs are registered (T-17)', () => {
     it.each([
-        { label: 'pkg-rte', packages: ['rte'], names: [] as string[] },
-        { label: 'pkg-data-table', packages: ['data-table'], names: [] as string[] },
-        { label: 'pkg-mixed', packages: ['rte'], names: ['button'] },
-    ])('$label is in ALL_COMPONENTS with the right packages/fixture', ({ label, packages, names }) => {
+        { label: 'pkg-rte', packages: ['rte'], names: [] as string[], fixture: 'ng20' },
+        { label: 'pkg-data-table', packages: ['data-table'], names: [] as string[], fixture: 'ng20' },
+        { label: 'pkg-rte-ng21', packages: ['rte'], names: [] as string[], fixture: 'ng21' },
+        { label: 'pkg-data-table-ng21', packages: ['data-table'], names: [] as string[], fixture: 'ng21' },
+        { label: 'pkg-mixed', packages: ['rte'], names: ['button'], fixture: 'ng20' },
+    ])('$label is in ALL_COMPONENTS with the right packages/fixture', ({ label, packages, names, fixture }) => {
         const spec = byLabel(label);
         expect(spec, label).toBeDefined();
         expect(spec!.packages).toEqual(packages);
-        expect(spec!.fixture).toBe('ng21');
+        expect(specFixture(spec!)).toBe(fixture);
         expect([...spec!.names]).toEqual(names);
+    });
+
+    // Spec C-17: the packages declare a peer range covering Angular 20 AND 21,
+    // so each must be PROVEN on both — a package tested on only one major would
+    // leave half the README's compatibility promise unevidenced.
+    it.each(PACKAGE_IDS)('%s is exercised on both Angular majors', (id) => {
+        const fixtures = ALL_COMPONENTS
+            .filter((s) => s.packages?.includes(id))
+            .map(specFixture);
+        expect(new Set(fixtures)).toEqual(new Set(['ng20', 'ng21']));
     });
 
     it('pkg-mixed is the only package spec that also installs a CLI component', () => {
         const pkgSpecs = ALL_COMPONENTS.filter((s) => s.packages?.length);
-        expect(pkgSpecs).toHaveLength(3);
+        expect(pkgSpecs).toHaveLength(5);
         expect(pkgSpecs.filter((s) => s.names.length > 0).map(specLabel)).toEqual(['pkg-mixed']);
     });
 
@@ -52,12 +65,18 @@ describe('package specs are registered (T-17)', () => {
 
     it('the pkg-* harness folders are CLAIMED, never auto-discovered as components', () => {
         // Auto-discovery would produce `{ names: ['pkg-rte'] }`, and validateSpecs
-        // rejects unknown component names — the module would throw at load.
-        for (const label of ['pkg-rte', 'pkg-data-table', 'pkg-mixed']) {
-            const claiming = ALL_COMPONENTS.filter((s) => specHarness(s) === label);
-            expect(claiming, label).toHaveLength(1);
-            expect(specLabel(claiming[0])).toBe(label);
+        // rejects unknown component names — the module would throw at load. The
+        // ng20/ng21 pairs deliberately SHARE a harness folder: same demo page,
+        // two Angular majors.
+        for (const folder of ['pkg-rte', 'pkg-data-table', 'pkg-mixed']) {
+            const claiming = ALL_COMPONENTS.filter((s) => specHarness(s) === folder);
+            expect(claiming.length, folder).toBeGreaterThan(0);
+            for (const spec of claiming) {
+                expect(spec.packages?.length, specLabel(spec)).toBeGreaterThan(0);
+            }
         }
+        // No auto-discovered entry ever names a pkg-* folder as a component.
+        expect(ALL_COMPONENTS.some((s) => s.names.some((n) => n.startsWith('pkg-')))).toBe(false);
     });
 
     it('non-package specs are untouched: no fixture field means the ng20 default', () => {
