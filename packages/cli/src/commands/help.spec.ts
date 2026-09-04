@@ -55,4 +55,16 @@ describe('help output', () => {
       spy.mockRestore();
     }
   });
+
+  it('documents the --preset flag and points at `why` for the names (T-32)', () => {
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    try {
+      help();
+      const out = spy.mock.calls.map(call => call.join(' ')).join(' ');
+      expect(out).toContain('--preset');
+      expect(out).toContain('addon bundle');
+    } finally {
+      spy.mockRestore();
+    }
+  });
 });

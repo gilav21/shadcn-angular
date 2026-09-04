@@ -243,4 +243,50 @@ describe('isValidRegistryShape', () => {
         expect(isValidRegistryShape({ a: { ...base, attach: { selector: 'dtExport' } } })).toBe(false);
         expect(isValidRegistryShape({ a: { ...base, attach: { import: 'X from "./x"' } } })).toBe(false);
     });
+
+    // -----------------------------------------------------------------------
+    // presets (UC-16 / T-29)
+    // -----------------------------------------------------------------------
+
+    const withPresets = (presets: unknown) => ({
+        a: { name: 'a', files: ['a/a.component.ts'], presets },
+    });
+
+    it('accepts an entry with a valid presets map (T-29)', () => {
+        expect(isValidRegistryShape(withPresets({
+            core: [],
+            writing: ['a/one', 'a/two'],
+        }))).toBe(true);
+    });
+
+    it('accepts an entry with an empty presets map, and one with no presets at all (T-29)', () => {
+        expect(isValidRegistryShape(withPresets({}))).toBe(true);
+        expect(isValidRegistryShape({ a: { name: 'a', files: ['a/a.component.ts'] } })).toBe(true);
+    });
+
+    it('rejects presets that is an array rather than an object (T-29)', () => {
+        expect(isValidRegistryShape(withPresets([]))).toBe(false);
+        expect(isValidRegistryShape(withPresets(['writing']))).toBe(false);
+    });
+
+    it('rejects a preset whose value is not an array of strings (T-29)', () => {
+        expect(isValidRegistryShape(withPresets({ writing: 'a/links' }))).toBe(false);
+        expect(isValidRegistryShape(withPresets({ writing: [1, 2] }))).toBe(false);
+        expect(isValidRegistryShape(withPresets({ writing: null }))).toBe(false);
+    });
+
+    it('rejects presets that is null (T-29)', () => {
+        expect(isValidRegistryShape(withPresets(null))).toBe(false);
+    });
+
+    it('ignores unknown keys, so an old CLI keeps parsing a newer manifest (T-29)', () => {
+        expect(isValidRegistryShape({
+            a: {
+                name: 'a',
+                files: ['a/a.component.ts'],
+                somethingInventedLater: { deeply: ['nested'] },
+                anotherNewField: 42,
+            },
+        })).toBe(true);
+    });
 });

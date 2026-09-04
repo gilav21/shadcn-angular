@@ -41,4 +41,20 @@ describe('buildComponentRecord', () => {
     expect(record.attach?.selector).toBe('uiDtContextMenu');
     expect(record.requiresBaseFiles).toContain('data-table/data-table.host.ts');
   });
+
+  it('exposes a base component\'s presets (T-23)', () => {
+    const record = buildComponentRecord('rich-text-editor' as ComponentName);
+    expect(record.presets).toBeDefined();
+    expect(record.presets!['writing']).toEqual([
+      'rich-text-editor/slash-commands',
+      'rich-text-editor/links',
+      'rich-text-editor/history',
+      'rich-text-editor/outline',
+    ]);
+    expect(record.presets!['core']).toEqual([]);
+  });
+
+  it('leaves presets undefined for a component that declares none (T-23)', () => {
+    expect(buildComponentRecord('button' as ComponentName).presets).toBeUndefined();
+  });
 });

@@ -19,6 +19,19 @@ describe('formatAddonMeta', () => {
     expect(lines.some(l => l.label === 'Addon of')).toBe(false);
   });
 
+  it('lists a base\'s presets with their addon counts (T-22)', () => {
+    const lines = formatAddonMeta(registry['rich-text-editor']);
+    expect(lines).toContainEqual({
+      label: 'Presets',
+      value: 'core (0 addons), writing (4), media (3), styling (3), everything (14)',
+    });
+  });
+
+  it('omits the Presets line for a component that declares none (T-22)', () => {
+    const lines = formatAddonMeta(registry['button']);
+    expect(lines.some(l => l.label === 'Presets')).toBe(false);
+  });
+
   it('shows an addon\'s parent and how it attaches (mirrors MCP get_component)', () => {
     const lines = formatAddonMeta(registry['data-table/context-menu']);
     expect(lines).toContainEqual({ label: 'Addon of', value: 'data-table' });

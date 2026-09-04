@@ -63,3 +63,39 @@ describe('directive discoverability', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Presets survive into the committed manifest (UC-16 / T-31)
+// ---------------------------------------------------------------------------
+
+describe('committed registry.json presets', () => {
+  const manifest = JSON.parse(
+    fs.readFileSync(path.join(REPO_ROOT, 'packages/components/registry.json'), 'utf-8'),
+  ) as Record<string, { presets?: Record<string, string[]> }>;
+
+  it('carries presets for rich-text-editor after sync-registry --fix (T-31)', () => {
+    const presets = manifest['rich-text-editor']?.presets;
+    expect(presets, 'registry.json lost `presets` — re-run sync-registry --fix').toBeDefined();
+    expect(Object.keys(presets!)).toEqual(['core', 'writing', 'media', 'styling', 'everything']);
+    expect(presets!['writing']).toEqual([
+      'rich-text-editor/slash-commands',
+      'rich-text-editor/links',
+      'rich-text-editor/history',
+      'rich-text-editor/outline',
+    ]);
+  });
+
+  it('carries presets for data-table (T-31)', () => {
+    const presets = manifest['data-table']?.presets;
+    expect(presets).toBeDefined();
+    expect(presets!['reporting']).toEqual(['data-table/export', 'data-table/pivot']);
+  });
+
+  it('matches the CLI registry literal, which is the source of truth (T-31)', () => {
+    for (const [name, def] of Object.entries(registry)) {
+      if (!def.presets) continue;
+      expect(manifest[name]?.presets, `${name} presets drifted between the literal and registry.json`)
+        .toEqual(def.presets);
+    }
+  });
+});

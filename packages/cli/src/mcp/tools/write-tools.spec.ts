@@ -285,6 +285,46 @@ describe('add_component', () => {
     expect(input.optionalDeps).toEqual([]);
     expect(input.options.branch).toBe(DEFAULT_BRANCH);
   });
+
+  it('accepts a preset and forwards the resolved addons as optionalDeps (T-24)', async () => {
+    await call('add_component', { names: ['rich-text-editor'], preset: 'writing' });
+
+    const input = vi.mocked(performInstall).mock.calls[0][0];
+    expect(input.optionalDeps).toEqual([
+      'rich-text-editor/slash-commands',
+      'rich-text-editor/links',
+      'rich-text-editor/history',
+      'rich-text-editor/outline',
+    ]);
+  });
+
+  it('unions an explicit optionalDeps list with the preset (T-24)', async () => {
+    await call('add_component', {
+      names: ['rich-text-editor'], preset: 'writing', optionalDeps: ['rich-text-editor/ai'],
+    });
+
+    const input = vi.mocked(performInstall).mock.calls[0][0];
+    expect(input.optionalDeps).toContain('rich-text-editor/ai');
+    expect(input.optionalDeps).toContain('rich-text-editor/links');
+  });
+
+  it('returns the PresetError text for an unknown preset and installs nothing (T-25)', async () => {
+    const res = await call('add_component', { names: ['rich-text-editor'], preset: 'wrting' });
+
+    expect(res.isError).toBe(true);
+    expect(text(res)).toContain(
+      'Unknown preset "wrting" for rich-text-editor. Available: core, writing, media, styling, everything',
+    );
+    expect(performInstall).not.toHaveBeenCalled();
+  });
+
+  it('returns the PresetError text when the base declares no presets (T-25)', async () => {
+    const res = await call('add_component', { names: ['button'], preset: 'writing' });
+
+    expect(res.isError).toBe(true);
+    expect(text(res)).toContain('button declares no presets');
+    expect(performInstall).not.toHaveBeenCalled();
+  });
 });
 
 describe('update_component', () => {
