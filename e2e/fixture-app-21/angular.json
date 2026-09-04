@@ -3,7 +3,7 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "shadcn-angular-e2e-fixture": {
+    "shadcn-angular-e2e-fixture-21": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {

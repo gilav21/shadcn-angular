@@ -43,6 +43,9 @@
         "node_modules",
         "e2e/harness",
         "e2e/fixture-app",
+        // The Angular 21 fixture — a second pristine consumer app with its own
+        // node_modules, compiled by its own CLI, not part of this program.
+        "e2e/fixture-app-21",
         "e2e/jest-fixture",
         // Recipe sources are written against the CONSUMER alias
         // (@/components/ui/...) and are compiled in the fixture app by the

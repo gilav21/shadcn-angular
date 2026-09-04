@@ -9,6 +9,24 @@ export const REPO_ROOT = path.resolve(here, '../..');
 /** The pristine Angular fixture that each per-component test resets to. */
 export const FIXTURE_APP = path.join(REPO_ROOT, 'e2e/fixture-app');
 
+/**
+ * The Angular 21 fixture. The compiled npm packages declare a peer range
+ * spanning Angular 20 and 21 (spec C-17), so their legs run in both this and
+ * {@link FIXTURE_APP} — that pair is the evidence for the README's claim that
+ * both majors are supported. The copy-model specs stay on the Angular 20
+ * fixture, which is what proves THEY still work on 20.
+ */
+export const FIXTURE_APP_21 = path.join(REPO_ROOT, 'e2e/fixture-app-21');
+
+/** Every pristine fixture, keyed by the `fixture` field of a spec. */
+export const FIXTURE_APPS = {
+    ng20: FIXTURE_APP,
+    ng21: FIXTURE_APP_21,
+} as const;
+
+/** Where `npm pack` writes package tarballs (under the gitignored workers root). */
+export const PACKS_DIR = path.join(REPO_ROOT, 'e2e/.workers/_packs');
+
 /** Built CLI entry point — must exist before running the orchestrator. */
 export const CLI_DIST = path.join(REPO_ROOT, 'packages/cli/dist/index.js');
 
