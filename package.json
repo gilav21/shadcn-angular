@@ -12,7 +12,7 @@
     "build:cli": "cd packages/cli && npm run build",
     "release:cli": "tsx packages/cli/scripts/release-cli.ts",
     "stage:package": "tsx packages/cli/scripts/stage-package.ts",
-    "build:package": "tsx packages/cli/scripts/package-build.ts",
+    "build:package": "tsx packages/cli/scripts/build-package.ts",
     "release:package": "tsx packages/cli/scripts/release-package.ts",
     "preflight": "node scripts/preflight.mjs",
     "check:completeness": "tsx packages/cli/scripts/check-completeness.ts",
