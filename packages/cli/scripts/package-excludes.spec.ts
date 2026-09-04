@@ -39,12 +39,13 @@ describe('generated package sources are excluded from every repo-wide gate (T-9)
     });
 
     it('sonar-project.properties excludes the generated tree', () => {
+        // Scoped to the sonar.exclusions block specifically: the pattern must be
+        // an EXCLUSION, not merely a string that appears somewhere in the file
+        // (it would also match, say, a comment or sonar.inclusions).
         const raw = read('sonar-project.properties');
-        const exclusions = raw
-            .split('\n')
-            .filter((l) => l.startsWith('sonar.exclusions') || l.startsWith('  '))
-            .join('\n');
-        expect(`${exclusions}\n${raw}`).toContain('packages/*-package/src/**');
+        const block = /^sonar\.exclusions=((?:.*\\\r?\n)*.*)$/m.exec(raw);
+        expect(block, 'no sonar.exclusions block found').not.toBeNull();
+        expect(block![1]).toContain('packages/*-package/src/**');
     });
 
     it('.gitignore ignores the generated tree and theme.css', () => {

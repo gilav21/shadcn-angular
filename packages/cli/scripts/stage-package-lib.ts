@@ -62,6 +62,20 @@ const BASELINE_LIB_FILES = ['utils.ts'] as const;
 /** Files that exist beside the sources but must never ship in a package. */
 const EXCLUDED = /(\.spec\.ts|\.stories\.ts)$|__screenshots__/;
 
+/**
+ * Whether a registry file path must be kept out of a published package.
+ *
+ * Today no registry entry lists a `.spec.ts` / `.stories.ts` — `sync-registry`
+ * does not put them in `files[]` (verified: 0 of 1029 file entries match) — so
+ * this is a GUARD against a future registry that does, not a filter with live
+ * work to do. It is exported so the guard itself is testable: driving it only
+ * through `stagedFiles` would assert nothing, because the inputs that would
+ * trip it never occur.
+ */
+export function isPackageExcluded(file: string): boolean {
+    return EXCLUDED.test(file);
+}
+
 export function computeClosure(id: PackageId): ReadonlySet<ComponentName> {
     return resolveDependencies([...PACKAGE_ROOTS[id]] as ComponentName[]);
 }
@@ -88,11 +102,11 @@ export function stagedFiles(id: PackageId): readonly StagedFile[] {
 
     const out: StagedFile[] = [];
     for (const file of ui) {
-        if (EXCLUDED.test(file)) continue;
+        if (isPackageExcluded(file)) continue;
         out.push({ src: `packages/components/ui/${file}`, dest: `ui/${file}` });
     }
     for (const file of lib) {
-        if (EXCLUDED.test(file)) continue;
+        if (isPackageExcluded(file)) continue;
         out.push({ src: `packages/components/lib/${file}`, dest: `lib/${file}` });
     }
     return out.sort((a, b) => a.dest.localeCompare(b.dest));

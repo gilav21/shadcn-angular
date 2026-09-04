@@ -51,6 +51,35 @@ function run(command: string, args: readonly string[], cwd: string): string {
  * every consumer downloads ~680 kB of parser code to render a toolbar. That is
  * a size regression for the user to decide on, not something to silently accept.
  */
+/** A body that only a lazily-loaded chunk may contain. */
+const LAZY_ONLY_MARKER = 'function parsePdfReadable';
+
+/**
+ * Every bundle reachable from the entry through STATIC imports — i.e. what a
+ * consumer downloads before rendering anything.
+ */
+function eagerGraph(entry: string, sources: ReadonlyMap<string, string>): ReadonlySet<string> {
+    const eager = new Set<string>();
+    const queue = [entry];
+    while (queue.length > 0) {
+        const current = queue.pop() ?? '';
+        if (eager.has(current)) continue;
+        eager.add(current);
+        for (const match of (sources.get(current) ?? '').matchAll(/from\s*'\.\/([^']+)'/g)) {
+            if (sources.has(match[1])) queue.push(match[1]);
+        }
+    }
+    return eager;
+}
+
+function countDynamicImports(files: Iterable<string>, sources: ReadonlyMap<string, string>): number {
+    let total = 0;
+    for (const file of files) {
+        for (const _ of (sources.get(file) ?? '').matchAll(/import\(\s*'\.\/([^']+)'/g)) total++;
+    }
+    return total;
+}
+
 export function assertLazyChunks(id: PackageId): void {
     if (id !== 'rte') return;
 
@@ -64,24 +93,44 @@ export function assertLazyChunks(id: PackageId): void {
     }
 
     const sources = new Map(bundles.map((f) => [f, readFileSync(path.join(fesm, f), 'utf-8')]));
-    const withDynamicImport = [...sources.values()].some((s) => s.includes("import('./"));
-    if (!withDynamicImport) {
+    const entry = `${PACKAGE_NAMES[id].replace('@', '').replaceAll('/', '-')}.mjs`;
+    if (!sources.has(entry)) {
+        throw new Error(`[package-build] rte: expected an entry bundle named ${entry} in ${fesm}.`);
+    }
+
+    // What matters is not WHICH file holds the parser but whether a consumer
+    // downloads it to render a toolbar — so the assertion is about the eager
+    // graph, not about the entry file.
+    //
+    // Checking the entry alone would be vacuous: ng-packagr emits it as a thin
+    // re-export barrel (~3.5 kB) that declares nothing and contains no dynamic
+    // import, so a parser inlined into the big main chunk it statically imports
+    // — the real regression C-14 exists to prevent — would never touch it. See
+    // spec correction C-16.
+    const eager = eagerGraph(entry, sources);
+
+    if (bundles.every((f) => eager.has(f))) {
+        throw new Error(
+            '[package-build] rte: every bundle is reachable by static import from the entry — ' +
+            'the file-import parsers are no longer lazy.',
+        );
+    }
+    if (countDynamicImports(eager, sources) === 0) {
         throw new Error('[package-build] rte: no dynamic import() survived the FESM flattening.');
     }
 
-    const MARKER = 'function parsePdfReadable';
-    const carriers = [...sources.entries()].filter(([, s]) => s.includes(MARKER));
+    const carriers = bundles.filter((f) => (sources.get(f) ?? '').includes(LAZY_ONLY_MARKER));
     if (carriers.length === 0) {
-        throw new Error(`[package-build] rte: no bundle contains "${MARKER}" — the parser was dropped entirely.`);
+        throw new Error(
+            `[package-build] rte: no bundle contains "${LAZY_ONLY_MARKER}" — the parser was dropped entirely.`,
+        );
     }
-    // The carrier must be a CHUNK, never the entry point.
-    const entry = `${PACKAGE_NAMES[id].replace('@', '').replace('/', '-')}.mjs`;
-    for (const [file] of carriers) {
-        if (file === entry) {
-            throw new Error(
-                `[package-build] rte: the entry FESM (${file}) contains "${MARKER}" — the lazy parsers were inlined.`,
-            );
-        }
+    const eagerCarriers = carriers.filter((f) => eager.has(f));
+    if (eagerCarriers.length > 0) {
+        throw new Error(
+            `[package-build] rte: "${LAZY_ONLY_MARKER}" is in the eagerly-loaded graph (${eagerCarriers.join(', ')}) — ` +
+            'the lazy parsers were inlined, so every consumer downloads them up front.',
+        );
     }
 }
 
@@ -92,7 +141,13 @@ interface PackJson {
     readonly files: readonly { readonly path: string }[];
 }
 
-const REQUIRED_ENTRIES = ['package.json', 'theme.css'];
+/**
+ * UC-5 / UC-7: the tarball must carry the consumer contract with it. The README
+ * is not decoration — it is the only place the three required CSS lines and the
+ * "selectors are fixed / config is inputs-only" rules reach someone who installs
+ * from npm and never sees this repo. ng-packagr copies it from the package root.
+ */
+const REQUIRED_ENTRIES = ['package.json', 'README.md', 'theme.css'];
 const FORBIDDEN = /(\.spec\.|\.stories\.|__screenshots__|\.ts$)/;
 
 export function assertTarballContents(id: PackageId, packed: PackJson): void {

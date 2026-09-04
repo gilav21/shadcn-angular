@@ -21,6 +21,7 @@ import {
     auditStagedImports,
     computeClosure,
     consumerCssSnippet,
+    isPackageExcluded,
     isPackageId,
     renderPublicApi,
     stagePackage,
@@ -110,6 +111,24 @@ describe('stagedFiles (T-2)', () => {
                 expect(file.dest).not.toContain('__screenshots__');
             }
         }
+    });
+
+    // The assertion above cannot fail today: `sync-registry` never puts a
+    // `.spec.ts` / `.stories.ts` into `files[]`, so the exclusion has no live
+    // input to filter (verified: 0 of 1029 registry file entries match). It
+    // stays as a regression net, but the GUARD itself is tested directly here —
+    // otherwise a broken exclusion would ship unnoticed until a registry change
+    // first exercised it.
+    it.each([
+        ['button/button.component.spec.ts', true],
+        ['button/button.stories.ts', true],
+        ['button/__screenshots__/button.png', true],
+        ['button/button.component.ts', false],
+        ['button/button.component.html', false],
+        // A component whose NAME merely contains the word must still ship.
+        ['spec-viewer/spec-viewer.component.ts', false],
+    ])('isPackageExcluded(%s) === %s', (file, excluded) => {
+        expect(isPackageExcluded(file as string)).toBe(excluded);
     });
 
     it('always includes the baseline lib/utils.ts that no registry entry declares', () => {
@@ -252,16 +271,46 @@ describe('renderPublicApi (T-5)', () => {
         }
     });
 
+    // The contract fixes the SET of barrels and that the base barrel comes
+    // first (and, for rte, that addons/full comes last). The order among the
+    // addons themselves carries no meaning, so asserting it would pin an
+    // incidental detail and cry wolf on a legitimate refactor.
     it('data-table re-exports the base barrel and its three addon barrels', () => {
         const lines = renderPublicApi('data-table')
             .split('\n')
             .filter((l) => l.startsWith('export *'));
-        expect(lines).toEqual([
-            "export * from './ui/data-table';",
+        expect(lines[0]).toBe("export * from './ui/data-table';");
+        expect(lines.slice(1).sort((a, b) => a.localeCompare(b))).toEqual([
             "export * from './ui/data-table/addons/context-menu';",
             "export * from './ui/data-table/addons/export';",
             "export * from './ui/data-table/addons/pivot';",
         ]);
+    });
+
+    // The negative half of the contract, and the one with real consequences:
+    // a consumer who ran `add button` has their OWN ButtonComponent. If the
+    // package re-exported its compiled copy too, the two would collide.
+    it.each(PACKAGE_IDS)('%s does not re-export its transitive dependencies', (id) => {
+        const api = renderPublicApi(id);
+        const roots = new Set<string>(PACKAGE_ROOTS[id]);
+        const transitive = [...computeClosure(id)].filter((name) => !roots.has(name));
+
+        // Sanity: there really are transitive deps to leak (35 - 2 / 23 - 4).
+        expect(transitive.length).toBeGreaterThan(10);
+
+        // Compare whole export paths, not substrings: the standalone
+        // `context-menu` component and the legitimate
+        // `data-table/addons/context-menu` addon share a path suffix.
+        const exportedPaths = new Set(
+            [...api.matchAll(/export \* from '\.\/(.+)';/g)].map((m) => m[1]),
+        );
+        for (const name of transitive) {
+            // Addons of this package's own base are public API, not leakage.
+            if (name.startsWith(`${PACKAGE_ROOTS[id][0]}/`)) continue;
+            expect(exportedPaths, `${id} leaks "${name}"`).not.toContain(`ui/${name}`);
+        }
+        expect(api).not.toContain("export * from './ui/button';");
+        expect(api).not.toContain("export * from './ui/badge';");
     });
 
     it('every re-exported barrel is a file that the staged tree actually contains', () => {
