@@ -117,7 +117,7 @@ describe('release-package entry (fixture repo)', () => {
         const committed = git(root, 'show', '--name-only', '--pretty=format:', 'HEAD')
             .split('\n')
             .filter(Boolean)
-            .sort();
+            .sort((a, b) => a.localeCompare(b));
         expect(committed).toEqual([
             'packages/rte-package/CHANGELOG.md',
             'packages/rte-package/package.json',
