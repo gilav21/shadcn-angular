@@ -193,9 +193,28 @@ are marked **Reviewed / Safe** (via `scripts/sonar-hotspots-safe.mjs`):
 | Rule | Count | Why safe |
 | --- | --- | --- |
 | `S2245` (insecure randomness) | 29 | `Math.random()` drives **visual animations** only (confetti, particles, meteors, …) — never a security/cryptographic context. |
-| `S4036` (OS command from PATH) | 5 | The **dev CLI** and the maintainer tooling (`check-completeness`, `new-component`, `release-cli`, `migrate-core`) intentionally invoke `git`/`npm`/`npx` from `PATH`; every command is a fixed literal and no argument is attacker-controlled. Resolving these to absolute paths is not possible across the platforms the CLI supports. |
+| `S4036` (OS command from PATH) | 7 | The **dev CLI** and the maintainer tooling (`check-completeness`, `new-component`, `release-cli`, `release-package`, `package-build`, `migrate-core`) intentionally invoke `git`/`npm`/`npx` from `PATH`; every command is a fixed literal and no argument is attacker-controlled. Resolving these to absolute paths is not possible across the platforms the CLI supports. |
 
 Result: Security Hotspots reviewed = 100%, 0 to-review.
+
+### Re-running the marking after new tooling lands
+
+`scripts/sonar-hotspots-safe.mjs` needs a SonarQube **user token** with
+*Administer Security Hotspots*. The `sqa_…` **analysis** token in `.env` uploads
+scans but is refused by every `/api/hotspots/*` endpoint, so the script cannot
+run with it — and a refusal reads as an empty result unless the caller checks
+for the `errors` field.
+
+Any change that adds a `git`/`npm`/`npx` invocation raises new `S4036` hotspots
+and drops *new-code* hotspots-reviewed below 100%, failing the quality gate even
+though `new_violations` stays 0. Generate a user token
+(**Account → Security → Generate Token**) and run:
+
+```bash
+SONAR_TOKEN=<user-token> node scripts/sonar-hotspots-safe.mjs
+```
+
+Then update the count in the table above.
 
 ## Notes
 
