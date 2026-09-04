@@ -2709,6 +2709,13 @@
         "note": "The document-outline feature (toolbar button, /outline slash command, and the docked live table-of-contents panel with click/keyboard scroll-to-heading) moved to the opt-in outline addon, removing the `scroll-area` dependency — and the last `button` usage — from the base install. Run `npx @gilav21/shadcn-angular apply rich-text-editor/outline`, add `uiRteOutline` to the editor element, and remove 'outline' from any custom [toolbarItems] arrays (the button now renders after the built-in items; pass `[uiRteOutlineButton]=\"false\"` to hide it). The panel is read-only and refreshes from a MutationObserver while open. Outline strings resolve from [uiRteOutlineLocale] (or the global UI_LOCALE_ID), not the editor's [locale]; the base RichTextLocale no longer carries the `outline` or `slashCommands` sections or `toolbar.outline`. The /outline command appears only when both the slash-commands and outline addons are present.",
         "codemod": "none",
         "suggestedAddon": "rich-text-editor/outline"
+      },
+      {
+        "kind": "removal",
+        "from": "the [customToolbarItems] input + (customToolbarAction) output on <ui-rich-text-editor> (RichTextCustomToolbarItem / RichTextEditorRef types)",
+        "to": "a toolbar slot registered through RichTextEditorAddonHost.toolbarSlots",
+        "note": "Custom toolbar buttons are now addons: inject(RichTextEditorAddonHost).toolbarSlots.register({ id, icon, tooltip, onClick }) from a directive on the editor element. This is the only extension path now — the removed one recorded no undo entry for its inserts. Map the ref methods: ref.insertText -> host.insertTextAtCaret, ref.insertHtml -> host.insertHtmlAtCaret, ref.getSelectedText -> host.selection().text, ref.getHtmlContent -> the editor htmlOutput(), ref.focus -> host.contentRoot.focus(). See docs/rich-text-editor.md for a worked ~40-line example.",
+        "codemod": "none"
       }
     ],
     "shortcutDefinitions": [

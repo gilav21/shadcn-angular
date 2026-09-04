@@ -100,22 +100,6 @@ export type EditorMode = 'markdown' | 'html';
  */
 export type ToolbarPosition = 'top' | 'floating' | 'none';
 
-export interface RichTextCustomToolbarItem {
-    id: string;
-    icon: string;
-    tooltip: string;
-    order?: number;
-    isActive?: (formats: Set<string>) => boolean;
-}
-
-export interface RichTextEditorRef {
-    insertText(text: string): void;
-    insertHtml(html: string): void;
-    focus(): void;
-    getSelectedText(): string;
-    getHtmlContent(): string;
-}
-
 interface HistoryEntry {
     html: string;
     delta: string | null;
@@ -228,28 +212,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * @see {@link DEFAULT_TOOLBAR_ITEMS} for the default set.
      */
     toolbarItems = input<ToolbarItem[]>(DEFAULT_TOOLBAR_ITEMS);
-
-    /**
-     * Extra consumer-owned toolbar buttons, rendered in array order after the
-     * built-in {@link toolbarItems} and before any addon slot. Each entry's
-     * `isActive(formats)` is re-evaluated against the editor's detected active
-     * formats, so the button can light up like a built-in one. Clicking one does
-     * NOT format anything — it emits {@link customToolbarAction}, and the handler
-     * decides. Only the `'top'` toolbar renders these; the floating toolbar and
-     * `toolbar="none"` ignore them. Addons should contribute a
-     * {@link RichTextToolbarSlot} through the host instead.
-     */
-    customToolbarItems = input<RichTextCustomToolbarItem[]>([]);
-
-    /**
-     * Emits when a {@link customToolbarItems} button is clicked, with that item's
-     * `id` and a {@link RichTextEditorRef} scoped to this editor. The ref is the
-     * whole public surface a custom button gets: insert text/HTML at the caret,
-     * focus, and read the selected text / current HTML. Note the ref's inserts
-     * update the model and emit the change outputs but record NO history entry of
-     * their own, so undo will not step over them cleanly.
-     */
-    customToolbarAction = output<{ id: string; ref: RichTextEditorRef }>();
 
 
     /** Placeholder text shown when the editor is empty. Falls back to the locale default. */
@@ -3298,27 +3260,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
                 }
             }
         }
-    }
-
-    /**
-     * Bridges a {@link customToolbarItems} button click to the
-     * {@link customToolbarAction} output, building the {@link RichTextEditorRef}
-     * it carries. The ref's methods close over this instance and stay valid after
-     * the emit, so a consumer may hold it for an async flow (a dialog, a fetch)
-     * and insert later — the insertion goes to wherever the caret is at that
-     * point, since nothing here saves or restores the selection.
-     */
-    onCustomToolbarAction(id: string): void {
-        this.customToolbarAction.emit({
-            id,
-            ref: {
-                insertText: (text: string) => this.insertText(text),
-                insertHtml: (html: string) => this.insertHtml(html),
-                focus: () => this.editorDiv?.nativeElement?.focus(),
-                getSelectedText: () => this.selectedText(),
-                getHtmlContent: () => this.htmlContent(),
-            },
-        });
     }
 
     /**

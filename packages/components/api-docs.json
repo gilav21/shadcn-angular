@@ -13053,12 +13053,6 @@
           "default": "''"
         },
         {
-          "name": "customToolbarItems",
-          "type": "RichTextCustomToolbarItem[]",
-          "description": "Extra consumer-owned toolbar buttons, rendered in array order after the built-in {@link toolbarItems} and before any addon slot. Each entry's `isActive(formats)` is re-evaluated against the editor's detected active formats, so the button can light up like a built-in one. Clicking one does NOT format anything — it emits {@link customToolbarAction}, and the handler decides. Only the `'top'` toolbar renders these; the floating toolbar and `toolbar=\"none\"` ignore them. Addons should contribute a {@link RichTextToolbarSlot} through the host instead.",
-          "default": "[]"
-        },
-        {
           "name": "disabled",
           "type": "boolean",
           "description": "Disables the editor entirely — no input, no toolbar, no interactions.",
@@ -13160,11 +13154,6 @@
           "description": "Emits when the editor loses focus."
         },
         {
-          "name": "customToolbarAction",
-          "type": "{ id: string; ref: RichTextEditorRef }",
-          "description": "Emits when a {@link customToolbarItems} button is clicked, with that item's `id` and a {@link RichTextEditorRef} scoped to this editor. The ref is the whole public surface a custom button gets: insert text/HTML at the caret, focus, and read the selected text / current HTML. Note the ref's inserts update the model and emit the change outputs but record NO history entry of their own, so undo will not step over them cleanly."
-        },
-        {
           "name": "focused",
           "type": "void",
           "description": "Emits when the editor gains focus."
@@ -13231,7 +13220,7 @@
         {
           "name": "activeFormats",
           "type": "Set<string>",
-          "description": "Format names currently active at the caret (`'bold'`, `'italic'`, `'underline'`, `'strikethrough'`, `'code'`, `'taskList'`), used to render buttons pressed. Only those names are honoured — see {@link isActive}. Also passed to each custom item's `isActive` predicate.",
+          "description": "Format names currently active at the caret (`'bold'`, `'italic'`, `'underline'`, `'strikethrough'`, `'code'`, `'taskList'`), used to render buttons pressed. Only those names are honoured — see {@link isActive}.",
           "default": "new Set()"
         },
         {
@@ -13251,12 +13240,6 @@
           "type": "boolean",
           "description": "Compact rendering for the floating/bubble toolbar: tighter button padding, no border or background on the container. The editor sets this only on the floating instance. Also published to component slots through {@link RichTextToolbarViewContext} so they can size themselves to match.",
           "default": "false"
-        },
-        {
-          "name": "customItems",
-          "type": "RichTextCustomToolbarItem[]",
-          "description": "Consumer-defined buttons rendered after the built-in {@link items} and before the addon slots. Each supplies its own inline SVG `icon`, which is trusted as-is — see {@link getSafeIcon}.",
-          "default": "[]"
         },
         {
           "name": "disabled",
@@ -13288,11 +13271,6 @@
           "name": "addonSlotClick",
           "type": "{ slot: RichTextToolbarSlot; event: Event }",
           "description": "Emits when an addon *button* slot is clicked, with the slot and the raw DOM event (addons position popovers off the event target). Component slots handle their own clicks and never emit this."
-        },
-        {
-          "name": "customItemClick",
-          "type": "string",
-          "description": "Emits the `id` of the clicked {@link customItems} entry."
         },
         {
           "name": "formatCommand",

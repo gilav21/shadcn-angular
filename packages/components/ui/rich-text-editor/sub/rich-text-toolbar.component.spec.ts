@@ -195,8 +195,15 @@ describe('RichTextToolbarComponent', () => {
     // `customItems` looked like the simplest way to add a toolbar button but
     // recorded no undo entry; addon toolbar slots are now the only path.
     describe('removed custom-items API', () => {
-        it('exposes no customItems input', () => {
-            expect(() => fixture.componentRef.setInput('customItems', [])).toThrow();
+        it('exposes no customItems input, so a binding logs NG0303 instead of rendering', () => {
+            // Angular reports an unknown input through the console rather than
+            // by throwing, so the property surface is the assertable evidence.
+            const surface = component as unknown as Record<string, unknown>;
+            expect('customItems' in surface).toBe(false);
+
+            fixture.componentRef.setInput('items', []);
+            fixture.detectChanges();
+            expect(fixture.nativeElement.querySelectorAll('button')).toHaveLength(0);
         });
 
         it('exposes no customItemClick output and no custom-item helpers', () => {

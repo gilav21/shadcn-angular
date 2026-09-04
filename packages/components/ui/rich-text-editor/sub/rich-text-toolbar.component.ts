@@ -13,7 +13,6 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { cn } from '../../../lib/utils';
 import { SeparatorComponent } from '../../separator';
 import { RichTextLocale, RICH_TEXT_LOCALES } from '../rich-text-locales';
-import { RichTextCustomToolbarItem } from '../rich-text-editor.component';
 import { RichTextToolbarViewContext, type RichTextToolbarSlot } from '../rich-text-editor.host';
 
 /**
@@ -204,7 +203,6 @@ export class RichTextToolbarComponent {
    * Format names currently active at the caret (`'bold'`, `'italic'`,
    * `'underline'`, `'strikethrough'`, `'code'`, `'taskList'`), used to render
    * buttons pressed. Only those names are honoured — see {@link isActive}.
-   * Also passed to each custom item's `isActive` predicate.
    */
   readonly activeFormats = input<Set<string>>(new Set());
 
@@ -242,16 +240,6 @@ export class RichTextToolbarComponent {
    * back through {@link activeFormats}.
    */
   readonly formatCommand = output<string>();
-
-  /**
-   * Consumer-defined buttons rendered after the built-in {@link items} and
-   * before the addon slots. Each supplies its own inline SVG `icon`, which is
-   * trusted as-is — see {@link getSafeIcon}.
-   */
-  customItems = input<RichTextCustomToolbarItem[]>([]);
-
-  /** Emits the `id` of the clicked {@link customItems} entry. */
-  customItemClick = output<string>();
 
   /**
    * Addon-contributed slots, normally passed straight from the editor's
@@ -413,37 +401,10 @@ export class RichTextToolbarComponent {
   }
 
   /**
-   * Emits {@link customItemClick} with the item's `id`, unless
-   * {@link interactionDisabled}. The counterpart of {@link onFormatClick} for
-   * {@link customItems}.
-   */
-  onCustomItemClick(id: string): void {
-    if (this.interactionDisabled()) return;
-    this.customItemClick.emit(id);
-  }
-
-  /**
-   * Classes for a {@link customItems} button. The pressed state comes from the
-   * item's optional `isActive(formats)` predicate, called with the current
-   * {@link activeFormats} on every change detection pass, so keep it cheap.
-   */
-  customButtonClasses(item: RichTextCustomToolbarItem): string {
-    const active = item.isActive ? item.isActive(this.activeFormats()) : false;
-    return cn(
-      'inline-flex items-center justify-center rounded-md p-1.5 text-sm font-medium transition-colors',
-      'hover:bg-accent hover:text-accent-foreground',
-      'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
-      'disabled:pointer-events-none disabled:opacity-50',
-      active && 'bg-accent text-accent-foreground',
-      this.compact() && 'p-1'
-    );
-  }
-
-  /**
-   * Marks caller-supplied icon markup safe for `[innerHTML]`, used for both
-   * {@link customItems} and addon button slots. This **bypasses** Angular's
+   * Marks caller-supplied icon markup safe for `[innerHTML]`, used for addon
+   * button slots. This **bypasses** Angular's
    * sanitizer rather than cleaning the markup: the trust boundary is the
-   * application, which controls the custom items and the addons it installs.
+   * application, which controls the addons it installs.
    * Never feed it markup that came from editor content or a remote source.
    */
   getSafeIcon(svgHtml: string): SafeHtml {

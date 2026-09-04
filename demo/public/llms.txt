@@ -1312,8 +1312,8 @@ WYSIWYG editor with toolbar, formatting, mentions, images, and markdown.
 - Category: editor
 - Depends on: `separator`
 - npm dependencies: none
-- Inputs: `ariaDescribedBy: string | undefined`, `ariaLabel: string | undefined`, `class: string = ''`, `customToolbarItems: RichTextCustomToolbarItem[] = []`, `disabled: boolean = false`, `historyDebounceMs: number = 450`, `historyLimit: number = 100`, `locale: LocaleInput<RichTextLocale>`, `maxHeight: string = '400px'`, `maxLength: number | undefined`, `minHeight: string = '120px'`, `mode: EditorMode = 'markdown'`, `placeholder: string = ''`, `readonly: boolean = false`, `showCount: boolean = false`, `showWordCount: boolean = false`, `size: EditorSize = 'default'`, `toolbar: ToolbarPosition = 'top'`, `toolbarItems: ToolbarItem[] = DEFAULT_TOOLBAR_ITEMS`, `variant: EditorVariant = 'default'`
-- Outputs: `blurred: void`, `customToolbarAction: { id: string; ref: RichTextEditorRef }`, `focused: void`, `htmlChange: string`, `markdownChange: string`, `wordCountChange: number`
+- Inputs: `ariaDescribedBy: string | undefined`, `ariaLabel: string | undefined`, `class: string = ''`, `disabled: boolean = false`, `historyDebounceMs: number = 450`, `historyLimit: number = 100`, `locale: LocaleInput<RichTextLocale>`, `maxHeight: string = '400px'`, `maxLength: number | undefined`, `minHeight: string = '120px'`, `mode: EditorMode = 'markdown'`, `placeholder: string = ''`, `readonly: boolean = false`, `showCount: boolean = false`, `showWordCount: boolean = false`, `size: EditorSize = 'default'`, `toolbar: ToolbarPosition = 'top'`, `toolbarItems: ToolbarItem[] = DEFAULT_TOOLBAR_ITEMS`, `variant: EditorVariant = 'default'`
+- Outputs: `blurred: void`, `focused: void`, `htmlChange: string`, `markdownChange: string`, `wordCountChange: number`
 
 ```html
 <ui-rich-text-editor />

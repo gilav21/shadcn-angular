@@ -21,17 +21,6 @@
       </button>
     }
   }
-  @for (custom of customItems(); track custom.id) {
-    <button
-      type="button"
-      [class]="customButtonClasses(custom)"
-      [title]="custom.tooltip"
-      [disabled]="interactionDisabled()"
-      (click)="onCustomItemClick(custom.id)"
-    >
-      <span [innerHTML]="getSafeIcon(custom.icon)"></span>
-    </button>
-  }
   @for (slot of orderedAddonSlots(); track slot.id) {
     @if (slot.component; as slotComponent) {
       <span [attr.data-addon-slot]="slot.id" class="contents">

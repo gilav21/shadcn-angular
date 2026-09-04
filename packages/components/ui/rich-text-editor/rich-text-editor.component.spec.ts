@@ -2242,8 +2242,11 @@ describe('RichTextEditorComponent — toolbar actions (link, image, color, font)
     // deprecated. A template still binding it now fails to compile (NG8002)
     // instead of silently rendering nothing.
     it('exposes no customToolbarItems input and no customToolbarAction output', () => {
-        expect(() => fixture.componentRef.setInput('customToolbarItems', [])).toThrow();
+        // Angular reports an unknown input through the console (NG0303 at
+        // runtime, NG8002 at build time) rather than by throwing, so the
+        // component's own property surface is the assertable evidence.
         const surface = component as unknown as Record<string, unknown>;
+        expect('customToolbarItems' in surface).toBe(false);
         expect('customToolbarAction' in surface).toBe(false);
         expect('onCustomToolbarAction' in surface).toBe(false);
     });

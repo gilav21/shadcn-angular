@@ -6,8 +6,6 @@
     [readonly]="readonly()"
     [locale]="resolvedLocale()"
     (formatCommand)="onFormatCommand($event)"
-    [customItems]="customToolbarItems()"
-    (customItemClick)="onCustomToolbarAction($event)"
     [addonSlots]="toolbarSlots.slots()"
     (addonSlotClick)="onAddonSlotClick($event)"
   />

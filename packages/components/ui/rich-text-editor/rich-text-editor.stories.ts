@@ -93,10 +93,6 @@ const meta: Meta<RichTextEditorComponent> = {
             description:
                 'Ordered list of toolbar item ids to render (e.g. bold, italic, heading1, separator…). Defaults to the built-in toolbar set.',
         },
-        customToolbarItems: {
-            control: false,
-            description: 'App-provided custom toolbar buttons/dropdowns rendered alongside the built-ins; emits (customToolbarAction) on click.',
-        },
         locale: {
             control: 'select',
             options: Object.keys(RICH_TEXT_LOCALES),
