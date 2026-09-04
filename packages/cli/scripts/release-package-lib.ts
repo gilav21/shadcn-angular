@@ -444,7 +444,9 @@ export type RevertStep =
  * dirty tree this exists to prevent.
  */
 export function revertPlan(paths: readonly string[], isTracked: (path: string) => boolean): RevertStep[] {
-    return paths.map((path) => ({ kind: isTracked(path) ? 'checkout' : 'delete', path }) as RevertStep);
+    return paths.map((path) => (isTracked(path)
+        ? { kind: 'checkout', path }
+        : { kind: 'delete', path }));
 }
 
 /**
