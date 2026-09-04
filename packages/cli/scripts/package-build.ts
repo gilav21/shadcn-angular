@@ -173,6 +173,9 @@ export function assertTarballContents(id: PackageId, packed: PackJson): void {
 
 const EXPECTED_DEPENDENCIES = ['class-variance-authority', 'clsx', 'tailwind-merge', 'tslib'];
 
+/** Angular majors a consumer may install these packages into (spec C-17). */
+export const ANGULAR_PEER_RANGE = '>=20.0.0 <22.0.0';
+
 export function assertPackedManifest(id: PackageId): void {
     const manifest = JSON.parse(readFileSync(path.join(distDir(id), 'package.json'), 'utf-8'));
 
@@ -185,8 +188,16 @@ export function assertPackedManifest(id: PackageId): void {
     if (!manifest.exports?.['./theme.css']) {
         throw new Error(`[package-build] ${id}: the theme.css export is missing — consumers could not import it.`);
     }
-    if (manifest.peerDependencies?.['@angular/core'] !== '^21.0.0') {
-        throw new Error(`[package-build] ${id}: @angular/core peer must be ^21.0.0.`);
+    // The packages are consumable by Angular 20 AND 21. Partial-Ivy output is
+    // forward-compatible (an app on the same or a newer major can link it), and
+    // the compiled declarations here carry a `minVersion` of at most 17.2.0 —
+    // so the floor is a packaging decision, not a technical one. Pinning ^21
+    // would lock out every Angular 20 consumer the README promises to support.
+    if (manifest.peerDependencies?.['@angular/core'] !== ANGULAR_PEER_RANGE) {
+        throw new Error(
+            `[package-build] ${id}: @angular/core peer must be "${ANGULAR_PEER_RANGE}", ` +
+            `found "${manifest.peerDependencies?.['@angular/core']}".`,
+        );
     }
     const deps = Object.keys(manifest.dependencies ?? {}).sort((a, b) => a.localeCompare(b));
     if (deps.join(',') !== EXPECTED_DEPENDENCIES.join(',')) {

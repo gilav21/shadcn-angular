@@ -20,10 +20,10 @@
     "./theme.css": "./theme.css"
   },
   "peerDependencies": {
-    "@angular/common": "^21.0.0",
-    "@angular/core": "^21.0.0",
-    "@angular/forms": "^21.0.0",
-    "@angular/platform-browser": "^21.0.0",
+    "@angular/common": ">=20.0.0 <22.0.0",
+    "@angular/core": ">=20.0.0 <22.0.0",
+    "@angular/forms": ">=20.0.0 <22.0.0",
+    "@angular/platform-browser": ">=20.0.0 <22.0.0",
     "rxjs": "^7.8.0"
   },
   "dependencies": {

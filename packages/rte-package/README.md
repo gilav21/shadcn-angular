@@ -9,8 +9,9 @@ fixes.
 
 ## Requirements
 
-- **Angular ≥ 21** (peer `^21.0.0`). Angular 20 consumers should use the CLI
-  copy model instead — `npx shadcn-angular add rich-text-editor/full`.
+- **Angular 20 or 21** (peer `>=20.0.0 <22.0.0`). Both majors are covered by
+  the e2e suite, which installs this package's real tarball into a pristine
+  Angular 20 app and a pristine Angular 21 app and builds both.
 - **Tailwind CSS v4**.
 - Works in zoneless apps.
 
@@ -159,8 +160,9 @@ inside `node_modules`.
 imported and your app has no shadcn token block of its own. Add the third CSS
 line.
 
-**`npm install` fails with a peer error on `@angular/core@"^21.0.0"`.** This
-package requires Angular 21. Use the CLI copy model on Angular 20.
+**`npm install` fails with a peer error on `@angular/core`.** This package
+supports Angular 20 and 21. On Angular 19 or older, use the CLI copy model
+instead — `npx shadcn-angular add rich-text-editor/full`.
 
 ## Versioning
 

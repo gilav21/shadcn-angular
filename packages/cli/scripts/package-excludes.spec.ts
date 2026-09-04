@@ -54,6 +54,29 @@ describe('generated package sources are excluded from every repo-wide gate (T-9)
         expect(raw).toContain('packages/*-package/theme.css');
     });
 
+    // The packages are built with the workspace's Angular 21 toolchain but must
+    // stay installable on Angular 20 — the README's "Tested versions" promise.
+    // Partial-Ivy output is forward-compatible, so the ONLY thing that could
+    // lock 20 out is this range; a well-meaning `^21.0.0` "tidy-up" would break
+    // every Angular 20 consumer silently at install time. See spec C-17.
+    it.each(['rte', 'data-table'])(
+        '%s declares an Angular peer range covering 20 and 21',
+        (id) => {
+            const manifest = JSON.parse(read(`packages/${id}-package/package.json`));
+            for (const dep of ['@angular/common', '@angular/core', '@angular/forms', '@angular/platform-browser']) {
+                expect(manifest.peerDependencies[dep], `${id} / ${dep}`).toBe('>=20.0.0 <22.0.0');
+            }
+            expect(manifest.peerDependencies.rxjs).toBe('^7.8.0');
+        },
+    );
+
+    it.each(['rte', 'data-table'])('%s README documents Angular 20 and 21 support', (id) => {
+        const readme = read(`packages/${id}-package/README.md`);
+        expect(readme).toContain('Angular 20 or 21');
+        expect(readme).toContain('>=20.0.0 <22.0.0');
+        expect(readme).not.toContain('requires Angular 21');
+    });
+
     it('the committed package folders are NOT ignored wholesale', () => {
         // The four config files per package are tracked; only the generated
         // parts are ignored. A blanket `packages/*-package/` rule would silently
