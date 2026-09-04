@@ -274,7 +274,7 @@ function main(): number {
     } catch (error) {
         if (!(error instanceof ArgError)) throw error;
         console.error(error.message);
-        console.error('\nUsage: npm run release:package -- <rte|data-table> <patch|minor|major> [--dry-run] [--force] [--allow-dirty] [--allow-branch] [--skip-preflight]');
+        console.error('\nUsage: npm run release:package -- <rte|data-table> <patch|minor|major> [--dry-run] [--force] [--allow-dirty] [--allow-branch] [--skip-preflight] [--no-push]');
         return 1;
     }
 

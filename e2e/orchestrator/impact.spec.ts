@@ -182,13 +182,14 @@ describe('package spec impact (T-18)', () => {
     // it. Without an explicit rule the registry lookup finds no owner and it
     // would schedule nothing — a change to the one file every component imports
     // would skip the package legs entirely.
-    it('the baseline lib/utils.ts schedules every package leg', () => {
-        const result = computeImpact('HEAD', ['packages/components/lib/utils.ts']);
-        if (result.kind === 'all') return; // a tripwire is also safe
-        expect(result.kind).toBe('subset');
-        expect(result.specs).toEqual(
-            expect.arrayContaining(['pkg-rte', 'pkg-rte-ng21', 'pkg-data-table', 'pkg-data-table-ng21']),
-        );
+    it('the baseline lib/utils.ts runs the whole suite', () => {
+        // No registry entry declares this file (the CLI writes it for every
+        // project), so the registry lookup finds no owner and the analyzer
+        // returned 'none' before the rule existed — a false all-clear on the
+        // single most widely depended-on file in the repo. Every component's
+        // `cn()` imports it and it is staged into both packages, so the only
+        // honest answer is a full run.
+        expect(computeImpact('HEAD', ['packages/components/lib/utils.ts']).kind).toBe('all');
     });
 
     it('an unrelated component schedules no package spec', () => {

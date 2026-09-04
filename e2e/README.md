@@ -267,6 +267,17 @@ ng21 specs run on one dedicated worker *after* the ng20 pool, since that
 fixture is a separate checkout with its own `node_modules`. `npm run
 e2e:reset` resets both fixtures.
 
+**Budget note — this affects the whole Angular-20 suite.** The RTE closure
+bundles to ~1.11 MB initial, which failed the ng20 fixture's original
+production budget (500 kB warn / 1 MB error), so **both** fixtures now use
+2 MB / 4 MB. That is a deliberate trade with a real cost: the CLI specs that
+also run production builds there — `add-all-smoke`, `prod-build`,
+`migrate-build` — had their only size guard raised along with it, so a
+copy-model size regression under 4 MB no longer trips them. Scoping the
+budget per spec would need a second Angular configuration in the fixture;
+that is deliberately out of scope (spec §B.4 excludes bundle-size budgets),
+but it is a knowing gap, not an oversight.
+
 ### Inspecting the registry
 
 The `why` CLI command shows what a component is made of and what
