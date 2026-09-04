@@ -254,7 +254,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     markdownShortcuts = input<boolean>(true);
 
-
     /** Show a character count below the editor. */
     showCount = input<boolean>(false);
 
@@ -1106,6 +1105,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     onPaste(event: ClipboardEvent): void {
         event.preventDefault();
+        this.lastInputRule = null;
         this.flushPendingHistoryPush();
 
         if (this.isDisabled() || this.readonly()) {
@@ -1277,6 +1277,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * drag reports collapsed for an instant.
      */
     onSelectionChange(): void {
+        this.closeInputRuleRevertWindowIfMoved();
         this.updateActiveFormats();
         this.releaseCaretColor();
         const selection = this.document.getSelection();
@@ -2115,6 +2116,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * equivalent.
      */
     onEditorMouseDown(event: MouseEvent): void {
+        this.lastInputRule = null;
         if (this.readonly() || this.isDisabled()) return;
         const target = event.target as HTMLElement;
         const cell = target.closest<HTMLTableCellElement>('td, th');
@@ -4346,7 +4348,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const context = this.inputRuleContext();
         if (!context) return false;
 
-        return this.tryBlockRule(context, inputType) || this.tryInlineRule(context);
+        const terminator = this.blockRuleTerminator(context.blockPrefix, event);
+        return this.tryBlockRule(context, terminator) || this.tryInlineRule(context);
     }
 
     /** Whether an `inputType` is one Markdown rules deliberately sit out. */
@@ -4410,14 +4413,13 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     private tryBlockRule(
         context: { block: HTMLElement; blockPrefix: string },
-        inputType: string
+        terminator: ' ' | ''
     ): boolean {
         if (context.blockPrefix.length > RichTextEditorComponent.MAX_BLOCK_MARKER_LENGTH) return false;
 
         const block = this.blockRuleTarget(context.block);
         if (!block) return false;
 
-        const terminator = this.blockRuleTerminator(context.blockPrefix, inputType);
         const markerText = terminator === '' ? context.blockPrefix : context.blockPrefix.slice(0, -1);
         const match = matchBlockInputRule(markerText, terminator);
         if (!match) return false;
@@ -4468,13 +4470,20 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     /**
-     * Which character completed the marker: a space when one was just typed (or
-     * already ends the prefix, which is how a synthetic test event reads), and
-     * otherwise nothing — the empty terminator only `---` accepts.
+     * Which character completed the marker: a space when the author just typed
+     * one, and otherwise nothing — the empty terminator only `---` accepts.
+     *
+     * The space must have been *typed*, not merely end the prefix, so that
+     * dropping or pasting `"- "` into a paragraph leaves it as literal text. An
+     * event carrying no `data` is the synthetic one the tests raise, and counts
+     * as a typed space when the prefix already ends in one.
      */
-    private blockRuleTerminator(blockPrefix: string, inputType: string): ' ' | '' {
-        const endsWithSpace = /[ \u00A0]$/.test(blockPrefix);
-        return inputType === 'insertText' && endsWithSpace ? ' ' : '';
+    private blockRuleTerminator(blockPrefix: string, event: Event): ' ' | '' {
+        if (!/[ \u00A0]$/.test(blockPrefix)) return '';
+
+        const input = event as InputEvent;
+        if (input.inputType && input.inputType !== 'insertText') return '';
+        return input.data == null || input.data === ' ' ? ' ' : '';
     }
 
     /** Deletes the first `count` characters of a block's text, marker included. */
@@ -4701,20 +4710,39 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * where the author was and redo re-applies the transform.
      */
     private revertLastInputRule(): boolean {
-        const recorded = this.lastInputRule;
-        if (!recorded) return false;
-
-        const selection = this.document.getSelection();
-        const inBlock =
-            !!selection &&
-            selection.rangeCount > 0 &&
-            selection.isCollapsed &&
-            recorded.block.contains(selection.getRangeAt(0).startContainer);
-        if (!inBlock) return false;
+        if (!this.caretIsInLastInputRuleBlock()) return false;
 
         this.undo();
         this.lastInputRule = null;
         return true;
+    }
+
+    /**
+     * Whether the caret is still collapsed inside the element the last rule
+     * produced — the condition that keeps the Backspace revert offered.
+     */
+    private caretIsInLastInputRuleBlock(): boolean {
+        const recorded = this.lastInputRule;
+        if (!recorded) return false;
+
+        const selection = this.document.getSelection();
+        return (
+            !!selection &&
+            selection.rangeCount > 0 &&
+            selection.isCollapsed &&
+            recorded.block.contains(selection.getRangeAt(0).startContainer)
+        );
+    }
+
+    /**
+     * Ends the Backspace-revert window once the caret has left the block the
+     * rule produced — clicking elsewhere or selecting a range means the author
+     * has moved on, and Backspace there must delete rather than undo.
+     */
+    private closeInputRuleRevertWindowIfMoved(): void {
+        if (this.lastInputRule && !this.caretIsInLastInputRuleBlock()) {
+            this.lastInputRule = null;
+        }
     }
 
     private isEmptyBlock(block: HTMLElement): boolean {

@@ -115,9 +115,14 @@ describe('matchBlockInputRule', () => {
             expect(matchBlockInputRule('>', '\n')).toBeNull();
         });
 
-        it('treats a non-breaking space in the marker text as a plain space', () => {
+        it('normalises a non-breaking space in the marker text to a plain space', () => {
             expect(matchBlockInputRule(' #', ' ')).toBeNull();
-            expect(matchBlockInputRule('# ', '')).toEqual({ kind: 'heading1', markerLength: 2 });
+            expect(matchBlockInputRule('# ', ' ')).toBeNull();
+        });
+
+        it('never invents a terminator the caller did not report', () => {
+            expect(matchBlockInputRule('# ', '')).toBeNull();
+            expect(matchBlockInputRule('- ', '')).toBeNull();
         });
     });
 });

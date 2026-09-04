@@ -6934,6 +6934,27 @@ describe('RichTextEditorComponent markdown input rules', () => {
             expect(editor.querySelector('h1')).toBeNull();
         });
 
+        // The terminating space has to have been TYPED. Dropping or pasting
+        // "- " lands the same characters without the author asking for a list.
+        it('does not fire when the space arrived by a drop rather than a keystroke', () => {
+            typeInto(seed('<p><br></p>'), '- ', 'insertFromDrop');
+
+            expect(editor.querySelector('ul')).toBeNull();
+            expect(editor.textContent).toContain('-');
+        });
+
+        it('does not fire when insertText carried data other than a space', () => {
+            const block = seed('<p><br></p>');
+            const textNode = block.insertBefore(document.createTextNode('- '), block.firstChild) as Text;
+            setCaretAt(textNode, 2);
+            editor.dispatchEvent(
+                new InputEvent('input', { bubbles: true, inputType: 'insertText', data: 'x' })
+            );
+            fixture.detectChanges();
+
+            expect(editor.querySelector('ul')).toBeNull();
+        });
+
         it('does not fire mid-composition (insertCompositionText)', () => {
             typeInto(seed('<p><br></p>'), '# ', 'insertCompositionText');
 
@@ -6997,4 +7018,140 @@ describe('RichTextEditorComponent markdown input rules', () => {
 
         expect(emissions.at(-1)?.trim()).toBe('# Title');
     });
+
+    // T-19/T-20/T-21 — the transform is one undo step, and Backspace right
+    // after it puts the literal characters back. These are the mechanism the
+    // spec's "exactly one undo step" promise rests on.
+    describe('one undo step and the Backspace revert', () => {
+        /** Press a key through the component's real keydown path. */
+        const press = (key: string): KeyboardEvent => {
+            const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+            component.onKeydown(event);
+            fixture.detectChanges();
+            return event;
+        };
+
+        it('captures the marker state as its own history entry, so undo restores the literal text', () => {
+            fixture.componentRef.setInput('historyDebounceMs', 0);
+            fixture.detectChanges();
+
+            typeInto(seed('<p><br></p>'), '# ');
+            expect(editor.querySelector('h1')).not.toBeNull();
+
+            component.onFormatCommand('undo');
+            fixture.detectChanges();
+
+            expect(editor.querySelector('h1')).toBeNull();
+            expect(editor.textContent).toContain('#');
+        });
+
+        // Undo goes through the private method rather than
+        // `onFormatCommand('undo')`, whose trailing `applyMutation` pushes a
+        // fresh entry and truncates the redo branch — pre-existing behaviour of
+        // the command path, unrelated to input rules.
+        it('re-applies the heading on redo', () => {
+            typeInto(seed('<p><br></p>'), '# ');
+            (component as unknown as { undo(): void }).undo();
+            fixture.detectChanges();
+            expect(editor.querySelector('h1')).toBeNull();
+
+            component.onFormatCommand('redo');
+            fixture.detectChanges();
+
+            expect(editor.querySelector('h1')).not.toBeNull();
+        });
+
+        it('grows the history by exactly two entries — the markers, then the transform', () => {
+            const before = component.historyEntries().length;
+
+            typeInto(seed('<p><br></p>'), '# ');
+
+            expect(component.historyEntries().length - before).toBe(2);
+        });
+
+        it('leaves earlier text untouched when the transform is undone', () => {
+            const block = seed('<p>hello</p>');
+            const second = editor.appendChild(document.createElement('p'));
+            second.innerHTML = '<br>';
+            typeInto(second, '# ');
+            expect(editor.querySelector('h1')).not.toBeNull();
+
+            component.onFormatCommand('undo');
+            fixture.detectChanges();
+
+            expect(editor.textContent).toContain('hello');
+            expect(block.textContent).toBe('hello');
+        });
+
+        it('reverts the transform on Backspace and prevents the default delete', () => {
+            typeInto(seed('<p><br></p>'), '# ');
+            expect(editor.querySelector('h1')).not.toBeNull();
+
+            const event = press('Backspace');
+
+            expect(event.defaultPrevented).toBe(true);
+            expect(editor.querySelector('h1')).toBeNull();
+            expect(editor.textContent).toContain('#');
+        });
+
+        it('does not revert when another key came between the transform and the Backspace', () => {
+            typeInto(seed('<p><br></p>'), '# ');
+            press('a');
+
+            const event = press('Backspace');
+
+            expect(event.defaultPrevented).toBe(false);
+            expect(editor.querySelector('h1')).not.toBeNull();
+        });
+
+        it('does not revert after the editor has blurred', () => {
+            typeInto(seed('<p><br></p>'), '# ');
+            component.onBlur();
+            fixture.detectChanges();
+
+            const event = press('Backspace');
+
+            expect(event.defaultPrevented).toBe(false);
+            expect(editor.querySelector('h1')).not.toBeNull();
+        });
+
+        it('does not revert after a mousedown in the editor', () => {
+            typeInto(seed('<p><br></p>'), '# ');
+            const mousedown = new MouseEvent('mousedown', { bubbles: true });
+            Object.defineProperty(mousedown, 'target', { value: editor });
+            component.onEditorMouseDown(mousedown);
+            fixture.detectChanges();
+
+            const event = press('Backspace');
+
+            expect(event.defaultPrevented).toBe(false);
+            expect(editor.querySelector('h1')).not.toBeNull();
+        });
+
+        // Asserts the recorded rule is DROPPED, not merely that the revert
+        // declines: `revertLastInputRule` re-checks containment anyway, so a
+        // Backspace-only assertion would pass with the hook removed and prove
+        // nothing about the selection path releasing the reference.
+        it('forgets the recorded rule once the caret leaves the block it produced', () => {
+            const block = seed('<p><br></p>');
+            const outside = editor.appendChild(document.createElement('p'));
+            outside.appendChild(document.createTextNode('elsewhere'));
+            typeInto(block, '# ');
+
+            const recorded = () =>
+                (component as unknown as { lastInputRule: unknown }).lastInputRule;
+            expect(recorded()).not.toBeNull();
+
+            setCaretAt(outside.firstChild as Text, 3);
+            component.onSelectionChange();
+            fixture.detectChanges();
+
+            expect(recorded()).toBeNull();
+
+            const event = press('Backspace');
+            expect(event.defaultPrevented).toBe(false);
+            expect(editor.querySelector('h1')).not.toBeNull();
+        });
+    });
+
 });

@@ -90,8 +90,11 @@ const BLOCK_RULES: readonly BlockRuleDefinition[] = [
  * `textBeforeCaret` is the caret's block text with the terminator already
  * stripped by the caller; `terminator` says which character completed it
  * (`' '` for a typed space, `'\n'` for Enter, `''` for any other input, which
- * only `---` accepts). Non-breaking spaces are normalised first, because a
- * contenteditable surface stores a trailing typed space as a non-breaking one.
+ * only `---` accepts). The caller alone decides the terminator — a trailing
+ * space in the text is never promoted to one here, so an insertion that merely
+ * happens to end in a space (a drop, a paste) cannot complete a marker.
+ * Non-breaking spaces inside the marker are normalised first, because a
+ * contenteditable surface stores a typed space as a non-breaking one.
  *
  * Returns `null` when nothing matches — the overwhelmingly common case, so the
  * table is walked with cheap anchored patterns and no allocation.
@@ -100,15 +103,13 @@ export function matchBlockInputRule(
     textBeforeCaret: string,
     terminator: BlockRuleTerminator,
 ): BlockInputRuleMatch | null {
-    const normalized = textBeforeCaret.replaceAll('\u00A0', ' ');
-    const marker = terminator === '' ? normalized.trimEnd() : normalized;
-    const effectiveTerminator = terminator === '' && marker !== normalized ? ' ' : terminator;
+    const marker = textBeforeCaret.replaceAll('\u00A0', ' ');
 
     for (const rule of BLOCK_RULES) {
-        if (!rule.terminators.includes(effectiveTerminator)) continue;
+        if (!rule.terminators.includes(terminator)) continue;
         const match = rule.pattern.exec(marker);
         if (!match) continue;
-        const markerLength = marker.length + effectiveTerminator.length;
+        const markerLength = marker.length + terminator.length;
         return rule.kind === 'codeBlock'
             ? { kind: rule.kind, markerLength, language: match[1] ?? '' }
             : { kind: rule.kind, markerLength };
