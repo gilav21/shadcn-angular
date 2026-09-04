@@ -61,6 +61,18 @@ describe('RichTextEditorAddonsDemoComponent — write your own addon', () => {
     });
 });
 
+/** The protected computed under test, reached the way the sibling demo specs do. */
+type Harness = { installCommands: () => string; applyPreset: (p: string) => void; setAddon: (k: string, on: boolean) => void };
+
+function createHarness(): { component: Harness; detect: () => void } {
+    const fixture = TestBed.createComponent(RichTextEditorAddonsDemoComponent);
+    fixture.detectChanges();
+    return {
+        component: fixture.componentInstance as unknown as Harness,
+        detect: () => fixture.detectChanges(),
+    };
+}
+
 describe('RichTextEditorAddonsDemoComponent installCommands', () => {
     describe('English (default)', () => {
         beforeEach(() => {
