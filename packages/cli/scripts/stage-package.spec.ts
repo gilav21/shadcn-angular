@@ -34,11 +34,11 @@ describe('stage-package entry contract (T-24)', () => {
     });
 
     // The printed count is what was WRITTEN: the staged sources plus the
-    // generated public-api.ts (272 + 1 / 176 + 1).
+    // generated public-api.ts (273 + 1 / 176 + 1).
     it('stages rte successfully and prints the file count', () => {
         const run = runScript(SCRIPT, ['rte']);
         expect(run.status).toBe(0);
-        expect(run.output).toContain('staged 273 files');
+        expect(run.output).toContain('staged 274 files');
         expect(run.output).toContain('rte');
     }, 120_000);
 
