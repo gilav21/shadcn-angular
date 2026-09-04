@@ -60,6 +60,43 @@ so they are not lost.
 
 - Policy enforcement and optional PII scanning hooks.
 
+## 2026-09-03 Backlog Review (approved bundles → specs)
+
+Full backlog with measurements lives in the session plan; the accepted items
+are specced in `specs/rte-improvements-index.md`. Status of earlier items:
+slash commands + command registry ✅ built (addon); AI assist hooks ✅ built
+(addon); revision diff view — still open (folded into future history v2);
+collaboration / comments / track changes — cut by maintainer (not planned).
+
+Accepted for implementation (see the index for order and prerequisites):
+
+1. DX trio + base e2e — barrel re-exports of every addon + `RTE_FULL`, typed
+   toolbar table (missing entry = compile error), addon-author guide,
+   `e2e/harness/rich-text-editor/` covering the base editor.
+1. Markdown input rules (heading `#`, list `-`/`1.`, quote `>`, task `[]`,
+   rule `---`, `**bold**`, backtick code) + block-state-aware toolbar with a
+   single "Text style" select.
+1. Find & replace v2 (cross-markup matches, counter, highlight-all, debounce,
+   whole-word/regex) + undo consistency (`setContent`, external writes, overlay
+   inserts all recorded; `historyChange`, `isDirty()`).
+1. Consumer API pack — imperative API, reactive-forms validators measuring
+   visible text, `ui-rich-text-view` read-only renderer, single locale cascade
+   (addons inherit the editor's locale).
+1. CLI install summary grouped by requested / addons / shared deps with file
+   counts, `--preset` (core/writing/media/styling/everything), post-install
+   "what now" messaging.
+1. Additive compiled npm packages `@gilav21/shadcn-angular-rte` and
+   `@gilav21/shadcn-angular-data-table` (copy model unchanged).
+
+Parked, not scheduled: block-state toolbar a11y roving tabindex, density
+support for the editor, table editing polish (touch resize, Tab between
+cells), image captions/alt prompt, auto-linkify, paste-as-plain-text chip,
+code-block language picker + highlighter hook, templates/snippets addon,
+autosave/draft addon, block drag handles, focus mode, keyboard-aware bottom
+toolbar, floating-toolbar parity for addon slots, copy-as-markdown export,
+document stats, emoji shortcodes, `spellcheck`/`lang` passthrough,
+superscript/subscript buttons, per-folder `--compact` install layout.
+
 ## Cross-Component Shortcut System (platform-level idea)
 
 1. Central shortcut registry
