@@ -287,7 +287,14 @@ export function branchRefusal(branch: string, args: PackageReleaseArgs): Refusal
 // ── Verdict reporting ──────────────────────────────────────────────────────
 
 export interface VerdictReport {
+    /** The verdict itself, which is informational and belongs on stdout. */
     readonly lines: readonly string[];
+    /**
+     * The refusal, which belongs on stderr — a maintainer piping stdout to a
+     * release log must still see on the terminal why nothing was released.
+     * Empty whenever the flow proceeds.
+     */
+    readonly errorLines: readonly string[];
     /** Whether the flow may continue; `false` means print and exit 1. */
     readonly proceed: boolean;
 }
@@ -316,13 +323,21 @@ export function verdictReport(
         if (verdict.reasons.length > VERDICT_REASON_LIMIT) {
             lines.push(`  … and ${verdict.reasons.length - VERDICT_REASON_LIMIT} more`);
         }
-        return { lines, proceed: true };
+        return { lines, errorLines: [], proceed: true };
     }
 
     const head = 'VERDICT: release NOT required — nothing that ships in the tarball changed.';
-    if (args.force) return { lines: [head, '(--force given — continuing anyway)'], proceed: true };
-    if (args.dryRun) return { lines: [head, '(dry run — continuing the rehearsal anyway)'], proceed: true };
-    return { lines: [head, 'Re-run with --force if you still want to cut a release.'], proceed: false };
+    if (args.force) {
+        return { lines: [head, '(--force given — continuing anyway)'], errorLines: [], proceed: true };
+    }
+    if (args.dryRun) {
+        return { lines: [head, '(dry run — continuing the rehearsal anyway)'], errorLines: [], proceed: true };
+    }
+    return {
+        lines: [head],
+        errorLines: ['Re-run with --force if you still want to cut a release.'],
+        proceed: false,
+    };
 }
 
 // ── Preflight ──────────────────────────────────────────────────────────────
@@ -638,6 +653,7 @@ export function runRelease(argv: readonly string[], fx: ReleaseEffects): number 
     const paths = closurePaths(id);
     const report = verdictReport(packageVerdict(changedFilesSince(base.ref, fx.git), paths, id), args);
     for (const line of report.lines) fx.log(line);
+    for (const line of report.errorLines) fx.error(line);
     if (!report.proceed) return 1;
 
     const [pkgJsonPath] = packageReleasePaths(id);

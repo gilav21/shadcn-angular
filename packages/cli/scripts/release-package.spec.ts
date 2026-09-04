@@ -182,11 +182,13 @@ describe('release-package entry (fixture repo)', () => {
     }, 90_000);
 
     // ── T-16 ───────────────────────────────────────────────────────────────
+    // The refusal is asserted on stderr specifically: a maintainer piping stdout
+    // to a release log must still see on the terminal why nothing was released.
     it('exits 1 when the verdict is NOT required and --force is absent', () => {
         const run = release('unrelated', ['rte', 'patch', '--skip-preflight', '--no-push']);
         expect(run.status).toBe(1);
-        expect(run.output).toContain('VERDICT: release NOT required');
-        expect(run.output).toContain('--force');
+        expect(run.stdout).toContain('VERDICT: release NOT required');
+        expect(run.stderr).toContain('--force');
         expect(git(root, 'tag', '--list')).toBe('');
     }, 60_000);
 

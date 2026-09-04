@@ -213,6 +213,7 @@ describe('verdictReport', () => {
         expect(report.lines[0]).toContain('REQUIRED');
         expect(report.lines[0]).toContain('2 file(s)');
         expect(report.lines).toHaveLength(3);
+        expect(report.errorLines).toEqual([]);
     });
 
     // A verdict naming a hundred files would bury its own headline.
@@ -231,20 +232,26 @@ describe('verdictReport', () => {
     it('stops on a NOT-required verdict and points at --force', () => {
         const report = verdictReport({ required: false, reasons: [] }, ARGS());
         expect(report.proceed).toBe(false);
-        expect(report.lines.join('\n')).toContain('--force');
+        expect(report.errorLines.join('\n')).toContain('--force');
     });
 
-    it('proceeds on a NOT-required verdict under --force, saying so', () => {
-        const report = verdictReport({ required: false, reasons: [] }, ARGS({ force: true }));
-        expect(report.proceed).toBe(true);
-        expect(report.lines.join('\n')).toContain('--force given');
+    // The refusal is the actionable half and must reach the terminal even when
+    // a maintainer pipes stdout to a release log.
+    it('puts the refusal on the error stream, not with the verdict itself', () => {
+        const report = verdictReport({ required: false, reasons: [] }, ARGS());
+        expect(report.lines.join('\n')).toContain('NOT required');
+        expect(report.lines.join('\n')).not.toContain('Re-run with --force');
+        expect(report.errorLines).toEqual(['Re-run with --force if you still want to cut a release.']);
     });
 
-    // The whole point of a rehearsal is to see the rest of the flow.
-    it('proceeds on a NOT-required verdict under --dry-run', () => {
-        const report = verdictReport({ required: false, reasons: [] }, ARGS({ dryRun: true }));
+    it.each([
+        ['--force', ARGS({ force: true }), '--force given'],
+        ['--dry-run', ARGS({ dryRun: true }), 'dry run'],
+    ])('proceeds on a NOT-required verdict under %s with nothing on the error stream', (_flag, args, note) => {
+        const report = verdictReport({ required: false, reasons: [] }, args);
         expect(report.proceed).toBe(true);
-        expect(report.lines.join('\n')).toContain('dry run');
+        expect(report.lines.join('\n')).toContain(note);
+        expect(report.errorLines).toEqual([]);
     });
 });
 
@@ -654,6 +661,14 @@ describe('runRelease — verdict', () => {
         expect(runRelease(['rte', 'patch'], w.effects)).toBe(1);
         expect(w.out.join('\n')).toContain('NOT required');
         expect(w.calls.filter((c) => c.startsWith('write'))).toEqual([]);
+    });
+
+    // The refusal must survive `npm run release:package > release.log`.
+    it('announces the refusal on stderr, not only on stdout', () => {
+        const w = world(releaseTranscript({ 'diff --name-only rte-v0.1.0..HEAD': 'README.md' }));
+        runRelease(['rte', 'patch'], w.effects);
+        expect(w.err.join('\n')).toContain('Re-run with --force');
+        expect(w.out.join('\n')).not.toContain('Re-run with --force');
     });
 
     it('continues past a NOT-required verdict under --force', () => {
