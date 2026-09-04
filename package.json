@@ -28,6 +28,7 @@
     "typecheck:templates": "ngc -p tsconfig.json --noEmit",
     "check:all": "npm run lint && npm run typecheck && npm run typecheck:templates",
     "coverage": "node scripts/coverage.mjs",
+    "coverage:map": "node scripts/coverage-map.mjs",
     "coverage:cli": "vitest --config vitest.config.cli.ts --run --coverage",
     "sonar": "node scripts/sonar.mjs",
     "sonar:gate": "node scripts/sonar.mjs --gate",
