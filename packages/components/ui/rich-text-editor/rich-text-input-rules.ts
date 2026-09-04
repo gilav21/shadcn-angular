@@ -92,9 +92,9 @@ const BLOCK_RULES: readonly BlockRuleDefinition[] = [
  * (`' '` for a typed space, `'\n'` for Enter, `''` for any other input, which
  * only `---` accepts). The caller alone decides the terminator — a trailing
  * space in the text is never promoted to one here, so an insertion that merely
- * happens to end in a space (a drop, a paste) cannot complete a marker.
- * Non-breaking spaces inside the marker are normalised first, because a
- * contenteditable surface stores a typed space as a non-breaking one.
+ * happens to end in a space (a drop, a paste) cannot complete a marker. No
+ * marker contains a space, so the caret text needs no whitespace folding: a
+ * contenteditable's non-breaking space simply fails to match, which is right.
  *
  * Returns `null` when nothing matches — the overwhelmingly common case, so the
  * table is walked with cheap anchored patterns and no allocation.
@@ -103,13 +103,11 @@ export function matchBlockInputRule(
     textBeforeCaret: string,
     terminator: BlockRuleTerminator,
 ): BlockInputRuleMatch | null {
-    const marker = textBeforeCaret.replaceAll('\u00A0', ' ');
-
     for (const rule of BLOCK_RULES) {
         if (!rule.terminators.includes(terminator)) continue;
-        const match = rule.pattern.exec(marker);
+        const match = rule.pattern.exec(textBeforeCaret);
         if (!match) continue;
-        const markerLength = marker.length + terminator.length;
+        const markerLength = textBeforeCaret.length + terminator.length;
         return rule.kind === 'codeBlock'
             ? { kind: rule.kind, markerLength, language: match[1] ?? '' }
             : { kind: rule.kind, markerLength };

@@ -6832,6 +6832,26 @@ describe('RichTextEditorComponent markdown input rules', () => {
 
     // T-22 — every guard that must stop a rule from firing.
     describe('guards', () => {
+        // Typing on into a long paragraph must stay inert: no transform, no
+        // history entry, no model churn. The length cap of §D.2 is what makes
+        // this cheap, but the cap itself has no DOM-visible effect — a prefix
+        // that long cannot match a marker either way — so this asserts the
+        // observable half only.
+        it('stays inert while the author types on in a long paragraph', () => {
+            const block = seed('<p><br></p>');
+            const long = 'x'.repeat(40);
+            const textNode = block.insertBefore(document.createTextNode(long), block.firstChild) as Text;
+            setCaretAt(textNode, long.length);
+
+            const before = component.historyEntries().length;
+            const applied = (
+                component as unknown as { applyInputRules(event: Event): boolean }
+            ).applyInputRules(new InputEvent('input', { inputType: 'insertText', data: 'x' }));
+
+            expect(applied).toBe(false);
+            expect(component.historyEntries()).toHaveLength(before);
+        });
+
         it('does not fire when the marker is not the whole prefix ("foo - ")', () => {
             typeInto(seed('<p>foo </p>'), '- ');
 
@@ -7022,6 +7042,22 @@ describe('RichTextEditorComponent markdown input rules', () => {
     // T-19/T-20/T-21 — the transform is one undo step, and Backspace right
     // after it puts the literal characters back. These are the mechanism the
     // spec's "exactly one undo step" promise rests on.
+
+    // The Enter path removes one character FEWER than the space path: the
+    // newline that completed the marker was never typed into the DOM, so
+    // `markerLength` over-counts by exactly one here. With trailing text after
+    // the fence, an off-by-one eats the text's first character.
+    it('removes only the fence characters when Enter completes it, keeping the text after', () => {
+        const block = seed('<p><br></p>');
+        const textNode = block.insertBefore(document.createTextNode('```code'), block.firstChild) as Text;
+        setCaretAt(textNode, 3);
+
+        const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+        component.onKeydown(enter);
+        fixture.detectChanges();
+
+        expect(editor.querySelector('pre > code')?.textContent).toBe('code');
+    });
 
     // The empty fence has to keep the newline `insertCodeBlock` also seeds, or
     // `handleEnterInCodeBlock` can never see "the text already ends with \n"

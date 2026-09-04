@@ -4489,10 +4489,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     /** Deletes the first `count` characters of a block's text, marker included. */
     private removeLeadingCharacters(block: HTMLElement, count: number): void {
-        const range = this.document.createRange();
-        range.setStart(block, 0);
-        range.collapse(true);
-
         let remaining = count;
         const walker = this.document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
         while (remaining > 0 && walker.nextNode()) {
@@ -4536,7 +4532,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return block;
     }
 
-    /** Collapses the caret to the very start of a block's content. */
     /**
      * A text node at the very start of a visually empty block for the caret to
      * sit in: the block's own first text node when it has one — a code block's
@@ -4552,6 +4547,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return block.appendChild(this.document.createTextNode('')) as Text;
     }
 
+    /** Collapses the caret to the very start of a block's content. */
     private placeCaretAtStartOfBlock(block: HTMLElement): void {
         const selection = this.document.getSelection();
         if (!selection) return;

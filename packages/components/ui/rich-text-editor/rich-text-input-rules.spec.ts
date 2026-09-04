@@ -115,9 +115,11 @@ describe('matchBlockInputRule', () => {
             expect(matchBlockInputRule('>', '\n')).toBeNull();
         });
 
-        it('normalises a non-breaking space in the marker text to a plain space', () => {
+        it('treats a marker padded with any whitespace as a near-miss', () => {
             expect(matchBlockInputRule(' #', ' ')).toBeNull();
+            expect(matchBlockInputRule(' #', ' ')).toBeNull();
             expect(matchBlockInputRule('# ', ' ')).toBeNull();
+            expect(matchBlockInputRule('- - -', '')).toBeNull();
         });
 
         it('never invents a terminator the caller did not report', () => {
