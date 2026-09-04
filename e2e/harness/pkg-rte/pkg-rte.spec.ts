@@ -46,9 +46,12 @@ test('Tailwind generated the package styles (computed layout, not a class string
     // rendering with NO utility classes generated. Asserting the class
     // attribute would pass in that broken state — the class is in the DOM
     // either way — so assert the COMPUTED style the utility should produce.
-    const toolbar = page.locator('[data-testid="editor-all"] [data-slot="rich-text-toolbar"]').first();
+    // `ui-rich-text-toolbar` carries a host `class: 'block'`. A custom element
+    // is `display: inline` by default, so `block` here can only come from a
+    // Tailwind utility that was actually generated from the package's sources.
+    const toolbar = page.locator('[data-testid="editor-all"] ui-rich-text-toolbar').first();
     await expect(toolbar).toBeVisible();
-    await expect(toolbar).toHaveCSS('display', 'flex');
+    await expect(toolbar).toHaveCSS('display', 'block');
 });
 
 test('typing in the package editor updates the ngModel mirror', async ({ page }) => {

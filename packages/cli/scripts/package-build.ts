@@ -271,6 +271,16 @@ async function main(): Promise<number> {
 
 // Only run as a CLI when invoked directly, so the orchestrator can import
 // `buildPackageTarball` without the module exiting the process.
+//
+// Deliberately NOT a top-level await: the orchestrator imports this module, and
+// tsx transforms that import through esbuild's cjs output, which rejects
+// top-level await outright ("ERR_REQUIRE_ASYNC_MODULE").
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) {
-    process.exit(await main());
+    main().then(
+        (code) => process.exit(code),
+        (error: unknown) => {
+            console.error(error instanceof Error ? error.message : error);
+            process.exit(1);
+        },
+    );
 }

@@ -50,8 +50,9 @@ test('the package editor keeps its addon slots in a mixed app', async ({ page })
 test('two independent button implementations exist on one page', async ({ page }) => {
     await page.goto('/');
 
-    // The copied button...
-    await expect(page.locator('[data-testid="copied-button"][data-slot="button"]')).toHaveCount(1);
+    // The copied button — `data-slot` sits on the inner <button> the component
+    // renders, not on the <ui-button> host that carries the test id.
+    await expect(page.locator('[data-testid="copied-button"] [data-slot="button"]')).toHaveCount(1);
     // ...and the package's own internal buttons inside the editor toolbar.
     const toolbarButtons = page.locator('[data-testid="editor"] [data-slot="button"]');
     expect(await toolbarButtons.count()).toBeGreaterThan(0);
