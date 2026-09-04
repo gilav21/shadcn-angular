@@ -318,3 +318,113 @@ export function stagePackage(id: PackageId, repoRoot: string, pkgRoot?: string):
 
     return { written: files.length + 1, removed };
 }
+
+// ── CLI outcome ────────────────────────────────────────────────────────────
+
+/**
+ * What the `stage:package` entry must print and exit with. Separating the
+ * DECISION from the printing is what makes the entry testable in process: a
+ * subprocess test sees the contract but contributes no v8 coverage, and the
+ * interesting cases (bad id, escaped imports) are decisions, not I/O.
+ */
+export interface StageOutcome {
+    readonly status: number;
+    readonly stdout: readonly string[];
+    readonly stderr: readonly string[];
+}
+
+export function stageUsage(): string {
+    return `Usage: npm run stage:package -- <${PACKAGE_IDS.join('|')}>`;
+}
+
+/**
+ * Validates the argv package id, returning either the narrowed id or the exact
+ * failure the entry must print.
+ *
+ * The two failures are worded differently on purpose: a maintainer who omitted
+ * the argument needs the usage line, while one who typoed an id needs the typo
+ * echoed back to spot it.
+ */
+export function resolveStageId(raw: string | undefined): { id: PackageId } | StageOutcome {
+    if (!raw) return { status: 1, stdout: [], stderr: ['Missing package id.', stageUsage()] };
+    if (!isPackageId(raw)) {
+        return { status: 1, stdout: [], stderr: [`Unknown package "${raw}".`, stageUsage()] };
+    }
+    return { id: raw };
+}
+
+/** Whether {@link resolveStageId} returned a failure rather than an id. */
+export function isStageFailure(result: { id: PackageId } | StageOutcome): result is StageOutcome {
+    return 'status' in result;
+}
+
+/** The staging side effects, as an injected port so the flow is drivable without a repo. */
+export interface StageEffects {
+    readonly stage: (id: PackageId) => StageResult;
+    /** The escaped-import audit; see {@link auditStagedImports}. */
+    readonly audit: (id: PackageId) => readonly string[];
+    /** The staged `src` path as printed, relative to the repo root. */
+    readonly srcRootLabel: (id: PackageId) => string;
+}
+
+/**
+ * Composes the real {@link StageEffects} from a repo root.
+ *
+ * The staged tree is always `<repoRoot>/<packageDir>/src`, and the printed
+ * label is that path made repo-relative — derived here so both the audit target
+ * and the message agree by construction.
+ */
+export function nodeStageEffects(repoRoot: string): StageEffects {
+    const srcRoot = (id: PackageId): string => path.join(repoRoot, packageDir(id), 'src');
+    return {
+        stage: (id) => stagePackage(id, repoRoot),
+        audit: (id) => auditStagedImports(srcRoot(id)),
+        srcRootLabel: (id) => path.relative(repoRoot, srcRoot(id)),
+    };
+}
+
+/**
+ * The whole `stage:package` flow as argv → outcome. Validate, stage, audit,
+ * report — the audit runs AFTER staging because it inspects what was written.
+ */
+export function runStage(argv: readonly string[], fx: StageEffects): StageOutcome {
+    const resolved = resolveStageId(argv[0]);
+    if (isStageFailure(resolved)) return resolved;
+
+    const { id } = resolved;
+    return stageOutcome(id, fx.stage(id), fx.audit(id), fx.srcRootLabel(id));
+}
+
+/**
+ * The outcome of a completed staging run.
+ *
+ * A non-empty `unresolved` is fatal: the closure is only useful if it is EXACT,
+ * and an import escaping the staged tree means a file the registry never
+ * declared. Failing here names every offender; letting it through would surface
+ * minutes later as a far less obvious ng-packagr error.
+ */
+export function stageOutcome(
+    id: PackageId,
+    result: StageResult,
+    unresolved: readonly string[],
+    srcRootLabel: string,
+): StageOutcome {
+    if (unresolved.length > 0) {
+        return {
+            status: 1,
+            stdout: [],
+            stderr: [
+                `[stage-package] ${id}: ${unresolved.length} import(s) escape the staged tree:`,
+                ...unresolved.map((entry) => `  ${entry}`),
+            ],
+        };
+    }
+    return {
+        status: 0,
+        stdout: [
+            `[stage-package] ${id}: staged ${result.written} files (removed ${result.removed} stale).`,
+            `[stage-package] ${id}: ${srcRootLabel} + theme.css`,
+        ],
+        stderr: [],
+    };
+}

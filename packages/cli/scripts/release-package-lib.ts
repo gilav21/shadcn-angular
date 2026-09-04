@@ -17,8 +17,15 @@
  */
 import {
     ArgError,
+    bumpVersion,
     isBumpLevel,
+    prependRelease,
+    readPackageVersion,
+    releaseCommitArgv,
+    renderReleaseNotes,
+    setPackageVersion,
     type BumpLevel,
+    type Commit,
 } from './release-cli-lib.js';
 import {
     PACKAGE_IDS,
@@ -160,4 +167,498 @@ export function packageVerdict(
 ): PackageVerdict {
     const reasons = changedFiles.filter((file) => paths.has(file.replaceAll('\\', '/')));
     return { required: reasons.length > 0, reasons };
+}
+
+// ── Git-shaped decisions ───────────────────────────────────────────────────
+
+/**
+ * The git probes the release flow needs, as injected functions.
+ *
+ * `run` throws on a non-zero exit; `probe` returns `null` instead, because for
+ * these queries a non-zero exit is an expected ANSWER ("no such tag"), not an
+ * error. Passing them in is what lets the whole flow be driven from a literal
+ * git transcript in tests, with no repo and no subprocess.
+ */
+export interface GitProbe {
+    readonly run: (...args: string[]) => string;
+    readonly probe: (...args: string[]) => string | null;
+}
+
+export interface BaseRef {
+    readonly ref: string;
+    /** Human-readable provenance, printed so the maintainer can sanity-check it. */
+    readonly how: string;
+}
+
+/**
+ * The previous release point of one package.
+ *
+ * Three fallbacks, most-specific first: the newest `<id>-v*` tag; before the
+ * first tagged release, the last commit touching this package's `package.json`;
+ * and in a repo with neither, the root commit. Without the middle rung a
+ * package's FIRST release would diff against the root commit and report every
+ * file in the repo as a reason.
+ */
+export function resolveBaseRef(id: PackageId, git: GitProbe): BaseRef {
+    const tag = git.probe('describe', '--tags', '--abbrev=0', '--match', `${id}-v*`);
+    if (tag) return { ref: tag, how: `latest ${id}-v* tag (${tag})` };
+
+    const pkgJson = `${packageDir(id)}/package.json`;
+    const versionCommit = git.probe('log', '-1', '--format=%H', '--', pkgJson);
+    if (versionCommit) {
+        return {
+            ref: versionCommit,
+            how: `no ${id}-v* tag yet — using the last commit touching ${pkgJson} (${versionCommit.slice(0, 8)})`,
+        };
+    }
+    return {
+        ref: git.run('rev-list', '--max-parents=0', 'HEAD'),
+        how: 'no tag and no history — using the root commit',
+    };
+}
+
+export function changedFilesSince(baseRef: string, git: GitProbe): string[] {
+    const out = git.probe('diff', '--name-only', `${baseRef}..HEAD`);
+    return out ? out.split('\n').filter(Boolean) : [];
+}
+
+/**
+ * The directories the changelog query is scoped to: the parent of every closure
+ * path. `git log -- <dirs>` needs directories, and scoping is the point — the
+ * changelog is about what the CONSUMER gets, not about every commit in the repo.
+ */
+export function closureDirs(paths: ReadonlySet<string>): string[] {
+    const dirs = new Set<string>();
+    for (const file of paths) {
+        const dir = file.split('/').slice(0, -1).join('/');
+        if (dir) dirs.add(dir);
+    }
+    return [...dirs];
+}
+
+/** Parses `git log --format=%H%x09%s` output into commits. */
+export function parseCommitLog(out: string | null): Commit[] {
+    if (!out) return [];
+    return out.split('\n').filter(Boolean).map((line) => {
+        const [hash, ...rest] = line.split('\t');
+        return { hash, subject: rest.join('\t') };
+    });
+}
+
+/** Conventional commits since the base that touched anything in the closure. */
+export function packageCommits(baseRef: string, paths: ReadonlySet<string>, git: GitProbe): Commit[] {
+    return parseCommitLog(
+        git.probe('log', `${baseRef}..HEAD`, '--no-merges', '--format=%H%x09%s', '--', ...closureDirs(paths)),
+    );
+}
+
+// ── Guards ─────────────────────────────────────────────────────────────────
+
+/** A refusal the entry must print before exiting 1, or `null` to proceed. */
+export type Refusal = readonly string[] | null;
+
+/**
+ * Refuses a dirty working tree unless `--allow-dirty`.
+ *
+ * A release commit is pathspec-scoped, so unrelated staged work would not be
+ * swept into it — but it WOULD be pushed on the same branch, unreviewed, under
+ * a release tag. Refusing by default keeps that accident impossible.
+ */
+export function dirtyTreeRefusal(status: string, args: PackageReleaseArgs): Refusal {
+    if (status.length === 0 || args.allowDirty) return null;
+    return [
+        'Working tree is dirty — commit or stash first:\n',
+        status,
+        '\n(override with --allow-dirty)',
+    ];
+}
+
+export const RELEASE_BRANCH = 'master';
+
+/** Refuses a release cut from any branch but `master` unless `--allow-branch`. */
+export function branchRefusal(branch: string, args: PackageReleaseArgs): Refusal {
+    if (branch === RELEASE_BRANCH || args.allowBranch) return null;
+    return [
+        `On branch "${branch}" — releases are cut from "${RELEASE_BRANCH}".`,
+        '(override with --allow-branch)',
+    ];
+}
+
+// ── Verdict reporting ──────────────────────────────────────────────────────
+
+export interface VerdictReport {
+    readonly lines: readonly string[];
+    /** Whether the flow may continue; `false` means print and exit 1. */
+    readonly proceed: boolean;
+}
+
+/** How many changed files the verdict names before collapsing the rest to a count. */
+const VERDICT_REASON_LIMIT = 10;
+
+/**
+ * Renders the RELEASE-REQUIRED verdict and decides whether to continue.
+ *
+ * A "not required" verdict is fatal by default — cutting a release that ships
+ * an identical tarball burns a version number and tells consumers nothing.
+ * `--force` overrides it deliberately; `--dry-run` continues because the whole
+ * point of a rehearsal is to see the rest of the flow.
+ */
+export function verdictReport(
+    verdict: PackageVerdict,
+    args: PackageReleaseArgs,
+): VerdictReport {
+    if (verdict.required) {
+        const shown = verdict.reasons.slice(0, VERDICT_REASON_LIMIT);
+        const lines = [
+            `VERDICT: release REQUIRED — ${verdict.reasons.length} file(s) in the package changed:`,
+            ...shown.map((reason) => `  ${reason}`),
+        ];
+        if (verdict.reasons.length > VERDICT_REASON_LIMIT) {
+            lines.push(`  … and ${verdict.reasons.length - VERDICT_REASON_LIMIT} more`);
+        }
+        return { lines, proceed: true };
+    }
+
+    const head = 'VERDICT: release NOT required — nothing that ships in the tarball changed.';
+    if (args.force) return { lines: [head, '(--force given — continuing anyway)'], proceed: true };
+    if (args.dryRun) return { lines: [head, '(dry run — continuing the rehearsal anyway)'], proceed: true };
+    return { lines: [head, 'Re-run with --force if you still want to cut a release.'], proceed: false };
+}
+
+// ── Preflight ──────────────────────────────────────────────────────────────
+
+/**
+ * The e2e labels that must pass before a package release.
+ *
+ * `pkg-mixed` is RTE-only: it is the leg that installs both packages into one
+ * app, and it belongs to whichever release could break the combination — the
+ * RTE package is the one carrying the shared closure.
+ */
+export function preflightLegs(id: PackageId): string {
+    return id === 'rte' ? 'pkg-rte pkg-rte-ng21 pkg-mixed' : 'pkg-data-table pkg-data-table-ng21';
+}
+
+/** The npm commands the preflight runs, in order. */
+export function preflightCommands(id: PackageId): readonly string[] {
+    return [`run build:package -- ${id}`, `run e2e -- ${preflightLegs(id)}`];
+}
+
+// ── Release plan ───────────────────────────────────────────────────────────
+
+export interface ReleasePlan {
+    readonly current: string;
+    readonly next: string;
+    readonly tag: string;
+    readonly block: string;
+    readonly headline: string;
+}
+
+/**
+ * Computes the next version, its tag and the changelog block.
+ *
+ * Pure: the dry run and the real run share exactly this computation, so a
+ * rehearsal cannot claim a version or a changelog the real run would not write.
+ */
+export function planRelease(
+    id: PackageId,
+    pkgSource: string,
+    args: PackageReleaseArgs,
+    commits: readonly Commit[],
+    today: string,
+): ReleasePlan {
+    const current = readPackageVersion(pkgSource);
+    const next = bumpVersion(current, args.level);
+    return {
+        current,
+        next,
+        tag: packageTagName(id, next),
+        block: renderReleaseNotes(next, commits, today),
+        headline: `${PACKAGE_NAMES[id]}: ${current} → ${next} (${args.level})`,
+    };
+}
+
+/** The manual command a human runs after the tag is pushed. npm 2FA is interactive. */
+export function publishCommand(id: PackageId): string {
+    return `cd dist/${id}-package && npm publish --access public`;
+}
+
+// ── Rehearsal ──────────────────────────────────────────────────────────────
+
+export interface Rehearsal {
+    readonly id: PackageId;
+    readonly next: string;
+    readonly tag: string;
+    readonly branch: string;
+    readonly add: readonly string[];
+    readonly commit: readonly string[];
+}
+
+/**
+ * The `--dry-run` preview. It renders from the SAME argv arrays the real run
+ * executes, so the rehearsal cannot drift from what actually happens.
+ */
+export function rehearsalLines(r: Rehearsal): readonly string[] {
+    return [
+        `[dry-run] would write ${packageDir(r.id)}/package.json version ${r.next}`,
+        `[dry-run] would prepend the block above to ${packageDir(r.id)}/CHANGELOG.md`,
+        '[dry-run] would run the package preflight (build:package + the pkg-* e2e legs)',
+        `[dry-run] git ${r.add.join(' ')}`,
+        `[dry-run] git ${r.commit.join(' ')}`,
+        `[dry-run] git tag -a ${r.tag} -m ${r.tag}`,
+        `[dry-run] git push origin ${r.branch} --follow-tags`,
+        `[dry-run] then MANUALLY: ${publishCommand(r.id)}`,
+        '\nDry run complete — nothing was written, tagged or pushed.',
+    ];
+}
+
+// ── Revert ─────────────────────────────────────────────────────────────────
+
+export type RevertStep =
+    /** git TRACKS the file — restore its committed content. */
+    | { readonly kind: 'checkout'; readonly path: string }
+    /** git does not know the file — the bump created it, so delete it. */
+    | { readonly kind: 'delete'; readonly path: string };
+
+/**
+ * How to undo the bump + changelog write after a failed preflight.
+ *
+ * Each path is decided by whether git actually TRACKS it, never by assuming
+ * both are tracked: on a package's FIRST release `CHANGELOG.md` is brand new,
+ * and a blanket `git checkout -- <both>` fails with "pathspec did not match any
+ * file(s) known to git", killing the script mid-revert and leaving exactly the
+ * dirty tree this exists to prevent.
+ */
+export function revertPlan(paths: readonly string[], isTracked: (path: string) => boolean): RevertStep[] {
+    return paths.map((path) => ({ kind: isTracked(path) ? 'checkout' : 'delete', path }) as RevertStep);
+}
+
+/**
+ * The line printed when one revert step fails.
+ *
+ * A revert failure is REPORTED, never thrown: it must not mask the preflight
+ * failure that triggered the revert, which is the thing the maintainer has to
+ * act on.
+ */
+export function revertFailureLine(path: string, error: unknown): string {
+    const reason = error instanceof Error ? error.message : JSON.stringify(error);
+    return `  could not revert ${path}: ${reason}`;
+}
+
+// ── Hand-off ───────────────────────────────────────────────────────────────
+
+/**
+ * The closing hand-off. The script never runs `npm publish` — 2FA is
+ * interactive — so it names the tag it created and the exact command left for a
+ * human, plus the way to verify the result.
+ */
+export function handoffLines(id: PackageId, tag: string, args: PackageReleaseArgs): readonly string[] {
+    return [
+        `\nTag ${tag} ${args.noPush ? 'created' : 'pushed'}. Publish manually (2FA):`,
+        `  ${publishCommand(id)}`,
+        `\nThen verify: npm view ${PACKAGE_NAMES[id]} version`,
+    ];
+}
+
+/** The line printed instead of pushing under `--no-push`. */
+export function noPushLine(tag: string): string {
+    return `[no-push] tag ${tag} created locally; not pushing.`;
+}
+
+/** The usage line printed when {@link parsePackageArgs} rejects the argv. */
+export function releaseUsage(): string {
+    return `\nUsage: npm run release:package -- <${PACKAGE_IDS.join('|')}> <patch|minor|major> ` +
+        '[--dry-run] [--force] [--allow-dirty] [--allow-branch] [--skip-preflight] [--no-push]';
+}
+
+// ── Orchestration ──────────────────────────────────────────────────────────
+
+/**
+ * Everything the release flow does to the world, as one injected port.
+ *
+ * The ORDER these are called in — bump before build, revert before exit, tag
+ * before push, never publish — is the release contract, and it is a sequence of
+ * decisions, not of I/O. Naming the effects here lets that sequence be driven
+ * from a fake port in tests, while the entry file supplies the real
+ * `execFileSync` / `writeFileSync` / `console` implementations and nothing else.
+ */
+export interface ReleaseEffects {
+    readonly git: GitProbe;
+    /** Runs `npm <command>`; throws on a non-zero exit, which is how a preflight fails. */
+    readonly npm: (command: string) => void;
+    readonly log: (line: string) => void;
+    readonly error: (line: string) => void;
+    readonly readFile: (relPath: string) => string;
+    /** `null` when the file does not exist — a package's FIRST CHANGELOG. */
+    readonly readFileIfExists: (relPath: string) => string | null;
+    readonly writeFile: (relPath: string, content: string) => void;
+    readonly deleteFile: (relPath: string) => void;
+    /** Today, as `YYYY-MM-DD`. Injected so a rendered changelog is assertable. */
+    readonly today: () => string;
+}
+
+/** The raw node primitives the release effects are composed from. */
+export interface NodeReleaseIO {
+    /** Spawns git under the repo root; throws on a non-zero exit. */
+    readonly git: (args: readonly string[]) => string;
+    /** Spawns git but answers `null` on a non-zero exit — the probing form. */
+    readonly gitProbe: (args: readonly string[]) => string | null;
+    readonly npm: (command: string) => void;
+    readonly log: (line: string) => void;
+    readonly error: (line: string) => void;
+    readonly readFile: (absPath: string) => string;
+    readonly exists: (absPath: string) => boolean;
+    readonly writeFile: (absPath: string, content: string) => void;
+    readonly deleteFile: (absPath: string) => void;
+    readonly now: () => Date;
+}
+
+/**
+ * Composes the real {@link ReleaseEffects} from node primitives and a repo root.
+ *
+ * The flow addresses files by REPO-RELATIVE path (that is what a git pathspec
+ * and a changelog header both want); resolving those against the repo root is
+ * the last decision left, so it lives here rather than at the entry.
+ */
+export function nodeReleaseEffects(repoRoot: string, io: NodeReleaseIO): ReleaseEffects {
+    const abs = (relPath: string): string => `${repoRoot}/${relPath}`;
+    return {
+        git: { run: (...args) => io.git(args), probe: (...args) => io.gitProbe(args) },
+        npm: io.npm,
+        log: io.log,
+        error: io.error,
+        readFile: (relPath) => io.readFile(abs(relPath)),
+        readFileIfExists: (relPath) => (io.exists(abs(relPath)) ? io.readFile(abs(relPath)) : null),
+        writeFile: (relPath, content) => io.writeFile(abs(relPath), content),
+        deleteFile: (relPath) => io.deleteFile(abs(relPath)),
+        today: () => io.now().toISOString().slice(0, 10),
+    };
+}
+
+/**
+ * Undoes the bump + changelog write after a failed preflight.
+ *
+ * Every step is attempted even if an earlier one throws: a revert that stops
+ * half-done leaves exactly the dirty tree it exists to prevent, and a revert
+ * failure must never mask the preflight failure that triggered it.
+ */
+export function applyRevert(paths: readonly string[], fx: ReleaseEffects): void {
+    const isTracked = (rel: string): boolean =>
+        fx.git.probe('ls-files', '--error-unmatch', '--', rel) !== null;
+
+    for (const step of revertPlan(paths, isTracked)) {
+        try {
+            if (step.kind === 'checkout') fx.git.run('checkout', '--', step.path);
+            else fx.deleteFile(step.path);
+        } catch (error) {
+            fx.error(revertFailureLine(step.path, error));
+        }
+    }
+}
+
+/**
+ * Builds and tests the package. Returns `false` when the preflight failed and
+ * the release must abort — the bump has already been reverted by then.
+ */
+export function runPreflight(id: PackageId, args: PackageReleaseArgs, paths: readonly string[], fx: ReleaseEffects): boolean {
+    if (args.skipPreflight) {
+        fx.log('[skip-preflight] not building or testing the package.');
+        return true;
+    }
+    try {
+        for (const command of preflightCommands(id)) fx.npm(command);
+        return true;
+    } catch {
+        fx.error('\nPreflight FAILED — reverting the version bump and changelog.');
+        applyRevert(paths, fx);
+        return false;
+    }
+}
+
+/** Commits, tags and (unless `--no-push`) pushes the two release files. */
+function commitTagPush(
+    plan: ReleasePlan,
+    branch: string,
+    argv: { add: string[]; commit: string[] },
+    args: PackageReleaseArgs,
+    fx: ReleaseEffects,
+): void {
+    fx.git.run(...argv.add);
+    fx.git.run(...argv.commit);
+    fx.git.run('tag', '-a', plan.tag, '-m', plan.tag);
+    if (args.noPush) fx.log(noPushLine(plan.tag));
+    else fx.git.run('push', 'origin', branch, '--follow-tags');
+}
+
+/**
+ * Writes the bump and the changelog.
+ *
+ * The bump happens BEFORE the build because ng-packagr copies the version from
+ * the source package.json into the tarball — building first would pack the OLD
+ * version.
+ */
+function writeReleaseFiles(id: PackageId, pkgSource: string, plan: ReleasePlan, fx: ReleaseEffects): void {
+    const [pkgJson, changelog] = packageReleasePaths(id);
+    fx.writeFile(pkgJson, setPackageVersion(pkgSource, plan.next));
+    fx.writeFile(changelog, prependRelease(fx.readFileIfExists(changelog), plan.block, packageChangelogHeader(id)));
+}
+
+/** The guards of steps 1-2, or `null` when the flow may continue. */
+function guardFailure(args: PackageReleaseArgs, branch: string, fx: ReleaseEffects): Refusal {
+    return dirtyTreeRefusal(fx.git.run('status', '--porcelain'), args) ?? branchRefusal(branch, args);
+}
+
+/**
+ * The whole `release:package` flow as a value→exit-code function.
+ *
+ * It never runs `npm publish`: publishing needs 2FA, which is interactive, so
+ * the flow stops after pushing the tag and prints the command for a human.
+ */
+export function runRelease(argv: readonly string[], fx: ReleaseEffects): number {
+    let args: PackageReleaseArgs;
+    try {
+        args = parsePackageArgs(argv);
+    } catch (error) {
+        if (!(error instanceof ArgError)) throw error;
+        fx.error(error.message);
+        fx.error(releaseUsage());
+        return 1;
+    }
+
+    const { id } = args;
+    const branch = fx.git.run('rev-parse', '--abbrev-ref', 'HEAD');
+    const refusal = guardFailure(args, branch, fx);
+    if (refusal) {
+        for (const line of refusal) fx.error(line);
+        return 1;
+    }
+
+    const base = resolveBaseRef(id, fx.git);
+    fx.log(`Base ref: ${base.how}`);
+
+    const paths = closurePaths(id);
+    const report = verdictReport(packageVerdict(changedFilesSince(base.ref, fx.git), paths, id), args);
+    for (const line of report.lines) fx.log(line);
+    if (!report.proceed) return 1;
+
+    const [pkgJsonPath] = packageReleasePaths(id);
+    const pkgSource = fx.readFile(pkgJsonPath);
+    const plan = planRelease(id, pkgSource, args, packageCommits(base.ref, paths, fx.git), fx.today());
+    fx.log(`\n${plan.headline}`);
+    fx.log(`\n${plan.block}`);
+
+    const releasePaths = packageReleasePaths(id);
+    const argvGit = releaseCommitArgv(plan.tag, releasePaths, id);
+
+    if (args.dryRun) {
+        const lines = rehearsalLines({ id, next: plan.next, tag: plan.tag, branch, ...argvGit });
+        for (const line of lines) fx.log(line);
+        return 0;
+    }
+
+    writeReleaseFiles(id, pkgSource, plan, fx);
+    if (!runPreflight(id, args, releasePaths, fx)) return 1;
+
+    commitTagPush(plan, branch, argvGit, args, fx);
+    for (const line of handoffLines(id, plan.tag, args)) fx.log(line);
+    return 0;
 }

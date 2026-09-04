@@ -2,8 +2,9 @@
  * `npm run stage:package -- <rte|data-table>`
  *
  * Regenerates one compiled package's `src/` tree and `theme.css` from the
- * registry closure. Thin on purpose: argv, I/O and exit codes only — every
- * decision lives in `stage-package-lib.ts`, which is unit-tested in process
+ * registry closure. Nothing but WIRING: it resolves the repo root, and prints
+ * and exits with what `runStage` decides — every decision, including the staged
+ * paths, lives in `stage-package-lib.ts` and is unit-tested in process
  * (subprocess tests contribute nothing to v8 coverage).
  *
  * Like every maintainer script here, the repo root is resolved from this file's
@@ -11,53 +12,28 @@
  * copy inside a throwaway repo.
  */
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import {
-    PACKAGE_IDS,
-    auditStagedImports,
-    isPackageId,
-    packageDir,
-    stagePackage,
-} from './stage-package-lib.js';
+import { nodeStageEffects, runStage } from './stage-package-lib.js';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SCRIPT_DIR, '../../..');
 
-function usage(): string {
-    return `Usage: npm run stage:package -- <${PACKAGE_IDS.join('|')}>`;
+/** The composed effects, exported so the wiring itself is checkable. */
+export const EFFECTS = nodeStageEffects(REPO_ROOT);
+
+export function main(argv: readonly string[]): number {
+    const outcome = runStage(argv, EFFECTS);
+    for (const line of outcome.stdout) console.log(line);
+    for (const line of outcome.stderr) console.error(line);
+    return outcome.status;
 }
 
-function main(): number {
-    const id = process.argv[2];
-
-    if (!id) {
-        console.error('Missing package id.');
-        console.error(usage());
-        return 1;
-    }
-    if (!isPackageId(id)) {
-        console.error(`Unknown package "${id}".`);
-        console.error(usage());
-        return 1;
-    }
-
-    const result = stagePackage(id, REPO_ROOT);
-    const srcRoot = path.join(REPO_ROOT, packageDir(id), 'src');
-
-    // The closure is only useful if it is EXACT: an import that escapes the
-    // staged tree means a file the registry never declared, and ng-packagr would
-    // fail minutes later with a far less obvious message.
-    const unresolved = auditStagedImports(srcRoot);
-    if (unresolved.length > 0) {
-        console.error(`[stage-package] ${id}: ${unresolved.length} import(s) escape the staged tree:`);
-        for (const entry of unresolved) console.error(`  ${entry}`);
-        return 1;
-    }
-
-    console.log(`[stage-package] ${id}: staged ${result.written} files (removed ${result.removed} stale).`);
-    console.log(`[stage-package] ${id}: ${path.relative(REPO_ROOT, srcRoot)} + theme.css`);
-    return 0;
+/**
+ * Exit only when RUN, never when imported. Guarding on the entry URL is what
+ * lets a test import this module to check its wiring without the import
+ * terminating the test process.
+ */
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+    process.exit(main(process.argv.slice(2)));
 }
-
-process.exit(main());
