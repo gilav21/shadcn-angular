@@ -104,7 +104,7 @@ export class RichTextInsertDateDirective {
         icon: ICON,
         tooltip: "Insert today's date",
         order: this.uiRteInsertDateOrder(),
-        isEnabled: () => !this.host.readonly() && !this.host.disabled(),
+        isEnabled: () => !this.host.readonly() && !this.host.isDisabled(),
         onClick: () => this.host.insertTextAtCaret(
           new Intl.DateTimeFormat(this.uiRteInsertDateLocale()).format(new Date()),
         ),
