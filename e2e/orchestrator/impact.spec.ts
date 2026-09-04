@@ -177,6 +177,9 @@ describe('rich-text-editor base harness', () => {
             impacted,
         )).toBe(true);
         expect([...impacted]).toEqual(['rich-text-editor']);
+    });
+});
+
 
 // ── T-18 — package impact rules ────────────────────────────────────────────
 //
