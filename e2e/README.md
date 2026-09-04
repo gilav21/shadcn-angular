@@ -227,6 +227,46 @@ The `names` list is read by both the runner (for `add a b c --yes`)
 and the impact analyzer (so changes to any of those components
 schedule the spec). No separate dependency map.
 
+### Package specs (`pkg-*`)
+
+The compiled npm packages (`@gilav21/shadcn-angular-rte`,
+`@gilav21/shadcn-angular-data-table`) are proven by installing a real
+`npm pack` tarball into a pristine app — no CLI involvement at all.
+Two extra `ComponentSpec` fields drive that:
+
+```ts
+{ names: [], packages: ['rte'], fixture: 'ng20', label: 'pkg-rte' },
+{ names: [], packages: ['rte'], fixture: 'ng21', label: 'pkg-rte-ng21',
+  harnessFolder: 'pkg-rte' },
+// mixed mode: a CLI-copied component AND the package in one app
+{ names: ['button'], packages: ['rte'], fixture: 'ng20', label: 'pkg-mixed' },
+```
+
+- **`packages`** — tarballs to build and install. `names` may be empty
+  *only* when this is set (a spec that installs nothing would serve an
+  empty app and "pass"), and such a spec must carry an explicit `label`.
+- **`fixture`** — `'ng20'` (default, `e2e/fixture-app`) or `'ng21'`
+  (`e2e/fixture-app-21`). The packages declare a peer range spanning both
+  Angular majors, so each is run on **both** — that pair is the evidence
+  behind the README's compatibility claim, and a test asserts no package
+  is proven on only one.
+
+These are `EXPLICIT_SPECS` entries by necessity: auto-discovery would turn
+`e2e/harness/pkg-rte/` into `{ names: ['pkg-rte'] }`, and validation would
+then abort the whole orchestrator on an unknown component name. The ng20 and
+ng21 specs deliberately share a harness folder — same demo page, different
+Angular version underneath.
+
+What a package leg does: build the tarball (once per run, memoised), install
+it, wire up Tailwind by hand from the README's own snippet, run a
+**production** `ng build` (`ng serve` skips budgets and the full optimizer, so
+an AOT or tree-shaking regression would otherwise stay hidden), then serve and
+run Playwright.
+
+ng21 specs run on one dedicated worker *after* the ng20 pool, since that
+fixture is a separate checkout with its own `node_modules`. `npm run
+e2e:reset` resets both fixtures.
+
 ### Inspecting the registry
 
 The `why` CLI command shows what a component is made of and what

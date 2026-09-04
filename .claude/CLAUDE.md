@@ -640,6 +640,16 @@ So: a PR that only touches components, lib source, and `registry.json` goes live
 on merge. Add a PR to the pending-releases memory **only** if it changes CLI
 logic, the manifest schema, or utils baselines.
 
+**The compiled packages are a separate release train.**
+`@gilav21/shadcn-angular-rte` and `@gilav21/shadcn-angular-data-table` ship a
+frozen snapshot of a registry closure, so the "it goes live on merge" rule above
+does **not** apply to them: a component change reaches CLI users on merge, but
+reaches package users only after `npm run release:package -- <rte|data-table>
+<level>` (see `docs/local-gates.md`). Their versions and tags (`rte-v*`,
+`data-table-v*`) are independent of the CLI's. A closure change therefore
+usually needs no CLI publish AND a package release — the two verdicts are
+computed separately, by `release-cli` and `release-package` respectively.
+
 ---
 
 ## 5. Responsive Design (Zero Tolerance)
