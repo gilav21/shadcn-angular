@@ -319,10 +319,14 @@ function printNothingToInstall(toSkip: string[], declined: ComponentName[]): voi
     }
 }
 
+/** `1 file` / `7 files` — a count with its noun correctly pluralised. */
+function plural(count: number, noun: string): string {
+    return `${count} ${noun}${count === 1 ? '' : 's'}`;
+}
+
 /** `2 components, 7 files` — the parenthetical after a group heading. */
 function groupCaption(group: InstallSummaryGroup): string {
-    const count = group.components.length;
-    return `${count} component${count === 1 ? '' : 's'}, ${group.files} file${group.files === 1 ? '' : 's'}`;
+    return `${plural(group.components.length, 'component')}, ${plural(group.files, 'file')}`;
 }
 
 /** One heading + one line per component. Empty groups print nothing (UC-6). */
@@ -330,7 +334,7 @@ function printSummaryGroup(heading: string, group: InstallSummaryGroup): void {
     if (group.components.length === 0) return;
     console.log('  ' + chalk.bold(`${heading} (${groupCaption(group)})`));
     for (const c of group.components) {
-        console.log(chalk.dim('    + ') + chalk.cyan(c.name) + chalk.dim(` (${c.files} files)`));
+        console.log(chalk.dim('    + ') + chalk.cyan(c.name) + chalk.dim(` (${plural(c.files, 'file')})`));
     }
 }
 
@@ -385,14 +389,16 @@ function printDryRunSummary(
 ): void {
     console.log(chalk.bold('\n[Dry Run] No changes will be made.\n'));
     if (toInstall.length > 0) {
+        // The grouped block below names every component with its file count, so
+        // the old flat list would just repeat it — only the headline remains.
         console.log(chalk.green(`  Would install ${toInstall.length} component(s) — ${summary.totalFiles} files:`));
-        for (const name of toInstall) console.log(chalk.dim('    + ') + chalk.cyan(name));
+        console.log('');
     }
     if (toOverwrite.length > 0) {
         console.log(chalk.yellow(`  Would overwrite ${toOverwrite.length} component(s):`));
         for (const name of toOverwrite) console.log(chalk.dim('    ~ ') + chalk.yellow(name));
+        console.log('');
     }
-    console.log('');
     printGroupedSummary(summary);
     printSkipSummary(toSkip, declined);
     console.log('');

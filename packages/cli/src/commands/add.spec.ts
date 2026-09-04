@@ -1157,6 +1157,25 @@ describe('add()', () => {
     expect(text).not.toMatch(/\(0 components?, 0 files\)/);
   });
 
+  it('pluralises file counts, so a one-file component reads "1 file" not "1 files" (T-6)', async () => {
+    // `component-outlet` ships exactly one file — the singular boundary.
+    expect(registry['component-outlet'].files).toHaveLength(1);
+
+    await add(['component-outlet'], { branch: 'master', remote: true, dryRun: true, yes: true });
+
+    const text = output();
+    expect(text).toContain('component-outlet (1 file)');
+    expect(text).not.toContain('(1 files)');
+    expect(text).toContain('1 component, 1 file)');
+  });
+
+  it('names each component once — the grouped block replaces the flat list (T-6)', async () => {
+    await add(['badge'], { branch: 'master', remote: true, dryRun: true, yes: true });
+
+    const occurrences = output().split('\n').filter(l => l.includes('badge')).length;
+    expect(occurrences).toBe(1);
+  });
+
   it('keeps the "kept local changes" line and prints no grouped block when nothing was written (T-8)', async () => {
     filesPresentAndChanged();
     asMock(prompts).mockResolvedValue({ selected: [] });
