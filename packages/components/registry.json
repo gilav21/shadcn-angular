@@ -2596,6 +2596,7 @@
       "separator"
     ],
     "testFiles": [
+      "rich-text-editor/barrel.spec.ts",
       "rich-text-editor/rich-text-command-registry.service.spec.ts",
       "rich-text-editor/rich-text-editor.component.spec.ts",
       "rich-text-editor/rich-text-markdown.service.spec.ts",
@@ -5240,6 +5241,7 @@
       "rich-text-editor/typography"
     ],
     "testFiles": [
+      "rich-text-editor/addons/full/full-barrel.spec.ts",
       "rich-text-editor/addons/full/rich-text-full.spec.ts"
     ],
     "requiresBaseFiles": [

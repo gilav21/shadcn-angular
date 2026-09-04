@@ -134,3 +134,34 @@ describe('block impact analysis', () => {
         }
     });
 });
+
+/**
+ * T-27 / T-28 — the base editor's own harness. Before this, `e2e/harness/` held
+ * 14 `rte-*` folders and nothing installing the base alone, so a refactor of
+ * the 4.6k-line editor was covered only incidentally by whichever addon spec
+ * happened to touch the same path.
+ */
+describe('rich-text-editor base harness', () => {
+    const base = ALL_COMPONENTS.filter(s => specLabel(s) === 'rich-text-editor');
+
+    it('is auto-discovered exactly once, installing only the base', () => {
+        expect(base).toHaveLength(1);
+        expect(base[0].names).toEqual(['rich-text-editor']);
+    });
+
+    it('is not claimed by an EXPLICIT_SPECS entry (no label, no initArgs override)', () => {
+        // An auto-discovered spec carries neither — that is what distinguishes
+        // it from the hand-registered multi-component entries.
+        expect(base[0].label).toBeUndefined();
+        expect(base[0].initArgs).toBeUndefined();
+        expect(base[0].harnessFolder).toBeUndefined();
+    });
+
+    it('schedules the base label and every rte-* label for an editor source change', () => {
+        const scheduled = ALL_COMPONENTS
+            .filter(s => s.names.includes('rich-text-editor'))
+            .map(specLabel);
+        expect(scheduled).toContain('rich-text-editor');
+        expect(scheduled.filter(l => l.startsWith('rte-')).length).toBeGreaterThanOrEqual(14);
+    });
+});

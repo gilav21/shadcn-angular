@@ -2238,33 +2238,14 @@ describe('RichTextEditorComponent — toolbar actions (link, image, color, font)
         expect(span).toBeTruthy();
     });
 
-    it('emits a customToolbarAction with a working editor ref', () => {
-        component.writeValue('<p>ref</p>');
-        fixture.detectChanges();
-        caretIn(editor.querySelector('p')!.firstChild as Text, 3);
-
-        let captured: {
-            id: string;
-            ref: {
-                insertText: (t: string) => void;
-                insertHtml: (h: string) => void;
-                focus: () => void;
-                getSelectedText: () => string;
-                getHtmlContent: () => string;
-            };
-        } | null = null;
-        component.customToolbarAction.subscribe(e => { captured = e as typeof captured; });
-
-        component.onCustomToolbarAction('my-action');
-
-        expect(captured).toBeTruthy();
-        expect(captured!.id).toBe('my-action');
-        captured!.ref.insertText('INJECTED');
-        expect(editor.textContent).toContain('INJECTED');
-        expect(captured!.ref.getHtmlContent()).toContain('ref');
-        expect(() => captured!.ref.insertHtml('<b>bold</b>')).not.toThrow();
-        expect(() => captured!.ref.focus()).not.toThrow();
-        expect(typeof captured!.ref.getSelectedText()).toBe('string');
+    // T-10 — Rec 16: the `customToolbarItems` extension path is deleted, not
+    // deprecated. A template still binding it now fails to compile (NG8002)
+    // instead of silently rendering nothing.
+    it('exposes no customToolbarItems input and no customToolbarAction output', () => {
+        expect(() => fixture.componentRef.setInput('customToolbarItems', [])).toThrow();
+        const surface = component as unknown as Record<string, unknown>;
+        expect('customToolbarAction' in surface).toBe(false);
+        expect('onCustomToolbarAction' in surface).toBe(false);
     });
 });
 

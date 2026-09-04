@@ -63,3 +63,34 @@ describe('directive discoverability', () => {
     }
   });
 });
+
+/**
+ * T-12 — Rec 16 removed `[customToolbarItems]` / `(customToolbarAction)` with
+ * no compatibility shim (pre-1.0 policy), so `update` and `diff` are the only
+ * places a consumer learns their template stopped working. That notice comes
+ * from this registry `breaking[]` entry, not from any code path — if the entry
+ * goes missing the removal becomes silent.
+ */
+describe('rich-text-editor removal notice', () => {
+  const change = (registry['rich-text-editor'].breaking ?? []).find(c =>
+    c.from.includes('customToolbarItems'),
+  );
+
+  it('carries a removal entry naming the deleted input and output', () => {
+    expect(change).toBeDefined();
+    expect(change!.kind).toBe('removal');
+    expect(change!.from).toContain('customToolbarAction');
+  });
+
+  it('points the consumer at the toolbar-slot replacement and the guide', () => {
+    expect(change!.to).toContain('toolbarSlots');
+    expect(change!.note).toContain('RichTextEditorAddonHost');
+    expect(change!.note).toContain('docs/rich-text-editor.md');
+  });
+
+  it('maps every RichTextEditorRef method to its host equivalent', () => {
+    for (const method of ['insertText', 'insertHtml', 'getSelectedText', 'getHtmlContent', 'focus']) {
+      expect(change!.note, method).toContain(method);
+    }
+  });
+});
