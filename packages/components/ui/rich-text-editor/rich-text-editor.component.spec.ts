@@ -6401,12 +6401,12 @@ describe('RichTextEditorComponent — reactive forms disabled state', () => {
     @Component({
         standalone: true,
         imports: [ReactiveFormsModule, RichTextEditorComponent],
-        template: `<ui-rich-text-editor [formControl]="control" [disabled]="inputDisabled()" [dir]="dir" />`,
+        template: `<ui-rich-text-editor [formControl]="control" [disabled]="inputDisabled()" [locale]="locale()" />`,
     })
     class FormHostComponent {
         control = new FormControl('<p>form</p>', { nonNullable: true });
         readonly inputDisabled = signal(false);
-        dir: 'ltr' | 'rtl' = 'ltr';
+        readonly locale = signal('en');
     }
 
     let fixture: ComponentFixture<FormHostComponent>;
@@ -6576,14 +6576,30 @@ describe('RichTextEditorComponent — reactive forms disabled state', () => {
         expect(rte.isDisabled()).toBe(true);
     });
 
+    // RTL is driven by the `locale` input through the i18n service (`dir` is a
+    // computed, not an input), so the editor is only really in RTL once a
+    // Hebrew locale is bound — asserted here before the disable, or the case
+    // would be vacuous.
     it('locks the same way in RTL', () => {
-        host.dir = 'rtl';
+        host.locale.set('he');
         wire();
+        expect(rte.isRtl()).toBe(true);
+        expect((fixture.nativeElement as HTMLElement).querySelector('[dir="rtl"]')).toBeTruthy();
+
         host.control.disable();
         fixture.detectChanges();
 
-        expect(editor.getAttribute('contenteditable')).toBe('false');
         expect(rte.isDisabled()).toBe(true);
+        expect(editor.getAttribute('contenteditable')).toBe('false');
+        expect(editor.getAttribute('aria-disabled')).toBe('true');
+        // Still RTL after locking — the two are independent.
+        expect(rte.isRtl()).toBe(true);
+
+        const buttons = Array.from(
+            (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('[role="toolbar"] button'),
+        );
+        expect(buttons.length).toBeGreaterThan(0);
+        expect(buttons.every(b => b.disabled)).toBe(true);
     });
 
     // Touch table-cell selection is gated on the same guard. Its observable

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { signal } from '@angular/core';
+import { computed, signal, type Signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RichTextHistoryPanelComponent } from './rich-text-history-panel.component';
 import { RICH_TEXT_HISTORY_LOCALES } from './rich-text-history.locales';
@@ -62,7 +62,8 @@ function snapshot(index: number): RichTextHistoryEntrySnapshot {
 
 interface MockHost {
     disabled: ReturnType<typeof signal<boolean>>;
-    isDisabled: ReturnType<typeof signal<boolean>>;
+    isDisabled: Signal<boolean>;
+    formDisabled: ReturnType<typeof signal<boolean>>;
     readonly: ReturnType<typeof signal<boolean>>;
     currentHistoryIndex: ReturnType<typeof signal<number>>;
     historyEntries: ReturnType<typeof signal<RichTextHistoryEntrySnapshot[]>>;
@@ -103,9 +104,16 @@ describe('RichTextHistoryPanelComponent', () => {
     const detachedLists: HTMLElement[] = [];
 
     async function setup(): Promise<void> {
+        // `isDisabled` is the effective state — the `[disabled]` input OR a form
+        // having disabled the control — so raising the raw input must raise it
+        // too. Two independent signals here would let the panel read the raw
+        // input and still look correct; `formDisabled` is the form-only half.
+        const inputDisabled = signal(false);
+        const formDisabled = signal(false);
         host = {
-            disabled: signal(false),
-            isDisabled: signal(false),
+            disabled: inputDisabled,
+            isDisabled: computed(() => inputDisabled() || formDisabled()),
+            formDisabled,
             readonly: signal(false),
             currentHistoryIndex: signal(1),
             historyEntries: signal([snapshot(0), snapshot(1), snapshot(2)]),
@@ -195,10 +203,29 @@ describe('RichTextHistoryPanelComponent', () => {
             expect(internals.historyPanelOpen()).toBe(true);
         });
 
-        it('refuses to open while disabled', () => {
+        it('refuses to open while disabled by the [disabled] input', () => {
             host.disabled.set(true);
             internals.onHistoryPanelOpenChange(true);
             expect(internals.historyPanelOpen()).toBe(false);
+        });
+
+        // The panel must read the editor's EFFECTIVE disabled state, not the raw
+        // [disabled] input: a reactive form's control.disable() reaches the host
+        // through setDisabledState and never touches that input, so a panel
+        // reading the input alone stays live under control.disable().
+        it('refuses to open while a reactive form has disabled the control', () => {
+            host.formDisabled.set(true);
+            expect(host.disabled()).toBe(false);
+
+            internals.onHistoryPanelOpenChange(true);
+            expect(internals.historyPanelOpen()).toBe(false);
+        });
+
+        it('refuses the keyboard shortcut while a reactive form has disabled the control', () => {
+            host.formDisabled.set(true);
+            panel.openFromShortcut();
+            expect(internals.historyPanelOpen()).toBe(false);
+            expect(host.flushPendingHistoryPush).not.toHaveBeenCalled();
         });
 
         it('flushes pending history and opens', () => {

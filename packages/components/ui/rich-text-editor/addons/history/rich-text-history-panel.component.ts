@@ -66,7 +66,13 @@ export class RichTextHistoryPanelComponent {
     /** Emits the restored entry index after a revision is applied. */
     readonly restore = output<number>();
 
-    protected readonly disabled = this.host.disabled;
+    /**
+     * The editor's *effective* disabled state — the `[disabled]` input OR a
+     * reactive form having disabled the control. Not `host.disabled`, which is
+     * the raw input alone and would leave this panel live under
+     * `control.disable()`.
+     */
+    protected readonly disabled = this.host.isDisabled;
     protected readonly readonly = this.host.readonly;
 
     protected readonly historyPanelOpen = signal(false);
