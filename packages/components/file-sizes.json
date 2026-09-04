@@ -2,11 +2,11 @@
   "version": 1,
   "ui": {
     "accordion/accordion.component.html": {
-      "bytes": 84,
+      "bytes": 81,
       "lines": 3
     },
     "accordion/accordion.component.spec.ts": {
-      "bytes": 28024,
+      "bytes": 27304,
       "lines": 720
     },
     "accordion/accordion.component.ts": {
@@ -14,15 +14,15 @@
       "lines": 114
     },
     "accordion/accordion.stories.ts": {
-      "bytes": 8264,
+      "bytes": 8079,
       "lines": 185
     },
     "accordion/index.ts": {
-      "bytes": 193,
+      "bytes": 189,
       "lines": 4
     },
     "accordion/sub/accordion-content.component.html": {
-      "bytes": 257,
+      "bytes": 245,
       "lines": 12
     },
     "accordion/sub/accordion-content.component.ts": {
@@ -30,11 +30,11 @@
       "lines": 46
     },
     "accordion/sub/accordion-item.component.css": {
-      "bytes": 186,
+      "bytes": 178,
       "lines": 8
     },
     "accordion/sub/accordion-item.component.html": {
-      "bytes": 1623,
+      "bytes": 1576,
       "lines": 47
     },
     "accordion/sub/accordion-item.component.ts": {
@@ -42,11 +42,11 @@
       "lines": 76
     },
     "accordion/sub/accordion-trigger.component.css": {
-      "bytes": 186,
+      "bytes": 178,
       "lines": 8
     },
     "accordion/sub/accordion-trigger.component.html": {
-      "bytes": 680,
+      "bytes": 656,
       "lines": 24
     },
     "accordion/sub/accordion-trigger.component.ts": {
@@ -54,7 +54,7 @@
       "lines": 64
     },
     "alert-dialog/alert-dialog.component.spec.ts": {
-      "bytes": 26684,
+      "bytes": 26028,
       "lines": 656
     },
     "alert-dialog/alert-dialog.component.ts": {
@@ -62,15 +62,15 @@
       "lines": 45
     },
     "alert-dialog/alert-dialog.stories.ts": {
-      "bytes": 6460,
+      "bytes": 6287,
       "lines": 173
     },
     "alert-dialog/index.ts": {
-      "bytes": 481,
+      "bytes": 472,
       "lines": 9
     },
     "alert-dialog/sub/alert-dialog-action.component.css": {
-      "bytes": 280,
+      "bytes": 270,
       "lines": 10
     },
     "alert-dialog/sub/alert-dialog-action.component.ts": {
@@ -78,7 +78,7 @@
       "lines": 50
     },
     "alert-dialog/sub/alert-dialog-cancel.component.css": {
-      "bytes": 280,
+      "bytes": 270,
       "lines": 10
     },
     "alert-dialog/sub/alert-dialog-cancel.component.ts": {
@@ -90,19 +90,19 @@
       "lines": 214
     },
     "alert-dialog/sub/alert-dialog-description.component.ts": {
-      "bytes": 413,
+      "bytes": 398,
       "lines": 15
     },
     "alert-dialog/sub/alert-dialog-footer.component.ts": {
-      "bytes": 441,
+      "bytes": 426,
       "lines": 15
     },
     "alert-dialog/sub/alert-dialog-header.component.ts": {
-      "bytes": 432,
+      "bytes": 417,
       "lines": 15
     },
     "alert-dialog/sub/alert-dialog-title.component.ts": {
-      "bytes": 387,
+      "bytes": 372,
       "lines": 15
     },
     "alert-dialog/sub/alert-dialog-trigger.component.ts": {
@@ -114,27 +114,27 @@
       "lines": 4
     },
     "alert/alert.component.html": {
-      "bytes": 422,
+      "bytes": 411,
       "lines": 11
     },
     "alert/alert.component.spec.ts": {
-      "bytes": 5971,
+      "bytes": 5805,
       "lines": 166
     },
     "alert/alert.component.ts": {
-      "bytes": 2774,
+      "bytes": 2701,
       "lines": 73
     },
     "alert/alert.stories.ts": {
-      "bytes": 4797,
+      "bytes": 4684,
       "lines": 113
     },
     "alert/index.ts": {
-      "bytes": 134,
+      "bytes": 131,
       "lines": 3
     },
     "alert/sub/alert-description.component.html": {
-      "bytes": 16,
+      "bytes": 15,
       "lines": 1
     },
     "alert/sub/alert-description.component.ts": {
@@ -142,7 +142,7 @@
       "lines": 23
     },
     "alert/sub/alert-title.component.html": {
-      "bytes": 16,
+      "bytes": 15,
       "lines": 1
     },
     "alert/sub/alert-title.component.ts": {
@@ -154,11 +154,11 @@
       "lines": 29
     },
     "area-chart/area-chart.component.html": {
-      "bytes": 2672,
+      "bytes": 2570,
       "lines": 102
     },
     "area-chart/area-chart.component.spec.ts": {
-      "bytes": 10407,
+      "bytes": 10121,
       "lines": 286
     },
     "area-chart/area-chart.component.ts": {
@@ -166,31 +166,31 @@
       "lines": 349
     },
     "area-chart/area-chart.stories.ts": {
-      "bytes": 5434,
+      "bytes": 5302,
       "lines": 132
     },
     "area-chart/index.ts": {
-      "bytes": 41,
+      "bytes": 40,
       "lines": 1
     },
     "aspect-ratio/aspect-ratio.component.html": {
-      "bytes": 95,
+      "bytes": 92,
       "lines": 3
     },
     "aspect-ratio/aspect-ratio.component.spec.ts": {
-      "bytes": 2007,
+      "bytes": 1949,
       "lines": 58
     },
     "aspect-ratio/aspect-ratio.component.ts": {
-      "bytes": 901,
+      "bytes": 872,
       "lines": 29
     },
     "aspect-ratio/aspect-ratio.stories.ts": {
-      "bytes": 2809,
+      "bytes": 2720,
       "lines": 89
     },
     "aspect-ratio/index.ts": {
-      "bytes": 43,
+      "bytes": 42,
       "lines": 1
     },
     "autocomplete/__screenshots__/autocomplete.component.spec.ts/AutocompleteComponent---top-layer-announces-the-highlighted-option-through-aria-activedescendant-1.png": {
@@ -222,7 +222,7 @@
       "lines": 11
     },
     "autocomplete/autocomplete.component.css": {
-      "bytes": 289,
+      "bytes": 279,
       "lines": 10
     },
     "autocomplete/autocomplete.component.html": {
@@ -230,7 +230,7 @@
       "lines": 90
     },
     "autocomplete/autocomplete.component.spec.ts": {
-      "bytes": 38105,
+      "bytes": 37111,
       "lines": 994
     },
     "autocomplete/autocomplete.component.ts": {
@@ -238,31 +238,31 @@
       "lines": 642
     },
     "autocomplete/autocomplete.coverage.spec.ts": {
-      "bytes": 9843,
+      "bytes": 9602,
       "lines": 241
     },
     "autocomplete/autocomplete.stories.ts": {
-      "bytes": 6691,
+      "bytes": 6530,
       "lines": 161
     },
     "autocomplete/highlight.pipe.ts": {
-      "bytes": 1197,
+      "bytes": 1169,
       "lines": 28
     },
     "autocomplete/index.ts": {
-      "bytes": 78,
+      "bytes": 76,
       "lines": 2
     },
     "avatar/avatar.component.css": {
-      "bytes": 216,
+      "bytes": 207,
       "lines": 9
     },
     "avatar/avatar.component.html": {
-      "bytes": 1028,
+      "bytes": 996,
       "lines": 32
     },
     "avatar/avatar.component.spec.ts": {
-      "bytes": 9303,
+      "bytes": 9061,
       "lines": 242
     },
     "avatar/avatar.component.ts": {
@@ -270,15 +270,15 @@
       "lines": 89
     },
     "avatar/avatar.stories.ts": {
-      "bytes": 3535,
+      "bytes": 3432,
       "lines": 103
     },
     "avatar/index.ts": {
-      "bytes": 134,
+      "bytes": 131,
       "lines": 3
     },
     "avatar/sub/avatar-fallback.component.html": {
-      "bytes": 146,
+      "bytes": 141,
       "lines": 5
     },
     "avatar/sub/avatar-fallback.component.ts": {
@@ -286,7 +286,7 @@
       "lines": 34
     },
     "avatar/sub/avatar-image.component.html": {
-      "bytes": 218,
+      "bytes": 209,
       "lines": 9
     },
     "avatar/sub/avatar-image.component.ts": {
@@ -294,27 +294,27 @@
       "lines": 49
     },
     "badge/badge.component.css": {
-      "bytes": 234,
+      "bytes": 225,
       "lines": 9
     },
     "badge/badge.component.html": {
-      "bytes": 157,
+      "bytes": 148,
       "lines": 9
     },
     "badge/badge.component.spec.ts": {
-      "bytes": 3793,
+      "bytes": 3695,
       "lines": 98
     },
     "badge/badge.component.ts": {
-      "bytes": 2923,
+      "bytes": 2844,
       "lines": 79
     },
     "badge/badge.stories.ts": {
-      "bytes": 2421,
+      "bytes": 2343,
       "lines": 78
     },
     "badge/index.ts": {
-      "bytes": 36,
+      "bytes": 35,
       "lines": 1
     },
     "banner/banner.component.html": {
@@ -342,11 +342,11 @@
       "lines": 154
     },
     "bar-chart-drilldown/bar-chart-drilldown.component.html": {
-      "bytes": 4361,
+      "bytes": 4230,
       "lines": 131
     },
     "bar-chart-drilldown/bar-chart-drilldown.component.spec.ts": {
-      "bytes": 17917,
+      "bytes": 17434,
       "lines": 483
     },
     "bar-chart-drilldown/bar-chart-drilldown.component.ts": {
@@ -354,11 +354,11 @@
       "lines": 358
     },
     "bar-chart-drilldown/bar-chart-drilldown.stories.ts": {
-      "bytes": 5926,
+      "bytes": 5766,
       "lines": 160
     },
     "bar-chart-drilldown/index.ts": {
-      "bytes": 50,
+      "bytes": 49,
       "lines": 1
     },
     "bar-chart/__screenshots__/bar-chart.component.spec.ts/BarChartComponent-should-set-aria-label-on-container-1.png": {
@@ -366,11 +366,11 @@
       "lines": 13
     },
     "bar-chart/bar-chart.component.html": {
-      "bytes": 5455,
+      "bytes": 5285,
       "lines": 170
     },
     "bar-chart/bar-chart.component.spec.ts": {
-      "bytes": 14063,
+      "bytes": 13679,
       "lines": 384
     },
     "bar-chart/bar-chart.component.ts": {
@@ -378,19 +378,19 @@
       "lines": 311
     },
     "bar-chart/bar-chart.stories.ts": {
-      "bytes": 5008,
+      "bytes": 4875,
       "lines": 133
     },
     "bar-chart/index.ts": {
-      "bytes": 40,
+      "bytes": 39,
       "lines": 1
     },
     "bar-race-chart/bar-race-chart.component.html": {
-      "bytes": 4119,
+      "bytes": 4013,
       "lines": 106
     },
     "bar-race-chart/bar-race-chart.component.spec.ts": {
-      "bytes": 17832,
+      "bytes": 17312,
       "lines": 520
     },
     "bar-race-chart/bar-race-chart.component.ts": {
@@ -398,15 +398,15 @@
       "lines": 383
     },
     "bar-race-chart/bar-race-chart.locales.ts": {
-      "bytes": 1626,
+      "bytes": 1604,
       "lines": 22
     },
     "bar-race-chart/bar-race-chart.stories.ts": {
-      "bytes": 6904,
+      "bytes": 6694,
       "lines": 210
     },
     "bar-race-chart/index.ts": {
-      "bytes": 88,
+      "bytes": 86,
       "lines": 2
     },
     "bento-grid/__screenshots__/bento-grid.component.spec.ts/BentoGridComponent-columnWidth-drives-the-rendered-tracks-renders-the-fixed-track-width-it-hit-tests-against-1.png": {
@@ -454,7 +454,7 @@
       "lines": 4
     },
     "bento-grid/bento-grid.component.css": {
-      "bytes": 74,
+      "bytes": 69,
       "lines": 5
     },
     "bento-grid/bento-grid.component.html": {
@@ -462,7 +462,7 @@
       "lines": 187
     },
     "bento-grid/bento-grid.component.spec.ts": {
-      "bytes": 79496,
+      "bytes": 77645,
       "lines": 1851
     },
     "bento-grid/bento-grid.component.ts": {
@@ -470,15 +470,15 @@
       "lines": 1177
     },
     "bento-grid/bento-grid.stories.ts": {
-      "bytes": 8340,
+      "bytes": 8135,
       "lines": 205
     },
     "bento-grid/index.ts": {
-      "bytes": 91,
+      "bytes": 89,
       "lines": 2
     },
     "bento-grid/sub/bento-grid-item.component.html": {
-      "bytes": 142,
+      "bytes": 135,
       "lines": 7
     },
     "bento-grid/sub/bento-grid-item.component.ts": {
@@ -490,7 +490,7 @@
       "lines": 3
     },
     "blur-fade/blur-fade.component.html": {
-      "bytes": 16,
+      "bytes": 15,
       "lines": 1
     },
     "blur-fade/blur-fade.component.spec.ts": {
@@ -502,11 +502,11 @@
       "lines": 133
     },
     "blur-fade/blur-fade.stories.ts": {
-      "bytes": 7584,
+      "bytes": 7413,
       "lines": 171
     },
     "blur-fade/index.ts": {
-      "bytes": 40,
+      "bytes": 39,
       "lines": 1
     },
     "boxplot/boxplot.component.html": {
@@ -542,27 +542,27 @@
       "lines": 3
     },
     "breadcrumb/breadcrumb.component.spec.ts": {
-      "bytes": 19308,
+      "bytes": 18865,
       "lines": 443
     },
     "breadcrumb/breadcrumb.component.ts": {
-      "bytes": 1155,
+      "bytes": 1117,
       "lines": 38
     },
     "breadcrumb/breadcrumb.locales.ts": {
-      "bytes": 1303,
+      "bytes": 1276,
       "lines": 27
     },
     "breadcrumb/breadcrumb.stories.ts": {
-      "bytes": 6708,
+      "bytes": 6520,
       "lines": 188
     },
     "breadcrumb/index.ts": {
-      "bytes": 389,
+      "bytes": 381,
       "lines": 8
     },
     "breadcrumb/sub/breadcrumb-ellipsis.component.css": {
-      "bytes": 216,
+      "bytes": 207,
       "lines": 9
     },
     "breadcrumb/sub/breadcrumb-ellipsis.component.ts": {
@@ -594,11 +594,11 @@
       "lines": 14
     },
     "bubble-chart/bubble-chart.component.html": {
-      "bytes": 2385,
+      "bytes": 2304,
       "lines": 81
     },
     "bubble-chart/bubble-chart.component.spec.ts": {
-      "bytes": 10156,
+      "bytes": 9878,
       "lines": 278
     },
     "bubble-chart/bubble-chart.component.ts": {
@@ -606,11 +606,11 @@
       "lines": 318
     },
     "bubble-chart/bubble-chart.stories.ts": {
-      "bytes": 4338,
+      "bytes": 4213,
       "lines": 125
     },
     "bubble-chart/index.ts": {
-      "bytes": 43,
+      "bytes": 42,
       "lines": 1
     },
     "bullet-chart/__screenshots__/bullet-chart.component.spec.ts/BulletChartComponent-falls-back-to-the-width-input-for-viewBox---svgWidth-when-unmeasured-1.png": {
@@ -618,11 +618,11 @@
       "lines": 5
     },
     "bullet-chart/bullet-chart.component.html": {
-      "bytes": 1271,
+      "bytes": 1225,
       "lines": 46
     },
     "bullet-chart/bullet-chart.component.spec.ts": {
-      "bytes": 8322,
+      "bytes": 8123,
       "lines": 199
     },
     "bullet-chart/bullet-chart.component.ts": {
@@ -630,11 +630,11 @@
       "lines": 116
     },
     "bullet-chart/bullet-chart.stories.ts": {
-      "bytes": 3986,
+      "bytes": 3888,
       "lines": 98
     },
     "bullet-chart/index.ts": {
-      "bytes": 43,
+      "bytes": 42,
       "lines": 1
     },
     "button-group/__screenshots__/button-group.component.spec.ts/ButtonGroupComponent-should-apply-base-flex-classes-1.png": {
@@ -658,23 +658,23 @@
       "lines": 3
     },
     "button-group/button-group.component.html": {
-      "bytes": 161,
+      "bytes": 154,
       "lines": 7
     },
     "button-group/button-group.component.spec.ts": {
-      "bytes": 10297,
+      "bytes": 10024,
       "lines": 273
     },
     "button-group/button-group.component.ts": {
-      "bytes": 2057,
+      "bytes": 1998,
       "lines": 59
     },
     "button-group/button-group.stories.ts": {
-      "bytes": 7045,
+      "bytes": 6869,
       "lines": 176
     },
     "button-group/index.ts": {
-      "bytes": 152,
+      "bytes": 149,
       "lines": 3
     },
     "button-group/sub/button-group-separator.component.ts": {
@@ -686,23 +686,23 @@
       "lines": 45
     },
     "button/button.component.css": {
-      "bytes": 1025,
+      "bytes": 993,
       "lines": 32
     },
     "button/button.component.html": {
-      "bytes": 653,
+      "bytes": 627,
       "lines": 26
     },
     "button/button.component.spec.ts": {
-      "bytes": 5454,
+      "bytes": 5318,
       "lines": 136
     },
     "button/button.component.ts": {
-      "bytes": 5782,
+      "bytes": 5660,
       "lines": 122
     },
     "button/button.stories.ts": {
-      "bytes": 4169,
+      "bytes": 4058,
       "lines": 111
     },
     "button/confirm-dialog.component.ts": {
@@ -710,7 +710,7 @@
       "lines": 79
     },
     "button/confirm.directive.spec.ts": {
-      "bytes": 6243,
+      "bytes": 6060,
       "lines": 183
     },
     "button/confirm.directive.ts": {
@@ -718,7 +718,7 @@
       "lines": 92
     },
     "button/index.ts": {
-      "bytes": 120,
+      "bytes": 117,
       "lines": 3
     },
     "calendar-heatmap/__screenshots__/calendar-heatmap.component.spec.ts/CalendarHeatmapComponent-renders-with-an-accessible-Calendar-heatmap-label-1.png": {
@@ -726,11 +726,11 @@
       "lines": 5
     },
     "calendar-heatmap/calendar-heatmap.component.html": {
-      "bytes": 1562,
+      "bytes": 1510,
       "lines": 52
     },
     "calendar-heatmap/calendar-heatmap.component.spec.ts": {
-      "bytes": 4958,
+      "bytes": 4841,
       "lines": 117
     },
     "calendar-heatmap/calendar-heatmap.component.ts": {
@@ -738,11 +738,11 @@
       "lines": 217
     },
     "calendar-heatmap/calendar-heatmap.stories.ts": {
-      "bytes": 3720,
+      "bytes": 3620,
       "lines": 100
     },
     "calendar-heatmap/index.ts": {
-      "bytes": 47,
+      "bytes": 46,
       "lines": 1
     },
     "calendar/__screenshots__/calendar.component.spec.ts/CalendarComponent---i18n-integration-accepts-a-fully-custom-locale-object-as-input-1.png": {
@@ -854,11 +854,11 @@
       "lines": 26
     },
     "calendar/calendar.component.css": {
-      "bytes": 367,
+      "bytes": 352,
       "lines": 15
     },
     "calendar/calendar.component.html": {
-      "bytes": 7123,
+      "bytes": 6967,
       "lines": 156
     },
     "calendar/calendar.component.spec.ts": {
@@ -870,11 +870,11 @@
       "lines": 579
     },
     "calendar/calendar.stories.ts": {
-      "bytes": 5473,
+      "bytes": 5325,
       "lines": 148
     },
     "calendar/index.ts": {
-      "bytes": 39,
+      "bytes": 38,
       "lines": 1
     },
     "candlestick/candlestick.component.html": {
@@ -910,27 +910,27 @@
       "lines": 3
     },
     "card-accordion/card-accordion.component.css": {
-      "bytes": 171,
+      "bytes": 163,
       "lines": 8
     },
     "card-accordion/card-accordion.component.html": {
-      "bytes": 89,
+      "bytes": 86,
       "lines": 3
     },
     "card-accordion/card-accordion.component.spec.ts": {
-      "bytes": 13409,
+      "bytes": 13067,
       "lines": 342
     },
     "card-accordion/card-accordion.component.ts": {
-      "bytes": 934,
+      "bytes": 907,
       "lines": 27
     },
     "card-accordion/card-accordion.stories.ts": {
-      "bytes": 5983,
+      "bytes": 5833,
       "lines": 150
     },
     "card-accordion/index.ts": {
-      "bytes": 270,
+      "bytes": 265,
       "lines": 5
     },
     "card-accordion/sub/card-accordion-actions.component.ts": {
@@ -938,11 +938,11 @@
       "lines": 40
     },
     "card-accordion/sub/card-accordion-content.component.css": {
-      "bytes": 413,
+      "bytes": 398,
       "lines": 15
     },
     "card-accordion/sub/card-accordion-content.component.html": {
-      "bytes": 502,
+      "bytes": 484,
       "lines": 18
     },
     "card-accordion/sub/card-accordion-content.component.ts": {
@@ -950,11 +950,11 @@
       "lines": 57
     },
     "card-accordion/sub/card-accordion-item.component.css": {
-      "bytes": 591,
+      "bytes": 570,
       "lines": 21
     },
     "card-accordion/sub/card-accordion-item.component.html": {
-      "bytes": 2279,
+      "bytes": 2213,
       "lines": 66
     },
     "card-accordion/sub/card-accordion-item.component.ts": {
@@ -962,11 +962,11 @@
       "lines": 68
     },
     "card-accordion/sub/card-accordion-trigger.component.css": {
-      "bytes": 719,
+      "bytes": 696,
       "lines": 23
     },
     "card-accordion/sub/card-accordion-trigger.component.html": {
-      "bytes": 1088,
+      "bytes": 1052,
       "lines": 36
     },
     "card-accordion/sub/card-accordion-trigger.component.ts": {
@@ -974,27 +974,27 @@
       "lines": 64
     },
     "card/card.component.css": {
-      "bytes": 672,
+      "bytes": 650,
       "lines": 22
     },
     "card/card.component.spec.ts": {
-      "bytes": 8656,
+      "bytes": 8410,
       "lines": 246
     },
     "card/card.component.ts": {
-      "bytes": 3531,
+      "bytes": 3455,
       "lines": 76
     },
     "card/card.stories.ts": {
-      "bytes": 4249,
+      "bytes": 4138,
       "lines": 111
     },
     "card/index.ts": {
-      "bytes": 270,
+      "bytes": 264,
       "lines": 6
     },
     "card/sub/card-content.component.css": {
-      "bytes": 335,
+      "bytes": 322,
       "lines": 13
     },
     "card/sub/card-content.component.ts": {
@@ -1006,7 +1006,7 @@
       "lines": 23
     },
     "card/sub/card-footer.component.css": {
-      "bytes": 333,
+      "bytes": 320,
       "lines": 13
     },
     "card/sub/card-footer.component.ts": {
@@ -1014,7 +1014,7 @@
       "lines": 26
     },
     "card/sub/card-header.component.css": {
-      "bytes": 375,
+      "bytes": 361,
       "lines": 14
     },
     "card/sub/card-header.component.ts": {
@@ -1034,7 +1034,7 @@
       "lines": 6
     },
     "carousel/carousel.component.spec.ts": {
-      "bytes": 31432,
+      "bytes": 30722,
       "lines": 710
     },
     "carousel/carousel.component.ts": {
@@ -1042,15 +1042,15 @@
       "lines": 214
     },
     "carousel/carousel.locales.ts": {
-      "bytes": 1503,
+      "bytes": 1478,
       "lines": 25
     },
     "carousel/carousel.stories.ts": {
-      "bytes": 7522,
+      "bytes": 7333,
       "lines": 189
     },
     "carousel/index.ts": {
-      "bytes": 275,
+      "bytes": 269,
       "lines": 6
     },
     "carousel/sub/carousel-content.component.ts": {
@@ -1070,11 +1070,11 @@
       "lines": 77
     },
     "chart-brush/chart-brush.component.html": {
-      "bytes": 1786,
+      "bytes": 1719,
       "lines": 67
     },
     "chart-brush/chart-brush.component.spec.ts": {
-      "bytes": 4848,
+      "bytes": 4736,
       "lines": 112
     },
     "chart-brush/chart-brush.component.ts": {
@@ -1082,23 +1082,23 @@
       "lines": 267
     },
     "chart-brush/chart-brush.dom.spec.ts": {
-      "bytes": 7124,
+      "bytes": 6938,
       "lines": 186
     },
     "chart-brush/chart-brush.stories.ts": {
-      "bytes": 3042,
+      "bytes": 2957,
       "lines": 85
     },
     "chart-brush/index.ts": {
-      "bytes": 42,
+      "bytes": 41,
       "lines": 1
     },
     "chart-legend/chart-legend.component.html": {
-      "bytes": 864,
+      "bytes": 844,
       "lines": 20
     },
     "chart-legend/chart-legend.component.spec.ts": {
-      "bytes": 2833,
+      "bytes": 2762,
       "lines": 71
     },
     "chart-legend/chart-legend.component.ts": {
@@ -1106,19 +1106,19 @@
       "lines": 76
     },
     "chart-legend/chart-legend.stories.ts": {
-      "bytes": 3371,
+      "bytes": 3272,
       "lines": 99
     },
     "chart-legend/index.ts": {
-      "bytes": 43,
+      "bytes": 42,
       "lines": 1
     },
     "chart-tooltip/chart-tooltip.component.html": {
-      "bytes": 670,
+      "bytes": 648,
       "lines": 22
     },
     "chart-tooltip/chart-tooltip.component.spec.ts": {
-      "bytes": 2830,
+      "bytes": 2759,
       "lines": 71
     },
     "chart-tooltip/chart-tooltip.component.ts": {
@@ -1126,31 +1126,31 @@
       "lines": 57
     },
     "chart-tooltip/chart-tooltip.stories.ts": {
-      "bytes": 3337,
+      "bytes": 3237,
       "lines": 100
     },
     "chart-tooltip/index.ts": {
-      "bytes": 44,
+      "bytes": 43,
       "lines": 1
     },
     "chat/chat.component.html": {
-      "bytes": 580,
+      "bytes": 563,
       "lines": 17
     },
     "chat/chat.component.spec.ts": {
-      "bytes": 16217,
+      "bytes": 15824,
       "lines": 393
     },
     "chat/chat.component.ts": {
-      "bytes": 3305,
+      "bytes": 3228,
       "lines": 77
     },
     "chat/chat.stories.ts": {
-      "bytes": 6604,
+      "bytes": 6444,
       "lines": 160
     },
     "chat/index.ts": {
-      "bytes": 124,
+      "bytes": 121,
       "lines": 3
     },
     "chat/sub/chat-input.component.ts": {
@@ -1162,11 +1162,11 @@
       "lines": 83
     },
     "checkbox/checkbox.component.css": {
-      "bytes": 209,
+      "bytes": 200,
       "lines": 9
     },
     "checkbox/checkbox.component.html": {
-      "bytes": 2084,
+      "bytes": 2027,
       "lines": 57
     },
     "checkbox/checkbox.component.spec.ts": {
@@ -1174,15 +1174,15 @@
       "lines": 392
     },
     "checkbox/checkbox.component.ts": {
-      "bytes": 5211,
+      "bytes": 5080,
       "lines": 131
     },
     "checkbox/checkbox.stories.ts": {
-      "bytes": 3500,
+      "bytes": 3403,
       "lines": 97
     },
     "checkbox/index.ts": {
-      "bytes": 39,
+      "bytes": 38,
       "lines": 1
     },
     "chip-list/__screenshots__/chip-list.component.spec.ts/ChipListComponent--standalone-unit--setDisabledState-disables-the-control-without-the-disabled-input-1.png": {
@@ -1198,23 +1198,23 @@
       "lines": 378
     },
     "chip-list/chip-list.component.ts": {
-      "bytes": 10116,
+      "bytes": 9873,
       "lines": 243
     },
     "chip-list/chip-list.stories.ts": {
-      "bytes": 6823,
+      "bytes": 6647,
       "lines": 176
     },
     "chip-list/index.ts": {
-      "bytes": 40,
+      "bytes": 39,
       "lines": 1
     },
     "code-block/code-block.component.html": {
-      "bytes": 3210,
+      "bytes": 3164,
       "lines": 46
     },
     "code-block/code-block.component.spec.ts": {
-      "bytes": 33931,
+      "bytes": 33103,
       "lines": 828
     },
     "code-block/code-block.component.ts": {
@@ -1222,19 +1222,19 @@
       "lines": 395
     },
     "code-block/code-block.locales.ts": {
-      "bytes": 2001,
+      "bytes": 1972,
       "lines": 29
     },
     "code-block/code-block.stories.ts": {
-      "bytes": 11610,
+      "bytes": 11232,
       "lines": 378
     },
     "code-block/index.ts": {
-      "bytes": 80,
+      "bytes": 78,
       "lines": 2
     },
     "collapsible/collapsible.component.spec.ts": {
-      "bytes": 12114,
+      "bytes": 11892,
       "lines": 315
     },
     "collapsible/collapsible.component.ts": {
@@ -1242,11 +1242,11 @@
       "lines": 93
     },
     "collapsible/collapsible.stories.ts": {
-      "bytes": 3186,
+      "bytes": 3101,
       "lines": 85
     },
     "collapsible/index.ts": {
-      "bytes": 150,
+      "bytes": 147,
       "lines": 3
     },
     "collapsible/sub/collapsible-content.component.ts": {
@@ -1254,7 +1254,7 @@
       "lines": 39
     },
     "collapsible/sub/collapsible-trigger.component.ts": {
-      "bytes": 3633,
+      "bytes": 3543,
       "lines": 90
     },
     "color-picker/__screenshots__/color-picker.component.spec.ts/ColorPickerComponent-ControlValueAccessor-does-not-echo-a-written-value-back-through-onChange-or-colorChange-1.png": {
@@ -1270,7 +1270,7 @@
       "lines": 55
     },
     "color-picker/color-picker.component.css": {
-      "bytes": 869,
+      "bytes": 847,
       "lines": 22
     },
     "color-picker/color-picker.component.html": {
@@ -1286,19 +1286,19 @@
       "lines": 698
     },
     "color-picker/color-picker.locales.ts": {
-      "bytes": 7024,
+      "bytes": 6884,
       "lines": 140
     },
     "color-picker/color-picker.stories.ts": {
-      "bytes": 13701,
+      "bytes": 13338,
       "lines": 363
     },
     "color-picker/color-picker.utils.ts": {
-      "bytes": 3163,
+      "bytes": 3072,
       "lines": 91
     },
     "color-picker/index.ts": {
-      "bytes": 84,
+      "bytes": 82,
       "lines": 2
     },
     "column-range-chart/__screenshots__/column-range-chart.component.spec.ts/ColumnRangeChartComponent-should-set-aria-label-on-SVG-1.png": {
@@ -1306,11 +1306,11 @@
       "lines": 25
     },
     "column-range-chart/column-range-chart.component.html": {
-      "bytes": 3786,
+      "bytes": 3669,
       "lines": 117
     },
     "column-range-chart/column-range-chart.component.spec.ts": {
-      "bytes": 12149,
+      "bytes": 11817,
       "lines": 332
     },
     "column-range-chart/column-range-chart.component.ts": {
@@ -1318,11 +1318,11 @@
       "lines": 293
     },
     "column-range-chart/column-range-chart.stories.ts": {
-      "bytes": 3930,
+      "bytes": 3828,
       "lines": 102
     },
     "column-range-chart/index.ts": {
-      "bytes": 49,
+      "bytes": 48,
       "lines": 1
     },
     "combo-chart/__screenshots__/combo-chart.component.spec.ts/ComboChartComponent-renders-with-an-accessible-Combo-chart-label-1.png": {
@@ -1330,11 +1330,11 @@
       "lines": 9
     },
     "combo-chart/combo-chart.component.html": {
-      "bytes": 2894,
+      "bytes": 2788,
       "lines": 106
     },
     "combo-chart/combo-chart.component.spec.ts": {
-      "bytes": 15603,
+      "bytes": 15185,
       "lines": 418
     },
     "combo-chart/combo-chart.component.ts": {
@@ -1342,11 +1342,11 @@
       "lines": 372
     },
     "combo-chart/combo-chart.stories.ts": {
-      "bytes": 3812,
+      "bytes": 3723,
       "lines": 89
     },
     "combo-chart/index.ts": {
-      "bytes": 42,
+      "bytes": 41,
       "lines": 1
     },
     "command/__screenshots__/command.features.spec.ts/CommandComponent---nested-pages-Backspace-on-an-empty-query-goes-back--but-not-while-the-query-has-text-1.png": {
@@ -1362,7 +1362,7 @@
       "lines": 3
     },
     "command/command.component.spec.ts": {
-      "bytes": 32502,
+      "bytes": 31709,
       "lines": 793
     },
     "command/command.component.ts": {
@@ -1374,7 +1374,7 @@
       "lines": 497
     },
     "command/command.stories.ts": {
-      "bytes": 12829,
+      "bytes": 12572,
       "lines": 257
     },
     "command/command.types.ts": {
@@ -1394,7 +1394,7 @@
       "lines": 108
     },
     "command/sub/command-empty.component.ts": {
-      "bytes": 689,
+      "bytes": 662,
       "lines": 27
     },
     "command/sub/command-group.component.ts": {
@@ -1406,7 +1406,7 @@
       "lines": 125
     },
     "command/sub/command-item.component.css": {
-      "bytes": 231,
+      "bytes": 222,
       "lines": 9
     },
     "command/sub/command-item.component.ts": {
@@ -1414,15 +1414,15 @@
       "lines": 126
     },
     "command/sub/command-list.component.ts": {
-      "bytes": 1746,
+      "bytes": 1700,
       "lines": 46
     },
     "command/sub/command-separator.component.ts": {
-      "bytes": 368,
+      "bytes": 354,
       "lines": 14
     },
     "command/sub/command-shortcut.component.ts": {
-      "bytes": 444,
+      "bytes": 428,
       "lines": 16
     },
     "comparison-slider/__screenshots__/comparison-slider.interaction.spec.ts/ComparisonSliderComponent---pointer---resize-interactions-computes-vertical-position-from-clientY-1.png": {
@@ -1486,11 +1486,11 @@
       "lines": 5
     },
     "comparison-slider/comparison-slider.component.html": {
-      "bytes": 3380,
+      "bytes": 3310,
       "lines": 70
     },
     "comparison-slider/comparison-slider.component.spec.ts": {
-      "bytes": 11174,
+      "bytes": 10936,
       "lines": 238
     },
     "comparison-slider/comparison-slider.component.ts": {
@@ -1498,27 +1498,27 @@
       "lines": 211
     },
     "comparison-slider/comparison-slider.interaction.spec.ts": {
-      "bytes": 5613,
+      "bytes": 5484,
       "lines": 129
     },
     "comparison-slider/comparison-slider.locales.ts": {
-      "bytes": 1074,
+      "bytes": 1054,
       "lines": 20
     },
     "comparison-slider/comparison-slider.stories.ts": {
-      "bytes": 3591,
+      "bytes": 3490,
       "lines": 101
     },
     "comparison-slider/index.ts": {
-      "bytes": 94,
+      "bytes": 92,
       "lines": 2
     },
     "component-outlet-recycling.spec.ts": {
-      "bytes": 8297,
+      "bytes": 8056,
       "lines": 241
     },
     "component-outlet.directive.spec.ts": {
-      "bytes": 6766,
+      "bytes": 6583,
       "lines": 183
     },
     "component-outlet.directive.ts": {
@@ -1526,11 +1526,11 @@
       "lines": 223
     },
     "component-outlet.stories.ts": {
-      "bytes": 11834,
+      "bytes": 11508,
       "lines": 326
     },
     "confetti.directive.spec.ts": {
-      "bytes": 16004,
+      "bytes": 15520,
       "lines": 484
     },
     "confetti.directive.ts": {
@@ -1538,11 +1538,11 @@
       "lines": 347
     },
     "confetti.stories.ts": {
-      "bytes": 6205,
+      "bytes": 6038,
       "lines": 167
     },
     "context-menu-attach.directive.spec.ts": {
-      "bytes": 4239,
+      "bytes": 4108,
       "lines": 131
     },
     "context-menu-attach.directive.ts": {
@@ -1550,11 +1550,11 @@
       "lines": 54
     },
     "context-menu-attach.stories.ts": {
-      "bytes": 10740,
+      "bytes": 10467,
       "lines": 273
     },
     "context-menu-integrations.ts": {
-      "bytes": 1159,
+      "bytes": 1139,
       "lines": 20
     },
     "context-menu/__screenshots__/context-menu.component.spec.ts/ContextMenu-disabled-sub-trigger-does-not-open-the-flyout-from-the-keyboard-1.png": {
@@ -1582,7 +1582,7 @@
       "lines": 3
     },
     "context-menu/context-menu.component.spec.ts": {
-      "bytes": 25723,
+      "bytes": 25101,
       "lines": 622
     },
     "context-menu/context-menu.component.ts": {
@@ -1590,15 +1590,15 @@
       "lines": 172
     },
     "context-menu/context-menu.coverage.spec.ts": {
-      "bytes": 19855,
+      "bytes": 19328,
       "lines": 527
     },
     "context-menu/context-menu.stories.ts": {
-      "bytes": 13380,
+      "bytes": 13053,
       "lines": 327
     },
     "context-menu/index.ts": {
-      "bytes": 595,
+      "bytes": 584,
       "lines": 11
     },
     "context-menu/sub/__screenshots__/context-menu-sub-content.component.spec.ts/ContextMenuSubContentComponent-applies-base-classes-plus-the-custom-class-input-1.png": {
@@ -1686,15 +1686,15 @@
       "lines": 30
     },
     "context-menu/sub/context-menu-separator.component.ts": {
-      "bytes": 389,
+      "bytes": 374,
       "lines": 15
     },
     "context-menu/sub/context-menu-shortcut.component.ts": {
-      "bytes": 444,
+      "bytes": 429,
       "lines": 15
     },
     "context-menu/sub/context-menu-sub-content.component.spec.ts": {
-      "bytes": 15761,
+      "bytes": 15383,
       "lines": 378
     },
     "context-menu/sub/context-menu-sub-content.component.ts": {
@@ -1718,7 +1718,7 @@
       "lines": 95
     },
     "copy-to.stories.ts": {
-      "bytes": 6775,
+      "bytes": 6606,
       "lines": 169
     },
     "currency-input/__screenshots__/currency-input.component.spec.ts/CurrencyInputComponent-bounds-clamps-down-to-the-maximum-on-blur-1.png": {
@@ -1802,11 +1802,11 @@
       "lines": 17
     },
     "data-list/data-list.component.spec.ts": {
-      "bytes": 9630,
+      "bytes": 9412,
       "lines": 218
     },
     "data-list/data-list.component.ts": {
-      "bytes": 2740,
+      "bytes": 2673,
       "lines": 67
     },
     "data-list/data-list.stories.ts": {
@@ -1826,7 +1826,7 @@
       "lines": 46
     },
     "data-table-context-menu.directive.spec.ts": {
-      "bytes": 14516,
+      "bytes": 14139,
       "lines": 377
     },
     "data-table-context-menu.directive.ts": {
@@ -1834,15 +1834,15 @@
       "lines": 145
     },
     "data-table-context-menu.stories.ts": {
-      "bytes": 9343,
+      "bytes": 9095,
       "lines": 248
     },
     "data-table-range-chart/data-table-range-chart.component.html": {
-      "bytes": 1332,
+      "bytes": 1294,
       "lines": 38
     },
     "data-table-range-chart/data-table-range-chart.component.spec.ts": {
-      "bytes": 6740,
+      "bytes": 6541,
       "lines": 199
     },
     "data-table-range-chart/data-table-range-chart.component.ts": {
@@ -1850,11 +1850,11 @@
       "lines": 106
     },
     "data-table-range-chart/data-table-range-chart.stories.ts": {
-      "bytes": 2571,
+      "bytes": 2491,
       "lines": 80
     },
     "data-table-range-chart/index.ts": {
-      "bytes": 53,
+      "bytes": 52,
       "lines": 1
     },
     "data-table/__screenshots__/data-table-advanced-filter.spec.ts/DataTableComponent-advanced-filter-integration--A5--onAdvancedFilterChange-returns-to-page-0-so-a-narrowing-edit-cannot-strand-the-view-1.png": {
@@ -2322,47 +2322,47 @@
       "lines": 3
     },
     "data-table/addons/context-menu/context-menu.directive.spec.ts": {
-      "bytes": 19271,
+      "bytes": 18776,
       "lines": 495
     },
     "data-table/addons/context-menu/context-menu.directive.ts": {
-      "bytes": 8224,
+      "bytes": 8005,
       "lines": 219
     },
     "data-table/addons/context-menu/index.ts": {
-      "bytes": 43,
+      "bytes": 42,
       "lines": 1
     },
     "data-table/addons/export/export.directive.spec.ts": {
-      "bytes": 8809,
+      "bytes": 8557,
       "lines": 252
     },
     "data-table/addons/export/export.directive.ts": {
-      "bytes": 4414,
+      "bytes": 4307,
       "lines": 107
     },
     "data-table/addons/export/export.locales.ts": {
-      "bytes": 602,
+      "bytes": 589,
       "lines": 13
     },
     "data-table/addons/export/index.ts": {
-      "bytes": 72,
+      "bytes": 70,
       "lines": 2
     },
     "data-table/addons/pivot/index.ts": {
-      "bytes": 68,
+      "bytes": 66,
       "lines": 2
     },
     "data-table/addons/pivot/pivot.directive.spec.ts": {
-      "bytes": 7357,
+      "bytes": 7161,
       "lines": 196
     },
     "data-table/addons/pivot/pivot.directive.ts": {
-      "bytes": 1347,
+      "bytes": 1315,
       "lines": 32
     },
     "data-table/addons/pivot/pivot.utils.ts": {
-      "bytes": 4005,
+      "bytes": 3889,
       "lines": 116
     },
     "data-table/data-table-advanced-filter.spec.ts": {
@@ -2370,23 +2370,23 @@
       "lines": 356
     },
     "data-table/data-table-ai.spec.ts": {
-      "bytes": 7625,
+      "bytes": 7441,
       "lines": 184
     },
     "data-table/data-table-autofit.spec.ts": {
-      "bytes": 5731,
+      "bytes": 5568,
       "lines": 163
     },
     "data-table/data-table-column-builder.spec.ts": {
-      "bytes": 5299,
+      "bytes": 5148,
       "lines": 151
     },
     "data-table/data-table-column-builder.ts": {
-      "bytes": 3164,
+      "bytes": 3084,
       "lines": 80
     },
     "data-table/data-table-fill.spec.ts": {
-      "bytes": 4785,
+      "bytes": 4662,
       "lines": 123
     },
     "data-table/data-table-grid-semantics.spec.ts": {
@@ -2394,7 +2394,7 @@
       "lines": 201
     },
     "data-table/data-table-paste.spec.ts": {
-      "bytes": 1362,
+      "bytes": 1314,
       "lines": 48
     },
     "data-table/data-table-query.spec.ts": {
@@ -2406,7 +2406,7 @@
       "lines": 263
     },
     "data-table/data-table-virtual-scroll.spec.ts": {
-      "bytes": 7036,
+      "bytes": 6853,
       "lines": 183
     },
     "data-table/data-table.component.html": {
@@ -2414,7 +2414,7 @@
       "lines": 1522
     },
     "data-table/data-table.component.spec.ts": {
-      "bytes": 306611,
+      "bytes": 299757,
       "lines": 6854
     },
     "data-table/data-table.component.ts": {
@@ -2426,19 +2426,19 @@
       "lines": 687
     },
     "data-table/data-table.host.spec.ts": {
-      "bytes": 6589,
+      "bytes": 6400,
       "lines": 189
     },
     "data-table/data-table.host.ts": {
-      "bytes": 4577,
+      "bytes": 4481,
       "lines": 96
     },
     "data-table/data-table.locales.ts": {
-      "bytes": 13241,
+      "bytes": 12901,
       "lines": 340
     },
     "data-table/data-table.stories.ts": {
-      "bytes": 77130,
+      "bytes": 75267,
       "lines": 1863
     },
     "data-table/data-table.types.ts": {
@@ -2446,11 +2446,11 @@
       "lines": 473
     },
     "data-table/data-table.utils.ts": {
-      "bytes": 25686,
+      "bytes": 24969,
       "lines": 760
     },
     "data-table/index.ts": {
-      "bytes": 646,
+      "bytes": 633,
       "lines": 13
     },
     "data-table/sub/__screenshots__/data-table-multiselect-filter.component.spec.ts/DataTableMultiselectFilterComponent-keeps-a-selected-value-that-has-no-matching-option-and-re-emits-it-alongside-a-later-toggle-1.png": {
@@ -2462,11 +2462,11 @@
       "lines": 10
     },
     "data-table/sub/data-table-column-header.component.html": {
-      "bytes": 1027,
+      "bytes": 995,
       "lines": 32
     },
     "data-table/sub/data-table-column-header.component.spec.ts": {
-      "bytes": 11127,
+      "bytes": 10824,
       "lines": 303
     },
     "data-table/sub/data-table-column-header.component.ts": {
@@ -2474,15 +2474,15 @@
       "lines": 103
     },
     "data-table/sub/data-table-column-header.stories.ts": {
-      "bytes": 4093,
+      "bytes": 3969,
       "lines": 124
     },
     "data-table/sub/data-table-date-filter.component.html": {
-      "bytes": 810,
+      "bytes": 786,
       "lines": 24
     },
     "data-table/sub/data-table-date-filter.component.spec.ts": {
-      "bytes": 14315,
+      "bytes": 13955,
       "lines": 360
     },
     "data-table/sub/data-table-date-filter.component.ts": {
@@ -2490,7 +2490,7 @@
       "lines": 112
     },
     "data-table/sub/data-table-date-range-filter.component.html": {
-      "bytes": 908,
+      "bytes": 882,
       "lines": 26
     },
     "data-table/sub/data-table-date-range-filter.component.ts": {
@@ -2498,7 +2498,7 @@
       "lines": 182
     },
     "data-table/sub/data-table-date-utils.ts": {
-      "bytes": 482,
+      "bytes": 468,
       "lines": 14
     },
     "data-table/sub/data-table-filter-builder.component.ts": {
@@ -2506,7 +2506,7 @@
       "lines": 251
     },
     "data-table/sub/data-table-multiselect-filter.component.html": {
-      "bytes": 1459,
+      "bytes": 1421,
       "lines": 38
     },
     "data-table/sub/data-table-multiselect-filter.component.spec.ts": {
@@ -2518,11 +2518,11 @@
       "lines": 177
     },
     "data-table/sub/data-table-pagination.component.html": {
-      "bytes": 3760,
+      "bytes": 3672,
       "lines": 88
     },
     "data-table/sub/data-table-pagination.component.spec.ts": {
-      "bytes": 4615,
+      "bytes": 4477,
       "lines": 138
     },
     "data-table/sub/data-table-pagination.component.ts": {
@@ -2574,7 +2574,7 @@
       "lines": 15
     },
     "date-picker/date-picker.component.css": {
-      "bytes": 280,
+      "bytes": 270,
       "lines": 10
     },
     "date-picker/date-picker.component.html": {
@@ -2582,11 +2582,11 @@
       "lines": 41
     },
     "date-picker/date-picker.component.spec.ts": {
-      "bytes": 6258,
+      "bytes": 6165,
       "lines": 173
     },
     "date-picker/date-picker.component.ts": {
-      "bytes": 11227,
+      "bytes": 10932,
       "lines": 295
     },
     "date-picker/date-picker.coverage.spec.ts": {
@@ -2594,7 +2594,7 @@
       "lines": 541
     },
     "date-picker/date-picker.stories.ts": {
-      "bytes": 2837,
+      "bytes": 2743,
       "lines": 94
     },
     "date-picker/date-range-picker.stories.ts": {
@@ -2602,11 +2602,11 @@
       "lines": 92
     },
     "date-picker/index.ts": {
-      "bytes": 94,
+      "bytes": 92,
       "lines": 2
     },
     "date-picker/sub/date-range-picker.component.css": {
-      "bytes": 286,
+      "bytes": 276,
       "lines": 10
     },
     "date-picker/sub/date-range-picker.component.html": {
@@ -2618,7 +2618,7 @@
       "lines": 226
     },
     "dialog/dialog.component.spec.ts": {
-      "bytes": 23090,
+      "bytes": 22499,
       "lines": 591
     },
     "dialog/dialog.component.ts": {
@@ -2626,19 +2626,19 @@
       "lines": 45
     },
     "dialog/dialog.stories.ts": {
-      "bytes": 8657,
+      "bytes": 8451,
       "lines": 206
     },
     "dialog/index.ts": {
-      "bytes": 331,
+      "bytes": 324,
       "lines": 7
     },
     "dialog/sub/dialog-content.component.css": {
-      "bytes": 396,
+      "bytes": 381,
       "lines": 15
     },
     "dialog/sub/dialog-content.component.html": {
-      "bytes": 1541,
+      "bytes": 1499,
       "lines": 42
     },
     "dialog/sub/dialog-content.component.ts": {
@@ -2646,27 +2646,27 @@
       "lines": 156
     },
     "dialog/sub/dialog-description.component.ts": {
-      "bytes": 415,
+      "bytes": 400,
       "lines": 15
     },
     "dialog/sub/dialog-footer.component.css": {
-      "bytes": 178,
+      "bytes": 170,
       "lines": 8
     },
     "dialog/sub/dialog-footer.component.ts": {
-      "bytes": 448,
+      "bytes": 432,
       "lines": 16
     },
     "dialog/sub/dialog-header.component.css": {
-      "bytes": 180,
+      "bytes": 172,
       "lines": 8
     },
     "dialog/sub/dialog-header.component.ts": {
-      "bytes": 438,
+      "bytes": 422,
       "lines": 16
     },
     "dialog/sub/dialog-title.component.ts": {
-      "bytes": 417,
+      "bytes": 402,
       "lines": 15
     },
     "dialog/sub/dialog-trigger.component.ts": {
@@ -2674,7 +2674,7 @@
       "lines": 58
     },
     "directives/copy-to.directive.spec.ts": {
-      "bytes": 4882,
+      "bytes": 4725,
       "lines": 157
     },
     "directives/copy-to.directive.ts": {
@@ -2746,31 +2746,31 @@
       "lines": 207
     },
     "dock/dock.stories.ts": {
-      "bytes": 6980,
+      "bytes": 6815,
       "lines": 165
     },
     "dock/index.ts": {
-      "bytes": 168,
+      "bytes": 164,
       "lines": 4
     },
     "dock/sub/dock-icon.component.html": {
-      "bytes": 84,
+      "bytes": 81,
       "lines": 3
     },
     "dock/sub/dock-icon.component.spec.ts": {
-      "bytes": 2287,
+      "bytes": 2223,
       "lines": 64
     },
     "dock/sub/dock-icon.component.ts": {
-      "bytes": 642,
+      "bytes": 628,
       "lines": 14
     },
     "dock/sub/dock-item.component.html": {
-      "bytes": 249,
+      "bytes": 243,
       "lines": 6
     },
     "dock/sub/dock-item.component.spec.ts": {
-      "bytes": 5673,
+      "bytes": 5507,
       "lines": 166
     },
     "dock/sub/dock-item.component.ts": {
@@ -2778,19 +2778,19 @@
       "lines": 63
     },
     "dock/sub/dock-label.component.html": {
-      "bytes": 85,
+      "bytes": 82,
       "lines": 3
     },
     "dock/sub/dock-label.component.spec.ts": {
-      "bytes": 2628,
+      "bytes": 2553,
       "lines": 75
     },
     "dock/sub/dock-label.component.ts": {
-      "bytes": 1019,
+      "bytes": 995,
       "lines": 24
     },
     "drawer/drawer.component.spec.ts": {
-      "bytes": 12172,
+      "bytes": 11835,
       "lines": 337
     },
     "drawer/drawer.component.ts": {
@@ -2798,15 +2798,15 @@
       "lines": 112
     },
     "drawer/drawer.coverage.spec.ts": {
-      "bytes": 13550,
+      "bytes": 13221,
       "lines": 329
     },
     "drawer/drawer.stories.ts": {
-      "bytes": 5949,
+      "bytes": 5775,
       "lines": 174
     },
     "drawer/index.ts": {
-      "bytes": 378,
+      "bytes": 370,
       "lines": 8
     },
     "drawer/sub/drawer-close.component.ts": {
@@ -2814,7 +2814,7 @@
       "lines": 58
     },
     "drawer/sub/drawer-content.component.html": {
-      "bytes": 1149,
+      "bytes": 1109,
       "lines": 40
     },
     "drawer/sub/drawer-content.component.ts": {
@@ -2822,7 +2822,7 @@
       "lines": 127
     },
     "drawer/sub/drawer-description.component.ts": {
-      "bytes": 396,
+      "bytes": 381,
       "lines": 15
     },
     "drawer/sub/drawer-footer.component.ts": {
@@ -2834,7 +2834,7 @@
       "lines": 30
     },
     "drawer/sub/drawer-title.component.ts": {
-      "bytes": 378,
+      "bytes": 363,
       "lines": 15
     },
     "drawer/sub/drawer-trigger.component.ts": {
@@ -2862,7 +2862,7 @@
       "lines": 9
     },
     "dropdown-menu/dropdown-menu.component.spec.ts": {
-      "bytes": 61051,
+      "bytes": 59661,
       "lines": 1390
     },
     "dropdown-menu/dropdown-menu.component.ts": {
@@ -2870,11 +2870,11 @@
       "lines": 191
     },
     "dropdown-menu/dropdown-menu.stories.ts": {
-      "bytes": 8826,
+      "bytes": 8583,
       "lines": 243
     },
     "dropdown-menu/index.ts": {
-      "bytes": 493,
+      "bytes": 484,
       "lines": 9
     },
     "dropdown-menu/sub/dropdown-menu-content.component.ts": {
@@ -2882,7 +2882,7 @@
       "lines": 153
     },
     "dropdown-menu/sub/dropdown-menu-item.component.css": {
-      "bytes": 239,
+      "bytes": 230,
       "lines": 9
     },
     "dropdown-menu/sub/dropdown-menu-item.component.ts": {
@@ -2890,11 +2890,11 @@
       "lines": 84
     },
     "dropdown-menu/sub/dropdown-menu-label.component.ts": {
-      "bytes": 397,
+      "bytes": 382,
       "lines": 15
     },
     "dropdown-menu/sub/dropdown-menu-separator.component.ts": {
-      "bytes": 387,
+      "bytes": 372,
       "lines": 15
     },
     "dropdown-menu/sub/dropdown-menu-sub-content.component.ts": {
@@ -2958,7 +2958,7 @@
       "lines": 3
     },
     "emoji-picker/emoji-data.ts": {
-      "bytes": 33638,
+      "bytes": 32732,
       "lines": 906
     },
     "emoji-picker/emoji-picker.component.spec.ts": {
@@ -2970,11 +2970,11 @@
       "lines": 364
     },
     "emoji-picker/emoji-picker.stories.ts": {
-      "bytes": 7450,
+      "bytes": 7235,
       "lines": 215
     },
     "emoji-picker/index.ts": {
-      "bytes": 153,
+      "bytes": 150,
       "lines": 3
     },
     "emoji-picker/sub/emoji-picker-content.component.ts": {
@@ -2986,19 +2986,19 @@
       "lines": 62
     },
     "empty/empty.component.spec.ts": {
-      "bytes": 4678,
+      "bytes": 4560,
       "lines": 118
     },
     "empty/empty.component.ts": {
-      "bytes": 1504,
+      "bytes": 1454,
       "lines": 50
     },
     "empty/empty.stories.ts": {
-      "bytes": 7067,
+      "bytes": 6896,
       "lines": 171
     },
     "empty/index.ts": {
-      "bytes": 275,
+      "bytes": 269,
       "lines": 6
     },
     "empty/sub/empty-content.component.ts": {
@@ -3074,11 +3074,11 @@
       "lines": 6
     },
     "eyedropper/eyedropper.component.html": {
-      "bytes": 395,
+      "bytes": 379,
       "lines": 16
     },
     "eyedropper/eyedropper.component.spec.ts": {
-      "bytes": 17410,
+      "bytes": 16970,
       "lines": 440
     },
     "eyedropper/eyedropper.component.ts": {
@@ -3086,19 +3086,19 @@
       "lines": 272
     },
     "eyedropper/eyedropper.locales.ts": {
-      "bytes": 1713,
+      "bytes": 1691,
       "lines": 22
     },
     "eyedropper/eyedropper.stories.ts": {
-      "bytes": 4403,
+      "bytes": 4267,
       "lines": 136
     },
     "eyedropper/index.ts": {
-      "bytes": 80,
+      "bytes": 78,
       "lines": 2
     },
     "field/field.component.spec.ts": {
-      "bytes": 11528,
+      "bytes": 11237,
       "lines": 291
     },
     "field/field.component.ts": {
@@ -3106,19 +3106,19 @@
       "lines": 111
     },
     "field/field.locales.ts": {
-      "bytes": 5191,
+      "bytes": 5063,
       "lines": 128
     },
     "field/field.stories.ts": {
-      "bytes": 7393,
+      "bytes": 7178,
       "lines": 215
     },
     "field/field.utils.ts": {
-      "bytes": 518,
+      "bytes": 504,
       "lines": 14
     },
     "field/index.ts": {
-      "bytes": 485,
+      "bytes": 474,
       "lines": 11
     },
     "field/sub/field-auto-errors.component.ts": {
@@ -3162,7 +3162,7 @@
       "lines": 215
     },
     "file-upload/file-upload.component.spec.ts": {
-      "bytes": 18951,
+      "bytes": 18509,
       "lines": 442
     },
     "file-upload/file-upload.component.ts": {
@@ -3170,7 +3170,7 @@
       "lines": 589
     },
     "file-upload/file-upload.dom.spec.ts": {
-      "bytes": 6813,
+      "bytes": 6622,
       "lines": 191
     },
     "file-upload/file-upload.features.spec.ts": {
@@ -3682,15 +3682,15 @@
       "lines": 4
     },
     "file-viewer/file-viewer.component.css": {
-      "bytes": 878,
+      "bytes": 847,
       "lines": 31
     },
     "file-viewer/file-viewer.component.html": {
-      "bytes": 12452,
+      "bytes": 12236,
       "lines": 216
     },
     "file-viewer/file-viewer.component.spec.ts": {
-      "bytes": 77095,
+      "bytes": 75387,
       "lines": 1708
     },
     "file-viewer/file-viewer.component.ts": {
@@ -3698,11 +3698,11 @@
       "lines": 1649
     },
     "file-viewer/file-viewer.stories.ts": {
-      "bytes": 6227,
+      "bytes": 6058,
       "lines": 169
     },
     "file-viewer/index.ts": {
-      "bytes": 42,
+      "bytes": 41,
       "lines": 1
     },
     "flip-text/__screenshots__/flip-text.component.spec.ts/FlipTextComponent-playAnimation-leaves-the-characters-visible-without-animating-under-reduced-motion-1.png": {
@@ -3710,11 +3710,11 @@
       "lines": 3
     },
     "flip-text/flip-text.component.css": {
-      "bytes": 511,
+      "bytes": 485,
       "lines": 26
     },
     "flip-text/flip-text.component.html": {
-      "bytes": 351,
+      "bytes": 342,
       "lines": 9
     },
     "flip-text/flip-text.component.spec.ts": {
@@ -3726,11 +3726,11 @@
       "lines": 78
     },
     "flip-text/flip-text.stories.ts": {
-      "bytes": 3209,
+      "bytes": 3117,
       "lines": 92
     },
     "flip-text/index.ts": {
-      "bytes": 40,
+      "bytes": 39,
       "lines": 1
     },
     "funnel-chart/__screenshots__/funnel-chart.component.spec.ts/FunnelChartComponent-renders-with-an-accessible-Funnel-chart-label-1.png": {
@@ -3738,11 +3738,11 @@
       "lines": 16
     },
     "funnel-chart/funnel-chart.component.html": {
-      "bytes": 1538,
+      "bytes": 1492,
       "lines": 46
     },
     "funnel-chart/funnel-chart.component.spec.ts": {
-      "bytes": 10705,
+      "bytes": 10440,
       "lines": 265
     },
     "funnel-chart/funnel-chart.component.ts": {
@@ -3750,19 +3750,19 @@
       "lines": 243
     },
     "funnel-chart/funnel-chart.stories.ts": {
-      "bytes": 3152,
+      "bytes": 3063,
       "lines": 89
     },
     "funnel-chart/index.ts": {
-      "bytes": 43,
+      "bytes": 42,
       "lines": 1
     },
     "gauge-chart/gauge-chart.component.html": {
-      "bytes": 1000,
+      "bytes": 961,
       "lines": 39
     },
     "gauge-chart/gauge-chart.component.spec.ts": {
-      "bytes": 2695,
+      "bytes": 2627,
       "lines": 68
     },
     "gauge-chart/gauge-chart.component.ts": {
@@ -3770,19 +3770,19 @@
       "lines": 93
     },
     "gauge-chart/gauge-chart.stories.ts": {
-      "bytes": 3370,
+      "bytes": 3280,
       "lines": 90
     },
     "gauge-chart/index.ts": {
-      "bytes": 42,
+      "bytes": 41,
       "lines": 1
     },
     "gradient-text/gradient-text.component.html": {
-      "bytes": 16,
+      "bytes": 15,
       "lines": 1
     },
     "gradient-text/gradient-text.component.spec.ts": {
-      "bytes": 8602,
+      "bytes": 8400,
       "lines": 202
     },
     "gradient-text/gradient-text.component.ts": {
@@ -3790,11 +3790,11 @@
       "lines": 91
     },
     "gradient-text/gradient-text.stories.ts": {
-      "bytes": 5042,
+      "bytes": 4910,
       "lines": 132
     },
     "gradient-text/index.ts": {
-      "bytes": 44,
+      "bytes": 43,
       "lines": 1
     },
     "heatmap/__screenshots__/heatmap.component.spec.ts/HeatmapComponent-renders-with-an-accessible-Heatmap-label-1.png": {
@@ -3802,11 +3802,11 @@
       "lines": 4
     },
     "heatmap/heatmap.component.html": {
-      "bytes": 2091,
+      "bytes": 2022,
       "lines": 69
     },
     "heatmap/heatmap.component.spec.ts": {
-      "bytes": 8137,
+      "bytes": 7940,
       "lines": 197
     },
     "heatmap/heatmap.component.ts": {
@@ -3814,11 +3814,11 @@
       "lines": 253
     },
     "heatmap/heatmap.stories.ts": {
-      "bytes": 3440,
+      "bytes": 3350,
       "lines": 90
     },
     "heatmap/index.ts": {
-      "bytes": 38,
+      "bytes": 37,
       "lines": 1
     },
     "histogram/histogram.component.html": {
@@ -3914,7 +3914,7 @@
       "lines": 4
     },
     "hover-card/hover-card.component.spec.ts": {
-      "bytes": 19380,
+      "bytes": 18879,
       "lines": 501
     },
     "hover-card/hover-card.component.ts": {
@@ -3922,15 +3922,15 @@
       "lines": 135
     },
     "hover-card/hover-card.stories.ts": {
-      "bytes": 4149,
+      "bytes": 4023,
       "lines": 126
     },
     "hover-card/index.ts": {
-      "bytes": 147,
+      "bytes": 144,
       "lines": 3
     },
     "hover-card/sub/hover-card-content.component.css": {
-      "bytes": 171,
+      "bytes": 165,
       "lines": 6
     },
     "hover-card/sub/hover-card-content.component.ts": {
@@ -3942,15 +3942,15 @@
       "lines": 64
     },
     "icon/icon.component.css": {
-      "bytes": 33,
+      "bytes": 32,
       "lines": 1
     },
     "icon/icon.component.html": {
-      "bytes": 454,
+      "bytes": 439,
       "lines": 15
     },
     "icon/icon.component.spec.ts": {
-      "bytes": 15798,
+      "bytes": 15392,
       "lines": 406
     },
     "icon/icon.component.ts": {
@@ -3958,15 +3958,15 @@
       "lines": 1300
     },
     "icon/icon.stories.ts": {
-      "bytes": 12506,
+      "bytes": 12222,
       "lines": 284
     },
     "icon/icon.token.ts": {
-      "bytes": 317,
+      "bytes": 307,
       "lines": 10
     },
     "icon/index.ts": {
-      "bytes": 66,
+      "bytes": 64,
       "lines": 2
     },
     "index.ts": {
@@ -4306,15 +4306,15 @@
       "lines": 87
     },
     "infinite-canvas/addons/node-editor-groups/node-editor-groups.component.html": {
-      "bytes": 3583,
+      "bytes": 3493,
       "lines": 90
     },
     "infinite-canvas/addons/node-editor-groups/node-editor-groups.component.spec.ts": {
-      "bytes": 17481,
+      "bytes": 17058,
       "lines": 423
     },
     "infinite-canvas/addons/node-editor-groups/node-editor-groups.component.ts": {
-      "bytes": 13102,
+      "bytes": 12741,
       "lines": 361
     },
     "infinite-canvas/addons/node-editor-groups/node-editor-groups.locales.ts": {
@@ -4326,11 +4326,11 @@
       "lines": 40
     },
     "infinite-canvas/addons/node-editor-groups/node-editor-groups.utils.spec.ts": {
-      "bytes": 14252,
+      "bytes": 13902,
       "lines": 350
     },
     "infinite-canvas/addons/node-editor-groups/node-editor-groups.utils.ts": {
-      "bytes": 12363,
+      "bytes": 12035,
       "lines": 328
     },
     "infinite-canvas/addons/node-editor-history/__screenshots__/node-editor-history.component.spec.ts/NodeEditorHistoryComponent-inspecting-a-run-names-the-slowest-node--which-is-the-one-worth-naming-1.png": {
@@ -4354,35 +4354,35 @@
       "lines": 199
     },
     "infinite-canvas/addons/node-editor-history/node-editor-history.component.spec.ts": {
-      "bytes": 11942,
+      "bytes": 11614,
       "lines": 328
     },
     "infinite-canvas/addons/node-editor-history/node-editor-history.component.ts": {
-      "bytes": 6339,
+      "bytes": 6158,
       "lines": 181
     },
     "infinite-canvas/addons/node-editor-history/node-editor-history.locales.ts": {
-      "bytes": 8490,
+      "bytes": 8229,
       "lines": 261
     },
     "infinite-canvas/addons/node-editor-history/node-editor-history.store.spec.ts": {
-      "bytes": 11360,
+      "bytes": 11045,
       "lines": 315
     },
     "infinite-canvas/addons/node-editor-history/node-editor-history.store.ts": {
-      "bytes": 6441,
+      "bytes": 6266,
       "lines": 175
     },
     "infinite-canvas/addons/node-editor-history/node-editor-history.types.ts": {
-      "bytes": 2692,
+      "bytes": 2623,
       "lines": 69
     },
     "infinite-canvas/addons/node-editor-history/node-editor-history.utils.spec.ts": {
-      "bytes": 9318,
+      "bytes": 9062,
       "lines": 256
     },
     "infinite-canvas/addons/node-editor-history/node-editor-history.utils.ts": {
-      "bytes": 4696,
+      "bytes": 4580,
       "lines": 116
     },
     "infinite-canvas/addons/node-editor-layout/index.ts": {
@@ -4394,7 +4394,7 @@
       "lines": 309
     },
     "infinite-canvas/addons/node-editor-layout/node-editor-layout.ts": {
-      "bytes": 17861,
+      "bytes": 17387,
       "lines": 474
     },
     "infinite-canvas/addons/node-editor-minimap/__screenshots__/node-editor-minimap.component.spec.ts/the-minimap-draws-a-sample--not-the-whole-graph-caps-the-boxes-it-fills-however-many-nodes-exist-1.png": {
@@ -4414,11 +4414,11 @@
       "lines": 66
     },
     "infinite-canvas/addons/node-editor-minimap/node-editor-minimap.component.spec.ts": {
-      "bytes": 13877,
+      "bytes": 13522,
       "lines": 355
     },
     "infinite-canvas/addons/node-editor-minimap/node-editor-minimap.component.ts": {
-      "bytes": 12344,
+      "bytes": 12013,
       "lines": 331
     },
     "infinite-canvas/addons/node-editor-minimap/node-editor-minimap.locales.ts": {
@@ -5210,15 +5210,15 @@
       "lines": 57
     },
     "infinite-canvas/addons/node-editor/node-editor.component.html": {
-      "bytes": 4764,
+      "bytes": 4627,
       "lines": 137
     },
     "infinite-canvas/addons/node-editor/node-editor.component.spec.ts": {
-      "bytes": 47669,
+      "bytes": 46556,
       "lines": 1113
     },
     "infinite-canvas/addons/node-editor/node-editor.component.ts": {
-      "bytes": 94415,
+      "bytes": 91971,
       "lines": 2444
     },
     "infinite-canvas/addons/node-editor/node-editor.direction.spec.ts": {
@@ -5226,7 +5226,7 @@
       "lines": 123
     },
     "infinite-canvas/addons/node-editor/node-editor.disposal.spec.ts": {
-      "bytes": 14874,
+      "bytes": 14473,
       "lines": 401
     },
     "infinite-canvas/addons/node-editor/node-editor.graph.spec.ts": {
@@ -5238,23 +5238,23 @@
       "lines": 262
     },
     "infinite-canvas/addons/node-editor/node-editor.history.spec.ts": {
-      "bytes": 11927,
+      "bytes": 11638,
       "lines": 289
     },
     "infinite-canvas/addons/node-editor/node-editor.history.ts": {
-      "bytes": 10513,
+      "bytes": 10227,
       "lines": 286
     },
     "infinite-canvas/addons/node-editor/node-editor.integration.spec.ts": {
-      "bytes": 17856,
+      "bytes": 17388,
       "lines": 468
     },
     "infinite-canvas/addons/node-editor/node-editor.layout.spec.ts": {
-      "bytes": 12686,
+      "bytes": 12370,
       "lines": 316
     },
     "infinite-canvas/addons/node-editor/node-editor.layout.ts": {
-      "bytes": 8604,
+      "bytes": 8379,
       "lines": 225
     },
     "infinite-canvas/addons/node-editor/node-editor.legibility.spec.ts": {
@@ -5266,23 +5266,23 @@
       "lines": 96
     },
     "infinite-canvas/addons/node-editor/node-editor.locales.ts": {
-      "bytes": 21806,
+      "bytes": 21386,
       "lines": 420
     },
     "infinite-canvas/addons/node-editor/node-editor.materialize.spec.ts": {
-      "bytes": 10894,
+      "bytes": 10645,
       "lines": 249
     },
     "infinite-canvas/addons/node-editor/node-editor.materialize.ts": {
-      "bytes": 5626,
+      "bytes": 5485,
       "lines": 141
     },
     "infinite-canvas/addons/node-editor/node-editor.multitouch.spec.ts": {
-      "bytes": 11346,
+      "bytes": 11045,
       "lines": 301
     },
     "infinite-canvas/addons/node-editor/node-editor.perf.spec.ts": {
-      "bytes": 17493,
+      "bytes": 17053,
       "lines": 440
     },
     "infinite-canvas/addons/node-editor/node-editor.replay.spec.ts": {
@@ -5290,19 +5290,19 @@
       "lines": 203
     },
     "infinite-canvas/addons/node-editor/node-editor.runtime.events.spec.ts": {
-      "bytes": 11334,
+      "bytes": 11021,
       "lines": 313
     },
     "infinite-canvas/addons/node-editor/node-editor.runtime.spec.ts": {
-      "bytes": 42207,
+      "bytes": 41137,
       "lines": 1070
     },
     "infinite-canvas/addons/node-editor/node-editor.runtime.ts": {
-      "bytes": 89313,
+      "bytes": 87085,
       "lines": 2228
     },
     "infinite-canvas/addons/node-editor/node-editor.runtime.types.ts": {
-      "bytes": 12216,
+      "bytes": 11889,
       "lines": 327
     },
     "infinite-canvas/addons/node-editor/node-editor.serialize.spec.ts": {
@@ -5314,7 +5314,7 @@
       "lines": 244
     },
     "infinite-canvas/addons/node-editor/node-editor.slicing.spec.ts": {
-      "bytes": 13680,
+      "bytes": 13336,
       "lines": 344
     },
     "infinite-canvas/addons/node-editor/node-editor.stories.ts": {
@@ -5338,11 +5338,11 @@
       "lines": 288
     },
     "infinite-canvas/addons/node-editor/node-editor.validate.ts": {
-      "bytes": 8351,
+      "bytes": 8124,
       "lines": 227
     },
     "infinite-canvas/addons/node-editor/node-editor.workload.spec.ts": {
-      "bytes": 21417,
+      "bytes": 20850,
       "lines": 567
     },
     "infinite-canvas/addons/node-editor/sub/node-editor-node.component.html": {
@@ -5382,19 +5382,19 @@
       "lines": 56
     },
     "infinite-canvas/infinite-canvas.component.spec.ts": {
-      "bytes": 15927,
+      "bytes": 15497,
       "lines": 430
     },
     "infinite-canvas/infinite-canvas.component.ts": {
-      "bytes": 27249,
+      "bytes": 26491,
       "lines": 758
     },
     "infinite-canvas/infinite-canvas.edge-renderer.spec.ts": {
-      "bytes": 34566,
+      "bytes": 33676,
       "lines": 890
     },
     "infinite-canvas/infinite-canvas.edge-renderer.ts": {
-      "bytes": 25435,
+      "bytes": 24732,
       "lines": 703
     },
     "infinite-canvas/infinite-canvas.integration.spec.ts": {
@@ -5402,15 +5402,15 @@
       "lines": 340
     },
     "infinite-canvas/infinite-canvas.item-layer.spec.ts": {
-      "bytes": 34349,
+      "bytes": 33423,
       "lines": 926
     },
     "infinite-canvas/infinite-canvas.item-layer.ts": {
-      "bytes": 21330,
+      "bytes": 20793,
       "lines": 537
     },
     "infinite-canvas/infinite-canvas.item-pool.ts": {
-      "bytes": 7099,
+      "bytes": 6907,
       "lines": 192
     },
     "infinite-canvas/infinite-canvas.perf.spec.ts": {
@@ -5418,11 +5418,11 @@
       "lines": 344
     },
     "infinite-canvas/infinite-canvas.pointer.spec.ts": {
-      "bytes": 15719,
+      "bytes": 15312,
       "lines": 407
     },
     "infinite-canvas/infinite-canvas.pointer.ts": {
-      "bytes": 12243,
+      "bytes": 11904,
       "lines": 339
     },
     "infinite-canvas/infinite-canvas.spatial-hash.spec.ts": {
@@ -5430,7 +5430,7 @@
       "lines": 223
     },
     "infinite-canvas/infinite-canvas.spatial-hash.ts": {
-      "bytes": 8387,
+      "bytes": 8144,
       "lines": 243
     },
     "infinite-canvas/infinite-canvas.stories.ts": {
@@ -5458,35 +5458,35 @@
       "lines": 4
     },
     "input-group/index.ts": {
-      "bytes": 197,
+      "bytes": 193,
       "lines": 4
     },
     "input-group/input-group.component.css": {
-      "bytes": 172,
+      "bytes": 164,
       "lines": 8
     },
     "input-group/input-group.component.html": {
-      "bytes": 189,
+      "bytes": 181,
       "lines": 8
     },
     "input-group/input-group.component.spec.ts": {
-      "bytes": 6589,
+      "bytes": 6427,
       "lines": 162
     },
     "input-group/input-group.component.ts": {
-      "bytes": 2705,
+      "bytes": 2629,
       "lines": 76
     },
     "input-group/input-group.stories.ts": {
-      "bytes": 5094,
+      "bytes": 4957,
       "lines": 137
     },
     "input-group/sub/input-group-addon.component.css": {
-      "bytes": 486,
+      "bytes": 472,
       "lines": 14
     },
     "input-group/sub/input-group-addon.component.html": {
-      "bytes": 131,
+      "bytes": 124,
       "lines": 7
     },
     "input-group/sub/input-group-addon.component.ts": {
@@ -5494,11 +5494,11 @@
       "lines": 35
     },
     "input-group/sub/input-group-input.component.css": {
-      "bytes": 239,
+      "bytes": 230,
       "lines": 9
     },
     "input-group/sub/input-group-input.component.html": {
-      "bytes": 250,
+      "bytes": 240,
       "lines": 10
     },
     "input-group/sub/input-group-input.component.ts": {
@@ -5506,7 +5506,7 @@
       "lines": 89
     },
     "input-group/sub/input-group-text.component.html": {
-      "bytes": 101,
+      "bytes": 95,
       "lines": 6
     },
     "input-group/sub/input-group-text.component.ts": {
@@ -5514,7 +5514,7 @@
       "lines": 26
     },
     "input-mask.directive.spec.ts": {
-      "bytes": 7748,
+      "bytes": 7532,
       "lines": 216
     },
     "input-mask.directive.ts": {
@@ -5522,35 +5522,35 @@
       "lines": 257
     },
     "input-mask.stories.ts": {
-      "bytes": 3935,
+      "bytes": 3835,
       "lines": 100
     },
     "input-otp/index.ts": {
-      "bytes": 193,
+      "bytes": 189,
       "lines": 4
     },
     "input-otp/input-otp.component.css": {
-      "bytes": 216,
+      "bytes": 207,
       "lines": 9
     },
     "input-otp/input-otp.component.spec.ts": {
-      "bytes": 13419,
+      "bytes": 13078,
       "lines": 341
     },
     "input-otp/input-otp.component.ts": {
-      "bytes": 6883,
+      "bytes": 6714,
       "lines": 169
     },
     "input-otp/input-otp.stories.ts": {
-      "bytes": 2284,
+      "bytes": 2212,
       "lines": 72
     },
     "input-otp/sub/input-otp-group.component.ts": {
-      "bytes": 272,
+      "bytes": 260,
       "lines": 12
     },
     "input-otp/sub/input-otp-separator.component.ts": {
-      "bytes": 280,
+      "bytes": 268,
       "lines": 12
     },
     "input-otp/sub/input-otp-slot.component.ts": {
@@ -5558,11 +5558,11 @@
       "lines": 20
     },
     "input/index.ts": {
-      "bytes": 36,
+      "bytes": 35,
       "lines": 1
     },
     "input/input.component.css": {
-      "bytes": 1737,
+      "bytes": 1697,
       "lines": 40
     },
     "input/input.component.html": {
@@ -5570,7 +5570,7 @@
       "lines": 90
     },
     "input/input.component.spec.ts": {
-      "bytes": 16503,
+      "bytes": 16077,
       "lines": 426
     },
     "input/input.component.ts": {
@@ -5578,7 +5578,7 @@
       "lines": 286
     },
     "input/input.stories.ts": {
-      "bytes": 5579,
+      "bytes": 5435,
       "lines": 144
     },
     "kanban/__screenshots__/kanban.component.spec.ts/KanbanComponent-Simple-Mode-should-render-priority-border-on-cards-1.png": {
@@ -5586,15 +5586,15 @@
       "lines": 32
     },
     "kanban/index.ts": {
-      "bytes": 445,
+      "bytes": 436,
       "lines": 9
     },
     "kanban/kanban-locales.ts": {
-      "bytes": 26937,
+      "bytes": 26302,
       "lines": 635
     },
     "kanban/kanban.component.spec.ts": {
-      "bytes": 58706,
+      "bytes": 57372,
       "lines": 1334
     },
     "kanban/kanban.component.ts": {
@@ -5638,43 +5638,43 @@
       "lines": 160
     },
     "kbd/index.ts": {
-      "bytes": 34,
+      "bytes": 33,
       "lines": 1
     },
     "kbd/kbd.component.html": {
-      "bytes": 78,
+      "bytes": 75,
       "lines": 3
     },
     "kbd/kbd.component.spec.ts": {
-      "bytes": 1828,
+      "bytes": 1777,
       "lines": 51
     },
     "kbd/kbd.component.ts": {
-      "bytes": 1102,
+      "bytes": 1062,
       "lines": 40
     },
     "kbd/kbd.stories.ts": {
-      "bytes": 3901,
+      "bytes": 3792,
       "lines": 109
     },
     "label/index.ts": {
-      "bytes": 36,
+      "bytes": 35,
       "lines": 1
     },
     "label/label.component.html": {
-      "bytes": 103,
+      "bytes": 100,
       "lines": 3
     },
     "label/label.component.spec.ts": {
-      "bytes": 3715,
+      "bytes": 3603,
       "lines": 112
     },
     "label/label.component.ts": {
-      "bytes": 1142,
+      "bytes": 1104,
       "lines": 38
     },
     "label/label.stories.ts": {
-      "bytes": 1404,
+      "bytes": 1357,
       "lines": 47
     },
     "line-chart/__screenshots__/line-chart.component.spec.ts/LineChartComponent-exposes-the-viewBox-and-responsive-width-1.png": {
@@ -5686,15 +5686,15 @@
       "lines": 21
     },
     "line-chart/index.ts": {
-      "bytes": 41,
+      "bytes": 40,
       "lines": 1
     },
     "line-chart/line-chart.component.html": {
-      "bytes": 3166,
+      "bytes": 3051,
       "lines": 115
     },
     "line-chart/line-chart.component.spec.ts": {
-      "bytes": 12975,
+      "bytes": 12675,
       "lines": 300
     },
     "line-chart/line-chart.component.ts": {
@@ -5702,11 +5702,11 @@
       "lines": 328
     },
     "line-chart/line-chart.stories.ts": {
-      "bytes": 4226,
+      "bytes": 4121,
       "lines": 105
     },
     "magnetic.directive.spec.ts": {
-      "bytes": 5809,
+      "bytes": 5656,
       "lines": 153
     },
     "magnetic.directive.ts": {
@@ -5714,19 +5714,19 @@
       "lines": 71
     },
     "magnetic.stories.ts": {
-      "bytes": 5599,
+      "bytes": 5468,
       "lines": 131
     },
     "marquee/index.ts": {
-      "bytes": 38,
+      "bytes": 37,
       "lines": 1
     },
     "marquee/marquee.component.html": {
-      "bytes": 400,
+      "bytes": 386,
       "lines": 14
     },
     "marquee/marquee.component.spec.ts": {
-      "bytes": 11248,
+      "bytes": 10904,
       "lines": 344
     },
     "marquee/marquee.component.ts": {
@@ -5734,7 +5734,7 @@
       "lines": 134
     },
     "marquee/marquee.stories.ts": {
-      "bytes": 9223,
+      "bytes": 9041,
       "lines": 182
     },
     "masonry/index.ts": {
@@ -5742,11 +5742,11 @@
       "lines": 1
     },
     "masonry/masonry.component.spec.ts": {
-      "bytes": 13379,
+      "bytes": 13057,
       "lines": 322
     },
     "masonry/masonry.component.ts": {
-      "bytes": 7722,
+      "bytes": 7509,
       "lines": 213
     },
     "masonry/masonry.stories.ts": {
@@ -5778,11 +5778,11 @@
       "lines": 4
     },
     "menubar/index.ts": {
-      "bytes": 489,
+      "bytes": 479,
       "lines": 10
     },
     "menubar/menubar.component.css": {
-      "bytes": 252,
+      "bytes": 242,
       "lines": 10
     },
     "menubar/menubar.component.spec.ts": {
@@ -5794,7 +5794,7 @@
       "lines": 122
     },
     "menubar/menubar.stories.ts": {
-      "bytes": 5239,
+      "bytes": 5085,
       "lines": 154
     },
     "menubar/sub/menubar-content.component.ts": {
@@ -5802,7 +5802,7 @@
       "lines": 128
     },
     "menubar/sub/menubar-item.component.css": {
-      "bytes": 231,
+      "bytes": 222,
       "lines": 9
     },
     "menubar/sub/menubar-item.component.ts": {
@@ -5814,11 +5814,11 @@
       "lines": 63
     },
     "menubar/sub/menubar-separator.component.ts": {
-      "bytes": 372,
+      "bytes": 358,
       "lines": 14
     },
     "menubar/sub/menubar-shortcut.component.ts": {
-      "bytes": 444,
+      "bytes": 428,
       "lines": 16
     },
     "menubar/sub/menubar-sub-content.component.ts": {
@@ -5826,7 +5826,7 @@
       "lines": 146
     },
     "menubar/sub/menubar-sub-trigger.component.css": {
-      "bytes": 238,
+      "bytes": 229,
       "lines": 9
     },
     "menubar/sub/menubar-sub-trigger.component.ts": {
@@ -5838,7 +5838,7 @@
       "lines": 81
     },
     "menubar/sub/menubar-trigger.component.css": {
-      "bytes": 235,
+      "bytes": 226,
       "lines": 9
     },
     "menubar/sub/menubar-trigger.component.ts": {
@@ -5850,11 +5850,11 @@
       "lines": 3
     },
     "meteors/index.ts": {
-      "bytes": 38,
+      "bytes": 37,
       "lines": 1
     },
     "meteors/meteors.component.spec.ts": {
-      "bytes": 17812,
+      "bytes": 17333,
       "lines": 479
     },
     "meteors/meteors.component.ts": {
@@ -5862,23 +5862,23 @@
       "lines": 268
     },
     "meteors/meteors.stories.ts": {
-      "bytes": 4065,
+      "bytes": 3954,
       "lines": 111
     },
     "morphing-text/index.ts": {
-      "bytes": 44,
+      "bytes": 43,
       "lines": 1
     },
     "morphing-text/morphing-text.component.css": {
-      "bytes": 143,
+      "bytes": 137,
       "lines": 6
     },
     "morphing-text/morphing-text.component.html": {
-      "bytes": 659,
+      "bytes": 646,
       "lines": 13
     },
     "morphing-text/morphing-text.component.spec.ts": {
-      "bytes": 6300,
+      "bytes": 6112,
       "lines": 188
     },
     "morphing-text/morphing-text.component.ts": {
@@ -5886,43 +5886,43 @@
       "lines": 77
     },
     "morphing-text/morphing-text.stories.ts": {
-      "bytes": 3835,
+      "bytes": 3725,
       "lines": 110
     },
     "native-select/index.ts": {
-      "bytes": 44,
+      "bytes": 43,
       "lines": 1
     },
     "native-select/native-select.component.css": {
-      "bytes": 494,
+      "bytes": 478,
       "lines": 16
     },
     "native-select/native-select.component.html": {
-      "bytes": 1112,
+      "bytes": 1076,
       "lines": 36
     },
     "native-select/native-select.component.spec.ts": {
-      "bytes": 3006,
+      "bytes": 2931,
       "lines": 75
     },
     "native-select/native-select.component.ts": {
-      "bytes": 4464,
+      "bytes": 4351,
       "lines": 113
     },
     "native-select/native-select.stories.ts": {
-      "bytes": 4959,
+      "bytes": 4816,
       "lines": 143
     },
     "navigation-menu/index.ts": {
-      "bytes": 431,
+      "bytes": 423,
       "lines": 8
     },
     "navigation-menu/navigation-menu.component.html": {
-      "bytes": 1583,
+      "bytes": 1542,
       "lines": 41
     },
     "navigation-menu/navigation-menu.component.spec.ts": {
-      "bytes": 20938,
+      "bytes": 20443,
       "lines": 495
     },
     "navigation-menu/navigation-menu.component.ts": {
@@ -5934,11 +5934,11 @@
       "lines": 48
     },
     "navigation-menu/navigation-menu.stories.ts": {
-      "bytes": 7513,
+      "bytes": 7351,
       "lines": 162
     },
     "navigation-menu/sub/navigation-menu-content.component.css": {
-      "bytes": 181,
+      "bytes": 173,
       "lines": 8
     },
     "navigation-menu/sub/navigation-menu-content.component.ts": {
@@ -5954,7 +5954,7 @@
       "lines": 94
     },
     "navigation-menu/sub/navigation-menu-link.component.css": {
-      "bytes": 181,
+      "bytes": 173,
       "lines": 8
     },
     "navigation-menu/sub/navigation-menu-link.component.ts": {
@@ -5966,7 +5966,7 @@
       "lines": 37
     },
     "navigation-menu/sub/navigation-menu-trigger.component.css": {
-      "bytes": 281,
+      "bytes": 271,
       "lines": 10
     },
     "navigation-menu/sub/navigation-menu-trigger.component.ts": {
@@ -5974,11 +5974,11 @@
       "lines": 83
     },
     "number-input/index.ts": {
-      "bytes": 43,
+      "bytes": 42,
       "lines": 1
     },
     "number-input/number-input.component.css": {
-      "bytes": 197,
+      "bytes": 189,
       "lines": 8
     },
     "number-input/number-input.component.html": {
@@ -5994,7 +5994,7 @@
       "lines": 253
     },
     "number-input/number-input.stories.ts": {
-      "bytes": 3117,
+      "bytes": 3004,
       "lines": 113
     },
     "number-ticker/__screenshots__/number-ticker.component.spec.ts/NumberTickerDigitComponent-animates-a-digit-change-and-settles-prevDigit-when-the-animation-finishes-1.png": {
@@ -6022,11 +6022,11 @@
       "lines": 4
     },
     "number-ticker/index.ts": {
-      "bytes": 98,
+      "bytes": 96,
       "lines": 2
     },
     "number-ticker/number-ticker.component.html": {
-      "bytes": 146,
+      "bytes": 141,
       "lines": 5
     },
     "number-ticker/number-ticker.component.spec.ts": {
@@ -6038,11 +6038,11 @@
       "lines": 142
     },
     "number-ticker/number-ticker.stories.ts": {
-      "bytes": 3301,
+      "bytes": 3198,
       "lines": 103
     },
     "number-ticker/sub/number-ticker-digit.component.html": {
-      "bytes": 447,
+      "bytes": 437,
       "lines": 10
     },
     "number-ticker/sub/number-ticker-digit.component.ts": {
@@ -6050,15 +6050,15 @@
       "lines": 90
     },
     "orbit/index.ts": {
-      "bytes": 36,
+      "bytes": 35,
       "lines": 1
     },
     "orbit/orbit.component.html": {
-      "bytes": 83,
+      "bytes": 80,
       "lines": 3
     },
     "orbit/orbit.component.spec.ts": {
-      "bytes": 9730,
+      "bytes": 9476,
       "lines": 254
     },
     "orbit/orbit.component.ts": {
@@ -6066,7 +6066,7 @@
       "lines": 79
     },
     "orbit/orbit.stories.ts": {
-      "bytes": 5355,
+      "bytes": 5234,
       "lines": 121
     },
     "org-chart/__screenshots__/org-chart.component.spec.ts/OrgChartComponent-lays-the-second-root-out-clear-of-the-first--in-both-layouts-1.png": {
@@ -6078,23 +6078,23 @@
       "lines": 12
     },
     "org-chart/index.ts": {
-      "bytes": 40,
+      "bytes": 39,
       "lines": 1
     },
     "org-chart/org-chart.component.html": {
-      "bytes": 3024,
+      "bytes": 2947,
       "lines": 77
     },
     "org-chart/org-chart.component.spec.ts": {
-      "bytes": 9359,
+      "bytes": 9117,
       "lines": 242
     },
     "org-chart/org-chart.component.ts": {
-      "bytes": 12831,
+      "bytes": 12462,
       "lines": 369
     },
     "org-chart/org-chart.stories.ts": {
-      "bytes": 3623,
+      "bytes": 3534,
       "lines": 89
     },
     "page-builder/__screenshots__/page-builder.component.spec.ts/PageBuilderComponent---editor-behavior-export---import-via-File-System-Access-API-importJson-falls-back-to-the-hidden-file-input-when-the-picker-is-unavailable-1.png": {
@@ -6106,15 +6106,15 @@
       "lines": 74
     },
     "page-builder/index.ts": {
-      "bytes": 511,
+      "bytes": 502,
       "lines": 9
     },
     "page-builder/page-builder.component.html": {
-      "bytes": 21294,
+      "bytes": 20969,
       "lines": 325
     },
     "page-builder/page-builder.component.spec.ts": {
-      "bytes": 37970,
+      "bytes": 37111,
       "lines": 859
     },
     "page-builder/page-builder.component.ts": {
@@ -6122,19 +6122,19 @@
       "lines": 595
     },
     "page-builder/page-builder.stories.ts": {
-      "bytes": 4570,
+      "bytes": 4432,
       "lines": 138
     },
     "page-builder/page-builder.types.ts": {
-      "bytes": 673,
+      "bytes": 663,
       "lines": 10
     },
     "page-builder/sub/property-editor.component.html": {
-      "bytes": 12875,
+      "bytes": 12687,
       "lines": 188
     },
     "page-builder/sub/property-editor.component.spec.ts": {
-      "bytes": 13512,
+      "bytes": 13134,
       "lines": 378
     },
     "page-builder/sub/property-editor.component.ts": {
@@ -6182,23 +6182,23 @@
       "lines": 132
     },
     "page-renderer/index.ts": {
-      "bytes": 44,
+      "bytes": 43,
       "lines": 1
     },
     "page-renderer/page-renderer.component.html": {
-      "bytes": 468,
+      "bytes": 453,
       "lines": 15
     },
     "page-renderer/page-renderer.component.spec.ts": {
-      "bytes": 7618,
+      "bytes": 7412,
       "lines": 206
     },
     "page-renderer/page-renderer.component.ts": {
-      "bytes": 5520,
+      "bytes": 5372,
       "lines": 148
     },
     "page-renderer/page-renderer.stories.ts": {
-      "bytes": 3754,
+      "bytes": 3639,
       "lines": 115
     },
     "pagination/__screenshots__/pagination.component.spec.ts/Pagination-Simple-Mode--Data-Driven--should-render-both-ellipses-without-a-duplicate-key-error-1.png": {
@@ -6206,23 +6206,23 @@
       "lines": 7
     },
     "pagination/index.ts": {
-      "bytes": 391,
+      "bytes": 383,
       "lines": 8
     },
     "pagination/pagination.component.spec.ts": {
-      "bytes": 24413,
+      "bytes": 23832,
       "lines": 581
     },
     "pagination/pagination.component.ts": {
-      "bytes": 8032,
+      "bytes": 7838,
       "lines": 194
     },
     "pagination/pagination.locales.ts": {
-      "bytes": 2581,
+      "bytes": 2487,
       "lines": 94
     },
     "pagination/pagination.stories.ts": {
-      "bytes": 3429,
+      "bytes": 3326,
       "lines": 103
     },
     "pagination/sub/pagination-content.component.ts": {
@@ -6238,7 +6238,7 @@
       "lines": 22
     },
     "pagination/sub/pagination-link.component.css": {
-      "bytes": 751,
+      "bytes": 729,
       "lines": 22
     },
     "pagination/sub/pagination-link.component.ts": {
@@ -6254,11 +6254,11 @@
       "lines": 41
     },
     "particles/index.ts": {
-      "bytes": 40,
+      "bytes": 39,
       "lines": 1
     },
     "particles/particles.component.spec.ts": {
-      "bytes": 15903,
+      "bytes": 15480,
       "lines": 423
     },
     "particles/particles.component.ts": {
@@ -6266,15 +6266,15 @@
       "lines": 253
     },
     "particles/particles.stories.ts": {
-      "bytes": 5976,
+      "bytes": 5829,
       "lines": 147
     },
     "phone-input/index.ts": {
-      "bytes": 119,
+      "bytes": 116,
       "lines": 3
     },
     "phone-input/phone-input-data.ts": {
-      "bytes": 4591,
+      "bytes": 4545,
       "lines": 46
     },
     "phone-input/phone-input.component.html": {
@@ -6290,15 +6290,15 @@
       "lines": 275
     },
     "phone-input/phone-input.coverage.spec.ts": {
-      "bytes": 4010,
+      "bytes": 3916,
       "lines": 94
     },
     "phone-input/phone-input.locales.ts": {
-      "bytes": 1725,
+      "bytes": 1700,
       "lines": 25
     },
     "phone-input/phone-input.stories.ts": {
-      "bytes": 4139,
+      "bytes": 4035,
       "lines": 104
     },
     "pie-chart-drilldown/__screenshots__/pie-chart-drilldown.component.spec.ts/PieChartDrilldownComponent-should-set-aria-label-on-SVG-1.png": {
@@ -6306,23 +6306,23 @@
       "lines": 34
     },
     "pie-chart-drilldown/index.ts": {
-      "bytes": 50,
+      "bytes": 49,
       "lines": 1
     },
     "pie-chart-drilldown/pie-chart-drilldown.component.html": {
-      "bytes": 4630,
+      "bytes": 4518,
       "lines": 112
     },
     "pie-chart-drilldown/pie-chart-drilldown.component.spec.ts": {
-      "bytes": 22418,
+      "bytes": 21872,
       "lines": 546
     },
     "pie-chart-drilldown/pie-chart-drilldown.component.ts": {
-      "bytes": 12692,
+      "bytes": 12377,
       "lines": 315
     },
     "pie-chart-drilldown/pie-chart-drilldown.stories.ts": {
-      "bytes": 5212,
+      "bytes": 5078,
       "lines": 134
     },
     "pie-chart/__screenshots__/pie-chart.component.spec.ts/PieChartComponent-should-set-aria-label-on-container-1.png": {
@@ -6330,23 +6330,23 @@
       "lines": 30
     },
     "pie-chart/index.ts": {
-      "bytes": 40,
+      "bytes": 39,
       "lines": 1
     },
     "pie-chart/pie-chart.component.html": {
-      "bytes": 3362,
+      "bytes": 3273,
       "lines": 89
     },
     "pie-chart/pie-chart.component.spec.ts": {
-      "bytes": 5063,
+      "bytes": 4924,
       "lines": 139
     },
     "pie-chart/pie-chart.component.ts": {
-      "bytes": 9133,
+      "bytes": 8891,
       "lines": 242
     },
     "pie-chart/pie-chart.stories.ts": {
-      "bytes": 4042,
+      "bytes": 3926,
       "lines": 116
     },
     "popover/__screenshots__/popover.component.spec.ts/Popover-Integration-returns-focus-to-the-trigger-when-the-content-closes-1.png": {
@@ -6558,11 +6558,11 @@
       "lines": 3
     },
     "popover/index.ts": {
-      "bytes": 186,
+      "bytes": 182,
       "lines": 4
     },
     "popover/popover.component.spec.ts": {
-      "bytes": 22093,
+      "bytes": 21518,
       "lines": 575
     },
     "popover/popover.component.ts": {
@@ -6574,7 +6574,7 @@
       "lines": 571
     },
     "popover/popover.stories.ts": {
-      "bytes": 6443,
+      "bytes": 6286,
       "lines": 157
     },
     "popover/sub/popover-close.component.ts": {
@@ -6582,7 +6582,7 @@
       "lines": 57
     },
     "popover/sub/popover-content.component.css": {
-      "bytes": 168,
+      "bytes": 162,
       "lines": 6
     },
     "popover/sub/popover-content.component.ts": {
@@ -6594,23 +6594,23 @@
       "lines": 64
     },
     "progress/index.ts": {
-      "bytes": 39,
+      "bytes": 38,
       "lines": 1
     },
     "progress/progress.component.html": {
-      "bytes": 428,
+      "bytes": 410,
       "lines": 18
     },
     "progress/progress.component.spec.ts": {
-      "bytes": 7159,
+      "bytes": 6960,
       "lines": 199
     },
     "progress/progress.component.ts": {
-      "bytes": 2706,
+      "bytes": 2638,
       "lines": 68
     },
     "progress/progress.stories.ts": {
-      "bytes": 2285,
+      "bytes": 2217,
       "lines": 68
     },
     "radar-chart/__screenshots__/radar-chart.component.spec.ts/RadarChartComponent-renders-with-an-accessible-Radar-chart-label-1.png": {
@@ -6618,15 +6618,15 @@
       "lines": 27
     },
     "radar-chart/index.ts": {
-      "bytes": 42,
+      "bytes": 41,
       "lines": 1
     },
     "radar-chart/radar-chart.component.html": {
-      "bytes": 1808,
+      "bytes": 1740,
       "lines": 68
     },
     "radar-chart/radar-chart.component.spec.ts": {
-      "bytes": 3604,
+      "bytes": 3514,
       "lines": 90
     },
     "radar-chart/radar-chart.component.ts": {
@@ -6634,7 +6634,7 @@
       "lines": 195
     },
     "radar-chart/radar-chart.stories.ts": {
-      "bytes": 4166,
+      "bytes": 4051,
       "lines": 115
     },
     "radio-group/__screenshots__/radio-group.component.spec.ts/RadioGroup-Integration-should-select-item-on-click-1.png": {
@@ -6642,11 +6642,11 @@
       "lines": 5
     },
     "radio-group/index.ts": {
-      "bytes": 93,
+      "bytes": 91,
       "lines": 2
     },
     "radio-group/radio-group.component.html": {
-      "bytes": 431,
+      "bytes": 413,
       "lines": 18
     },
     "radio-group/radio-group.component.spec.ts": {
@@ -6662,15 +6662,15 @@
       "lines": 199
     },
     "radio-group/radio-group.stories.ts": {
-      "bytes": 7167,
+      "bytes": 6989,
       "lines": 178
     },
     "radio-group/sub/radio-group-item.component.css": {
-      "bytes": 364,
+      "bytes": 350,
       "lines": 14
     },
     "radio-group/sub/radio-group-item.component.html": {
-      "bytes": 2066,
+      "bytes": 2001,
       "lines": 65
     },
     "radio-group/sub/radio-group-item.component.ts": {
@@ -6714,7 +6714,7 @@
       "lines": 6
     },
     "rating/index.ts": {
-      "bytes": 72,
+      "bytes": 70,
       "lines": 2
     },
     "rating/rating.component.html": {
@@ -6730,11 +6730,11 @@
       "lines": 396
     },
     "rating/rating.locales.ts": {
-      "bytes": 1529,
+      "bytes": 1501,
       "lines": 28
     },
     "rating/rating.stories.ts": {
-      "bytes": 6466,
+      "bytes": 6283,
       "lines": 183
     },
     "resizable/__screenshots__/resizable.component.spec.ts/Resizable-panel-limits-and-state-clamps-updateSize-and-takes-the-difference-out-of-the-sibling-1.png": {
@@ -6766,15 +6766,15 @@
       "lines": 8
     },
     "resizable/index.ts": {
-      "bytes": 141,
+      "bytes": 138,
       "lines": 3
     },
     "resizable/resizable.component.html": {
-      "bytes": 157,
+      "bytes": 149,
       "lines": 8
     },
     "resizable/resizable.component.spec.ts": {
-      "bytes": 23655,
+      "bytes": 23100,
       "lines": 555
     },
     "resizable/resizable.component.ts": {
@@ -6782,7 +6782,7 @@
       "lines": 31
     },
     "resizable/resizable.stories.ts": {
-      "bytes": 6056,
+      "bytes": 5909,
       "lines": 147
     },
     "resizable/sub/resizable-handle.component.ts": {
@@ -6802,7 +6802,7 @@
       "lines": 59
     },
     "result/result.component.html": {
-      "bytes": 1014,
+      "bytes": 970,
       "lines": 44
     },
     "result/result.component.spec.ts": {
@@ -6810,7 +6810,7 @@
       "lines": 335
     },
     "result/result.component.ts": {
-      "bytes": 3699,
+      "bytes": 3612,
       "lines": 87
     },
     "result/result.stories.ts": {
@@ -7038,15 +7038,15 @@
       "lines": 3
     },
     "rich-text-editor/addons/actions/actions-runtime.spec.ts": {
-      "bytes": 10712,
+      "bytes": 10495,
       "lines": 217
     },
     "rich-text-editor/addons/actions/actions-runtime.ts": {
-      "bytes": 8393,
+      "bytes": 8204,
       "lines": 189
     },
     "rich-text-editor/addons/actions/index.ts": {
-      "bytes": 258,
+      "bytes": 252,
       "lines": 6
     },
     "rich-text-editor/addons/actions/presets/__screenshots__/hover-card.preset.spec.ts/hover-card-preset-handler-renders-a-card-with-the-authored-body-on-start-1.png": {
@@ -7058,7 +7058,7 @@
       "lines": 5
     },
     "rich-text-editor/addons/actions/presets/hover-card.preset.spec.ts": {
-      "bytes": 5363,
+      "bytes": 5255,
       "lines": 108
     },
     "rich-text-editor/addons/actions/presets/hover-card.preset.ts": {
@@ -7066,19 +7066,19 @@
       "lines": 114
     },
     "rich-text-editor/addons/actions/presets/index.ts": {
-      "bytes": 167,
+      "bytes": 163,
       "lines": 4
     },
     "rich-text-editor/addons/actions/presets/linked-preview-dialog.preset.spec.ts": {
-      "bytes": 3499,
+      "bytes": 3436,
       "lines": 63
     },
     "rich-text-editor/addons/actions/presets/linked-preview-dialog.preset.ts": {
-      "bytes": 3177,
+      "bytes": 3110,
       "lines": 67
     },
     "rich-text-editor/addons/actions/presets/open-dialog.preset.spec.ts": {
-      "bytes": 4102,
+      "bytes": 4019,
       "lines": 83
     },
     "rich-text-editor/addons/actions/presets/open-dialog.preset.ts": {
@@ -7086,15 +7086,15 @@
       "lines": 151
     },
     "rich-text-editor/addons/actions/presets/preset-overlay.utils.spec.ts": {
-      "bytes": 3720,
+      "bytes": 3644,
       "lines": 76
     },
     "rich-text-editor/addons/actions/presets/preset-overlay.utils.ts": {
-      "bytes": 3560,
+      "bytes": 3472,
       "lines": 88
     },
     "rich-text-editor/addons/actions/rich-text-actions-bind.directive.spec.ts": {
-      "bytes": 1981,
+      "bytes": 1936,
       "lines": 45
     },
     "rich-text-editor/addons/actions/rich-text-actions-bind.directive.ts": {
@@ -7102,11 +7102,11 @@
       "lines": 75
     },
     "rich-text-editor/addons/actions/rich-text-actions-dialog.component.html": {
-      "bytes": 4402,
+      "bytes": 4304,
       "lines": 98
     },
     "rich-text-editor/addons/actions/rich-text-actions-dialog.component.spec.ts": {
-      "bytes": 17003,
+      "bytes": 16660,
       "lines": 343
     },
     "rich-text-editor/addons/actions/rich-text-actions-dialog.component.ts": {
@@ -7114,11 +7114,11 @@
       "lines": 354
     },
     "rich-text-editor/addons/actions/rich-text-actions-form.component.html": {
-      "bytes": 2350,
+      "bytes": 2294,
       "lines": 56
     },
     "rich-text-editor/addons/actions/rich-text-actions-form.component.spec.ts": {
-      "bytes": 3186,
+      "bytes": 3122,
       "lines": 64
     },
     "rich-text-editor/addons/actions/rich-text-actions-form.component.ts": {
@@ -7126,11 +7126,11 @@
       "lines": 112
     },
     "rich-text-editor/addons/actions/rich-text-actions-popover.component.html": {
-      "bytes": 1244,
+      "bytes": 1213,
       "lines": 31
     },
     "rich-text-editor/addons/actions/rich-text-actions-popover.component.spec.ts": {
-      "bytes": 2985,
+      "bytes": 2933,
       "lines": 52
     },
     "rich-text-editor/addons/actions/rich-text-actions-popover.component.ts": {
@@ -7146,63 +7146,63 @@
       "lines": 538
     },
     "rich-text-editor/addons/actions/rich-text-actions.locales.ts": {
-      "bytes": 2941,
+      "bytes": 2843,
       "lines": 98
     },
     "rich-text-editor/addons/actions/rich-text-actions.serializer.spec.ts": {
-      "bytes": 6473,
+      "bytes": 6339,
       "lines": 134
     },
     "rich-text-editor/addons/actions/rich-text-actions.serializer.ts": {
-      "bytes": 4912,
+      "bytes": 4786,
       "lines": 126
     },
     "rich-text-editor/addons/actions/rich-text-actions.stories.ts": {
-      "bytes": 8986,
+      "bytes": 8798,
       "lines": 188
     },
     "rich-text-editor/addons/actions/rich-text-actions.types.ts": {
-      "bytes": 3773,
+      "bytes": 3689,
       "lines": 84
     },
     "rich-text-editor/addons/ai/index.ts": {
-      "bytes": 222,
+      "bytes": 217,
       "lines": 5
     },
     "rich-text-editor/addons/ai/rich-text-ai-chip.component.html": {
-      "bytes": 453,
+      "bytes": 440,
       "lines": 13
     },
     "rich-text-editor/addons/ai/rich-text-ai-chip.component.spec.ts": {
-      "bytes": 2789,
+      "bytes": 2710,
       "lines": 79
     },
     "rich-text-editor/addons/ai/rich-text-ai-chip.component.ts": {
-      "bytes": 830,
+      "bytes": 810,
       "lines": 20
     },
     "rich-text-editor/addons/ai/rich-text-ai-panel.component.html": {
-      "bytes": 2367,
+      "bytes": 2317,
       "lines": 50
     },
     "rich-text-editor/addons/ai/rich-text-ai-panel.component.spec.ts": {
-      "bytes": 6141,
+      "bytes": 5995,
       "lines": 146
     },
     "rich-text-editor/addons/ai/rich-text-ai-panel.component.ts": {
-      "bytes": 1595,
+      "bytes": 1553,
       "lines": 42
     },
     "rich-text-editor/addons/ai/rich-text-ai.context.spec.ts": {
-      "bytes": 445,
+      "bytes": 435,
       "lines": 10
     },
     "rich-text-editor/addons/ai/rich-text-ai.context.ts": {
-      "bytes": 2424,
+      "bytes": 2367,
       "lines": 57
     },
     "rich-text-editor/addons/ai/rich-text-ai.directive.spec.ts": {
-      "bytes": 24567,
+      "bytes": 23955,
       "lines": 612
     },
     "rich-text-editor/addons/ai/rich-text-ai.directive.ts": {
@@ -7210,11 +7210,11 @@
       "lines": 470
     },
     "rich-text-editor/addons/ai/rich-text-ai.locales.ts": {
-      "bytes": 8910,
+      "bytes": 8668,
       "lines": 242
     },
     "rich-text-editor/addons/ai/rich-text-ai.stories.ts": {
-      "bytes": 2706,
+      "bytes": 2628,
       "lines": 78
     },
     "rich-text-editor/addons/colors/__screenshots__/rich-text-colors-button.component.spec.ts/RichTextColorsButtonComponent-seeds-the-picker-on-open-and-forwards-a-picked-colour-only-while-open-1.png": {
@@ -7282,11 +7282,11 @@
       "lines": 76
     },
     "rich-text-editor/addons/colors/index.ts": {
-      "bytes": 191,
+      "bytes": 187,
       "lines": 4
     },
     "rich-text-editor/addons/colors/rich-text-colors-button.component.html": {
-      "bytes": 1611,
+      "bytes": 1572,
       "lines": 39
     },
     "rich-text-editor/addons/colors/rich-text-colors-button.component.spec.ts": {
@@ -7298,15 +7298,15 @@
       "lines": 145
     },
     "rich-text-editor/addons/colors/rich-text-colors.context.spec.ts": {
-      "bytes": 504,
+      "bytes": 494,
       "lines": 10
     },
     "rich-text-editor/addons/colors/rich-text-colors.context.ts": {
-      "bytes": 2163,
+      "bytes": 2116,
       "lines": 47
     },
     "rich-text-editor/addons/colors/rich-text-colors.directive.spec.ts": {
-      "bytes": 18756,
+      "bytes": 18312,
       "lines": 444
     },
     "rich-text-editor/addons/colors/rich-text-colors.directive.ts": {
@@ -7314,19 +7314,19 @@
       "lines": 285
     },
     "rich-text-editor/addons/colors/rich-text-colors.locales.ts": {
-      "bytes": 3212,
+      "bytes": 3163,
       "lines": 49
     },
     "rich-text-editor/addons/colors/rich-text-colors.stories.ts": {
-      "bytes": 2427,
+      "bytes": 2354,
       "lines": 73
     },
     "rich-text-editor/addons/emoji/index.ts": {
-      "bytes": 187,
+      "bytes": 183,
       "lines": 4
     },
     "rich-text-editor/addons/emoji/rich-text-emoji-button.component.html": {
-      "bytes": 442,
+      "bytes": 425,
       "lines": 17
     },
     "rich-text-editor/addons/emoji/rich-text-emoji-button.component.spec.ts": {
@@ -7338,27 +7338,27 @@
       "lines": 65
     },
     "rich-text-editor/addons/emoji/rich-text-emoji.context.spec.ts": {
-      "bytes": 466,
+      "bytes": 456,
       "lines": 10
     },
     "rich-text-editor/addons/emoji/rich-text-emoji.context.ts": {
-      "bytes": 568,
+      "bytes": 552,
       "lines": 16
     },
     "rich-text-editor/addons/emoji/rich-text-emoji.directive.spec.ts": {
-      "bytes": 5314,
+      "bytes": 5183,
       "lines": 131
     },
     "rich-text-editor/addons/emoji/rich-text-emoji.directive.ts": {
-      "bytes": 3686,
+      "bytes": 3595,
       "lines": 91
     },
     "rich-text-editor/addons/emoji/rich-text-emoji.locales.ts": {
-      "bytes": 1130,
+      "bytes": 1106,
       "lines": 24
     },
     "rich-text-editor/addons/emoji/rich-text-emoji.stories.ts": {
-      "bytes": 1967,
+      "bytes": 1900,
       "lines": 67
     },
     "rich-text-editor/addons/file-import/__screenshots__/rich-text-file-import.directive.spec.ts/RichTextFileImportDirective-does-not-import-when-readonly-1.png": {
@@ -7370,11 +7370,11 @@
       "lines": 7
     },
     "rich-text-editor/addons/file-import/index.ts": {
-      "bytes": 319,
+      "bytes": 313,
       "lines": 6
     },
     "rich-text-editor/addons/file-import/rich-text-file-import-button.component.html": {
-      "bytes": 977,
+      "bytes": 948,
       "lines": 29
     },
     "rich-text-editor/addons/file-import/rich-text-file-import-button.component.spec.ts": {
@@ -7386,11 +7386,11 @@
       "lines": 55
     },
     "rich-text-editor/addons/file-import/rich-text-file-import-overlay.component.html": {
-      "bytes": 547,
+      "bytes": 530,
       "lines": 17
     },
     "rich-text-editor/addons/file-import/rich-text-file-import-overlay.component.spec.ts": {
-      "bytes": 2100,
+      "bytes": 2053,
       "lines": 47
     },
     "rich-text-editor/addons/file-import/rich-text-file-import-overlay.component.ts": {
@@ -7398,15 +7398,15 @@
       "lines": 39
     },
     "rich-text-editor/addons/file-import/rich-text-file-import.context.spec.ts": {
-      "bytes": 523,
+      "bytes": 513,
       "lines": 10
     },
     "rich-text-editor/addons/file-import/rich-text-file-import.context.ts": {
-      "bytes": 959,
+      "bytes": 939,
       "lines": 20
     },
     "rich-text-editor/addons/file-import/rich-text-file-import.directive.spec.ts": {
-      "bytes": 23435,
+      "bytes": 22911,
       "lines": 524
     },
     "rich-text-editor/addons/file-import/rich-text-file-import.directive.ts": {
@@ -7414,19 +7414,19 @@
       "lines": 316
     },
     "rich-text-editor/addons/file-import/rich-text-file-import.locales.ts": {
-      "bytes": 4776,
+      "bytes": 4677,
       "lines": 99
     },
     "rich-text-editor/addons/file-import/rich-text-file-import.stories.ts": {
-      "bytes": 2631,
+      "bytes": 2560,
       "lines": 71
     },
     "rich-text-editor/addons/file-import/rich-text-file-import.utils.spec.ts": {
-      "bytes": 5405,
+      "bytes": 5272,
       "lines": 133
     },
     "rich-text-editor/addons/file-import/rich-text-file-import.utils.ts": {
-      "bytes": 3938,
+      "bytes": 3846,
       "lines": 92
     },
     "rich-text-editor/addons/full/full-barrel.spec.ts": {
@@ -7438,11 +7438,11 @@
       "lines": 47
     },
     "rich-text-editor/addons/full/rich-text-full.spec.ts": {
-      "bytes": 5685,
+      "bytes": 5536,
       "lines": 149
     },
     "rich-text-editor/addons/full/rich-text-full.stories.ts": {
-      "bytes": 2605,
+      "bytes": 2539,
       "lines": 66
     },
     "rich-text-editor/addons/history/__screenshots__/rich-text-history.directive.spec.ts/RichTextHistoryDirective-applies-a-revision-on-Space-as-well-as-Enter-1.png": {
@@ -7502,11 +7502,11 @@
       "lines": 4
     },
     "rich-text-editor/addons/history/index.ts": {
-      "bytes": 148,
+      "bytes": 145,
       "lines": 3
     },
     "rich-text-editor/addons/history/rich-text-history-panel.component.html": {
-      "bytes": 9249,
+      "bytes": 9067,
       "lines": 182
     },
     "rich-text-editor/addons/history/rich-text-history-panel.component.spec.ts": {
@@ -7518,19 +7518,19 @@
       "lines": 303
     },
     "rich-text-editor/addons/history/rich-text-history.directive.spec.ts": {
-      "bytes": 13383,
+      "bytes": 13069,
       "lines": 314
     },
     "rich-text-editor/addons/history/rich-text-history.directive.ts": {
-      "bytes": 4542,
+      "bytes": 4432,
       "lines": 110
     },
     "rich-text-editor/addons/history/rich-text-history.locales.ts": {
-      "bytes": 9522,
+      "bytes": 9296,
       "lines": 226
     },
     "rich-text-editor/addons/history/rich-text-history.stories.ts": {
-      "bytes": 2465,
+      "bytes": 2392,
       "lines": 73
     },
     "rich-text-editor/addons/images/__screenshots__/rich-text-images-resizer.component.spec.ts/RichTextImageResizerComponent-tracking-lifecycle-becomes-visible-and-computes-a-rect-when-target-overlaps-the-container-1.png": {
@@ -7574,11 +7574,11 @@
       "lines": 4
     },
     "rich-text-editor/addons/images/index.ts": {
-      "bytes": 344,
+      "bytes": 337,
       "lines": 7
     },
     "rich-text-editor/addons/images/rich-text-images-button.component.html": {
-      "bytes": 2908,
+      "bytes": 2838,
       "lines": 70
     },
     "rich-text-editor/addons/images/rich-text-images-button.component.spec.ts": {
@@ -7590,11 +7590,11 @@
       "lines": 85
     },
     "rich-text-editor/addons/images/rich-text-images-overlay.component.html": {
-      "bytes": 2070,
+      "bytes": 2018,
       "lines": 52
     },
     "rich-text-editor/addons/images/rich-text-images-overlay.component.spec.ts": {
-      "bytes": 5828,
+      "bytes": 5690,
       "lines": 138
     },
     "rich-text-editor/addons/images/rich-text-images-overlay.component.ts": {
@@ -7606,7 +7606,7 @@
       "lines": 55
     },
     "rich-text-editor/addons/images/rich-text-images-resizer.component.spec.ts": {
-      "bytes": 28259,
+      "bytes": 27569,
       "lines": 690
     },
     "rich-text-editor/addons/images/rich-text-images-resizer.component.ts": {
@@ -7614,15 +7614,15 @@
       "lines": 364
     },
     "rich-text-editor/addons/images/rich-text-images.context.spec.ts": {
-      "bytes": 493,
+      "bytes": 483,
       "lines": 10
     },
     "rich-text-editor/addons/images/rich-text-images.context.ts": {
-      "bytes": 1237,
+      "bytes": 1209,
       "lines": 28
     },
     "rich-text-editor/addons/images/rich-text-images.directive.spec.ts": {
-      "bytes": 37069,
+      "bytes": 36259,
       "lines": 810
     },
     "rich-text-editor/addons/images/rich-text-images.directive.ts": {
@@ -7630,27 +7630,27 @@
       "lines": 617
     },
     "rich-text-editor/addons/images/rich-text-images.locales.ts": {
-      "bytes": 7228,
+      "bytes": 7191,
       "lines": 37
     },
     "rich-text-editor/addons/images/rich-text-images.stories.ts": {
-      "bytes": 3687,
+      "bytes": 3576,
       "lines": 111
     },
     "rich-text-editor/addons/images/rich-text-images.utils.spec.ts": {
-      "bytes": 7971,
+      "bytes": 7777,
       "lines": 194
     },
     "rich-text-editor/addons/images/rich-text-images.utils.ts": {
-      "bytes": 5048,
+      "bytes": 4910,
       "lines": 138
     },
     "rich-text-editor/addons/links/index.ts": {
-      "bytes": 238,
+      "bytes": 233,
       "lines": 5
     },
     "rich-text-editor/addons/links/rich-text-links-button.component.html": {
-      "bytes": 677,
+      "bytes": 657,
       "lines": 20
     },
     "rich-text-editor/addons/links/rich-text-links-button.component.spec.ts": {
@@ -7662,23 +7662,23 @@
       "lines": 71
     },
     "rich-text-editor/addons/links/rich-text-links-form.component.html": {
-      "bytes": 1652,
+      "bytes": 1611,
       "lines": 41
     },
     "rich-text-editor/addons/links/rich-text-links-form.component.spec.ts": {
-      "bytes": 4104,
+      "bytes": 4004,
       "lines": 100
     },
     "rich-text-editor/addons/links/rich-text-links-form.component.ts": {
-      "bytes": 2154,
+      "bytes": 2104,
       "lines": 50
     },
     "rich-text-editor/addons/links/rich-text-links.context.spec.ts": {
-      "bytes": 490,
+      "bytes": 480,
       "lines": 10
     },
     "rich-text-editor/addons/links/rich-text-links.context.ts": {
-      "bytes": 1112,
+      "bytes": 1088,
       "lines": 24
     },
     "rich-text-editor/addons/links/rich-text-links.directive.spec.ts": {
@@ -7690,11 +7690,11 @@
       "lines": 360
     },
     "rich-text-editor/addons/links/rich-text-links.locales.ts": {
-      "bytes": 4896,
+      "bytes": 4846,
       "lines": 50
     },
     "rich-text-editor/addons/links/rich-text-links.stories.ts": {
-      "bytes": 2678,
+      "bytes": 2594,
       "lines": 84
     },
     "rich-text-editor/addons/mentions/__screenshots__/rich-text-mentions.directive.spec.ts/RichTextMentionsDirective-closes-the-popover-when-the-trigger-is-no-longer-present-1.png": {
@@ -7746,15 +7746,15 @@
       "lines": 3
     },
     "rich-text-editor/addons/mentions/index.ts": {
-      "bytes": 242,
+      "bytes": 237,
       "lines": 5
     },
     "rich-text-editor/addons/mentions/rich-text-mention-popover.component.html": {
-      "bytes": 2522,
+      "bytes": 2454,
       "lines": 69
     },
     "rich-text-editor/addons/mentions/rich-text-mention-popover.component.spec.ts": {
-      "bytes": 5901,
+      "bytes": 5751,
       "lines": 150
     },
     "rich-text-editor/addons/mentions/rich-text-mention-popover.component.ts": {
@@ -7762,7 +7762,7 @@
       "lines": 214
     },
     "rich-text-editor/addons/mentions/rich-text-mentions.directive.spec.ts": {
-      "bytes": 19513,
+      "bytes": 19035,
       "lines": 478
     },
     "rich-text-editor/addons/mentions/rich-text-mentions.directive.ts": {
@@ -7770,23 +7770,23 @@
       "lines": 295
     },
     "rich-text-editor/addons/mentions/rich-text-mentions.locales.ts": {
-      "bytes": 2331,
+      "bytes": 2306,
       "lines": 25
     },
     "rich-text-editor/addons/mentions/rich-text-mentions.stories.ts": {
-      "bytes": 4371,
+      "bytes": 4257,
       "lines": 114
     },
     "rich-text-editor/addons/mentions/rich-text-mentions.types.ts": {
-      "bytes": 5213,
+      "bytes": 5081,
       "lines": 132
     },
     "rich-text-editor/addons/mentions/rich-text-mentions.utils.spec.ts": {
-      "bytes": 11691,
+      "bytes": 11424,
       "lines": 267
     },
     "rich-text-editor/addons/mentions/rich-text-mentions.utils.ts": {
-      "bytes": 7819,
+      "bytes": 7619,
       "lines": 200
     },
     "rich-text-editor/addons/outline/__screenshots__/rich-text-outline.directive.spec.ts/RichTextOutlineDirective-hides-the-toolbar-button-when--uiRteOutlineButton--is-false-but-keeps-the--outline-command-1.png": {
@@ -7798,31 +7798,31 @@
       "lines": 4
     },
     "rich-text-editor/addons/outline/index.ts": {
-      "bytes": 194,
+      "bytes": 190,
       "lines": 4
     },
     "rich-text-editor/addons/outline/rich-text-outline-panel.component.html": {
-      "bytes": 1970,
+      "bytes": 1923,
       "lines": 47
     },
     "rich-text-editor/addons/outline/rich-text-outline-panel.component.spec.ts": {
-      "bytes": 4412,
+      "bytes": 4290,
       "lines": 122
     },
     "rich-text-editor/addons/outline/rich-text-outline-panel.component.ts": {
-      "bytes": 1192,
+      "bytes": 1167,
       "lines": 25
     },
     "rich-text-editor/addons/outline/rich-text-outline.context.spec.ts": {
-      "bytes": 467,
+      "bytes": 457,
       "lines": 10
     },
     "rich-text-editor/addons/outline/rich-text-outline.context.ts": {
-      "bytes": 1591,
+      "bytes": 1554,
       "lines": 37
     },
     "rich-text-editor/addons/outline/rich-text-outline.directive.spec.ts": {
-      "bytes": 11705,
+      "bytes": 11412,
       "lines": 293
     },
     "rich-text-editor/addons/outline/rich-text-outline.directive.ts": {
@@ -7830,11 +7830,11 @@
       "lines": 259
     },
     "rich-text-editor/addons/outline/rich-text-outline.locales.ts": {
-      "bytes": 4631,
+      "bytes": 4508,
       "lines": 123
     },
     "rich-text-editor/addons/outline/rich-text-outline.stories.ts": {
-      "bytes": 3048,
+      "bytes": 2966,
       "lines": 82
     },
     "rich-text-editor/addons/slash-commands/__screenshots__/rich-text-slash-commands-menu.component.spec.ts/RichTextSlashCommandsMenuComponent-does-not-scroll-when-the-active-option-is-already-visible-1.png": {
@@ -7874,27 +7874,27 @@
       "lines": 19
     },
     "rich-text-editor/addons/slash-commands/index.ts": {
-      "bytes": 222,
+      "bytes": 218,
       "lines": 4
     },
     "rich-text-editor/addons/slash-commands/rich-text-slash-commands-menu.component.html": {
-      "bytes": 1021,
+      "bytes": 996,
       "lines": 25
     },
     "rich-text-editor/addons/slash-commands/rich-text-slash-commands-menu.component.spec.ts": {
-      "bytes": 5879,
+      "bytes": 5745,
       "lines": 134
     },
     "rich-text-editor/addons/slash-commands/rich-text-slash-commands-menu.component.ts": {
-      "bytes": 2927,
+      "bytes": 2848,
       "lines": 79
     },
     "rich-text-editor/addons/slash-commands/rich-text-slash-commands.defaults.spec.ts": {
-      "bytes": 4244,
+      "bytes": 4153,
       "lines": 91
     },
     "rich-text-editor/addons/slash-commands/rich-text-slash-commands.defaults.ts": {
-      "bytes": 5717,
+      "bytes": 5554,
       "lines": 163
     },
     "rich-text-editor/addons/slash-commands/rich-text-slash-commands.directive.spec.ts": {
@@ -7906,15 +7906,15 @@
       "lines": 462
     },
     "rich-text-editor/addons/slash-commands/rich-text-slash-commands.locales.ts": {
-      "bytes": 17539,
+      "bytes": 17157,
       "lines": 382
     },
     "rich-text-editor/addons/slash-commands/rich-text-slash-commands.stories.ts": {
-      "bytes": 2870,
+      "bytes": 2782,
       "lines": 88
     },
     "rich-text-editor/addons/slash-commands/rich-text-slash-commands.utils.spec.ts": {
-      "bytes": 20754,
+      "bytes": 20289,
       "lines": 465
     },
     "rich-text-editor/addons/slash-commands/rich-text-slash-commands.utils.ts": {
@@ -7966,15 +7966,15 @@
       "lines": 3
     },
     "rich-text-editor/addons/tables/index.ts": {
-      "bytes": 191,
+      "bytes": 187,
       "lines": 4
     },
     "rich-text-editor/addons/tables/rich-text-tables-button.component.html": {
-      "bytes": 1635,
+      "bytes": 1594,
       "lines": 41
     },
     "rich-text-editor/addons/tables/rich-text-tables-button.component.spec.ts": {
-      "bytes": 4593,
+      "bytes": 4471,
       "lines": 122
     },
     "rich-text-editor/addons/tables/rich-text-tables-button.component.ts": {
@@ -7982,15 +7982,15 @@
       "lines": 92
     },
     "rich-text-editor/addons/tables/rich-text-tables.context.spec.ts": {
-      "bytes": 1174,
+      "bytes": 1147,
       "lines": 27
     },
     "rich-text-editor/addons/tables/rich-text-tables.context.ts": {
-      "bytes": 858,
+      "bytes": 838,
       "lines": 20
     },
     "rich-text-editor/addons/tables/rich-text-tables.directive.spec.ts": {
-      "bytes": 8606,
+      "bytes": 8392,
       "lines": 214
     },
     "rich-text-editor/addons/tables/rich-text-tables.directive.ts": {
@@ -7998,19 +7998,19 @@
       "lines": 102
     },
     "rich-text-editor/addons/tables/rich-text-tables.locales.ts": {
-      "bytes": 1903,
+      "bytes": 1870,
       "lines": 33
     },
     "rich-text-editor/addons/tables/rich-text-tables.stories.ts": {
-      "bytes": 2743,
+      "bytes": 2657,
       "lines": 86
     },
     "rich-text-editor/addons/typography/index.ts": {
-      "bytes": 207,
+      "bytes": 203,
       "lines": 4
     },
     "rich-text-editor/addons/typography/rich-text-typography-button.component.html": {
-      "bytes": 928,
+      "bytes": 902,
       "lines": 26
     },
     "rich-text-editor/addons/typography/rich-text-typography-button.component.ts": {
@@ -8018,27 +8018,27 @@
       "lines": 93
     },
     "rich-text-editor/addons/typography/rich-text-typography.context.spec.ts": {
-      "bytes": 1463,
+      "bytes": 1425,
       "lines": 38
     },
     "rich-text-editor/addons/typography/rich-text-typography.context.ts": {
-      "bytes": 1531,
+      "bytes": 1497,
       "lines": 34
     },
     "rich-text-editor/addons/typography/rich-text-typography.directive.spec.ts": {
-      "bytes": 16663,
+      "bytes": 16263,
       "lines": 400
     },
     "rich-text-editor/addons/typography/rich-text-typography.directive.ts": {
-      "bytes": 8355,
+      "bytes": 8139,
       "lines": 216
     },
     "rich-text-editor/addons/typography/rich-text-typography.locales.ts": {
-      "bytes": 3676,
+      "bytes": 3637,
       "lines": 39
     },
     "rich-text-editor/addons/typography/rich-text-typography.stories.ts": {
-      "bytes": 2422,
+      "bytes": 2350,
       "lines": 72
     },
     "rich-text-editor/barrel.spec.ts": {
@@ -8046,11 +8046,11 @@
       "lines": 41
     },
     "rich-text-editor/index.ts": {
-      "bytes": 384,
+      "bytes": 376,
       "lines": 8
     },
     "rich-text-editor/rich-text-command-registry.service.spec.ts": {
-      "bytes": 3519,
+      "bytes": 3429,
       "lines": 90
     },
     "rich-text-editor/rich-text-command-registry.service.ts": {
@@ -8078,11 +8078,11 @@
       "lines": 553
     },
     "rich-text-editor/rich-text-locales.ts": {
-      "bytes": 30343,
+      "bytes": 29562,
       "lines": 781
     },
     "rich-text-editor/rich-text-markdown.service.spec.ts": {
-      "bytes": 24560,
+      "bytes": 24000,
       "lines": 560
     },
     "rich-text-editor/rich-text-markdown.service.ts": {
@@ -8090,7 +8090,7 @@
       "lines": 827
     },
     "rich-text-editor/rich-text-paste-normalizer.service.spec.ts": {
-      "bytes": 115617,
+      "bytes": 113289,
       "lines": 2328
     },
     "rich-text-editor/rich-text-paste-normalizer.service.ts": {
@@ -8098,7 +8098,7 @@
       "lines": 1374
     },
     "rich-text-editor/rich-text-sanitizer.service.spec.ts": {
-      "bytes": 29283,
+      "bytes": 28643,
       "lines": 640
     },
     "rich-text-editor/rich-text-sanitizer.service.ts": {
@@ -8122,11 +8122,11 @@
       "lines": 413
     },
     "rich-text-security.spec.ts": {
-      "bytes": 13029,
+      "bytes": 12753,
       "lines": 276
     },
     "ripple.directive.spec.ts": {
-      "bytes": 8911,
+      "bytes": 8679,
       "lines": 232
     },
     "ripple.directive.ts": {
@@ -8134,7 +8134,7 @@
       "lines": 74
     },
     "ripple.stories.ts": {
-      "bytes": 6585,
+      "bytes": 6430,
       "lines": 155
     },
     "scatter-chart/__screenshots__/scatter-chart.component.spec.ts/ScatterChartComponent-renders-with-an-accessible-Scatter-chart-label-1.png": {
@@ -8142,15 +8142,15 @@
       "lines": 9
     },
     "scatter-chart/index.ts": {
-      "bytes": 44,
+      "bytes": 43,
       "lines": 1
     },
     "scatter-chart/scatter-chart.component.html": {
-      "bytes": 2529,
+      "bytes": 2441,
       "lines": 88
     },
     "scatter-chart/scatter-chart.component.spec.ts": {
-      "bytes": 9669,
+      "bytes": 9451,
       "lines": 218
     },
     "scatter-chart/scatter-chart.component.ts": {
@@ -8158,39 +8158,39 @@
       "lines": 305
     },
     "scatter-chart/scatter-chart.stories.ts": {
-      "bytes": 3328,
+      "bytes": 3240,
       "lines": 88
     },
     "scroll-area/index.ts": {
-      "bytes": 42,
+      "bytes": 41,
       "lines": 1
     },
     "scroll-area/scroll-area.component.html": {
-      "bytes": 1735,
+      "bytes": 1685,
       "lines": 50
     },
     "scroll-area/scroll-area.component.spec.ts": {
-      "bytes": 11109,
+      "bytes": 10833,
       "lines": 276
     },
     "scroll-area/scroll-area.component.ts": {
-      "bytes": 7775,
+      "bytes": 7559,
       "lines": 216
     },
     "scroll-area/scroll-area.stories.ts": {
-      "bytes": 3186,
+      "bytes": 3100,
       "lines": 86
     },
     "scroll-progress/index.ts": {
-      "bytes": 46,
+      "bytes": 45,
       "lines": 1
     },
     "scroll-progress/scroll-progress.component.html": {
-      "bytes": 75,
+      "bytes": 74,
       "lines": 1
     },
     "scroll-progress/scroll-progress.component.spec.ts": {
-      "bytes": 10692,
+      "bytes": 10414,
       "lines": 278
     },
     "scroll-progress/scroll-progress.component.ts": {
@@ -8198,7 +8198,7 @@
       "lines": 117
     },
     "scroll-progress/scroll-progress.stories.ts": {
-      "bytes": 3225,
+      "bytes": 3153,
       "lines": 72
     },
     "select/__screenshots__/select.component.spec.ts/Select-disabled-items-marks-a-disabled-item-with-data-disabled-and-aria-disabled-1.png": {
@@ -8250,15 +8250,15 @@
       "lines": 3
     },
     "select/index.ts": {
-      "bytes": 373,
+      "bytes": 365,
       "lines": 8
     },
     "select/select.component.css": {
-      "bytes": 318,
+      "bytes": 307,
       "lines": 11
     },
     "select/select.component.spec.ts": {
-      "bytes": 39499,
+      "bytes": 38465,
       "lines": 1034
     },
     "select/select.component.ts": {
@@ -8266,11 +8266,11 @@
       "lines": 584
     },
     "select/select.coverage.spec.ts": {
-      "bytes": 23985,
+      "bytes": 23474,
       "lines": 511
     },
     "select/select.stories.ts": {
-      "bytes": 11553,
+      "bytes": 11222,
       "lines": 331
     },
     "select/sub/select-content.component.ts": {
@@ -8278,7 +8278,7 @@
       "lines": 227
     },
     "select/sub/select-group.component.ts": {
-      "bytes": 402,
+      "bytes": 386,
       "lines": 16
     },
     "select/sub/select-item.component.ts": {
@@ -8286,15 +8286,15 @@
       "lines": 94
     },
     "select/sub/select-label.component.ts": {
-      "bytes": 390,
+      "bytes": 375,
       "lines": 15
     },
     "select/sub/select-separator.component.ts": {
-      "bytes": 392,
+      "bytes": 377,
       "lines": 15
     },
     "select/sub/select-trigger.component.css": {
-      "bytes": 346,
+      "bytes": 335,
       "lines": 11
     },
     "select/sub/select-trigger.component.ts": {
@@ -8306,27 +8306,27 @@
       "lines": 61
     },
     "separator/index.ts": {
-      "bytes": 40,
+      "bytes": 39,
       "lines": 1
     },
     "separator/separator.component.spec.ts": {
-      "bytes": 4453,
+      "bytes": 4325,
       "lines": 128
     },
     "separator/separator.component.ts": {
-      "bytes": 1290,
+      "bytes": 1249,
       "lines": 41
     },
     "separator/separator.stories.ts": {
-      "bytes": 2222,
+      "bytes": 2153,
       "lines": 69
     },
     "sheet/index.ts": {
-      "bytes": 370,
+      "bytes": 362,
       "lines": 8
     },
     "sheet/sheet.component.spec.ts": {
-      "bytes": 22784,
+      "bytes": 22186,
       "lines": 598
     },
     "sheet/sheet.component.ts": {
@@ -8334,7 +8334,7 @@
       "lines": 114
     },
     "sheet/sheet.stories.ts": {
-      "bytes": 7495,
+      "bytes": 7297,
       "lines": 198
     },
     "sheet/sub/sheet-close.component.ts": {
@@ -8346,19 +8346,19 @@
       "lines": 194
     },
     "sheet/sub/sheet-description.component.ts": {
-      "bytes": 393,
+      "bytes": 378,
       "lines": 15
     },
     "sheet/sub/sheet-footer.component.ts": {
-      "bytes": 437,
+      "bytes": 422,
       "lines": 15
     },
     "sheet/sub/sheet-header.component.ts": {
-      "bytes": 419,
+      "bytes": 404,
       "lines": 15
     },
     "sheet/sub/sheet-title.component.ts": {
-      "bytes": 383,
+      "bytes": 368,
       "lines": 15
     },
     "sheet/sub/sheet-trigger.component.ts": {
@@ -8370,15 +8370,15 @@
       "lines": 4
     },
     "shine-border/index.ts": {
-      "bytes": 43,
+      "bytes": 42,
       "lines": 1
     },
     "shine-border/shine-border.component.html": {
-      "bytes": 157,
+      "bytes": 152,
       "lines": 5
     },
     "shine-border/shine-border.component.spec.ts": {
-      "bytes": 10263,
+      "bytes": 10013,
       "lines": 250
     },
     "shine-border/shine-border.component.ts": {
@@ -8386,11 +8386,11 @@
       "lines": 91
     },
     "shine-border/shine-border.stories.ts": {
-      "bytes": 4461,
+      "bytes": 4356,
       "lines": 105
     },
     "shortcut-binding.service.ts": {
-      "bytes": 50,
+      "bytes": 49,
       "lines": 1
     },
     "shortcut-bindings-dialog/__screenshots__/shortcut-bindings-dialog.component.spec.ts/ShortcutBindingsDialogComponent---rebind---grouping-with-live-bindings-renders-a-destructive-Conflict-badge-for-actions-sharing-a-shortcut-1.png": {
@@ -8398,15 +8398,15 @@
       "lines": 42
     },
     "shortcut-bindings-dialog/index.ts": {
-      "bytes": 108,
+      "bytes": 106,
       "lines": 2
     },
     "shortcut-bindings-dialog/shortcut-bindings-dialog.component.html": {
-      "bytes": 10255,
+      "bytes": 10092,
       "lines": 163
     },
     "shortcut-bindings-dialog/shortcut-bindings-dialog.component.spec.ts": {
-      "bytes": 21204,
+      "bytes": 20732,
       "lines": 472
     },
     "shortcut-bindings-dialog/shortcut-bindings-dialog.component.ts": {
@@ -8414,11 +8414,11 @@
       "lines": 494
     },
     "shortcut-bindings-dialog/shortcut-bindings-dialog.locales.ts": {
-      "bytes": 4129,
+      "bytes": 4039,
       "lines": 90
     },
     "shortcut-bindings-dialog/shortcut-bindings-dialog.stories.ts": {
-      "bytes": 7855,
+      "bytes": 7656,
       "lines": 199
     },
     "sidebar/__screenshots__/sidebar.component.spec.ts/Sidebar-desktop-toggle-and-collapsed-mode-collapses-via-the-trigger-and-updates-collapsed-only-classes-1.png": {
@@ -8686,7 +8686,7 @@
       "lines": 3
     },
     "sidebar/index.ts": {
-      "bytes": 786,
+      "bytes": 770,
       "lines": 16
     },
     "sidebar/sidebar.component.spec.ts": {
@@ -8702,7 +8702,7 @@
       "lines": 47
     },
     "sidebar/sidebar.stories.ts": {
-      "bytes": 9699,
+      "bytes": 9435,
       "lines": 264
     },
     "sidebar/sub/sidebar-content.component.ts": {
@@ -8798,31 +8798,31 @@
       "lines": 143
     },
     "skeleton/index.ts": {
-      "bytes": 39,
+      "bytes": 38,
       "lines": 1
     },
     "skeleton/skeleton.component.css": {
-      "bytes": 633,
+      "bytes": 608,
       "lines": 25
     },
     "skeleton/skeleton.component.spec.ts": {
-      "bytes": 3307,
+      "bytes": 3204,
       "lines": 103
     },
     "skeleton/skeleton.component.ts": {
-      "bytes": 1240,
+      "bytes": 1198,
       "lines": 42
     },
     "skeleton/skeleton.stories.ts": {
-      "bytes": 3212,
+      "bytes": 3129,
       "lines": 83
     },
     "slider/index.ts": {
-      "bytes": 37,
+      "bytes": 36,
       "lines": 1
     },
     "slider/slider.component.css": {
-      "bytes": 324,
+      "bytes": 311,
       "lines": 13
     },
     "slider/slider.component.html": {
@@ -8838,7 +8838,7 @@
       "lines": 253
     },
     "slider/slider.stories.ts": {
-      "bytes": 2941,
+      "bytes": 2864,
       "lines": 77
     },
     "sortable/__screenshots__/sortable.component.browser.spec.ts/SortableComponent--browser-only--animates-the-source-back-to-its-origin-on-a-no-op-pointer-drop--no-net-target-change--1.png": {
@@ -8846,11 +8846,11 @@
       "lines": 5
     },
     "sortable/index.ts": {
-      "bytes": 228,
+      "bytes": 223,
       "lines": 5
     },
     "sortable/sortable-locales.ts": {
-      "bytes": 5166,
+      "bytes": 5073,
       "lines": 93
     },
     "sortable/sortable.component.browser.spec.ts": {
@@ -8858,11 +8858,11 @@
       "lines": 174
     },
     "sortable/sortable.component.html": {
-      "bytes": 2479,
+      "bytes": 2409,
       "lines": 70
     },
     "sortable/sortable.component.spec.ts": {
-      "bytes": 98750,
+      "bytes": 96633,
       "lines": 2117
     },
     "sortable/sortable.component.ts": {
@@ -8882,15 +8882,15 @@
       "lines": 116
     },
     "sortable/sub/sortable-ghost.directive.spec.ts": {
-      "bytes": 1840,
+      "bytes": 1807,
       "lines": 33
     },
     "sortable/sub/sortable-ghost.directive.ts": {
-      "bytes": 984,
+      "bytes": 955,
       "lines": 29
     },
     "sortable/sub/sortable-item.component.html": {
-      "bytes": 414,
+      "bytes": 400,
       "lines": 14
     },
     "sortable/sub/sortable-item.component.ts": {
@@ -8898,23 +8898,23 @@
       "lines": 110
     },
     "sortable/sub/sortable-placeholder.directive.ts": {
-      "bytes": 1048,
+      "bytes": 1018,
       "lines": 30
     },
     "sparkles/index.ts": {
-      "bytes": 89,
+      "bytes": 87,
       "lines": 2
     },
     "sparkles/sparkles.component.css": {
-      "bytes": 269,
+      "bytes": 255,
       "lines": 14
     },
     "sparkles/sparkles.component.html": {
-      "bytes": 495,
+      "bytes": 482,
       "lines": 13
     },
     "sparkles/sparkles.component.spec.ts": {
-      "bytes": 3730,
+      "bytes": 3632,
       "lines": 98
     },
     "sparkles/sparkles.component.ts": {
@@ -8922,11 +8922,11 @@
       "lines": 28
     },
     "sparkles/sparkles.stories.ts": {
-      "bytes": 3320,
+      "bytes": 3224,
       "lines": 96
     },
     "sparkles/sub/sparkles-button.component.html": {
-      "bytes": 476,
+      "bytes": 462,
       "lines": 14
     },
     "sparkles/sub/sparkles-button.component.ts": {
@@ -8942,11 +8942,11 @@
       "lines": 3
     },
     "speed-dial/index.ts": {
-      "bytes": 366,
+      "bytes": 359,
       "lines": 7
     },
     "speed-dial/speed-dial.component.spec.ts": {
-      "bytes": 5368,
+      "bytes": 5218,
       "lines": 150
     },
     "speed-dial/speed-dial.component.ts": {
@@ -8954,11 +8954,11 @@
       "lines": 271
     },
     "speed-dial/speed-dial.coverage.spec.ts": {
-      "bytes": 20898,
+      "bytes": 20338,
       "lines": 560
     },
     "speed-dial/speed-dial.stories.ts": {
-      "bytes": 11452,
+      "bytes": 11220,
       "lines": 232
     },
     "speed-dial/sub/speed-dial-context-trigger.component.ts": {
@@ -9002,15 +9002,15 @@
       "lines": 4
     },
     "spinner/index.ts": {
-      "bytes": 85,
+      "bytes": 83,
       "lines": 2
     },
     "spinner/spinner.component.html": {
-      "bytes": 1637,
+      "bytes": 1593,
       "lines": 44
     },
     "spinner/spinner.component.spec.ts": {
-      "bytes": 9293,
+      "bytes": 9072,
       "lines": 221
     },
     "spinner/spinner.component.ts": {
@@ -9018,11 +9018,11 @@
       "lines": 135
     },
     "spinner/spinner.stories.ts": {
-      "bytes": 5933,
+      "bytes": 5756,
       "lines": 177
     },
     "spinner/sub/page-spinner.component.html": {
-      "bytes": 300,
+      "bytes": 292,
       "lines": 8
     },
     "spinner/sub/page-spinner.component.ts": {
@@ -9042,11 +9042,11 @@
       "lines": 5
     },
     "split-button/index.ts": {
-      "bytes": 202,
+      "bytes": 198,
       "lines": 4
     },
     "split-button/split-button.component.spec.ts": {
-      "bytes": 11796,
+      "bytes": 11536,
       "lines": 260
     },
     "split-button/split-button.component.ts": {
@@ -9058,7 +9058,7 @@
       "lines": 309
     },
     "split-button/split-button.stories.ts": {
-      "bytes": 5205,
+      "bytes": 5074,
       "lines": 131
     },
     "split-button/sub/split-button-item.component.ts": {
@@ -9066,7 +9066,7 @@
       "lines": 69
     },
     "split-button/sub/split-button-menu.component.ts": {
-      "bytes": 304,
+      "bytes": 292,
       "lines": 12
     },
     "split-button/sub/split-button-primary.component.ts": {
@@ -9078,15 +9078,15 @@
       "lines": 8
     },
     "stacked-bar-chart/index.ts": {
-      "bytes": 48,
+      "bytes": 47,
       "lines": 1
     },
     "stacked-bar-chart/stacked-bar-chart.component.html": {
-      "bytes": 4285,
+      "bytes": 4157,
       "lines": 128
     },
     "stacked-bar-chart/stacked-bar-chart.component.spec.ts": {
-      "bytes": 18253,
+      "bytes": 17764,
       "lines": 489
     },
     "stacked-bar-chart/stacked-bar-chart.component.ts": {
@@ -9094,7 +9094,7 @@
       "lines": 394
     },
     "stacked-bar-chart/stacked-bar-chart.stories.ts": {
-      "bytes": 5254,
+      "bytes": 5108,
       "lines": 146
     },
     "stagger-children/__screenshots__/stagger-children.component.spec.ts/StaggerChildrenComponent-should-animate-children-and-disconnect-when-the-container-intersects-1.png": {
@@ -9366,11 +9366,11 @@
       "lines": 6
     },
     "stagger-children/index.ts": {
-      "bytes": 47,
+      "bytes": 46,
       "lines": 1
     },
     "stagger-children/stagger-children.component.html": {
-      "bytes": 16,
+      "bytes": 15,
       "lines": 1
     },
     "stagger-children/stagger-children.component.spec.ts": {
@@ -9382,7 +9382,7 @@
       "lines": 151
     },
     "stagger-children/stagger-children.stories.ts": {
-      "bytes": 10202,
+      "bytes": 10012,
       "lines": 190
     },
     "stat-card/index.ts": {
@@ -9418,7 +9418,7 @@
       "lines": 10
     },
     "stepper/index.ts": {
-      "bytes": 339,
+      "bytes": 332,
       "lines": 7
     },
     "stepper/stepper.component.html": {
@@ -9426,7 +9426,7 @@
       "lines": 51
     },
     "stepper/stepper.component.spec.ts": {
-      "bytes": 14426,
+      "bytes": 14066,
       "lines": 360
     },
     "stepper/stepper.component.ts": {
@@ -9434,7 +9434,7 @@
       "lines": 253
     },
     "stepper/stepper.coverage.spec.ts": {
-      "bytes": 8868,
+      "bytes": 8627,
       "lines": 241
     },
     "stepper/stepper.guard.spec.ts": {
@@ -9470,51 +9470,51 @@
       "lines": 111
     },
     "streaming-text/index.ts": {
-      "bytes": 45,
+      "bytes": 44,
       "lines": 1
     },
     "streaming-text/streaming-text.component.html": {
-      "bytes": 154,
+      "bytes": 150,
       "lines": 4
     },
     "streaming-text/streaming-text.component.spec.ts": {
-      "bytes": 6850,
+      "bytes": 6648,
       "lines": 202
     },
     "streaming-text/streaming-text.component.ts": {
-      "bytes": 3363,
+      "bytes": 3260,
       "lines": 103
     },
     "streaming-text/streaming-text.stories.ts": {
-      "bytes": 2745,
+      "bytes": 2656,
       "lines": 89
     },
     "switch/index.ts": {
-      "bytes": 37,
+      "bytes": 36,
       "lines": 1
     },
     "switch/switch.component.css": {
-      "bytes": 565,
+      "bytes": 546,
       "lines": 19
     },
     "switch/switch.component.html": {
-      "bytes": 1261,
+      "bytes": 1215,
       "lines": 46
     },
     "switch/switch.component.spec.ts": {
-      "bytes": 14339,
+      "bytes": 13938,
       "lines": 401
     },
     "switch/switch.component.ts": {
-      "bytes": 4821,
+      "bytes": 4706,
       "lines": 115
     },
     "switch/switch.stories.ts": {
-      "bytes": 3301,
+      "bytes": 3190,
       "lines": 111
     },
     "table-context-menu.directive.spec.ts": {
-      "bytes": 8779,
+      "bytes": 8530,
       "lines": 249
     },
     "table-context-menu.directive.ts": {
@@ -9522,7 +9522,7 @@
       "lines": 114
     },
     "table-context-menu.stories.ts": {
-      "bytes": 14033,
+      "bytes": 13677,
       "lines": 356
     },
     "table/__screenshots__/table.component.spec.ts/table-role-and-the-cell-role-that-follows-from-it-does-the-same-for-a-treegrid--which-is-a-grid-with-hierarchy-1.png": {
@@ -9534,7 +9534,7 @@
       "lines": 6
     },
     "table/index.ts": {
-      "bytes": 404,
+      "bytes": 395,
       "lines": 9
     },
     "table/sub/table-body.component.ts": {
@@ -9546,7 +9546,7 @@
       "lines": 24
     },
     "table/sub/table-cell.component.css": {
-      "bytes": 178,
+      "bytes": 170,
       "lines": 8
     },
     "table/sub/table-cell.component.ts": {
@@ -9558,7 +9558,7 @@
       "lines": 25
     },
     "table/sub/table-head.component.css": {
-      "bytes": 228,
+      "bytes": 219,
       "lines": 9
     },
     "table/sub/table-head.component.ts": {
@@ -9586,11 +9586,11 @@
       "lines": 58
     },
     "table/table.stories.ts": {
-      "bytes": 5812,
+      "bytes": 5653,
       "lines": 159
     },
     "tabs/index.ts": {
-      "bytes": 173,
+      "bytes": 169,
       "lines": 4
     },
     "tabs/sub/tabs-content.component.ts": {
@@ -9602,7 +9602,7 @@
       "lines": 64
     },
     "tabs/sub/tabs-trigger.component.css": {
-      "bytes": 231,
+      "bytes": 222,
       "lines": 9
     },
     "tabs/sub/tabs-trigger.component.ts": {
@@ -9610,11 +9610,11 @@
       "lines": 69
     },
     "tabs/tabs-simple.component.spec.ts": {
-      "bytes": 7058,
+      "bytes": 6867,
       "lines": 191
     },
     "tabs/tabs.component.spec.ts": {
-      "bytes": 8706,
+      "bytes": 8475,
       "lines": 231
     },
     "tabs/tabs.component.ts": {
@@ -9622,39 +9622,39 @@
       "lines": 166
     },
     "tabs/tabs.stories.ts": {
-      "bytes": 5452,
+      "bytes": 5301,
       "lines": 151
     },
     "text-reveal/index.ts": {
-      "bytes": 42,
+      "bytes": 41,
       "lines": 1
     },
     "text-reveal/text-reveal.component.css": {
-      "bytes": 417,
+      "bytes": 395,
       "lines": 22
     },
     "text-reveal/text-reveal.component.html": {
-      "bytes": 334,
+      "bytes": 323,
       "lines": 11
     },
     "text-reveal/text-reveal.component.spec.ts": {
-      "bytes": 5509,
+      "bytes": 5369,
       "lines": 140
     },
     "text-reveal/text-reveal.component.ts": {
-      "bytes": 1296,
+      "bytes": 1265,
       "lines": 31
     },
     "text-reveal/text-reveal.stories.ts": {
-      "bytes": 2810,
+      "bytes": 2721,
       "lines": 89
     },
     "textarea/index.ts": {
-      "bytes": 39,
+      "bytes": 38,
       "lines": 1
     },
     "textarea/textarea.component.css": {
-      "bytes": 409,
+      "bytes": 394,
       "lines": 15
     },
     "textarea/textarea.component.html": {
@@ -9662,7 +9662,7 @@
       "lines": 19
     },
     "textarea/textarea.component.spec.ts": {
-      "bytes": 12233,
+      "bytes": 11904,
       "lines": 329
     },
     "textarea/textarea.component.ts": {
@@ -9670,7 +9670,7 @@
       "lines": 158
     },
     "textarea/textarea.stories.ts": {
-      "bytes": 3225,
+      "bytes": 3129,
       "lines": 96
     },
     "time-picker/__screenshots__/time-picker.component.spec.ts/TimePickerComponent-a-reactive-form-renders-what-the-control-holds-1.png": {
@@ -9710,7 +9710,7 @@
       "lines": 94
     },
     "timeline/index.ts": {
-      "bytes": 440,
+      "bytes": 431,
       "lines": 9
     },
     "timeline/sub/timeline-connector.component.ts": {
@@ -9746,19 +9746,19 @@
       "lines": 29
     },
     "timeline/timeline.component.spec.ts": {
-      "bytes": 8368,
+      "bytes": 8157,
       "lines": 211
     },
     "timeline/timeline.component.ts": {
-      "bytes": 1449,
+      "bytes": 1408,
       "lines": 41
     },
     "timeline/timeline.stories.ts": {
-      "bytes": 11052,
+      "bytes": 10802,
       "lines": 250
     },
     "toast/index.ts": {
-      "bytes": 78,
+      "bytes": 76,
       "lines": 2
     },
     "toast/sub/toaster.component.html": {
@@ -9774,7 +9774,7 @@
       "lines": 44
     },
     "toast/toast.component.spec.ts": {
-      "bytes": 11329,
+      "bytes": 11036,
       "lines": 293
     },
     "toast/toast.component.ts": {
@@ -9790,15 +9790,15 @@
       "lines": 243
     },
     "toggle-group/index.ts": {
-      "bytes": 95,
+      "bytes": 93,
       "lines": 2
     },
     "toggle-group/sub/toggle-group-item.component.css": {
-      "bytes": 491,
+      "bytes": 473,
       "lines": 18
     },
     "toggle-group/sub/toggle-group-item.component.html": {
-      "bytes": 367,
+      "bytes": 354,
       "lines": 13
     },
     "toggle-group/sub/toggle-group-item.component.ts": {
@@ -9806,11 +9806,11 @@
       "lines": 54
     },
     "toggle-group/toggle-group.component.html": {
-      "bytes": 501,
+      "bytes": 481,
       "lines": 20
     },
     "toggle-group/toggle-group.component.spec.ts": {
-      "bytes": 10604,
+      "bytes": 10324,
       "lines": 280
     },
     "toggle-group/toggle-group.component.ts": {
@@ -9818,35 +9818,35 @@
       "lines": 155
     },
     "toggle-group/toggle-group.stories.ts": {
-      "bytes": 5505,
+      "bytes": 5342,
       "lines": 163
     },
     "toggle/index.ts": {
-      "bytes": 37,
+      "bytes": 36,
       "lines": 1
     },
     "toggle/toggle.component.css": {
-      "bytes": 700,
+      "bytes": 677,
       "lines": 23
     },
     "toggle/toggle.component.html": {
-      "bytes": 309,
+      "bytes": 296,
       "lines": 13
     },
     "toggle/toggle.component.spec.ts": {
-      "bytes": 8799,
+      "bytes": 8534,
       "lines": 265
     },
     "toggle/toggle.component.ts": {
-      "bytes": 4956,
+      "bytes": 4831,
       "lines": 125
     },
     "toggle/toggle.stories.ts": {
-      "bytes": 2946,
+      "bytes": 2863,
       "lines": 83
     },
     "tooltip/index.ts": {
-      "bytes": 180,
+      "bytes": 176,
       "lines": 4
     },
     "tooltip/sub/__screenshots__/tooltip.directive.spec.ts/TooltipDirective---touch-device-auto-dismisses-the-tooltip-after-the-touch-timeout-1.png": {
@@ -9870,7 +9870,7 @@
       "lines": 4
     },
     "tooltip/sub/tooltip-content.component.html": {
-      "bytes": 124,
+      "bytes": 119,
       "lines": 5
     },
     "tooltip/sub/tooltip-content.component.ts": {
@@ -9878,7 +9878,7 @@
       "lines": 40
     },
     "tooltip/sub/tooltip-trigger.component.spec.ts": {
-      "bytes": 9079,
+      "bytes": 8828,
       "lines": 251
     },
     "tooltip/sub/tooltip-trigger.component.ts": {
@@ -9886,7 +9886,7 @@
       "lines": 136
     },
     "tooltip/sub/tooltip.directive.spec.ts": {
-      "bytes": 14517,
+      "bytes": 14125,
       "lines": 392
     },
     "tooltip/sub/tooltip.directive.ts": {
@@ -9894,7 +9894,7 @@
       "lines": 238
     },
     "tooltip/tooltip.component.spec.ts": {
-      "bytes": 9630,
+      "bytes": 9347,
       "lines": 283
     },
     "tooltip/tooltip.component.ts": {
@@ -9902,7 +9902,7 @@
       "lines": 64
     },
     "tooltip/tooltip.stories.ts": {
-      "bytes": 4107,
+      "bytes": 3975,
       "lines": 132
     },
     "tour/__screenshots__/tour.component.spec.ts/TourComponent---async-step-hooks-awaits-beforeActivate-and-waits-for-the-element-it-renders-1.png": {
@@ -10026,11 +10026,11 @@
       "lines": 2
     },
     "tour/tour.component.html": {
-      "bytes": 2537,
+      "bytes": 2483,
       "lines": 54
     },
     "tour/tour.component.spec.ts": {
-      "bytes": 46412,
+      "bytes": 45126,
       "lines": 1286
     },
     "tour/tour.component.ts": {
@@ -10050,7 +10050,7 @@
       "lines": 40
     },
     "tree-context-menu.directive.spec.ts": {
-      "bytes": 6993,
+      "bytes": 6786,
       "lines": 207
     },
     "tree-context-menu.directive.ts": {
@@ -10058,7 +10058,7 @@
       "lines": 85
     },
     "tree-context-menu.stories.ts": {
-      "bytes": 19746,
+      "bytes": 19323,
       "lines": 423
     },
     "tree-select/__screenshots__/tree-select.component.spec.ts/TreeSelect-top-layer-escape-promotes-the-tree-panel-out-of-an-overflow-hidden-ancestor-1.png": {
@@ -10070,7 +10070,7 @@
       "lines": 5
     },
     "tree-select/index.ts": {
-      "bytes": 150,
+      "bytes": 147,
       "lines": 3
     },
     "tree-select/sub/tree-select-content.component.ts": {
@@ -10082,7 +10082,7 @@
       "lines": 22
     },
     "tree-select/tree-select.component.css": {
-      "bytes": 367,
+      "bytes": 351,
       "lines": 16
     },
     "tree-select/tree-select.component.html": {
@@ -10090,7 +10090,7 @@
       "lines": 51
     },
     "tree-select/tree-select.component.spec.ts": {
-      "bytes": 22666,
+      "bytes": 22118,
       "lines": 614
     },
     "tree-select/tree-select.component.ts": {
@@ -10098,15 +10098,15 @@
       "lines": 210
     },
     "tree-select/tree-select.stories.ts": {
-      "bytes": 7740,
+      "bytes": 7549,
       "lines": 191
     },
     "tree/index.ts": {
-      "bytes": 220,
+      "bytes": 215,
       "lines": 5
     },
     "tree/sub/tree-icon.component.html": {
-      "bytes": 105,
+      "bytes": 102,
       "lines": 3
     },
     "tree/sub/tree-icon.component.ts": {
@@ -10114,7 +10114,7 @@
       "lines": 25
     },
     "tree/sub/tree-item.component.html": {
-      "bytes": 1355,
+      "bytes": 1310,
       "lines": 45
     },
     "tree/sub/tree-item.component.ts": {
@@ -10122,7 +10122,7 @@
       "lines": 120
     },
     "tree/sub/tree-label.component.html": {
-      "bytes": 87,
+      "bytes": 84,
       "lines": 3
     },
     "tree/sub/tree-label.component.ts": {
@@ -10130,15 +10130,15 @@
       "lines": 25
     },
     "tree/sub/tree-node-content.directive.ts": {
-      "bytes": 233,
+      "bytes": 221,
       "lines": 12
     },
     "tree/tree.component.html": {
-      "bytes": 1284,
+      "bytes": 1249,
       "lines": 35
     },
     "tree/tree.component.spec.ts": {
-      "bytes": 34031,
+      "bytes": 33182,
       "lines": 849
     },
     "tree/tree.component.ts": {
@@ -10146,7 +10146,7 @@
       "lines": 503
     },
     "tree/tree.stories.ts": {
-      "bytes": 14804,
+      "bytes": 14424,
       "lines": 380
     },
     "treemap/__screenshots__/treemap.utils.spec.ts/treemap-utils-squarify-scales-sub-quadratically-with-the-node-count-1.png": {
@@ -10190,19 +10190,19 @@
       "lines": 3
     },
     "typing-animation/index.ts": {
-      "bytes": 47,
+      "bytes": 46,
       "lines": 1
     },
     "typing-animation/typing-animation.component.css": {
-      "bytes": 262,
+      "bytes": 248,
       "lines": 14
     },
     "typing-animation/typing-animation.component.html": {
-      "bytes": 369,
+      "bytes": 361,
       "lines": 8
     },
     "typing-animation/typing-animation.component.spec.ts": {
-      "bytes": 8612,
+      "bytes": 8343,
       "lines": 269
     },
     "typing-animation/typing-animation.component.ts": {
@@ -10210,7 +10210,7 @@
       "lines": 133
     },
     "typing-animation/typing-animation.stories.ts": {
-      "bytes": 6321,
+      "bytes": 6155,
       "lines": 166
     },
     "virtual-scroll-dummy.txt": {
@@ -10234,7 +10234,7 @@
       "lines": 123
     },
     "virtual-scroll/virtual-scroll.component.css": {
-      "bytes": 34,
+      "bytes": 31,
       "lines": 3
     },
     "virtual-scroll/virtual-scroll.component.html": {
@@ -10242,7 +10242,7 @@
       "lines": 88
     },
     "virtual-scroll/virtual-scroll.component.spec.ts": {
-      "bytes": 22186,
+      "bytes": 21610,
       "lines": 576
     },
     "virtual-scroll/virtual-scroll.component.ts": {
@@ -10250,7 +10250,7 @@
       "lines": 618
     },
     "virtual-scroll/virtual-scroll.runway.spec.ts": {
-      "bytes": 3891,
+      "bytes": 3780,
       "lines": 111
     },
     "virtual-scroll/virtual-scroll.stories.ts": {
@@ -10262,15 +10262,15 @@
       "lines": 18
     },
     "waterfall-chart/index.ts": {
-      "bytes": 46,
+      "bytes": 45,
       "lines": 1
     },
     "waterfall-chart/waterfall-chart.component.html": {
-      "bytes": 2494,
+      "bytes": 2418,
       "lines": 76
     },
     "waterfall-chart/waterfall-chart.component.spec.ts": {
-      "bytes": 12281,
+      "bytes": 11947,
       "lines": 334
     },
     "waterfall-chart/waterfall-chart.component.ts": {
@@ -10278,7 +10278,7 @@
       "lines": 287
     },
     "waterfall-chart/waterfall-chart.stories.ts": {
-      "bytes": 4285,
+      "bytes": 4175,
       "lines": 110
     },
     "wobble-card/__screenshots__/wobble-card.component.spec.ts/WobbleCardComponent-should-apply-rotation-on-mousemove-based-on-cursor-position-1.png": {
@@ -10306,15 +10306,15 @@
       "lines": 4
     },
     "wobble-card/index.ts": {
-      "bytes": 42,
+      "bytes": 41,
       "lines": 1
     },
     "wobble-card/wobble-card.component.html": {
-      "bytes": 16,
+      "bytes": 15,
       "lines": 1
     },
     "wobble-card/wobble-card.component.spec.ts": {
-      "bytes": 5949,
+      "bytes": 5796,
       "lines": 153
     },
     "wobble-card/wobble-card.component.ts": {
@@ -10322,23 +10322,23 @@
       "lines": 80
     },
     "wobble-card/wobble-card.stories.ts": {
-      "bytes": 5701,
+      "bytes": 5568,
       "lines": 133
     },
     "word-rotate/index.ts": {
-      "bytes": 42,
+      "bytes": 41,
       "lines": 1
     },
     "word-rotate/word-rotate.component.css": {
-      "bytes": 109,
+      "bytes": 104,
       "lines": 5
     },
     "word-rotate/word-rotate.component.html": {
-      "bytes": 306,
+      "bytes": 298,
       "lines": 8
     },
     "word-rotate/word-rotate.component.spec.ts": {
-      "bytes": 5631,
+      "bytes": 5478,
       "lines": 153
     },
     "word-rotate/word-rotate.component.ts": {
@@ -10346,7 +10346,7 @@
       "lines": 76
     },
     "word-rotate/word-rotate.stories.ts": {
-      "bytes": 4314,
+      "bytes": 4196,
       "lines": 118
     }
   },
@@ -10484,115 +10484,115 @@
       "lines": 59
     },
     "addon-slots.spec.ts": {
-      "bytes": 951,
+      "bytes": 926,
       "lines": 25
     },
     "addon-slots.ts": {
-      "bytes": 871,
+      "bytes": 852,
       "lines": 19
     },
     "ai.spec.ts": {
-      "bytes": 1745,
+      "bytes": 1699,
       "lines": 46
     },
     "ai.ts": {
-      "bytes": 1957,
+      "bytes": 1902,
       "lines": 55
     },
     "auto-scroll.spec.ts": {
-      "bytes": 7519,
+      "bytes": 7305,
       "lines": 214
     },
     "auto-scroll.ts": {
-      "bytes": 5194,
+      "bytes": 5050,
       "lines": 144
     },
     "chart-interaction.spec.ts": {
-      "bytes": 3080,
+      "bytes": 2995,
       "lines": 85
     },
     "chart-interaction.ts": {
-      "bytes": 2967,
+      "bytes": 2876,
       "lines": 91
     },
     "chart-path.spec.ts": {
-      "bytes": 3734,
+      "bytes": 3642,
       "lines": 92
     },
     "chart-path.ts": {
-      "bytes": 5138,
+      "bytes": 4992,
       "lines": 146
     },
     "chart-polar.spec.ts": {
-      "bytes": 1499,
+      "bytes": 1461,
       "lines": 38
     },
     "chart-polar.ts": {
-      "bytes": 1288,
+      "bytes": 1251,
       "lines": 37
     },
     "chart-responsive.ts": {
-      "bytes": 957,
+      "bytes": 927,
       "lines": 30
     },
     "chart-scale.spec.ts": {
-      "bytes": 5518,
+      "bytes": 5364,
       "lines": 154
     },
     "chart-scale.ts": {
-      "bytes": 6291,
+      "bytes": 6089,
       "lines": 202
     },
     "chart.types.ts": {
-      "bytes": 5136,
+      "bytes": 4931,
       "lines": 205
     },
     "chart.utils.spec.ts": {
-      "bytes": 5408,
+      "bytes": 5250,
       "lines": 158
     },
     "chart.utils.ts": {
-      "bytes": 7855,
+      "bytes": 7606,
       "lines": 249
     },
     "code-scopes.ts": {
-      "bytes": 6932,
+      "bytes": 6744,
       "lines": 188
     },
     "color-extract.spec.ts": {
-      "bytes": 10036,
+      "bytes": 9813,
       "lines": 223
     },
     "color-extract.ts": {
-      "bytes": 10795,
+      "bytes": 10474,
       "lines": 321
     },
     "color.spec.ts": {
-      "bytes": 5633,
+      "bytes": 5443,
       "lines": 190
     },
     "color.ts": {
-      "bytes": 14364,
+      "bytes": 13931,
       "lines": 433
     },
     "component-pool.service.ts": {
-      "bytes": 1910,
+      "bytes": 1845,
       "lines": 65
     },
     "flip.spec.ts": {
-      "bytes": 5329,
+      "bytes": 5160,
       "lines": 169
     },
     "flip.ts": {
-      "bytes": 4153,
+      "bytes": 4030,
       "lines": 123
     },
     "i18n/calendar.locales.ts": {
-      "bytes": 7806,
+      "bytes": 7619,
       "lines": 187
     },
     "i18n/common.locales.ts": {
-      "bytes": 7063,
+      "bytes": 6827,
       "lines": 236
     },
     "i18n/i18n.spec.ts": {
@@ -10600,15 +10600,15 @@
       "lines": 323
     },
     "i18n/i18n.token.ts": {
-      "bytes": 3941,
+      "bytes": 3846,
       "lines": 95
     },
     "i18n/i18n.types.ts": {
-      "bytes": 857,
+      "bytes": 833,
       "lines": 24
     },
     "i18n/i18n.utils.ts": {
-      "bytes": 7561,
+      "bytes": 7390,
       "lines": 200
     },
     "i18n/index.ts": {
@@ -10616,11 +10616,11 @@
       "lines": 19
     },
     "input-group.token.ts": {
-      "bytes": 474,
+      "bytes": 462,
       "lines": 12
     },
     "page-builder.types.ts": {
-      "bytes": 2620,
+      "bytes": 2523,
       "lines": 97
     },
     "parsers/__screenshots__/doc-enhanced-parser.spec.ts/parseDocEnhanced---character-formatting--CHPX-SPRMs--applies-a-color-SPRM--sprmCIco-palette-index--1.png": {
@@ -10736,47 +10736,47 @@
       "lines": 3
     },
     "parsers/doc-enhanced-parser.spec.ts": {
-      "bytes": 48158,
+      "bytes": 47082,
       "lines": 1076
     },
     "parsers/doc-enhanced-parser.ts": {
-      "bytes": 66454,
+      "bytes": 64527,
       "lines": 1927
     },
     "parsers/doc-parser.spec.ts": {
-      "bytes": 10566,
+      "bytes": 10282,
       "lines": 284
     },
     "parsers/doc-parser.ts": {
-      "bytes": 10778,
+      "bytes": 10411,
       "lines": 367
     },
     "parsers/doc-test-fixtures.ts": {
-      "bytes": 7777,
+      "bytes": 7565,
       "lines": 212
     },
     "parsers/docx-parser.spec.ts": {
-      "bytes": 33499,
+      "bytes": 32827,
       "lines": 672
     },
     "parsers/docx-parser.ts": {
-      "bytes": 64382,
+      "bytes": 62588,
       "lines": 1794
     },
     "parsers/docx-to-editor-html.spec.ts": {
-      "bytes": 15761,
+      "bytes": 15392,
       "lines": 369
     },
     "parsers/docx-to-editor-html.ts": {
-      "bytes": 17348,
+      "bytes": 16854,
       "lines": 494
     },
     "parsers/file-type-detector.spec.ts": {
-      "bytes": 12611,
+      "bytes": 12316,
       "lines": 295
     },
     "parsers/file-type-detector.ts": {
-      "bytes": 12646,
+      "bytes": 12327,
       "lines": 319
     },
     "parsers/fonts/NotoSans-Regular.ttf": {
@@ -10784,43 +10784,43 @@
       "lines": 4927
     },
     "parsers/image-validator.spec.ts": {
-      "bytes": 8065,
+      "bytes": 7866,
       "lines": 199
     },
     "parsers/image-validator.ts": {
-      "bytes": 3330,
+      "bytes": 3237,
       "lines": 93
     },
     "parsers/inflate.spec.ts": {
-      "bytes": 6597,
+      "bytes": 6437,
       "lines": 160
     },
     "parsers/inflate.ts": {
-      "bytes": 7354,
+      "bytes": 7133,
       "lines": 221
     },
     "parsers/ole2-reader.spec.ts": {
-      "bytes": 21098,
+      "bytes": 20589,
       "lines": 509
     },
     "parsers/ole2-reader.ts": {
-      "bytes": 10812,
+      "bytes": 10459,
       "lines": 353
     },
     "parsers/pdf-parser.spec.ts": {
-      "bytes": 132412,
+      "bytes": 129575,
       "lines": 2837
     },
     "parsers/pdf-parser.ts": {
-      "bytes": 261343,
+      "bytes": 254666,
       "lines": 6677
     },
     "parsers/pdf-pixel-perfect.spec.ts": {
-      "bytes": 99203,
+      "bytes": 97142,
       "lines": 2061
     },
     "parsers/pdf-pixel-perfect.ts": {
-      "bytes": 142605,
+      "bytes": 139139,
       "lines": 3466
     },
     "parsers/pdf-readable/__screenshots__/pdf-readable.spec.ts/parsePdfReadable-document-structure--Phase-2--renders-two-column-pages-in-column-reading-order-1.png": {
@@ -10948,155 +10948,155 @@
       "lines": 3
     },
     "parsers/pdf-readable/pdf-readable.spec.ts": {
-      "bytes": 13752,
+      "bytes": 13463,
       "lines": 289
     },
     "parsers/pdf-readable/pdf-readable.ts": {
-      "bytes": 6639,
+      "bytes": 6459,
       "lines": 180
     },
     "parsers/pdf-readable/readable-blocks.spec.ts": {
-      "bytes": 65006,
+      "bytes": 63684,
       "lines": 1322
     },
     "parsers/pdf-readable/readable-blocks.ts": {
-      "bytes": 111696,
+      "bytes": 109104,
       "lines": 2592
     },
     "parsers/pdf-readable/readable-classify.spec.ts": {
-      "bytes": 8236,
+      "bytes": 8044,
       "lines": 192
     },
     "parsers/pdf-readable/readable-classify.ts": {
-      "bytes": 13215,
+      "bytes": 12872,
       "lines": 343
     },
     "parsers/pdf-readable/readable-emit.spec.ts": {
-      "bytes": 7181,
+      "bytes": 7019,
       "lines": 162
     },
     "parsers/pdf-readable/readable-emit.ts": {
-      "bytes": 23785,
+      "bytes": 23198,
       "lines": 587
     },
     "parsers/pdf-readable/readable-extract.spec.ts": {
-      "bytes": 2351,
+      "bytes": 2297,
       "lines": 54
     },
     "parsers/pdf-readable/readable-extract.ts": {
-      "bytes": 6844,
+      "bytes": 6649,
       "lines": 195
     },
     "parsers/pdf-readable/readable-lines.ts": {
-      "bytes": 5716,
+      "bytes": 5560,
       "lines": 156
     },
     "parsers/pdf-readable/readable-repeats.spec.ts": {
-      "bytes": 2596,
+      "bytes": 2537,
       "lines": 59
     },
     "parsers/pdf-readable/readable-repeats.ts": {
-      "bytes": 2736,
+      "bytes": 2662,
       "lines": 74
     },
     "parsers/pdf-readable/readable-spec-helpers.ts": {
-      "bytes": 1330,
+      "bytes": 1279,
       "lines": 51
     },
     "parsers/pdf-readable/readable-styles.spec.ts": {
-      "bytes": 4911,
+      "bytes": 4764,
       "lines": 147
     },
     "parsers/pdf-readable/readable-styles.ts": {
-      "bytes": 8223,
+      "bytes": 8006,
       "lines": 217
     },
     "parsers/pdf-readable/readable-tables.spec.ts": {
-      "bytes": 16336,
+      "bytes": 15946,
       "lines": 390
     },
     "parsers/pdf-readable/readable-tables.ts": {
-      "bytes": 33834,
+      "bytes": 32994,
       "lines": 840
     },
     "parsers/pdf-readable/readable-types.ts": {
-      "bytes": 11080,
+      "bytes": 10779,
       "lines": 301
     },
     "parsers/pdf-readable/readable-words.spec.ts": {
-      "bytes": 20608,
+      "bytes": 20128,
       "lines": 480
     },
     "parsers/pdf-readable/readable-words.ts": {
-      "bytes": 18422,
+      "bytes": 17991,
       "lines": 431
     },
     "parsers/pdf-test-fixtures.ts": {
-      "bytes": 6823,
+      "bytes": 6653,
       "lines": 170
     },
     "parsers/ppt-parser.spec.ts": {
-      "bytes": 12403,
+      "bytes": 12100,
       "lines": 303
     },
     "parsers/ppt-parser.ts": {
-      "bytes": 8353,
+      "bytes": 8068,
       "lines": 285
     },
     "parsers/pptx-parser.spec.ts": {
-      "bytes": 71516,
+      "bytes": 70053,
       "lines": 1463
     },
     "parsers/pptx-parser.ts": {
-      "bytes": 90682,
+      "bytes": 88117,
       "lines": 2565
     },
     "parsers/svg-sanitizer.spec.ts": {
-      "bytes": 9270,
+      "bytes": 9078,
       "lines": 192
     },
     "parsers/svg-sanitizer.ts": {
-      "bytes": 5174,
+      "bytes": 5033,
       "lines": 141
     },
     "parsers/ttf-builder.spec.ts": {
-      "bytes": 17513,
+      "bytes": 17110,
       "lines": 403
     },
     "parsers/ttf-builder.ts": {
-      "bytes": 21687,
+      "bytes": 21134,
       "lines": 553
     },
     "parsers/ttf-parser.spec.ts": {
-      "bytes": 34495,
+      "bytes": 33639,
       "lines": 856
     },
     "parsers/ttf-parser.ts": {
-      "bytes": 22670,
+      "bytes": 22088,
       "lines": 582
     },
     "parsers/xlsx-reader.spec.ts": {
-      "bytes": 18221,
+      "bytes": 17802,
       "lines": 419
     },
     "parsers/xlsx-reader.ts": {
-      "bytes": 8652,
+      "bytes": 8385,
       "lines": 267
     },
     "parsers/xlsx.spec.ts": {
-      "bytes": 5102,
+      "bytes": 4984,
       "lines": 118
     },
     "parsers/xlsx.ts": {
-      "bytes": 9260,
+      "bytes": 9026,
       "lines": 234
     },
     "parsers/zip-reader.spec.ts": {
-      "bytes": 14234,
+      "bytes": 13883,
       "lines": 351
     },
     "parsers/zip-reader.ts": {
-      "bytes": 10786,
+      "bytes": 10482,
       "lines": 304
     },
     "popover-api-integrity.spec.ts": {
@@ -11104,15 +11104,15 @@
       "lines": 51
     },
     "shortcut-binding.service.spec.ts": {
-      "bytes": 23230,
+      "bytes": 22725,
       "lines": 505
     },
     "shortcut-binding.service.ts": {
-      "bytes": 30947,
+      "bytes": 30060,
       "lines": 887
     },
     "sortable-aria-live.spec.ts": {
-      "bytes": 2835,
+      "bytes": 2745,
       "lines": 90
     },
     "sortable-aria-live.ts": {
@@ -11120,7 +11120,7 @@
       "lines": 109
     },
     "sortable-registry.spec.ts": {
-      "bytes": 4230,
+      "bytes": 4091,
       "lines": 139
     },
     "sortable-registry.ts": {
@@ -11132,7 +11132,7 @@
       "lines": 49
     },
     "testing/vitest-compat.ts": {
-      "bytes": 4007,
+      "bytes": 3910,
       "lines": 97
     },
     "top-layer.spec.ts": {
@@ -11152,7 +11152,7 @@
       "lines": 323
     },
     "utils.ts": {
-      "bytes": 2532,
+      "bytes": 2463,
       "lines": 69
     }
   },
@@ -11162,7 +11162,7 @@
       "lines": 67
     },
     "dashboard/dashboard.component.spec.ts": {
-      "bytes": 7528,
+      "bytes": 7365,
       "lines": 172
     },
     "dashboard/dashboard.component.ts": {
@@ -11170,71 +11170,71 @@
       "lines": 91
     },
     "dashboard/index.ts": {
-      "bytes": 40,
-      "lines": 1
-    },
-    "faq/faq.component.html": {
-      "bytes": 618,
-      "lines": 15
-    },
-    "faq/faq.component.ts": {
-      "bytes": 2595,
-      "lines": 66
-    },
-    "faq/index.ts": {
-      "bytes": 34,
-      "lines": 1
-    },
-    "features/features.component.html": {
-      "bytes": 903,
-      "lines": 20
-    },
-    "features/features.component.ts": {
-      "bytes": 2056,
-      "lines": 63
-    },
-    "features/index.ts": {
       "bytes": 39,
       "lines": 1
     },
+    "faq/faq.component.html": {
+      "bytes": 603,
+      "lines": 15
+    },
+    "faq/faq.component.ts": {
+      "bytes": 2529,
+      "lines": 66
+    },
+    "faq/index.ts": {
+      "bytes": 33,
+      "lines": 1
+    },
+    "features/features.component.html": {
+      "bytes": 883,
+      "lines": 20
+    },
+    "features/features.component.ts": {
+      "bytes": 1993,
+      "lines": 63
+    },
+    "features/index.ts": {
+      "bytes": 38,
+      "lines": 1
+    },
     "forgot-password/forgot-password.component.html": {
-      "bytes": 1195,
+      "bytes": 1163,
       "lines": 32
     },
     "forgot-password/forgot-password.component.ts": {
-      "bytes": 1482,
+      "bytes": 1430,
       "lines": 52
     },
     "forgot-password/index.ts": {
-      "bytes": 46,
+      "bytes": 45,
       "lines": 1
     },
     "hero/hero.component.html": {
-      "bytes": 582,
+      "bytes": 566,
       "lines": 16
     },
     "hero/hero.component.ts": {
-      "bytes": 1099,
+      "bytes": 1070,
       "lines": 29
     },
     "hero/index.ts": {
-      "bytes": 35,
+      "bytes": 34,
       "lines": 1
     },
     "login/index.ts": {
-      "bytes": 36,
+      "bytes": 35,
       "lines": 1
     },
     "login/login.component.html": {
-      "bytes": 2768,
+      "bytes": 2707,
       "lines": 61
     },
     "login/login.component.ts": {
-      "bytes": 1728,
+      "bytes": 1668,
       "lines": 60
     },
     "pricing/index.ts": {
-      "bytes": 38,
+      "bytes": 37,
       "lines": 1
     },
     "pricing/pricing.component.html": {
@@ -11246,31 +11246,31 @@
       "lines": 89
     },
     "settings-account/index.ts": {
-      "bytes": 47,
+      "bytes": 46,
       "lines": 1
     },
     "settings-account/settings-account.component.html": {
-      "bytes": 4075,
+      "bytes": 3978,
       "lines": 97
     },
     "settings-account/settings-account.component.ts": {
-      "bytes": 2466,
+      "bytes": 2382,
       "lines": 84
     },
     "settings-profile/index.ts": {
-      "bytes": 47,
+      "bytes": 46,
       "lines": 1
     },
     "settings-profile/settings-profile.component.html": {
-      "bytes": 4018,
+      "bytes": 3912,
       "lines": 106
     },
     "settings-profile/settings-profile.component.ts": {
-      "bytes": 2553,
+      "bytes": 2467,
       "lines": 86
     },
     "signup/index.ts": {
-      "bytes": 37,
+      "bytes": 36,
       "lines": 1
     },
     "signup/signup.component.html": {
