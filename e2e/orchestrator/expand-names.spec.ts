@@ -14,6 +14,9 @@ describe('expandRequestedNames', () => {
         { names: ['rich-text-editor'] },
         { names: ['rich-text-editor', 'rich-text-editor/actions', 'dialog'], label: 'rte-actions' },
         { names: ['rich-text-editor', 'rich-text-editor/tables'], label: 'rte-tables' },
+        // Installs an addon WITHOUT naming the base — reachable only through
+        // the base's registry `addons[]`, which is what makes the group real.
+        { names: ['rich-text-editor/emoji'], label: 'rte-emoji-only' },
         { names: ['data-table', 'data-table/export'], label: 'data-table-export' },
         { names: ['button'] },
         { names: ['input', 'label', 'button', 'dialog'], label: 'form-flow' },
@@ -24,6 +27,7 @@ describe('expandRequestedNames', () => {
             'rich-text-editor',
             'rte-actions',
             'rte-tables',
+            'rte-emoji-only',
         ]);
     });
 
@@ -54,7 +58,7 @@ describe('expandRequestedNames', () => {
 
     it('dedupes across two requested names that expand to overlapping specs', () => {
         const out = expandRequestedNames(['rich-text-editor', 'rte-actions'], specs);
-        expect(out).toEqual(['rich-text-editor', 'rte-actions', 'rte-tables']);
+        expect(out).toEqual(['rich-text-editor', 'rte-actions', 'rte-tables', 'rte-emoji-only']);
     });
 
     it('is order-stable: requested order first, expansion in spec order', () => {
@@ -63,6 +67,7 @@ describe('expandRequestedNames', () => {
             'rich-text-editor',
             'rte-actions',
             'rte-tables',
+            'rte-emoji-only',
         ]);
     });
 

@@ -533,6 +533,10 @@ That's it. The scaffolder:
 # Run it
 npm run e2e -- <name>
 
+# A base component with registry `addons[]` expands to every spec installing
+# it or one of its addons, so `npm run e2e -- rich-text-editor` runs the base
+# harness AND all 14 `rte-*` specs; pass an exact label to run only that one.
+
 # Extend e2e/harness/<name>/<name>.spec.ts with real assertions.
 # The data-testids in the demo are pre-wired — just reference them.
 ```

@@ -22,6 +22,7 @@ import {
     specLabel,
     type ComponentSpec,
 } from './specs.js';
+import { expandRequestedNames } from './expand-names.js';
 
 // Force the Angular CLI non-interactive for every `ng` the suite spawns
 // (`ng build`/`ng serve` in the scaffolded consumer apps). Without this the
@@ -172,14 +173,22 @@ function parseArgs(): ParsedArgs {
         return { components: ALL_COMPONENTS, cliSpecs, flags };
     }
 
-    const requested = new Set(names);
+    // A base component with registry addons[] means "everything about this
+    // component": `e2e -- rich-text-editor` runs the base harness AND every
+    // rte-* addon spec. Exact labels and addon-less names are untouched.
+    const expanded = expandRequestedNames(names, ALL_COMPONENTS);
+    if (expanded.length !== names.length) {
+        console.log(`[e2e] ${names.join(', ')} expands to ${expanded.length} spec(s): ${expanded.join(', ')}`);
+    }
+
+    const requested = new Set(expanded);
     const components = ALL_COMPONENTS.filter(c => requested.has(specLabel(c)));
     const cliSpecs = CLI_SPECS.filter(s => requested.has(s.label));
     const allLabels = [
         ...ALL_COMPONENTS.map(specLabel),
         ...CLI_SPECS.map(s => s.label),
     ];
-    const unknown = names.filter(r => !allLabels.includes(r));
+    const unknown = expanded.filter(r => !allLabels.includes(r));
     if (unknown.length > 0) {
         console.error(`[e2e] Unknown name(s): ${unknown.join(', ')}`);
         console.error('[e2e] Available: ' + allLabels.join(', '));

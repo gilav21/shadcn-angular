@@ -10,21 +10,16 @@ import {
   SelectComponent,
   ToolbarItem,
 } from '../../../../../packages/components/ui';
-import {
-  RichTextMentionsDirective,
-  type MentionItem,
-  type TagItem,
+// One import line for everything, exactly as a consumer who ran
+// `add rich-text-editor/full` writes it. RTE_FULL is every addon directive;
+// the individual classes are named re-exports of the same generated barrel.
+import { RTE_FULL } from '../../../../../packages/components/ui/rich-text-editor/addons/full';
+// Types come from the owning addon's barrel — the full barrel re-exports
+// directive CLASSES only, by design (the NG3004 fix).
+import type {
+  MentionItem,
+  TagItem,
 } from '../../../../../packages/components/ui/rich-text-editor/addons/mentions';
-import { RichTextEmojiDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/emoji';
-import { RichTextSlashCommandsDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/slash-commands';
-import { RichTextHistoryDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/history';
-import { RichTextColorsDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/colors';
-import { RichTextTypographyDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/typography';
-import { RichTextLinksDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/links';
-import { RichTextTablesDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/tables';
-import { RichTextImagesDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/images';
-import { RichTextAiDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/ai';
-import { RichTextOutlineDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/outline';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { RICH_TEXT_EDITOR_DEMO_LOCALES } from './rich-text-editor-demo.locales';
 
@@ -33,7 +28,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
 @Component({
   selector: 'app-rich-text-editor-demo',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DocsForComponent, FormsModule, RichTextEditorComponent, RichTextEmojiDirective, RichTextSlashCommandsDirective, RichTextHistoryDirective, RichTextColorsDirective, RichTextTypographyDirective, RichTextLinksDirective, RichTextTablesDirective, RichTextImagesDirective, RichTextMentionsDirective, RichTextAiDirective, RichTextOutlineDirective, SwitchComponent, InputComponent, SelectComponent],
+  imports: [DocsForComponent, FormsModule, RichTextEditorComponent, RTE_FULL, SwitchComponent, InputComponent, SelectComponent],
   template: `
     <section class="space-y-6">
       <h2 id="rich-text-editor" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>

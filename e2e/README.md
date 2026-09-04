@@ -39,6 +39,13 @@ npm run e2e -- button dialog popover
 npm run e2e
 ```
 
+A name that is a **base component with registry `addons[]`** expands to every
+spec installing that base or one of its addons, so `npm run e2e --
+rich-text-editor` runs the base harness *and* all 14 `rte-*` addon specs (the
+runner prints the expanded list). Pass the exact label — `npm run e2e --
+rte-tables` — to run just one. Names with no `addons[]` are never expanded, so
+`npm run e2e -- button` still means exactly one spec.
+
 The orchestrator builds the CLI lazily — `npm run e2e:build-cli` is only
 needed if you want to force a rebuild.
 
