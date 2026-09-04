@@ -176,7 +176,7 @@ A live version of this directive runs on the **addons demo page** under
 ## The host contract
 
 `RichTextEditorAddonHost` is the abstract class the editor provides. Injecting
-it is the entire supported surface — 38 members, grouped:
+it is the entire supported surface — 39 members, grouped:
 
 ### Toolbar and commands
 
