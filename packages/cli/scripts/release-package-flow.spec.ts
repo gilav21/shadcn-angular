@@ -637,6 +637,16 @@ describe('runRelease — guards', () => {
         expect(w.calls.filter((c) => c.startsWith('write'))).toEqual([]);
     });
 
+    // A dirty tree is refused without ever asking git for the branch: the two
+    // read-only probes stay in the order the flow has always issued them, and
+    // the refusal does not depend on `rev-parse` succeeding.
+    it('checks the tree before it asks for the branch, and short-circuits', () => {
+        const w = world(releaseTranscript({ 'status --porcelain': ' M src/x.ts' }));
+        expect(runRelease(['rte', 'patch'], w.effects)).toBe(1);
+        expect(w.calls).toContain('git status --porcelain');
+        expect(w.calls).not.toContain('git rev-parse --abbrev-ref HEAD');
+    });
+
     it('proceeds past both guards under the override flags', () => {
         const w = world(releaseTranscript({
             'status --porcelain': ' M src/x.ts',

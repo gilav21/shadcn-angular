@@ -92,7 +92,7 @@ describe('packageVerdict (T-12)', () => {
     const rtePaths = closurePaths('rte');
 
     function verdict(files: string[], id: 'rte' | 'data-table' = 'rte'): boolean {
-        return packageVerdict(files, closurePaths(id), id).required;
+        return packageVerdict(files, closurePaths(id)).required;
     }
 
     it('REQUIRED for a closure ui file', () => {
@@ -143,7 +143,6 @@ describe('packageVerdict (T-12)', () => {
         const result = packageVerdict(
             ['packages/components/lib/utils.ts', 'docs/x.md'],
             rtePaths,
-            'rte',
         );
         expect(result.required).toBe(true);
         expect(result.reasons).toContain('packages/components/lib/utils.ts');

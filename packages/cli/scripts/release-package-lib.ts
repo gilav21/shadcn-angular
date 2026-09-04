@@ -163,7 +163,6 @@ export interface PackageVerdict {
 export function packageVerdict(
     changedFiles: readonly string[],
     paths: ReadonlySet<string>,
-    _id: PackageId,
 ): PackageVerdict {
     const reasons = changedFiles.filter((file) => paths.has(file.replaceAll('\\', '/')));
     return { required: reasons.length > 0, reasons };
@@ -619,9 +618,19 @@ function writeReleaseFiles(id: PackageId, pkgSource: string, plan: ReleasePlan, 
     fx.writeFile(changelog, prependRelease(fx.readFileIfExists(changelog), plan.block, packageChangelogHeader(id)));
 }
 
-/** The guards of steps 1-2, or `null` when the flow may continue. */
-function guardFailure(args: PackageReleaseArgs, branch: string, fx: ReleaseEffects): Refusal {
-    return dirtyTreeRefusal(fx.git.run('status', '--porcelain'), args) ?? branchRefusal(branch, args);
+/**
+ * The guards of steps 1-2 and the branch the release is cut from.
+ *
+ * The dirty-tree probe runs FIRST and short-circuits: a dirty tree is refused
+ * without ever asking git for the branch, which keeps the two read-only probes
+ * in the order the flow has always issued them.
+ */
+function guardBranch(args: PackageReleaseArgs, fx: ReleaseEffects): { refusal: Refusal; branch: string } {
+    const dirty = dirtyTreeRefusal(fx.git.run('status', '--porcelain'), args);
+    if (dirty) return { refusal: dirty, branch: '' };
+
+    const branch = fx.git.run('rev-parse', '--abbrev-ref', 'HEAD');
+    return { refusal: branchRefusal(branch, args), branch };
 }
 
 /**
@@ -642,8 +651,7 @@ export function runRelease(argv: readonly string[], fx: ReleaseEffects): number 
     }
 
     const { id } = args;
-    const branch = fx.git.run('rev-parse', '--abbrev-ref', 'HEAD');
-    const refusal = guardFailure(args, branch, fx);
+    const { refusal, branch } = guardBranch(args, fx);
     if (refusal) {
         for (const line of refusal) fx.error(line);
         return 1;
@@ -653,7 +661,7 @@ export function runRelease(argv: readonly string[], fx: ReleaseEffects): number 
     fx.log(`Base ref: ${base.how}`);
 
     const paths = closurePaths(id);
-    const report = verdictReport(packageVerdict(changedFilesSince(base.ref, fx.git), paths, id), args);
+    const report = verdictReport(packageVerdict(changedFilesSince(base.ref, fx.git), paths), args);
     for (const line of report.lines) fx.log(line);
     for (const line of report.errorLines) fx.error(line);
     if (!report.proceed) return 1;
