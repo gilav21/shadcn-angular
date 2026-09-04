@@ -980,8 +980,6 @@ export const registry = defineRegistry({
       writing: ['rich-text-editor/slash-commands', 'rich-text-editor/links', 'rich-text-editor/history', 'rich-text-editor/outline'],
       media: ['rich-text-editor/images', 'rich-text-editor/tables', 'rich-text-editor/file-import'],
       styling: ['rich-text-editor/colors', 'rich-text-editor/typography', 'rich-text-editor/emoji'],
-      // The 13 feature addons plus the `full` composite, so a consumer copying
-      // the demo's one-liner `uiRteFull` template actually has that marker.
       everything: [
         'rich-text-editor/actions', 'rich-text-editor/ai', 'rich-text-editor/colors', 'rich-text-editor/emoji',
         'rich-text-editor/file-import', 'rich-text-editor/history', 'rich-text-editor/images', 'rich-text-editor/links',

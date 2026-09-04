@@ -191,6 +191,11 @@ function unionAddons(a: readonly ComponentName[], b: readonly ComponentName[]): 
 /**
  * The non-interactive decision table for which addons to install. Returns
  * `null` when the developer must be asked (the interactive path).
+ *
+ * Clause order is load-bearing: `--yes` is tested before `--all`, matching
+ * {@link promptOptionalDependencies}. `--yes` alone stays lean, taking only
+ * what `--preset` pre-selected, which keeps `--all --yes` at its existing
+ * meaning instead of suddenly pulling every addon.
  */
 function selectAddons(
     options: AddOptions, choices: AddonChoice[], preselected: readonly ComponentName[],
@@ -199,9 +204,6 @@ function selectAddons(
     if (options.with !== undefined) {
         return unionAddons(preselected, selectAddonsByFlag(options.with, choices));
     }
-    // `--yes` before `--all`, matching promptOptionalDependencies: `--yes` alone
-    // stays lean (it only takes what `--preset` pre-selected), and `--all --yes`
-    // keeps its existing meaning rather than suddenly pulling every addon.
     if (options.yes) return [...preselected];
     if (options.all) return choices.map(c => c.name as ComponentName);
     return null;
@@ -441,8 +443,6 @@ function printDryRunSummary(
 ): void {
     console.log(chalk.bold('\n[Dry Run] No changes will be made.\n'));
     if (toInstall.length > 0) {
-        // The grouped block below names every component with its file count, so
-        // the old flat list would just repeat it — only the headline remains.
         console.log(chalk.green(`  Would install ${toInstall.length} component(s) — ${summary.totalFiles} files:`));
         console.log('');
     }
@@ -498,11 +498,13 @@ async function resolveBlockDestination(
  * `doctor`/`status` distinguish their edits from upstream drift. Wording is
  * the truthful version — `--overwrite` and the no-baseline fallback are named
  * rather than glossed over.
+ *
+ * `uiPath` is normalized to posix separators because it is printed for the
+ * developer to read, not passed to a shell, and a Windows backslash form
+ * would read as an escape sequence.
  */
 function printWhatNow(uiPath: string): void {
     const cli = 'npx @gilav21/shadcn-angular';
-    // Posix separators: this is a path to read, not one to pass to the shell,
-    // and a Windows-only backslash form would read as an escape.
     const shown = uiPath.replaceAll('\\', '/');
     console.log(chalk.bold('What now?'));
     console.log(chalk.dim('  • ') + `These files are yours — edit them freely. They live under ${chalk.cyan(shown)}.`);

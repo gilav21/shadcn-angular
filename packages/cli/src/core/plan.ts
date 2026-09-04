@@ -195,10 +195,6 @@ export function printBreakingChanges(components: Iterable<ComponentName>): void 
     }
 }
 
-// ---------------------------------------------------------------------------
-// Grouped install summary
-// ---------------------------------------------------------------------------
-
 /** One component in a summary group, with the number of files it ships. */
 export interface InstallSummaryComponent {
     readonly name: string;
