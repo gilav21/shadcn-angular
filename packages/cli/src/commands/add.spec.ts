@@ -1363,6 +1363,69 @@ describe('add()', () => {
   });
 
   // -------------------------------------------------------------------------
+  // "What now?" maintenance messaging (UC-20)
+  // -------------------------------------------------------------------------
+
+  it('prints the What now? block after a successful install (T-37)', async () => {
+    asMock(performInstall).mockResolvedValue(installResult({ installed: ['badge'] }));
+
+    await add(['badge'], { branch: 'master', remote: true, yes: true });
+
+    const text = output();
+    expect(text).toContain('What now?');
+    // Bullet 1 names the install directory, so "yours to edit" is actionable.
+    expect(text).toContain('These files are yours');
+    expect(text).toContain('src/components/ui');
+  });
+
+  it('prints the same What now? block on an interactive run (T-37)', async () => {
+    asMock(performInstall).mockResolvedValue(installResult({ installed: ['badge'] }));
+    asMock(prompts).mockResolvedValue({ selected: [] });
+
+    await add(['badge'], { branch: 'master', remote: true });
+
+    expect(output()).toContain('What now?');
+  });
+
+  it('does not print What now? on --dry-run (T-38)', async () => {
+    await add(['badge'], { branch: 'master', remote: true, dryRun: true, yes: true });
+
+    expect(output()).not.toContain('What now?');
+  });
+
+  it('does not print What now? when nothing was installed (T-38)', async () => {
+    asMock(performInstall).mockResolvedValue(installResult({ installed: [], skipped: ['badge'] }));
+
+    await add(['badge'], { branch: 'master', remote: true, yes: true });
+
+    expect(output()).not.toContain('What now?');
+  });
+
+  it('names update (3-way merge, markers, --overwrite) and doctor / status (T-39)', async () => {
+    asMock(performInstall).mockResolvedValue(installResult({ installed: ['badge'] }));
+
+    await add(['badge'], { branch: 'master', remote: true, yes: true });
+
+    const text = output();
+    // The truthful `update` description: merge is the default, --overwrite is
+    // the whole-file escape hatch, and a no-baseline file is kept, not merged.
+    expect(text).toContain('update');
+    expect(text).toContain('3-way merge');
+    expect(text).toContain('<<<<<<<');
+    expect(text).toContain('--overwrite');
+    expect(text).toContain('doctor');
+    expect(text).toContain('status');
+  });
+
+  it('uses the --path override as the "your files live here" directory (T-37)', async () => {
+    asMock(performInstall).mockResolvedValue(installResult({ installed: ['badge'] }));
+
+    await add(['badge'], { branch: 'master', remote: true, yes: true, path: 'src/ui' });
+
+    expect(output()).toContain('src/ui');
+  });
+
+  // -------------------------------------------------------------------------
   // --preset (UC-8 … UC-13)
   // -------------------------------------------------------------------------
 

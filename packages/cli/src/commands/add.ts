@@ -492,10 +492,32 @@ async function resolveBlockDestination(
 // Main entry point
 // ---------------------------------------------------------------------------
 
+/**
+ * What owning the code actually means, at the moment it lands: the files are
+ * the developer's to edit, `update` merges rather than clobbers, and
+ * `doctor`/`status` distinguish their edits from upstream drift. Wording is
+ * the truthful version — `--overwrite` and the no-baseline fallback are named
+ * rather than glossed over.
+ */
+function printWhatNow(uiPath: string): void {
+    const cli = 'npx @gilav21/shadcn-angular';
+    // Posix separators: this is a path to read, not one to pass to the shell,
+    // and a Windows-only backslash form would read as an escape.
+    const shown = uiPath.replaceAll('\\', '/');
+    console.log(chalk.bold('What now?'));
+    console.log(chalk.dim('  • ') + `These files are yours — edit them freely. They live under ${chalk.cyan(shown)}.`);
+    console.log(chalk.dim('  • ') + `${chalk.cyan(cli + ' update')} 3-way merges upstream changes into your edits; `
+        + 'conflicts are written as <<<<<<< markers, never silently dropped. '
+        + `${chalk.cyan('--overwrite')} replaces a file whole; a file you edited before it had a recorded baseline is kept and flagged.`);
+    console.log(chalk.dim('  • ') + `${chalk.cyan(cli + ' doctor')} and ${chalk.cyan('status')} show what you edited vs. what has an update available.`);
+    console.log('');
+}
+
 function printInstallResult(
     result: { installed: ComponentName[]; warnings: string[]; skipped: string[]; declined: ComponentName[]; pruned: string[] },
     spinner: Ora,
     grouping: { readonly requested: readonly string[]; readonly chosen: readonly string[] },
+    uiPath: string,
 ): void {
     if (result.installed.length > 0) {
         const summary = buildInstallSummary({
@@ -518,6 +540,7 @@ function printInstallResult(
     for (const w of result.warnings) console.log(chalk.yellow('  ' + w));
     printSkipSummary(result.skipped, result.declined);
     console.log('');
+    if (result.installed.length > 0) printWhatNow(uiPath);
 }
 
 /**
@@ -600,9 +623,9 @@ export async function add(components: string[], options: AddOptions): Promise<vo
         );
     const { toInstall, toSkip, conflicting, contentCache } = conflicts;
 
+    const uiPath = componentPath ?? aliasToProjectPath(config.aliases.ui || 'src/components/ui');
     const toOverwrite = await promptOverwrite(conflicting, options,
-        resolveProjectPath(cwd, componentPath ?? aliasToProjectPath(config.aliases.ui || 'src/components/ui')),  
-        contentCache);
+        resolveProjectPath(cwd, uiPath), contentCache);
     const declined = conflicting.filter(c => !toOverwrite.includes(c));
 
     const addonHints = collectAvailableAddons(allComponents);
@@ -616,7 +639,7 @@ export async function add(components: string[], options: AddOptions): Promise<vo
     await runInstall({
         componentsToAdd, extraDeps, toOverwrite, cwd, config, options,
         componentPath, blocksPath, conflicts, includeTests, runner,
-        grouping, addonHints,
+        grouping, addonHints, uiPath,
     });
 }
 
@@ -635,6 +658,8 @@ async function runInstall(input: {
     readonly runner: 'vitest' | 'jest';
     readonly grouping: { readonly requested: readonly string[]; readonly chosen: readonly string[] };
     readonly addonHints: AddonHint[];
+    /** Where the components landed — named in the "what now?" block. */
+    readonly uiPath: string;
 }): Promise<void> {
     const spinner = ora('Installing components...').start();
     try {
@@ -649,7 +674,7 @@ async function runInstall(input: {
             precomputedConflicts: input.conflicts,
             includeTests: input.includeTests, testRunner: input.runner,
         });
-        printInstallResult(result, spinner, input.grouping);
+        printInstallResult(result, spinner, input.grouping, input.uiPath);
         printAvailableAddons(input.addonHints);
     } catch (error) {
         spinner.fail('Failed to add components');
