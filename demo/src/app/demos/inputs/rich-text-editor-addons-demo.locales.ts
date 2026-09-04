@@ -39,6 +39,10 @@ export interface RichTextEditorAddonsDemoLocale {
   filesWord: string;
   addonFilesWord: string;
   addonsWord: string;
+  writeOwnHeading: string;
+  writeOwnDescription: string;
+  writeOwnEditorPlaceholder: string;
+  writeOwnCodeLabel: string;
   allOffNote: string;
 }
 
@@ -86,6 +90,10 @@ export const RICH_TEXT_EDITOR_ADDONS_DEMO_LOCALES: Record<string, RichTextEditor
     addonFilesWord: 'addon files',
     addonsWord: 'addons',
     allOffNote: 'All addons are off — this is the base editor: bold, italic, lists, and markdown, nothing else.',
+    writeOwnHeading: 'Write your own addon',
+    writeOwnDescription: "An addon is one standalone directive on the editor tag. This editor carries the ~40-line uiRteInsertDate example from the guide: click the calendar button in its toolbar to insert today's date at the caret.",
+    writeOwnEditorPlaceholder: 'Put the caret here, then click the calendar button…',
+    writeOwnCodeLabel: 'The whole addon',
   },
   he: {
     heading: 'עורך טקסט עשיר — תוספים חיים',
@@ -130,5 +138,9 @@ export const RICH_TEXT_EDITOR_ADDONS_DEMO_LOCALES: Record<string, RichTextEditor
     addonFilesWord: 'קבצי תוסף',
     addonsWord: 'תוספים',
     allOffNote: 'כל התוספים כבויים — זהו העורך הבסיסי: מודגש, נטוי, רשימות ו-markdown, שום דבר נוסף.',
+    writeOwnHeading: 'כתיבת תוסף משלך',
+    writeOwnDescription: 'תוסף הוא דירקטיבה עצמאית אחת על תגית העורך. בעורך הזה מותקנת הדוגמה uiRteInsertDate בת ~40 השורות מהמדריך: לחצו על כפתור הלוח בסרגל הכלים שלו כדי להוסיף את תאריך היום במיקום הסמן.',
+    writeOwnEditorPlaceholder: 'מקמו את הסמן כאן, ואז לחצו על כפתור הלוח…',
+    writeOwnCodeLabel: 'כל התוסף',
   },
 };

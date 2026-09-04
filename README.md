@@ -34,7 +34,7 @@ Registry today: 152 components, 28 opt-in addons, 10 composed blocks.
 - **Accessible**: Uses standard HTML elements and accessibility best practices.
 - **Lightweight**: Copy/paste components give you full control over the code.
 - **Dark Mode**: Built-in dark mode support.
-- **Rich Text Editor**: Includes a full-featured rich text editor component.
+- **Rich Text Editor**: A full-featured rich text editor component with opt-in addons — see [docs/rich-text-editor.md](docs/rich-text-editor.md) for the one-import setup and how to write your own addon.
 
 ## Quick Start
 

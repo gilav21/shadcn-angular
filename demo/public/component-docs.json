@@ -13530,8 +13530,8 @@
       "npmDependencies": [],
       "snippet": "<ui-rte-ai-chip />",
       "snippetSkipReason": "",
-      "demoRoute": "rich-text-editor",
-      "demoFile": "demo/src/app/demos/inputs/rich-text-editor-demo.component.ts",
+      "demoRoute": null,
+      "demoFile": null,
       "api": [
         {
           "className": "RichTextAiChipComponent",
@@ -13613,8 +13613,8 @@
       "npmDependencies": [],
       "snippet": "<ui-rte-colors-button />",
       "snippetSkipReason": "",
-      "demoRoute": "rich-text-editor",
-      "demoFile": "demo/src/app/demos/inputs/rich-text-editor-demo.component.ts",
+      "demoRoute": null,
+      "demoFile": null,
       "api": [
         {
           "className": "RichTextColorsButtonComponent",
@@ -13700,8 +13700,8 @@
       "npmDependencies": [],
       "snippet": "<ui-rte-emoji-button />",
       "snippetSkipReason": "",
-      "demoRoute": "rich-text-editor",
-      "demoFile": "demo/src/app/demos/inputs/rich-text-editor-demo.component.ts",
+      "demoRoute": null,
+      "demoFile": null,
       "api": [
         {
           "className": "RichTextEmojiButtonComponent",
@@ -13907,8 +13907,8 @@
       "npmDependencies": [],
       "snippet": "<ui-rich-text-history-panel />",
       "snippetSkipReason": "",
-      "demoRoute": "rich-text-editor",
-      "demoFile": "demo/src/app/demos/inputs/rich-text-editor-demo.component.ts",
+      "demoRoute": null,
+      "demoFile": null,
       "api": [
         {
           "className": "RichTextHistoryPanelComponent",
@@ -13990,8 +13990,8 @@
       "npmDependencies": [],
       "snippet": "<ui-rte-images-button />",
       "snippetSkipReason": "",
-      "demoRoute": "rich-text-editor",
-      "demoFile": "demo/src/app/demos/inputs/rich-text-editor-demo.component.ts",
+      "demoRoute": null,
+      "demoFile": null,
       "api": [
         {
           "className": "RichTextImagesButtonComponent",
@@ -14313,8 +14313,8 @@
       "npmDependencies": [],
       "snippet": "<ui-rte-links-button />",
       "snippetSkipReason": "",
-      "demoRoute": "rich-text-editor",
-      "demoFile": "demo/src/app/demos/inputs/rich-text-editor-demo.component.ts",
+      "demoRoute": null,
+      "demoFile": null,
       "api": [
         {
           "className": "RichTextLinksButtonComponent",
@@ -14444,8 +14444,8 @@
       "npmDependencies": [],
       "snippet": "<ui-rich-text-mention-popover />",
       "snippetSkipReason": "",
-      "demoRoute": "rich-text-editor",
-      "demoFile": "demo/src/app/demos/inputs/rich-text-editor-demo.component.ts",
+      "demoRoute": null,
+      "demoFile": null,
       "api": [
         {
           "className": "RichTextMentionPopoverComponent",
@@ -14579,8 +14579,8 @@
       "npmDependencies": [],
       "snippet": "<ui-rte-outline-panel />",
       "snippetSkipReason": "",
-      "demoRoute": "rich-text-editor",
-      "demoFile": "demo/src/app/demos/inputs/rich-text-editor-demo.component.ts",
+      "demoRoute": null,
+      "demoFile": null,
       "api": [
         {
           "className": "RichTextOutlinePanelComponent",
@@ -14647,8 +14647,8 @@
       "npmDependencies": [],
       "snippet": "<ui-rich-text-slash-commands-menu />",
       "snippetSkipReason": "",
-      "demoRoute": "rich-text-editor",
-      "demoFile": "demo/src/app/demos/inputs/rich-text-editor-demo.component.ts",
+      "demoRoute": null,
+      "demoFile": null,
       "api": [
         {
           "className": "RichTextSlashCommandsMenuComponent",
@@ -14734,8 +14734,8 @@
       "npmDependencies": [],
       "snippet": "<ui-rte-tables-button />",
       "snippetSkipReason": "",
-      "demoRoute": "rich-text-editor",
-      "demoFile": "demo/src/app/demos/inputs/rich-text-editor-demo.component.ts",
+      "demoRoute": null,
+      "demoFile": null,
       "api": [
         {
           "className": "RichTextTablesButtonComponent",
@@ -14798,8 +14798,8 @@
       "npmDependencies": [],
       "snippet": "<ui-rte-typography-button />",
       "snippetSkipReason": "",
-      "demoRoute": "rich-text-editor",
-      "demoFile": "demo/src/app/demos/inputs/rich-text-editor-demo.component.ts",
+      "demoRoute": null,
+      "demoFile": null,
       "api": [
         {
           "className": "RichTextTypographyButtonComponent",

@@ -1,5 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { afterEach, describe, expect, it } from 'vitest';
 import { RichTextEditorComponent } from '../../../../../packages/components/ui/rich-text-editor';
 import { RichTextInsertDateDirective } from './rich-text-insert-date.directive';
@@ -40,6 +41,16 @@ describe('RichTextInsertDateDirective (addon guide example)', () => {
         return fixture.nativeElement.querySelector('[data-addon-slot="insert-date"]');
     }
 
+    /**
+     * The editor instance that owns the slot registry. Read it directly rather
+     * than through the DOM: a destroyed fixture keeps its detached tree, so a
+     * querySelector still finds the button after teardown.
+     */
+    function hostEditor(fixture: ComponentFixture<HostCmp>): RichTextEditorComponent {
+        return fixture.debugElement.query(By.directive(RichTextEditorComponent))
+            .componentInstance as RichTextEditorComponent;
+    }
+
     afterEach(() => {
         window.getSelection()?.removeAllRanges();
         while (fixtures.length > 0) {
@@ -68,22 +79,32 @@ describe('RichTextInsertDateDirective (addon guide example)', () => {
         expect(editable.textContent).toContain(expected);
     });
 
-    it('disables its button on a readonly editor', () => {
+    it('reports its slot disabled on a readonly or disabled editor', () => {
         const fixture = create();
+        const slot = hostEditor(fixture).toolbarSlots.slots()
+            .find(s => s.id === 'insert-date');
+        expect(slot?.isEnabled?.()).toBe(true);
+
+        // Assert the slot's own predicate, not the button's [disabled]: the
+        // toolbar disables every button when the editor is disabled, so the
+        // rendered attribute would pass even with no isEnabled at all.
         fixture.componentInstance.readonly.set(true);
         fixture.detectChanges();
-        // A readonly editor hides its docked toolbar entirely; a disabled one
-        // keeps it and marks every button [disabled].
+        expect(slot?.isEnabled?.()).toBe(false);
+
         fixture.componentInstance.readonly.set(false);
         fixture.componentInstance.disabled.set(true);
         fixture.detectChanges();
+        expect(slot?.isEnabled?.()).toBe(false);
         expect(slotButton(fixture)!.disabled).toBe(true);
     });
 
-    it('removes its slot when the directive is destroyed', () => {
+    it('deregisters its slot from the host when destroyed', () => {
         const fixture = create();
-        expect(slotButton(fixture)).toBeTruthy();
+        const editor = hostEditor(fixture);
+
+        expect(editor.toolbarSlots.slots().some(s => s.id === 'insert-date')).toBe(true);
         fixture.destroy();
-        expect(slotButton(fixture)).toBeNull();
+        expect(editor.toolbarSlots.slots().some(s => s.id === 'insert-date')).toBe(false);
     });
 });
