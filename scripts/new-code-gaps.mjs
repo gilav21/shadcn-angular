@@ -9,15 +9,26 @@ import fs from 'node:fs';
 
 const base = process.argv[2] ?? 'master';
 
+/** Add every line number a `@@ -a,b +c,d @@` hunk header introduces. */
+function addHunkLines(target, header) {
+  const m = /\+(\d+)(?:,(\d+))?/.exec(header);
+  if (!m) return;
+  const start = +m[1];
+  const count = m[2] === undefined ? 1 : +m[2];
+  for (let i = 0; i < count; i++) target.add(start + i);
+}
+
+/** Map each changed file to the set of line numbers this branch added. */
 function changedLines() {
   const out = execFileSync('git', ['diff', '-U0', '--ignore-cr-at-eol', `${base}...HEAD`], { encoding: 'utf8', maxBuffer: 1e9 });
   const byFile = new Map();
   let file = null;
   for (const line of out.split('\n')) {
-    if (line.startsWith('+++ b/')) { file = line.slice(6).trim(); if (!byFile.has(file)) byFile.set(file, new Set()); }
-    else if (line.startsWith('@@') && file) {
-      const m = /\+(\d+)(?:,(\d+))?/.exec(line);
-      if (m) { const start = +m[1], count = m[2] === undefined ? 1 : +m[2]; for (let i = 0; i < count; i++) byFile.get(file).add(start + i); }
+    if (line.startsWith('+++ b/')) {
+      file = line.slice(6).trim();
+      if (!byFile.has(file)) byFile.set(file, new Set());
+    } else if (line.startsWith('@@') && file) {
+      addHunkLines(byFile.get(file), line);
     }
   }
   return byFile;
@@ -45,22 +56,37 @@ function lcovUncovered(p) {
 const changed = changedLines();
 const cov = new Map([...lcovUncovered('coverage/lcov.info'), ...lcovUncovered('coverage-cli/lcov.info')]);
 
+/**
+ * True when Sonar would analyse this path: `sonar.sources=packages` minus the
+ * exclusions in sonar-project.properties (specs, stories, fixtures, the staged
+ * package trees and any *.config.ts).
+ */
+function isAnalysedSource(file) {
+  if (!file.endsWith('.ts')) return false;
+  if (/\.spec\.ts$|\.stories\.ts$|-fixtures\.ts$/.test(file)) return false;
+  if (!file.startsWith('packages/')) return false;
+  if (/^packages\/[^/]*-package\/src\//.test(file)) return false;
+  return !/\.config\.[^/]*ts$/.test(file);
+}
+
+/** One file's added-line tally against its coverage record. */
+function tally(file, lines, record) {
+  if (!record) return { file, added: lines.size, miss: lines.size, noReport: true };
+  const instrumented = [...lines].filter(l => record.uncovered.has(l) || record.covered.has(l));
+  if (!instrumented.length) return null;
+  const miss = instrumented.filter(l => record.uncovered.has(l));
+  return { file, added: instrumented.length, miss: miss.length, lines: miss.slice(0, 8) };
+}
+
 const rows = [];
 let totalNew = 0, totalMiss = 0;
 for (const [file, lines] of changed) {
-  if (!/\.ts$/.test(file)) continue;
-  if (/\.spec\.ts$|\.stories\.ts$|-fixtures\.ts$/.test(file)) continue;
-  // Match sonar-project.properties: sources=packages, minus its exclusions.
-  if (!file.startsWith('packages/')) continue;
-  if (/^packages\/[^/]*-package\/src\//.test(file)) continue;
-  if (/\.config\.[^/]*ts$/.test(file)) continue;
-  const c = cov.get(file);
-  if (!c) { rows.push({ file, added: lines.size, miss: lines.size, noReport: true }); totalNew += lines.size; totalMiss += lines.size; continue; }
-  const instrumented = [...lines].filter(l => c.uncovered.has(l) || c.covered.has(l));
-  const miss = instrumented.filter(l => c.uncovered.has(l));
-  if (!instrumented.length) continue;
-  totalNew += instrumented.length; totalMiss += miss.length;
-  if (miss.length) rows.push({ file, added: instrumented.length, miss: miss.length, lines: miss.slice(0, 8) });
+  if (!isAnalysedSource(file)) continue;
+  const row = tally(file, lines, cov.get(file));
+  if (!row) continue;
+  totalNew += row.added;
+  totalMiss += row.miss;
+  if (row.miss) rows.push(row);
 }
 
 rows.sort((a, b) => b.miss - a.miss);

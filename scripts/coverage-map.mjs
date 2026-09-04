@@ -1,5 +1,22 @@
 import fs from 'node:fs';
 
+/** lcov counter prefixes mapped to the record field each one fills. */
+const COUNTERS = { 'LF:': 'lf', 'LH:': 'lh', 'BRF:': 'brf', 'BRH:': 'brh', 'FNF:': 'fnf', 'FNH:': 'fnh' };
+
+function emptyRecord(file) {
+  return { file: file.replaceAll('\\', '/'), lf: 0, lh: 0, brf: 0, brh: 0, fnf: 0, fnh: 0, uncovered: [] };
+}
+
+/** Apply one non-`SF:` lcov line to the record being built. */
+function applyLine(cur, line) {
+  for (const [prefix, field] of Object.entries(COUNTERS)) {
+    if (line.startsWith(prefix)) { cur[field] = +line.slice(prefix.length); return; }
+  }
+  if (!line.startsWith('DA:')) return;
+  const [ln, hits] = line.slice(3).split(',');
+  if (+hits === 0) cur.uncovered.push(+ln);
+}
+
 /** Parse an lcov file into per-file records. */
 function parseLcov(p) {
   if (!fs.existsSync(p)) return [];
@@ -7,18 +24,10 @@ function parseLcov(p) {
   let cur = null;
   for (const raw of fs.readFileSync(p, 'utf8').split(/\r?\n/)) {
     const line = raw.trim();
-    if (line.startsWith('SF:')) cur = { file: line.slice(3).replaceAll('\\', '/'), lf: 0, lh: 0, brf: 0, brh: 0, fnf: 0, fnh: 0, uncovered: [] };
+    if (line.startsWith('SF:')) cur = emptyRecord(line.slice(3));
     else if (!cur) continue;
-    else if (line.startsWith('LF:')) cur.lf = +line.slice(3);
-    else if (line.startsWith('LH:')) cur.lh = +line.slice(3);
-    else if (line.startsWith('BRF:')) cur.brf = +line.slice(4);
-    else if (line.startsWith('BRH:')) cur.brh = +line.slice(4);
-    else if (line.startsWith('FNF:')) cur.fnf = +line.slice(4);
-    else if (line.startsWith('FNH:')) cur.fnh = +line.slice(4);
-    else if (line.startsWith('DA:')) {
-      const [ln, hits] = line.slice(3).split(',');
-      if (+hits === 0) cur.uncovered.push(+ln);
-    } else if (line === 'end_of_record') { out.push(cur); cur = null; }
+    else if (line === 'end_of_record') { out.push(cur); cur = null; }
+    else applyLine(cur, line);
   }
   return out;
 }

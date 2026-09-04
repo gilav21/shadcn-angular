@@ -439,7 +439,7 @@ describe('memoisedBuilder', () => {
     it('memoises per package, so the two do not share a tarball', async () => {
         const { builds, build } = counter();
         await Promise.all([build('rte'), build('data-table')]);
-        expect(builds.toSorted((a, b) => a.localeCompare(b))).toEqual(['data-table', 'rte']);
+        expect([...builds].sort((a, b) => a.localeCompare(b))).toEqual(['data-table', 'rte']);
     });
 
     it('gives each builder its own memo rather than a module-wide one', async () => {

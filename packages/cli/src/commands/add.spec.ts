@@ -1044,6 +1044,7 @@ const asMock = (fn: unknown): Mock => fn as Mock;
 
 interface InstallCall {
   readonly components: ComponentName[];
+  readonly optionalDeps?: ComponentName[];
   readonly overwrite?: ComponentName[];
   readonly forceOverwrite?: boolean;
   readonly path?: string;

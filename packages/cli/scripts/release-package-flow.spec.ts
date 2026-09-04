@@ -128,7 +128,7 @@ describe('changedFilesSince', () => {
 describe('closureDirs', () => {
     it('reduces closure files to their parent directories, deduplicated', () => {
         const dirs = closureDirs(new Set(['a/b/x.ts', 'a/b/y.ts', 'a/c/z.ts']));
-        expect(dirs.toSorted((l, r) => l.localeCompare(r))).toEqual(['a/b', 'a/c']);
+        expect([...dirs].sort((l, r) => l.localeCompare(r))).toEqual(['a/b', 'a/c']);
     });
 
     it('drops a root-level path, which has no directory to scope by', () => {
