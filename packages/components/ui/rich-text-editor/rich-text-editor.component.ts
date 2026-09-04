@@ -3664,16 +3664,30 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     private syncContentFromEditor(): void {
-        const editorElement = this.getEditorElement();
-        if (editorElement) {
-            const html = this.sanitizer.sanitize(editorElement.innerHTML).replaceAll('\u200B', '');
-            this.htmlContent.set(html);
+        const html = this.readContentFromEditor();
+        if (html === null) return;
 
-            const outputValue = this.mode() === 'markdown'
-                ? this.markdownService.toMarkdown(html)
-                : html;
-            this.onChange(outputValue);
-        }
+        const outputValue = this.mode() === 'markdown'
+            ? this.markdownService.toMarkdown(html)
+            : html;
+        this.onChange(outputValue);
+    }
+
+    /**
+     * Re-reads the editable DOM into {@link htmlContent} and returns the
+     * sanitized html, WITHOUT notifying the form. Used where the model has to
+     * be current for a history snapshot but the value is about to change again
+     * \u2014 a Markdown input rule captures its pre-transform markers this way, and
+     * telling the form about that intermediate state would emit twice for one
+     * edit. Returns `null` when the editor element is not available.
+     */
+    private readContentFromEditor(): string | null {
+        const editorElement = this.getEditorElement();
+        if (!editorElement) return null;
+
+        const html = this.sanitizer.sanitize(editorElement.innerHTML).replaceAll('\u200B', '');
+        this.htmlContent.set(html);
+        return html;
     }
 
     private getMentionElementsInSelection(): HTMLElement[] {
@@ -4660,7 +4674,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     private snapshotBeforeTransform(): void {
         this.flushPendingHistoryPush();
-        this.syncContentFromEditor();
+        this.readContentFromEditor();
         this.pushHistory();
     }
 

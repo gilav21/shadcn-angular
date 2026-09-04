@@ -6975,6 +6975,36 @@ describe('RichTextEditorComponent markdown input rules', () => {
             expect(editor.querySelector('ul')).toBeNull();
         });
 
+        // Undo restores the literal markers. If the input event that an undo
+        // replay raises were treated as authoring, the rule would fire again
+        // and the markers the author asked to get back would vanish at once.
+        it('does not fire while replaying an undo', () => {
+            const block = seed('<p><br></p>');
+            const textNode = block.insertBefore(document.createTextNode('# '), block.firstChild) as Text;
+            setCaretAt(textNode, 2);
+            (component as unknown as { isUndoRedo: boolean }).isUndoRedo = true;
+
+            const applied = (
+                component as unknown as { applyInputRules(event: Event): boolean }
+            ).applyInputRules(new InputEvent('input', { inputType: 'insertText', data: ' ' }));
+
+            expect(applied).toBe(false);
+            expect(editor.querySelector('h1')).toBeNull();
+        });
+
+        // Deletions, history replays and formatting commands are not the author
+        // completing a marker, even when the text they leave behind looks like
+        // one — backspacing into "# " must not suddenly produce a heading.
+        it.each(['deleteContentBackward', 'historyUndo', 'formatBold'])(
+            'does not fire for inputType %s',
+            (inputType) => {
+                typeInto(seed('<p><br></p>'), '# ', inputType);
+
+                expect(editor.querySelector('h1')).toBeNull();
+                expect(editor.textContent).toContain('#');
+            }
+        );
+
         it('does not fire mid-composition (insertCompositionText)', () => {
             typeInto(seed('<p><br></p>'), '# ', 'insertCompositionText');
 
@@ -7020,6 +7050,21 @@ describe('RichTextEditorComponent markdown input rules', () => {
     it('emits htmlChange once per transform, carrying the transformed html', () => {
         const emissions: string[] = [];
         component.htmlChange.subscribe((html: string) => emissions.push(html));
+
+        typeInto(seed('<p><br></p>'), '# ');
+
+        expect(emissions).toHaveLength(1);
+        expect(emissions[0]).toContain('<h1');
+    });
+
+    // UC-14: one edit, one value. The pre-transform snapshot the history needs
+    // must not reach the form, or a reactive form sees the markers flash past.
+    it('notifies the form exactly once per transform, with the transformed value', () => {
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.detectChanges();
+
+        const emissions: string[] = [];
+        component.registerOnChange((value: string) => emissions.push(value));
 
         typeInto(seed('<p><br></p>'), '# ');
 
