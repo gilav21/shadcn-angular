@@ -1030,9 +1030,9 @@ semantics, opt-out, interplay with slash/mentions) and "Text style select"
 
 | # | Task | Proves | Status | Completed | Score | Retrospective |
 |---|------|--------|--------|-----------|-------|---------------|
-| 1 | Write failing tests T-1…T-8 (`rich-text-input-rules.spec.ts`), T-9…T-25 (editor `markdown input rules` describe), T-26…T-28 (editor `block-state activeFormats`), T-29…T-34 (toolbar), T-35/T-36 layout, and the e2e T-37…T-40 skeletons; record pre-spec coverage numbers for the touched files | UC-1…UC-22 | ⬜ Not started | — | — | — |
-| 2 | Implement `rich-text-input-rules.ts` (pure matchers, constants, types) — T-1…T-8 green | UC-1…UC-9 | ⬜ Not started | — | — | — |
-| 3 | Base block rules: `markdownShortcuts` input, `applyInputRules` + `inputRuleContext` + `tryBlockRule` + `applyBlockRule` + `createTaskListItem` extraction, `onInput` history branch, Enter-terminated code fence — T-9…T-15, T-22, T-23, T-25 green | UC-1…UC-6, UC-12…UC-14 | ⬜ Not started | — | — | — |
+| 1 | Write failing tests T-1…T-8 (`rich-text-input-rules.spec.ts`), T-9…T-25 (editor `markdown input rules` describe), T-26…T-28 (editor `block-state activeFormats`), T-29…T-34 (toolbar), T-35/T-36 layout, and the e2e T-37…T-40 skeletons; record pre-spec coverage numbers for the touched files | 🟡 Partial | 2026-09-04 23:18 | 93 | Wrote T-1…T-8 and the T-9…T-25 block-rule tests only; T-26…T-40 belong to tasks 5-9 and are not yet written. Four review rounds each caught tests that passed with the behaviour broken — guard tests seeded blocks containing text so the marker was never the whole prefix, a readonly test went through a path that returns early anyway, and a caret test asserted a downstream effect rather than the state. Lesson: seed the MINIMAL fixture that makes the guard the only thing standing in the way |
+| 2 | Implement `rich-text-input-rules.ts` (pure matchers, constants, types) — T-1…T-8 green | ✅ Done | 2026-09-04 23:18 | 93 | Pure matchers landed first and stayed stable; the terminator-set table beat the spec's requiresTerminator boolean. Sabotage found a real bug on the first run (`***` matched em with a `*` body). Later removed an unreachable non-breaking-space fold — dead code the test could not have caught |
+| 3 | Base block rules: `markdownShortcuts` input, `applyInputRules` + `inputRuleContext` + `tryBlockRule` + `applyBlockRule` + `createTaskListItem` extraction, `onInput` history branch, Enter-terminated code fence — T-9…T-15, T-22, T-23, T-25 green | ✅ Done | 2026-09-04 23:18 | 93 | Engine, guards, one-undo-step and Backspace revert all green with 26 sabotages caught. Five review rounds found six real defects: the undo mechanism untested, three missing revert-window hooks, a wiped code-fence newline, an unguarded Enter off-by-one, and a double form emission per keystroke. Improve later: write the sabotage BEFORE the test, not after |
 | 4 | Base inline rules (`tryInlineRule`, node split, `\u200B` caret parking) + Backspace revert (`lastInputRule`, `revertLastInputRule`, window-closing hooks) — T-16…T-21, T-24 green; run `npm run e2e -- rte-slash-commands rte-mentions` | UC-7…UC-11, UC-13 | ⬜ Not started | — | — | — |
 | 5 | Block-state detection: `detectBlockFormats` single walk (absorbs `detectTaskListFormat`), alignment mirroring, `indent`; toolbar `PRESSABLE` map + omitted `aria-pressed` on momentary buttons — T-26…T-29 green | UC-15…UC-18 | ⬜ Not started | — | — | — |
 | 6 | Text style select: `'textStyle'` union member + `TOOLBAR_BUTTONS` row + `TEXT_STYLE_OPTIONS`, template branch, `textStyleValue`, `onTextStyleChange`, css coarse rule, `toolbar.textStyle` in the interface + 10 locales, `DEFAULT_TOOLBAR_ITEMS` change — T-30…T-36 green | UC-19…UC-22 | ⬜ Not started | — | — | — |
@@ -1070,6 +1070,61 @@ Marking a row Done without all five is a process violation, not a shortcut.
 _Append one entry per task as it completes (date, score, reviewer rationale,
 follow-ups). Never edit or delete an earlier entry._
 
+### Tasks 1-3 — 2026-09-04 — review gate 93/100 (5 rounds)
+
+**Scope delivered.** The pure matcher module (`rich-text-input-rules.ts`,
+32 tests) and the base block-rule engine wired into the typing path
+(`applyInputRules` and helpers, 53 tests). Task 1 is recorded 🟡 Partial: it
+covers T-1…T-8 and the T-9…T-25 block half only. T-26…T-40 (block-state
+`activeFormats`, the toolbar, layout, e2e) belong to tasks 5-9 and are not
+written.
+
+**Reviewer rationale (round 5, 93/100).** "The in-scope block path matches
+§D.4.3 faithfully — `applyInputRules` runs at the top of `onInput` before
+`notifyInputObservers`, the guard set, the block/inline dispatch, the
+snapshot → transform → `pushHistory` one-undo-step sequence, the Backspace
+revert with all its window-closing hooks, and the keydown-driven code-fence
+path ordered ahead of `handleEnterInTaskList` are all present. I
+independently sabotaged seven behaviours and every one produced a failure with
+a name that matched the break, so the suite is potent rather than
+tautological; no test failed on a change the spec permits. The pure matcher
+module is exemplary."
+
+**Six real defects the gate caught**, none of which the passing suite had
+revealed:
+
+1. The one-undo-step mechanism and `snapshotBeforeTransform` had no test that
+   could fail — gutting either left 1700 tests green.
+2. Three of the five revert-window-closing hooks were missing, so clicking
+   elsewhere in a rule's block and pressing Backspace ran a full undo.
+3. `placeCaretAtStartOfBlock` wiped the newline `buildCodeBlockForRule` seeds
+   for the Enter-to-exit rule.
+4. `onInput` did not close the revert window, so an input with no preceding
+   keydown (IME commit, autocomplete) left it armed.
+5. The `markerLength - 1` off-by-one in `handleEnterOnCodeFence` was
+   unguarded — the fence test seeded no trailing text.
+6. `snapshotBeforeTransform` notified the form with the pre-transform value,
+   so one keystroke emitted twice to a reactive form (UC-14 violation).
+
+**Two findings were about the tests, not the code**: a non-breaking-space fold
+in the matcher proved to be unreachable dead code (deleted rather than tested),
+and `MAX_BLOCK_MARKER_LENGTH` has no DOM-observable effect, so its test covers
+the observable half and says so rather than faking a discriminating assertion.
+
+**Sabotage verification: 26 applied, all caught.** Notable near-misses fixed
+along the way — guard tests that seeded blocks containing text (so the marker
+was never the whole prefix and the guard was never the reason they passed), a
+readonly test routed through `onInput` which returns early regardless, and a
+caret-moved test asserting a downstream effect instead of the state.
+
+**Gates:** `tsc --noEmit` clean; eslint clean on the directory;
+rich-text-editor suite 63 files / 1724 tests green. SonarQube and the
+new-code coverage measurement are pending and belong to task 10.
+
+**Follow-ups for later tasks:** `onFormatCommand('undo')` truncates the redo
+branch because its trailing `applyMutation` pushes a fresh entry — pre-existing
+behaviour of the command path, worth a separate look.
+
 ## Plan corrections recorded by this spec (⚠️, never rewrite the plan silently)
 
 1. Toolbar pressed state: the base already reports `bulletList`/`orderedList`
@@ -1083,3 +1138,41 @@ follow-ups). Never edit or delete an earlier entry._
 4. `indent`/`outdent` do not get `aria-pressed`; nesting is exposed as data
    only (§D.4.4).
 5. C1 placement resolved: base, not addon (§0.9).
+
+## Spec corrections recorded during implementation (tasks 1-3)
+
+6. **§D.4.2's inline patterns admit a delimiter as the body.** The spec's
+   `strong` `/\*\*(?=\S)([^*]*?\S)\*\*$/` and `em`
+   `/(?<![*\w])\*(?=\S)([^*]*?\S)\*$/` use `\S` for the inner edges, so
+   `***` matches `em` with the body `*`. Implemented as `[^\s*]` on both
+   edges instead. Found by sabotage on the matchers' first run.
+7. **§D.4.2's `requiresTerminator` boolean cannot express the code fence.**
+   The fence accepts both a space and a newline while every other rule accepts
+   only a space, so the table carries a `terminators` array instead of a
+   boolean. Same behaviour, one fewer special case at the call site.
+8. **No whitespace folding is needed inside `matchBlockInputRule`.** §D.4.2
+   says "`\u00A0` is treated as a space before matching", but the caller
+   strips the terminator before calling and no marker pattern contains a
+   space, so the fold is unreachable. The non-breaking space is handled where
+   it actually arrives — `blockRuleTerminator`, which accepts either kind as
+   the terminating space, since a contenteditable materialises a typed space
+   as `&nbsp;`.
+9. **§D.4.3's terminator rule needed tightening.** "Terminator = `' '` when
+   `inputType === 'insertText' && data === ' '` **or** (test path) the prefix
+   ends with a space" — the "or" makes any insertion ending in a space complete
+   a marker, so dropping or pasting `"- "` silently becomes a list. Implemented
+   as: the prefix must end in a space AND the event must be an `insertText`
+   carrying a space (or carry no `data` at all, which is the synthetic test
+   event).
+10. **§D.4.3's `snapshotBeforeTransform` emits to the form twice.** It
+    specifies `flushPendingHistoryPush()` then `syncContentFromEditor()` +
+    `pushHistory()`, but `syncContentFromEditor` calls `onChange` — so a
+    reactive form receives the pre-transform markers and then the transformed
+    content for one keystroke, contradicting UC-14's "emits once". The DOM read
+    is now split into `readContentFromEditor`, which updates `htmlContent`
+    without notifying.
+11. **`MAX_BLOCK_MARKER_LENGTH` is a performance guard with no observable
+    behaviour.** §D.2 presents the cap as part of the rule check, but no prefix
+    longer than it can match a marker anyway, so removing it changes nothing a
+    test can see. Recorded here rather than covered by an assertion that would
+    only appear to discriminate.
