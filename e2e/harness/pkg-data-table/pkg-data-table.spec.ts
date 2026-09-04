@@ -34,9 +34,11 @@ test('Tailwind generated the package styles (computed layout, not a class string
     // Guards the `@source` line: without it Tailwind never scans node_modules,
     // no utilities are generated, and the table renders unstyled. The class
     // attribute is present either way, so assert the computed result instead.
+    // `ui-data-table`'s host carries `block h-full w-full`; a custom element is
+    // `inline` by default, so `block` can only come from a generated utility.
     const table = page.locator('[data-testid="table"]').first();
     await expect(table).toBeVisible();
-    await expect(table).not.toHaveCSS('display', 'inline');
+    await expect(table).toHaveCSS('display', 'block');
 });
 
 test('the context-menu addon renders the row-action button and fires an action', async ({ page }) => {

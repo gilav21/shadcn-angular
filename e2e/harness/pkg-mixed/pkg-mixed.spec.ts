@@ -47,6 +47,18 @@ test('the package editor keeps its addon slots in a mixed app', async ({ page })
     ).toBeVisible();
 });
 
+test('the package is styled in a mixed app too', async ({ page }) => {
+    await page.goto('/');
+
+    // `init` writes a tailwind.css whose `@source` globs cover only the
+    // consumer's own `../src/**`, so a mixed app must ALSO register the
+    // package's path or its components render unstyled. Computed style, not a
+    // class string — the class is in the DOM either way.
+    const toolbar = page.locator('[data-testid="editor"] ui-rich-text-toolbar').first();
+    await expect(toolbar).toBeVisible();
+    await expect(toolbar).toHaveCSS('display', 'block');
+});
+
 test('two independent button implementations exist on one page', async ({ page }) => {
     await page.goto('/');
 

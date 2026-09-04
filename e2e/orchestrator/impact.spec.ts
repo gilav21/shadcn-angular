@@ -177,6 +177,20 @@ describe('package spec impact (T-18)', () => {
         expect(computeImpact('HEAD', ['packages/cli/scripts/stage-package-lib.ts']).kind).toBe('all');
     });
 
+    // `lib/utils.ts` is a BASELINE lib file: no registry entry declares it, yet
+    // it is staged into BOTH packages and every component's `cn()` depends on
+    // it. Without an explicit rule the registry lookup finds no owner and it
+    // would schedule nothing — a change to the one file every component imports
+    // would skip the package legs entirely.
+    it('the baseline lib/utils.ts schedules every package leg', () => {
+        const result = computeImpact('HEAD', ['packages/components/lib/utils.ts']);
+        if (result.kind === 'all') return; // a tripwire is also safe
+        expect(result.kind).toBe('subset');
+        expect(result.specs).toEqual(
+            expect.arrayContaining(['pkg-rte', 'pkg-rte-ng21', 'pkg-data-table', 'pkg-data-table-ng21']),
+        );
+    });
+
     it('an unrelated component schedules no package spec', () => {
         const specs = subsetFor('packages/components/ui/accordion/accordion.component.ts');
         for (const label of ['pkg-rte', 'pkg-rte-ng21', 'pkg-data-table', 'pkg-data-table-ng21', 'pkg-mixed']) {

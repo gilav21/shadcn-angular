@@ -222,6 +222,38 @@ describe('release-package entry (fixture repo)', () => {
         expect(run.output).not.toContain('VERDICT');
     }, 60_000);
 
+    // Regression: the revert used to be a blanket `git checkout -- <both
+    // files>`. On a package's FIRST release CHANGELOG.md is brand new, so git
+    // exits 1 with "pathspec did not match any file(s) known to git", killing
+    // the script mid-revert and leaving the bumped package.json plus an
+    // untracked CHANGELOG behind — exactly the dirty tree the revert exists to
+    // prevent. The preflight is forced to fail here by pointing the npm script
+    // it runs at a command that always exits non-zero.
+    it('reverts cleanly when the preflight fails on a FIRST release (untracked CHANGELOG)', () => {
+        root = seedFixture('closure');
+        write(root, 'package.json', JSON.stringify({
+            type: 'module',
+            scripts: { 'build:package': 'node -e "process.exit(1)"' },
+        }, null, 2));
+        commitAll(root, 'chore: fixture npm scripts');
+
+        const run = runScript(fixtureScript(root, 'release-package.ts'), [
+            'rte', 'patch', '--no-push',
+        ]);
+
+        expect(run.status).toBe(1);
+        expect(run.output).toContain('Preflight FAILED');
+
+        // The bump is undone...
+        expect(readFileSync(path.join(root, 'packages/rte-package/package.json'), 'utf-8'))
+            .toContain('"version": "0.1.0"');
+        // ...the brand-new CHANGELOG is removed rather than left untracked...
+        expect(existsSync(path.join(root, 'packages/rte-package/CHANGELOG.md'))).toBe(false);
+        // ...and nothing was committed, tagged, or left dirty.
+        expect(git(root, 'status', '--porcelain')).toBe('');
+        expect(git(root, 'tag', '--list')).toBe('');
+    }, 90_000);
+
     it('exits 1 with usage on a bad package id or bump level', () => {
         const bad = release('closure', ['rtee', 'patch', '--dry-run', '--skip-preflight']);
         expect(bad.status).toBe(1);

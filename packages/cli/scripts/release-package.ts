@@ -25,7 +25,7 @@
  * nothing on disk or in git.
  */
 import { execFileSync, execSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -190,6 +190,33 @@ function runPreflight(id: PackageId, args: PackageReleaseArgs, revert: () => voi
 }
 
 /**
+ * Undoes the bump + changelog write after a failed preflight.
+ *
+ * Each path is handled by whether git actually TRACKS it, not by assuming both
+ * are tracked: on a package's FIRST release `CHANGELOG.md` is brand new, and a
+ * blanket `git checkout -- <both>` fails with "pathspec did not match any
+ * file(s) known to git", killing the script mid-revert and leaving exactly the
+ * dirty tree this exists to prevent. A revert failure must also never mask the
+ * preflight failure that triggered it, so problems here are reported, not thrown.
+ */
+function revertReleaseFiles(paths: readonly string[]): void {
+    for (const rel of paths) {
+        try {
+            const tracked = gitOrNull('ls-files', '--error-unmatch', '--', rel) !== null;
+            if (tracked) {
+                git('checkout', '--', rel);
+            } else {
+                rmSync(path.join(REPO_ROOT, rel), { force: true });
+            }
+        } catch (error) {
+            console.error(
+                `  could not revert ${rel}: ${error instanceof Error ? error.message : String(error)}`,
+            );
+        }
+    }
+}
+
+/**
  * Computes the next version, its tag and the changelog block, and prints both
  * for the maintainer. Pure apart from the logging — nothing is written here, so
  * the dry-run and the real run share exactly this computation.
@@ -280,7 +307,7 @@ function main(): number {
     const existing = existsSync(changelogPath) ? readFileSync(changelogPath, 'utf-8') : null;
     writeFileSync(changelogPath, prependRelease(existing, block, packageChangelogHeader(id)));
 
-    runPreflight(id, args, () => git('checkout', '--', ...releasePaths));
+    runPreflight(id, args, () => revertReleaseFiles(releasePaths));
 
     git(...add);
     git(...commit);

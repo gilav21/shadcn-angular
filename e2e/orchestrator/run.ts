@@ -16,7 +16,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { CliSpec } from '../cli-specs/_types.js';
 import { buildPackageTarball } from '../../packages/cli/scripts/package-build.js';
-import { consumerCssSnippet } from '../../packages/cli/scripts/stage-package-lib.js';
+import { PACKAGE_NAMES, consumerCssSnippet } from '../../packages/cli/scripts/stage-package-lib.js';
 import {
     ALL_COMPONENTS,
     CLI_SPECS,
@@ -85,6 +85,25 @@ function remoteCliArgs(flags: CliFlags): string[] {
  */
 async function installPackages(spec: ComponentSpec, fixtureApp: string): Promise<void> {
     const ids = spec.packages ?? [];
+
+    if (spec.names.length > 0) {
+        // MIXED mode: `init` already wrote a tailwind.css, but its `@source`
+        // globs only cover `../src/**` — the consumer's own tree. Without an
+        // extra `@source` for the package, Tailwind never scans node_modules
+        // and the package's components render unstyled in exactly the app that
+        // most needs to look right. Appending is what a real mixed consumer
+        // does, and it keeps this leg able to catch a styling regression.
+        const tailwindCss = path.join(fixtureApp, 'src/tailwind.css');
+        if (fs.existsSync(tailwindCss)) {
+            const existing = fs.readFileSync(tailwindCss, 'utf-8');
+            const sources = ids
+                .map((id) => `@source "../node_modules/${PACKAGE_NAMES[id]}";`)
+                .filter((line) => !existing.includes(line));
+            if (sources.length > 0) {
+                fs.writeFileSync(tailwindCss, `${existing.trimEnd()}\n${sources.join('\n')}\n`);
+            }
+        }
+    }
 
     if (spec.names.length === 0) {
         await run('npm', [

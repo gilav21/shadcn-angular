@@ -46,6 +46,18 @@ import { PACKAGE_ROOTS } from '../../packages/cli/scripts/stage-package-lib.js';
 const REGISTRY_FILE = 'packages/cli/src/registry/index.ts';
 
 /**
+ * Lib files the CLI writes for every project, which therefore belong to no
+ * registry entry. They are staged into every compiled package, so a change here
+ * has to schedule the package legs explicitly — see `addOneFileImpact`.
+ */
+const BASELINE_LIB_FILES = new Set(['packages/components/lib/utils.ts']);
+
+/** Package ids actually referenced by the spec catalogue. */
+const PACKAGE_IDS_IN_SPECS: readonly string[] = [
+    ...new Set(ALL_COMPONENTS.flatMap((spec) => [...(spec.packages ?? [])])),
+];
+
+/**
  * Files whose change fans out to the full suite — they affect every
  * install behaviour independently of which component changed. The
  * registry-driven classification handles `packages/components/` itself,
@@ -342,6 +354,18 @@ function addOneFileImpact(file: string, impacted: Set<string>): boolean {
     if (pkg) {
         for (const label of specsInstallingPackage(pkg[1])) impacted.add(label);
         return true;
+    }
+
+    // A BASELINE lib file (`lib/utils.ts`) belongs to no registry entry — the
+    // CLI writes it for every project — so the registry lookup below finds no
+    // owner and would schedule nothing. It is staged into every package and
+    // every component's `cn()` imports it, so a change here must run the
+    // package legs at minimum.
+    if (BASELINE_LIB_FILES.has(file)) {
+        for (const id of PACKAGE_IDS_IN_SPECS) {
+            for (const label of specsInstallingPackage(id)) impacted.add(label);
+        }
+        // Fall through: the copy-model specs still resolve via the lib lookup.
     }
 
     // Per-harness changes scope to exactly that harness's labels. (A pkg-*
