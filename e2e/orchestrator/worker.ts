@@ -23,7 +23,12 @@ const PRESERVED = new Set(['node_modules', '.angular', 'dist']);
  * fixture, one port and one harness page.
  */
 export interface Worker {
-    readonly index: number;
+    /**
+     * Pool position, used for log prefixes and for the "worker 0 owns the
+     * canonical fixture" checks. The dedicated Angular 21 worker is outside the
+     * pool and identifies itself by name instead of by number.
+     */
+    readonly index: number | string;
     readonly fixtureApp: string;
     readonly port: number;
     readonly baseUrl: string;
@@ -40,7 +45,7 @@ export interface Worker {
  * what is actually free costs milliseconds and removes a whole class of
  * "port already in use" failures that have nothing to do with the tests.
  */
-async function findFreePort(from: number): Promise<number> {
+export async function findFreePort(from: number): Promise<number> {
     for (let port = from; port < from + 200; port++) {
         const free = await new Promise<boolean>(resolve => {
             const probe = net.createServer()
