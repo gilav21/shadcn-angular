@@ -736,8 +736,11 @@ describe('promptAddons', () => {
     );
 
     expect(result).toEqual(['data-table/export']);
-    expect(warn).toHaveBeenCalled();
-    expect(String(warn.mock.calls.at(-1)![0])).toContain('data-table/not-in-this-registry');
+    // The §D.3 wording, pinned: it names the preset, the missing key, and that
+    // the run continues.
+    expect(String(warn.mock.calls.at(-1)![0])).toContain(
+      'Preset "reporting" lists data-table/not-in-this-registry, which this registry does not offer — skipping.',
+    );
   });
 
   it('pre-selects the preset in the interactive multiselect and returns the picks (T-16)', async () => {
@@ -786,6 +789,27 @@ describe('promptAddons', () => {
     );
 
     expect(result).toEqual(['data-table/context-menu', 'data-table/export', 'data-table/pivot']);
+    expect(prompts).not.toHaveBeenCalled();
+  });
+
+  it('--yes is decided before --all, so --all --yes stays lean (T-18)', async () => {
+    // Guards the decision ORDER, not just the individual flags: with --all
+    // checked first, this would return every addon instead of the preset's.
+    const result = await promptAddons(
+      new Set<ComponentName>(['data-table']),
+      { all: true, yes: true, preset: 'reporting', branch: 'master' },
+      ['data-table/export'] as ComponentName[],
+    );
+
+    expect(result).toEqual(['data-table/export']);
+  });
+
+  it('--all --yes without a preset installs no addons, as it always has (T-18)', async () => {
+    const result = await promptAddons(
+      new Set<ComponentName>(['data-table']), { all: true, yes: true, branch: 'master' }, [],
+    );
+
+    expect(result).toEqual([]);
   });
 });
 

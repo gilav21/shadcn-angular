@@ -196,11 +196,14 @@ function selectAddons(
     options: AddOptions, choices: AddonChoice[], preselected: readonly ComponentName[],
 ): ComponentName[] | null {
     if (options.addons === false) return [];
-    if (options.all) return choices.map(c => c.name as ComponentName);
     if (options.with !== undefined) {
         return unionAddons(preselected, selectAddonsByFlag(options.with, choices));
     }
+    // `--yes` before `--all`, matching promptOptionalDependencies: `--yes` alone
+    // stays lean (it only takes what `--preset` pre-selected), and `--all --yes`
+    // keeps its existing meaning rather than suddenly pulling every addon.
     if (options.yes) return [...preselected];
+    if (options.all) return choices.map(c => c.name as ComponentName);
     return null;
 }
 
