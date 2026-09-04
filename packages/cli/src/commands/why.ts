@@ -64,15 +64,27 @@ export interface AddonMetaLine {
 }
 
 /**
+ * `core (0 addons), writing (4), media (3)` — the unit is spelled out once on
+ * the first entry and implied by the bare counts after it.
+ */
+function formatPresets(presets: Readonly<Record<string, readonly string[]>>): string {
+    return Object.entries(presets)
+        .map(([name, keys], i) => `${name} (${keys.length}${i === 0 ? ' addons' : ''})`)
+        .join(', ');
+}
+
+/**
  * Addon-related lines for `why`, mirroring what MCP `get_component` surfaces: a
- * base lists its opt-in `addons`; an `addon` entry shows the parent it attaches
- * to and how (`Attach: <selector> (import <symbol>)`). Returned uncolored so it
- * is unit-testable independent of the terminal styling.
+ * base lists its opt-in `addons` and any `presets` that bundle them; an `addon`
+ * entry shows the parent it attaches to and how
+ * (`Attach: <selector> (import <symbol>)`). Returned uncolored so it is
+ * unit-testable independent of the terminal styling.
  */
 export function formatAddonMeta(def: ComponentDefinition): AddonMetaLine[] {
     const lines: AddonMetaLine[] = [];
     const addons = def.addons ?? [];
     if (addons.length > 0) lines.push({ label: 'Addons', value: addons.join(', ') });
+    if (def.presets) lines.push({ label: 'Presets', value: formatPresets(def.presets) });
     if (def.type === 'addon' && def.parent) {
         lines.push({ label: 'Addon of', value: def.parent });
         if (def.attach) {

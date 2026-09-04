@@ -51,6 +51,7 @@ function registerInstallCommands(program: Command): void {
         .option('-o, --overwrite', 'Overwrite existing files whole-file (add never 3-way merges; see update/apply)')
         .option('-a, --all', 'Add all available components')
         .option('--with <addons>', 'Comma-separated addon keys (parent/addon) to include, or "all"')
+        .option('--preset <name>', 'Pre-select a named addon bundle (see `why <component>` → Presets)')
         .option('--no-addons', 'Skip optional addons (do not prompt)')
         .option('-p, --path <path>', 'The path to add the component to')
         .option('--remote', 'Force remote fetch from GitHub registry')

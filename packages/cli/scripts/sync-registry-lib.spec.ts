@@ -1124,6 +1124,44 @@ describe('parseRegistrySource', () => {
         expect(editor?.libFiles).toEqual(['utils2.ts']);
     });
 
+    it('keeps an entry parsable when a presets object precedes files (T-30)', () => {
+        // `presets` is a nested object literal; the parser must not truncate the
+        // entry at its closing brace and lose the arrays that follow.
+        const source = `export const registry = {
+  editor: {
+    name: 'editor',
+    addons: ['editor/emoji', 'editor/links'],
+    presets: {
+      core: [],
+      writing: ['editor/links'],
+      everything: ['editor/emoji', 'editor/links'],
+    },
+    files: ['editor/index.ts', 'editor/editor.component.ts'],
+    dependencies: ['button'],
+    libFiles: ['utils2.ts'],
+  },
+};`;
+        const editor = parseRegistrySource(source).find(e => e.name === 'editor');
+        expect(editor?.files).toEqual(['editor/index.ts', 'editor/editor.component.ts']);
+        expect(editor?.dependencies).toEqual(['button']);
+        expect(editor?.libFiles).toEqual(['utils2.ts']);
+    });
+
+    it('does not mistake a preset name for a registry entry (T-30)', () => {
+        const source = `export const registry = {
+  editor: {
+    name: 'editor',
+    presets: {
+      core: [],
+      writing: ['editor/links'],
+    },
+    files: ['editor/index.ts'],
+  },
+};`;
+        const names = parseRegistrySource(source).map(e => e.name);
+        expect(names).toEqual(['editor']);
+    });
+
     it('captures type, parent, and the attach import/selector of an addon entry', () => {
         const source = `export const registry = {
   'editor/emoji': {

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import fs from 'fs-extra';
-import { classifyComponent, summarizePlan, collectBreakingChanges, collectSuggestedAddons } from './plan.js';
+import { classifyComponent, summarizePlan, collectBreakingChanges, collectSuggestedAddons, buildInstallSummary } from './plan.js';
 import { registry } from '../registry/index.js';
 
 vi.mock('fs-extra', () => ({
@@ -141,5 +141,135 @@ describe('summarizePlan', () => {
       new Set(['badge']),
     );
     expect(plan.suggestedAddons).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildInstallSummary — the grouped install summary (UC-1 … UC-7)
+// ---------------------------------------------------------------------------
+
+describe('buildInstallSummary', () => {
+  const names = (group: { components: readonly { name: string }[] }): string[] =>
+    group.components.map(c => c.name);
+
+  it('groups a lone requested base and its shared deps (T-1)', () => {
+    const summary = buildInstallSummary({
+      requested: ['rich-text-editor'],
+      chosen: [],
+      written: ['rich-text-editor', 'separator'],
+      skipped: [],
+      declined: [],
+    });
+
+    expect(names(summary.requested)).toEqual(['rich-text-editor']);
+    expect(names(summary.shared)).toEqual(['separator']);
+    expect(names(summary.addons)).toEqual([]);
+  });
+
+  it('counts files per component from registry.files and totals them (T-2)', () => {
+    const summary = buildInstallSummary({
+      requested: ['rich-text-editor'],
+      chosen: [],
+      written: ['rich-text-editor', 'separator'],
+      skipped: [],
+      declined: [],
+    });
+
+    const rteFiles = registry['rich-text-editor'].files.length;
+    const sepFiles = registry['separator'].files.length;
+    expect(summary.requested.components[0]).toEqual({ name: 'rich-text-editor', files: rteFiles });
+    expect(summary.requested.files).toBe(rteFiles);
+    expect(summary.shared.files).toBe(sepFiles);
+    expect(summary.totalFiles).toBe(rteFiles + sepFiles);
+  });
+
+  it('dedupes shared lib files across the written set (T-3)', () => {
+    const summary = buildInstallSummary({
+      requested: ['rich-text-editor'],
+      chosen: ['rich-text-editor/links'],
+      written: ['rich-text-editor', 'rich-text-editor/links'],
+      skipped: [],
+      declined: [],
+    });
+
+    const union = new Set([
+      ...(registry['rich-text-editor'].libFiles ?? []),
+      ...(registry['rich-text-editor/links'].libFiles ?? []),
+    ]);
+    expect(summary.libFiles).toBe(union.size);
+    const summed = (registry['rich-text-editor'].libFiles ?? []).length
+      + (registry['rich-text-editor/links'].libFiles ?? []).length;
+    expect(summary.libFiles).toBeLessThan(summed);
+  });
+
+  it('puts chosen addons under addons and an addon-only dep under shared (T-4)', () => {
+    const summary = buildInstallSummary({
+      requested: ['rich-text-editor'],
+      chosen: ['rich-text-editor/links'],
+      written: ['rich-text-editor', 'rich-text-editor/links', 'popover', 'separator'],
+      skipped: [],
+      declined: [],
+    });
+
+    expect(names(summary.requested)).toEqual(['rich-text-editor']);
+    expect(names(summary.addons)).toEqual(['rich-text-editor/links']);
+    expect(names(summary.shared)).toEqual(['popover', 'separator']);
+    expect(summary.hasCompanions).toBe(false);
+  });
+
+  it('flags hasCompanions when a non-addon companion was chosen (T-4)', () => {
+    const summary = buildInstallSummary({
+      requested: ['tree'],
+      chosen: ['context-menu'],
+      written: ['tree', 'context-menu'],
+      skipped: [],
+      declined: [],
+    });
+
+    expect(names(summary.addons)).toEqual(['context-menu']);
+    expect(summary.hasCompanions).toBe(true);
+  });
+
+  it('treats a directly requested addon as Requested and its base as shared (T-4)', () => {
+    const summary = buildInstallSummary({
+      requested: ['rich-text-editor/links'],
+      chosen: [],
+      written: ['rich-text-editor/links', 'rich-text-editor'],
+      skipped: [],
+      declined: [],
+    });
+
+    expect(names(summary.requested)).toEqual(['rich-text-editor/links']);
+    expect(names(summary.shared)).toEqual(['rich-text-editor']);
+  });
+
+  it('puts skipped components under skipped and excludes them from totalFiles (T-5)', () => {
+    const summary = buildInstallSummary({
+      requested: ['badge'],
+      chosen: [],
+      written: [],
+      skipped: ['badge', 'skeleton'],
+      declined: [],
+    });
+
+    expect(names(summary.skipped)).toEqual(['badge', 'skeleton']);
+    expect(summary.skipped.files).toBe(
+      registry['badge'].files.length + registry['skeleton'].files.length,
+    );
+    expect(summary.totalFiles).toBe(0);
+    expect(summary.requested.components).toEqual([]);
+  });
+
+  it('reports declined components without counting their files (T-5)', () => {
+    const summary = buildInstallSummary({
+      requested: ['badge'],
+      chosen: [],
+      written: [],
+      skipped: [],
+      declined: ['badge'],
+    });
+
+    expect(summary.declined).toEqual(['badge']);
+    expect(summary.totalFiles).toBe(0);
   });
 });

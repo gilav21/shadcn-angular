@@ -39,6 +39,12 @@ export interface ComponentSpec {
     /** Optional `init` CLI args. Defaults to `init --yes`. */
     readonly initArgs?: readonly string[];
     /**
+     * Extra `add` flags, spliced in before `--yes` (e.g.
+     * `['--preset', 'writing']`). The impact analyzer reads `names` only, so
+     * these do not affect which specs a diff selects.
+     */
+    readonly addArgs?: readonly string[];
+    /**
      * Display label for logs and spec-file resolution. Required when
      * `names` has more than one component, otherwise defaults to `names[0]`.
      */
@@ -156,6 +162,16 @@ const EXPLICIT_SPECS: readonly ComponentSpec[] = [
     {
         names: ['rich-text-editor', 'rich-text-editor/links'],
         label: 'rte-links',
+    },
+    // presets: install the editor with `--preset writing` alone — the four
+    // addons come from the registry's preset, not from the command line — then
+    // reuse the rte-links harness to prove `links` really landed and wires up
+    // in a pristine consumer install.
+    {
+        names: ['rich-text-editor'],
+        addArgs: ['--preset', 'writing'],
+        label: 'rte-preset-writing',
+        harnessFolder: 'rte-links',
     },
     // addon system (rich-text): install the editor + its `tables` addon; prove the
     // table button + 8×8 grid picker appear only on the addon editor and that
