@@ -176,9 +176,24 @@ const EXPECTED_DEPENDENCIES = ['class-variance-authority', 'clsx', 'tailwind-mer
 /** Angular majors a consumer may install these packages into (spec C-17). */
 export const ANGULAR_PEER_RANGE = '>=20.0.0 <22.0.0';
 
-export function assertPackedManifest(id: PackageId): void {
-    const manifest = JSON.parse(readFileSync(path.join(distDir(id), 'package.json'), 'utf-8'));
+/** The fields of a packed `package.json` the structural gate inspects. */
+export interface PackedManifest {
+    readonly name?: string;
+    readonly sideEffects?: unknown;
+    readonly exports?: Record<string, unknown>;
+    readonly peerDependencies?: Record<string, string>;
+    readonly dependencies?: Record<string, string>;
+}
 
+export function assertPackedManifest(id: PackageId): void {
+    checkPackedManifest(id, JSON.parse(readFileSync(path.join(distDir(id), 'package.json'), 'utf-8')));
+}
+
+/**
+ * The decision half of {@link assertPackedManifest}, split from the file read so
+ * it can be unit-tested against a literal manifest instead of a real build.
+ */
+export function checkPackedManifest(id: PackageId, manifest: PackedManifest): void {
     if (manifest.name !== PACKAGE_NAMES[id]) {
         throw new Error(`[package-build] ${id}: packed name is "${manifest.name}".`);
     }
