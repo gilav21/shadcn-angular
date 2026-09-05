@@ -26,6 +26,8 @@ export interface RichTextLocale extends LocaleMeta {
         outdent: string;
         taskList: string;
         horizontalRule: string;
+        /** Tooltip of the toolbar button that opens find & replace. */
+        find: string;
     };
 
     findReplace: {
@@ -37,6 +39,20 @@ export interface RichTextLocale extends LocaleMeta {
         caseSensitive: string;
         noResults: string;
         close: string;
+        /** Restrict matches to whole words. */
+        wholeWord: string;
+        /** Treat the query as a regular expression. */
+        useRegex: string;
+        /** Shown in the counter when the pattern cannot be compiled. */
+        invalidRegex: string;
+        /** Match counter; interpolates {current} and {total}. */
+        matchCounter: string;
+        /** Accessible name of the previous-match button. */
+        previous: string;
+        /** Accessible name of the next-match button. */
+        next: string;
+        /** Tooltip of the toolbar button that opens the panel. */
+        findToolbar: string;
     };
 
 
@@ -104,6 +120,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'Decrease Indent',
             taskList: 'Task List',
             horizontalRule: 'Horizontal Rule',
+            find: 'Find and replace',
         },
         findReplace: {
             find: 'Find',
@@ -114,6 +131,13 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: 'Match Case',
             noResults: 'No results',
             close: 'Close',
+            wholeWord: 'Whole word',
+            useRegex: 'Regular expression',
+            invalidRegex: 'Invalid expression',
+            matchCounter: '{current} of {total}',
+            previous: 'Previous match',
+            next: 'Next match',
+            findToolbar: 'Find and replace',
         },
         table: {
             rows: 'Rows',
@@ -176,6 +200,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'הקטנת הזחה',
             taskList: 'רשימת משימות',
             horizontalRule: 'קו אופקי',
+            find: 'חיפוש והחלפה',
         },
         findReplace: {
             find: 'חיפוש',
@@ -186,6 +211,13 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: 'התאמת רישיות',
             noResults: 'אין תוצאות',
             close: 'סגירה',
+            wholeWord: 'מילה שלמה',
+            useRegex: 'ביטוי רגולרי',
+            invalidRegex: 'ביטוי לא תקין',
+            matchCounter: '{current} מתוך {total}',
+            previous: 'התאמה קודמת',
+            next: 'התאמה הבאה',
+            findToolbar: 'חיפוש והחלפה',
         },
         table: {
             rows: 'שורות',
@@ -248,6 +280,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'تقليل المسافة البادئة',
             taskList: 'قائمة المهام',
             horizontalRule: 'خط أفقي',
+            find: 'بحث واستبدال',
         },
         findReplace: {
             find: 'بحث',
@@ -258,6 +291,13 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: 'مطابقة الحالة',
             noResults: 'لا توجد نتائج',
             close: 'إغلاق',
+            wholeWord: 'كلمة كاملة',
+            useRegex: 'تعبير نمطي',
+            invalidRegex: 'تعبير غير صالح',
+            matchCounter: '{current} من {total}',
+            previous: 'التطابق السابق',
+            next: 'التطابق التالي',
+            findToolbar: 'بحث واستبدال',
         },
         table: {
             rows: 'صفوف',
@@ -319,6 +359,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'Einzug verkleinern',
             taskList: 'Aufgabenliste',
             horizontalRule: 'Horizontale Linie',
+            find: 'Suchen und ersetzen',
         },
         findReplace: {
             find: 'Suchen',
@@ -329,6 +370,13 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: 'Groß-/Kleinschreibung',
             noResults: 'Keine Ergebnisse',
             close: 'Schließen',
+            wholeWord: 'Ganzes Wort',
+            useRegex: 'Regulärer Ausdruck',
+            invalidRegex: 'Ungültiger Ausdruck',
+            matchCounter: '{current} von {total}',
+            previous: 'Vorheriger Treffer',
+            next: 'Nächster Treffer',
+            findToolbar: 'Suchen und ersetzen',
         },
         table: {
             rows: 'Zeilen',
@@ -390,6 +438,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'Diminuer le retrait',
             taskList: 'Liste de tâches',
             horizontalRule: 'Ligne horizontale',
+            find: 'Rechercher et remplacer',
         },
         findReplace: {
             find: 'Rechercher',
@@ -400,6 +449,13 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: 'Respecter la casse',
             noResults: 'Aucun résultat',
             close: 'Fermer',
+            wholeWord: 'Mot entier',
+            useRegex: 'Expression régulière',
+            invalidRegex: 'Expression invalide',
+            matchCounter: '{current} sur {total}',
+            previous: 'Résultat précédent',
+            next: 'Résultat suivant',
+            findToolbar: 'Rechercher et remplacer',
         },
         table: {
             rows: 'Lignes',
@@ -461,6 +517,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'Disminuir sangría',
             taskList: 'Lista de tareas',
             horizontalRule: 'Línea horizontal',
+            find: 'Buscar y reemplazar',
         },
         findReplace: {
             find: 'Buscar',
@@ -471,6 +528,13 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: 'Coincidir mayúsculas',
             noResults: 'Sin resultados',
             close: 'Cerrar',
+            wholeWord: 'Palabra completa',
+            useRegex: 'Expresión regular',
+            invalidRegex: 'Expresión no válida',
+            matchCounter: '{current} de {total}',
+            previous: 'Coincidencia anterior',
+            next: 'Coincidencia siguiente',
+            findToolbar: 'Buscar y reemplazar',
         },
         table: {
             rows: 'Filas',
@@ -532,6 +596,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'インデントを減らす',
             taskList: 'タスクリスト',
             horizontalRule: '水平線',
+            find: '検索と置換',
         },
         findReplace: {
             find: '検索',
@@ -542,6 +607,13 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: '大文字小文字を区別',
             noResults: '結果なし',
             close: '閉じる',
+            wholeWord: '単語単位',
+            useRegex: '正規表現',
+            invalidRegex: '無効な式',
+            matchCounter: '{total} 件中 {current} 件目',
+            previous: '前の一致',
+            next: '次の一致',
+            findToolbar: '検索と置換',
         },
         table: {
             rows: '行',
@@ -603,6 +675,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: '减少缩进',
             taskList: '任务列表',
             horizontalRule: '水平线',
+            find: '查找和替换',
         },
         findReplace: {
             find: '查找',
@@ -613,6 +686,13 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: '区分大小写',
             noResults: '无结果',
             close: '关闭',
+            wholeWord: '全字匹配',
+            useRegex: '正则表达式',
+            invalidRegex: '表达式无效',
+            matchCounter: '第 {current} 项，共 {total} 项',
+            previous: '上一个匹配',
+            next: '下一个匹配',
+            findToolbar: '查找和替换',
         },
         table: {
             rows: '行',
@@ -674,6 +754,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'Уменьшить отступ',
             taskList: 'Список задач',
             horizontalRule: 'Горизонтальная линия',
+            find: 'Найти и заменить',
         },
         findReplace: {
             find: 'Найти',
@@ -684,6 +765,13 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: 'С учётом регистра',
             noResults: 'Нет результатов',
             close: 'Закрыть',
+            wholeWord: 'Слово целиком',
+            useRegex: 'Регулярное выражение',
+            invalidRegex: 'Некорректное выражение',
+            matchCounter: '{current} из {total}',
+            previous: 'Предыдущее совпадение',
+            next: 'Следующее совпадение',
+            findToolbar: 'Найти и заменить',
         },
         table: {
             rows: 'Строки',
@@ -745,6 +833,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'Diminuir recuo',
             taskList: 'Lista de tarefas',
             horizontalRule: 'Linha horizontal',
+            find: 'Localizar e substituir',
         },
         findReplace: {
             find: 'Localizar',
@@ -755,6 +844,13 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: 'Diferenciar maiúsculas',
             noResults: 'Sem resultados',
             close: 'Fechar',
+            wholeWord: 'Palavra inteira',
+            useRegex: 'Expressão regular',
+            invalidRegex: 'Expressão inválida',
+            matchCounter: '{current} de {total}',
+            previous: 'Correspondência anterior',
+            next: 'Próxima correspondência',
+            findToolbar: 'Localizar e substituir',
         },
         table: {
             rows: 'Linhas',

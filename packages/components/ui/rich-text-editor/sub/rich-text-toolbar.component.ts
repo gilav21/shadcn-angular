@@ -79,7 +79,8 @@ export type ToolbarItem =
   | 'indent'
   | 'outdent'
   | 'taskList'
-  | 'horizontalRule';
+  | 'horizontalRule'
+  | 'find';
 
 /** Every toolbar item that renders a button — `ToolbarItem` minus the visual `'separator'`. */
 export type ToolbarButtonItem = Exclude<ToolbarItem, 'separator'>;
@@ -134,6 +135,7 @@ export const TOOLBAR_BUTTONS: Record<ToolbarButtonItem, ToolbarButton> = {
   outdent: { id: 'outdent', label: 'Decrease Indent', localeKey: 'outdent', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="7 8 3 12 7 16"/><line x1="21" x2="11" y1="12" y2="12"/><line x1="21" x2="11" y1="6" y2="6"/><line x1="21" x2="11" y1="18" y2="18"/></svg>` },
   taskList: { id: 'taskList', label: 'Task List', localeKey: 'taskList', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></svg>` },
   horizontalRule: { id: 'horizontalRule', label: 'Horizontal Rule', localeKey: 'horizontalRule', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg>` },
+  find: { id: 'find', label: 'Find and replace', localeKey: 'find', shortcut: 'Ctrl+F', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>` },
 };
 
 /**

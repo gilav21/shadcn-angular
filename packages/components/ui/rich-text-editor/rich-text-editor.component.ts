@@ -22,6 +22,12 @@ import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 import { RichTextMarkdownService } from './rich-text-markdown.service';
 import { RichTextPasteNormalizerService } from './rich-text-paste-normalizer.service';
 import { RichTextToolbarComponent, ToolbarItem } from './sub/rich-text-toolbar.component';
+import {
+    buildFindIndex,
+    compileFindRegex,
+    offsetToPosition,
+    type FindIndex,
+} from './rich-text-find.utils';
 import { ShortcutBindingService, ShortcutComponentHandle, ShortcutRegistration } from '../../lib/shortcut-binding.service';
 import {
     RichTextCommandRegistry,
@@ -132,6 +138,33 @@ interface SerializedSelection {
  * cost. A consumer who prefers the buttons can still list
  * `'paragraph', 'heading1', 'heading2', 'heading3'` explicitly.
  */
+/**
+ * Upper bound on the highlight rectangles the find overlay paints at once.
+ * Every match is still counted and navigable; beyond this many, only the
+ * current match's rectangles are guaranteed to be drawn, which keeps a
+ * thousands-of-matches query from spending its whole budget in layout.
+ */
+export const FIND_MAX_PAINTED_RECTS = 500;
+
+/**
+ * Upper bound on the matches one search collects. A query matching more than
+ * this in a single document is a runaway pattern rather than a search anyone is
+ * reading, and the cap keeps the pass bounded.
+ */
+const FIND_MAX_MATCHES = 10_000;
+
+/** Options accepted by {@link RichTextEditorComponent.setContent}. */
+export interface RichTextSetContentOptions {
+    /** Push one history entry so the write can be undone. Default `true`. */
+    recordHistory?: boolean;
+}
+
+/** The undo-stack state carried by {@link RichTextEditorComponent.historyChange}. */
+export interface RichTextHistoryState {
+    canUndo: boolean;
+    canRedo: boolean;
+}
+
 export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     'bold', 'italic', 'underline',
     'separator',
@@ -277,6 +310,20 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     historyLimit = input<number>(100);
 
     /**
+     * Milliseconds of quiet before a changed find query is searched, so a burst
+     * of keystrokes costs one pass over the document. `0` searches synchronously
+     * on every keystroke.
+     */
+    findDebounceMs = input<number>(150);
+
+    /**
+     * Record a history entry for each `ControlValueAccessor` write, so a form's
+     * `setValue` / `patchValue` can be undone. Off by default, matching the
+     * long-standing behaviour that a programmatic write is not an edit.
+     */
+    recordExternalWrites = input<boolean>(false);
+
+    /**
      * Debounce interval in milliseconds for capturing history snapshots.
      * A snapshot is saved after the user stops typing for this duration.
      */
@@ -403,10 +450,50 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     findQuery = signal('');
     replaceText = signal('');
     findCaseSensitive = signal(false);
+    /**
+     * Every match of the current query, in document order. Since the search runs
+     * over the flattened document, a range may start and end in different text
+     * nodes — a phrase broken by inline markup is one match, not none.
+     */
     findMatches = signal<Range[]>([]);
     findCurrentIndex = signal(-1);
     findShowReplace = signal(false);
-    private findHighlightElements: HTMLElement[] = [];
+    /** Restrict matches to whole words, Unicode-aware. UI state, like {@link findCaseSensitive}. */
+    readonly findWholeWord = signal(false);
+    /** Treat the query as a regular expression. UI state, like {@link findCaseSensitive}. */
+    readonly findUseRegex = signal(false);
+    private readonly _findRegexError = signal(false);
+    /** True while the current query cannot be compiled — an invalid pattern, or one over the length cap. */
+    readonly findRegexError = this._findRegexError.asReadonly();
+    /** How many matches the current query has; `findMatches().length`, as a signal. */
+    readonly findMatchCount = computed(() => this.findMatches().length);
+    /**
+     * Whether the replace row is available: it is hidden whenever the editor
+     * cannot be edited, so find still works in a readonly or disabled editor but
+     * replace is never offered.
+     */
+    readonly showReplaceRow = computed(
+        () => this.findShowReplace() && !this.readonly() && !this.isDisabled(),
+    );
+    /**
+     * The localized match counter: `{current} of {total}`, the no-results string,
+     * the invalid-expression string, or empty when there is no query.
+     */
+    readonly findCounterText = computed(() => {
+        const locale = this.resolvedLocale().findReplace;
+        if (!this.findQuery()) return '';
+        if (this.findRegexError()) return locale.invalidRegex;
+        const total = this.findMatchCount();
+        if (total === 0) return locale.noResults;
+        return locale.matchCounter
+            .replace('{current}', String(this.findCurrentIndex() + 1))
+            .replace('{total}', String(total));
+    });
+    private findDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+    private findOverlay: HTMLElement | null = null;
+    private findRepaintHandle: number | null = null;
+    private findResizeObserver: ResizeObserver | null = null;
+    private findScrollHandler: (() => void) | null = null;
 
     private history: HistoryEntry[] = [];
     private historyIndex = -1;
@@ -570,6 +657,22 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         super();
         this.setupOutputEffects();
         this.setupFloatingToolbarEffect();
+        this.setupFindRefreshEffect();
+    }
+
+    /**
+     * Re-run the open search whenever the document changes underneath it, so the
+     * counter and highlights stay true while the user types. Driven by the model
+     * signal rather than hooks in each mutation path, so no future mutation can
+     * forget to refresh.
+     */
+    private setupFindRefreshEffect(): void {
+        effect(() => {
+            this.htmlContent();
+            if (this.findReplaceVisible() && this.findQuery()) {
+                this.scheduleFind({ preserveIndex: true });
+            }
+        });
     }
 
     private setupOutputEffects(): void {
@@ -1350,6 +1453,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * node so typing continues outside it.
      */
     onFormatCommand(command: string): void {
+        if (command === 'find') {
+            this.openFindReplace(!this.readonly() && !this.isDisabled());
+            return;
+        }
         if (this.readonly() || this.isDisabled()) return;
 
         this.restoreSelection();
@@ -3365,50 +3472,73 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     /**
-     * Open the find panel and focus its query field, with the replace row shown
-     * when `showReplace` is true. Bound to `Mod+F` (find) and `Mod+H` (find and
-     * replace) — `Mod+H` is gated on the editor being editable, `Mod+F` is not,
-     * so find works in a readonly editor. Calling it while the panel is already
-     * open just switches replace on or off and re-focuses; it does not re-run or
-     * clear the current search.
+     * Open the find panel and focus its query field, with the replace row
+     * requested when `showReplace` is true — it is still hidden unless the editor
+     * is editable ({@link showReplaceRow}). Bound to `Mod+F` (find) and `Mod+H`
+     * (find and replace) — `Mod+H` is gated on the editor being editable,
+     * `Mod+F` is not, so find works in a readonly editor.
+     *
+     * A non-empty, single-line selection seeds the query and is searched
+     * immediately, ignoring {@link findDebounceMs} for that one run; a collapsed
+     * selection leaves the previous query alone.
      */
     openFindReplace(showReplace: boolean): void {
         this.findShowReplace.set(showReplace);
         this.findReplaceVisible.set(true);
+        const seed = this.selectedText().trim();
+        if (seed && !seed.includes('\n')) {
+            this.findQuery.set(seed);
+            this.performFind({ preserveIndex: false });
+        }
         requestAnimationFrame(() => {
-            const el = (this.el.nativeElement as HTMLElement).querySelector<HTMLInputElement>('input[placeholder]');
+            const el = (this.el.nativeElement as HTMLElement)
+                .querySelector<HTMLInputElement>('[data-slot="rich-text-find-query"]');
             if (el) el.focus();
         });
     }
 
     /**
-     * Close the find panel, unwrapping the `<mark>` elements the search injected
-     * into the content (and normalizing the split text nodes back together) and
-     * resetting the query, replacement text and match list, then returning focus
-     * to the editable area. Bound to the panel's Escape key and its close button. The
-     * case-sensitivity toggle is deliberately NOT reset.
+     * Close the find panel, selecting the match the user was on so the caret
+     * lands where they were looking, then clearing the query, replacement text,
+     * matches and highlights and returning focus to the editable area. Bound to
+     * the panel's Escape key and its close button. The three search toggles are
+     * deliberately NOT reset.
      */
     closeFindReplace(): void {
+        const current = this.findMatches()[this.findCurrentIndex()]?.cloneRange();
+        this.cancelPendingFind();
         this.clearFindHighlights();
         this.findReplaceVisible.set(false);
         this.findQuery.set('');
         this.replaceText.set('');
         this.findMatches.set([]);
         this.findCurrentIndex.set(-1);
+        this._findRegexError.set(false);
         this.editorDiv?.nativeElement?.focus();
+        this.selectRange(current);
     }
 
     /**
-     * Update the search query and re-run the search immediately — bound to the
-     * query field's `input`, so it runs on every keystroke with no debounce, and
-     * each run re-walks all the editor's text nodes. Matches are plain
-     * case-folded substring matches within a single text node: a phrase broken by
-     * inline markup will not be found. Resets the current match to the first hit
-     * and scrolls it into view; an empty query just clears the highlights.
+     * Put the editor's selection on `range`, if there is one. Called after
+     * focusing the editable, never before: focusing a contenteditable collapses
+     * the selection to its start, which would discard the range.
+     */
+    private selectRange(range: Range | undefined): void {
+        if (!range) return;
+        const selection = this.document.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+    }
+
+    /**
+     * Update the search query and schedule the search. Runs after
+     * {@link findDebounceMs} of quiet so a burst of keystrokes searches once;
+     * with `findDebounceMs` at 0 it searches synchronously. Resets the current
+     * match to the first hit; an empty query just clears the highlights.
      */
     onFindQueryChange(query: string): void {
         this.findQuery.set(query);
-        this.performFind();
+        this.scheduleFind({ preserveIndex: false });
     }
 
     /**
@@ -3417,105 +3547,278 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * {@link closeFindReplace} for the lifetime of the component.
      */
     toggleFindCaseSensitive(): void {
-        this.findCaseSensitive.set(!this.findCaseSensitive());
-        this.performFind();
+        this.findCaseSensitive.update(v => !v);
+        this.performFind({ preserveIndex: false });
     }
 
-    private performFind(preserveIndex = false): void {
-        this.clearFindHighlights();
+    /**
+     * Flip whole-word matching (default off) and re-run the search. Word
+     * boundaries are Unicode-aware, so it works for any script — `שלום` is a
+     * whole word inside `שלום עולם`. Persists like {@link toggleFindCaseSensitive}.
+     */
+    toggleFindWholeWord(): void {
+        this.findWholeWord.update(v => !v);
+        this.performFind({ preserveIndex: false });
+    }
+
+    /**
+     * Flip regular-expression mode (default off) and re-run the search. In regex
+     * mode the query is a pattern rather than literal text, and `$1`-style group
+     * references in the replacement are expanded. An uncompilable pattern sets
+     * {@link findRegexError} instead of throwing. Persists like
+     * {@link toggleFindCaseSensitive}.
+     */
+    toggleFindUseRegex(): void {
+        this.findUseRegex.update(v => !v);
+        this.performFind({ preserveIndex: false });
+    }
+
+    /** Drop any queued debounced search. */
+    private cancelPendingFind(): void {
+        if (this.findDebounceTimer !== null) {
+            clearTimeout(this.findDebounceTimer);
+            this.findDebounceTimer = null;
+        }
+    }
+
+    /**
+     * Queue a search, coalescing bursts within {@link findDebounceMs}. A debounce
+     * of 0 runs it inline, which is what the unit suite and `findDebounceMs="0"`
+     * consumers rely on for a synchronous search.
+     */
+    private scheduleFind(options: { preserveIndex: boolean }): void {
+        this.cancelPendingFind();
+        const delay = this.findDebounceMs();
+        if (delay <= 0) {
+            this.performFind(options);
+            return;
+        }
+        this.findDebounceTimer = setTimeout(() => {
+            this.findDebounceTimer = null;
+            this.performFind(options);
+        }, delay);
+    }
+
+    /**
+     * Run the search: flatten the document, match the compiled query against it,
+     * turn every match into a DOM range, then repaint the overlay. Splitting the
+     * work across `buildFindIndex` / `collectMatches` / `updateFindState` keeps
+     * each piece independently testable and under the complexity budget.
+     */
+    private performFind(options: { preserveIndex: boolean }): void {
+        const editor = this.editorDiv?.nativeElement;
         const query = this.findQuery();
-        if (!query) {
-            this.findMatches.set([]);
-            this.findCurrentIndex.set(-1);
+        if (!editor || !query) {
+            this._findRegexError.set(false);
+            this.updateFindState([], options);
             return;
         }
 
-        const editor = this.editorDiv?.nativeElement;
-        if (!editor) return;
+        const regex = compileFindRegex(query, {
+            caseSensitive: this.findCaseSensitive(),
+            wholeWord: this.findWholeWord(),
+            useRegex: this.findUseRegex(),
+        });
+        if (!regex) {
+            this._findRegexError.set(true);
+            this.updateFindState([], options);
+            return;
+        }
 
-        const caseSensitive = this.findCaseSensitive();
-        const searchQuery = caseSensitive ? query : query.toLowerCase();
+        this._findRegexError.set(false);
+        this.updateFindState(this.collectMatches(buildFindIndex(editor), regex), options);
+    }
+
+    /**
+     * Walk `regex` over the flattened text, resolving each match to a live DOM
+     * range. Zero-length matches are skipped — and the cursor advanced by a whole
+     * code point — so a pattern like `a*` terminates instead of spinning.
+     */
+    private collectMatches(index: FindIndex, regex: RegExp): Range[] {
         const matches: Range[] = [];
-
-        const walker = this.document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
-        let textNode: Text | null;
-        while ((textNode = walker.nextNode() as Text | null)) {
-            const text = caseSensitive ? textNode.textContent ?? '' : (textNode.textContent ?? '').toLowerCase();
-            let startIndex = 0;
-            while (startIndex < text.length) {
-                const idx = text.indexOf(searchQuery, startIndex);
-                if (idx === -1) break;
-                const range = this.document.createRange();
-                range.setStart(textNode, idx);
-                range.setEnd(textNode, idx + query.length);
-                matches.push(range);
-                startIndex = idx + query.length;
+        regex.lastIndex = 0;
+        let match: RegExpExecArray | null;
+        while ((match = regex.exec(index.text)) !== null) {
+            if (match[0].length === 0) {
+                regex.lastIndex += [...index.text.slice(regex.lastIndex)][0]?.length ?? 1;
+                continue;
             }
+            const range = this.rangeForMatch(index, match.index, match.index + match[0].length);
+            if (range) matches.push(range);
+            if (matches.length >= FIND_MAX_MATCHES) break;
         }
+        return matches;
+    }
 
+    /** Build the DOM range covering `[start, end)` of the flattened text, if both ends resolve. */
+    private rangeForMatch(index: FindIndex, start: number, end: number): Range | null {
+        const from = offsetToPosition(index.segments, start);
+        const to = offsetToPosition(index.segments, end, true);
+        if (!from || !to) return null;
+        const range = this.document.createRange();
+        range.setStart(from.node, from.offset);
+        range.setEnd(to.node, to.offset);
+        return range;
+    }
+
+    /** Publish the new match list, clamp or reset the current index, and repaint. */
+    private updateFindState(matches: Range[], options: { preserveIndex: boolean }): void {
         this.findMatches.set(matches);
-        if (matches.length > 0) {
-            if (!preserveIndex) {
-                this.findCurrentIndex.set(0);
-            }
-            this.highlightFindMatches();
-            this.scrollToCurrentMatch();
-        } else {
+        if (matches.length === 0) {
             this.findCurrentIndex.set(-1);
+        } else if (options.preserveIndex) {
+            this.findCurrentIndex.set(Math.min(Math.max(this.findCurrentIndex(), 0), matches.length - 1));
+        } else {
+            this.findCurrentIndex.set(0);
+        }
+        this.paintMatches();
+        if (matches.length > 0) this.scrollToCurrentMatch();
+    }
+
+    /** The overlay layer, created on first paint as a sibling of the editable. */
+    private ensureFindOverlay(): HTMLElement | null {
+        if (this.findOverlay?.isConnected) return this.findOverlay;
+        const container = this.editorContainer?.nativeElement;
+        if (!container) return null;
+        const overlay = this.document.createElement('div');
+        overlay.dataset['slot'] = 'rich-text-find-overlay';
+        overlay.setAttribute('aria-hidden', 'true');
+        overlay.className = 'absolute inset-0 pointer-events-none overflow-hidden z-40';
+        container.appendChild(overlay);
+        this.findOverlay = overlay;
+        this.attachFindRepositionListeners();
+        return overlay;
+    }
+
+    /**
+     * Keep the overlay pinned to the text as the editable scrolls or resizes.
+     * The rectangles are viewport-derived, so any layout shift invalidates them.
+     */
+    private attachFindRepositionListeners(): void {
+        const editor = this.editorDiv?.nativeElement;
+        if (!editor || this.findScrollHandler) return;
+        const handler = (): void => this.requestFindRepaint();
+        editor.addEventListener('scroll', handler, { passive: true });
+        this.findScrollHandler = () => editor.removeEventListener('scroll', handler);
+        if (typeof ResizeObserver !== 'undefined') {
+            this.findResizeObserver = new ResizeObserver(handler);
+            this.findResizeObserver.observe(editor);
         }
     }
 
-    private highlightFindMatches(): void {
-        this.clearFindHighlights();
+    /** Coalesce repaint requests onto one animation frame. */
+    private requestFindRepaint(): void {
+        if (this.findRepaintHandle !== null) return;
+        this.findRepaintHandle = requestAnimationFrame(() => {
+            this.findRepaintHandle = null;
+            this.paintMatches();
+        });
+    }
+
+    /**
+     * Draw one absolutely-positioned rectangle per client rect of every match.
+     * The overlay is a sibling of the editable, never a child of the content, so
+     * nothing here can reach `htmlContent`, the form value or the history — the
+     * defect that injected `<mark>` elements used to cause.
+     */
+    private paintMatches(): void {
         const matches = this.findMatches();
+        if (matches.length === 0) {
+            this.clearFindHighlights();
+            return;
+        }
+        const overlay = this.ensureFindOverlay();
+        const container = this.editorContainer?.nativeElement;
+        if (!overlay || !container) return;
+
+        const base = container.getBoundingClientRect();
         const currentIdx = this.findCurrentIndex();
-
-        for (let i = 0; i < matches.length; i++) {
-            try {
-                const range = matches[i];
-                const mark = this.document.createElement('mark');
-                mark.dataset['findMatch'] = '';
-                mark.style.backgroundColor = i === currentIdx ? 'rgba(250, 204, 21, 0.7)' : 'rgba(250, 204, 21, 0.3)';
-                mark.style.borderRadius = '2px';
-                if (i === currentIdx) mark.dataset['findCurrent'] = '';
-                range.surroundContents(mark);
-                this.findHighlightElements.push(mark);
-            } catch {
-                // Range may span multiple elements; skip
+        const painted: { rect: DOMRect; current: boolean }[] = [];
+        for (const [i, range] of matches.entries()) {
+            const isCurrent = i === currentIdx;
+            // Ask for geometry only for rects we will actually draw: forcing
+            // layout for every match is what makes a thousands-of-matches query
+            // expensive, and the cap exists precisely to avoid that cost.
+            if (!isCurrent && painted.length >= FIND_MAX_PAINTED_RECTS) continue;
+            for (const rect of Array.from(range.getClientRects())) {
+                painted.push({ rect, current: isCurrent });
             }
+        }
+
+        this.renderFindRects(overlay, painted, base, container);
+    }
+
+    /** Reconcile the overlay's rectangle elements against `painted`, reusing nodes. */
+    private renderFindRects(
+        overlay: HTMLElement,
+        painted: readonly { rect: DOMRect; current: boolean }[],
+        base: DOMRect,
+        container: HTMLElement,
+    ): void {
+        const existing = Array.from(overlay.children) as HTMLElement[];
+        for (let i = existing.length; i < painted.length; i++) {
+            const el = this.document.createElement('div');
+            el.dataset['findRect'] = '';
+            el.className = 'absolute rounded-[2px]';
+            overlay.appendChild(el);
+        }
+        const children = Array.from(overlay.children) as HTMLElement[];
+        for (const [i, child] of children.entries()) {
+            const entry = painted[i];
+            if (!entry) {
+                child.hidden = true;
+                continue;
+            }
+            child.hidden = false;
+            if (entry.current) {
+                child.dataset['findCurrent'] = '';
+            } else {
+                delete child.dataset['findCurrent'];
+            }
+            child.style.backgroundColor = entry.current
+                ? 'rgba(250, 204, 21, 0.7)'
+                : 'rgba(250, 204, 21, 0.35)';
+            child.style.left = `${entry.rect.left - base.left + container.scrollLeft}px`;
+            child.style.top = `${entry.rect.top - base.top + container.scrollTop}px`;
+            child.style.width = `${entry.rect.width}px`;
+            child.style.height = `${entry.rect.height}px`;
         }
     }
 
+    /** Remove every painted rectangle, leaving the (empty) overlay in place. */
     private clearFindHighlights(): void {
-        for (const mark of this.findHighlightElements) {
-            const parent = mark.parentNode;
-            if (parent) {
-                while (mark.firstChild) {
-                    parent.insertBefore(mark.firstChild, mark);
-                }
-                mark.remove();
-                parent.normalize();
-            }
-        }
-        this.findHighlightElements = [];
+        if (this.findOverlay) this.findOverlay.replaceChildren();
     }
 
+    /**
+     * Bring the current match into the editable's visible area. Scrolls the
+     * editable itself rather than calling `scrollIntoView`, so a match below the
+     * fold never scrolls the whole page.
+     */
     private scrollToCurrentMatch(): void {
-        const current = (this.el.nativeElement as HTMLElement).querySelector<HTMLElement>('mark[data-find-current]');
-        if (current) current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const editor = this.editorDiv?.nativeElement;
+        const range = this.findMatches()[this.findCurrentIndex()];
+        if (!editor || !range) return;
+        const rect = range.getBoundingClientRect();
+        const view = editor.getBoundingClientRect();
+        if (rect.height === 0 && rect.width === 0) return;
+        if (rect.top < view.top) {
+            editor.scrollTop += rect.top - view.top;
+        } else if (rect.bottom > view.bottom) {
+            editor.scrollTop += rect.bottom - view.bottom;
+        }
     }
 
     /**
      * Advance to the next match, wrapping around at the end, and scroll it into
-     * view. Re-runs the search to rebuild the highlights but keeps the index, so
-     * it stays correct after the content changed underneath. No-op with no
-     * matches.
+     * view. No-op with no matches.
      */
     findNext(): void {
         const matches = this.findMatches();
         if (matches.length === 0) return;
         this.findCurrentIndex.set((this.findCurrentIndex() + 1) % matches.length);
-        this.performFind(true);
+        this.paintMatches();
+        this.scrollToCurrentMatch();
     }
 
     /**
@@ -3528,87 +3831,115 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (matches.length === 0) return;
         const idx = this.findCurrentIndex() - 1;
         this.findCurrentIndex.set(idx < 0 ? matches.length - 1 : idx);
-        this.performFind(true);
+        this.paintMatches();
+        this.scrollToCurrentMatch();
     }
 
     /**
-     * Replace the currently highlighted match with the replacement text, then
-     * re-run the search so the counter and highlights reflect the new content.
-     * The replacement is inserted as plain text and inherits the formatting
-     * around it. Because the search re-runs from the top, the current match falls
-     * back to the first hit — repeated calls walk forward only while the
-     * replacement itself does not match the query. No-op with no current match.
-     * Records one history entry.
+     * The text that replaces `matched`. In regex mode the pattern is re-applied
+     * to the matched text so `$1`-style group references expand; otherwise the
+     * replacement is inserted literally.
+     */
+    private replacementFor(matched: string): string {
+        if (!this.findUseRegex()) return this.replaceText();
+        const regex = compileFindRegex(this.findQuery(), {
+            caseSensitive: this.findCaseSensitive(),
+            wholeWord: this.findWholeWord(),
+            useRegex: true,
+        });
+        if (!regex) return this.replaceText();
+        return matched.replace(new RegExp(regex.source, regex.flags.replace('g', '')), this.replaceText());
+    }
+
+    /**
+     * Swap one range's contents for `text`, keeping the formatting around it.
+     * The replacement lands at the range's start, so a match spanning a markup
+     * boundary reappears where it began; inline ancestors the deletion emptied
+     * are then removed rather than left as invisible stubs.
+     */
+    private replaceRange(range: Range, text: string): void {
+        const touched: Element[] = [];
+        for (let node = range.commonAncestorContainer; node; node = node.parentNode as Node) {
+            if (node === this.editorDiv?.nativeElement) break;
+            if (node.nodeType === Node.ELEMENT_NODE) touched.push(node as Element);
+        }
+        const descendants = touched[0]
+            ? Array.from(touched[0].querySelectorAll('*'))
+            : [];
+
+        range.deleteContents();
+        if (text) range.insertNode(this.document.createTextNode(text));
+
+        for (const el of [...descendants, ...touched]) {
+            if (el.textContent === '' && !el.querySelector('img, br')) el.remove();
+        }
+    }
+
+    /**
+     * Replace the currently highlighted match, then re-run the search so the
+     * counter and highlights reflect the new content, keeping the index so the
+     * next call moves forward through the remaining matches. Records exactly one
+     * history entry, flushing any pending typing burst as its own entry first.
+     * No-op with no current match, or when the editor is not editable.
      */
     replaceSingle(): void {
-        const matches = this.findMatches();
-        const idx = this.findCurrentIndex();
-        if (matches.length === 0 || idx < 0) return;
+        if (this.readonly() || this.isDisabled()) return;
+        const range = this.findMatches()[this.findCurrentIndex()];
+        if (!range) return;
 
-        this.clearFindHighlights();
-        this.performFind();
-
-        const currentMark = (this.el.nativeElement as HTMLElement).querySelector<HTMLElement>('mark[data-find-current]');
-        if (currentMark) {
-            currentMark.textContent = this.replaceText();
-            const parent = currentMark.parentNode;
-            if (parent) {
-                while (currentMark.firstChild) parent.insertBefore(currentMark.firstChild, currentMark);
-                currentMark.remove();
-                parent.normalize();
-            }
-        }
-        this.findHighlightElements = this.findHighlightElements.filter(el => el !== currentMark);
-        this.clearFindHighlights();
+        this.flushPendingHistoryPush();
+        this.replaceRange(range, this.replacementFor(range.toString()));
         this.syncContentFromEditor();
         this.pushHistory();
-        this.performFind();
+        this.performFind({ preserveIndex: true });
     }
 
     /**
-     * Replace every match of the current query in one pass, walking the
-     * highlights back to front so earlier replacements cannot invalidate the
-     * later positions. Replacements are plain text keeping each match's
-     * surrounding formatting. The whole sweep is a single history entry, so one
-     * undo restores the document. The search is re-run afterwards, which will
-     * find the replacements again if they contain the query.
+     * Replace every match of the current query in one pass, walking the matches
+     * back to front so earlier replacements cannot invalidate later positions.
+     * The whole sweep is a single history entry — one undo restores the document
+     * — and any pending typing burst is flushed as its own entry first. No-op
+     * when the editor is not editable.
      */
     replaceAll(): void {
-        this.clearFindHighlights();
-        this.performFind();
+        if (this.readonly() || this.isDisabled()) return;
+        const matches = this.findMatches();
+        if (matches.length === 0) return;
 
-        const marks = Array.from((this.el.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('mark[data-find-match]'));
-        marks.reverse();
-        for (const mark of marks) {
-            mark.textContent = this.replaceText();
-            const parent = mark.parentNode;
-            if (parent) {
-                while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
-                mark.remove();
-                parent.normalize();
-            }
+        this.flushPendingHistoryPush();
+        for (const range of [...matches].reverse()) {
+            this.replaceRange(range, this.replacementFor(range.toString()));
         }
-        this.findHighlightElements = [];
         this.syncContentFromEditor();
         this.pushHistory();
-        this.performFind();
+        this.performFind({ preserveIndex: true });
     }
 
     /**
-     * Keydown handler bound on the find panel container. Turns `Enter` into
-     * {@link findNext} and `Shift+Enter` into {@link findPrevious}, preventing the
-     * default so Enter in either text field never submits a surrounding form.
-     * Every other key falls through — Escape is closed separately by the
-     * template's `keydown.escape` binding.
+     * Keydown handler bound on the find panel container. `Mod+Alt+Enter` replaces
+     * all; `Enter` in the replace input replaces the current match; `Enter`
+     * elsewhere is {@link findNext} and `Shift+Enter` {@link findPrevious}. The
+     * default is prevented so Enter in either text field never submits a
+     * surrounding form. Escape is closed separately by the template's
+     * `keydown.escape` binding.
      */
     onFindReplaceKeydown(event: KeyboardEvent): void {
-        if (event.key === 'Enter') {
-            event.preventDefault();
-            if (event.shiftKey) {
-                this.findPrevious();
-            } else {
-                this.findNext();
-            }
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+
+        if (event.altKey && (event.ctrlKey || event.metaKey)) {
+            this.replaceAll();
+            return;
+        }
+        const target = event.target as HTMLElement | null;
+        if (target?.dataset?.['slot'] === 'rich-text-find-replace') {
+            this.replaceSingle();
+            return;
+        }
+        if (event.shiftKey) {
+            this.findPrevious();
+        } else {
+            this.findNext();
         }
     }
 
@@ -5302,6 +5633,15 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.document.removeEventListener('mouseup', this.onTableResizeUpBound);
         this.document.removeEventListener('touchmove', this.onTableCellTouchMoveBound);
         this.document.removeEventListener('touchend', this.onTableCellTouchEndBound);
+        this.cancelPendingFind();
+        if (this.findRepaintHandle !== null) {
+            cancelAnimationFrame(this.findRepaintHandle);
+            this.findRepaintHandle = null;
+        }
+        this.findResizeObserver?.disconnect();
+        this.findResizeObserver = null;
+        this.findScrollHandler?.();
+        this.findScrollHandler = null;
         this.closeTableContextMenu();
         this.removeFloatingScrollListener();
     }

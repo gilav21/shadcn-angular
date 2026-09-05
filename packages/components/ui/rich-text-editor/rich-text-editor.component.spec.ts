@@ -2,7 +2,7 @@ import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_TOOLBAR_ITEMS, RichTextEditorComponent } from './rich-text-editor.component';
+import { DEFAULT_TOOLBAR_ITEMS, FIND_MAX_PAINTED_RECTS, RichTextEditorComponent } from './rich-text-editor.component';
 import { RichTextEditorAddonHost } from './rich-text-editor.host';
 import { ShortcutBindingService } from '../../lib/shortcut-binding.service';
 import { RichTextCommandRegistry } from './rich-text-command-registry.service';
@@ -19,6 +19,22 @@ const setCaretAt = (node: Node, offset: number) => {
 };
 
 /** Select the full contents of the given node. */
+/** Number of entries currently on the editor's private undo stack. */
+const historyLength = (component: RichTextEditorComponent): number =>
+    (component as unknown as { history: unknown[] }).history.length;
+
+/** A `Ctrl+Z` keydown event, as the editable area receives it. */
+const undoKey = (): KeyboardEvent =>
+    new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true, cancelable: true });
+
+/** Every painted highlight rectangle in the find overlay. */
+const findRects = (fixture: ComponentFixture<RichTextEditorComponent>): HTMLElement[] =>
+    Array.from(
+        (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(
+            '[data-slot="rich-text-find-overlay"] [data-find-rect]',
+        ),
+    );
+
 const selectAllOf = (node: Node) => {
     const selection = document.getSelection();
     const range = document.createRange();
@@ -229,6 +245,8 @@ interface StubbableGlobal {
     CSS?: { escape: (value: string) => string };
 }
 
+let originalRangeGetRect: (() => DOMRect) | undefined;
+let originalRangeGetRects: (() => DOMRectList) | undefined;
 let originalElementGetRect: (() => DOMRect) | undefined;
 let cssWasAbsent = false;
 
@@ -267,17 +285,26 @@ const installBrowserStubs = (): void => {
         return originalElementGetRect ? originalElementGetRect.call(this) : makeRect(0, 0, 0, 0);
     };
 
+    // Only stand in for Range geometry where there is none. In the Chromium leg
+    // the real implementation is kept: the find overlay is positioned from these
+    // rects, so a blanket stub would make every geometry assertion vacuous.
     const rangeProto = Range.prototype as StubbableRange;
-    rangeProto.getBoundingClientRect = () => makeRect(0, 0, 10, 10);
-    rangeProto.getClientRects = () =>
-        ({
-            length: 1,
-            item: (index: number) => (index === 0 ? makeRect(0, 0, 10, 10) : null),
-            0: makeRect(0, 0, 10, 10),
-            [Symbol.iterator]() {
-                return [makeRect(0, 0, 10, 10)][Symbol.iterator]();
-            },
-        }) as unknown as DOMRectList;
+    originalRangeGetRect = rangeProto.getBoundingClientRect;
+    originalRangeGetRects = rangeProto.getClientRects;
+    if (!originalRangeGetRect) {
+        rangeProto.getBoundingClientRect = () => makeRect(0, 0, 10, 10);
+    }
+    if (!originalRangeGetRects) {
+        rangeProto.getClientRects = () =>
+            ({
+                length: 1,
+                item: (index: number) => (index === 0 ? makeRect(0, 0, 10, 10) : null),
+                0: makeRect(0, 0, 10, 10),
+                [Symbol.iterator]() {
+                    return [makeRect(0, 0, 10, 10)][Symbol.iterator]();
+                },
+            }) as unknown as DOMRectList;
+    }
 
     const scope = globalThis as StubbableGlobal;
     cssWasAbsent = scope.CSS === undefined;
@@ -302,8 +329,18 @@ const restoreBrowserStubs = (): void => {
     originalElementGetRect = undefined;
 
     const rangeProto = Range.prototype as StubbableRange;
-    delete rangeProto.getBoundingClientRect;
-    delete rangeProto.getClientRects;
+    if (originalRangeGetRect) {
+        rangeProto.getBoundingClientRect = originalRangeGetRect;
+    } else {
+        delete rangeProto.getBoundingClientRect;
+    }
+    if (originalRangeGetRects) {
+        rangeProto.getClientRects = originalRangeGetRects;
+    } else {
+        delete rangeProto.getClientRects;
+    }
+    originalRangeGetRect = undefined;
+    originalRangeGetRects = undefined;
 
     if (cssWasAbsent) {
         delete (globalThis as StubbableGlobal).CSS;
@@ -2795,6 +2832,7 @@ describe('RichTextEditorComponent — find and replace', () => {
         fixture = TestBed.createComponent(RichTextEditorComponent);
         component = fixture.componentInstance;
         fixture.componentRef.setInput('mode', 'html');
+        fixture.componentRef.setInput('findDebounceMs', 0);
         fixture.detectChanges();
         editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
         component.writeValue('<p>the cat sat on the cat mat</p>');
@@ -2812,7 +2850,8 @@ describe('RichTextEditorComponent — find and replace', () => {
 
         expect(component.findMatches()).toHaveLength(2);
         expect(component.findCurrentIndex()).toBe(0);
-        expect(editor.querySelectorAll('mark[data-find-match]')).toHaveLength(2);
+        expect(editor.querySelectorAll('mark[data-find-match]')).toHaveLength(0);
+        expect(component.findMatchCount()).toBe(2);
     });
 
     it('clears matches when the query is emptied', () => {
@@ -2821,7 +2860,7 @@ describe('RichTextEditorComponent — find and replace', () => {
 
         expect(component.findMatches()).toHaveLength(0);
         expect(component.findCurrentIndex()).toBe(-1);
-        expect(editor.querySelectorAll('mark[data-find-match]')).toHaveLength(0);
+        expect(component.findMatchCount()).toBe(0);
     });
 
     it('navigates matches with findNext (wrapping) and findPrevious', () => {
@@ -2907,6 +2946,446 @@ describe('RichTextEditorComponent — find and replace', () => {
         expect(component.findQuery()).toBe('');
         expect(component.findMatches()).toHaveLength(0);
         expect(editor.querySelectorAll('mark[data-find-match]')).toHaveLength(0);
+        expect(findRects(fixture)).toHaveLength(0);
+    });
+
+    // ── T-1…T-28: find & replace v2 ─────────────────────────────────────
+
+    /** Load `html` into the editor and settle the view. */
+    const load = (html: string) => {
+        component.writeValue(html);
+        fixture.detectChanges();
+    };
+
+    it('T-1 matches a phrase split by inline markup and counts it', () => {
+        load('<p>the <b>cat</b> sat on the <i>c</i>at mat</p>');
+
+        component.onFindQueryChange('cat');
+
+        expect(component.findMatchCount()).toBe(2);
+        expect(component.findMatches().map(r => r.toString())).toEqual(['cat', 'cat']);
+    });
+
+    it('T-2 does not match across block boundaries', () => {
+        load('<p>cat</p><p>alog</p>');
+
+        component.onFindQueryChange('catalog');
+
+        expect(component.findMatchCount()).toBe(0);
+    });
+
+    it('T-3 debounces the query and searches once after the last keystroke', () => {
+        vi.useFakeTimers();
+        try {
+            fixture.componentRef.setInput('findDebounceMs', 100);
+            fixture.detectChanges();
+
+            component.onFindQueryChange('c');
+            component.onFindQueryChange('ca');
+            component.onFindQueryChange('cat');
+            expect(component.findMatchCount()).toBe(0);
+
+            vi.advanceTimersByTime(100);
+            expect(component.findMatchCount()).toBe(2);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('T-4 findDebounceMs=0 searches synchronously', () => {
+        component.onFindQueryChange('cat');
+
+        expect(component.findMatchCount()).toBe(2);
+    });
+
+    it('T-5 counter renders "{current} of {total}", "No results", and empty', () => {
+        const counter = () =>
+            (fixture.nativeElement as HTMLElement)
+                .querySelector('[data-slot="rich-text-find-counter"]')
+                ?.textContent?.trim() ?? '';
+        component.openFindReplace(false);
+        fixture.detectChanges();
+        expect(counter()).toBe('');
+
+        component.onFindQueryChange('cat');
+        fixture.detectChanges();
+        expect(counter()).toBe('1 of 2');
+
+        component.onFindQueryChange('zebra');
+        fixture.detectChanges();
+        expect(counter()).toBe(component.resolvedLocale().findReplace.noResults);
+    });
+
+    it('T-6 counter is an aria-live polite region', () => {
+        component.openFindReplace(false);
+        fixture.detectChanges();
+
+        const counter = (fixture.nativeElement as HTMLElement)
+            .querySelector('[data-slot="rich-text-find-counter"]');
+
+        expect(counter?.getAttribute('aria-live')).toBe('polite');
+    });
+
+    it('T-7 highlights never enter the editor DOM, the form value or history', () => {
+        const seen: string[] = [];
+        component.registerOnChange(v => seen.push(v));
+        component.openFindReplace(false);
+        const before = component.historyVersion();
+
+        component.onFindQueryChange('cat');
+        fixture.detectChanges();
+
+        expect(editor.querySelectorAll('mark')).toHaveLength(0);
+        expect(editor.innerHTML).not.toContain('<mark');
+        expect(component.htmlOutput()).not.toContain('<mark');
+        expect(seen.some(v => v.includes('<mark'))).toBe(false);
+        expect(component.historyVersion()).toBe(before);
+    });
+
+    it('T-8 typing with the panel open keeps the form value mark-free and refreshes matches', () => {
+        const seen: string[] = [];
+        component.registerOnChange(v => seen.push(v));
+        component.openFindReplace(false);
+        component.onFindQueryChange('cat');
+        expect(component.findMatchCount()).toBe(2);
+
+        const p = editor.querySelector('p') as HTMLParagraphElement;
+        p.textContent = 'the cat sat on the cat mat and the cat ran';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        fixture.detectChanges();
+
+        expect(seen.at(-1)).not.toContain('<mark');
+        expect(component.findMatchCount()).toBe(3);
+    });
+
+    it('T-9 whole-word toggle limits matches to whole words (ASCII)', () => {
+        load('<p>cat category concat</p>');
+        component.onFindQueryChange('cat');
+        expect(component.findMatchCount()).toBe(3);
+
+        component.toggleFindWholeWord();
+
+        expect(component.findWholeWord()).toBe(true);
+        expect(component.findMatchCount()).toBe(1);
+    });
+
+    it('T-10 whole-word is Unicode-aware (Hebrew)', () => {
+        load('<p>שלום עולם</p>');
+        component.toggleFindWholeWord();
+
+        component.onFindQueryChange('שלום');
+
+        expect(component.findMatchCount()).toBe(1);
+    });
+
+    it('T-11 regex toggle matches patterns', () => {
+        load('<p>cat cot cart</p>');
+        component.toggleFindUseRegex();
+
+        component.onFindQueryChange('c.t');
+
+        expect(component.findUseRegex()).toBe(true);
+        expect(component.findMatchCount()).toBe(2);
+        expect(component.findMatches().map(r => r.toString())).toEqual(['cat', 'cot']);
+    });
+
+    it('T-12 invalid regex sets findRegexError, aria-invalid, no highlights, no throw', () => {
+        component.openFindReplace(false);
+        component.toggleFindUseRegex();
+
+        expect(() => component.onFindQueryChange('(')).not.toThrow();
+        fixture.detectChanges();
+
+        expect(component.findRegexError()).toBe(true);
+        expect(component.findMatchCount()).toBe(0);
+        expect(findRects(fixture)).toHaveLength(0);
+        const input = (fixture.nativeElement as HTMLElement)
+            .querySelector('[data-slot="rich-text-find-query"]');
+        expect(input?.getAttribute('aria-invalid')).toBe('true');
+        const counter = (fixture.nativeElement as HTMLElement)
+            .querySelector('[data-slot="rich-text-find-counter"]');
+        expect(counter?.textContent?.trim()).toBe(component.resolvedLocale().findReplace.invalidRegex);
+    });
+
+    it('T-13 zero-length regex matches are skipped and the search terminates', () => {
+        load('<p>aaa b</p>');
+        component.toggleFindUseRegex();
+
+        component.onFindQueryChange('a*');
+
+        expect(component.findMatchCount()).toBe(1);
+        expect(component.findMatches()[0].toString()).toBe('aaa');
+    });
+
+    it('T-14 regex replace expands capture groups', () => {
+        load('<p>jane@acme</p>');
+        component.toggleFindUseRegex();
+        component.onFindQueryChange('(\\w+)@(\\w+)');
+        component.replaceText.set('$2 at $1');
+
+        component.replaceSingle();
+
+        expect(editor.textContent).toBe('acme at jane');
+    });
+
+    it('T-15 replace keeps surrounding inline formatting', () => {
+        load('<p>the <b>cat</b> sat</p>');
+        component.onFindQueryChange('cat');
+        component.replaceText.set('dog');
+
+        component.replaceSingle();
+
+        expect(editor.querySelector('b')?.textContent).toBe('dog');
+        expect(editor.textContent).toBe('the dog sat');
+    });
+
+    it('T-16 replace across a markup boundary lands at the match start and drops the emptied element', () => {
+        load('<p>the <b>ca</b>t sat</p>');
+        component.onFindQueryChange('cat');
+        component.replaceText.set('dog');
+
+        component.replaceSingle();
+
+        expect(editor.textContent).toBe('the dog sat');
+        expect(editor.querySelectorAll('b')).toHaveLength(0);
+    });
+
+    it('T-17 replaceAll flushes pending typing then records exactly one entry; one undo restores all', () => {
+        load('<p>cat cat cat cat cat</p>');
+        const p = editor.querySelector('p') as HTMLParagraphElement;
+        p.textContent = 'cat cat cat cat cat!';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        const beforeReplace = editor.textContent;
+
+        const entriesBefore = historyLength(component);
+        component.onFindQueryChange('cat');
+        component.replaceText.set('dog');
+        component.replaceAll();
+
+        expect(historyLength(component) - entriesBefore).toBe(2);
+        expect((editor.textContent ?? '').includes('cat')).toBe(false);
+
+        component.onKeydown(undoKey());
+
+        expect(editor.textContent).toBe(beforeReplace);
+    });
+
+    it('T-18 replaceSingle records one entry and advances to the next remaining match', () => {
+        load('<p>cat cat cat</p>');
+        component.onFindQueryChange('cat');
+        component.replaceText.set('dog');
+        const entriesBefore = historyLength(component);
+
+        component.replaceSingle();
+
+        expect(historyLength(component) - entriesBefore).toBe(1);
+        expect(component.findMatchCount()).toBe(2);
+        expect(component.findCurrentIndex()).toBe(0);
+        expect(editor.textContent).toBe('dog cat cat');
+    });
+
+    it('T-19 findNext/findPrevious wrap and scroll the editor to the current match', () => {
+        load('<p>cat</p>' + '<p>filler</p>'.repeat(40) + '<p>cat</p>');
+        editor.style.maxHeight = '60px';
+        editor.style.overflowY = 'auto';
+        component.onFindQueryChange('cat');
+        const before = editor.scrollTop;
+
+        component.findNext();
+
+        expect(component.findCurrentIndex()).toBe(1);
+        expect(editor.scrollTop).not.toBe(before);
+
+        component.findNext();
+        expect(component.findCurrentIndex()).toBe(0);
+    });
+
+    it('T-20 Enter in the replace input replaces; Mod+Alt+Enter replaces all; Escape closes', () => {
+        load('<p>cat cat</p>');
+        component.openFindReplace(true);
+        fixture.detectChanges();
+        component.onFindQueryChange('cat');
+        component.replaceText.set('dog');
+
+        const replaceInput = (fixture.nativeElement as HTMLElement)
+            .querySelector('[data-slot="rich-text-find-replace"]') as HTMLInputElement;
+        const enterOn = (target: EventTarget) => {
+            const ev = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+            Object.defineProperty(ev, 'target', { value: target });
+            return ev;
+        };
+        component.onFindReplaceKeydown(enterOn(replaceInput));
+        expect(editor.textContent).toBe('dog cat');
+
+        const all = new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, altKey: true, cancelable: true });
+        component.onFindReplaceKeydown(all);
+        expect((editor.textContent ?? '').includes('cat')).toBe(false);
+    });
+
+    it('T-21 openFindReplace seeds the query from a non-empty selection and leaves it alone when collapsed', () => {
+        load('<p>the cat sat</p>');
+        const textNode = (editor.querySelector('p') as HTMLElement).firstChild as Text;
+        const range = document.createRange();
+        range.setStart(textNode, 4);
+        range.setEnd(textNode, 7);
+        const selection = document.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        component.onSelectionChange();
+
+        component.openFindReplace(false);
+
+        expect(component.findQuery()).toBe('cat');
+        expect(component.findMatchCount()).toBe(1);
+
+        component.closeFindReplace();
+        component.onFindQueryChange('sat');
+        setCaretAt(textNode, 2);
+        component.onSelectionChange();
+        component.openFindReplace(false);
+
+        expect(component.findQuery()).toBe('sat');
+    });
+
+    it('T-22 closeFindReplace selects the current match and focuses the editor', () => {
+        component.onFindQueryChange('cat');
+        component.findNext();
+        expect(component.findCurrentIndex()).toBe(1);
+
+        component.closeFindReplace();
+
+        const selection = document.getSelection();
+        expect(selection?.rangeCount).toBe(1);
+        const selected = selection?.getRangeAt(0) as Range;
+        expect(selected.collapsed).toBe(false);
+        expect(selected.cloneContents().textContent).toBe('cat');
+        expect(document.activeElement).toBe(editor);
+    });
+
+    it("T-23 'find' toolbar item opens the panel (replace row when editable) and is absent from DEFAULT_TOOLBAR_ITEMS", () => {
+        expect(DEFAULT_TOOLBAR_ITEMS).not.toContain('find');
+
+        fixture.componentRef.setInput('toolbarItems', ['bold', 'find']);
+        fixture.detectChanges();
+
+        const button = (fixture.nativeElement as HTMLElement)
+            .querySelector<HTMLButtonElement>('[data-toolbar-item="find"]');
+        expect(button).not.toBeNull();
+
+        button?.click();
+        fixture.detectChanges();
+
+        expect(component.findReplaceVisible()).toBe(true);
+        expect(component.showReplaceRow()).toBe(true);
+    });
+
+    it('T-24 RTL: panel anchors at inline-end and uses the Hebrew counter string', () => {
+        fixture.componentRef.setInput('locale', 'he');
+        fixture.detectChanges();
+        component.openFindReplace(false);
+        component.onFindQueryChange('cat');
+        fixture.detectChanges();
+
+        const panel = (fixture.nativeElement as HTMLElement)
+            .querySelector('[data-slot="rich-text-find-panel"]') as HTMLElement;
+        expect(component.editorContainer?.nativeElement.getAttribute('dir')).toBe('rtl');
+
+        // Resolved logical positioning needs a cascade; jsdom has none, so the
+        // geometry half of this case is the Chromium leg's to prove.
+        if (!navigator.userAgent.includes('jsdom')) {
+            const style = getComputedStyle(panel);
+            expect(style.direction).toBe('rtl');
+            expect(style.insetInlineEnd).toBe(style.left);
+            expect(Number.parseFloat(style.insetInlineEnd)).toBeGreaterThan(0);
+        }
+
+        const counter = (fixture.nativeElement as HTMLElement)
+            .querySelector('[data-slot="rich-text-find-counter"]');
+        const expected = RICH_TEXT_LOCALES['he'].findReplace.matchCounter
+            .replace('{current}', '1')
+            .replace('{total}', '2');
+        expect(counter?.textContent?.trim()).toBe(expected);
+    });
+
+    it('T-25 readonly hides the replace row and ignores replace calls', () => {
+        fixture.componentRef.setInput('readonly', true);
+        fixture.detectChanges();
+
+        component.openFindReplace(true);
+        fixture.detectChanges();
+
+        expect(component.showReplaceRow()).toBe(false);
+        expect(
+            (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-find-replace"]'),
+        ).toBeNull();
+
+        component.onFindQueryChange('cat');
+        component.replaceText.set('dog');
+        component.replaceSingle();
+        component.replaceAll();
+
+        expect(editor.textContent).toBe('the cat sat on the cat mat');
+    });
+
+    it('T-26 toggle and nav buttons carry locale aria-labels and aria-pressed', () => {
+        component.openFindReplace(false);
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        const loc = component.resolvedLocale().findReplace;
+
+        const byLabel = (label: string) => root.querySelector<HTMLElement>(`[aria-label="${label}"]`);
+
+        expect(byLabel(loc.previous)).not.toBeNull();
+        expect(byLabel(loc.next)).not.toBeNull();
+        expect(byLabel(loc.close)).not.toBeNull();
+
+        for (const [label, toggle] of [
+            [loc.caseSensitive, () => component.toggleFindCaseSensitive()],
+            [loc.wholeWord, () => component.toggleFindWholeWord()],
+            [loc.useRegex, () => component.toggleFindUseRegex()],
+        ] as const) {
+            const el = byLabel(label);
+            expect(el?.getAttribute('aria-pressed')).toBe('false');
+            toggle();
+            fixture.detectChanges();
+            expect(byLabel(label)?.getAttribute('aria-pressed')).toBe('true');
+        }
+    });
+
+    it('T-27 matches inside mention/tag chips are neither counted nor replaced', () => {
+        load('<p>cat <span data-mention="1">cat</span> <span data-tag="x">cat</span></p>');
+
+        component.onFindQueryChange('cat');
+        expect(component.findMatchCount()).toBe(1);
+
+        component.replaceText.set('dog');
+        component.replaceAll();
+
+        expect(editor.querySelector('[data-mention]')?.textContent).toBe('cat');
+        expect(editor.querySelector('[data-tag]')?.textContent).toBe('cat');
+        expect(editor.textContent?.startsWith('dog')).toBe(true);
+    });
+
+    it('T-28 a 2,000-match 500 KB document searches in < 200 ms and paints a capped number of rects', () => {
+        if (navigator.userAgent.includes('jsdom')) return;
+
+        const paragraph = `<p>${'cat '.repeat(20)}${'x'.repeat(230)}</p>`;
+        load(paragraph.repeat(100));
+
+        // Settle layout for the freshly written document first: the browser's
+        // one-time reflow of 500 KB of new content is the cost of loading it,
+        // not of searching it, and would otherwise be charged to the search.
+        component.openFindReplace(false);
+        expect(editor.scrollHeight).toBeGreaterThan(0);
+
+        const started = performance.now();
+        component.onFindQueryChange('cat');
+        const elapsed = performance.now() - started;
+
+        expect(component.findMatchCount()).toBe(2000);
+        expect(elapsed).toBeLessThan(200);
+        fixture.detectChanges();
+        expect(findRects(fixture).length).toBeLessThanOrEqual(FIND_MAX_PAINTED_RECTS);
     });
 });
 

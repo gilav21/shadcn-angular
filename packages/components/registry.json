@@ -2634,6 +2634,7 @@
       "rich-text-editor/rich-text-editor.component.html",
       "rich-text-editor/rich-text-editor.component.ts",
       "rich-text-editor/rich-text-editor.host.ts",
+      "rich-text-editor/rich-text-find.utils.ts",
       "rich-text-editor/rich-text-input-rules.ts",
       "rich-text-editor/rich-text-locales.ts",
       "rich-text-editor/rich-text-markdown.service.ts",

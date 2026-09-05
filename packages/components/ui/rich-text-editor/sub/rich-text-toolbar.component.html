@@ -34,8 +34,10 @@
     } @else {
       <button
         type="button"
+        [attr.data-toolbar-item]="item"
         [class]="buttonClasses(item)"
         [title]="getTooltip(item)"
+        [attr.aria-label]="getTooltip(item)"
         [attr.aria-pressed]="isPressable(item) ? isActive(item) : null"
         [attr.data-state]="isActive(item) ? 'on' : 'off'"
         [disabled]="interactionDisabled()"
