@@ -7,6 +7,7 @@ import {
     TOOLBAR_BUTTONS,
     type ToolbarButton,
     type ToolbarButtonItem,
+    type ToolbarItem,
 } from './rich-text-toolbar.component';
 import { RichTextToolbarViewContext } from '../rich-text-editor.host';
 import { RICH_TEXT_LOCALES } from '../rich-text-locales';
@@ -146,6 +147,17 @@ describe('RichTextToolbarComponent', () => {
 
         it('returns the label without a shortcut when none exists', () => {
             expect(component.getTooltip('strikethrough')).toBe('Strikethrough');
+        });
+
+        // `toolbarItems` is consumer input: a name outside the union reaches
+        // these lookups at runtime even though tsc rejects it. Before the typed
+        // TOOLBAR_BUTTONS record this returned the raw name; afterwards it threw
+        // "Cannot read properties of undefined (reading 'localeKey')", which
+        // took out the whole toolbar render.
+        it('falls back to the raw name for an item outside the union', () => {
+            const unknown = 'link' as ToolbarItem;
+            expect(component.getTooltip(unknown)).toBe('link');
+            expect(() => component.getIcon(unknown)).not.toThrow();
         });
 
         it('swaps align tooltips in RTL locale', () => {

@@ -58,7 +58,7 @@ export const MinimalToolbarWithEmoji: Story = {
             <ui-rich-text-editor
                 mode="html"
                 uiRteEmoji
-                [toolbarItems]="['bold', 'italic', 'separator', 'link']"
+                [toolbarItems]="['bold', 'italic', 'separator']"
                 placeholder="Addon buttons render after the built-in items…"
                 minHeight="150px"
             />

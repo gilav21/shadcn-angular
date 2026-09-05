@@ -410,7 +410,7 @@ export class RichTextToolbarComponent {
   getIcon(item: ToolbarItem): SafeHtml {
     if (item === 'separator') return this.sanitizer.bypassSecurityTrustHtml('');
     const key = this.locale().rtl ? mirrorIcon(item) : item;
-    return this.sanitizer.bypassSecurityTrustHtml(TOOLBAR_BUTTONS[key].icon);
+    return this.sanitizer.bypassSecurityTrustHtml(TOOLBAR_BUTTONS[key]?.icon ?? '');
   }
 
   /**
@@ -418,10 +418,15 @@ export class RichTextToolbarComponent {
    * parentheses where one exists. Mirrors the RTL swap for alignment only:
    * indent/outdent keep their own labels, which name the direction the text
    * moves rather than a side of the page.
+   *
+   * `toolbarItems` is consumer input, so a name outside the union can reach
+   * here at runtime even though `tsc` rejects it. Such an item falls back to
+   * its own name rather than throwing — the pre-typed-table behaviour.
    */
   getTooltip(item: ToolbarItem): string {
     if (item === 'separator') return '';
     const button = TOOLBAR_BUTTONS[this.locale().rtl ? mirrorLabel(item) : item];
+    if (!button) return item;
     const label = this.locale().toolbar[button.localeKey];
     return button.shortcut ? `${label} (${button.shortcut})` : label;
   }
