@@ -4676,12 +4676,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (existing?.data) return existing;
 
         if (existing) {
-            existing.data = '​';
+            existing.data = '\u200B';
             return existing;
         }
 
         block.innerHTML = '';
-        return block.appendChild(this.document.createTextNode('​')) as Text;
+        return block.appendChild(this.document.createTextNode('\u200B')) as Text;
     }
 
     /**
@@ -4716,7 +4716,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const textSpan = item.querySelector('span') as HTMLElement;
 
         if (this.isEmptyBlock(block)) {
-            textSpan.textContent = '​';
+            textSpan.textContent = '\u200B';
         } else {
             textSpan.textContent = '';
             while (block.firstChild) {

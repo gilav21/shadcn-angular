@@ -7292,13 +7292,30 @@ describe('RichTextEditorComponent markdown input rules', () => {
             expect(code.textContent).toContain('**b**');
         });
 
-        it('does not fire inside a mention chip', () => {
-            const chip = seed('<p><span data-mention="u1">@ann</span></p>')
-                .querySelector('[data-mention]') as HTMLElement;
+        // Every chip another feature owns vetoes an inline rule. Each selector
+        // in the forbidden list gets its own case: with only one exercised, the
+        // others can be deleted from the selector with the suite still green.
+        it.each([
+            ['data-mention', '<p><span data-mention="u1">@ann</span></p>'],
+            ['data-tag', '<p><span data-tag="t1">#rel</span></p>'],
+            ['data-action-click', '<p><span data-action-click="run">act</span></p>'],
+            ['data-action-hover', '<p><span data-action-hover="peek">act</span></p>'],
+        ])('does not fire inside a [%s] chip', (attribute, html) => {
+            const chip = seed(html).querySelector(`[${attribute}]`) as HTMLElement;
             typeInto(chip, '**b**');
 
             expect(editor.querySelector('strong')).toBeNull();
             expect(chip.textContent).toContain('**b**');
+        });
+
+        // The `pre` entry is load-bearing on its own: a bare <pre> with no
+        // <code> inside would otherwise fall through to the inline rules.
+        it('does not fire inside a pre that holds no code element', () => {
+            const pre = seed('<pre>x</pre>');
+            typeInto(pre, '**b**');
+
+            expect(editor.querySelector('strong')).toBeNull();
+            expect(pre.textContent).toContain('**b**');
         });
 
         it('does not fire inside a link', () => {
@@ -7575,6 +7592,12 @@ describe('RichTextEditorComponent block-state activeFormats', () => {
         expect(caretIn('<ul><li>a</li></ul>', 'li')).not.toContain('paragraph');
     });
 
+    // `taskList` is keyed on the marker attribute, not on the tag: a plain
+    // bullet list must not press the task-list button.
+    it('does not report taskList for a plain ul', () => {
+        expect(caretIn('<ul><li>a</li></ul>', 'li')).not.toContain('taskList');
+    });
+
     // T-27 — alignment, and its RTL mirroring.
     it('reports alignCenter for a centred block', () => {
         expect(caretIn('<p style="text-align: center">a</p>', 'p')).toContain('alignCenter');
@@ -7695,6 +7718,41 @@ describe('RichTextEditorComponent text style select', () => {
         ) as HTMLElement[];
         expect(pressed).toHaveLength(1);
         expect(pressed[0].getAttribute('title')).toContain('Heading 2');
+    });
+
+    // T-35, corrected. Measured, not class-asserted.
+    //
+    // The spec predicted the default toolbar would be "at least 3 button
+    // widths narrower". It is not: the select is capped at max-w-[7rem] plus
+    // its icon (~114px) and four 28px buttons are ~112px, so at default sizing
+    // they are within a couple of pixels. What the select actually buys is a
+    // control that TRUNCATES — it holds that cap whatever the locale's labels
+    // are, while four buttons cannot shrink — plus four fewer focus stops.
+    //
+    // So this asserts the property that holds and matters: the default layout
+    // is never wider, and it replaces four rendered items with one.
+    it('is no wider than the four-button layout and renders four fewer items', () => {
+        const toolbarEl = () =>
+            fixture.nativeElement.querySelector('[role="toolbar"]') as HTMLElement;
+        const itemsWidth = () =>
+            Array.from(toolbarEl().children as HTMLCollectionOf<HTMLElement>)
+                .reduce((total, child) => total + child.offsetWidth, 0);
+
+        const classic = [
+            ...DEFAULT_TOOLBAR_ITEMS.filter((item) => item !== 'textStyle'),
+            'paragraph', 'heading1', 'heading2', 'heading3',
+        ];
+        fixture.componentRef.setInput('toolbarItems', classic);
+        fixture.detectChanges();
+        const classicWidth = itemsWidth();
+        const classicCount = toolbarEl().children.length;
+        expect(classicWidth).toBeGreaterThan(0);
+
+        fixture.componentRef.setInput('toolbarItems', DEFAULT_TOOLBAR_ITEMS);
+        fixture.detectChanges();
+
+        expect(itemsWidth()).toBeLessThanOrEqual(classicWidth);
+        expect(classicCount - toolbarEl().children.length).toBe(3);
     });
 
     // T-32 — choosing an option converts the block the editor had saved when
