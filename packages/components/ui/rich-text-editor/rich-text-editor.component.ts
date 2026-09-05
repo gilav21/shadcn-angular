@@ -3720,6 +3720,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * The overlay is a sibling of the editable, never a child of the content, so
      * nothing here can reach `htmlContent`, the form value or the history — the
      * defect that injected `<mark>` elements used to cause.
+     *
+     * Geometry is requested only for rectangles that will actually be drawn:
+     * `getClientRects()` forces layout, so asking for every match of a
+     * thousands-of-matches query is precisely the cost
+     * {@link FIND_MAX_PAINTED_RECTS} exists to avoid.
      */
     private paintMatches(): void {
         const matches = this.findMatches();
@@ -3736,9 +3741,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const painted: { rect: DOMRect; current: boolean }[] = [];
         for (const [i, range] of matches.entries()) {
             const isCurrent = i === currentIdx;
-            // Ask for geometry only for rects we will actually draw: forcing
-            // layout for every match is what makes a thousands-of-matches query
-            // expensive, and the cap exists precisely to avoid that cost.
             if (!isCurrent && painted.length >= FIND_MAX_PAINTED_RECTS) continue;
             for (const rect of Array.from(range.getClientRects())) {
                 painted.push({ rect, current: isCurrent });

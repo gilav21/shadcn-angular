@@ -18,7 +18,6 @@ const setCaretAt = (node: Node, offset: number) => {
     selection?.addRange(range);
 };
 
-/** Select the full contents of the given node. */
 /** Number of entries currently on the editor's private undo stack. */
 const historyLength = (component: RichTextEditorComponent): number =>
     (component as unknown as { history: unknown[] }).history.length;
@@ -35,6 +34,7 @@ const findRects = (fixture: ComponentFixture<RichTextEditorComponent>): HTMLElem
         ),
     );
 
+/** Select the full contents of the given node. */
 const selectAllOf = (node: Node) => {
     const selection = document.getSelection();
     const range = document.createRange();
@@ -3364,6 +3364,24 @@ describe('RichTextEditorComponent — find and replace', () => {
         expect(editor.querySelector('[data-mention]')?.textContent).toBe('cat');
         expect(editor.querySelector('[data-tag]')?.textContent).toBe('cat');
         expect(editor.textContent?.startsWith('dog')).toBe(true);
+    });
+
+    it('every locale supplies the new find & replace strings', () => {
+        const added = [
+            'wholeWord', 'useRegex', 'invalidRegex', 'matchCounter', 'previous', 'next', 'findToolbar',
+        ] as const;
+        const locales = Object.entries(RICH_TEXT_LOCALES);
+        expect(locales.length).toBeGreaterThanOrEqual(10);
+
+        for (const [name, locale] of locales) {
+            for (const key of added) {
+                expect(locale.findReplace[key], `${name}.findReplace.${key}`).toBeTruthy();
+                expect(locale.findReplace[key].trim(), `${name}.findReplace.${key}`).not.toBe('');
+            }
+            expect(locale.toolbar.find, `${name}.toolbar.find`).toBeTruthy();
+            expect(locale.findReplace.matchCounter, `${name}.matchCounter`).toContain('{current}');
+            expect(locale.findReplace.matchCounter, `${name}.matchCounter`).toContain('{total}');
+        }
     });
 
     it('T-28 a 2,000-match 500 KB document searches in < 200 ms and paints a capped number of rects', () => {
