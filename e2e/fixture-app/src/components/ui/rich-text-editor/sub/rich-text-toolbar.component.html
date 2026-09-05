@@ -12,7 +12,7 @@
         type="button"
         [class]="buttonClasses(item)"
         [title]="getTooltip(item)"
-        [attr.aria-pressed]="isPressable(item) ? isActive(item) : null"
+        [attr.aria-pressed]="isActive(item)"
         [attr.data-state]="isActive(item) ? 'on' : 'off'"
         [disabled]="interactionDisabled()"
         (click)="onFormatClick(item)"

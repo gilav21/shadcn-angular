@@ -16,18 +16,18 @@ import {
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { DOCUMENT } from '@angular/common';
-import { cn } from '../../lib/utils';
+import { cn } from '@/components/lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 import { RichTextMarkdownService } from './rich-text-markdown.service';
 import { RichTextPasteNormalizerService } from './rich-text-paste-normalizer.service';
 import { RichTextToolbarComponent, ToolbarItem } from './sub/rich-text-toolbar.component';
-import { ShortcutBindingService, ShortcutComponentHandle, ShortcutRegistration } from '../../lib/shortcut-binding.service';
+import { ShortcutBindingService, ShortcutComponentHandle, ShortcutRegistration } from '@/components/lib/shortcut-binding.service';
 import {
     RichTextCommandRegistry,
     RichTextSlashCommand,
 } from './rich-text-command-registry.service';
-import { AddonSlotRegistry } from '../../lib/addon-slots';
+import { AddonSlotRegistry } from '@/components/lib/addon-slots';
 import {
     RichTextEditorAddonHost,
     type RichTextToolbarSlot,
@@ -42,8 +42,8 @@ import {
     matchInlineInputRule,
     type BlockInputRuleMatch,
 } from './rich-text-input-rules';
-import { createLocaleBindings, interpolate } from '../../lib/i18n/i18n.utils';
-import type { LocaleInput } from '../../lib/i18n/i18n.types';
+import { createLocaleBindings, interpolate } from '@/components/lib/i18n/i18n.utils';
+import type { LocaleInput } from '@/components/lib/i18n/i18n.types';
 
 const editorVariants = cva(
     'relative w-full rounded-lg border bg-background text-base ring-offset-background transition-colors',
@@ -3939,135 +3939,25 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (this.queryEditorCommandState('insertUnorderedList')) formats.add('bulletList');
         if (this.queryEditorCommandState('insertOrderedList')) formats.add('orderedList');
 
-        this.detectBlockFormats(formats);
+        this.detectTaskListFormat(formats);
         this.activeFormats.set(formats);
         this.detectCurrentFontSize();
         this.detectCurrentFontFamily();
         this.detectCurrentColors();
     }
 
-    /**
-     * The tags that decide the caret's block type, and what each contributes.
-     * A `CODE` only counts as inline code when no `PRE` was seen on the way up,
-     * which is why the walk records what it has passed rather than matching the
-     * first interesting ancestor and stopping.
-     */
-    private static readonly BLOCK_FORMAT_TAGS: Record<string, string> = {
-        H1: 'heading1',
-        H2: 'heading2',
-        H3: 'heading3',
-        BLOCKQUOTE: 'blockquote',
-        PRE: 'codeBlock',
-    };
-
-    /**
-     * Blocks whose presence means the caret is not in a plain paragraph, even
-     * when a `P` or `DIV` wraps it — a paragraph inside a list item or a table
-     * cell belongs to that structure, and the `paragraph` button must not claim
-     * it.
-     */
-    private static readonly NON_PARAGRAPH_TAGS = new Set([
-        'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'PRE', 'LI', 'TD', 'TH', 'SUMMARY',
-    ]);
-
-    /**
-     * Adds every block-level format at the caret in ONE walk from the selection
-     * to the editor root — block type, inline code, task list, alignment and
-     * list nesting. It replaces the old task-list-only walk, so the detection is
-     * strictly cheaper than before despite reporting far more.
-     */
-    private detectBlockFormats(formats: Set<string>): void {
-        const editor = this.getEditorElement();
+    private detectTaskListFormat(formats: Set<string>): void {
         const selection = this.document.getSelection();
-        if (!editor || !selection || selection.rangeCount === 0) return;
-
-        const start = selection.getRangeAt(0).startContainer;
-        if (!editor.contains(start)) return;
-
-        const seen = this.walkBlockAncestors(start, editor, formats);
-
-        if (seen.code && !seen.pre) formats.add('code');
-        if (!seen.nonParagraph) formats.add('paragraph');
-        this.addAlignmentFormat(seen.block, formats);
-    }
-
-    /**
-     * Walks the caret's ancestors up to the editor root, adding each element's
-     * own formats and reporting what the chain contained — the nearest block
-     * (for alignment) and whether a `CODE`, a `PRE` or any non-paragraph
-     * structure was passed, all of which take the whole chain to decide.
-     */
-    private walkBlockAncestors(
-        start: Node,
-        editor: HTMLElement,
-        formats: Set<string>
-    ): { block: HTMLElement | null; code: boolean; pre: boolean; nonParagraph: boolean } {
-        let node: Node | null = start.nodeType === Node.TEXT_NODE ? start.parentNode : start;
-        const seen = { block: null as HTMLElement | null, code: false, pre: false, nonParagraph: false };
-
-        while (node && node !== editor) {
-            if (node.nodeType === Node.ELEMENT_NODE) {
-                const element = node as HTMLElement;
-                seen.block ??= this.blockForAlignment(element);
-                seen.code ||= element.tagName === 'CODE';
-                seen.pre ||= element.tagName === 'PRE';
-                seen.nonParagraph ||= RichTextEditorComponent.NON_PARAGRAPH_TAGS.has(element.tagName);
-                this.addTagFormats(element, formats);
+        if (!selection || selection.rangeCount === 0) {
+            return;
+        }
+        let el: Node | null = selection.getRangeAt(0).startContainer;
+        while (el && el !== this.editorDiv?.nativeElement) {
+            if (el.nodeType === Node.ELEMENT_NODE && (el as Element).closest('ul[data-task-list]')) {
+                formats.add('taskList');
+                break;
             }
-            node = node.parentNode;
-        }
-        return seen;
-    }
-
-    /** The formats one ancestor element contributes on the way to the root. */
-    private addTagFormats(element: HTMLElement, formats: Set<string>): void {
-        const tagFormat = RichTextEditorComponent.BLOCK_FORMAT_TAGS[element.tagName];
-        if (tagFormat) formats.add(tagFormat);
-
-        if (element.tagName === 'UL' && element.dataset['taskList'] !== undefined) {
-            formats.add('taskList');
-        }
-        if (element.tagName === 'LI' && this.getListDepth(element) >= 2) {
-            formats.add('indent');
-        }
-    }
-
-    /** The nearest ancestor whose alignment applies to the caret, if any. */
-    private blockForAlignment(element: HTMLElement): HTMLElement | null {
-        const isBlock = RichTextEditorComponent.NON_PARAGRAPH_TAGS.has(element.tagName)
-            || element.tagName === 'P'
-            || element.tagName === 'DIV';
-        return isBlock ? element : null;
-    }
-
-    /** Adds the caret block's alignment, mapped through the locale direction. */
-    private addAlignmentFormat(block: HTMLElement | null, formats: Set<string>): void {
-        if (!block) return;
-        const textAlign = block.style.textAlign
-            || block.getAttribute('align')
-            || '';
-        const format = this.alignmentFormat(textAlign, this.isRtl());
-        if (format) formats.add(format);
-    }
-
-    /**
-     * The toolbar item a physical or logical `text-align` value presses.
-     *
-     * `left`/`right` name physical sides of the page, so under an RTL locale
-     * they press the opposite item — the one whose glyph and command the
-     * toolbar has already mirrored, which is what makes a right-aligned Hebrew
-     * paragraph light up the button that visually points right.
-     * `start`/`end` are already direction-relative and so map straight through.
-     * `justify` and an absent value press nothing.
-     */
-    private alignmentFormat(textAlign: string, rtl: boolean): string | null {
-        switch (textAlign) {
-            case 'center': return 'alignCenter';
-            case 'left': return rtl ? 'alignRight' : 'alignLeft';
-            case 'right': return rtl ? 'alignLeft' : 'alignRight';
-            case 'start': return 'alignLeft';
-            case 'end': return 'alignRight';
-            default: return null;
+            el = el.parentNode;
         }
     }
 

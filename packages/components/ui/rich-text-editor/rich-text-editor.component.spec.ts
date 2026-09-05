@@ -7466,3 +7466,144 @@ describe('RichTextEditorComponent markdown input rules', () => {
     });
 
 });
+
+// ── Block-state activeFormats ─────────────────────────────────────────────
+// `activeFormats()` reports the block the caret is in, so the toolbar's block,
+// list and alignment buttons can render pressed.
+describe('RichTextEditorComponent block-state activeFormats', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector(
+            '[data-slot="rich-text-editor"]'
+        ) as HTMLDivElement;
+    });
+
+    /** Put the caret inside `selector`'s text and re-detect the active formats. */
+    const caretIn = (html: string, selector: string): Set<string> => {
+        editor.innerHTML = html;
+        const target = editor.querySelector(selector) as HTMLElement;
+        const walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT);
+        const textNode = walker.nextNode() as Text | null;
+        if (textNode) {
+            setCaretAt(textNode, textNode.data.length);
+        } else {
+            setCaretAt(target, 0);
+        }
+        component.onSelectionChange();
+        fixture.detectChanges();
+        return component.activeFormats();
+    };
+
+    // T-26 — block type.
+    it('reports heading1/2/3 for the caret\'s heading level', () => {
+        expect(caretIn('<h1>a</h1>', 'h1')).toContain('heading1');
+        expect(caretIn('<h2>a</h2>', 'h2')).toContain('heading2');
+        expect(caretIn('<h3>a</h3>', 'h3')).toContain('heading3');
+    });
+
+    it('reports paragraph in a plain block, and not alongside a heading', () => {
+        expect(caretIn('<p>a</p>', 'p')).toContain('paragraph');
+
+        const inHeading = caretIn('<h1>a</h1>', 'h1');
+        expect(inHeading).not.toContain('paragraph');
+    });
+
+    it('adds nothing for h4-h6, which have no toolbar button', () => {
+        const formats = caretIn('<h4>a</h4>', 'h4');
+        expect(formats).not.toContain('heading1');
+        expect(formats).not.toContain('heading2');
+        expect(formats).not.toContain('heading3');
+        expect(formats).not.toContain('paragraph');
+    });
+
+    it('reports blockquote, codeBlock and inline code', () => {
+        expect(caretIn('<blockquote>a</blockquote>', 'blockquote')).toContain('blockquote');
+        expect(caretIn('<pre><code>a</code></pre>', 'code')).toContain('codeBlock');
+        expect(caretIn('<p><code>a</code></p>', 'code')).toContain('code');
+    });
+
+    it('does not report inline code for a code element inside a pre', () => {
+        const formats = caretIn('<pre><code>a</code></pre>', 'code');
+        expect(formats).toContain('codeBlock');
+        expect(formats).not.toContain('code');
+    });
+
+    it('reports bulletList, orderedList and taskList', () => {
+        expect(caretIn('<ul><li>a</li></ul>', 'li')).toContain('bulletList');
+        expect(caretIn('<ol><li>a</li></ol>', 'li')).toContain('orderedList');
+        expect(
+            caretIn(
+                '<ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>a</span></li></ul>',
+                'span'
+            )
+        ).toContain('taskList');
+    });
+
+    it('does not report paragraph inside a list item', () => {
+        expect(caretIn('<ul><li>a</li></ul>', 'li')).not.toContain('paragraph');
+    });
+
+    // T-27 — alignment, and its RTL mirroring.
+    it('reports alignCenter for a centred block', () => {
+        expect(caretIn('<p style="text-align: center">a</p>', 'p')).toContain('alignCenter');
+    });
+
+    it('maps physical left/right to alignLeft/alignRight in an LTR locale', () => {
+        expect(caretIn('<p style="text-align: left">a</p>', 'p')).toContain('alignLeft');
+        expect(caretIn('<p style="text-align: right">a</p>', 'p')).toContain('alignRight');
+    });
+
+    it('mirrors physical left/right under an RTL locale', () => {
+        fixture.componentRef.setInput('locale', 'he');
+        fixture.detectChanges();
+
+        expect(caretIn('<p style="text-align: right">a</p>', 'p')).toContain('alignLeft');
+        expect(caretIn('<p style="text-align: left">a</p>', 'p')).toContain('alignRight');
+    });
+
+    // `start`/`end` are already direction-relative, so they press the same
+    // button in both locales: the "start" side of the text, whichever physical
+    // side that is. Only the physical `left`/`right` values need mirroring.
+    it('resolves logical start/end to the same button in either direction', () => {
+        expect(caretIn('<p style="text-align: start">a</p>', 'p')).toContain('alignLeft');
+        expect(caretIn('<p style="text-align: end">a</p>', 'p')).toContain('alignRight');
+
+        fixture.componentRef.setInput('locale', 'he');
+        fixture.detectChanges();
+
+        expect(caretIn('<p style="text-align: start">a</p>', 'p')).toContain('alignLeft');
+        expect(caretIn('<p style="text-align: end">a</p>', 'p')).toContain('alignRight');
+    });
+
+    it('reports no alignment for justify', () => {
+        const formats = caretIn('<p style="text-align: justify">a</p>', 'p');
+        expect(formats).not.toContain('alignLeft');
+        expect(formats).not.toContain('alignCenter');
+        expect(formats).not.toContain('alignRight');
+    });
+
+    it('reads the align attribute when no inline style is present', () => {
+        expect(caretIn('<p align="center">a</p>', 'p')).toContain('alignCenter');
+    });
+
+    // T-28 — nesting depth, exposed as data only.
+    it('reports indent for a nested list item and not for a top-level one', () => {
+        expect(caretIn('<ul><li>a</li></ul>', 'li')).not.toContain('indent');
+
+        const nested = caretIn(
+            '<ul><li>a<ul><li id="deep">b</li></ul></li></ul>',
+            '#deep'
+        );
+        expect(nested).toContain('indent');
+    });
+});

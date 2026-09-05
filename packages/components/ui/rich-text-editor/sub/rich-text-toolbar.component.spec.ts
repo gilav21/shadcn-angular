@@ -121,10 +121,20 @@ describe('RichTextToolbarComponent', () => {
             expect(component.isActive('italic')).toBe(false);
         });
 
-        it('returns false for non-formattable items', () => {
+        it('maps block items to active formats too', () => {
             fixture.componentRef.setInput('activeFormats', new Set(['heading1']));
             fixture.detectChanges();
-            expect(component.isActive('heading1')).toBe(false);
+            expect(component.isActive('heading1')).toBe(true);
+            expect(component.isActive('heading2')).toBe(false);
+        });
+
+        // A momentary action can appear in `activeFormats` as data — `indent`
+        // carries list-nesting depth — without ever rendering pressed.
+        it('returns false for a momentary action even when activeFormats names it', () => {
+            fixture.componentRef.setInput('activeFormats', new Set(['indent', 'undo']));
+            fixture.detectChanges();
+            expect(component.isActive('indent')).toBe(false);
+            expect(component.isActive('undo')).toBe(false);
         });
     });
 
@@ -288,6 +298,62 @@ describe('RichTextToolbarComponent', () => {
     // T-5 — one table, keyed by the button union. A new `ToolbarItem` member
     // without its row is a `tsc` error (the `Record` below), not a button that
     // renders blank with its raw id as the tooltip.
+
+    // T-29 — the pressed-state vocabulary. Every block, list and alignment item
+    // reflects `activeFormats`; the momentary actions never announce themselves
+    // as toggles, because `aria-pressed` on a non-toggle is an a11y defect.
+    describe('pressed state', () => {
+        const pressable = [
+            'bold', 'italic', 'underline', 'strikethrough', 'code', 'taskList',
+            'bulletList', 'orderedList', 'paragraph', 'heading1', 'heading2', 'heading3',
+            'blockquote', 'codeBlock', 'alignLeft', 'alignCenter', 'alignRight',
+        ] as const;
+
+        it.each(pressable)('renders %s pressed when activeFormats reports it', (item) => {
+            fixture.componentRef.setInput('items', [item]);
+            fixture.componentRef.setInput('activeFormats', new Set([item]));
+            fixture.detectChanges();
+
+            const button = fixture.nativeElement.querySelector('button');
+            expect(button.getAttribute('aria-pressed')).toBe('true');
+            expect(button.getAttribute('data-state')).toBe('on');
+        });
+
+        it.each(pressable)('renders %s unpressed when activeFormats omits it', (item) => {
+            fixture.componentRef.setInput('items', [item]);
+            fixture.componentRef.setInput('activeFormats', new Set<string>());
+            fixture.detectChanges();
+
+            const button = fixture.nativeElement.querySelector('button');
+            expect(button.getAttribute('aria-pressed')).toBe('false');
+            expect(button.getAttribute('data-state')).toBe('off');
+        });
+
+        // A momentary action is not a toggle: WAI-ARIA's button pattern puts
+        // `aria-pressed` only on toggle buttons, so these must OMIT the
+        // attribute rather than report false — a screen reader announcing
+        // "Undo, not pressed" is wrong, not merely noisy.
+        const momentary = ['undo', 'redo', 'clear', 'horizontalRule', 'indent', 'outdent'] as const;
+
+        it.each(momentary)('never puts aria-pressed on %s', (item) => {
+            fixture.componentRef.setInput('items', [item]);
+            fixture.componentRef.setInput('activeFormats', new Set([item]));
+            fixture.detectChanges();
+
+            const button = fixture.nativeElement.querySelector('button');
+            expect(button.hasAttribute('aria-pressed')).toBe(false);
+        });
+
+        it('leaves a momentary button out of the pressed styling even when named in activeFormats', () => {
+            fixture.componentRef.setInput('items', ['indent']);
+            fixture.componentRef.setInput('activeFormats', new Set(['indent']));
+            fixture.detectChanges();
+
+            const button = fixture.nativeElement.querySelector('button');
+            expect(button.getAttribute('data-state')).toBe('off');
+        });
+    });
+
     describe('TOOLBAR_BUTTONS table', () => {
         /**
          * Type-level completeness: this annotation stops compiling the moment

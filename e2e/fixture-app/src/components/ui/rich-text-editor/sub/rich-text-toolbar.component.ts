@@ -10,7 +10,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { NgComponentOutlet } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { cn } from '../../../lib/utils';
+import { cn } from '@/components/lib/utils';
 import { SeparatorComponent } from '../../separator';
 import { RichTextLocale, RICH_TEXT_LOCALES } from '../rich-text-locales';
 import { RichTextToolbarViewContext, type RichTextToolbarSlot } from '../rich-text-editor.host';
@@ -183,18 +183,6 @@ function mirrorLabel(item: ToolbarButtonItem): ToolbarButtonItem {
   },
 })
 export class RichTextToolbarComponent {
-  /**
-   * Every item that is a toggle — one that names a state the caret can be in,
-   * and therefore renders pressed when {@link activeFormats} reports it. The
-   * names match the host's `activeFormats` vocabulary exactly, which is what
-   * lets {@link isActive} be a single `Set.has` with no mapping table.
-   */
-  private static readonly PRESSABLE = new Set<ToolbarButtonItem>([
-    'bold', 'italic', 'underline', 'strikethrough', 'code', 'taskList',
-    'bulletList', 'orderedList', 'paragraph', 'heading1', 'heading2', 'heading3',
-    'blockquote', 'codeBlock', 'alignLeft', 'alignCenter', 'alignRight',
-  ]);
-
   private readonly sanitizer = inject(DomSanitizer);
 
   /**
@@ -212,11 +200,9 @@ export class RichTextToolbarComponent {
   ]);
 
   /**
-   * Format names currently active at the caret, used to render buttons
-   * pressed. A name is honoured when it matches a toggle item — every inline
-   * format, block type, list type and alignment; see {@link isActive}. Names
-   * the host reports for other purposes (`'indent'`, which carries list-nesting
-   * depth) are carried but never rendered as a pressed state.
+   * Format names currently active at the caret (`'bold'`, `'italic'`,
+   * `'underline'`, `'strikethrough'`, `'code'`, `'taskList'`), used to render
+   * buttons pressed. Only those names are honoured — see {@link isActive}.
    */
   readonly activeFormats = input<Set<string>>(new Set());
 
@@ -360,26 +346,21 @@ export class RichTextToolbarComponent {
 
   /**
    * Whether a built-in button renders pressed (`aria-pressed`/`data-state`).
-   * An item is pressable exactly when it names a state the caret can be *in* —
-   * every inline toggle, block type, list type and alignment. The host reports
-   * those under the same names in {@link activeFormats}, so the check is one
-   * `Set.has` through this constant.
+   * Only the inline toggles the host reports in {@link activeFormats} —
+   * bold, italic, underline, strikethrough, code, taskList — can be active;
+   * block, alignment, history and utility items always report `false`.
    */
   isActive(item: ToolbarItem): boolean {
-    return this.isPressable(item) && this.activeFormats().has(item);
-  }
-
-  /**
-   * Whether an item is a toggle at all. The momentary actions — `undo`,
-   * `redo`, `clear`, `horizontalRule`, `indent`, `outdent` — do something once
-   * rather than entering a state, so the template omits `aria-pressed` on them
-   * entirely: WAI-ARIA's button pattern reserves that attribute for toggle
-   * buttons, and announcing "Undo, not pressed" is wrong rather than merely
-   * noisy. `indent` still travels in `activeFormats` as nesting data for
-   * consumers; it just never renders pressed.
-   */
-  isPressable(item: ToolbarItem): boolean {
-    return RichTextToolbarComponent.PRESSABLE.has(item as ToolbarButtonItem);
+    const formatMap: Record<string, string> = {
+      bold: 'bold',
+      italic: 'italic',
+      underline: 'underline',
+      strikethrough: 'strikethrough',
+      code: 'code',
+      taskList: 'taskList',
+    };
+    const format = formatMap[item];
+    return format ? this.activeFormats().has(format) : false;
   }
 
   /**
