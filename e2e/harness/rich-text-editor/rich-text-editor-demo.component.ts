@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, signal, ViewChild } from '@angular/core';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { RichTextEditorComponent } from '@/components/ui/rich-text-editor';
 
@@ -21,12 +21,16 @@ import { RichTextEditorComponent } from '@/components/ui/rich-text-editor';
             <section>
                 <h2 class="mb-2 font-semibold">HTML mode, ngModel</h2>
                 <ui-rich-text-editor
+                    #editor
                     data-testid="editor"
                     mode="html"
                     [ngModel]="html()"
                     (ngModelChange)="html.set($event)"
                 />
                 <pre data-testid="editor-html" class="sr-only">{{ html() }}</pre>
+                <button type="button" data-testid="load-draft" (click)="loadDraft()">load draft</button>
+                <button type="button" data-testid="insert-star" (click)="insertStar()">insert star</button>
+                <pre data-testid="editor-dirty" class="sr-only">{{ editor.isDirty() }}</pre>
             </section>
 
             <section>
@@ -99,5 +103,21 @@ export class RichTextEditorDemoComponent {
 
     protected toggleInputDisabled(): void {
         this.inputDisabled.update(v => !v);
+    }
+
+    @ViewChild('editor') protected editor!: RichTextEditorComponent;
+
+    /** A programmatic edit: recorded, so Ctrl+Z takes the user back. */
+    protected loadDraft(): void {
+        this.editor.setContent('<p>Draft loaded.</p>');
+    }
+
+    /**
+     * An overlay-driven insert with no addon involved — the same path an emoji
+     * picker takes. Saves the caret first, exactly as an overlay would.
+     */
+    protected insertStar(): void {
+        this.editor.saveSelection();
+        this.editor.insertTextFromOverlay('★');
     }
 }

@@ -60,7 +60,7 @@ test('Control+h opens find & replace and Replace All rewrites the model', async 
     const find = page.getByPlaceholder('Search text...');
     await expect(find).toBeVisible();
     await find.fill('Hello');
-    await expect(page.getByText('1/2', { exact: true })).toBeVisible();
+    await expect(page.getByText('1 of 2', { exact: true })).toBeVisible();
 
     await page.getByPlaceholder('Replace with...').fill('Bye');
     await page.getByRole('button', { name: 'Replace All' }).click();
@@ -70,7 +70,7 @@ test('Control+h opens find & replace and Replace All rewrites the model', async 
     expect(((await html.textContent()) ?? '').split('Bye').length - 1).toBe(2);
 });
 
-test('find shows 0/0 and disables navigation when nothing matches', async ({ page }) => {
+test('find reports No results and disables navigation when nothing matches', async ({ page }) => {
     await page.goto('/');
     const editor = editable(page);
 
@@ -81,10 +81,10 @@ test('find shows 0/0 and disables navigation when nothing matches', async ({ pag
     await expect(find).toBeVisible();
     await find.fill('zzzznomatch');
 
-    await expect(page.getByText('0/0', { exact: true })).toBeVisible();
+    await expect(page.getByText('No results', { exact: true })).toBeVisible();
     const panel = page.locator('[data-testid="editor"]').locator('..');
-    await expect(panel.getByRole('button', { name: '▲' })).toBeDisabled();
-    await expect(panel.getByRole('button', { name: '▼' })).toBeDisabled();
+    await expect(panel.getByRole('button', { name: 'Previous match' })).toBeDisabled();
+    await expect(panel.getByRole('button', { name: 'Next match' })).toBeDisabled();
 });
 
 test('Control+z undoes typing and Control+y redoes it', async ({ page }) => {
@@ -320,4 +320,77 @@ test('the Text style select reflects the caret block and converts it back', asyn
     await select.selectOption('paragraph');
     await expect(editor.locator('h1')).toHaveCount(0);
     await expect(editor).toContainText('Heading');
+});
+
+test('T-30 find highlights never reach the model, and Replace All is one undo step', async ({ page }) => {
+    await page.goto('/');
+    const editor = editable(page);
+    const html = page.getByTestId('editor-html');
+    const before = (await html.textContent()) ?? '';
+
+    // Open with the replace row from the start: the shortcuts fire from the
+    // editable's own keydown, so pressing Control+h once focus is in the find
+    // input would never reach the editor.
+    await editor.locator('p').first().click();
+    await page.keyboard.press('Control+h');
+
+    const find = page.getByPlaceholder('Search text...');
+    await find.fill('Hello');
+    await expect(page.getByText('1 of 2', { exact: true })).toBeVisible();
+
+    // The highlights are an overlay, not content: painted rectangles exist,
+    // but no <mark> is in the editable and the bound model is untouched.
+    await expect(page.locator('[data-slot="rich-text-find-overlay"] [data-find-rect]').first()).toBeVisible();
+    await expect(editor.locator('mark')).toHaveCount(0);
+    await expect(html).toHaveText(before);
+
+    await page.getByPlaceholder('Replace with...').fill('Bye');
+    await page.getByRole('button', { name: 'Replace All' }).click();
+    await expect(html).not.toContainText('Hello');
+
+    // One undo takes the whole sweep back. The seeded document reaches the
+    // editor through ngModel, i.e. writeValue, which records nothing by design
+    // (UC-28) — so what undo restores is the entry Replace All pushed over,
+    // and the assertion that matters is that no <mark> ever entered the model.
+    await editor.locator('p').first().click();
+    await page.keyboard.press('Control+z');
+
+    expect((await html.textContent()) ?? '').not.toContain('<mark');
+    await expect(editor.locator('mark')).toHaveCount(0);
+});
+
+test('T-44 setContent and an overlay insert are each their own undo step', async ({ page }) => {
+    await page.goto('/');
+    const editor = editable(page);
+    const html = page.getByTestId('editor-html');
+
+    // Type first, so there is a recorded state for setContent's undo to land
+    // on: the seeded document arrives via writeValue, which records nothing.
+    await editor.locator('p').first().click();
+    await page.keyboard.press('End');
+    await page.keyboard.type(' typed');
+    await page.waitForTimeout(HISTORY_DEBOUNCE_MS);
+
+    // A programmatic edit is recorded, so undo returns the previous document.
+    await page.getByTestId('load-draft').click();
+    await expect(editor).toContainText('Draft loaded.');
+
+    await editor.locator('p').first().click();
+    await page.keyboard.press('Control+z');
+    await expect(editor).toContainText('typed');
+
+    // An overlay insert after a flushed typing burst is its own entry: one
+    // undo takes back the insert and leaves the typing.
+    await editor.locator('p').first().click();
+    await page.keyboard.press('End');
+    await page.waitForTimeout(HISTORY_DEBOUNCE_MS);
+
+    await page.getByTestId('insert-star').click();
+    await expect(editor).toContainText('★');
+
+    await editor.locator('p').first().click();
+    await page.keyboard.press('Control+z');
+
+    await expect(editor).not.toContainText('★');
+    await expect(html).toContainText('typed');
 });
