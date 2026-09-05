@@ -7,7 +7,7 @@ import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 import { RichTextMarkdownService } from './rich-text-markdown.service';
 import { RICH_TEXT_LOCALES } from './rich-text-locales';
 import { FormsModule, ReactiveFormsModule, FormControl, FormGroup } from '@angular/forms';
-import { Component } from '@angular/core';
+import { AfterViewInit, Component, Input, ViewChild } from '@angular/core';
 import { JsonPipe } from '@angular/common';
 
 const sampleMentions: MentionItem[] = [
@@ -205,6 +205,8 @@ export const FullToolbar: Story = {
             'code', 'codeBlock',
             'separator',
             'undo', 'redo', 'clear',
+            'separator',
+            'find',
         ],
         placeholder: 'Full featured editor...',
         minHeight: '200px',
@@ -650,6 +652,72 @@ export const TextStyleRTL: Story = {
                     'Under an RTL locale the select mirrors: its chevron and padding move to the left '
                     + 'edge. Alignment pressed-state mirrors too — a `text-align: right` block presses '
                     + 'the button whose glyph already points right.',
+            },
+        },
+    },
+};
+
+@Component({
+    selector: 'rich-text-find-demo',
+    standalone: true,
+    imports: [RichTextEditorComponent, FormsModule],
+    template: `
+    <ui-rich-text-editor
+      #editor
+      mode="html"
+      toolbar="top"
+      [locale]="locale"
+      [toolbarItems]="['bold', 'italic', 'separator', 'find']"
+      [findDebounceMs]="0"
+      [ngModel]="content"
+      minHeight="180px"
+    />
+  `,
+})
+class RichTextFindDemoComponent implements AfterViewInit {
+    @ViewChild('editor') editor!: RichTextEditorComponent;
+    @Input() locale?: string;
+    @Input() content = '<p>The cat sat on the mat. Another cat walked past the cat flap.</p>';
+
+    ngAfterViewInit(): void {
+        this.editor.openFindReplace(true);
+        this.editor.onFindQueryChange('cat');
+    }
+}
+
+export const FindReplace: Story = {
+    render: () => ({
+        moduleMetadata: {
+            imports: [RichTextFindDemoComponent],
+        },
+        template: '<rich-text-find-demo />',
+    }),
+    parameters: {
+        docs: {
+            description: {
+                story:
+                    'Find and replace with the panel open on a live query. Highlights are drawn on an '
+                    + 'overlay layer, so they never enter the document, the form value or the undo history. '
+                    + "The `'find'` toolbar item is the touch-friendly way in; `Ctrl/Cmd+F` and `Ctrl/Cmd+H` "
+                    + 'are the keyboard ones.',
+            },
+        },
+    },
+};
+
+export const FindReplaceRTL: Story = {
+    render: () => ({
+        moduleMetadata: {
+            imports: [RichTextFindDemoComponent],
+        },
+        template: '<rich-text-find-demo locale="he" />',
+    }),
+    parameters: {
+        docs: {
+            description: {
+                story:
+                    'The same panel in Hebrew: it anchors at the logical inline-end, the controls run '
+                    + 'right-to-left, and the counter reads the localized "{current} מתוך {total}".',
             },
         },
     },

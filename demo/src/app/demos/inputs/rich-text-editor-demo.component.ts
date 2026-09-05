@@ -9,6 +9,7 @@ import {
   InputComponent,
   SelectComponent,
   ToolbarItem,
+  type RichTextHistoryState,
 } from '../../../../../packages/components/ui';
 // One import line for everything, exactly as a consumer who ran
 // `add rich-text-editor/full` writes it. RTE_FULL is every addon directive;
@@ -154,6 +155,34 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
         <ui-rich-text-editor mode="markdown" toolbar="top" uiRteEmoji uiRteLinks
           [toolbarItems]="['bold', 'italic', 'separator']"
           [placeholder]="t().minimalPlaceholder" minHeight="100px" />
+      </div>
+
+      <div class="space-y-2">
+        <h3 class="text-lg font-medium">{{ t().findUndoHeading }}</h3>
+        <p class="text-sm text-muted-foreground">{{ t().findUndoDescription }}</p>
+        <ui-rich-text-editor #findEditor mode="html"
+          toolbar="top"
+          [toolbarItems]="findToolbarItems"
+          [recordExternalWrites]="true"
+          [findDebounceMs]="150"
+          [(ngModel)]="findUndoContent"
+          (historyChange)="findUndoHistory.set($event)"
+          minHeight="140px" />
+        <div class="flex flex-wrap items-center gap-2">
+          <button type="button"
+            class="inline-flex min-h-9 items-center rounded-md border px-3 text-sm hover:bg-accent"
+            (click)="loadFindUndoDraft(findEditor)">{{ t().findUndoLoadDraft }}</button>
+          <button type="button"
+            class="inline-flex min-h-9 items-center rounded-md border px-3 text-sm hover:bg-accent disabled:opacity-50"
+            [disabled]="!findEditor.isDirty()"
+            (click)="findEditor.markClean()">{{ t().findUndoSaved }}</button>
+          <span class="text-sm text-muted-foreground">
+            {{ findEditor.isDirty() ? t().findUndoDirty : t().findUndoClean }}
+          </span>
+          <span class="text-sm text-muted-foreground">
+            canUndo: {{ findUndoHistory().canUndo }} · canRedo: {{ findUndoHistory().canRedo }}
+          </span>
+        </div>
       </div>
 
       <div class="space-y-2">
@@ -336,6 +365,17 @@ export class RichTextEditorDemoComponent {
 
   richTextContent = '';
   richTextHtml = '';
+
+  /** Toolbar for the find/undo section: the 'find' item is the touch entry point. */
+  protected readonly findToolbarItems: ToolbarItem[] = ['bold', 'italic', 'separator', 'undo', 'redo', 'separator', 'find'];
+  protected findUndoContent = '<p>The cat sat on the mat. Another cat walked past the cat flap.</p>';
+  protected readonly findUndoHistory = signal<RichTextHistoryState>({ canUndo: false, canRedo: false });
+
+  /** Load a draft as a recorded edit, so Ctrl+Z takes the user back. */
+  protected loadFindUndoDraft(editor: RichTextEditorComponent): void {
+    editor.setContent('<p>Draft loaded from the server. The cat is still here.</p>');
+  }
+
   readonly richTextShowHistoryButton = signal(true);
   readonly richTextOutlineShowToolbarItem = signal(true);
   lastAutoUploadUrl = '';
