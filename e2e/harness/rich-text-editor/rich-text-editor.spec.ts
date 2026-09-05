@@ -431,7 +431,16 @@ test('a page button calling editor.format("bold") bolds the selection', async ({
     await page.goto('/');
     const editor = editable(page);
 
-    await editor.locator('p').first().dblclick();
+    // Select the first word with the keyboard rather than a dblclick: a
+    // dblclick in this harness lands a collapsed caret (probed: rangeCount 1,
+    // selected text ""), so the test would assert that `format` bolds an empty
+    // selection — which is exactly what it does.
+    await editor.locator('p').first().click();
+    await page.keyboard.press('Home');
+    for (let i = 0; i < 5; i++) await page.keyboard.press('Shift+ArrowRight');
+
+    const selected = await page.evaluate(() => document.getSelection()?.toString() ?? '');
+    expect(selected).toBe('Hello');
     await expect(editor.locator('b, strong')).toHaveCount(0);
 
     await page.getByTestId('format-bold').click();
