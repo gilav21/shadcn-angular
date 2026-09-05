@@ -12989,6 +12989,12 @@
               "default": "false"
             },
             {
+              "name": "findDebounceMs",
+              "type": "number",
+              "description": "Milliseconds of quiet before a changed find query is searched, so a burst of keystrokes costs one pass over the document. `0` searches synchronously on every keystroke.",
+              "default": "150"
+            },
+            {
               "name": "historyDebounceMs",
               "type": "number",
               "description": "Debounce interval in milliseconds for capturing history snapshots. A snapshot is saved after the user stops typing for this duration.",
@@ -13047,6 +13053,12 @@
               "default": "false"
             },
             {
+              "name": "recordExternalWrites",
+              "type": "boolean",
+              "description": "Record a history entry for each `ControlValueAccessor` write, so a form's `setValue` / `patchValue` can be undone. Off by default, matching the long-standing behaviour that a programmatic write is not an edit.",
+              "default": "false"
+            },
+            {
               "name": "showCount",
               "type": "boolean",
               "description": "Show a character count below the editor.",
@@ -13093,6 +13105,11 @@
               "name": "focused",
               "type": "void",
               "description": "Emits when the editor gains focus."
+            },
+            {
+              "name": "historyChange",
+              "type": "RichTextHistoryState",
+              "description": "Emits the undo stack's state on every change to it — a push, undo, redo, history restore or trim. Drive your own undo/redo buttons from it, or read {@link canUndo} / {@link canRedo} directly."
             },
             {
               "name": "htmlChange",
