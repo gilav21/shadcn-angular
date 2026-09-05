@@ -71,7 +71,7 @@ function isAnalysedSource(file) {
 
 /** One file's added-line tally against its coverage record. */
 function tally(file, lines, record) {
-  if (!record) return { file, added: lines.size, miss: lines.size, noReport: true };
+  if (!record) return { file, added: lines.size, miss: lines.size, noReport: true, excluded: true };
   const instrumented = [...lines].filter(l => record.uncovered.has(l) || record.covered.has(l));
   if (!instrumented.length) return null;
   const miss = instrumented.filter(l => record.uncovered.has(l));
@@ -79,11 +79,21 @@ function tally(file, lines, record) {
 }
 
 const rows = [];
-let totalNew = 0, totalMiss = 0;
+let totalNew = 0, totalMiss = 0, excludedLines = 0, excludedFiles = 0;
 for (const [file, lines] of changed) {
   if (!isAnalysedSource(file)) continue;
   const row = tally(file, lines, cov.get(file));
   if (!row) continue;
+  // A file absent from lcov has no executable statements to instrument —
+  // locale tables, type-only modules, barrels. Counting its lines as
+  // "uncovered" understates the real figure (96 locale lines once turned a
+  // genuine 97.62% into a reported 73.59%). Report them separately.
+  if (row.excluded) {
+    excludedLines += row.added;
+    excludedFiles += 1;
+    rows.push(row);
+    continue;
+  }
   totalNew += row.added;
   totalMiss += row.miss;
   if (row.miss) rows.push(row);
@@ -91,9 +101,12 @@ for (const [file, lines] of changed) {
 
 rows.sort((a, b) => b.miss - a.miss);
 console.log(`\nNEW-CODE COVERAGE vs ${base}`);
-console.log(`instrumented new lines: ${totalNew} | uncovered: ${totalMiss} | covered: ${((1 - totalMiss / (totalNew || 1)) * 100).toFixed(2)}%\n`);
-console.log('miss / added  file');
+console.log(`executable new lines: ${totalNew} | uncovered: ${totalMiss} | covered: ${((1 - totalMiss / (totalNew || 1)) * 100).toFixed(2)}%`);
+if (excludedFiles) {
+  console.log(`(excluded: ${excludedLines} lines in ${excludedFiles} non-instrumented file(s) — no executable statements)`);
+}
+console.log('\nmiss / added  file');
 for (const r of rows) {
-  console.log(String(r.miss).padStart(4) + ' /' + String(r.added).padStart(5), ' ' + r.file + (r.noReport ? '   [NO COVERAGE REPORT — never imported by a test]' : ''));
+  console.log(String(r.miss).padStart(4) + ' /' + String(r.added).padStart(5), ' ' + r.file + (r.noReport ? '   [not instrumented — excluded from the percentage]' : ''));
   if (r.lines) console.log('              lines: ' + r.lines.join(', ') + (r.miss > 8 ? ' …' : ''));
 }
