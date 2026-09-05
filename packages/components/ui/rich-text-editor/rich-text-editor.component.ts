@@ -52,6 +52,7 @@ import type { RichTextEditorApi, RichTextFormatCommand } from './rich-text-edito
 import { isRichTextEmpty } from './rich-text-editor.validators';
 import { RICH_TEXT_PROSE_CLASSES } from './rich-text-prose';
 import { createLocaleBindings, interpolate } from '../../lib/i18n/i18n.utils';
+import { provideComponentLocale } from '../../lib/i18n/i18n.token';
 import type { LocaleInput } from '../../lib/i18n/i18n.types';
 
 const editorVariants = cva(
@@ -216,6 +217,12 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
             useExisting: forwardRef(() => RichTextEditorComponent),
         },
         RichTextCommandRegistry,
+        // `providers`, not `viewProviders`: addon directives sit on the editor
+        // ELEMENT, so only an element-level provider reaches them. This is what
+        // makes `<ui-rich-text-editor locale="he" uiRteFull>` localize all
+        // fourteen addons from one binding. The lookup inside
+        // `provideComponentLocale` is lazy, so it does not cycle.
+        provideComponentLocale(() => RichTextEditorComponent),
     ],
     templateUrl: './rich-text-editor.component.html',
     host: {

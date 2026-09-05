@@ -256,7 +256,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
         <h3 class="text-lg font-medium">{{ t().hebrewHeading }}</h3>
         <p class="text-sm text-muted-foreground">{{ t().hebrewDescription }}</p>
         <ui-rich-text-editor mode="markdown" toolbar="top" locale="he" [showCount]="true" [showWordCount]="true"
-          uiRteSlashCommands uiRteSlashCommandsLocale="he" minHeight="150px" />
+          uiRteFull minHeight="150px" />
       </div>
 
       <div class="space-y-2">

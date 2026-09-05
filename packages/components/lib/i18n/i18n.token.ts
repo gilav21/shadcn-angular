@@ -45,9 +45,19 @@ export function provideUiLocale(locale: Signal<string> | string): Provider {
 
 /**
  * Make a compound component re-broadcast its `locale` input as the
- * `UI_LOCALE_ID` for descendants in its template. Add to the component's
- * **`viewProviders`** (not `providers` — `providers` would make the parent
- * recursively inject itself, causing a cyclic-DI error).
+ * `UI_LOCALE_ID` for everything resolving beneath it.
+ *
+ * Choose the array by who has to see it:
+ *
+ * - **`providers`** when directives on the component's own element must
+ *   inherit — the addon pattern, used by `data-table` and
+ *   `rich-text-editor`, where `<ui-rich-text-editor locale="he" uiRteFull>`
+ *   localizes fourteen addon directives from one binding.
+ * - **`viewProviders`** when only the component's own template children
+ *   should — the sub-component pattern, used by `pagination`.
+ *
+ * Neither placement cycles: the component lookup happens lazily inside the
+ * `computed` below, not while the parent is still constructing.
  *
  * ```ts
  * @Component({
