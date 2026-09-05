@@ -114,3 +114,41 @@ superscript/subscript buttons, per-folder `--compact` install layout.
 1. Persistence
 
 - Store user overrides by app/user scope.
+
+## Markdown input rules — accepted follow-ups (out of scope for the C1/B1 spec)
+
+Deferred while implementing `rte-markdown-input-rules-and-block-toolbar-spec`.
+Each was considered and deliberately left out, not overlooked.
+
+1. **More block rules.** `####`–`######` headings, and `1)` as an alternative
+   ordered-list marker. Both are cheap additions to the `BLOCK_RULES` table in
+   `rich-text-input-rules.ts` — one row each.
+2. **More inline rules.** `_italic_`, `__bold__`, `~~strike~~`, and the link and
+   image forms `[text](url)` / `![alt](src)`. The link rule is the interesting
+   one: it needs the sanitizer's URL policy applied to typed input, which the
+   paste path already does but the typing path does not.
+3. **Numbered lists that start where the author says.** Typing `3. ` currently
+   starts the list at 1, because the sanitizer keeps no `start` attribute.
+   Supporting it means allowing `start` on `<ol>` and round-tripping it through
+   the markdown serializer.
+4. **Arabic-Indic and other non-ASCII digits** in the ordered-list rule
+   (`٣. `). The regex is ASCII-only today; the locale already knows the
+   direction, so the digit set could follow it.
+5. **A configurable rule set** — an `[inputRules]` array letting a consumer
+   enable a subset rather than the whole feature. Deferred deliberately in
+   favour of one boolean, on the "inputs-only configuration" rule; revisit only
+   if real consumers ask for a subset rather than all-or-nothing.
+6. **`:shortcode:` emoji triggers** (idea C12). The emoji addon has no typed
+   trigger at all today — it inserts from its toolbar overlay — so this would be
+   its first consumer of `registerInputObserver`.
+7. **Delete the markdown service's dead string-buffer helpers.**
+   `hasMarkdownSyntax`, `applyFormat`, `insertHeading` and `insertCodeBlock` in
+   `rich-text-markdown.service.ts` have zero callers and are not a seam for live
+   rules (they operate on a plain-text buffer, not the DOM). Separate cleanup.
+8. **`onFormatCommand('undo')` truncates the redo branch.** Its trailing
+   `applyMutation` pushes a fresh history entry, so redo-after-undo works
+   through the private `undo()` but not through the toolbar command path.
+   Pre-existing behaviour, unrelated to input rules, but surprising.
+9. **Toolbar overflow menu / roving tabindex** (idea B4) and density tokens
+   (B7). The Text style select bought back roughly three buttons of width on a
+   phone; an overflow menu is the next lever if the toolbar grows again.
