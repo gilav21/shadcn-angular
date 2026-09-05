@@ -3117,6 +3117,18 @@ describe('RichTextEditorComponent — find and replace', () => {
         expect(component.findMatches()[0].toString()).toBe('aaa');
     });
 
+    // Bounded: advancing by a single UTF-16 unit lands mid-surrogate and the
+    // u-flag regex never terminates, so a regression here hangs rather than
+    // asserting. The timeout turns that into a fast failure.
+    it('T-13b zero-length regex matches advance by whole code points (astral text)', { timeout: 5000 }, () => {
+        load('<p>😀😁 ok</p>');
+        component.toggleFindUseRegex();
+
+        expect(() => component.onFindQueryChange('x*')).not.toThrow();
+
+        expect(component.findMatchCount()).toBe(0);
+    });
+
     it('T-14 regex replace expands capture groups', () => {
         load('<p>jane@acme</p>');
         component.toggleFindUseRegex();

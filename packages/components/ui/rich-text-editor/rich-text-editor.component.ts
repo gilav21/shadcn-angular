@@ -3640,7 +3640,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         let match: RegExpExecArray | null;
         while ((match = regex.exec(index.text)) !== null) {
             if (match[0].length === 0) {
-                regex.lastIndex += [...index.text.slice(regex.lastIndex)][0]?.length ?? 1;
+                const codePoint = index.text.codePointAt(regex.lastIndex);
+                regex.lastIndex += codePoint !== undefined && codePoint > 0xffff ? 2 : 1;
                 continue;
             }
             const range = this.rangeForMatch(index, match.index, match.index + match[0].length);
