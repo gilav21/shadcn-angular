@@ -884,9 +884,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * is by definition the saved one, so {@link isDirty} reads false after it.
      */
     writeValue(value: string): void {
-        this.applyExternalHtml(value);
         if (this.recordExternalWrites()) {
             this.flushPendingHistoryPush();
+        }
+        this.applyExternalHtml(value);
+        if (this.recordExternalWrites()) {
             this.pushHistory();
         }
         this.markClean();
@@ -924,14 +926,19 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * not be undoable — restoring a version, say. The caret is left collapsed at
      * the end of the new content. `null`/`undefined` become the empty string.
      *
+     * Any in-flight typing burst is flushed as its own entry *before* the new
+     * content lands, so a `setContent` arriving mid-sentence cannot swallow
+     * what the user had just typed. (§D.5.12 of the spec lists the flush after
+     * the write; that order loses the burst — see the spec's corrections.)
+     *
      * It deliberately does NOT reset the dirty baseline: content the code
      * inserted is still an unsaved change. Use {@link markClean} after a save.
      */
     setContent(value: string, options?: RichTextSetContentOptions): void {
+        this.flushPendingHistoryPush();
         this.applyExternalHtml(value);
         this.placeCaretAtEnd();
         this.syncContentFromEditor();
-        this.flushPendingHistoryPush();
         if (options?.recordHistory !== false) {
             this.pushHistory();
         }

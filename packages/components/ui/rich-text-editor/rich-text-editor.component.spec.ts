@@ -8350,6 +8350,16 @@ describe('RichTextEditorComponent — undo consistency', () => {
         editor.dispatchEvent(new Event('input', { bubbles: true }));
     };
 
+    it('T-31b setContent flushes an in-flight typing burst as its own entry', () => {
+        type('one typed');
+
+        component.setContent('<p>loaded</p>');
+
+        expect(editor.textContent).toBe('loaded');
+        component.onKeydown(undoKey());
+        expect(editor.textContent).toBe('one typed');
+    });
+
     it('T-31 setContent records one entry by default, calls onChange, undo/redo round-trips', () => {
         const seen: string[] = [];
         component.registerOnChange(v => seen.push(v));
@@ -8367,6 +8377,32 @@ describe('RichTextEditorComponent — undo consistency', () => {
 
         component.onKeydown(redoKey());
         expect(editor.textContent).toBe('two');
+    });
+
+    it('T-31c setContent leaves a collapsed caret at the end of the new content', () => {
+        component.setContent('<p>alpha</p><p>omega</p>');
+
+        const selection = document.getSelection() as Selection;
+        expect(selection.rangeCount).toBe(1);
+        const range = selection.getRangeAt(0);
+        expect(range.collapsed).toBe(true);
+        const after = document.createRange();
+        after.selectNodeContents(editor);
+        after.setStart(range.endContainer, range.endOffset);
+        expect(after.cloneContents().textContent).toBe('');
+        expect(editor.contains(range.startContainer)).toBe(true);
+    });
+
+    it('T-34b recordExternalWrites flushes an in-flight typing burst before the write', () => {
+        fixture.componentRef.setInput('recordExternalWrites', true);
+        fixture.detectChanges();
+        type('one typed');
+
+        component.writeValue('<p>loaded</p>');
+
+        expect(editor.textContent).toBe('loaded');
+        component.onKeydown(undoKey());
+        expect(editor.textContent).toBe('one typed');
     });
 
     it('T-32 setContent with recordHistory:false calls onChange and leaves the stack length unchanged', () => {
