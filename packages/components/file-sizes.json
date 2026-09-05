@@ -3861,6 +3861,54 @@
       "bytes": 1440,
       "lines": 36
     },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-block-state-activeFormats-adds-nothing-for-h4-h6--which-have-no-toolbar-button-1.png": {
+      "bytes": 9096,
+      "lines": 5
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-block-state-activeFormats-does-not-report-inline-code-for-a-code-element-inside-a-pre-1.png": {
+      "bytes": 8681,
+      "lines": 6
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-block-state-activeFormats-does-not-report-paragraph-inside-a-list-item-1.png": {
+      "bytes": 10672,
+      "lines": 8
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-block-state-activeFormats-maps-physical-left-right-to-alignLeft-alignRight-in-an-LTR-locale-1.png": {
+      "bytes": 8376,
+      "lines": 5
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-block-state-activeFormats-mirrors-physical-left-right-under-an-RTL-locale-1.png": {
+      "bytes": 8919,
+      "lines": 7
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-block-state-activeFormats-reads-the-align-attribute-when-no-inline-style-is-present-1.png": {
+      "bytes": 8833,
+      "lines": 6
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-block-state-activeFormats-reports-alignCenter-for-a-centred-block-1.png": {
+      "bytes": 8833,
+      "lines": 6
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-block-state-activeFormats-reports-blockquote--codeBlock-and-inline-code-1.png": {
+      "bytes": 8376,
+      "lines": 5
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-block-state-activeFormats-reports-heading1-2-3-for-the-caret-s-heading-level-1.png": {
+      "bytes": 8615,
+      "lines": 4
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-block-state-activeFormats-reports-indent-for-a-nested-list-item-and-not-for-a-top-level-one-1.png": {
+      "bytes": 9382,
+      "lines": 8
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-block-state-activeFormats-reports-paragraph-in-a-plain-block--and-not-alongside-a-heading-1.png": {
+      "bytes": 10994,
+      "lines": 4
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-block-state-activeFormats-resolves-logical-start-end-through-the-locale-direction-1.png": {
+      "bytes": 8237,
+      "lines": 8
+    },
     "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-markdown-input-rules-closes-the-revert-window-on-a-later-input-that-no-keydown-preceded-1.png": {
       "bytes": 7611,
       "lines": 7
@@ -3940,6 +3988,30 @@
     "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-markdown-input-rules-guards-wraps-a-bare-top-level-text-node-in-a-paragraph-before-transforming-it-1.png": {
       "bytes": 7654,
       "lines": 7
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-markdown-input-rules-inline-rules-changes-nothing-when-the-same-keystrokes-land-inside-an-inline-code-element-1.png": {
+      "bytes": 9245,
+      "lines": 5
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-markdown-input-rules-inline-rules-does-not-fire-inside-a-link-1.png": {
+      "bytes": 9921,
+      "lines": 6
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-markdown-input-rules-inline-rules-does-not-fire-inside-a-mention-chip-1.png": {
+      "bytes": 9592,
+      "lines": 3
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-markdown-input-rules-inline-rules-lands-text-typed-after-the-transform-outside-the-strong-1.png": {
+      "bytes": 9402,
+      "lines": 6
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-markdown-input-rules-inline-rules-reverts-on-an-immediate-Backspace-1.png": {
+      "bytes": 7840,
+      "lines": 9
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-markdown-input-rules-inline-rules-turns----bold----into-a-strong-carrying-just-the-body-1.png": {
+      "bytes": 10075,
+      "lines": 5
     },
     "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-markdown-input-rules-keeps-text-that-already-followed-the-caret-------before--Title--yields--h1-Title--h1--1.png": {
       "bytes": 10699,
@@ -4641,6 +4713,10 @@
       "bytes": 2966,
       "lines": 82
     },
+    "rich-text-editor/addons/slash-commands/__screenshots__/rich-text-slash-commands.directive.spec.ts/RichTextSlashCommandsDirective-hands-input-observers-the-post-transform-text-for-the-transforming-keystroke-1.png": {
+      "bytes": 7611,
+      "lines": 7
+    },
     "rich-text-editor/addons/slash-commands/index.ts": {
       "bytes": 218,
       "lines": 4
@@ -4666,8 +4742,8 @@
       "lines": 163
     },
     "rich-text-editor/addons/slash-commands/rich-text-slash-commands.directive.spec.ts": {
-      "bytes": 26373,
-      "lines": 607
+      "bytes": 28082,
+      "lines": 649
     },
     "rich-text-editor/addons/slash-commands/rich-text-slash-commands.directive.ts": {
       "bytes": 18470,
@@ -4786,12 +4862,12 @@
       "lines": 228
     },
     "rich-text-editor/rich-text-editor.component.spec.ts": {
-      "bytes": 312866,
-      "lines": 7328
+      "bytes": 329164,
+      "lines": 7719
     },
     "rich-text-editor/rich-text-editor.component.ts": {
-      "bytes": 209220,
-      "lines": 5190
+      "bytes": 214550,
+      "lines": 5307
     },
     "rich-text-editor/rich-text-editor.host.ts": {
       "bytes": 16008,
@@ -4810,8 +4886,8 @@
       "lines": 163
     },
     "rich-text-editor/rich-text-locales.ts": {
-      "bytes": 29562,
-      "lines": 781
+      "bytes": 30014,
+      "lines": 792
     },
     "rich-text-editor/rich-text-markdown.service.spec.ts": {
       "bytes": 24000,
@@ -4837,21 +4913,125 @@
       "bytes": 21048,
       "lines": 593
     },
-    "rich-text-editor/sub/rich-text-toolbar.component.css": {
-      "bytes": 186,
+    "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-isActive-returns-false-for-non-formattable-items-1.png": {
+      "bytes": 7040,
+      "lines": 3
+    },
+    "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-pressed-state-never-puts-aria-pressed-on-clear-1.png": {
+      "bytes": 4640,
+      "lines": 4
+    },
+    "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-pressed-state-never-puts-aria-pressed-on-horizontalRule-1.png": {
+      "bytes": 3927,
+      "lines": 3
+    },
+    "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-pressed-state-never-puts-aria-pressed-on-indent-1.png": {
+      "bytes": 4330,
+      "lines": 3
+    },
+    "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-pressed-state-never-puts-aria-pressed-on-outdent-1.png": {
+      "bytes": 4317,
+      "lines": 3
+    },
+    "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-pressed-state-never-puts-aria-pressed-on-redo-1.png": {
+      "bytes": 4308,
+      "lines": 3
+    },
+    "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-pressed-state-never-puts-aria-pressed-on-undo-1.png": {
+      "bytes": 4314,
+      "lines": 4
+    },
+    "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-pressed-state-renders-alignCenter-pressed-when-activeFormats-reports-it-1.png": {
+      "bytes": 4138,
+      "lines": 3
+    },
+    "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-pressed-state-renders-alignCenter-unpressed-when-activeFormats-omits-it-1.png": {
+      "bytes": 4138,
+      "lines": 3
+    },
+    "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-pressed-state-renders-alignLeft-pressed-when-activeFormats-reports-it-1.png": {
+      "bytes": 4121,
       "lines": 5
     },
+    "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-pressed-state-renders-alignLeft-unpressed-when-activeFormats-omits-it-1.png": {
+      "bytes": 4121,
+      "lines": 5
+    },
+    "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-pressed-state-renders-alignRight-pressed-when-activeFormats-reports-it-1.png": {
+      "bytes": 4102,
+      "lines": 3
+    },
+    "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-pressed-state-renders-alignRight-unpressed-when-activeFormats-omits-it-1.png": {
+      "bytes": 4102,
+      "lines": 3
+    },
+    "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-pressed-state-renders-blockquote-pressed-when-activeFormats-reports-it-1.png": {
+      "bytes": 4674,
+      "lines": 3
+    },
+    "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-pressed-state-renders-bulletList-pressed-when-activeFormats-reports-it-1.png": {
+      "bytes": 4202,
+      "lines": 3
+    },
+    "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-pressed-state-renders-codeBlock-pressed-when-activeFormats-reports-it-1.png": {
+      "bytes": 4600,
+      "lines": 3
+    },
+    "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-pressed-state-renders-heading1-pressed-when-activeFormats-reports-it-1.png": {
+      "bytes": 4350,
+      "lines": 3
+    },
+    "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-pressed-state-renders-heading2-pressed-when-activeFormats-reports-it-1.png": {
+      "bytes": 4419,
+      "lines": 3
+    },
+    "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-pressed-state-renders-heading3-pressed-when-activeFormats-reports-it-1.png": {
+      "bytes": 4380,
+      "lines": 4
+    },
+    "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-pressed-state-renders-orderedList-pressed-when-activeFormats-reports-it-1.png": {
+      "bytes": 4385,
+      "lines": 3
+    },
+    "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-pressed-state-renders-paragraph-pressed-when-activeFormats-reports-it-1.png": {
+      "bytes": 4387,
+      "lines": 3
+    },
+    "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-text-style-select-ignores-a-change-carrying-a-value-outside-the-option-set-1.png": {
+      "bytes": 5416,
+      "lines": 5
+    },
+    "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-text-style-select-is-at-least-40px-tall-under-a-coarse-pointer-1.png": {
+      "bytes": 5416,
+      "lines": 5
+    },
+    "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-text-style-select-is-disabled-and-silent-while-the-toolbar-is-disabled-1.png": {
+      "bytes": 5272,
+      "lines": 5
+    },
+    "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-text-style-select-prefers-a-heading-over-paragraph-when-both-are-reported-1.png": {
+      "bytes": 5416,
+      "lines": 5
+    },
+    "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-text-style-select-tracks-the-caret-block-through-activeFormats-1.png": {
+      "bytes": 5416,
+      "lines": 5
+    },
+    "rich-text-editor/sub/rich-text-toolbar.component.css": {
+      "bytes": 224,
+      "lines": 6
+    },
     "rich-text-editor/sub/rich-text-toolbar.component.html": {
-      "bytes": 1357,
-      "lines": 42
+      "bytes": 2892,
+      "lines": 66
     },
     "rich-text-editor/sub/rich-text-toolbar.component.spec.ts": {
-      "bytes": 18763,
-      "lines": 415
+      "bytes": 28909,
+      "lines": 639
     },
     "rich-text-editor/sub/rich-text-toolbar.component.ts": {
-      "bytes": 23891,
-      "lines": 413
+      "bytes": 28171,
+      "lines": 493
     },
     "rich-text-security.spec.ts": {
       "bytes": 12753,

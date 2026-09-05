@@ -82,6 +82,103 @@ inherent to the copy model: the base barrel can never re-export an addon,
 because the file would not compile for anyone who installed the base without
 it. `sync-registry` enforces that boundary as a hard error.
 
+## Markdown shortcuts
+
+Typing a recognised Markdown marker turns it into real formatting the moment it
+is complete. This is on by default — no import, no addon, no configuration.
+
+| Type | Get |
+| --- | --- |
+| `# ` / `## ` / `### ` | Heading 1 / 2 / 3 |
+| `- ` or `* ` | Bullet list |
+| `1. ` (1-3 digits) | Numbered list |
+| `> ` | Blockquote |
+| `[] ` / `[x] ` | Task item, unchecked / checked |
+| `---` | Horizontal rule |
+| `` ``` `` then Space or Enter | Code block (`` ```ts `` sets the language) |
+| `**bold**` | `<strong>` |
+| `*italic*` | `<em>` |
+| `` `code` `` | Inline `<code>` |
+
+**Undo semantics.** A transform is exactly one undo step. `Mod+Z` right after
+typing `# ` gives you back the literal `# `, not the paragraph before it.
+
+**Backspace reverts.** Pressing Backspace immediately after a transform — no
+other key, click or blur in between — restores the literal characters, so a
+marker can still be typed as text when that is what you meant. Any other action
+closes that window and Backspace goes back to deleting.
+
+**Turning it off.**
+
+```html
+<ui-rich-text-editor [markdownShortcuts]="false" />
+```
+
+Reach for this when your authors type Markdown markers they expect to stay
+literal — a documentation tool whose content *is* Markdown source, say.
+
+**What does not fire a rule.** A marker only counts when it is the whole text
+before the caret, in a plain paragraph. Nothing happens inside a list item,
+table cell, `<pre>`, `<summary>` or an existing heading; nothing happens
+mid-IME-composition, on a deletion or during an undo replay; and the space that
+completes a marker has to have been *typed*, so dropping or pasting `"- "`
+leaves it as text. Inline rules additionally never fire inside code, a link or
+a mention chip.
+
+**Interplay with the slash and mentions addons.** The transform runs before
+those addons are told about the keystroke, so they see the post-transform text.
+`/h1` still opens the slash menu, `# ` still converts and leaves the menu
+closed, and typing `@a` in a heading a rule just created opens the mention
+popover as usual. The addons need no changes.
+
+If you are writing an addon that consumes `registerInputObserver`, this is the
+ordering guarantee you can rely on: the text you receive is what the document
+actually contains, never a marker the editor is about to rewrite.
+
+## Text style select
+
+The default toolbar's block-type group is one `'textStyle'` select — Normal
+text / Heading 1 / 2 / 3 — rather than four buttons. It both reflects the
+caret's block and sets it.
+
+```html
+<!-- default: the select -->
+<ui-rich-text-editor />
+
+<!-- the classic four buttons instead -->
+<ui-rich-text-editor
+  [toolbarItems]="['bold', 'italic', 'separator', 'paragraph', 'heading1', 'heading2', 'heading3']" />
+
+<!-- the select alongside other block toggles -->
+<ui-rich-text-editor [toolbarItems]="['textStyle', 'separator', 'bulletList', 'blockquote', 'codeBlock']" />
+```
+
+It is a native `<select>`, which keeps the base install at one dependency
+(`separator`) and gives phones the OS picker — the reason the control exists
+is to save toolbar width on a 320px screen, where four buttons were the biggest
+fixed cost.
+
+**Pressed state.** `activeFormats()` now reports the caret's block as well as
+its inline formats, so `paragraph`, `heading1-3`, `blockquote`,
+`codeBlock`, `code`, `bulletList`, `orderedList`, `taskList` and
+`alignLeft/Center/Right` all render pressed when they apply. Read it directly
+for an app-level status bar:
+
+```ts
+readonly editor = viewChild.required(RichTextEditorComponent);
+readonly blockLabel = computed(() => {
+  const f = this.editor().activeFormats();
+  if (f.has('heading1')) return 'H1';
+  if (f.has('codeBlock')) return 'Code';
+  return f.has('blockquote') ? 'Quote' : 'Text';
+});
+```
+
+`activeFormats()` also carries `'indent'` when the caret's list item is
+nested two or more levels deep. The `indent` and `outdent` buttons never
+render pressed, though — they are momentary actions, and WAI-ARIA reserves
+`aria-pressed` for toggles, so those buttons omit the attribute entirely.
+
 ## The addon model
 
 An addon is a **standalone directive whose selector targets the editor

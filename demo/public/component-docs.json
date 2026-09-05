@@ -12985,7 +12985,7 @@
             {
               "name": "disabled",
               "type": "boolean",
-              "description": "Disables the editor entirely — no input, no toolbar, no interactions.",
+              "description": "Disables the editor entirely — no input, no toolbar, no interactions. OR-ed with the form's own disabled state; see {@link isDisabled}.",
               "default": "false"
             },
             {
@@ -13004,6 +13004,12 @@
               "name": "locale",
               "type": "LocaleInput<RichTextLocale>",
               "description": "Language/locale for all editor UI strings. Pass a locale key (e.g. `'en'`) to use a built-in locale, or pass a full {@link RichTextLocale} object for custom translations."
+            },
+            {
+              "name": "markdownShortcuts",
+              "type": "boolean",
+              "description": "Whether a completed Markdown marker typed into the editor turns into real formatting: `# ` / `## ` / `### ` into headings, `- ` / `* ` and `1. ` into lists, `> ` into a blockquote, `[] ` / `[x] ` into a task item, `---` into a horizontal rule, ``` (optionally with a language, then Space or Enter) into a code block, and `**bold**`, `*italic*`, `` `code` `` into their inline elements. Each transform is exactly one undo step, and pressing Backspace immediately afterwards puts the literal characters back — so a marker can still be typed as text when that is what was meant. Set it to `false` for an editor whose authors type Markdown markers they expect to stay literal.",
+              "default": "true"
             },
             {
               "name": "maxHeight",
@@ -13116,7 +13122,7 @@
             {
               "name": "activeFormats",
               "type": "Set<string>",
-              "description": "Format names currently active at the caret (`'bold'`, `'italic'`, `'underline'`, `'strikethrough'`, `'code'`, `'taskList'`), used to render buttons pressed. Only those names are honoured — see {@link isActive}.",
+              "description": "Format names currently active at the caret, used to render buttons pressed. A name is honoured when it matches a toggle item — every inline format, block type, list type and alignment; see {@link isActive}. Names the host reports for other purposes (`'indent'`, which carries list-nesting depth) are carried but never rendered as a pressed state.",
               "default": "new Set()"
             },
             {
