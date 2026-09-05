@@ -8812,6 +8812,15 @@ describe('RichTextEditorComponent — imperative API', () => {
         expect(historyLength(component)).toBe(before);
     });
 
+    it('T-4d insertText and insertHtml do not throw before the view exists', () => {
+        // §C.3: a consumer calling the API from a constructor or an early
+        // lifecycle hook must get nothing, not an exception.
+        const fresh = TestBed.createComponent(RichTextEditorComponent).componentInstance;
+
+        expect(() => fresh.insertText('x')).not.toThrow();
+        expect(() => fresh.insertHtml('<b>x</b>')).not.toThrow();
+    });
+
     it('T-5 insertHtml sanitizes, pushes one entry and calls onChange once', () => {
         caretAfterHello();
         (document.activeElement as HTMLElement | null)?.blur();

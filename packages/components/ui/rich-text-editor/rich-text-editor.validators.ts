@@ -111,14 +111,21 @@ function markdownToText(value: string): string {
     return text.replace(FENCE_TOKEN, (_match, index: string) => fences[Number(index)] ?? '');
 }
 
-/** Collapse whitespace artefacts both paths can leave behind. */
+/**
+ * Collapse whitespace artefacts both paths can leave behind.
+ *
+ * Any run of spaces and tabs becomes a single space, which is what a browser
+ * renders and therefore what "visible characters" means: `<p>a  b</p>` shows
+ * one space, so `richTextMaxLength` must count one. It also cleans up after
+ * the table-cell separators, which pad each cell boundary independently.
+ */
 function normalise(text: string): string {
     return text
         .replaceAll(/[\u200b\ufeff]/g, '')
         .replaceAll('\u00a0', ' ')
         .replaceAll('\r\n', '\n')
         .split('\n')
-        .map(line => line.replaceAll(/[ \t]{2,}/g, ' ').trim())
+        .map(line => line.replaceAll(/[ \t]+/g, ' ').trim())
         .filter(line => line !== '')
         .join('\n');
 }

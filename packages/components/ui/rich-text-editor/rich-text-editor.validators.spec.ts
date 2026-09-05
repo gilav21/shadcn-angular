@@ -45,6 +45,14 @@ describe('richTextVisibleText', () => {
         expect(richTextVisibleText('<details><summary>s</summary><p>d</p></details>')).toBe('s\nd');
     });
 
+    it('collapses a run of spaces to one, matching what the browser renders', () => {
+        // `<p>a  b</p>` shows a single space, so it must count as one visible
+        // character — otherwise richTextMaxLength charges for whitespace the
+        // reader never sees.
+        expect(richTextVisibleText('<p>a  b</p>')).toBe('a b');
+        expect(richTextVisibleText('<p>a\tb</p>')).toBe('a b');
+    });
+
     it('collapses runs of block boundaries to a single newline and trims', () => {
         expect(richTextVisibleText('<p></p><p>a</p><p></p>')).toBe('a');
         expect(richTextVisibleText('<p><br></p>')).toBe('');

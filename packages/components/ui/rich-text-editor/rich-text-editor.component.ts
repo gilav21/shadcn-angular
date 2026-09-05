@@ -1004,13 +1004,15 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * editor. The markup goes through the editor's allow-list sanitizer, so a
      * `<script>` is dropped rather than inserted.
      *
-     * No-op while readonly or disabled, and when nothing survives sanitization
-     * — the sanitize result is checked and the original string handed on, so
-     * the fragment helper's own sanitize is the only one that shapes the DOM.
+     * No-op while readonly or disabled, and when nothing survives sanitization.
+     * The single sanitize pass both answers that question and supplies the
+     * markup that is inserted — deciding and inserting must not disagree.
      */
     insertHtml(html: string): void {
-        if (!this.canEditContent() || this.sanitizer.sanitize(html) === '') return;
-        this.insertAtRestoredCaret(() => this.insertHtmlFragment(html));
+        if (!this.canEditContent()) return;
+        const sanitized = this.sanitizer.sanitize(html);
+        if (sanitized === '') return;
+        this.insertAtRestoredCaret(() => this.insertSanitizedHtml(sanitized));
     }
 
     /**
@@ -4167,7 +4169,16 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     private insertHtmlFragment(html: string): void {
-        const sanitized = this.sanitizer.sanitize(html);
+        this.insertSanitizedHtml(this.sanitizer.sanitize(html));
+    }
+
+    /**
+     * Insert already-sanitized markup at the live caret. Split out so a caller
+     * that had to sanitize anyway — {@link insertHtml}, which sanitizes to
+     * decide whether anything survives — can insert the result it already has
+     * instead of paying for a second identical pass.
+     */
+    private insertSanitizedHtml(sanitized: string): void {
         const selection = this.document.getSelection();
         if (!selection || selection.rangeCount === 0 || !this.editorDiv?.nativeElement) {
             this.editorDiv?.nativeElement?.insertAdjacentHTML('beforeend', sanitized);

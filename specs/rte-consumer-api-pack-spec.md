@@ -849,7 +849,7 @@ today — the whole point of the host boundary).
 | # | Task | Proves | Status | Completed | Score | Retrospective |
 |---|------|--------|--------|-----------|-------|---------------|
 | 1 | Write failing tests: T-1…T-10, T-18, T-37, T-38 (EDITOR), T-11…T-17 (VALID), T-19 (FIELD), T-20…T-28 (VIEW — the folder does not exist yet; the spec file fails at import, which is the intended red), T-29, T-30 (BIND + actions directive spec), T-35, T-36, T-39 (EMOJI), T-31, T-42 (META), T-34, T-40, T-41, T-43 (GUIDE), and the e2e skeletons T-32, T-44. Record pre-spec coverage numbers for every touched file. Sabotage-check each per C.4. | all UC | ✅ Done | 2026-09-05 18:24 | — | Every spec file written and red for the intended reason (missing module / missing member), not a typo. Two §C.1 corrections found while writing: FIELD lives at `field/field.component.spec.ts` (there is no `field/sub/field-auto-errors.component.spec.ts`), and there are **9** `not the editor's [locale]` breaking notes, not ten. Host member count read off the base branch: 39. |
-| 2 | A2: `rich-text-editor.api.ts` (`RichTextEditorApi`, `RichTextFormatCommand`); rename the private inserts to `insertTextNode`/`insertHtmlFragment` (all call sites); `insertAtRestoredCaret` helper (refactor `insertTextFromOverlay` onto it); public `focus`, `insertText`, `insertHtml`, `format`, `undo`, `redo`; `readonly` on `htmlOutput`/`markdownOutput`; `implements RichTextEditorApi`; JSDoc on every new member; barrel export. T-1…T-8, T-10 green. | UC-1…UC-6, UC-8 | ⬜ Not started | — | — | — |
+| 2 | A2: `rich-text-editor.api.ts` (`RichTextEditorApi`, `RichTextFormatCommand`); rename the private inserts to `insertTextNode`/`insertHtmlFragment` (all call sites); `insertAtRestoredCaret` helper (refactor `insertTextFromOverlay` onto it); public `focus`, `insertText`, `insertHtml`, `format`, `undo`, `redo`; `readonly` on `htmlOutput`/`markdownOutput`; `implements RichTextEditorApi`; JSDoc on every new member; barrel export. T-1…T-8, T-10 green. | UC-1…UC-6, UC-8 | ✅ Done | 2026-09-05 19:04 | 94 | The `insertAtRestoredCaret` extraction paid for itself immediately: deleting its `pushHistory()` failed 7 tests, three of them wave 3's, so the shared sequence is guarded from both sides. Improve later: UC-2's collapse-to-end fallback turned out unreachable through `focus()` in a real browser (§G.14) — the spec should state observable behaviour, not an internal branch. |
 | 3 | A3: `rich-text-editor.validators.ts` (helpers + three validators, table-driven stripper); `isEmpty()` on the component via `isRichTextEmpty`; `minWords` in `FieldErrorsLocale` + every dictionary; barrel export; `sync-registry --fix` (new file). T-9, T-11…T-19 green. | UC-7, UC-11…UC-16 | ⬜ Not started | — | — | — |
 | 4 | A4 core: `rich-text-prose.ts` + editor `editableClasses` refactor (drop `prose*`); `packages/components/ui/rich-text-view/` trio + barrel (`value`, `mode`, `size`, `dir`, `class`, imperative `innerHTML` effect, `freezeTaskCheckboxes`, `data-slot`); hand-add the `'rich-text-view'` registry entry (`category: 'editor'`, description ≤ 140, ≥ 3 tags) then `sync-registry --fix`. T-20…T-26 green; `sync-registry` check clean. | UC-17…UC-22 | ⬜ Not started | — | — | — |
 | 5 | A4 actions hook: `RICH_TEXT_ACTIONS_SANITIZER_RULES` in `rich-text-actions.serializer.ts` used by `uiRteActions`; `RichTextActionsBindDirective` registers/tears down the rules; `sync-registry --fix` (writes `testDependencies` for the view spec). T-27…T-31 green. | UC-23, UC-24 | ⬜ Not started | — | — | — |
@@ -1116,6 +1116,18 @@ lead's cross-spec notes, not edited here.
     collapsed caret inside the editable) and T-2b2 exercises the fallback
     through `restoreSelection()` directly, where it is reachable. The
     implementation is unchanged — §F's order stands. (Task 2)
+15. ⚠️ §F's `richTextVisibleText` normalisation list does not mention runs of
+    spaces or tabs. They are collapsed to one, because that is what a browser
+    renders and therefore what "visible characters" means — `<p>a  b</p>` shows
+    one space, so `richTextMaxLength` must charge for one. It also cleans up
+    after the table-cell separators, which pad each boundary independently.
+    Documented on `normalise` and locked by a test. (Task 3a)
+16. ⚠️ §C.4 asks for 100% branches on `rich-text-editor.validators.ts`; it
+    reaches 93.75%. The two uncovered branches are `?? ''` fallbacks that the
+    DOM typings (`textContent: string | null`) and `noUncheckedIndexedAccess`
+    require but that no input can reach. Removing them needs a type assertion
+    (S4325) and an implementation comment, both of which CLAUDE.md forbids, so
+    the honest number is recorded instead. (Task 3a)
 
 ---
 
@@ -1123,4 +1135,5 @@ lead's cross-spec notes, not edited here.
 
 | Row | Date | Task | Reviewer score | Notes |
 |---|---|---|---|---|
-| — | — | — | — | (append one row per task as it passes the gate; never edit an earlier row) |
+| 1 | 2026-09-05 | Task 1 — tests first | — | No gate (tests only, all red for the intended reason). Corrections §G.10–13 recorded. |
+| 2 | 2026-09-05 | Tasks 2 + 3a — imperative API + validators | 94 | `insertAtRestoredCaret` reproduces §F's load-bearing sequence exactly; the rename hit every call site (reviewer independently grepped the component and all 13 addons); `RichTextFormatCommand` excludes precisely `textStyle\|find\|undo\|redo`. Four reviewer nits all fixed before commit: single sanitize pass in `insertHtml`, the space-collapsing rule documented and tested, the §C.3 `editorDiv`-undefined case added as T-4d. Sabotage: 5 component + 7 validator breaks, every one caught; one permitted free change confirmed no over-specification. Residual: `rich-text-editor.validators.ts` is 93.75% branch, the two gaps being `?? ''` fallbacks the DOM typings force but that no input can reach. |
