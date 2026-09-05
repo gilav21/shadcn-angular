@@ -3,6 +3,7 @@ import { RichTextEditorComponent } from './rich-text-editor.component';
 import { RichTextHistoryDirective } from './addons/history';
 import { RichTextToolbarComponent } from './sub/rich-text-toolbar.component';
 import { RichTextMentionsDirective, type MentionItem, type TagItem } from './addons/mentions';
+import { RichTextViewComponent } from '../rich-text-view';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 import { RichTextMarkdownService } from './rich-text-markdown.service';
 import { RICH_TEXT_LOCALES } from './rich-text-locales';
@@ -364,7 +365,7 @@ export const GhostVariant: Story = {
 @Component({
     selector: 'rich-text-demo',
     standalone: true,
-    imports: [RichTextEditorComponent, RichTextMentionsDirective, FormsModule],
+    imports: [RichTextEditorComponent, RichTextViewComponent, RichTextMentionsDirective, FormsModule],
     template: `
     <div class="space-y-4">
       <div>
@@ -395,10 +396,7 @@ export const GhostVariant: Story = {
       
       <div>
         <p class="text-sm font-medium mb-2 block">HTML Preview</p>
-        <div 
-          class="p-4 border rounded-md prose prose-sm dark:prose-invert max-w-none"
-          [innerHTML]="html"
-        ></div>
+        <ui-rich-text-view class="p-4 border rounded-md" mode="html" [value]="html" />
       </div>
     </div>
   `,
