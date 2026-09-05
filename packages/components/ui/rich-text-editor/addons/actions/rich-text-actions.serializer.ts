@@ -1,3 +1,4 @@
+import type { SanitizerAttributeRule } from '../..';
 import type { ActionParams, RichTextActionTrigger } from './rich-text-actions.types';
 
 const ID_PATTERN = /^\w[\w.-]*$/;
@@ -124,3 +125,20 @@ export function isCombinedOnElement(el: HTMLElement): boolean {
     const hover = el.dataset['actionHover'];
     return click !== undefined && click === hover;
 }
+
+/**
+ * The sanitizer rules that let `data-action-*` attributes survive
+ * sanitization. Shared so the two places actions can render — an editor
+ * carrying `uiRteActions`, and a read-only page carrying
+ * `[uiRichTextActions]` — register the same set and cannot drift apart.
+ *
+ * Registration is reference-counted for the lifetime of whichever directive is
+ * present, so the attributes are stripped again once nothing on the page
+ * renders actions.
+ */
+export const RICH_TEXT_ACTIONS_SANITIZER_RULES: SanitizerAttributeRule[] = [
+    { tag: '*', attr: 'data-action-click', validate: validateActionId },
+    { tag: '*', attr: 'data-action-hover', validate: validateActionId },
+    { tag: '*', attr: 'data-action-click-params', requiresAttr: 'data-action-click', validate: validateActionParams },
+    { tag: '*', attr: 'data-action-hover-params', requiresAttr: 'data-action-hover', validate: validateActionParams },
+];

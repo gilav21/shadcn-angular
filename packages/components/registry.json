@@ -1349,6 +1349,9 @@
     ],
     "testFiles": [
       "field/field.component.spec.ts"
+    ],
+    "testDependencies": [
+      "rich-text-editor"
     ]
   },
   "icon": {
@@ -2631,14 +2634,17 @@
     "files": [
       "rich-text-editor/index.ts",
       "rich-text-editor/rich-text-command-registry.service.ts",
+      "rich-text-editor/rich-text-editor.api.ts",
       "rich-text-editor/rich-text-editor.component.html",
       "rich-text-editor/rich-text-editor.component.ts",
       "rich-text-editor/rich-text-editor.host.ts",
+      "rich-text-editor/rich-text-editor.validators.ts",
       "rich-text-editor/rich-text-find.utils.ts",
       "rich-text-editor/rich-text-input-rules.ts",
       "rich-text-editor/rich-text-locales.ts",
       "rich-text-editor/rich-text-markdown.service.ts",
       "rich-text-editor/rich-text-paste-normalizer.service.ts",
+      "rich-text-editor/rich-text-prose.ts",
       "rich-text-editor/rich-text-sanitizer.service.ts",
       "rich-text-editor/sub/rich-text-toolbar.component.css",
       "rich-text-editor/sub/rich-text-toolbar.component.html",
@@ -2651,6 +2657,7 @@
       "rich-text-editor/barrel.spec.ts",
       "rich-text-editor/rich-text-command-registry.service.spec.ts",
       "rich-text-editor/rich-text-editor.component.spec.ts",
+      "rich-text-editor/rich-text-editor.validators.spec.ts",
       "rich-text-editor/rich-text-input-rules.spec.ts",
       "rich-text-editor/rich-text-markdown.service.spec.ts",
       "rich-text-editor/rich-text-paste-normalizer.service.spec.ts",
@@ -2777,6 +2784,32 @@
         "componentName": "rich-text-editor",
         "sourceFile": "rich-text-editor/rich-text-editor.component.ts"
       }
+    ]
+  },
+  "rich-text-view": {
+    "name": "rich-text-view",
+    "category": "editor",
+    "description": "Read-only renderer for rich-text-editor output (HTML or markdown) with the editor typography and sanitizer.",
+    "tags": [
+      "rich-text-view",
+      "rich-text",
+      "markdown",
+      "render",
+      "read-only"
+    ],
+    "files": [
+      "rich-text-view/index.ts",
+      "rich-text-view/rich-text-view.component.html",
+      "rich-text-view/rich-text-view.component.ts"
+    ],
+    "dependencies": [
+      "rich-text-editor"
+    ],
+    "testFiles": [
+      "rich-text-view/rich-text-view.component.spec.ts"
+    ],
+    "testDependencies": [
+      "rich-text-editor/actions"
     ]
   },
   "pie-chart": {

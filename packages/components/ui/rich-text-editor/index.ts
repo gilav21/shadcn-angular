@@ -9,3 +9,4 @@ export * from './rich-text-input-rules';
 export * from './sub/rich-text-toolbar.component';
 export * from './rich-text-editor.api';
 export * from './rich-text-editor.validators';
+export * from './rich-text-prose';

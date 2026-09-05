@@ -5,7 +5,7 @@ import {
 import { RichTextEditorAddonHost, RichTextSanitizerService, RichTextMarkdownService } from '../..';
 import {
     applyStarterStyle, assertFlatParams, computeSeedStyleString, isCombinedOnElement, readActions,
-    removeAction, stripStyleIfMatches, validateActionId, validateActionParams, writeAction, writeCombined,
+    removeAction, RICH_TEXT_ACTIONS_SANITIZER_RULES, stripStyleIfMatches, writeAction, writeCombined,
 } from './rich-text-actions.serializer';
 import {
     RichTextActionsDialogComponent, type ActionsDialogConfirm,
@@ -94,12 +94,7 @@ export class RichTextActionsDirective {
     private registerBaseHooks(): void {
         effect((onCleanup) => {
             if (this.uiRteActions().length === 0) return;
-            onCleanup(this.sanitizer.registerAttributeRules([
-                { tag: '*', attr: 'data-action-click', validate: validateActionId },
-                { tag: '*', attr: 'data-action-hover', validate: validateActionId },
-                { tag: '*', attr: 'data-action-click-params', requiresAttr: 'data-action-click', validate: validateActionParams },
-                { tag: '*', attr: 'data-action-hover-params', requiresAttr: 'data-action-hover', validate: validateActionParams },
-            ]));
+            onCleanup(this.sanitizer.registerAttributeRules(RICH_TEXT_ACTIONS_SANITIZER_RULES));
         });
 
         effect((onCleanup) => {

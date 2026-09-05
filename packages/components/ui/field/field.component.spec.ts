@@ -9,7 +9,7 @@ import {
     richTextMaxLength,
     richTextMinWords,
     richTextRequired,
-} from '../rich-text-editor/rich-text-editor.validators';
+} from '../rich-text-editor';
 import {
     FieldComponent,
     FieldGroupComponent,

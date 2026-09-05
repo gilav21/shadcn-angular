@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { afterEach, describe, it, expect, vi } from 'vitest';
 import { RichTextActionsBindDirective } from './rich-text-actions-bind.directive';
 import { RICH_TEXT_ACTIONS_SANITIZER_RULES } from './rich-text-actions.serializer';
-import { RichTextSanitizerService } from '../../rich-text-sanitizer.service';
+import { RichTextSanitizerService } from '../..';
 import type { RichTextActionEvent } from './actions-runtime';
 
 @Component({
@@ -94,11 +94,21 @@ describe('RichTextActionsBindDirective — sanitizer rules', () => {
     });
 
     it('T-30b the shared constant covers the four action attributes', () => {
-        expect(RICH_TEXT_ACTIONS_SANITIZER_RULES.map(r => r.attr)).toEqual([
+        // Order carries no meaning to `registerAttributeRules`, so this asserts
+        // the set, not the sequence — pinning the order would make any future
+        // reordering a false alarm.
+        const rules = RICH_TEXT_ACTIONS_SANITIZER_RULES;
+        expect([...rules.map(rule => rule.attr)].sort((a, b) => a.localeCompare(b))).toEqual([
             'data-action-click',
-            'data-action-hover',
             'data-action-click-params',
+            'data-action-hover',
             'data-action-hover-params',
         ]);
+
+        // The `-params` rules must stay gated on their id attribute, or params
+        // could ride in on an element that carries no action at all.
+        for (const rule of rules.filter(r => r.attr.endsWith('-params'))) {
+            expect(rule.requiresAttr, rule.attr).toBe(rule.attr.replace('-params', ''));
+        }
     });
 });

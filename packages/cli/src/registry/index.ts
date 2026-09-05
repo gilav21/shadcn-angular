@@ -580,6 +580,7 @@ export const registry = defineRegistry({
     files: ['field/field.component.ts', 'field/field.locales.ts', 'field/field.utils.ts', 'field/index.ts', 'field/sub/field-auto-errors.component.ts', 'field/sub/field-description.component.ts', 'field/sub/field-error.component.ts', 'field/sub/field-group.component.ts', 'field/sub/field-label.component.ts', 'field/sub/field-legend.component.ts', 'field/sub/field-separator.component.ts', 'field/sub/field-set.component.ts'],
     libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts'],
     testFiles: ['field/field.component.spec.ts'],
+    testDependencies: ['rich-text-editor'],
   },
   icon: {
     name: 'icon',
@@ -987,9 +988,9 @@ export const registry = defineRegistry({
         'rich-text-editor/tables', 'rich-text-editor/typography', 'rich-text-editor/full',
       ],
     },
-    files: ['rich-text-editor/index.ts', 'rich-text-editor/rich-text-command-registry.service.ts', 'rich-text-editor/rich-text-editor.component.html', 'rich-text-editor/rich-text-editor.component.ts', 'rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-find.utils.ts', 'rich-text-editor/rich-text-input-rules.ts', 'rich-text-editor/rich-text-locales.ts', 'rich-text-editor/rich-text-markdown.service.ts', 'rich-text-editor/rich-text-paste-normalizer.service.ts', 'rich-text-editor/rich-text-sanitizer.service.ts', 'rich-text-editor/sub/rich-text-toolbar.component.css', 'rich-text-editor/sub/rich-text-toolbar.component.html', 'rich-text-editor/sub/rich-text-toolbar.component.ts'],
+    files: ['rich-text-editor/index.ts', 'rich-text-editor/rich-text-command-registry.service.ts', 'rich-text-editor/rich-text-editor.api.ts', 'rich-text-editor/rich-text-editor.component.html', 'rich-text-editor/rich-text-editor.component.ts', 'rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-editor.validators.ts', 'rich-text-editor/rich-text-find.utils.ts', 'rich-text-editor/rich-text-input-rules.ts', 'rich-text-editor/rich-text-locales.ts', 'rich-text-editor/rich-text-markdown.service.ts', 'rich-text-editor/rich-text-paste-normalizer.service.ts', 'rich-text-editor/rich-text-prose.ts', 'rich-text-editor/rich-text-sanitizer.service.ts', 'rich-text-editor/sub/rich-text-toolbar.component.css', 'rich-text-editor/sub/rich-text-toolbar.component.html', 'rich-text-editor/sub/rich-text-toolbar.component.ts'],
     dependencies: ['separator'],
-    testFiles: ['rich-text-editor/barrel.spec.ts', 'rich-text-editor/rich-text-command-registry.service.spec.ts', 'rich-text-editor/rich-text-editor.component.spec.ts', 'rich-text-editor/rich-text-input-rules.spec.ts', 'rich-text-editor/rich-text-markdown.service.spec.ts', 'rich-text-editor/rich-text-paste-normalizer.service.spec.ts', 'rich-text-editor/rich-text-sanitizer.service.spec.ts', 'rich-text-editor/sub/rich-text-toolbar.component.spec.ts'],
+    testFiles: ['rich-text-editor/barrel.spec.ts', 'rich-text-editor/rich-text-command-registry.service.spec.ts', 'rich-text-editor/rich-text-editor.component.spec.ts', 'rich-text-editor/rich-text-editor.validators.spec.ts', 'rich-text-editor/rich-text-input-rules.spec.ts', 'rich-text-editor/rich-text-markdown.service.spec.ts', 'rich-text-editor/rich-text-paste-normalizer.service.spec.ts', 'rich-text-editor/rich-text-sanitizer.service.spec.ts', 'rich-text-editor/sub/rich-text-toolbar.component.spec.ts'],
     libFiles: ['addon-slots.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'parsers/image-validator.ts', 'parsers/svg-sanitizer.ts', 'shortcut-binding.service.ts'],
     breaking: [
       { kind: 'removal', from: "the 'emoji' toolbar item + [emojiPicker] input on <ui-rich-text-editor>", to: 'the uiRteEmoji directive', note: "The emoji picker moved to the opt-in emoji addon. Run `npx @gilav21/shadcn-angular apply rich-text-editor/emoji`, add `uiRteEmoji` to the editor element, and remove 'emoji' from any custom [toolbarItems] arrays (the button now renders after the built-in items).", codemod: 'none', suggestedAddon: 'rich-text-editor/emoji' },
@@ -1013,6 +1014,16 @@ export const registry = defineRegistry({
         sourceFile: 'rich-text-editor/rich-text-editor.component.ts',
       },
     ],
+  },
+  'rich-text-view': {
+    name: 'rich-text-view',
+    category: 'editor',
+    description: 'Read-only renderer for rich-text-editor output (HTML or markdown) with the editor typography and sanitizer.',
+    tags: ['rich-text-view', 'rich-text', 'markdown', 'render', 'read-only'],
+    files: ['rich-text-view/index.ts', 'rich-text-view/rich-text-view.component.html', 'rich-text-view/rich-text-view.component.ts'],
+    dependencies: ['rich-text-editor'],
+    testFiles: ['rich-text-view/rich-text-view.component.spec.ts'],
+    testDependencies: ['rich-text-editor/actions'],
   },
   // Chart Components
   'pie-chart': {

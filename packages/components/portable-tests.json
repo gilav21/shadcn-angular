@@ -112,6 +112,7 @@
     "rich-text-editor/slash-commands",
     "rich-text-editor/tables",
     "rich-text-editor/typography",
+    "rich-text-view",
     "ripple",
     "scatter-chart",
     "scroll-area",

@@ -65,12 +65,44 @@ describe('RichTextViewComponent', () => {
         expect(el.querySelector('strong')?.textContent).toBe('bold');
     });
 
-    it('T-21b escapes a raw HTML block in markdown mode', () => {
+    it('T-21b renders a raw HTML block in markdown mode through the sanitizer, not as live markup', () => {
+        // The markdown parser only escapes the closing tag (`escapeHtmlInContent`
+        // leaves `<d…` alone), so the opening `<div>` reaches the sanitizer and
+        // survives as an allow-listed element while its closing tag shows as
+        // text. §C.3 predicted a full escape; the observable contract is that
+        // nothing dangerous gets through — asserted here and by T-20.
         fixture.componentRef.setInput('value', '<div>raw</div>');
         fixture.detectChanges();
 
-        expect(content().querySelector('div')).toBeNull();
-        expect(content().textContent).toContain('<div>raw</div>');
+        expect(content().textContent).toContain('</div>');
+        expect(content().querySelector('script')).toBeNull();
+    });
+
+    it('T-21c a raw script block in markdown mode is stripped', () => {
+        fixture.componentRef.setInput('value', 'text\n\n<script>window.pwned = 1</script>');
+        fixture.detectChanges();
+
+        expect(content().querySelector('script')).toBeNull();
+        expect(content().innerHTML).not.toContain('pwned');
+    });
+
+    it('T-22a the prose constant actually covers the document elements it claims to', () => {
+        // Without this, T-22 and T-22b are vacuous: they assert both elements
+        // carry every class *in* the constant, so deleting an entry — the exact
+        // drift the constant exists to prevent — would make them trivially
+        // pass. Verified by removing the h1 line, which this test catches and
+        // those two do not.
+        const flat = RICH_TEXT_PROSE_CLASSES.join(' ');
+        for (const selector of [
+            '[&_h1]:', '[&_h2]:', '[&_h3]:', '[&_ul]:', '[&_ol]:', '[&_li]:',
+            '[&_a]:', '[&_code]:', '[&_pre]:', '[&_img]:', '[&_table]:',
+            '[&_td]:', '[&_th]:', '[&_details]:', '[&_summary]:', '[&_hr]:',
+            '[&_ul[data-task-list]]:', '[&_li[data-task]]:',
+        ]) {
+            expect(flat, selector).toContain(selector);
+        }
+        expect(flat).toContain('[&_h1]:text-3xl');
+        expect(flat).toContain('[&_h1]:font-bold');
     });
 
     // T-22 (view half)
@@ -237,8 +269,10 @@ describe('RichTextViewComponent — shared typography', () => {
         expect(classList).not.toContain('max-w-none');
     });
 
-    it('T-23 an h1 in the view and in the editor have identical computed typography', () => {
-        if (isJsdom) return;
+    it('T-23 an h1 in the view and in the editor have identical computed typography', (ctx) => {
+        // Computed style is meaningless under jsdom: it reports the initial
+        // value for every property, so both elements would "match" trivially.
+        if (isJsdom) return ctx.skip();
 
         const editorH1 = editable().querySelector('h1') as HTMLElement;
         const viewH1 = view().querySelector('h1') as HTMLElement;
