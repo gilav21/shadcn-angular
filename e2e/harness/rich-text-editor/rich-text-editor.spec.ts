@@ -196,3 +196,128 @@ test('a FormControl drives the editor; control.disable() and [disabled] each loc
     await expect(form).toHaveAttribute('contenteditable', 'true');
     await expect(buttons.first()).toBeEnabled();
 });
+
+// ── Markdown input rules ──────────────────────────────────────────────────
+// These drive real keystrokes at a real contenteditable, which is the only
+// place the browser's own behaviour shows up: it materialises the terminating
+// space as `&nbsp;`, keeps typing inside a fresh <strong> unless the caret is
+// parked outside it, and reports `inputType` on every event. None of that is
+// reproducible in the headless leg.
+
+/**
+ * A fresh empty paragraph after the seeded one, with the caret in it.
+ *
+ * The seeded document ends with a `<table>`, so `Control+End` would land the
+ * caret in a table cell — where block rules are correctly guarded off. Enter at
+ * the end of the FIRST paragraph gives us the plain block the rules act on.
+ */
+const emptyParagraph = async (page: Page) => {
+    const editor = editable(page);
+    await editor.locator('p').first().click();
+    await page.keyboard.press('End');
+    await page.keyboard.press('Enter');
+    return editor;
+};
+
+test('typing "# Hello" makes a real h1 in both the DOM and the bound model', async ({ page }) => {
+    await page.goto('/');
+    const editor = await emptyParagraph(page);
+
+    await page.keyboard.type('# Hello');
+
+    await expect(editor.locator('h1')).toHaveText('Hello');
+    await expect(page.getByTestId('editor-html')).toContainText('<h1');
+});
+
+test('Backspace immediately after "# " puts the literal marker back', async ({ page }) => {
+    await page.goto('/');
+    const editor = await emptyParagraph(page);
+
+    await page.keyboard.type('# ');
+    await expect(editor.locator('h1')).toHaveCount(1);
+
+    await page.keyboard.press('Backspace');
+
+    await expect(editor.locator('h1')).toHaveCount(0);
+    await expect(editor).toContainText('#');
+});
+
+test('one Control+z after "# " restores the literal marker, not the blank line', async ({ page }) => {
+    await page.goto('/');
+    const editor = await emptyParagraph(page);
+
+    await page.keyboard.type('# ');
+    await expect(editor.locator('h1')).toHaveCount(1);
+
+    await page.keyboard.press('Control+z');
+
+    await expect(editor.locator('h1')).toHaveCount(0);
+    await expect(editor).toContainText('#');
+});
+
+test('the block markers each build their own structure', async ({ page }) => {
+    await page.goto('/');
+    const editor = await emptyParagraph(page);
+
+    await page.keyboard.type('- item');
+    await expect(editor.locator('ul > li')).toContainText('item');
+
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('[] task');
+    const task = editor.locator('ul[data-task-list] > li[data-task]');
+    await expect(task).toContainText('task');
+    await expect(task.locator('input[type="checkbox"]')).toHaveCount(1);
+});
+
+test('"---" becomes a horizontal rule and "**bold**" a strong', async ({ page }) => {
+    await page.goto('/');
+    const editor = await emptyParagraph(page);
+
+    await page.keyboard.type('---');
+    await expect(editor.locator('hr')).toHaveCount(1);
+
+    await page.keyboard.type('**bold**');
+    await expect(editor.locator('strong')).toHaveText('bold');
+
+    // The caret is parked outside the strong, so what follows is plain text.
+    await page.keyboard.type('after');
+    await expect(editor.locator('strong')).toHaveText('bold');
+    await expect(page.getByTestId('editor-html')).toContainText('<strong>bold</strong>');
+});
+
+test('markdown mode reports the transformed value, not the marker', async ({ page }) => {
+    await page.goto('/');
+    const md = editable(page, 'editor-markdown');
+
+    // The seeded document already opens with an h1 ("Title"), so assert on the
+    // count and the LAST one — the heading the rule just built.
+    await expect(md.locator('h1')).toHaveCount(1);
+
+    await md.locator('h1').click();
+    await page.keyboard.press('End');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('# Fresh');
+
+    await expect(md.locator('h1')).toHaveCount(2);
+    await expect(md.locator('h1').last()).toContainText('Fresh');
+    await expect(page.getByTestId('editor-markdown-output')).toContainText('# Fresh');
+});
+
+test('the Text style select reflects the caret block and converts it back', async ({ page }) => {
+    await page.goto('/');
+    const editor = await emptyParagraph(page);
+    const select = page.locator(
+        '[data-testid="editor"] [data-slot="rich-text-toolbar-text-style"]',
+    );
+
+    await expect(select).toBeVisible();
+
+    await page.keyboard.type('# Heading');
+    await expect(editor.locator('h1')).toHaveText('Heading');
+    await expect(select).toHaveValue('heading1');
+
+    await select.selectOption('paragraph');
+    await expect(editor.locator('h1')).toHaveCount(0);
+    await expect(editor).toContainText('Heading');
+});

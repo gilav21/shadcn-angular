@@ -7,12 +7,36 @@
   @for (item of items(); track $index) {
     @if (item === 'separator') {
       <ui-separator orientation="vertical" class="mx-1 h-6" />
+    } @else if (item === 'textStyle') {
+      <label [class]="textStyleClasses()" data-slot="rich-text-toolbar-text-style-wrap">
+        <span class="hidden sm:inline-flex" [innerHTML]="getIcon('textStyle')" aria-hidden="true"></span>
+        <select
+          data-slot="rich-text-toolbar-text-style"
+          class="h-8 cursor-pointer appearance-none truncate rounded-md border-0 bg-transparent pe-5 ps-1 text-sm
+                 max-w-[7rem] sm:max-w-[9rem]
+                 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring
+                 disabled:cursor-not-allowed
+                 bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22currentColor%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22m6 9 6 6 6-6%22/%3E%3C/svg%3E')]
+                 bg-[right_0.25rem_center] bg-no-repeat rtl:bg-[left_0.25rem_center]"
+          [attr.aria-label]="getTooltip('textStyle')"
+          [title]="getTooltip('textStyle')"
+          [disabled]="interactionDisabled()"
+          (change)="onTextStyleChange($event)"
+          (mousedown)="$event.stopPropagation()"
+        >
+          @for (option of textStyleOptions; track option) {
+            <option [value]="option" [selected]="option === textStyleValue()">
+              {{ locale().toolbar[option] }}
+            </option>
+          }
+        </select>
+      </label>
     } @else {
       <button
         type="button"
         [class]="buttonClasses(item)"
         [title]="getTooltip(item)"
-        [attr.aria-pressed]="isActive(item)"
+        [attr.aria-pressed]="isPressable(item) ? isActive(item) : null"
         [attr.data-state]="isActive(item) ? 'on' : 'off'"
         [disabled]="interactionDisabled()"
         (click)="onFormatClick(item)"

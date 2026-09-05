@@ -6,6 +6,7 @@ export interface RichTextLocale extends LocaleMeta {
         italic: string;
         underline: string;
         strikethrough: string;
+        textStyle: string;
         paragraph: string;
         heading1: string;
         heading2: string;
@@ -83,6 +84,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             italic: 'Italic',
             underline: 'Underline',
             strikethrough: 'Strikethrough',
+            textStyle: 'Text style',
             paragraph: 'Normal Text',
             heading1: 'Heading 1',
             heading2: 'Heading 2',
@@ -154,6 +156,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             italic: 'נטוי',
             underline: 'קו תחתון',
             strikethrough: 'קו חוצה',
+            textStyle: 'סגנון טקסט',
             paragraph: 'טקסט רגיל',
             heading1: 'כותרת 1',
             heading2: 'כותרת 2',
@@ -225,6 +228,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             italic: 'مائل',
             underline: 'تحته خط',
             strikethrough: 'يتوسطه خط',
+            textStyle: 'نمط النص',
             paragraph: 'نص عادي',
             heading1: 'عنوان 1',
             heading2: 'عنوان 2',
@@ -295,6 +299,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             italic: 'Kursiv',
             underline: 'Unterstrichen',
             strikethrough: 'Durchgestrichen',
+            textStyle: 'Textstil',
             paragraph: 'Normaler Text',
             heading1: 'Überschrift 1',
             heading2: 'Überschrift 2',
@@ -365,6 +370,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             italic: 'Italique',
             underline: 'Souligné',
             strikethrough: 'Barré',
+            textStyle: 'Style de texte',
             paragraph: 'Texte normal',
             heading1: 'Titre 1',
             heading2: 'Titre 2',
@@ -435,6 +441,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             italic: 'Cursiva',
             underline: 'Subrayado',
             strikethrough: 'Tachado',
+            textStyle: 'Estilo de texto',
             paragraph: 'Texto normal',
             heading1: 'Encabezado 1',
             heading2: 'Encabezado 2',
@@ -505,6 +512,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             italic: '斜体',
             underline: '下線',
             strikethrough: '取り消し線',
+            textStyle: 'テキストスタイル',
             paragraph: '標準テキスト',
             heading1: '見出し 1',
             heading2: '見出し 2',
@@ -575,6 +583,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             italic: '斜体',
             underline: '下划线',
             strikethrough: '删除线',
+            textStyle: '文本样式',
             paragraph: '正文',
             heading1: '标题 1',
             heading2: '标题 2',
@@ -645,6 +654,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             italic: 'Курсив',
             underline: 'Подчёркнутый',
             strikethrough: 'Зачёркнутый',
+            textStyle: 'Стиль текста',
             paragraph: 'Обычный текст',
             heading1: 'Заголовок 1',
             heading2: 'Заголовок 2',
@@ -715,6 +725,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             italic: 'Itálico',
             underline: 'Sublinhado',
             strikethrough: 'Tachado',
+            textStyle: 'Estilo de texto',
             paragraph: 'Texto normal',
             heading1: 'Título 1',
             heading2: 'Título 2',

@@ -4672,20 +4672,31 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private emptyBlockCaretTarget(block: HTMLElement): Text {
         const walker = this.document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
         const existing = walker.nextNode() as Text | null;
-        if (existing) return existing;
+        if (existing?.data) return existing;
+
+        if (existing) {
+            existing.data = '​';
+            return existing;
+        }
 
         block.innerHTML = '';
-        return block.appendChild(this.document.createTextNode('')) as Text;
+        return block.appendChild(this.document.createTextNode('​')) as Text;
     }
 
-    /** Collapses the caret to the very start of a block's content. */
+    /**
+     * Collapses the caret to where the author continues typing in a block a
+     * rule just built: the start of its text, or — when the block is empty —
+     * just after the zero-width anchor {@link emptyBlockCaretTarget} leaves
+     * there, since a real browser will not type into a zero-length text node.
+     */
     private placeCaretAtStartOfBlock(block: HTMLElement): void {
         const selection = this.document.getSelection();
         if (!selection) return;
 
         if (this.isEmptyBlock(block)) {
+            const target = this.emptyBlockCaretTarget(block);
             const range = this.document.createRange();
-            range.setStart(this.emptyBlockCaretTarget(block), 0);
+            range.setStart(target, target.data.length);
             range.collapse(true);
             selection.removeAllRanges();
             selection.addRange(range);
@@ -4716,7 +4727,9 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const item = this.createTaskListItem(checked);
         const textSpan = item.querySelector('span') as HTMLElement;
 
-        if (!this.isEmptyBlock(block)) {
+        if (this.isEmptyBlock(block)) {
+            textSpan.textContent = '​';
+        } else {
             textSpan.textContent = '';
             while (block.firstChild) {
                 textSpan.appendChild(block.firstChild);

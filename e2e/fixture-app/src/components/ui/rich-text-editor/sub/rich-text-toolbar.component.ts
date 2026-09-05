@@ -23,6 +23,10 @@ import { RichTextToolbarViewContext, type RichTextToolbarSlot } from '../rich-te
  * - `'bold'` / `'italic'` / `'underline'` / `'strikethrough'` — Inline formatting toggles.
  *
  * **Block type:**
+ * - `'textStyle'` — A compact select offering Normal text / Heading 1-3. It
+ *   both reflects and sets the caret's block type, and is in the default
+ *   toolbar in place of the four buttons below (which remain available to list
+ *   explicitly).
  * - `'paragraph'` — Reset to normal paragraph.
  * - `'heading1'` / `'heading2'` / `'heading3'` — Heading levels.
  * - `'bulletList'` / `'orderedList'` — List toggles.
@@ -55,6 +59,7 @@ export type ToolbarItem =
   | 'italic'
   | 'underline'
   | 'strikethrough'
+  | 'textStyle'
   | 'paragraph'
   | 'heading1'
   | 'heading2'
@@ -109,6 +114,7 @@ export const TOOLBAR_BUTTONS: Record<ToolbarButtonItem, ToolbarButton> = {
   italic: { id: 'italic', label: 'Italic', localeKey: 'italic', shortcut: 'Ctrl+I', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" x2="10" y1="4" y2="4"/><line x1="14" x2="5" y1="20" y2="20"/><line x1="15" x2="9" y1="4" y2="20"/></svg>` },
   underline: { id: 'underline', label: 'Underline', localeKey: 'underline', shortcut: 'Ctrl+U', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4v6a6 6 0 0 0 12 0V4"/><line x1="4" x2="20" y1="20" y2="20"/></svg>` },
   strikethrough: { id: 'strikethrough', label: 'Strikethrough', localeKey: 'strikethrough', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4H9a3 3 0 0 0-2.83 4"/><path d="M14 12a4 4 0 0 1 0 8H6"/><line x1="4" x2="20" y1="12" y2="12"/></svg>` },
+  textStyle: { id: 'textStyle', label: 'Text style', localeKey: 'textStyle', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4v16"/><path d="M17 4v16"/><path d="M19 4H9.5a4.5 4.5 0 0 0 0 9H13"/></svg>` },
   paragraph: { id: 'paragraph', label: 'Normal Text', localeKey: 'paragraph', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4v16"/><path d="M17 4v16"/><path d="M19 4H9.5a4.5 4.5 0 0 0 0 9H13"/></svg>` },
   heading1: { id: 'heading1', label: 'Heading 1', localeKey: 'heading1', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h8"/><path d="M4 18V6"/><path d="M12 18V6"/><path d="m17 12 3-2v8"/></svg>` },
   heading2: { id: 'heading2', label: 'Heading 2', localeKey: 'heading2', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h8"/><path d="M4 18V6"/><path d="M12 18V6"/><path d="M21 18h-4c0-4 4-3 4-6 0-1.5-2-2.5-4-1"/></svg>` },
@@ -129,6 +135,17 @@ export const TOOLBAR_BUTTONS: Record<ToolbarButtonItem, ToolbarButton> = {
   taskList: { id: 'taskList', label: 'Task List', localeKey: 'taskList', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></svg>` },
   horizontalRule: { id: 'horizontalRule', label: 'Horizontal Rule', localeKey: 'horizontalRule', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg>` },
 };
+
+/**
+ * The block types the Text style select offers, in the order it lists them.
+ * Deliberately short: a native picker is the right control for a four-item
+ * choice on a phone, which is the whole reason this replaces four buttons.
+ * `blockquote` and `codeBlock` keep their own toggle buttons.
+ */
+export const TEXT_STYLE_OPTIONS = ['paragraph', 'heading1', 'heading2', 'heading3'] as const;
+
+/** One block type offered by the Text style select. */
+export type TextStyleOption = (typeof TEXT_STYLE_OPTIONS)[number];
 
 /** Shared look of every toolbar button, built-in and addon slot alike. */
 const BUTTON_BASE_CLASSES =
@@ -183,6 +200,18 @@ function mirrorLabel(item: ToolbarButtonItem): ToolbarButtonItem {
   },
 })
 export class RichTextToolbarComponent {
+  /**
+   * Every item that is a toggle — one that names a state the caret can be in,
+   * and therefore renders pressed when {@link activeFormats} reports it. The
+   * names match the host's `activeFormats` vocabulary exactly, which is what
+   * lets {@link isActive} be a single `Set.has` with no mapping table.
+   */
+  private static readonly PRESSABLE = new Set<ToolbarButtonItem>([
+    'bold', 'italic', 'underline', 'strikethrough', 'code', 'taskList',
+    'bulletList', 'orderedList', 'paragraph', 'heading1', 'heading2', 'heading3',
+    'blockquote', 'codeBlock', 'alignLeft', 'alignCenter', 'alignRight',
+  ]);
+
   private readonly sanitizer = inject(DomSanitizer);
 
   /**
@@ -200,9 +229,11 @@ export class RichTextToolbarComponent {
   ]);
 
   /**
-   * Format names currently active at the caret (`'bold'`, `'italic'`,
-   * `'underline'`, `'strikethrough'`, `'code'`, `'taskList'`), used to render
-   * buttons pressed. Only those names are honoured — see {@link isActive}.
+   * Format names currently active at the caret, used to render buttons
+   * pressed. A name is honoured when it matches a toggle item — every inline
+   * format, block type, list type and alignment; see {@link isActive}. Names
+   * the host reports for other purposes (`'indent'`, which carries list-nesting
+   * depth) are carried but never rendered as a pressed state.
    */
   readonly activeFormats = input<Set<string>>(new Set());
 
@@ -346,21 +377,26 @@ export class RichTextToolbarComponent {
 
   /**
    * Whether a built-in button renders pressed (`aria-pressed`/`data-state`).
-   * Only the inline toggles the host reports in {@link activeFormats} —
-   * bold, italic, underline, strikethrough, code, taskList — can be active;
-   * block, alignment, history and utility items always report `false`.
+   * An item is pressable exactly when it names a state the caret can be *in* —
+   * every inline toggle, block type, list type and alignment. The host reports
+   * those under the same names in {@link activeFormats}, so the check is one
+   * `Set.has` through this constant.
    */
   isActive(item: ToolbarItem): boolean {
-    const formatMap: Record<string, string> = {
-      bold: 'bold',
-      italic: 'italic',
-      underline: 'underline',
-      strikethrough: 'strikethrough',
-      code: 'code',
-      taskList: 'taskList',
-    };
-    const format = formatMap[item];
-    return format ? this.activeFormats().has(format) : false;
+    return this.isPressable(item) && this.activeFormats().has(item);
+  }
+
+  /**
+   * Whether an item is a toggle at all. The momentary actions — `undo`,
+   * `redo`, `clear`, `horizontalRule`, `indent`, `outdent` — do something once
+   * rather than entering a state, so the template omits `aria-pressed` on them
+   * entirely: WAI-ARIA's button pattern reserves that attribute for toggle
+   * buttons, and announcing "Undo, not pressed" is wrong rather than merely
+   * noisy. `indent` still travels in `activeFormats` as nesting data for
+   * consumers; it just never renders pressed.
+   */
+  isPressable(item: ToolbarItem): boolean {
+    return RichTextToolbarComponent.PRESSABLE.has(item as ToolbarButtonItem);
   }
 
   /**
@@ -399,6 +435,50 @@ export class RichTextToolbarComponent {
     if (this.interactionDisabled()) return;
     this.formatCommand.emit(item);
   }
+
+  /** The block types the Text style select lists, for the template's `@for`. */
+  readonly textStyleOptions = TEXT_STYLE_OPTIONS;
+
+  /**
+   * The option the Text style select shows for the caret's current block.
+   * Anything that is not one of the three headings reads as `'paragraph'`,
+   * which is also what the select shows for a blockquote or a list — those
+   * have their own toggle buttons, and the select only ever claims to describe
+   * the text style.
+   */
+  readonly textStyleValue = computed<TextStyleOption>(() => {
+    const formats = this.activeFormats();
+    return TEXT_STYLE_OPTIONS.find((option) => option !== 'paragraph' && formats.has(option))
+      ?? 'paragraph';
+  });
+
+  /**
+   * Emits {@link formatCommand} for the chosen block type. The ids are the same
+   * as the four block buttons', so the editor needs no new command — choosing
+   * "Heading 2" here and clicking the old H2 button take the identical path.
+   * A value outside {@link TEXT_STYLE_OPTIONS} is ignored rather than
+   * forwarded, so a tampered-with `<option>` cannot inject a command.
+   */
+  onTextStyleChange(event: Event): void {
+    if (this.interactionDisabled()) return;
+    const value = (event.target as HTMLSelectElement).value as TextStyleOption;
+    if (!TEXT_STYLE_OPTIONS.includes(value)) return;
+    this.formatCommand.emit(value);
+  }
+
+  /**
+   * The select's look: a toolbar-height control with the native chevron
+   * replaced by an inline data-URI one, so it matches the buttons beside it
+   * without pulling in an asset. The chevron and its padding flip in RTL.
+   */
+  readonly textStyleClasses = computed(() =>
+    cn(
+      'inline-flex items-center gap-1 rounded-md px-1 text-sm font-medium transition-colors',
+      'hover:bg-accent hover:text-accent-foreground',
+      'has-[:disabled]:pointer-events-none has-[:disabled]:opacity-50',
+      this.compact() && 'px-0.5'
+    )
+  );
 
   /**
    * Marks caller-supplied icon markup safe for `[innerHTML]`, used for addon

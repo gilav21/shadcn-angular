@@ -1,8 +1,88 @@
 {
   "version": 2,
   "files": {
+    "a11y.ts": {
+      "sha256": "ea283b8290025ea3bc80850d6fe43c6d1fe90b23fca988e07762fdacfb3929b3",
+      "component": "(lib)"
+    },
     "addon-slots.ts": {
       "sha256": "df16a8300a02175f8998256d9149647af67c15119d10c8c685b6d6510b263545",
+      "component": "(lib)"
+    },
+    "alert-dialog/alert-dialog.component.ts": {
+      "sha256": "54be3aaed168a10020a236a384b043bd9d2d125dcfab59ef43b90b10c687db81",
+      "component": "alert-dialog"
+    },
+    "alert-dialog/index.ts": {
+      "sha256": "99d733cf1975a76fc5016b754db3f2002952ec8e165496c9ba3f9c1d32f4c810",
+      "component": "alert-dialog"
+    },
+    "alert-dialog/sub/alert-dialog-action.component.css": {
+      "sha256": "b786a20ba6534b54cbdafc61a715429d07e0add755fac78255f985481de5c3d4",
+      "component": "alert-dialog"
+    },
+    "alert-dialog/sub/alert-dialog-action.component.ts": {
+      "sha256": "d4d7f83e44e00814f77966d983d7570cc5f9b01e01faae1d8ff3e8929dabb311",
+      "component": "alert-dialog"
+    },
+    "alert-dialog/sub/alert-dialog-cancel.component.css": {
+      "sha256": "8afb21b0f4d94d51dd383dc5437f5b6817677ecef81df520568d384152da2467",
+      "component": "alert-dialog"
+    },
+    "alert-dialog/sub/alert-dialog-cancel.component.ts": {
+      "sha256": "9b8ba9afc772daedf4ed768c3977a20167a0cf899066c87087688524a9acbf43",
+      "component": "alert-dialog"
+    },
+    "alert-dialog/sub/alert-dialog-content.component.ts": {
+      "sha256": "1a428517b1ce900b2a9b082783cb049b02350fc14f95e20c0a8c37ee8b00e8a7",
+      "component": "alert-dialog"
+    },
+    "alert-dialog/sub/alert-dialog-description.component.ts": {
+      "sha256": "c51be2edbd992bebbc5cd1cb9a1e52a4c51c1460d0ccee0eda386b1eed7cd495",
+      "component": "alert-dialog"
+    },
+    "alert-dialog/sub/alert-dialog-footer.component.ts": {
+      "sha256": "25c3bc473cc87e681231efa16f1f6eb807509ee8f2416f14b616b1e52496a30f",
+      "component": "alert-dialog"
+    },
+    "alert-dialog/sub/alert-dialog-header.component.ts": {
+      "sha256": "c816a6a76302c283ff2dfa92fbd1f0d7f9eebda6956165da61dd071c8e576120",
+      "component": "alert-dialog"
+    },
+    "alert-dialog/sub/alert-dialog-title.component.ts": {
+      "sha256": "0a401c391eef0fabcd14f92fd29b251ab1baaf5c16b220a946a49adfcf30bffd",
+      "component": "alert-dialog"
+    },
+    "alert-dialog/sub/alert-dialog-trigger.component.ts": {
+      "sha256": "908f6a8e7a60ccbae938c1fd9efab81c5c2511bdd2e63fb6bff45a751be3fd60",
+      "component": "alert-dialog"
+    },
+    "button/button.component.css": {
+      "sha256": "5672dc90e5fb0a13369c3adc19cd66186daa669198ae0f34edf6b3cbb709dd3c",
+      "component": "button"
+    },
+    "button/button.component.html": {
+      "sha256": "1f6886733bbbc42f616e3a7eb1126a2afdccc8b9c2d1a906c0effd988032fcf6",
+      "component": "button"
+    },
+    "button/button.component.ts": {
+      "sha256": "f91e741f8ff72caeb6fab61afc7cab536590d48ebb16c0d478d44f9fa7e2ca32",
+      "component": "button"
+    },
+    "button/confirm-dialog.component.ts": {
+      "sha256": "7f5ea8d07234c97a9ce0edf94ae525ddd0c879369fc9a0aa5ecf95b3ef4dbb95",
+      "component": "button"
+    },
+    "button/confirm.directive.ts": {
+      "sha256": "c3d1a141078c4e0ae8dfd1711b25573cddee72da49cc8bde6e1a80dc43f4f6c4",
+      "component": "button"
+    },
+    "button/index.ts": {
+      "sha256": "9427604895759fa210d526f5f0c573e5112b3a25a9315abcb0f306206866d3d9",
+      "component": "button"
+    },
+    "i18n/common.locales.ts": {
+      "sha256": "a2e15445e1478a8fef994bd0dcad45feb1f37e1961642697639006273c7bc3bd",
       "component": "(lib)"
     },
     "i18n/i18n.token.ts": {
@@ -28,6 +108,30 @@
     "parsers/svg-sanitizer.ts": {
       "sha256": "e449dd6c672a9612390516d4942417dc5c5f73e68da8b6b1e7ba98826e252181",
       "component": "(lib)"
+    },
+    "rich-text-editor/addons/outline/index.ts": {
+      "sha256": "c8635a6fb29ec781b42325282e92bec25fb62a15db36417863fca90559e178ac",
+      "component": "rich-text-editor/outline"
+    },
+    "rich-text-editor/addons/outline/rich-text-outline-panel.component.html": {
+      "sha256": "f4aa5d83521a2bb3121b9d81cdcd394bb61dd5cb4d46b2006d124280fe7e98a0",
+      "component": "rich-text-editor/outline"
+    },
+    "rich-text-editor/addons/outline/rich-text-outline-panel.component.ts": {
+      "sha256": "233c4f94e843e1ec999278b8ecca5b1eb82425ea5bcdea18402e90cbacc46c9d",
+      "component": "rich-text-editor/outline"
+    },
+    "rich-text-editor/addons/outline/rich-text-outline.context.ts": {
+      "sha256": "a88f95660de5aa5215f754facae446075353b62b0d8b3cbd5f46be67fed2ac46",
+      "component": "rich-text-editor/outline"
+    },
+    "rich-text-editor/addons/outline/rich-text-outline.directive.ts": {
+      "sha256": "631dbb2db773b4795ad855d99f90d64cc5e4ba3a7d5a5208296645b127155249",
+      "component": "rich-text-editor/outline"
+    },
+    "rich-text-editor/addons/outline/rich-text-outline.locales.ts": {
+      "sha256": "30e7f85aea73b93b47d9919713690159d50cf93e954c36f9308a1746106879f3",
+      "component": "rich-text-editor/outline"
     },
     "rich-text-editor/addons/slash-commands/index.ts": {
       "sha256": "f519e707da6e72ce3a6ec8e0ab823917acb070c0ceb408df4a7a58b02492bdf5",
@@ -70,7 +174,7 @@
       "component": "rich-text-editor"
     },
     "rich-text-editor/rich-text-editor.component.ts": {
-      "sha256": "1e005d33cf7d8785b3f171a4745360d4302b894c2d42a0cd31bf5d6aaf481c95",
+      "sha256": "3940e1a710ce892bea0529bca26d47c3eaaf9b0c0fcf81215ea8db3f48298b67",
       "component": "rich-text-editor"
     },
     "rich-text-editor/rich-text-editor.host.ts": {
@@ -82,7 +186,7 @@
       "component": "rich-text-editor"
     },
     "rich-text-editor/rich-text-locales.ts": {
-      "sha256": "8ff9e7a1a79956f2985947e93ab5a63fcefa922d13573b218236db7e21135880",
+      "sha256": "f5fddb64c6328f29b9fe1b7c9d677ba49034de67f45a53d9a37635e19f010c83",
       "component": "rich-text-editor"
     },
     "rich-text-editor/rich-text-markdown.service.ts": {
@@ -98,16 +202,32 @@
       "component": "rich-text-editor"
     },
     "rich-text-editor/sub/rich-text-toolbar.component.css": {
-      "sha256": "f4592fd7d0ee277db4eb7d65e7fd4011929332f529ff3bd1642a49084136b931",
+      "sha256": "219dcfea08df3ecb7bb46106936c4f8dc823f4b66195bd87516fba0a80c24286",
       "component": "rich-text-editor"
     },
     "rich-text-editor/sub/rich-text-toolbar.component.html": {
-      "sha256": "9810d78e368ac410b9529f7ee11b0ca673ab03b78b3a0283c87bc9c5ce162cff",
+      "sha256": "b8fd16b623b896e8db79d9f1f657b0a9829fc089eb1b0bc46aa1e12b4162c382",
       "component": "rich-text-editor"
     },
     "rich-text-editor/sub/rich-text-toolbar.component.ts": {
-      "sha256": "fd0287e114dfdb7b2bcd21ff40f9108ff049ee56063b86a0b62bec89fa3fd316",
+      "sha256": "30097fb69c8c6943b3a6965f82069f590e956962f15c8680a8c0b8f6049f9e7a",
       "component": "rich-text-editor"
+    },
+    "ripple.directive.ts": {
+      "sha256": "a21309f2d9c2aaa13f13e97d7f59737383f66d947f91a911a1261da1aa1b1b6e",
+      "component": "ripple"
+    },
+    "scroll-area/index.ts": {
+      "sha256": "71f92c45f04d874a1073ddb7c230098b3f1b316510bd3047002b61dc0d10f156",
+      "component": "scroll-area"
+    },
+    "scroll-area/scroll-area.component.html": {
+      "sha256": "c7c3a92859300cf46f6ab5cfa75c55b05bfb7ceefe4690a72871b74844425ea0",
+      "component": "scroll-area"
+    },
+    "scroll-area/scroll-area.component.ts": {
+      "sha256": "769a34a4b6d1e578be34e270ac14e52df552e5354f48cbbc9c46f18e23b490bc",
+      "component": "scroll-area"
     },
     "separator/index.ts": {
       "sha256": "2dbf648f6a3ac46c7beda8a38d73a1dc66ac3b3606e81ae5adbe97e029edd369",
@@ -121,20 +241,77 @@
       "sha256": "3591766bc882593440f932fe076fc2c775d2e29c7a528e5a2c4852a2334aad49",
       "component": "(lib)"
     },
+    "skeleton/index.ts": {
+      "sha256": "9eea9552ad1fb5fe44ab322442632b81c764fcd736581ea04d9a3cc93619a46a",
+      "component": "skeleton"
+    },
+    "skeleton/skeleton.component.css": {
+      "sha256": "82a9bdc65c165fcc714199670b64a45cd576baae8a7705173600262edf6e0fae",
+      "component": "skeleton"
+    },
+    "skeleton/skeleton.component.ts": {
+      "sha256": "7e51a7c0b70df4b56c3f65ffcf208d54e6449e85228bdb0149010fd1842c52fe",
+      "component": "skeleton"
+    },
+    "spinner/index.ts": {
+      "sha256": "cf2ee6140876042d6ed00051726118b8e010f1e3b4d9ab7b6982ff2528f62698",
+      "component": "spinner"
+    },
+    "spinner/spinner.component.html": {
+      "sha256": "9033736a977df896221022ee90bed67040e93992a75297e975432c97edede9e5",
+      "component": "spinner"
+    },
+    "spinner/spinner.component.ts": {
+      "sha256": "878c169a43dff46fb11b98806ebf902dc62eda470b9cc68b7511df57a49880a0",
+      "component": "spinner"
+    },
+    "spinner/sub/page-spinner.component.html": {
+      "sha256": "3476741b39f95fbdbf3af4cd6704b1c03aa8f8e6626d77fa8c73c24270de0ec9",
+      "component": "spinner"
+    },
+    "spinner/sub/page-spinner.component.ts": {
+      "sha256": "82fca0bec0dce866f9c42f0f0841580fadcb4166bbc436f41fd6106babdc441b",
+      "component": "spinner"
+    },
+    "touch.ts": {
+      "sha256": "94335ab2f3b1414fc5086b309370384d124c4ab18d6f289f233817b13fa08661",
+      "component": "(lib)"
+    },
     "utils.ts": {
       "sha256": "0fe9e5e2e32f179a04445e017ef9783ee65fd569c7858d5897f61388575a1524",
       "component": "(lib)"
     }
   },
   "components": {
+    "alert-dialog": {
+      "ref": "c1c01634b3a48ce2e95b98aa9ed5af4aedc03d23"
+    },
+    "button": {
+      "ref": "c1c01634b3a48ce2e95b98aa9ed5af4aedc03d23"
+    },
     "rich-text-editor": {
-      "ref": "3522287a2822a3f8c5e5f3e9f8f3e73dff1f4758"
+      "ref": "c1c01634b3a48ce2e95b98aa9ed5af4aedc03d23"
+    },
+    "rich-text-editor/outline": {
+      "ref": "c1c01634b3a48ce2e95b98aa9ed5af4aedc03d23"
     },
     "rich-text-editor/slash-commands": {
       "ref": "3522287a2822a3f8c5e5f3e9f8f3e73dff1f4758"
     },
+    "ripple": {
+      "ref": "c1c01634b3a48ce2e95b98aa9ed5af4aedc03d23"
+    },
+    "scroll-area": {
+      "ref": "c1c01634b3a48ce2e95b98aa9ed5af4aedc03d23"
+    },
     "separator": {
       "ref": "3522287a2822a3f8c5e5f3e9f8f3e73dff1f4758"
+    },
+    "skeleton": {
+      "ref": "c1c01634b3a48ce2e95b98aa9ed5af4aedc03d23"
+    },
+    "spinner": {
+      "ref": "c1c01634b3a48ce2e95b98aa9ed5af4aedc03d23"
     }
   }
 }

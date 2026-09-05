@@ -126,11 +126,16 @@ interface SerializedSelection {
 /**
  * The default toolbar layout used when `[toolbarItems]` is not provided.
  * Groups: formatting | block type | lists | alignment | colors/size | insert | code | clear.
+ *
+ * Block type is one `'textStyle'` select rather than four buttons: on a 320px
+ * phone the toolbar scrolls horizontally, and those four were its biggest fixed
+ * cost. A consumer who prefers the buttons can still list
+ * `'paragraph', 'heading1', 'heading2', 'heading3'` explicitly.
  */
 export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     'bold', 'italic', 'underline',
     'separator',
-    'paragraph', 'heading1', 'heading2', 'heading3',
+    'textStyle',
     'separator',
     'bulletList', 'orderedList', 'taskList',
     'separator',
@@ -3939,25 +3944,135 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (this.queryEditorCommandState('insertUnorderedList')) formats.add('bulletList');
         if (this.queryEditorCommandState('insertOrderedList')) formats.add('orderedList');
 
-        this.detectTaskListFormat(formats);
+        this.detectBlockFormats(formats);
         this.activeFormats.set(formats);
         this.detectCurrentFontSize();
         this.detectCurrentFontFamily();
         this.detectCurrentColors();
     }
 
-    private detectTaskListFormat(formats: Set<string>): void {
+    /**
+     * The tags that decide the caret's block type, and what each contributes.
+     * A `CODE` only counts as inline code when no `PRE` was seen on the way up,
+     * which is why the walk records what it has passed rather than matching the
+     * first interesting ancestor and stopping.
+     */
+    private static readonly BLOCK_FORMAT_TAGS: Record<string, string> = {
+        H1: 'heading1',
+        H2: 'heading2',
+        H3: 'heading3',
+        BLOCKQUOTE: 'blockquote',
+        PRE: 'codeBlock',
+    };
+
+    /**
+     * Blocks whose presence means the caret is not in a plain paragraph, even
+     * when a `P` or `DIV` wraps it — a paragraph inside a list item or a table
+     * cell belongs to that structure, and the `paragraph` button must not claim
+     * it.
+     */
+    private static readonly NON_PARAGRAPH_TAGS = new Set([
+        'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'PRE', 'LI', 'TD', 'TH', 'SUMMARY',
+    ]);
+
+    /**
+     * Adds every block-level format at the caret in ONE walk from the selection
+     * to the editor root — block type, inline code, task list, alignment and
+     * list nesting. It replaces the old task-list-only walk, so the detection is
+     * strictly cheaper than before despite reporting far more.
+     */
+    private detectBlockFormats(formats: Set<string>): void {
+        const editor = this.getEditorElement();
         const selection = this.document.getSelection();
-        if (!selection || selection.rangeCount === 0) {
-            return;
-        }
-        let el: Node | null = selection.getRangeAt(0).startContainer;
-        while (el && el !== this.editorDiv?.nativeElement) {
-            if (el.nodeType === Node.ELEMENT_NODE && (el as Element).closest('ul[data-task-list]')) {
-                formats.add('taskList');
-                break;
+        if (!editor || !selection || selection.rangeCount === 0) return;
+
+        const start = selection.getRangeAt(0).startContainer;
+        if (!editor.contains(start)) return;
+
+        const seen = this.walkBlockAncestors(start, editor, formats);
+
+        if (seen.code && !seen.pre) formats.add('code');
+        if (!seen.nonParagraph) formats.add('paragraph');
+        this.addAlignmentFormat(seen.block, formats);
+    }
+
+    /**
+     * Walks the caret's ancestors up to the editor root, adding each element's
+     * own formats and reporting what the chain contained — the nearest block
+     * (for alignment) and whether a `CODE`, a `PRE` or any non-paragraph
+     * structure was passed, all of which take the whole chain to decide.
+     */
+    private walkBlockAncestors(
+        start: Node,
+        editor: HTMLElement,
+        formats: Set<string>
+    ): { block: HTMLElement | null; code: boolean; pre: boolean; nonParagraph: boolean } {
+        let node: Node | null = start.nodeType === Node.TEXT_NODE ? start.parentNode : start;
+        const seen = { block: null as HTMLElement | null, code: false, pre: false, nonParagraph: false };
+
+        while (node && node !== editor) {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+                const element = node as HTMLElement;
+                seen.block ??= this.blockForAlignment(element);
+                seen.code ||= element.tagName === 'CODE';
+                seen.pre ||= element.tagName === 'PRE';
+                seen.nonParagraph ||= RichTextEditorComponent.NON_PARAGRAPH_TAGS.has(element.tagName);
+                this.addTagFormats(element, formats);
             }
-            el = el.parentNode;
+            node = node.parentNode;
+        }
+        return seen;
+    }
+
+    /** The formats one ancestor element contributes on the way to the root. */
+    private addTagFormats(element: HTMLElement, formats: Set<string>): void {
+        const tagFormat = RichTextEditorComponent.BLOCK_FORMAT_TAGS[element.tagName];
+        if (tagFormat) formats.add(tagFormat);
+
+        if (element.tagName === 'UL' && element.dataset['taskList'] !== undefined) {
+            formats.add('taskList');
+        }
+        if (element.tagName === 'LI' && this.getListDepth(element) >= 2) {
+            formats.add('indent');
+        }
+    }
+
+    /** The nearest ancestor whose alignment applies to the caret, if any. */
+    private blockForAlignment(element: HTMLElement): HTMLElement | null {
+        const isBlock = RichTextEditorComponent.NON_PARAGRAPH_TAGS.has(element.tagName)
+            || element.tagName === 'P'
+            || element.tagName === 'DIV';
+        return isBlock ? element : null;
+    }
+
+    /** Adds the caret block's alignment, mapped through the locale direction. */
+    private addAlignmentFormat(block: HTMLElement | null, formats: Set<string>): void {
+        if (!block) return;
+        const textAlign = block.style.textAlign
+            || block.getAttribute('align')
+            || '';
+        const format = this.alignmentFormat(textAlign, this.isRtl());
+        if (format) formats.add(format);
+    }
+
+    /**
+     * The toolbar item a physical or logical `text-align` value presses.
+     *
+     * `left`/`right` name physical sides of the page, so under an RTL locale
+     * they press the opposite item — the one whose glyph and command the
+     * toolbar has already mirrored, which is what makes a right-aligned Hebrew
+     * paragraph light up the button that visually points right.
+     * `start`/`end` are already direction-relative and so map straight through.
+     * `justify` and an absent value press nothing.
+     */
+    private alignmentFormat(textAlign: string, rtl: boolean): string | null {
+        switch (textAlign) {
+            case 'center': return 'alignCenter';
+            case 'left': return rtl ? 'alignRight' : 'alignLeft';
+            case 'right': return rtl ? 'alignLeft' : 'alignRight';
+            case 'start': return 'alignLeft';
+            case 'end': return 'alignRight';
+            default: return null;
         }
     }
 
@@ -4557,20 +4672,31 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private emptyBlockCaretTarget(block: HTMLElement): Text {
         const walker = this.document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
         const existing = walker.nextNode() as Text | null;
-        if (existing) return existing;
+        if (existing?.data) return existing;
+
+        if (existing) {
+            existing.data = '​';
+            return existing;
+        }
 
         block.innerHTML = '';
-        return block.appendChild(this.document.createTextNode('')) as Text;
+        return block.appendChild(this.document.createTextNode('​')) as Text;
     }
 
-    /** Collapses the caret to the very start of a block's content. */
+    /**
+     * Collapses the caret to where the author continues typing in a block a
+     * rule just built: the start of its text, or — when the block is empty —
+     * just after the zero-width anchor {@link emptyBlockCaretTarget} leaves
+     * there, since a real browser will not type into a zero-length text node.
+     */
     private placeCaretAtStartOfBlock(block: HTMLElement): void {
         const selection = this.document.getSelection();
         if (!selection) return;
 
         if (this.isEmptyBlock(block)) {
+            const target = this.emptyBlockCaretTarget(block);
             const range = this.document.createRange();
-            range.setStart(this.emptyBlockCaretTarget(block), 0);
+            range.setStart(target, target.data.length);
             range.collapse(true);
             selection.removeAllRanges();
             selection.addRange(range);
@@ -4601,7 +4727,9 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const item = this.createTaskListItem(checked);
         const textSpan = item.querySelector('span') as HTMLElement;
 
-        if (!this.isEmptyBlock(block)) {
+        if (this.isEmptyBlock(block)) {
+            textSpan.textContent = '​';
+        } else {
             textSpan.textContent = '';
             while (block.firstChild) {
                 textSpan.appendChild(block.firstChild);
