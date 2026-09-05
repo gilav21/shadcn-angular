@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
     RichTextToolbarComponent,
+    TEXT_STYLE_OPTIONS,
     TOOLBAR_BUTTONS,
     type ToolbarButton,
     type ToolbarButtonItem,
@@ -351,6 +352,163 @@ describe('RichTextToolbarComponent', () => {
 
             const button = fixture.nativeElement.querySelector('button');
             expect(button.getAttribute('data-state')).toBe('off');
+        });
+    });
+
+
+    // T-30…T-34, T-36 — the Text style select. It replaces the four block
+    // buttons in the default toolbar, reclaiming roughly three buttons of width
+    // on a phone, and both reflects and sets the caret's block type.
+    describe('text style select', () => {
+        const selectEl = (): HTMLSelectElement =>
+            fixture.nativeElement.querySelector('[data-slot="rich-text-toolbar-text-style"]');
+
+        const showSelect = (formats: string[] = []): HTMLSelectElement => {
+            fixture.componentRef.setInput('items', ['textStyle']);
+            fixture.componentRef.setInput('activeFormats', new Set(formats));
+            fixture.detectChanges();
+            return selectEl();
+        };
+
+        it('renders a select rather than a button', () => {
+            const select = showSelect();
+            expect(select).not.toBeNull();
+            expect(fixture.nativeElement.querySelector('button')).toBeNull();
+        });
+
+        it('offers exactly the four block types, localized', () => {
+            const options = Array.from(showSelect().options);
+            expect(options.map((o) => o.value)).toEqual([
+                'paragraph', 'heading1', 'heading2', 'heading3',
+            ]);
+            expect(options.map((o) => o.textContent?.trim())).toEqual([
+                'Normal Text', 'Heading 1', 'Heading 2', 'Heading 3',
+            ]);
+        });
+
+        it('tracks the caret block through activeFormats', () => {
+            expect(showSelect(['heading2']).value).toBe('heading2');
+            expect(showSelect(['heading1']).value).toBe('heading1');
+            expect(showSelect(['paragraph']).value).toBe('paragraph');
+        });
+
+        it('falls back to paragraph for a block with no text-style option', () => {
+            expect(showSelect(['blockquote']).value).toBe('paragraph');
+            expect(showSelect([]).value).toBe('paragraph');
+        });
+
+        // A heading wins over a stray `paragraph`. The host does not report both
+        // today, but `paragraph` is the fallback rather than a peer, so a set
+        // carrying both must still read as the heading rather than resolving by
+        // whichever happens to come first in the option list.
+        it('prefers a heading over paragraph when both are reported', () => {
+            expect(showSelect(['paragraph', 'heading3']).value).toBe('heading3');
+        });
+
+        it('emits formatCommand with the chosen option id', () => {
+            const select = showSelect(['paragraph']);
+            const emitted: string[] = [];
+            component.formatCommand.subscribe((command: string) => emitted.push(command));
+
+            select.value = 'heading2';
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            fixture.detectChanges();
+
+            expect(emitted).toEqual(['heading2']);
+        });
+
+        it('is disabled and silent while the toolbar is disabled', () => {
+            fixture.componentRef.setInput('items', ['textStyle']);
+            fixture.componentRef.setInput('disabled', true);
+            fixture.detectChanges();
+
+            const select = selectEl();
+            expect(select.disabled).toBe(true);
+
+            const emitted: string[] = [];
+            component.formatCommand.subscribe((command: string) => emitted.push(command));
+            select.value = 'heading1';
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            fixture.detectChanges();
+
+            expect(emitted).toEqual([]);
+        });
+
+        it('is disabled while the toolbar is readonly', () => {
+            fixture.componentRef.setInput('items', ['textStyle']);
+            fixture.componentRef.setInput('readonly', true);
+            fixture.detectChanges();
+
+            expect(selectEl().disabled).toBe(true);
+        });
+
+        it('ignores a change carrying a value outside the option set', () => {
+            showSelect(['paragraph']);
+            const emitted: string[] = [];
+            component.formatCommand.subscribe((command: string) => emitted.push(command));
+
+            component.onTextStyleChange({ target: { value: 'heading9' } } as unknown as Event);
+            fixture.detectChanges();
+
+            expect(emitted).toEqual([]);
+        });
+
+        it('carries an accessible name from the locale', () => {
+            const select = showSelect();
+            expect(select.getAttribute('aria-label')).toBe(
+                RICH_TEXT_LOCALES['en'].toolbar.textStyle
+            );
+        });
+
+        it('is never announced as a pressed toggle', () => {
+            expect(showSelect(['heading1']).hasAttribute('aria-pressed')).toBe(false);
+            expect(component.isPressable('textStyle')).toBe(false);
+        });
+
+        // T-36 — a native control still has to meet the 44px touch target the
+        // library guarantees; the coarse-pointer rule covers `select` as well
+        // as `button`.
+        it('is at least 40px tall under a coarse pointer', () => {
+            expect(showSelect()).not.toBeNull();
+
+            const rule = Array.from(document.styleSheets)
+                .flatMap((sheet) => {
+                    try {
+                        return Array.from(sheet.cssRules);
+                    } catch {
+                        return [];
+                    }
+                })
+                .filter((r): r is CSSMediaRule => r instanceof CSSMediaRule)
+                .filter((r) => r.conditionText.includes('pointer: coarse'))
+                .flatMap((r) => Array.from(r.cssRules))
+                .filter((r): r is CSSStyleRule => r instanceof CSSStyleRule)
+                .find((r) => r.selectorText.includes('select'));
+
+            expect(rule?.style.minHeight).toBe('40px');
+        });
+    });
+
+    // T-34 — the table and the locales stay complete.
+    describe('textStyle in the shared tables', () => {
+        it('has a TOOLBAR_BUTTONS row whose id matches its key', () => {
+            expect(TOOLBAR_BUTTONS.textStyle).toBeDefined();
+            expect(TOOLBAR_BUTTONS.textStyle.id).toBe('textStyle');
+            expect(TOOLBAR_BUTTONS.textStyle.localeKey).toBe('textStyle');
+        });
+
+        it('has a non-empty toolbar.textStyle in every locale', () => {
+            const locales = Object.keys(RICH_TEXT_LOCALES);
+            expect(locales.length).toBeGreaterThanOrEqual(10);
+            for (const code of locales) {
+                expect(RICH_TEXT_LOCALES[code].toolbar.textStyle.length).toBeGreaterThan(0);
+            }
+        });
+
+        it('lists the four options in TEXT_STYLE_OPTIONS', () => {
+            expect([...TEXT_STYLE_OPTIONS]).toEqual([
+                'paragraph', 'heading1', 'heading2', 'heading3',
+            ]);
         });
     });
 

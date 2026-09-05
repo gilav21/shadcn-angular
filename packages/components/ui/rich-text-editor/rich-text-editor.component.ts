@@ -126,11 +126,16 @@ interface SerializedSelection {
 /**
  * The default toolbar layout used when `[toolbarItems]` is not provided.
  * Groups: formatting | block type | lists | alignment | colors/size | insert | code | clear.
+ *
+ * Block type is one `'textStyle'` select rather than four buttons: on a 320px
+ * phone the toolbar scrolls horizontally, and those four were its biggest fixed
+ * cost. A consumer who prefers the buttons can still list
+ * `'paragraph', 'heading1', 'heading2', 'heading3'` explicitly.
  */
 export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     'bold', 'italic', 'underline',
     'separator',
-    'paragraph', 'heading1', 'heading2', 'heading3',
+    'textStyle',
     'separator',
     'bulletList', 'orderedList', 'taskList',
     'separator',

@@ -2,7 +2,7 @@ import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { RichTextEditorComponent } from './rich-text-editor.component';
+import { DEFAULT_TOOLBAR_ITEMS, RichTextEditorComponent } from './rich-text-editor.component';
 import { RichTextEditorAddonHost } from './rich-text-editor.host';
 import { ShortcutBindingService } from '../../lib/shortcut-binding.service';
 import { RichTextCommandRegistry } from './rich-text-command-registry.service';
@@ -7605,5 +7605,115 @@ describe('RichTextEditorComponent block-state activeFormats', () => {
             '#deep'
         );
         expect(nested).toContain('indent');
+    });
+});
+
+// ── Text style select, from the editor's side ─────────────────────────────
+describe('RichTextEditorComponent text style select', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector(
+            '[data-slot="rich-text-editor"]'
+        ) as HTMLDivElement;
+    });
+
+    // T-33 — the default layout change, and the escape hatch for it.
+    it('puts textStyle in the default toolbar in place of the four block buttons', () => {
+        expect(DEFAULT_TOOLBAR_ITEMS).toContain('textStyle');
+        for (const item of ['paragraph', 'heading1', 'heading2', 'heading3']) {
+            expect(DEFAULT_TOOLBAR_ITEMS).not.toContain(item);
+        }
+    });
+
+    it('renders the select by default and no block buttons', () => {
+        expect(
+            fixture.nativeElement.querySelector('[data-slot="rich-text-toolbar-text-style"]')
+        ).not.toBeNull();
+    });
+
+    it('still renders four working buttons when a consumer lists them explicitly', () => {
+        fixture.componentRef.setInput('toolbarItems', [
+            'paragraph', 'heading1', 'heading2', 'heading3',
+        ]);
+        fixture.detectChanges();
+
+        const buttons = fixture.nativeElement.querySelectorAll(
+            '[data-slot="rich-text-toolbar"] button, [role="toolbar"] button'
+        );
+        expect(buttons).toHaveLength(4);
+        expect(
+            fixture.nativeElement.querySelector('[data-slot="rich-text-toolbar-text-style"]')
+        ).toBeNull();
+    });
+
+    it('presses the explicit heading button matching the caret block', () => {
+        fixture.componentRef.setInput('toolbarItems', [
+            'paragraph', 'heading1', 'heading2', 'heading3',
+        ]);
+        fixture.detectChanges();
+
+        editor.innerHTML = '<h2>a</h2>';
+        const textNode = editor.querySelector('h2')!.firstChild as Text;
+        setCaretAt(textNode, 1);
+        component.onSelectionChange();
+        fixture.detectChanges();
+
+        const pressed = Array.from(
+            fixture.nativeElement.querySelectorAll('button[aria-pressed="true"]')
+        ) as HTMLElement[];
+        expect(pressed).toHaveLength(1);
+        expect(pressed[0].getAttribute('title')).toContain('Heading 2');
+    });
+
+    // T-32 — choosing an option converts the block the editor had saved when
+    // focus moved to the select, and costs one history entry.
+    it('converts the saved block when a style is chosen after the editor blurs', () => {
+        editor.innerHTML = '<p>hello</p>';
+        const textNode = editor.querySelector('p')!.firstChild as Text;
+        setCaretAt(textNode, 5);
+        component.onBlur();
+        fixture.detectChanges();
+
+        const before = component.historyEntries().length;
+        const select = fixture.nativeElement.querySelector(
+            '[data-slot="rich-text-toolbar-text-style"]'
+        ) as HTMLSelectElement;
+        select.value = 'heading2';
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        fixture.detectChanges();
+
+        expect(editor.querySelector('h2')).not.toBeNull();
+        expect(editor.textContent).toContain('hello');
+        expect(component.historyEntries()).toHaveLength(before + 1);
+    });
+
+    it('shows the caret block in the select and converts back to normal text', () => {
+        editor.innerHTML = '<h1>title</h1>';
+        const textNode = editor.querySelector('h1')!.firstChild as Text;
+        setCaretAt(textNode, 2);
+        component.onSelectionChange();
+        fixture.detectChanges();
+
+        const select = fixture.nativeElement.querySelector(
+            '[data-slot="rich-text-toolbar-text-style"]'
+        ) as HTMLSelectElement;
+        expect(select.value).toBe('heading1');
+
+        select.value = 'paragraph';
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        fixture.detectChanges();
+
+        expect(editor.querySelector('h1')).toBeNull();
+        expect(editor.textContent).toContain('title');
     });
 });
