@@ -657,8 +657,8 @@ covered because the comparison is on the HTML model in both cases.
 | 6 | Write failing tests T-31…T-43 (new `undo consistency` describe + emoji addon spec extension); confirm they fail | UC-26…UC-34 | ✅ Done | 2026-09-05 16:45 | 92 | Thirteen of fourteen failed on the missing API, which is the easy half. The instructive one was T-38: its first draft failed because dispatching an input event with no selection makes the editor wrap the content in a fresh block — a real edit, not the no-op the case needs. |
 | 7 | `setContent` + `RichTextSetContentOptions`, `recordExternalWrites`, `insertTextFromOverlay` pushes; JSDoc for `writeValue`, `insertTextFromOverlay` (component + host) | UC-26…UC-30, UC-35 (T-31…T-35, T-42, T-43) | ✅ Done | 2026-09-05 16:45 | 92 | The review gate caught real data loss here: §D.5.12 flushes the pending typing burst AFTER the write, so `pushHistory` dedupes against the new content and the user's unsaved sentence disappears. Flushing first fixes it; T-31b and T-34b pin both affected paths. |
 | 8 | `historyChange` + `RichTextHistoryState`, `canUndo`/`canRedo`, `isDirty`/`markClean`; barrel exports; `npm run docs:regen` + `docs:check` | UC-31…UC-35 (T-36…T-41, T-45) | ✅ Done | 2026-09-05 16:45 | 92 | Riding on `bumpHistoryVersion` meant no mutation site needed its own emit. T-38b had to be rewritten twice before it could actually distinguish the chosen dirty-baseline option from the rejected one — a passing test is not the same as a discriminating one. |
-| 9 | Stories `FindReplace` + `FindReplaceRTL` (axe), `'find'` in `FullToolbar`; demo section "Find & replace, undo and dirty state" with copy-paste snippets (`'find'` item, `recordExternalWrites`, `setContent`, `isDirty`/`markClean`, `historyChange`) + demo locale strings (en/he) | UC-20, UC-23, T-29 | ⬜ Not started | — | — | — |
-| 10 | Extend `e2e/harness/rich-text-editor/` demo + spec with T-30 and T-44; `npm run e2e -- rich-text-editor`; full gates (`test-visual`, `test:portable`, `lint`, `sonar:gate`); Completion Log | T-30, T-44, all | ⬜ Not started | — | — | — |
+| 9 | Stories `FindReplace` + `FindReplaceRTL` (axe), `'find'` in `FullToolbar`; demo section "Find & replace, undo and dirty state" with copy-paste snippets (`'find'` item, `recordExternalWrites`, `setContent`, `isDirty`/`markClean`, `historyChange`) + demo locale strings (en/he) | UC-20, UC-23, T-29 | ✅ Done | 2026-09-05 17:40 | 92 | The library has no `play`-function precedent, so the stories open the panel from a wrapper component instead — consistent with the file's existing demo components. Demo strings went to all ten locales because the locale interface requires every key, not just en/he. |
+| 10 | Extend `e2e/harness/rich-text-editor/` demo + spec with T-30 and T-44; `npm run e2e -- rich-text-editor`; full gates (`test-visual`, `test:portable`, `lint`, `sonar:gate`); Completion Log | T-30, T-44, all | ✅ Done | 2026-09-05 17:40 | 92 | Both new e2e cases first undid past the seeded document to an empty one — the ngModel seed arrives via writeValue, which records nothing by design (UC-28), so each now establishes a recorded state first. Two existing find cases needed updating to the new counter and button names. |
 
 ## Definition of Done (per task)
 
@@ -770,6 +770,26 @@ Marking a row Done without all five is a process violation, not a shortcut.
   Option I too. T-38b appends a text node straight to the editable and asserts
   `markClean` picks it up, which does discriminate.
 
+- ⚠️ **UC-35 cannot be fully met: no method of this component is documented.**
+  `api-docs.json` reports `methods: 0` for `RichTextEditorComponent` on the
+  base branch as well as this one, so `openFindReplace`, `flushPendingHistoryPush`
+  and every other long-standing public method are equally absent. The new
+  *inputs* and *output* (`findDebounceMs`, `recordExternalWrites`,
+  `historyChange`) do appear after `docs:regen`; `setContent`, `isDirty`,
+  `markClean`, `canUndo` and `canRedo` cannot until the compodoc pipeline emits
+  methods for this class. Not a gap in this change — a generator limitation to
+  fix separately.
+- ⚠️ **A new file under `ui/rich-text-editor/` breaks three hardcoded CLI
+  counts.** `rich-text-find.utils.ts` moved rte staging 273→274 and the
+  `stage-package` print 274→275. Note `stage-package-cli.spec.ts`'s 273 is
+  fixture *input*, not an expectation — bumping it breaks a different test.
+- ⚠️ **The library has no Storybook `play`-function precedent**, so the two new
+  find stories open the panel from a wrapper component's `ngAfterViewInit`
+  rather than the `play` hook §C.2 assumes.
+- ⚠️ **Demo locale strings must cover all ten locales, not the two §E task 9
+  names.** `RichTextEditorDemoLocale` is a required-field interface, so an
+  en/he-only addition does not compile.
+
 - ⚠️ Cross-spec: `setContent(value, { recordHistory })` is **defined here**;
   Spec 4 (`consumer API pack`) reuses it and owns `focus()`, `insertText()`,
   `insertHtml()`, `format()`, `getSelectionSnapshot()`, `isEmpty()` and any
@@ -789,3 +809,5 @@ Marking a row Done without all five is a process violation, not a shortcut.
 | 6 | 2026-09-05 | Failing tests T-31…T-43 (undo consistency + emoji addon) | 92 | 14 cases; T-38 needed a caret before its input event to be a genuine no-op. |
 | 7 | 2026-09-05 | `setContent`, `recordExternalWrites`, overlay-insert history | 92 | Review gate found real data loss in §D.5.12's flush ordering; fixed and pinned. |
 | 8 | 2026-09-05 | `historyChange`, `canUndo`/`canRedo`, `isDirty`/`markClean` | 92 | Sabotage: 8 breaks caught (incl. Option I baseline); 1 permitted free change stayed green. |
+| 9 | 2026-09-05 | Stories `FindReplace`/`FindReplaceRTL`, demo section | 92 | `'find'` added to `FullToolbar`; demo wires the whole copy-paste surface. |
+| 10 | 2026-09-05 | e2e T-30 + T-44, docs regen, full gates | 92 | e2e 16/16; browser suite 10921/10921; CLI 1821/1821; Sonar 0 issues on all changed files. |
