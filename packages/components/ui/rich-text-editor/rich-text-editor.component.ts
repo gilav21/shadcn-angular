@@ -375,6 +375,13 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     /** Emits the current word count after every content change. Pair with `[showWordCount]`. */
     wordCountChange = output<number>();
 
+    /**
+     * Emits the undo stack's state on every change to it — a push, undo, redo,
+     * history restore or trim. Drive your own undo/redo buttons from it, or read
+     * {@link canUndo} / {@link canRedo} directly.
+     */
+    historyChange = output<RichTextHistoryState>();
+
     /** Emits when the editor gains focus. */
     focused = output<void>();
 
@@ -445,6 +452,29 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private readonly _historyVersion = signal<number>(0);
     /** Bumps on every history-stack change; read by the history addon (addon host surface). */
     readonly historyVersion = this._historyVersion.asReadonly();
+
+    /** Whether an undo step is available — mirrors {@link historyChange}'s `canUndo`. */
+    readonly canUndo = computed(() => {
+        this.historyVersion();
+        return this.historyIndex > 0;
+    });
+    /** Whether a redo step is available — mirrors {@link historyChange}'s `canRedo`. */
+    readonly canRedo = computed(() => {
+        this.historyVersion();
+        return this.historyIndex < this.history.length - 1;
+    });
+
+    /**
+     * The content as of the last {@link writeValue} or {@link markClean}, in the
+     * shape {@link readContentFromEditor} produces — a DOM round-trip, so an
+     * input event that changes nothing compares equal.
+     */
+    private readonly cleanHtml = signal('');
+    /**
+     * Whether the document differs from what was last loaded or marked clean.
+     * Use it for unsaved-changes prompts; {@link markClean} resets it.
+     */
+    readonly isDirty = computed(() => this.htmlContent() !== this.cleanHtml());
 
     findReplaceVisible = signal(false);
     findQuery = signal('');
@@ -841,12 +871,34 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * their `checked` state re-read from the owning `<li data-checked>`.
      *
      * Deliberately silent: it does NOT call back into the form
-     * ({@link registerOnChange}), does NOT emit {@link htmlChange} /
-     * {@link markdownChange}, and does NOT record a history entry — so a
-     * programmatic `setValue` cannot be undone, and undo will jump back to the
-     * state before it. `null`/`undefined` are treated as the empty string.
+     * ({@link registerOnChange}) and does NOT emit {@link htmlChange} /
+     * {@link markdownChange} — the form already knows the value it just wrote.
+     * `null`/`undefined` are treated as the empty string.
+     *
+     * By default it records no history entry either, so a programmatic
+     * `setValue` cannot be undone and undo jumps back to the state before it.
+     * Set {@link recordExternalWrites} to make each form write undoable, or use
+     * {@link setContent} for an edit your own code is making.
+     *
+     * Either way it resets the dirty baseline: the value the form just supplied
+     * is by definition the saved one, so {@link isDirty} reads false after it.
      */
     writeValue(value: string): void {
+        this.applyExternalHtml(value);
+        if (this.recordExternalWrites()) {
+            this.flushPendingHistoryPush();
+            this.pushHistory();
+        }
+        this.markClean();
+    }
+
+    /**
+     * Parse `value` per {@link mode}, write it to the model and straight through
+     * to the contenteditable DOM, and re-enable its task checkboxes. Shared by
+     * {@link writeValue} and {@link setContent}, which differ only in what they
+     * do afterwards — the form callback, history and dirty baseline.
+     */
+    private applyExternalHtml(value: string): void {
         value ??= '';
 
         if (this.mode() === 'markdown' && value) {
@@ -859,6 +911,50 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             this.editorDiv.nativeElement.innerHTML = this.htmlContent();
             this.enableTaskCheckboxes(this.editorDiv.nativeElement);
         }
+    }
+
+    /**
+     * Replace the editor's content programmatically, as an edit the code is
+     * making — the counterpart to {@link writeValue}, which is the *form*
+     * telling the editor what its value is.
+     *
+     * Unlike `writeValue` it calls back into the form, emits the content
+     * outputs, and records one history entry so `Ctrl+Z` restores what the user
+     * was looking at. Pass `{ recordHistory: false }` for a write that should
+     * not be undoable — restoring a version, say. The caret is left collapsed at
+     * the end of the new content. `null`/`undefined` become the empty string.
+     *
+     * It deliberately does NOT reset the dirty baseline: content the code
+     * inserted is still an unsaved change. Use {@link markClean} after a save.
+     */
+    setContent(value: string, options?: RichTextSetContentOptions): void {
+        this.applyExternalHtml(value);
+        this.placeCaretAtEnd();
+        this.syncContentFromEditor();
+        this.flushPendingHistoryPush();
+        if (options?.recordHistory !== false) {
+            this.pushHistory();
+        }
+    }
+
+    /** Collapse the caret to the end of the editable's content. */
+    private placeCaretAtEnd(): void {
+        const editor = this.editorDiv?.nativeElement;
+        if (!editor) return;
+        const range = this.document.createRange();
+        range.selectNodeContents(editor);
+        range.collapse(false);
+        const selection = this.document.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+    }
+
+    /**
+     * Treat the current content as saved: {@link isDirty} reads false again
+     * until the next change. Call it after persisting the value.
+     */
+    markClean(): void {
+        this.cleanHtml.set(this.readContentFromEditor() ?? this.htmlContent());
     }
 
     /**
@@ -1679,8 +1775,9 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * restores the in-editor selection first, re-saves the caret afterwards so
      * consecutive picks append instead of stacking at the same spot, and pins
      * `inputMode = 'none'` for ~100ms while focus returns, which stops the mobile
-     * software keyboard from flashing open. Note it flushes pending history but
-     * records no entry of its own.
+     * software keyboard from flashing open. It flushes any pending typing burst
+     * as its own entry and then records one entry of its own, so a single undo
+     * removes the insert and nothing else.
      */
     insertTextFromOverlay(text: string): void {
         this.flushPendingHistoryPush();
@@ -1691,6 +1788,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
         this.restoreSelection();
         this.insertText(text);
+        this.pushHistory();
         const selection = this.document.getSelection();
         if (selection && selection.rangeCount > 0) {
             this.savedRange = selection.getRangeAt(0).cloneRange();
@@ -5525,8 +5623,17 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return { html, markdown: this.markdownService.toMarkdown(html) };
     }
 
+    /**
+     * The single choke point every history-stack change already passes through,
+     * so {@link historyChange} rides along with the version bump rather than
+     * needing its own call at each mutation site.
+     */
     private bumpHistoryVersion(): void {
         this._historyVersion.update(v => v + 1);
+        this.historyChange.emit({
+            canUndo: this.historyIndex > 0,
+            canRedo: this.historyIndex < this.history.length - 1,
+        });
     }
 
     private buildHistoryPreview(html: string): { preview: string; previewLines: string[]; lineCount: number } {
