@@ -870,10 +870,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * user was editing; task checkboxes in the incoming value are re-enabled and
      * their `checked` state re-read from the owning `<li data-checked>`.
      *
-     * Deliberately silent: it does NOT call back into the form
-     * ({@link registerOnChange}) and does NOT emit {@link htmlChange} /
-     * {@link markdownChange} — the form already knows the value it just wrote.
-     * `null`/`undefined` are treated as the empty string.
+     * It does NOT call back into the form ({@link registerOnChange}) — the form
+     * already knows the value it just wrote, and echoing it would loop. It does
+     * however emit {@link htmlChange} / {@link markdownChange}, which are
+     * effects over the content signal this sets and therefore fire for every
+     * content change whatever its origin. `null`/`undefined` are treated as the
+     * empty string.
      *
      * By default it records no history entry either, so a programmatic
      * `setValue` cannot be undone and undo jumps back to the state before it.
@@ -959,6 +961,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     /**
      * Treat the current content as saved: {@link isDirty} reads false again
      * until the next change. Call it after persisting the value.
+     *
+     * The baseline is read back out of the editable rather than taken from the
+     * model, so content the browser normalised after the model was written
+     * still compares equal. That read also refreshes the model from the DOM —
+     * the two are being reconciled, which is the point of marking clean.
      */
     markClean(): void {
         this.cleanHtml.set(this.readContentFromEditor() ?? this.htmlContent());

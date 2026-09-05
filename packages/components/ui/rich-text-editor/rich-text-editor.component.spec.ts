@@ -8522,6 +8522,42 @@ describe('RichTextEditorComponent — undo consistency', () => {
         expect(component.isDirty()).toBe(false);
     });
 
+    it('T-38b markClean baselines against the DOM, not the model signal', () => {
+        // §D.4 Option II: the baseline is what the editable currently holds,
+        // read back through the sanitizer — so content the browser normalised
+        // after the model was written still reads clean. Option I (baseline =
+        // the model string) would report a document nobody edited as dirty.
+        component.writeValue('<p>one</p>');
+        fixture.detectChanges();
+
+        const para = editor.querySelector('p') as HTMLElement;
+        para.appendChild(document.createTextNode(' two'));
+        expect(component.isDirty()).toBe(false);
+
+        component.markClean();
+
+        expect(component.htmlOutput()).toContain('one two');
+        expect(component.isDirty()).toBe(false);
+
+        setCaretAt(para.firstChild as Text, 1);
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+
+        expect(component.isDirty()).toBe(false);
+    });
+
+    it('writeValue emits the content outputs but not the form callback', () => {
+        const html: string[] = [];
+        const changes: string[] = [];
+        component.htmlChange.subscribe(v => html.push(v));
+        component.registerOnChange(v => changes.push(v));
+
+        component.writeValue('<p>fresh</p>');
+        fixture.detectChanges();
+
+        expect(html.at(-1)).toContain('fresh');
+        expect(changes).toHaveLength(0);
+    });
+
     it('T-39 isDirty is true after typing and false after undoing back to the loaded content', () => {
         type('one changed');
         component.flushPendingHistoryPush();
