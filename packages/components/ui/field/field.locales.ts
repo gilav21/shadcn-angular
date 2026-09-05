@@ -20,6 +20,7 @@ export interface FieldErrorsLocale extends LocaleMeta {
     max: string;
     email: string;
     pattern: string;
+    minWords: string;
 }
 
 export const FIELD_ERROR_LOCALES: Record<string, FieldErrorsLocale> = {
@@ -32,6 +33,7 @@ export const FIELD_ERROR_LOCALES: Record<string, FieldErrorsLocale> = {
         max: 'Must be at most {max}',
         email: 'Enter a valid email address',
         pattern: 'Invalid format',
+        minWords: 'Minimum {requiredWords} words',
     },
     he: {
         code: 'he',
@@ -43,6 +45,7 @@ export const FIELD_ERROR_LOCALES: Record<string, FieldErrorsLocale> = {
         max: 'הערך חייב להיות לכל היותר {max}',
         email: 'יש להזין כתובת אימייל תקינה',
         pattern: 'פורמט לא תקין',
+        minWords: 'מינימום {requiredWords} מילים',
     },
     ar: {
         code: 'ar',
@@ -54,6 +57,7 @@ export const FIELD_ERROR_LOCALES: Record<string, FieldErrorsLocale> = {
         max: 'يجب ألا يزيد عن {max}',
         email: 'أدخل بريدًا إلكترونيًا صالحًا',
         pattern: 'تنسيق غير صالح',
+        minWords: 'الحد الأدنى {requiredWords} كلمات',
     },
     de: {
         code: 'de',
@@ -64,6 +68,7 @@ export const FIELD_ERROR_LOCALES: Record<string, FieldErrorsLocale> = {
         max: 'Darf höchstens {max} sein',
         email: 'Geben Sie eine gültige E-Mail-Adresse ein',
         pattern: 'Ungültiges Format',
+        minWords: 'Mindestens {requiredWords} Wörter',
     },
     fr: {
         code: 'fr',
@@ -74,6 +79,7 @@ export const FIELD_ERROR_LOCALES: Record<string, FieldErrorsLocale> = {
         max: 'Doit être au plus {max}',
         email: 'Saisissez une adresse e-mail valide',
         pattern: 'Format invalide',
+        minWords: 'Minimum {requiredWords} mots',
     },
     es: {
         code: 'es',
@@ -84,6 +90,7 @@ export const FIELD_ERROR_LOCALES: Record<string, FieldErrorsLocale> = {
         max: 'Debe ser como máximo {max}',
         email: 'Introduce un correo electrónico válido',
         pattern: 'Formato no válido',
+        minWords: 'Mínimo {requiredWords} palabras',
     },
     ja: {
         code: 'ja',
@@ -94,6 +101,7 @@ export const FIELD_ERROR_LOCALES: Record<string, FieldErrorsLocale> = {
         max: '{max}以下で入力してください',
         email: '有効なメールアドレスを入力してください',
         pattern: '形式が正しくありません',
+        minWords: '{requiredWords}語以上で入力してください',
     },
     zh: {
         code: 'zh',
@@ -104,6 +112,7 @@ export const FIELD_ERROR_LOCALES: Record<string, FieldErrorsLocale> = {
         max: '不能大于 {max}',
         email: '请输入有效的电子邮件地址',
         pattern: '格式无效',
+        minWords: '至少需要 {requiredWords} 个词',
     },
     ru: {
         code: 'ru',
@@ -114,6 +123,7 @@ export const FIELD_ERROR_LOCALES: Record<string, FieldErrorsLocale> = {
         max: 'Должно быть не более {max}',
         email: 'Введите корректный адрес электронной почты',
         pattern: 'Неверный формат',
+        minWords: 'Минимум {requiredWords} слов',
     },
     pt: {
         code: 'pt',
@@ -124,5 +134,6 @@ export const FIELD_ERROR_LOCALES: Record<string, FieldErrorsLocale> = {
         max: 'Deve ser no máximo {max}',
         email: 'Insira um endereço de e-mail válido',
         pattern: 'Formato inválido',
+        minWords: 'Mínimo de {requiredWords} palavras',
     },
 };
