@@ -7064,6 +7064,28 @@ describe('RichTextEditorComponent markdown input rules', () => {
             expect(editor.querySelector('h1')).not.toBeNull();
         });
 
+        // A block whose only content is an element — an image, say — is not
+        // "empty" (so it keeps its children) yet has no text node for the caret
+        // to land in. The transform must still place a caret rather than
+        // throwing, which is the one branch the element fallback covers.
+        it('transforms a block whose only content is an element', () => {
+            const block = seed('<p><img alt=""></p>');
+            const textNode = block.insertBefore(
+                document.createTextNode('# '),
+                block.firstChild
+            ) as Text;
+            setCaretAt(textNode, 2);
+            editor.dispatchEvent(
+                new InputEvent('input', { bubbles: true, inputType: 'insertText', data: ' ' })
+            );
+            fixture.detectChanges();
+
+            const heading = editor.querySelector('h1');
+            expect(heading).not.toBeNull();
+            expect(heading?.querySelector('img')).not.toBeNull();
+            expect(document.getSelection()?.rangeCount).toBe(1);
+        });
+
         it('wraps a bare top-level text node in a paragraph before transforming it', () => {
             editor.innerHTML = '';
             const textNode = editor.appendChild(document.createTextNode('# ')) as Text;

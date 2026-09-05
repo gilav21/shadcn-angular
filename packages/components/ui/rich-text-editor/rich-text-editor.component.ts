@@ -4664,10 +4664,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     /**
-     * A text node at the very start of a visually empty block for the caret to
-     * sit in: the block's own first text node when it has one — a code block's
-     * seeded newline counts, and must survive so the Enter-to-exit rule can see
-     * it — otherwise a fresh empty node replacing the `<br>` placeholder.
+     * The text node at the start of a block for the caret to sit in: the
+     * block's own first one when it has content — a code block's seeded newline
+     * counts, and must survive so the Enter-to-exit rule can see it — otherwise
+     * a zero-width anchor, because a real browser will not put a caret in a
+     * zero-length text node or in a block holding only a `<br>`.
      */
     private emptyBlockCaretTarget(block: HTMLElement): Text {
         const walker = this.document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
@@ -4685,32 +4686,19 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     /**
      * Collapses the caret to where the author continues typing in a block a
-     * rule just built: the start of its text, or — when the block is empty —
-     * just after the zero-width anchor {@link emptyBlockCaretTarget} leaves
-     * there, since a real browser will not type into a zero-length text node.
+     * rule just built — before the block's own text, or after the zero-width
+     * anchor when the block has none, since a real browser will not type into
+     * a zero-length text node.
      */
     private placeCaretAtStartOfBlock(block: HTMLElement): void {
         const selection = this.document.getSelection();
         if (!selection) return;
 
-        if (this.isEmptyBlock(block)) {
-            const target = this.emptyBlockCaretTarget(block);
-            const range = this.document.createRange();
-            range.setStart(target, target.data.length);
-            range.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(range);
-            return;
-        }
+        const target = this.emptyBlockCaretTarget(block);
+        const offset = this.isEmptyBlock(block) ? target.data.length : 0;
 
-        const walker = this.document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
-        const first = walker.nextNode();
         const range = this.document.createRange();
-        if (first) {
-            range.setStart(first, 0);
-        } else {
-            range.setStart(block, 0);
-        }
+        range.setStart(target, offset);
         range.collapse(true);
         selection.removeAllRanges();
         selection.addRange(range);

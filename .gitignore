@@ -39,6 +39,17 @@ packages/.env
 # Per-worker e2e fixture clones (parallel orchestrator)
 e2e/.workers/
 
+# What the e2e run INSTALLS into the fixture app, the way a consumer would.
+# The app's own scaffold is tracked; everything the CLI writes into it is
+# regenerated on the next run and must never be committed.
+e2e/fixture-app/.postcssrc.json
+e2e/fixture-app/components.json
+e2e/fixture-app/components.lock.json
+e2e/fixture-app/package-lock.json
+e2e/fixture-app/src/components/
+e2e/fixture-app/src/app/test-pages/
+e2e/fixture-app/src/tailwind.css
+
 # Compiled-package sources, regenerated from the registry closure by
 # `npm run stage:package -- <id>`. The package CONFIG (package.json,
 # ng-package.json, tsconfig.lib.json, README.md, CHANGELOG.md) IS tracked —
