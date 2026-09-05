@@ -7193,6 +7193,146 @@ describe('RichTextEditorComponent markdown input rules', () => {
         expect(editor.querySelector('h1')).not.toBeNull();
     });
 
+
+    // ── Inline rules ──────────────────────────────────────────────────────
+    // A completed wrapper becomes the element it names, its markers dropped,
+    // and the caret parks in a zero-width node AFTER the new element so the
+    // browser does not keep typing inside it.
+    describe('inline rules', () => {
+        // T-16
+        it('turns "**bold**" into a strong carrying just the body', () => {
+            typeInto(seed('<p><br></p>'), '**bold**');
+
+            const strong = editor.querySelector('strong');
+            expect(strong).not.toBeNull();
+            expect(strong?.textContent).toBe('bold');
+            expect(editor.textContent).not.toContain('*');
+        });
+
+        it('lands text typed after the transform outside the strong', () => {
+            const block = seed('<p><br></p>');
+            typeInto(block, '**bold**');
+            const strong = editor.querySelector('strong') as HTMLElement;
+
+            const selection = document.getSelection();
+            const caret = selection?.getRangeAt(0);
+            const parked = caret?.startContainer as Text;
+            parked.insertData(parked.data.length, 'x');
+            setCaretAt(parked, parked.data.length);
+            editor.dispatchEvent(
+                new InputEvent('input', { bubbles: true, inputType: 'insertText', data: 'x' })
+            );
+            fixture.detectChanges();
+
+            expect(strong.textContent).toBe('bold');
+            expect(editor.textContent?.replaceAll('\u200B', '')).toBe('boldx');
+        });
+
+        // T-17
+        it('turns "*it*" into an em', () => {
+            typeInto(seed('<p><br></p>'), '*it*');
+
+            const em = editor.querySelector('em');
+            expect(em).not.toBeNull();
+            expect(em?.textContent).toBe('it');
+        });
+
+        it('does not fire on the inner star of an unfinished "**bo*"', () => {
+            typeInto(seed('<p><br></p>'), '**bo*');
+
+            expect(editor.querySelector('em')).toBeNull();
+            expect(editor.querySelector('strong')).toBeNull();
+            expect(editor.textContent).toContain('**bo*');
+        });
+
+        // T-18
+        it('turns "`c`" into a code element', () => {
+            typeInto(seed('<p><br></p>'), '`c`');
+
+            const code = editor.querySelector('code');
+            expect(code).not.toBeNull();
+            expect(code?.textContent).toBe('c');
+        });
+
+        it('changes nothing when the same keystrokes land inside a pre', () => {
+            const code = seed('<pre><code>x</code></pre>').querySelector('code') as HTMLElement;
+            typeInto(code, '**b**');
+
+            expect(editor.querySelector('strong')).toBeNull();
+            expect(editor.querySelector('pre')?.textContent).toContain('**b**');
+        });
+
+        it('changes nothing when the same keystrokes land inside an inline code element', () => {
+            const code = seed('<p><code>x</code></p>').querySelector('code') as HTMLElement;
+            typeInto(code, '**b**');
+
+            expect(editor.querySelector('strong')).toBeNull();
+            expect(code.textContent).toContain('**b**');
+        });
+
+        it('does not fire inside a mention chip', () => {
+            const chip = seed('<p><span data-mention="u1">@ann</span></p>')
+                .querySelector('[data-mention]') as HTMLElement;
+            typeInto(chip, '**b**');
+
+            expect(editor.querySelector('strong')).toBeNull();
+            expect(chip.textContent).toContain('**b**');
+        });
+
+        it('does not fire inside a link', () => {
+            const link = seed('<p><a href="https://example.com">site</a></p>')
+                .querySelector('a') as HTMLElement;
+            typeInto(link, '**b**');
+
+            expect(editor.querySelector('strong')).toBeNull();
+        });
+
+        it('fires inside a plain inline formatting element', () => {
+            const em = seed('<p><em>x</em></p>').querySelector('em') as HTMLElement;
+            typeInto(em, '`c`');
+
+            expect(em.querySelector('code')).not.toBeNull();
+        });
+
+        it('is one undo step, restoring the literal markers', () => {
+            typeInto(seed('<p><br></p>'), '**bold**');
+            expect(editor.querySelector('strong')).not.toBeNull();
+
+            (component as unknown as { undo(): void }).undo();
+            fixture.detectChanges();
+
+            expect(editor.querySelector('strong')).toBeNull();
+            expect(editor.textContent).toContain('**bold**');
+        });
+
+        it('reverts on an immediate Backspace', () => {
+            typeInto(seed('<p><br></p>'), '`c`');
+            expect(editor.querySelector('code')).not.toBeNull();
+
+            const event = new KeyboardEvent('keydown', {
+                key: 'Backspace',
+                bubbles: true,
+                cancelable: true,
+            });
+            component.onKeydown(event);
+            fixture.detectChanges();
+
+            expect(event.defaultPrevented).toBe(true);
+            expect(editor.querySelector('code')).toBeNull();
+            expect(editor.textContent).toContain('`c`');
+        });
+
+        it('does not fire when [markdownShortcuts] is false', () => {
+            fixture.componentRef.setInput('markdownShortcuts', false);
+            fixture.detectChanges();
+
+            typeInto(seed('<p><br></p>'), '**bold**');
+
+            expect(editor.querySelector('strong')).toBeNull();
+            expect(editor.textContent).toContain('**bold**');
+        });
+    });
+
     describe('one undo step and the Backspace revert', () => {
         /** Press a key through the component's real keydown path. */
         const press = (key: string): KeyboardEvent => {

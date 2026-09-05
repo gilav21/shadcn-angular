@@ -4337,10 +4337,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private static readonly INPUT_RULE_IGNORED_TYPES = ['delete', 'history', 'format'];
 
     /**
-     * The transform the last input rule performed, and the element it produced.
-     * Backspace consults it to offer the one-keystroke revert; any other key,
-     * input, click or blur clears it, so the revert window is exactly the
-     * keystroke immediately after the transform.
+     * Where the caret has to still be for the last transform to be revertable.
+     * A block rule records the block it produced; an inline rule records that
+     * element's PARENT, because the caret parks in a zero-width node beside the
+     * new element rather than inside it. Backspace consults this to offer the
+     * one-keystroke revert; any other key, input, click or blur clears it, so
+     * the window is exactly the keystroke after the transform.
      */
     private lastInputRule: { block: HTMLElement } | null = null;
 
@@ -4686,7 +4688,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     private tryInlineRule(context: { block: HTMLElement; textNode: Text | null; offset: number }): boolean {
         const { textNode, offset, block } = context;
-        if (!textNode || block.tagName === 'PRE') return false;
+        if (!textNode) return false;
         if (textNode.parentElement?.closest(RichTextEditorComponent.INLINE_RULE_FORBIDDEN_ANCESTORS)) {
             return false;
         }
@@ -4716,7 +4718,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             selection.addRange(range);
         }
 
-        this.lastInputRule = { block: element };
+        this.lastInputRule = { block: element.parentElement ?? block };
         return true;
     }
 
