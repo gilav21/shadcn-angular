@@ -2018,16 +2018,16 @@
       "lines": 2
     },
     "field/field.component.spec.ts": {
-      "bytes": 11237,
-      "lines": 291
+      "bytes": 13515,
+      "lines": 349
     },
     "field/field.component.ts": {
       "bytes": 3206,
       "lines": 111
     },
     "field/field.locales.ts": {
-      "bytes": 5063,
-      "lines": 128
+      "bytes": 5816,
+      "lines": 139
     },
     "field/field.stories.ts": {
       "bytes": 7178,
@@ -3861,129 +3861,9 @@
       "bytes": 1440,
       "lines": 36
     },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---find-and-replace-every-locale-supplies-the-new-find---replace-strings-1.png": {
-      "bytes": 10616,
-      "lines": 5
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---find-and-replace-T-16-replace-across-a-markup-boundary-lands-at-the-match-start-and-drops-the-emptied-element-1.png": {
-      "bytes": 9629,
-      "lines": 3
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---find-and-replace-T-17-replaceAll-flushes-pending-typing-then-records-exactly-one-entry--one-undo-restores-all-1.png": {
-      "bytes": 9049,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---find-and-replace-T-19-findNext-findPrevious-wrap-and-scroll-the-editor-to-the-current-match-1.png": {
-      "bytes": 10352,
-      "lines": 10
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---find-and-replace-T-2-does-not-match-across-block-boundaries-1.png": {
-      "bytes": 11916,
-      "lines": 9
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---find-and-replace-T-21-openFindReplace-seeds-the-query-from-a-non-empty-selection-and-leaves-it-alone-when-collapsed-1.png": {
-      "bytes": 14625,
-      "lines": 22
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---find-and-replace-T-24-RTL--panel-anchors-at-inline-end-and-uses-the-Hebrew-counter-string-1.png": {
-      "bytes": 14915,
-      "lines": 13
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---find-and-replace-T-25-readonly-hides-the-replace-row-and-ignores-replace-calls-1.png": {
-      "bytes": 14063,
-      "lines": 20
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---find-and-replace-T-27-matches-inside-mention-tag-chips-are-neither-counted-nor-replaced-1.png": {
-      "bytes": 10953,
-      "lines": 9
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---find-and-replace-T-28-a-2-000-match-500-KB-document-searches-in---200-ms-and-paints-a-capped-number-of-rects-1.png": {
-      "bytes": 26829,
-      "lines": 46
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---find-and-replace-T-3-debounces-the-query-and-searches-once-after-the-last-keystroke-1.png": {
-      "bytes": 10410,
-      "lines": 9
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---find-and-replace-T-7-highlights-never-enter-the-editor-DOM--the-form-value-or-history-1.png": {
-      "bytes": 14687,
-      "lines": 20
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---find-and-replace-T-8-typing-with-the-panel-open-keeps-the-form-value-mark-free-and-refreshes-matches-1.png": {
-      "bytes": 14611,
-      "lines": 16
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---find-and-replace-T-9-whole-word-toggle-limits-matches-to-whole-words--ASCII--1.png": {
-      "bytes": 13058,
-      "lines": 7
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---undo-consistency-setContent-coerces-null-and-undefined-to-the-empty-string-1.png": {
-      "bytes": 10583,
-      "lines": 7
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---undo-consistency-T-31-setContent-records-one-entry-by-default--calls-onChange--undo-redo-round-trips-1.png": {
-      "bytes": 9716,
-      "lines": 3
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---undo-consistency-T-31b-setContent-flushes-an-in-flight-typing-burst-as-its-own-entry-1.png": {
-      "bytes": 9477,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---undo-consistency-T-31c-setContent-leaves-a-collapsed-caret-at-the-end-of-the-new-content-1.png": {
-      "bytes": 9140,
-      "lines": 14
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---undo-consistency-T-32-setContent-with-recordHistory-false-calls-onChange-and-leaves-the-stack-length-unchanged-1.png": {
-      "bytes": 10583,
-      "lines": 7
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---undo-consistency-T-34-recordExternalWrites-true-makes-writeValue-push-one-entry--undo-restores-the-previous-content-1.png": {
-      "bytes": 9591,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---undo-consistency-T-35-insertTextFromOverlay-records-its-own-entry--one-undo-removes-only-the-inserted-text--1.png": {
-      "bytes": 8723,
-      "lines": 7
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---undo-consistency-T-36-historyChange-emits--canUndo-canRedo--on-push--undo--redo-and-restoreHistoryEntry-1.png": {
-      "bytes": 9707,
-      "lines": 9
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---undo-consistency-T-36b-history-trim-still-emits-historyChange-1.png": {
-      "bytes": 11452,
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---imperative-API-T-2b2-focus---collapses-to-the-end-when-the-caret-is-parked-outside-the-editor-1.png": {
+      "bytes": 9931,
       "lines": 8
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---undo-consistency-T-37-canUndo-canRedo-signals-mirror-the-output-1.png": {
-      "bytes": 9707,
-      "lines": 9
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---undo-consistency-T-38-isDirty-is-false-after-writeValue-and-after-a-no-op-input-event-1.png": {
-      "bytes": 10238,
-      "lines": 5
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---undo-consistency-T-38b-isDirty-baselines-against-the-DOM-round-trip--not-the-written-string-1.png": {
-      "bytes": 9697,
-      "lines": 11
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---undo-consistency-T-38b-markClean-baselines-against-the-DOM--not-the-model-signal-1.png": {
-      "bytes": 11178,
-      "lines": 8
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---undo-consistency-T-39-isDirty-is-true-after-typing-and-false-after-undoing-back-to-the-loaded-content-1.png": {
-      "bytes": 10238,
-      "lines": 5
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---undo-consistency-T-40-markClean-resets-isDirty-1.png": {
-      "bytes": 9276,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---undo-consistency-T-41-setContent-does-not-reset-isDirty--writeValue-does-1.png": {
-      "bytes": 10405,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---undo-consistency-T-42-markdown-mode--setContent-parses-markdown-and-onChange-receives-markdown-1.png": {
-      "bytes": 10583,
-      "lines": 7
     },
     "rich-text-editor/addons/actions/actions-runtime.spec.ts": {
       "bytes": 10495,
@@ -4034,12 +3914,12 @@
       "lines": 88
     },
     "rich-text-editor/addons/actions/rich-text-actions-bind.directive.spec.ts": {
-      "bytes": 1936,
-      "lines": 45
+      "bytes": 4792,
+      "lines": 114
     },
     "rich-text-editor/addons/actions/rich-text-actions-bind.directive.ts": {
-      "bytes": 2998,
-      "lines": 75
+      "bytes": 3994,
+      "lines": 91
     },
     "rich-text-editor/addons/actions/rich-text-actions-dialog.component.html": {
       "bytes": 4304,
@@ -4082,8 +3962,8 @@
       "lines": 787
     },
     "rich-text-editor/addons/actions/rich-text-actions.directive.ts": {
-      "bytes": 24435,
-      "lines": 538
+      "bytes": 24016,
+      "lines": 533
     },
     "rich-text-editor/addons/actions/rich-text-actions.locales.ts": {
       "bytes": 2843,
@@ -4094,8 +3974,8 @@
       "lines": 134
     },
     "rich-text-editor/addons/actions/rich-text-actions.serializer.ts": {
-      "bytes": 4786,
-      "lines": 126
+      "bytes": 5764,
+      "lines": 144
     },
     "rich-text-editor/addons/actions/rich-text-actions.stories.ts": {
       "bytes": 8798,
@@ -4197,10 +4077,6 @@
       "bytes": 2354,
       "lines": 73
     },
-    "rich-text-editor/addons/emoji/__screenshots__/rich-text-emoji.directive.spec.ts/RichTextEmojiDirective-T-43-picking-an-emoji-creates-exactly-one-history-entry-1.png": {
-      "bytes": 11993,
-      "lines": 7
-    },
     "rich-text-editor/addons/emoji/index.ts": {
       "bytes": 183,
       "lines": 4
@@ -4226,8 +4102,8 @@
       "lines": 16
     },
     "rich-text-editor/addons/emoji/rich-text-emoji.directive.spec.ts": {
-      "bytes": 6262,
-      "lines": 156
+      "bytes": 8631,
+      "lines": 218
     },
     "rich-text-editor/addons/emoji/rich-text-emoji.directive.ts": {
       "bytes": 3595,
@@ -4686,8 +4562,8 @@
       "lines": 41
     },
     "rich-text-editor/index.ts": {
-      "bytes": 417,
-      "lines": 9
+      "bytes": 539,
+      "lines": 12
     },
     "rich-text-editor/rich-text-command-registry.service.spec.ts": {
       "bytes": 3429,
@@ -4697,17 +4573,21 @@
       "bytes": 7526,
       "lines": 219
     },
+    "rich-text-editor/rich-text-editor.api.ts": {
+      "bytes": 4416,
+      "lines": 102
+    },
     "rich-text-editor/rich-text-editor.component.html": {
       "bytes": 17115,
       "lines": 264
     },
     "rich-text-editor/rich-text-editor.component.spec.ts": {
-      "bytes": 365490,
-      "lines": 8612
+      "bytes": 384762,
+      "lines": 9101
     },
     "rich-text-editor/rich-text-editor.component.ts": {
-      "bytes": 234512,
-      "lines": 5772
+      "bytes": 243320,
+      "lines": 5880
     },
     "rich-text-editor/rich-text-editor.host.ts": {
       "bytes": 16008,
@@ -4716,6 +4596,14 @@
     "rich-text-editor/rich-text-editor.stories.ts": {
       "bytes": 22341,
       "lines": 724
+    },
+    "rich-text-editor/rich-text-editor.validators.spec.ts": {
+      "bytes": 10914,
+      "lines": 262
+    },
+    "rich-text-editor/rich-text-editor.validators.ts": {
+      "bytes": 9041,
+      "lines": 224
     },
     "rich-text-editor/rich-text-find.utils.ts": {
       "bytes": 5948,
@@ -4749,6 +4637,10 @@
       "bytes": 51322,
       "lines": 1374
     },
+    "rich-text-editor/rich-text-prose.ts": {
+      "bytes": 2993,
+      "lines": 42
+    },
     "rich-text-editor/rich-text-sanitizer.service.spec.ts": {
       "bytes": 28643,
       "lines": 640
@@ -4776,6 +4668,30 @@
     "rich-text-security.spec.ts": {
       "bytes": 12753,
       "lines": 276
+    },
+    "rich-text-view/__screenshots__/rich-text-view.component.spec.ts/RichTextViewComponent---shared-typography-T-23-an-h1-in-the-view-and-in-the-editor-have-identical-computed-typography-1.png": {
+      "bytes": 13378,
+      "lines": 17
+    },
+    "rich-text-view/__screenshots__/rich-text-view.component.spec.ts/RichTextViewComponent-T-22-the-content-element-carries-every-prose-class-and-none-of-the-editor-only-ones-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-view/index.ts": {
+      "bytes": 44,
+      "lines": 1
+    },
+    "rich-text-view/rich-text-view.component.html": {
+      "bytes": 104,
+      "lines": 1
+    },
+    "rich-text-view/rich-text-view.component.spec.ts": {
+      "bytes": 15800,
+      "lines": 409
+    },
+    "rich-text-view/rich-text-view.component.ts": {
+      "bytes": 4414,
+      "lines": 125
     },
     "ripple.directive.spec.ts": {
       "bytes": 8679,
@@ -6284,8 +6200,8 @@
       "lines": 323
     },
     "i18n/i18n.token.ts": {
-      "bytes": 3846,
-      "lines": 95
+      "bytes": 4385,
+      "lines": 106
     },
     "i18n/i18n.types.ts": {
       "bytes": 833,

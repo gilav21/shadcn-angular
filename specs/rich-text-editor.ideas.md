@@ -152,3 +152,22 @@ Each was considered and deliberately left out, not overlooked.
 9. **Toolbar overflow menu / roving tabindex** (idea B4) and density tokens
    (B7). The Text style select bought back roughly three buttons of width on a
    phone; an overflow menu is the next lever if the toolbar grows again.
+10. **Move `RichTextSanitizerService` / `RichTextMarkdownService` to `lib/`**
+    (consumer-API pack, §D.4 option D-2 — costed and deliberately not taken).
+    `ui-rich-text-view` depends on `rich-text-editor` purely for those two
+    services, so a view-only consumer installs ~24 files to render a string
+    where ~8 would do. The move was rejected for that spec because Sonar
+    exclusions are keyed by path and break on file moves, the moved files read
+    as new code to the server (resurfacing accepted findings), and the npm-
+    packages spec was concurrently staging the same paths. Revisit if a
+    view-only consumer materialises.
+11. **`characterCount` / `wordCount` should use the block-aware
+    `richTextVisibleText`.** They call `sanitizer.stripTags`, which yields no
+    separator at a block boundary — so `<p>one</p><p>two</p>` reports **one**
+    word, and `<p>a</p><p>b</p>` reports two characters where the reader sees a
+    line break. The validators added in the consumer-API pack already measure
+    this correctly; the counters were left alone because `wordCountChange` is a
+    public output and changing it is a behaviour change consumers would notice.
+12. **Dead `'toggle'` branch in `executeListFormatCommand`.** The command is not
+    a member of the `ToolbarItem` union, so nothing can dispatch it. Recorded
+    while narrowing `RichTextFormatCommand`; separate cleanup.

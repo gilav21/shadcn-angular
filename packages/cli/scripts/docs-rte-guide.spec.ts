@@ -262,10 +262,14 @@ describe('rich-text-view demo registration', () => {
         expect(read(DEMO_VIEW)).toContain('rich-text-view');
     });
 
-    it('is listed in the nav, both route arrays and the demos barrel', () => {
+    it('is listed in the nav, the route table and the demos barrel', () => {
         expect(read(DEMO_NAV)).toContain("'rich-text-view'");
+        // One route, once. `demo.routes.ts` holds a single DEMO_ROUTES array;
+        // the `result` / `error-page` pairs the spec read as "two route
+        // arrays" are accidental duplicate entries in that one array
+        // (spec correction §G.17), not a pattern to copy.
         const routes = read(DEMO_ROUTES);
-        expect(routes.match(/'rich-text-view'/g) ?? []).toHaveLength(2);
+        expect(routes.match(/path: 'rich-text-view'/g) ?? []).toHaveLength(1);
         expect(read(DEMO_INDEX)).toContain('rich-text-view-demo.component');
     });
 });

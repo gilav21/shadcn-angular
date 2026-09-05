@@ -13009,7 +13009,7 @@
             {
               "name": "locale",
               "type": "LocaleInput<RichTextLocale>",
-              "description": "Language/locale for all editor UI strings. Pass a locale key (e.g. `'en'`) to use a built-in locale, or pass a full {@link RichTextLocale} object for custom translations."
+              "description": "Language/locale for all editor UI strings. Pass a locale key (e.g. `'en'`) to use a built-in locale, or pass a full {@link RichTextLocale} object for custom translations. Addon directives inherit it. The component re-broadcasts this input as `UI_LOCALE_ID` through `provideComponentLocale` in `providers` — element level, because addon directives sit on the editor's own element — so `<ui-rich-text-editor locale=\"he\" uiRteFull>` localizes all fourteen addons from this one binding. An addon's own `[uiRte<Name>Locale]` still wins where it is set, and with this input unset everything falls through to the app-wide `UI_LOCALE_ID` as before."
             },
             {
               "name": "markdownShortcuts",
@@ -13127,7 +13127,100 @@
               "description": "Emits the current word count after every content change. Pair with `[showWordCount]`."
             }
           ],
-          "methods": []
+          "methods": [
+            {
+              "name": "focus",
+              "signature": "focus()",
+              "returns": "void",
+              "description": "Focus the editable and restore the caret the user last had inside it. `restoreSelection` alone returns early without focusing when the live selection is already in the editor, so the focus call comes first and the restore second — a page button that stole focus still lands the caret back where the user left it.",
+              "params": []
+            },
+            {
+              "name": "format",
+              "signature": "format(command: RichTextFormatCommand)",
+              "returns": "void",
+              "description": "Run a toolbar command exactly as a toolbar click would. The narrow {@link RichTextFormatCommand} type is the whole guard — there is no runtime allow-list, because the union is the contract.",
+              "params": [
+                {
+                  "name": "command",
+                  "type": "RichTextFormatCommand",
+                  "optional": false
+                }
+              ]
+            },
+            {
+              "name": "insertHtml",
+              "signature": "insertHtml(html: string)",
+              "returns": "void",
+              "description": "Insert HTML at the restored caret as one history entry, then focus the editor. The markup goes through the editor's allow-list sanitizer, so a `<script>` is dropped rather than inserted. No-op while readonly or disabled, and when nothing survives sanitization. The single sanitize pass both answers that question and supplies the markup that is inserted — deciding and inserting must not disagree.",
+              "params": [
+                {
+                  "name": "html",
+                  "type": "string",
+                  "optional": false
+                }
+              ]
+            },
+            {
+              "name": "insertText",
+              "signature": "insertText(text: string)",
+              "returns": "void",
+              "description": "Insert plain text at the restored caret as one history entry, then focus the editor — the method a page button next to the editor calls. No-op while readonly or disabled, and for the empty string (an empty insert would otherwise record a history entry that undoes nothing).",
+              "params": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "optional": false
+                }
+              ]
+            },
+            {
+              "name": "isEmpty",
+              "signature": "isEmpty()",
+              "returns": "boolean",
+              "description": "`true` when the document has no visible text and no image, rule or table. Shares one rule with `richTextRequired()`, so a form's validity and a \"Send\" button's disabled state can never disagree. Parses the document on each call, like `characterCount`. Bind it through a `computed` over `htmlOutput()` rather than calling it in a template.",
+              "params": []
+            },
+            {
+              "name": "markClean",
+              "signature": "markClean()",
+              "returns": "void",
+              "description": "Treat the current content as saved: {@link isDirty} reads false again until the next change. Call it after persisting the value. The baseline is read back out of the editable rather than taken from the model, so content the browser normalised after the model was written still compares equal. That read also refreshes the model from the DOM — the two are being reconciled, which is the point of marking clean.",
+              "params": []
+            },
+            {
+              "name": "redo",
+              "signature": "redo()",
+              "returns": "void",
+              "description": "Redo one step — mirrors `Ctrl`+`Y` / `Ctrl`+`Shift`+`Z`. No-op at the end of the stack.",
+              "params": []
+            },
+            {
+              "name": "setContent",
+              "signature": "setContent(value: string, options?: RichTextSetContentOptions)",
+              "returns": "void",
+              "description": "Replace the editor's content programmatically, as an edit the code is making — the counterpart to {@link writeValue}, which is the *form* telling the editor what its value is. Unlike `writeValue` it calls back into the form, emits the content outputs, and records one history entry so `Ctrl+Z` restores what the user was looking at. Pass `{ recordHistory: false }` for a write that should not be undoable — restoring a version, say. The caret is left collapsed at the end of the new content. `null`/`undefined` become the empty string. Any in-flight typing burst is flushed as its own entry *before* the new content lands, so a `setContent` arriving mid-sentence cannot swallow what the user had just typed. (§D.5.12 of the spec lists the flush after the write; that order loses the burst — see the spec's corrections.) It deliberately does NOT reset the dirty baseline: content the code inserted is still an unsaved change. Use {@link markClean} after a save.",
+              "params": [
+                {
+                  "name": "value",
+                  "type": "string",
+                  "optional": false
+                },
+                {
+                  "name": "options",
+                  "type": "RichTextSetContentOptions",
+                  "optional": true
+                }
+              ]
+            },
+            {
+              "name": "undo",
+              "signature": "undo()",
+              "returns": "void",
+              "description": "Undo one step — mirrors `Ctrl`/`Cmd`+`Z`. Flushes a pending typing burst first, so one call takes back the whole burst rather than half of it. No-op at the start of the stack.",
+              "params": []
+            }
+          ]
         },
         {
           "className": "RichTextToolbarComponent",
@@ -13310,7 +13403,7 @@
           "file": "packages/components/ui/rich-text-editor/addons/actions/rich-text-actions-bind.directive.ts",
           "kind": "directive",
           "selector": "[uiRichTextActions]",
-          "description": "Binds {@link bindRichTextActions} to a host element and keeps it re-bound across `[innerHTML]` swaps (a `MutationObserver` re-binds once per coalesced mutation batch). Delivers typed action events to the handler map. ```html <article [innerHTML]=\"trustedHtml\" [uiRichTextActions]=\"handlers\"></article> ```",
+          "description": "Binds {@link bindRichTextActions} to a host element and keeps it re-bound across `[innerHTML]` swaps (a `MutationObserver` re-binds once per coalesced mutation batch). Delivers typed action events to the handler map. It also registers {@link RICH_TEXT_ACTIONS_SANITIZER_RULES} for its own lifetime, which is what makes actions work on a page with **no editor**: without it the sanitizer strips every `data-action-*` attribute, because those rules are otherwise only alive while an editor carrying `uiRteActions` is. The rules are registered in the constructor, before any child renders, so **placement matters** — put the directive on the rendering element or an ancestor of it in the same template. A directive attached dynamically, after the content has already been sanitized once, is too late. ```html <article [innerHTML]=\"trustedHtml\" [uiRichTextActions]=\"handlers\"></article> <ui-rich-text-view mode=\"html\" [value]=\"post\" [uiRichTextActions]=\"handlers\" /> ```",
           "inputs": [
             {
               "name": "a11yAffordances",
@@ -14883,6 +14976,64 @@
               "description": "Emits the applied font size (numeric px string, e.g. `'24'`)."
             }
           ],
+          "methods": []
+        }
+      ]
+    },
+    {
+      "name": "rich-text-view",
+      "description": "Read-only renderer for rich-text-editor output (HTML or markdown) with the editor typography and sanitizer.",
+      "category": "editor",
+      "install": "npx @gilav21/shadcn-angular@latest add rich-text-view",
+      "importStatement": "import { RichTextViewComponent } from '@/components/ui/rich-text-view';",
+      "selector": "ui-rich-text-view",
+      "dependencies": [
+        "rich-text-editor"
+      ],
+      "npmDependencies": [],
+      "snippet": "<ui-rich-text-view />",
+      "snippetSkipReason": "",
+      "demoRoute": "rich-text-view",
+      "demoFile": "demo/src/app/demos/inputs/rich-text-view-demo.component.ts",
+      "api": [
+        {
+          "className": "RichTextViewComponent",
+          "file": "packages/components/ui/rich-text-view/rich-text-view.component.ts",
+          "kind": "component",
+          "selector": "ui-rich-text-view",
+          "description": "Renders what `<ui-rich-text-editor>` produced, read-only — \"author here, render there\". The document goes through the same allow-list sanitizer and the same markdown parser the editor uses, and carries the editor's exact typography, so a published page looks like the editing surface did. It is a plain container, so `[uiRichTextActions]` from the actions addon works on it (or on any ancestor) with no editor anywhere on the page. ```html <ui-rich-text-view mode=\"html\" [value]=\"post.html\" size=\"lg\" /> <ui-rich-text-view [value]=\"readme\" /> ```",
+          "inputs": [
+            {
+              "name": "class",
+              "type": "string",
+              "description": "Extra classes merged onto the content element.",
+              "default": "''"
+            },
+            {
+              "name": "dir",
+              "type": "\"ltr\" | \"rtl\" | \"auto\"",
+              "description": "Text direction for the content; unset inherits from the page."
+            },
+            {
+              "name": "mode",
+              "type": "EditorMode",
+              "description": "How to interpret {@link value}. Defaults to `'markdown'`, matching the editor.",
+              "default": "'markdown'"
+            },
+            {
+              "name": "size",
+              "type": "EditorSize",
+              "description": "Text size preset — the editor's `size` values.",
+              "default": "'default'"
+            },
+            {
+              "name": "value",
+              "type": "string",
+              "description": "The document — HTML or markdown per {@link mode}; the string the editor emits.",
+              "default": "''"
+            }
+          ],
+          "outputs": [],
           "methods": []
         }
       ]

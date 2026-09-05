@@ -13,9 +13,9 @@ for Angular.
 
 ## 0 runtime dependencies
 
-All **180** components and addons install as source you own. **0** of them pull an npm package: the CLI copies TypeScript, HTML and CSS into your project and adds nothing to your `package.json`. There is no `@shadcn-angular/*` runtime to depend on, to keep in version lockstep, or to wait on for a fix — you edit the component in place.
+All **181** components and addons install as source you own. **0** of them pull an npm package: the CLI copies TypeScript, HTML and CSS into your project and adds nothing to your `package.json`. There is no `@shadcn-angular/*` runtime to depend on, to keep in version lockstep, or to wait on for a fix — you edit the component in place.
 
-Registry today: 152 components, 28 opt-in addons, 10 composed blocks.
+Registry today: 153 components, 28 opt-in addons, 10 composed blocks.
 
 ## Tested versions
 
@@ -34,7 +34,7 @@ Registry today: 152 components, 28 opt-in addons, 10 composed blocks.
 - **Accessible**: Uses standard HTML elements and accessibility best practices.
 - **Lightweight**: Copy/paste components give you full control over the code.
 - **Dark Mode**: Built-in dark mode support.
-- **Rich Text Editor**: A full-featured rich text editor component with opt-in addons — see [docs/rich-text-editor.md](docs/rich-text-editor.md) for the one-import setup and how to write your own addon.
+- **Rich Text Editor**: A full-featured rich text editor component with opt-in addons, a typed imperative API and reactive-forms validators, plus `ui-rich-text-view` for rendering what was authored on a read-only page — see [docs/rich-text-editor.md](docs/rich-text-editor.md) for the one-import setup and how to write your own addon.
 
 ## Quick Start
 

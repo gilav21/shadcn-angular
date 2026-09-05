@@ -10,11 +10,14 @@ a directive on the editor element.
 
 - [Install](#install)
 - [One import line](#one-import-line)
+- [Imperative API](#imperative-api)
+- [Form validators](#form-validators)
+- [Rendering published content — `ui-rich-text-view`](#rendering-published-content--ui-rich-text-view)
 - [The addon model](#the-addon-model)
 - [Writing your own addon](#writing-your-own-addon)
 - [The host contract](#the-host-contract)
 - [Toolbar slots](#toolbar-slots)
-- [Localizing an addon](#localizing-an-addon)
+- [Locale cascade](#locale-cascade)
 - [Testing your addon](#testing-your-addon)
 - [What is *not* an extension point](#what-is-not-an-extension-point)
 
@@ -178,6 +181,156 @@ readonly blockLabel = computed(() => {
 nested two or more levels deep. The `indent` and `outdent` buttons never
 render pressed, though — they are momentary actions, and WAI-ARIA reserves
 `aria-pressed` for toggles, so those buttons omit the attribute entirely.
+
+## Imperative API
+
+Everything application code may call on the editor is one exported interface,
+`RichTextEditorApi`. A `viewChild.required(RichTextEditorComponent)` satisfies
+it, and a helper that only needs the API can take the interface and never
+import the component class. Everything else public on the component is either
+the addon-host contract or template plumbing, and is **not** covered here.
+
+```ts
+import {
+  RichTextEditorComponent,
+  richTextRequired,
+  richTextMaxLength,
+} from '@/components/ui/rich-text-editor';
+
+@Component({
+  imports: [RichTextEditorComponent, ReactiveFormsModule],
+  template: `
+    <ui-rich-text-editor mode="html" [formControl]="body" />
+    <button type="button" (click)="editor().insertText('— Jane')">Sign</button>
+    <button type="button" (click)="editor().format('bold')">B</button>
+    <button type="button" [disabled]="!editor().canUndo()" (click)="editor().undo()">Undo</button>
+    <button type="button" [disabled]="isEmpty()" (click)="send()">Send</button>
+  `,
+})
+export class ComposeComponent {
+  readonly editor = viewChild.required(RichTextEditorComponent);
+  readonly body = new FormControl('', {
+    nonNullable: true,
+    validators: [richTextRequired(), richTextMaxLength(280)],
+  });
+  readonly isEmpty = computed(() => {
+    this.editor().htmlOutput();
+    return this.editor().isEmpty();
+  });
+}
+```
+
+| Member | What it does |
+|---|---|
+| `focus()` | Focuses the editable and restores the caret the user last had inside it, or places one at the end. No-op while disabled. |
+| `insertText(text)` | Inserts plain text at the restored caret as **one** history entry, then focuses. No-op while readonly/disabled or for `''`. |
+| `insertHtml(html)` | Same, for markup — sanitized first, so a `<script>` is dropped rather than inserted. No-op when nothing survives sanitization. |
+| `format(command)` | Runs a toolbar command exactly as a click would. Takes `RichTextFormatCommand`, which excludes `'textStyle'`, `'find'`, `'undo'` and `'redo'` — passing one is a compile error. |
+| `selection()` | Snapshot of the current selection or caret target. This is the selection API; there is no `getSelectionSnapshot`. |
+| `isEmpty()` | `true` when there is no visible text and no image, rule or table — the same rule `richTextRequired()` applies. |
+| `undo()` | Undo one step, mirroring `Ctrl`/`Cmd`+`Z`. Flushes a pending typing burst first. No-op at the start of the stack. |
+| `redo()` | Redo one step. No-op at the end of the stack. |
+| `setContent(value, options?)` | Programmatic write. Mode-aware, calls the form's `onChange`, and records one history entry unless you pass `{ recordHistory: false }`. |
+| `markClean()` | Treat the current content as saved, so `isDirty()` reads false again. |
+| `canUndo` | Signal — whether an undo step is available. |
+| `canRedo` | Signal — whether a redo step is available. |
+| `isDirty` | Signal — whether the content changed since the last form write or `markClean()`. |
+| `htmlOutput` | Signal — the content as sanitized HTML, whatever the `mode`. |
+| `markdownOutput` | Signal — the content as markdown, whatever the `mode`. |
+
+Two things worth knowing:
+
+- `insertText` and `insertHtml` restore the caret **the user last had in the
+  editor** before inserting, so a page button that steals focus still lands the
+  text where the reader left off. The addon-host `insertTextAtCaret` does not —
+  it inserts at the page's *live* selection, which is why it is the wrong
+  method for a button.
+- `isEmpty()` parses the document on each call. In a template, wrap it in a
+  `computed` that reads `htmlOutput()` first, as above, rather than calling it
+  directly.
+
+## Form validators
+
+Angular's built-ins measure the *markup*, which is the wrong thing for a rich
+text value: `Validators.required` passes an emptied HTML-mode editor (it emits
+`<p><br></p>`), and `Validators.maxLength(280)` charges you for every
+`<strong>` tag. These three measure the **visible text** instead, in either
+mode — the syntax is detected, not configured, so the validator cannot disagree
+with the editor about which mode it is in.
+
+| Validator | Error shape |
+|---|---|
+| `richTextRequired()` | `{ required: true }` when there is no visible text and no image, rule or table. An image-only document passes. |
+| `richTextMaxLength(n)` | `{ maxlength: { requiredLength, actualLength } }` — Angular's own shape, so `ui-field-auto-errors` renders it with no configuration. Line breaks and block boundaries are not characters. |
+| `richTextMinWords(n)` | `{ minWords: { requiredWords, actualWords } }`. Block boundaries separate words, so two one-word paragraphs count as two. An empty value passes — only `required` reports emptiness. |
+
+```html
+<ui-field>
+  <ui-field-label for="body">Post</ui-field-label>
+  <ui-rich-text-editor id="body" mode="markdown" [formControl]="body" />
+  <ui-field-auto-errors />
+</ui-field>
+```
+
+The helpers behind them are exported too, when you need the measurement rather
+than the validation: `richTextVisibleText(value)`, `richTextHasMedia(value)`
+and `isRichTextEmpty(value)`. The last is the single rule the editor's
+`isEmpty()` also uses, so a form's validity and a Send button's disabled state
+can never disagree.
+
+## Rendering published content — `ui-rich-text-view`
+
+Showing what someone authored does not need an editor. `ui-rich-text-view`
+renders the same string through the same sanitizer and the same markdown
+parser, with the editor's exact typography:
+
+```html
+<!-- The same model, authored on the left and rendered on the right -->
+<ui-rich-text-editor mode="html" [(ngModel)]="doc" />
+<ui-rich-text-view  mode="html" [value]="doc" />
+
+<!-- Markdown is the default, as it is for the editor -->
+<ui-rich-text-view [value]="readme" />
+
+<!-- Published content on a page with no editor at all -->
+<ui-rich-text-view mode="html" [value]="post.html" size="lg" dir="rtl" class="px-4" />
+```
+
+| Input | Default | Notes |
+|---|---|---|
+| `value` | `''` | The document. The string the editor emits. |
+| `mode` | `'markdown'` | `'markdown'` or `'html'`, matching the editor. |
+| `size` | `'default'` | `'sm'` / `'lg'` apply the editor's text sizes. |
+| `dir` | unset | Unset inherits the page direction. |
+| `class` | `''` | Merged onto the content element. |
+
+It installs with `add rich-text-view`, which pulls the editor base for the two
+services. Task-list checkboxes render the authored state but are frozen: out of
+the tab order, and a click will not toggle them.
+
+The typography both components share is exported as `RICH_TEXT_PROSE_CLASSES`,
+if you are restyling. Note that these are ordinary Tailwind utilities, not
+`@tailwindcss/typography` — the `prose` classes the editor used to carry were
+no-ops, and are gone.
+
+### Actions on a rendered page
+
+The actions addon's runtime works on any container, so putting
+`[uiRichTextActions]` on the view delivers click and hover actions for the
+content inside it — with no editor on the page:
+
+```html
+<ui-rich-text-view
+  mode="html"
+  [value]="post.html"
+  [uiRichTextActions]="{ 'open-pricing': openPricing }" />
+```
+
+**Placement matters.** The directive registers the sanitizer rules that keep
+`data-action-*` attributes alive, and it does so in its constructor, before
+children render. Put it on the view itself or on an ancestor in the same
+template. A directive attached dynamically, after the content has already been
+sanitized once, is too late and the attributes will already have been stripped.
 
 ## The addon model
 
@@ -378,22 +531,30 @@ so adding one is a union member plus a row plus a case in the editor's
 dispatch, and a missing row is a compile error. You do not need this unless you
 are adding a *built-in* button to your own copy of the library.
 
-## Localizing an addon
+## Locale cascade
 
-Addons resolve their own strings rather than reading the editor's `[locale]`,
-so an addon can ship languages the base has not got. Use
-`createLocaleBindings` from `lib/i18n`:
+An addon's strings resolve in this order:
 
-```ts
-private readonly t = createLocaleBindings(
-  this.uiMyAddonLocale,     // the addon's own [uiRte<Name>Locale] input
-  MY_ADDON_LOCALES,         // Record<string, MyAddonLocale>
-  MY_ADDON_LOCALES['en'],   // fallback
-);
+1. its own `[uiRte<Name>Locale]` input, when set;
+2. otherwise the editor's `[locale]` — a key, or the `code` of a locale object;
+3. otherwise the app-wide `UI_LOCALE_ID` (`provideUiLocale('fr')`);
+4. otherwise `'en'`.
+
+So one binding localizes everything:
+
+```html
+<!-- The editor and all fourteen addons, in Hebrew, RTL -->
+<ui-rich-text-editor mode="markdown" locale="he" uiRteFull />
+
+<!-- …except this addon, which is pinned to English -->
+<ui-rich-text-editor locale="he" uiRteFull uiRteEmojiLocale="en" />
 ```
 
-It falls back to the global `UI_LOCALE_ID` when the input is unset. Every
-shipped addon follows this pattern — `addons/emoji` is the smallest example.
+Addon authors get this for free by using `createLocaleBindings` — there is
+nothing to wire. The editor re-broadcasts its `locale` as `UI_LOCALE_ID`
+through `provideComponentLocale` in its `providers` (not `viewProviders`,
+because addon directives sit on the editor *element*), and
+`createLocaleBindings` already checks the addon's own input before that token.
 
 ## Testing your addon
 

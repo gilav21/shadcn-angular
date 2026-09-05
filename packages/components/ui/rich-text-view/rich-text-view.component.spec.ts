@@ -1,5 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { FormsModule } from '@angular/forms';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { RichTextViewComponent } from './rich-text-view.component';
 import {
@@ -229,9 +230,9 @@ describe('RichTextViewComponent', () => {
 
 // T-22 (editor half) + T-23
 @Component({
-    imports: [RichTextEditorComponent, RichTextViewComponent],
+    imports: [FormsModule, RichTextEditorComponent, RichTextViewComponent],
     template: `
-        <ui-rich-text-editor mode="html" [value]="doc()" />
+        <ui-rich-text-editor mode="html" [ngModel]="doc()" />
         <ui-rich-text-view mode="html" [value]="doc()" />
     `,
 })
@@ -254,6 +255,17 @@ describe('RichTextViewComponent — shared typography', () => {
         (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLElement;
     const view = (): HTMLElement =>
         (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-view"]') as HTMLElement;
+
+    it('T-22z both elements actually rendered the document', () => {
+        // Guards the fixture itself. T-22b reads only class strings, so it
+        // passes even when the editable is empty — which is exactly what
+        // happened while this host bound a `[value]` input the editor does not
+        // have, leaving T-23 comparing against a null h1 in the browser leg.
+        expect(editable().querySelector('h1')?.textContent).toBe('Heading');
+        expect(view().querySelector('h1')?.textContent).toBe('Heading');
+        expect(editable().querySelector('p')?.textContent).toBe('Body');
+        expect(view().querySelector('p')?.textContent).toBe('Body');
+    });
 
     it("T-22b the editor's editable carries every prose class and no prose* class", () => {
         const classList = editable().className.split(/\s+/);

@@ -51,9 +51,7 @@ import {
 import type { RichTextEditorApi, RichTextFormatCommand } from './rich-text-editor.api';
 import { isRichTextEmpty } from './rich-text-editor.validators';
 import { RICH_TEXT_PROSE_CLASSES } from './rich-text-prose';
-import { createLocaleBindings, interpolate } from '../../lib/i18n/i18n.utils';
-import { provideComponentLocale } from '../../lib/i18n/i18n.token';
-import type { LocaleInput } from '../../lib/i18n/i18n.types';
+import { createLocaleBindings, interpolate, provideComponentLocale, type LocaleInput } from '../../lib/i18n';
 
 const editorVariants = cva(
     'relative w-full rounded-lg border bg-background text-base ring-offset-background transition-colors',
@@ -217,11 +215,6 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
             useExisting: forwardRef(() => RichTextEditorComponent),
         },
         RichTextCommandRegistry,
-        // `providers`, not `viewProviders`: addon directives sit on the editor
-        // ELEMENT, so only an element-level provider reaches them. This is what
-        // makes `<ui-rich-text-editor locale="he" uiRteFull>` localize all
-        // fourteen addons from one binding. The lookup inside
-        // `provideComponentLocale` is lazy, so it does not cycle.
         provideComponentLocale(() => RichTextEditorComponent),
     ],
     templateUrl: './rich-text-editor.component.html',
@@ -344,6 +337,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * Language/locale for all editor UI strings. Pass a locale key (e.g. `'en'`)
      * to use a built-in locale, or pass a full {@link RichTextLocale} object for
      * custom translations.
+     *
+     * Addon directives inherit it. The component re-broadcasts this input as
+     * `UI_LOCALE_ID` through `provideComponentLocale` in `providers` — element
+     * level, because addon directives sit on the editor's own element — so
+     * `<ui-rich-text-editor locale="he" uiRteFull>` localizes all fourteen
+     * addons from this one binding. An addon's own `[uiRte<Name>Locale]` still
+     * wins where it is set, and with this input unset everything falls through
+     * to the app-wide `UI_LOCALE_ID` as before.
      */
     locale = input<LocaleInput<RichTextLocale>>();
 
@@ -918,6 +919,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      *
      * It deliberately does NOT reset the dirty baseline: content the code
      * inserted is still an unsaved change. Use {@link markClean} after a save.
+     *
+     * @publicApi
      */
     setContent(value: string, options?: RichTextSetContentOptions): void {
         this.flushPendingHistoryPush();
@@ -949,6 +952,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * model, so content the browser normalised after the model was written
      * still compares equal. That read also refreshes the model from the DOM —
      * the two are being reconciled, which is the point of marking clean.
+     *
+     * @publicApi
      */
     markClean(): void {
         this.cleanHtml.set(this.readContentFromEditor() ?? this.htmlContent());
@@ -961,6 +966,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * selection is already in the editor, so the focus call comes first and the
      * restore second — a page button that stole focus still lands the caret
      * back where the user left it.
+     *
+     * @publicApi
      */
     focus(): void {
         if (this.isDisabled()) return;
@@ -974,6 +981,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      *
      * No-op while readonly or disabled, and for the empty string (an empty
      * insert would otherwise record a history entry that undoes nothing).
+     *
+     * @publicApi
      */
     insertText(text: string): void {
         if (text === '' || !this.canEditContent()) return;
@@ -988,6 +997,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * No-op while readonly or disabled, and when nothing survives sanitization.
      * The single sanitize pass both answers that question and supplies the
      * markup that is inserted — deciding and inserting must not disagree.
+     *
+     * @publicApi
      */
     insertHtml(html: string): void {
         if (!this.canEditContent()) return;
@@ -1000,6 +1011,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * Run a toolbar command exactly as a toolbar click would. The narrow
      * {@link RichTextFormatCommand} type is the whole guard — there is no
      * runtime allow-list, because the union is the contract.
+     *
+     * @publicApi
      */
     format(command: RichTextFormatCommand): void {
         this.onFormatCommand(command);
@@ -1020,6 +1033,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      *
      * Parses the document on each call, like `characterCount`. Bind it through
      * a `computed` over `htmlOutput()` rather than calling it in a template.
+     *
+     * @publicApi
      */
     isEmpty(): boolean {
         return isRichTextEmpty(this.htmlContent());
@@ -5627,6 +5642,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * Undo one step — mirrors `Ctrl`/`Cmd`+`Z`. Flushes a pending typing burst
      * first, so one call takes back the whole burst rather than half of it.
      * No-op at the start of the stack.
+     *
+     * @publicApi
      */
     undo(): void {
         this.flushPendingHistoryPush();
@@ -5654,6 +5671,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     /**
      * Redo one step — mirrors `Ctrl`+`Y` / `Ctrl`+`Shift`+`Z`. No-op at the end
      * of the stack.
+     *
+     * @publicApi
      */
     redo(): void {
         this.flushPendingHistoryPush();

@@ -25,7 +25,7 @@ Rules that hold for every component:
 - Inputs marked `(required)` must be bound or the template will not compile.
 - A section without a snippet says so explicitly; do not invent one.
 
-## Index (180 components)
+## Index (181 components)
 
 - [accordion](#accordion): Vertically stacked, collapsible sections that expand one or more panels to reveal content.
 - [alert](#alert): Inline callout banner for important messages with title, description, and variants.
@@ -162,6 +162,7 @@ Rules that hold for every component:
 - [rich-text-editor/slash-commands](#rich-text-editorslash-commands): Slash-command ("/") menu for the rich text editor; type / to open a filterable command palette at the caret.
 - [rich-text-editor/tables](#rich-text-editortables): Table insert for the rich text editor: a toolbar button and 8x8 grid picker that inserts an empty table at the caret.
 - [rich-text-editor/typography](#rich-text-editortypography): Font-size and font-family toolbar dropdowns for the rich text editor; applies inline font styles to the selection.
+- [rich-text-view](#rich-text-view): Read-only renderer for rich-text-editor output (HTML or markdown) with the editor typography and sanitizer.
 - [ripple](#ripple): Directive adding a Material-style click ripple effect to any element.
 - [scatter-chart](#scatter-chart): Scatter plot over continuous x/y axes with nearest-point hover tooltip and an interactive legend.
 - [scroll-area](#scroll-area): Scrollable container with custom, cross-browser styled scrollbars.
@@ -1531,6 +1532,22 @@ Font-size and font-family toolbar dropdowns for the rich text editor; applies in
 
 ```html
 <ui-rte-typography-button />
+```
+
+### rich-text-view
+
+Read-only renderer for rich-text-editor output (HTML or markdown) with the editor typography and sanitizer.
+
+- Install: `npx @gilav21/shadcn-angular@latest add rich-text-view`
+- Import: `import { RichTextViewComponent } from '@/components/ui/rich-text-view';`
+- Selector: `ui-rich-text-view`
+- Category: editor
+- Depends on: `rich-text-editor`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `dir: "ltr" | "rtl" | "auto"`, `mode: EditorMode = 'markdown'`, `size: EditorSize = 'default'`, `value: string = ''`
+
+```html
+<ui-rich-text-view />
 ```
 
 ### sortable

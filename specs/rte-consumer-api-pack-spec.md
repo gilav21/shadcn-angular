@@ -1111,6 +1111,20 @@ lead's cross-spec notes, not edited here.
     (`focus`, `insertText`, `insertHtml`) gates on `isDisabled()`, not the raw
     `disabled()` input §F names; T-2d/T-4c cover the form-disabled path that
     §F's wording would have missed. (Task 1)
+17. ⚠️ §F says the view demo's routes go "in **both** arrays of
+    `demo.routes.ts` (mirror the `error-page` precedent)". There is only one
+    array, `DEMO_ROUTES`; `result` and `error-page` each appear **twice inside
+    it**, which is an accidental duplicate, not a pattern. T-34 asserts exactly
+    one `rich-text-view` route. (Task 6)
+18. ⚠️ §D.1's view example and the T-22b/T-23 fixture cannot bind `[value]` on
+    `<ui-rich-text-editor>` — the editor has no such input; content arrives via
+    `writeValue` / `ngModel`. The first draft of `TypographyHost` did, which
+    rendered an empty editable and made T-23 — the only real typography-drift
+    guard — compare against a null `h1` under a real browser while jsdom
+    skipped it entirely. Fixed to `[ngModel]`, plus T-22z, which asserts both
+    elements actually rendered so the fixture can never silently go empty
+    again. Verified by running the browser leg: a view whose typography
+    diverges from the editor's now fails T-23. (Task 4, found at review)
 14. ⚠️ UC-2's "or places it at the end of the content when there was none" is
     **not observable through `focus()`**. §F requires `focusEditor()` before
     `restoreSelection()`, and a real browser caret lands inside the editable on
