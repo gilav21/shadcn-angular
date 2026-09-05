@@ -1,0 +1,17 @@
+@if (importing()) {
+  <div
+    class="absolute inset-0 z-20 flex items-center justify-center bg-background/70 backdrop-blur-[1px]"
+    data-slot="rte-file-import-busy"
+  >
+    <div class="text-sm text-muted-foreground">{{ locale().importing }}</div>
+  </div>
+}
+
+@if (errorMessage()) {
+  <div
+    class="absolute inset-0 z-20 flex items-center justify-center bg-background/70 backdrop-blur-[1px]"
+    data-slot="rte-file-import-error"
+  >
+    <div class="text-sm text-destructive font-medium">{{ errorMessage() }}</div>
+  </div>
+}

@@ -1,0 +1,10 @@
+<input
+  [type]="type()"
+  [class]="classes()"
+  [attr.data-slot]="'input-group-control'"
+  [placeholder]="placeholder()"
+  [disabled]="isDisabled()"
+  [ngModel]="value()"
+  (ngModelChange)="onValueChange($event)"
+  (blur)="onTouched()"
+/>

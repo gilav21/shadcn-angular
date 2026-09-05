@@ -1,0 +1,13 @@
+@if (ctx.chipVisible()) {
+  <button
+    type="button"
+    data-slot="rich-text-ai-trigger"
+    class="fixed z-[9999] inline-flex items-center gap-1 rounded-md border bg-popover px-2 py-1 text-xs font-medium shadow-lg hover:bg-accent"
+    [style.left.px]="ctx.chipPosition().x"
+    [style.top.px]="ctx.chipPosition().y"
+    (mousedown)="$event.preventDefault()"
+    (click)="ctx.openPanel()"
+  >
+    {{ ctx.locale().trigger }}
+  </button>
+}

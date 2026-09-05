@@ -1,0 +1,6 @@
+@media (pointer: coarse) {
+  :host button:not([data-grid-cell]) { min-height: 40px; min-width: 40px; }
+  :host select { min-height: 40px; }
+}
+:host { scrollbar-width: none; }
+:host::-webkit-scrollbar { display: none; }
