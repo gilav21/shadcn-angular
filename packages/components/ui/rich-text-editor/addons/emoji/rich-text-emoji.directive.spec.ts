@@ -74,6 +74,31 @@ describe('RichTextEmojiDirective', () => {
         expect(fixture.componentInstance.inserted).toEqual(['🎉']);
     });
 
+    it('T-43 picking an emoji creates exactly one history entry', () => {
+        const fixture = createFixture();
+        const editorCmp = fixture.debugElement.query(By.directive(RichTextEditorComponent))
+            .componentInstance as RichTextEditorComponent;
+        const stackLength = (): number =>
+            (editorCmp as unknown as { history: unknown[] }).history.length;
+        const picker = fixture.debugElement.query(By.directive(EmojiPickerComponent))
+            .componentInstance as EmojiPickerComponent;
+
+        const before = stackLength();
+        picker.selectEmoji('🎉');
+        fixture.detectChanges();
+
+        expect(stackLength() - before).toBe(1);
+
+        const editor = fixture.nativeElement.querySelector('[contenteditable]') as HTMLElement;
+        expect(editor.textContent).toContain('🎉');
+        editor.dispatchEvent(new KeyboardEvent('keydown', {
+            key: 'z', ctrlKey: true, bubbles: true, cancelable: true,
+        }));
+        fixture.detectChanges();
+
+        expect(editor.textContent).not.toContain('🎉');
+    });
+
     it('does not insert while the editor is disabled', () => {
         const fixture = createFixture();
         fixture.componentInstance.disabled.set(true);
