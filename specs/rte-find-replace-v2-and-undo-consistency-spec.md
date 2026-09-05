@@ -654,9 +654,9 @@ covered because the comparison is on the HTML model in both cases.
 | 3 | Overlay highlighter (`FindHighlighter`, `data-slot="rich-text-find-overlay"`), remove `<mark>` injection, scroll-to-match on the editable, close-selects-current, open-seeds-from-selection, paint cap, perf pass | UC-5, UC-16, UC-18, UC-19, UC-25 (T-7, T-19, T-21, T-22, T-28) | ✅ Done | 2026-09-05 15:55 | 93 | The overlay satisfies UC-5 by construction — it is a sibling of the editable, so no future mutation path can leak highlights into the model. The paint cap only helps because geometry is requested lazily; asking every match for rects was the whole cost. |
 | 4 | Whole-word + regex toggles, safe-regex handling, `findRegexError` + `aria-invalid`, regex group expansion in replace, 7 locale keys × 10 locales | UC-7…UC-11 (T-9…T-14) | ✅ Done | 2026-09-05 15:55 | 93 | Unicode look-arounds gave Hebrew whole-word support for free. The zero-length-match advance needs a code-point step, not a UTF-16 unit step — a unit step hangs the u-flag regex outright, which the added astral test now guards with an explicit timeout. |
 | 5 | Range-based `replaceSingle`/`replaceAll` (flush → mutate → one entry), empty-inline cleanup, keyboard (`Mod+Alt+Enter`, Enter in replace input), readonly gating, `'find'` toolbar item, RTL logical positioning, aria-labels/`aria-pressed`, JSDoc rewrite of the find methods | UC-12…UC-15, UC-17, UC-20…UC-23 (T-15…T-18, T-20, T-23…T-26) | ✅ Done | 2026-09-05 15:55 | 93 | Gated on `isDisabled()` rather than the raw `disabled()` input, per the post-spec CVA change. Empty-inline cleanup after `deleteContents` is what makes a cross-markup replace look right instead of leaving invisible stubs. |
-| 6 | Write failing tests T-31…T-43 (new `undo consistency` describe + emoji addon spec extension); confirm they fail | UC-26…UC-34 | ⬜ Not started | — | — | — |
-| 7 | `setContent` + `RichTextSetContentOptions`, `recordExternalWrites`, `insertTextFromOverlay` pushes; JSDoc for `writeValue`, `insertTextFromOverlay` (component + host) | UC-26…UC-30, UC-35 (T-31…T-35, T-42, T-43) | ⬜ Not started | — | — | — |
-| 8 | `historyChange` + `RichTextHistoryState`, `canUndo`/`canRedo`, `isDirty`/`markClean`; barrel exports; `npm run docs:regen` + `docs:check` | UC-31…UC-35 (T-36…T-41, T-45) | ⬜ Not started | — | — | — |
+| 6 | Write failing tests T-31…T-43 (new `undo consistency` describe + emoji addon spec extension); confirm they fail | UC-26…UC-34 | ✅ Done | 2026-09-05 16:45 | 92 | Thirteen of fourteen failed on the missing API, which is the easy half. The instructive one was T-38: its first draft failed because dispatching an input event with no selection makes the editor wrap the content in a fresh block — a real edit, not the no-op the case needs. |
+| 7 | `setContent` + `RichTextSetContentOptions`, `recordExternalWrites`, `insertTextFromOverlay` pushes; JSDoc for `writeValue`, `insertTextFromOverlay` (component + host) | UC-26…UC-30, UC-35 (T-31…T-35, T-42, T-43) | ✅ Done | 2026-09-05 16:45 | 92 | The review gate caught real data loss here: §D.5.12 flushes the pending typing burst AFTER the write, so `pushHistory` dedupes against the new content and the user's unsaved sentence disappears. Flushing first fixes it; T-31b and T-34b pin both affected paths. |
+| 8 | `historyChange` + `RichTextHistoryState`, `canUndo`/`canRedo`, `isDirty`/`markClean`; barrel exports; `npm run docs:regen` + `docs:check` | UC-31…UC-35 (T-36…T-41, T-45) | ✅ Done | 2026-09-05 16:45 | 92 | Riding on `bumpHistoryVersion` meant no mutation site needed its own emit. T-38b had to be rewritten twice before it could actually distinguish the chosen dirty-baseline option from the rejected one — a passing test is not the same as a discriminating one. |
 | 9 | Stories `FindReplace` + `FindReplaceRTL` (axe), `'find'` in `FullToolbar`; demo section "Find & replace, undo and dirty state" with copy-paste snippets (`'find'` item, `recordExternalWrites`, `setContent`, `isDirty`/`markClean`, `historyChange`) + demo locale strings (en/he) | UC-20, UC-23, T-29 | ⬜ Not started | — | — | — |
 | 10 | Extend `e2e/harness/rich-text-editor/` demo + spec with T-30 and T-44; `npm run e2e -- rich-text-editor`; full gates (`test-visual`, `test:portable`, `lint`, `sonar:gate`); Completion Log | T-30, T-44, all | ⬜ Not started | — | — | — |
 
@@ -747,6 +747,29 @@ Marking a row Done without all five is a process violation, not a shortcut.
   button is dead in exactly the readonly editor where §0.1 says find must
   still work (UC-22).
 
+- ⚠️ **§D.5.12's `setContent` ordering loses data.** It specifies
+  `syncContentFromEditor()` → `flushPendingHistoryPush()` → `pushHistory()`.
+  By the time the flush runs, `applyExternalHtml` has already replaced
+  `htmlContent`, so the pending typing entry is materialised against the NEW
+  content and `pushHistory` dedupes it away — the user's in-flight sentence
+  vanishes from the undo stack entirely. Reproduced: type `one typed`, call
+  `setContent('<p>loaded</p>')`, and `Ctrl+Z` returns `one`, contradicting the
+  method's own contract. **The flush must come first**, in `setContent` and in
+  the `recordExternalWrites` path of `writeValue` alike (T-31b, T-34b).
+- ⚠️ **UC-33's "no-op input event" needs a caret.** Dispatching `input` with no
+  selection at all makes the editor's `wrapBareTextInParagraph` normalisation
+  wrap the content in a fresh block (`<p>one</p>` → `<p><p>one</p></p>`), which
+  is a real edit. T-38 places the caret inside the paragraph first.
+- ⚠️ **`writeValue` DOES emit `htmlChange` / `markdownChange`.** Its JSDoc
+  claimed otherwise; the outputs are effects over the content signal it sets,
+  so they fire for every content change whatever its origin. Only the form
+  callback is suppressed. Corrected, and covered by a test.
+- ⚠️ **Option II is only observable through a DOM-only edit.** Because
+  `writeValue` sanitizes before writing the DOM, its two candidate baselines
+  cannot diverge on that path — a test written there passes under the rejected
+  Option I too. T-38b appends a text node straight to the editable and asserts
+  `markClean` picks it up, which does discriminate.
+
 - ⚠️ Cross-spec: `setContent(value, { recordHistory })` is **defined here**;
   Spec 4 (`consumer API pack`) reuses it and owns `focus()`, `insertText()`,
   `insertHtml()`, `format()`, `getSelectionSnapshot()`, `isEmpty()` and any
@@ -763,3 +786,6 @@ Marking a row Done without all five is a process violation, not a shortcut.
 | 3 | 2026-09-05 | Overlay highlighter, scroll, open/close, paint cap | 93 | UC-5 holds by construction: overlay is a sibling of the editable, not a child of the content. |
 | 4 | 2026-09-05 | Whole-word + regex toggles, 7 locale keys × 10 locales | 93 | Zero-length advance must be per code point or the `u`-flag regex hangs. |
 | 5 | 2026-09-05 | Range-based replace, keyboard, `'find'` item, RTL, a11y | 93 | Gates on `isDisabled()`, per the post-spec CVA change. |
+| 6 | 2026-09-05 | Failing tests T-31…T-43 (undo consistency + emoji addon) | 92 | 14 cases; T-38 needed a caret before its input event to be a genuine no-op. |
+| 7 | 2026-09-05 | `setContent`, `recordExternalWrites`, overlay-insert history | 92 | Review gate found real data loss in §D.5.12's flush ordering; fixed and pinned. |
+| 8 | 2026-09-05 | `historyChange`, `canUndo`/`canRedo`, `isDirty`/`markClean` | 92 | Sabotage: 8 breaks caught (incl. Option I baseline); 1 permitted free change stayed green. |
