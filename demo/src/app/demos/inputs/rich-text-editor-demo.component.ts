@@ -117,6 +117,39 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
       </div>
 
       <div class="space-y-2">
+        <h3 class="text-lg font-medium">{{ t().markdownHeading }}</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[22rem] text-sm">
+            <thead>
+              <tr class="border-b text-left">
+                <th class="py-1 pe-4 font-medium">Type</th>
+                <th class="py-1 font-medium">Get</th>
+              </tr>
+            </thead>
+            <tbody class="text-muted-foreground">
+              @for (rule of markdownRules; track rule.marker) {
+                <tr class="border-b last:border-0">
+                  <td class="py-1 pe-4"><code class="bg-muted px-1 rounded">{{ rule.marker }}</code></td>
+                  <td class="py-1">{{ rule.result }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <ui-rich-text-editor mode="html" toolbar="top"
+          [placeholder]="t().markdownPlaceholder" minHeight="160px" />
+        <p class="text-muted-foreground text-sm">{{ t().markdownRevertNote }}</p>
+        <div>
+          <p class="mb-1 font-medium">Opt out</p>
+          <pre class="overflow-auto rounded-md bg-muted p-3 text-xs leading-relaxed">{{ markdownOptOutCode }}</pre>
+        </div>
+        <div>
+          <p class="mb-1 font-medium">Classic heading buttons instead of the select</p>
+          <pre class="overflow-auto rounded-md bg-muted p-3 text-xs leading-relaxed">{{ classicToolbarCode }}</pre>
+        </div>
+      </div>
+
+      <div class="space-y-2">
         <h3 class="text-lg font-medium">{{ t().minimalHeading }}</h3>
         <ui-rich-text-editor mode="markdown" toolbar="top" uiRteEmoji uiRteLinks
           [toolbarItems]="['bold', 'italic', 'separator']"
@@ -466,6 +499,33 @@ export class RichTextEditorDemoComponent {
     }
     return `Improved: ${input}`;
   }
+
+  /** The Markdown markers the editor recognises, for the demo's rule table. */
+  readonly markdownRules = [
+    { marker: '# / ## / ###', result: 'Heading 1 / 2 / 3' },
+    { marker: '- or *', result: 'Bullet list' },
+    { marker: '1.', result: 'Numbered list' },
+    { marker: '>', result: 'Blockquote' },
+    { marker: '[] / [x]', result: 'Task item, unchecked / checked' },
+    { marker: '---', result: 'Horizontal rule' },
+    { marker: '``` then Space or Enter', result: 'Code block (```ts sets the language)' },
+    { marker: '**bold**', result: 'Bold' },
+    { marker: '*italic*', result: 'Italic' },
+    { marker: '`code`', result: 'Inline code' },
+  ];
+
+  // Copy-paste snippets for the markdown-shortcuts section (plain text).
+  readonly markdownOptOutCode = [
+    '<!-- Keep Markdown markers literal -->',
+    '<ui-rich-text-editor [markdownShortcuts]="false" />',
+  ].join('\n');
+
+  readonly classicToolbarCode = [
+    '<!-- The four block buttons instead of the Text style select -->',
+    '<ui-rich-text-editor',
+    "  [toolbarItems]=\"['bold', 'italic', 'separator',",
+    "                   'paragraph', 'heading1', 'heading2', 'heading3']\" />",
+  ].join('\n');
 
   // Copy-paste guidance for wiring a real AI backend (rendered as plain text).
   readonly aiFrontendCode = [

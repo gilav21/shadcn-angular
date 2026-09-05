@@ -551,3 +551,106 @@ export const CustomToolbar: Story = {
         },
     },
 };
+
+export const MarkdownShortcuts: Story = {
+    args: {
+        mode: 'html',
+        toolbar: 'top',
+        placeholder: 'Try typing "# ", "- ", "1. ", "> ", "[] ", "---", "**bold**"…',
+        minHeight: '260px',
+    },
+    parameters: {
+        docs: {
+            description: {
+                story:
+                    'Markdown markers become real formatting as you type — on by default, no addon needed. '
+                    + '`# `/`## `/`### ` make headings, `- ` or `* ` a bullet list, `1. ` a numbered list, '
+                    + '`> ` a blockquote, `[] `/`[x] ` a task item, `---` a horizontal rule, and ``` '
+                    + '(optionally with a language, then Space or Enter) a code block. Inline, `**bold**`, '
+                    + '`*italic*` and `` `code` `` wrap as you close them. '
+                    + 'Each transform is one undo step, and pressing Backspace immediately afterwards puts '
+                    + 'the literal characters back — so a marker can still be typed as text.',
+            },
+        },
+    },
+};
+
+export const MarkdownShortcutsOff: Story = {
+    args: {
+        mode: 'html',
+        toolbar: 'top',
+        markdownShortcuts: false,
+        placeholder: 'Markdown markers stay literal here…',
+        minHeight: '200px',
+    },
+    parameters: {
+        docs: {
+            description: {
+                story:
+                    '`[markdownShortcuts]="false"` turns the whole feature off. Reach for it when your '
+                    + 'authors type Markdown markers they expect to stay literal — a tool whose content '
+                    + '*is* Markdown source, say.',
+            },
+        },
+    },
+};
+
+export const TextStyleSelect: Story = {
+    args: {
+        mode: 'html',
+        toolbar: 'top',
+        placeholder: 'The block-type group is one select…',
+        minHeight: '200px',
+    },
+    parameters: {
+        viewport: { defaultViewport: 'mobile2' },
+        docs: {
+            description: {
+                story:
+                    'The default toolbar at 375px. Block type is a single Text style select rather than '
+                    + 'four buttons, which is what keeps the toolbar from overflowing into a horizontal '
+                    + 'scroll on a phone. It is a native `<select>`, so mobile gets the OS picker.',
+            },
+        },
+    },
+};
+
+export const ClassicHeadingButtons: Story = {
+    args: {
+        mode: 'html',
+        toolbar: 'top',
+        toolbarItems: ['bold', 'italic', 'separator', 'paragraph', 'heading1', 'heading2', 'heading3'],
+        placeholder: 'The four block buttons, listed explicitly…',
+        minHeight: '200px',
+    },
+    parameters: {
+        docs: {
+            description: {
+                story:
+                    'The four block buttons are still valid `[toolbarItems]` entries for consumers who '
+                    + 'prefer them to the select. They now render pressed when the caret is in the '
+                    + 'matching block, which they never did before.',
+            },
+        },
+    },
+};
+
+export const TextStyleRTL: Story = {
+    args: {
+        mode: 'html',
+        toolbar: 'top',
+        locale: 'he',
+        placeholder: 'כתוב כאן…',
+        minHeight: '200px',
+    },
+    parameters: {
+        docs: {
+            description: {
+                story:
+                    'Under an RTL locale the select mirrors: its chevron and padding move to the left '
+                    + 'edge. Alignment pressed-state mirrors too — a `text-align: right` block presses '
+                    + 'the button whose glyph already points right.',
+            },
+        },
+    },
+};
