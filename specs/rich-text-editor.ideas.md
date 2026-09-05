@@ -171,3 +171,40 @@ Each was considered and deliberately left out, not overlooked.
 12. **Dead `'toggle'` branch in `executeListFormatCommand`.** The command is not
     a member of the `ToolbarItem` union, so nothing can dispatch it. Recorded
     while narrowing `RichTextFormatCommand`; separate cleanup.
+13. 🔴 **The e2e fixture generates almost no Tailwind utilities, because
+    `.gitignore` hides the installed components from Tailwind's scanner.**
+    Root `.gitignore:49` ignores `e2e/fixture-app/src/components/`, and
+    Tailwind v4's `@source` respects `.gitignore` — so the `@source
+    "../src/**/*.ts"` that `init` writes walks straight past every component
+    the CLI just installed.
+
+    Measured, by changing nothing but the ignore rule and rebuilding the
+    fixture:
+
+    | fixture `src/components/` | built `styles.css` | `[&_h1]:*` rules |
+    |---|---|---|
+    | gitignored (today) | 8,080 bytes | 0 |
+    | not ignored | 70,908 bytes | 4, incl. `.\[\&_h1\]\:font-bold h1` |
+
+    So every e2e harness renders essentially unstyled, and has since the
+    fixture was first ignored. Consequences:
+    - **No e2e can assert computed style from a utility class.** An `h1`
+      carrying `[&_h1]:font-bold` reports `font-weight: 400`. Found while
+      adding the `rich-text-view` harness, whose first draft asserted
+      `font-weight >= 700` and failed on a *correct* build.
+    - The three harnesses that do call `getComputedStyle` (`dark-mode`,
+      `gradient-text`, `blur-fade`) read CSS **custom properties** or inline
+      styles, never a generated utility — which is why none of them ever
+      tripped on this.
+    - The demo cannot reproduce it: it adds `@source
+      "../../packages/**/*.ts"` (`demo/src/styles.css:6`) and renders from the
+      workspace, so it emits the rules regardless.
+    - Nothing in the repo has therefore ever verified that a component's
+      Tailwind classes survive a real consumer install — which is most of what
+      the e2e leg exists to prove.
+
+    Fix: add a `@source` that opts back in explicitly, or stop ignoring the
+    directory. Deliberately not done here — it changes the rendering baseline
+    of every harness at once, and some may be asserting geometry that only
+    holds while unstyled. That is its own change with its own verification,
+    not a tail-end patch to a feature branch.

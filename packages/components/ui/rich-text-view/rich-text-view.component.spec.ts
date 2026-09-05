@@ -281,6 +281,24 @@ describe('RichTextViewComponent — shared typography', () => {
         expect(classList).not.toContain('max-w-none');
     });
 
+    it('T-22c the editable keeps the editor-only chrome the constant excludes', () => {
+        // The other half of the extraction. T-22 asserts the view LACKS these;
+        // without this, deleting them from `editableClasses` — losing the
+        // outline suppression and the image cursor — passes the whole suite.
+        const classList = editable().className.split(/\s+/);
+
+        for (const chrome of [
+            '[&_*]:outline-none',
+            '[&_img]:cursor-pointer',
+            '[&_td.rte-cell-selected]:bg-primary/15',
+            '[&_th.rte-cell-selected]:bg-primary/25',
+            '[&_summary]:outline-none',
+            'disabled:cursor-not-allowed',
+        ]) {
+            expect(classList, chrome).toContain(chrome);
+        }
+    });
+
     it('T-23 an h1 in the view and in the editor have identical computed typography', (ctx) => {
         // Computed style is meaningless under jsdom: it reports the initial
         // value for every property, so both elements would "match" trivially.
