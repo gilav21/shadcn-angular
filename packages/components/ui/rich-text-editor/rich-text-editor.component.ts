@@ -48,6 +48,8 @@ import {
     matchInlineInputRule,
     type BlockInputRuleMatch,
 } from './rich-text-input-rules';
+import type { RichTextEditorApi, RichTextFormatCommand } from './rich-text-editor.api';
+import { isRichTextEmpty } from './rich-text-editor.validators';
 import { createLocaleBindings, interpolate } from '../../lib/i18n/i18n.utils';
 import type { LocaleInput } from '../../lib/i18n/i18n.types';
 
@@ -219,7 +221,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
         class: 'block',
     },
 })
-export class RichTextEditorComponent extends RichTextEditorAddonHost implements ControlValueAccessor, OnInit, AfterViewInit, OnDestroy {
+export class RichTextEditorComponent extends RichTextEditorAddonHost implements RichTextEditorApi, ControlValueAccessor, OnInit, AfterViewInit, OnDestroy {
     private readonly sanitizer = inject(RichTextSanitizerService);
     private readonly markdownService = inject(RichTextMarkdownService);
     private readonly pasteNormalizer = inject(RichTextPasteNormalizerService);
@@ -605,11 +607,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         )
     );
 
-    htmlOutput = computed(() => {
+    readonly htmlOutput = computed(() => {
         return this.sanitizer.sanitize(this.htmlContent());
     });
 
-    markdownOutput = computed(() => {
+    readonly markdownOutput = computed(() => {
         return this.markdownService.toMarkdown(this.htmlContent());
     });
 
@@ -972,6 +974,75 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     /**
+     * Focus the editable and restore the caret the user last had inside it.
+     *
+     * `restoreSelection` alone returns early without focusing when the live
+     * selection is already in the editor, so the focus call comes first and the
+     * restore second — a page button that stole focus still lands the caret
+     * back where the user left it.
+     */
+    focus(): void {
+        if (this.isDisabled()) return;
+        this.focusEditor();
+        this.restoreSelection();
+    }
+
+    /**
+     * Insert plain text at the restored caret as one history entry, then focus
+     * the editor — the method a page button next to the editor calls.
+     *
+     * No-op while readonly or disabled, and for the empty string (an empty
+     * insert would otherwise record a history entry that undoes nothing).
+     */
+    insertText(text: string): void {
+        if (text === '' || !this.canEditContent()) return;
+        this.insertAtRestoredCaret(() => this.insertTextNode(text));
+    }
+
+    /**
+     * Insert HTML at the restored caret as one history entry, then focus the
+     * editor. The markup goes through the editor's allow-list sanitizer, so a
+     * `<script>` is dropped rather than inserted.
+     *
+     * No-op while readonly or disabled, and when nothing survives sanitization
+     * — the sanitize result is checked and the original string handed on, so
+     * the fragment helper's own sanitize is the only one that shapes the DOM.
+     */
+    insertHtml(html: string): void {
+        if (!this.canEditContent() || this.sanitizer.sanitize(html) === '') return;
+        this.insertAtRestoredCaret(() => this.insertHtmlFragment(html));
+    }
+
+    /**
+     * Run a toolbar command exactly as a toolbar click would. The narrow
+     * {@link RichTextFormatCommand} type is the whole guard — there is no
+     * runtime allow-list, because the union is the contract.
+     */
+    format(command: RichTextFormatCommand): void {
+        this.onFormatCommand(command);
+    }
+
+    /**
+     * Whether the content may be edited right now — the guard the public
+     * inserts share with the toolbar's own command path.
+     */
+    private canEditContent(): boolean {
+        return !this.readonly() && !this.isDisabled();
+    }
+
+    /**
+     * `true` when the document has no visible text and no image, rule or table.
+     * Shares one rule with `richTextRequired()`, so a form's validity and a
+     * "Send" button's disabled state can never disagree.
+     *
+     * Parses the document on each call, like `characterCount`. Bind it through
+     * a `computed` over `htmlOutput()` rather than calling it in a template.
+     */
+    isEmpty(): boolean {
+        return isRichTextEmpty(this.htmlContent());
+    }
+
+    /**
      * `ControlValueAccessor` — store the form's change callback. It is invoked
      * with the {@link mode}-appropriate string (Markdown or HTML) on every model
      * update: typing, formatting commands, addon mutations, undo/redo and history
@@ -1095,7 +1166,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         event.preventDefault();
         const listItem = this.getParentListItem();
         if (!listItem) {
-            this.insertText('\t');
+            this.insertTextNode('\t');
             return;
         }
         if (event.shiftKey) {
@@ -1345,7 +1416,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
 
         const normalized = this.pasteNormalizer.normalize(html ?? null, text);
-        this.insertHtml(normalized);
+        this.insertHtmlFragment(normalized);
         this.pushHistory();
     }
 
@@ -1370,7 +1441,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
         if (text.length > remaining) {
             const truncated = text.substring(0, remaining);
-            this.insertText(truncated);
+            this.insertTextNode(truncated);
             this.pushHistory();
             return true;
         }
@@ -1794,6 +1865,23 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * removes the insert and nothing else.
      */
     insertTextFromOverlay(text: string): void {
+        this.insertAtRestoredCaret(() => this.insertTextNode(text));
+    }
+
+    /**
+     * Run `insert` at the caret the user last had inside the editor, as one
+     * history entry. Shared by {@link insertTextFromOverlay} and the public
+     * {@link insertText} / {@link insertHtml}, because both face the same
+     * problem: the click that triggered them already moved focus out of the
+     * editor.
+     *
+     * The sequence is load-bearing. Any pending typing burst is flushed as its
+     * own entry first, so the insert never merges into it. `inputMode` is
+     * pinned to `'none'` for ~100ms while focus returns, which stops the mobile
+     * software keyboard from flashing open. The caret is re-saved afterwards so
+     * consecutive inserts append instead of stacking at the same spot.
+     */
+    private insertAtRestoredCaret(insert: () => void): void {
         this.flushPendingHistoryPush();
         const editor = this.editorDiv?.nativeElement;
         const prevInputMode = editor?.inputMode;
@@ -1801,7 +1889,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             editor.inputMode = 'none';
         }
         this.restoreSelection();
-        this.insertText(text);
+        insert();
         this.pushHistory();
         const selection = this.document.getSelection();
         if (selection && selection.rangeCount > 0) {
@@ -1820,13 +1908,13 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     /** Insert plain text at the live caret as one history entry (addon host surface). */
     insertTextAtCaret(text: string): void {
-        this.insertText(text);
+        this.insertTextNode(text);
         this.pushHistory();
     }
 
     /** Insert sanitized HTML at the live caret as one history entry (addon host surface). */
     insertHtmlAtCaret(html: string): void {
-        this.insertHtml(html);
+        this.insertHtmlFragment(html);
         this.pushHistory();
     }
 
@@ -2166,7 +2254,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     private insertHorizontalRule(): void {
-        this.insertHtml('<hr><p><br></p>');
+        this.insertHtmlFragment('<hr><p><br></p>');
         this.pushHistory();
     }
 
@@ -3564,7 +3652,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     private insertToggleBlock(): void {
         const html = '<details open><summary>Toggle title</summary><p>Content here...</p></details>';
-        this.insertHtml(html);
+        this.insertHtmlFragment(html);
         this.pushHistory();
 
         const editor = this.editorDiv?.nativeElement;
@@ -4058,7 +4146,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
-    private insertText(text: string): void {
+    private insertTextNode(text: string): void {
         const selection = this.document.getSelection();
         if (!selection || selection.rangeCount === 0 || !this.editorDiv?.nativeElement) {
             this.editorDiv?.nativeElement?.appendChild(this.document.createTextNode(text));
@@ -4078,7 +4166,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.syncContentFromEditor();
     }
 
-    private insertHtml(html: string): void {
+    private insertHtmlFragment(html: string): void {
         const sanitized = this.sanitizer.sanitize(html);
         const selection = this.document.getSelection();
         if (!selection || selection.rangeCount === 0 || !this.editorDiv?.nativeElement) {
@@ -5543,7 +5631,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.bumpHistoryVersion();
     }
 
-    private undo(): void {
+    /**
+     * Undo one step — mirrors `Ctrl`/`Cmd`+`Z`. Flushes a pending typing burst
+     * first, so one call takes back the whole burst rather than half of it.
+     * No-op at the start of the stack.
+     */
+    undo(): void {
         this.flushPendingHistoryPush();
         if (this.historyIndex > 0) {
             this.isUndoRedo = true;
@@ -5566,7 +5659,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
-    private redo(): void {
+    /**
+     * Redo one step — mirrors `Ctrl`+`Y` / `Ctrl`+`Shift`+`Z`. No-op at the end
+     * of the stack.
+     */
+    redo(): void {
         this.flushPendingHistoryPush();
         if (this.historyIndex < this.history.length - 1) {
             this.isUndoRedo = true;

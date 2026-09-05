@@ -7,3 +7,5 @@ export * from './rich-text-command-registry.service';
 export * from './rich-text-locales';
 export * from './rich-text-input-rules';
 export * from './sub/rich-text-toolbar.component';
+export * from './rich-text-editor.api';
+export * from './rich-text-editor.validators';

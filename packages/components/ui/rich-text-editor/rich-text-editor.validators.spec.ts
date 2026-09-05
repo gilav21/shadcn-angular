@@ -75,10 +75,17 @@ describe('richTextVisibleText', () => {
         expect(richTextVisibleText('```\n# not a heading\n```')).toBe('# not a heading');
     });
 
-    it('handles nested emphasis, code spans containing stars and bracketed link text', () => {
+    it('handles nested emphasis and code spans containing stars', () => {
         expect(richTextVisibleText('***x***')).toBe('x');
         expect(richTextVisibleText('`a * b`')).toBe('a * b');
-        expect(richTextVisibleText('[a [b] c](u)')).toBe('a [b] c');
+    });
+
+    it('leaves a nested-bracket link alone, exactly as the real parser does', () => {
+        // `RichTextMarkdownService.parseLinks` matches `\[([^\]]{1,4096})\]\(…\)`,
+        // so `[a [b] c](u)` is not a link to the editor either — it renders as
+        // literal text. The stripper must not be cleverer than the grammar it
+        // shadows, or the validator would count characters the editor shows.
+        expect(richTextVisibleText('[a [b] c](u)')).toBe('[a [b] c](u)');
     });
 
     it('strips markdown tables to their cell text', () => {
@@ -87,7 +94,7 @@ describe('richTextVisibleText', () => {
 
     it('strips the raw span / action-image tags the editor emits in markdown', () => {
         expect(richTextVisibleText('a <span data-action-click="open">b</span> c')).toBe('a b c');
-        expect(richTextVisibleText('x <img src="y.png" data-action-click="go"> z')).toBe('x  z');
+        expect(richTextVisibleText('x <img src="y.png" data-action-click="go"> z')).toBe('x z');
     });
 
     // T-13 — syntax detection.

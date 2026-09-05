@@ -1107,6 +1107,15 @@ lead's cross-spec notes, not edited here.
     (`focus`, `insertText`, `insertHtml`) gates on `isDisabled()`, not the raw
     `disabled()` input §F names; T-2d/T-4c cover the form-disabled path that
     §F's wording would have missed. (Task 1)
+14. ⚠️ UC-2's "or places it at the end of the content when there was none" is
+    **not observable through `focus()`**. §F requires `focusEditor()` before
+    `restoreSelection()`, and a real browser caret lands inside the editable on
+    focus — so `restoreSelection`'s live-selection branch always wins and the
+    collapse-to-end fallback is unreachable from `focus()`. Verified in real
+    Chromium, not only jsdom. T-2b now asserts the observable contract (a
+    collapsed caret inside the editable) and T-2b2 exercises the fallback
+    through `restoreSelection()` directly, where it is reachable. The
+    implementation is unchanged — §F's order stands. (Task 2)
 
 ---
 

@@ -8679,12 +8679,39 @@ describe('RichTextEditorComponent — imperative API', () => {
         expect(range.startOffset).toBe('Hello'.length);
     });
 
-    it('T-2b focus() places the caret at the end when none was saved', () => {
+    it('T-2b focus() lands a collapsed caret inside the editor when there is none to restore', () => {
+        // No saved caret: `restoreSelection` falls through to the live
+        // selection, and failing that collapses to the end of the content.
+        // Either way the caret must end up inside the editable — which is what
+        // makes the next `insertText` land in the document rather than nowhere.
+        (component as unknown as { savedRange: Range | null }).savedRange = null;
+        document.getSelection()?.removeAllRanges();
+
         component.focus();
 
         expect(document.activeElement).toBe(editor);
         const range = document.getSelection()?.getRangeAt(0) as Range;
         expect(range.collapsed).toBe(true);
+        expect(editor.contains(range.startContainer)).toBe(true);
+    });
+
+    it('T-2b2 restoreSelection collapses to the end when the caret is parked outside the editor', () => {
+        // The collapse-to-end fallback is only observable through
+        // `restoreSelection` directly. Reached through `focus()`, the explicit
+        // `focusEditor()` that §F requires first has already put a browser
+        // caret inside the editable, so the live-selection branch always wins —
+        // verified in real Chromium, not only jsdom (spec correction §G.14).
+        component.setContent('<p>alpha</p><p>omega</p>');
+        (component as unknown as { savedRange: Range | null }).savedRange = null;
+        const outside = document.createElement('p');
+        outside.textContent = 'outside';
+        document.body.append(outside);
+        setCaretAt(outside.firstChild as Text, 0);
+
+        component.restoreSelection();
+        outside.remove();
+
+        const range = document.getSelection()?.getRangeAt(0) as Range;
         const after = document.createRange();
         after.selectNodeContents(editor);
         after.setStart(range.endContainer, range.endOffset);
