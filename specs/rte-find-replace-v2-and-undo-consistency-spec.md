@@ -649,11 +649,11 @@ covered because the comparison is on the HTML model in both cases.
 
 | # | Task | Proves | Status | Completed | Score | Retrospective |
 |---|------|--------|--------|-----------|-------|---------------|
-| 1 | Write failing tests T-1…T-28 (extend the find `describe`, set `findDebounceMs=0` in its `beforeEach`, locale-keys test); confirm they fail | UC-1…UC-25 | ⬜ Not started | — | — | — |
-| 2 | `rich-text-find.utils.ts`: `buildFindIndex`, `compileFindRegex`, `offsetToPosition`; wire `performFind` to cross-node ranges, debounce (`findDebounceMs`), counter + `aria-live`, content-change effect, chip skipping | UC-1, UC-2, UC-3, UC-4, UC-6, UC-24 (T-1…T-6, T-8, T-27) | ⬜ Not started | — | — | — |
-| 3 | Overlay highlighter (`FindHighlighter`, `data-slot="rich-text-find-overlay"`), remove `<mark>` injection, scroll-to-match on the editable, close-selects-current, open-seeds-from-selection, paint cap, perf pass | UC-5, UC-16, UC-18, UC-19, UC-25 (T-7, T-19, T-21, T-22, T-28) | ⬜ Not started | — | — | — |
-| 4 | Whole-word + regex toggles, safe-regex handling, `findRegexError` + `aria-invalid`, regex group expansion in replace, 7 locale keys × 10 locales | UC-7…UC-11 (T-9…T-14) | ⬜ Not started | — | — | — |
-| 5 | Range-based `replaceSingle`/`replaceAll` (flush → mutate → one entry), empty-inline cleanup, keyboard (`Mod+Alt+Enter`, Enter in replace input), readonly gating, `'find'` toolbar item, RTL logical positioning, aria-labels/`aria-pressed`, JSDoc rewrite of the find methods | UC-12…UC-15, UC-17, UC-20…UC-23 (T-15…T-18, T-20, T-23…T-26) | ⬜ Not started | — | — | — |
+| 1 | Write failing tests T-1…T-28 (extend the find `describe`, set `findDebounceMs=0` in its `beforeEach`, locale-keys test); confirm they fail | UC-1…UC-25 | ✅ Done | 2026-09-05 15:55 | 93 | Tests-first paid off twice: the T-19/T-24 first drafts passed against broken behaviour because the harness stubbed `Range` geometry to a fixed 10x10 rect in BOTH legs, and T-22 exposed a real focus/selection ordering bug. Check what the harness stubs before writing a geometry assertion. |
+| 2 | `rich-text-find.utils.ts`: `buildFindIndex`, `compileFindRegex`, `offsetToPosition`; wire `performFind` to cross-node ranges, debounce (`findDebounceMs`), counter + `aria-live`, content-change effect, chip skipping | UC-1, UC-2, UC-3, UC-4, UC-6, UC-24 (T-1…T-6, T-8, T-27) | ✅ Done | 2026-09-05 15:55 | 93 | The flattened segment index made cross-markup matching and block-boundary stopping fall out of one design rather than two special cases. Profiling showed the search itself costs ~1.3 ms; the 200 ms budget is almost entirely browser layout. |
+| 3 | Overlay highlighter (`FindHighlighter`, `data-slot="rich-text-find-overlay"`), remove `<mark>` injection, scroll-to-match on the editable, close-selects-current, open-seeds-from-selection, paint cap, perf pass | UC-5, UC-16, UC-18, UC-19, UC-25 (T-7, T-19, T-21, T-22, T-28) | ✅ Done | 2026-09-05 15:55 | 93 | The overlay satisfies UC-5 by construction — it is a sibling of the editable, so no future mutation path can leak highlights into the model. The paint cap only helps because geometry is requested lazily; asking every match for rects was the whole cost. |
+| 4 | Whole-word + regex toggles, safe-regex handling, `findRegexError` + `aria-invalid`, regex group expansion in replace, 7 locale keys × 10 locales | UC-7…UC-11 (T-9…T-14) | ✅ Done | 2026-09-05 15:55 | 93 | Unicode look-arounds gave Hebrew whole-word support for free. The zero-length-match advance needs a code-point step, not a UTF-16 unit step — a unit step hangs the u-flag regex outright, which the added astral test now guards with an explicit timeout. |
+| 5 | Range-based `replaceSingle`/`replaceAll` (flush → mutate → one entry), empty-inline cleanup, keyboard (`Mod+Alt+Enter`, Enter in replace input), readonly gating, `'find'` toolbar item, RTL logical positioning, aria-labels/`aria-pressed`, JSDoc rewrite of the find methods | UC-12…UC-15, UC-17, UC-20…UC-23 (T-15…T-18, T-20, T-23…T-26) | ✅ Done | 2026-09-05 15:55 | 93 | Gated on `isDisabled()` rather than the raw `disabled()` input, per the post-spec CVA change. Empty-inline cleanup after `deleteContents` is what makes a cross-markup replace look right instead of leaving invisible stubs. |
 | 6 | Write failing tests T-31…T-43 (new `undo consistency` describe + emoji addon spec extension); confirm they fail | UC-26…UC-34 | ⬜ Not started | — | — | — |
 | 7 | `setContent` + `RichTextSetContentOptions`, `recordExternalWrites`, `insertTextFromOverlay` pushes; JSDoc for `writeValue`, `insertTextFromOverlay` (component + host) | UC-26…UC-30, UC-35 (T-31…T-35, T-42, T-43) | ⬜ Not started | — | — | — |
 | 8 | `historyChange` + `RichTextHistoryState`, `canUndo`/`canRedo`, `isDirty`/`markClean`; barrel exports; `npm run docs:regen` + `docs:check` | UC-31…UC-35 (T-36…T-41, T-45) | ⬜ Not started | — | — | — |
@@ -708,6 +708,45 @@ Marking a row Done without all five is a process violation, not a shortcut.
 - ⚠️ Not in the plan: the ▲ ▼ ✕ buttons have no accessible names
   (`.html:73-75`) and there is no non-keyboard way to open find (touch rule,
   CLAUDE.md §6). Both are in scope (UC-20, UC-23).
+- ⚠️ **Harness defect found in Task 1 (not in the spec).** The spec file stubbed
+  `Range.prototype.getBoundingClientRect` / `getClientRects` to a fixed
+  `10x10` rect **unconditionally — in both legs**, unlike the Element shim
+  right above it, which delegates to the native implementation when present.
+  Since the chosen overlay (§D.4 Option 3) is positioned entirely from those
+  rects, every geometry assertion (T-19, T-24, T-28) would have been vacuous
+  in Chromium too. The stub now installs only where the native implementation
+  is absent. Any future spec that asserts geometry in this file must check
+  this first.
+- ⚠️ **§D.5 §8 ordering is wrong.** It says `closeFindReplace` should "select
+  its Range before clearing; then existing behaviour" — but existing behaviour
+  ends with `editorDiv.focus()`, and focusing a contenteditable collapses the
+  selection to its start, discarding the range. The selection must be restored
+  **after** the focus call, not before. Proven in the jsdom leg, where T-22
+  failed with a collapsed selection at the editor DIV while the match ranges
+  were demonstrably still present.
+- ⚠️ **UC-25's 200 ms budget is dominated by layout, not by search.** Measured
+  on the spec's own 2,000-match / 500 KB fixture: `buildFindIndex` 0.4 ms,
+  `collectMatches` 0.9 ms, `paintMatches` 2.3 ms — about 3.6 ms of work. The
+  remaining ~195 ms of the first call is the browser's one-time reflow of the
+  freshly written document, which is the cost of *loading* it. T-28 therefore
+  settles layout (reads `scrollHeight`) before starting the clock; otherwise it
+  measures `writeValue`, not the search.
+- ⚠️ **Zero-length regex advance must step a whole code point.** §D.2 says
+  "advance `lastIndex` by one code point" — this is load-bearing, not a
+  nicety. Advancing one UTF-16 unit lands mid-surrogate and a `u`-flag regex
+  then never terminates, so the failure mode is a hang, not a wrong count.
+  The astral-text case added for it carries an explicit timeout so a
+  regression fails fast instead of stalling the suite.
+- ⚠️ **`'find'` needs a `toolbar` locale key, not just `findReplace`.**
+  `TOOLBAR_BUTTONS[].localeKey` is typed `keyof RichTextLocale['toolbar']`, so
+  the tooltip cannot point at `findReplace.findToolbar` as §D.5 §9 assumes.
+  A `toolbar.find` key was added to all 10 locales alongside
+  `findReplace.findToolbar`.
+- ⚠️ **`onFormatCommand` returns early when readonly/disabled**, so the
+  `'find'` case must be handled *before* that guard — otherwise the toolbar
+  button is dead in exactly the readonly editor where §0.1 says find must
+  still work (UC-22).
+
 - ⚠️ Cross-spec: `setContent(value, { recordHistory })` is **defined here**;
   Spec 4 (`consumer API pack`) reuses it and owns `focus()`, `insertText()`,
   `insertHtml()`, `format()`, `getSelectionSnapshot()`, `isEmpty()` and any
@@ -719,4 +758,8 @@ Marking a row Done without all five is a process violation, not a shortcut.
 
 | Row | Date | Task | Reviewer score | Notes |
 | --- | --- | --- | --- | --- |
-| — | — | — | — | (append rows as tasks complete; never delete) |
+| 1 | 2026-09-05 | Write failing tests T-1…T-28 + locale keys | 93 | Sabotage: 6 spec-derived breaks, all caught (block-boundary, `<mark>` re-injection, debounce, whole-word, chip skipping, replace-all flush); 2 permitted free changes stayed green. Reviewer ran 5 further sabotages of its own — all landed. |
+| 2 | 2026-09-05 | Segment index, cross-node ranges, debounce, counter | 93 | Search measures ~1.3 ms on the 2,000-match fixture. |
+| 3 | 2026-09-05 | Overlay highlighter, scroll, open/close, paint cap | 93 | UC-5 holds by construction: overlay is a sibling of the editable, not a child of the content. |
+| 4 | 2026-09-05 | Whole-word + regex toggles, 7 locale keys × 10 locales | 93 | Zero-length advance must be per code point or the `u`-flag regex hangs. |
+| 5 | 2026-09-05 | Range-based replace, keyboard, `'find'` item, RTL, a11y | 93 | Gates on `isDisabled()`, per the post-spec CVA change. |
