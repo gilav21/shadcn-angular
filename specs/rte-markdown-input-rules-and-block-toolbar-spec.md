@@ -1033,13 +1033,13 @@ semantics, opt-out, interplay with slash/mentions) and "Text style select"
 | 1 | Write failing tests T-1…T-8 (`rich-text-input-rules.spec.ts`), T-9…T-25 (editor `markdown input rules` describe), T-26…T-28 (editor `block-state activeFormats`), T-29…T-34 (toolbar), T-35/T-36 layout, and the e2e T-37…T-40 skeletons; record pre-spec coverage numbers for the touched files | 🟡 Partial | 2026-09-04 23:18 | 93 | Wrote T-1…T-8 and the T-9…T-25 block-rule tests only; T-26…T-40 belong to tasks 5-9 and are not yet written. Four review rounds each caught tests that passed with the behaviour broken — guard tests seeded blocks containing text so the marker was never the whole prefix, a readonly test went through a path that returns early anyway, and a caret test asserted a downstream effect rather than the state. Lesson: seed the MINIMAL fixture that makes the guard the only thing standing in the way |
 | 2 | Implement `rich-text-input-rules.ts` (pure matchers, constants, types) — T-1…T-8 green | ✅ Done | 2026-09-04 23:18 | 93 | Pure matchers landed first and stayed stable; the terminator-set table beat the spec's requiresTerminator boolean. Sabotage found a real bug on the first run (`***` matched em with a `*` body). Later removed an unreachable non-breaking-space fold — dead code the test could not have caught |
 | 3 | Base block rules: `markdownShortcuts` input, `applyInputRules` + `inputRuleContext` + `tryBlockRule` + `applyBlockRule` + `createTaskListItem` extraction, `onInput` history branch, Enter-terminated code fence — T-9…T-15, T-22, T-23, T-25 green | ✅ Done | 2026-09-04 23:18 | 93 | Engine, guards, one-undo-step and Backspace revert all green with 26 sabotages caught. Five review rounds found six real defects: the undo mechanism untested, three missing revert-window hooks, a wiped code-fence newline, an unguarded Enter off-by-one, and a double form emission per keystroke. Improve later: write the sabotage BEFORE the test, not after |
-| 4 | Base inline rules (`tryInlineRule`, node split, `\u200B` caret parking) + Backspace revert (`lastInputRule`, `revertLastInputRule`, window-closing hooks) — T-16…T-21, T-24 green; run `npm run e2e -- rte-slash-commands rte-mentions` | ✅ Done | 2026-09-05 11:05 | pending | Inline tests found two defects in the engine that shipped with task 3: the revert window recorded the new element, but the caret parks BESIDE it, so the window never opened for an inline transform; and the `PRE` check was unreachable behind the ancestor selector. T-24 needed rewriting — the first draft registered its observer AFTER the transforming keystroke and passed with the ordering deliberately broken |
-| 5 | Block-state detection: `detectBlockFormats` single walk (absorbs `detectTaskListFormat`), alignment mirroring, `indent`; toolbar `PRESSABLE` map + omitted `aria-pressed` on momentary buttons — T-26…T-29 green | ✅ Done | 2026-09-05 11:05 | pending | The single-ancestor-walk design paid off: it absorbs the old task-list walk, so detection got cheaper while reporting far more. Several facts need the whole chain rather than the first match (a CODE is inline code only if no PRE was passed), which the walk-then-decide shape handles cleanly. One pre-existing test asserted the old limitation and was updated to the new contract |
-| 6 | Text style select: `'textStyle'` union member + `TOOLBAR_BUTTONS` row + `TEXT_STYLE_OPTIONS`, template branch, `textStyleValue`, `onTextStyleChange`, css coarse rule, `toolbar.textStyle` in the interface + 10 locales, `DEFAULT_TOOLBAR_ITEMS` change — T-30…T-36 green | ✅ Done | 2026-09-05 11:05 | pending | Native select over ui-select keeps the base at one dependency and gives phones the OS picker. `[value]` on a select does not stick in Angular — bind `[selected]` on the options instead. The precedence test was vacuous at first: asserting only the blockquote/empty cases passed with the paragraph clause removed, since paragraph is first in the option list |
-| 7 | Registry + docs: `sync-registry --fix` (new file), `npm run docs:regen` (new input), `docs/rich-text-editor.md` sections, README/changelog note on the default-toolbar change | ✅ Done | 2026-09-05 11:05 | pending | docs:regen fills documentation.json with ~768k lines that must not be committed — restored the tracked 21-line stub, as the project memory warns. Backticks inside a markdown table cell need a double-fence with padding, not backslash escapes |
-| 8 | Stories `MarkdownShortcuts`, `MarkdownShortcutsOff`, `TextStyleSelect`, `ClassicHeadingButtons`, `TextStyleRTL` + demo section + demo locales — T-41 green under `npm run test-storybook:a11y` | 🟡 Partial | 2026-09-05 11:05 | pending | Five stories and the demo section are written, compile and are indexed, but `npm run test-storybook:a11y` cannot run from a nested worktree — the test-runner joins the repo root with the worktree path and produces mixed-separator globs matching zero files. T-41 is UNVERIFIED and needs a run from the main checkout |
-| 9 | e2e: fill T-37…T-40 in `e2e/harness/rich-text-editor/rich-text-editor.spec.ts`; `npm run e2e -- rich-text-editor` green (base + every `rte-*`) | ✅ Done | 2026-09-05 11:05 | pending | Worth the cost: the e2e caught two browser-only defects the headless leg cannot see — a real browser will not type into the zero-length text node left after the marker is removed, in both the heading and task-item paths. jsdom accepted it happily. Also two test-side fixes: the seeded document ends with a table, so Control+End lands where rules are correctly guarded off |
-| 10 | Final gates: `npm run lint`, full `npm run test-visual` (zero failures, pre-existing included), `npm run sonar:gate` clean on every changed file, review-gate ≥ 91; append accepted follow-ups (out-of-scope rules) to `specs/rich-text-editor.ideas.md` | all | ⬜ Not started | — | — | — |
+| 4 | Base inline rules (`tryInlineRule`, node split, `\u200B` caret parking) + Backspace revert (`lastInputRule`, `revertLastInputRule`, window-closing hooks) — T-16…T-21, T-24 green; run `npm run e2e -- rte-slash-commands rte-mentions` | ✅ Done | 2026-09-05 11:05 | 93 | Inline tests found two defects in the engine that shipped with task 3: the revert window recorded the new element, but the caret parks BESIDE it, so the window never opened for an inline transform; and the `PRE` check was unreachable behind the ancestor selector. T-24 needed rewriting — the first draft registered its observer AFTER the transforming keystroke and passed with the ordering deliberately broken |
+| 5 | Block-state detection: `detectBlockFormats` single walk (absorbs `detectTaskListFormat`), alignment mirroring, `indent`; toolbar `PRESSABLE` map + omitted `aria-pressed` on momentary buttons — T-26…T-29 green | ✅ Done | 2026-09-05 11:05 | 93 | The single-ancestor-walk design paid off: it absorbs the old task-list walk, so detection got cheaper while reporting far more. Several facts need the whole chain rather than the first match (a CODE is inline code only if no PRE was passed), which the walk-then-decide shape handles cleanly. One pre-existing test asserted the old limitation and was updated to the new contract |
+| 6 | Text style select: `'textStyle'` union member + `TOOLBAR_BUTTONS` row + `TEXT_STYLE_OPTIONS`, template branch, `textStyleValue`, `onTextStyleChange`, css coarse rule, `toolbar.textStyle` in the interface + 10 locales, `DEFAULT_TOOLBAR_ITEMS` change — T-30…T-36 green | ✅ Done | 2026-09-05 11:05 | 93 | Native select over ui-select keeps the base at one dependency and gives phones the OS picker. `[value]` on a select does not stick in Angular — bind `[selected]` on the options instead. The precedence test was vacuous at first: asserting only the blockquote/empty cases passed with the paragraph clause removed, since paragraph is first in the option list |
+| 7 | Registry + docs: `sync-registry --fix` (new file), `npm run docs:regen` (new input), `docs/rich-text-editor.md` sections, README/changelog note on the default-toolbar change | ✅ Done | 2026-09-05 11:05 | 93 | docs:regen fills documentation.json with ~768k lines that must not be committed — restored the tracked 21-line stub, as the project memory warns. Backticks inside a markdown table cell need a double-fence with padding, not backslash escapes |
+| 8 | Stories `MarkdownShortcuts`, `MarkdownShortcutsOff`, `TextStyleSelect`, `ClassicHeadingButtons`, `TextStyleRTL` + demo section + demo locales — T-41 green under `npm run test-storybook:a11y` | 🟡 Partial | 2026-09-05 12:40 | 93 | Five stories and the demo section are written and pass axe — the lead ran `test-storybook:a11y` from the main checkout because the runner cannot resolve paths in a nested worktree. That run found a REAL wave-1 regression my stories exposed: `toolbarItems` is consumer input, so a name outside the union reaches `getTooltip`, and the typed TOOLBAR_BUTTONS record turned a harmless fallback into a throw that took out the whole toolbar. Fixed on the branch (252d2a53) |
+| 9 | e2e: fill T-37…T-40 in `e2e/harness/rich-text-editor/rich-text-editor.spec.ts`; `npm run e2e -- rich-text-editor` green (base + every `rte-*`) | ✅ Done | 2026-09-05 11:05 | 93 | Worth the cost: the e2e caught two browser-only defects the headless leg cannot see — a real browser will not type into the zero-length text node left after the marker is removed, in both the heading and task-item paths. jsdom accepted it happily. Also two test-side fixes: the seeded document ends with a table, so Control+End lands where rules are correctly guarded off |
+| 10 | Final gates: `npm run lint`, full `npm run test-visual` (zero failures, pre-existing included), `npm run sonar:gate` clean on every changed file, review-gate ≥ 91; append accepted follow-ups (out-of-scope rules) to `specs/rich-text-editor.ideas.md` | ✅ Done | 2026-09-05 12:40 | 93 | Every gate green: lint 0 errors, tsc clean, 10,871 browser + 1,821 CLI tests, e2e 16/16, Sonar STATUS OK on all four conditions, new-code coverage 95.91% vs integration/wave-1. Review gate 93 across two rounds for tasks 4-10 (93 for tasks 1-3 over five rounds). The last round found three guards deletable with the suite green and one paperwork claim I had overstated — both now fixed. Improve later: measure a spec claim BEFORE marking its task done; T-35 turned out to contradict the spec |
 
 ## Definition of Done (per task)
 
@@ -1125,6 +1125,52 @@ new-code coverage measurement are pending and belong to task 10.
 branch because its trailing `applyMutation` pushes a fresh entry — pre-existing
 behaviour of the command path, worth a separate look.
 
+### Tasks 4-10 — 2026-09-05 — review gate 93/100 (2 rounds)
+
+**Scope delivered.** Inline-rule tests and the slash interplay (task 4), block-
+state detection and the toolbar's pressed-state model (5), the Text style
+select and its ten locales (6), registry and docs (7), five stories and the
+demo section (8), seven e2e tests (9), and the final gates (10).
+
+**Reviewer rationale (round 2, 93/100).** "Fourteen of my sixteen independent
+sabotages were caught, including every load-bearing one — the observer-ordering
+move past `notifyInputObservers` fails the rewritten T-24, and dropping
+`[selected]` fails three tests across both specs. The two documented
+deviations are both improvements on the spec." The three surviving sabotages
+(the `pre` token masked by `code`, the three untested chip selectors, and the
+`data-task-list` attribute check) are now covered, each verified to fail when
+its guard is removed.
+
+**Gate numbers, all re-run at the end.** `npm run lint` 0 errors (1
+pre-existing warning in `vitest.config.ts`); `tsc --noEmit` clean; browser
+suite 514 files / 10,871 tests; CLI suite 86 files / 1,821 tests; e2e 16/16
+(base harness plus every `rte-*` addon spec); **new-code coverage 95.91%**
+against `integration/wave-1` (318 instrumented new lines, 13 uncovered — 12
+are locale strings and an interface field that carry no lcov entry, and the one
+genuine line proved to be an unreachable branch and was removed rather than
+covered); **SonarQube STATUS OK** on all four conditions (new violations 0, new
+coverage 90.4%, hotspots reviewed 100%, duplication 1.11%).
+
+**What the gates earned.** The e2e caught two browser-only defects jsdom
+accepts happily: a real browser will not type into the zero-length text node
+left after a marker is removed, in both the heading and task-item paths. And
+the Storybook a11y run exposed a **wave-1 regression** — `toolbarItems` is
+consumer input, so a name outside the union (the emoji story passed `'link'`,
+which only ever existed in a stale JSDoc line) reaches `getTooltip`, and wave
+1's typed `TOOLBAR_BUTTONS` record turned a harmless fallback into a throw
+that took out the entire toolbar render. Fixed on this branch.
+
+**Two gates could not run from the worktree** and were run from the main
+checkout: `test-storybook:a11y` (the runner joins the repo root with the
+worktree path and produces mixed-separator globs matching zero files) and
+`sonar:gate` (the browser v8 coverage provider reports 0% in a nested
+worktree, so the scan would have scored real code against a bogus artifact).
+
+**Follow-ups:** the accepted out-of-scope rules are appended to
+`specs/rich-text-editor.ideas.md`, along with two pre-existing findings worth
+their own change — the markdown service's four dead string-buffer helpers, and
+`onFormatCommand('undo')` truncating the redo branch.
+
 ## Plan corrections recorded by this spec (⚠️, never rewrite the plan silently)
 
 1. Toolbar pressed state: the base already reports `bulletList`/`orderedList`
@@ -1176,3 +1222,24 @@ behaviour of the command path, worth a separate look.
     longer than it can match a marker anyway, so removing it changes nothing a
     test can see. Recorded here rather than covered by an assertion that would
     only appear to discriminate.
+12. **T-35's premise is wrong: the select is not "3 button widths" narrower.**
+    §C's T-35 and §B.3 UC-22 predict the default toolbar is at least three
+    button widths narrower than the four-button layout. Measured, it is 2px
+    narrower: the select is capped at `max-w-[7rem]` plus its icon (~114px)
+    and four 28px buttons come to ~112px. The saving is real on a phone for a
+    different reason — the select TRUNCATES, holding that cap whatever a
+    locale's labels are, where four buttons cannot shrink — plus four fewer
+    focus stops. The test asserts what actually holds: never wider, and three
+    fewer rendered items.
+13. **§D.4.5's `[value]` binding on the select does not stick.** Angular
+    applies it before the `@for` renders the options, so the select falls back
+    to its first option. `[selected]` on each option is used instead.
+14. **§D.4.4's `start`/`end` alignment mapping needs no RTL resolution.**
+    The spec says they "resolve through `isRtl()`", but the toolbar's
+    `mirrorLabel` already swaps the `alignLeft`/`alignRight` glyphs, so
+    `alignLeft` IS the start-side button in both directions. They map straight
+    through; only the physical `left`/`right` values mirror.
+15. **§D.1's `getComputedStyle` alignment fallback is not implemented.**
+    `execCommand('justifyCenter')` writes an inline style and the sanitizer
+    preserves only that plus the `align` attribute, both of which are read
+    directly — so the computed-style path had no reachable case.
