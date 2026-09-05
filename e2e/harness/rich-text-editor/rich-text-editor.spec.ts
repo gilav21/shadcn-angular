@@ -377,7 +377,12 @@ test('T-44 setContent and an overlay insert are each their own undo step', async
 
     await editor.locator('p').first().click();
     await page.keyboard.press('Control+z');
+
+    // Exactly one step back: the typed text returns AND the draft is gone.
+    // Asserting only the former would also pass if undo over-shot.
     await expect(editor).toContainText('typed');
+    await expect(editor).not.toContainText('Draft loaded.');
+    await expect(editor).toContainText('Hello world');
 
     // An overlay insert after a flushed typing burst is its own entry: one
     // undo takes back the insert and leaves the typing.
@@ -391,6 +396,8 @@ test('T-44 setContent and an overlay insert are each their own undo step', async
     await editor.locator('p').first().click();
     await page.keyboard.press('Control+z');
 
+    // Again exactly one step: the star goes, the typing stays.
     await expect(editor).not.toContainText('★');
+    await expect(editor).toContainText('typed');
     await expect(html).toContainText('typed');
 });

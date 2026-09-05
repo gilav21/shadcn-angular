@@ -88,6 +88,8 @@ export class RichTextEditorDemoComponent {
     /** The `[disabled]` input — one of the two independent locking paths. */
     protected readonly inputDisabled = signal(false);
 
+    @ViewChild('editor') protected editor!: RichTextEditorComponent;
+
     /**
      * `control.disable()` / `enable()`. Reaches the editor through the CVA's
      * `setDisabledState`, which OR-s with the `[disabled]` input — so either
@@ -104,8 +106,6 @@ export class RichTextEditorDemoComponent {
     protected toggleInputDisabled(): void {
         this.inputDisabled.update(v => !v);
     }
-
-    @ViewChild('editor') protected editor!: RichTextEditorComponent;
 
     /** A programmatic edit: recorded, so Ctrl+Z takes the user back. */
     protected loadDraft(): void {

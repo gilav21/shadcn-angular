@@ -8,6 +8,7 @@ import {
   SwitchComponent,
   InputComponent,
   SelectComponent,
+  ButtonComponent,
   ToolbarItem,
   type RichTextHistoryState,
 } from '../../../../../packages/components/ui';
@@ -46,7 +47,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
 @Component({
   selector: 'app-rich-text-editor-demo',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DocsForComponent, FormsModule, RichTextEditorComponent, RichTextEmojiDirective, RichTextSlashCommandsDirective, RichTextHistoryDirective, RichTextColorsDirective, RichTextTypographyDirective, RichTextLinksDirective, RichTextTablesDirective, RichTextImagesDirective, RichTextMentionsDirective, RichTextAiDirective, RichTextOutlineDirective, SwitchComponent, InputComponent, SelectComponent],
+  imports: [DocsForComponent, FormsModule, RichTextEditorComponent, RichTextEmojiDirective, RichTextSlashCommandsDirective, RichTextHistoryDirective, RichTextColorsDirective, RichTextTypographyDirective, RichTextLinksDirective, RichTextTablesDirective, RichTextImagesDirective, RichTextMentionsDirective, RichTextAiDirective, RichTextOutlineDirective, SwitchComponent, InputComponent, SelectComponent, ButtonComponent],
   template: `
     <section class="space-y-6">
       <h2 id="rich-text-editor" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
@@ -169,13 +170,13 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
           (historyChange)="findUndoHistory.set($event)"
           minHeight="140px" />
         <div class="flex flex-wrap items-center gap-2">
-          <button type="button"
-            class="inline-flex min-h-9 items-center rounded-md border px-3 text-sm hover:bg-accent"
-            (click)="loadFindUndoDraft(findEditor)">{{ t().findUndoLoadDraft }}</button>
-          <button type="button"
-            class="inline-flex min-h-9 items-center rounded-md border px-3 text-sm hover:bg-accent disabled:opacity-50"
-            [disabled]="!findEditor.isDirty()"
-            (click)="findEditor.markClean()">{{ t().findUndoSaved }}</button>
+          <ui-button size="sm" variant="outline" (click)="loadFindUndoDraft(findEditor)">
+            {{ t().findUndoLoadDraft }}
+          </ui-button>
+          <ui-button size="sm" variant="outline" [disabled]="!findEditor.isDirty()"
+            (click)="findEditor.markClean()">
+            {{ t().findUndoSaved }}
+          </ui-button>
           <span class="text-sm text-muted-foreground">
             {{ findEditor.isDirty() ? t().findUndoDirty : t().findUndoClean }}
           </span>
