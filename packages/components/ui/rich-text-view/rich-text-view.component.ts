@@ -105,9 +105,10 @@ export class RichTextViewComponent {
      * them out, which is a different meaning.
      */
     private freezeTaskCheckboxes(root: HTMLElement): void {
-        for (const box of root.querySelectorAll<HTMLInputElement>(
+        const boxes = root.querySelectorAll<HTMLInputElement>(
             'li[data-task] input[type="checkbox"]',
-        )) {
+        );
+        for (const box of Array.from(boxes)) {
             const item = box.closest('li[data-task]') as HTMLElement | null;
             box.checked = item?.dataset['checked'] === 'true';
             box.tabIndex = -1;

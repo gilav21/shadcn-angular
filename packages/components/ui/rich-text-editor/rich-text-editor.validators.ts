@@ -70,10 +70,10 @@ function parseBody(value: string): HTMLElement {
 /** Text of an HTML document, with block boundaries turned into separators. */
 function htmlToText(value: string): string {
     const body = parseBody(value);
-    for (const el of body.querySelectorAll(BLOCK_SELECTOR)) {
+    for (const el of Array.from(body.querySelectorAll(BLOCK_SELECTOR))) {
         el.append(body.ownerDocument.createTextNode('\n'));
     }
-    for (const el of body.querySelectorAll(CELL_SELECTOR)) {
+    for (const el of Array.from(body.querySelectorAll(CELL_SELECTOR))) {
         el.append(body.ownerDocument.createTextNode(' '));
     }
     return body.textContent ?? '';
