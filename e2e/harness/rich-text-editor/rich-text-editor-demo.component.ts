@@ -30,6 +30,12 @@ import { RichTextEditorComponent } from '@/components/ui/rich-text-editor';
                 <pre data-testid="editor-html" class="sr-only">{{ html() }}</pre>
                 <button type="button" data-testid="load-draft" (click)="loadDraft()">load draft</button>
                 <button type="button" data-testid="insert-star" (click)="insertStar()">insert star</button>
+                <button type="button" data-testid="insert-text" (click)="editor.insertText(' signed')">
+                    insert text
+                </button>
+                <button type="button" data-testid="format-bold" (click)="editor.format('bold')">
+                    bold
+                </button>
                 <pre data-testid="editor-dirty" class="sr-only">{{ editor.isDirty() }}</pre>
             </section>
 

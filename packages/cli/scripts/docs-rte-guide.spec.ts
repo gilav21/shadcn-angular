@@ -20,6 +20,14 @@ const DEMO_MAIN = path.join(
 );
 const README = path.join(REPO_ROOT, 'README.md');
 
+/**
+ * The number of abstract members `RichTextEditorAddonHost` declares. Read off
+ * the base branch before the consumer-API pack began: this spec adds a public
+ * consumer surface, deliberately without widening the addon-host contract, so
+ * a change here must be an intentional edit to this constant.
+ */
+const HOST_MEMBER_COUNT = 39;
+
 const read = (file: string): string => readFileSync(file, 'utf-8');
 
 /**
@@ -156,5 +164,125 @@ describe('rich-text-editor demo imports', () => {
         // re-export of the single `addons/full` import above.
         expect(addonDirectives.length).toBeGreaterThanOrEqual(11);
         expect(addonDirectives.filter(n => !fromFull.has(n))).toEqual([]);
+    });
+});
+
+const API = path.join(
+    REPO_ROOT,
+    'packages/components/ui/rich-text-editor/rich-text-editor.api.ts',
+);
+const DEMO_VIEW = path.join(
+    REPO_ROOT,
+    'demo/src/app/demos/inputs/rich-text-view-demo.component.ts',
+);
+const DEMO_NAV = path.join(REPO_ROOT, 'demo/src/app/app.ts');
+const DEMO_ROUTES = path.join(REPO_ROOT, 'demo/src/app/demo.routes.ts');
+const DEMO_INDEX = path.join(REPO_ROOT, 'demo/src/app/demos/index.ts');
+
+/**
+ * Every member declared on the `RichTextEditorApi` interface, in source order.
+ * Only lines inside the interface body count — the file's imports and the
+ * `RichTextFormatCommand` type alias above it must not be mistaken for members.
+ */
+function apiMembers(): string[] {
+    const source = read(API);
+    const start = source.indexOf('export interface RichTextEditorApi {');
+    expect(start, 'RichTextEditorApi interface not found').toBeGreaterThan(-1);
+    const body = source.slice(start, source.indexOf('\n}', start));
+    const names: string[] = [];
+    for (const found of body.matchAll(/^\s{4}(?:readonly )?(\w+)\s*[(:]/gm)) {
+        names.push(found[1]);
+    }
+    return names;
+}
+
+/** The rows of the guide's "Imperative API" table, as `| \`name\` |` heads. */
+function imperativeTableNames(): Set<string> {
+    const guide = read(GUIDE);
+    const start = guide.indexOf('## Imperative API');
+    expect(start, 'guide has no "## Imperative API" section').toBeGreaterThan(-1);
+    const next = guide.indexOf('\n## ', start + 1);
+    const section = guide.slice(start, next === -1 ? guide.length : next);
+    const out = new Set<string>();
+    for (const row of section.matchAll(/^\|\s*`([^`]+)`\s*\|/gm)) {
+        out.add(/^\w+/.exec(row[1])?.[0] as string);
+    }
+    return out;
+}
+
+// T-40
+describe('host contract is untouched by the consumer API pack', () => {
+    it('gained no new abstract member', () => {
+        // Recorded from the base branch (integration/wave-1) before this spec
+        // began; a new host member must be a deliberate, re-recorded change.
+        expect(hostMembers()).toHaveLength(HOST_MEMBER_COUNT);
+    });
+
+    it("still matches the guide's host table", () => {
+        const spans = codeSpanIdentifiers(read(GUIDE));
+        expect(hostMembers().filter(m => !spans.has(m))).toEqual([]);
+    });
+});
+
+// T-41
+describe('docs/rich-text-editor.md consumer sections', () => {
+    it('names every RichTextEditorApi member in the Imperative API table', () => {
+        const documented = imperativeTableNames();
+        const members = apiMembers();
+        expect(members.length).toBeGreaterThanOrEqual(15);
+        expect(members.filter(m => !documented.has(m))).toEqual([]);
+    });
+
+    it('documents the three form validators', () => {
+        const spans = codeSpanIdentifiers(read(GUIDE));
+        for (const fn of ['richTextRequired', 'richTextMaxLength', 'richTextMinWords']) {
+            expect(spans, fn).toContain(fn);
+        }
+    });
+
+    it('documents ui-rich-text-view and where the actions directive must sit', () => {
+        const guide = read(GUIDE);
+        expect(guide).toContain('ui-rich-text-view');
+        expect(guide).toContain('uiRichTextActions');
+    });
+
+    it('documents the locale cascade', () => {
+        const guide = read(GUIDE);
+        const start = guide.indexOf('## Locale cascade');
+        expect(start, 'guide has no "## Locale cascade" section').toBeGreaterThan(-1);
+        const section = guide.slice(start, guide.indexOf('\n## ', start + 1));
+        expect(section).toContain('cascade');
+        expect(section).toContain('UI_LOCALE_ID');
+    });
+});
+
+// T-34
+describe('rich-text-view demo registration', () => {
+    it('has a demo page component', () => {
+        expect(read(DEMO_VIEW)).toContain('rich-text-view');
+    });
+
+    it('is listed in the nav, both route arrays and the demos barrel', () => {
+        expect(read(DEMO_NAV)).toContain("'rich-text-view'");
+        const routes = read(DEMO_ROUTES);
+        expect(routes.match(/'rich-text-view'/g) ?? []).toHaveLength(2);
+        expect(read(DEMO_INDEX)).toContain('rich-text-view-demo.component');
+    });
+});
+
+// T-43
+describe('main demo Hebrew section uses one locale binding', () => {
+    it('binds uiRteFull with exactly one locale and no per-addon locale attribute', () => {
+        const demo = read(DEMO_MAIN);
+        const hebrewSection = /<ui-rich-text-editor[^>]*locale="he"[^>]*>/.exec(demo);
+        expect(hebrewSection, 'no Hebrew editor tag found').not.toBeNull();
+        const tag = (hebrewSection as RegExpExecArray)[0];
+        expect(tag).toContain('uiRteFull');
+        expect(tag.match(/locale="he"/g) ?? []).toHaveLength(1);
+        expect(/uiRte\w+Locale/.test(tag)).toBe(false);
+    });
+
+    it('has no per-addon locale binding anywhere on the page', () => {
+        expect(read(DEMO_MAIN)).not.toMatch(/uiRte\w+Locale=/);
     });
 });

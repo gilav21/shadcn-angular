@@ -401,3 +401,41 @@ test('T-44 setContent and an overlay insert are each their own undo step', async
     await expect(editor).toContainText('typed');
     await expect(html).toContainText('typed');
 });
+
+// T-44 — the public imperative API from a page button, in a pristine install.
+// The button steals focus from the editor before its handler runs, so this is
+// the exact scenario `insertText`/`format` exist to make work.
+test('a page button calling editor.insertText inserts at the caret and one undo removes only it', async ({ page }) => {
+    await page.goto('/');
+    const editor = editable(page);
+    const html = page.getByTestId('editor-html');
+
+    await editor.locator('p').first().click();
+    await page.keyboard.press('End');
+    await page.keyboard.type(' typed');
+    await page.waitForTimeout(HISTORY_DEBOUNCE_MS);
+
+    await page.getByTestId('insert-text').click();
+
+    await expect(editor).toContainText('typed signed');
+    await expect(html).toContainText('signed');
+
+    await editor.locator('p').first().click();
+    await page.keyboard.press('Control+z');
+
+    await expect(editor).not.toContainText('signed');
+    await expect(editor).toContainText('typed');
+});
+
+test('a page button calling editor.format("bold") bolds the selection', async ({ page }) => {
+    await page.goto('/');
+    const editor = editable(page);
+
+    await editor.locator('p').first().dblclick();
+    await expect(editor.locator('b, strong')).toHaveCount(0);
+
+    await page.getByTestId('format-bold').click();
+
+    await expect(editor.locator('b, strong').first()).toBeVisible();
+    await expect(page.getByTestId('editor-html')).toContainText(/<(b|strong)>/);
+});

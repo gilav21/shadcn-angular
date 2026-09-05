@@ -848,7 +848,7 @@ today — the whole point of the host boundary).
 
 | # | Task | Proves | Status | Completed | Score | Retrospective |
 |---|------|--------|--------|-----------|-------|---------------|
-| 1 | Write failing tests: T-1…T-10, T-18, T-37, T-38 (EDITOR), T-11…T-17 (VALID), T-19 (FIELD), T-20…T-28 (VIEW — the folder does not exist yet; the spec file fails at import, which is the intended red), T-29, T-30 (BIND + actions directive spec), T-35, T-36, T-39 (EMOJI), T-31, T-42 (META), T-34, T-40, T-41, T-43 (GUIDE), and the e2e skeletons T-32, T-44. Record pre-spec coverage numbers for every touched file. Sabotage-check each per C.4. | all UC | ⬜ Not started | — | — | — |
+| 1 | Write failing tests: T-1…T-10, T-18, T-37, T-38 (EDITOR), T-11…T-17 (VALID), T-19 (FIELD), T-20…T-28 (VIEW — the folder does not exist yet; the spec file fails at import, which is the intended red), T-29, T-30 (BIND + actions directive spec), T-35, T-36, T-39 (EMOJI), T-31, T-42 (META), T-34, T-40, T-41, T-43 (GUIDE), and the e2e skeletons T-32, T-44. Record pre-spec coverage numbers for every touched file. Sabotage-check each per C.4. | all UC | ✅ Done | 2026-09-05 18:24 | — | Every spec file written and red for the intended reason (missing module / missing member), not a typo. Two §C.1 corrections found while writing: FIELD lives at `field/field.component.spec.ts` (there is no `field/sub/field-auto-errors.component.spec.ts`), and there are **9** `not the editor's [locale]` breaking notes, not ten. Host member count read off the base branch: 39. |
 | 2 | A2: `rich-text-editor.api.ts` (`RichTextEditorApi`, `RichTextFormatCommand`); rename the private inserts to `insertTextNode`/`insertHtmlFragment` (all call sites); `insertAtRestoredCaret` helper (refactor `insertTextFromOverlay` onto it); public `focus`, `insertText`, `insertHtml`, `format`, `undo`, `redo`; `readonly` on `htmlOutput`/`markdownOutput`; `implements RichTextEditorApi`; JSDoc on every new member; barrel export. T-1…T-8, T-10 green. | UC-1…UC-6, UC-8 | ⬜ Not started | — | — | — |
 | 3 | A3: `rich-text-editor.validators.ts` (helpers + three validators, table-driven stripper); `isEmpty()` on the component via `isRichTextEmpty`; `minWords` in `FieldErrorsLocale` + every dictionary; barrel export; `sync-registry --fix` (new file). T-9, T-11…T-19 green. | UC-7, UC-11…UC-16 | ⬜ Not started | — | — | — |
 | 4 | A4 core: `rich-text-prose.ts` + editor `editableClasses` refactor (drop `prose*`); `packages/components/ui/rich-text-view/` trio + barrel (`value`, `mode`, `size`, `dir`, `class`, imperative `innerHTML` effect, `freezeTaskCheckboxes`, `data-slot`); hand-add the `'rich-text-view'` registry entry (`category: 'editor'`, description ≤ 140, ≥ 3 tags) then `sync-registry --fix`. T-20…T-26 green; `sync-registry` check clean. | UC-17…UC-22 | ⬜ Not started | — | — | — |
@@ -1087,6 +1087,26 @@ lead's cross-spec notes, not edited here.
 9. `format()` takes `RichTextFormatCommand`, narrower than
    `ToolbarButtonItem`, because `textStyle`/`find`/`undo`/`redo` are not
    format commands after Specs 2–3 (§0 C-10).
+
+**Corrections found while executing this spec (append-only):**
+
+10. ⚠️ §C.1 names the FIELD test file `field/sub/field-auto-errors.component.spec.ts`.
+    That file does not exist — `FieldAutoErrorsComponent` is specced inside
+    `packages/components/ui/field/field.component.spec.ts` (its `sub/` folder
+    holds only `.ts` sources). T-19 was appended there. (Task 1)
+11. ⚠️ §0 C-9, §D.5 and §F say **ten** registry `breaking[]` notes carry the
+    clause `not the editor's [locale]`. There are **nine**
+    (`grep -c` on `packages/cli/src/registry/index.ts`). T-42 asserts ≥ 9.
+    (Task 1)
+12. ⚠️ §D.1 lists 15 `RichTextEditorApi` members but §B.1 also promises the
+    guide names them all; the parser in T-41 must skip the file's
+    `RichTextFormatCommand` type alias, which is not a member. Recorded so the
+    "15 members" figure is read as *interface body only*. (Task 1)
+13. ⚠️ Post-spec reconciliation: the editor gained `setDisabledState` +
+    `isDisabled()` after this spec was written. Every new guard
+    (`focus`, `insertText`, `insertHtml`) gates on `isDisabled()`, not the raw
+    `disabled()` input §F names; T-2d/T-4c cover the form-disabled path that
+    §F's wording would have missed. (Task 1)
 
 ---
 

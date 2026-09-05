@@ -126,3 +126,57 @@ describe('committed registry.json presets', () => {
     }
   });
 });
+
+// T-31
+describe('rich-text-view registry entry', () => {
+  it('exists with the editor as its only dependency and no npm dependencies', () => {
+    const def = registry['rich-text-view'];
+    expect(def).toBeDefined();
+    expect(def.category).toBe('editor');
+    expect(def.description!.length).toBeLessThanOrEqual(140);
+    expect((def.tags ?? []).length).toBeGreaterThanOrEqual(3);
+    expect(def.dependencies).toEqual(['rich-text-editor']);
+    expect(def.npmDependencies ?? []).toEqual([]);
+  });
+
+  it('ships the view trio and records the actions addon as a test dependency', () => {
+    const def = registry['rich-text-view'];
+    expect(def.files).toContain('rich-text-view/rich-text-view.component.ts');
+    expect(def.files).toContain('rich-text-view/rich-text-view.component.html');
+    expect(def.files).toContain('rich-text-view/index.ts');
+    expect(def.testDependencies ?? []).toContain('rich-text-editor/actions');
+  });
+});
+
+// T-42
+describe('rich-text-editor breaking notes after the locale cascade', () => {
+  it('no note claims addon strings ignore the editor locale', () => {
+    const offenders = Object.entries(registry).flatMap(([name, def]) =>
+      (def.breaking ?? [])
+        .filter(c => c.note.includes("not the editor's [locale]"))
+        .map(() => name),
+    );
+    expect(offenders).toEqual([]);
+  });
+
+  it('every addon-locale note tells the reader the editor locale is inherited', () => {
+    const notes = (registry['rich-text-editor'].breaking ?? [])
+      .filter(c => c.note.includes('or the global UI_LOCALE_ID'));
+    expect(notes.length).toBeGreaterThanOrEqual(9);
+    for (const change of notes) {
+      expect(change.note, change.from).toContain("otherwise inherit the editor's [locale]");
+    }
+  });
+
+  it('the customToolbarItems note maps the removed ref onto the public editor API', () => {
+    const change = (registry['rich-text-editor'].breaking ?? []).find(c =>
+      c.from.includes('customToolbarItems'),
+    );
+    expect(change).toBeDefined();
+    expect(change!.note).toContain('ref.insertText -> editor.insertText()');
+    expect(change!.note).toContain('ref.insertHtml -> editor.insertHtml()');
+    expect(change!.note).toContain('ref.getSelectedText -> editor.selection().text');
+    expect(change!.note).toContain('ref.getHtmlContent -> editor.htmlOutput()');
+    expect(change!.note).toContain('ref.focus -> editor.focus()');
+  });
+});

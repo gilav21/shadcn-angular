@@ -1,10 +1,17 @@
-import { Component, signal } from '@angular/core';
+import { Component, Directive, input, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_TOOLBAR_ITEMS, FIND_MAX_PAINTED_RECTS, RichTextEditorComponent, type RichTextHistoryState } from './rich-text-editor.component';
+import type { RichTextEditorApi } from './rich-text-editor.api';
+import { isRichTextEmpty } from './rich-text-editor.validators';
+import { EMPTINESS_FIXTURES } from './rich-text-editor.validators.spec';
 import { RichTextEditorAddonHost } from './rich-text-editor.host';
 import { ShortcutBindingService } from '../../lib/shortcut-binding.service';
+import { provideUiLocale } from '../../lib/i18n/i18n.token';
+import { createLocaleBindings } from '../../lib/i18n/i18n.utils';
+import type { LocaleInput, LocaleMeta } from '../../lib/i18n/i18n.types';
 import { RichTextCommandRegistry } from './rich-text-command-registry.service';
 import { RICH_TEXT_LOCALES, RichTextLocale } from './rich-text-locales';
 
@@ -8608,5 +8615,451 @@ describe('RichTextEditorComponent — undo consistency', () => {
         component.setContent(null as unknown as string);
 
         expect(editor.textContent).toBe('');
+    });
+});
+
+describe('RichTextEditorComponent — imperative API', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+        component.writeValue('<p>Hello</p>');
+        fixture.detectChanges();
+        component.setContent('<p>Hello</p>');
+        component.markClean();
+    });
+
+    /** Put the caret at the end of the first paragraph and save it as the blurred caret. */
+    const caretAfterHello = () => {
+        const p = editor.querySelector('p') as HTMLParagraphElement;
+        const textNode = p.firstChild as Text;
+        setCaretAt(textNode, textNode.length);
+        component.saveSelection();
+    };
+
+    it('T-1 satisfies RichTextEditorApi and exposes every member of the contract', () => {
+        const api: RichTextEditorApi = component;
+        expect(api).toBe(component);
+
+        const methods: ReadonlyArray<keyof RichTextEditorApi> = [
+            'focus', 'insertText', 'insertHtml', 'format', 'selection',
+            'isEmpty', 'undo', 'redo', 'setContent', 'markClean',
+        ];
+        for (const name of methods) {
+            expect(typeof (component as unknown as Record<string, unknown>)[name]).toBe('function');
+        }
+
+        const signals: ReadonlyArray<keyof RichTextEditorApi> = [
+            'canUndo', 'canRedo', 'isDirty', 'htmlOutput', 'markdownOutput',
+        ];
+        for (const name of signals) {
+            expect(typeof (component as unknown as Record<string, unknown>)[name]).toBe('function');
+        }
+    });
+
+    it('T-2 focus() focuses the editable and restores the saved caret', () => {
+        caretAfterHello();
+        (document.activeElement as HTMLElement | null)?.blur();
+        document.getSelection()?.removeAllRanges();
+
+        component.focus();
+
+        expect(document.activeElement).toBe(editor);
+        const range = document.getSelection()?.getRangeAt(0) as Range;
+        expect(editor.contains(range.startContainer)).toBe(true);
+        expect(range.startOffset).toBe('Hello'.length);
+    });
+
+    it('T-2b focus() places the caret at the end when none was saved', () => {
+        component.focus();
+
+        expect(document.activeElement).toBe(editor);
+        const range = document.getSelection()?.getRangeAt(0) as Range;
+        expect(range.collapsed).toBe(true);
+        const after = document.createRange();
+        after.selectNodeContents(editor);
+        after.setStart(range.endContainer, range.endOffset);
+        expect(after.cloneContents().textContent).toBe('');
+    });
+
+    it('T-2c focus() is a no-op while disabled', () => {
+        fixture.componentRef.setInput('disabled', true);
+        fixture.detectChanges();
+        (document.activeElement as HTMLElement | null)?.blur();
+
+        component.focus();
+
+        expect(document.activeElement).not.toBe(editor);
+    });
+
+    it('T-2d focus() is a no-op while the form has disabled the control', () => {
+        component.setDisabledState(true);
+        fixture.detectChanges();
+        (document.activeElement as HTMLElement | null)?.blur();
+
+        component.focus();
+
+        expect(document.activeElement).not.toBe(editor);
+    });
+
+    it('T-3 insertText from a blurred editor inserts at the saved caret, calls onChange once, pushes one entry and focuses', () => {
+        caretAfterHello();
+        (document.activeElement as HTMLElement | null)?.blur();
+        const seen: string[] = [];
+        component.registerOnChange(v => seen.push(v));
+        const before = historyLength(component);
+
+        component.insertText(' world');
+
+        expect(editor.textContent).toBe('Hello world');
+        expect(seen).toHaveLength(1);
+        expect(historyLength(component) - before).toBe(1);
+        expect(component.canUndo()).toBe(true);
+        expect(document.activeElement).toBe(editor);
+
+        component.undo();
+        expect(editor.textContent).toBe('Hello');
+    });
+
+    it("T-3b insertText('') is a no-op", () => {
+        caretAfterHello();
+        const seen: string[] = [];
+        component.registerOnChange(v => seen.push(v));
+        const before = historyLength(component);
+
+        component.insertText('');
+
+        expect(editor.textContent).toBe('Hello');
+        expect(seen).toHaveLength(0);
+        expect(historyLength(component)).toBe(before);
+    });
+
+    it('T-4 insertText and insertHtml are no-ops while readonly', () => {
+        fixture.componentRef.setInput('readonly', true);
+        fixture.detectChanges();
+        caretAfterHello();
+        const seen: string[] = [];
+        component.registerOnChange(v => seen.push(v));
+        const before = historyLength(component);
+
+        component.insertText(' world');
+        component.insertHtml('<b>x</b>');
+
+        expect(editor.textContent).toBe('Hello');
+        expect(seen).toHaveLength(0);
+        expect(historyLength(component)).toBe(before);
+    });
+
+    it('T-4b insertText and insertHtml are no-ops while disabled', () => {
+        fixture.componentRef.setInput('disabled', true);
+        fixture.detectChanges();
+        caretAfterHello();
+        const before = historyLength(component);
+
+        component.insertText(' world');
+        component.insertHtml('<b>x</b>');
+
+        expect(editor.textContent).toBe('Hello');
+        expect(historyLength(component)).toBe(before);
+    });
+
+    it('T-4c insertText and insertHtml are no-ops while the form has disabled the control', () => {
+        component.setDisabledState(true);
+        fixture.detectChanges();
+        caretAfterHello();
+        const before = historyLength(component);
+
+        component.insertText(' world');
+        component.insertHtml('<b>x</b>');
+
+        expect(editor.textContent).toBe('Hello');
+        expect(historyLength(component)).toBe(before);
+    });
+
+    it('T-5 insertHtml sanitizes, pushes one entry and calls onChange once', () => {
+        caretAfterHello();
+        (document.activeElement as HTMLElement | null)?.blur();
+        const seen: string[] = [];
+        component.registerOnChange(v => seen.push(v));
+        const before = historyLength(component);
+
+        component.insertHtml('<b>bold</b><script>alert(1)</script>');
+
+        expect(editor.querySelector('b')?.textContent).toBe('bold');
+        expect(editor.querySelector('script')).toBeNull();
+        expect(editor.innerHTML).not.toContain('alert');
+        expect(seen).toHaveLength(1);
+        expect(historyLength(component) - before).toBe(1);
+    });
+
+    it('T-5b insertHtml is a no-op when nothing survives sanitization', () => {
+        caretAfterHello();
+        const seen: string[] = [];
+        component.registerOnChange(v => seen.push(v));
+        const before = historyLength(component);
+
+        component.insertHtml('<script>alert(1)</script>');
+
+        expect(editor.textContent).toBe('Hello');
+        expect(seen).toHaveLength(0);
+        expect(historyLength(component)).toBe(before);
+    });
+
+    it('T-6 format(command) delegates to onFormatCommand', () => {
+        const spy = vi.spyOn(component, 'onFormatCommand');
+
+        component.format('bold');
+
+        expect(spy).toHaveBeenCalledWith('bold');
+    });
+
+    it('T-6b format("bold") bolds the selection, records one entry, updates activeFormats and focuses', () => {
+        const p = editor.querySelector('p') as HTMLParagraphElement;
+        selectAllOf(p);
+        component.saveSelection();
+        (document.activeElement as HTMLElement | null)?.blur();
+        const before = historyLength(component);
+
+        component.format('bold');
+
+        expect(editor.querySelector('b, strong')).not.toBeNull();
+        expect(historyLength(component) - before).toBe(1);
+        expect(component.activeFormats().has('bold')).toBe(true);
+        expect(document.activeElement).toBe(editor);
+    });
+
+    it('T-6c format() on a collapsed caret still runs the command', () => {
+        caretAfterHello();
+        const spy = vi.spyOn(component, 'onFormatCommand');
+
+        component.format('italic');
+
+        expect(spy).toHaveBeenCalledWith('italic');
+        expect(component.activeFormats().has('italic')).toBe(true);
+    });
+
+    it('T-7 format rejects textStyle, find, undo, redo and unknown ids at the type level', () => {
+        // @ts-expect-error — 'textStyle' is a select, not a format command.
+        const a = () => component.format('textStyle');
+        // @ts-expect-error — 'find' opens a panel, not a format.
+        const b = () => component.format('find');
+        // @ts-expect-error — undo has its own method.
+        const c = () => component.format('undo');
+        // @ts-expect-error — redo has its own method.
+        const d = () => component.format('redo');
+        // @ts-expect-error — not a toolbar command at all.
+        const e = () => component.format('nope');
+
+        expect([a, b, c, d, e]).toHaveLength(5);
+    });
+
+    it('T-8 undo() and redo() are public and mirror the shortcut path', () => {
+        const p = editor.querySelector('p') as HTMLParagraphElement;
+        p.textContent = 'Hello there';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+
+        component.undo();
+        expect(editor.textContent).toBe('Hello');
+
+        component.redo();
+        expect(editor.textContent).toBe('Hello there');
+    });
+
+    it('T-8c undo() and redo() are no-ops at the ends of the stack', () => {
+        const seen: RichTextHistoryState[] = [];
+        component.historyChange.subscribe(s => seen.push(s));
+
+        component.redo();
+        expect(editor.textContent).toBe('Hello');
+        expect(seen).toHaveLength(0);
+
+        while (component.canUndo()) component.undo();
+        const atStart = editor.innerHTML;
+        seen.length = 0;
+
+        component.undo();
+        expect(editor.innerHTML).toBe(atStart);
+        expect(seen).toHaveLength(0);
+    });
+
+    it('T-8d historyChange emits on each effective undo and redo', () => {
+        const p = editor.querySelector('p') as HTMLParagraphElement;
+        p.textContent = 'Hello there';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        component.flushPendingHistoryPush();
+        const seen: RichTextHistoryState[] = [];
+        component.historyChange.subscribe(s => seen.push(s));
+
+        component.undo();
+        expect(seen).toHaveLength(1);
+        expect(seen.at(-1)?.canRedo).toBe(true);
+
+        component.redo();
+        expect(seen).toHaveLength(2);
+        expect(seen.at(-1)?.canRedo).toBe(false);
+    });
+
+    it.each(EMPTINESS_FIXTURES)('T-9 isEmpty() is %s for %j', (value, expected) => {
+        component.setContent(value);
+
+        expect(component.isEmpty()).toBe(expected);
+    });
+
+    it('T-9b isEmpty() tracks typing', () => {
+        component.setContent('');
+        expect(component.isEmpty()).toBe(true);
+
+        editor.innerHTML = '<p>typed</p>';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+
+        expect(component.isEmpty()).toBe(false);
+    });
+
+    it('T-10 has no getSelectionSnapshot member; selection() is the snapshot', () => {
+        expect('getSelectionSnapshot' in component).toBe(false);
+        expect(typeof component.selection).toBe('function');
+        expect(component.selection()).toMatchObject({ kind: expect.any(String), text: expect.any(String) });
+    });
+
+    it.each(EMPTINESS_FIXTURES)('T-18 isEmpty() and isRichTextEmpty agree on %j', (value, expected) => {
+        component.setContent(value);
+
+        expect(component.isEmpty()).toBe(isRichTextEmpty(value));
+        expect(component.isEmpty()).toBe(expected);
+    });
+});
+
+/** A locale dictionary for the fake addon used by the cascade tests. */
+interface FakeAddonLocale extends LocaleMeta {
+    hello: string;
+}
+
+const FAKE_ADDON_LOCALES: Record<string, FakeAddonLocale> = {
+    en: { code: 'en', hello: 'Hello' },
+    he: { code: 'he', rtl: true, hello: 'שלום' },
+};
+
+const FAKE_ADDON_LOCALES_WITH_FR: Record<string, FakeAddonLocale> = {
+    ...FAKE_ADDON_LOCALES,
+    fr: { code: 'fr', hello: 'Bonjour' },
+};
+
+@Directive({ selector: 'ui-rich-text-editor[fakeLocaleAddon]' })
+class FakeLocaleAddonDirective {
+    readonly fakeLocale = input<LocaleInput<FakeAddonLocale>>();
+    readonly t = createLocaleBindings(this.fakeLocale, FAKE_ADDON_LOCALES).t;
+}
+
+@Directive({ selector: 'ui-rich-text-editor[fakeLocaleAddonFr]' })
+class FakeLocaleAddonFrDirective {
+    readonly fakeLocale = input<LocaleInput<FakeAddonLocale>>();
+    readonly t = createLocaleBindings(this.fakeLocale, FAKE_ADDON_LOCALES_WITH_FR).t;
+}
+
+@Component({
+    imports: [RichTextEditorComponent, FakeLocaleAddonDirective, FakeLocaleAddonFrDirective],
+    template: `
+        @if (variant() === 'fr-token') {
+            <ui-rich-text-editor fakeLocaleAddonFr />
+        } @else if (variant() === 'en-fallback') {
+            <ui-rich-text-editor fakeLocaleAddon />
+        } @else if (variant() === 'he-static') {
+            <ui-rich-text-editor locale="he" fakeLocaleAddon />
+        } @else if (variant() === 'he-overridden') {
+            <ui-rich-text-editor locale="he" fakeLocaleAddon fakeLocale="en" />
+        } @else if (variant() === 'bound-fr') {
+            <ui-rich-text-editor [locale]="locale()" fakeLocaleAddonFr />
+        } @else {
+            <ui-rich-text-editor [locale]="locale()" fakeLocaleAddon />
+        }
+    `,
+})
+class LocaleCascadeHost {
+    readonly variant = signal<string>('bound');
+    readonly locale = signal<string | RichTextLocale | undefined>(undefined);
+}
+
+describe('RichTextEditorComponent — locale cascade', () => {
+    /** Create the cascade host with the given variant and optional app-wide locale. */
+    const setup = async (variant: string, appLocale?: string) => {
+        await TestBed.configureTestingModule({
+            imports: [LocaleCascadeHost],
+            providers: appLocale ? [provideUiLocale(appLocale)] : [],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(LocaleCascadeHost);
+        fixture.componentInstance.variant.set(variant);
+        fixture.detectChanges();
+        return fixture;
+    };
+
+    /** Read the `hello` string the fake addon currently resolves. */
+    const hello = (
+        fixture: ComponentFixture<LocaleCascadeHost>,
+        type: typeof FakeLocaleAddonDirective | typeof FakeLocaleAddonFrDirective = FakeLocaleAddonDirective,
+    ): string =>
+        (fixture.debugElement.query(By.directive(type)).injector.get(type) as { t: () => FakeAddonLocale })
+            .t().hello;
+
+    afterEach(() => TestBed.resetTestingModule());
+
+    it('T-37 with no editor locale the addon follows the app-wide token when the registry has it', async () => {
+        const fixture = await setup('fr-token', 'fr');
+
+        expect(hello(fixture, FakeLocaleAddonFrDirective)).toBe('Bonjour');
+    });
+
+    it('T-37b falls back to en when the addon registry lacks the app-wide key', async () => {
+        const fixture = await setup('en-fallback', 'ja');
+
+        expect(hello(fixture)).toBe('Hello');
+    });
+
+    it('T-37c the editor locale cascades into an addon that did not bind its own', async () => {
+        const fixture = await setup('he-static');
+
+        expect(hello(fixture)).toBe('שלום');
+    });
+
+    it('T-37d the addon input wins over the editor locale', async () => {
+        const fixture = await setup('he-overridden');
+
+        expect(hello(fixture)).toBe('Hello');
+    });
+
+    it('T-38 a locale object with code "he" cascades as he', async () => {
+        const fixture = await setup('bound');
+        fixture.componentInstance.locale.set(RICH_TEXT_LOCALES['he']);
+        fixture.detectChanges();
+
+        expect(hello(fixture)).toBe('שלום');
+    });
+
+    it('T-38b an empty locale string falls through to the app-wide token', async () => {
+        const fixture = await setup('bound-fr', 'fr');
+        fixture.componentInstance.locale.set('');
+        fixture.detectChanges();
+
+        expect(hello(fixture, FakeLocaleAddonFrDirective)).toBe('Bonjour');
+    });
+
+    it('T-39 switching locale en → he at runtime re-localizes the addon', async () => {
+        const fixture = await setup('bound');
+        fixture.componentInstance.locale.set('en');
+        fixture.detectChanges();
+        expect(hello(fixture)).toBe('Hello');
+
+        fixture.componentInstance.locale.set('he');
+        fixture.detectChanges();
+
+        expect(hello(fixture)).toBe('שלום');
     });
 });
