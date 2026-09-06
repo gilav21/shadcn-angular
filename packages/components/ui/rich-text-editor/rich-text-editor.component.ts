@@ -588,9 +588,16 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             // selected cell with no marking at all. `box-shadow` layers above
             // the cell's own background, so every cell reads as selected
             // whatever colour the author gave it.
-            '[&_td.rte-cell-selected]:shadow-[inset_0_0_0_2px_var(--color-primary)]',
-            '[&_th.rte-cell-selected]:shadow-[inset_0_0_0_2px_var(--color-primary)]',
-            '[&_td.rte-cell-selected]:bg-primary/15 [&_th.rte-cell-selected]:bg-primary/25',
+            // A tint painted as an ::after overlay, not a background: a cell
+            // carrying its own inline background colour paints straight over
+            // `bg-*`, so a coloured cell showed no marking at all. An overlay
+            // layers above whatever the author set, and unlike an inset ring it
+            // reads as one continuous wash across the range rather than a boxed
+            // outline around every cell.
+            '[&_td.rte-cell-selected]:relative [&_th.rte-cell-selected]:relative',
+            '[&_.rte-cell-selected]:after:absolute [&_.rte-cell-selected]:after:inset-0',
+            '[&_.rte-cell-selected]:after:bg-primary/20 [&_.rte-cell-selected]:after:pointer-events-none',
+            '[&_.rte-cell-selected]:after:content-[""]',
             '[&_summary]:outline-none',
             'disabled:cursor-not-allowed',
         )
@@ -2754,7 +2761,15 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private collapseTextSelectionInEditor(): void {
         const selection = this.document.getSelection();
         if (!selection || selection.rangeCount === 0) return;
-        selection.collapseToStart();
+
+        // `collapseToStart()` is not enough during a drag. The browser extends
+        // the selection from its ANCHOR, so collapsing to the range start
+        // leaves the caret at the anchor and the very next mousemove extends
+        // from there again — which is why dragging downwards kept painting a
+        // text highlight while dragging upwards (anchor below, start above)
+        // appeared to work. Dropping the range entirely leaves nothing to
+        // extend from.
+        selection.removeAllRanges();
     }
 
     onEditorMouseDown(event: MouseEvent): void {
@@ -2870,6 +2885,15 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const anchorTable = this.tableCellSelectAnchor.closest('table');
         if (!anchorTable || cell.closest('table') !== anchorTable) return;
         this.updateCellSelection(this.tableCellSelectAnchor, cell);
+
+        // Once the drag leaves its starting cell the gesture is a CELL range,
+        // so drop the browser's text selection running underneath it. Left in
+        // place it painted a second, ragged highlight that wrapped across row
+        // ends. Dragging inside one cell keeps its text selection, which is
+        // still the right way to select part of a cell's contents.
+        if (this.tableCellSelected().length > 1) {
+            this.collapseTextSelectionInEditor();
+        }
     }
 
     private onTableCellSelectUp(): void {

@@ -294,8 +294,10 @@ describe('RichTextViewComponent — shared typography', () => {
         for (const chrome of [
             '[&_*]:outline-none',
             '[&_img]:cursor-pointer',
-            '[&_td.rte-cell-selected]:bg-primary/15',
-            '[&_th.rte-cell-selected]:bg-primary/25',
+            // The cell-selection tint is painted as an ::after overlay rather
+            // than a background, so it shows over a cell's own inline colour.
+            '[&_.rte-cell-selected]:after:bg-primary/20',
+            '[&_.rte-cell-selected]:after:absolute',
             '[&_summary]:outline-none',
             'disabled:cursor-not-allowed',
         ]) {
