@@ -1986,6 +1986,42 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         expect(details?.querySelector('summary')).toBeTruthy();
     });
 
+    // Pressing Tab twice in a row is the user-visible contract, and nothing
+    // covered it: the existing test re-seeds the caret with `caretIn` between
+    // indent and outdent, which papered over the moved item leaving the caret
+    // on the editor container. A second Tab then found no list item and
+    // inserted a literal tab into the list instead of indenting.
+    it('keeps the caret inside the item so a second indent still works', () => {
+        // Four items so the twice-indented one still has a previous sibling to
+        // nest under on the second pass; with three, "third" becomes the only
+        // child of the new list and correctly declines to indent further.
+        component.writeValue('<ul><li>a</li><li>b</li><li>c</li><li>d</li></ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelectorAll('li')[3].firstChild as Text, 1);
+
+        // No caretIn() between the two calls — that re-seeding is exactly what
+        // hid the bug in the existing test. The second indent must find the
+        // list item purely from the caret the first one left behind.
+        component.onFormatCommand('indent');
+        component.onFormatCommand('indent');
+
+        const selection = document.getSelection()!;
+        expect(selection.anchorNode?.parentElement?.closest('li')?.textContent).toContain('d');
+        expect(editor.innerHTML).not.toContain('\t');
+    });
+
+    it('keeps the caret inside the item when outdenting', () => {
+        component.writeValue('<ul><li>first<ul><li>nested</li></ul></li></ul>');
+        fixture.detectChanges();
+        const nested = editor.querySelector('li > ul > li')!;
+        caretIn(nested.firstChild as Text, 3);
+
+        component.onFormatCommand('outdent');
+
+        const selection = document.getSelection()!;
+        expect(selection.anchorNode?.parentElement?.closest('li')?.textContent).toContain('nested');
+    });
+
     it('indents a list item under the previous sibling, then outdents it back', () => {
         component.writeValue('<ul><li>first</li><li>second</li></ul>');
         fixture.detectChanges();
@@ -2197,6 +2233,26 @@ describe('RichTextEditorComponent — toolbar actions (link, image, color, font)
         component.applyInlineStyle({ color: '#ff0000' });
 
         expect(editor.innerHTML.toLowerCase()).toMatch(/color|ff0000|rgb\(255/);
+    });
+
+    // `savedRange` is captured on blur, so after clicking away and back it holds
+    // a COLLAPSED caret. A keyboard shortcut runs while the editor still holds a
+    // real selection; preferring the stale range there replaced that selection
+    // with an empty one, so `execCommand` no-opped, the caret jumped to the old
+    // click point, and only the toolbar toggle (computed separately) flipped.
+    it('formats the live selection, not a stale savedRange from the last blur', () => {
+        component.writeValue('<p>make me bold</p>');
+        fixture.detectChanges();
+        const p = editor.querySelector('p')!;
+
+        caretIn(p.firstChild as Text, 4);
+        component.onBlur();
+
+        selectContents(p);
+        component.onFormatCommand('bold');
+
+        expect(editor.querySelector('b, strong')?.textContent).toBe('make me bold');
+        expect(document.getSelection()?.toString()).toBe('make me bold');
     });
 
     it('applies a color using a savedRange when the live selection is collapsed elsewhere', () => {

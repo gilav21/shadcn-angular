@@ -98,10 +98,14 @@ describe('RichTextViewComponent', () => {
             '[&_h1]:', '[&_h2]:', '[&_h3]:', '[&_ul]:', '[&_ol]:', '[&_li]:',
             '[&_a]:', '[&_code]:', '[&_pre]:', '[&_img]:', '[&_table]:',
             '[&_td]:', '[&_th]:', '[&_details]:', '[&_summary]:', '[&_hr]:',
-            '[&_ul[data-task-list]]:', '[&_li[data-task]]:',
+            '[&_ul[data-task-list]]:', '[&_li[data-task]]:', '[&_blockquote]:',
         ]) {
             expect(flat, selector).toContain(selector);
         }
+        // A blockquote with no rule renders identically to a paragraph: the
+        // `> ` input rule and the toolbar button both "worked" in the DOM while
+        // the user saw no change at all. The border is what makes it visible.
+        expect(flat).toContain('[&_blockquote]:border-s-4');
         expect(flat).toContain('[&_h1]:text-3xl');
         expect(flat).toContain('[&_h1]:font-bold');
     });

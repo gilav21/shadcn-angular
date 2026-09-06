@@ -972,7 +972,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     focus(): void {
         if (this.isDisabled()) return;
         this.focusEditor();
-        this.restoreSelection();
+        // Deliberately the saved caret, not the live one: focusing an editable
+        // makes the browser drop a default caret at its start, which would
+        // otherwise be preferred and silently discard where the user was.
+        this.restoreSelection({ preferLive: false });
     }
 
     /**
@@ -1313,8 +1316,32 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.pushHistory();
     }
 
+    /**
+     * Leave a code block on the second Enter, dropping the trailing newline the
+     * first one added.
+     *
+     * Trims that newline from the LAST text node rather than reassigning
+     * `textContent` on the whole block: the wholesale assignment replaced every
+     * child with a single text node, so a multi-line block written with
+     * Shift+Enter collapsed into one line the moment the user pressed Enter
+     * twice to get out. Arrowing out never hit this path, which is why only
+     * double-Enter showed the damage.
+     */
     private exitCodeBlock(preElement: HTMLPreElement, textNode: Element | HTMLPreElement, textContent: string, selection: Selection): void {
-        textNode.textContent = textContent.slice(0, -1);
+        const walker = this.document.createTreeWalker(textNode, NodeFilter.SHOW_TEXT);
+        let last: Text | null = null;
+        let node = walker.nextNode() as Text | null;
+        while (node) {
+            last = node;
+            node = walker.nextNode() as Text | null;
+        }
+
+        if (last?.data.endsWith('\n')) {
+            last.data = last.data.slice(0, -1);
+        } else {
+            textNode.textContent = textContent.slice(0, -1);
+        }
+
         const p = this.document.createElement('p');
         p.innerHTML = '<br>';
         preElement.parentNode?.insertBefore(p, preElement.nextSibling);
@@ -2139,7 +2166,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     onFontSizeSelect(size: string): void {
         this.flushPendingHistoryPush();
-        this.restoreSelection();
+        this.restoreSelection({ preferLive: false });
 
         const mentionTargets = this.getMentionElementsInSelection();
 
@@ -2164,7 +2191,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.setMentionStyle(mentionTargets, 'fontSize', sizeVal);
 
         this.syncContentFromEditor();
-        this.focusEditor();
+        this.reSaveLiveSelection();
         this.pushHistory();
     }
 
@@ -2179,7 +2206,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     onFontFamilySelect(family: string): void {
         this.flushPendingHistoryPush();
-        this.restoreSelection();
+        this.restoreSelection({ preferLive: false });
 
         const mentionTargets = this.getMentionElementsInSelection();
 
@@ -2200,7 +2227,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
         this.setMentionStyle(mentionTargets, 'fontFamily', family);
         this.syncContentFromEditor();
-        this.focusEditor();
+        this.reSaveLiveSelection();
         this.pushHistory();
     }
 
@@ -2215,21 +2242,39 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return range.toString().length;
     }
 
+    /**
+     * Wrap the selection in `tagName`, leaving the caret where the user can
+     * carry on typing.
+     *
+     * With text selected the caret goes after the new element, so typing
+     * continues outside it — wrapping is finished. With a collapsed caret the
+     * element is created EMPTY, and parking the caret after it made the block
+     * unreachable: clicks and arrow keys could not enter a zero-length inline
+     * element, so the toolbar's inline-code button produced a box nothing could
+     * be typed into. There the caret goes inside, on a zero-width anchor,
+     * because a browser will not place one in a truly empty element.
+     */
     private wrapSelectionWithTag(tagName: string): void {
         const selection = this.document.getSelection();
-        if (selection && selection.rangeCount > 0) {
-            const range = selection.getRangeAt(0);
-            const element = this.document.createElement(tagName);
-            const fragment = range.extractContents();
-            element.appendChild(fragment);
-            range.insertNode(element);
+        if (!selection || selection.rangeCount === 0) return;
 
-            const newRange = this.document.createRange();
+        const range = selection.getRangeAt(0);
+        const wasCollapsed = range.collapsed;
+        const element = this.document.createElement(tagName);
+        element.appendChild(range.extractContents());
+        range.insertNode(element);
+
+        const newRange = this.document.createRange();
+        if (wasCollapsed) {
+            const anchor = this.document.createTextNode('​');
+            element.appendChild(anchor);
+            newRange.setStart(anchor, anchor.data.length);
+        } else {
             newRange.setStartAfter(element);
-            newRange.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(newRange);
         }
+        newRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
     }
 
     private insertCodeBlock(): void {
@@ -3510,12 +3555,29 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * No-op without a menu target; one history entry.
      */
     setCellColor(color: string): void {
+        const targets = this.cellColorTargets();
         this.closeTableContextMenu();
-        if (this.tableContextMenuTarget) {
-            this.tableContextMenuTarget.style.backgroundColor = color === 'transparent' ? '' : color;
-            this.syncContentFromEditor();
-            this.pushHistory();
+        if (targets.length === 0) return;
+
+        for (const cell of targets) {
+            cell.style.backgroundColor = color === 'transparent' ? '' : color;
         }
+        this.syncContentFromEditor();
+        this.pushHistory();
+    }
+
+    /**
+     * The cells a colour applies to: every cell in an active multi-cell
+     * selection, or the single right-clicked cell when there is none.
+     *
+     * Colouring only {@link tableContextMenuTarget} meant that selecting a
+     * range and picking a colour filled just the one cell the menu opened on,
+     * silently discarding the rest of the selection.
+     */
+    private cellColorTargets(): HTMLTableCellElement[] {
+        const selected = this.tableCellSelected();
+        if (selected.length > 0) return [...selected];
+        return this.tableContextMenuTarget ? [this.tableContextMenuTarget] : [];
     }
 
     private getParentListItem(): HTMLElement | null {
@@ -3566,9 +3628,65 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             }
             prevLi.appendChild(nestedList);
         }
+        const caret = this.captureCaretOffsetIn(li);
         nestedList.appendChild(li);
+        this.restoreCaretOffsetIn(li, caret);
 
         this.applyMutation({ focus: true, updateActiveFormats: true });
+    }
+
+    /**
+     * The caret's character offset within `block`, measured across every text
+     * node it contains, or `null` when the caret is elsewhere.
+     *
+     * Moving a list item re-parents the node the selection points at, which
+     * silently drops the caret onto the editor container. Capturing an offset
+     * before the move and reapplying it after keeps the caret where the user
+     * left it, so a second `Tab` still finds a list item to indent instead of
+     * falling through and inserting a literal tab.
+     */
+    private captureCaretOffsetIn(block: HTMLElement): number | null {
+        const selection = this.document.getSelection();
+        if (!selection || selection.rangeCount === 0) return null;
+        const range = selection.getRangeAt(0);
+        if (!block.contains(range.startContainer)) return null;
+
+        const walker = this.document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+        let offset = 0;
+        let node = walker.nextNode() as Text | null;
+        while (node) {
+            if (node === range.startContainer) return offset + range.startOffset;
+            offset += node.data.length;
+            node = walker.nextNode() as Text | null;
+        }
+        return offset;
+    }
+
+    /** Re-place a caret captured by {@link captureCaretOffsetIn} after a move. */
+    private restoreCaretOffsetIn(block: HTMLElement, offset: number | null): void {
+        if (offset === null) return;
+        const selection = this.document.getSelection();
+        if (!selection) return;
+
+        const walker = this.document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+        let remaining = offset;
+        let node = walker.nextNode() as Text | null;
+        let target: Text | null = null;
+        while (node) {
+            if (remaining <= node.data.length) { target = node; break; }
+            remaining -= node.data.length;
+            node = walker.nextNode() as Text | null;
+        }
+        if (!target) {
+            target = this.emptyBlockCaretTarget(block);
+            remaining = target.data.length;
+        }
+
+        const range = this.document.createRange();
+        range.setStart(target, Math.min(remaining, target.data.length));
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
     }
 
     private getListDepth(li: HTMLElement): number {
@@ -3597,11 +3715,13 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const grandparentList = grandparentLi.parentElement;
         if (!grandparentList) return;
 
+        const caret = this.captureCaretOffsetIn(li);
         grandparentList.insertBefore(li, grandparentLi.nextSibling);
 
         if (!parentList.hasChildNodes() || parentList.children.length === 0) {
             parentList.remove();
         }
+        this.restoreCaretOffsetIn(li, caret);
 
         this.applyMutation({ focus: true, updateActiveFormats: true });
     }
@@ -4322,6 +4442,25 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.editorDiv?.nativeElement?.focus();
     }
 
+    /**
+     * Re-capture the (still selected) range after a picker-driven mutation, so
+     * a second choice from the same open picker applies to the same text.
+     *
+     * The font handlers used to end with {@link focusEditor}, which collapses
+     * the selection: the first choice worked, then every later one in the same
+     * open picker silently did nothing because there was no longer anything
+     * selected to style. Colour picking already behaved correctly, which is why
+     * only the font controls showed the bug.
+     */
+    private reSaveLiveSelection(): void {
+        const editor = this.editorDiv?.nativeElement;
+        const selection = this.document.getSelection();
+        if (!editor || !selection || selection.rangeCount === 0) return;
+        const range = selection.getRangeAt(0);
+        if (!editor.contains(range.startContainer)) return;
+        this.savedRange = range.cloneRange();
+    }
+
     /** Registry of addon-contributed toolbar buttons (addon host surface). */
     readonly toolbarSlots = new AddonSlotRegistry<RichTextToolbarSlot>();
 
@@ -4446,25 +4585,39 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     /**
      * Restore the in-editor selection, trying three sources in order:
      *
-     * 1. An explicitly saved range, if it still lives in the editor.
-     * 2. The current selection, if it is already inside the editor.
+     * 1. The live selection, if it is already inside the editor.
+     * 2. An explicitly saved range, if it still lives in the editor.
      * 3. Otherwise the end of the editor content — covering an editor that was
      *    never focused, or a caret sitting in the toolbar or overlay UI (an
      *    addon picker's search field, say), so insertions always land in the
      *    text rather than nowhere.
+     *
+     * The live selection wins because `savedRange` is captured on blur, so it
+     * holds a *collapsed* caret from the last time focus left. A keyboard
+     * shortcut (`Mod+B`) runs while the editor still has focus and a real
+     * selection: preferring the stale range there replaced the user's
+     * selection with an empty one, `execCommand` became a no-op, and the
+     * caret jumped to wherever they had last clicked away from — while the
+     * toolbar toggle, computed separately, still flipped to "on". Toolbar
+     * clicks are unaffected: the button blurs the editor first, so the live
+     * selection is no longer inside it and step 2 applies as before.
      */
-    restoreSelection(): void {
+    restoreSelection(options?: { preferLive?: boolean }): void {
         const editor = this.editorDiv?.nativeElement;
         if (!editor) return;
         const selection = this.document.getSelection();
         if (!selection) return;
+        if (
+            options?.preferLive !== false &&
+            selection.rangeCount > 0 &&
+            editor.contains(selection.getRangeAt(0).startContainer)
+        ) {
+            return;
+        }
         if (this.savedRange && editor.contains(this.savedRange.startContainer)) {
             this.focusEditor();
             selection.removeAllRanges();
             selection.addRange(this.savedRange);
-            return;
-        }
-        if (selection.rangeCount > 0 && editor.contains(selection.getRangeAt(0).startContainer)) {
             return;
         }
         this.focusEditor();

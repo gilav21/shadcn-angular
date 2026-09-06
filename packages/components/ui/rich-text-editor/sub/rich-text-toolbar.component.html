@@ -13,6 +13,7 @@
         <select
           data-slot="rich-text-toolbar-text-style"
           class="h-8 cursor-pointer appearance-none truncate rounded-md border-0 bg-transparent pe-5 ps-1 text-sm
+                 [color-scheme:light] dark:[color-scheme:dark]
                  max-w-[7rem] sm:max-w-[9rem]
                  focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring
                  disabled:cursor-not-allowed
@@ -25,7 +26,16 @@
           (mousedown)="$event.stopPropagation()"
         >
           @for (option of textStyleOptions; track option) {
-            <option [value]="option" [selected]="option === textStyleValue()">
+            <!-- The popup list is painted by the OS, which ignores the select's
+                 own `bg-transparent` and defaults to white-on-white under a
+                 dark theme. Naming both colours on the option is what makes it
+                 legible; `color-scheme` on the select tells the OS which
+                 scrollbar and highlight to draw. -->
+            <option
+              class="bg-popover text-popover-foreground"
+              [value]="option"
+              [selected]="option === textStyleValue()"
+            >
               {{ locale().toolbar[option] }}
             </option>
           }
