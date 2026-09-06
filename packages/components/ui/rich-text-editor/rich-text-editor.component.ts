@@ -3587,6 +3587,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * cells are replaced, not renamed. No-op without a context-menu target or on
      * an empty table; one history entry.
      */
+    /**
+     * Turn the table's first row into a `<thead>` of `<th>`, or back again.
+     *
+     * Each cell is REPLACED rather than mutated, which detaches the element
+     * {@link tableContextMenuTarget} points at. Without re-pointing it, the
+     * next call found a cell with no `closest('table')`, bailed out, and the
+     * toggle appeared to work once and then stick — header on, never off.
+     */
     toggleTableHeaderRow(): void {
         this.closeTableContextMenu();
         const info = this.getTableCellInfo(this.tableContextMenuTarget);
@@ -3604,7 +3612,9 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             for (const cell of cells) {
                 const td = this.document.createElement('td');
                 td.innerHTML = cell.innerHTML;
+                const wasTarget = cell === this.tableContextMenuTarget;
                 cell.replaceWith(td);
+                if (wasTarget) this.tableContextMenuTarget = td;
             }
             tbody.insertBefore(firstRow, tbody.firstChild);
             if (thead.children.length === 0) thead.remove();
@@ -3614,7 +3624,9 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             for (const cell of cells) {
                 const th = this.document.createElement('th');
                 th.innerHTML = cell.innerHTML;
+                const wasTarget = cell === this.tableContextMenuTarget;
                 cell.replaceWith(th);
+                if (wasTarget) this.tableContextMenuTarget = th;
             }
             newThead.appendChild(firstRow);
             info.table.insertBefore(newThead, info.table.firstChild);

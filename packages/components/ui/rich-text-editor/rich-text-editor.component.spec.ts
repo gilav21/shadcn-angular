@@ -2777,6 +2777,25 @@ describe('RichTextEditorComponent — tables', () => {
         expect(editor.querySelector('table')).toBeNull();
     });
 
+    // The two tests below each call targetCell() first, so they never exercise
+    // a SECOND toggle against the target the first one left behind. Toggling
+    // replaces every cell in the row, detaching the element the context-menu
+    // target pointed at; the next call then found no `closest('table')`, bailed
+    // out silently, and the header could be turned on but never off again.
+    it('toggles the header row off again without re-targeting the cell', () => {
+        editor.innerHTML = '<table><tbody><tr><td>c1</td><td>c2</td></tr><tr><td>d1</td><td>d2</td></tr></tbody></table>';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        const table = editor.querySelector('table')!;
+        targetCell(table.querySelector<HTMLTableCellElement>('td')!);
+
+        component.toggleTableHeaderRow();
+        expect(table.querySelectorAll('th')).toHaveLength(2);
+
+        component.toggleTableHeaderRow();
+        expect(table.querySelector('thead')).toBeNull();
+        expect(table.querySelectorAll('th')).toHaveLength(0);
+    });
+
     it('toggles a header row off (thead cells become tbody td)', () => {
         const table = seedTable();
         targetCell(table.querySelector<HTMLTableCellElement>('thead th')!);
