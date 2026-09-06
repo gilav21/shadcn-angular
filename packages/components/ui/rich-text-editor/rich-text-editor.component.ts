@@ -3602,36 +3602,46 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const firstRow = info.table.querySelector('tr');
         if (!firstRow) return;
         const thead = info.table.querySelector('thead');
-        if (thead) {
-            const existingTbody = info.table.querySelector('tbody');
-            const tbody = existingTbody ?? this.document.createElement('tbody');
-            if (!existingTbody) {
-                info.table.appendChild(tbody);
-            }
-            const cells = Array.from(firstRow.cells);
-            for (const cell of cells) {
-                const td = this.document.createElement('td');
-                td.innerHTML = cell.innerHTML;
-                const wasTarget = cell === this.tableContextMenuTarget;
-                cell.replaceWith(td);
-                if (wasTarget) this.tableContextMenuTarget = td;
-            }
-            tbody.insertBefore(firstRow, tbody.firstChild);
-            if (thead.children.length === 0) thead.remove();
-        } else {
-            const newThead = this.document.createElement('thead');
-            const cells = Array.from(firstRow.cells);
-            for (const cell of cells) {
-                const th = this.document.createElement('th');
-                th.innerHTML = cell.innerHTML;
-                const wasTarget = cell === this.tableContextMenuTarget;
-                cell.replaceWith(th);
-                if (wasTarget) this.tableContextMenuTarget = th;
-            }
-            newThead.appendChild(firstRow);
-            info.table.insertBefore(newThead, info.table.firstChild);
-        }
+        if (thead) this.demoteHeaderRow(info.table, firstRow, thead);
+        else this.promoteHeaderRow(info.table, firstRow);
         this.applyMutation({ focus: true });
+    }
+
+    /** Move the header row back into the body, its `<th>` becoming `<td>`. */
+    private demoteHeaderRow(table: HTMLTableElement, firstRow: HTMLTableRowElement, thead: Element): void {
+        const existingTbody = table.querySelector('tbody');
+        const tbody = existingTbody ?? this.document.createElement('tbody');
+        if (!existingTbody) table.appendChild(tbody);
+
+        this.retagRowCells(firstRow, 'td');
+        tbody.insertBefore(firstRow, tbody.firstChild);
+        if (thead.children.length === 0) thead.remove();
+    }
+
+    /** Lift the first row into a new `<thead>`, its `<td>` becoming `<th>`. */
+    private promoteHeaderRow(table: HTMLTableElement, firstRow: HTMLTableRowElement): void {
+        const newThead = this.document.createElement('thead');
+        this.retagRowCells(firstRow, 'th');
+        newThead.appendChild(firstRow);
+        table.insertBefore(newThead, table.firstChild);
+    }
+
+    /**
+     * Rebuild every cell in `row` as `tagName`, carrying its markup over.
+     *
+     * Each cell is REPLACED, which detaches whatever
+     * {@link tableContextMenuTarget} pointed at — so the target is re-pointed
+     * at the new cell. Without that the next toggle found a cell with no
+     * `closest('table')` and silently did nothing.
+     */
+    private retagRowCells(row: HTMLTableRowElement, tagName: 'td' | 'th'): void {
+        for (const cell of Array.from(row.cells)) {
+            const replacement = this.document.createElement(tagName);
+            replacement.innerHTML = cell.innerHTML;
+            const wasTarget = cell === this.tableContextMenuTarget;
+            cell.replaceWith(replacement);
+            if (wasTarget) this.tableContextMenuTarget = replacement;
+        }
     }
 
     /**
