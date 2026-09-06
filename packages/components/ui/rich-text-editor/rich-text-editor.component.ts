@@ -1150,6 +1150,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
         this.lastInputRule = null;
 
+        if (event.key === 'Backspace' && this.handleBackspaceInTaskList(event)) return;
+
         if (event.key === 'Escape') {
             this.showFloatingToolbar.set(false);
         }
@@ -1187,7 +1189,51 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (this.handleEnterInTaskList(event, selection)) return;
         if (this.handleEnterInSummary(event, range, selection)) return;
         if (this.handleEnterAtDetailsEnd(event, range, selection)) return;
+        if (this.handleEnterInBlockquote(event, range, selection)) return;
+        if (this.handleEnterInInlineCode(event, range, selection)) return;
         this.handleEnterInCodeBlock(event, range, selection);
+    }
+
+    /**
+     * Break out of an inline `<code>` span on Enter, into a plain paragraph.
+     *
+     * The browser splits the enclosing paragraph on Enter and clones the inline
+     * formatting into the new one, so pressing Enter inside inline code landed
+     * the caret in a SECOND empty `<code>` — the span propagated forward and
+     * there was no way to type unformatted text again. Blocks already exit on
+     * Enter; inline code now matches, and `Shift+Enter` still gives a line
+     * break that keeps the formatting.
+     */
+    private handleEnterInInlineCode(event: KeyboardEvent, range: Range, selection: Selection): boolean {
+        const code = this.findAncestorByTag(range.startContainer, 'CODE');
+        if (!code || this.findAncestorByTag(range.startContainer, 'PRE')) return false;
+
+        const block = this.findBlockAncestor(code) ?? code.parentElement;
+        if (!block) return false;
+
+        event.preventDefault();
+
+        const p = this.document.createElement('p');
+        p.innerHTML = '<br>';
+        block.parentNode?.insertBefore(p, block.nextSibling);
+        this.setSelectionRange(selection, p, 0);
+
+        this.syncContentFromEditor();
+        this.pushHistory();
+        return true;
+    }
+
+    /** The nearest block-level ancestor of `node` within the editable. */
+    private findBlockAncestor(node: Node): HTMLElement | null {
+        const blocks = new Set(['P', 'DIV', 'LI', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE']);
+        let current: Node | null = node;
+        while (current && current !== this.editorDiv?.nativeElement) {
+            if (current.nodeType === Node.ELEMENT_NODE && blocks.has((current as Element).tagName)) {
+                return current as HTMLElement;
+            }
+            current = current.parentNode;
+        }
+        return null;
     }
 
     /**
@@ -1216,6 +1262,69 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.pushHistory();
         this.updateActiveFormats();
         return true;
+    }
+
+    /**
+     * Backspace at the start of a task-list item removes that item, or unwraps
+     * the list when it is the only one left.
+     *
+     * The browser cannot do this itself: an item is
+     * `<li><input type="checkbox"><span>…</span></li>`, so the caret at offset 0
+     * of the span has a non-editable `<input>` before it and the default
+     * Backspace has nothing it is willing to delete — the key appeared dead.
+     * Pressing ArrowLeft first moved the caret onto the checkbox, where the
+     * default then deleted the whole row, which is the "buggy" behaviour that
+     * made the key look intermittent.
+     */
+    private handleBackspaceInTaskList(event: KeyboardEvent): boolean {
+        const selection = this.document.getSelection();
+        if (!selection || selection.rangeCount === 0) return false;
+        const range = selection.getRangeAt(0);
+        if (!range.collapsed) return false;
+
+        const taskLi = this.getParentTaskListItem();
+        if (!taskLi) return false;
+
+        const span = taskLi.querySelector('span');
+        if (!span || !span.contains(range.startContainer)) return false;
+
+        // Only at the very start of the row's text, allowing for the
+        // zero-width anchor the task builder seeds an empty row with.
+        const before = (range.startContainer.textContent ?? '').slice(0, range.startOffset);
+        if (before.replaceAll('​', '').length > 0) return false;
+
+        event.preventDefault();
+
+        const list = taskLi.parentElement;
+        const previous = taskLi.previousElementSibling as HTMLElement | null;
+        taskLi.remove();
+
+        if (list && list.children.length === 0) {
+            const p = this.document.createElement('p');
+            p.innerHTML = '<br>';
+            list.parentNode?.insertBefore(p, list);
+            list.remove();
+            this.setSelectionRange(selection, p, 0);
+        } else if (previous) {
+            const target = previous.querySelector('span') ?? previous;
+            this.placeCaretAtEndOf(target);
+        }
+
+        this.syncContentFromEditor();
+        this.pushHistory();
+        return true;
+    }
+
+    /** Put the caret after the last character of `element`. */
+    private placeCaretAtEndOf(element: Element): void {
+        const selection = this.document.getSelection();
+        if (!selection) return;
+        const target = this.emptyBlockCaretTarget(element as HTMLElement);
+        const range = this.document.createRange();
+        range.setStart(target, target.data.length);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
     }
 
     private handleEnterInTaskList(event: KeyboardEvent, selection: Selection): boolean {
@@ -1276,6 +1385,37 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return true;
     }
 
+    /**
+     * Leave a blockquote on Enter. `Shift+Enter` adds a line inside it and
+     * never reaches here, so the two keys mean exactly one thing each.
+     *
+     * Before this there was no way out at all: every following line stayed
+     * quoted and the only escape was deleting the quote. An empty-line
+     * two-step was tried first and rejected — the browser's own handling
+     * opened a SECOND sibling blockquote rather than a new line in the
+     * existing one, which renders as two bordered quotes with a gap.
+     */
+    private handleEnterInBlockquote(event: KeyboardEvent, range: Range, selection: Selection): boolean {
+        const quote = this.findAncestorByTag(range.startContainer, 'BLOCKQUOTE');
+        if (!quote) return false;
+
+        event.preventDefault();
+
+        const p = this.document.createElement('p');
+        p.innerHTML = '<br>';
+        quote.parentNode?.insertBefore(p, quote.nextSibling);
+        this.setSelectionRange(selection, p, 0);
+
+        // An Enter pressed on a blank quoted line leaves that line behind.
+        if (!quote.textContent?.replaceAll('​', '').trim()) {
+            quote.remove();
+        }
+
+        this.syncContentFromEditor();
+        this.pushHistory();
+        return true;
+    }
+
     private handleEnterAtDetailsEnd(event: KeyboardEvent, range: Range, selection: Selection): boolean {
         const detailsEl = this.findAncestorByTag(range.startContainer, 'DETAILS');
         if (!detailsEl) return false;
@@ -1305,13 +1445,13 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         event.preventDefault();
         const codeElement = preElement.querySelector('code');
         const textNode = codeElement ?? preElement;
-        const textContent = textNode.textContent ?? '';
 
-        if (textContent.endsWith('\n')) {
-            this.exitCodeBlock(preElement, textNode, textContent, selection);
-        } else {
-            this.insertNewlineInCodeBlock(range, selection);
-        }
+        // Enter always leaves the block; Shift+Enter is how you add a line
+        // inside it, and it never reaches here. The old two-step (Enter opens a
+        // blank line, a second Enter steps out) meant the exit had to detect
+        // and then unpick that blank line, which is what flattened multi-line
+        // blocks. One key, one meaning.
+        this.exitCodeBlock(preElement, textNode, selection, this.trailingBreakIn(textNode));
         this.syncContentFromEditor();
         this.pushHistory();
     }
@@ -1321,31 +1461,64 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * first one added.
      *
      * Trims that newline from the LAST text node rather than reassigning
-     * `textContent` on the whole block: the wholesale assignment replaced every
-     * child with a single text node, so a multi-line block written with
-     * Shift+Enter collapsed into one line the moment the user pressed Enter
-     * twice to get out. Arrowing out never hit this path, which is why only
-     * double-Enter showed the damage.
+     * Removes whichever blank line the first Enter left — a trailing `<br>`
+     * (what `Shift+Enter` actually inserts) or a trailing `"\n"` — instead of
+     * reassigning `textContent` on the whole block. That assignment replaced
+     * every child with one text node, so a multi-line block collapsed into a
+     * single line the moment the user pressed Enter twice to get out. Arrowing
+     * out never reached this path, which is why only double-Enter showed it.
      */
-    private exitCodeBlock(preElement: HTMLPreElement, textNode: Element | HTMLPreElement, textContent: string, selection: Selection): void {
-        const walker = this.document.createTreeWalker(textNode, NodeFilter.SHOW_TEXT);
-        let last: Text | null = null;
-        let node = walker.nextNode() as Text | null;
-        while (node) {
-            last = node;
-            node = walker.nextNode() as Text | null;
-        }
-
-        if (last?.data.endsWith('\n')) {
-            last.data = last.data.slice(0, -1);
-        } else {
-            textNode.textContent = textContent.slice(0, -1);
+    private exitCodeBlock(
+        preElement: HTMLPreElement,
+        textNode: Element | HTMLPreElement,
+        selection: Selection,
+        trailingBreak: HTMLBRElement | null,
+    ): void {
+        // Only tidy a blank line the user left behind with Shift+Enter; never
+        // reassign `textContent` on the block, which replaces every child with
+        // one text node and flattens a block whose lines are <br> elements.
+        const last = this.lastTextNodeIn(textNode);
+        if (last?.data.endsWith('\n') && !last.data.trim()) {
+            last.remove();
+        } else if (trailingBreak) {
+            trailingBreak.remove();
         }
 
         const p = this.document.createElement('p');
         p.innerHTML = '<br>';
         preElement.parentNode?.insertBefore(p, preElement.nextSibling);
         this.setSelectionRange(selection, p, 0);
+    }
+
+    /** The block's last text node, or `null` when it holds none. */
+    private lastTextNodeIn(root: Node): Text | null {
+        const walker = this.document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        let last: Text | null = null;
+        let node = walker.nextNode() as Text | null;
+        while (node) {
+            last = node;
+            node = walker.nextNode() as Text | null;
+        }
+        return last;
+    }
+
+    /**
+     * The `<br>` that ends the block, if the last meaningful child is one.
+     *
+     * `Shift+Enter` inserts a `<br>` rather than a `"\n"`, so a block built
+     * that way carries no newline in `textContent` at all — the exit check
+     * looked for one, never found it, and treated the second Enter as another
+     * newline. Reassigning `textContent` to trim it then flattened every child
+     * into a single text node, collapsing the block's lines into one.
+     */
+    private trailingBreakIn(root: Node): HTMLBRElement | null {
+        const children = [...root.childNodes];
+        for (let i = children.length - 1; i >= 0; i--) {
+            const node = children[i];
+            if (node.nodeType === Node.TEXT_NODE && !(node as Text).data.trim()) continue;
+            return node.nodeName === 'BR' ? (node as HTMLBRElement) : null;
+        }
+        return null;
     }
 
     private insertNewlineInCodeBlock(range: Range, selection: Selection): void {
@@ -1747,8 +1920,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         switch (command) {
             case 'bulletList': this.execEditorCommand('insertUnorderedList'); return true;
             case 'orderedList': this.execEditorCommand('insertOrderedList'); return true;
-            case 'indent': this.indentListItem(); return true;
-            case 'outdent': this.outdentListItem(); return true;
+            case 'indent': this.indentBlock(); return true;
+            case 'outdent': this.outdentBlock(); return true;
             case 'taskList': this.insertTaskList(); return true;
             case 'toggle': this.insertToggleBlock(); return true;
             default: return false;
@@ -2166,11 +2339,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     onFontSizeSelect(size: string): void {
         this.flushPendingHistoryPush();
-        this.restoreSelection({ preferLive: false });
+        this.restoreSelection();
 
         const mentionTargets = this.getMentionElementsInSelection();
 
         this.execEditorCommand('fontSize', '7');
+        const styled: HTMLElement[] = [];
         if (this.editorDiv?.nativeElement) {
             const fontElements = this.editorDiv.nativeElement.querySelectorAll('font[size="7"]');
 
@@ -2184,6 +2358,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
                     span.appendChild(el.firstChild);
                 }
                 el.parentNode?.replaceChild(span, el);
+                styled.push(span);
             });
         }
 
@@ -2191,7 +2366,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.setMentionStyle(mentionTargets, 'fontSize', sizeVal);
 
         this.syncContentFromEditor();
-        this.reSaveLiveSelection();
+        this.reSaveLiveSelection(styled);
         this.pushHistory();
     }
 
@@ -2206,12 +2381,13 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     onFontFamilySelect(family: string): void {
         this.flushPendingHistoryPush();
-        this.restoreSelection({ preferLive: false });
+        this.restoreSelection();
 
         const mentionTargets = this.getMentionElementsInSelection();
 
         this.execEditorCommand('fontName', family);
 
+        const styled: HTMLElement[] = [];
         if (this.editorDiv?.nativeElement) {
             const fontElements = this.editorDiv.nativeElement.querySelectorAll(`font[face="${CSS.escape(family)}"]`);
             for (const font of Array.from(fontElements)) {
@@ -2222,12 +2398,13 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
                     span.appendChild(el.firstChild);
                 }
                 el.parentNode?.replaceChild(span, el);
+                styled.push(span);
             }
         }
 
         this.setMentionStyle(mentionTargets, 'fontFamily', family);
         this.syncContentFromEditor();
-        this.reSaveLiveSelection();
+        this.reSaveLiveSelection(styled);
         this.pushHistory();
     }
 
@@ -3609,6 +3786,55 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         });
     }
 
+    /**
+     * Indent the caret's block: nest a list item, or step a plain block right.
+     *
+     * The toolbar's Increase/Decrease Indent buttons used to call the list-only
+     * path, so pressing them anywhere outside a list did nothing at all — no
+     * markup change and no visible movement. Blocks now shift by a margin the
+     * sanitizer already allows, capped so a document cannot be indented off the
+     * edge of the page.
+     */
+    private indentBlock(): void {
+        if (this.getParentListItem()) {
+            this.indentListItem();
+            return;
+        }
+        this.stepBlockIndent(RichTextEditorComponent.BLOCK_INDENT_STEP);
+    }
+
+    /** Outdent the caret's block — the inverse of {@link indentBlock}. */
+    private outdentBlock(): void {
+        if (this.getParentListItem()) {
+            this.outdentListItem();
+            return;
+        }
+        this.stepBlockIndent(-RichTextEditorComponent.BLOCK_INDENT_STEP);
+    }
+
+    /** Shift the caret's block by `deltaRem`, clamped to 0…MAX_BLOCK_INDENT_REM. */
+    private stepBlockIndent(deltaRem: number): void {
+        const selection = this.document.getSelection();
+        if (!selection || selection.rangeCount === 0) return;
+        const block = this.findBlockAncestor(selection.getRangeAt(0).startContainer);
+        if (!block) return;
+
+        const current = Number.parseFloat(block.style.marginLeft) || 0;
+        const next = Math.min(
+            RichTextEditorComponent.MAX_BLOCK_INDENT_REM,
+            Math.max(0, current + deltaRem),
+        );
+        if (next === current) return;
+
+        // `margin-left`, not the logical `margin-inline-start`: the sanitizer's
+        // allow-list carries the physical property, so the logical one would be
+        // stripped on the next sync and the indent would vanish.
+        if (next === 0) block.style.removeProperty('margin-left');
+        else block.style.marginLeft = `${next}rem`;
+
+        this.applyMutation({ focus: true, updateActiveFormats: true });
+    }
+
     private indentListItem(): void {
         const li = this.getParentListItem();
         if (!li) return;
@@ -3716,6 +3942,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (!grandparentList) return;
 
         const caret = this.captureCaretOffsetIn(li);
+        this.reparentFollowingSiblings(li, parentList);
         grandparentList.insertBefore(li, grandparentLi.nextSibling);
 
         if (!parentList.hasChildNodes() || parentList.children.length === 0) {
@@ -3724,6 +3951,38 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.restoreCaretOffsetIn(li, caret);
 
         this.applyMutation({ focus: true, updateActiveFormats: true });
+    }
+
+    /**
+     * Move the items after `li` into a nested list beneath it, so outdenting
+     * `li` carries them along instead of stranding them.
+     *
+     * Outdenting the FIRST of several siblings used to leave the rest in the
+     * old list. That list then sat under the promoted item's former parent, so
+     * on screen the *second* item appeared to be the one that moved — the row
+     * the user had not put the caret on. Every list editor treats the items
+     * below as children of the item being promoted; this does the same.
+     */
+    private reparentFollowingSiblings(li: HTMLElement, parentList: HTMLElement): void {
+        const following: HTMLElement[] = [];
+        let sibling = li.nextElementSibling;
+        while (sibling) {
+            const next = sibling.nextElementSibling;
+            if (sibling.tagName === 'LI') following.push(sibling as HTMLElement);
+            sibling = next;
+        }
+        if (following.length === 0) return;
+
+        const listType = parentList.tagName === 'OL' ? 'ol' : 'ul';
+        let nested = li.querySelector(`:scope > ${listType}`);
+        if (!nested) {
+            nested = this.document.createElement(listType);
+            if (parentList.dataset['taskList'] !== undefined) {
+                (nested as HTMLElement).dataset['taskList'] = '';
+            }
+            li.appendChild(nested);
+        }
+        for (const item of following) nested.appendChild(item);
     }
 
     private insertTaskList(): void {
@@ -4452,10 +4711,27 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * selected to style. Colour picking already behaved correctly, which is why
      * only the font controls showed the bug.
      */
-    private reSaveLiveSelection(): void {
+    private reSaveLiveSelection(spans?: readonly HTMLElement[]): void {
         const editor = this.editorDiv?.nativeElement;
         const selection = this.document.getSelection();
-        if (!editor || !selection || selection.rangeCount === 0) return;
+        if (!editor || !selection) return;
+
+        // `execCommand` replaces the styled run with NEW nodes, so the range
+        // that was live a moment ago points at detached ones. Re-select across
+        // the spans the command just produced, keeping the same visible text
+        // selected so a second pick from the still-open picker restyles it
+        // instead of silently doing nothing.
+        if (spans && spans.length > 0) {
+            const range = this.document.createRange();
+            range.setStartBefore(spans[0]);
+            range.setEndAfter(spans[spans.length - 1]);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            this.savedRange = range.cloneRange();
+            return;
+        }
+
+        if (selection.rangeCount === 0) return;
         const range = selection.getRangeAt(0);
         if (!editor.contains(range.startContainer)) return;
         this.savedRange = range.cloneRange();
@@ -5136,6 +5412,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * every keystroke of a long paragraph.
      */
     private static readonly MAX_BLOCK_MARKER_LENGTH = 24;
+
+    /** One press of Increase/Decrease Indent, in rem. */
+    private static readonly BLOCK_INDENT_STEP = 2;
+
+    /** Ceiling for block indentation, so a document cannot be pushed off-page. */
+    private static readonly MAX_BLOCK_INDENT_REM = 12;
 
     /**
      * `inputType` prefixes and values that never complete a Markdown marker:

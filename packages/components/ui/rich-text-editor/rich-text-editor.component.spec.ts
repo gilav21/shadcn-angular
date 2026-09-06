@@ -3656,7 +3656,12 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         expect(editor.querySelector('details > p')?.textContent).toBe('not at end');
     });
 
-    it('Enter in a code block inserts a newline rather than a new paragraph', () => {
+    // Enter leaves a code block and Shift+Enter adds a line inside it — one key,
+    // one meaning. The old two-step (Enter opens a blank line, a second Enter
+    // steps out) forced the exit to detect and unpick that blank line, and that
+    // unpicking reassigned `textContent`, flattening a multi-line block into one
+    // line. Enter no longer inserts anything, so there is nothing to unpick.
+    it('Enter in a code block exits it, leaving the content untouched', () => {
         component.writeValue('<pre><code>line1</code></pre>');
         fixture.detectChanges();
         const codeText = editor.querySelector('code')!.firstChild as Text;
@@ -3666,7 +3671,8 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         component.onKeydown(ev);
 
         expect(ev.defaultPrevented).toBe(true);
-        expect(editor.querySelector('code')?.textContent).toContain('\n');
+        expect(editor.querySelector('code')?.textContent).toBe('line1');
+        expect(editor.querySelector('pre + p')).toBeTruthy();
     });
 
     it('Enter at the end of a code block whose content ends with a newline exits the block', () => {
@@ -6377,13 +6383,14 @@ describe('RichTextEditorComponent — targeted branch coverage top-up', () => {
         expect(editor.querySelector('p')).toBeTruthy();
     });
 
-    it('Enter in a code block without a <code> child inserts a newline into the pre', () => {
+    it('Enter in a code block without a <code> child exits the pre', () => {
         component.writeValue('<pre>abc</pre>');
         fixture.detectChanges();
         const pre = editor.querySelector('pre')!;
         caretIn(pre.firstChild!, 3);
         component.onKeydown(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
-        expect(editor.querySelector('pre')!.textContent).toContain('\n');
+        expect(editor.querySelector('pre')!.textContent).toBe('abc');
+        expect(editor.querySelector('pre + p')).toBeTruthy();
     });
 
     it('onBeforeInput treats a missing editor as empty text', () => {
