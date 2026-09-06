@@ -2782,6 +2782,66 @@ describe('RichTextEditorComponent — tables', () => {
     // replaces every cell in the row, detaching the element the context-menu
     // target pointed at; the next call then found no `closest('table')`, bailed
     // out silently, and the header could be turned on but never off again.
+    // Spreadsheet-style cell picking. Dragging selects cells AS TEXT, which
+    // wraps across row ends (a blue band spilling over the row above) and left
+    // it ambiguous what a following command would hit.
+    const cellMouseDown = (cell: HTMLTableCellElement, init: MouseEventInit) => {
+        cell.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0, ...init }));
+    };
+
+    it('Ctrl+click toggles individual cells and collapses the text selection', () => {
+        const table = seedTable();
+        const cells = Array.from(table.querySelectorAll('td'));
+
+        cellMouseDown(cells[0], { ctrlKey: true });
+        cellMouseDown(cells[3], { ctrlKey: true });
+
+        expect(component.tableCellSelected().map(c => c.textContent)).toEqual(['A1', 'B2']);
+        expect(document.getSelection()?.isCollapsed).toBe(true);
+
+        cellMouseDown(cells[0], { ctrlKey: true });
+        expect(component.tableCellSelected().map(c => c.textContent)).toEqual(['B2']);
+    });
+
+    it('Shift+click selects the rectangle from the anchor cell', () => {
+        const table = seedTable();
+        const cells = Array.from(table.querySelectorAll('td'));
+
+        cellMouseDown(cells[0], { ctrlKey: true });
+        cellMouseDown(cells[3], { shiftKey: true });
+
+        expect(component.tableCellSelected().map(c => c.textContent ?? '').sort((a, b) => a.localeCompare(b)))
+            .toEqual(['A1', 'A2', 'B1', 'B2']);
+    });
+
+    // The marker used to be `bg-primary/15`; a cell carrying its own inline
+    // background painted straight over it, so a coloured cell showed no sign of
+    // being selected at all.
+    it('marks a cell that has its own background colour', () => {
+        const table = seedTable();
+        const cell = table.querySelector('td')!;
+        cell.style.backgroundColor = '#fde68a';
+
+        cellMouseDown(cell, { ctrlKey: true });
+
+        expect(cell.classList.contains('rte-cell-selected')).toBe(true);
+        expect(cell.style.backgroundColor).toBe('rgb(253, 230, 138)');
+    });
+
+    it('applies an inline format to the selected cells only', () => {
+        const table = seedTable();
+        const cells = Array.from(table.querySelectorAll('td'));
+        cellMouseDown(cells[0], { ctrlKey: true });
+        cellMouseDown(cells[1], { ctrlKey: true });
+
+        component.onFormatCommand('bold');
+
+        expect(cells[0].querySelector('b, strong')).toBeTruthy();
+        expect(cells[1].querySelector('b, strong')).toBeTruthy();
+        expect(cells[2].querySelector('b, strong')).toBeNull();
+        expect(cells[3].querySelector('b, strong')).toBeNull();
+    });
+
     it('toggles the header row off again without re-targeting the cell', () => {
         editor.innerHTML = '<table><tbody><tr><td>c1</td><td>c2</td></tr><tr><td>d1</td><td>d2</td></tr></tbody></table>';
         editor.dispatchEvent(new Event('input', { bubbles: true }));

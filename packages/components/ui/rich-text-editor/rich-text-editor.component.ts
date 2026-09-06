@@ -583,6 +583,13 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             '[&_*]:outline-none',
             RICH_TEXT_PROSE_CLASSES,
             '[&_img]:cursor-pointer',
+            // An inset ring, not a background: a cell carrying its own inline
+            // background colour would paint straight over `bg-*`, leaving a
+            // selected cell with no marking at all. `box-shadow` layers above
+            // the cell's own background, so every cell reads as selected
+            // whatever colour the author gave it.
+            '[&_td.rte-cell-selected]:shadow-[inset_0_0_0_2px_var(--color-primary)]',
+            '[&_th.rte-cell-selected]:shadow-[inset_0_0_0_2px_var(--color-primary)]',
             '[&_td.rte-cell-selected]:bg-primary/15 [&_th.rte-cell-selected]:bg-primary/25',
             '[&_summary]:outline-none',
             'disabled:cursor-not-allowed',
@@ -1831,12 +1838,48 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * toolbar mode it finally collapses the selection past the new formatting
      * node so typing continues outside it.
      */
+    /**
+     * Run an inline format over every selected cell's contents.
+     *
+     * With cells picked as cells the text selection is collapsed, so
+     * `execCommand` has nothing to act on and Bold would silently do nothing.
+     * Each cell's contents are selected in turn and the command applied, so
+     * the visible selection is exactly what changes — no spill into the rows
+     * a text-range would have swept through.
+     *
+     * Returns `false` for anything that is not an inline mark (block types,
+     * lists, alignment) so those keep their normal caret-driven behaviour.
+     */
+    private applyCommandToSelectedCells(command: string): boolean {
+        const cells = this.tableCellSelected();
+        if (cells.length === 0) return false;
+        if (!RichTextEditorComponent.CELL_APPLICABLE_COMMANDS.has(command)) return false;
+
+        this.flushPendingHistoryPush();
+        const selection = this.document.getSelection();
+        if (!selection) return false;
+
+        for (const cell of cells) {
+            const range = this.document.createRange();
+            range.selectNodeContents(cell);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            this.executeFormatCommand(command, this.getMentionElementsInSelection());
+        }
+
+        selection.collapseToStart();
+        this.applyMutation({ updateActiveFormats: true });
+        return true;
+    }
+
     onFormatCommand(command: string): void {
         if (command === 'find') {
             this.openFindReplace(!this.readonly() && !this.isDisabled());
             return;
         }
         if (this.readonly() || this.isDisabled()) return;
+
+        if (this.applyCommandToSelectedCells(command)) return;
 
         this.restoreSelection();
         this.flushPendingHistoryPush();
@@ -2648,6 +2691,72 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * survives leaving the table. See {@link onEditorTouchStart} for the touch
      * equivalent.
      */
+    /**
+     * Spreadsheet-style cell picking: `Ctrl`/`Cmd`+click toggles one cell,
+     * `Shift`+click takes the rectangle from the anchor to the clicked cell.
+     *
+     * `Cmd` is honoured alongside `Ctrl` because on macOS `Ctrl`+click IS the
+     * context-menu gesture and would collide. Both paths collapse the text
+     * selection: a cell range highlighted as *text* wrapped across row ends
+     * (visible as a blue band spilling over the row above) and made it unclear
+     * what a following command would apply to. With the text selection gone,
+     * `tableCellSelected()` is the single source of truth for the commands
+     * that read it.
+     */
+    private handleModifiedCellClick(event: MouseEvent, cell: HTMLTableCellElement): boolean {
+        const toggling = event.ctrlKey || event.metaKey;
+        const ranging = event.shiftKey;
+        if (!toggling && !ranging) return false;
+
+        const table = cell.closest('table');
+        if (!table) return false;
+
+        event.preventDefault();
+
+        if (ranging && this.tableCellSelectAnchor && this.tableCellSelectAnchor.closest('table') === table) {
+            this.selectCellRange(this.tableCellSelectAnchor, cell);
+        } else if (toggling) {
+            this.toggleCellInSelection(cell);
+            this.tableCellSelectAnchor = cell;
+        } else {
+            this.applyCellSelection([cell]);
+            this.tableCellSelectAnchor = cell;
+        }
+
+        this.collapseTextSelectionInEditor();
+        return true;
+    }
+
+    /** Add `cell` to the current cell selection, or remove it if already in. */
+    private toggleCellInSelection(cell: HTMLTableCellElement): void {
+        const current = this.tableCellSelected();
+        const next = current.includes(cell)
+            ? current.filter(c => c !== cell)
+            : [...current, cell];
+        this.applyCellSelection(next);
+    }
+
+    /** Replace the cell selection, keeping the marker class in step. */
+    private applyCellSelection(cells: readonly HTMLTableCellElement[]): void {
+        for (const cell of this.tableCellSelected()) {
+            cell.classList.remove('rte-cell-selected');
+        }
+        for (const cell of cells) {
+            cell.classList.add('rte-cell-selected');
+        }
+        this.tableCellSelected.set([...cells]);
+    }
+
+    /**
+     * Drop the browser's text selection to a caret inside the editable, so a
+     * cell selection is the only thing highlighted.
+     */
+    private collapseTextSelectionInEditor(): void {
+        const selection = this.document.getSelection();
+        if (!selection || selection.rangeCount === 0) return;
+        selection.collapseToStart();
+    }
+
     onEditorMouseDown(event: MouseEvent): void {
         this.lastInputRule = null;
         if (this.readonly() || this.isDisabled()) return;
@@ -2661,6 +2770,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             }
             return;
         }
+
+        if (cell && this.handleModifiedCellClick(event, cell)) return;
 
         this.clearCellSelection();
 
@@ -2930,14 +3041,17 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         });
         const cells = this.collectCellsInBounds(grid, bounds);
 
-        this.clearCellSelection();
         const selected = Array.from(cells.values());
-        if (selected.length > 1) {
-            for (const cell of selected) {
-                cell.classList.add('rte-cell-selected');
-            }
-            this.tableCellSelected.set(selected);
+        this.applyCellSelection(selected.length > 1 ? selected : []);
+    }
+
+    /** Select the rectangle spanning `anchor` to `target` (Shift+click). */
+    private selectCellRange(anchor: HTMLTableCellElement, target: HTMLTableCellElement): void {
+        if (anchor === target) {
+            this.applyCellSelection([anchor]);
+            return;
         }
+        this.updateCellSelection(anchor, target);
     }
 
     private expandSelectionBounds(
@@ -3663,15 +3777,23 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (!info) return;
 
         const table = info.table;
-        const cells = Array.from(table.querySelectorAll<HTMLElement>('td, th'));
+        const allCells = Array.from(table.querySelectorAll<HTMLElement>('td, th'));
         const rows = Array.from(table.querySelectorAll('tr'));
+
+        // With cells picked, 'all' and 'none' act on just those; the geometric
+        // styles ('outer', 'horizontal') are defined by the table's shape and
+        // stay table-wide, since an outer edge of a partial selection is not a
+        // meaningful thing to draw.
+        const selected = this.tableCellSelected().filter(c => table.contains(c)) as HTMLElement[];
+        const scoped = selected.length > 0 && (style === 'all' || style === 'none');
+        const cells = scoped ? selected : allCells;
 
         const borderColor = cells.length > 0
             ? getComputedStyle(cells[0]).borderTopColor
             : 'currentColor';
         const borderVal = `1px solid ${borderColor}`;
 
-        this.clearTableBorders(table, cells);
+        this.clearTableBorders(scoped ? null : table, cells);
 
         switch (style) {
             case 'all':
@@ -3690,8 +3812,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.applyMutation({ focus: true });
     }
 
-    private clearTableBorders(table: HTMLTableElement, cells: HTMLElement[]): void {
-        table.style.border = '';
+    /** `table` is null when only some cells are being restyled, so the table's
+     *  own outer border must be left alone. */
+    private clearTableBorders(table: HTMLTableElement | null, cells: HTMLElement[]): void {
+        if (table) table.style.border = '';
         for (const cell of cells) {
             cell.style.border = '';
             cell.style.borderTop = '';
@@ -5434,6 +5558,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * every keystroke of a long paragraph.
      */
     private static readonly MAX_BLOCK_MARKER_LENGTH = 24;
+
+    /**
+     * Commands that make sense applied to each selected table cell in turn.
+     * Inline marks only — block types, lists and alignment stay caret-driven.
+     */
+    private static readonly CELL_APPLICABLE_COMMANDS = new Set([
+        'bold', 'italic', 'underline', 'strikethrough', 'code', 'clear',
+    ]);
 
     /** One press of Increase/Decrease Indent, in rem. */
     private static readonly BLOCK_INDENT_STEP = 2;
