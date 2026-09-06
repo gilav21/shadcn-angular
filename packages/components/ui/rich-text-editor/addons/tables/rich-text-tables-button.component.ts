@@ -3,6 +3,7 @@ import {
     Component,
     computed,
     inject,
+    DestroyRef,
     signal,
 } from '@angular/core';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
@@ -47,6 +48,12 @@ export class RichTextTablesButtonComponent {
     protected readonly gridRange: readonly number[] = [1, 2, 3, 4, 5, 6, 7, 8];
 
     protected readonly open = signal(false);
+    /** Membership in the toolbar's single-open-panel group. */
+    private readonly exclusive = this.host.registerExclusivePopover(() => this.open.set(false));
+
+    constructor() {
+        inject(DestroyRef).onDestroy(() => this.exclusive.release());
+    }
     protected readonly hoverRows = signal(0);
     protected readonly hoverCols = signal(0);
 
@@ -66,6 +73,7 @@ export class RichTextTablesButtonComponent {
 
     protected onOpenChange(next: boolean): void {
         if (next) {
+            this.exclusive.notifyOpened();
             this.context.onOpen();
         } else {
             this.resetHover();

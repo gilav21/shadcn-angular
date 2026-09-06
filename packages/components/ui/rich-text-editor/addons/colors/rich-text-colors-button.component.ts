@@ -3,6 +3,7 @@ import {
     ChangeDetectionStrategy,
     computed,
     inject,
+    DestroyRef,
     signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -64,6 +65,12 @@ export class RichTextColorsButtonComponent {
     protected readonly context = inject(RICH_TEXT_COLOR_BUTTON_CONTEXT);
 
     protected readonly open = signal(false);
+    /** Membership in the toolbar's single-open-panel group. */
+    private readonly exclusive = this.host.registerExclusivePopover(() => this.open.set(false));
+
+    constructor() {
+        inject(DestroyRef).onDestroy(() => this.exclusive.release());
+    }
     /**
      * Whether the user has actually touched the picker since it opened.
      *
@@ -119,6 +126,7 @@ export class RichTextColorsButtonComponent {
      */
     protected onOpenChange(next: boolean): void {
         if (next) {
+            this.exclusive.notifyOpened();
             this.userTouched = false;
             this.context.onOpen();
         }

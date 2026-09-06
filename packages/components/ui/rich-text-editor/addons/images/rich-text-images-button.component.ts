@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal, DestroyRef } from '@angular/core';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { cn } from '../../../../lib/utils';
 import { RichTextEditorAddonHost, RichTextToolbarViewContext } from '../..';
@@ -43,6 +43,12 @@ export class RichTextImagesButtonComponent {
     protected readonly context = inject(RICH_TEXT_IMAGES_BUTTON_CONTEXT);
 
     protected readonly open = signal(false);
+    /** Membership in the toolbar's single-open-panel group. */
+    private readonly exclusive = this.host.registerExclusivePopover(() => this.open.set(false));
+
+    constructor() {
+        inject(DestroyRef).onDestroy(() => this.exclusive.release());
+    }
     protected readonly icon: SafeHtml = this.domSanitizer.bypassSecurityTrustHtml(IMAGE_ICON);
 
     protected readonly locale = computed(() => this.context.locale());
@@ -63,6 +69,7 @@ export class RichTextImagesButtonComponent {
 
     protected onOpenChange(next: boolean): void {
         if (next) {
+            this.exclusive.notifyOpened();
             this.context.onOpen();
         }
         this.open.set(next);

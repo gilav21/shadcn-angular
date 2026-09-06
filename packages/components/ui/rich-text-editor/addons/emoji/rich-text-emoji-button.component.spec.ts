@@ -11,6 +11,7 @@ interface MockHost {
     disabled: WritableSignal<boolean>;
     isDisabled: WritableSignal<boolean>;
     readonly: WritableSignal<boolean>;
+    registerExclusivePopover: (close: () => void) => { notifyOpened: () => void; release: () => void };
 }
 
 interface ButtonProbe {
@@ -31,7 +32,12 @@ describe('RichTextEmojiButtonComponent', () => {
 
     function render(compact?: boolean): HTMLElement {
         const disabledSignal = signal(false);
-        host = { disabled: disabledSignal, isDisabled: disabledSignal, readonly: signal(false) };
+        host = {
+            disabled: disabledSignal,
+            isDisabled: disabledSignal,
+            readonly: signal(false),
+            registerExclusivePopover: () => ({ notifyOpened: () => {}, release: () => {} }),
+        };
         ctx = buildContext();
         const providers: Provider[] = [
             { provide: RichTextEditorAddonHost, useValue: host },

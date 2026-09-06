@@ -15,6 +15,7 @@ interface MockHost {
     disabled: WritableSignal<boolean>;
     isDisabled: WritableSignal<boolean>;
     readonly: WritableSignal<boolean>;
+    registerExclusivePopover: (close: () => void) => { notifyOpened: () => void; release: () => void };
 }
 
 interface ButtonProbe {
@@ -51,7 +52,12 @@ describe('RichTextColorsButtonComponent', () => {
 
     function render(kind: RichTextColorKind, compact?: boolean): HTMLElement {
         const disabledSignal = signal(false);
-        host = { disabled: disabledSignal, isDisabled: disabledSignal, readonly: signal(false) };
+        host = {
+            disabled: disabledSignal,
+            isDisabled: disabledSignal,
+            readonly: signal(false),
+            registerExclusivePopover: () => ({ notifyOpened: () => {}, release: () => {} }),
+        };
         ctx = buildContext(kind);
         const providers: Provider[] = [
             { provide: RichTextEditorAddonHost, useValue: host },

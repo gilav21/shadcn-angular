@@ -3,6 +3,7 @@ import {
     ChangeDetectionStrategy,
     computed,
     inject,
+    DestroyRef,
     signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -56,6 +57,12 @@ export class RichTextTypographyButtonComponent {
     protected readonly context = inject(RICH_TEXT_TYPOGRAPHY_BUTTON_CONTEXT);
 
     protected readonly open = signal(false);
+    /** Membership in the toolbar's single-open-panel group. */
+    private readonly exclusive = this.host.registerExclusivePopover(() => this.open.set(false));
+
+    constructor() {
+        inject(DestroyRef).onDestroy(() => this.exclusive.release());
+    }
 
     protected readonly icon: SafeHtml = this.domSanitizer.bypassSecurityTrustHtml(
         this.context.kind === 'size' ? SIZE_ICON : FAMILY_ICON,
@@ -77,6 +84,7 @@ export class RichTextTypographyButtonComponent {
 
     protected onOpenChange(next: boolean): void {
         if (next) {
+            this.exclusive.notifyOpened();
             this.context.onOpen();
         }
         this.open.set(next);

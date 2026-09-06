@@ -3,6 +3,8 @@ import {
     ChangeDetectionStrategy,
     computed,
     inject,
+    DestroyRef,
+    viewChild,
 } from '@angular/core';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { cn } from '../../../../lib/utils';
@@ -43,6 +45,18 @@ export class RichTextEmojiButtonComponent {
     private readonly toolbarView = inject(RichTextToolbarViewContext, { optional: true });
     protected readonly context = inject(RICH_TEXT_EMOJI_CONTEXT);
 
+    /**
+     * The picker owns its own open state, so this panel leaves the group by
+     * calling the picker's `hide()` rather than writing a local signal.
+     */
+    private readonly picker = viewChild.required(EmojiPickerComponent);
+    /** Membership in the toolbar's single-open-panel group. */
+    private readonly exclusive = this.host.registerExclusivePopover(() => this.picker().hide());
+
+    constructor() {
+        inject(DestroyRef).onDestroy(() => this.exclusive.release());
+    }
+
     protected readonly icon: SafeHtml =
         this.domSanitizer.bypassSecurityTrustHtml(EMOJI_ICON);
 
@@ -57,6 +71,12 @@ export class RichTextEmojiButtonComponent {
         'disabled:pointer-events-none disabled:opacity-50',
         this.toolbarView?.compact() ? 'p-1' : 'p-1.5',
     ));
+
+    protected onOpenChange(next: boolean): void {
+        if (next) {
+            this.exclusive.notifyOpened();
+        }
+    }
 
     protected onEmoji(emoji: string): void {
         if (this.interactionDisabled()) return;

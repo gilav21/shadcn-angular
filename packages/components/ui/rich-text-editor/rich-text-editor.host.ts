@@ -106,6 +106,17 @@ export interface RichTextSelectionSnapshot {
 }
 
 /**
+ * Membership handle in the toolbar's mutually-exclusive popover group,
+ * returned by {@link RichTextEditorAddonHost.registerExclusivePopover}.
+ */
+export interface RichTextExclusivePopover {
+    /** Announce that this panel just opened, closing every other member. */
+    readonly notifyOpened: () => void;
+    /** Leave the group. Call on teardown. */
+    readonly release: () => void;
+}
+
+/**
  * The stable extension surface a rich-text-editor addon reaches through DI
  * (`inject(RichTextEditorAddonHost)`). `RichTextEditorComponent` provides
  * itself as this token; the base never imports any addon. This is the one
@@ -114,6 +125,31 @@ export interface RichTextSelectionSnapshot {
 export abstract class RichTextEditorAddonHost {
     /** Toolbar slot registry the base renders after built-in items. */
     abstract readonly toolbarSlots: AddonSlotRegistry<RichTextToolbarSlot>;
+    /**
+     * Join the toolbar's mutually-exclusive popover group. **Every addon that
+     * contributes a toolbar panel MUST register here**: only one toolbar panel
+     * is ever open at a time, so opening one closes all the others.
+     *
+     * Pass a callback that closes YOUR panel — however your panel stores that
+     * state (a local `signal(false)`, or a two-way `open` model on a picker
+     * component you delegate to). Call `notifyOpened()` when your panel opens;
+     * the base then invokes every OTHER member's close callback, never your
+     * own. Call `release()` on teardown to leave the group.
+     *
+     * Scope is the toolbar only: persistent surfaces such as the find bar and
+     * the slash-command menu are deliberately not part of this group.
+     *
+     * ```ts
+     * private readonly exclusive = inject(RichTextEditorAddonHost)
+     *     .registerExclusivePopover(() => this.open.set(false));
+     *
+     * protected onOpenChange(next: boolean): void {
+     *     if (next) this.exclusive.notifyOpened();
+     *     this.open.set(next);
+     * }
+     * ```
+     */
+    abstract registerExclusivePopover(close: () => void): RichTextExclusivePopover;
     /**
      * THIS editor instance's slash-command registry. Addons register here, so
      * a command appears only in the editor whose element carries the addon

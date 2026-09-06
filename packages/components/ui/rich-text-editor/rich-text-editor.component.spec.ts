@@ -5573,6 +5573,29 @@ describe('RichTextEditorComponent - addon host', () => {
         }
     });
 
+    it('registerExclusivePopover closes every other registered panel when one opens', () => {
+        const host = fixture.debugElement.injector.get(RichTextEditorAddonHost);
+        const closed: string[] = [];
+        const a = host.registerExclusivePopover(() => closed.push('a'));
+        const b = host.registerExclusivePopover(() => closed.push('b'));
+        const c = host.registerExclusivePopover(() => closed.push('c'));
+
+        b.notifyOpened();
+        expect(closed).toEqual(['a', 'c']);
+
+        closed.length = 0;
+        a.notifyOpened();
+        expect(closed).toEqual(['b', 'c']);
+
+        closed.length = 0;
+        b.release();
+        a.notifyOpened();
+        expect(closed).toEqual(['c']);
+
+        a.release();
+        c.release();
+    });
+
     it('registerInputObserver receives the trigger-aware text on input', () => {
         const host = fixture.debugElement.injector.get(RichTextEditorAddonHost);
         const seen: string[] = [];

@@ -37,6 +37,7 @@ import { AddonSlotRegistry } from '../../lib/addon-slots';
 import {
     RichTextEditorAddonHost,
     type RichTextToolbarSlot,
+    type RichTextExclusivePopover,
     type RichTextSelectionSnapshot,
     type RichTextSelectionInlineStyle,
     type RichTextInlineStyle,
@@ -542,6 +543,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private historyDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     private shortcutHandle: ShortcutComponentHandle | null = null;
     private readonly keydownInterceptors = new Set<(event: KeyboardEvent) => boolean>();
+    private readonly exclusivePopovers = new Set<() => void>();
     private readonly inputObservers = new Set<(text: string, caretOffset: number) => void>();
     private readonly pasteInterceptors = new Set<(event: ClipboardEvent) => boolean>();
     private readonly dropInterceptors = new Set<(event: DragEvent) => boolean>();
@@ -2167,6 +2169,26 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     /** Register an addon keydown interceptor (addon host surface). */
+    /**
+     * Join the toolbar's mutually-exclusive popover group (addon host surface).
+     * Opening one member closes every other, restoring the single-open-panel
+     * rule the toolbar enforced structurally before the panels moved into
+     * addons.
+     */
+    registerExclusivePopover(close: () => void): RichTextExclusivePopover {
+        this.exclusivePopovers.add(close);
+        return {
+            notifyOpened: () => {
+                for (const other of this.exclusivePopovers) {
+                    if (other !== close) other();
+                }
+            },
+            release: () => {
+                this.exclusivePopovers.delete(close);
+            },
+        };
+    }
+
     registerKeydownInterceptor(interceptor: (event: KeyboardEvent) => boolean): () => void {
         this.keydownInterceptors.add(interceptor);
         return () => this.keydownInterceptors.delete(interceptor);
