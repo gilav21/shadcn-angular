@@ -912,4 +912,40 @@ describe('RichTextMarkdownService', () => {
             expect(service.toHtml('<p>Hello <b>World</b></p>')).toBe('<p>Hello <b>World</b></p>');
         });
     });
+
+    describe('fences inside other blocks (round-17 audit)', () => {
+        it('does not bake quote markers into a fence body', () => {
+            // Fences are lifted out before blockquote parsing, so the "> "
+            // markers ended up INSIDE the code, and each round-trip added
+            // another level -- the compounding corruption the lift was meant
+            // to stop, reintroduced for the quoted case.
+            const md = '> Note:\n> ```\n> code line\n> ```\n> Done.';
+            const html = service.toHtml(md);
+            const probe = document.createElement('div');
+            probe.innerHTML = html;
+            const code = probe.querySelector('pre code');
+            expect(code?.textContent).toBe('code line');
+        });
+
+        it('keeps a quoted fence stable across a round-trip', () => {
+            const md = '> ```\n> code line\n> ```';
+            const once = service.toMarkdown(service.toHtml(md));
+            const twice = service.toMarkdown(service.toHtml(once));
+            expect(twice).toBe(once);
+        });
+
+        it('reads an indented fence body without its indentation', () => {
+            // The list still splits around the fence -- parseLists does not carry
+            // indented block content inside an item, and teaching it to is a
+            // change to that parser, not to fence lifting. What is fixed here is
+            // the CONTENT: the body no longer carries the list indentation baked
+            // in, so the code itself is correct and stable across round-trips.
+            const md = '- step one\n  ```\n  npm install\n  ```\n- step two';
+            const probe = document.createElement('div');
+            probe.innerHTML = service.toHtml(md);
+            expect(probe.querySelector('pre code')?.textContent).toBe('npm install');
+            expect(probe.textContent).toContain('step one');
+            expect(probe.textContent).toContain('step two');
+        });
+    });
 });

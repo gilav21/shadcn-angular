@@ -292,12 +292,19 @@ export class RichTextMarkdownService {
         // U+E110/U+E111 itself and forge a token: restoreCodeFences would expand
         // it, so a fence body the author wrote once rendered twice, and an
         // out-of-range index silently erased surrounding text.
+        // The opening fence's own line prefix ("> " in a quote, indentation in
+        // a list item) is captured and stripped from every body line, then kept
+        // on the placeholder so the surrounding block still parses. Lifting the
+        // fence before blockquote and list parsing baked those markers INTO the
+        // code, and each round-trip added another level -- the same compounding
+        // corruption the lift was introduced to stop, reintroduced for nesting.
         return markdown.replaceAll(CODE_FENCE_OPEN, '').replaceAll(CODE_FENCE_CLOSE, '').replaceAll(
-            /(```|~~~)(\w*)\n([\s\S]*?)\1/g,
-            (_match, _fence: string, lang: string, code: string) => {
+            FENCE_PATTERN,
+            (_match, prefix: string, _fence: string, lang: string, code: string) => {
                 const langAttr = lang ? ` data-language="${lang}" class="language-${lang}"` : '';
-                const token = `${CODE_FENCE_OPEN}${store.length}${CODE_FENCE_CLOSE}`;
-                store.push(`<pre><code${langAttr}>${this.escapeHtml(code.trimEnd())}</code></pre>`);
+                const token = `${prefix}${CODE_FENCE_OPEN}${store.length}${CODE_FENCE_CLOSE}`;
+                const body = stripBlockPrefix(code, prefix);
+                store.push(`<pre><code${langAttr}>${this.escapeHtml(body.trimEnd())}</code></pre>`);
                 return token;
             },
         );
@@ -1160,4 +1167,31 @@ function pairedTagNames(text: string): ReadonlySet<string> {
         if (count > 0 && (closes.get(name) ?? 0) > 0) paired.add(name);
     }
     return paired;
+}
+
+/**
+ * A fenced block, with whatever prefix opens its line. The prefix is the quote
+ * markers and indentation that put the fence inside another block; body lines
+ * repeat it and must have it removed before the code is read.
+ */
+const FENCE_PATTERN = /^([ \t]*(?:> ?)*)(```|~~~)(\w*)\n([\s\S]*?)^\1?\2/gm;
+
+/** Remove `prefix` (and any looser quote/indent form of it) from each line. */
+function stripBlockPrefix(code: string, prefix: string): string {
+    if (!prefix) return code;
+    const quoteDepth = (prefix.match(/>/g) ?? []).length;
+    const indent = /^[ \t]*/.exec(prefix)?.[0] ?? '';
+    return code
+        .split('\n')
+        .map((line) => {
+            let rest = line;
+            for (let i = 0; i < quoteDepth; i++) {
+                rest = rest.replace(/^[ \t]*> ?/, '');
+            }
+            if (quoteDepth === 0 && indent && rest.startsWith(indent)) {
+                rest = rest.slice(indent.length);
+            }
+            return rest;
+        })
+        .join('\n');
 }
