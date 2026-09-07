@@ -364,3 +364,54 @@ Deliberately not fixed, recorded as decisions rather than defects:
   it is its own change with its own round-trip consequences, not an audit fix.
 - **Ctrl+H** — intercepted by Chrome's History shortcut before the page sees it.
   Not something the component can win.
+
+---
+
+## Round 15 — adversarial sweep (17 findings, all actionable ones fixed)
+
+A second no-context auditor. It also *disproved* four of its own hypotheses and
+retracted two false alarms rather than padding the list — the sanitizer core is
+genuinely solid (every classic XSS vector correctly stripped), no ReDoS exists
+(the suspicious pattern benchmarked flat at 0ms because its alternation
+branches are disjoint), undo/redo across the delta/keyframe boundary is
+byte-exact over 12 bursts, the toolbar roving tabindex *is* implemented, RTL is
+correctly wired, and 320px does not break the page.
+
+**Three of the top findings were regressions I introduced in earlier rounds** —
+the asymmetric `<` escape came from my round-12 edit to `escapeHtmlInContent`,
+and the fence-spoofing path from `protectRawTags`, which I extended. That is
+the argument for the independent-auditor loop in one line.
+
+| # | Severity | Finding | Fix | Commit |
+|---|---|---|---|---|
+| R15-1 | CRITICAL | `<u>` destroyed by markdown round-trip, compounding: `hello` → `hello</u>` → `hello</u></u>`, unbounded. The escape let `<u` through (`u` matches `\w`) but escaped `</u` (`/` does not). Default mode, default toolbar button — this ate user data on every persist. | Paired passthrough tags (`u`, `sub`, `sup`, `mark`, `kbd`, `ins`, `del`) are protected as pairs. | `dcf312ca` |
+| R15-2 | CRITICAL | Code blocks containing `</div>` escaped twice, rendering visible `&lt;/div&gt;`. | Fences lifted out before any escaping. | `dcf312ca` |
+| R15-3 | HIGH | **Mention spoofing.** `protectRawTags` lifted `<span>` out before the fence body was escaped and restored it *live*, so markup hidden in a code fence became a real element — forging `data-mention-id="admin"` in any app that treats it as an identity claim. | Same reorder: a fence is inert text, escaped exactly once. | `dcf312ca` |
+| R15-4 | HIGH | `isAllowedDataUrl` returned `true` unconditionally for `data:image/svg+xml`; the `src` path compensates via `sanitizeSvgDataUrl`, the `href` path never did. | `href` refuses the `data:` scheme outright. Chrome blocks top-level `data:` navigation, so this was an allow-list hole, not demonstrated execution — stated as such. | `fcc9e949` |
+| R15-5 | HIGH | Image align/delete buttons bound `(mousedown)` only — focusable and completely inert to Enter. | `(click)` bound alongside, with a `detail === 0` guard so a mouse press does not act twice. `aria-label` + `aria-pressed` added. | `9a1bf668` |
+| R15-6 | HIGH | `\u200B` caret anchors never removed once real text arrived. One ArrowRight from block start moved past the anchor, not the first letter, so the next character landed **before** it. One dead keypress per block. | Spent anchors swept on input, caret re-anchored. | `a76843cf` |
+| R15-7 | HIGH | `maxLength` counted raw `textContent` while the counter counted the stripped value — measured 12 vs 11. Input refused one character early per anchor, counter still showing room. | All four length reads go through one helper. | `a76843cf` |
+| R15-8 | MEDIUM | Tables emitted a separator row only when a row held a `<th>`, so headerless and colspan tables produced markdown `parseTables` refused — returning as a paragraph of literal pipes. | Separator always emitted, sized to the widest row counting colspan. | `1215882d` |
+| R15-9 | MEDIUM | `splitTableRow` compared a character against `'\\'` — a **two-character** string nothing can equal — so the pipe escape never fired. | Fixed to a single backslash. | `1215882d` |
+| R15-10 | MEDIUM | Eight resize handles were bare divs (no tabindex/role/name/keys) at 12×12px. | Focusable named buttons; arrow keys resize (Shift for larger steps); 44px hit area via inset pseudo-element, painted size unchanged. | `f2e45ed1` |
+| R15-13 | MEDIUM | `<style>` appended to `document.head` with no teardown, outliving every editor. | Refcounted: shared while any editor needs it, removed with the last. | `f2e45ed1` |
+| R15-14 | MEDIUM | Enter exiting a list produced `<div>`; every other block path builds `<p>`. | Dedicated branch exits into `<p>`; nested items still outdent. | `637608a3` |
+| R15-15 | LOW | 22 toolbar icon spans missing `aria-hidden` (one already had it). | Added. | `f2e45ed1` |
+| R15-16 | LOW | Overlay buttons used `[title]` as their only accessible name. | `aria-label` added. | `9a1bf668` |
+
+**R15-11 and R15-12** are the recurring "tests that lock in defects" pattern —
+a green test named *"keeps underline as `<u>`"* that only tested the outbound
+leg, and a code-block escaping test using an opening tag only, avoiding the
+broken case. Both are corrected in the fixes above. That is now **seven** such
+findings across all rounds; the shape is a reliable review heuristic, not a
+coincidence.
+
+**R15-17** (100MB file-import read into memory) is left as recorded. The
+auditor labelled it SUSPECTED and did not reproduce it; the bound is documented
+as deliberate. Flagged, not treated as a defect.
+
+Two of my own tests failed to discriminate and were caught by sabotage runs,
+not by passing: the `maxLength` test passed because the sweep had already
+removed the evidence (retargeted to put the anchor in a separate block), and
+the escaped-pipe test's input never carried the escape it claimed to test
+(`'\|'` in a TS single-quoted string is just `'|'`).
