@@ -546,3 +546,40 @@ Defects frozen into tests as asserted-correct: **ten** (two now mine).
 Regressions introduced while fixing other findings: **eleven**.
 The loop's main value is no longer finding bugs in the original code; it is
 catching the ones I add and the tests I write that cannot fail.
+
+---
+
+## Round 19 — adversarial sweep (8 findings, all fixed)
+
+A sixth no-context auditor, explicitly briefed to audit the **specs** as harshly
+as the source. That instruction paid for itself immediately.
+
+| # | Sev | Finding | Fix | Commit |
+|---|---|---|---|---|
+| R19-1 | CRITICAL | **My round-18 "per block" fix was a no-op.** I split into blocks, computed a set for each, then **unioned them into one document-wide set** — throwing the locality away again, while the comment claimed a fix the code did not implement. A genuine `<b>bold</b>` anywhere re-promoted every prose mention of `<b>` to markup: "wrap it in `<b>` tags" lost the word, and repeated round-trips fabricated an `<hr>` out of the wreckage. Reached through `writeValue`, so every form-bound markdown consumer. | Pairing travels with its block to the point of use. | `d1ff0a86` |
+| R19-2 | HIGH | **Open redirect, again.** `https:\evil.com` bypassed the guard: the schemeless backslash forms were rejected, but `https:` is on the scheme allowlist, so a scheme-qualified backslash authority never reached the authority check. Decorated `rel="noopener noreferrer"`, reading as vetted. | Checked before *and* after the scheme, in string code — the character class for this is easy to get subtly wrong, and wrong here is an open redirect. | `d1ff0a86` |
+| R19-3 | HIGH | `clampHeight` applied `maxWidth` — a **width** ceiling — to height, squashing every portrait image, contradicting that input's own docs. **My tests asserted the squashing as the contract.** | Shared minimum kept; width ceiling no longer applied to height. | `d1ff0a86` |
+| R19-4 | MEDIUM | The indented-fence fix held for **one pass**: `toMarkdown` flattened the fence to column zero, so the next `toHtml` no longer saw an indented token and it escaped the list. The test checked a single conversion, never a round-trip. | Fences inside a list item are re-emitted indented; the test round-trips. | `ee643063` |
+| R19-5 | MEDIUM | Nested blockquotes entirely unsupported — one `>` stripped, no recursion, second marker rendered as a literal character. | Recurses. | `ee643063` |
+| R19-6 | MEDIUM | Four `BLOCK_TAGS` entries unreachable because `blockToSplit` tests `BLOCK_CONTAINER_TAGS` first — dead weight reading as if handled. | Sets made disjoint. | `ee643063` |
+| R19-7 | LOW | `escapeEnclosingBlock` read a node's child index **after** possibly removing it, so `indexOf` returned -1 and the caret jumped to the start of the parent. | Insertion point captured first. | `ee643063` |
+| R19-8 | LOW | Counter read "0 / 120 characters" — my round-16 change interpolated the limit into the `{count}` slot. Ungrammatical and unlocalizable, the separator hardcoded in the template. | Localized phrase intact; limit follows as "(120 max)". | `ee643063` |
+
+### The lesson this round actually taught
+
+Both R19-1 and R19-2 were fixes that shipped **with a passing sabotage test**.
+My tests exercised a *degenerate* instance of each bug class — a lone stray
+closing tag (unpaired in both blocks, so the union was empty either way), and a
+*schemeless* backslash (never reaching the allowlist branch). Both tests fail
+under sabotage, so a mechanical "can this test fail?" check passes them, and
+both bugs were still live in their realistic form.
+
+**Sabotage-testing proves an assertion is load-bearing. It does not prove the
+input is representative.** That is a second, separate question, and this series
+had not been asking it. The new tests use the realistic shape; sabotaging R19-1
+now fails three tests where it used to fail one.
+
+### Scoreboard
+
+Defects frozen into tests as asserted-correct: **twelve** (four now mine).
+Regressions introduced while fixing other findings: **fourteen**.
