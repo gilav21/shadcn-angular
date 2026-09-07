@@ -123,6 +123,30 @@ function lzwResolveEntry(code: number, state: LZWState, prevEntry: Uint8Array | 
     return null;
 }
 
+/**
+ * Append the next dictionary entry — the previous run plus the first byte of the
+ * current one — and widen the code size when the table fills.
+ */
+function lzwExtendTable(state: LZWState, prevEntry: Uint8Array, nextByte: number, earlyChange: number): void {
+    const newEntry = new Uint8Array(prevEntry.length + 1);
+    newEntry.set(prevEntry);
+    newEntry[prevEntry.length] = nextByte;
+    state.table[state.nextCode] = newEntry;
+    state.nextCode++;
+    if (state.nextCode >= (1 << state.codeSize) - earlyChange && state.codeSize < 12) {
+        state.codeSize++;
+    }
+}
+
+/**
+ * LZWDecode, bounded by {@link MAX_DECODED_STREAM_BYTES}.
+ *
+ * LZW's dictionary rechains, so each successive code can emit a longer run than
+ * the last and a small stream can expand without limit — the same
+ * decompression-bomb shape the Flate path already guards against. The ceiling is
+ * checked as the output grows, so a hostile stream is stopped while it inflates
+ * rather than after it has exhausted memory.
+ */
 function decodeLZW(data: Uint8Array, earlyChange: number): Uint8Array {
     const output: number[] = [];
     const state: LZWState = { bitPos: 0, codeSize: 9, nextCode: 258, table: [] };
@@ -143,17 +167,9 @@ function decodeLZW(data: Uint8Array, earlyChange: number): Uint8Array {
         if (!entry) break;
 
         for (const byte of entry) output.push(byte);
+        if (output.length > MAX_DECODED_STREAM_BYTES) break;
 
-        if (prevEntry) {
-            const newEntry = new Uint8Array(prevEntry.length + 1);
-            newEntry.set(prevEntry);
-            newEntry[prevEntry.length] = entry[0];
-            state.table[state.nextCode] = newEntry;
-            state.nextCode++;
-            if (state.nextCode >= (1 << state.codeSize) - earlyChange && state.codeSize < 12) {
-                state.codeSize++;
-            }
-        }
+        if (prevEntry) lzwExtendTable(state, prevEntry, entry[0], earlyChange);
         prevEntry = entry;
     }
 
