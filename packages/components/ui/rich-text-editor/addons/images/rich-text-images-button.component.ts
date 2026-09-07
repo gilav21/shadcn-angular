@@ -79,9 +79,20 @@ export class RichTextImagesButtonComponent {
         this.open.set(next);
     }
 
-    protected onInsertUrl(src: string, alt: string): void {
-        if (this.interactionDisabled() || !src) return;
-        this.context.onInsertUrl(src, alt);
+    /**
+     * Insert the typed image, then empty the fields.
+     *
+     * They are uncontrolled inputs and the popover's content is not destroyed
+     * when it closes, so anything left behind survives to the next open — where
+     * the caret resumes at its old offset and new typing splices INTO the stale
+     * value, producing a mangled URL and a broken image. Takes the elements
+     * rather than their values so it can clear them.
+     */
+    protected onInsertUrl(src: HTMLInputElement, alt: HTMLInputElement): void {
+        if (this.interactionDisabled() || !src.value) return;
+        this.context.onInsertUrl(src.value, alt.value);
+        src.value = '';
+        alt.value = '';
         this.open.set(false);
     }
 

@@ -177,6 +177,34 @@ describe('RichTextHistoryPanelComponent', () => {
         expect(internals.interpolate('{count} left', { count: 4 })).toContain('4');
     });
 
+    describe('rendered preview', () => {
+        it('keeps inline colour that Angular would otherwise strip', () => {
+            // The preview bound the raw HTML string, so Angular's default
+            // sanitizer removed every style attribute and a revision containing
+            // coloured or highlighted text previewed as plain black — the panel
+            // showed the user something the revision never was.
+            const styled = '<span style="color: rgb(255, 0, 0)">red</span>';
+
+            const out = String(
+                (internals as unknown as { previewHtml(html: string): unknown }).previewHtml(styled),
+            );
+
+            expect(out).toContain('color');
+            expect(out).toContain('red');
+        });
+
+        it('still drops what the editor itself would never allow', () => {
+            const hostile = '<span style="color: red">ok</span>' + '<scr' + 'ipt>alert(1)</scr' + 'ipt>';
+
+            const out = String(
+                (internals as unknown as { previewHtml(html: string): unknown }).previewHtml(hostile),
+            );
+
+            expect(out).not.toContain('<script');
+            expect(out).toContain('ok');
+        });
+    });
+
     describe('selectedHistoryEntry', () => {
         it('is null when nothing is selected', () => {
             expect(internals.selectedHistoryEntry()).toBeNull();

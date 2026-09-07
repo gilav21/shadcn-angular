@@ -47,7 +47,7 @@ afterEach(() => {
 
 interface ButtonInternals {
     onOpenChange(next: boolean): void;
-    onInsertUrl(src: string, alt: string): void;
+    onInsertUrl(src: HTMLInputElement, alt: HTMLInputElement): void;
     onFileSelected(event: Event): void;
     readonly open: () => boolean;
     readonly showUrl: () => boolean;
@@ -146,14 +146,41 @@ describe('RichTextImagesButtonComponent', () => {
     it('inserts a URL and closes the popover', async () => {
         await setup();
         internals.onOpenChange(true);
-        internals.onInsertUrl('https://x/y.png', 'alt');
+        const field = (value: string) => Object.assign(document.createElement('input'), { value });
+        internals.onInsertUrl(field('https://x/y.png'), field('alt'));
         expect(onInsertUrl).toHaveBeenCalledWith('https://x/y.png', 'alt');
         expect(internals.open()).toBe(false);
     });
 
+    it('clears the URL and alt fields after an insert', async () => {
+        // The inputs are uncontrolled template refs, and the popover content is
+        // not destroyed on close — so whatever was typed stays in the DOM. The
+        // next open resumes at the old cursor position and splices new typing
+        // into the old value, producing a garbled URL and a broken image.
+        // Every other test here calls onInsertUrl() directly, which is why this
+        // never showed up: the bug lives in the fields, not the handler.
+        await setup();
+        internals.onOpenChange(true);
+        fixture.detectChanges();
+
+        const host = fixture.nativeElement as HTMLElement;
+        const url = host.querySelector<HTMLInputElement>('[data-slot="rte-images-url"]');
+        const alt = host.querySelector<HTMLInputElement>('[data-slot="rte-images-alt"]');
+        expect(url).not.toBeNull();
+        url!.value = 'https://example.test/a.png';
+        alt!.value = 'first alt';
+
+        internals.onInsertUrl(url!, alt!);
+        fixture.detectChanges();
+
+        expect(url!.value).toBe('');
+        expect(alt!.value).toBe('');
+    });
+
     it('ignores an empty URL', async () => {
         await setup();
-        internals.onInsertUrl('', 'alt');
+        const empty = (value: string) => Object.assign(document.createElement('input'), { value });
+        internals.onInsertUrl(empty(''), empty('alt'));
         expect(onInsertUrl).not.toHaveBeenCalled();
     });
 
@@ -161,7 +188,8 @@ describe('RichTextImagesButtonComponent', () => {
         await setup();
         disabled.set(true);
         fixture.detectChanges();
-        internals.onInsertUrl('https://x/y.png', 'alt');
+        const field = (value: string) => Object.assign(document.createElement('input'), { value });
+        internals.onInsertUrl(field('https://x/y.png'), field('alt'));
         expect(onInsertUrl).not.toHaveBeenCalled();
     });
 

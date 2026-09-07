@@ -41,9 +41,9 @@
           class="w-full"
           data-slot="rte-images-insert"
           [disabled]="interactionDisabled()"
-          (click)="onInsertUrl(imageSrc.value, imageAlt.value)"
-          (keydown.enter)="onInsertUrl(imageSrc.value, imageAlt.value)"
-          (keydown.space)="onInsertUrl(imageSrc.value, imageAlt.value)"
+          (click)="onInsertUrl(imageSrc, imageAlt)"
+          (keydown.enter)="onInsertUrl(imageSrc, imageAlt)"
+          (keydown.space)="onInsertUrl(imageSrc, imageAlt)"
         >
           {{ locale().insert }}
         </ui-button>

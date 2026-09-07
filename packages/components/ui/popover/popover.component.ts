@@ -62,10 +62,24 @@ export class PopoverComponent implements OnDestroy {
         this.hide();
     };
 
+    /**
+     * Escape closes the popover, as the class doc has always claimed and no
+     * handler ever did. Bound on the document rather than the host because
+     * focus is often inside a portalled panel — or, for the editor's pickers,
+     * still in the editable behind it — so a host-level listener would never
+     * see the key. Ignored while closed so it cannot swallow an Escape another
+     * layer wants.
+     */
+    private readonly escapeListener = (event: KeyboardEvent): void => {
+        if (event.key !== 'Escape' || !this.open()) return;
+        this.hide();
+    };
+
     private scrollCleanup: (() => void) | null = null;
 
     constructor() {
         this.document.addEventListener('click', this.clickListener);
+        this.document.addEventListener('keydown', this.escapeListener);
 
         effect(() => {
             const isOpen = this.open();
@@ -100,6 +114,7 @@ export class PopoverComponent implements OnDestroy {
 
     ngOnDestroy(): void {
         this.document.removeEventListener('click', this.clickListener);
+        this.document.removeEventListener('keydown', this.escapeListener);
         this.removeScrollListener();
     }
 

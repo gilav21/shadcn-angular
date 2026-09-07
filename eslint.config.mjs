@@ -193,6 +193,12 @@ export default tseslint.config(
       'packages/components/ui/rich-text-editor/addons/images/rich-text-images-resizer.component.ts',
       'packages/components/ui/rich-text-editor/addons/file-import/rich-text-file-import-button.component.ts',
       'packages/components/ui/rich-text-editor/sub/rich-text-toolbar.component.ts',
+      // Renders REVISION CONTENT, not a static icon — so unlike its neighbours
+      // here the input really is user data. It is put through the editor's own
+      // sanitizer first (the same allowlist as the live document); the bypass
+      // only stops Angular's second pass from stripping the style attributes
+      // that make the preview faithful. See docs/sonarqube-accepted-findings.md.
+      'packages/components/ui/rich-text-editor/addons/history/rich-text-history-panel.component.ts',
       'demo/src/app/demos/data-display/pdf-readable-compare-demo.component.ts',
       // Demo-only. Unlike every other entry here this one frames USER input,
       // and is documented separately in docs/sonarqube-accepted-findings.md.

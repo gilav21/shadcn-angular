@@ -78,6 +78,29 @@ describe('PopoverComponent', () => {
         expect(component.open()).toBe(true);
     });
 
+    it('closes on Escape', () => {
+        // The component's own doc comment promised this ("closed internally on
+        // an outside click, on Escape, and by ui-popover-close") but no handler
+        // ever implemented it, so every popover in the library — colour picker,
+        // font pickers, link, image, table — trapped the user until they
+        // clicked elsewhere.
+        component.show();
+        fixture.detectChanges();
+        expect(component.open()).toBe(true);
+
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        fixture.detectChanges();
+
+        expect(component.open()).toBe(false);
+    });
+
+    it('ignores Escape while already closed', () => {
+        expect(component.open()).toBe(false);
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        fixture.detectChanges();
+        expect(component.open()).toBe(false);
+    });
+
     it('should hide when hide() is called', () => {
         component.show();
         component.hide();

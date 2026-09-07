@@ -9,6 +9,8 @@ import {
     signal,
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
+import { RichTextSanitizerService } from '../../rich-text-sanitizer.service';
 import { RichTextEditorAddonHost } from '../..';
 import { interpolate } from '../../../../lib/i18n';
 import { ButtonComponent } from '../../../button';
@@ -56,7 +58,25 @@ type HistoryListType = 'popover' | 'dialog';
 })
 export class RichTextHistoryPanelComponent {
     private readonly host = inject(RichTextEditorAddonHost);
+    private readonly contentSanitizer = inject(RichTextSanitizerService);
+    private readonly domSanitizer = inject(DomSanitizer);
     private readonly el = inject(ElementRef);
+
+    /**
+     * A revision's HTML, safe to render with its styling intact.
+     *
+     * Two sanitizers are in play and only one of them should run. Angular's
+     * default pass strips every `style` attribute, so a revision containing
+     * coloured or highlighted text previewed as plain black — the panel showed
+     * the user something the revision never was. The editor's own sanitizer is
+     * the right authority here: it is the same allowlist that governs the live
+     * document, so nothing can render in this preview that could not already be
+     * sitting in the editor behind it. Marking the result trusted then keeps
+     * Angular's pass from second-guessing it.
+     */
+    protected previewHtml(html: string): SafeHtml {
+        return this.domSanitizer.bypassSecurityTrustHtml(this.contentSanitizer.sanitize(html));
+    }
 
     /** Localized strings for the panel UI. */
     readonly locale = input<RichTextHistoryLocale>(RICH_TEXT_HISTORY_LOCALES['en']);
