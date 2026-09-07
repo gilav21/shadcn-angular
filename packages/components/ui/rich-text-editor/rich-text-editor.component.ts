@@ -201,6 +201,12 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
 ];
 
 /** Tags that own a line of their own, so an incoming one cannot nest inside them. */
+/** Structures inside a quote that own their own Enter handling. */
+const QUOTE_STRUCTURE_TAGS = new Set(['UL', 'OL', 'LI', 'TABLE', 'TR', 'TD', 'TH', 'PRE', 'CODE', 'DETAILS']);
+
+/** Elements that legitimately contain block children, so a paste inside one needs no split. */
+const BLOCK_CONTAINER_TAGS = new Set(['TD', 'TH', 'LI', 'BLOCKQUOTE', 'DETAILS', 'FIGURE']);
+
 const BLOCK_TAGS = new Set(['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'PRE', 'TABLE', 'HR', 'DETAILS', 'FIGURE']);
 
 @Component({
@@ -452,13 +458,23 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     /**
      * Replace the editable's content, dropping references that the replacement
-     * invalidates. Every wholesale innerHTML write goes through here so a
-     * detached node can never survive as "the selected image".
+     * invalidates. Every wholesale innerHTML write goes through here, so no
+     * detached node survives as "the selected image" or "the selected cells".
+     *
+     * The cell references mattered as much as the image one: with a stale
+     * selection, applyCommandToSelectedCells saw a non-empty array, claimed it
+     * had handled the command, selected the contents of nodes no longer in the
+     * document -- which empties the selection -- and then collapseToStart()
+     * threw a DOMException. The user's formatting was silently dropped and the
+     * exception escaped to the console.
      */
     private replaceEditorHtml(html: string): void {
         if (!this.editorDiv) return;
         this.editorDiv.nativeElement.innerHTML = html;
         this.selectedImageNode.set(null);
+        this.tableCellSelected.set([]);
+        this.tableCellSelectAnchor = null;
+        this.tableContextMenuTarget = null;
     }
 
     /** Select `image`, or clear the selection with `null`. */
@@ -1529,6 +1545,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const quote = this.findAncestorByTag(range.startContainer, 'BLOCKQUOTE');
         if (!quote) return false;
 
+        // Only a blank quoted LINE exits the quote. This used to fire on any
+        // Enter with a blockquote ancestor, so splitting a quoted paragraph was
+        // impossible -- the caret jumped out and the text stayed whole -- and
+        // Enter inside a quoted list, table or code block escaped the quote
+        // instead of doing the thing that structure calls for.
+        const line = this.enclosingQuotedLine(range.startContainer, quote);
+        if (!line || line.textContent?.replaceAll('​', '').trim()) return false;
+
         event.preventDefault();
 
         const p = this.document.createElement('p');
@@ -1544,6 +1568,24 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.syncContentFromEditor();
         this.pushHistory();
         return true;
+    }
+
+    /**
+     * The direct child of `quote` holding the caret, when that child is a plain
+     * line. A list, table or code block inside the quote owns its own Enter, so
+     * null is returned for those and the quote handler stands down.
+     */
+    private enclosingQuotedLine(node: Node, quote: HTMLElement): HTMLElement | null {
+        let current: Node | null = node;
+        while (current && current !== quote) {
+            if (current.nodeType === Node.ELEMENT_NODE) {
+                const tag = (current as Element).tagName;
+                if (QUOTE_STRUCTURE_TAGS.has(tag)) return null;
+                if (current.parentNode === quote) return current as HTMLElement;
+            }
+            current = current.parentNode;
+        }
+        return null;
     }
 
     /**
@@ -5185,6 +5227,28 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * blocks the top level they need; an inline-only fragment is left alone, so
      * pasting a word mid-sentence still lands mid-sentence.
      */
+    /**
+     * The block that must be split to give an incoming block the top level, or
+     * null when nothing needs splitting.
+     *
+     * A cell or list item already HOLDS blocks, so a paste inside one belongs
+     * where it is. Walking past a cell found the whole `<table>` and split that
+     * instead: one table became two with a ragged row left behind, and a `<p>`
+     * could land as a direct child of `<ul>`.
+     */
+    private blockToSplit(start: Node, editor: HTMLElement): HTMLElement | null {
+        let node: Node | null = start;
+        while (node && node !== editor) {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+                const tag = (node as Element).tagName;
+                if (BLOCK_CONTAINER_TAGS.has(tag)) return null;
+                if (BLOCK_TAGS.has(tag)) return node as HTMLElement;
+            }
+            node = node.parentNode;
+        }
+        return null;
+    }
+
     private escapeEnclosingBlock(range: Range, fragment: DocumentFragment): void {
         const editor = this.editorDiv?.nativeElement;
         if (!editor) return;
@@ -5194,16 +5258,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         );
         if (!carriesBlocks) return;
 
-        let block: HTMLElement | null = null;
-        let node: Node | null = range.startContainer;
-        while (node && node !== editor) {
-            if (node.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has((node as Element).tagName)) {
-                block = node as HTMLElement;
-                break;
-            }
-            node = node.parentNode;
-        }
-        if (!block || block.parentNode === null) return;
+        const block = this.blockToSplit(range.startContainer, editor);
+        if (!block?.parentNode) return;
 
         const tail = range.cloneRange();
         tail.setEndAfter(block);

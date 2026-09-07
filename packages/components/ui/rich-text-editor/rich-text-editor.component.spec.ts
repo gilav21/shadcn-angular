@@ -662,6 +662,149 @@ describe('RichTextEditorComponent', () => {
         });
     });
 
+
+    describe('stale table state after content replacement (round-17 audit)', () => {
+        it('clears selected cells so a later command does not throw', () => {
+            // replaceEditorHtml cleared only the image reference. The cell
+            // selection kept DETACHED nodes, so applyCommandToSelectedCells saw
+            // a non-empty array, claimed it had handled the command, selected
+            // contents of nodes no longer in the document -- which empties the
+            // selection -- and then collapseToStart() threw. The user's Bold was
+            // lost and an exception escaped to the console.
+            component.writeValue(
+                '<table><tbody><tr><td>a</td><td>b</td></tr></tbody></table>',
+            );
+            fixture.detectChanges();
+
+            const cells = Array.from(editor.querySelectorAll('td')) as HTMLTableCellElement[];
+            component.tableCellSelected.set(cells);
+            expect(component.tableCellSelected()).toHaveLength(2);
+
+            component.writeValue('<p>replaced</p>');
+            fixture.detectChanges();
+
+            expect(component.tableCellSelected()).toHaveLength(0);
+            expect(() => component.onFormatCommand('bold')).not.toThrow();
+        });
+    });
+
+
+    describe('Enter inside a blockquote (round-17 audit)', () => {
+        function pressEnterAt(node: Node, offset: number): KeyboardEvent {
+            const range = document.createRange();
+            range.setStart(node, offset);
+            range.collapse(true);
+            const selection = document.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+            const event = new KeyboardEvent('keydown', {
+                key: 'Enter',
+                bubbles: true,
+                cancelable: true,
+            });
+            editor.dispatchEvent(event);
+            fixture.detectChanges();
+            return event;
+        }
+
+        it('splits a quoted paragraph instead of escaping the quote', () => {
+            // The handler fired on ANY Enter with a blockquote ancestor, so
+            // splitting a quoted paragraph was impossible: the caret jumped out
+            // of the quote and the text stayed whole.
+            component.writeValue('<blockquote><p>hello world</p></blockquote>');
+            fixture.detectChanges();
+            const text = editor.querySelector('blockquote p')?.firstChild as Text;
+            const event = pressEnterAt(text, 5);
+
+            expect(event.defaultPrevented).toBe(false);
+            expect(editor.querySelector('blockquote')?.textContent).toContain('hello');
+        });
+
+        it('leaves a quoted list item to the list handler', () => {
+            component.writeValue('<blockquote><ul><li>alpha</li></ul></blockquote>');
+            fixture.detectChanges();
+            const li = editor.querySelector('li') as HTMLElement;
+            const event = pressEnterAt(li.firstChild as Node, 5);
+
+            // Not consumed by the blockquote handler, so the list keeps its own
+            // Enter behaviour rather than the caret leaving the quote entirely.
+            expect(event.defaultPrevented).toBe(false);
+            expect(editor.querySelector('blockquote ul')).toBeTruthy();
+        });
+
+        it('leaves a quoted table cell alone', () => {
+            component.writeValue(
+                '<blockquote><table><tbody><tr><td>a</td></tr></tbody></table></blockquote>',
+            );
+            fixture.detectChanges();
+            const cell = editor.querySelector('td') as HTMLElement;
+            pressEnterAt(cell.firstChild as Node, 1);
+
+            expect(editor.querySelector('blockquote table')).toBeTruthy();
+        });
+
+        it('still exits the quote on a blank quoted line', () => {
+            component.writeValue('<blockquote><p></p></blockquote>');
+            fixture.detectChanges();
+            const p = editor.querySelector('blockquote p') as HTMLElement;
+            const event = pressEnterAt(p, 0);
+
+            expect(event.defaultPrevented).toBe(true);
+            expect(editor.querySelector('blockquote')).toBeNull();
+            expect(editor.querySelector('p')).toBeTruthy();
+        });
+    });
+
+
+    describe('pasting a block into a cell or list item (round-17 audit)', () => {
+        function pasteHtmlAt(node: Node, offset: number, html: string): void {
+            const range = document.createRange();
+            range.setStart(node, offset);
+            range.collapse(true);
+            const selection = document.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+            const data = new DataTransfer();
+            data.setData('text/html', html);
+            editor.dispatchEvent(
+                new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: data }),
+            );
+            fixture.detectChanges();
+        }
+
+        it('does not split the table when pasting into a cell', () => {
+            // BLOCK_TAGS held TABLE but not TD, so the ancestor walk from inside
+            // a cell found the whole table and split it: one table became two,
+            // with a ragged row left behind. Text survived; the table did not.
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+            component.writeValue(
+                '<table><tbody><tr><td>A1</td><td>B1</td></tr><tr><td>A2</td><td>B2</td></tr></tbody></table>',
+            );
+            fixture.detectChanges();
+
+            const cell = editor.querySelector('td') as HTMLElement;
+            pasteHtmlAt(cell.firstChild as Node, 2, '<p>X</p>');
+
+            expect(editor.querySelectorAll('table')).toHaveLength(1);
+            expect(editor.querySelectorAll('td')).toHaveLength(4);
+            expect(editor.textContent).toContain('X');
+        });
+
+        it('does not put a paragraph directly inside a list', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+            component.writeValue('<ul><li>alpha</li><li>beta</li></ul>');
+            fixture.detectChanges();
+
+            const li = editor.querySelector('li') as HTMLElement;
+            pasteHtmlAt(li.firstChild as Node, 5, '<p>one</p><p>two</p>');
+
+            expect(editor.querySelector('ul > p')).toBeNull();
+            expect(editor.textContent).toContain('one');
+        });
+    });
+
     it('prevents replacements that would exceed maxLength', () => {
         fixture.componentRef.setInput('maxLength', 5);
         fixture.detectChanges();
