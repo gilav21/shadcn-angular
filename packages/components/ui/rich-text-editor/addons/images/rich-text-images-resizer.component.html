@@ -37,7 +37,10 @@
                         [class.bg-accent]="currentAlignment() === align"
                         [class.text-accent-foreground]="currentAlignment() === align"
                         [title]="resolvedAlignmentLabels()[align]"
-                        (mousedown)="onAlignClick($event, align)">
+                        (mousedown)="onAlignClick($event, align)"
+                        (click)="onAlignClick($event, align)"
+                        [attr.aria-label]="resolvedAlignmentLabels()[align]"
+                        [attr.aria-pressed]="currentAlignment() === align">
                         <span [innerHTML]="getAlignIcon(align)"></span>
                     </button>
                 }
@@ -47,9 +50,11 @@
                 type="button"
                 class="p-1.5 rounded-sm hover:bg-destructive/10 hover:text-destructive transition-colors"
                 [title]="labels().deleteImage"
-                (mousedown)="onDeleteClick($event)">
+                (mousedown)="onDeleteClick($event)"
+                (click)="onDeleteClick($event)"
+                [attr.aria-label]="labels().deleteImage">
                 <span [innerHTML]="deleteIconHtml"></span>
             </button>
         </div>
     </div>
-}
+}

@@ -687,4 +687,77 @@ describe('RichTextImageResizerComponent', () => {
             expect(() => fixture.destroy()).not.toThrow();
         });
     });
+
+    describe('keyboard activation of the overlay buttons (round-15 audit)', () => {
+        function mountWithImage(): HTMLImageElement {
+            const img = document.createElement('img');
+            img.src =
+                'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+            document.body.appendChild(img);
+            fixture.componentRef.setInput('target', img);
+            fixture.detectChanges();
+            return img;
+        }
+
+        function overlayButtons(): HTMLButtonElement[] {
+            return Array.from(
+                (fixture.nativeElement as HTMLElement).querySelectorAll('button'),
+            );
+        }
+
+        it('applies an alignment on a keyboard-generated click', () => {
+            // The buttons bound (mousedown) only, so a focused button pressed
+            // with Enter did nothing at all -- focusable and inert. A keyboard
+            // click carries detail === 0, which is what this dispatches.
+            const img = mountWithImage();
+            const emitted: string[] = [];
+            component.alignmentChange.subscribe((a) => emitted.push(a));
+
+            const right = overlayButtons().find(
+                (b) => b.getAttribute('aria-label') === component.resolvedAlignmentLabels()['right'],
+            );
+            expect(right).toBeTruthy();
+            right!.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 0 }));
+
+            expect(emitted).toEqual(['right']);
+            expect(img.dataset['align']).toBe('right');
+            img.remove();
+        });
+
+        it('emits a removal once for a keyboard click', () => {
+            const img = mountWithImage();
+            const removed: HTMLElement[] = [];
+            component.imageRemove.subscribe((t) => removed.push(t));
+
+            const del = overlayButtons().find(
+                (b) => b.getAttribute('aria-label') === component.labels().deleteImage,
+            );
+            del!.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 0 }));
+
+            expect(removed).toEqual([img]);
+            img.remove();
+        });
+
+        it('does not act twice when a mouse press fires mousedown then click', () => {
+            const img = mountWithImage();
+            const removed: HTMLElement[] = [];
+            component.imageRemove.subscribe((t) => removed.push(t));
+
+            const del = overlayButtons().find(
+                (b) => b.getAttribute('aria-label') === component.labels().deleteImage,
+            );
+            del!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, detail: 1 }));
+            del!.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+
+            expect(removed).toHaveLength(1);
+            img.remove();
+        });
+
+        it('names every overlay button for assistive tech', () => {
+            mountWithImage();
+            for (const b of overlayButtons()) {
+                expect(b.getAttribute('aria-label')?.length).toBeGreaterThan(0);
+            }
+        });
+    });
 });

@@ -178,12 +178,14 @@ export class RichTextImageResizerComponent implements OnDestroy {
     /**
      * Applies `align` to the target immediately (styles + `data-align`), then
      * emits {@link alignmentChange} and re-measures the overlay, since floating
-     * the image moves it. Bound to `mousedown` rather than `click` and swallows
-     * the event so the editor's selection survives the press.
+     * the image moves it. Bound to both `mousedown` (so a pointer press does not
+     * collapse the editor selection) and `click` (so keyboard activation works
+     * at all); {@link consumedByMouse} keeps a mouse press from running twice.
      */
     onAlignClick(event: MouseEvent, align: ImageAlignment): void {
         event.preventDefault();
         event.stopPropagation();
+        if (this.consumedByMouse(event)) return;
         const t = this.target();
         if (!t) return;
 
@@ -195,15 +197,35 @@ export class RichTextImageResizerComponent implements OnDestroy {
 
     /**
      * Emits {@link imageRemove} with the current target and leaves the DOM
-     * untouched — removal is the owner's job. Also `mousedown`-bound and
-     * event-swallowing so the press doesn't collapse the editor selection.
+     * untouched — removal is the owner's job. Bound to `mousedown` and `click`
+     * for the same reason as {@link onAlignClick}, and swallows the event so the
+     * press doesn't collapse the editor selection.
      */
     onDeleteClick(event: MouseEvent): void {
         event.preventDefault();
         event.stopPropagation();
+        if (this.consumedByMouse(event)) return;
         const t = this.target();
         if (!t) return;
         this.imageRemove.emit(t);
+    }
+
+    /**
+     * True when this `click` merely follows a `mousedown` that already did the
+     * work.
+     *
+     * The overlay buttons bind BOTH events on purpose. `mousedown` is what keeps
+     * a pointer press from collapsing the editor selection, but it never fires
+     * for a keyboard activation, so binding it alone left align and delete
+     * completely dead for anyone pressing Enter -- the buttons were focusable
+     * and inert. Binding `click` as well restores the keyboard; this guard stops
+     * a pointer press, which fires both, from running the action twice.
+     *
+     * A keyboard-generated click reports `detail === 0`, which is how the two
+     * are told apart.
+     */
+    private consumedByMouse(event: MouseEvent): boolean {
+        return event.type === 'click' && event.detail > 0;
     }
 
     private startTracking(): void {
