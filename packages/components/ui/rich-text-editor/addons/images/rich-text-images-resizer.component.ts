@@ -65,6 +65,30 @@ function pointFromEvent(event: MouseEvent | TouchEvent): { clientX: number; clie
 
 const DELETE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>`;
 
+/** Spoken names for the eight drag handles. */
+const RESIZE_HANDLE_LABELS: Readonly<Record<string, string>> = {
+    nw: 'Resize from top left',
+    ne: 'Resize from top right',
+    sw: 'Resize from bottom left',
+    se: 'Resize from bottom right',
+    n: 'Resize from top',
+    s: 'Resize from bottom',
+    w: 'Resize from left',
+    e: 'Resize from right',
+};
+
+/** Pixels one arrow-key press changes the image by, and with Shift held. */
+const KEYBOARD_RESIZE_STEP = 10;
+const KEYBOARD_RESIZE_STEP_LARGE = 50;
+
+/** Which direction each arrow key resizes in. */
+const KEYBOARD_RESIZE_DELTA: Readonly<Record<string, number | undefined>> = {
+    ArrowRight: 1,
+    ArrowUp: 1,
+    ArrowLeft: -1,
+    ArrowDown: -1,
+};
+
 @Component({
     selector: 'ui-rich-text-image-resizer',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -347,6 +371,52 @@ export class RichTextImageResizerComponent implements OnDestroy {
             t.style.width = `${size.width}px`;
             t.style.height = `${size.height}px`;
         }
+    }
+
+    /**
+     * Resize the image from the keyboard.
+     *
+     * The eight drag handles are pointer-only by nature -- a drag has no
+     * keyboard equivalent -- and they were bare divs with no tabindex, role or
+     * key handling, so image resizing could not be done without a pointer at
+     * all. This gives the overlay one focusable control that grows and shrinks
+     * the image with the arrow keys, holding the aspect ratio when
+     * {@link lockAspectRatio} asks for it. Shift moves in larger steps.
+     */
+    /**
+     * Accessible name for one resize handle.
+     *
+     * The handles were bare divs -- no tabindex, no role, no name -- so image
+     * resizing was strictly pointer-only. They are buttons now, and each says
+     * which corner or edge it drags. The compass point is spelled out rather
+     * than left as "nw" so it is pronounceable.
+     */
+    handleLabel(handle: ResizeHandle): string {
+        return RESIZE_HANDLE_LABELS[handle];
+    }
+
+    onResizeKeydown(event: KeyboardEvent): void {
+        const step = event.shiftKey ? KEYBOARD_RESIZE_STEP_LARGE : KEYBOARD_RESIZE_STEP;
+        const delta = KEYBOARD_RESIZE_DELTA[event.key];
+        if (delta === undefined) return;
+
+        const t = this.target();
+        if (!t) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        const rect = t.getBoundingClientRect();
+        const aspect = rect.height === 0 ? 1 : rect.width / rect.height;
+        const width = this.clampWidth(Math.max(this.minWidth(), rect.width + delta * step));
+        const height = this.lockAspectRatio()
+            ? width / aspect
+            : Math.max(this.minWidth(), rect.height + delta * step);
+
+        t.style.width = `${width}px`;
+        t.style.height = `${height}px`;
+        this.scheduleUpdate();
+        this.resizeEnd.emit();
     }
 
     private clampWidth(width: number): number {

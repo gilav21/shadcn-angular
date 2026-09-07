@@ -66,6 +66,9 @@ const AUTO_UPLOAD_STYLES = `
     }
 `;
 
+/** How many live directives currently need the shared upload styles. */
+let autoUploadStyleUsers = 0;
+
 interface AutoUploadPending {
     readonly subscription: Subscription;
     readonly dataUrl: string;
@@ -423,6 +426,7 @@ export class RichTextImagesDirective {
             const enabled = this.uiRteImages() && this.uiRteImagesAutoUpload();
             if (!enabled) return;
             this.injectAutoUploadStyles();
+            onCleanup(() => this.releaseAutoUploadStyles());
             const editor = this.host.contentRoot;
             const observer = new MutationObserver(() => {
                 if (this.autoUploadMutating) return;
@@ -443,12 +447,29 @@ export class RichTextImagesDirective {
         });
     }
 
+    /**
+     * Add the upload-progress styles to `document.head`, refcounted.
+     *
+     * These rules style images *inside* an editor, so they cannot live in the
+     * component's own scoped stylesheet -- the shimmer keyframes are global by
+     * nature. They were previously appended once and never removed, so they
+     * outlived every editor and stayed applied app-wide, which the project's own
+     * rule against leaking component styles forbids. The refcount lets several
+     * editors share one tag while still removing it when the last one goes.
+     */
     private injectAutoUploadStyles(): void {
+        autoUploadStyleUsers++;
         if (this.document.getElementById(AUTO_UPLOAD_STYLE_ID)) return;
         const style = this.document.createElement('style');
         style.id = AUTO_UPLOAD_STYLE_ID;
         style.textContent = AUTO_UPLOAD_STYLES;
         this.document.head.appendChild(style);
+    }
+
+    private releaseAutoUploadStyles(): void {
+        autoUploadStyleUsers = Math.max(0, autoUploadStyleUsers - 1);
+        if (autoUploadStyleUsers > 0) return;
+        this.document.getElementById(AUTO_UPLOAD_STYLE_ID)?.remove();
     }
 
     private scanForBase64Images(): void {

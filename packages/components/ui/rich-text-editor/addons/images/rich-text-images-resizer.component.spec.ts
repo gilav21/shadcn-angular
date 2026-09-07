@@ -570,13 +570,15 @@ describe('RichTextImageResizerComponent', () => {
 
         it('renders alignment buttons plus delete by default', () => {
             setTarget();
-            expect(query('button')).toHaveLength(5);
+            // Scoped to the toolbar: the resize handles are buttons too now, so
+            // a bare 'button' count no longer means "toolbar buttons".
+            expect(query('button[title]')).toHaveLength(5);
         });
 
         it('keeps only the delete button when showAlignment is false', () => {
             fixture.componentRef.setInput('showAlignment', false);
             setTarget();
-            const buttons = query('button');
+            const buttons = query('button[title]');
             expect(buttons).toHaveLength(1);
             expect(buttons[0].getAttribute('title')).toBe(LABELS_EN.deleteImage);
         });
@@ -758,6 +760,75 @@ describe('RichTextImageResizerComponent', () => {
             for (const b of overlayButtons()) {
                 expect(b.getAttribute('aria-label')?.length).toBeGreaterThan(0);
             }
+        });
+    });
+
+    describe('keyboard resizing (round-15 audit)', () => {
+        function mountWithImage(): HTMLImageElement {
+            const img = document.createElement('img');
+            img.src =
+                'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+            Object.defineProperty(img, 'getBoundingClientRect', {
+                value: () => ({ width: 200, height: 100, top: 0, left: 0, right: 200, bottom: 100 }),
+            });
+            document.body.appendChild(img);
+            fixture.componentRef.setInput('target', img);
+            fixture.detectChanges();
+            return img;
+        }
+
+        function handles(): HTMLButtonElement[] {
+            return Array.from(
+                (fixture.nativeElement as HTMLElement).querySelectorAll('button[aria-label^="Resize"]'),
+            );
+        }
+
+        it('exposes the drag handles as named, focusable buttons', () => {
+            // They were bare divs: no tabindex, no role, no name, no key
+            // handling, so resizing an image needed a pointer.
+            mountWithImage();
+            const found = handles();
+            expect(found.length).toBeGreaterThan(0);
+            for (const h of found) {
+                expect(h.tagName).toBe('BUTTON');
+                expect(h.getAttribute('aria-label')).toMatch(/^Resize from /);
+            }
+        });
+
+        it('grows the image on ArrowRight and shrinks it on ArrowLeft', () => {
+            const img = mountWithImage();
+            const handle = handles()[0];
+
+            handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+            expect(img.style.width).toBe('210px');
+
+            img.style.width = '';
+            handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+            expect(img.style.width).toBe('190px');
+        });
+
+        it('takes a larger step with Shift held', () => {
+            const img = mountWithImage();
+            handles()[0].dispatchEvent(
+                new KeyboardEvent('keydown', { key: 'ArrowRight', shiftKey: true, bubbles: true }),
+            );
+            expect(img.style.width).toBe('250px');
+        });
+
+        it('emits resizeEnd so one keypress is one undo entry', () => {
+            mountWithImage();
+            let ends = 0;
+            component.resizeEnd.subscribe(() => ends++);
+            handles()[0].dispatchEvent(
+                new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }),
+            );
+            expect(ends).toBe(1);
+        });
+
+        it('ignores keys that are not arrows', () => {
+            const img = mountWithImage();
+            handles()[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true }));
+            expect(img.style.width).toBe('');
         });
     });
 });

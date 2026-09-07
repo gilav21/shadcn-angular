@@ -865,4 +865,37 @@ describe('RichTextImagesDirective', () => {
         expect(ctx.locale().tooltip).toBe('הוספת תמונה');
         expect(ctx.locale().rtl).toBe(true);
     });
+
+    describe('shared upload styles (round-15 audit)', () => {
+        const styleTag = (): HTMLElement | null =>
+            document.getElementById('ui-rte-auto-upload-styles');
+
+        it('removes the global style tag when the last editor using it goes', () => {
+            // The tag was appended once and never removed, so it outlived every
+            // editor and kept styling img[data-auto-upload-status] app-wide.
+            const fixture = createFixture();
+            fixture.componentInstance.autoUpload.set(true);
+            fixture.detectChanges();
+            expect(styleTag()).toBeTruthy();
+
+            fixture.destroy();
+            expect(styleTag()).toBeNull();
+        });
+
+        it('keeps the tag while another editor still needs it', () => {
+            const a = createFixture();
+            a.componentInstance.autoUpload.set(true);
+            a.detectChanges();
+            const b = createFixture();
+            b.componentInstance.autoUpload.set(true);
+            b.detectChanges();
+            expect(styleTag()).toBeTruthy();
+
+            a.destroy();
+            expect(styleTag()).toBeTruthy();
+
+            b.destroy();
+            expect(styleTag()).toBeNull();
+        });
+    });
 });
