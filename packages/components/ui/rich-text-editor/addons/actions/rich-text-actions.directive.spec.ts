@@ -146,7 +146,7 @@ describe('RichTextActionsDirective', () => {
         const editor = fixture.nativeElement.querySelector('[data-slot="rich-text-editor"]') as HTMLElement;
         editor.innerHTML = '<p><img src="https://example.com/a.png" alt="a"></p>';
         const img = editor.querySelector('img') as HTMLImageElement;
-        editorCmp.selectedImage.set(img);
+        editorCmp.setSelectedImage(img);
         const range = document.createRange();
         range.selectNode(img);
         const sel = window.getSelection()!; sel.removeAllRanges(); sel.addRange(range);
@@ -158,7 +158,7 @@ describe('RichTextActionsDirective', () => {
         fixture.detectChanges();
         // The dialog collapses the live selection; the fix captures the image up front.
         sel.removeAllRanges();
-        editorCmp.selectedImage.set(null);
+        editorCmp.setSelectedImage(null);
 
         (document.querySelector('[data-action-option="open-dialog"]') as HTMLButtonElement).click();
         fixture.detectChanges();
@@ -732,7 +732,7 @@ describe('RichTextActionsDirective', () => {
             const editor = fixture.nativeElement.querySelector('[data-slot="rich-text-editor"]') as HTMLElement;
             editor.innerHTML = '<p><img src="https://example.com/a.png" alt="a"></p>';
             const img = editor.querySelector('img') as HTMLImageElement;
-            editorCmp.selectedImage.set(img);
+            editorCmp.setSelectedImage(img);
             const range = document.createRange();
             range.selectNode(img);
             const sel = window.getSelection()!; sel.removeAllRanges(); sel.addRange(range);
@@ -743,7 +743,7 @@ describe('RichTextActionsDirective', () => {
             slot.click();
             fixture.detectChanges();
             sel.removeAllRanges();
-            editorCmp.selectedImage.set(null);
+            editorCmp.setSelectedImage(null);
 
             (document.querySelector('[data-action-option="open-dialog"]') as HTMLButtonElement).click();
             fixture.detectChanges();

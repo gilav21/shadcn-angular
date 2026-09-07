@@ -769,4 +769,69 @@ describe('RichTextMarkdownService', () => {
             expect(probe.querySelector('tbody td')?.textContent).toBe('x|y');
         });
     });
+
+
+
+
+    describe('angle brackets in prose (round-16 audit)', () => {
+        it('keeps text after a "<" that is not a real tag', () => {
+            // "<y" satisfied the "looks like a tag" lookahead (y matches \w), so
+            // DOMParser treated it as an unterminated tag and swallowed the rest
+            // of the line. Anyone writing about code lost their sentence, in the
+            // documented default mode, with nothing in the console.
+            expect(service.toHtml('if (x<y) { return; }')).toBe('<p>if (x&lt;y) { return; }</p>');
+        });
+
+        it('keeps a whole sentence mixing comparisons', () => {
+            expect(service.toHtml('2 < 3 and 4 <5 and x <y z')).toBe(
+                '<p>2 &lt; 3 and 4 &lt;5 and x &lt;y z</p>',
+            );
+        });
+
+        it('escapes a tag the sanitizer would strip rather than eating the line', () => {
+            // <foo> is not an allowed tag, so it is prose. What matters is that
+            // the rest of the sentence survives -- it used to be swallowed.
+            const html = service.toHtml('Use the <foo bar=1> syntax carefully.');
+            expect(html).toContain('&lt;foo bar=1&gt;');
+            expect(html).toContain('syntax carefully.');
+        });
+
+        it('round-trips any inline tag the sanitizer keeps, not a hand-picked few', () => {
+            // The passthrough list covered u|sub|sup|mark|kbd|ins|del only, so
+            // every other kept tag hit the asymmetric-escape bug: "<b>x</b>"
+            // rendered a literal "</b>" on the page and corrupted permanently
+            // on round-trip.
+            for (const tag of ['b', 'strong', 'em', 'i', 'code', 'small', 's']) {
+                const html = service.toHtml(`<${tag}>x</${tag}>`);
+                expect(html).toBe(`<p><${tag}>x</${tag}></p>`);
+            }
+        });
+
+        it('keeps bold stable across a markdown round-trip', () => {
+            expect(service.toMarkdown(service.toHtml('<b>bold</b>'))).toBe('**bold**');
+        });
+
+        it('escapes a closing tag the sanitizer would strip', () => {
+            // Allowed tags stay markup on purpose -- HTML in markdown is a
+            // supported input. An unknown one is text.
+            expect(service.toHtml('the </foo> marker')).toContain('&lt;/foo&gt;');
+        });
+    });
+
+    describe('code-fence token forgery (round-16 audit)', () => {
+        it('ignores fence delimiters the author typed', () => {
+            const OPEN = String.fromCodePoint(0xe110);
+            const CLOSE = String.fromCodePoint(0xe111);
+            const html = service.toHtml('```\nSECRET\n```\n\n' + OPEN + '0' + CLOSE);
+            expect(html.match(/SECRET/g) ?? []).toHaveLength(1);
+        });
+
+        it('does not let a forged token erase surrounding text', () => {
+            const OPEN = String.fromCodePoint(0xe110);
+            const CLOSE = String.fromCodePoint(0xe111);
+            const html = service.toHtml('before ' + OPEN + '99' + CLOSE + ' after');
+            expect(html).toContain('before');
+            expect(html).toContain('after');
+        });
+    });
 });

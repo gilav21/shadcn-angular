@@ -138,15 +138,31 @@ const URL_SHIELD: ReadonlyArray<readonly [string, string]> = [
 ];
 
 /**
- * Inline HTML tags Markdown has no syntax for, which `toMarkdown` emits verbatim
- * and `toHtml` must hand back unchanged. Both halves of the pair are matched so
- * the escape pass cannot split them.
+ * Any HTML tag written in the source. Whether it SURVIVES is the sanitizer's
+ * call, made in `escapeHtmlInContent`; protecting it here only keeps the
+ * emphasis and inline-code passes from chewing on tag internals. Both halves of
+ * a pair are matched so the escape pass cannot split them -- an earlier version
+ * listed seven tags by hand, so `<b>x</b>` rendered a literal `</b>` and
+ * corrupted permanently on round-trip.
  */
-const PASSTHROUGH_TAG_PATTERN = /<\/?(?:u|sub|sup|mark|kbd|ins|del)\b[^>]{0,4096}>/gi;
+const PASSTHROUGH_TAG_PATTERN = /<\/?([a-zA-Z][a-zA-Z0-9]*)\b[^<>]{0,4096}>/g;
 
 /** Private-use delimiters parking a fenced code block during the inline passes. */
+/** A block whose first token is a parked raw tag: already markup, not prose. */
+const RAW_TAG_ONLY_BLOCK = /^(\d{1,9})/;
+
+/** Block-level tags: a parked one of these means the block is already markup. */
+const BLOCK_LEVEL_TAG_PATTERN = /^<(?:p|div|h[1-6]|ul|ol|li|blockquote|pre|table|thead|tbody|tr|th|td|hr|figure|details|summary)\b/i;
+
 const CODE_FENCE_OPEN = '';
 const CODE_FENCE_CLOSE = '';
+
+/**
+ * Tags the sanitizer removes together with everything inside them. They are
+ * passed through the escape untouched so it is the sanitizer, not the reader,
+ * that sees them.
+ */
+const CONTENT_BEARING_UNSAFE_TAGS = new Set(['script', 'style', 'iframe', 'object', 'embed', 'template', 'noscript', 'title', 'textarea']);
 
 @Injectable({ providedIn: 'root' })
 export class RichTextMarkdownService {
@@ -199,7 +215,7 @@ export class RichTextMarkdownService {
         // otherwise be swallowed as an <hr>.
         html = this.parseTables(html);
         html = this.parseHorizontalRules(html);
-        html = this.parseParagraphs(html);
+        html = this.parseParagraphs(html, protectedTags);
 
         html = this.parseImages(html);
         html = this.parseLinks(html);
@@ -241,7 +257,9 @@ export class RichTextMarkdownService {
             // opening one: escapeHtmlInContent let "<u>" through (u matches \w)
             // but escaped "</u>" (/ does not), so every round-trip appended
             // another visible "</u>" and the damage compounded per save/load.
-            .replaceAll(PASSTHROUGH_TAG_PATTERN, push)
+            .replaceAll(PASSTHROUGH_TAG_PATTERN, (match: string, tagName: string) =>
+                this.sanitizer.isAllowedTag(tagName) ? push(match) : match,
+            )
             .replaceAll(/<span\b[^>]{0,4096}>/gi, push)
             .replaceAll(/<\/span>/gi, push)
             .replaceAll(/<img\b[^>]{0,4096}\bdata-action-[\w-]{1,64}[^>]{0,4096}>/gi, push);
@@ -254,7 +272,12 @@ export class RichTextMarkdownService {
      * with no markup smuggled through it into the live document.
      */
     private protectCodeFences(markdown: string, store: string[]): string {
-        return markdown.replaceAll(
+        // Strip our own delimiters from the input first, exactly as
+        // protectRawTags does for its pair. Without this a document could carry
+        // U+E110/U+E111 itself and forge a token: restoreCodeFences would expand
+        // it, so a fence body the author wrote once rendered twice, and an
+        // out-of-range index silently erased surrounding text.
+        return markdown.replaceAll(CODE_FENCE_OPEN, '').replaceAll(CODE_FENCE_CLOSE, '').replaceAll(
             /(```|~~~)(\w*)\n([\s\S]*?)\1/g,
             (_match, _fence: string, lang: string, code: string) => {
                 const langAttr = lang ? ` data-language="${lang}" class="language-${lang}"` : '';
@@ -279,8 +302,30 @@ export class RichTextMarkdownService {
      * like HTML tags are escaped, so characters carrying Markdown meaning survive.
      */
     private escapeHtmlInContent(text: string): string {
+        // Escape every "<" that does not open a tag the sanitizer will keep.
+        //
+        // This used to guess with a character class -- "<" followed by \w, "*",
+        // "`" and friends was assumed to be a tag. Two bugs came out of that.
+        // "if (x<y)" looked like a tag open, so DOMParser swallowed the rest of
+        // the line and the author's sentence vanished. And the guess was
+        // asymmetric: "<b>" passed while "</b>" did not, so a closing tag was
+        // escaped into visible text and corrupted permanently on round-trip.
+        //
+        // Asking the sanitizer which tags actually survive settles both, and
+        // keeps the two in step: a tag it would strip is prose, and is escaped
+        // as prose.
         return text
-            .replaceAll(/<(?![\s\w*`~[\]!#-])/g, '&lt;')
+            .replaceAll(/<\/?([a-zA-Z][a-zA-Z0-9]*)\b[^<>]{0,4096}>|</g, (match, tagName?: string) => {
+                if (!tagName) return '&lt;';
+                if (this.sanitizer.isAllowedTag(tagName)) return match;
+                // Tags whose CONTENT must not survive are left intact so the
+                // sanitizer removes the whole subtree. Escaping them here would
+                // turn a stripped <script> body into visible page text -- safe
+                // to look at, but the payload would still be sitting in the
+                // user's document.
+                if (CONTENT_BEARING_UNSAFE_TAGS.has(tagName.toLowerCase())) return match;
+                return '&lt;' + match.slice(1);
+            })
             // `^` alongside the lookbehind: at index 0 there is no preceding
             // character for the lookbehind to test, so a document that OPENS with
             // a blockquote had its ">" escaped to text before parseBlockquotes
@@ -482,7 +527,15 @@ export class RichTextMarkdownService {
     /**
      * Wrap remaining text in paragraphs.
      */
-    private parseParagraphs(html: string): string {
+    /** Whether `block` opens with a parked tag that is block-level. */
+    private startsWithParkedBlockTag(block: string, store: string[]): boolean {
+        const match = RAW_TAG_ONLY_BLOCK.exec(block);
+        if (!match) return false;
+        const tag = store[Number(match[1])] ?? '';
+        return BLOCK_LEVEL_TAG_PATTERN.test(tag);
+    }
+
+    private parseParagraphs(html: string, store: string[]): string {
         /** Split by double newlines (paragraph breaks) */
         const blocks = html.split(/\n\n+/);
 
@@ -498,6 +551,15 @@ export class RichTextMarkdownService {
             // in a paragraph, and restoring the <pre> inside that <p> leaves a
             // stray empty <p></p> in the output.
             if (trimmed.startsWith(CODE_FENCE_OPEN)) {
+                return trimmed;
+            }
+
+            // A block that OPENS with a parked block-level tag is markup the
+            // author wrote directly -- "<p>Hello <b>World</b></p>" arrives as
+            // tokens plus text, and wrapping it again produced
+            // "<p></p><p>Hello…</p><p></p>". Inline-only content still gets its
+            // paragraph, so "<b>x</b>" stays "<p><b>x</b></p>".
+            if (this.startsWithParkedBlockTag(trimmed, store)) {
                 return trimmed;
             }
 

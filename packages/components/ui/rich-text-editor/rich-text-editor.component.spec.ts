@@ -517,6 +517,48 @@ describe('RichTextEditorComponent', () => {
         });
     });
 
+
+    describe('stale image selection (round-16 audit)', () => {
+        function selectFirstImage(): HTMLImageElement {
+            const img = editor.querySelector('img') as HTMLImageElement;
+            img.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            fixture.detectChanges();
+            return img;
+        }
+
+        it('stops reporting an image once undo detaches it', () => {
+            // undo/redo/writeValue replace innerHTML wholesale, detaching every
+            // node. Nothing cleared the selection, so the resize overlay stayed
+            // up and its align/delete buttons wrote to the detached copy while
+            // the visible image went untouched -- a control that looks live and
+            // silently does nothing.
+            component.writeValue('<p><img src="https://example.com/a.png" alt="a"></p>');
+            fixture.detectChanges();
+            const img = selectFirstImage();
+            expect(component.selectedImage()).toBe(img);
+
+            editor.innerHTML = '<p>replaced</p>';
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+            component.undo();
+            fixture.detectChanges();
+
+            expect(document.contains(img)).toBe(false);
+            expect(component.selectedImage()).toBeNull();
+        });
+
+        it('stops reporting an image once writeValue replaces the content', () => {
+            component.writeValue('<p><img src="https://example.com/a.png" alt="a"></p>');
+            fixture.detectChanges();
+            selectFirstImage();
+            expect(component.selectedImage()).not.toBeNull();
+
+            component.writeValue('<p>something else</p>');
+            fixture.detectChanges();
+            expect(component.selectedImage()).toBeNull();
+        });
+    });
+
     it('prevents replacements that would exceed maxLength', () => {
         fixture.componentRef.setInput('maxLength', 5);
         fixture.detectChanges();

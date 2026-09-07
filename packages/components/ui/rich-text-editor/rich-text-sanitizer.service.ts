@@ -41,6 +41,15 @@ export class RichTextSanitizerService {
     private readonly document = inject(DOCUMENT);
 
     /** Allowlisted elements - only these can appear in sanitized output */
+    /**
+     * Whether `tagName` survives {@link sanitize}. The markdown service asks so
+     * it can decide whether a `<` in the source opens a real tag or is just a
+     * less-than sign the author typed.
+     */
+    isAllowedTag(tagName: string): boolean {
+        return this.ALLOWED_TAGS.has(tagName.toLowerCase());
+    }
+
     private readonly ALLOWED_TAGS = new Set([
         // Block elements
         'p', 'div', 'br', 'hr',

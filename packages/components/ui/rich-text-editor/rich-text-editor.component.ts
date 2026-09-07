@@ -432,7 +432,36 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     showFloatingToolbar = signal<boolean>(false);
     floatingToolbarPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
     readonly emptyFormats = new Set<string>();
-    selectedImage = signal<HTMLImageElement | null>(null);
+    private readonly selectedImageNode = signal<HTMLImageElement | null>(null);
+    /**
+     * The image the user has selected.
+     *
+     * undo(), redo(), writeValue() and setContent() all replace the editable's
+     * innerHTML wholesale, which detaches every node in it. Nothing cleared this
+     * signal on that path, so it kept handing out a node that was no longer in
+     * the document: the resize overlay stayed up, and its align and delete
+     * buttons wrote to the detached copy while the image the user could see went
+     * untouched -- a control that looks live and silently does nothing.
+     * {@link replaceEditorHtml} is the one seam every replacement goes through,
+     * and it clears this.
+     */
+    readonly selectedImage = this.selectedImageNode.asReadonly();
+
+    /**
+     * Replace the editable's content, dropping references that the replacement
+     * invalidates. Every wholesale innerHTML write goes through here so a
+     * detached node can never survive as "the selected image".
+     */
+    private replaceEditorHtml(html: string): void {
+        if (!this.editorDiv) return;
+        this.editorDiv.nativeElement.innerHTML = html;
+        this.selectedImageNode.set(null);
+    }
+
+    /** Select `image`, or clear the selection with `null`. */
+    setSelectedImage(image: HTMLImageElement | null): void {
+        this.selectedImageNode.set(image);
+    }
     selectedText = signal<string>('');
     dragOver = signal<boolean>(false);
     tableContextMenuOpen = signal(false);
@@ -649,7 +678,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     onEditorClick(event: MouseEvent): void {
         const target = event.target as HTMLElement;
-        this.selectedImage.set(target.tagName === 'IMG' ? target as HTMLImageElement : null);
+        this.selectedImageNode.set(target.tagName === 'IMG' ? target as HTMLImageElement : null);
 
         if (target.tagName === 'INPUT' && (target as HTMLInputElement).type === 'checkbox') {
             this.handleTaskCheckboxClick(event, target as HTMLInputElement);
@@ -861,7 +890,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     ngAfterViewInit(): void {
         if (this.editorDiv?.nativeElement) {
-            this.editorDiv.nativeElement.innerHTML = this.htmlContent();
+            this.replaceEditorHtml(this.htmlContent());
             this.enableTaskCheckboxes(this.editorDiv.nativeElement);
         }
     }
@@ -915,7 +944,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
 
         if (this.editorDiv?.nativeElement) {
-            this.editorDiv.nativeElement.innerHTML = this.htmlContent();
+            this.replaceEditorHtml(this.htmlContent());
             this.enableTaskCheckboxes(this.editorDiv.nativeElement);
         }
     }
@@ -2046,7 +2075,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
         this.htmlContent.set(html);
         if (this.editorDiv?.nativeElement) {
-            this.editorDiv.nativeElement.innerHTML = html;
+            this.replaceEditorHtml(html);
         }
         this.restoreSerializedSelection(entry.selection);
 
@@ -6634,7 +6663,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             this.htmlContent.set(html);
 
             if (this.editorDiv?.nativeElement) {
-                this.editorDiv.nativeElement.innerHTML = html;
+                this.replaceEditorHtml(html);
                 this.enableTaskCheckboxes(this.editorDiv.nativeElement);
             }
             this.restoreSerializedSelection(entry.selection);
@@ -6669,7 +6698,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             this.htmlContent.set(html);
 
             if (this.editorDiv?.nativeElement) {
-                this.editorDiv.nativeElement.innerHTML = html;
+                this.replaceEditorHtml(html);
                 this.enableTaskCheckboxes(this.editorDiv.nativeElement);
             }
             this.restoreSerializedSelection(entry.selection);
