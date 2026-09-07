@@ -256,6 +256,34 @@ describe('RichTextImagesDirective', () => {
         expect(fixture.componentInstance.uploadComplete).toContain('https://cdn.example.com/clip.png');
     });
 
+    it('drops a manual upload that resolves after the editor is destroyed', async () => {
+        // An upload is a network round-trip the user can outlive by routing
+        // away, closing a dialog or toggling a tab. The auto-upload path already
+        // unsubscribes on destroy; this one awaited its promise with nothing
+        // watching, then committed into a dead editor and emitted outputs whose
+        // owning directive no longer existed (Angular logs NG0953).
+        const fixture = createFixture();
+        const upload$ = new Subject<string>();
+        fixture.componentInstance.sources.set('upload');
+        fixture.componentInstance.uploader.set(() => upload$);
+        fixture.detectChanges();
+        const { el, cmp } = setContent(fixture, '<p>x</p>');
+        caretAtEnd(el.querySelector('p')!);
+
+        cmp.insertImageFile(new File(['img'], 'late.png', { type: 'image/png' }));
+        await wait();
+
+        fixture.destroy();
+        const completedBefore = [...fixture.componentInstance.uploadComplete];
+
+        upload$.next('https://cdn.example.com/late.png');
+        upload$.complete();
+        await wait();
+
+        expect(el.innerHTML).not.toContain('late.png');
+        expect(fixture.componentInstance.uploadComplete).toEqual(completedBefore);
+    });
+
     it('claims image files for the editor, so other addons route through the uploader', async () => {
         const fixture = createFixture();
         fixture.componentInstance.sources.set('upload');

@@ -160,6 +160,16 @@ export class RichTextImagesDirective {
     private autoUploadObserver: MutationObserver | null = null;
 
     private overlayRef?: ComponentRef<RichTextImagesOverlayComponent>;
+    /**
+     * Whether this directive has been torn down.
+     *
+     * An upload is a network round-trip the user can easily outlive — routing
+     * away, closing a dialog, toggling a tab. The auto-upload path already
+     * unsubscribes on destroy, but the manual insert/drop/paste path awaited its
+     * promise with nothing watching, then committed into a dead editor and
+     * emitted outputs whose owning directive no longer exists (NG0953).
+     */
+    private destroyed = false;
 
     private readonly resizerLabels = computed<RichTextImageResizerLabels>(() => {
         const l = this.i18n.t();
@@ -340,6 +350,7 @@ export class RichTextImagesDirective {
     private async insertImageAsDataUrl(file: File): Promise<void> {
         try {
             const dataUrl = await readFileAsDataUrl(file);
+            if (this.destroyed) return;
             if (!dataUrl.toLowerCase().startsWith('data:image/')) {
                 this.imageUploadError.emit('Pasted image is not allowed by sanitizer policy.');
                 return;
@@ -347,7 +358,7 @@ export class RichTextImagesDirective {
             this.doInsert(dataUrl, file.name);
             this.imageUploadComplete.emit(dataUrl);
         } catch {
-            this.imageUploadError.emit('Could not read image file.');
+            if (!this.destroyed) this.imageUploadError.emit('Could not read image file.');
         }
     }
 
@@ -356,6 +367,7 @@ export class RichTextImagesDirective {
         this.imageUploadStart.emit(file);
         try {
             const uploadedUrl = await firstValueFrom(uploader(file));
+            if (this.destroyed) return;
             const safeSrc = this.sanitizer.sanitizeImageSrc(uploadedUrl);
             if (!safeSrc) {
                 this.imageUploadError.emit('Uploaded image URL is not allowed by sanitizer policy.');
@@ -364,6 +376,7 @@ export class RichTextImagesDirective {
             this.doInsert(safeSrc, file.name);
             this.imageUploadComplete.emit(safeSrc);
         } catch (error: unknown) {
+            if (this.destroyed) return;
             const message = error instanceof Error ? error.message : undefined;
             this.imageUploadError.emit(message ?? 'Image upload failed.');
         } finally {
@@ -617,6 +630,7 @@ export class RichTextImagesDirective {
     }
 
     private teardown(): void {
+        this.destroyed = true;
         this.autoUploadObserver?.disconnect();
         this.autoUploadObserver = null;
         this.autoUploadMap.forEach((entry) => entry.subscription.unsubscribe());
