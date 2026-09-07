@@ -6353,6 +6353,10 @@
       "bytes": 7445,
       "lines": 8
     },
+    "popover/__screenshots__/popover.component.spec.ts/PopoverComponent-closes-on-Escape-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
     "popover/__screenshots__/popover.component.spec.ts/PopoverContent-focus-restoration-returns-focus-to-the-trigger-when-the-content-closes-1.png": {
       "bytes": 5071,
       "lines": 6
@@ -6562,12 +6566,12 @@
       "lines": 4
     },
     "popover/popover.component.spec.ts": {
-      "bytes": 21518,
-      "lines": 575
+      "bytes": 22477,
+      "lines": 598
     },
     "popover/popover.component.ts": {
-      "bytes": 5400,
-      "lines": 152
+      "bytes": 6138,
+      "lines": 167
     },
     "popover/popover.coverage.spec.ts": {
       "bytes": 24561,
@@ -6865,6 +6869,10 @@
       "bytes": 9682,
       "lines": 11
     },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---formatting--blocks---lists-does-not-let-redo-resurrect-a-branch-the-user-typed-over-1.png": {
+      "bytes": 9439,
+      "lines": 5
+    },
     "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---formatting--blocks---lists-keeps-the-caret-inside-the-item-so-a-second-indent-still-works-1.png": {
       "bytes": 11627,
       "lines": 8
@@ -6940,6 +6948,10 @@
     "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---targeted-branch-coverage-top-up-onEditorTouchStart-outside-a-cell-starts-no-selection-1.png": {
       "bytes": 8635,
       "lines": 4
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---targeted-branch-coverage-top-up-onInput-skips-history-scheduling-during-an-undo-redo-replay-1.png": {
+      "bytes": 9221,
+      "lines": 5
     },
     "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---toolbar-actions--link--image--color--font--formats-the-live-selection--not-a-stale-savedRange-from-the-last-blur-1.png": {
       "bytes": 10939,
@@ -7037,6 +7049,26 @@
       "bytes": 9654,
       "lines": 6
     },
+    "rich-text-editor/__screenshots__/rich-text-markdown.service.spec.ts/RichTextMarkdownService-coverage-edge-cases-closes-a-mid-text-blockquote-when-a-non-quote-line-follows-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/__screenshots__/rich-text-markdown.service.spec.ts/RichTextMarkdownService-list-round-trips-keeps-list-item-text-when-serializing-to-markdown-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/__screenshots__/rich-text-markdown.service.spec.ts/RichTextMarkdownService-list-round-trips-keeps-numbered-list-item-text-too-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/__screenshots__/rich-text-markdown.service.spec.ts/RichTextMarkdownService-list-round-trips-merges-adjacent-bullets-into-one-list-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/__screenshots__/rich-text-markdown.service.spec.ts/RichTextMarkdownService-list-round-trips-merges-adjacent-markdown-list-lines-into-one-list-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
     "rich-text-editor/__screenshots__/rich-text-markdown.service.spec.ts/RichTextMarkdownService-span-serializer-extension-keeps-inner-markdown-semantics-inside-an-actioned-span-through-toHtml-1.png": {
       "bytes": 4290,
       "lines": 3
@@ -7050,6 +7082,18 @@
       "lines": 3
     },
     "rich-text-editor/__screenshots__/rich-text-markdown.service.spec.ts/RichTextMarkdownService-span-serializer-extension-serializes-an-action-span-as-inline-HTML-with-inner-markdown-preserved-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/__screenshots__/rich-text-markdown.service.spec.ts/RichTextMarkdownService-toHtml-converts-a-multi-line-blockquote--joining-lines-with--br--1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/__screenshots__/rich-text-markdown.service.spec.ts/RichTextMarkdownService-toHtml-emits-a-separate--ul--per-consecutive-top-level-item--known-quirk--1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/__screenshots__/rich-text-markdown.service.spec.ts/RichTextMarkdownService-toMarkdown-loses-bare-text-node-li-content--known-bug--1.png": {
       "bytes": 4290,
       "lines": 3
     },
@@ -7613,6 +7657,14 @@
       "bytes": 2539,
       "lines": 66
     },
+    "rich-text-editor/addons/history/__screenshots__/rich-text-history-panel.component.spec.ts/RichTextHistoryPanelComponent-rendered-preview-keeps-inline-colour-that-Angular-would-otherwise-strip-1.png": {
+      "bytes": 6137,
+      "lines": 5
+    },
+    "rich-text-editor/addons/history/__screenshots__/rich-text-history-panel.component.spec.ts/RichTextHistoryPanelComponent-rendered-preview-still-drops-what-the-editor-itself-would-never-allow-1.png": {
+      "bytes": 6137,
+      "lines": 5
+    },
     "rich-text-editor/addons/history/__screenshots__/rich-text-history.directive.spec.ts/RichTextHistoryDirective-applies-a-revision-on-Space-as-well-as-Enter-1.png": {
       "bytes": 11365,
       "lines": 4
@@ -7674,16 +7726,16 @@
       "lines": 3
     },
     "rich-text-editor/addons/history/rich-text-history-panel.component.html": {
-      "bytes": 9067,
+      "bytes": 9080,
       "lines": 182
     },
     "rich-text-editor/addons/history/rich-text-history-panel.component.spec.ts": {
-      "bytes": 19884,
-      "lines": 451
+      "bytes": 21078,
+      "lines": 479
     },
     "rich-text-editor/addons/history/rich-text-history-panel.component.ts": {
-      "bytes": 10391,
-      "lines": 303
+      "bytes": 11520,
+      "lines": 323
     },
     "rich-text-editor/addons/history/rich-text-history.directive.spec.ts": {
       "bytes": 13069,
@@ -7700,6 +7752,10 @@
     "rich-text-editor/addons/history/rich-text-history.stories.ts": {
       "bytes": 2392,
       "lines": 73
+    },
+    "rich-text-editor/addons/images/__screenshots__/rich-text-images-button.component.spec.ts/RichTextImagesButtonComponent-clears-the-URL-and-alt-fields-after-an-insert-1.png": {
+      "bytes": 5224,
+      "lines": 5
     },
     "rich-text-editor/addons/images/__screenshots__/rich-text-images-button.component.spec.ts/RichTextImagesButtonComponent-does-not-save-the-selection-when-closing-1.png": {
       "bytes": 4290,
@@ -7802,16 +7858,16 @@
       "lines": 7
     },
     "rich-text-editor/addons/images/rich-text-images-button.component.html": {
-      "bytes": 2838,
+      "bytes": 2802,
       "lines": 70
     },
     "rich-text-editor/addons/images/rich-text-images-button.component.spec.ts": {
-      "bytes": 7855,
-      "lines": 207
+      "bytes": 9375,
+      "lines": 235
     },
     "rich-text-editor/addons/images/rich-text-images-button.component.ts": {
-      "bytes": 4195,
-      "lines": 96
+      "bytes": 4732,
+      "lines": 107
     },
     "rich-text-editor/addons/images/rich-text-images-overlay.component.html": {
       "bytes": 2018,
@@ -7874,7 +7930,11 @@
       "lines": 3
     },
     "rich-text-editor/addons/links/__screenshots__/rich-text-links-button.component.spec.ts/RichTextLinksButtonComponent-forwards-a-submit-to-the-context-and-closes-the-popover-1.png": {
-      "bytes": 4290,
+      "bytes": 16147,
+      "lines": 14
+    },
+    "rich-text-editor/addons/links/__screenshots__/rich-text-links-button.component.spec.ts/RichTextLinksButtonComponent-keeps-the-popover-open-when-the-URL-is-rejected-1.png": {
+      "bytes": 4635,
       "lines": 3
     },
     "rich-text-editor/addons/links/__screenshots__/rich-text-links-button.component.spec.ts/RichTextLinksButtonComponent-renders-the-trigger-button-with-the-localized-tooltip-1.png": {
@@ -7894,12 +7954,12 @@
       "lines": 22
     },
     "rich-text-editor/addons/links/rich-text-links-button.component.spec.ts": {
-      "bytes": 3592,
-      "lines": 92
+      "bytes": 4345,
+      "lines": 108
     },
     "rich-text-editor/addons/links/rich-text-links-button.component.ts": {
-      "bytes": 3574,
-      "lines": 82
+      "bytes": 3899,
+      "lines": 86
     },
     "rich-text-editor/addons/links/rich-text-links-form.component.html": {
       "bytes": 1895,
@@ -7937,6 +7997,10 @@
       "bytes": 2594,
       "lines": 84
     },
+    "rich-text-editor/addons/mentions/__screenshots__/rich-text-mention-popover.component.spec.ts/RichTextMentionPopoverComponent-emits-close-on-Escape-when-the-list-has-items-1.png": {
+      "bytes": 9518,
+      "lines": 7
+    },
     "rich-text-editor/addons/mentions/__screenshots__/rich-text-mentions.directive.spec.ts/RichTextMentionsDirective-closes-the-popover-when-the-trigger-is-no-longer-present-1.png": {
       "bytes": 4290,
       "lines": 3
@@ -7948,6 +8012,10 @@
     "rich-text-editor/addons/mentions/__screenshots__/rich-text-mentions.directive.spec.ts/RichTextMentionsDirective-does-not-treat-an-email-address-as-a-mention-trigger-1.png": {
       "bytes": 4290,
       "lines": 3
+    },
+    "rich-text-editor/addons/mentions/__screenshots__/rich-text-mentions.directive.spec.ts/RichTextMentionsDirective-handles-Enter-and-Tab-without-throwing-1.png": {
+      "bytes": 8964,
+      "lines": 4
     },
     "rich-text-editor/addons/mentions/__screenshots__/rich-text-mentions.directive.spec.ts/RichTextMentionsDirective-inserts-a-mention-chip-and-places-the-caret-outside-it--emitting-mentionInsert-1.png": {
       "bytes": 4290,
@@ -7985,6 +8053,10 @@
       "bytes": 4290,
       "lines": 3
     },
+    "rich-text-editor/addons/mentions/__screenshots__/rich-text-mentions.directive.spec.ts/RichTextMentionsDirective-selects-with-Enter-and-with-Tab-without-throwing-1.png": {
+      "bytes": 8964,
+      "lines": 4
+    },
     "rich-text-editor/addons/mentions/__screenshots__/rich-text-mentions.utils.spec.ts/rich-text-mentions-utils-detectTrigger-does-not-trigger-inside-a-code-block-or-inline-code-1.png": {
       "bytes": 5051,
       "lines": 4
@@ -7998,20 +8070,20 @@
       "lines": 71
     },
     "rich-text-editor/addons/mentions/rich-text-mention-popover.component.spec.ts": {
-      "bytes": 5751,
-      "lines": 150
+      "bytes": 6644,
+      "lines": 174
     },
     "rich-text-editor/addons/mentions/rich-text-mention-popover.component.ts": {
-      "bytes": 7687,
-      "lines": 225
+      "bytes": 7975,
+      "lines": 228
     },
     "rich-text-editor/addons/mentions/rich-text-mentions.directive.spec.ts": {
-      "bytes": 19035,
-      "lines": 478
+      "bytes": 20492,
+      "lines": 509
     },
     "rich-text-editor/addons/mentions/rich-text-mentions.directive.ts": {
-      "bytes": 12902,
-      "lines": 316
+      "bytes": 13069,
+      "lines": 318
     },
     "rich-text-editor/addons/mentions/rich-text-mentions.locales.ts": {
       "bytes": 2306,
@@ -8046,7 +8118,7 @@
       "lines": 4
     },
     "rich-text-editor/addons/outline/rich-text-outline-panel.component.html": {
-      "bytes": 1923,
+      "bytes": 1947,
       "lines": 47
     },
     "rich-text-editor/addons/outline/rich-text-outline-panel.component.spec.ts": {
@@ -8109,6 +8181,10 @@
       "bytes": 18563,
       "lines": 24
     },
+    "rich-text-editor/addons/slash-commands/__screenshots__/rich-text-slash-commands.directive.spec.ts/RichTextSlashCommandsDirective-runs-the-highlighted-command-on-Tab--as-Enter-does-1.png": {
+      "bytes": 10339,
+      "lines": 4
+    },
     "rich-text-editor/addons/slash-commands/__screenshots__/rich-text-slash-commands.directive.spec.ts/RichTextSlashCommandsDirective-scopes-instance-registered-commands-to-their-own-editor--while-global-commands-appear-everywhere-1.png": {
       "bytes": 11365,
       "lines": 4
@@ -8146,12 +8222,12 @@
       "lines": 163
     },
     "rich-text-editor/addons/slash-commands/rich-text-slash-commands.directive.spec.ts": {
-      "bytes": 28082,
-      "lines": 649
+      "bytes": 28780,
+      "lines": 665
     },
     "rich-text-editor/addons/slash-commands/rich-text-slash-commands.directive.ts": {
-      "bytes": 19616,
-      "lines": 479
+      "bytes": 19805,
+      "lines": 482
     },
     "rich-text-editor/addons/slash-commands/rich-text-slash-commands.locales.ts": {
       "bytes": 17157,
@@ -8305,6 +8381,10 @@
       "bytes": 2350,
       "lines": 72
     },
+    "rich-text-editor/audit7.probe.spec.ts": {
+      "bytes": 806,
+      "lines": 23
+    },
     "rich-text-editor/barrel.spec.ts": {
       "bytes": 2035,
       "lines": 41
@@ -8325,17 +8405,21 @@
       "bytes": 4416,
       "lines": 102
     },
+    "rich-text-editor/rich-text-editor.component.css": {
+      "bytes": 1344,
+      "lines": 46
+    },
     "rich-text-editor/rich-text-editor.component.html": {
       "bytes": 17336,
       "lines": 267
     },
     "rich-text-editor/rich-text-editor.component.spec.ts": {
-      "bytes": 399791,
-      "lines": 9421
+      "bytes": 402759,
+      "lines": 9487
     },
     "rich-text-editor/rich-text-editor.component.ts": {
-      "bytes": 274087,
-      "lines": 6690
+      "bytes": 277935,
+      "lines": 6769
     },
     "rich-text-editor/rich-text-editor.host.ts": {
       "bytes": 18774,
@@ -8370,12 +8454,12 @@
       "lines": 888
     },
     "rich-text-editor/rich-text-markdown.service.spec.ts": {
-      "bytes": 24000,
-      "lines": 560
+      "bytes": 25803,
+      "lines": 597
     },
     "rich-text-editor/rich-text-markdown.service.ts": {
-      "bytes": 27721,
-      "lines": 827
+      "bytes": 29139,
+      "lines": 849
     },
     "rich-text-editor/rich-text-paste-normalizer.service.spec.ts": {
       "bytes": 113289,
@@ -8390,12 +8474,12 @@
       "lines": 43
     },
     "rich-text-editor/rich-text-sanitizer.service.spec.ts": {
-      "bytes": 28643,
-      "lines": 640
+      "bytes": 29969,
+      "lines": 671
     },
     "rich-text-editor/rich-text-sanitizer.service.ts": {
-      "bytes": 21048,
-      "lines": 593
+      "bytes": 21869,
+      "lines": 613
     },
     "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-getTooltip-falls-back-to-the-raw-name-for-an-item-outside-the-union-1.png": {
       "bytes": 6736,
@@ -10816,10 +10900,6 @@
       "lines": 3
     },
     "__screenshots__/touch.spec.ts/onLongPress-stays-cancelled-while-a-two-finger-gesture-moves-1.png": {
-      "bytes": 4290,
-      "lines": 3
-    },
-    "__screenshots__/zz-popover-native.probe.spec.ts/native-Popover-API-is-intact-promotes-a-real-element-to-the-top-layer-1.png": {
       "bytes": 4290,
       "lines": 3
     },

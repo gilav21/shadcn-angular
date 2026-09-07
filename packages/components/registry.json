@@ -2636,6 +2636,7 @@
       "rich-text-editor/rich-text-command-registry.service.ts",
       "rich-text-editor/rich-text-editor.api.ts",
       "rich-text-editor/rich-text-editor.component.html",
+      "rich-text-editor/rich-text-editor.component.css",
       "rich-text-editor/rich-text-editor.component.ts",
       "rich-text-editor/rich-text-editor.host.ts",
       "rich-text-editor/rich-text-editor.validators.ts",

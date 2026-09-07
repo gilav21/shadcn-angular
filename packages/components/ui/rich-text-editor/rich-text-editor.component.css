@@ -1,0 +1,46 @@
+/*
+ * Printing an editor should print the DOCUMENT, not the window onto it.
+ *
+ * The editable area is a fixed-height scroll box (`maxHeight`, default 400px,
+ * with `overflow: auto`), which is right on screen and wrong on paper: measured
+ * with 40 paragraphs, 59% of the content sat outside the box and simply would
+ * not appear on the printed page — silently, with nothing to tell the author
+ * their draft was truncated.
+ *
+ * On paper the box constraint is lifted so the content flows and paginates, and
+ * the chrome around it — toolbar, floating bar, overlay panels, the history
+ * badge — is dropped, since none of it means anything once printed.
+ */
+@media print {
+  :host {
+    display: block;
+    overflow: visible;
+  }
+
+  :host [data-slot='rich-text-editor'] {
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+    border: none;
+  }
+
+  :host [role='toolbar'],
+  :host [data-slot='rich-text-floating-toolbar'],
+  :host [data-slot='rich-text-find-overlay'],
+  :host [data-slot='rich-text-outline-panel'],
+  :host [data-slot='rich-text-history-badge'] {
+    display: none !important;
+  }
+
+  /* Keep table rows and headings with the content they belong to. */
+  :host tr,
+  :host img {
+    break-inside: avoid;
+  }
+
+  :host h1,
+  :host h2,
+  :host h3 {
+    break-after: avoid;
+  }
+}

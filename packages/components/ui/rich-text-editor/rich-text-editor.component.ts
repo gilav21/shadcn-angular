@@ -220,6 +220,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
         provideComponentLocale(() => RichTextEditorComponent),
     ],
     templateUrl: './rich-text-editor.component.html',
+    styleUrl: './rich-text-editor.component.css',
     host: {
         class: 'block',
     },
