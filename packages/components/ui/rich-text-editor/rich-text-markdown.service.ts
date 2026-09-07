@@ -198,7 +198,12 @@ export class RichTextMarkdownService {
     private escapeHtmlInContent(text: string): string {
         return text
             .replaceAll(/<(?![\s\w*`~[\]!#-])/g, '&lt;')
-            .replaceAll(/(?<![\s\w*`~[\]!#-])>/g, '&gt;');
+            // `^` alongside the lookbehind: at index 0 there is no preceding
+            // character for the lookbehind to test, so a document that OPENS with
+            // a blockquote had its ">" escaped to text before parseBlockquotes
+            // ever ran — the first line rendered literally while later ones
+            // quoted correctly.
+            .replaceAll(/(?<![\s\w*`~[\]!#-])>/gm, '&gt;');
     }
 
     /**
@@ -300,7 +305,16 @@ export class RichTextMarkdownService {
 
             const { indent, type, content } = parsed;
 
-            while (stack.length > 0 && (stack.at(-1)?.indent ?? -1) >= indent) {
+            // Pop only DEEPER levels. Popping the current one too (`>=`) threw
+            // away the list a sibling belongs to, so every line started a fresh
+            // one — an ordered list renumbered from 1 on every row, and a screen
+            // reader announced "list, 1 item" over and over.
+            while (stack.length > 0 && (stack.at(-1)?.indent ?? -1) > indent) {
+                stack.pop();
+            }
+            // A same-indent line of a DIFFERENT kind (bullet after numbered) is
+            // its own list, so that one context is replaced rather than appended.
+            if (stack.at(-1)?.indent === indent && stack.at(-1)?.type !== type) {
                 stack.pop();
             }
 
@@ -642,7 +656,15 @@ export class RichTextMarkdownService {
                 }
                 if (tag === 'input') continue;
             }
-            childParts.push(this.nodeToMarkdown(ch));
+            // A node, not its children: `nodeToMarkdown` walks a node's OWN
+            // children, which is right for an element but yields nothing for the
+            // bare text node a plain `<li>text</li>` holds — so every bullet's
+            // text vanished from the saved markdown while the HTML looked fine.
+            childParts.push(
+                ch.nodeType === Node.TEXT_NODE
+                    ? (ch.textContent ?? '')
+                    : this.elementToMarkdown(ch as HTMLElement),
+            );
         }
         return { content: childParts.join('').trim(), nestedList };
     }

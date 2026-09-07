@@ -98,9 +98,10 @@ describe('RichTextMarkdownService', () => {
             expect(service.toHtml('- a')).toBe('<ul><li>a</li></ul>');
         });
 
-        it('emits a separate <ul> per consecutive top-level item (known quirk)', () => {
-            // BUG: sibling items at the same indent each flush to their own list.
-            expect(service.toHtml('- a\n- b')).toBe('<ul><li>a</li></ul>\n<ul><li>b</li></ul>');
+        it('merges consecutive top-level items into one list', () => {
+            // Was locked in as a "known quirk": sibling items each flushed to
+            // their own list, so an ordered list renumbered from 1 on every row.
+            expect(service.toHtml('- a\n- b')).toBe('<ul><li>a</li><li>b</li></ul>');
         });
 
         it('converts a single ordered list item', () => {
@@ -184,6 +185,41 @@ describe('RichTextMarkdownService', () => {
     // =====================================================================
     // HTML -> MARKDOWN
     // =====================================================================
+    describe('list round-trips', () => {
+        it('keeps list item text when serializing to markdown', () => {
+            // extractListItemContent handed each of an <li>'s child NODES to
+            // nodeToMarkdown, which iterates that node's OWN children — right for
+            // an element, empty for the bare text node a plain <li> holds. So a
+            // saved document lost every bullet's text while the HTML looked fine.
+            expect(service.toMarkdown('<ul><li>alpha</li><li>beta</li></ul>'))
+                .toBe('- alpha\n- beta');
+        });
+
+        it('keeps numbered list item text too', () => {
+            expect(service.toMarkdown('<ol><li>first</li><li>second</li></ol>'))
+                .toBe('1. first\n2. second');
+        });
+
+        it('merges adjacent markdown list lines into one list', () => {
+            // Each line became its own single-item list, so an ordered list
+            // restarted at "1." on every row and a screen reader announced
+            // "list, 1 item" repeatedly.
+            const html = service.toHtml('1. first\n2. second\n3. third');
+            const parsed = new DOMParser().parseFromString(html, 'text/html');
+
+            expect(parsed.querySelectorAll('ol')).toHaveLength(1);
+            expect(parsed.querySelectorAll('li')).toHaveLength(3);
+        });
+
+        it('merges adjacent bullets into one list', () => {
+            const html = service.toHtml('- one\n- two');
+            const parsed = new DOMParser().parseFromString(html, 'text/html');
+
+            expect(parsed.querySelectorAll('ul')).toHaveLength(1);
+            expect(parsed.querySelectorAll('li')).toHaveLength(2);
+        });
+    });
+
     describe('toMarkdown', () => {
         it('returns empty string for empty input', () => {
             expect(service.toMarkdown('')).toBe('');
@@ -255,10 +291,11 @@ describe('RichTextMarkdownService', () => {
             expect(service.toMarkdown(html)).toBe('- a\n- b');
         });
 
-        it('loses bare text-node li content (known bug)', () => {
-            // BUG: nodeToMarkdown is called on the li's text node itself, which has
-            // no child nodes, so the text is dropped. Wrapped content (above) works.
-            expect(service.toMarkdown('<ul><li>a</li><li>b</li></ul>')).toBe('- \n-');
+        it('keeps bare text-node li content', () => {
+            // Was locked in as a "known bug": the cause was understood and
+            // written down, and the broken output asserted as correct rather than
+            // fixed — so every save from markdown mode dropped plain bullet text.
+            expect(service.toMarkdown('<ul><li>a</li><li>b</li></ul>')).toBe('- a\n- b');
         });
 
         it('converts an ordered list with numbering', () => {
