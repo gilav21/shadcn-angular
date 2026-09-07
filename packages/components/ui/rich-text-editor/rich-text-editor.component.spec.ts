@@ -398,6 +398,67 @@ describe('RichTextEditorComponent', () => {
         commandRegistry.clear();
     });
 
+    describe('zero-width caret anchors (round-15 audit)', () => {
+        it('drops the anchor once its text node holds real text', () => {
+            // The anchor gives an empty block something to put the caret in, but
+            // nothing removed it afterwards, so it stayed in the live DOM for
+            // good -- invisible, stripped from output, and one extra step for
+            // every caret moving over it.
+            editor.innerHTML = '<p>\u200Balpha</p>';
+            editor.dispatchEvent(
+                new InputEvent('input', { bubbles: true, inputType: 'insertText', data: 'a' }),
+            );
+            fixture.detectChanges();
+
+            expect(editor.querySelector('p')?.textContent).toBe('alpha');
+            expect(editor.textContent).not.toContain('\u200B');
+        });
+
+        it('keeps the anchor while it is still the only thing in the block', () => {
+            editor.innerHTML = '<p>\u200B</p>';
+            editor.dispatchEvent(
+                new InputEvent('input', { bubbles: true, inputType: 'insertText', data: '' }),
+            );
+            fixture.detectChanges();
+
+            expect(editor.querySelector('p')?.textContent).toBe('\u200B');
+        });
+
+        it('counts maxLength on the same basis as the character counter', () => {
+            // Enforcement read raw textContent while the counter read the
+            // stripped value, so input was refused one character early per
+            // anchor while the counter still showed room.
+            fixture.componentRef.setInput('maxLength', 5);
+            fixture.detectChanges();
+
+            // The anchor sits in a SEPARATE empty block, where it is still doing
+            // its job and the sweep correctly leaves it alone -- so this measures
+            // the counting basis, not the sweep.
+            editor.innerHTML = '<p>abcd</p><p>​</p>';
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+
+            const range = document.createRange();
+            const first = editor.querySelector('p') as HTMLElement;
+            range.selectNodeContents(first);
+            range.collapse(false);
+            const selection = document.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+
+            const beforeInput = new InputEvent('beforeinput', {
+                bubbles: true,
+                cancelable: true,
+                data: 'e',
+                inputType: 'insertText',
+            });
+            editor.dispatchEvent(beforeInput);
+
+            // "abcd" + "e" is exactly 5, so the anchor must not count.
+            expect(beforeInput.defaultPrevented).toBe(false);
+        });
+    });
+
     it('prevents replacements that would exceed maxLength', () => {
         fixture.componentRef.setInput('maxLength', 5);
         fixture.detectChanges();
@@ -9543,4 +9604,5 @@ describe('RichTextEditorComponent — locale cascade', () => {
 
         expect(hello(fixture)).toBe('שלום');
     });
+
 });

@@ -1112,6 +1112,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const div = event.target as HTMLDivElement;
         this.lastInputRule = null;
         const transformed = this.applyInputRules(event);
+        this.sweepSpentCaretAnchors(div);
         const html = this.sanitizer.sanitize(div.innerHTML).replaceAll('\u200B', '');
 
         const triggerTextContent = this.buildTriggerAwareText(div.innerHTML);
@@ -1651,7 +1652,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
 
         const max = this.maxLength() as number;
-        const currentText = this.editorDiv?.nativeElement.textContent ?? '';
+        const currentText = this.perceivedText();
         const selection = this.document.getSelection();
         const selectedLength = selection && !selection.isCollapsed
             ? graphemeLength(selection.toString())
@@ -1746,7 +1747,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     remainingLength(): number {
         const max = this.maxLength();
         if (!max) return Number.POSITIVE_INFINITY;
-        const currentText = this.editorDiv?.nativeElement.textContent ?? '';
+        const currentText = this.perceivedText();
         return Math.max(0, max - (graphemeLength(currentText) - this.getSelectedTextLength()));
     }
 
@@ -1760,10 +1761,71 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * rather than in each addon. Unlike a paste, an insert is not truncated: a
      * half-inserted link or table is worse than none.
      */
+    /**
+     * The document's text as the user perceives it.
+     *
+     * Empty blocks carry a `\u200B` caret anchor, which is invisible, is
+     * stripped from `getContent()`, and is not counted by `characterCount()` --
+     * but the raw `textContent` still contains it. Reading that raw value made
+     * `maxLength` enforcement disagree with the counter shown right next to it:
+     * measured live, the counter read 11 while enforcement worked from 12, so
+     * input was refused one character early for every anchor in the document,
+     * with the counter still showing room.
+     */
+    /**
+     * Drop `\u200B` caret anchors from text nodes that now hold real text.
+     *
+     * The anchor exists to give an empty block something to put the caret in.
+     * Once the user types, it has done its job -- but nothing removed it, so it
+     * stayed in the live DOM forever. It is invisible and stripped from output,
+     * which is why it went unnoticed, but the caret still had to step over it:
+     * with the caret at the start of `\u200Balpha`, one ArrowRight moved past
+     * the anchor rather than past `a`, so the next character landed BEFORE the
+     * first letter. One dead keypress per affected block, with no visible cause.
+     *
+     * Only anchors sharing a text node with real text are removed -- an anchor
+     * alone in an empty block is still doing its job. The caret is re-anchored
+     * when it sits in the node being edited, so the sweep is invisible to the
+     * user typing.
+     */
+    private sweepSpentCaretAnchors(root: HTMLElement): void {
+        const walker = this.document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        const spent: Text[] = [];
+        while (walker.nextNode()) {
+            const node = walker.currentNode as Text;
+            if (node.data.includes('​') && node.data.replaceAll('​', '').length > 0) {
+                spent.push(node);
+            }
+        }
+        if (spent.length === 0) return;
+
+        const selection = this.document.getSelection();
+        const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+        const caretNode = range?.startContainer ?? null;
+        const caretOffset = range?.startOffset ?? 0;
+
+        for (const node of spent) {
+            const before = node.data;
+            const removedBeforeCaret = countZeroWidthBefore(before, caretOffset);
+            node.data = before.replaceAll('​', '');
+            if (node === caretNode && range && selection) {
+                const next = Math.max(0, Math.min(node.data.length, caretOffset - removedBeforeCaret));
+                range.setStart(node, next);
+                range.collapse(true);
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+        }
+    }
+
+    private perceivedText(): string {
+        return (this.editorDiv?.nativeElement.textContent ?? '').replaceAll('​', '');
+    }
+
     private exceedsMaxLength(text: string): boolean {
         const max = this.maxLength();
         if (!max) return false;
-        const currentText = this.editorDiv?.nativeElement.textContent ?? '';
+        const currentText = this.perceivedText();
         const remaining = max - (graphemeLength(currentText) - this.getSelectedTextLength());
         return graphemeLength(text) > remaining;
     }
@@ -1773,7 +1835,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             return false;
         }
         const max = this.maxLength() as number;
-        const currentText = this.editorDiv?.nativeElement.textContent ?? '';
+        const currentText = this.perceivedText();
         const selectedLength = this.getSelectedTextLength();
         const remaining = max - (graphemeLength(currentText) - selectedLength);
 
@@ -6795,4 +6857,13 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.closeTableContextMenu();
         this.removeFloatingScrollListener();
     }
+}
+
+/** How many zero-width anchors sit before `offset` in `text`. */
+function countZeroWidthBefore(text: string, offset: number): number {
+    let count = 0;
+    for (let i = 0; i < offset && i < text.length; i++) {
+        if (text[i] === '​') count++;
+    }
+    return count;
 }
