@@ -280,8 +280,13 @@ export class RichTextSanitizerService {
         const probe = url.replace(this.URL_STRIP_PATTERN, '').toLowerCase();
 
         // A protocol-relative URL looks relative but loads an arbitrary external
-        // host. sanitizeImageSrc already rejected these; the href path did not.
-        if (probe.startsWith('//')) {
+        // host. Browsers normalize backslashes to forward slashes in the
+        // authority position, so "/\host" and "\\host" reach the same place
+        // as "//host" -- and the surviving anchor was decorated with
+        // rel="noopener noreferrer", making an off-origin redirect read as a
+        // vetted link. sanitizeImageSrc already guarded the backslash forms;
+        // the href path did not.
+        if (/^[\\/]{2}/.test(probe)) {
             return false;
         }
 

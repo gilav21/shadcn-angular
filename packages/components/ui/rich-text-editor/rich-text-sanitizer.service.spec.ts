@@ -769,4 +769,25 @@ describe('RichTextSanitizerService — structural size ceiling', () => {
             expect(service.sanitizeImageSrc(png)).toBe(png);
         });
     });
+
+    describe('backslash forms of a protocol-relative URL (round-17 audit)', () => {
+        it('refuses the backslash variants browsers normalize to //host', () => {
+            // isUrlSafe rejected "//host" but not "/\\host" or "\\\\host",
+            // which browsers treat identically. The surviving anchor resolved
+            // off-origin and was decorated with rel=noopener, so it read as a
+            // vetted link. sanitizeImageSrc already guarded this; href did not.
+            expect(service.isUrlSafe('/\\evil.example/steal')).toBe(false);
+            expect(service.isUrlSafe('\\\\evil.example/steal')).toBe(false);
+            expect(service.isUrlSafe('\\/evil.example/steal')).toBe(false);
+        });
+
+        it('strips such an href in a full sanitize pass', () => {
+            const html = service.sanitize('<a href="/\\evil.example/steal">click</a>');
+            expect(html).not.toContain('evil.example');
+        });
+
+        it('still allows an ordinary rooted path', () => {
+            expect(service.isUrlSafe('/docs/page')).toBe(true);
+        });
+    });
 });

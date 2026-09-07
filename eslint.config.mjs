@@ -70,6 +70,14 @@ export default tseslint.config(
       },
     },
     rules: {
+      // Control characters have no business in a regex. A literal  backspace
+      // reached four separate regexes in this repo -- an editing tool had
+      // interpreted "" -- and in one case it silently made a regex
+      // alternation never match, which cost a long debugging detour because the
+      // running behaviour could not be explained by reading the file. Zero-width
+      // characters in ordinary strings stay allowed -- the editor legitimately
+      // uses them as caret anchors.
+      'no-control-regex': 'error',
       '@typescript-eslint/no-unused-vars': [
         'error',
         {

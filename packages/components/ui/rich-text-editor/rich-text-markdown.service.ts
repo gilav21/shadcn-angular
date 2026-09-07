@@ -243,8 +243,23 @@ export class RichTextMarkdownService {
      * use delimiter chars already in the input are stripped first so user
      * content can never spoof a token.
      */
+    /**
+     * Whether a tag written in the source is markup or prose about markup.
+     *
+     * An author writing "the <table> element has <tr> children" means those as
+     * words; treating them as markup turned the sentence into a real table with
+     * the prose swallowed into a cell. Real markup comes in matched pairs, so an
+     * unpaired non-void tag is text.
+     */
+    private isMarkupTag(tagName: string, paired: ReadonlySet<string>): boolean {
+        if (!this.sanitizer.isAllowedTag(tagName)) return false;
+        const lower = tagName.toLowerCase();
+        return paired.has(lower) || VOID_TAGS.has(lower);
+    }
+
     private protectRawTags(markdown: string, store: string[]): string {
         const cleaned = markdown.replaceAll(/[]/g, '');
+        const paired = pairedTagNames(cleaned);
         const push = (match: string): string => {
             const token = `${store.length}`;
             store.push(match);
@@ -258,7 +273,7 @@ export class RichTextMarkdownService {
             // but escaped "</u>" (/ does not), so every round-trip appended
             // another visible "</u>" and the damage compounded per save/load.
             .replaceAll(PASSTHROUGH_TAG_PATTERN, (match: string, tagName: string) =>
-                this.sanitizer.isAllowedTag(tagName) ? push(match) : match,
+                this.isMarkupTag(tagName, paired) ? push(match) : match,
             )
             .replaceAll(/<span\b[^>]{0,4096}>/gi, push)
             .replaceAll(/<\/span>/gi, push)
@@ -314,10 +329,20 @@ export class RichTextMarkdownService {
         // Asking the sanitizer which tags actually survive settles both, and
         // keeps the two in step: a tag it would strip is prose, and is escaped
         // as prose.
+        // Which tag names appear as a matched pair somewhere in the text. An
+        // author writing "the <table> element has <tr> children" means those
+        // as words, and treating them as markup turned the sentence into a real
+        // table with the prose swallowed into a cell. Real markup comes in
+        // pairs; a lone opening tag in a sentence does not.
+        const paired = pairedTagNames(text);
+
         return text
             .replaceAll(/<\/?([a-zA-Z][a-zA-Z0-9]*)\b[^<>]{0,4096}>|</g, (match, tagName?: string) => {
                 if (!tagName) return '&lt;';
-                if (this.sanitizer.isAllowedTag(tagName)) return match;
+                const lower = tagName.toLowerCase();
+                if (this.sanitizer.isAllowedTag(tagName) && (paired.has(lower) || VOID_TAGS.has(lower))) {
+                    return match;
+                }
                 // Tags whose CONTENT must not survive are left intact so the
                 // sanitizer removes the whole subtree. Escaping them here would
                 // turn a stripped <script> body into visible page text -- safe
@@ -1107,4 +1132,32 @@ export class RichTextMarkdownService {
             position: cursorPosition,
         };
     }
+}
+
+/** Tags that legitimately stand alone, so they need no closing partner. */
+const VOID_TAGS = new Set(['br', 'hr', 'img', 'input', 'col']);
+
+/**
+ * Tag names that appear as a matched open/close pair in `text`.
+ *
+ * Used to tell markup from prose about markup: "<b>x</b>" is markup, while
+ * "the <table> element" is a sentence. Counting rather than matching positions
+ * is deliberate -- it is cheap, and a document with mismatched nesting is not
+ * something this pass should try to repair.
+ */
+function pairedTagNames(text: string): ReadonlySet<string> {
+    const opens = new Map<string, number>();
+    const closes = new Map<string, number>();
+    const pattern = /<(\/?)([a-zA-Z][a-zA-Z0-9]*)\b[^<>]{0,4096}>/g;
+    let match: RegExpExecArray | null;
+    while ((match = pattern.exec(text)) !== null) {
+        const bucket = match[1] ? closes : opens;
+        const name = match[2].toLowerCase();
+        bucket.set(name, (bucket.get(name) ?? 0) + 1);
+    }
+    const paired = new Set<string>();
+    for (const [name, count] of opens) {
+        if (count > 0 && (closes.get(name) ?? 0) > 0) paired.add(name);
+    }
+    return paired;
 }

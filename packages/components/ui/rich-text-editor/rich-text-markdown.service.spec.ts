@@ -885,4 +885,31 @@ describe('RichTextMarkdownService', () => {
             expect(separator.split('|').filter((c) => c.trim())).toHaveLength(2);
         });
     });
+
+    describe('prose that mentions tag names (round-17 audit)', () => {
+        it('keeps a sentence about HTML readable', () => {
+            // The allowlist rule passed ANY allowed tag through verbatim, so a
+            // sentence naming <table>/<tr>/<td> became a real table: the words
+            // vanished and the paragraph nested inside a cell.
+            const html = service.toHtml('The <table> element has <tr> and <td> children.');
+            expect(html).toContain('element has');
+            expect(html).toContain('children.');
+            const probe = document.createElement('div');
+            probe.innerHTML = html;
+            expect(probe.querySelector('table')).toBeNull();
+        });
+
+        it('keeps an unpaired block tag as text', () => {
+            const html = service.toHtml('To make a paragraph, type <p>hello</p> in the editor.');
+            expect(html).toContain('in the editor.');
+        });
+
+        it('still renders a genuinely paired inline tag', () => {
+            expect(service.toHtml('<b>bold</b>')).toBe('<p><b>bold</b></p>');
+        });
+
+        it('still renders paired block markup written as HTML', () => {
+            expect(service.toHtml('<p>Hello <b>World</b></p>')).toBe('<p>Hello <b>World</b></p>');
+        });
+    });
 });
