@@ -451,7 +451,11 @@ describe('RichTextMarkdownService', () => {
 
         it('escapes pipe characters in table cells', () => {
             const html = '<table><tr><td>a|b</td></tr></table>';
-            expect(service.toMarkdown(html)).toBe(String.raw`| a\|b |`);
+            // The separator row is part of the contract, not noise: without it
+            // parseTables refuses the text and the table comes back as a
+            // paragraph of pipes. This test used to assert the separator-less
+            // output, locking in that data loss.
+            expect(service.toMarkdown(html)).toBe('| a' + String.raw`\|` + 'b |\n| --- |');
         });
 
         it('returns empty for a table with no rows', () => {
@@ -722,6 +726,47 @@ describe('RichTextMarkdownService', () => {
             expect(probe.querySelector('pre code')?.textContent).toBe(
                 '<span data-mention data-mention-id="admin">@admin</span>',
             );
+        });
+    });
+
+    describe('table round-trip (round-15 audit)', () => {
+        it('survives a table that has no header row', () => {
+            // tableToMarkdown only emitted the separator when a row contained a
+            // <th>. Without it parseTables refuses to parse the text back, so a
+            // headerless table came home as a paragraph of literal pipes.
+            const html = '<table><tbody><tr><td>a</td><td>b</td></tr><tr><td>c</td><td>d</td></tr></tbody></table>';
+            const md = service.toMarkdown(html);
+            const back = service.toHtml(md);
+            expect(back).toContain('<table');
+            expect(back).not.toContain('| a |');
+        });
+
+        it('keeps a colspan table as a table rather than literal pipe text', () => {
+            const html = '<table><tbody><tr><td colspan="2">wide</td></tr><tr><td>a</td><td>b</td></tr></tbody></table>';
+            const back = service.toHtml(service.toMarkdown(html));
+            expect(back).toContain('<table');
+            expect(back).not.toContain('| wide |');
+        });
+
+        it('keeps an escaped pipe inside one cell', () => {
+            // The escape branch compared a character against the two-character
+            // string '\\', so it never fired: "x\|y" split into two cells and
+            // left the backslash visible, giving a 3-column body row under a
+            // 2-column header.
+            const md = '| a | b |\n| --- | --- |\n| x' + String.raw`\|` + 'y | z |';
+            const html = service.toHtml(md);
+            const probe = document.createElement('div');
+            probe.innerHTML = html;
+            const cells = Array.from(probe.querySelectorAll('tbody td')).map((c) => c.textContent);
+            expect(cells).toEqual(['x|y', 'z']);
+        });
+
+        it('round-trips a cell containing a pipe', () => {
+            const html = '<table><thead><tr><th>h</th></tr></thead><tbody><tr><td>x|y</td></tr></tbody></table>';
+            const back = service.toHtml(service.toMarkdown(html));
+            const probe = document.createElement('div');
+            probe.innerHTML = back;
+            expect(probe.querySelector('tbody td')?.textContent).toBe('x|y');
         });
     });
 });

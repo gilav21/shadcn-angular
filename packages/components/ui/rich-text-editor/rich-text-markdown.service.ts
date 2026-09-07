@@ -452,7 +452,11 @@ export class RichTextMarkdownService {
         let current = '';
         for (let i = 0; i < trimmed.length; i++) {
             const ch = trimmed[i];
-            if (ch === '\\\\' && trimmed[i + 1] === '|') {
+            // A single backslash. The comparison was against a TWO-character
+            // string that no single character can equal, so the escape never
+            // fired: "x\|y" split into two cells and left the backslash
+            // visible, giving a body row wider than its own header.
+            if (ch === '\\' && trimmed[i + 1] === '|') {
                 current += '|';
                 i++;
                 continue;
@@ -776,6 +780,14 @@ export class RichTextMarkdownService {
     /**
      * Convert table element to Markdown table syntax.
      */
+    /** A row's width in columns, counting each cell's colspan. */
+    private columnSpan(row: HTMLElement): number {
+        return Array.from(row.querySelectorAll('th, td')).reduce((total, cell) => {
+            const span = Number.parseInt(cell.getAttribute('colspan') ?? '1', 10);
+            return total + (Number.isFinite(span) && span > 0 ? span : 1);
+        }, 0);
+    }
+
     private tableToMarkdown(table: HTMLElement): string {
         const rows = Array.from(table.querySelectorAll('tr'));
         if (rows.length === 0) return '';
@@ -783,14 +795,24 @@ export class RichTextMarkdownService {
         const lines: string[] = [];
         let headerProcessed = false;
 
+        // The widest row decides the column count, each cell counting its own
+        // colspan. The separator previously appeared only when a row held a
+        // <th>, so a headerless or colspan table emitted none -- and parseTables,
+        // which requires header + separator, refused to read it back, leaving a
+        // paragraph of literal pipe characters where the table had been.
+        const columnCount = rows.reduce(
+            (widest, row) => Math.max(widest, this.columnSpan(row)),
+            0,
+        );
+
         for (const row of rows) {
             const cells = Array.from(row.querySelectorAll('th, td'));
             const cellContents = cells.map(cell => this.nodeToMarkdown(cell).trim().replaceAll('|', String.raw`\|`));
 
             lines.push('| ' + cellContents.join(' | ') + ' |');
 
-            if (!headerProcessed && row.querySelector('th')) {
-                const separator = cells.map(() => '---').join(' | ');
+            if (!headerProcessed) {
+                const separator = new Array(Math.max(1, columnCount)).fill('---').join(' | ');
                 lines.push('| ' + separator + ' |');
                 headerProcessed = true;
             }
