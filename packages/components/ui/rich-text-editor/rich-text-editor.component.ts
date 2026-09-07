@@ -645,6 +645,17 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return this.markdownService.toMarkdown(this.htmlContent());
     });
 
+    /**
+     * Whether the document has reached {@link maxLength}. Drives the counter's
+     * destructive styling: without it, hitting the limit was completely silent
+     * -- keystrokes simply stopped working, with no announcement and no visual
+     * change.
+     */
+    readonly atCharacterLimit = computed(() => {
+        const max = this.maxLength();
+        return !!max && this.characterCount() >= max;
+    });
+
     characterCount = computed(() => {
         return graphemeLength(this.sanitizer.stripTags(this.htmlContent()));
     });

@@ -271,9 +271,22 @@
 </div>
 
 @if (showCount() || showWordCount()) {
-  <div class="flex justify-end text-xs text-muted-foreground mt-1 px-1">
+  <!--
+    role="status" so a screen reader hears the count change, and the limit is
+    shown as "n / max" once one is set: enforcement used to be entirely silent,
+    so hitting maxLength read as a dead keyboard with the counter still showing
+    a bare number and no indication a limit existed at all. The colour change
+    at the limit gives sighted users the same signal.
+  -->
+  <div class="flex justify-end text-xs text-muted-foreground mt-1 px-1" role="status" aria-live="polite">
     @if (showCount()) {
-      <span>{{ interpolateLocale(resolvedLocale().editor.characters, { count: characterCount() }) }}</span>
+      <span [class.text-destructive]="atCharacterLimit()" [class.font-medium]="atCharacterLimit()">
+        @if (maxLength()) {
+          {{ interpolateLocale(resolvedLocale().editor.characters, { count: characterCount() + ' / ' + maxLength() }) }}
+        } @else {
+          {{ interpolateLocale(resolvedLocale().editor.characters, { count: characterCount() }) }}
+        }
+      </span>
     }
     @if (showWordCount()) {
       <span [class.ms-3]="showCount()">{{ interpolateLocale(resolvedLocale().editor.words, { count: wordCount() }) }}</span>

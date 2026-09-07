@@ -559,6 +559,49 @@ describe('RichTextEditorComponent', () => {
         });
     });
 
+
+    describe('maxLength feedback (round-16 audit)', () => {
+        function counter(): HTMLElement | null {
+            return (fixture.nativeElement as HTMLElement).querySelector('[role="status"]');
+        }
+
+        it('announces the count through a live region', () => {
+            // There was no live region anywhere in the component, so a screen
+            // reader user got no signal at all when input stopped.
+            fixture.componentRef.setInput('showCount', true);
+            fixture.detectChanges();
+            expect(counter()?.getAttribute('aria-live')).toBe('polite');
+        });
+
+        it('shows the limit alongside the count', () => {
+            fixture.componentRef.setInput('showCount', true);
+            fixture.componentRef.setInput('maxLength', 120);
+            fixture.detectChanges();
+            expect(counter()?.textContent).toContain('/ 120');
+        });
+
+        it('shows no limit when none is set', () => {
+            fixture.componentRef.setInput('showCount', true);
+            fixture.componentRef.setInput('maxLength', undefined);
+            fixture.detectChanges();
+            expect(counter()?.textContent).not.toContain('/');
+        });
+
+        it('marks the counter when the limit is reached', () => {
+            fixture.componentRef.setInput('showCount', true);
+            fixture.componentRef.setInput('maxLength', 3);
+            fixture.detectChanges();
+            expect(component.atCharacterLimit()).toBe(false);
+
+            editor.innerHTML = '<p>abc</p>';
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+
+            expect(component.atCharacterLimit()).toBe(true);
+            expect(counter()?.querySelector('.text-destructive')).toBeTruthy();
+        });
+    });
+
     it('prevents replacements that would exceed maxLength', () => {
         fixture.componentRef.setInput('maxLength', 5);
         fixture.detectChanges();
