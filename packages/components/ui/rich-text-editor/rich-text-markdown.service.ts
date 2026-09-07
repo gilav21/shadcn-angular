@@ -262,13 +262,12 @@ export class RichTextMarkdownService {
 
     private protectRawTags(markdown: string, store: string[]): string {
         const cleaned = markdown.replaceAll(/[]/g, '');
-        const paired = pairedTagNames(cleaned);
         const push = (match: string): string => {
             const token = `${store.length}`;
             store.push(match);
             return token;
         };
-        return cleaned
+        return perBlock(cleaned, (block, paired) => block
             // Inline formatting tags Markdown has no syntax for (u, sub, sup,
             // mark...) are emitted verbatim by toMarkdown, so toHtml must return
             // them unchanged. Protecting the CLOSING tag matters as much as the
@@ -280,7 +279,7 @@ export class RichTextMarkdownService {
             )
             .replaceAll(/<span\b[^>]{0,4096}>/gi, push)
             .replaceAll(/<\/span>/gi, push)
-            .replaceAll(/<img\b[^>]{0,4096}\bdata-action-[\w-]{1,64}[^>]{0,4096}>/gi, push);
+            .replaceAll(/<img\b[^>]{0,4096}\bdata-action-[\w-]{1,64}[^>]{0,4096}>/gi, push));
     }
 
     /**
@@ -327,26 +326,8 @@ export class RichTextMarkdownService {
      * like HTML tags are escaped, so characters carrying Markdown meaning survive.
      */
     private escapeHtmlInContent(text: string): string {
-        // Escape every "<" that does not open a tag the sanitizer will keep.
-        //
-        // This used to guess with a character class -- "<" followed by \w, "*",
-        // "`" and friends was assumed to be a tag. Two bugs came out of that.
-        // "if (x<y)" looked like a tag open, so DOMParser swallowed the rest of
-        // the line and the author's sentence vanished. And the guess was
-        // asymmetric: "<b>" passed while "</b>" did not, so a closing tag was
-        // escaped into visible text and corrupted permanently on round-trip.
-        //
-        // Asking the sanitizer which tags actually survive settles both, and
-        // keeps the two in step: a tag it would strip is prose, and is escaped
-        // as prose.
-        // Which tag names appear as a matched pair somewhere in the text. An
-        // author writing "the <table> element has <tr> children" means those
-        // as words, and treating them as markup turned the sentence into a real
-        // table with the prose swallowed into a cell. Real markup comes in
-        // pairs; a lone opening tag in a sentence does not.
-        const paired = pairedTagNames(text);
 
-        return text
+        return perBlock(text, (block, paired) => block
             .replaceAll(/<\/?([a-zA-Z][a-zA-Z0-9]*)\b[^<>]{0,4096}>|</g, (match, tagName?: string) => {
                 if (!tagName) return '&lt;';
                 const lower = tagName.toLowerCase();
@@ -366,7 +347,7 @@ export class RichTextMarkdownService {
             // a blockquote had its ">" escaped to text before parseBlockquotes
             // ever ran — the first line rendered literally while later ones
             // quoted correctly.
-            .replaceAll(/(?<!^)(?<![\s\w*`~[\]!#-])>/gm, '&gt;');
+            .replaceAll(/(?<!^)(?<![\s\w*`~[\]!#-])>/gm, '&gt;'));
     }
 
     /**
@@ -1190,6 +1171,9 @@ export class RichTextMarkdownService {
 }
 
 /** Tags that legitimately stand alone, so they need no closing partner. */
+/** Blank-line boundary between blocks, captured so joining restores the text. */
+const BLOCK_SEPARATOR = /(\n\s*\n)/;
+
 const VOID_TAGS = new Set(['br', 'hr', 'img', 'input', 'col']);
 
 /**
@@ -1200,17 +1184,23 @@ const VOID_TAGS = new Set(['br', 'hr', 'img', 'input', 'col']);
  * is deliberate -- it is cheap, and a document with mismatched nesting is not
  * something this pass should try to repair.
  */
-function pairedTagNames(text: string): ReadonlySet<string> {
-    const paired = new Set<string>();
-    // Pairing is decided PER BLOCK. Counting across the whole document let a
-    // tag named as prose in one paragraph match an unrelated mention far away,
-    // so both became live markup -- the words vanished and a real element was
-    // injected. That is the very bug the matched-pair rule exists to stop, so
-    // the halves have to be near each other to count.
-    for (const block of text.split(/\n\s*\n/)) {
-        for (const name of pairedTagNamesInBlock(block)) paired.add(name);
-    }
-    return paired;
+/**
+ * Run `transform` over each block with only THAT block's paired tag names.
+ *
+ * An earlier version computed the sets per block and then unioned them into
+ * one document-wide set, which threw the locality away again: a genuine
+ * `<b>bold</b>` anywhere re-promoted every prose mention of `<b>` to markup and
+ * the words were silently deleted. The set has to stay with its block all the
+ * way to the point of use.
+ */
+function perBlock(
+    text: string,
+    transform: (block: string, paired: ReadonlySet<string>) => string,
+): string {
+    return text
+        .split(BLOCK_SEPARATOR)
+        .map((part, index) => (index % 2 === 1 ? part : transform(part, pairedTagNamesInBlock(part))))
+        .join('');
 }
 
 function pairedTagNamesInBlock(block: string): ReadonlySet<string> {

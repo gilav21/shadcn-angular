@@ -786,6 +786,21 @@ describe('RichTextSanitizerService — structural size ceiling', () => {
             expect(service.isUrlSafe('\\/evil.example/steal')).toBe(false);
         });
 
+        it('refuses a SCHEME-QUALIFIED backslash authority', () => {
+            // The schemeless forms were covered; these were not. https: is on the
+            // allowlist, so the authority check never saw them and the anchor
+            // survived -- resolving to https://evil.example and decorated with
+            // rel=noopener, reading as a vetted link.
+            expect(service.isUrlSafe('https:\\\\evil.example/phish')).toBe(false);
+            expect(service.isUrlSafe('http:\\\\evil.example')).toBe(false);
+            expect(service.isUrlSafe('https:/\\evil.example/phish')).toBe(false);
+            expect(service.sanitizeImageSrc('https:\\\\evil.example/x.png')).toBeNull();
+        });
+
+        it('still allows an ordinary absolute URL', () => {
+            expect(service.isUrlSafe('https://example.com/a')).toBe(true);
+        });
+
         it('strips such an href in a full sanitize pass', () => {
             const html = service.sanitize('<a href="/\\evil.example/steal">click</a>');
             expect(html).not.toContain('evil.example');

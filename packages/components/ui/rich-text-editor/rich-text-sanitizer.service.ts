@@ -290,6 +290,14 @@ export class RichTextSanitizerService {
             return false;
         }
 
+        // ...and the same check AFTER any scheme. "https:\\\\evil" was admitted by
+        // the allowlist below (https is a fine scheme) and never came back here,
+        // so a scheme-qualified backslash authority resolved off-origin exactly
+        // like the schemeless form it sits beside.
+        if (hasBackslashAuthority(probe)) {
+            return false;
+        }
+
         // Allowlist, not blocklist. Naming the dangerous schemes meant anything
         // unnamed passed -- blob:, filesystem:, view-source:, about:, ws: and
         // file: all reached a live href. Only the schemes ordinary links use are
@@ -344,7 +352,7 @@ export class RichTextSanitizerService {
         const trimmed = src.trim();
         const probe = trimmed.replace(this.URL_STRIP_PATTERN, '');
 
-        if (probe.startsWith('//') || probe.startsWith('/\\')) {
+        if (probe.startsWith('//') || hasBackslashAuthority(probe)) {
             return null;
         }
 
@@ -686,4 +694,18 @@ export class RichTextSanitizerService {
                 `style="${styleContent.replaceAll('&quot;', "'")}"`,
         );
     }
+}
+
+/**
+ * Whether a URL's authority is introduced with a backslash, before or after a
+ * scheme. Browsers normalize backslashes to forward slashes there, so
+ * "https:\\evil" reaches the same host as "https://evil". Written as string
+ * work rather than a regex: the character class for this is easy to get subtly
+ * wrong, and getting it wrong here is an open redirect.
+ */
+function hasBackslashAuthority(url: string): boolean {
+    const colon = url.indexOf(':');
+    const rest = colon === -1 ? url : url.slice(colon + 1);
+    const lead = rest.slice(0, 2);
+    return lead.includes('\\') && (lead === '\\\\' || lead === '/\\' || lead === '\\/');
 }

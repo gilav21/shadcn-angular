@@ -911,15 +911,38 @@ describe('RichTextMarkdownService', () => {
         });
 
         it('does not pair tag halves that sit in unrelated blocks', () => {
-            // pairedTagNames counted opens and closes across the WHOLE document,
-            // so a tag named as prose in one paragraph matched an unrelated
-            // mention far away and both became live markup: the words vanished
-            // and a real <table> was injected.
+            // A lone stray closing tag is unpaired in BOTH blocks, so this
+            // passes under a whole-document union too. Kept as a boundary case,
+            // with the realistic shape covered by the test below.
             const html = service.toHtml('Use the <table> element.\n\nUnrelated later: </table>');
             const probe = document.createElement('div');
             probe.innerHTML = html;
             expect(probe.querySelector('table')).toBeNull();
-            expect(probe.textContent).toContain('Use the <table> element.');
+        });
+
+        it('keeps a prose mention as text when the SAME tag is paired elsewhere', () => {
+            // The realistic shape, and the one that was still broken: pairing was
+            // computed per block and then unioned into one document-wide set, so
+            // a genuine <b>bold</b> anywhere re-promoted every prose mention of
+            // <b> to markup and the words were silently deleted.
+            const html = service.toHtml(
+                'To make text bold, wrap it in <b> tags.\n\nLike this: <b>bold</b>',
+            );
+            const probe = document.createElement('div');
+            probe.innerHTML = html;
+            expect(probe.textContent).toContain('wrap it in <b> tags.');
+            expect(probe.querySelector('b')?.textContent).toBe('bold');
+        });
+
+        it('does not fabricate content across repeated round-trips of such a document', () => {
+            const source = 'To make text bold, wrap it in <b> tags.\n\nLike this: <b>bold</b>';
+            let md = service.toMarkdown(service.toHtml(source));
+            const first = md;
+            for (let i = 0; i < 4; i++) {
+                md = service.toMarkdown(service.toHtml(md));
+            }
+            expect(md).toBe(first);
+            expect(md).not.toContain('---');
         });
 
         it('still renders a genuinely paired inline tag', () => {

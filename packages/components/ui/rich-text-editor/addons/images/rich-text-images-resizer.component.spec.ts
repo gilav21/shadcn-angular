@@ -888,11 +888,10 @@ describe('RichTextImageResizerComponent', () => {
         });
 
 
-        it('respects the maximum on a keyboard resize, as the drag path does', () => {
-            // The keyboard path open-coded its clamp -- minWidth as the height
-            // floor and no ceiling at all -- so the "clamped both ends" fix
-            // covered only the mouse. The stubbed rect stays 200x100, so one
-            // large step past the ceiling is what proves the clamp.
+        it('does not apply the WIDTH ceiling to height', () => {
+            // maxWidth is a width ceiling. Using it for height silently squashed
+            // every portrait image, and the previous version of this test
+            // asserted that squashing as the contract.
             fixture.componentRef.setInput('lockAspectRatio', false);
             fixture.componentRef.setInput('maxWidth', 120);
             const img = mountWithImage();
@@ -901,7 +900,10 @@ describe('RichTextImageResizerComponent', () => {
             fixture.detectChanges();
 
             press(handle('s'), 'ArrowDown', true);
-            expect(Number.parseFloat(img.style.height)).toBeLessThanOrEqual(120);
+            expect(Number.parseFloat(img.style.height)).toBeGreaterThan(120);
+            // The width ceiling still applies to width.
+            press(handle('e'), 'ArrowRight', true);
+            expect(Number.parseFloat(img.style.width)).toBeLessThanOrEqual(120);
         });
 
         it('ignores keys that are not arrows', () => {

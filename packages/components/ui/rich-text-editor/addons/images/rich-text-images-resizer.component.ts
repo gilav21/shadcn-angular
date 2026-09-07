@@ -123,7 +123,7 @@ export class RichTextImageResizerComponent implements OnDestroy {
     readonly resizable = input<boolean>(true);
     /** Show the alignment buttons in the overlay toolbar. */
     readonly showAlignment = input<boolean>(true);
-    /** Lower clamp (px) for the dragged image width/height. */
+    /** Lower clamp (px) for the dragged image, on both axes. */
     readonly minWidth = input<number>(20);
     /** Upper clamp (px) for the dragged image width. No ceiling when unset. */
     readonly maxWidth = input<number>();
@@ -479,10 +479,16 @@ export class RichTextImageResizerComponent implements OnDestroy {
         return { width, height };
     }
 
+    /**
+     * Clamp a height. {@link minWidth} is a shared lower bound for both axes --
+     * an image thinner or shorter than that is not usable either way -- but
+     * {@link maxWidth} is deliberately NOT applied here: it is a width ceiling,
+     * and using it for height silently squashed every portrait image and
+     * contradicted the input's own documentation. Height has no ceiling until
+     * there is an input that means one.
+     */
     private clampHeight(height: number): number {
-        const max = this.maxWidth();
-        const bounded = max === undefined ? height : Math.min(height, max);
-        return Math.max(this.minWidth(), bounded);
+        return Math.max(this.minWidth(), height);
     }
 
     private onPointerUp(): void {
