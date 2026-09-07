@@ -834,6 +834,32 @@ describe('RichTextEditorComponent', () => {
         });
     });
 
+    describe('counter association (round-18 audit)', () => {
+        it('points the textbox at the counter so the limit is discoverable', () => {
+            // The counter was a sibling status region with nothing referring to
+            // it, so a screen-reader user tabbing in was never told a limit
+            // existed -- only a change firing while focused would announce it.
+            fixture.componentRef.setInput('showCount', true);
+            fixture.componentRef.setInput('maxLength', 120);
+            fixture.detectChanges();
+
+            const counter = (fixture.nativeElement as HTMLElement).querySelector('[role="status"]');
+            const describedBy = editor.getAttribute('aria-describedby');
+            expect(counter?.id).toBeTruthy();
+            expect(describedBy?.split(' ')).toContain(counter?.id);
+        });
+
+        it('keeps a consumer-supplied aria-describedby alongside the counter', () => {
+            fixture.componentRef.setInput('showCount', true);
+            fixture.componentRef.setInput('ariaDescribedBy', 'consumer-hint');
+            fixture.detectChanges();
+
+            const ids = editor.getAttribute('aria-describedby')?.split(' ') ?? [];
+            expect(ids).toContain('consumer-hint');
+            expect(ids).toHaveLength(2);
+        });
+    });
+
     it('prevents replacements that would exceed maxLength', () => {
         fixture.componentRef.setInput('maxLength', 5);
         fixture.detectChanges();

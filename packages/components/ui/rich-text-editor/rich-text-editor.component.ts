@@ -209,6 +209,8 @@ const BLOCK_CONTAINER_TAGS = new Set(['TD', 'TH', 'LI', 'BLOCKQUOTE', 'DETAILS',
 
 const BLOCK_TAGS = new Set(['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'PRE', 'TABLE', 'HR', 'DETAILS', 'FIGURE']);
 
+let richTextEditorInstances = 0;
+
 @Component({
     selector: 'ui-rich-text-editor',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -369,6 +371,24 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     /** ID of an element that describes the editor, set as `aria-describedby`. */
     readonly ariaDescribedBy = input<string | undefined>(undefined);
+
+    /** Id of the character/word counter, so the textbox can point at it. */
+    protected readonly counterId = `rte-counter-${++richTextEditorInstances}`;
+
+    /**
+     * What the textbox is described by: whatever the consumer passed, plus the
+     * counter when one is shown.
+     *
+     * The counter was a sibling status region with nothing pointing at it, so a
+     * screen-reader user tabbing into the editor was never told a limit existed
+     * -- they heard it only if a change happened to fire while they were
+     * focused. The consumer's own value is kept, not replaced.
+     */
+    protected readonly describedBy = computed(() => {
+        const own = this.ariaDescribedBy();
+        const showsCounter = this.showCount() || this.showWordCount();
+        return [own, showsCounter ? this.counterId : undefined].filter(Boolean).join(' ') || null;
+    });
 
     private readonly i18n = createLocaleBindings(this.locale, RICH_TEXT_LOCALES);
     readonly resolvedLocale = this.i18n.t;

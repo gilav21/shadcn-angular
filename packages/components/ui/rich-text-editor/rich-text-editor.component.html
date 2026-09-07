@@ -35,7 +35,7 @@
     [attr.placeholder]="placeholder() || resolvedLocale().editor.placeholder"
     [attr.aria-placeholder]="placeholder() || resolvedLocale().editor.placeholder"
     [attr.aria-label]="ariaLabel() || resolvedLocale().editor.ariaLabel"
-    [attr.aria-describedby]="ariaDescribedBy()"
+    [attr.aria-describedby]="describedBy()"
     [attr.data-slot]="'rich-text-editor'"
     [style.min-height]="minHeight()"
     [style.max-height]="maxHeight()"
@@ -278,7 +278,7 @@
     a bare number and no indication a limit existed at all. The colour change
     at the limit gives sighted users the same signal.
   -->
-  <div class="flex justify-end text-xs text-muted-foreground mt-1 px-1" role="status" aria-live="polite">
+  <div [attr.id]="counterId" class="flex justify-end text-xs text-muted-foreground mt-1 px-1" role="status" aria-live="polite">
     @if (showCount()) {
       <span [class.text-destructive]="atCharacterLimit()" [class.font-medium]="atCharacterLimit()">
         @if (maxLength()) {
