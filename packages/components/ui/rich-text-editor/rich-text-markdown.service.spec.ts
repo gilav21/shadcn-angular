@@ -187,6 +187,32 @@ describe('RichTextMarkdownService', () => {
     // =====================================================================
     // HTML -> MARKDOWN
     // =====================================================================
+    describe('tables', () => {
+        it('parses a GFM table back into a real table', () => {
+            // toMarkdown emits GFM tables but toHtml had no pass to read them
+            // back, so saving and reloading in markdown mode — the documented
+            // default — turned every table into inert paragraph text.
+            const html = service.toHtml('| Name | Age |\n| --- | --- |\n| Alice | 30 |');
+            const parsed = new DOMParser().parseFromString(html, 'text/html');
+
+            expect(parsed.querySelectorAll('table')).toHaveLength(1);
+            expect(parsed.querySelectorAll('th')).toHaveLength(2);
+            expect(parsed.querySelectorAll('tbody td')).toHaveLength(2);
+            expect(parsed.querySelector('th')?.textContent).toBe('Name');
+            expect(parsed.querySelector('tbody td')?.textContent).toBe('Alice');
+        });
+
+        it('round-trips a table through markdown and back', () => {
+            const original = '| Name | Age |\n| --- | --- |\n| Alice | 30 |';
+            expect(service.toMarkdown(service.toHtml(original)).trim()).toBe(original);
+        });
+
+        it('leaves a lone pipe line as ordinary text', () => {
+            const html = service.toHtml('not | a table');
+            expect(html).not.toContain('<table');
+        });
+    });
+
     describe('content that must survive a round trip', () => {
         it('keeps bare text inside a details block', () => {
             // Third instance of the same root cause the lists had: a NODE handed

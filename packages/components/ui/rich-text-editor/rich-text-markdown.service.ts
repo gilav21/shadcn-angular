@@ -175,6 +175,9 @@ export class RichTextMarkdownService {
         html = this.parseBlockquotes(html);
         html = this.parseHeadings(html);
         html = this.parseLists(html);
+        // Before horizontal rules: a table's `| --- |` separator row would
+        // otherwise be swallowed as an <hr>.
+        html = this.parseTables(html);
         html = this.parseHorizontalRules(html);
         html = this.parseParagraphs(html);
 
@@ -352,6 +355,89 @@ export class RichTextMarkdownService {
 
         flushStack();
         return result.join('\n');
+    }
+
+    /**
+     * Parse GFM tables back into real table markup.
+     *
+     * `tableToMarkdown` has always emitted them, but nothing read them back —
+     * so in markdown mode (the documented default) a save followed by a reload
+     * turned every table into inert paragraph text that merely looked like a
+     * table's source. A run needs a header row, a separator row of dashes, and
+     * at least the header to be pipe-delimited; anything else is left alone so
+     * a sentence containing a pipe stays a sentence.
+     */
+    private parseTables(html: string): string {
+        const lines = html.split('\n');
+        const out: string[] = [];
+
+        let i = 0;
+        while (i < lines.length) {
+            const header = lines[i];
+            const separator = lines[i + 1];
+            if (!this.isTableRow(header) || !this.isTableSeparator(separator ?? '')) {
+                out.push(header);
+                i++;
+                continue;
+            }
+
+            const bodyRows: string[][] = [];
+            let cursor = i + 2;
+            while (cursor < lines.length && this.isTableRow(lines[cursor])) {
+                bodyRows.push(this.splitTableRow(lines[cursor]));
+                cursor++;
+            }
+
+            out.push(this.buildTableHtml(this.splitTableRow(header), bodyRows));
+            i = cursor;
+        }
+
+        return out.join('\n');
+    }
+
+    /** Assemble the table markup from its parsed header and body cells. */
+    private buildTableHtml(headerCells: string[], bodyRows: string[][]): string {
+        const cells = (row: string[], tag: 'th' | 'td'): string =>
+            row.map(cell => '<' + tag + '>' + cell + '</' + tag + '>').join('');
+        const head = '<thead><tr>' + cells(headerCells, 'th') + '</tr></thead>';
+        const body = bodyRows.map(row => '<tr>' + cells(row, 'td') + '</tr>').join('');
+        return '<table>' + head + '<tbody>' + body + '</tbody></table>';
+    }
+
+    /** A line that could be a table row: contains a pipe outside an escape. */
+    private isTableRow(line: string): boolean {
+        const trimmed = line.trim();
+        return trimmed.includes('|') && trimmed.replaceAll('\\|', '').includes('|');
+    }
+
+    /** The `| --- | :--: |` row that makes the line above it a header. */
+    private isTableSeparator(line: string): boolean {
+        const trimmed = line.trim();
+        if (!trimmed.includes('|') || !trimmed.includes('-')) return false;
+        return this.splitTableRow(trimmed).every(cell => /^:?-+:?$/.test(cell.trim()));
+    }
+
+    /** Cells of one row, honouring `\\|` escapes inside cell text. */
+    private splitTableRow(line: string): string[] {
+        const trimmed = line.trim().replace(/^\|/, '').replace(/\|$/, '');
+        const cells: string[] = [];
+        let current = '';
+        for (let i = 0; i < trimmed.length; i++) {
+            const ch = trimmed[i];
+            if (ch === '\\\\' && trimmed[i + 1] === '|') {
+                current += '|';
+                i++;
+                continue;
+            }
+            if (ch === '|') {
+                cells.push(current.trim());
+                current = '';
+                continue;
+            }
+            current += ch;
+        }
+        cells.push(current.trim());
+        return cells;
     }
 
     /**
