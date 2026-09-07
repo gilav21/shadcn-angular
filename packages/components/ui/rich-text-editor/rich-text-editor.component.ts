@@ -6743,6 +6743,38 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return Math.max(0, Math.min(desiredOffset, node.childNodes.length));
     }
 
+    /**
+     * Release every `document` listener a table drag can arm.
+     *
+     * A drag left mid-flight — the editor torn down by a nav click, a closing
+     * dialog, a tab switch, before the pointer is released — otherwise leaves a
+     * `.bind(this)` listener on `document` pinning the whole component alive.
+     * The touch pair is worse than a leak: `onTableResizeTouchMove` calls
+     * `preventDefault` unconditionally and is registered non-passive, so one
+     * leaked copy stops scrolling working anywhere in the app.
+     *
+     * Each pair is listed once here and removed by the SAME bound reference it
+     * was added with; the previous version removed the cell-select pair not at
+     * all, and used the cell-touch references to try to remove the resize
+     * listeners, which silently matched nothing.
+     */
+    private releaseTableDragListeners(): void {
+        this.document.removeEventListener('mousemove', this.onTableResizeMoveBound);
+        this.document.removeEventListener('mouseup', this.onTableResizeUpBound);
+        this.document.removeEventListener('touchmove', this.onTableResizeTouchMoveBound);
+        this.document.removeEventListener('touchend', this.onTableResizeUpBound);
+        this.document.removeEventListener('mousemove', this.onTableCellSelectMoveBound);
+        this.document.removeEventListener('mouseup', this.onTableCellSelectUpBound);
+        this.document.removeEventListener('touchmove', this.onTableCellTouchMoveBound);
+        this.document.removeEventListener('touchend', this.onTableCellTouchEndBound);
+
+        // Cleared so a handler that fires between removal and teardown cannot
+        // act on a half-destroyed component.
+        this.tableResizeState = null;
+        this.tableCellSelecting = false;
+        this.tableCellSelectAnchor = null;
+    }
+
     ngOnDestroy(): void {
         this.shortcutHandle?.unregister();
         this.shortcutHandle = null;
@@ -6750,10 +6782,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             clearTimeout(this.historyDebounceTimer);
             this.historyDebounceTimer = null;
         }
-        this.document.removeEventListener('mousemove', this.onTableResizeMoveBound);
-        this.document.removeEventListener('mouseup', this.onTableResizeUpBound);
-        this.document.removeEventListener('touchmove', this.onTableCellTouchMoveBound);
-        this.document.removeEventListener('touchend', this.onTableCellTouchEndBound);
+        this.releaseTableDragListeners();
         this.cancelPendingFind();
         if (this.findRepaintHandle !== null) {
             cancelAnimationFrame(this.findRepaintHandle);

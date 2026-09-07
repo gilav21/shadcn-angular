@@ -2025,6 +2025,35 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         expect(editor.querySelector('table + p')!.textContent).toBe(' paragraph.');
     });
 
+    it('names every table-drag listener in its teardown', () => {
+        // Starting a cell drag or a column resize arms listeners on `document`.
+        // Torn down before the pointer is released — a nav click, a closing
+        // dialog, a tab switch — an unremoved one holds a .bind(this) reference
+        // and pins the whole component alive. The touch pair is worse than a
+        // leak: onTableResizeTouchMove calls preventDefault unconditionally and
+        // is registered non-passive, so one leaked copy stops scrolling working
+        // anywhere in the app.
+        //
+        // Asserted against the source rather than by counting live listeners:
+        // in this harness the handlers self-remove during teardown, which masks
+        // the leak entirely — a counting test passed just as happily with the
+        // fix reverted, so it would have been a test that proved nothing. The
+        // original bug was a NAME mismatch (the resize touch listeners were
+        // removed using the cell-touch references, matching nothing and failing
+        // silently), and that is exactly what this catches.
+        const teardown = String(
+            (component as unknown as { releaseTableDragListeners(): void }).releaseTableDragListeners,
+        );
+
+        for (const bound of [
+            'onTableResizeMoveBound', 'onTableResizeUpBound', 'onTableResizeTouchMoveBound',
+            'onTableCellSelectMoveBound', 'onTableCellSelectUpBound',
+            'onTableCellTouchMoveBound', 'onTableCellTouchEndBound',
+        ]) {
+            expect(teardown).toContain(bound);
+        }
+    });
+
     it('refuses addon inserts once maxLength is exhausted', () => {
         // maxLength was enforced only for typing and pasting, so every addon
         // insert path (emoji, links, images, tables) could push content past a
