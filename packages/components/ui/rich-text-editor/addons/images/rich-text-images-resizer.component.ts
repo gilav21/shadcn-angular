@@ -81,13 +81,16 @@ const RESIZE_HANDLE_LABELS: Readonly<Record<string, string>> = {
 const KEYBOARD_RESIZE_STEP = 10;
 const KEYBOARD_RESIZE_STEP_LARGE = 50;
 
-/** Which direction each arrow key resizes in. */
-const KEYBOARD_RESIZE_DELTA: Readonly<Record<string, number | undefined>> = {
-    ArrowRight: 1,
-    ArrowUp: 1,
-    ArrowLeft: -1,
-    ArrowDown: -1,
+/** Which way each arrow key pushes, per axis. */
+const KEYBOARD_RESIZE_DELTA: Readonly<Record<string, { x: number; y: number } | undefined>> = {
+    ArrowRight: { x: 1, y: 0 },
+    ArrowLeft: { x: -1, y: 0 },
+    ArrowDown: { x: 0, y: 1 },
+    ArrowUp: { x: 0, y: -1 },
 };
+
+/** How long a run of keypresses is folded into one history entry. */
+const KEYBOARD_RESIZE_COALESCE_MS = 400;
 
 @Component({
     selector: 'ui-rich-text-image-resizer',
@@ -172,6 +175,7 @@ export class RichTextImageResizerComponent implements OnDestroy {
     private readonly onContainerScrollBound = (): void => this.scheduleUpdate();
     private readonly onWindowResizeBound = (): void => this.scheduleUpdate();
     private resizeState: ResizeState | null = null;
+    private keyboardResizeTimer: ReturnType<typeof setTimeout> | null = null;
 
     private readonly onMoveBound = this.onPointerMove.bind(this);
     private readonly onUpBound = this.onPointerUp.bind(this);
@@ -395,10 +399,9 @@ export class RichTextImageResizerComponent implements OnDestroy {
         return RESIZE_HANDLE_LABELS[handle];
     }
 
-    onResizeKeydown(event: KeyboardEvent): void {
-        const step = event.shiftKey ? KEYBOARD_RESIZE_STEP_LARGE : KEYBOARD_RESIZE_STEP;
-        const delta = KEYBOARD_RESIZE_DELTA[event.key];
-        if (delta === undefined) return;
+    onResizeKeydown(event: KeyboardEvent, handle: ResizeHandle): void {
+        const arrow = KEYBOARD_RESIZE_DELTA[event.key];
+        if (!arrow) return;
 
         const t = this.target();
         if (!t) return;
@@ -406,17 +409,46 @@ export class RichTextImageResizerComponent implements OnDestroy {
         event.preventDefault();
         event.stopPropagation();
 
+        const step = event.shiftKey ? KEYBOARD_RESIZE_STEP_LARGE : KEYBOARD_RESIZE_STEP;
         const rect = t.getBoundingClientRect();
         const aspect = rect.height === 0 ? 1 : rect.width / rect.height;
-        const width = this.clampWidth(Math.max(this.minWidth(), rect.width + delta * step));
+
+        // Same sign tables the drag path uses, so a handle means the same thing
+        // whichever way it is driven. Every handle used to grow the image on
+        // ArrowRight -- the top-left corner grew it, which is backwards from
+        // dragging that corner, and the n/s handles resized width despite
+        // WIDTH_SIGN saying they do not touch it.
+        const dx = arrow.x * step * WIDTH_SIGN[handle];
+        const dy = arrow.y * step * HEIGHT_SIGN[handle];
+        if (dx === 0 && dy === 0) return;
+
+        const width = this.clampWidth(Math.max(this.minWidth(), rect.width + dx));
         const height = this.lockAspectRatio()
             ? width / aspect
-            : Math.max(this.minWidth(), rect.height + delta * step);
+            : Math.max(this.minWidth(), rect.height + dy);
 
         t.style.width = `${width}px`;
         t.style.height = `${height}px`;
         this.scheduleUpdate();
-        this.resizeEnd.emit();
+        this.endKeyboardResizeSoon();
+    }
+
+    /**
+     * Emit one {@link resizeEnd} for a run of keypresses.
+     *
+     * A whole mouse drag records one undo entry; the keyboard path emitted per
+     * press, so undoing a keyboard resize took as many undos as the user made
+     * presses. This coalesces a burst the way the drag does, and the pending
+     * timer is cancelled on teardown so a destroyed overlay cannot emit.
+     */
+    private endKeyboardResizeSoon(): void {
+        if (this.keyboardResizeTimer !== null) {
+            clearTimeout(this.keyboardResizeTimer);
+        }
+        this.keyboardResizeTimer = setTimeout(() => {
+            this.keyboardResizeTimer = null;
+            this.resizeEnd.emit();
+        }, KEYBOARD_RESIZE_COALESCE_MS);
     }
 
     private clampWidth(width: number): number {
@@ -452,5 +484,9 @@ export class RichTextImageResizerComponent implements OnDestroy {
     ngOnDestroy(): void {
         this.stopTracking();
         this.removePointerListeners();
+        if (this.keyboardResizeTimer !== null) {
+            clearTimeout(this.keyboardResizeTimer);
+            this.keyboardResizeTimer = null;
+        }
     }
 }

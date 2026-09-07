@@ -36,6 +36,9 @@ export interface SanitizerAttributeRule {
  */
 const MAX_SANITIZED_NODES = 20000;
 
+/** URL schemes a link in editor content may use. */
+const LINK_SCHEMES = new Set(['http', 'https', 'mailto', 'tel', 'sms', 'ftp']);
+
 @Injectable({ providedIn: 'root' })
 export class RichTextSanitizerService {
     private readonly document = inject(DOCUMENT);
@@ -275,6 +278,21 @@ export class RichTextSanitizerService {
         }
 
         const probe = url.replace(this.URL_STRIP_PATTERN, '').toLowerCase();
+
+        // A protocol-relative URL looks relative but loads an arbitrary external
+        // host. sanitizeImageSrc already rejected these; the href path did not.
+        if (probe.startsWith('//')) {
+            return false;
+        }
+
+        // Allowlist, not blocklist. Naming the dangerous schemes meant anything
+        // unnamed passed -- blob:, filesystem:, view-source:, about:, ws: and
+        // file: all reached a live href. Only the schemes ordinary links use are
+        // accepted; a URL with no scheme at all is relative, and fine.
+        const scheme = /^([a-z][a-z0-9+.-]*):/.exec(probe)?.[1];
+        if (scheme && !LINK_SCHEMES.has(scheme)) {
+            return false;
+        }
 
         for (const protocol of this.DANGEROUS_PROTOCOLS) {
             if (probe.startsWith(protocol)) {

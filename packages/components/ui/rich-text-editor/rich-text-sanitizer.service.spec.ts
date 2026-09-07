@@ -705,4 +705,41 @@ describe('RichTextSanitizerService — structural size ceiling', () => {
             expect(html).not.toContain('data:image/svg+xml');
         });
     });
+
+    describe('link scheme allowlist (round-16 audit)', () => {
+        it('refuses schemes that are not ordinary links', () => {
+            // The check was a blocklist of javascript:/vbscript:/data:, so
+            // anything not named passed. These all reached a live href.
+            for (const url of [
+                'blob:https://evil.example/x',
+                'filesystem:https://evil.example/x',
+                'view-source:https://evil.example',
+                'about:blank',
+                'ws://evil.example',
+                'file:///etc/passwd',
+            ]) {
+                expect(service.isUrlSafe(url)).toBe(false);
+            }
+        });
+
+        it('refuses a protocol-relative URL, which looks relative but is not', () => {
+            // sanitizeImageSrc already rejected these; the href path did not.
+            expect(service.isUrlSafe('//evil.example/x')).toBe(false);
+        });
+
+        it('still allows the schemes real links use', () => {
+            for (const url of [
+                'https://example.com/a?b=1#c',
+                'http://example.com',
+                'mailto:someone@example.com',
+                'tel:+15551234567',
+                '/relative/path',
+                'relative/path',
+                '#anchor',
+                '?query=1',
+            ]) {
+                expect(service.isUrlSafe(url)).toBe(true);
+            }
+        });
+    });
 });

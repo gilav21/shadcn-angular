@@ -763,7 +763,7 @@ describe('RichTextImageResizerComponent', () => {
         });
     });
 
-    describe('keyboard resizing (round-15 audit)', () => {
+    describe('keyboard resizing', () => {
         function mountWithImage(): HTMLImageElement {
             const img = document.createElement('img');
             img.src =
@@ -773,62 +773,94 @@ describe('RichTextImageResizerComponent', () => {
             });
             document.body.appendChild(img);
             fixture.componentRef.setInput('target', img);
+            fixture.componentRef.setInput('lockAspectRatio', false);
             fixture.detectChanges();
             return img;
         }
 
-        function handles(): HTMLButtonElement[] {
-            return Array.from(
-                (fixture.nativeElement as HTMLElement).querySelectorAll('button[aria-label^="Resize"]'),
-            );
+        function handle(name: string): HTMLButtonElement {
+            const label = component.handleLabel(name as never);
+            return (fixture.nativeElement as HTMLElement).querySelector(
+                `button[aria-label="${label}"]`,
+            ) as HTMLButtonElement;
+        }
+
+        function press(el: HTMLButtonElement, key: string, shift = false): void {
+            el.dispatchEvent(new KeyboardEvent('keydown', { key, shiftKey: shift, bubbles: true }));
         }
 
         it('exposes the drag handles as named, focusable buttons', () => {
-            // They were bare divs: no tabindex, no role, no name, no key
-            // handling, so resizing an image needed a pointer.
             mountWithImage();
-            const found = handles();
-            expect(found.length).toBeGreaterThan(0);
-            for (const h of found) {
-                expect(h.tagName).toBe('BUTTON');
-                expect(h.getAttribute('aria-label')).toMatch(/^Resize from /);
+            const buttons = Array.from(
+                (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
+                    'button[aria-label^="Resize from"]',
+                ),
+            );
+            expect(buttons.length).toBeGreaterThan(0);
+            for (const b of buttons) {
+                expect(b.tagName).toBe('BUTTON');
             }
         });
 
-        it('grows the image on ArrowRight and shrinks it on ArrowLeft', () => {
+        it('honours the handle: the east edge grows on ArrowRight', () => {
             const img = mountWithImage();
-            const handle = handles()[0];
-
-            handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+            press(handle('e'), 'ArrowRight');
             expect(img.style.width).toBe('210px');
+        });
 
-            img.style.width = '';
-            handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+        it('honours the handle: the west edge SHRINKS on ArrowRight', () => {
+            // Every handle used to grow the image on ArrowRight. Dragging the
+            // west edge rightwards makes the image narrower, and WIDTH_SIGN.w
+            // has said so all along -- the keyboard path just ignored it.
+            const img = mountWithImage();
+            press(handle('w'), 'ArrowRight');
             expect(img.style.width).toBe('190px');
+        });
+
+        it('does not resize width from a handle that only moves vertically', () => {
+            // WIDTH_SIGN.n is 0, so the north edge must not change the width.
+            const img = mountWithImage();
+            press(handle('n'), 'ArrowRight');
+            expect(img.style.width).toBe('');
+        });
+
+        it('resizes height from the south edge on ArrowDown', () => {
+            const img = mountWithImage();
+            press(handle('s'), 'ArrowDown');
+            expect(img.style.height).toBe('110px');
         });
 
         it('takes a larger step with Shift held', () => {
             const img = mountWithImage();
-            handles()[0].dispatchEvent(
-                new KeyboardEvent('keydown', { key: 'ArrowRight', shiftKey: true, bubbles: true }),
-            );
+            press(handle('e'), 'ArrowRight', true);
             expect(img.style.width).toBe('250px');
         });
 
-        it('emits resizeEnd so one keypress is one undo entry', () => {
-            mountWithImage();
-            let ends = 0;
-            component.resizeEnd.subscribe(() => ends++);
-            handles()[0].dispatchEvent(
-                new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }),
-            );
-            expect(ends).toBe(1);
+        it('folds a run of keypresses into ONE history entry', () => {
+            // A whole mouse drag records one entry; the keyboard path emitted
+            // per press, so undoing a keyboard resize took N undos.
+            vi.useFakeTimers();
+            try {
+                mountWithImage();
+                let ends = 0;
+                component.resizeEnd.subscribe(() => ends++);
+
+                const e = handle('e');
+                for (let i = 0; i < 5; i++) press(e, 'ArrowRight');
+                expect(ends).toBe(0);
+
+                vi.advanceTimersByTime(500);
+                expect(ends).toBe(1);
+            } finally {
+                vi.useRealTimers();
+            }
         });
 
         it('ignores keys that are not arrows', () => {
             const img = mountWithImage();
-            handles()[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true }));
+            press(handle('e'), 'a');
             expect(img.style.width).toBe('');
         });
     });
+
 });
