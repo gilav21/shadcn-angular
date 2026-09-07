@@ -8,6 +8,7 @@ import {
   inject,
   signal,
   ElementRef,
+  type AfterViewChecked,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NgComponentOutlet } from '@angular/common';
@@ -202,9 +203,10 @@ function mirrorLabel(item: ToolbarButtonItem): ToolbarButtonItem {
   host: {
     class: 'block',
     '(keydown)': 'onToolbarKeydown($event)',
+    '(focusin)': 'onToolbarFocusIn($event)',
   },
 })
-export class RichTextToolbarComponent {
+export class RichTextToolbarComponent implements AfterViewChecked {
   /**
    * Every item that is a toggle — one that names a state the caret can be in,
    * and therefore renders pressed when {@link activeFormats} reports it. The
@@ -513,63 +515,92 @@ export class RichTextToolbarComponent {
   }
 
   /**
-   * The tab-stop index for one button, applied via `[attr.tabindex]`.
+   * Every control the toolbar's roving tab stop cycles through, in visual
+   * order: the built-in buttons, the text-style `select`, and every button an
+   * addon contributes through a component slot.
    *
-   * Buttons are addressed by their position among ALL toolbar buttons, built-in
-   * and addon-contributed alike, because the addon slots render their own
-   * buttons through `ngComponentOutlet` and the template cannot number them.
+   * It is read from the DOM rather than derived from `items()` because addon
+   * slots render their own templates through `ngComponentOutlet` — the toolbar
+   * cannot know what they contain. The file input the import addon keeps in the
+   * DOM is skipped: it is visually hidden and driven by its own button, so
+   * landing on it would be a stop with nothing to see.
    */
-  protected buttonTabIndex(item: ToolbarItem): 0 | -1 {
-    return this.buttonPositions().get(item) === this.rovingIndex() ? 0 : -1;
-  }
-
-  /**
-   * Position of each built-in button among all toolbar buttons.
-   *
-   * The template's `$index` counts separators too, so it does not match the
-   * button order the keyboard walks; this maps an item to its true position.
-   */
-  private readonly buttonPositions = computed(() => {
-    const positions = new Map<ToolbarItem, number>();
-    let position = 0;
-    for (const item of this.items()) {
-      if (item === 'separator' || item === 'textStyle') continue;
-      positions.set(item, position++);
-    }
-    return positions;
-  });
-
-  /** Every rendered toolbar button, in visual order. */
-  private toolbarButtons(): HTMLButtonElement[] {
+  private rovingStops(): HTMLElement[] {
+    const toolbar = this.elementRef.nativeElement.querySelector('[role="toolbar"]');
+    if (!toolbar) return [];
     return Array.from(
-      this.elementRef.nativeElement.querySelectorAll<HTMLButtonElement>('[role="toolbar"] button'),
-    );
+      toolbar.querySelectorAll<HTMLElement>('button, select'),
+    ).filter(el => el.offsetParent !== null || el.tagName === 'SELECT');
   }
 
   /**
-   * Arrow / Home / End move the tab stop between toolbar buttons, per the
-   * WAI-ARIA toolbar pattern. Direction follows the reading order, so the arrow
-   * keys swap meaning in RTL. Disabled buttons keep their slot rather than
-   * being skipped: the toolbar disables everything at once (readonly/disabled
-   * editor), so there would be nowhere to land.
+   * Write the single tab stop onto the DOM.
+   *
+   * Imperative because half these controls belong to addon templates this
+   * component does not own; a `[attr.tabindex]` binding can only reach the
+   * built-in buttons, which is what left the select and every addon button as
+   * extra tab stops.
+   */
+  private applyRovingTabIndex(stops: HTMLElement[] = this.rovingStops()): void {
+    if (stops.length === 0) return;
+    const active = Math.min(this.rovingIndex(), stops.length - 1);
+    for (const [i, el] of stops.entries()) {
+      const wanted = i === active ? 0 : -1;
+      // Only write when it differs: this runs after every change-detection
+      // pass, and an unconditional DOM write would dirty the view again.
+      if (el.tabIndex !== wanted) el.tabIndex = wanted;
+    }
+  }
+
+  /**
+   * Arrow / Home / End move the tab stop, per the WAI-ARIA toolbar pattern.
+   * Direction follows the reading order, so the arrow keys swap in RTL.
+   *
+   * The text-style `select` is a stop like any other. Letting the arrows change
+   * its value instead would trap the user: they could arrow INTO the select but
+   * never out of it. The value stays reachable by opening the list (Alt+Down,
+   * Space, or a click) or by typing an option's first letter, which is how a
+   * native select behaves inside every other toolbar that follows this pattern.
+   *
+   * Disabled buttons keep their slot rather than being skipped — the toolbar
+   * disables everything at once, so there would be nowhere to land.
    */
   protected onToolbarKeydown(event: KeyboardEvent): void {
-    const buttons = this.toolbarButtons();
-    if (buttons.length === 0) return;
+    const target = event.target as HTMLElement | null;
+    const stops = this.rovingStops();
+    if (stops.length === 0) return;
 
     const forward = this.locale().rtl ? 'ArrowLeft' : 'ArrowRight';
     const backward = this.locale().rtl ? 'ArrowRight' : 'ArrowLeft';
-    const current = this.rovingIndex();
+    const current = Math.max(0, stops.indexOf(target as HTMLElement));
     let next: number | null = null;
 
-    if (event.key === forward) next = (current + 1) % buttons.length;
-    else if (event.key === backward) next = (current - 1 + buttons.length) % buttons.length;
+    if (event.key === forward) next = (current + 1) % stops.length;
+    else if (event.key === backward) next = (current - 1 + stops.length) % stops.length;
     else if (event.key === 'Home') next = 0;
-    else if (event.key === 'End') next = buttons.length - 1;
+    else if (event.key === 'End') next = stops.length - 1;
 
     if (next === null) return;
     event.preventDefault();
     this.rovingIndex.set(next);
-    buttons[next]?.focus();
+    this.applyRovingTabIndex(stops);
+    stops[next]?.focus();
+  }
+
+  /**
+   * Adopt the tab stop the user actually clicked or tabbed into, so the next
+   * arrow press continues from there rather than jumping back to wherever the
+   * stop happened to be.
+   */
+  protected onToolbarFocusIn(event: FocusEvent): void {
+    const stops = this.rovingStops();
+    const index = stops.indexOf(event.target as HTMLElement);
+    if (index === -1) return;
+    this.rovingIndex.set(index);
+    this.applyRovingTabIndex(stops);
+  }
+
+  ngAfterViewChecked(): void {
+    this.applyRovingTabIndex();
   }
 }

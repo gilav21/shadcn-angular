@@ -44,15 +44,72 @@ describe('RichTextToolbarComponent', () => {
         const buttonsOf = () =>
             Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLButtonElement[];
 
+        // A real arrow press comes FROM the focused control, so the handler can
+        // read `event.target`. Dispatching on the container instead would test a
+        // path the user never takes.
         const pressOnToolbar = (key: string) => {
             const toolbar = fixture.nativeElement.querySelector('[role="toolbar"]') as HTMLElement;
-            toolbar.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+            const focused = Array.from(
+                toolbar.querySelectorAll<HTMLElement>('button, select'),
+            ).find(el => el.tabIndex === 0) ?? toolbar;
+            focused.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
             fixture.detectChanges();
         };
 
         beforeEach(() => {
             fixture.componentRef.setInput('items', ['bold', 'italic', 'separator', 'underline']);
             fixture.detectChanges();
+        });
+
+        it('gives the text-style select and addon buttons a roving tabindex too', () => {
+            // A roving toolbar has ONE tab stop. Managing only the built-in
+            // buttons left the select, every addon button and the file input as
+            // extra tab stops, so Tab jumped into the middle of the toolbar and
+            // the arrows — which index over every button — moved somewhere else
+            // again.
+            fixture.componentRef.setInput('items', ['bold', 'textStyle', 'italic']);
+            fixture.detectChanges();
+            const toolbar = fixture.nativeElement.querySelector('[role="toolbar"]') as HTMLElement;
+            const focusables = Array.from(
+                toolbar.querySelectorAll<HTMLElement>('button, select, input, [tabindex]'),
+            );
+            const stops = focusables.filter(el => el.tabIndex === 0);
+            expect(focusables.length).toBeGreaterThan(1);
+            expect(stops).toHaveLength(1);
+        });
+
+        it('walks the select as one stop in the arrow order', () => {
+            fixture.componentRef.setInput('items', ['bold', 'textStyle', 'italic']);
+            fixture.detectChanges();
+            const toolbar = fixture.nativeElement.querySelector('[role="toolbar"]') as HTMLElement;
+            const stops = () => Array.from(
+                toolbar.querySelectorAll<HTMLElement>('button, select, input, [tabindex]'),
+            );
+            const focused = () => stops().findIndex(el => el.tabIndex === 0);
+
+            expect(focused()).toBe(0);
+            toolbar.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
+            fixture.detectChanges();
+            expect(stops()[focused()].tagName.toLowerCase()).toBe('select');
+        });
+
+        it('does not trap the tab stop on the text-style select', () => {
+            // Skipping the select in the key handler let the arrows move INTO it
+            // and never out — a keyboard trap, which is worse than the extra
+            // tab stops it was meant to avoid.
+            fixture.componentRef.setInput('items', ['bold', 'textStyle', 'italic']);
+            fixture.detectChanges();
+            const toolbar = fixture.nativeElement.querySelector('[role="toolbar"]') as HTMLElement;
+            const stopsOf = () => Array.from(
+                toolbar.querySelectorAll<HTMLElement>('button, select'),
+            );
+            const activeIndex = () => stopsOf().findIndex(el => el.tabIndex === 0);
+
+            pressOnToolbar('ArrowRight');
+            expect(stopsOf()[activeIndex()].tagName.toLowerCase()).toBe('select');
+
+            pressOnToolbar('ArrowRight');
+            expect(stopsOf()[activeIndex()].tagName.toLowerCase()).toBe('button');
         });
 
         it('exposes exactly one tab stop, not one per button', () => {
