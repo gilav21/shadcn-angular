@@ -1,0 +1,157 @@
+<div class="mx-auto max-w-4xl space-y-10 p-4 sm:p-6">
+
+    <header class="space-y-2">
+        <h1 class="text-2xl font-bold sm:text-3xl">Rich text — four-wave showcase</h1>
+        <p class="text-muted-foreground text-sm">
+            Temporary page. Every section below maps to a shipped change so it can be
+            validated by hand. The permanent demos live on the four
+            <code class="bg-muted rounded px-1">rich-text-*</code> routes.
+        </p>
+    </header>
+
+    <!-- ── Wave 2 ─────────────────────────────────────────────────────── -->
+    <section class="space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+            <h2 class="text-lg font-semibold">1 · Markdown input rules + block-state toolbar</h2>
+            <ui-button size="sm" variant="outline" (click)="shortcutsOn.set(!shortcutsOn())">
+                shortcuts: {{ shortcutsOn() ? 'on' : 'off' }}
+            </ui-button>
+        </div>
+        <p class="text-muted-foreground text-sm">
+            Type <code class="bg-muted rounded px-1">#&nbsp;</code>,
+            <code class="bg-muted rounded px-1">-&nbsp;</code>,
+            <code class="bg-muted rounded px-1">1.&nbsp;</code>,
+            <code class="bg-muted rounded px-1">&gt;&nbsp;</code>,
+            <code class="bg-muted rounded px-1">[]&nbsp;</code>, <code class="bg-muted rounded px-1">---</code>,
+            <code class="bg-muted rounded px-1">**bold**</code> or backtick-code. Each transforms live and is
+            <strong>one</strong> undo step — press Backspace straight after to revert just the transform.
+            Watch the “Text style” select and the toolbar buttons reflect the caret’s block.
+        </p>
+        <ui-rich-text-editor
+            mode="html"
+            toolbar="top"
+            uiRteFull
+            minHeight="180px"
+            [markdownShortcuts]="shortcutsOn()"
+            [(ngModel)]="markdownDoc" />
+    </section>
+
+    <!-- ── Wave 3 ─────────────────────────────────────────────────────── -->
+    <section class="space-y-3">
+        <h2 class="text-lg font-semibold">2 · Find &amp; replace v2, undo consistency, dirty state</h2>
+        <p class="text-muted-foreground text-sm">
+            Press <kbd class="bg-muted rounded px-1">Ctrl/Cmd+F</kbd> (or
+            <kbd class="bg-muted rounded px-1">Ctrl/Cmd+H</kbd>). Matches now span inline markup —
+            search <code class="bg-muted rounded px-1">quick brown</code> and note the second one is
+            found even though <code class="bg-muted rounded px-1">quick</code> is bold. Highlights are an
+            overlay, so they never enter the saved HTML. Whole-word and regex toggles are in the panel.
+        </p>
+        <div class="flex flex-wrap items-center gap-2">
+            <ui-button size="sm" variant="outline" (click)="setContentTracked()">setContent()</ui-button>
+            <ui-button size="sm" variant="outline" (click)="markClean()">markClean()</ui-button>
+            <ui-button size="sm" variant="ghost" (click)="externalWrites.set(!externalWrites())">
+                recordExternalWrites: {{ externalWrites() ? 'true' : 'false' }}
+            </ui-button>
+            <span class="text-muted-foreground ms-auto text-xs">
+                canUndo {{ history().canUndo }} · canRedo {{ history().canRedo }}
+            </span>
+        </div>
+        <p class="text-muted-foreground text-xs">
+            With <code class="bg-muted rounded px-1">recordExternalWrites</code> on, the programmatic
+            write above is undoable — press Ctrl+Z after it. Turn it off and undo skips past it.
+        </p>
+        <ui-rich-text-editor
+            #findEditor
+            mode="html"
+            toolbar="top"
+            uiRteFull
+            minHeight="160px"
+            [recordExternalWrites]="externalWrites()"
+            [(ngModel)]="findDoc"
+            (historyChange)="history.set($event)" />
+    </section>
+
+    <!-- ── Wave 4: imperative API ─────────────────────────────────────── -->
+    <section class="space-y-3">
+        <h2 class="text-lg font-semibold">3 · Imperative API</h2>
+        <p class="text-muted-foreground text-sm">
+            Nine methods are now public and documented (they appear in the generated API docs
+            via <code class="bg-muted rounded px-1">&#64;publicApi</code>). Select a word first, then
+            press <em>format</em>.
+        </p>
+        <div class="flex flex-wrap gap-2">
+            <ui-button size="sm" variant="outline" (click)="callFocus()">focus()</ui-button>
+            <ui-button size="sm" variant="outline" (click)="callInsert()">insertText()</ui-button>
+            <ui-button size="sm" variant="outline" (click)="callBold()">format('bold')</ui-button>
+            <ui-button size="sm" variant="outline" (click)="callUndo()">undo()</ui-button>
+            <ui-button size="sm" variant="outline" (click)="reportEmpty()">isEmpty()</ui-button>
+        </div>
+        <ui-rich-text-editor #apiEditor mode="html" toolbar="top" minHeight="120px" [(ngModel)]="apiDoc" />
+        @if (apiLog().length) {
+            <ul class="bg-muted rounded p-2 font-mono text-xs">
+                @for (entry of apiLog(); track $index) { <li>{{ entry }}</li> }
+            </ul>
+        }
+    </section>
+
+    <!-- ── Wave 4: validators ─────────────────────────────────────────── -->
+    <section class="space-y-3">
+        <h2 class="text-lg font-semibold">4 · Reactive-forms validators</h2>
+        <p class="text-muted-foreground text-sm">
+            These measure <strong>visible text</strong>, not markup. An empty editor still emits
+            <code class="bg-muted rounded px-1">&lt;p&gt;&lt;br&gt;&lt;/p&gt;</code> in HTML mode, which
+            Angular’s own <code class="bg-muted rounded px-1">required</code> counts as content —
+            <code class="bg-muted rounded px-1">richTextRequired()</code> does not.
+        </p>
+        <ui-rich-text-editor mode="html" toolbar="top" minHeight="110px" [formControl]="notes" />
+        <div class="flex flex-wrap gap-2 text-xs">
+            <span class="rounded px-2 py-1" [class]="notes.hasError('required') ? 'bg-destructive/10 text-destructive' : 'bg-muted'">
+                required: {{ notes.hasError('required') }}
+            </span>
+            <span class="rounded px-2 py-1" [class]="notes.hasError('richTextRequired') ? 'bg-destructive/10 text-destructive' : 'bg-muted'">
+                richTextRequired: {{ notes.hasError('richTextRequired') }}
+            </span>
+            <span class="rounded px-2 py-1" [class]="notes.hasError('richTextMaxLength') ? 'bg-destructive/10 text-destructive' : 'bg-muted'">
+                maxLength(120): {{ notes.hasError('richTextMaxLength') }}
+            </span>
+            <span class="rounded px-2 py-1" [class]="notes.hasError('richTextMinWords') ? 'bg-destructive/10 text-destructive' : 'bg-muted'">
+                minWords(3): {{ notes.hasError('richTextMinWords') }}
+            </span>
+        </div>
+    </section>
+
+    <!-- ── Wave 4: the view renderer ──────────────────────────────────── -->
+    <section class="space-y-3">
+        <h2 class="text-lg font-semibold">5 · <code>ui-rich-text-view</code> — publish what you authored</h2>
+        <p class="text-muted-foreground text-sm">
+            A read-only renderer sharing the editor’s sanitizer and prose typography, so a document
+            looks identical authored and published. No toolbar, no contenteditable.
+        </p>
+        <ui-rich-text-view mode="html" [value]="published" class="rounded-md border p-4" />
+    </section>
+
+    <!-- ── Wave 1: the disabled fix ───────────────────────────────────── -->
+    <section class="space-y-3">
+        <h2 class="text-lg font-semibold">6 · Bug fix — <code>control.disable()</code> now reaches the editor</h2>
+        <p class="text-muted-foreground text-sm">
+            The editor implemented <code class="bg-muted rounded px-1">ControlValueAccessor</code> without
+            <code class="bg-muted rounded px-1">setDisabledState</code>, so a disabled form control left it
+            fully editable — it was the only form component in the library missing it.
+        </p>
+        <ui-button size="sm" variant="outline" (click)="toggleDisabled()">
+            {{ disabledDemo.disabled ? 'enable()' : 'disable()' }} the control
+        </ui-button>
+        <ui-rich-text-editor mode="html" toolbar="top" minHeight="100px" [formControl]="disabledDemo" />
+    </section>
+
+    <!-- ── Wave 1: RTL + locale cascade ───────────────────────────────── -->
+    <section class="space-y-3">
+        <h2 class="text-lg font-semibold">7 · Locale cascade (RTL)</h2>
+        <p class="text-muted-foreground text-sm">
+            One <code class="bg-muted rounded px-1">locale="he"</code> on the editor now reaches every
+            addon. Previously each addon needed its own locale input.
+        </p>
+        <ui-rich-text-editor mode="html" toolbar="top" uiRteFull locale="he" minHeight="140px" />
+    </section>
+
+</div>

@@ -387,6 +387,45 @@ describe('EmojiPickerComponent', () => {
         vi.runAllTimers();
         expect(() => fixture.destroy()).not.toThrow();
     });
+
+    it('gives every emoji button a spoken name, not just the glyph', () => {
+        open();
+        const buttons = Array.from(
+            contentEl().querySelectorAll<HTMLButtonElement>('[data-category] button'),
+        );
+        expect(buttons.length).toBeGreaterThan(100);
+
+        const unnamed = buttons.filter((b) => {
+            const label = b.getAttribute('aria-label');
+            return !label || label === b.textContent?.trim();
+        });
+        expect(unnamed).toHaveLength(0);
+    });
+
+    it('names the grinning face from its keyword list', () => {
+        open();
+        const grinning = Array.from(
+            contentEl().querySelectorAll<HTMLButtonElement>('[data-category] button'),
+        ).find((b) => b.textContent?.trim() === '\u{1F600}');
+        expect(grinning?.getAttribute('aria-label')).toBe('grinning face smile');
+    });
+
+    it('keeps emoji names mostly distinct, so different glyphs do not sound alike', () => {
+        open();
+        const labels = Array.from(
+            contentEl().querySelectorAll<HTMLButtonElement>('[data-category] button'),
+        ).map((b) => b.getAttribute('aria-label') ?? '');
+
+        const seen = new Map<string, number>();
+        for (const l of labels) seen.set(l, (seen.get(l) ?? 0) + 1);
+        const ambiguous = [...seen.values()].filter((n) => n > 1).reduce((a, b) => a + b, 0);
+
+        // A leading keyword alone collided ~600 times ("person" led 37 entries).
+        // Joining three keywords cuts that to the handful that genuinely need
+        // direction words the keyword data does not carry; this pins the gain so
+        // a regression to single-word names fails here.
+        expect(ambiguous).toBeLessThan(200);
+    });
 });
 
 @Component({

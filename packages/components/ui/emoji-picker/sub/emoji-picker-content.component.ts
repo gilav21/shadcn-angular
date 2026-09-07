@@ -23,6 +23,9 @@ import { TooltipDirective } from '../../tooltip';
 import { EMOJI_DATA } from '../emoji-data';
 import { EMOJI_PICKER, EMOJI_CATEGORIES, EmojiCategory } from '../emoji-picker.component';
 
+/** How many leading keywords make up an emoji's spoken name. */
+const EMOJI_LABEL_WORDS = 3;
+
 @Component({
     selector: 'ui-emoji-picker-content',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -101,6 +104,7 @@ import { EMOJI_PICKER, EMOJI_CATEGORIES, EmojiCategory } from '../emoji-picker.c
                                                 type="button"
                                                 class="size-8 flex items-center justify-center text-xl rounded-md hover:bg-accent transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
                                                 (click)="selectEmoji(emoji)"
+                                                [attr.aria-label]="emojiLabel(emoji)"
                                             >
                                                 {{ emoji }}
                                             </button>
@@ -255,6 +259,26 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
         const pos = this.fixedPosition();
         return `top:${pos.top}px;left:${pos.left}px;`;
     });
+
+    /**
+     * Accessible name for one emoji button.
+     *
+     * A screen reader announcing a bare glyph reads whatever its own emoji
+     * table happens to hold — often "unknown character", and in a grid of 1800
+     * buttons that leaves the picker unusable without sight. The keyword list
+     * that already powers search doubles as a name: its first entry is the
+     * emoji's common name, but on its own it collides badly -- 37 different
+     * emoji lead with "person" -- so a screen-reader user hears the same name
+     * for buttons that insert different characters. Joining the leading
+     * keywords ("person red hair") separates them using data that is already
+     * there. Falls back to the glyph when an emoji has no keywords, which is
+     * still no worse than the bare button was.
+     */
+    protected emojiLabel(emoji: string): string {
+        const keywords = EMOJI_DATA[emoji];
+        if (!keywords?.length) return emoji;
+        return keywords.slice(0, EMOJI_LABEL_WORDS).join(' ');
+    }
 
     filteredCategories = computed(() => {
         const query = this.searchQuery().toLowerCase().trim();

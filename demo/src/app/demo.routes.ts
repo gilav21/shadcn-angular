@@ -58,6 +58,8 @@ export const DEMO_ROUTES: Routes = [
   { path: 'rich-text-editor-addons', loadComponent: () => import('./demos/inputs/rich-text-editor-addons-demo.component').then(m => m.RichTextEditorAddonsDemoComponent) },
   { path: 'rich-text-actions', loadComponent: () => import('./demos/inputs/rich-text-actions-demo.component').then(m => m.RichTextActionsDemoComponent) },
   { path: 'rich-text-view', loadComponent: () => import('./demos/inputs/rich-text-view-demo.component').then(m => m.RichTextViewDemoComponent) },
+  // Temporary review page for the four-wave rich-text effort. Delete after sign-off.
+  { path: 'wave-showcase', loadComponent: () => import('./demos/inputs/wave-showcase-demo.component').then(m => m.WaveShowcaseDemoComponent) },
 
   // Overlay
   { path: 'dialog', loadComponent: () => import('./demos/overlay/dialog-demo.component').then(m => m.DialogDemoComponent) },

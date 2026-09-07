@@ -1,7 +1,30 @@
+<!--
+  The live region lives OUTSIDE the @if blocks and is always in the DOM.
+  A region that is inserted already holding its text is not reliably announced
+  by screen readers — the assistive tech has to be observing the node before
+  the text arrives. Rendering it unconditionally and emptying it is what makes
+  the busy and failure states audible at all.
+
+  Busy uses polite/status (it is progress, not an interruption); failure uses
+  assertive/alert, because the import silently did nothing and the user would
+  otherwise wait for content that is never coming.
+-->
+<div class="sr-only" role="status" aria-live="polite" data-slot="rte-file-import-busy-status">
+  @if (importing()) {
+    {{ locale().importing }}
+  }
+</div>
+<div class="sr-only" role="alert" aria-live="assertive" data-slot="rte-file-import-error-alert">
+  @if (errorMessage()) {
+    {{ errorMessage() }}
+  }
+</div>
+
 @if (importing()) {
   <div
     class="absolute inset-0 z-20 flex items-center justify-center bg-background/70 backdrop-blur-[1px]"
     data-slot="rte-file-import-busy"
+    aria-hidden="true"
   >
     <div class="text-sm text-muted-foreground">{{ locale().importing }}</div>
   </div>
@@ -11,6 +34,7 @@
   <div
     class="absolute inset-0 z-20 flex items-center justify-center bg-background/70 backdrop-blur-[1px]"
     data-slot="rte-file-import-error"
+    aria-hidden="true"
   >
     <div class="text-sm text-destructive font-medium">{{ errorMessage() }}</div>
   </div>

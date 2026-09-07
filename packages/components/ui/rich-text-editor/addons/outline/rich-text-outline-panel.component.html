@@ -1,10 +1,17 @@
 @if (ctx.isOpen()) {
-  <div
+  <!--
+    A <nav> with an accessible name, not a bare div: this is a jump-to-section
+    landmark, so screen-reader users can reach it from the landmark rotor and
+    hear what it is. The name comes from the visible title via aria-labelledby,
+    which keeps the two from drifting apart across locales.
+  -->
+  <nav
+    [attr.aria-labelledby]="titleId"
     class="absolute top-0 bottom-0 z-20 w-full md:w-64 lg:w-80 max-w-full md:max-w-[calc(100vw-2rem)] overflow-y-auto bg-popover ltr:left-0 ltr:border-r rtl:right-0 rtl:border-l"
     [attr.data-slot]="'rich-text-outline-panel'"
   >
     <div class="flex items-center justify-between border-b px-3 py-2">
-      <div class="text-sm font-medium">{{ ctx.locale().title }}</div>
+      <h2 [attr.id]="titleId" class="text-sm font-medium">{{ ctx.locale().title }}</h2>
       <ui-button
         type="button"
         variant="ghost"
@@ -26,8 +33,9 @@
           {{ ctx.locale().empty }}
         </p>
       } @else {
-        <div class="space-y-0.5 pr-2" data-slot="rich-text-outline-list">
+        <ol class="space-y-0.5 pr-2" data-slot="rich-text-outline-list">
           @for (heading of ctx.headings(); track heading.index) {
+            <li>
             <button
               type="button"
               class="block w-full cursor-pointer truncate rounded-md px-2 py-1.5 text-start text-sm transition-colors hover:bg-accent/60"
@@ -39,9 +47,10 @@
             >
               {{ heading.text }}
             </button>
+            </li>
           }
-        </div>
+        </ol>
       }
     </ui-scroll-area>
-  </div>
+  </nav>
 }
