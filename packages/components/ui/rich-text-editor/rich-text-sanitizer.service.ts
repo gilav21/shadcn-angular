@@ -618,18 +618,24 @@ export class RichTextSanitizerService {
     }
 
     sanitizeSvgDataUrl(url: string): string | null {
-        const marker = ';base64,';
-        const markerIndex = url.toLowerCase().indexOf(marker);
-        if (markerIndex === -1) return null;
+        const comma = url.indexOf(',');
+        if (comma === -1) return null;
+        const payload = url.slice(comma + 1);
+        if (!payload) return null;
 
-        const base64Data = url.substring(markerIndex + marker.length);
-        if (!base64Data) return null;
+        // Both encodings are handled. Bailing unless ";base64," was present
+        // silently deleted every URL-encoded SVG -- an ordinary, spec-legal
+        // inline image -- with no feedback to the author. Fail-closed, so never
+        // a security hole, but a real content-loss bug.
+        const isBase64 = /;base64/i.test(url.slice(0, comma));
 
         try {
-            const svgString = atob(base64Data);
+            const svgString = isBase64 ? atob(payload) : decodeURIComponent(payload);
             const sanitized = sanitizeSvg(svgString);
             if (!sanitized) return null;
-            return `data:image/svg+xml;base64,${btoa(sanitized)}`;
+            return isBase64
+                ? `data:image/svg+xml;base64,${btoa(sanitized)}`
+                : `data:image/svg+xml,${encodeURIComponent(sanitized)}`;
         } catch {
             return null;
         }

@@ -154,6 +154,9 @@ const RAW_TAG_ONLY_BLOCK = /^(\d{1,9})/;
 /** Block-level tags: a parked one of these means the block is already markup. */
 const BLOCK_LEVEL_TAG_PATTERN = /^<(?:p|div|h[1-6]|ul|ol|li|blockquote|pre|table|thead|tbody|tr|th|td|hr|figure|details|summary)\b/i;
 
+/** An indented line holding nothing but a parked code fence. */
+const INDENTED_FENCE_TOKEN = /^\s+\d{1,9}\s*$/;
+
 const CODE_FENCE_OPEN = '';
 const CODE_FENCE_CLOSE = '';
 
@@ -376,6 +379,23 @@ export class RichTextMarkdownService {
         });
     }
 
+    /**
+     * Wrap quoted lines, running the list parser over them first.
+     *
+     * The body used to be joined with `<br>` and never parsed, so a list inside
+     * a quote stayed literal text -- and because `toMarkdown` then re-emitted it
+     * as text with the `<br>` becoming trailing whitespace, the document grew
+     * two characters on every save/load, forever. Quoted lists are ordinary
+     * content; they get the ordinary treatment.
+     */
+    private buildBlockquote(lines: readonly string[]): string {
+        const listed = this.parseLists(lines.join('\n'));
+        const body = listed.includes('<ul') || listed.includes('<ol')
+            ? listed
+            : lines.join('<br>');
+        return `<blockquote>${body}</blockquote>`;
+    }
+
     private parseBlockquotes(html: string): string {
         const lines = html.split('\n');
         const result: string[] = [];
@@ -388,7 +408,7 @@ export class RichTextMarkdownService {
                 blockquoteContent.push(line.replace(/^>\s?/, ''));
             } else {
                 if (inBlockquote) {
-                    result.push(`<blockquote>${blockquoteContent.join('<br>')}</blockquote>`);
+                    result.push(this.buildBlockquote(blockquoteContent));
                     blockquoteContent = [];
                     inBlockquote = false;
                 }
@@ -397,7 +417,7 @@ export class RichTextMarkdownService {
         }
 
         if (inBlockquote) {
-            result.push(`<blockquote>${blockquoteContent.join('<br>')}</blockquote>`);
+            result.push(this.buildBlockquote(blockquoteContent));
         }
 
         return result.join('\n');
@@ -435,6 +455,14 @@ export class RichTextMarkdownService {
             const parsed = parseListLine(line);
 
             if (!parsed) {
+                // An indented parked code fence belongs to the item above it, not
+                // to the document. Flushing here dropped the fence outside the
+                // list and split the list around it.
+                const openList = stack.at(-1);
+                if (openList?.items.length && INDENTED_FENCE_TOKEN.test(line)) {
+                    openList.items[openList.items.length - 1] += line.trim();
+                    continue;
+                }
                 flushStack();
                 result.push(line);
                 continue;
@@ -1173,11 +1201,24 @@ const VOID_TAGS = new Set(['br', 'hr', 'img', 'input', 'col']);
  * something this pass should try to repair.
  */
 function pairedTagNames(text: string): ReadonlySet<string> {
+    const paired = new Set<string>();
+    // Pairing is decided PER BLOCK. Counting across the whole document let a
+    // tag named as prose in one paragraph match an unrelated mention far away,
+    // so both became live markup -- the words vanished and a real element was
+    // injected. That is the very bug the matched-pair rule exists to stop, so
+    // the halves have to be near each other to count.
+    for (const block of text.split(/\n\s*\n/)) {
+        for (const name of pairedTagNamesInBlock(block)) paired.add(name);
+    }
+    return paired;
+}
+
+function pairedTagNamesInBlock(block: string): ReadonlySet<string> {
     const opens = new Map<string, number>();
     const closes = new Map<string, number>();
     const pattern = /<(\/?)([a-zA-Z][a-zA-Z0-9]*)\b[^<>]{0,4096}>/g;
     let match: RegExpExecArray | null;
-    while ((match = pattern.exec(text)) !== null) {
+    while ((match = pattern.exec(block)) !== null) {
         const bucket = match[1] ? closes : opens;
         const name = match[2].toLowerCase();
         bucket.set(name, (bucket.get(name) ?? 0) + 1);

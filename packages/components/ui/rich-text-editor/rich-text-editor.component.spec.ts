@@ -743,6 +743,35 @@ describe('RichTextEditorComponent', () => {
             expect(editor.querySelector('blockquote table')).toBeTruthy();
         });
 
+
+        it('leaves a blank line in the MIDDLE of a quote to the browser', () => {
+            // Exiting only makes sense from the end. From a blank middle line the
+            // handler still inserted its paragraph after the whole quote, so the
+            // caret was teleported past text the user was editing above -- and
+            // the blank line stayed behind.
+            component.writeValue(
+                '<blockquote><p>first</p><p><br></p><p>third</p></blockquote>',
+            );
+            fixture.detectChanges();
+            const blank = editor.querySelectorAll('blockquote p')[1] as HTMLElement;
+            const event = pressEnterAt(blank, 0);
+
+            expect(event.defaultPrevented).toBe(false);
+            expect(editor.querySelector('blockquote')?.textContent).toContain('third');
+        });
+
+        it('removes the spent blank line when exiting from the end', () => {
+            component.writeValue('<blockquote><p>first</p><p><br></p></blockquote>');
+            fixture.detectChanges();
+            const blank = editor.querySelectorAll('blockquote p')[1] as HTMLElement;
+            const event = pressEnterAt(blank, 0);
+
+            expect(event.defaultPrevented).toBe(true);
+            // The quote keeps its real content and loses only the blank line.
+            expect(editor.querySelector('blockquote')?.textContent).toBe('first');
+            expect(editor.querySelectorAll('blockquote p')).toHaveLength(1);
+        });
+
         it('still exits the quote on a blank quoted line', () => {
             component.writeValue('<blockquote><p></p></blockquote>');
             fixture.detectChanges();

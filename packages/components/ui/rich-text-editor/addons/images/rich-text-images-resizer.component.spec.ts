@@ -887,6 +887,23 @@ describe('RichTextImageResizerComponent', () => {
             expect(shrunk.height).toBeGreaterThanOrEqual(cmp.minWidth());
         });
 
+
+        it('respects the maximum on a keyboard resize, as the drag path does', () => {
+            // The keyboard path open-coded its clamp -- minWidth as the height
+            // floor and no ceiling at all -- so the "clamped both ends" fix
+            // covered only the mouse. The stubbed rect stays 200x100, so one
+            // large step past the ceiling is what proves the clamp.
+            fixture.componentRef.setInput('lockAspectRatio', false);
+            fixture.componentRef.setInput('maxWidth', 120);
+            const img = mountWithImage();
+            fixture.componentRef.setInput('lockAspectRatio', false);
+            fixture.componentRef.setInput('maxWidth', 120);
+            fixture.detectChanges();
+
+            press(handle('s'), 'ArrowDown', true);
+            expect(Number.parseFloat(img.style.height)).toBeLessThanOrEqual(120);
+        });
+
         it('ignores keys that are not arrows', () => {
             const img = mountWithImage();
             press(handle('e'), 'a');

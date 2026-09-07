@@ -1551,7 +1551,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         // Enter inside a quoted list, table or code block escaped the quote
         // instead of doing the thing that structure calls for.
         const line = this.enclosingQuotedLine(range.startContainer, quote);
-        if (!line || line.textContent?.replaceAll('​', '').trim()) return false;
+        if (!line || line.textContent?.replaceAll('\u200B', '').trim()) return false;
+        // Only from the LAST line. From a blank line in the middle the new
+        // paragraph still went after the whole quote, teleporting the caret past
+        // text the user was editing above; the browser's own split is right
+        // there.
+        if (line !== quote.lastElementChild) return false;
 
         event.preventDefault();
 
@@ -1560,8 +1565,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         quote.parentNode?.insertBefore(p, quote.nextSibling);
         this.setSelectionRange(selection, p, 0);
 
-        // An Enter pressed on a blank quoted line leaves that line behind.
-        if (!quote.textContent?.replaceAll('​', '').trim()) {
+        // The blank line has done its job either way; leaving it behind put an
+        // empty row at the end of the quote.
+        line.remove();
+        if (!quote.textContent?.replaceAll('\u200B', '').trim()) {
             quote.remove();
         }
 

@@ -596,8 +596,13 @@ describe('RichTextSanitizerService', () => {
     });
 
     describe('sanitizeSvgDataUrl edge cases', () => {
-        it('returns null when there is no base64 marker', () => {
-            expect(service.sanitizeSvgDataUrl('data:image/svg+xml,<svg></svg>')).toBeNull();
+        it('sanitizes a non-base64 payload instead of dropping it', () => {
+            // This used to assert null -- the deletion of every URL-encoded SVG
+            // locked in as correct behaviour. What matters is that the result is
+            // scrubbed, not that it is discarded.
+            const out = service.sanitizeSvgDataUrl('data:image/svg+xml,<svg></svg>');
+            expect(out).not.toBeNull();
+            expect(decodeURIComponent(out ?? '')).toContain('<svg');
         });
 
         it('returns null when the base64 payload is empty', () => {
@@ -788,6 +793,33 @@ describe('RichTextSanitizerService — structural size ceiling', () => {
 
         it('still allows an ordinary rooted path', () => {
             expect(service.isUrlSafe('/docs/page')).toBe(true);
+        });
+    });
+
+    describe('non-base64 SVG data URLs (round-18 audit)', () => {
+        const benign = '<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"></svg>';
+
+        it('keeps a URL-encoded SVG instead of deleting it', () => {
+            // sanitizeSvgDataUrl bailed unless it found ";base64,", so an
+            // ordinary spec-legal inline SVG was silently dropped -- fail-closed,
+            // so not a security hole, but it deleted valid user images.
+            const url = 'data:image/svg+xml,' + encodeURIComponent(benign);
+            const out = service.sanitizeImageSrc(url);
+            expect(out).not.toBeNull();
+            expect(decodeURIComponent(out ?? '')).toContain('<svg');
+        });
+
+        it('keeps a plain (unencoded) SVG data URL', () => {
+            const out = service.sanitizeImageSrc('data:image/svg+xml,' + benign);
+            expect(out).not.toBeNull();
+        });
+
+        it('still scrubs a scriptable non-base64 SVG rather than passing it', () => {
+            const hostile =
+                'data:image/svg+xml,' +
+                encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"></svg>');
+            const out = service.sanitizeImageSrc(hostile);
+            expect(out === null || !decodeURIComponent(out).includes('onload')).toBe(true);
         });
     });
 });

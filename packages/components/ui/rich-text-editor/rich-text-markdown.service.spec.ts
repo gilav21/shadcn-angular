@@ -899,9 +899,27 @@ describe('RichTextMarkdownService', () => {
             expect(probe.querySelector('table')).toBeNull();
         });
 
-        it('keeps an unpaired block tag as text', () => {
-            const html = service.toHtml('To make a paragraph, type <p>hello</p> in the editor.');
+        it('keeps a genuinely unpaired block tag as text', () => {
+            // The previous version of this test named an UNPAIRED tag but used
+            // "<p>hello</p>", which is paired -- and asserted only a trailing
+            // substring, so it passed whether the tag became markup or stayed
+            // text. It could not fail for the reason it existed, and that is why
+            // the cross-block pairing bug below shipped.
+            const html = service.toHtml('To make a paragraph, type <p> in the editor.');
+            expect(html).toContain('&lt;p&gt;');
             expect(html).toContain('in the editor.');
+        });
+
+        it('does not pair tag halves that sit in unrelated blocks', () => {
+            // pairedTagNames counted opens and closes across the WHOLE document,
+            // so a tag named as prose in one paragraph matched an unrelated
+            // mention far away and both became live markup: the words vanished
+            // and a real <table> was injected.
+            const html = service.toHtml('Use the <table> element.\n\nUnrelated later: </table>');
+            const probe = document.createElement('div');
+            probe.innerHTML = html;
+            expect(probe.querySelector('table')).toBeNull();
+            expect(probe.textContent).toContain('Use the <table> element.');
         });
 
         it('still renders a genuinely paired inline tag', () => {
@@ -934,18 +952,15 @@ describe('RichTextMarkdownService', () => {
             expect(twice).toBe(once);
         });
 
-        it('reads an indented fence body without its indentation', () => {
-            // The list still splits around the fence -- parseLists does not carry
-            // indented block content inside an item, and teaching it to is a
-            // change to that parser, not to fence lifting. What is fixed here is
-            // the CONTENT: the body no longer carries the list indentation baked
-            // in, so the code itself is correct and stable across round-trips.
+        it('keeps an indented fence inside its list item', () => {
+            // The fence used to land OUTSIDE the list, splitting it in two. The
+            // parked token is now carried by the item it is indented under.
             const md = '- step one\n  ```\n  npm install\n  ```\n- step two';
             const probe = document.createElement('div');
             probe.innerHTML = service.toHtml(md);
-            expect(probe.querySelector('pre code')?.textContent).toBe('npm install');
-            expect(probe.textContent).toContain('step one');
-            expect(probe.textContent).toContain('step two');
+            expect(probe.querySelectorAll('ul')).toHaveLength(1);
+            expect(probe.querySelectorAll('li')).toHaveLength(2);
+            expect(probe.querySelector('li pre code')?.textContent).toBe('npm install');
         });
     });
 
@@ -970,6 +985,27 @@ describe('RichTextMarkdownService', () => {
             const once = service.toMarkdown(service.toHtml(service.toMarkdown(html)));
             const twice = service.toMarkdown(service.toHtml(once));
             expect(twice).toBe(once);
+        });
+    });
+
+    describe('nested list inside a blockquote (round-18 audit)', () => {
+        it('keeps a quoted nested list as a list', () => {
+            const probe = document.createElement('div');
+            probe.innerHTML = service.toHtml('> - a\n>   - b');
+            expect(probe.querySelector('blockquote ul')).toBeTruthy();
+        });
+
+        it('does not grow on every round-trip', () => {
+            // The document gained two characters of trailing whitespace per
+            // save/load, forever -- the compounding class this series keeps
+            // turning up.
+            let md = '> - a\n>   - b';
+            const first = service.toMarkdown(service.toHtml(md));
+            md = first;
+            for (let i = 0; i < 5; i++) {
+                md = service.toMarkdown(service.toHtml(md));
+            }
+            expect(md).toBe(first);
         });
     });
 });

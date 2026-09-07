@@ -432,7 +432,7 @@ export class RichTextImageResizerComponent implements OnDestroy {
         const width = this.clampWidth(Math.max(this.minWidth(), rect.width + dx));
         const height = this.lockAspectRatio()
             ? width / aspect
-            : Math.max(this.minWidth(), rect.height + dy);
+            : this.clampHeight(rect.height + dy);
 
         t.style.width = `${width}px`;
         t.style.height = `${height}px`;
