@@ -207,7 +207,14 @@ const QUOTE_STRUCTURE_TAGS = new Set(['UL', 'OL', 'LI', 'TABLE', 'TR', 'TD', 'TH
 /** Elements that legitimately contain block children, so a paste inside one needs no split. */
 const BLOCK_CONTAINER_TAGS = new Set(['TD', 'TH', 'LI', 'BLOCKQUOTE', 'DETAILS', 'FIGURE']);
 
-const BLOCK_TAGS = new Set(['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'PRE', 'TABLE', 'HR', 'DETAILS', 'FIGURE']);
+/**
+ * Blocks that a paste of block content must escape by splitting.
+ *
+ * Deliberately disjoint from {@link BLOCK_CONTAINER_TAGS}: blockToSplit tests
+ * the container set first and returns, so LI/BLOCKQUOTE/DETAILS/FIGURE listed
+ * here as well were unreachable dead weight that read as if they were handled.
+ */
+const BLOCK_TAGS = new Set(['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'PRE', 'TABLE', 'HR']);
 
 let richTextEditorInstances = 0;
 
@@ -5295,12 +5302,21 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
         // An empty shell is left behind when the caret sat at the very start or
         // end of the block; dropping it avoids a blank paragraph either side.
+        // Where to put the caret is decided BEFORE the shells are removed. Reading
+        // the node's position afterwards gave -1 when the block itself had just
+        // been removed, so setStart landed at the START of the parent -- the
+        // caret jumping to the top instead of following the pasted content.
+        const parent = block.parentNode;
+        const insertAt = Array.from(parent.childNodes).indexOf(block as ChildNode) + 1;
+
+        let removedBefore = 0;
         for (const shell of [block, block.nextElementSibling]) {
             if (shell instanceof HTMLElement && !shell.textContent?.trim() && !shell.querySelector('img, br, input')) {
+                if (shell === block) removedBefore++;
                 shell.remove();
             }
         }
-        range.setStart(block.parentNode, Array.from(block.parentNode.childNodes).indexOf(block as ChildNode) + 1);
+        range.setStart(parent, Math.max(0, insertAt - removedBefore));
         range.collapse(true);
     }
 

@@ -370,6 +370,14 @@ export class RichTextMarkdownService {
      * content; they get the ordinary treatment.
      */
     private buildBlockquote(lines: readonly string[]): string {
+        // A quoted line that is itself quoted opens a deeper level. Stripping a
+        // single ">" and never recursing left the second marker as a literal
+        // ">" character in the output, so nested quotes -- ordinary markdown --
+        // simply did not work.
+        if (lines.some((line) => line.startsWith('> ') || line === '>')) {
+            return `<blockquote>${this.parseBlockquotes(lines.join('\n'))}</blockquote>`;
+        }
+
         const listed = this.parseLists(lines.join('\n'));
         const body = listed.includes('<ul') || listed.includes('<ol')
             ? listed
@@ -810,7 +818,7 @@ export class RichTextMarkdownService {
     private blockTagToMarkdown(tagName: string, inner: string, element: HTMLElement): string | null {
         switch (tagName) {
             case 'pre':
-                return this.handlePreTag(element);
+                return this.handlePreTag(element, element.closest('li') !== null);
             case 'ul':
                 return this.handleUlTag(element);
             case 'ol':
@@ -838,10 +846,21 @@ export class RichTextMarkdownService {
         }
     }
 
-    private handlePreTag(element: HTMLElement): string {
+    /**
+     * A fence inside a list item is re-emitted INDENTED. Without it toMarkdown
+     * flattened the fence to column zero, so on the next toHtml the parked
+     * token no longer looked indented and the fence escaped its item -- the
+     * one-pass fix held, the round-trip did not.
+     */
+    private handlePreTag(element: HTMLElement, inListItem = false): string {
         const lang = element.querySelector('code')?.dataset['language'] ?? '';
         const codeContent = element.textContent ?? '';
-        return `\n\`\`\`${lang}\n${codeContent}\n\`\`\`\n`;
+        const indent = inListItem ? '  ' : '';
+        const body = codeContent
+            .split('\n')
+            .map((line) => indent + line)
+            .join('\n');
+        return `\n${indent}\`\`\`${lang}\n${body}\n${indent}\`\`\`\n`;
     }
 
     private handleUlTag(element: HTMLElement): string {

@@ -604,14 +604,17 @@ describe('RichTextEditorComponent', () => {
             fixture.componentRef.setInput('showCount', true);
             fixture.componentRef.setInput('maxLength', 120);
             fixture.detectChanges();
-            expect(counter()?.textContent).toContain('/ 120');
+            // "0 characters (120 max)" -- the localized phrase intact, the limit
+            // as a separate parenthetical rather than jammed into {count}.
+            expect(counter()?.textContent).toContain('0 characters');
+            expect(counter()?.textContent).toContain('120 max');
         });
 
         it('shows no limit when none is set', () => {
             fixture.componentRef.setInput('showCount', true);
             fixture.componentRef.setInput('maxLength', undefined);
             fixture.detectChanges();
-            expect(counter()?.textContent).not.toContain('/');
+            expect(counter()?.textContent).not.toContain('max');
         });
 
         it('marks the counter when the limit is reached', () => {

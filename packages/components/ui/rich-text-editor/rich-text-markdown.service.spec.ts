@@ -1031,4 +1031,31 @@ describe('RichTextMarkdownService', () => {
             expect(md).toBe(first);
         });
     });
+
+    describe('round-trip fixed points (round-19 audit)', () => {
+        it('keeps an indented fence in its item across TWO passes', () => {
+            // The single-pass test passed while toMarkdown emitted the fence
+            // unindented, so INDENTED_FENCE_TOKEN stopped matching and the
+            // fence escaped the list on the second pass.
+            const md = '- item\n  ```\n  code\n  ```';
+            const once = service.toMarkdown(service.toHtml(md));
+            const probe = document.createElement('div');
+            probe.innerHTML = service.toHtml(once);
+            expect(probe.querySelector('li pre code')).toBeTruthy();
+        });
+
+        it('does not grow a phantom cell on a padded table', () => {
+            const md = '| a | b |\n| --- | --- |\n| wide |';
+            const once = service.toMarkdown(service.toHtml(md));
+            const twice = service.toMarkdown(service.toHtml(once));
+            expect(twice).toBe(once);
+        });
+
+        it('parses a doubly-nested blockquote as nested quotes', () => {
+            const probe = document.createElement('div');
+            probe.innerHTML = service.toHtml('> outer\n> > deeper');
+            expect(probe.querySelector('blockquote blockquote')).toBeTruthy();
+            expect(probe.textContent).not.toContain('&gt;');
+        });
+    });
 });

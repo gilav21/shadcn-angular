@@ -280,12 +280,15 @@
   -->
   <div [attr.id]="counterId" class="flex justify-end text-xs text-muted-foreground mt-1 px-1" role="status" aria-live="polite">
     @if (showCount()) {
+      <!--
+        The localized phrase keeps its own {count}, and the limit follows as a
+        separate parenthetical. Interpolating "0 / 120" INTO the slot produced
+        "0 / 120 characters", which is wrong in English and cannot be localized
+        at all -- a locale ordering it differently had no way to express it,
+        because the separator was hardcoded in the template expression.
+      -->
       <span [class.text-destructive]="atCharacterLimit()" [class.font-medium]="atCharacterLimit()">
-        @if (maxLength()) {
-          {{ interpolateLocale(resolvedLocale().editor.characters, { count: characterCount() + ' / ' + maxLength() }) }}
-        } @else {
-          {{ interpolateLocale(resolvedLocale().editor.characters, { count: characterCount() }) }}
-        }
+        {{ interpolateLocale(resolvedLocale().editor.characters, { count: characterCount() }) }}@if (maxLength()) {<span class="ms-1">({{ maxLength() }} max)</span>}
       </span>
     }
     @if (showWordCount()) {
