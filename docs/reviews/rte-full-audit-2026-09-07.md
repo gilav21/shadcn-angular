@@ -464,3 +464,50 @@ method itself was injecting corruption into the code under repair.
 Two of my own new tests also failed to discriminate and were caught by sabotage
 runs rather than by passing — the same shape as the defect-locking tests the
 auditors keep finding. The count of those across all rounds is now **eight**.
+
+---
+
+## Round 17 — adversarial sweep (11 findings, all addressed)
+
+A fourth no-context auditor, briefed to attack what round 16 had just changed.
+**Five of the eleven were regressions from my own round-15 and round-16 fixes** —
+the loop is now mostly catching me, not the original code.
+
+Its clean-area list was substantial and specific: the payload-content SVG scrub
+genuinely closed the hole; the scheme allowlist refuses `javascript:`,
+`blob:`, `about:`, `file:`, tab-obfuscated and fullwidth-colon variants; ReDoS
+timings topped out at 30ms across the media-target, emphasis and toggle
+patterns; PDF `@font-face` interpolation is not injectable because the family
+name is generated; toolbar a11y, live regions, and nested-list/task-list/details
+round-trips are all correct.
+
+| # | Sev | Finding | Fix | Commit |
+|---|---|---|---|---|
+| R17-1 | CRITICAL | **Open redirect.** `isUrlSafe` rejected `//host` but not `/\host` or `\host`, which browsers normalize identically. The anchor resolved to `http://evil` (or `file://`) and was decorated with `rel="noopener noreferrer"`, so it read as vetted. `sanitizeImageSrc` already guarded this; `href` never did. | Both slash forms rejected. | `a053e285` |
+| R17-2 | CRITICAL | Stale table refs → **DOMException**. `replaceEditorHtml` cleared only the image reference, so after an undo Bold threw: the handler saw a non-empty stale array, claimed it had handled the command, emptied the selection, then `collapseToStart()` threw. Formatting silently lost. | All four references cleared at the seam. | `42bcac16` |
+| R17-3 | HIGH | Enter in a blockquote **always escaped it**, so a quoted paragraph could never be split, and Enter in a quoted list/table/code jumped out of the quote. | Only a blank quoted line exits — the original intent. | `42bcac16` |
+| R17-4 | HIGH | My round-15 fence lifting **baked quote markers into the code body**, compounding `>` → `> >` → `> > >` per round-trip: exactly the corruption class the lift was meant to stop. | The opening fence's prefix is stripped from every body line and kept on the placeholder. | `c1bc1985` |
+| R17-5 | HIGH | My round-16 paste fix **shredded tables**: `BLOCK_TAGS` held `TABLE` but not `TD`, so a paste inside a cell split the whole table (one became two, with a ragged row), and a `<p>` could land directly in `<ul>`. | Cells and list items already hold blocks; the split stops there. | `42bcac16` |
+| R17-6 | MEDIUM | My round-16 escape rule made **prose about HTML into live markup**: "The `<table>` element has `<tr>` children" rendered a real table with the sentence swallowed into a cell. | Real markup comes in matched pairs; an unpaired non-void tag is text. | `a053e285` |
+| R17-7 | MEDIUM | Header `colspan` produced a 1-cell header over a 2-dash separator (invalid GFM), and the next round-trip narrowed the separator — the table lost a column each cycle. | Rows padded to true width; stability pinned by test. | `4386ddbd` |
+| R17-8 | MEDIUM | Fence in a list item — body carried the list indentation. | Prefix stripped. **The list still splits around the fence**; that is `parseLists`, not fence lifting, and the test says so rather than implying otherwise. | `c1bc1985` |
+| R17-9 | MEDIUM | `[&_th]:text-left` was the one physical property in an otherwise logical stylesheet, so Hebrew headers sat opposite their own column bodies. | `text-start`. | `4386ddbd` |
+| R17-10 | LOW | Vertical arrows on corner handles were **dead controls that ate page scroll** — with aspect locked the height follows the width, but `preventDefault` had already run. | The handler decides whether it can act before consuming the event. | `4386ddbd` |
+| R17-11 | LOW | `freeSize` clamped width but not height, so a fast drag computed a 100,000px or negative height and the write was refused — reading as a frozen drag rather than a bound. | Height clamped at both ends. | `4386ddbd` |
+
+### The tooling hazard, finally fixed at the root
+
+A literal `\x08` backspace reached a **fourth** regex this round, because the
+Python heredocs used to edit files interpret `\b`. One occurrence silently made
+a regex alternation never match and cost a long detour chasing behaviour the
+source could not produce. `no-control-regex` is now enabled in
+`eslint.config.mjs` and runs via lint-staged on every commit; verified by
+injecting the corruption and watching the rule reject it. Zero-width characters
+in ordinary strings stay allowed — the editor uses them as caret anchors.
+
+### Scoreboard across the series
+
+Defects frozen into tests as asserted-correct: **eight**. Regressions I
+introduced while fixing other findings: **eight** (three in round 16, five in
+round 17). The independent-auditor loop is earning its cost primarily by
+catching my own work.
