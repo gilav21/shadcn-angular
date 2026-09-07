@@ -4276,6 +4276,32 @@ describe('RichTextEditorComponent — table mouse, resize & cell selection', () 
         expect(table.style.width).toContain('px');
     });
 
+    it('starts a column resize from a touch on the resize border', () => {
+        // Column resize was mouse-only: onEditorTouchStart handled cell SELECTION
+        // and never checked the resize hotspot, so a table column could not be
+        // resized at all on a phone or tablet.
+        const table = seedTable();
+        const a1 = table.querySelectorAll('td')[0] as HTMLTableCellElement;
+        const rect = a1.getBoundingClientRect();
+        const touchAt = (x: number, y: number) => ({
+            target: a1,
+            touches: [{ clientX: x, clientY: y }],
+            changedTouches: [{ clientX: x, clientY: y }],
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
+        }) as unknown as TouchEvent;
+
+        component.onEditorTouchStart(touchAt(rect.right - 1, rect.top + 5));
+
+        expect(table.style.tableLayout).toBe('fixed');
+        const startWidth = table.getBoundingClientRect().width;
+
+        document.dispatchEvent(new TouchEvent('touchmove', { bubbles: true, cancelable: true }));
+        component.onEditorTouchStart(touchAt(rect.right - 1, rect.top + 5));
+        expect(table.style.width).toContain('px');
+        expect(startWidth).toBeGreaterThan(0);
+    });
+
     it('right-click on an unselected cell clears the existing cell selection', () => {
         const table = seedTable();
         const a1 = table.querySelectorAll('td')[0] as HTMLTableCellElement;
@@ -4326,8 +4352,8 @@ describe('RichTextEditorComponent — table mouse, resize & cell selection', () 
         try {
             (component as unknown as { tableResizeCursor: { (): boolean; set(v: boolean): void } }).tableResizeCursor.set(true);
             const result = (component as unknown as {
-                startTableResize: (e: MouseEvent, c: HTMLTableCellElement | null) => boolean;
-            }).startTableResize({ clientX: 0, preventDefault: vi.fn(), stopPropagation: vi.fn() } as unknown as MouseEvent, detachedCell);
+                startTableResize: (e: { preventDefault(): void; stopPropagation(): void }, c: HTMLTableCellElement | null, x: number, onBorder: boolean) => boolean;
+            }).startTableResize({ preventDefault: vi.fn(), stopPropagation: vi.fn() }, detachedCell, 0, true);
             expect(result).toBe(false);
         } finally {
             detachedCell.remove();
@@ -4342,8 +4368,8 @@ describe('RichTextEditorComponent — table mouse, resize & cell selection', () 
         try {
             (component as unknown as { tableResizeCursor: { (): boolean; set(v: boolean): void } }).tableResizeCursor.set(true);
             const result = (component as unknown as {
-                startTableResize: (e: MouseEvent, c: HTMLTableCellElement | null) => boolean;
-            }).startTableResize({ clientX: 0, preventDefault: vi.fn(), stopPropagation: vi.fn() } as unknown as MouseEvent, cell);
+                startTableResize: (e: { preventDefault(): void; stopPropagation(): void }, c: HTMLTableCellElement | null, x: number, onBorder: boolean) => boolean;
+            }).startTableResize({ preventDefault: vi.fn(), stopPropagation: vi.fn() }, cell, 0, true);
             expect(result).toBe(true);
         } finally {
             (component as unknown as { tableResizeCursor: { (): boolean; set(v: boolean): void } }).tableResizeCursor.set(false);

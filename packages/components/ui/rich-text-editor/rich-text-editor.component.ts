@@ -501,6 +501,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private readonly onTableCellSelectMoveBound = this.onTableCellSelectMove.bind(this);
     private readonly onTableCellSelectUpBound = this.onTableCellSelectUp.bind(this);
     private readonly onTableCellTouchMoveBound = this.onTableCellTouchMove.bind(this);
+    private readonly onTableResizeTouchMoveBound = this.onTableResizeTouchMove.bind(this);
     private readonly onTableCellTouchEndBound = this.onTableCellTouchEnd.bind(this);
 
 
@@ -2809,11 +2810,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             }
             return;
         }
-        const cellRect = cell.getBoundingClientRect();
-        const colIndex = Array.from((cell.parentElement as HTMLTableRowElement).cells).indexOf(cell);
-        const nearRightBorder = event.clientX >= cellRect.right - 4;
-        const nearLeftBorder = event.clientX <= cellRect.left + 4 && colIndex > 0;
-        if (nearRightBorder || nearLeftBorder) {
+        if (this.isNearResizeBorder(cell, event.clientX)) {
             this.tableResizeCursor.set(true);
             if (editorEl) editorEl.style.cursor = 'col-resize';
         } else if (this.tableResizeCursor()) {
@@ -2925,7 +2922,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
         this.clearCellSelection();
 
-        if (this.startTableResize(event, cell)) {
+        if (this.startTableResize(event, cell, event.clientX, this.tableResizeCursor())) {
             return;
         }
 
@@ -2937,15 +2934,20 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
-    private startTableResize(event: MouseEvent, cell: HTMLTableCellElement | null): boolean {
-        if (!this.tableResizeCursor() || !cell) {
+    private startTableResize(
+        event: { preventDefault(): void; stopPropagation(): void },
+        cell: HTMLTableCellElement | null,
+        clientX: number,
+        onBorder: boolean,
+    ): boolean {
+        if (!onBorder || !cell) {
             return false;
         }
         const table = cell.closest<HTMLTableElement>('table');
         if (!table) {
             return false;
         }
-        const resizeColIndex = this.getResizeColumnIndex(cell, event.clientX);
+        const resizeColIndex = this.getResizeColumnIndex(cell, clientX);
         event.preventDefault();
         event.stopPropagation();
         const firstRow = table.rows[0];
@@ -2964,13 +2966,32 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.tableResizeState = {
             table,
             colIndex: resizeColIndex,
-            startX: event.clientX,
+            startX: clientX,
             startWidths: widths,
             tableWidth,
         };
         this.document.addEventListener('mousemove', this.onTableResizeMoveBound);
         this.document.addEventListener('mouseup', this.onTableResizeUpBound);
+        this.document.addEventListener('touchmove', this.onTableResizeTouchMoveBound, { passive: false });
+        this.document.addEventListener('touchend', this.onTableResizeUpBound);
         return true;
+    }
+
+    /**
+     * Whether a pointer at `clientX` is within the column-resize hotspot of a
+     * cell's left or right edge.
+     *
+     * Shared by the mouse and touch paths. The mouse path also uses it to set
+     * the `col-resize` cursor on hover; touch has no hover, so the touch path
+     * asks the same question at the moment of contact instead — without this
+     * being shared, a column simply could not be resized on a touch device.
+     */
+    private isNearResizeBorder(cell: HTMLTableCellElement, clientX: number): boolean {
+        const cellRect = cell.getBoundingClientRect();
+        const colIndex = Array.from((cell.parentElement as HTMLTableRowElement).cells).indexOf(cell);
+        const nearRightBorder = clientX >= cellRect.right - 4;
+        const nearLeftBorder = clientX <= cellRect.left + 4 && colIndex > 0;
+        return nearRightBorder || nearLeftBorder;
     }
 
     private getResizeColumnIndex(cell: HTMLTableCellElement, clientX: number): number {
@@ -2982,9 +3003,25 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     private onTableResizeMove(event: MouseEvent): void {
+        this.applyTableResizeDelta(event.clientX);
+    }
+
+    /**
+     * Touch equivalent of {@link onTableResizeMove}. Registered non-passive so
+     * it can `preventDefault` — without that the browser scrolls the page
+     * instead of resizing the column.
+     */
+    private onTableResizeTouchMove(event: TouchEvent): void {
+        const touch = event.touches[0];
+        if (!touch || !this.tableResizeState) return;
+        event.preventDefault();
+        this.applyTableResizeDelta(touch.clientX);
+    }
+
+    private applyTableResizeDelta(clientX: number): void {
         if (!this.tableResizeState) return;
         const { table, colIndex, startX, startWidths } = this.tableResizeState;
-        const delta = event.clientX - startX;
+        const delta = clientX - startX;
         const firstRow = table.rows[0];
         if (!firstRow) return;
 
@@ -3008,6 +3045,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
         this.document.removeEventListener('mousemove', this.onTableResizeMoveBound);
         this.document.removeEventListener('mouseup', this.onTableResizeUpBound);
+        this.document.removeEventListener('touchmove', this.onTableResizeTouchMoveBound);
+        this.document.removeEventListener('touchend', this.onTableResizeUpBound);
         this.applyMutation({ focus: false });
     }
 
@@ -3049,6 +3088,15 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (this.readonly() || this.isDisabled()) return;
         const target = event.target as HTMLElement;
         const cell = target.closest<HTMLTableCellElement>('td, th');
+        const touch = event.touches?.[0] ?? event.changedTouches?.[0];
+
+        // Try a column resize first, as the mouse path does. There is no hover
+        // on touch to have primed `tableResizeCursor`, so the border test is
+        // made here from the touch's own position.
+        if (touch && cell && this.isNearResizeBorder(cell, touch.clientX)
+            && this.startTableResize(event, cell, touch.clientX, true)) {
+            return;
+        }
 
         if (cell && this.editorDiv?.nativeElement.contains(cell)) {
             this.clearCellSelection();
