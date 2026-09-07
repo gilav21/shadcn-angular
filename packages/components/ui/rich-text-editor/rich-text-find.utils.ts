@@ -113,8 +113,59 @@ function escapeLiteral(query: string): string {
  * Literal queries are escaped; whole-word wraps the pattern in Unicode-aware
  * look-arounds so it works for any script, not just ASCII.
  */
+/**
+ * A quantified group that is itself quantified — `(a+)+`, `(a*)*`, `(x+x+)+`.
+ *
+ * These make the engine try exponentially many ways to split the input, so a
+ * six-character pattern hangs the tab outright on a thirty-character line
+ * (measured: no completion in twelve seconds). {@link FIND_MAX_QUERY_LENGTH}
+ * does not help, because the cost comes from the shape rather than the size.
+ * Typing such a pattern into the find box with regex mode on is ordinary use,
+ * not an attack, so it is refused the same way an unparseable one is.
+ *
+ * Deliberately narrow: it looks only for the classic nested-quantifier shape,
+ * leaving `a+`, `\\d{2,4}` and `(foo|bar)` — the patterns people actually
+ * search with — working.
+ */
+function hasNestedQuantifier(pattern: string): boolean {
+    for (let i = 0; i < pattern.length; i++) {
+        if (pattern[i] !== '(' || pattern[i + 1] === '?') continue;
+        const group = scanGroup(pattern, i);
+        const after = pattern[group.end];
+        if (group.quantifiedInside && (after === '+' || after === '*' || after === '{')) return true;
+    }
+    return false;
+}
+
+/**
+ * Walk one parenthesised group, reporting where it ends and whether it contains
+ * a quantifier at its own top level. Escapes are skipped so a literal `\\(`
+ * does not open a group.
+ */
+function scanGroup(pattern: string, open: number): { end: number; quantifiedInside: boolean } {
+    let depth = 1;
+    let quantifiedInside = false;
+    let i = open + 1;
+
+    while (i < pattern.length && depth > 0) {
+        const ch = pattern[i];
+        if (ch === '\\') i++;
+        else if (ch === '(') depth++;
+        else if (ch === ')') depth--;
+        else if (depth === 1 && QUANTIFIERS.has(ch)) quantifiedInside = true;
+        i++;
+    }
+
+    return { end: i, quantifiedInside };
+}
+
+/** Characters that make the token before them repeatable. */
+const QUANTIFIERS = new Set(['+', '*', '}']);
+
 export function compileFindRegex(query: string, options: FindOptions): RegExp | null {
     if (!query || query.length > FIND_MAX_QUERY_LENGTH) return null;
+
+    if (options.useRegex && hasNestedQuantifier(query)) return null;
 
     const body = options.useRegex ? query : escapeLiteral(query);
     const source = options.wholeWord
