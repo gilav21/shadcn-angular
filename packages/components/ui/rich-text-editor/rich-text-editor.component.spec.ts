@@ -2054,6 +2054,36 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         }
     });
 
+    it('states its editing state the way assistive tech reads it', () => {
+        // Three gaps, all on role="textbox":
+        //  - the placeholder is CSS generated content only, so a screen reader
+        //    announces it as if it were the document's real text;
+        //  - tabindex was a static 0, so a DISABLED editor still took focus,
+        //    unlike a native disabled control, stranding a keyboard user;
+        //  - readonly set contenteditable=false but never aria-readonly, so a
+        //    reader had no way to know the field could not be edited.
+        expect(editor.getAttribute('aria-placeholder')).toBe(
+            component.placeholder() || component.resolvedLocale().editor.placeholder,
+        );
+        expect(editor.getAttribute('tabindex')).toBe('0');
+        expect(editor.getAttribute('aria-readonly')).toBeNull();
+
+        fixture.componentRef.setInput('readonly', true);
+        fixture.detectChanges();
+        expect(editor.getAttribute('aria-readonly')).toBe('true');
+        expect(editor.getAttribute('tabindex')).toBe('0');
+
+        fixture.componentRef.setInput('readonly', false);
+        component.setDisabledState(true);
+        fixture.detectChanges();
+        expect(editor.getAttribute('tabindex')).toBe('-1');
+        expect(editor.getAttribute('aria-disabled')).toBe('true');
+
+        component.setDisabledState(false);
+        fixture.detectChanges();
+        expect(editor.getAttribute('tabindex')).toBe('0');
+    });
+
     it('refuses addon inserts once maxLength is exhausted', () => {
         // maxLength was enforced only for typing and pasting, so every addon
         // insert path (emoji, links, images, tables) could push content past a

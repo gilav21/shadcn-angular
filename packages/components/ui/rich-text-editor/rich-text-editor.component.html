@@ -12,13 +12,28 @@
 }
 
 <div #editorContainer [class]="editorContainerClasses()" [dir]="dir()">
+  <!--
+    Three of the attributes below exist for assistive tech specifically:
+
+    - `tabindex` drops to -1 when disabled. A native disabled control leaves the
+      tab order entirely; a static 0 left a keyboard user stopping on an editor
+      that takes focus and then does nothing.
+    - `aria-readonly` because `contenteditable="false"` is a browser editing
+      hint, not a state screen readers reliably report on a textbox — without it
+      a reader discovers the field is read-only by typing and seeing nothing.
+    - `aria-placeholder` because the visible placeholder is CSS generated
+      content. Chromium exposes that as a plain text child, so a reader
+      announces the hint as though it were the document's own text.
+  -->
   <div
     #editorDiv
-    tabindex="0"
+    [attr.tabindex]="isDisabled() ? -1 : 0"
     [attr.contenteditable]="!isDisabled() && !readonly()"
     [attr.aria-disabled]="isDisabled()"
+    [attr.aria-readonly]="readonly() ? 'true' : null"
     [class]="editableClasses()"
     [attr.placeholder]="placeholder() || resolvedLocale().editor.placeholder"
+    [attr.aria-placeholder]="placeholder() || resolvedLocale().editor.placeholder"
     [attr.aria-label]="ariaLabel() || resolvedLocale().editor.ariaLabel"
     [attr.aria-describedby]="ariaDescribedBy()"
     [attr.data-slot]="'rich-text-editor'"
