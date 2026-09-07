@@ -1996,6 +1996,35 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         expect(editor.textContent).toBe('AC');
     });
 
+    it('does not pull a following paragraph into a table cell on delete', () => {
+        // Selecting out of a table into the paragraph after it and pressing
+        // Delete let the browser merge the paragraph's remainder INTO the last
+        // cell, destroying the paragraph. That paragraph is what lets an author
+        // click below a table at all, so losing it traps the cursor.
+        component.writeValue(
+            '<table><tbody><tr><td>Cell A</td><td>Cell B</td></tr></tbody></table><p>Trailing paragraph.</p>',
+        );
+        fixture.detectChanges();
+
+        const cellB = editor.querySelectorAll('td')[1].firstChild as Text;
+        const para = editor.querySelector('p')!.firstChild as Text;
+        const selection = document.getSelection()!;
+        const range = document.createRange();
+        range.setStart(cellB, 2);
+        range.setEnd(para, 8);
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }));
+        fixture.detectChanges();
+
+        // Both structures survive: the cell keeps only its own surviving text and
+        // the paragraph stays a sibling of the table.
+        expect(editor.querySelector('table + p')).not.toBeNull();
+        expect(editor.querySelectorAll('td')[1].textContent).toBe('Ce');
+        expect(editor.querySelector('table + p')!.textContent).toBe(' paragraph.');
+    });
+
     it('refuses addon inserts once maxLength is exhausted', () => {
         // maxLength was enforced only for typing and pasting, so every addon
         // insert path (emoji, links, images, tables) could push content past a

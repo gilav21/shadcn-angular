@@ -1169,6 +1169,9 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
         if (event.key === 'Backspace' && this.handleBackspaceInTaskList(event)) return;
 
+        if ((event.key === 'Delete' || event.key === 'Backspace')
+            && this.handleDeleteAcrossTableBoundary(event)) return;
+
         if (event.key === 'Escape') {
             this.showFloatingToolbar.set(false);
         }
@@ -1293,6 +1296,70 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * default then deleted the whole row, which is the "buggy" behaviour that
      * made the key look intermittent.
      */
+    /**
+     * Delete a selection that starts or ends inside a table without letting the
+     * browser reparent content across the table's edge.
+     *
+     * Left to itself, contenteditable merges the surviving tail of a following
+     * paragraph INTO the last cell and drops the paragraph — so the block that
+     * lets an author click below a table disappears, and unrelated text ends up
+     * living in table markup. Each side of the boundary is cleared in place
+     * instead, which keeps both structures and leaves the caret where the user
+     * was working.
+     */
+    private handleDeleteAcrossTableBoundary(event: KeyboardEvent): boolean {
+        const selection = this.document.getSelection();
+        if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return false;
+
+        const range = selection.getRangeAt(0);
+        const startTable = this.tableAncestorOf(range.startContainer);
+        const endTable = this.tableAncestorOf(range.endContainer);
+        if (startTable === endTable) return false;
+
+        event.preventDefault();
+        this.deleteWithinEachBlock(range);
+        this.applyMutation({ focus: true });
+        return true;
+    }
+
+    /** The table an editor node sits in, or null when it sits outside every table. */
+    private tableAncestorOf(node: Node): HTMLTableElement | null {
+        const editor = this.editorDiv?.nativeElement;
+        if (!editor || !editor.contains(node)) return null;
+        const element = node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement;
+        return element?.closest('table') ?? null;
+    }
+
+    /**
+     * Clear a range block by block, so nothing is carried from one block into
+     * another. Walks the text nodes the range touches and trims each in place.
+     */
+    private deleteWithinEachBlock(range: Range): void {
+        const editor = this.editorDiv?.nativeElement;
+        if (!editor) return;
+
+        const walker = this.document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+        const touched: Text[] = [];
+        let node = walker.nextNode() as Text | null;
+        while (node) {
+            if (range.intersectsNode(node)) touched.push(node);
+            node = walker.nextNode() as Text | null;
+        }
+
+        for (const text of touched) {
+            const from = text === range.startContainer ? range.startOffset : 0;
+            const to = text === range.endContainer ? range.endOffset : text.data.length;
+            text.deleteData(from, Math.max(0, to - from));
+        }
+
+        const collapsed = this.document.createRange();
+        collapsed.setStart(range.startContainer, range.startOffset);
+        collapsed.collapse(true);
+        const selection = this.document.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(collapsed);
+    }
+
     private handleBackspaceInTaskList(event: KeyboardEvent): boolean {
         const selection = this.document.getSelection();
         if (!selection || selection.rangeCount === 0) return false;
