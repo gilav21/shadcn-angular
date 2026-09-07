@@ -309,9 +309,8 @@ describe('RichTextMentionsDirective', () => {
         // throws inside dispatchEvent does not fail the dispatch, so the error
         // has to be asserted explicitly.
         //
-        // Tab DISMISSES rather than accepting (documented on the popover's
-        // onKeydown), so only Enter leaves a chip behind.
-        for (const [key, expectChip] of [['Enter', true], ['Tab', false]] as const) {
+        // Tab ACCEPTS, like Enter — the behaviour every editor users know has.
+        for (const [key, expectChip] of [['Enter', true], ['Tab', true]] as const) {
             const fixture = createFixture();
             const { el } = type(fixture, '@j');
             await wait();

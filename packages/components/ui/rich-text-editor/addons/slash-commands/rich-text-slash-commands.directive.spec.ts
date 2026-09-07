@@ -276,6 +276,22 @@ describe('RichTextSlashCommandsDirective', () => {
         expect(menu()).toBeNull();
     });
 
+    it('runs the highlighted command on Tab, as Enter does', () => {
+        // Tab used to dismiss, so it neither accepted nor moved focus — the one
+        // outcome a user pressing Tab never expects. It accepts now, matching
+        // the mentions popover and every editor with a slash menu.
+        const { fixture, editor, editorCmp } = create();
+        typeSlash(editor, editorCmp, '/');
+        fixture.detectChanges();
+        expect(menu()).not.toBeNull();
+
+        editorCmp.onKeydown(new KeyboardEvent('keydown', { key: 'Tab', cancelable: true }));
+        fixture.detectChanges();
+
+        expect(menu()).toBeNull();
+        expect(editor.textContent).not.toContain('/');
+    });
+
     it('stays open when scrolling inside the menu but closes when the page scrolls', () => {
         const { fixture, editor, editorCmp } = create();
         typeSlash(editor, editorCmp, '/');

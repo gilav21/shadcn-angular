@@ -147,11 +147,11 @@ export class RichTextMentionPopoverComponent implements AfterViewInit, OnDestroy
 
   /**
    * Drives keyboard navigation. Consumes `ArrowDown`/`ArrowUp` (move the
-   * highlight, clamped at the ends, scrolling the row into view), `Enter`
-   * (emits {@link itemSelect} for the highlighted row) and `Escape`/`Tab`
+   * highlight, clamped at the ends, scrolling the row into view), `Enter` and
+   * `Tab` (both emit {@link itemSelect} for the highlighted row) and `Escape`
    * (emits {@link closed}); every one of those calls `preventDefault()`, all
    * other keys are ignored and left alone. With no {@link items} only
-   * `Escape`/`Tab` are handled. Public because the host directive forwards the
+   * `Escape`/`Tab` are handled — with nothing to accept, Tab dismisses. Public because the host directive forwards the
    * editor's keydown here — the popover never takes focus itself.
    */
   onKeydown(event: KeyboardEvent): void {
@@ -177,13 +177,16 @@ export class RichTextMentionPopoverComponent implements AfterViewInit, OnDestroy
         this.scrollToSelected();
         break;
       case 'Enter':
+      case 'Tab':
+        // Tab accepts as Enter does: it is what Slack, Notion and GitHub do, and
+        // a Tab that neither accepted nor moved focus was a dead end — the user
+        // pressed it expecting one of those two things and got neither.
         event.preventDefault();
         if (items[currentIndex]) {
           this.itemSelect.emit(items[currentIndex]);
         }
         break;
       case 'Escape':
-      case 'Tab':
         event.preventDefault();
         this.closed.emit();
         break;

@@ -227,10 +227,13 @@ export class RichTextSlashCommandsDirective {
             this.setSelectedIndex(Math.max(this.selectedIndex - 1, 0));
             return;
         }
-        if (event.key === 'Escape' || event.key === 'Tab') {
+        if (event.key === 'Escape') {
             this.close();
             return;
         }
+        // Tab falls through to accept, as Enter does — matching the mentions
+        // popover and every editor users have muscle memory for. With no
+        // commands to accept (above) it still dismisses.
         void this.select(commands[this.selectedIndex]);
     }
 

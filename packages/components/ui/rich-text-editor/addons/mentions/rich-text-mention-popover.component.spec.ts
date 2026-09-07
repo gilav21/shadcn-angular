@@ -112,6 +112,30 @@ describe('RichTextMentionPopoverComponent', () => {
         const closeSpy = vi.fn();
         component.closed.subscribe(closeSpy);
 
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'Escape' }));
+        expect(closeSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('accepts the highlighted item on Tab, as Enter does', () => {
+        fixture.componentRef.setInput('items', USERS);
+        fixture.detectChanges();
+        const selectSpy = vi.fn();
+        const closeSpy = vi.fn();
+        component.itemSelect.subscribe(selectSpy);
+        component.closed.subscribe(closeSpy);
+
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'Tab' }));
+
+        expect(selectSpy).toHaveBeenCalledWith(USERS[0]);
+        expect(closeSpy).not.toHaveBeenCalled();
+    });
+
+    it('still dismisses on Tab when there is nothing to accept', () => {
+        fixture.componentRef.setInput('items', []);
+        fixture.detectChanges();
+        const closeSpy = vi.fn();
+        component.closed.subscribe(closeSpy);
+
         component.onKeydown(new KeyboardEvent('keydown', { key: 'Tab' }));
         expect(closeSpy).toHaveBeenCalledTimes(1);
     });
