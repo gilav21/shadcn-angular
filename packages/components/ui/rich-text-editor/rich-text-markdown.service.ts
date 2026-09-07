@@ -235,7 +235,7 @@ export class RichTextMarkdownService {
             // a blockquote had its ">" escaped to text before parseBlockquotes
             // ever ran — the first line rendered literally while later ones
             // quoted correctly.
-            .replaceAll(/(?<![\s\w*`~[\]!#-])>/gm, '&gt;');
+            .replaceAll(/(?<!^)(?<![\s\w*`~[\]!#-])>/gm, '&gt;');
     }
 
     /**

@@ -131,12 +131,12 @@ describe('RichTextMarkdownService', () => {
         });
 
         it('converts a multi-line blockquote, joining lines with <br>', () => {
-            // The "> " at the very start of the string is escaped to "&gt; " by
-            // escapeHtmlInContent before parseBlockquotes runs, so only the
-            // newline-preceded ">" lines are treated as a blockquote (known quirk).
-            expect(service.toHtml('> line1\n> line2')).toBe(
-                '<p>&gt; line1\n</p><blockquote>line2</blockquote><p></p>'
-            );
+            // Was locked in as a "known quirk": the leading ">" was escaped
+            // before the blockquote pass ran, so the first line rendered as
+            // literal text and the test asserted that as correct — while its own
+            // title said it joined the lines. It does now.
+            expect(service.toHtml('> line1\n> line2'))
+                .toBe('<blockquote>line1<br>line2</blockquote>');
         });
 
         it('converts horizontal rules', () => {
@@ -187,6 +187,28 @@ describe('RichTextMarkdownService', () => {
     // =====================================================================
     // HTML -> MARKDOWN
     // =====================================================================
+    describe('blockquote at the very start of a document', () => {
+        it('quotes a single opening line', () => {
+            // The lookbehind deciding whether a bare '>' is markup has no
+            // character to test at index 0, so it escaped the '>' before the
+            // blockquote pass ran. A note that opens with a quote — the most
+            // common way to open one — lost the blockquote entirely.
+            expect(service.toHtml('> only line')).toContain('<blockquote>');
+        });
+
+        it('quotes both lines of an opening multi-line quote', () => {
+            const html = service.toHtml('> line1\n> line2');
+            expect(html).not.toContain('&gt; line1');
+            expect(html).toContain('line1');
+            expect(html).toContain('line2');
+        });
+
+        it('still escapes a greater-than that is not markup', () => {
+            expect(service.toHtml('a > b')).toBe('<p>a &gt; b</p>');
+            expect(service.toHtml('5 > 3 is true')).toContain('&gt;');
+        });
+    });
+
     describe('tables', () => {
         it('parses a GFM table back into a real table', () => {
             // toMarkdown emits GFM tables but toHtml had no pass to read them
