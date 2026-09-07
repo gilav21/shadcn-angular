@@ -457,7 +457,7 @@ it is the entire supported surface — 39 members, grouped:
 | `isDisabled: Signal<boolean>` / `readonly: Signal<boolean>` | Editor state for `isEnabled` predicates. Effective: `[disabled]` OR `control.disable()`. |
 | `disabled: Signal<boolean>` | The `[disabled]` input alone. Guard on `isDisabled`, or your addon stays live under `control.disable()`. |
 
-### The eight `register*` hooks
+### The nine `register*` hooks
 
 Each returns a teardown. Call them from an `effect` with `onCleanup`, exactly
 like `toolbarSlots.register`.
@@ -472,6 +472,7 @@ like `toolbarSlots.register`.
 | `registerInputObserver(observer)` | text + caret offset after each input | — (an observer) |
 | `registerLinkEditor(open)` | — | supply the link-editing UI the base delegates to |
 | `registerShortcutAction(actionId, run, when?)` | a bound shortcut firing | — (an action) |
+| `registerExclusivePopover(close)` | — | join the toolbar's single-open-panel group; call `notifyOpened()` when your panel opens and it closes every other one |
 
 ### Image routing
 

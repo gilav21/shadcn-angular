@@ -21,12 +21,18 @@ const DEMO_MAIN = path.join(
 const README = path.join(REPO_ROOT, 'README.md');
 
 /**
- * The number of abstract members `RichTextEditorAddonHost` declares. Read off
- * the base branch before the consumer-API pack began: this spec adds a public
- * consumer surface, deliberately without widening the addon-host contract, so
- * a change here must be an intentional edit to this constant.
+ * The number of abstract members `RichTextEditorAddonHost` declares.
+ *
+ * The contract is what every addon compiles against, so it must not drift by
+ * accident: widening it is a deliberate act, and this constant is the record of
+ * that decision. Bumping it without also documenting the new member in
+ * `docs/rich-text-editor.md` fails the sibling assertions below.
+ *
+ * 39 -> 40 on 2026-09-07 for `registerExclusivePopover`, which restores the
+ * toolbar's single-open-panel rule that was lost when the panels moved out of
+ * the base and into addons.
  */
-const HOST_MEMBER_COUNT = 39;
+const HOST_MEMBER_COUNT = 40;
 
 const read = (file: string): string => readFileSync(file, 'utf-8');
 
@@ -97,9 +103,9 @@ describe('docs/rich-text-editor.md drift', () => {
         expect(missing).toEqual([]);
     });
 
-    it('calls out all eight register* hooks', () => {
+    it('calls out all nine register* hooks', () => {
         const hooks = hostMembers().filter(m => m.startsWith('register'));
-        expect(hooks).toHaveLength(8);
+        expect(hooks).toHaveLength(9);
         const guide = read(GUIDE);
         // Each hook must appear with its call signature, not just its name.
         for (const hook of hooks) expect(guide, hook).toContain(`${hook}(`);
