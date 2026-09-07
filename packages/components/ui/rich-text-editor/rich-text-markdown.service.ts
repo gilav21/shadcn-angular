@@ -112,6 +112,31 @@ function buildListContextHtml(ctx: ListContext): string {
  * - Horizontal rules (--- or ***)
  * - Line breaks
  */
+/**
+ * Link and image targets, allowing ONE level of balanced parentheses.
+ *
+ * Stopping at the first `)` truncated Wikipedia-style URLs — a mainstream
+ * case, not adversarial input — leaving a broken link and dumping the rest of
+ * the URL on the page as visible text.
+ */
+const MEDIA_TARGET_PATTERN = {
+    image: /!\[([^\]]*)\]\(((?:[^()]|\([^()]*\))+)\)/g,
+    link: /\[([^\]]{1,4096})\]\(((?:[^()]|\([^()]*\)){1,4096})\)/g,
+} as const;
+
+/**
+ * Marker standing in for a character with Markdown meaning while the emphasis
+ * passes run. Those passes regex over the WHOLE string, attribute values
+ * included, so a `*` in a query string became `<em>` and the link silently
+ * pointed somewhere else. Private-use code points cannot occur in real input.
+ */
+const URL_SHIELD: ReadonlyArray<readonly [string, string]> = [
+    ['*', '\uE100'],
+    ['_', '\uE101'],
+    ['`', '\uE102'],
+    ['~', '\uE103'],
+];
+
 @Injectable({ providedIn: 'root' })
 export class RichTextMarkdownService {
     private readonly sanitizer = inject(RichTextSanitizerService);
@@ -159,6 +184,10 @@ export class RichTextMarkdownService {
         html = this.parseStrikethrough(html);
         html = this.parseInlineCode(html);
         html = this.parseLineBreaks(html);
+
+        // After the emphasis passes, so the characters hidden in link and image
+        // targets come back exactly as the author typed them.
+        html = this.unshieldUrls(html);
 
         html = this.restoreRawTags(html, protectedTags);
 
@@ -357,11 +386,21 @@ export class RichTextMarkdownService {
     /**
      * Parse images ![alt](src).
      */
+    /** Hide Markdown-meaningful characters in a URL from the emphasis passes. */
+    private shieldUrl(url: string): string {
+        return URL_SHIELD.reduce((acc, [ch, code]) => acc.replaceAll(ch, code), url);
+    }
+
+    /** Restore the characters {@link shieldUrl} hid, once those passes are done. */
+    private unshieldUrls(html: string): string {
+        return URL_SHIELD.reduce((acc, [ch, code]) => acc.replaceAll(code, ch), html);
+    }
+
     private parseImages(html: string): string {
-        return html.replaceAll(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, src) => {
+        return html.replaceAll(MEDIA_TARGET_PATTERN.image, (_, alt, src) => {
             const safeSrc = this.sanitizer.sanitizeImageSrc(src);
             if (!safeSrc) return '';
-            return `<img src="${safeSrc}" alt="${this.escapeHtml(alt)}">`;
+            return `<img src="${this.shieldUrl(safeSrc)}" alt="${this.shieldUrl(this.escapeHtml(alt))}">`;
         });
     }
 
@@ -369,10 +408,10 @@ export class RichTextMarkdownService {
      * Parse links [text](url).
      */
     private parseLinks(html: string): string {
-        return html.replaceAll(/\[([^\]]{1,4096})\]\(([^)]{1,4096})\)/g, (_, text, url) => {
+        return html.replaceAll(MEDIA_TARGET_PATTERN.link, (_, text, url) => {
             const safeUrl = this.sanitizer.sanitizeUrl(url);
             if (!safeUrl) return text;
-            return `<a href="${safeUrl}" rel="noopener noreferrer">${text}</a>`;
+            return `<a href="${this.shieldUrl(safeUrl)}" rel="noopener noreferrer">${text}</a>`;
         });
     }
 
@@ -600,9 +639,16 @@ export class RichTextMarkdownService {
         const contentParts: string[] = [];
         for (const ch of Array.from(element.childNodes)) {
             if (ch.nodeType === Node.ELEMENT_NODE && (ch as Element).tagName === 'SUMMARY') continue;
-            contentParts.push(this.nodeToMarkdown(ch));
+            // A node, not its children — the same trap the list serializer fell
+            // into: nodeToMarkdown walks a node's OWN children, so a bare text
+            // node between blocks yielded nothing and its text vanished.
+            contentParts.push(
+                ch.nodeType === Node.TEXT_NODE
+                    ? (ch.textContent ?? '')
+                    : this.elementToMarkdown(ch as HTMLElement),
+            );
         }
-        return `\n:::details ${summaryText}\n${contentParts.join('').trim()}\n:::\n`;
+        return `\n:::details ${summaryText}\n${contentParts.map(part => part.trim()).filter(Boolean).join('\n')}\n:::\n`;
     }
 
     /**

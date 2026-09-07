@@ -61,8 +61,10 @@ describe('RichTextMarkdownService', () => {
         });
 
         it('drops unsafe link url but keeps text', () => {
-            // The link regex stops at the first ")", leaving the "(1)" tail as text.
-            expect(service.toHtml('[click](javascript:alert(1))')).toBe('<p>click)</p>');
+            // The dangerous scheme is rejected and the text kept. The stray ")"
+            // that used to trail it came from the link regex stopping at the first
+            // ")"; balanced parens are matched now, so nothing is left behind.
+            expect(service.toHtml('[click](javascript:alert(1))')).toBe('<p>click</p>');
         });
 
         it('converts an image with safe src', () => {
@@ -185,6 +187,44 @@ describe('RichTextMarkdownService', () => {
     // =====================================================================
     // HTML -> MARKDOWN
     // =====================================================================
+    describe('content that must survive a round trip', () => {
+        it('keeps bare text inside a details block', () => {
+            // Third instance of the same root cause the lists had: a NODE handed
+            // to nodeToMarkdown, which walks that node's own children — nothing
+            // for a bare text node. Reachable from pasted or programmatic HTML.
+            expect(service.toMarkdown('<details><summary>Title</summary>bare body</details>'))
+                .toContain('bare body');
+        });
+
+        it('separates block children inside a details block', () => {
+            const md = service.toMarkdown(
+                '<details><summary>T</summary><p>one</p><p>two</p></details>',
+            );
+            expect(md).not.toContain('onetwo');
+        });
+
+        it('does not rewrite markdown characters inside a link URL', () => {
+            // parseLinks runs before the emphasis passes, which then regex over
+            // the whole string INCLUDING href values — so a '*' in a query
+            // string became <em> and the link pointed somewhere else entirely.
+            const html = service.toHtml('[text](https://x.com/?a=*b*)');
+            const parsed = new DOMParser().parseFromString(html, 'text/html');
+
+            expect(parsed.querySelector('a')?.getAttribute('href'))
+                .toBe('https://x.com/?a=*b*');
+        });
+
+        it('keeps parentheses inside a link URL', () => {
+            // Wikipedia-style URLs are not adversarial input.
+            const html = service.toHtml('[Rabbit](https://en.wikipedia.org/wiki/Rabbit_(zodiac))');
+            const parsed = new DOMParser().parseFromString(html, 'text/html');
+
+            expect(parsed.querySelector('a')?.getAttribute('href'))
+                .toBe('https://en.wikipedia.org/wiki/Rabbit_(zodiac)');
+            expect(parsed.body.textContent).not.toContain(')');
+        });
+    });
+
     describe('list round-trips', () => {
         it('keeps list item text when serializing to markdown', () => {
             // extractListItemContent handed each of an <li>'s child NODES to
