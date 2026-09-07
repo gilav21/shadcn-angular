@@ -6323,8 +6323,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (bare.length === 0) return null;
 
         const paragraph = this.document.createElement('p');
-        const anchor = bare[0];
-        editor.insertBefore(paragraph, anchor);
+        bare[0].before(paragraph);
         for (const node of bare) {
             paragraph.appendChild(node);
         }
