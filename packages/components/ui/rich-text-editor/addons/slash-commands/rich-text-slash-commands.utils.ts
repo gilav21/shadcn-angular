@@ -210,7 +210,13 @@ export function removeSlashTriggerText(
 }
 
 function removeFromRange(doc: Document, root: HTMLElement, query: string, range: Range | null): HTMLElement | null {
-    if (range?.startContainer.nodeType !== Node.TEXT_NODE) {
+    // Liveness, not just node type: undo/redo/writeValue/setContent reassign the
+    // editable's innerHTML while the menu is open, and a detached text node
+    // still reports TEXT_NODE. The chain below already recovers because
+    // findClosestEditableBlock cannot resolve a block outside the root, but
+    // checking here avoids editing the orphaned node and moving the user's
+    // selection into it on the way to that recovery.
+    if (range?.startContainer.nodeType !== Node.TEXT_NODE || !root.contains(range.startContainer)) {
         return null;
     }
     const selection = doc.getSelection();

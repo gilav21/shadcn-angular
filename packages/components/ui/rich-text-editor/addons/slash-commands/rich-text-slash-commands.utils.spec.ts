@@ -313,6 +313,31 @@ describe('rich-text-slash-commands.utils', () => {
             expect(root.textContent).toBe('hi ');
         });
 
+        it('ignores a captured range whose node the editor no longer contains', () => {
+            // undo/redo/writeValue/setContent all reassign the editable's
+            // innerHTML, detaching every node while the menu stays open. A
+            // detached text node still reports nodeType TEXT_NODE, so a
+            // type-only check lets the removal mutate a tree nothing renders —
+            // and the live document silently keeps the trigger text.
+            const root = makeRoot('<p>hi /go</p>');
+            const text = root.querySelector('p')!.firstChild as Text;
+            const range = document.createRange();
+            range.setStart(text, text.data.length);
+            range.collapse(true);
+
+            root.innerHTML = '<p>replaced by an undo</p>';
+            expect(root.contains(text)).toBe(false);
+
+            const block = removeSlashTriggerText(document, root, 'go', range, null);
+
+            // The live document is untouched and no stale block is returned, so
+            // the fallback chain recovers. Guarding earlier also avoids mutating
+            // the orphaned node and stealing the selection on the way through.
+            expect(root.textContent).toBe('replaced by an undo');
+            expect(block).toBeNull();
+            expect(text.data).toBe('hi /go');
+        });
+
         it('removes the trigger from the anchor block when the range does not match', () => {
             const root = makeRoot('<p>keep</p><p>type /cmd here</p>');
             const anchor = root.querySelectorAll('p')[1] as HTMLElement;

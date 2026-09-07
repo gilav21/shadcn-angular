@@ -15,6 +15,7 @@ import {
     type RichTextSlashCommandContext,
 } from '../..';
 import { createLocaleBindings, type LocaleInput } from '../../../../lib/i18n';
+import { caretIsInCode } from '../../../../lib/caret-context';
 import { RichTextSlashCommandsMenuComponent } from './rich-text-slash-commands-menu.component';
 import { buildDefaultSlashCommands } from './rich-text-slash-commands.defaults';
 import {
@@ -144,7 +145,10 @@ export class RichTextSlashCommandsDirective {
 
 
     private onInputObserved(text: string, caret: number): void {
-        if (!this.slashEnabled() || this.host.isDisabled() || this.host.readonly()) {
+        // A '/' inside code is content — a path, a regex, a comment — not a
+        // command, so the menu must stay shut while the author writes a snippet.
+        if (!this.slashEnabled() || this.host.isDisabled() || this.host.readonly()
+            || caretIsInCode(this.doc)) {
             this.close();
             return;
         }

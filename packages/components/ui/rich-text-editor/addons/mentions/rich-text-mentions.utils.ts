@@ -1,3 +1,4 @@
+import { caretIsInCode } from '../../../../lib/caret-context';
 import type {
     MentionItem,
     TagItem,
@@ -34,6 +35,7 @@ function textBeforeCaret(doc: Document): string | null {
  * regardless of surrounding markup.
  */
 export function detectTrigger(doc: Document, allowMention: boolean, allowTag: boolean): TriggerMatch | null {
+    if (caretIsInCode(doc)) return null;
     const before = textBeforeCaret(doc);
     if (before === null) return null;
     if (allowMention) {
