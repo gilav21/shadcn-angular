@@ -244,18 +244,18 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
 
     /** Output format: `'markdown'` converts to/from Markdown; `'html'` works with raw HTML. */
-    mode = input<EditorMode>('markdown');
+    readonly mode = input<EditorMode>('markdown');
 
 
     /** Visual border/focus style. See {@link EditorVariant}. */
-    variant = input<EditorVariant>('default');
+    readonly variant = input<EditorVariant>('default');
 
     /** Text size preset for the editor content. See {@link EditorSize}. */
-    size = input<EditorSize>('default');
+    readonly size = input<EditorSize>('default');
 
 
     /** Where to render the formatting toolbar. See {@link ToolbarPosition}. */
-    toolbar = input<ToolbarPosition>('top');
+    readonly toolbar = input<ToolbarPosition>('top');
 
     /**
      * Which toolbar buttons to show and in what order.
@@ -263,23 +263,23 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * @see {@link ToolbarItem} for the full list of available items.
      * @see {@link DEFAULT_TOOLBAR_ITEMS} for the default set.
      */
-    toolbarItems = input<ToolbarItem[]>(DEFAULT_TOOLBAR_ITEMS);
+    readonly toolbarItems = input<ToolbarItem[]>(DEFAULT_TOOLBAR_ITEMS);
 
 
     /** Placeholder text shown when the editor is empty. Falls back to the locale default. */
-    placeholder = input<string>('');
+    readonly placeholder = input<string>('');
 
     /** CSS `min-height` for the editable area. Accepts any CSS length value. */
-    minHeight = input<string>('120px');
+    readonly minHeight = input<string>('120px');
 
     /** CSS `max-height` for the editable area (scrolls beyond this). Accepts any CSS length value. */
-    maxHeight = input<string>('400px');
+    readonly maxHeight = input<string>('400px');
 
     /**
      * Disables the editor entirely — no input, no toolbar, no interactions.
      * OR-ed with the form's own disabled state; see {@link isDisabled}.
      */
-    disabled = input<boolean>(false);
+    readonly disabled = input<boolean>(false);
 
     /** Makes the editor non-editable but still selectable/copyable. Hides the toolbar. */
     readonly = input<boolean>(false);
@@ -299,44 +299,44 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * Set it to `false` for an editor whose authors type Markdown markers they
      * expect to stay literal.
      */
-    markdownShortcuts = input<boolean>(true);
+    readonly markdownShortcuts = input<boolean>(true);
 
     /** Show a character count below the editor. */
-    showCount = input<boolean>(false);
+    readonly showCount = input<boolean>(false);
 
     /** Show a word count below the editor. */
-    showWordCount = input<boolean>(false);
+    readonly showWordCount = input<boolean>(false);
 
     /**
      * Maximum character limit. When set, the character counter turns red
      * and the editor emits warnings when approaching/exceeding the limit.
      * Does **not** prevent typing — it's advisory only.
      */
-    maxLength = input<number | undefined>(undefined);
+    readonly maxLength = input<number | undefined>(undefined);
 
 
     /** Maximum number of history snapshots to retain. Oldest entries are dropped when exceeded. */
-    historyLimit = input<number>(100);
+    readonly historyLimit = input<number>(100);
 
     /**
      * Milliseconds of quiet before a changed find query is searched, so a burst
      * of keystrokes costs one pass over the document. `0` searches synchronously
      * on every keystroke.
      */
-    findDebounceMs = input<number>(150);
+    readonly findDebounceMs = input<number>(150);
 
     /**
      * Record a history entry for each `ControlValueAccessor` write, so a form's
      * `setValue` / `patchValue` can be undone. Off by default, matching the
      * long-standing behaviour that a programmatic write is not an edit.
      */
-    recordExternalWrites = input<boolean>(false);
+    readonly recordExternalWrites = input<boolean>(false);
 
     /**
      * Debounce interval in milliseconds for capturing history snapshots.
      * A snapshot is saved after the user stops typing for this duration.
      */
-    historyDebounceMs = input<number>(450);
+    readonly historyDebounceMs = input<number>(450);
 
 
     /**
@@ -352,17 +352,17 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * wins where it is set, and with this input unset everything falls through
      * to the app-wide `UI_LOCALE_ID` as before.
      */
-    locale = input<LocaleInput<RichTextLocale>>();
+    readonly locale = input<LocaleInput<RichTextLocale>>();
 
 
     /** Additional CSS classes merged onto the editor's root container. */
-    class = input<string>('');
+    readonly class = input<string>('');
 
     /** Custom `aria-label` for the editable content area. Falls back to the locale default. */
-    ariaLabel = input<string | undefined>(undefined);
+    readonly ariaLabel = input<string | undefined>(undefined);
 
     /** ID of an element that describes the editor, set as `aria-describedby`. */
-    ariaDescribedBy = input<string | undefined>(undefined);
+    readonly ariaDescribedBy = input<string | undefined>(undefined);
 
     private readonly i18n = createLocaleBindings(this.locale, RICH_TEXT_LOCALES);
     readonly resolvedLocale = this.i18n.t;
@@ -380,30 +380,30 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
 
     /** Emits the current content as an HTML string after every change. */
-    htmlChange = output<string>();
+    readonly htmlChange = output<string>();
 
     /**
      * Emits the current content as a Markdown string after every change.
      * Only meaningful when `mode` is `'markdown'` — in `'html'` mode,
      * the Markdown is reverse-converted from HTML and may not round-trip perfectly.
      */
-    markdownChange = output<string>();
+    readonly markdownChange = output<string>();
 
     /** Emits the current word count after every content change. Pair with `[showWordCount]`. */
-    wordCountChange = output<number>();
+    readonly wordCountChange = output<number>();
 
     /**
      * Emits the undo stack's state on every change to it — a push, undo, redo,
      * history restore or trim. Drive your own undo/redo buttons from it, or read
      * {@link canUndo} / {@link canRedo} directly.
      */
-    historyChange = output<RichTextHistoryState>();
+    readonly historyChange = output<RichTextHistoryState>();
 
     /** Emits when the editor gains focus. */
-    focused = output<void>();
+    readonly focused = output<void>();
 
     /** Emits when the editor loses focus. */
-    blurred = output<void>();
+    readonly blurred = output<void>();
 
     /**
      * Where a colour was last applied to a collapsed caret, while it is still
@@ -420,9 +420,9 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         backgroundColor?: string;
     } | null = null;
     private readonly htmlContent = signal<string>('');
-    activeFormats = signal<Set<string>>(new Set());
-    currentFontSize = signal<string>('');
-    currentFontFamily = signal<string>('');
+    readonly activeFormats = signal<Set<string>>(new Set());
+    readonly currentFontSize = signal<string>('');
+    readonly currentFontFamily = signal<string>('');
     readonly currentFontColor = signal<string>('');
     readonly currentBackgroundColor = signal<string>('');
     /** Inline style at the caret, exposed to the colors/typography addons as raw browser values. */
@@ -432,8 +432,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         fontSize: this.currentFontSize(),
         fontFamily: this.currentFontFamily(),
     }));
-    showFloatingToolbar = signal<boolean>(false);
-    floatingToolbarPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
+    readonly showFloatingToolbar = signal<boolean>(false);
+    readonly floatingToolbarPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
     readonly emptyFormats = new Set<string>();
     private readonly selectedImageNode = signal<HTMLImageElement | null>(null);
     /**
@@ -465,10 +465,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     setSelectedImage(image: HTMLImageElement | null): void {
         this.selectedImageNode.set(image);
     }
-    selectedText = signal<string>('');
-    dragOver = signal<boolean>(false);
-    tableContextMenuOpen = signal(false);
-    tableContextMenuPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
+    readonly selectedText = signal<string>('');
+    readonly dragOver = signal<boolean>(false);
+    readonly tableContextMenuOpen = signal(false);
+    readonly tableContextMenuPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
     private tableContextMenuTarget: HTMLTableCellElement | null = null;
     private tableContextMenuCloseHandler: (() => void) | null = null;
     private tableResizeState: {
@@ -488,7 +488,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     private tableCellSelecting = false;
     private tableCellSelectAnchor: HTMLTableCellElement | null = null;
-    tableCellSelected = signal<HTMLTableCellElement[]>([]);
+    readonly tableCellSelected = signal<HTMLTableCellElement[]>([]);
     private readonly onTableCellSelectMoveBound = this.onTableCellSelectMove.bind(this);
     private readonly onTableCellSelectUpBound = this.onTableCellSelectUp.bind(this);
     private readonly onTableCellTouchMoveBound = this.onTableCellTouchMove.bind(this);
@@ -523,18 +523,18 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     readonly isDirty = computed(() => this.htmlContent() !== this.cleanHtml());
 
-    findReplaceVisible = signal(false);
-    findQuery = signal('');
-    replaceText = signal('');
-    findCaseSensitive = signal(false);
+    readonly findReplaceVisible = signal(false);
+    readonly findQuery = signal('');
+    readonly replaceText = signal('');
+    readonly findCaseSensitive = signal(false);
     /**
      * Every match of the current query, in document order. Since the search runs
      * over the flattened document, a range may start and end in different text
      * nodes — a phrase broken by inline markup is one match, not none.
      */
-    findMatches = signal<Range[]>([]);
-    findCurrentIndex = signal(-1);
-    findShowReplace = signal(false);
+    readonly findMatches = signal<Range[]>([]);
+    readonly findCurrentIndex = signal(-1);
+    readonly findShowReplace = signal(false);
     /** Restrict matches to whole words, Unicode-aware. UI state, like {@link findCaseSensitive}. */
     readonly findWholeWord = signal(false);
     /** Treat the query as a regular expression. UI state, like {@link findCaseSensitive}. */
@@ -604,7 +604,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     readonly isDisabled = computed(() => this.disabled() || this.formDisabled());
 
-    editorContainerClasses = computed(() =>
+    readonly editorContainerClasses = computed(() =>
         cn(
             editorVariants({ variant: this.variant(), size: this.size() }),
             this.isDisabled() && 'opacity-50 cursor-not-allowed',
@@ -613,7 +613,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         )
     );
 
-    editableClasses = computed(() =>
+    readonly editableClasses = computed(() =>
         cn(
             'w-full h-full overflow-auto p-3 outline-none',
             '[&:empty]:before:content-[attr(placeholder)] [&:empty]:before:text-muted-foreground [&:empty]:before:pointer-events-none',
@@ -659,11 +659,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return !!max && this.characterCount() >= max;
     });
 
-    characterCount = computed(() => {
+    readonly characterCount = computed(() => {
         return graphemeLength(this.sanitizer.stripTags(this.htmlContent()));
     });
 
-    wordCount = computed(() => {
+    readonly wordCount = computed(() => {
         const text = this.sanitizer.stripTags(this.htmlContent()).trim();
         if (!text) return 0;
         return text.split(/\s+/).length;
@@ -1884,21 +1884,34 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
         const selection = this.document.getSelection();
         const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
-        const caretNode = range?.startContainer ?? null;
-        const caretOffset = range?.startOffset ?? 0;
 
+        // Both boundaries are captured, not just the caret. Writing to a text
+        // node's `data` collapses any selection inside it -- that is the DOM's
+        // doing, not ours -- so restoring only the start would silently destroy
+        // a user's selection on every keystroke that triggers a sweep.
+        const anchor = range
+            ? {
+                  startNode: range.startContainer,
+                  startOffset: range.startOffset,
+                  endNode: range.endContainer,
+                  endOffset: range.endOffset,
+              }
+            : null;
+
+        // Offsets are translated from the PRE-sweep text, so each boundary is
+        // moved back by however many anchors sat before it.
+        const before = new Map<Text, string>(spent.map((node) => [node, node.data]));
         for (const node of spent) {
-            const before = node.data;
-            const removedBeforeCaret = countZeroWidthBefore(before, caretOffset);
-            node.data = before.replaceAll('​', '');
-            if (node === caretNode && range && selection) {
-                const next = Math.max(0, Math.min(node.data.length, caretOffset - removedBeforeCaret));
-                range.setStart(node, next);
-                range.collapse(true);
-                selection.removeAllRanges();
-                selection.addRange(range);
-            }
+            node.data = node.data.replaceAll('​', '');
         }
+
+        if (!anchor || !selection) return;
+
+        const restored = this.document.createRange();
+        restored.setStart(anchor.startNode, offsetAfterSweep(anchor.startNode, anchor.startOffset, before));
+        restored.setEnd(anchor.endNode, offsetAfterSweep(anchor.endNode, anchor.endOffset, before));
+        selection.removeAllRanges();
+        selection.addRange(restored);
     }
 
     private perceivedText(): string {
@@ -6998,4 +7011,12 @@ function countZeroWidthBefore(text: string, offset: number): number {
         if (text[i] === '​') count++;
     }
     return count;
+}
+
+/** Where `offset` in `node` lands once that node's zero-width anchors are gone. */
+function offsetAfterSweep(node: Node, offset: number, before: ReadonlyMap<Text, string>): number {
+    const original = before.get(node as Text);
+    if (original === undefined) return offset;
+    const removed = countZeroWidthBefore(original, offset);
+    return Math.max(0, offset - removed);
 }

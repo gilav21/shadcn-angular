@@ -742,4 +742,31 @@ describe('RichTextSanitizerService — structural size ceiling', () => {
             }
         });
     });
+
+    describe('SVG smuggled under a raster label (round-16 audit)', () => {
+        const svgPayload = '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"></svg>';
+
+        it('scrubs an SVG declared as image/png', () => {
+            // The decision to scrub was made from the MIME LABEL, while the
+            // magic-byte check accepts SVG content whatever the label says. So
+            // mislabelled SVG skipped scrubbing entirely and unsanitized,
+            // script-bearing markup was stored in content the library calls
+            // clean.
+            const url = 'data:image/png;base64,' + btoa(svgPayload);
+            const out = service.sanitizeImageSrc(url);
+            expect(out === null || !atob(out.split(',')[1]).includes('onload')).toBe(true);
+        });
+
+        it('scrubs an SVG declared as image/jpeg in plain (non-base64) form', () => {
+            const url = 'data:image/jpeg,' + encodeURIComponent(svgPayload);
+            const out = service.sanitizeImageSrc(url);
+            expect(out === null || !decodeURIComponent(out).includes('onload')).toBe(true);
+        });
+
+        it('still accepts a genuine raster data URL', () => {
+            const png =
+                'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+            expect(service.sanitizeImageSrc(png)).toBe(png);
+        });
+    });
 });

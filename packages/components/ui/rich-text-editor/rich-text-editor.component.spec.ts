@@ -424,6 +424,33 @@ describe('RichTextEditorComponent', () => {
             expect(editor.querySelector('p')?.textContent).toBe('\u200B');
         });
 
+
+        it('does not collapse a real selection while sweeping', () => {
+            // The sweep runs on every input and re-anchored unconditionally, so
+            // a user with text selected would have lost the selection mid-edit.
+            editor.innerHTML = '<p>\u200Balpha beta</p>';
+            const text = editor.querySelector('p')?.firstChild as Text;
+            const range = document.createRange();
+            range.setStart(text, 1);
+            range.setEnd(text, 6);
+            const selection = document.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+            expect(selection?.isCollapsed).toBe(false);
+
+            editor.dispatchEvent(
+                new InputEvent('input', { bubbles: true, inputType: 'insertText', data: 'a' }),
+            );
+            fixture.detectChanges();
+
+            const after = document.getSelection();
+            expect(after?.isCollapsed).toBe(false);
+            // Offsets 1..6 of "\u200Balpha beta" span "alpha"; after the anchor
+            // is removed they must still span "alpha", not slide by one.
+            expect(after?.toString()).toBe('alpha');
+            expect(editor.textContent).toBe('alpha beta');
+        });
+
         it('counts maxLength on the same basis as the character counter', () => {
             // Enforcement read raw textContent while the counter read the
             // stripped value, so input was refused one character early per

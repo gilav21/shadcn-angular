@@ -349,7 +349,14 @@ export class RichTextSanitizerService {
 
         if (trimmed.toLowerCase().startsWith('data:image/')) {
             if (!this.isAllowedDataUrl(trimmed)) return null;
-            if (trimmed.toLowerCase().startsWith('data:image/svg+xml')) {
+            // Scrub by CONTENT, not by the MIME label. The label is attacker-
+            // controlled and the magic-byte check accepts SVG whatever it says,
+            // so "data:image/png;base64,<svg onload=...>" used to skip scrubbing
+            // altogether -- storing unsanitized, script-bearing markup in
+            // content the library asserts is clean. Current browsers will not
+            // render it as an <img>, but anything rendering that content another
+            // way (object/embed/inline, or a server sniffing by content) would.
+            if (this.declaresOrContainsSvg(trimmed)) {
                 return this.sanitizeSvgDataUrl(trimmed);
             }
             return trimmed;
@@ -582,6 +589,29 @@ export class RichTextSanitizerService {
     /**
      * Sanitize an SVG data URL by parsing and sanitizing the SVG content.
      */
+    /**
+     * Whether a `data:image/*` URL is SVG by label or by payload. Mislabelled
+     * SVG must take the scrubbing path, so both are checked.
+     */
+    private declaresOrContainsSvg(url: string): boolean {
+        if (url.toLowerCase().startsWith('data:image/svg+xml')) return true;
+
+        const comma = url.indexOf(',');
+        if (comma === -1) return false;
+        const payload = url.slice(comma + 1);
+        let decoded: string;
+        try {
+            decoded = /;base64/i.test(url.slice(0, comma))
+                ? atob(payload)
+                : decodeURIComponent(payload);
+        } catch {
+            // Undecodable payloads are not usable images either; treat them as
+            // suspect so they take the scrubbing path rather than passing.
+            return true;
+        }
+        return /<\s*svg\b/i.test(decoded);
+    }
+
     sanitizeSvgDataUrl(url: string): string | null {
         const marker = ';base64,';
         const markerIndex = url.toLowerCase().indexOf(marker);
