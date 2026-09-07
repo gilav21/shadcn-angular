@@ -77,6 +77,10 @@ export class RichTextLinksButtonComponent {
 
     protected onSubmit(payload: RichTextLinkSubmit): void {
         this.context.onSubmit(payload);
-        this.open.set(false);
+        // Only close if the URL was accepted. Closing regardless discarded what
+        // the user typed and looked exactly like a successful insert — the
+        // Ctrl+K overlay already stays open on a rejection, and the two entry
+        // points to the same feature must not disagree.
+        if (!this.context.urlError()) this.open.set(false);
     }
 }

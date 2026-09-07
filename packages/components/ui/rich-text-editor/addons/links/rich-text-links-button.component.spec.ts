@@ -1,4 +1,4 @@
-import { signal } from '@angular/core';
+import { signal, type WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RichTextLinksButtonComponent } from './rich-text-links-button.component';
@@ -51,6 +51,22 @@ describe('RichTextLinksButtonComponent', () => {
 
     afterEach(() => {
         fixture.destroy();
+    });
+
+    it('keeps the popover open when the URL is rejected', () => {
+        // The directive reports a rejected URL through the context's urlError;
+        // closing regardless threw that away and discarded what the user typed,
+        // which is indistinguishable from a successful insert. The Ctrl+K
+        // overlay already behaves correctly — these two paths must agree.
+        const urlError = context.urlError as WritableSignal<string>;
+        probe.onOpenChange(true);
+        urlError.set('Enter a valid web address');
+        try {
+            probe.onSubmit({ text: 'x', url: 'javascript:alert(1)' });
+            expect(probe.open()).toBe(true);
+        } finally {
+            urlError.set('');
+        }
     });
 
     it('renders the trigger button with the localized tooltip', () => {

@@ -638,3 +638,34 @@ describe('RichTextSanitizerService', () => {
         });
     });
 });
+
+describe('RichTextSanitizerService — structural size ceiling', () => {
+    let service: RichTextSanitizerService;
+
+    beforeEach(() => {
+        TestBed.configureTestingModule({});
+        service = TestBed.inject(RichTextSanitizerService);
+    });
+
+    it('drops content past the node budget instead of building it all', () => {
+        // Length limits bound the TEXT a paste carries, not its structure — so a
+        // spreadsheet range pasted as a table can arrive as tens of thousands of
+        // cells with almost no text, and nothing stopped it.
+        const cells = Array.from({ length: 40000 }, () => '<td>x</td>').join('');
+        const huge = `<table><tbody><tr>${cells}</tr></tbody></table>`;
+
+        const out = service.sanitize(huge);
+        const parsed = new DOMParser().parseFromString(out, 'text/html');
+
+        expect(parsed.querySelectorAll('td').length).toBeLessThan(40000);
+    });
+
+    it('leaves an ordinary document untouched', () => {
+        const normal = '<p>hello</p><table><tbody><tr><td>a</td><td>b</td></tr></tbody></table>';
+        const out = service.sanitize(normal);
+        const parsed = new DOMParser().parseFromString(out, 'text/html');
+
+        expect(parsed.querySelectorAll('td')).toHaveLength(2);
+        expect(parsed.body.textContent).toBe('helloab');
+    });
+});

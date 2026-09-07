@@ -169,9 +169,11 @@ export class RichTextMentionsDirective {
         }
         event.preventDefault();
         this.popoverRef.instance.onKeydown(event);
-        // The arrows move the highlight, so re-point aria-activedescendant or a
-        // screen reader keeps announcing the option the user has left behind.
-        this.announcePopup(this.popoverRef);
+        // Re-read the ref: Enter and Tab ACCEPT an item, which closes the
+        // popover and destroys the component synchronously inside that call, so
+        // the captured ref is already gone by the time we get here. Only a key
+        // that merely moved the highlight leaves one to re-announce.
+        if (this.popoverRef) this.announcePopup(this.popoverRef);
         return true;
     }
 
