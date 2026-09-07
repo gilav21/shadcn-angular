@@ -150,24 +150,26 @@ describe('RichTextMarkdownService', () => {
         });
 
         it('converts a toggle/details block', () => {
+            // The stray leading/trailing <p></p> these used to assert came from
+            // parseParagraphs not knowing <details> is a block. It is markup
+            // the reader sees, so asserting it locked in the defect.
             const md = ':::details Title\nbody\n:::';
-            // Surrounding empty paragraphs come from parseParagraphs splitting on blank lines.
             expect(service.toHtml(md)).toBe(
-                '<p></p><details open=""><summary>Title</summary><p>body</p></details><p></p>'
+                '<details open=""><summary>Title</summary><p>body</p></details>'
             );
         });
 
         it('strips multiple spaces/tabs after :::details before the title (linear regex)', () => {
             const md = ':::details   Spaced Title\nbody\n:::';
             expect(service.toHtml(md)).toBe(
-                '<p></p><details open=""><summary>Spaced Title</summary><p>body</p></details><p></p>'
+                '<details open=""><summary>Spaced Title</summary><p>body</p></details>'
             );
         });
 
         it('keeps an empty toggle title when no title text follows', () => {
             const md = ':::details \nbody\n:::';
             expect(service.toHtml(md)).toBe(
-                '<p></p><details open=""><summary></summary><p>body</p></details><p></p>'
+                '<details open=""><summary></summary><p>body</p></details>'
             );
         });
 
@@ -832,6 +834,55 @@ describe('RichTextMarkdownService', () => {
             const html = service.toHtml('before ' + OPEN + '99' + CLOSE + ' after');
             expect(html).toContain('before');
             expect(html).toContain('after');
+        });
+    });
+
+    describe('toggle blocks (round-16 audit)', () => {
+        it('keeps the body out of the summary', () => {
+            const md = ':::details Title\nbody text\n:::';
+            const html = service.toHtml(md);
+            const probe = document.createElement('div');
+            probe.innerHTML = html;
+            const summary = probe.querySelector('summary');
+            expect(summary?.textContent?.trim()).toBe('Title');
+            expect(summary?.querySelector('p')).toBeNull();
+            expect(probe.querySelector('details > p')?.textContent).toContain('body text');
+        });
+
+        it('keeps the body out of the summary when the title holds markup', () => {
+            const md = ':::details ![x](https://e.com/a.png)\nbody text\n:::';
+            const probe = document.createElement('div');
+            probe.innerHTML = service.toHtml(md);
+            expect(probe.querySelector('summary p')).toBeNull();
+            expect(probe.querySelector('details > p')?.textContent).toContain('body text');
+        });
+
+        it('does not wrap a details block in stray empty paragraphs', () => {
+            const html = service.toHtml(':::details T\nbody\n:::');
+            expect(html).not.toContain('<p></p>');
+        });
+    });
+
+    describe('table cell content (round-16 audit)', () => {
+        it('does not put a raw newline inside a table row', () => {
+            // A <br> inside a cell emitted a literal newline, which splits the
+            // row: a one-row table came back as a TWO-row table on reload.
+            const html = '<table><thead><tr><th>h</th></tr></thead><tbody><tr><td>line1<br>line2</td></tr></tbody></table>';
+            const md = service.toMarkdown(html);
+            const rows = md.split('\n').filter((l) => l.trim().startsWith('|'));
+            expect(rows).toHaveLength(3);
+
+            const probe = document.createElement('div');
+            probe.innerHTML = service.toHtml(md);
+            expect(probe.querySelectorAll('tbody tr')).toHaveLength(1);
+        });
+
+        it('sizes the separator to the header, not the widest row', () => {
+            // A 3-dash separator under a 2-column header is invalid GFM.
+            const html = '<table><thead><tr><th>a</th><th>b</th></tr></thead><tbody><tr><td>1</td><td>2</td><td>3</td></tr></tbody></table>';
+            const md = service.toMarkdown(html);
+            const separator = md.split('\n')[1];
+            expect(separator.split('|').filter((c) => c.trim())).toHaveLength(2);
         });
     });
 });

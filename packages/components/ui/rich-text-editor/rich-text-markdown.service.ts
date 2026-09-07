@@ -542,7 +542,7 @@ export class RichTextMarkdownService {
         return blocks.map(block => {
             const trimmed = block.trim();
 
-            if (/^<(h[1-6]|ul|ol|li|blockquote|pre|div|p|hr|table)/i.test(trimmed)) {
+            if (/^<(h[1-6]|ul|ol|li|blockquote|pre|div|p|hr|table|details|figure)/i.test(trimmed)) {
                 return trimmed;
             }
 
@@ -857,19 +857,28 @@ export class RichTextMarkdownService {
         const lines: string[] = [];
         let headerProcessed = false;
 
-        // The widest row decides the column count, each cell counting its own
-        // colspan. The separator previously appeared only when a row held a
+        // The FIRST row decides the column count, each cell counting its own
+        // colspan -- markdown's separator describes the header, so a wider body
+        // row must not stretch it (a 3-dash separator under a 2-column header is
+        // invalid GFM). The separator previously appeared only when a row held a
         // <th>, so a headerless or colspan table emitted none -- and parseTables,
         // which requires header + separator, refused to read it back, leaving a
         // paragraph of literal pipe characters where the table had been.
-        const columnCount = rows.reduce(
-            (widest, row) => Math.max(widest, this.columnSpan(row)),
-            0,
-        );
+        const columnCount = this.columnSpan(rows[0]);
 
         for (const row of rows) {
             const cells = Array.from(row.querySelectorAll('th, td'));
-            const cellContents = cells.map(cell => this.nodeToMarkdown(cell).trim().replaceAll('|', String.raw`\|`));
+            // Newlines inside a cell would split the row -- a one-row table came
+            // back as two on reload -- so a <br> becomes the GFM in-cell break.
+            const cellContents = cells.map(cell =>
+                this.nodeToMarkdown(cell)
+                    .trim()
+                    .replaceAll('|', String.raw`\|`)
+                    .split('\n')
+                    .map((line) => line.trim())
+                    .filter((line) => line.length > 0)
+                    .join('<br>'),
+            );
 
             lines.push('| ' + cellContents.join(' | ') + ' |');
 
