@@ -863,6 +863,51 @@ describe('RichTextEditorComponent', () => {
         });
     });
 
+
+    describe('wrapBareTextInParagraph (round-20 audit)', () => {
+        it('does not swallow existing block elements', () => {
+            // Despite its name it moved EVERY top-level child into a new <p>,
+            // guarded only by "the caret is on the editor" -- which holds
+            // whenever the caret sits between blocks. The result was invalid
+            // nested <p>, a list losing top level, and a DOM/model desync that
+            // compounded a level and two empty paragraphs per keystroke.
+            editor.innerHTML = '<p>alpha</p><ul><li>bravo</li></ul>';
+            const range = document.createRange();
+            range.setStart(editor, 1);
+            range.collapse(true);
+            const selection = document.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+
+            const wrap = component as unknown as {
+                wrapBareTextInParagraph(el: HTMLElement): HTMLElement | null;
+            };
+            wrap.wrapBareTextInParagraph(editor);
+
+            expect(editor.querySelector('p p')).toBeNull();
+            expect(editor.querySelector(':scope > ul')).toBeTruthy();
+        });
+
+        it('still wraps a genuinely bare text node', () => {
+            editor.innerHTML = '';
+            editor.appendChild(document.createTextNode('bare'));
+            const range = document.createRange();
+            range.setStart(editor.firstChild as Node, 2);
+            range.collapse(true);
+            const selection = document.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+
+            const wrap = component as unknown as {
+                wrapBareTextInParagraph(el: HTMLElement): HTMLElement | null;
+            };
+            const p = wrap.wrapBareTextInParagraph(editor);
+
+            expect(p?.tagName).toBe('P');
+            expect(editor.querySelector('p')?.textContent).toBe('bare');
+        });
+    });
+
     it('prevents replacements that would exceed maxLength', () => {
         fixture.componentRef.setInput('maxLength', 5);
         fixture.detectChanges();

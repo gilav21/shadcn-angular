@@ -92,6 +92,9 @@ const KEYBOARD_RESIZE_DELTA: Readonly<Record<string, { x: number; y: number } | 
 /** How long a run of keypresses is folded into one history entry. */
 const KEYBOARD_RESIZE_COALESCE_MS = 400;
 
+/** Absolute pixel bound for a resized image on either axis. */
+const MAX_IMAGE_DIMENSION = 10000;
+
 @Component({
     selector: 'ui-rich-text-image-resizer',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -488,7 +491,11 @@ export class RichTextImageResizerComponent implements OnDestroy {
      * there is an input that means one.
      */
     private clampHeight(height: number): number {
-        return Math.max(this.minWidth(), height);
+        // A ceiling is still needed, just not the WIDTH one: a fast drag could
+        // compute a 100,000px height, which onPointerMove then refused to write
+        // -- reading as a frozen drag rather than a bound. The cap is generous
+        // enough never to bite a real image.
+        return Math.min(MAX_IMAGE_DIMENSION, Math.max(this.minWidth(), height));
     }
 
     private onPointerUp(): void {

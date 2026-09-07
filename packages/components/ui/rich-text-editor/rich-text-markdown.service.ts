@@ -906,7 +906,7 @@ export class RichTextMarkdownService {
         cells.forEach((cell, index) => {
             padded.push(contents[index]);
             const span = Number.parseInt(cell.getAttribute('colspan') ?? '1', 10);
-            const extra = Number.isFinite(span) && span > 1 ? span - 1 : 0;
+            const extra = clampSpan(span) - 1;
             for (let i = 0; i < extra; i++) padded.push('');
         });
         while (padded.length < width) padded.push('');
@@ -917,7 +917,7 @@ export class RichTextMarkdownService {
     private columnSpan(row: HTMLElement): number {
         return Array.from(row.querySelectorAll('th, td')).reduce((total, cell) => {
             const span = Number.parseInt(cell.getAttribute('colspan') ?? '1', 10);
-            return total + (Number.isFinite(span) && span > 0 ? span : 1);
+            return total + clampSpan(span);
         }, 0);
     }
 
@@ -1188,6 +1188,23 @@ export class RichTextMarkdownService {
 }
 
 /** Tags that legitimately stand alone, so they need no closing partner. */
+/**
+ * A cell's column span, bounded.
+ *
+ * The value was range-checked but never capped, and it arrives from paste --
+ * the sanitizer keeps the attribute verbatim. A single colspan="99999" cell
+ * expanded to roughly 900 KB of markdown, measured at 887x amplification, which
+ * is a denial-of-service through ordinary clipboard content. HTML's own table
+ * algorithm caps at 1000; no real document needs more.
+ */
+function clampSpan(span: number): number {
+    if (!Number.isFinite(span) || span < 1) return 1;
+    return Math.min(span, MAX_COLSPAN);
+}
+
+/** HTML's own limit for a column span. */
+const MAX_COLSPAN = 1000;
+
 /** Blank-line boundary between blocks, captured so joining restores the text. */
 const BLOCK_SEPARATOR = /(\n\s*\n)/;
 

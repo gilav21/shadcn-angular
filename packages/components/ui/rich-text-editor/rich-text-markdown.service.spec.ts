@@ -1090,4 +1090,22 @@ describe('RichTextMarkdownService', () => {
             expect(probe.textContent).not.toContain('```');
         });
     });
+
+    describe('colspan amplification (round-20 audit)', () => {
+        it('does not expand a hostile colspan into megabytes', () => {
+            // colspan arrives from paste and the sanitizer keeps it verbatim.
+            // Uncapped, one cell produced ~900 KB of markdown -- 887x
+            // amplification, a DoS through ordinary clipboard content.
+            const html = '<table><tbody><tr><td colspan="99999">x</td></tr></tbody></table>';
+            const md = service.toMarkdown(html);
+            expect(md.length).toBeLessThan(20000);
+        });
+
+        it('still round-trips an ordinary span', () => {
+            const html = '<table><tbody><tr><td colspan="2">wide</td></tr><tr><td>a</td><td>b</td></tr></tbody></table>';
+            const probe = document.createElement('div');
+            probe.innerHTML = service.toHtml(service.toMarkdown(html));
+            expect(probe.querySelector('table')).toBeTruthy();
+        });
+    });
 });

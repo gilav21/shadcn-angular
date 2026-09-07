@@ -906,6 +906,23 @@ describe('RichTextImageResizerComponent', () => {
             expect(Number.parseFloat(img.style.width)).toBeLessThanOrEqual(120);
         });
 
+
+        it('bounds height at an absolute maximum', () => {
+            // Removing the width ceiling was right; leaving height with NO upper
+            // bound reintroduced the 100,000px drag the freeSize comment says was
+            // fixed. onPointerMove then refuses the write, which reads as a
+            // frozen drag rather than a clamp.
+            const cmp = component as unknown as {
+                freeSize(
+                    s: { startWidth: number; startHeight: number; handle: string },
+                    dx: number,
+                    dy: number,
+                ): { width: number; height: number };
+            };
+            const huge = cmp.freeSize({ startWidth: 200, startHeight: 100, handle: 'se' }, 100, 100000);
+            expect(huge.height).toBeLessThanOrEqual(10000);
+        });
+
         it('ignores keys that are not arrows', () => {
             const img = mountWithImage();
             press(handle('e'), 'a');

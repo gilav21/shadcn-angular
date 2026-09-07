@@ -71,6 +71,8 @@ interactive role (it contains its own nested controls):
 | --- | --- |
 | `drawer` `role="dialog"` | The drawer is a signal-driven modal rendered/removed via `@if`. Switching to a native `<dialog>` would require imperative `showModal()/close()` and change focus-trap, top-layer and `::backdrop` behaviour — a behavioural change. `role="dialog"` + `aria-modal` on a managed div is the same approach the Angular CDK and Radix use. |
 
+| `rich-text-editor` AI panel `role="dialog"` | A **non-modal**, caret-anchored panel positioned with `left`/`top` and rendered/removed via `@if`. A native `<dialog>` is `display:none` until `.show()`/`.showModal()` is called imperatively, so adopting it means adding lifecycle management and changing focus behaviour on a working component — and the non-modal, position-anchored case is the one `<dialog>` fits least. Same reasoning as the drawer above; `role="dialog"` + an accessible name is the CDK/Radix approach. |
+
 (The drawer's backdrop-click dismissal — previously a `MouseEventWithoutKeyboardEquivalentCheck` finding — was fixed by making the overlay a native `<button aria-label="Close">`, which has built-in keyboard activation.)
 
 ## `Web:MouseEventWithoutKeyboardEquivalentCheck` — `<ui-button (click)>`

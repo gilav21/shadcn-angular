@@ -6311,11 +6311,23 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (!selection || selection.rangeCount === 0) return null;
         const { startContainer, startOffset } = selection.getRangeAt(0);
 
+        // Only BARE nodes are wrapped, as the name says. This used to move every
+        // top-level child unconditionally, guarded only by "the caret is on the
+        // editor" -- which holds whenever the caret sits between blocks. A
+        // document with real blocks in it got nested inside a new <p>: invalid
+        // markup, a list losing top level, and a DOM/model desync that compounded
+        // a nesting level and two empty paragraphs on every keystroke.
+        const bare = Array.from(editor.childNodes).filter(
+            (node) => !(node instanceof HTMLElement) || !BLOCK_TAGS.has(node.tagName),
+        );
+        if (bare.length === 0) return null;
+
         const paragraph = this.document.createElement('p');
-        while (editor.firstChild) {
-            paragraph.appendChild(editor.firstChild);
+        const anchor = bare[0];
+        editor.insertBefore(paragraph, anchor);
+        for (const node of bare) {
+            paragraph.appendChild(node);
         }
-        editor.appendChild(paragraph);
 
         const restored = this.document.createRange();
         restored.setStart(startContainer, startOffset);
