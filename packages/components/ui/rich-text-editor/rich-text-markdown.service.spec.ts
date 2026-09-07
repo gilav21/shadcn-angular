@@ -1058,4 +1058,36 @@ describe('RichTextMarkdownService', () => {
             expect(probe.textContent).not.toContain('&gt;');
         });
     });
+
+    describe('same-block pairing and composed prefixes (round-20 audit)', () => {
+        it('keeps a prose mention as text when real markup shares its PARAGRAPH', () => {
+            // Per-block pairing narrowed the blast radius from document to
+            // paragraph; it did not fix the class. The previous tests put prose
+            // and markup in SEPARATE blocks -- the shape the fix already handled.
+            const html = service.toHtml('Use <b> to bold. Like <b>this</b>.');
+            const probe = document.createElement('div');
+            probe.innerHTML = html;
+            expect(probe.textContent).toContain('Use <b> to bold.');
+            expect(probe.querySelectorAll('b')).toHaveLength(1);
+        });
+
+        it('does not eject cell text when a table name is mentioned in the same block', () => {
+            const html = service.toHtml('The <table> element is nice. <table>x</table>');
+            const probe = document.createElement('div');
+            probe.innerHTML = html;
+            expect(probe.textContent).toContain('The <table> element is nice.');
+        });
+
+        it('handles a fence inside a list inside a quote', () => {
+            // FENCE_PATTERN allowed indentation only BEFORE the quote markers,
+            // so quote-then-indent never matched and the fence became literal
+            // backticks. The prior tests covered quote-alone and list-alone --
+            // the two homogeneous prefixes, never the composed one.
+            const md = '> - item\n>   ```js\n>   code();\n>   ```';
+            const probe = document.createElement('div');
+            probe.innerHTML = service.toHtml(md);
+            expect(probe.querySelector('blockquote pre code')?.textContent).toBe('code();');
+            expect(probe.textContent).not.toContain('```');
+        });
+    });
 });

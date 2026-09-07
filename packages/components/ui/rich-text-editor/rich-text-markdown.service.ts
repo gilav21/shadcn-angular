@@ -254,10 +254,9 @@ export class RichTextMarkdownService {
      * the prose swallowed into a cell. Real markup comes in matched pairs, so an
      * unpaired non-void tag is text.
      */
-    private isMarkupTag(tagName: string, paired: ReadonlySet<string>): boolean {
+    private isMarkupTag(tagName: string, offset: number, paired: ReadonlySet<number>): boolean {
         if (!this.sanitizer.isAllowedTag(tagName)) return false;
-        const lower = tagName.toLowerCase();
-        return paired.has(lower) || VOID_TAGS.has(lower);
+        return paired.has(offset) || VOID_TAGS.has(tagName.toLowerCase());
     }
 
     private protectRawTags(markdown: string, store: string[]): string {
@@ -274,8 +273,8 @@ export class RichTextMarkdownService {
             // opening one: escapeHtmlInContent let "<u>" through (u matches \w)
             // but escaped "</u>" (/ does not), so every round-trip appended
             // another visible "</u>" and the damage compounded per save/load.
-            .replaceAll(PASSTHROUGH_TAG_PATTERN, (match: string, tagName: string) =>
-                this.isMarkupTag(tagName, paired) ? push(match) : match,
+            .replaceAll(PASSTHROUGH_TAG_PATTERN, (match: string, tagName: string, offset: number) =>
+                this.isMarkupTag(tagName, offset, paired) ? push(match) : match,
             )
             .replaceAll(/<span\b[^>]{0,4096}>/gi, push)
             .replaceAll(/<\/span>/gi, push)
@@ -328,10 +327,9 @@ export class RichTextMarkdownService {
     private escapeHtmlInContent(text: string): string {
 
         return perBlock(text, (block, paired) => block
-            .replaceAll(/<\/?([a-zA-Z][a-zA-Z0-9]*)\b[^<>]{0,4096}>|</g, (match, tagName?: string) => {
+            .replaceAll(/<\/?([a-zA-Z][a-zA-Z0-9]*)\b[^<>]{0,4096}>|</g, (match: string, tagName: string | undefined, offset: number) => {
                 if (!tagName) return '&lt;';
-                const lower = tagName.toLowerCase();
-                if (this.sanitizer.isAllowedTag(tagName) && (paired.has(lower) || VOID_TAGS.has(lower))) {
+                if (this.isMarkupTag(tagName, offset, paired)) {
                     return match;
                 }
                 // Tags whose CONTENT must not survive are left intact so the
@@ -1214,27 +1212,55 @@ const VOID_TAGS = new Set(['br', 'hr', 'img', 'input', 'col']);
  */
 function perBlock(
     text: string,
-    transform: (block: string, paired: ReadonlySet<string>) => string,
+    transform: (block: string, paired: ReadonlySet<number>) => string,
 ): string {
     return text
         .split(BLOCK_SEPARATOR)
-        .map((part, index) => (index % 2 === 1 ? part : transform(part, pairedTagNamesInBlock(part))))
+        .map((part, index) => (index % 2 === 1 ? part : transform(part, pairedTagOffsets(part))))
         .join('');
 }
 
-function pairedTagNamesInBlock(block: string): ReadonlySet<string> {
-    const opens = new Map<string, number>();
-    const closes = new Map<string, number>();
+/**
+ * Byte offsets of the tags in `block` that form a matched open/close pair.
+ *
+ * Pairing is resolved by POSITION, with a stack, not by counting names. Name
+ * counting could not tell the first `<b>` in "Use <b> to bold. Like <b>x</b>"
+ * from the second: it saw one open and one close, called the name paired, and
+ * promoted BOTH -- deleting the prose mention and fabricating a stray closing
+ * tag. Only the opener a closer actually matches is markup.
+ */
+/**
+ * Pop back to the nearest unclosed opener of `name` and return its offset, or
+ * null when nothing matches. Unwinding discards openers left dangling inside
+ * it, which is what a browser's own parser does.
+ */
+function takeMatchingOpener(stack: { name: string; index: number }[], name: string): number | null {
+    for (let k = stack.length - 1; k >= 0; k--) {
+        if (stack[k].name !== name) continue;
+        const index = stack[k].index;
+        stack.length = k;
+        return index;
+    }
+    return null;
+}
+
+function pairedTagOffsets(block: string): ReadonlySet<number> {
+    const paired = new Set<number>();
+    const openStack: { name: string; index: number }[] = [];
     const pattern = /<(\/?)([a-zA-Z][a-zA-Z0-9]*)\b[^<>]{0,4096}>/g;
     let match: RegExpExecArray | null;
+
     while ((match = pattern.exec(block)) !== null) {
-        const bucket = match[1] ? closes : opens;
         const name = match[2].toLowerCase();
-        bucket.set(name, (bucket.get(name) ?? 0) + 1);
-    }
-    const paired = new Set<string>();
-    for (const [name, count] of opens) {
-        if (count > 0 && (closes.get(name) ?? 0) > 0) paired.add(name);
+        if (!match[1]) {
+            openStack.push({ name, index: match.index });
+            continue;
+        }
+        const opener = takeMatchingOpener(openStack, name);
+        if (opener !== null) {
+            paired.add(opener);
+            paired.add(match.index);
+        }
     }
     return paired;
 }
@@ -1244,7 +1270,7 @@ function pairedTagNamesInBlock(block: string): ReadonlySet<string> {
  * markers and indentation that put the fence inside another block; body lines
  * repeat it and must have it removed before the code is read.
  */
-const FENCE_PATTERN = /^([ \t]*(?:> ?)*)(```|~~~)(\w*)\n([\s\S]*?)^\1?\2/gm;
+const FENCE_PATTERN = /^((?:[ \t]*> ?)*[ \t]*)(```|~~~)(\w*)\n([\s\S]*?)^\1?\2/gm;
 
 /** Remove `prefix` (and any looser quote/indent form of it) from each line. */
 function stripBlockPrefix(code: string, prefix: string): string {
@@ -1258,9 +1284,17 @@ function stripBlockPrefix(code: string, prefix: string): string {
             for (let i = 0; i < quoteDepth; i++) {
                 rest = rest.replace(/^[ \t]*> ?/, '');
             }
-            if (quoteDepth === 0 && indent && rest.startsWith(indent)) {
-                rest = rest.slice(indent.length);
-            }
+            // Indent is stripped whether or not quote markers preceded it: a
+            // fence inside a list inside a quote carries both, and handling only
+            // one left the list indentation baked into the code.
+            const trailingIndent = prefix.length - prefix.trimEnd().length;
+            const width = quoteDepth === 0 ? indent.length : trailingIndent;
+            // Up to `width` leading spaces, not exactly that many: the quote
+            // strip above already consumed the single space after each ">", so
+            // an exact match never fired and the list indentation stayed baked
+            // into the code.
+            const leading = /^[ \t]*/.exec(rest)?.[0].length ?? 0;
+            rest = rest.slice(Math.min(width, leading));
             return rest;
         })
         .join('\n');
