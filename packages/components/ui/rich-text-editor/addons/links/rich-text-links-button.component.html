@@ -4,6 +4,7 @@
       type="button"
       [class]="buttonClasses()"
       [title]="context.locale().tooltip"
+      [attr.aria-label]="context.locale().tooltip"
       [disabled]="interactionDisabled()"
     >
       <span [innerHTML]="icon"></span>
@@ -13,6 +14,7 @@
     <ui-rich-text-links-form
       [locale]="context.locale()"
       [text]="context.seededText()"
+      [errorMessage]="context.urlError()"
       (submitLink)="onSubmit($event)"
       (cancelLink)="open.set(false)"
     />

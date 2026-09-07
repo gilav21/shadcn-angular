@@ -26,6 +26,14 @@ export interface RichTextLinkSubmit {
 export class RichTextLinksFormComponent {
     /** Resolved locale strings. */
     readonly locale = input<RichTextLinksLocale>(RICH_TEXT_LINKS_LOCALES['en']);
+    /**
+     * Validation message to show under the URL field, or `''` for none.
+     *
+     * The addon owns URL validation (it holds the sanitizer), so it drives this
+     * rather than the form guessing. Without it a rejected URL closed the dialog
+     * and discarded the input silently, which looked exactly like success.
+     */
+    readonly errorMessage = input('');
     /** Initial link text (seeded from the selection or an existing anchor). */
     readonly text = input('');
     /** Initial URL (empty for insert, the anchor href for edit). */

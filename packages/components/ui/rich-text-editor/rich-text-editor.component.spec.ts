@@ -1924,6 +1924,50 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         expect(editor.textContent).toBe('hello world');
     });
 
+    it('counts an emoji as one character, not its UTF-16 code units', () => {
+        // `.length` counts UTF-16 code units, so an astral emoji scored 2 and a
+        // ZWJ sequence like the family emoji scored 11 — and the editor ships an
+        // emoji picker, so this is trivially reachable. maxLength budgets off the
+        // same arithmetic, which makes a wrong count a wrong limit.
+        component.writeValue('<p>\u{1F600}</p>');
+        fixture.detectChanges();
+        expect(component.characterCount()).toBe(1);
+
+        component.writeValue('<p>\u{1F468}\u200D\u{1F469}\u200D\u{1F467}\u200D\u{1F466}</p>');
+        fixture.detectChanges();
+        expect(component.characterCount()).toBe(1);
+
+        component.writeValue('<p>abc</p>');
+        fixture.detectChanges();
+        expect(component.characterCount()).toBe(3);
+    });
+
+    it('truncates an over-long paste without splitting a character in half', () => {
+        // substring() cuts by UTF-16 code unit, so a cut landing between an
+        // emoji's two halves leaves a lone surrogate — a replacement glyph on
+        // screen, and a value some JSON/DB layers reject outright.
+        fixture.componentRef.setInput('maxLength', 3);
+        component.writeValue('<p></p>');
+        fixture.detectChanges();
+        const p = editor.querySelector('p')!;
+        setCaretAt(p, 0);
+
+        const data = new DataTransfer();
+        data.setData('text/plain', '\u{1F600}\u{1F601}\u{1F602}\u{1F603}\u{1F604}');
+        editor.dispatchEvent(new ClipboardEvent('paste', {
+            bubbles: true, cancelable: true, clipboardData: data,
+        }));
+        fixture.detectChanges();
+
+        const text = editor.textContent ?? '';
+        expect([...text]).toHaveLength(3);
+        for (const unit of text) {
+            const code = unit.codePointAt(0) ?? 0;
+            const isLoneSurrogate = code >= 0xd800 && code <= 0xdfff;
+            expect(isLoneSurrogate).toBe(false);
+        }
+    });
+
     it('refuses addon inserts once maxLength is exhausted', () => {
         // maxLength was enforced only for typing and pasting, so every addon
         // insert path (emoji, links, images, tables) could push content past a

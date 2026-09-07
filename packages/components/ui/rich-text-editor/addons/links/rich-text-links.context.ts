@@ -13,6 +13,12 @@ export interface RichTextLinksButtonContext {
     readonly locale: Signal<RichTextLinksLocale>;
     /** Link text seeded from the selection while the popover is open. */
     readonly seededText: Signal<string>;
+    /**
+     * Validation message for the URL field, or `''` when the field is fine.
+     * The directive owns this because it holds the sanitizer whose verdict
+     * decides whether a URL is acceptable.
+     */
+    readonly urlError: Signal<string>;
     /** Save the selection + seed the text field when the popover opens. */
     onOpen(): void;
     /** Insert the confirmed link into the editor. */

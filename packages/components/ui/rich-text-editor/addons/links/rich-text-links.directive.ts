@@ -82,6 +82,7 @@ export class RichTextLinksDirective {
 
     private readonly i18n = createLocaleBindings(this.uiRteLinksLocale, RICH_TEXT_LINKS_LOCALES);
     private readonly seededText = signal('');
+    private readonly urlError = signal('');
     private readonly viewReady = signal(false);
 
     private overlayRef?: ComponentRef<RichTextLinksFormComponent>;
@@ -111,6 +112,7 @@ export class RichTextLinksDirective {
         const context: RichTextLinksButtonContext = {
             locale: computed(() => this.i18n.t()),
             seededText: this.seededText.asReadonly(),
+            urlError: this.urlError.asReadonly(),
             onOpen: () => this.seedFromSelection(),
             onSubmit: (payload) => this.insertLink(payload),
         };
@@ -168,6 +170,7 @@ export class RichTextLinksDirective {
     private seedFromSelection(): void {
         this.host.saveSelection();
         this.seededText.set(this.host.selection().text);
+        this.urlError.set('');
     }
 
     private openInsertOverlay(caretHint?: { x: number; y: number }): void {
@@ -239,12 +242,26 @@ export class RichTextLinksDirective {
         });
     }
 
+    /**
+     * Surface a rejected URL in whichever form is showing. The toolbar popover
+     * reads `urlError` off the context; the caret/anchor overlay is a component
+     * ref, so it needs the input set directly.
+     */
+    private reportUrlError(): void {
+        const message = this.i18n.t().invalidUrl;
+        this.urlError.set(message);
+        this.overlayRef?.setInput('errorMessage', message);
+    }
+
     private insertLink(payload: RichTextLinkSubmit): void {
         const safeUrl = this.sanitizer.sanitizeUrl(payload.url);
         if (!safeUrl) {
-            this.closeOverlay();
+            // Keep the form open and say why. Closing it silently discarded what
+            // the user typed and was indistinguishable from a successful insert.
+            this.reportUrlError();
             return;
         }
+        this.urlError.set('');
         this.host.restoreSelection();
         this.host.insertHtmlAtCaret(anchorHtml(safeUrl, payload.text || safeUrl));
         this.linkInsert.emit({ text: payload.text || safeUrl, url: safeUrl });
@@ -254,9 +271,10 @@ export class RichTextLinksDirective {
     private updateLink(anchor: HTMLAnchorElement, payload: RichTextLinkSubmit): void {
         const safeUrl = this.sanitizer.sanitizeUrl(payload.url);
         if (!safeUrl) {
-            this.closeOverlay();
+            this.reportUrlError();
             return;
         }
+        this.urlError.set('');
         const text = payload.text || safeUrl;
         this.host.mutateContent(() => {
             anchor.setAttribute('href', safeUrl);

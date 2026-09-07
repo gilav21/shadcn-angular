@@ -25,6 +25,7 @@ describe('RichTextLinksButtonComponent', () => {
     const context: RichTextLinksButtonContext = {
         locale: signal(RICH_TEXT_LINKS_LOCALES['en']),
         seededText: signal('seed'),
+        urlError: signal(''),
         onOpen,
         onSubmit,
     };

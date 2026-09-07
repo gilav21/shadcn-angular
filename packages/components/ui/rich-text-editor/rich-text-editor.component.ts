@@ -199,6 +199,49 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
     { actionId: 'rich-text.find-replace', description: 'Find and replace', defaultShortcut: 'Mod+H', category: 'Navigation' },
 ];
 
+/**
+ * Number of user-perceived characters in a string.
+ *
+ * `String.prototype.length` counts UTF-16 code units, so a single emoji scores
+ * 2 and a ZWJ sequence like the family emoji scores 11 — visibly wrong in a
+ * counter, and wrong as a budget for `maxLength`. `Intl.Segmenter` groups by
+ * grapheme cluster, which is what a reader calls "a character". It is present
+ * in every browser this library supports; the fallback keeps the old behaviour
+ * rather than throwing if it is ever missing.
+ */
+function graphemeLength(text: string): number {
+    if (!text) return 0;
+    if (typeof Intl === 'undefined' || typeof Intl.Segmenter !== 'function') {
+        return text.length;
+    }
+    let count = 0;
+    for (const _ of new Intl.Segmenter().segment(text)) count++;
+    return count;
+}
+
+/**
+ * The first `count` user-perceived characters of a string.
+ *
+ * `substring` cuts by UTF-16 code unit, so a truncation that lands between an
+ * astral character's two halves leaves a lone surrogate behind — which renders
+ * as a replacement glyph and is rejected outright by some JSON and database
+ * layers downstream. Cutting on grapheme boundaries cannot split a character.
+ */
+function truncateToGraphemes(text: string, count: number): string {
+    if (count <= 0) return '';
+    if (typeof Intl === 'undefined' || typeof Intl.Segmenter !== 'function') {
+        return text.substring(0, count);
+    }
+    let out = '';
+    let taken = 0;
+    for (const { segment } of new Intl.Segmenter().segment(text)) {
+        if (taken >= count) break;
+        out += segment;
+        taken++;
+    }
+    return out;
+}
+
 @Component({
     selector: 'ui-rich-text-editor',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -614,7 +657,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     });
 
     characterCount = computed(() => {
-        return this.sanitizer.stripTags(this.htmlContent()).length;
+        return graphemeLength(this.sanitizer.stripTags(this.htmlContent()));
     });
 
     wordCount = computed(() => {
@@ -1302,7 +1345,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (!taskLi) return false;
 
         const span = taskLi.querySelector('span');
-        if (!span || !span.contains(range.startContainer)) return false;
+        if (!span?.contains(range.startContainer)) return false;
 
         // Only at the very start of the row's text, allowing for the
         // zero-width anchor the task builder seeds an empty row with.
@@ -1315,7 +1358,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const previous = taskLi.previousElementSibling as HTMLElement | null;
         taskLi.remove();
 
-        if (list && list.children.length === 0) {
+        if (list?.children.length === 0) {
             const p = this.document.createElement('p');
             p.innerHTML = '<br>';
             list.parentNode?.insertBefore(p, list);
@@ -1585,10 +1628,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const currentText = this.editorDiv?.nativeElement.textContent ?? '';
         const selection = this.document.getSelection();
         const selectedLength = selection && !selection.isCollapsed
-            ? selection.toString().length
+            ? graphemeLength(selection.toString())
             : 0;
-        const insertedLength = inputEvent.data?.length ?? 0;
-        const nextLength = currentText.length - selectedLength + insertedLength;
+        const insertedLength = graphemeLength(inputEvent.data ?? '');
+        const nextLength = graphemeLength(currentText) - selectedLength + insertedLength;
 
         if (nextLength > max) {
             event.preventDefault();
@@ -1665,8 +1708,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const max = this.maxLength();
         if (!max) return false;
         const currentText = this.editorDiv?.nativeElement.textContent ?? '';
-        const remaining = max - (currentText.length - this.getSelectedTextLength());
-        return text.length > remaining;
+        const remaining = max - (graphemeLength(currentText) - this.getSelectedTextLength());
+        return graphemeLength(text) > remaining;
     }
 
     private handlePasteMaxLength(text: string): boolean {
@@ -1676,14 +1719,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const max = this.maxLength() as number;
         const currentText = this.editorDiv?.nativeElement.textContent ?? '';
         const selectedLength = this.getSelectedTextLength();
-        const remaining = max - (currentText.length - selectedLength);
+        const remaining = max - (graphemeLength(currentText) - selectedLength);
 
         if (remaining <= 0) {
             return true;
         }
 
-        if (text.length > remaining) {
-            const truncated = text.substring(0, remaining);
+        if (graphemeLength(text) > remaining) {
+            const truncated = truncateToGraphemes(text, remaining);
             this.insertTextNode(truncated);
             this.pushHistory();
             return true;
@@ -2641,7 +2684,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private getSelectedTextLength(): number {
         const selection = this.document.getSelection();
         if (selection && !selection.isCollapsed) {
-            return selection.toString().length;
+            // Graphemes, to match the unit the counter and the budget use — a
+            // mix would let a selection of emoji free up more budget than it
+            // actually occupies.
+            return graphemeLength(selection.toString());
         }
         return 0;
     }
@@ -2809,7 +2855,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
         event.preventDefault();
 
-        if (ranging && this.tableCellSelectAnchor && this.tableCellSelectAnchor.closest('table') === table) {
+        if (ranging && this.tableCellSelectAnchor?.closest('table') === table) {
             this.selectCellRange(this.tableCellSelectAnchor, cell);
         } else if (toggling) {
             this.toggleCellInSelection(cell);
@@ -5005,10 +5051,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         // the spans the command just produced, keeping the same visible text
         // selected so a second pick from the still-open picker restyles it
         // instead of silently doing nothing.
-        if (spans && spans.length > 0) {
+        const lastSpan = spans?.at(-1);
+        if (spans && lastSpan) {
             const range = this.document.createRange();
             range.setStartBefore(spans[0]);
-            range.setEndAfter(spans[spans.length - 1]);
+            range.setEndAfter(lastSpan);
             selection.removeAllRanges();
             selection.addRange(range);
             this.savedRange = range.cloneRange();

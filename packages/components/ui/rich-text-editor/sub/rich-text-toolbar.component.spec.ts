@@ -525,7 +525,7 @@ describe('RichTextToolbarComponent', () => {
         // T-36 — a native control still has to meet the 44px touch target the
         // library guarantees; the coarse-pointer rule covers `select` as well
         // as `button`.
-        it('is at least 40px tall under a coarse pointer', () => {
+        it('meets the 44px touch minimum under a coarse pointer', () => {
             expect(showSelect()).not.toBeNull();
 
             const rule = Array.from(document.styleSheets)
@@ -542,7 +542,8 @@ describe('RichTextToolbarComponent', () => {
                 .filter((r): r is CSSStyleRule => r instanceof CSSStyleRule)
                 .find((r) => r.selectorText.includes('select'));
 
-            expect(rule?.style.minHeight).toBe('40px');
+            // 44, not 40: WCAG 2.5.8 and the library's own touch rule.
+            expect(rule?.style.minHeight).toBe('44px');
         });
     });
 

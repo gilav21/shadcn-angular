@@ -252,6 +252,9 @@ describe('RichTextLinksDirective', () => {
 
         expect(el.querySelector('a')).toBeNull();
         expect(fixture.componentInstance.inserted).toEqual([]);
+        // Rejecting the URL must SAY so: closing silently discarded the user's
+        // input and was indistinguishable from a successful insert.
+        expect(probe.context.urlError()).not.toBe('');
     });
 
     it('seeds the form text from the current selection when the popover opens', () => {
@@ -445,7 +448,9 @@ describe('RichTextLinksDirective', () => {
         fixture.detectChanges();
 
         expect(el.querySelector('a')?.getAttribute('href')).toBe('https://old.test');
-        expect(overlayForms(fixture)).toHaveLength(0);
+        // The overlay STAYS open carrying the error, so the typed URL is not lost.
+        expect(overlayForms(fixture)).toHaveLength(1);
+        expect(overlayForms(fixture)[0].errorMessage()).not.toBe('');
     });
 
     it('closes the edit overlay when the caret leaves the link', async () => {

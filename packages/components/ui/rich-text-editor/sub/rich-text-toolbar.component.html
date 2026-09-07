@@ -69,6 +69,7 @@
         [attr.data-addon-slot]="slot.id"
         [class]="addonButtonClasses(slot)"
         [title]="slot.tooltip"
+        [attr.aria-label]="slot.tooltip"
         [disabled]="interactionDisabled() || !addonSlotEnabled(slot)"
         (click)="addonSlotClick.emit({ slot, event: $event })"
       >

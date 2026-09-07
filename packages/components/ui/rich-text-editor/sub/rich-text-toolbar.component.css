@@ -1,6 +1,12 @@
+/*
+ * 44px, not 40: WCAG 2.5.8 and the library's own touch rule set the floor, and
+ * this scoped rule overrides the global one, so anything short here is short
+ * everywhere. The addon buttons state the same minimum themselves because the
+ * global selector skips elements carrying a data-slot.
+ */
 @media (pointer: coarse) {
-  :host button:not([data-grid-cell]) { min-height: 40px; min-width: 40px; }
-  :host select { min-height: 40px; }
+  :host button:not([data-grid-cell]) { min-height: 44px; min-width: 44px; }
+  :host select { min-height: 44px; }
 }
 :host { scrollbar-width: none; }
-:host::-webkit-scrollbar { display: none; }
+:host::-webkit-scrollbar { display: none; }
