@@ -1131,10 +1131,9 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
         if (transformed) {
             this.pushHistory();
-        } else if (!this.isUndoRedo) {
+        } else {
             this.scheduleDebouncedHistoryPush();
         }
-        this.isUndoRedo = false;
     }
 
     /**
@@ -6475,6 +6474,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
                 : html;
             this.onChange(outputValue);
             this.bumpHistoryVersion();
+            // Cleared here, not on the next input. Rewriting innerHTML fires no
+            // `input` event, so a flag left set survived until the user's next
+            // real keystroke — and that keystroke was then skipped as if it were
+            // part of the undo. The abandoned forward branch stayed intact, so a
+            // later redo overwrote what had just been typed, unrecoverably.
+            this.isUndoRedo = false;
         }
     }
 
@@ -6504,6 +6509,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
                 : html;
             this.onChange(outputValue);
             this.bumpHistoryVersion();
+            // Cleared here, not on the next input. Rewriting innerHTML fires no
+            // `input` event, so a flag left set survived until the user's next
+            // real keystroke — and that keystroke was then skipped as if it were
+            // part of the undo. The abandoned forward branch stayed intact, so a
+            // later redo overwrote what had just been typed, unrecoverably.
+            this.isUndoRedo = false;
         }
     }
 

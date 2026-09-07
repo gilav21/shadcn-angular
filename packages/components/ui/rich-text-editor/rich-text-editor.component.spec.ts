@@ -1968,6 +1968,34 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         }
     });
 
+    it('does not let redo resurrect a branch the user typed over', async () => {
+        // The commonest editing sequence there is: type, undo, type something
+        // different, then hit redo out of habit. Redo must be dead at that
+        // point — the forward branch was abandoned the moment new input landed.
+        fixture.componentRef.setInput('historyDebounceMs', 10);
+        component.writeValue('');
+        fixture.detectChanges();
+
+        const type = async (text: string) => {
+            editor.textContent = (editor.textContent ?? '') + text;
+            component.onInput({ target: editor } as unknown as Event);
+            await new Promise(r => setTimeout(r, 40));
+        };
+
+        await type('A');
+        await type('B');
+        expect(editor.textContent).toBe('AB');
+
+        component.undo();
+        expect(editor.textContent).toBe('A');
+
+        await type('C');
+        expect(editor.textContent).toBe('AC');
+
+        component.redo();
+        expect(editor.textContent).toBe('AC');
+    });
+
     it('refuses addon inserts once maxLength is exhausted', () => {
         // maxLength was enforced only for typing and pasting, so every addon
         // insert path (emoji, links, images, tables) could push content past a
@@ -6618,12 +6646,21 @@ describe('RichTextEditorComponent — targeted branch coverage top-up', () => {
         expect(() => component.ngAfterViewInit()).not.toThrow();
     });
 
-    it('onInput skips history scheduling during an undo/redo replay', () => {
-        const spy = vi.spyOn(priv(), 'scheduleDebouncedHistoryPush');
-        priv().isUndoRedo = true;
-        editor.innerHTML = 'x';
-        editor.dispatchEvent(new Event('input', { bubbles: true }));
-        expect(spy).not.toHaveBeenCalled();
+    it('clears the undo/redo replay flag when the replay finishes, not on the next input', () => {
+        // The flag exists so an undo's own DOM rewrite is not recorded as a new
+        // edit. It used to be cleared inside onInput — but rewriting innerHTML
+        // fires no `input` event, so it survived until the user's next real
+        // keystroke and swallowed it, leaving the abandoned forward branch
+        // intact for a later redo to overwrite the new typing. It is now
+        // cleared where the replay ends.
+        component.writeValue('<p>seed</p>');
+        fixture.detectChanges();
+        editor.innerHTML = '<p>seed edited</p>';
+        component.onInput({ target: editor } as unknown as Event);
+        priv().flushPendingHistoryPush();
+
+        component.undo();
+
         expect(priv().isUndoRedo).toBe(false);
     });
 
