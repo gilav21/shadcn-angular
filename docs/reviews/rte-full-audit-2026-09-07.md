@@ -511,3 +511,38 @@ Defects frozen into tests as asserted-correct: **eight**. Regressions I
 introduced while fixing other findings: **eight** (three in round 16, five in
 round 17). The independent-auditor loop is earning its cost primarily by
 catching my own work.
+
+---
+
+## Round 18 — adversarial sweep (9 findings, 8 fixed, 1 recorded)
+
+A fifth no-context auditor. Its sharpest finding was not a bug in the code but
+a bug in **my testing**, and it was right to lead with it.
+
+| # | Sev | Finding | Fix | Commit |
+|---|---|---|---|---|
+| R18-1 | HIGH | **A test I wrote last round asserted the broken behaviour as correct.** "keeps an unpaired block tag as text" used `<p>hello</p>` — which *is* paired — and asserted only a trailing substring, so it passed whether the tag became markup or stayed text. It could not fail for the reason it existed. | Rewritten with a genuinely unpaired tag, asserting the escaped output. | `16b47557` |
+| R18-2 | HIGH | …and that is why this shipped: `pairedTagNames` counted across the **whole document**, so "Use the `<table>` element." matched an unrelated `</table>` far below and both became live markup — the words vanished and a real table was injected. The exact bug the matched-pair rule exists to stop. | Pairing decided per block. | `16b47557` |
+| R18-3 | HIGH | A nested list inside a blockquote was never parsed: the body was joined with `<br>` and left as literal text, and `toMarkdown` re-emitted the `<br>` as trailing whitespace — so the document grew **two characters on every save/load, unbounded**. | Quoted content goes through the list parser. | `16b47557` |
+| R18-4 | MEDIUM | Enter on a blank line in the **middle** of a quote inserted its paragraph after the whole quote, teleporting the caret past text the user was editing above, and left the blank line behind. | Exits only from the last line; the spent blank is always removed. | `16b47557` |
+| R18-5 | MEDIUM | The keyboard resize path open-coded its clamp — `minWidth` as the *height* floor, no ceiling at all — so round 17's "clamped both ends" fix covered only the mouse. | Shares `clampHeight`. | `16b47557` |
+| R18-6 | MEDIUM | `sanitizeSvgDataUrl` bailed unless it found `;base64,`, **silently deleting every URL-encoded SVG** — an ordinary, spec-legal inline image. Fail-closed, so never a security hole, but real content loss. An existing test asserted the deletion as correct. | Both encodings handled; that test fixed. | `16b47557` |
+| R18-7 | LOW | An indented fence escaped its list item and split the list — the case I explicitly scoped out last round. | The parked token is carried by the item it is indented under. Better than the state I left it in. | `16b47557` |
+| R18-8 | LOW | Counter had no `aria-describedby` from the textbox, so a screen-reader user tabbing in was never told a limit existed. | Composed with any consumer-supplied value. | `1ff6356f` |
+| R18-9 | LOW | Counter reads "1 words". | **Not fixed, recorded.** Correct pluralisation needs new strings across ten locales — a translation change, not an audit fix, and imposing English plural rules on nine other languages would be worse than the current wording. | — |
+
+Its clean list was again specific and useful: the URL guard held against every
+backslash and case variant, markdown XSS vectors were all neutralised, SVG
+scrubbing and token forgery were correct, ReDoS timings stayed ≤16ms, and the
+`replaceEditorHtml` stale-ref clearing works as documented.
+
+My first version of the keyboard max-height test also failed to discriminate —
+the stubbed rect meant the ceiling was never reached — and the sabotage run
+caught it, not the passing run.
+
+### Scoreboard
+
+Defects frozen into tests as asserted-correct: **ten** (two now mine).
+Regressions introduced while fixing other findings: **eleven**.
+The loop's main value is no longer finding bugs in the original code; it is
+catching the ones I add and the tests I write that cannot fail.
