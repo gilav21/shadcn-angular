@@ -2666,6 +2666,7 @@
     ],
     "libFiles": [
       "addon-slots.ts",
+      "grapheme.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -5235,6 +5236,7 @@
     "libFiles": [
       "addon-slots.ts",
       "ai.ts",
+      "grapheme.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",

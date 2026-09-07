@@ -201,6 +201,18 @@ export abstract class RichTextEditorAddonHost {
     abstract readonly readonly: Signal<boolean>;
     /** The contenteditable content root (for popover anchoring + scoped styles). */
     abstract readonly contentRoot: HTMLElement;
+    /**
+     * How many more user-perceived characters the document can take, or
+     * `Infinity` when no `maxLength` is set.
+     *
+     * The base enforces `maxLength` on typing, paste and its own insert seams,
+     * but an addon that mutates content directly through
+     * {@link RichTextEditorAddonHost.mutateContent} bypasses all of those — so
+     * anything inserting a meaningful amount of text must ask first. Counted in
+     * grapheme clusters, the same unit the character counter shows the user, so
+     * an emoji costs one rather than two.
+     */
+    abstract remainingLength(): number;
 
 
     /**

@@ -31,8 +31,11 @@ const README = path.join(REPO_ROOT, 'README.md');
  * 39 -> 40 on 2026-09-07 for `registerExclusivePopover`, which restores the
  * toolbar's single-open-panel rule that was lost when the panels moved out of
  * the base and into addons.
+ * 40 -> 41 on 2026-09-07 for `remainingLength`, without which no addon could
+ * respect `maxLength` at all — every one of them mutates through
+ * `mutateContent`, which the base's own limit checks never see.
  */
-const HOST_MEMBER_COUNT = 40;
+const HOST_MEMBER_COUNT = 41;
 
 const read = (file: string): string => readFileSync(file, 'utf-8');
 

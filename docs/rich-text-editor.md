@@ -454,6 +454,7 @@ it is the entire supported surface — 39 members, grouped:
 | `selectionInlineStyle: Signal<RichTextSelectionInlineStyle>` | The inline style in force at the caret. |
 | `commitContent()` | Flush the current DOM into the model and emit. |
 | `contentRoot: HTMLElement` | The contenteditable element. Read it; mutate through the seams above. |
+| `remainingLength()` | Characters the document can still take (`Infinity` when no `maxLength`), in the same grapheme units the counter shows. `mutateContent` bypasses the base's own limit checks, so ask before inserting anything sizeable. |
 | `isDisabled: Signal<boolean>` / `readonly: Signal<boolean>` | Editor state for `isEnabled` predicates. Effective: `[disabled]` OR `control.disable()`. |
 | `disabled: Signal<boolean>` | The `[disabled]` input alone. Guard on `isDisabled`, or your addon stays live under `control.disable()`. |
 

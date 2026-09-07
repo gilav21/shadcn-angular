@@ -30,6 +30,7 @@ function fixedRect(): DOMRect {
         mode="html"
         [disabled]="disabled()"
         [readonly]="readonly()"
+        [maxLength]="maxLength()"
         [uiRteAi]="provider()"
         [uiRteAiLocale]="locale()"
         (aiRequest)="requests.push($event)"
@@ -40,6 +41,7 @@ function fixedRect(): DOMRect {
 class HostCmp {
     readonly disabled = signal(false);
     readonly readonly = signal(false);
+    readonly maxLength = signal<number | undefined>(undefined);
     readonly provider = signal<AiProvider | undefined>(undefined);
     readonly locale = signal<string | undefined>(undefined);
     requests: { task: string; prompt?: string }[] = [];
@@ -576,6 +578,77 @@ describe('RichTextAiDirective', () => {
         fixture.detectChanges();
         expect(el.querySelector('[data-ai-draft]')?.textContent).toBe('');
         dir.discard();
+    });
+
+    it('does not commit a draft the editor no longer contains', () => {
+        // undo/redo/writeValue/setContent reassign the editable's innerHTML,
+        // detaching the draft while the panel is open. A detached span still has
+        // a parentNode, so a parent-only guard lets accept() splice text into a
+        // tree nothing renders — the panel closes as if it worked and the
+        // generated text is silently lost.
+        const fixture = createFixture();
+        fixture.componentInstance.provider.set(() => 'generated');
+        fixture.detectChanges();
+        const el = setContent(fixture, '<p>src</p>');
+        selectAll(el);
+        fixture.detectChanges();
+
+        const dir = directiveOf(fixture);
+        dir.openPanel();
+        dir.runTask('rewrite');
+        expect(el.querySelector('[data-ai-draft]')).not.toBeNull();
+
+        el.innerHTML = '<p>replaced while the panel was open</p>';
+        dir.accept();
+        fixture.detectChanges();
+
+        // The document is not corrupted — accept() cannot reach the detached
+        // tree in a way the user sees. What it must ALSO do is tell the caller,
+        // rather than closing the panel as though the text had been inserted.
+        expect(el.textContent).toBe('replaced while the panel was open');
+        expect(el.querySelector('[data-ai-draft]')).toBeNull();
+        expect(fixture.componentInstance.errors.at(-1)).toBeDefined();
+    });
+
+    it('does not restore a discarded draft into detached DOM', () => {
+        const fixture = createFixture();
+        fixture.componentInstance.provider.set(() => 'generated');
+        fixture.detectChanges();
+        const el = setContent(fixture, '<p>src</p>');
+        selectAll(el);
+        fixture.detectChanges();
+
+        const dir = directiveOf(fixture);
+        dir.openPanel();
+        dir.runTask('rewrite');
+
+        el.innerHTML = '<p>replaced while the panel was open</p>';
+        dir.discard();
+        fixture.detectChanges();
+
+        expect(el.textContent).toBe('replaced while the panel was open');
+    });
+
+    it('refuses to commit a draft that would exceed maxLength', () => {
+        // Every addon mutates through mutateContent, which the base's own
+        // maxLength checks never see — so a model returning more than the field
+        // allows could silently blow past a limit the consumer had set.
+        const fixture = createFixture();
+        fixture.componentInstance.maxLength.set(12);
+        fixture.componentInstance.provider.set(() => 'a generated answer far longer than the limit');
+        fixture.detectChanges();
+        const el = setContent(fixture, '<p>src</p>');
+        selectAll(el);
+        fixture.detectChanges();
+
+        const dir = directiveOf(fixture);
+        dir.openPanel();
+        dir.runTask('rewrite');
+        dir.accept();
+        fixture.detectChanges();
+
+        expect(el.textContent).not.toContain('far longer than the limit');
+        expect(fixture.componentInstance.errors.at(-1)).toBeDefined();
     });
 
     it('accepting with no active draft is a safe no-op', () => {

@@ -18,6 +18,7 @@ import { Subscription } from 'rxjs';
 import { RichTextEditorAddonHost, RichTextSanitizerService } from '../..';
 import { AiProvider, AiTask, runAiTask } from '../../../../lib/ai';
 import { createLocaleBindings, type LocaleInput } from '../../../../lib/i18n';
+import { graphemeLength } from '../../../../lib/grapheme';
 import { RICH_TEXT_AI_LOCALES, type RichTextAiLocale } from './rich-text-ai.locales';
 import {
     RICH_TEXT_AI_CONTEXT,
@@ -113,6 +114,7 @@ export class RichTextAiDirective {
     private subscription: Subscription | null = null;
     private controller: AbortController | null = null;
     private draftEl: HTMLElement | null = null;
+    private returnFocusTo: HTMLElement | null = null;
     private range: Range | null = null;
     private savedHtml = '';
     private savedText = '';
@@ -193,6 +195,24 @@ export class RichTextAiDirective {
         }
         this.panelOpen.set(true);
         this.bindPanelDismiss();
+        this.focusPanel();
+    }
+
+    /**
+     * Move focus into the panel once it renders, remembering where it came from.
+     *
+     * Without this the panel appeared while focus stayed in the editable, so a
+     * keyboard user had to tab through the rest of the page to reach controls
+     * that had just opened in front of them — and on close, focus was left
+     * wherever it happened to be.
+     */
+    private focusPanel(): void {
+        this.returnFocusTo = this.document.activeElement as HTMLElement | null;
+        queueMicrotask(() => {
+            const panel = this.panelRef?.location.nativeElement as HTMLElement | undefined;
+            const first = panel?.querySelector<HTMLElement>('button, input, [tabindex]:not([tabindex="-1"])');
+            first?.focus();
+        });
     }
 
     /**
@@ -344,6 +364,24 @@ export class RichTextAiDirective {
     /** Keep the generated text, unwrapping the draft marker as one history entry. */
     accept(): void {
         const span = this.draftEl;
+        // A detached span still HAS a parentNode, so a parent-only check is not
+        // enough: undo/redo/writeValue/setContent reassign the editable's
+        // innerHTML while the panel is open and orphan the draft. Committing
+        // into that tree changes nothing the user sees, so say so instead of
+        // closing the panel as though the text had been inserted.
+        if (span && !this.host.contentRoot.contains(span)) {
+            this.finish();
+            this.aiError.emit(this.i18n.t().failed);
+            return;
+        }
+        // A model can return far more than the editor's maxLength allows, and
+        // committing through mutateContent bypasses every base-level check. The
+        // draft already occupies the document, so only its own text counts.
+        if (span && graphemeLength(span.textContent ?? '') > this.host.remainingLength()) {
+            this.discard();
+            this.aiError.emit(this.i18n.t().tooLong);
+            return;
+        }
         this.host.mutateContent(() => {
             if (!span?.parentNode) return;
             const parent = span.parentNode;
@@ -357,7 +395,9 @@ export class RichTextAiDirective {
     discard(): void {
         this.cancel();
         const span = this.draftEl;
-        if (span?.parentNode) {
+        // Same liveness rule as accept(): restoring into an orphaned tree would
+        // do nothing visible, and the document already holds whatever replaced it.
+        if (span?.parentNode && this.host.contentRoot.contains(span)) {
             if (this.savedHtml) {
                 const template = this.document.createElement('template');
                 template.innerHTML = this.sanitizer.sanitize(this.savedHtml);
@@ -386,6 +426,12 @@ export class RichTextAiDirective {
         this.savedText = '';
         this.panelOpen.set(false);
         this.phase.set('menu');
+        // Hand focus back where it was, so dismissing the panel does not strand
+        // a keyboard user at the top of the document.
+        const returnTo = this.returnFocusTo;
+        this.returnFocusTo = null;
+        if (returnTo?.isConnected) returnTo.focus();
+        else this.host.contentRoot.focus();
     }
 
 

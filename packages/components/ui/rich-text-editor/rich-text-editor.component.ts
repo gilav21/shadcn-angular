@@ -17,6 +17,7 @@ import {
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { DOCUMENT } from '@angular/common';
 import { cn } from '../../lib/utils';
+import { graphemeLength, truncateToGraphemes } from '../../lib/grapheme';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 import { RichTextMarkdownService } from './rich-text-markdown.service';
@@ -198,49 +199,6 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
     { actionId: 'rich-text.find', description: 'Find in editor', defaultShortcut: 'Mod+F', category: 'Navigation' },
     { actionId: 'rich-text.find-replace', description: 'Find and replace', defaultShortcut: 'Mod+H', category: 'Navigation' },
 ];
-
-/**
- * Number of user-perceived characters in a string.
- *
- * `String.prototype.length` counts UTF-16 code units, so a single emoji scores
- * 2 and a ZWJ sequence like the family emoji scores 11 — visibly wrong in a
- * counter, and wrong as a budget for `maxLength`. `Intl.Segmenter` groups by
- * grapheme cluster, which is what a reader calls "a character". It is present
- * in every browser this library supports; the fallback keeps the old behaviour
- * rather than throwing if it is ever missing.
- */
-function graphemeLength(text: string): number {
-    if (!text) return 0;
-    if (typeof Intl === 'undefined' || typeof Intl.Segmenter !== 'function') {
-        return text.length;
-    }
-    let count = 0;
-    for (const _ of new Intl.Segmenter().segment(text)) count++;
-    return count;
-}
-
-/**
- * The first `count` user-perceived characters of a string.
- *
- * `substring` cuts by UTF-16 code unit, so a truncation that lands between an
- * astral character's two halves leaves a lone surrogate behind — which renders
- * as a replacement glyph and is rejected outright by some JSON and database
- * layers downstream. Cutting on grapheme boundaries cannot split a character.
- */
-function truncateToGraphemes(text: string, count: number): string {
-    if (count <= 0) return '';
-    if (typeof Intl === 'undefined' || typeof Intl.Segmenter !== 'function') {
-        return text.substring(0, count);
-    }
-    let out = '';
-    let taken = 0;
-    for (const { segment } of new Intl.Segmenter().segment(text)) {
-        if (taken >= count) break;
-        out += segment;
-        taken++;
-    }
-    return out;
-}
 
 @Component({
     selector: 'ui-rich-text-editor',
@@ -1693,6 +1651,20 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const scratch = this.document.createElement('div');
         scratch.innerHTML = html;
         return scratch.textContent ?? '';
+    }
+
+    /**
+     * Remaining character budget for addons (addon host surface).
+     *
+     * Addons mutate through `mutateContent`, which cannot know what they intend
+     * to write, so the budget is published for them to check rather than
+     * enforced behind their backs.
+     */
+    remainingLength(): number {
+        const max = this.maxLength();
+        if (!max) return Number.POSITIVE_INFINITY;
+        const currentText = this.editorDiv?.nativeElement.textContent ?? '';
+        return Math.max(0, max - (graphemeLength(currentText) - this.getSelectedTextLength()));
     }
 
     /**
