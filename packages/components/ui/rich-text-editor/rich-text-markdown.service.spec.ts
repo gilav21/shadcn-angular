@@ -948,4 +948,28 @@ describe('RichTextMarkdownService', () => {
             expect(probe.textContent).toContain('step two');
         });
     });
+
+    describe('colspan in a header row (round-17 audit)', () => {
+        it('emits a header and separator that agree on width', () => {
+            // A 1-cell header over a 2-dash separator is invalid GFM, and the
+            // second round-trip narrowed the separator too, so the table
+            // degraded a little more each cycle.
+            const html = '<table><thead><tr><th colspan="2">wide</th></tr></thead>'
+                + '<tbody><tr><td>A</td><td>B</td></tr></tbody></table>';
+            const md = service.toMarkdown(html);
+            const rows = md.split('\n');
+            // Count the delimited slots, not the non-empty ones -- a padded
+            // cell is legitimately blank.
+            const cellCount = (row: string): number => row.split('|').slice(1, -1).length;
+            expect(cellCount(rows[0])).toBe(cellCount(rows[1]));
+        });
+
+        it('stops degrading after the first round-trip', () => {
+            const html = '<table><thead><tr><th colspan="2">wide</th></tr></thead>'
+                + '<tbody><tr><td>A</td><td>B</td></tr></tbody></table>';
+            const once = service.toMarkdown(service.toHtml(service.toMarkdown(html)));
+            const twice = service.toMarkdown(service.toHtml(once));
+            expect(twice).toBe(once);
+        });
+    });
 });

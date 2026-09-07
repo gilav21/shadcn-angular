@@ -26,7 +26,7 @@ export const RICH_TEXT_PROSE_CLASSES: readonly string[] = [
     '[&_img]:inline [&_img]:max-w-full [&_img]:h-auto [&_img]:my-0 [&_img]:mx-0',
     '[&_table]:border-collapse [&_table]:w-full [&_table]:my-2',
     '[&_td]:border [&_td]:border-border [&_td]:p-2 [&_td]:min-w-[60px]',
-    '[&_th]:border [&_th]:border-border [&_th]:p-2 [&_th]:bg-muted [&_th]:font-semibold [&_th]:text-left',
+    '[&_th]:border [&_th]:border-border [&_th]:p-2 [&_th]:bg-muted [&_th]:font-semibold [&_th]:text-start',
     '[&_ul_ul]:my-0 [&_ol_ol]:my-0 [&_ul_ol]:my-0 [&_ol_ul]:my-0',
     '[&_ul[data-task-list]]:list-none [&_ul[data-task-list]]:ps-0 [&_ul[data-task-list]]:my-2',
     '[&_li_ul[data-task-list]]:ps-6 [&_li_ul[data-task-list]]:my-0',

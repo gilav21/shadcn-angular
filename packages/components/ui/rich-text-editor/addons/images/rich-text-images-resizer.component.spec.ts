@@ -856,6 +856,37 @@ describe('RichTextImageResizerComponent', () => {
             }
         });
 
+
+        it('leaves a vertical arrow on a corner to the page when aspect is locked', () => {
+            // With the ratio locked the height follows the width, so Up/Down on
+            // a corner cannot do anything -- but the handler consumed the event
+            // anyway, so the user pressed Up, nothing happened, and their page
+            // scroll was eaten too.
+            fixture.componentRef.setInput('lockAspectRatio', true);
+            const img = mountWithImage();
+            fixture.componentRef.setInput('lockAspectRatio', true);
+            fixture.detectChanges();
+
+            const corner = handle('se');
+            const event = new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true });
+            corner.dispatchEvent(event);
+
+            expect(event.defaultPrevented).toBe(false);
+            expect(img.style.width).toBe('');
+        });
+
+        it('clamps height at the minimum instead of freezing the drag', () => {
+            const cmp = component as unknown as {
+                freeSize(s: { startWidth: number; startHeight: number; handle: string }, dx: number, dy: number): { width: number; height: number };
+                minWidth(): number;
+            };
+            fixture.componentRef.setInput('lockAspectRatio', false);
+            fixture.detectChanges();
+
+            const shrunk = cmp.freeSize({ startWidth: 200, startHeight: 100, handle: 'n' }, 0, 400);
+            expect(shrunk.height).toBeGreaterThanOrEqual(cmp.minWidth());
+        });
+
         it('ignores keys that are not arrows', () => {
             const img = mountWithImage();
             press(handle('e'), 'a');

@@ -406,12 +406,7 @@ export class RichTextImageResizerComponent implements OnDestroy {
         const t = this.target();
         if (!t) return;
 
-        event.preventDefault();
-        event.stopPropagation();
-
         const step = event.shiftKey ? KEYBOARD_RESIZE_STEP_LARGE : KEYBOARD_RESIZE_STEP;
-        const rect = t.getBoundingClientRect();
-        const aspect = rect.height === 0 ? 1 : rect.width / rect.height;
 
         // Same sign tables the drag path uses, so a handle means the same thing
         // whichever way it is driven. Every handle used to grow the image on
@@ -420,7 +415,19 @@ export class RichTextImageResizerComponent implements OnDestroy {
         // WIDTH_SIGN saying they do not touch it.
         const dx = arrow.x * step * WIDTH_SIGN[handle];
         const dy = arrow.y * step * HEIGHT_SIGN[handle];
-        if (dx === 0 && dy === 0) return;
+
+        // Decide BEFORE consuming the event. A key this handle cannot act on --
+        // including a vertical arrow on a corner while the aspect ratio is
+        // locked, where the height just follows the width -- must stay with the
+        // page, or the user presses Up on a focused handle, nothing happens, and
+        // their scroll is silently eaten too.
+        if (dx === 0 && (dy === 0 || this.lockAspectRatio())) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        const rect = t.getBoundingClientRect();
+        const aspect = rect.height === 0 ? 1 : rect.width / rect.height;
 
         const width = this.clampWidth(Math.max(this.minWidth(), rect.width + dx));
         const height = this.lockAspectRatio()
@@ -464,8 +471,18 @@ export class RichTextImageResizerComponent implements OnDestroy {
 
     private freeSize(state: ResizeState, deltaX: number, deltaY: number): { width: number; height: number } {
         const width = this.clampWidth(state.startWidth + WIDTH_SIGN[state.handle] * deltaX);
-        const height = state.startHeight + HEIGHT_SIGN[state.handle] * deltaY;
+        // Height was clamped at neither end, so a fast drag could compute a
+        // 100,000px height or a negative one. onPointerMove's `>= min` gate then
+        // refused the write, which reads as the drag freezing rather than
+        // stopping at the bound.
+        const height = this.clampHeight(state.startHeight + HEIGHT_SIGN[state.handle] * deltaY);
         return { width, height };
+    }
+
+    private clampHeight(height: number): number {
+        const max = this.maxWidth();
+        const bounded = max === undefined ? height : Math.min(height, max);
+        return Math.max(this.minWidth(), bounded);
     }
 
     private onPointerUp(): void {

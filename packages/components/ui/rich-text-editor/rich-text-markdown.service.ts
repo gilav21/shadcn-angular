@@ -874,6 +874,19 @@ export class RichTextMarkdownService {
     /**
      * Convert table element to Markdown table syntax.
      */
+    /** Pad `contents` out to `width`, inserting blanks after each spanning cell. */
+    private padToWidth(contents: string[], cells: Element[], width: number): string[] {
+        const padded: string[] = [];
+        cells.forEach((cell, index) => {
+            padded.push(contents[index]);
+            const span = Number.parseInt(cell.getAttribute('colspan') ?? '1', 10);
+            const extra = Number.isFinite(span) && span > 1 ? span - 1 : 0;
+            for (let i = 0; i < extra; i++) padded.push('');
+        });
+        while (padded.length < width) padded.push('');
+        return padded;
+    }
+
     /** A row's width in columns, counting each cell's colspan. */
     private columnSpan(row: HTMLElement): number {
         return Array.from(row.querySelectorAll('th, td')).reduce((total, cell) => {
@@ -912,7 +925,14 @@ export class RichTextMarkdownService {
                     .join('<br>'),
             );
 
-            lines.push('| ' + cellContents.join(' | ') + ' |');
+            // A spanning cell contributes one label but several columns.
+            // Markdown cannot express the span, so the row is padded to its
+            // true width with empty cells: the header and separator then agree,
+            // which keeps the output valid GFM and stable on re-import. Emitting
+            // the label alone left a 1-cell header over a 2-dash separator, and
+            // the next round-trip narrowed the separator to match, so the table
+            // lost a column each cycle.
+            lines.push('| ' + this.padToWidth(cellContents, cells, columnCount).join(' | ') + ' |');
 
             if (!headerProcessed) {
                 const separator = new Array(Math.max(1, columnCount)).fill('---').join(' | ');
