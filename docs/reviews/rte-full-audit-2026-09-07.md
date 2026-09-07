@@ -583,3 +583,62 @@ now fails three tests where it used to fail one.
 
 Defects frozen into tests as asserted-correct: **twelve** (four now mine).
 Regressions introduced while fixing other findings: **fourteen**.
+
+---
+
+## Round 20 — adversarial sweep (8 findings, all addressed) + SonarQube gate GREEN
+
+A seventh no-context auditor, briefed to hunt the **degenerate-input** test
+failure mode specifically. Its headline was earned: I documented that trap in a
+code comment in round 19, then shipped two more instances of it in the very
+tests that comment introduces.
+
+| # | Sev | Finding | Fix | Commit |
+|---|---|---|---|---|
+| R20-1 | CRITICAL | **Open redirect, third time.** My round-19 fix checked the first TWO characters for `\`, `/\`, `\/`. A single backslash (`https:\evil`) and three slashes (`https:///evil`) both resolved to the attacker host — confirmed by reading a real anchor's resolved `.href` — decorated `rel="noopener noreferrer"`. | Counts the delimiter run; the test enumerates nine shapes. | `f2ba7f2d` |
+| R20-2 | HIGH | Same-block pairing counted tag **names**, so it could not tell the two `<b>`s apart in one paragraph: it deleted the prose mention and fabricated a stray `</b>`. With `<table>` it ejected the cell's own text. | Pairing resolved by **position**, with a stack. | `41181daa` |
+| R20-3 | HIGH | `FENCE_PATTERN` allowed indentation only *before* quote markers, so a fence in a list in a quote never matched and became literal backticks. My tests covered quote-alone and list-alone — the homogeneous cases. | Prefix accepts both orders; body strip removes up to the indent width. | `41181daa` |
+| R20-4 | HIGH | `wrapBareTextInParagraph` moved **every** top-level child into a `<p>` despite its name, compounding a nesting level and two empty paragraphs per keystroke, with DOM/model desync. | Wraps only bare nodes. | `71ae4827` |
+| R20-5 | MEDIUM | `colspan` uncapped: one pasted `colspan="99999"` produced ~900 KB of markdown — **887× amplification**, a DoS through the clipboard. | Capped at HTML's own 1000. | `71ae4827` |
+| R20-6 | MEDIUM | Removing the width ceiling from `clampHeight` last round left height with **no** bound, reintroducing the 100,000px drag that function's own comment says was fixed. | Bounded both ends. | `71ae4827` |
+| R20-7 | MEDIUM | Ten SonarQube issues on the changed code. | Native `<output>` for status roles, comments reworded, optional chain, unnecessary assertion, `String.raw`. | `f2ba7f2d` |
+| R20-8 | LOW | `Node.before()` preferred over `insertBefore`. | Applied. | `25606953` |
+
+**Kept deliberately:** the AI panel's `role="dialog"`. It is a *non-modal*,
+caret-anchored panel; a native `<dialog>` is `display:none` until `.show()` is
+called imperatively, so adopting it is a behaviour change to working code for a
+lint rule. Documented in `docs/sonarqube-accepted-findings.md` alongside the
+existing drawer entry and excluded by `resourceKey`, per the project's process —
+never an inline `eslint-disable`, which would ship into consumers' projects.
+
+### 🟢 SonarQube done-gate: PASSED
+
+```
+QUALITY GATE: OK
+  new_coverage                   = 90.4    ≥ 80   ok
+  new_duplicated_lines_density   = 1.13    ≤ 3    ok
+  new_security_hotspots_reviewed = 100.0   = 100  ok
+  new_violations                 = 0       = 0    ok
+NEW ISSUES ON CHANGED CODE: 0
+```
+
+Verified four ways, because **exit code 0 is not a verdict in this project**:
+the CE task processed SUCCESS, the coverage fingerprint matches the current
+tree, all four gate conditions report OK, and an independent issue query returns
+zero.
+
+The first gate attempt this session **exited 0 without scanning at all** —
+coverage failed on a `rich-text-view` test (I had been scoping runs to
+`rich-text-editor/`, missing the component that consumes it), so no fingerprint
+was written and no analysis ran. A second attempt reported `ANALYSIS SUCCESSFUL`
+against a revision *older* than the fixes being verified. Both would have read
+as success to anyone checking the exit code.
+
+That failing test was itself the **thirteenth** defect-locking test found: its
+comment stated outright that the spec predicted a symmetric escape, the
+implementation half-delivered, and it asserted the half-broken output.
+
+### Scoreboard
+
+Defects frozen into tests as asserted-correct: **thirteen** (five now mine).
+Regressions introduced while fixing other findings: **eighteen**.
