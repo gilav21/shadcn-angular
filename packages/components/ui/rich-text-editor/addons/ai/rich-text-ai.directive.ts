@@ -134,6 +134,7 @@ export class RichTextAiDirective {
         this.registerSlashCommand();
         this.mountOverlays();
         this.registerSelectionListener();
+        this.registerTabRelease();
         inject(DestroyRef).onDestroy(() => this.teardown());
     }
 
@@ -153,6 +154,33 @@ export class RichTextAiDirective {
         });
     }
 
+
+    /**
+     * Let Tab out of the editor while the AI surface is showing.
+     *
+     * The base intercepts Tab unconditionally, to indent a list item or insert
+     * a literal tab. With the chip or panel up that is both a keyboard trap and
+     * data loss: the selection the user was about to act on is replaced by a
+     * tab, and focus never leaves the editor, so none of the panel's controls
+     * can be reached at all. Returning `false` here declines to consume the
+     * event: it consumes it as far as the BASE is concerned — so handleTabKey
+     * never runs and never calls preventDefault — while leaving the browser's
+     * own default Tab behaviour intact, which moves focus.
+     *
+     * Mentions and slash-commands already special-case Tab (they accept the
+     * highlighted option); this surface has nothing to accept, so the right
+     * answer is simply to get out of the way.
+     */
+    private registerTabRelease(): void {
+        effect((onCleanup) => {
+            if (!this.viewReady()) return;
+            onCleanup(this.host.registerKeydownInterceptor((event) => {
+                if (event.key !== 'Tab') return false;
+                if (!this.chipVisible() && !this.panelOpen()) return false;
+                return true;
+            }));
+        });
+    }
 
     private registerSelectionListener(): void {
         effect((onCleanup) => {

@@ -651,6 +651,32 @@ describe('RichTextAiDirective', () => {
         expect(fixture.componentInstance.errors.at(-1)).toBeDefined();
     });
 
+    it('lets Tab reach the AI panel instead of typing a tab character', () => {
+        // The base editor intercepts Tab unconditionally to indent or insert a
+        // tab. With a selection-triggered panel open that is a keyboard trap AND
+        // data loss: the selected text is replaced by "	" and focus never
+        // leaves the editor, so none of the panel's controls can be reached.
+        // Mentions and slash-commands both special-case Tab already; this did
+        // not, so it inherited the raw behaviour.
+        const fixture = createFixture();
+        fixture.componentInstance.provider.set(() => 'x');
+        fixture.detectChanges();
+        const el = setContent(fixture, '<p>Hello world</p>');
+        selectAll(el);
+        fixture.detectChanges();
+
+        const dir = directiveOf(fixture);
+        dir.openPanel();
+        fixture.detectChanges();
+
+        const tab = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+        el.dispatchEvent(tab);
+        fixture.detectChanges();
+
+        expect(el.textContent).toBe('Hello world');
+        expect(tab.defaultPrevented).toBe(false);
+    });
+
     it('accepting with no active draft is a safe no-op', () => {
         const fixture = createFixture();
         fixture.componentInstance.provider.set(() => 'x');
