@@ -1266,9 +1266,24 @@ export class PdfReader {
         return result.obj;
     }
 
+    /**
+     * Follow a chain of indirect references to the object it ends at.
+     *
+     * A document is untrusted input, and a malformed or hostile one can point
+     * object A at B and B back at A. Following blindly recursed until the stack
+     * gave out, so each reference is visited at most once and a cycle resolves
+     * to null rather than spinning.
+     */
     resolveDeep(obj: PdfObject): PdfObject {
-        if (obj.type === 'ref') return this.resolveDeep(this.resolveRef(obj));
-        return obj;
+        let current = obj;
+        const seen = new Set<string>();
+        while (current.type === 'ref') {
+            const key = current.value as string;
+            if (seen.has(key)) return { type: 'null', value: null };
+            seen.add(key);
+            current = this.resolveRef(current);
+        }
+        return current;
     }
 
     getDict(obj: PdfObject): Record<string, PdfObject> {

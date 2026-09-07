@@ -2177,6 +2177,19 @@ describe('PdfReader - string & value parsing edge cases', () => {
         expect(textItems.map(t => t.text).join('')).toContain('Hello');
     });
 
+    it('does not hang on a reference cycle', () => {
+        // A malformed or hostile PDF can point object A at B and B back at A.
+        // resolveDeep followed refs unconditionally, so the pair recursed until
+        // the stack gave out. A document is untrusted input; it must fail, or
+        // resolve to null, but never spin.
+        const reader = new PdfReader(new Uint8Array(0).buffer);
+        const objects = (reader as unknown as { parsedObjects: Map<string, unknown> }).parsedObjects;
+        objects.set('5 0', { type: 'ref', value: '6 0' });
+        objects.set('6 0', { type: 'ref', value: '5 0' });
+
+        expect(() => reader.resolveDeep({ type: 'ref', value: '5 0' })).not.toThrow();
+    });
+
     it('resolveDeep returns null object for a dangling reference', () => {
         const reader = new PdfReader(new Uint8Array(0).buffer);
         const resolved = reader.resolveRef({ type: 'ref', value: '999 0' });

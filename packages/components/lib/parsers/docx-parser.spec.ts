@@ -122,6 +122,22 @@ describe('parseDocx — structure & errors', () => {
         expect(() => parseDocx(zip)).toThrow(/missing document body/);
     });
 
+    it('stops descending into absurdly nested tables instead of overflowing the stack', () => {
+        // XML nesting compresses to almost nothing, so a tiny crafted file can
+        // recurse deep enough to blow the stack. Measured: DOMParser builds this
+        // tree happily; it is the recursive walk that dies. Sabotage check —
+        // raising MAX_TABLE_NESTING makes this exact input throw
+        // "RangeError: Maximum call stack size exceeded".
+        const depth = 1500;
+        const inner = '<w:tbl><w:tr><w:tc><w:p><w:r><w:t>deep</w:t></w:r></w:p></w:tc></w:tr></w:tbl>';
+        let xml = inner;
+        for (let i = 0; i < depth; i++) {
+            xml = `<w:tbl><w:tr><w:tc>${xml}</w:tc></w:tr></w:tbl>`;
+        }
+
+        expect(() => parseDocx(docx(xml))).not.toThrow();
+    });
+
     it('parses a single paragraph and exposes plainText', () => {
         const res = parseDocx(docx('<w:p><w:r><w:t>Hello World</w:t></w:r></w:p>'));
         const ps = paragraphs(res);

@@ -160,6 +160,13 @@ export interface DocxParseResult {
     readonly footers: ReadonlyArray<ReadonlyArray<DocxElement>>;
 }
 
+/**
+ * How deep nested tables may go before the parser stops descending.
+ * Far beyond any real document; it exists so a crafted file cannot overflow
+ * the stack.
+ */
+const MAX_TABLE_NESTING = 20;
+
 const NS_W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 const NS_R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
 const NS_WP = 'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing';
@@ -1188,6 +1195,7 @@ function parseTableCell(
     files: Map<string, Uint8Array>,
     numberingMap: Map<string, Map<number, NumberingDefinition>>,
     themeColors?: ThemeColorMap,
+    depth = 0,
 ): DocxTableCell {
     const tcPr = getChildNS(tc, NS_W, 'tcPr');
     const { colSpan, rowSpan, cellStyle } = parseTableCellStyle(tcPr);
@@ -1199,8 +1207,9 @@ function parseTableCell(
         if (child.localName === 'p' && child.namespaceURI === NS_W) {
             const { paragraph } = parseParagraph(child, relationships, files, numberingMap, themeColors);
             elements.push(paragraph);
-        } else if (child.localName === 'tbl' && child.namespaceURI === NS_W) {
-            elements.push(parseTable(child, relationships, files, numberingMap, themeColors));
+        } else if (child.localName === 'tbl' && child.namespaceURI === NS_W
+            && depth < MAX_TABLE_NESTING) {
+            elements.push(parseTable(child, relationships, files, numberingMap, themeColors, depth + 1));
         }
     }
 
@@ -1259,12 +1268,20 @@ function parseRowStyle(tr: Element): DocxTableRowStyle | undefined {
     return hasStyle ? style : undefined;
 }
 
+/**
+ * Tables nest, so this recurses through cells — bounded by
+ * {@link MAX_TABLE_NESTING}. A document is data from wherever the user got it,
+ * and XML nesting compresses to almost nothing, so an unbounded walk turns a
+ * tiny file into a stack overflow. Content past the limit is dropped rather
+ * than crashing the import.
+ */
 function parseTable(
     tbl: Element,
     relationships: Map<string, string>,
     files: Map<string, Uint8Array>,
     numberingMap: Map<string, Map<number, NumberingDefinition>>,
     themeColors?: ThemeColorMap,
+    depth = 0,
 ): DocxTable {
     const tblPr = getChildNS(tbl, NS_W, 'tblPr');
     const tableStyle = parseTableStyle(tblPr);
@@ -1276,7 +1293,7 @@ function parseTable(
         const cells: DocxTableCell[] = [];
         const tcElements = getDirectChildElements(tr, NS_W, 'tc');
         for (const tc of tcElements) {
-            cells.push(parseTableCell(tc, relationships, files, numberingMap, themeColors));
+            cells.push(parseTableCell(tc, relationships, files, numberingMap, themeColors, depth));
         }
         const rowStyle = parseRowStyle(tr);
         rows.push({ cells, rowStyle });

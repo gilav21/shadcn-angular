@@ -66,6 +66,16 @@ const ERROR_DISMISS_MS = 4000;
  * <ui-rich-text-editor uiRteFileImport />
  * ```
  */
+/**
+ * Largest file the addon will read into memory. Generous on purpose: real
+ * documents with embedded images run to tens of megabytes, so this exists to
+ * stop the pathological case, not to police ordinary files.
+ */
+const MAX_IMPORT_BYTES = 100 * 1024 * 1024;
+
+/** Signals a file rejected on size, whose message is already user-facing. */
+class ImportTooLargeError extends Error {}
+
 @Directive({
     selector: 'ui-rich-text-editor[uiRteFileImport], ui-rich-text-editor[uiRteFull]',
     standalone: true,
@@ -209,14 +219,38 @@ export class RichTextFileImportDirective {
                 await this.importPdf(file);
             }
         } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : this.i18n.t().importFailed;
-            this.reportError(message);
+            // Parser exceptions read like "Cannot find end of central directory"
+            // — accurate for a developer, meaningless to the person who just
+            // picked a file, and untranslated in every locale. Show the localized
+            // message and keep the technical one for the console.
+            if (error instanceof ImportTooLargeError) {
+                this.reportError(error.message);
+            } else {
+                if (error instanceof Error) console.error('[rich-text-editor] file import failed', error);
+                this.reportError(this.i18n.t().importFailed);
+            }
         } finally {
             this.importing.set(false);
         }
     }
 
+    /**
+     * Refuse a file too large to read into memory.
+     *
+     * The parsers bound their own DECOMPRESSED output, but nothing bounded the
+     * input: `file.arrayBuffer()` buffers the whole thing first, so a multi-GB
+     * pick could exhaust memory before any of those ceilings applied. The limit
+     * is deliberately generous — real documents with embedded media are large —
+     * it exists to stop the pathological case, not to police normal files.
+     */
+    private assertImportableSize(file: File): void {
+        if (file.size > MAX_IMPORT_BYTES) {
+            throw new ImportTooLargeError(this.i18n.t().importTooLarge);
+        }
+    }
+
     private async importDocx(file: File): Promise<void> {
+        this.assertImportableSize(file);
         const bytes = new Uint8Array(await file.arrayBuffer());
         const { parseDocx } = await import('../../../../lib/parsers/docx-parser');
         const { renderDocxForEditor } = await import('../../../../lib/parsers/docx-to-editor-html');
@@ -225,6 +259,7 @@ export class RichTextFileImportDirective {
     }
 
     private async importPdf(file: File): Promise<void> {
+        this.assertImportableSize(file);
         const buffer = await file.arrayBuffer();
         const { parsePdfReadable } = await import('../../../../lib/parsers/pdf-readable/pdf-readable');
         const result = await parsePdfReadable(buffer);
