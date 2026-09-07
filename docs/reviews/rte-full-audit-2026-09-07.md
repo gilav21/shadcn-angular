@@ -415,3 +415,52 @@ not by passing: the `maxLength` test passed because the sweep had already
 removed the evidence (retargeted to put the anchor in a separate block), and
 the escaped-pipe test's input never carried the escape it claimed to test
 (`'\|'` in a TS single-quoted string is just `'|'`).
+
+---
+
+## Round 16 — adversarial sweep (15 findings, all actionable ones fixed)
+
+A third no-context auditor, briefed to attack the areas round 15 had just
+changed. It found that three of the round-15 fixes were incomplete or wrong,
+which is exactly what the brief was for.
+
+It also disproved its own hypotheses honestly: ReDoS hammering (`*`x4000,
+400x60 table bombs, 600-deep lists) topped out at 49ms; a brute-force of every
+codepoint 0-0x3100 inside `java*script:` found zero bypasses; mXSS attempts,
+`srcset`, `formaction`, `<base>`, CSS `expression()` were all correctly
+stripped; table span ops, RTL, and toolbar a11y were clean.
+
+| # | Sev | Finding | Fix | Commit |
+|---|---|---|---|---|
+| R16-1 | CRITICAL | `if (x<y) { return; }` in markdown mode **lost everything after `<y`**. The escape guessed at tags with a character class, so `<y` read as a tag open and DOMParser swallowed the line. | `escapeHtmlInContent` asks the sanitizer which tags actually survive. Content-bearing unsafe tags (`script`, `style`…) pass through so the sanitizer removes the subtree rather than the reader seeing an escaped payload. | `8a06d166` |
+| R16-2 | HIGH | My round-15 passthrough fix listed **seven tags by hand**, so every other kept tag still broke: `<b>x</b>` rendered a literal `</b>` and corrupted permanently on round-trip. | Same allowlist-driven rule; the hand-picked list is gone. | `8a06d166` |
+| R16-3 | HIGH | My code-fence tokens were **user-forgeable** — `protectRawTags` strips its own delimiters, `protectCodeFences` did not — so a document could render a fence body twice or erase text with an out-of-range index. | Strips its delimiters the same way. | `8a06d166` |
+| R16-4 | HIGH | `selectedImage` kept handing out nodes that `undo`/`redo`/`writeValue` had detached; the overlay's align and delete buttons wrote to the detached copy while the visible image went untouched. | Every wholesale `innerHTML` write goes through one seam that clears the selection. | `8a06d166` |
+| R16-5 | MEDIUM | Scrub-or-not was decided from the **MIME label**, while the magic-byte check accepts SVG whatever the label says — so `data:image/png;base64,<svg onload=…>` skipped scrubbing and was stored in "clean" content. Not a live XSS (Chrome won't render it as `<img>`), but the mismatch is the bug. | Scrub follows the payload. | `e735747e` |
+| R16-6 | MEDIUM | `isUrlSafe` was a blocklist, so `blob:`, `filesystem:`, `view-source:`, `about:`, `ws:`, `file:` and protocol-relative `//evil` all reached a live `href`. | Allowlist of link schemes. | `4125c464` |
+| R16-7 | MEDIUM | Keyboard resize ignored **which handle** was focused (every one grew on ArrowRight, including top-left) and emitted `resizeEnd` per keypress, so undo took N presses. | Uses the drag path's sign tables; a burst folds into one history entry. | `4125c464` |
+| R16-8 | MEDIUM | Multi-paragraph paste **nested** `<p>` inside `<p>`, and the sanitized model then disagreed with the live DOM. | The enclosing block is split when the fragment carries blocks; inline pastes untouched. | `7b9872d2` |
+| R16-9 | MEDIUM | Separator sized to the **widest** row (my round-15 change) made ragged tables invalid GFM; a `<br>` in a cell emitted a raw newline, so a one-row table came back as **two rows**. | Header decides the width; in-cell breaks become `<br>` via split/join (the obvious regex backtracks — lint caught it). | `db125977` |
+| R16-10 | MEDIUM | `<details>` blocks wrapped in stray empty paragraphs; **three tests asserted them as correct**. | `parseParagraphs` knows `details`/`figure` are blocks; tests corrected. | `db125977` |
+| R16-11 | LOW | No live region anywhere; `maxLength` enforcement entirely silent — keystrokes just stopped. | Counter is a polite status region showing `n / max`, destructive at the limit. No new locale strings. | `c845996c` |
+| R16-12 | LOW | PDF font `<style>` accumulating in `document.head` unbounded. | Capped at twelve, oldest first. Teardown would break already-imported documents, so the bound is the fix. | `7b9872d2` |
+| R16-13 | LOW | 48 signal members not `readonly`, against CLAUDE.md S2933. | Marked; none were reassigned. | `e735747e` |
+| R16-14 | LOW | Resizer used the global `document` for its eight drag listeners despite injecting `DOCUMENT`. | Uses the injected one. | `7b9872d2` |
+| R16-15 | LOW | The anchor sweep **collapsed real selections**. Deeper than reported: writing a text node's `data` collapses any selection inside it, so skipping the re-anchor was not enough. | Both boundaries captured and restored, offsets translated from pre-sweep text. | `e735747e` |
+
+**Not fixed, and why:** the auditor reported a `:::details` body landing inside
+its `<summary>`. It does not reproduce — with or without markup in the title,
+the body lands correctly. Nothing to fix.
+
+### A recurring hazard in my own tooling
+
+Three separate regexes ended up with a literal `\x08` backspace where `\b`
+belonged, because the Python heredocs used to edit files interpreted the
+escape. Once, this silently made a regex alternation never match and cost a
+long debugging detour chasing "impossible" output. A repo-wide sweep for
+control characters now comes back clean, but the lesson is that the editing
+method itself was injecting corruption into the code under repair.
+
+Two of my own new tests also failed to discriminate and were caught by sabotage
+runs rather than by passing — the same shape as the defect-locking tests the
+auditors keep finding. The count of those across all rounds is now **eight**.
