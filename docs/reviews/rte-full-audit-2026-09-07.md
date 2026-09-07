@@ -341,3 +341,26 @@ should treat the browser as a single exclusive resource.
 5. **8**, then **10-14** — same class as 1/2; an `isConnected` check each.
 6. **4**, **5**, **16** — accessibility and touch, all small and self-contained.
 7. **6** — sanitizer symmetry; low urgency, low cost.
+
+---
+
+## Round 14 — accessibility sweep (all fixed)
+
+An independent auditor with no context on prior rounds was asked to be harsh,
+nit-picky and adversarial. It returned four findings, all accessibility, all
+now fixed. Each fix was proven by a test that was then sabotage-tested (the
+guard was broken and the test confirmed failing) and re-verified in the browser.
+
+| # | Severity | Finding | Fix | Commit |
+|---|---|---|---|---|
+| R14-1 | CRITICAL | AI addon unreachable by keyboard. `handleTabKey` (`rich-text-editor.component.ts:1189`) intercepts Tab unconditionally, so with the Ask AI chip up, Tab **replaced the selected text with a literal tab** and focus never left the editor — none of the panel's 8 controls could be reached. WCAG 2.1.1 failure plus data loss. Reproduced in the browser: `textAfterTab: "\t"`, `selectionDestroyed: true`, `focusStillInEditor: true`. | The AI directive registers a keydown interceptor that consumes Tab as far as the base is concerned (so `handleTabKey` never runs and never calls `preventDefault`) while leaving the browser's native focus move intact. Mentions and slash-commands already special-case Tab to accept the highlighted option; this surface has nothing to accept, so it gets out of the way. | `f620116f` |
+| R14-2 | HIGH | File-import busy layer and failure banner were plain divs inside `@if` blocks. A live region inserted already holding its text is not reliably announced, so an import that spun and then failed was **completely silent** to assistive tech. | Two always-mounted regions carry the text — polite `status` for progress, assertive `alert` for failure (the user would otherwise wait for content that is never coming). The visual layers are `aria-hidden` so nothing is announced twice. | `fd6cc202` |
+| R14-3 | MEDIUM | Outline panel — a jump-to-section landmark — rendered as anonymous divs with no role, accessible name, or heading semantics. | Now a `<nav>` named by its own visible `<h2>` via `aria-labelledby`, entries as an `<ol>` of `<li>`. Reachable from the landmark rotor; entry count and position are announced. | `fd6cc202` |
+| R14-4 | MEDIUM | 1,572 emoji buttons whose only accessible name was the glyph, which readers announce inconsistently and often as "unknown character". | Names come from the keyword list that already powers search. 715 emoji had no keywords at all — generated from the Unicode character database, with the 247 flags given their ISO code (`flag un`) rather than the raw "regional indicator symbol letter" spelling. Three keywords are joined rather than one because a single leading word collided ~600 times ("person" alone led 37 entries); that cuts ambiguous names to 158, the residue being cases needing direction words the data does not carry. | `fd6cc202` |
+
+Deliberately not fixed, recorded as decisions rather than defects:
+
+- **`<div>` vs `<p>` on Enter** — the browser's default block separator. Changing
+  it is its own change with its own round-trip consequences, not an audit fix.
+- **Ctrl+H** — intercepted by Chrome's History shortcut before the page sees it.
+  Not something the component can win.
