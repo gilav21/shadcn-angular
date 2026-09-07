@@ -295,6 +295,33 @@ describe('RichTextActionsDirective', () => {
         expect(popover!.querySelector('[data-testid="rta-edit"]')).toBeTruthy();
     });
 
+    it('does not keep a popover pointing at content that was replaced', () => {
+        // The popover only re-evaluated on mouseup/keyup, so a programmatic
+        // content swap — a save/reload, a collaborative overwrite, an "insert
+        // template" button — left it floating over content that no longer
+        // exists, still offering Edit and Remove for a deleted span.
+        //
+        // Asserted through the directive's own guard rather than the rendered
+        // DOM: this harness does not flush the history effect that closes it in
+        // a real browser (verified there separately), but the guard is the same
+        // one that effect calls.
+        const fixture = createFixture();
+        caretInside(fixture, '<p><span data-action-click="open-dialog" data-action-click-params=\'{"dialogId":"x"}\'>t</span></p>');
+        const directive = fixture.debugElement
+            .query(By.directive(RichTextActionsDirective))
+            .injector.get(RichTextActionsDirective) as unknown as {
+                popoverTarget: HTMLElement | null;
+                dropPopoverIfDetached(): void;
+            };
+        expect(directive.popoverTarget).not.toBeNull();
+
+        (fixture.debugElement.children[0].componentInstance as RichTextEditorComponent).setContent('<p>replaced entirely</p>');
+        directive.dropPopoverIfDetached();
+
+        expect(directive.popoverTarget).toBeNull();
+        expect(document.querySelector('[data-slot="rich-text-actions-popover"]')).toBeNull();
+    });
+
     it('renders the popover in the native top layer when showPopover is available', () => {
         const proto = HTMLElement.prototype as { showPopover?: () => void };
         const had = 'showPopover' in proto;
