@@ -1212,6 +1212,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (this.handleEnterInSummary(event, range, selection)) return;
         if (this.handleEnterAtDetailsEnd(event, range, selection)) return;
         if (this.handleEnterInBlockquote(event, range, selection)) return;
+        if (this.handleEnterLeavingList(event, range, selection)) return;
         if (this.handleEnterInInlineCode(event, range, selection)) return;
         this.handleEnterInCodeBlock(event, range, selection);
     }
@@ -1496,6 +1497,45 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (!quote.textContent?.replaceAll('​', '').trim()) {
             quote.remove();
         }
+
+        this.syncContentFromEditor();
+        this.pushHistory();
+        return true;
+    }
+
+    /**
+     * Enter on an empty top-level list item leaves the list into a `<p>`.
+     *
+     * Without this the keypress fell through to the browser, whose default
+     * block separator is `<div>` -- so exiting a list produced
+     * `<div><br></div>` while every other block-creation path in this component
+     * builds a `<p>`. The inconsistency reached the output HTML, where markdown
+     * conversion and any consumer styling that targets `p` silently missed
+     * those blocks.
+     *
+     * Nested items are left alone: there the right behaviour is to outdent one
+     * level, which {@link outdentListItem} already does.
+     */
+    private handleEnterLeavingList(event: KeyboardEvent, range: Range, selection: Selection): boolean {
+        const li = this.findAncestorByTag(range.startContainer, 'LI');
+        if (!li) return false;
+        if (li.textContent?.replaceAll('​', '').trim()) return false;
+
+        const list = li.parentElement;
+        if (!list || (list.tagName !== 'UL' && list.tagName !== 'OL')) return false;
+        if (list.parentElement?.tagName === 'LI') return false;
+        if (li !== list.lastElementChild) return false;
+
+        event.preventDefault();
+
+        const p = this.document.createElement('p');
+        p.innerHTML = '<br>';
+        list.parentNode?.insertBefore(p, list.nextSibling);
+        li.remove();
+        if (list.children.length === 0) {
+            list.remove();
+        }
+        this.setSelectionRange(selection, p, 0);
 
         this.syncContentFromEditor();
         this.pushHistory();

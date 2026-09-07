@@ -459,6 +459,64 @@ describe('RichTextEditorComponent', () => {
         });
     });
 
+
+    describe('leaving a list on Enter (round-15 audit)', () => {
+        function pressEnterIn(node: Node, offset = 0): KeyboardEvent {
+            const range = document.createRange();
+            range.setStart(node, offset);
+            range.collapse(true);
+            const selection = document.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+            const event = new KeyboardEvent('keydown', {
+                key: 'Enter',
+                bubbles: true,
+                cancelable: true,
+            });
+            editor.dispatchEvent(event);
+            return event;
+        }
+
+        it('exits an empty top-level item into a <p>, not a <div>', () => {
+            // The keypress used to fall through to the browser, whose default
+            // separator is <div> -- so this one path produced a block shape no
+            // other path in the component produces.
+            editor.innerHTML = '<ul><li>one</li><li></li></ul>';
+            const empty = editor.querySelectorAll('li')[1];
+            const event = pressEnterIn(empty, 0);
+
+            expect(event.defaultPrevented).toBe(true);
+            expect(editor.querySelector('p')).toBeTruthy();
+            expect(editor.querySelector('div')).toBeNull();
+            expect(editor.querySelectorAll('li')).toHaveLength(1);
+        });
+
+        it('removes the list entirely when its only item was the empty one', () => {
+            editor.innerHTML = '<ul><li></li></ul>';
+            pressEnterIn(editor.querySelector('li') as HTMLElement, 0);
+
+            expect(editor.querySelector('ul')).toBeNull();
+            expect(editor.querySelector('p')).toBeTruthy();
+        });
+
+        it('leaves an item with text alone', () => {
+            editor.innerHTML = '<ul><li>text</li></ul>';
+            const li = editor.querySelector('li') as HTMLElement;
+            const event = pressEnterIn(li.firstChild as Node, 2);
+
+            expect(event.defaultPrevented).toBe(false);
+            expect(editor.querySelector('ul')).toBeTruthy();
+        });
+
+        it('leaves a nested item to the outdent path', () => {
+            editor.innerHTML = '<ul><li>a<ul><li></li></ul></li></ul>';
+            const nested = editor.querySelectorAll('li')[1];
+            const event = pressEnterIn(nested, 0);
+
+            expect(event.defaultPrevented).toBe(false);
+        });
+    });
+
     it('prevents replacements that would exceed maxLength', () => {
         fixture.componentRef.setInput('maxLength', 5);
         fixture.detectChanges();
