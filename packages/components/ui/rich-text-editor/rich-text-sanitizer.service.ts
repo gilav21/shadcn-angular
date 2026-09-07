@@ -269,7 +269,15 @@ export class RichTextSanitizerService {
 
         for (const protocol of this.DANGEROUS_PROTOCOLS) {
             if (probe.startsWith(protocol)) {
-                return protocol === 'data:' && this.isAllowedDataUrl(probe);
+                // Every data: URL is refused here. This is the href path, and no
+                // legitimate link target is a data: URL, while
+                // `data:image/svg+xml` was previously waved through
+                // unconditionally by isAllowedDataUrl -- letting a link carry an
+                // SVG document with an onload handler into the content. Image
+                // sources keep their own, stricter route
+                // (sanitizeImageSrc -> sanitizeSvgDataUrl), which scrubs the SVG
+                // rather than trusting the MIME label.
+                return false;
             }
         }
 

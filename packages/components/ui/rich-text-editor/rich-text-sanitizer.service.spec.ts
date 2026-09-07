@@ -668,4 +668,41 @@ describe('RichTextSanitizerService — structural size ceiling', () => {
         expect(parsed.querySelectorAll('td')).toHaveLength(2);
         expect(parsed.body.textContent).toBe('helloab');
     });
+
+    describe('data: URLs in href (round-15 audit)', () => {
+        it('rejects a scriptable SVG data: URL used as a link target', () => {
+            // isAllowedDataUrl returned true unconditionally for
+            // data:image/svg+xml. The src path compensates by routing through
+            // sanitizeSvgDataUrl; the href path never did, so a link could carry
+            // an SVG document with an onload handler straight into the content.
+            expect(
+                service.isUrlSafe('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"/>'),
+            ).toBe(false);
+            expect(
+                service.isUrlSafe(
+                    'data:image/svg+xml;base64,' +
+                        btoa('<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"/>'),
+                ),
+            ).toBe(false);
+        });
+
+        it('rejects every data: href, including image types that are fine as src', () => {
+            // No legitimate editor content needs a data: link target, so the
+            // whole scheme is refused here rather than scrubbed -- while the
+            // same payload stays valid for an image src.
+            // A real PNG payload: passes the magic-byte check, so this proves
+            // the href refusal, not an unrelated failure of that check.
+            const png =
+                'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+            expect(service.sanitizeImageSrc(png)).toBe(png);
+            expect(service.isUrlSafe(png)).toBe(false);
+        });
+
+        it('strips the href when a link carries a data: URL', () => {
+            const html = service.sanitize(
+                '<a href="data:image/svg+xml,<svg onload=alert(1)>">click</a>',
+            );
+            expect(html).not.toContain('data:image/svg+xml');
+        });
+    });
 });
