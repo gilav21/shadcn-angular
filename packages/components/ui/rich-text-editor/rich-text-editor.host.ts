@@ -213,6 +213,18 @@ export abstract class RichTextEditorAddonHost {
      * an emoji costs one rather than two.
      */
     abstract remainingLength(): number;
+    /**
+     * Announce an open suggestion popup on the editable, per the WAI-ARIA
+     * combobox pattern.
+     *
+     * Focus deliberately stays in the editable while a mention or slash-command
+     * menu is open, so keystrokes keep reaching the document — which means the
+     * popup is invisible to a screen reader unless the editable itself says it
+     * exists and which option is active. Pass `null` to clear.
+     */
+    abstract setActiveSuggestionPopup(
+        popup: { readonly controlsId: string; readonly activeOptionId: string | null } | null,
+    ): void;
 
 
     /**

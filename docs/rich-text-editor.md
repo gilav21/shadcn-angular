@@ -455,6 +455,7 @@ it is the entire supported surface — 39 members, grouped:
 | `commitContent()` | Flush the current DOM into the model and emit. |
 | `contentRoot: HTMLElement` | The contenteditable element. Read it; mutate through the seams above. |
 | `remainingLength()` | Characters the document can still take (`Infinity` when no `maxLength`), in the same grapheme units the counter shows. `mutateContent` bypasses the base's own limit checks, so ask before inserting anything sizeable. |
+| `setActiveSuggestionPopup(popup)` | Announce an open suggestion list on the editable (`aria-expanded`/`aria-controls`/`aria-activedescendant`), or `null` to clear. Focus stays in the editable while a mention or slash menu is open, so the editable is what a screen reader reads. |
 | `isDisabled: Signal<boolean>` / `readonly: Signal<boolean>` | Editor state for `isEnabled` predicates. Effective: `[disabled]` OR `control.disable()`. |
 | `disabled: Signal<boolean>` | The `[disabled]` input alone. Guard on `isDisabled`, or your addon stays live under `control.disable()`. |
 

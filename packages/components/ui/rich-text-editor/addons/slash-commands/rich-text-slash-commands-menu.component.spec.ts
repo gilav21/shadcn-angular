@@ -37,8 +37,14 @@ describe('RichTextSlashCommandsMenuComponent', () => {
         }
     });
 
-    afterEach(() => {
+    afterEach(async () => {
+        // These specs spy on HTMLElement.prototype, and the component schedules
+        // its scroll through queueMicrotask — so a pending callback from THIS
+        // test would otherwise land after the next one installs its own spy and
+        // be counted against it. Drain, then destroy, then restore.
+        await Promise.resolve();
         fixture?.destroy();
+        vi.restoreAllMocks();
         if (!hadScroll) {
             delete (HTMLElement.prototype as WithScroll).scrollIntoView;
         }

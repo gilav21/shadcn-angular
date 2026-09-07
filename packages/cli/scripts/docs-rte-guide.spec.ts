@@ -34,8 +34,11 @@ const README = path.join(REPO_ROOT, 'README.md');
  * 40 -> 41 on 2026-09-07 for `remainingLength`, without which no addon could
  * respect `maxLength` at all — every one of them mutates through
  * `mutateContent`, which the base's own limit checks never see.
+ * 41 -> 42 on 2026-09-07 for `setActiveSuggestionPopup`: the combobox ARIA
+ * belongs on the editable, which the base owns, while the popup belongs to the
+ * addon — so the two need a seam between them.
  */
-const HOST_MEMBER_COUNT = 41;
+const HOST_MEMBER_COUNT = 42;
 
 const read = (file: string): string => readFileSync(file, 'utf-8');
 

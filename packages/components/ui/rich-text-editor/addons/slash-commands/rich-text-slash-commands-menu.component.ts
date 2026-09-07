@@ -17,6 +17,9 @@ import type { RichTextSlashCommand } from '../..';
  * keeping the active option scrolled into view. All filtering, keyboard
  * navigation and execution live in the directive.
  */
+/** Per-instance id source: stable, and no crypto call in a field initializer. */
+let nextMenuId = 0;
+
 @Component({
     selector: 'ui-rich-text-slash-commands-menu',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -29,6 +32,16 @@ import type { RichTextSlashCommand } from '../..';
     },
 })
 export class RichTextSlashCommandsMenuComponent {
+  /**
+   * Stable ids so the editable can point `aria-controls` and
+   * `aria-activedescendant` here. Focus stays in the editable while the menu is
+   * open, so without these a screen reader is never told the list exists.
+   */
+  readonly listboxId = `rte-slash-menu-${nextMenuId++}`;
+  optionId(index: number): string {
+    return `${this.listboxId}-option-${index}`;
+  }
+
     /** The commands to render, already filtered and ordered by the directive. */
     readonly commands = input<RichTextSlashCommand[]>([]);
     /** Index of the highlighted command. */

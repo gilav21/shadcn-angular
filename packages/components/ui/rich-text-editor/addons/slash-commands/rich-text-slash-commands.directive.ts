@@ -299,10 +299,20 @@ export class RichTextSlashCommandsDirective {
         menu.setInput('noResultsLabel', locale.noResults);
         menu.setInput('menuAriaLabel', locale.menuAriaLabel);
         this.positionMenu(menu);
+        // Focus stays in the editable so keystrokes keep reaching the document,
+        // so the editable is what has to announce the list and the active option.
+        this.host.setActiveSuggestionPopup({
+            controlsId: menu.instance.listboxId,
+            activeOptionId: commands.length > 0 ? menu.instance.optionId(this.selectedIndex) : null,
+        });
     }
 
     private createMenu(): ComponentRef<RichTextSlashCommandsMenuComponent> {
         const ref = this.vcr.createComponent(RichTextSlashCommandsMenuComponent);
+        // Set here rather than as a host binding on the component: the id never
+        // changes, and a host binding costs a change-detection pass per cycle
+        // that re-fires the menu's scroll-into-view effect.
+        (ref.location.nativeElement as HTMLElement).id = ref.instance.listboxId;
         ref.instance.commandSelect.subscribe((command) => void this.select(command));
         ref.instance.hoverIndex.subscribe((index) => this.setSelectedIndex(index));
         this.doc.addEventListener('mousedown', this.outsidePointerBound, true);
@@ -401,6 +411,9 @@ export class RichTextSlashCommandsDirective {
         this.selectedIndex = 0;
         this.anchorBlock = null;
         this.triggerRange = null;
+        // Cleared before the early return below: the editable must stop claiming
+        // a popup exists even when there was no menu component to destroy.
+        this.host.setActiveSuggestionPopup(null);
         if (!this.menuRef) {
             return;
         }

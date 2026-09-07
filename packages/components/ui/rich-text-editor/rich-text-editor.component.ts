@@ -1654,6 +1654,22 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     /**
+     * The suggestion popup an addon has open, for the combobox ARIA on the
+     * editable. Held here because the attributes belong to the editable, which
+     * the base owns, while the popup belongs to the addon.
+     */
+    protected readonly activeSuggestionPopup = signal<
+        { readonly controlsId: string; readonly activeOptionId: string | null } | null
+    >(null);
+
+    /** Announce or clear an addon's suggestion popup (addon host surface). */
+    setActiveSuggestionPopup(
+        popup: { readonly controlsId: string; readonly activeOptionId: string | null } | null,
+    ): void {
+        this.activeSuggestionPopup.set(popup);
+    }
+
+    /**
      * Remaining character budget for addons (addon host surface).
      *
      * Addons mutate through `mutateContent`, which cannot know what they intend

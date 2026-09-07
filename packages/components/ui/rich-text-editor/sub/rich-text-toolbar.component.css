@@ -8,5 +8,52 @@
   :host button:not([data-grid-cell]) { min-height: 44px; min-width: 44px; }
   :host select { min-height: 44px; }
 }
-:host { scrollbar-width: none; }
+/*
+ * The toolbar scrolls horizontally below `sm` and its scrollbar is hidden, which
+ * removed the only native cue that more buttons exist off-screen — at 320px
+ * roughly two thirds of them are out of view with nothing to say so. The mask
+ * fades the trailing edge, and because it is driven by `animation-timeline:
+ * scroll()` it disappears once the user reaches the end, so it reads as "there
+ * is more this way" rather than as decoration. Browsers without scroll-driven
+ * animations simply show the static fade, which is still an improvement on
+ * nothing.
+ */
+@media (max-width: 639px) {
+  :host [role='toolbar'] {
+    scrollbar-width: none;
+    --rte-toolbar-fade: 1;
+    -webkit-mask-image: linear-gradient(
+      to right,
+      #000 0,
+      #000 calc(100% - calc(2rem * var(--rte-toolbar-fade))),
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      to right,
+      #000 0,
+      #000 calc(100% - calc(2rem * var(--rte-toolbar-fade))),
+      transparent 100%
+    );
+  }
+
+  @supports (animation-timeline: scroll(x)) {
+    :host [role='toolbar'] {
+      animation: rte-toolbar-fade-out linear both;
+      animation-timeline: scroll(self inline);
+      animation-range: contain;
+    }
+  }
+}
+
+@keyframes rte-toolbar-fade-out {
+  to { --rte-toolbar-fade: 0; }
+}
+
+@property --rte-toolbar-fade {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 1;
+}
+
+:host [role='toolbar']::-webkit-scrollbar { display: none; }
 :host::-webkit-scrollbar { display: none; }

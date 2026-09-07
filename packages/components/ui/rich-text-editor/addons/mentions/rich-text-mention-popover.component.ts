@@ -80,6 +80,17 @@ export class RichTextMentionPopoverComponent implements AfterViewInit, OnDestroy
    */
   readonly closed = output<void>();
 
+  /**
+   * Stable ids so the editable can point `aria-controls` and
+   * `aria-activedescendant` at this list. Focus stays in the editable while the
+   * popover is open, so without these a screen reader is never told the list
+   * exists or which option is highlighted.
+   */
+  readonly listboxId = `rte-suggestions-${crypto.randomUUID().slice(0, 8)}`;
+  optionId(index: number): string {
+    return `${this.listboxId}-option-${index}`;
+  }
+
   readonly selectedIndex = signal<number>(0);
 
   private readonly clickListener = (event: MouseEvent): void => {
