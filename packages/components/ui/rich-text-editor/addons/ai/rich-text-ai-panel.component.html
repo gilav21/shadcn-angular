@@ -36,12 +36,11 @@
     } @else {
       <div class="flex flex-col gap-2" data-slot="rich-text-ai-review">
         @if (ctx.phase() === 'loading') {
-          <p
-            class="px-1 text-xs text-muted-foreground"
-            role="status"
+          <output
+            class="block px-1 text-xs text-muted-foreground"
             aria-live="polite"
             data-slot="rich-text-ai-loading"
-          >{{ ctx.locale().generating }}</p>
+          >{{ ctx.locale().generating }}</output>
         }
         @if (ctx.errorMessage()) {
           <p class="px-1 text-xs text-destructive" role="alert" data-slot="rich-text-ai-error">{{ ctx.errorMessage() }}</p>

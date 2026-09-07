@@ -786,15 +786,38 @@ describe('RichTextSanitizerService — structural size ceiling', () => {
             expect(service.isUrlSafe('\\/evil.example/steal')).toBe(false);
         });
 
-        it('refuses a SCHEME-QUALIFIED backslash authority', () => {
-            // The schemeless forms were covered; these were not. https: is on the
-            // allowlist, so the authority check never saw them and the anchor
-            // survived -- resolving to https://evil.example and decorated with
-            // rel=noopener, reading as a vetted link.
-            expect(service.isUrlSafe('https:\\\\evil.example/phish')).toBe(false);
-            expect(service.isUrlSafe('http:\\\\evil.example')).toBe(false);
-            expect(service.isUrlSafe('https:/\\evil.example/phish')).toBe(false);
-            expect(service.sanitizeImageSrc('https:\\\\evil.example/x.png')).toBeNull();
+        it('refuses every off-origin authority form, not just two-character ones', () => {
+            // The previous version tested only two-character leads (\, /\, \/),
+            // which is where the bug is ABSENT. A single backslash and three
+            // slashes both reach evil.example too -- verified in a browser by
+            // reading the resolved .href of a real anchor.
+            for (const url of [
+                'https:\\\\evil.example/x',
+                'https:\\evil.example/x',
+                'https:///evil.example/x',
+                'https:////evil.example/x',
+                'https:/\\evil.example/x',
+                'https:\\/evil.example/x',
+                'http:\\evil.example',
+                '//evil.example/x',
+                '/\\evil.example/x',
+            ]) {
+                expect(service.isUrlSafe(url)).toBe(false);
+                expect(service.sanitizeImageSrc(url)).toBeNull();
+            }
+        });
+
+        it('still allows ordinary same-origin and absolute URLs', () => {
+            for (const url of [
+                'https://example.com/a',
+                'https://user@example.com/a',
+                'http://localhost:4200/x',
+                '/docs/page',
+                './rel',
+                '#anchor',
+            ]) {
+                expect(service.isUrlSafe(url)).toBe(true);
+            }
         });
 
         it('still allows an ordinary absolute URL', () => {

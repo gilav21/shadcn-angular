@@ -9,11 +9,11 @@
   assertive/alert, because the import silently did nothing and the user would
   otherwise wait for content that is never coming.
 -->
-<div class="sr-only" role="status" aria-live="polite" data-slot="rte-file-import-busy-status">
+<output class="sr-only" aria-live="polite" data-slot="rte-file-import-busy-status">
   @if (importing()) {
     {{ locale().importing }}
   }
-</div>
+</output>
 <div class="sr-only" role="alert" aria-live="assertive" data-slot="rte-file-import-error-alert">
   @if (errorMessage()) {
     {{ errorMessage() }}

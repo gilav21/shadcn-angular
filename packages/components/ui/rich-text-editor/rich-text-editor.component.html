@@ -15,15 +15,18 @@
   <!--
     Three of the attributes below exist for assistive tech specifically:
 
-    - `tabindex` drops to -1 when disabled. A native disabled control leaves the
-      tab order entirely; a static 0 left a keyboard user stopping on an editor
-      that takes focus and then does nothing.
-    - `aria-readonly` because `contenteditable="false"` is a browser editing
-      hint, not a state screen readers reliably report on a textbox — without it
-      a reader discovers the field is read-only by typing and seeing nothing.
-    - `aria-placeholder` because the visible placeholder is CSS generated
-      content. Chromium exposes that as a plain text child, so a reader
-      announces the hint as though it were the document's own text.
+    The tab index drops to -1 when disabled. A native disabled control leaves the
+    tab order entirely; a static 0 left a keyboard user stopping on an editor
+    that takes focus and then does nothing.
+
+    The readonly state is announced explicitly, because contenteditable false is
+    a browser editing hint rather than a state screen readers reliably report on
+    a textbox — without it a reader discovers the field is read-only by typing
+    and seeing nothing happen.
+
+    The placeholder is announced explicitly too, because the visible one is CSS
+    generated content. Chromium exposes that as a plain text child, so a reader
+    announces the hint as though it were the document's own text.
   -->
   <div
     #editorDiv
@@ -272,13 +275,13 @@
 
 @if (showCount() || showWordCount()) {
   <!--
-    role="status" so a screen reader hears the count change, and the limit is
-    shown as "n / max" once one is set: enforcement used to be entirely silent,
+    A polite status region, so a screen reader hears the count change, and the
+    limit is shown once one is set: enforcement used to be entirely silent,
     so hitting maxLength read as a dead keyboard with the counter still showing
     a bare number and no indication a limit existed at all. The colour change
     at the limit gives sighted users the same signal.
   -->
-  <div [attr.id]="counterId" class="flex justify-end text-xs text-muted-foreground mt-1 px-1" role="status" aria-live="polite">
+  <output [attr.id]="counterId" class="flex justify-end text-xs text-muted-foreground mt-1 px-1" aria-live="polite">
     @if (showCount()) {
       <!--
         The localized phrase keeps its own {count}, and the limit follows as a
@@ -294,5 +297,5 @@
     @if (showWordCount()) {
       <span [class.ms-3]="showCount()">{{ interpolateLocale(resolvedLocale().editor.words, { count: wordCount() }) }}</span>
     }
-  </div>
+  </output>
 }

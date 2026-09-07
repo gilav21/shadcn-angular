@@ -294,7 +294,7 @@ export class RichTextSanitizerService {
         // the allowlist below (https is a fine scheme) and never came back here,
         // so a scheme-qualified backslash authority resolved off-origin exactly
         // like the schemeless form it sits beside.
-        if (hasBackslashAuthority(probe)) {
+        if (hasForeignAuthority(probe)) {
             return false;
         }
 
@@ -352,7 +352,7 @@ export class RichTextSanitizerService {
         const trimmed = src.trim();
         const probe = trimmed.replace(this.URL_STRIP_PATTERN, '');
 
-        if (probe.startsWith('//') || hasBackslashAuthority(probe)) {
+        if (probe.startsWith('//') || hasForeignAuthority(probe)) {
             return null;
         }
 
@@ -697,15 +697,38 @@ export class RichTextSanitizerService {
 }
 
 /**
- * Whether a URL's authority is introduced with a backslash, before or after a
- * scheme. Browsers normalize backslashes to forward slashes there, so
- * "https:\\evil" reaches the same host as "https://evil". Written as string
- * work rather than a regex: the character class for this is easy to get subtly
- * wrong, and getting it wrong here is an open redirect.
+ * Whether a URL reaches another origin through its authority component.
+ *
+ * Browsers accept far more than "//host": a backslash is normalized to a
+ * slash, and any run of delimiters longer than the scheme's own "//" still
+ * opens an authority. So "https:/host" with a backslash, and "https:///host",
+ * both reach the same place as "https://host".
+ *
+ * An earlier version pattern-matched the first TWO characters against a short
+ * list of shapes. That is the shape where the bug is absent -- a single
+ * backslash and three slashes both slipped through, resolved off-origin, and
+ * were decorated with rel="noopener noreferrer" so the link read as vetted.
+ * Counting the delimiter run is the general rule.
  */
-function hasBackslashAuthority(url: string): boolean {
+/** A single backslash, spelled by code point so no escaping is needed. */
+const BACKSLASH = '\u005C';
+
+function hasForeignAuthority(url: string): boolean {
     const colon = url.indexOf(':');
-    const rest = colon === -1 ? url : url.slice(colon + 1);
-    const lead = rest.slice(0, 2);
-    return lead.includes('\\') && (lead === '\\\\' || lead === '/\\' || lead === '\\/');
+    const afterScheme = colon === -1 ? url : url.slice(colon + 1);
+
+    let run = 0;
+    let backslashes = 0;
+    while (run < afterScheme.length && (afterScheme[run] === '/' || afterScheme[run] === BACKSLASH)) {
+        if (afterScheme[run] === BACKSLASH) backslashes++;
+        run++;
+    }
+
+    // Exactly "//" is the ordinary absolute form. Any backslash in the run, or
+    // a longer run, is a delimiter shape browsers still resolve as an authority
+    // while the naive checks did not: a single backslash and three slashes
+    // both reach the host.
+    if (backslashes > 0) return true;
+    if (colon === -1) return run >= 2;
+    return run > 2;
 }

@@ -529,7 +529,7 @@ export class RichTextMarkdownService {
     /** A line that could be a table row: contains a pipe outside an escape. */
     private isTableRow(line: string): boolean {
         const trimmed = line.trim();
-        return trimmed.includes('|') && trimmed.replaceAll('\\|', '').includes('|');
+        return trimmed.includes('|') && trimmed.replaceAll(String.raw`\|`, '').includes('|');
     }
 
     /** The `| --- | :--: |` row that makes the line above it a header. */

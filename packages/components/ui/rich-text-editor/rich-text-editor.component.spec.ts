@@ -589,7 +589,7 @@ describe('RichTextEditorComponent', () => {
 
     describe('maxLength feedback (round-16 audit)', () => {
         function counter(): HTMLElement | null {
-            return (fixture.nativeElement as HTMLElement).querySelector('[role="status"]');
+            return (fixture.nativeElement as HTMLElement).querySelector('output');
         }
 
         it('announces the count through a live region', () => {
@@ -846,7 +846,7 @@ describe('RichTextEditorComponent', () => {
             fixture.componentRef.setInput('maxLength', 120);
             fixture.detectChanges();
 
-            const counter = (fixture.nativeElement as HTMLElement).querySelector('[role="status"]');
+            const counter = (fixture.nativeElement as HTMLElement).querySelector('output');
             const describedBy = editor.getAttribute('aria-describedby');
             expect(counter?.id).toBeTruthy();
             expect(describedBy?.split(' ')).toContain(counter?.id);

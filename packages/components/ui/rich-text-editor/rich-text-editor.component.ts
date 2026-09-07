@@ -1414,7 +1414,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     /** The table an editor node sits in, or null when it sits outside every table. */
     private tableAncestorOf(node: Node): HTMLTableElement | null {
         const editor = this.editorDiv?.nativeElement;
-        if (!editor || !editor.contains(node)) return null;
+        if (!editor?.contains(node)) return null;
         const element = node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement;
         return element?.closest('table') ?? null;
     }
@@ -5307,7 +5307,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         // been removed, so setStart landed at the START of the parent -- the
         // caret jumping to the top instead of following the pasted content.
         const parent = block.parentNode;
-        const insertAt = Array.from(parent.childNodes).indexOf(block as ChildNode) + 1;
+        const insertAt = Array.from(parent.childNodes).indexOf(block) + 1;
 
         let removedBefore = 0;
         for (const shell of [block, block.nextElementSibling]) {

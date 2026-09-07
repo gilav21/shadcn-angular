@@ -67,15 +67,18 @@ describe('RichTextViewComponent', () => {
     });
 
     it('T-21b renders a raw HTML block in markdown mode through the sanitizer, not as live markup', () => {
-        // The markdown parser only escapes the closing tag (`escapeHtmlInContent`
-        // leaves `<d…` alone), so the opening `<div>` reaches the sanitizer and
-        // survives as an allow-listed element while its closing tag shows as
-        // text. §C.3 predicted a full escape; the observable contract is that
-        // nothing dangerous gets through — asserted here and by T-20.
+        // This used to assert the HALF-escaped output -- "</div>" showing as
+        // visible text -- with a comment noting that the spec predicted a full,
+        // symmetric result and the implementation did not deliver it. That is a
+        // defect locked in as the contract. The escape is symmetric now: a
+        // matched pair is markup, and nothing dangerous gets through (T-20,
+        // T-21c).
         fixture.componentRef.setInput('value', '<div>raw</div>');
         fixture.detectChanges();
 
-        expect(content().textContent).toContain('</div>');
+        expect(content().textContent).toContain('raw');
+        expect(content().textContent).not.toContain('</div>');
+        expect(content().querySelector('div')).toBeTruthy();
         expect(content().querySelector('script')).toBeNull();
     });
 
