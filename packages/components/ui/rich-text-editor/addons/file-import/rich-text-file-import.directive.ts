@@ -76,6 +76,9 @@ const MAX_IMPORT_BYTES = 100 * 1024 * 1024;
 /** Signals a file rejected on size, whose message is already user-facing. */
 class ImportTooLargeError extends Error {}
 
+/** How many imported-PDF font stylesheets may accumulate in the document. */
+const MAX_PDF_FONT_STYLES = 12;
+
 @Directive({
     selector: 'ui-rich-text-editor[uiRteFileImport], ui-rich-text-editor[uiRteFull]',
     standalone: true,
@@ -283,8 +286,13 @@ export class RichTextFileImportDirective {
      * Embedded PDF fonts arrive as `@font-face` CSS that cannot travel inside
      * the sanitized editor HTML (`<style>` tags are stripped), so it is
      * injected into `document.head` instead. Deduped by content hash and
-     * intentionally never removed on destroy — the inserted content outlives
-     * this directive.
+     * intentionally never removed on destroy — the imported text outlives this
+     * directive and would lose its fonts, so tearing these down with the
+     * component would break already-imported documents.
+     *
+     * They are capped instead: a session importing many PDFs would otherwise
+     * accumulate style elements without bound. The oldest are dropped first,
+     * which at worst falls back to a default face on the least recent import.
      */
     private injectFontCss(css: string): void {
         const hash = `${css.length.toString(36)}-${simpleHash(css)}`;
@@ -294,6 +302,11 @@ export class RichTextFileImportDirective {
         style.dataset['uiRtePdfFonts'] = hash;
         style.textContent = css;
         doc.head.appendChild(style);
+
+        const injected = doc.head.querySelectorAll('style[data-ui-rte-pdf-fonts]');
+        for (let i = 0; i < injected.length - MAX_PDF_FONT_STYLES; i++) {
+            injected[i].remove();
+        }
     }
 
     private insertImported(html: string): void {

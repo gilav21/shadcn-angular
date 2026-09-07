@@ -348,10 +348,10 @@ export class RichTextImageResizerComponent implements OnDestroy {
             handle
         };
 
-        document.addEventListener('mousemove', this.onMoveBound);
-        document.addEventListener('mouseup', this.onUpBound);
-        document.addEventListener('touchmove', this.onMoveBound, { passive: false });
-        document.addEventListener('touchend', this.onUpBound);
+        this.document.addEventListener('mousemove', this.onMoveBound);
+        this.document.addEventListener('mouseup', this.onUpBound);
+        this.document.addEventListener('touchmove', this.onMoveBound, { passive: false });
+        this.document.addEventListener('touchend', this.onUpBound);
     }
 
     private onPointerMove(event: MouseEvent | TouchEvent): void {
@@ -475,10 +475,10 @@ export class RichTextImageResizerComponent implements OnDestroy {
     }
 
     private removePointerListeners(): void {
-        document.removeEventListener('mousemove', this.onMoveBound);
-        document.removeEventListener('mouseup', this.onUpBound);
-        document.removeEventListener('touchmove', this.onMoveBound);
-        document.removeEventListener('touchend', this.onUpBound);
+        this.document.removeEventListener('mousemove', this.onMoveBound);
+        this.document.removeEventListener('mouseup', this.onUpBound);
+        this.document.removeEventListener('touchmove', this.onMoveBound);
+        this.document.removeEventListener('touchend', this.onUpBound);
     }
 
     ngOnDestroy(): void {

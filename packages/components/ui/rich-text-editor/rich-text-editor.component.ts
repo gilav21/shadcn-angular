@@ -200,6 +200,9 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
     { actionId: 'rich-text.find-replace', description: 'Find and replace', defaultShortcut: 'Mod+H', category: 'Navigation' },
 ];
 
+/** Tags that own a line of their own, so an incoming one cannot nest inside them. */
+const BLOCK_TAGS = new Set(['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'PRE', 'TABLE', 'HR', 'DETAILS', 'FIGURE']);
+
 @Component({
     selector: 'ui-rich-text-editor',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -5142,6 +5145,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         template.innerHTML = sanitized;
         const fragment = template.content.cloneNode(true) as DocumentFragment;
         const lastInserted = fragment.lastChild;
+        this.escapeEnclosingBlock(range, fragment);
         range.insertNode(fragment);
 
         const newRange = this.document.createRange();
@@ -5154,6 +5158,54 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         selection.removeAllRanges();
         selection.addRange(newRange);
         this.syncContentFromEditor();
+    }
+
+    /**
+     * Move `range` out of the block the caret sits in when `fragment` carries
+     * blocks of its own.
+     *
+     * `insertNode` drops the fragment wherever the caret is, so pasting
+     * "&lt;p&gt;one&lt;/p&gt;&lt;p&gt;two&lt;/p&gt;" at the end of a paragraph
+     * nested both inside it. That is invalid markup, and the sanitized model
+     * built from it did not match the live DOM -- what the user saw and what got
+     * saved had different structure. Splitting at the caret gives the incoming
+     * blocks the top level they need; an inline-only fragment is left alone, so
+     * pasting a word mid-sentence still lands mid-sentence.
+     */
+    private escapeEnclosingBlock(range: Range, fragment: DocumentFragment): void {
+        const editor = this.editorDiv?.nativeElement;
+        if (!editor) return;
+
+        const carriesBlocks = Array.from(fragment.childNodes).some(
+            (node) => node.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has((node as Element).tagName),
+        );
+        if (!carriesBlocks) return;
+
+        let block: HTMLElement | null = null;
+        let node: Node | null = range.startContainer;
+        while (node && node !== editor) {
+            if (node.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has((node as Element).tagName)) {
+                block = node as HTMLElement;
+                break;
+            }
+            node = node.parentNode;
+        }
+        if (!block || block.parentNode === null) return;
+
+        const tail = range.cloneRange();
+        tail.setEndAfter(block);
+        const remainder = tail.extractContents();
+        block.parentNode.insertBefore(remainder, block.nextSibling);
+
+        // An empty shell is left behind when the caret sat at the very start or
+        // end of the block; dropping it avoids a blank paragraph either side.
+        for (const shell of [block, block.nextElementSibling]) {
+            if (shell instanceof HTMLElement && !shell.textContent?.trim() && !shell.querySelector('img, br, input')) {
+                shell.remove();
+            }
+        }
+        range.setStart(block.parentNode, Array.from(block.parentNode.childNodes).indexOf(block as ChildNode) + 1);
+        range.collapse(true);
     }
 
     private getEditorElement(): HTMLDivElement | null {

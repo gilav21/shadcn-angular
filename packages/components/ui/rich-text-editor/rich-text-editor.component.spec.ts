@@ -602,6 +602,39 @@ describe('RichTextEditorComponent', () => {
         });
     });
 
+
+    describe('multi-paragraph paste (round-16 audit)', () => {
+        it('does not nest the pasted paragraphs inside the current one', () => {
+            // Pasting "<p>one</p><p>two</p>" at the end of "<p>hello</p>" put
+            // both inside the existing <p>, which is invalid nesting -- and the
+            // sanitized model then disagreed with the live DOM, so what the user
+            // saw and what got saved had different structure.
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+            component.writeValue('<p>hello</p>');
+            fixture.detectChanges();
+
+            const p = editor.querySelector('p') as HTMLElement;
+            const range = document.createRange();
+            range.selectNodeContents(p);
+            range.collapse(false);
+            const selection = document.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+
+            const data = new DataTransfer();
+            data.setData('text/html', '<p>one</p><p>two</p>');
+            editor.dispatchEvent(
+                new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: data }),
+            );
+            fixture.detectChanges();
+
+            expect(editor.querySelector('p p')).toBeNull();
+            expect(editor.textContent).toContain('one');
+            expect(editor.textContent).toContain('two');
+        });
+    });
+
     it('prevents replacements that would exceed maxLength', () => {
         fixture.componentRef.setInput('maxLength', 5);
         fixture.detectChanges();
