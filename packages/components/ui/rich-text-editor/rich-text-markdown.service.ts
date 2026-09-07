@@ -137,6 +137,17 @@ const URL_SHIELD: ReadonlyArray<readonly [string, string]> = [
     ['~', '\uE103'],
 ];
 
+/**
+ * Inline HTML tags Markdown has no syntax for, which `toMarkdown` emits verbatim
+ * and `toHtml` must hand back unchanged. Both halves of the pair are matched so
+ * the escape pass cannot split them.
+ */
+const PASSTHROUGH_TAG_PATTERN = /<\/?(?:u|sub|sup|mark|kbd|ins|del)\b[^>]{0,4096}>/gi;
+
+/** Private-use delimiters parking a fenced code block during the inline passes. */
+const CODE_FENCE_OPEN = '';
+const CODE_FENCE_CLOSE = '';
+
 @Injectable({ providedIn: 'root' })
 export class RichTextMarkdownService {
     private readonly sanitizer = inject(RichTextSanitizerService);
@@ -165,12 +176,21 @@ export class RichTextMarkdownService {
 
         html = html.replaceAll('\r\n', '\n');
 
+        // Fenced code is lifted out FIRST -- before raw-tag protection and
+        // before any escaping. A fence is inert text by definition: what is
+        // inside it must reach the reader as characters, never as markup. While
+        // it stayed inline, protectRawTags lifted <span> out of fence bodies and
+        // restored it live afterwards (so markup hidden in a fence became a real
+        // element, forging data-mention identity claims), and the body was
+        // escaped twice -- once by escapeHtmlInContent, once by parseCodeBlocks
+        // -- rendering "</div>" as visible "&lt;/div&gt;".
+        const protectedCode: string[] = [];
+        html = this.protectCodeFences(html, protectedCode);
+
         const protectedTags: string[] = [];
         html = this.protectRawTags(html, protectedTags);
 
         html = this.escapeHtmlInContent(html);
-
-        html = this.parseCodeBlocks(html);
         html = this.parseToggleBlocks(html);
         html = this.parseBlockquotes(html);
         html = this.parseHeadings(html);
@@ -193,6 +213,7 @@ export class RichTextMarkdownService {
         html = this.unshieldUrls(html);
 
         html = this.restoreRawTags(html, protectedTags);
+        html = this.restoreCodeFences(html, protectedCode);
 
         return this.sanitizer.sanitize(html);
     }
@@ -214,10 +235,40 @@ export class RichTextMarkdownService {
             return token;
         };
         return cleaned
+            // Inline formatting tags Markdown has no syntax for (u, sub, sup,
+            // mark...) are emitted verbatim by toMarkdown, so toHtml must return
+            // them unchanged. Protecting the CLOSING tag matters as much as the
+            // opening one: escapeHtmlInContent let "<u>" through (u matches \w)
+            // but escaped "</u>" (/ does not), so every round-trip appended
+            // another visible "</u>" and the damage compounded per save/load.
+            .replaceAll(PASSTHROUGH_TAG_PATTERN, push)
             .replaceAll(/<span\b[^>]{0,4096}>/gi, push)
             .replaceAll(/<\/span>/gi, push)
             .replaceAll(/<img\b[^>]{0,4096}\bdata-action-[\w-]{1,64}[^>]{0,4096}>/gi, push);
     }
+
+    /**
+     * Lift fenced code bodies out of the source before anything else touches
+     * them, already converted to their final `<pre><code>` form. Restored after
+     * every inline pass, so a fence is inert text: escaped exactly once, and
+     * with no markup smuggled through it into the live document.
+     */
+    private protectCodeFences(markdown: string, store: string[]): string {
+        return markdown.replaceAll(
+            /(```|~~~)(\w*)\n([\s\S]*?)\1/g,
+            (_match, _fence: string, lang: string, code: string) => {
+                const langAttr = lang ? ` data-language="${lang}" class="language-${lang}"` : '';
+                const token = `${CODE_FENCE_OPEN}${store.length}${CODE_FENCE_CLOSE}`;
+                store.push(`<pre><code${langAttr}>${this.escapeHtml(code.trimEnd())}</code></pre>`);
+                return token;
+            },
+        );
+    }
+
+    private restoreCodeFences(html: string, store: string[]): string {
+        return html.replaceAll(/(\d{1,9})/g, (_match, index: string) => store[Number(index)] ?? '');
+    }
+
 
     private restoreRawTags(html: string, store: string[]): string {
         return html.replaceAll(/(\d{1,9})/g, (_match, index: string) => store[Number(index)] ?? '');
@@ -236,29 +287,6 @@ export class RichTextMarkdownService {
             // ever ran — the first line rendered literally while later ones
             // quoted correctly.
             .replaceAll(/(?<!^)(?<![\s\w*`~[\]!#-])>/gm, '&gt;');
-    }
-
-    /**
-     * Parse fenced code blocks (``` or ~~~).
-     */
-    private parseCodeBlocks(html: string): string {
-        /** Fenced code blocks with optional language */
-        const fencedPattern = /```(\w*)\n([\s\S]*?)```/g;
-        html = html.replaceAll(fencedPattern, (_, lang, code) => {
-            const langAttr = lang ? ` data-language="${lang}" class="language-${lang}"` : '';
-            const escapedCode = this.escapeHtml(code.trimEnd());
-            return `<pre><code${langAttr}>${escapedCode}</code></pre>`;
-        });
-
-        /** Also support ~~~ fences */
-        const tildeFencedPattern = /~~~(\w*)\n([\s\S]*?)~~~/g;
-        html = html.replaceAll(tildeFencedPattern, (_, lang, code) => {
-            const langAttr = lang ? ` data-language="${lang}" class="language-${lang}"` : '';
-            const escapedCode = this.escapeHtml(code.trimEnd());
-            return `<pre><code${langAttr}>${escapedCode}</code></pre>`;
-        });
-
-        return html;
     }
 
     /**
@@ -458,6 +486,14 @@ export class RichTextMarkdownService {
             const trimmed = block.trim();
 
             if (/^<(h[1-6]|ul|ol|li|blockquote|pre|div|p|hr|table)/i.test(trimmed)) {
+                return trimmed;
+            }
+
+            // A parked code fence is a block, even though it currently looks
+            // like a single placeholder character. Without this it gets wrapped
+            // in a paragraph, and restoring the <pre> inside that <p> leaves a
+            // stray empty <p></p> in the output.
+            if (trimmed.startsWith(CODE_FENCE_OPEN)) {
                 return trimmed;
             }
 

@@ -682,4 +682,46 @@ describe('RichTextMarkdownService', () => {
             expect(html).toContain('<p>b</p>');
         });
     });
+
+    describe('round-trip fidelity (regressions found by the round-15 audit)', () => {
+        it('keeps <u> intact across repeated markdown round-trips', () => {
+            // The corruption compounded: each save/load cycle appended another
+            // visible "</u>", because the escape pass let "<u" through (u is \w)
+            // but escaped "</u" (/ is not). Markdown is the default mode and
+            // underline is a default toolbar button, so this ate user data on
+            // every persist.
+            let html = service.toHtml('<u>hello</u>');
+            expect(html).toBe('<p><u>hello</u></p>');
+            for (let i = 0; i < 3; i++) {
+                html = service.toHtml(service.toMarkdown(html));
+                expect(html).toBe('<p><u>hello</u></p>');
+            }
+        });
+
+        it('does not double-escape a closing tag inside a fenced code block', () => {
+            const md = '```\nif (a < b) { return "</div>"; }\n```';
+            expect(service.toHtml(md)).toBe(
+                '<pre><code>if (a &lt; b) { return "&lt;/div&gt;"; }</code></pre>',
+            );
+        });
+
+        it('treats fenced code as inert text, not live markup', () => {
+            // protectRawTags used to lift <span> out of the source before the
+            // fence body was escaped and put it back afterwards, so markup
+            // hidden in a code fence became a real element. With data-mention
+            // that forges an identity claim in any app that trusts it.
+            const md = '```\n<span data-mention data-mention-id="admin">@admin</span>\n```';
+            const html = service.toHtml(md);
+            expect(html).toContain('&lt;span');
+            // The escaped text legitimately contains the attribute spelling, so
+            // assert on the parsed DOM: what matters is that no live element
+            // carries the identity claim.
+            const probe = document.createElement('div');
+            probe.innerHTML = html;
+            expect(probe.querySelector('[data-mention-id]')).toBeNull();
+            expect(probe.querySelector('pre code')?.textContent).toBe(
+                '<span data-mention data-mention-id="admin">@admin</span>',
+            );
+        });
+    });
 });
