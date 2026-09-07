@@ -40,6 +40,51 @@ describe('RichTextToolbarComponent', () => {
         fixture.detectChanges();
     });
 
+    describe('keyboard navigation (WAI-ARIA toolbar pattern)', () => {
+        const buttonsOf = () =>
+            Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLButtonElement[];
+
+        const pressOnToolbar = (key: string) => {
+            const toolbar = fixture.nativeElement.querySelector('[role="toolbar"]') as HTMLElement;
+            toolbar.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+            fixture.detectChanges();
+        };
+
+        beforeEach(() => {
+            fixture.componentRef.setInput('items', ['bold', 'italic', 'separator', 'underline']);
+            fixture.detectChanges();
+        });
+
+        it('exposes exactly one tab stop, not one per button', () => {
+            const tabbable = buttonsOf().filter(b => b.tabIndex === 0);
+            expect(buttonsOf()).toHaveLength(3);
+            expect(tabbable).toHaveLength(1);
+            expect(tabbable[0]).toBe(buttonsOf()[0]);
+        });
+
+        it('moves the tab stop with ArrowRight and wraps at the end', () => {
+            pressOnToolbar('ArrowRight');
+            expect(buttonsOf()[1].tabIndex).toBe(0);
+            expect(buttonsOf()[0].tabIndex).toBe(-1);
+
+            pressOnToolbar('ArrowRight');
+            pressOnToolbar('ArrowRight');
+            expect(buttonsOf()[0].tabIndex).toBe(0);
+        });
+
+        it('moves the tab stop with ArrowLeft and wraps at the start', () => {
+            pressOnToolbar('ArrowLeft');
+            expect(buttonsOf()[2].tabIndex).toBe(0);
+        });
+
+        it('jumps to the first and last button with Home and End', () => {
+            pressOnToolbar('End');
+            expect(buttonsOf()[2].tabIndex).toBe(0);
+            pressOnToolbar('Home');
+            expect(buttonsOf()[0].tabIndex).toBe(0);
+        });
+    });
+
     describe('rendering', () => {
         it('renders one button per non-separator item', () => {
             fixture.componentRef.setInput('items', ['bold', 'italic', 'separator', 'underline']);

@@ -115,12 +115,38 @@ function buildFixedDistTable(): HuffmanTable {
 const FIXED_LIT_TABLE = buildFixedLitTable();
 const FIXED_DIST_TABLE = buildFixedDistTable();
 
-function inflateStoredBlock(reader: BitReader, output: number[]): void {
+/** Options accepted by {@link inflate} and {@link zlibInflate}. */
+export interface InflateOptions {
+    /**
+     * Maximum number of bytes the stream may decompress to. Omit for no limit.
+     *
+     * A DEFLATE stream's expansion ratio is unbounded, and a container's
+     * declared uncompressed size is attacker-controlled metadata that says
+     * nothing about what the stream actually produces — so callers handling
+     * untrusted archives must bound the OUTPUT here rather than trust a header.
+     * The ceiling is checked as the output grows, not afterwards, so a
+     * decompression bomb is stopped while it inflates instead of after it has
+     * already exhausted memory.
+     */
+    readonly maxOutputBytes?: number;
+}
+
+/** Trip as soon as the accumulated output passes the caller's ceiling. */
+function guardOutputSize(output: number[], maxOutputBytes: number | undefined): void {
+    if (maxOutputBytes !== undefined && output.length > maxOutputBytes) {
+        throw new Error(
+            `Decompressed data exceeds the maximum allowed size of ${maxOutputBytes} bytes`,
+        );
+    }
+}
+
+function inflateStoredBlock(reader: BitReader, output: number[], maxOutputBytes?: number): void {
     reader.alignByte();
     const len = reader.readU16LE();
     reader.readU16LE();
     for (let i = 0; i < len; i++) {
         output.push(reader.readByte());
+        guardOutputSize(output, maxOutputBytes);
     }
 }
 
@@ -169,12 +195,19 @@ function buildDynamicTables(reader: BitReader): { litTable: HuffmanTable; distTa
     };
 }
 
-function inflateCompressedBlock(reader: BitReader, output: number[], litTable: HuffmanTable, distTable: HuffmanTable): void {
+function inflateCompressedBlock(
+    reader: BitReader,
+    output: number[],
+    litTable: HuffmanTable,
+    distTable: HuffmanTable,
+    maxOutputBytes?: number,
+): void {
     for (;;) {
         const sym = decodeSymbol(reader, litTable);
         if (sym === 256) break;
         if (sym < 256) {
             output.push(sym);
+            guardOutputSize(output, maxOutputBytes);
             continue;
         }
         const lengthIdx = sym - 257;
@@ -185,10 +218,12 @@ function inflateCompressedBlock(reader: BitReader, output: number[], litTable: H
         for (let j = 0; j < length; j++) {
             output.push(output[start + j]);
         }
+        guardOutputSize(output, maxOutputBytes);
     }
 }
 
-export function inflate(compressed: Uint8Array): Uint8Array {
+export function inflate(compressed: Uint8Array, options?: InflateOptions): Uint8Array {
+    const maxOutputBytes = options?.maxOutputBytes;
     const reader = new BitReader(compressed);
     const output: number[] = [];
     let finalBlock = false;
@@ -198,12 +233,12 @@ export function inflate(compressed: Uint8Array): Uint8Array {
         const blockType = reader.bits(2);
 
         if (blockType === 0) {
-            inflateStoredBlock(reader, output);
+            inflateStoredBlock(reader, output, maxOutputBytes);
         } else if (blockType === 1) {
-            inflateCompressedBlock(reader, output, FIXED_LIT_TABLE, FIXED_DIST_TABLE);
+            inflateCompressedBlock(reader, output, FIXED_LIT_TABLE, FIXED_DIST_TABLE, maxOutputBytes);
         } else if (blockType === 2) {
             const { litTable, distTable } = buildDynamicTables(reader);
-            inflateCompressedBlock(reader, output, litTable, distTable);
+            inflateCompressedBlock(reader, output, litTable, distTable, maxOutputBytes);
         } else {
             throw new Error('Invalid deflate block type');
         }
@@ -212,10 +247,10 @@ export function inflate(compressed: Uint8Array): Uint8Array {
     return new Uint8Array(output);
 }
 
-export function zlibInflate(data: Uint8Array): Uint8Array {
+export function zlibInflate(data: Uint8Array, options?: InflateOptions): Uint8Array {
     if (data.length < 2) return data;
     const cmf = data[0];
     const cm = cmf & 0x0f;
-    if (cm !== 8) return inflate(data);
-    return inflate(data.subarray(2));
+    if (cm !== 8) return inflate(data, options);
+    return inflate(data.subarray(2), options);
 }

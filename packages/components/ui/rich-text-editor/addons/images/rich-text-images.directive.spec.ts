@@ -369,6 +369,36 @@ describe('RichTextImagesDirective', () => {
         expect(fixture.componentInstance.autoComplete).toContain('https://cdn.example.com/uploaded.png');
     });
 
+    it('drops an auto-upload result whose image was detached mid-flight', async () => {
+        // An upload is a network round-trip; undo/redo/setContent replace the
+        // editable's innerHTML wholesale in that window. Writing the returned
+        // URL to the detached node changes nothing on screen, so reporting
+        // success would tell the consumer a swap happened that did not.
+        const fixture = createFixture();
+        const upload$ = new Subject<string>();
+        fixture.componentInstance.autoUpload.set(true);
+        fixture.componentInstance.uploader.set(() => upload$);
+        fixture.detectChanges();
+        const { el } = editorOf(fixture);
+
+        const img = document.createElement('img');
+        img.setAttribute('src', TINY_BASE64);
+        el.appendChild(img);
+        await wait();
+        expect(img.dataset['autoUploadStatus']).toBe('uploading');
+
+        el.innerHTML = '<p>replaced while the upload was in flight</p>';
+        expect(img.isConnected).toBe(false);
+
+        upload$.next('https://cdn.example.com/uploaded.png');
+        upload$.complete();
+        await wait();
+
+        expect(img.getAttribute('src')).not.toBe('https://cdn.example.com/uploaded.png');
+        expect(fixture.componentInstance.autoComplete).not.toContain('https://cdn.example.com/uploaded.png');
+        expect(el.innerHTML).toContain('replaced while the upload was in flight');
+    });
+
     it('surfaces an auto-upload failure as an error overlay entry', async () => {
         const fixture = createFixture();
         fixture.componentInstance.autoUpload.set(true);

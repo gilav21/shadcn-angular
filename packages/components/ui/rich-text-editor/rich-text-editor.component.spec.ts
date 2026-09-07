@@ -25,6 +25,16 @@ const setCaretAt = (node: Node, offset: number) => {
     selection?.addRange(range);
 };
 
+/** Select `[start, end)` within one node, as a user's drag would. */
+const selectRangeIn = (node: Node, start: number, end: number) => {
+    const selection = document.getSelection();
+    const range = document.createRange();
+    range.setStart(node, start);
+    range.setEnd(node, end);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+};
+
 /** Number of entries currently on the editor's private undo stack. */
 const historyLength = (component: RichTextEditorComponent): number =>
     (component as unknown as { history: unknown[] }).history.length;
@@ -1895,6 +1905,47 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         expect(editor.textContent).toBe('hello world');
     });
 
+    it('unwraps inline code on a second apply instead of nesting it', () => {
+        component.writeValue('<p>hello world</p>');
+        fixture.detectChanges();
+        const text = editor.querySelector('p')!.firstChild as Text;
+        selectRangeIn(text, 0, 5);
+        component.onFormatCommand('code');
+        const code = editor.querySelector('code')!;
+        expect(code.textContent).toBe('hello');
+
+        // Toggling a pressed button must remove the formatting, the way bold and
+        // italic do — not wrap the run in a second <code>.
+        selectRangeIn(code.firstChild!, 0, 5);
+        component.onFormatCommand('code');
+
+        expect(editor.querySelectorAll('code code')).toHaveLength(0);
+        expect(editor.querySelectorAll('code')).toHaveLength(0);
+        expect(editor.textContent).toBe('hello world');
+    });
+
+    it('refuses addon inserts once maxLength is exhausted', () => {
+        // maxLength was enforced only for typing and pasting, so every addon
+        // insert path (emoji, links, images, tables) could push content past a
+        // limit the user had set. They all funnel through these three seams.
+        fixture.componentRef.setInput('maxLength', 10);
+        component.writeValue('<p>0123456789</p>');
+        fixture.detectChanges();
+        const text = editor.querySelector('p')!.firstChild as Text;
+        const selection = document.getSelection();
+        const range = document.createRange();
+        range.setStart(text, 10);
+        range.collapse(true);
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+
+        component.insertTextAtCaret('OVERFLOW');
+        component.insertHtmlAtCaret('<strong>OVERFLOW</strong>');
+        component.insertTextFromOverlay('OVERFLOW');
+
+        expect(editor.textContent).toBe('0123456789');
+    });
+
     it('converts the current block to a heading via formatBlock', () => {
         component.writeValue('<p>title text</p>');
         fixture.detectChanges();
@@ -2477,14 +2528,7 @@ describe('RichTextEditorComponent — floating toolbar', () => {
     let component: RichTextEditorComponent;
     let editor: HTMLDivElement;
 
-    const selectRange = (node: Node, start: number, end: number) => {
-        const selection = document.getSelection();
-        const range = document.createRange();
-        range.setStart(node, start);
-        range.setEnd(node, end);
-        selection?.removeAllRanges();
-        selection?.addRange(range);
-    };
+    const selectRange = (node: Node, start: number, end: number) => selectRangeIn(node, start, end);
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
@@ -2693,6 +2737,47 @@ describe('RichTextEditorComponent — tables', () => {
         fixture.componentRef.setInput('mode', 'html');
         fixture.detectChanges();
         editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+    });
+
+    it('ignores a menu action whose target was detached by an undo', () => {
+        // The menu stays open across Ctrl+Z (its own mousedown handler keeps the
+        // editor focused), and undo replaces innerHTML wholesale — so the stored
+        // target is a node that is no longer in the document. Acting on it
+        // mutates dead DOM and silently does nothing.
+        const table = seedTable();
+        const merged = table.querySelector<HTMLTableCellElement>('tbody td')!;
+        merged.colSpan = 2;
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        targetCell(merged);
+
+        editor.innerHTML = '<p>replaced</p>';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+
+        expect(merged.isConnected).toBe(false);
+        // The real defect: the stored target still reports as actionable and the
+        // action still mutates it, even though it is no longer in the document.
+        expect(component.canSplitCell()).toBe(false);
+        component.splitCell();
+        expect(merged.getAttribute('colspan')).toBe('2');
+    });
+
+    it('drops a multi-cell selection whose cells a header retag replaced', () => {
+        // Retagging td<->th REPLACES each cell element. The context-menu target
+        // is re-pointed to its replacement, but the multi-cell selection was
+        // left holding the old nodes, so the next cell action silently no-ops.
+        const table = seedTable();
+        // The toggle retags the table's FIRST row, so select the cells in it.
+        const headerCells = Array.from(table.querySelectorAll<HTMLTableCellElement>('tr:first-child th'));
+        component.tableCellSelected.set(headerCells);
+        targetCell(headerCells[0]);
+
+        component.toggleTableHeaderRow();
+
+        expect(table.querySelectorAll('th')).toHaveLength(0);
+
+        for (const cell of component.tableCellSelected()) {
+            expect(cell.isConnected).toBe(true);
+        }
     });
 
     it('adds a row above the targeted cell', () => {

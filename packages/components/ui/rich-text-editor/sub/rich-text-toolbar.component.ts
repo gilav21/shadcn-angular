@@ -6,6 +6,8 @@ import {
   output,
   computed,
   inject,
+  signal,
+  ElementRef,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NgComponentOutlet } from '@angular/common';
@@ -199,6 +201,7 @@ function mirrorLabel(item: ToolbarButtonItem): ToolbarButtonItem {
   styleUrl: './rich-text-toolbar.component.css',
   host: {
     class: 'block',
+    '(keydown)': 'onToolbarKeydown($event)',
   },
 })
 export class RichTextToolbarComponent {
@@ -215,6 +218,17 @@ export class RichTextToolbarComponent {
   ]);
 
   private readonly sanitizer = inject(DomSanitizer);
+  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
+
+  /**
+   * Index of the button that currently holds the toolbar's single tab stop.
+   *
+   * A toolbar is ONE stop in the page's tab order — WAI-ARIA's toolbar pattern
+   * moves between its controls with the arrow keys instead. Without this every
+   * button was tabbable, so reaching the editor's content meant pressing Tab
+   * past all 25 of them.
+   */
+  private readonly rovingIndex = signal(0);
 
   /**
    * The built-in buttons to render, in order. `'separator'` entries render a
@@ -496,5 +510,66 @@ export class RichTextToolbarComponent {
    */
   getSafeIcon(svgHtml: string): SafeHtml {
     return this.sanitizer.bypassSecurityTrustHtml(svgHtml);
+  }
+
+  /**
+   * The tab-stop index for one button, applied via `[attr.tabindex]`.
+   *
+   * Buttons are addressed by their position among ALL toolbar buttons, built-in
+   * and addon-contributed alike, because the addon slots render their own
+   * buttons through `ngComponentOutlet` and the template cannot number them.
+   */
+  protected buttonTabIndex(item: ToolbarItem): 0 | -1 {
+    return this.buttonPositions().get(item) === this.rovingIndex() ? 0 : -1;
+  }
+
+  /**
+   * Position of each built-in button among all toolbar buttons.
+   *
+   * The template's `$index` counts separators too, so it does not match the
+   * button order the keyboard walks; this maps an item to its true position.
+   */
+  private readonly buttonPositions = computed(() => {
+    const positions = new Map<ToolbarItem, number>();
+    let position = 0;
+    for (const item of this.items()) {
+      if (item === 'separator' || item === 'textStyle') continue;
+      positions.set(item, position++);
+    }
+    return positions;
+  });
+
+  /** Every rendered toolbar button, in visual order. */
+  private toolbarButtons(): HTMLButtonElement[] {
+    return Array.from(
+      this.elementRef.nativeElement.querySelectorAll<HTMLButtonElement>('[role="toolbar"] button'),
+    );
+  }
+
+  /**
+   * Arrow / Home / End move the tab stop between toolbar buttons, per the
+   * WAI-ARIA toolbar pattern. Direction follows the reading order, so the arrow
+   * keys swap meaning in RTL. Disabled buttons keep their slot rather than
+   * being skipped: the toolbar disables everything at once (readonly/disabled
+   * editor), so there would be nowhere to land.
+   */
+  protected onToolbarKeydown(event: KeyboardEvent): void {
+    const buttons = this.toolbarButtons();
+    if (buttons.length === 0) return;
+
+    const forward = this.locale().rtl ? 'ArrowLeft' : 'ArrowRight';
+    const backward = this.locale().rtl ? 'ArrowRight' : 'ArrowLeft';
+    const current = this.rovingIndex();
+    let next: number | null = null;
+
+    if (event.key === forward) next = (current + 1) % buttons.length;
+    else if (event.key === backward) next = (current - 1 + buttons.length) % buttons.length;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = buttons.length - 1;
+
+    if (next === null) return;
+    event.preventDefault();
+    this.rovingIndex.set(next);
+    buttons[next]?.focus();
   }
 }

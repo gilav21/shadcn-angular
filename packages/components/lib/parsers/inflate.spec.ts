@@ -158,3 +158,45 @@ describe('zlibInflate', () => {
         expect(Array.from(result)).toEqual(payload);
     });
 });
+
+describe('inflate — output size ceiling', () => {
+    it('aborts a stream that expands beyond maxOutputBytes', async () => {
+        const big = new Uint8Array(2 * 1024 * 1024).fill(0x41);
+        const compressed = await deflateRaw(big);
+        expect(() => inflate(compressed, { maxOutputBytes: 64 * 1024 })).toThrow(
+            /exceeds the maximum allowed size/i,
+        );
+    });
+
+    it('allows a stream that stays within maxOutputBytes', async () => {
+        const payload = new Uint8Array(1024).fill(0x42);
+        const compressed = await deflateRaw(payload);
+        const result = inflate(compressed, { maxOutputBytes: 64 * 1024 });
+        expect(result).toHaveLength(payload.length);
+    });
+
+    it('is unbounded when no ceiling is given, preserving the existing contract', async () => {
+        const payload = new Uint8Array(256 * 1024).fill(0x43);
+        const compressed = await deflateRaw(payload);
+        expect(inflate(compressed)).toHaveLength(payload.length);
+    });
+
+    it('enforces the ceiling through zlibInflate too', async () => {
+        const big = new Uint8Array(2 * 1024 * 1024).fill(0x44);
+        const compressed = await deflateZlib(big);
+        expect(() => zlibInflate(compressed, { maxOutputBytes: 64 * 1024 })).toThrow(
+            /exceeds the maximum allowed size/i,
+        );
+    });
+
+    it('aborts an uncompressed (stored) block that exceeds the ceiling', () => {
+        // A stored block declares its length in the header, so the guard must
+        // trip inside the copy loop rather than after the block completes.
+        const len = 4096;
+        const header = [0x01, len & 0xff, (len >> 8) & 0xff, ~len & 0xff, (~len >> 8) & 0xff];
+        const stream = new Uint8Array([...header, ...new Uint8Array(len).fill(0x45)]);
+        expect(() => inflate(stream, { maxOutputBytes: 1024 })).toThrow(
+            /exceeds the maximum allowed size/i,
+        );
+    });
+});

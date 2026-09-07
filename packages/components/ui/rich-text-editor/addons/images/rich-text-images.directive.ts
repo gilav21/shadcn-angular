@@ -505,6 +505,14 @@ export class RichTextImagesDirective {
     }
 
     private onAutoUploadSuccess(img: HTMLImageElement, uploadId: string, dataUrl: string, uploadedUrl: string): void {
+        // An upload is a network round-trip, and undo/redo/setContent replace the
+        // editable's innerHTML wholesale — so by the time this resolves the image
+        // it started for may be detached. Writing to it would change nothing on
+        // screen while still reporting success, so drop the result instead.
+        if (!img.isConnected) {
+            this.autoUploadMap.delete(uploadId);
+            return;
+        }
         const safeSrc = this.sanitizer.sanitizeImageSrc(uploadedUrl);
         if (!safeSrc) {
             this.handleAutoUploadError(uploadId, img, dataUrl, 'Uploaded image URL is not allowed by sanitizer policy.');
@@ -521,6 +529,13 @@ export class RichTextImagesDirective {
     }
 
     private handleAutoUploadError(uploadId: string, img: HTMLImageElement, dataUrl: string, message: string): void {
+        // Same race as the success path: a detached image has no badge to show
+        // and no retry target, and its entry would sit in the error map forever.
+        if (!img.isConnected) {
+            this.autoUploadMap.delete(uploadId);
+            this.autoImageUploadError.emit(message);
+            return;
+        }
         this.autoUploadMutating = true;
         img.dataset['autoUploadStatus'] = 'error';
         this.autoUploadMutating = false;

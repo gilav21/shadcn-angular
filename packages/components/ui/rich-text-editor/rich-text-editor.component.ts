@@ -1640,6 +1640,35 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * value rather than parsing the untrusted HTML — the over-limit path inserts
      * plain text anyway, so the HTML length would be the wrong budget.
      */
+    /**
+     * The visible text an HTML fragment contributes, for budgeting against
+     * {@link maxLength}. Markup length would be the wrong unit — a small table
+     * or a link carries far more markup than the characters a reader sees.
+     */
+    private plainTextOf(html: string): string {
+        const scratch = this.document.createElement('div');
+        scratch.innerHTML = html;
+        return scratch.textContent ?? '';
+    }
+
+    /**
+     * Whether inserting `text` would take the document past {@link maxLength}.
+     *
+     * `maxLength` used to be enforced only while typing and pasting, so every
+     * programmatic insert — emoji, links, images, tables, and anything an addon
+     * adds later — could push content past a limit the consumer had set. These
+     * seams are the shared funnel for all of them, so the check belongs here
+     * rather than in each addon. Unlike a paste, an insert is not truncated: a
+     * half-inserted link or table is worse than none.
+     */
+    private exceedsMaxLength(text: string): boolean {
+        const max = this.maxLength();
+        if (!max) return false;
+        const currentText = this.editorDiv?.nativeElement.textContent ?? '';
+        const remaining = max - (currentText.length - this.getSelectedTextLength());
+        return text.length > remaining;
+    }
+
     private handlePasteMaxLength(text: string): boolean {
         if (!this.maxLength()) {
             return false;
@@ -2115,6 +2144,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * removes the insert and nothing else.
      */
     insertTextFromOverlay(text: string): void {
+        if (this.exceedsMaxLength(text)) return;
         this.insertAtRestoredCaret(() => this.insertTextNode(text));
     }
 
@@ -2158,12 +2188,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     /** Insert plain text at the live caret as one history entry (addon host surface). */
     insertTextAtCaret(text: string): void {
+        if (this.exceedsMaxLength(text)) return;
         this.insertTextNode(text);
         this.pushHistory();
     }
 
     /** Insert sanitized HTML at the live caret as one history entry (addon host surface). */
     insertHtmlAtCaret(html: string): void {
+        if (this.exceedsMaxLength(this.plainTextOf(html))) return;
         this.insertHtmlFragment(html);
         this.pushHistory();
     }
@@ -2508,6 +2540,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (!selection || selection.rangeCount === 0) return;
 
         const range = selection.getRangeAt(0);
+        const existing = this.findAncestorByTag(range.startContainer, tagName.toUpperCase());
+        if (existing) {
+            this.unwrapElement(existing, selection);
+            return;
+        }
+
         const wasCollapsed = range.collapsed;
         const element = this.document.createElement(tagName);
         element.appendChild(range.extractContents());
@@ -2524,6 +2562,35 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         newRange.collapse(true);
         selection.removeAllRanges();
         selection.addRange(newRange);
+    }
+
+    /**
+     * Replace an element with its own children, keeping the text selected.
+     *
+     * This is what makes {@link wrapSelectionWithTag} a toggle. The toolbar
+     * already reports inline code as pressed when the caret sits inside a
+     * `<code>`, so a second click has to REMOVE the formatting the way bold and
+     * italic do; without this it wrapped the run again and produced nested
+     * `<code><code>…`, which reads as one unremovable code span to the user.
+     */
+    private unwrapElement(element: HTMLElement, selection: Selection): void {
+        const parent = element.parentNode;
+        if (!parent) return;
+
+        const first = element.firstChild;
+        const last = element.lastChild;
+        while (element.firstChild) {
+            parent.insertBefore(element.firstChild, element);
+        }
+        element.remove();
+        parent.normalize();
+
+        if (!first || !last) return;
+        const restored = this.document.createRange();
+        restored.setStartBefore(first);
+        restored.setEndAfter(last);
+        selection.removeAllRanges();
+        selection.addRange(restored);
     }
 
     private insertCodeBlock(): void {
@@ -3251,7 +3318,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     canSplitCell(): boolean {
         const target = this.tableContextMenuTarget;
-        if (!target) return false;
+        if (!this.isLiveInEditor(target)) return false;
         return (target.colSpan > 1 || target.rowSpan > 1);
     }
 
@@ -3268,7 +3335,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     splitCell(): void {
         this.closeTableContextMenu();
         const target = this.tableContextMenuTarget;
-        if (!target) return;
+        if (!this.isLiveInEditor(target)) return;
         const rs = target.rowSpan || 1;
         const cs = target.colSpan || 1;
         if (rs <= 1 && cs <= 1) return;
@@ -3330,9 +3397,26 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return null;
     }
 
+    /**
+     * Whether an element the component stored earlier is still part of the live
+     * document.
+     *
+     * Anything that rewrites the editable's `innerHTML` — undo, redo,
+     * `writeValue`, `setContent` — detaches every node inside it, and those all
+     * stay reachable while a menu or overlay holds a reference (the table
+     * context menu keeps the editor focused, so Ctrl+Z works with it open).
+     * Acting on a detached node mutates a tree nothing renders: the change is
+     * invisible and the command appears to do nothing at all. Callers therefore
+     * check liveness rather than mere non-null.
+     */
+    private isLiveInEditor(node: Node | null | undefined): node is Node & { isConnected: true } {
+        const editor = this.editorDiv?.nativeElement;
+        return !!node && !!editor && editor.contains(node);
+    }
+
     private getTableCellInfo(target: HTMLTableCellElement | null): { cell: HTMLTableCellElement; row: HTMLTableRowElement; table: HTMLTableElement; colIndex: number; rowIndex: number } | null {
         const cell = target;
-        if (!cell) return null;
+        if (!this.isLiveInEditor(cell)) return null;
         const row = cell.closest<HTMLTableRowElement>('tr');
         const table = cell.closest<HTMLTableElement>('table');
         if (!row || !table) return null;
@@ -3795,13 +3879,21 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * `closest('table')` and silently did nothing.
      */
     private retagRowCells(row: HTMLTableRowElement, tagName: 'td' | 'th'): void {
+        const nextSelection = [...this.tableCellSelected()];
+        let selectionChanged = false;
         for (const cell of Array.from(row.cells)) {
             const replacement = this.document.createElement(tagName);
             replacement.innerHTML = cell.innerHTML;
             const wasTarget = cell === this.tableContextMenuTarget;
+            const selectedIndex = nextSelection.indexOf(cell);
+            if (selectedIndex !== -1) {
+                nextSelection[selectedIndex] = replacement;
+                selectionChanged = true;
+            }
             cell.replaceWith(replacement);
             if (wasTarget) this.tableContextMenuTarget = replacement;
         }
+        if (selectionChanged) this.applyCellSelection(nextSelection);
     }
 
     /**

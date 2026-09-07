@@ -45,6 +45,7 @@
       <button
         type="button"
         [attr.data-toolbar-item]="item"
+        [attr.tabindex]="buttonTabIndex(item)"
         [class]="buttonClasses(item)"
         [title]="getTooltip(item)"
         [attr.aria-label]="getTooltip(item)"

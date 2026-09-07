@@ -1,5 +1,13 @@
 import { zlibInflate } from './inflate';
 
+/**
+ * Ceiling for a single decoded PDF stream. A stream's filter chain can expand
+ * without bound, and a malformed or hostile document can exploit that to
+ * exhaust memory, so the decoder bounds what it will materialise. 256 MB is far
+ * above any legitimate single stream in a real document.
+ */
+const MAX_DECODED_STREAM_BYTES = 256 * 1024 * 1024;
+
 // ── Stream filter decoders ──────────────────────────────────────────────
 
 function decodeASCIIHex(data: Uint8Array): Uint8Array {
@@ -1321,7 +1329,10 @@ export class PdfReader {
 
     private applyFilter(data: Uint8Array, filter: string, parms: Record<string, PdfObject>): Uint8Array | null {
         if (filter === 'FlateDecode' || filter === 'Fl') {
-            return this.applyFlatePredictor(zlibInflate(data), parms);
+            return this.applyFlatePredictor(
+                zlibInflate(data, { maxOutputBytes: MAX_DECODED_STREAM_BYTES }),
+                parms,
+            );
         }
         if (filter === 'ASCIIHexDecode' || filter === 'AHx') return decodeASCIIHex(data);
         if (filter === 'ASCII85Decode' || filter === 'A85') return decodeASCII85(data);
