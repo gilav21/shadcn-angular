@@ -474,14 +474,26 @@ export class RichTextPasteNormalizerService {
     }
 
     private isGhostTable(table: HTMLTableElement): boolean {
-        const rows = table.querySelectorAll('tr');
+        // Scoped to THIS table. An unscoped descendant query counts a nested
+        // table's rows and cells as the wrapper's own, so a genuine 1-cell
+        // wrapper around another 1-cell table was NOT recognised and never
+        // unwrapped. Same defect that was fixed in tableToMarkdown; this is
+        // the sibling consumer it was not applied to.
+        const rows = table.querySelectorAll(':scope > tr, :scope > thead > tr, :scope > tbody > tr, :scope > tfoot > tr');
         if (rows.length === 0) return false;
-        return Array.from(rows).every(row => row.querySelectorAll('td, th').length === 1);
+        // A wrapper holding a REAL table is not a ghost: draining it would
+        // destroy the inner table. Scoping the counts above was necessary but
+        // not sufficient -- with the nested rows no longer inflating the count,
+        // such a wrapper started to qualify.
+        if (table.querySelector(':scope > tbody > tr > td > table, :scope > tr > td > table')) {
+            return false;
+        }
+        return Array.from(rows).every(row => row.querySelectorAll(':scope > td, :scope > th').length === 1);
     }
 
     private extractGhostTableContent(table: HTMLTableElement): DocumentFragment {
         const fragment = this.document.createDocumentFragment();
-        for (const row of Array.from(table.querySelectorAll('tr'))) {
+        for (const row of Array.from(table.querySelectorAll(':scope > tr, :scope > thead > tr, :scope > tbody > tr, :scope > tfoot > tr'))) {
             const cell = row.querySelector('td, th');
             if (cell) {
                 this.drainChildNodes(cell, fragment);

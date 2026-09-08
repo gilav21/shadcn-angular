@@ -2325,4 +2325,35 @@ describe('RichTextPasteNormalizerService', () => {
         });
     });
 
+    describe('ghost table detection scoping (self-review)', () => {
+        const ghost = (html: string): boolean => {
+            const host = document.createElement('div');
+            host.innerHTML = html;
+            const table = host.querySelector('table') as HTMLTableElement;
+            return (service as unknown as {
+                isGhostTable(t: HTMLTableElement): boolean;
+            }).isGhostTable(table);
+        };
+
+        it('still unwraps a plain single-cell wrapper', () => {
+            expect(ghost('<table><tbody><tr><td>content</td></tr></tbody></table>')).toBe(true);
+        });
+
+        it('does not unwrap a wrapper that holds a real table', () => {
+            // The row/cell counts were unscoped, so a nested table's cells were
+            // counted as the wrapper's own. Scoping them was necessary but not
+            // sufficient: with the nested rows no longer inflating the count,
+            // such a wrapper STARTED to qualify as a ghost -- and draining it
+            // would destroy the inner table. Hence the explicit guard.
+            expect(ghost(
+                '<table><tbody><tr><td>' +
+                '<table><tbody><tr><td>x</td><td>y</td></tr></tbody></table>' +
+                '</td></tr></tbody></table>',
+            )).toBe(false);
+        });
+
+        it('does not treat a real multi-cell table as a ghost', () => {
+            expect(ghost('<table><tbody><tr><td>a</td><td>b</td></tr></tbody></table>')).toBe(false);
+        });
+    });
 });
