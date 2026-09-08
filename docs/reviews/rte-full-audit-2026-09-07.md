@@ -74,6 +74,62 @@ alternation silently never match), and the discipline of checking the SonarQube
 gate's *analysed revision and coverage fingerprint* rather than its exit code —
 the first gate run of the session exited 0 having never scanned at all.
 
+### Process retrospective: why so many of the findings were self-inflicted
+
+Eighteen of the findings were regressions introduced while fixing earlier ones.
+That is worth a diagnosis, not just a tally.
+
+**Two chains tell the whole story.**
+
+Tag pairing took five attempts across five rounds:
+
+| Round | Change | Why it was still wrong |
+| --- | --- | --- |
+| 16 | Ask the sanitizer which tags survive | Made *prose about* HTML into live markup |
+| 17 | Require the tag to be "paired" | Counted pairs across the whole document |
+| 18 | Compute pairing per block | Then unioned the sets — locality discarded |
+| 19 | Keep each set with its block | Still counted *names*, not positions |
+| 20 | Pair by position, with a stack | Correct |
+
+The off-origin URL check took three: `//host`, then also `/\host` and `\host`,
+then also `https:\host` and `https:///host`. Every one of those was correct for
+the input in front of it.
+
+**Root cause: fixing the reproduction rather than the class.** Each commit
+resolved the exact input an auditor supplied. None asked "what is the full set of
+inputs that reaches this code path?" — a question with a real answer in both
+cases: the WHATWG URL rules for authority delimiters, and "how does an HTML
+parser actually match tags" for pairing.
+
+Three mechanisms made that easy to miss:
+
+1. **Sabotage-testing gave false confidence.** Breaking the fix and watching the
+   test fail proves the *assertion* is load-bearing. It says nothing about
+   whether the *input* is representative. Only the first question was being
+   asked, so two security fixes shipped with green sabotage tests and live bugs.
+2. **Hand-rolled parsing where a specification exists.** A character-pattern
+   guess at URL authority parsing; name-counting instead of a stack for tags.
+   Both are cases where the platform's own answer was available.
+3. **Test runs scoped to the folder being edited.** `rich-text-editor/` was run
+   while `rich-text-view/`, which consumes the same services, was not — a broken
+   test sat there until the SonarQube gate refused to scan.
+
+There is also a documentation failure worth naming: commit `16b47557` is titled
+"make tag pairing local" and computes locality, then unions it away. The message
+described the intent; the code did not implement it; the symptom was gone so it
+was not re-read. **A diff should be checked against its own commit message.**
+
+**What would have prevented most of this:**
+
+- State the invariant before writing the fix — not "escape `</u>`" but "escaping
+  is symmetric for every tag the sanitizer keeps". A fix that cannot be stated as
+  a rule is a patch on a symptom.
+- For anything spec-defined, consult the spec once instead of guessing three
+  times.
+- Ask two questions of every test, not one: *can it fail*, and *is this input the
+  general case or the one shape where the bug hides*.
+- Run the consumers of a shared service, not just the folder being edited.
+
 ### Deliberately not fixed
 
 Recorded as decisions rather than quietly skipped: `<div>` vs `<p>` as the
