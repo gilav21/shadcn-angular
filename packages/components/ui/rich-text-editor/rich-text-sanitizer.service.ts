@@ -51,9 +51,10 @@ function percentDecodeToBytes(payload: string): Uint8Array | null {
             // collapsed into valid PNG magic bytes and a non-image data: URL
             // passed the content check. A genuine percent-encoded payload has
             // no code point above 0xFF -- that is what the escapes are for.
-            // charCodeAt, not codePointAt: an astral character is two code
-            // units, and codePointAt with a ++ loop re-read the low surrogate.
-            const code = payload.charCodeAt(i);
+            // An astral character yields a value above 0xFF either way (a code
+            // point of 0x1F600, or a lone surrogate of 0xD83D), so the guard
+            // below rejects it before the two-code-unit width can matter.
+            const code = payload.codePointAt(i) ?? 0;
             if (code > 0xFF) return null;
             out.push(code);
             continue;
