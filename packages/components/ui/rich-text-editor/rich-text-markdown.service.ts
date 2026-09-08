@@ -697,7 +697,12 @@ export class RichTextMarkdownService {
      * Parse line breaks (two spaces + newline or explicit \n).
      */
     private parseLineBreaks(html: string): string {
-        return html.replaceAll('  \n', '<br>\n');
+        // The newline is CONSUMED, not kept. Emitting "<br>" plus the newline
+        // meant toMarkdown -- which maps <br> back to two spaces and a newline
+        // -- produced a BLANK line, i.e. a paragraph break. So a hard break
+        // survived one save and was gone by the second: Shift+Enter, a
+        // first-class gesture, silently became a paragraph split.
+        return html.replaceAll('  \n', '<br>');
     }
 
     /**
@@ -912,8 +917,19 @@ export class RichTextMarkdownService {
      * Convert table element to Markdown table syntax.
      */
     /** Pad `contents` out to `width`, inserting blanks after each spanning cell. */
-    private padToWidth(contents: string[], cells: Element[], width: number): string[] {
+    private padToWidth(contents: string[], cells: Element[], width: number, carried: Map<number, number>): string[] {
         const padded: string[] = [];
+        // A column held by a rowspan above is occupied: emit a blank for it
+        // before any of this row's own content.
+        const takeCarried = (): void => {
+            while (carried.has(padded.length)) {
+                const left = carried.get(padded.length) ?? 0;
+                if (left > 1) carried.set(padded.length, left - 1);
+                else carried.delete(padded.length);
+                padded.push('');
+            }
+        };
+        takeCarried();
         // Bounded per ROW, not just per cell. Capping one cell at 1000 still let
         // 50 cells emit 50,000 columns: a 63 KB paste became 7.8 MB of markdown,
         // 124x amplification. The per-cell cap only covers the single-cell shape
@@ -921,6 +937,7 @@ export class RichTextMarkdownService {
         const limit = Math.min(width, MAX_TABLE_COLUMNS);
         for (const [index, cell] of cells.entries()) {
             padded.push(contents[index]);
+            takeCarried();
             const span = Number.parseInt(cell.getAttribute('colspan') ?? '1', 10);
             // Leave room for the cells still to come: a wide colspan used to
             // fill the row and every later cell was dropped, so padding blanks
@@ -981,6 +998,7 @@ export class RichTextMarkdownService {
         // colspan grid is 2.5x now), but nothing bounded rows x columns.
         let cellBudget = MAX_TABLE_CELLS;
         let rowsEmitted = 0;
+        const carried = new Map<number, number>();
 
         for (const row of rows) {
             if (cellBudget <= 0) break;
@@ -1004,7 +1022,14 @@ export class RichTextMarkdownService {
             // the label alone left a 1-cell header over a 2-dash separator, and
             // the next round-trip narrowed the separator to match, so the table
             // lost a column each cycle.
-            const paddedRow = this.padToWidth(cellContents, cells, columnCount);
+            // Columns still held by a rowspan from an earlier row are filled
+            // before this row's own cells, so everything after one shifts right.
+            // Without it a rowspan cell's neighbours moved a column LEFT: a
+            // figure from one column was filed under another, and saving made
+            // that permanent. Count-based tests all passed -- the cell count is
+            // right, only the association is wrong.
+            const paddedRow = this.padToWidth(cellContents, cells, columnCount, carried);
+            trackRowspans(cells, carried);
             cellBudget -= paddedRow.length;
             lines.push('| ' + paddedRow.join(' | ') + ' |');
             rowsEmitted++;
@@ -1262,6 +1287,9 @@ function clampSpan(span: number): number {
 /** Row appended when a table is cut short by the cell budget. */
 const TABLE_TRUNCATION_NOTICE = '… table truncated';
 
+/** How many rows a single cell may span, bounding pasted input. */
+const MAX_TABLE_ROWSPAN = 1000;
+
 const MAX_TABLE_CELLS = 20000;
 
 /** Widest row a table may emit, bounding paste amplification. */
@@ -1390,4 +1418,23 @@ function stripBlockPrefix(code: string, prefix: string): string {
             return rest;
         })
         .join('\n');
+}
+
+/**
+ * Record which columns each rowspan cell will still occupy in later rows.
+ *
+ * A rowspan cell holds its column for `rowspan - 1` further rows, so every cell
+ * after it in those rows sits one column further right. Without this the
+ * neighbours shifted left and data was filed under the wrong heading.
+ */
+function trackRowspans(cells: readonly Element[], carried: Map<number, number>): void {
+    let column = 0;
+    for (const cell of cells) {
+        while (carried.has(column)) column++;
+        const span = Number.parseInt(cell.getAttribute('rowspan') ?? '1', 10);
+        const rows = Number.isFinite(span) && span > 1 ? Math.min(span, MAX_TABLE_ROWSPAN) : 1;
+        if (rows > 1) carried.set(column, rows - 1);
+        const cols = clampSpan(Number.parseInt(cell.getAttribute('colspan') ?? '1', 10));
+        column += cols;
+    }
 }

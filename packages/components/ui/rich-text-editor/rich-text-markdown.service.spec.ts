@@ -178,7 +178,11 @@ describe('RichTextMarkdownService', () => {
         });
 
         it('converts two trailing-space line break into <br>', () => {
-            expect(service.toHtml('a  \nb')).toBe('<p>a<br>\nb</p>');
+            // No newline after the <br>. Keeping one made toMarkdown emit a
+            // BLANK line -- a paragraph break -- so the hard break did not
+            // survive a second save. The newline was only cosmetic in the HTML;
+            // the round trip is the contract.
+            expect(service.toHtml('a  \nb')).toBe('<p>a<br>b</p>');
         });
 
         it('escapes stray angle brackets that are not markdown/html', () => {
@@ -1113,6 +1117,50 @@ describe('RichTextMarkdownService', () => {
             const probe = document.createElement('div');
             probe.innerHTML = service.toHtml(service.toMarkdown(html));
             expect(probe.querySelector('table')).toBeTruthy();
+        });
+    });
+
+    describe('hard line breaks (round-24 audit)', () => {
+        it('survives two save/load cycles', () => {
+            // toHtml emits <br> plus a real newline; toMarkdown then emits
+            // "line1  " + newline + newline -- a BLANK line, which is a
+            // paragraph break, not a hard break. By the second cycle the <br>
+            // is gone for good. Shift+Enter is a first-class gesture.
+            const md = 'line1  \nline2';
+            const once = service.toMarkdown(service.toHtml(md));
+            const twice = service.toMarkdown(service.toHtml(once));
+            expect(twice).toBe(once);
+
+            const probe = document.createElement('div');
+            probe.innerHTML = service.toHtml(twice);
+            expect(probe.querySelector('br')).toBeTruthy();
+        });
+
+        it('reads back its own toHtml output', () => {
+            // The guarding test used 'x<br>y' -- no whitespace after the <br> --
+            // the one shape where the bug cannot manifest. The service's own
+            // output was never among the inputs it was tested on.
+            const html = service.toHtml('line1  \nline2');
+            expect(service.toMarkdown(html)).toBe('line1  \nline2');
+        });
+    });
+
+    describe('rowspan (round-24 audit)', () => {
+        it('does not file a cell under the wrong column', () => {
+            // colspan is handled everywhere; rowspan nowhere. A rowspan cell
+            // occupies a column in the rows BELOW it, so every later cell must
+            // shift right. Instead the value landed one column left: a Q figure
+            // filed under Region, and saving made that permanent. Every
+            // count-based table test passes, because the cell COUNT is right.
+            const html =
+                '<table><tr><th>Region</th><th>Q</th></tr>' +
+                '<tr><td rowspan="2">US</td><td>10</td></tr>' +
+                '<tr><td>20</td></tr></table>';
+            const md = service.toMarkdown(html);
+            const rows = md.split(String.fromCodePoint(10)).filter((l) => l.startsWith('|'));
+            // The third body row's value belongs in the SECOND column.
+            const lastCells = rows[rows.length - 1].split('|').slice(1, -1).map((c) => c.trim());
+            expect(lastCells[1]).toBe('20');
         });
     });
 
