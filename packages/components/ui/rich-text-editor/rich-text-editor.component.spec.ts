@@ -917,6 +917,34 @@ describe('RichTextEditorComponent', () => {
             expect(el.querySelector(':scope > ul')).toBeTruthy();
         });
 
+
+        it('does not wrap a run the caret is nowhere near', () => {
+            // When the caret is a container-offset range ON the editor -- the
+            // "between two blocks" case -- no child contains it, and the
+            // fallback grabbed the first bare node in the DOCUMENT. That wrapped
+            // text at the far end and returned its new <p> as the caret's block,
+            // so an input rule ("# ", "> ", "- ") rewrote the wrong paragraph.
+            editor.innerHTML = '';
+            editor.append(
+                document.createTextNode('alpha'),
+                (() => { const p = document.createElement('p'); p.textContent = 'BLOCK1'; return p; })(),
+                (() => { const p = document.createElement('p'); p.textContent = 'BLOCK2'; return p; })(),
+            );
+            const range = document.createRange();
+            range.setStart(editor, 2); // between BLOCK1 and BLOCK2
+            range.collapse(true);
+            const selection = document.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+
+            const wrapped = (component as unknown as {
+                wrapBareTextInParagraph(el: HTMLElement): HTMLElement | null;
+            }).wrapBareTextInParagraph(editor);
+
+            expect(wrapped).toBeNull();
+            expect(editor.firstChild?.nodeType).toBe(Node.TEXT_NODE);
+        });
+
         it('still wraps a genuinely bare text node', () => {
             editor.innerHTML = '';
             editor.appendChild(document.createTextNode('bare'));

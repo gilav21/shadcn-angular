@@ -918,14 +918,19 @@ export class RichTextMarkdownService {
         // 50 cells emit 50,000 columns: a 63 KB paste became 7.8 MB of markdown,
         // 124x amplification. The per-cell cap only covers the single-cell shape
         // the earlier test happened to use.
+        const limit = Math.min(width, MAX_TABLE_COLUMNS);
         for (const [index, cell] of cells.entries()) {
-            if (padded.length >= MAX_TABLE_COLUMNS) break;
+            if (padded.length >= limit) break;
             padded.push(contents[index]);
             const span = Number.parseInt(cell.getAttribute('colspan') ?? '1', 10);
-            const extra = Math.min(clampSpan(span) - 1, MAX_TABLE_COLUMNS - padded.length);
+            const extra = Math.min(clampSpan(span) - 1, limit - padded.length);
             for (let i = 0; i < extra; i++) padded.push('');
         }
-        while (padded.length < Math.min(width, MAX_TABLE_COLUMNS)) padded.push('');
+        // Truncated to the header's width, not merely padded up to it. A body row
+        // WIDER than the header emitted more cells than the separator describes,
+        // which is invalid GFM -- a 1-dash separator over a 3-cell row.
+        padded.length = Math.min(padded.length, limit);
+        while (padded.length < limit) padded.push('');
         return padded;
     }
 
@@ -956,7 +961,14 @@ export class RichTextMarkdownService {
         // paragraph of literal pipe characters where the table had been.
         const columnCount = this.columnSpan(rows[0]);
 
+        // A whole-table budget, not just a per-row one. Capping each row still
+        // let 5000 narrow rows emit 14 MB from 166 KB of pasted HTML -- 88x
+        // sustained. The per-row cap does bound the wide-row shape (a 50x50
+        // colspan grid is 2.5x now), but nothing bounded rows x columns.
+        let cellBudget = MAX_TABLE_CELLS;
+
         for (const row of rows) {
+            if (cellBudget <= 0) break;
             const cells = Array.from(row.querySelectorAll('th, td'));
             // Newlines inside a cell would split the row -- a one-row table came
             // back as two on reload -- so a <br> becomes the GFM in-cell break.
@@ -977,7 +989,9 @@ export class RichTextMarkdownService {
             // the label alone left a 1-cell header over a 2-dash separator, and
             // the next round-trip narrowed the separator to match, so the table
             // lost a column each cycle.
-            lines.push('| ' + this.padToWidth(cellContents, cells, columnCount).join(' | ') + ' |');
+            const paddedRow = this.padToWidth(cellContents, cells, columnCount);
+            cellBudget -= paddedRow.length;
+            lines.push('| ' + paddedRow.join(' | ') + ' |');
 
             if (!headerProcessed) {
                 const separator = new Array(Math.max(1, columnCount)).fill('---').join(' | ');
@@ -1220,6 +1234,9 @@ function clampSpan(span: number): number {
     if (!Number.isFinite(span) || span < 1) return 1;
     return Math.min(span, MAX_COLSPAN);
 }
+
+/** Total cells a table may emit, bounding many-narrow-rows amplification. */
+const MAX_TABLE_CELLS = 20000;
 
 /** Widest row a table may emit, bounding paste amplification. */
 const MAX_TABLE_COLUMNS = 1000;

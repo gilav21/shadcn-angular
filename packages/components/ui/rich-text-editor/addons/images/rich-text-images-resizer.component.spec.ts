@@ -942,6 +942,36 @@ describe('RichTextImageResizerComponent', () => {
             expect(cmp.freeSize(state, -5000, 0).width).toBeGreaterThanOrEqual(cmp.minWidth());
         });
 
+
+        it('bounds height on the LOCKED-aspect path, which is the default', () => {
+            // The round-21 fix bounded clampWidth and clampHeight, and both
+            // guarding tests called freeSize -- the lockAspectRatio:false
+            // function. lockedSize derives height by division and never clamps
+            // it, and lockAspectRatio defaults to TRUE, so the uncovered path is
+            // the one most users are on. A tall narrow image reaches 5,000,000px.
+            const cmp = component as unknown as {
+                lockedSize(
+                    s: { startWidth: number; startHeight: number; handle: string },
+                    dx: number,
+                ): { width: number; height: number };
+            };
+            const tall = cmp.lockedSize({ startWidth: 20, startHeight: 10000, handle: 'e' }, 100000);
+            expect(tall.height).toBeLessThanOrEqual(10000);
+            expect(tall.width).toBeLessThanOrEqual(10000);
+        });
+
+        it('keeps the aspect ratio when the locked path clamps', () => {
+            const cmp = component as unknown as {
+                lockedSize(
+                    s: { startWidth: number; startHeight: number; handle: string },
+                    dx: number,
+                ): { width: number; height: number };
+            };
+            // 2:1 image grown past the bound stays 2:1.
+            const wide = cmp.lockedSize({ startWidth: 200, startHeight: 100, handle: 'e' }, 100000);
+            expect(wide.width / wide.height).toBeCloseTo(2, 5);
+        });
+
         it('ignores keys that are not arrows', () => {
             const img = mountWithImage();
             press(handle('e'), 'a');

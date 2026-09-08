@@ -6311,7 +6311,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * caret. Blocks bound the run on both sides, so a wrap can never move a node
      * across one.
      */
-    private bareRunAround(editor: HTMLElement, caretNode: Node): ChildNode[] {
+    private bareRunAround(editor: HTMLElement, caretNode: Node, caretOffset: number): ChildNode[] {
         const children = Array.from(editor.childNodes);
         const isBlock = (node: ChildNode): boolean =>
             node instanceof HTMLElement && BLOCK_TAGS.has(node.tagName);
@@ -6319,10 +6319,16 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         let anchorIndex = children.findIndex(
             (node) => node === caretNode || node.contains(caretNode),
         );
-        if (anchorIndex === -1) {
-            anchorIndex = children.findIndex((node) => !isBlock(node));
+        if (anchorIndex === -1 && caretNode === editor) {
+            // A container-offset range ON the editor -- the "caret between two
+            // blocks" case. The OFFSET says where it is; searching for the first
+            // bare node in the document instead wrapped text at the far end and
+            // handed its new <p> back as the caret's block, so an input rule
+            // rewrote a paragraph the user was nowhere near.
+            anchorIndex = caretOffset < children.length ? caretOffset : children.length - 1;
         }
-        if (anchorIndex === -1 || isBlock(children[anchorIndex])) return [];
+        if (anchorIndex === -1 || anchorIndex < 0) return [];
+        if (isBlock(children[anchorIndex])) return [];
 
         let start = anchorIndex;
         while (start > 0 && !isBlock(children[start - 1])) start--;
@@ -6348,7 +6354,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         // "alpha<p>BLOCK</p>beta" it produced "<p>alphabeta</p><p>BLOCK</p>",
         // moving text from after a block to before it and merging it with
         // unrelated text.
-        const bare = this.bareRunAround(editor, startContainer);
+        const bare = this.bareRunAround(editor, startContainer, startOffset);
         if (bare.length === 0) return null;
 
         const paragraph = this.document.createElement('p');

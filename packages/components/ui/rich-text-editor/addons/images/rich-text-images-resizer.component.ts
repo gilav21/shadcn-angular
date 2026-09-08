@@ -475,10 +475,29 @@ export class RichTextImageResizerComponent implements OnDestroy {
         return Math.min(Math.min(max, MAX_IMAGE_DIMENSION), Math.max(this.minWidth(), width));
     }
 
+    /**
+     * Size with the aspect ratio held. BOTH axes are bounded here.
+     *
+     * Clamping width and then deriving height by division skipped the height
+     * bound entirely: a 20x10000 image dragged out reached 5,000,000px. And
+     * because `lockAspectRatio` defaults to true, that is the path most users
+     * are on -- the earlier bounds fix, and both of its tests, only exercised
+     * `freeSize`, the ratio-unlocked function.
+     *
+     * The ratio is preserved while clamping, so the image stays the shape it
+     * was. Only the ceiling is enforced here; the floor belongs to
+     * onPointerMove, which rejects an undersized drag rather than snapping it.
+     */
     private lockedSize(state: ResizeState, deltaX: number): { width: number; height: number } {
         const aspect = state.startWidth / state.startHeight;
         const width = this.clampWidth(state.startWidth + WIDTH_SIGN[state.handle] * deltaX);
-        return { width, height: width / aspect };
+        const height = width / aspect;
+        if (height <= MAX_IMAGE_DIMENSION) return { width, height };
+        // Only the CEILING is applied here. The floor stays with
+        // onPointerMove, which rejects an undersized result outright rather than
+        // snapping it -- raising a too-small drag to the minimum would start
+        // writing sizes where the component currently writes nothing.
+        return { width: MAX_IMAGE_DIMENSION * aspect, height: MAX_IMAGE_DIMENSION };
     }
 
     private freeSize(state: ResizeState, deltaX: number, deltaY: number): { width: number; height: number } {

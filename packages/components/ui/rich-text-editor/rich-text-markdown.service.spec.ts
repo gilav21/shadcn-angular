@@ -1123,6 +1123,29 @@ describe('RichTextMarkdownService', () => {
             expect(html).toContain('x');
         });
 
+
+        it('bounds total output across MANY NARROW rows, not just per row', () => {
+            // The per-row cap bounds the wide-row shape but not rows x columns:
+            // 5000 rows of one colspan="1000" cell turned 166KB of paste into
+            // 14.3MB of markdown, 88x sustained.
+            const row = '<tr><td colspan="1000">a</td></tr>';
+            const html = '<table><tbody>' + row.repeat(5000) + '</tbody></table>';
+            const md = service.toMarkdown(html);
+            expect(md.length).toBeLessThan(1000000);
+        });
+
+        it('truncates a body row wider than its header', () => {
+            // padToWidth only PADDED up to the header width and never truncated,
+            // so a 3-cell body row sat under a 1-dash separator -- invalid GFM.
+            const html = '<table><tr><td>a</td></tr><tr><td>b</td><td>c</td><td>d</td></tr></table>';
+            const md = service.toMarkdown(html);
+            const counts = md
+                .split('\n')
+                .filter((l) => l.trim().startsWith('|'))
+                .map((l) => l.split('|').slice(1, -1).length);
+            expect(new Set(counts).size).toBe(1);
+        });
+
         it('bounds table amplification per ROW, not just per cell', () => {
             // clampSpan caps one cell at 1000, but nothing bounded columns per
             // row: 50 rows x 50 cells of colspan="1000" turned 63KB of pasted

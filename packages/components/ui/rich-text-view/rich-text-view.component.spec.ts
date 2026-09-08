@@ -155,7 +155,10 @@ describe('RichTextViewComponent', () => {
         expect(boxes[0].checked).toBe(true);
         expect(boxes[1].checked).toBe(false);
         expect(boxes[0].tabIndex).toBe(-1);
-        expect(boxes[0].getAttribute('aria-readonly')).toBe('true');
+        // `disabled`, not `aria-readonly`: ARIA defines no readonly state for
+        // role="checkbox", so the old attribute announced nothing at all.
+        expect(boxes[0].disabled).toBe(true);
+        expect(boxes[0].getAttribute('aria-readonly')).toBeNull();
 
         const event = new MouseEvent('click', { bubbles: true, cancelable: true });
         boxes[1].dispatchEvent(event);

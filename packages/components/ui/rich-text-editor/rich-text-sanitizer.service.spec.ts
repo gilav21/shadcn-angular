@@ -807,6 +807,8 @@ describe('RichTextSanitizerService — structural size ceiling', () => {
             }
         });
 
+
+
         it('still allows ordinary same-origin and absolute URLs', () => {
             for (const url of [
                 'https://example.com/a',

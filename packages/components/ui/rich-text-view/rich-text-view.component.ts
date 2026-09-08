@@ -112,7 +112,13 @@ export class RichTextViewComponent {
             const item = box.closest('li[data-task]') as HTMLElement | null;
             box.checked = item?.dataset['checked'] === 'true';
             box.tabIndex = -1;
-            box.setAttribute('aria-readonly', 'true');
+            // `disabled`, not `aria-readonly`. A checkbox has no readonly state
+            // -- ARIA does not define aria-readonly for role="checkbox" -- so a
+            // reader announced nothing while the control was also unreachable by
+            // keyboard. `disabled` conveys "not interactive" natively, and the
+            // click blocker stays as belt and braces for pointer events.
+            box.disabled = true;
+            box.removeAttribute('aria-readonly');
         }
     }
 
