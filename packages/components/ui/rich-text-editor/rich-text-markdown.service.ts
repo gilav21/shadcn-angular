@@ -75,6 +75,66 @@ function pushListItem(
     }
 }
 
+/**
+ * Indent every line after the first by two spaces, so a block child stays
+ * inside its list item.
+ *
+ * Emitting them at column 0 let a <blockquote>, heading, table or second
+ * paragraph ESCAPE the list on save: "- Alpha" + a quote line reads back as a
+ * list followed by a separate quote, and the nesting was gone for good. Two
+ * spaces is what nested lists and fenced code in a list already use, and what
+ * parseListContinuation reads back.
+ */
+/**
+ * Drain the held continuation lines into one block, clearing both buffers.
+ * Blank lines held speculatively are discarded unless a continuation followed.
+ */
+/**
+ * Take a line that is not a list marker and attach it to the open item,
+ * reporting whether it was consumed.
+ *
+ * Three shapes belong to the item above: a parked code fence, a blank line a
+ * continuation may follow, and any line indented to the continuation column.
+ * Everything else ends the list.
+ */
+function absorbNonListLine(
+    line: string,
+    openList: ListContext | undefined,
+    continuation: string[],
+    pendingBlank: string[],
+): boolean {
+    if (!openList?.items.length) return false;
+    if (INDENTED_FENCE_TOKEN.test(line)) {
+        openList.items[openList.items.length - 1] += line.trim();
+        return true;
+    }
+    if (line.trim() === '') {
+        pendingBlank.push(line);
+        return true;
+    }
+    if (CONTINUATION_LINE.test(line)) {
+        continuation.push(...pendingBlank, line);
+        pendingBlank.length = 0;
+        return true;
+    }
+    return false;
+}
+
+function takeContinuation(continuation: string[], pendingBlank: string[]): string {
+    pendingBlank.length = 0;
+    if (continuation.length === 0) return '';
+    const block = continuation.join('\n');
+    continuation.length = 0;
+    return block;
+}
+
+function indentContinuation(content: string): string {
+    const trimmed = content.trim();
+    if (!trimmed.includes('\n')) return trimmed;
+    const [first, ...rest] = trimmed.split('\n');
+    return [first, ...rest.map((line) => (line.trim() ? '  ' + line : line))].join('\n');
+}
+
 function buildListContextHtml(ctx: ListContext): string {
     const tag = ctx.type === 'task' ? 'ul' : ctx.type;
     const taskAttr = ctx.type === 'task' ? ' data-task-list' : '';
@@ -160,6 +220,12 @@ const BLOCK_LEVEL_TAG_PATTERN = /^<(?:p|div|h[1-6]|ul|ol|li|blockquote|pre|table
 
 /** An indented line holding nothing but a parked code fence. */
 const INDENTED_FENCE_TOKEN = /^\s+\d{1,9}\s*$/;
+
+/**
+ * A line indented by at least two spaces: CommonMark's continuation of the
+ * list item above it, whatever block it turns out to hold.
+ */
+const CONTINUATION_LINE = /^ {2,}\S/;
 
 const CODE_FENCE_OPEN = '';
 const CODE_FENCE_CLOSE = '';
@@ -507,18 +573,25 @@ export class RichTextMarkdownService {
             stack.length = 0;
         };
 
+        // Lines held for the item currently open, and blank lines not yet known
+        // to belong to it. Attached to the item on flush, after the block passes
+        // have run over them at their own level.
+        const continuation: string[] = [];
+        const pendingBlank: string[] = [];
+
+        const flushContinuation = (): void => {
+            const block = takeContinuation(continuation, pendingBlank);
+            const openList = stack.at(-1);
+            if (!block || !openList?.items.length) return;
+            openList.items[openList.items.length - 1] += this.parseListContinuation(block);
+        };
+
         for (const line of lines) {
             const parsed = parseListLine(line);
 
             if (!parsed) {
-                // An indented parked code fence belongs to the item above it, not
-                // to the document. Flushing here dropped the fence outside the
-                // list and split the list around it.
-                const openList = stack.at(-1);
-                if (openList?.items.length && INDENTED_FENCE_TOKEN.test(line)) {
-                    openList.items[openList.items.length - 1] += line.trim();
-                    continue;
-                }
+                if (absorbNonListLine(line, stack.at(-1), continuation, pendingBlank)) continue;
+                flushContinuation();
                 flushStack();
                 result.push(line);
                 continue;
@@ -539,11 +612,37 @@ export class RichTextMarkdownService {
                 stack.pop();
             }
 
+            flushContinuation();
             pushListItem(stack, rootLists, type, content, indent);
         }
 
+        flushContinuation();
         flushStack();
         return result.join('\n');
+    }
+
+    /**
+     * Convert a list item's continuation block, dedented to its own level.
+     *
+     * parseBlockquotes and parseHeadings run BEFORE parseLists, so an indented
+     * "> b" or "## b" was consumed at document level and emitted outside the
+     * list -- hand-written CommonMark rendered as literal text. Re-running the
+     * block passes here, on the dedented lines, is the same recursion
+     * buildBlockquote uses for a nested quote.
+     */
+    private parseListContinuation(block: string): string {
+        const dedented = block
+            .split('\n')
+            .map((line) => line.replace(/^ {2}/, ''))
+            .join('\n')
+            .trim();
+        if (!dedented) return '';
+
+        let html = this.parseBlockquotes(dedented);
+        html = this.parseHeadings(html);
+        html = this.parseLists(html);
+        html = this.parseTables(html);
+        return html.trim();
     }
 
     /**
@@ -1178,7 +1277,7 @@ export class RichTextMarkdownService {
                     : this.elementToMarkdown(ch as HTMLElement),
             );
         }
-        return { content: childParts.join('').trim(), nestedList };
+        return { content: indentContinuation(childParts.join('')), nestedList };
     }
 
     private formatListItem(type: ListType, li: HTMLElement, content: string, indent: string, index: number): string {

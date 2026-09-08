@@ -1515,4 +1515,53 @@ describe('RichTextMarkdownService', () => {
             }
         });
     });
+
+    describe('block content inside a list item (round-26 audit)', () => {
+        const NLC = String.fromCodePoint(10);
+
+        it('keeps a quote, heading, table or code block inside its item', () => {
+            // These were emitted at column 0, so they ESCAPED the list on save:
+            // '- Alpha' + a quote line reads back as a list followed by a
+            // separate quote. The text survived; the nesting did not.
+            const cases: ReadonlyArray<readonly [string, string]> = [
+                ['<ul><li>Alpha<blockquote>Bravo</blockquote></li></ul>', 'blockquote'],
+                ['<ul><li>Alpha<h2>Bravo</h2></li></ul>', 'h2'],
+                ['<ul><li>Alpha<table><tr><td>B</td></tr></table></li></ul>', 'table'],
+                ['<ul><li>Alpha<pre><code>Bravo</code></pre></li></ul>', 'pre'],
+            ];
+            for (const [html, tag] of cases) {
+                const md = service.toMarkdown(html);
+                const probe = document.createElement('div');
+                probe.innerHTML = service.toHtml(md);
+                const li = probe.querySelector('li');
+                expect(li?.querySelector(tag)).toBeTruthy();
+                // And it is a fixed point, so it does not drift on later saves.
+                expect(service.toMarkdown(service.toHtml(md))).toBe(md);
+            }
+        });
+
+        it('parses a hand-written CommonMark continuation', () => {
+            // parseBlockquotes and parseHeadings run BEFORE parseLists, so an
+            // indented '> b' was consumed at document level and rendered as
+            // literal text -- valid markdown a user typed by hand did not work.
+            for (const [src, tag] of [
+                ['- Alpha' + NLC + '  > Bravo', 'blockquote'],
+                ['- Alpha' + NLC + '  ## Bravo', 'h2'],
+            ] as ReadonlyArray<readonly [string, string]>) {
+                const probe = document.createElement('div');
+                probe.innerHTML = service.toHtml(src);
+                expect(probe.querySelector('li')?.querySelector(tag)).toBeTruthy();
+                expect(probe.textContent).not.toContain('>' + ' Bravo');
+            }
+        });
+
+        it('still ends the list at an unindented line', () => {
+            // The continuation rule must not swallow ordinary text after a list.
+            const probe = document.createElement('div');
+            probe.innerHTML = service.toHtml('- Alpha' + NLC + NLC + 'Outside');
+            expect(probe.querySelectorAll('li')).toHaveLength(1);
+            expect(probe.querySelector('li')?.textContent).toBe('Alpha');
+            expect(probe.textContent).toContain('Outside');
+        });
+    });
 });
