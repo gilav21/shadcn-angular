@@ -316,8 +316,8 @@ const CONTENT_BEARING_UNSAFE_TAGS = new Set(['script', 'style', 'iframe', 'objec
  */
 function escapeMarkdownText(text: string): string {
     return text
-        .replaceAll(/([*_`])/g, '\\$1')
-        .replaceAll(/^([ \t]*)([*#+>-])( )/gm, '$1\\$2$3');
+        .replaceAll(/([*_`])/g, String.raw`\$1`)
+        .replaceAll(/^([ \t]*)([*#+>-])( )/gm, String.raw`$1\$2$3`);
 }
 
 @Injectable({ providedIn: 'root' })
@@ -541,7 +541,7 @@ export class RichTextMarkdownService {
     private restoreEscapes(html: string, store: string[]): string {
         if (store.length === 0) return html;
         return html.replaceAll(
-            new RegExp(`${ESCAPED_OPEN}(\\d{1,9})${ESCAPED_CLOSE}`, 'g'),
+            new RegExp(String.raw`${ESCAPED_OPEN}(\d{1,9})${ESCAPED_CLOSE}`, 'g'),
             (_match, index: string) => this.escapeHtml(store[Number(index)] ?? ''),
         );
     }
