@@ -809,6 +809,19 @@ export class RichTextMarkdownService {
 
     private elementToMarkdown(element: HTMLElement): string {
         const tagName = element.tagName.toLowerCase();
+        // These three ignore their subtree's markdown: <table> walks its own
+        // cells in tableToMarkdown, <img> and <input> render from attributes.
+        // Computing `inner` eagerly converted every table's subtree TWICE --
+        // once here, discarded, and once in tableToMarkdown -- so nested
+        // tables doubled per level: 5, 9, 15, 27, 54ms at depths 9-13, and a
+        // 430-byte document of 25 nested tables took minutes. The node budget
+        // hid this by cutting such input before it was ever converted.
+        if (SUBTREE_INDEPENDENT_TAGS.has(tagName)) {
+            const standalone = this.blockTagToMarkdown(tagName, '', element)
+                ?? this.inlineTagToMarkdown(tagName, '', element);
+            if (standalone !== null) return standalone;
+        }
+
         const inner = this.nodeToMarkdown(element);
 
         const headingLevel = this.headingTagLevel(tagName);
@@ -1074,16 +1087,9 @@ export class RichTextMarkdownService {
             MAX_TABLE_COLUMNS,
         );
 
-        // A whole-table budget, not just a per-row one. Capping each row still
-        // let 5000 narrow rows emit 14 MB from 166 KB of pasted HTML -- 88x
-        // sustained. The per-row cap does bound the wide-row shape (a 50x50
-        // colspan grid is 2.5x now), but nothing bounded rows x columns.
-        let cellBudget = MAX_TABLE_CELLS;
-        let rowsEmitted = 0;
         const carried = new Map<number, number>();
 
         for (const row of rows) {
-            if (cellBudget <= 0) break;
             const cells = Array.from(row.querySelectorAll(':scope > th, :scope > td'));
             // Newlines inside a cell would split the row -- a one-row table came
             // back as two on reload -- so a <br> becomes the GFM in-cell break.
@@ -1112,22 +1118,13 @@ export class RichTextMarkdownService {
             // right, only the association is wrong.
             const paddedRow = this.padToWidth(cellContents, cells, columnCount, carried);
             trackRowspans(cells, carried);
-            cellBudget -= paddedRow.length;
             lines.push('| ' + paddedRow.join(' | ') + ' |');
-            rowsEmitted++;
 
             if (!headerProcessed) {
                 const separator = new Array(Math.max(1, columnCount)).fill('---').join(' | ');
                 lines.push('| ' + separator + ' |');
                 headerProcessed = true;
             }
-        }
-
-        // A bound that destroys data has to say so. Breaking the loop silently
-        // turned a 5000-row paste into 954 lines on save, with no marker and no
-        // warning -- worse than the amplification it prevents.
-        if (rowsEmitted < rows.length) {
-            lines.push('| ' + TABLE_TRUNCATION_NOTICE + ' |'.repeat(Math.max(1, columnCount)));
         }
 
         return lines.join('\n');
@@ -1365,14 +1362,17 @@ function clampSpan(span: number): number {
     return Math.min(span, MAX_COLSPAN);
 }
 
-/** Total cells a table may emit, bounding many-narrow-rows amplification. */
-/** Row appended when a table is cut short by the cell budget. */
-const TABLE_TRUNCATION_NOTICE = '… table truncated';
 
 /** How many rows a single cell may span, bounding pasted input. */
-const MAX_TABLE_ROWSPAN = 1000;
+/**
+ * Tags whose markdown does not depend on their descendants' markdown:
+ * `table` re-walks its own cells, `img` and `input` render from attributes.
+ * Converting their subtree before the switch was pure waste, and quadratic
+ * for nested tables.
+ */
+const SUBTREE_INDEPENDENT_TAGS = new Set(['table', 'img', 'input']);
 
-const MAX_TABLE_CELLS = 20000;
+const MAX_TABLE_ROWSPAN = 1000;
 
 /** Widest row a table may emit, bounding paste amplification. */
 const MAX_TABLE_COLUMNS = 1000;

@@ -652,17 +652,26 @@ describe('RichTextSanitizerService — structural size ceiling', () => {
         service = TestBed.inject(RichTextSanitizerService);
     });
 
-    it('drops content past the node budget instead of building it all', () => {
-        // Length limits bound the TEXT a paste carries, not its structure — so a
-        // spreadsheet range pasted as a table can arrive as tens of thousands of
-        // cells with almost no text, and nothing stopped it.
+    it('keeps every cell of a large table, and stays fast', () => {
+        // This asserted the OPPOSITE: that content past a 20k node budget was
+        // dropped. The budget existed to hide a quadratic walk in
+        // elementToMarkdown (every <table> subtree was converted twice, so
+        // nested tables doubled per level -- 5, 9, 15, 27, 54ms at depths
+        // 9-13). With that fixed, the budget only destroyed large-but-
+        // legitimate pastes: a 5000-row spreadsheet lost 4000 rows in
+        // silence, and saving made it permanent. Slow beats destroyed -- and
+        // nothing here is slow.
         const cells = Array.from({ length: 40000 }, () => '<td>x</td>').join('');
         const huge = `<table><tbody><tr>${cells}</tr></tbody></table>`;
 
+        const started = performance.now();
         const out = service.sanitize(huge);
+        const elapsed = performance.now() - started;
         const parsed = new DOMParser().parseFromString(out, 'text/html');
 
-        expect(parsed.querySelectorAll('td').length).toBeLessThan(40000);
+        expect(parsed.querySelectorAll('td')).toHaveLength(40000);
+        expect(parsed.body.textContent).toHaveLength(40000);
+        expect(elapsed).toBeLessThan(5000);
     });
 
     it('leaves an ordinary document untouched', () => {

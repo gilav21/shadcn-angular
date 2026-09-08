@@ -30,12 +30,6 @@ export interface SanitizerAttributeRule {
  * - Event handler removal
  * - Deep DOM traversal and cleaning
  */
-/**
- * Largest number of nodes one sanitize pass will emit. Generous by design: real
- * documents, even long ones with tables, sit far below it.
- */
-const MAX_SANITIZED_NODES = 20000;
-
 /** URL schemes a link in editor content may use. */
 const LINK_SCHEMES = new Set(['http', 'https', 'mailto', 'tel', 'sms', 'ftp']);
 
@@ -244,7 +238,6 @@ export class RichTextSanitizerService {
         /** Create a clean container */
         const cleanContainer = this.document.createElement('div');
 
-        this.nodeBudget = MAX_SANITIZED_NODES;
         this.processNodes(doc.body, cleanContainer);
         this.dropOrphanCompanionAttributes(cleanContainer);
 
@@ -429,21 +422,8 @@ export class RichTextSanitizerService {
     /**
      * Process nodes recursively, copying safe content to clean container.
      */
-    /**
-     * Remaining nodes this sanitize pass will emit.
-     *
-     * Length limits bound the TEXT a paste carries, not its structure, so a
-     * document of mostly markup — a spreadsheet range pasted as a table with
-     * tens of thousands of cells — slipped through with almost no text at all.
-     * The budget is far above any hand-authored document; content past it is
-     * dropped rather than freezing the editor while it builds the DOM.
-     */
-    private nodeBudget = MAX_SANITIZED_NODES;
-
     private processNodes(source: Node, target: HTMLElement): void {
         for (const node of Array.from(source.childNodes)) {
-            if (this.nodeBudget <= 0) return;
-            this.nodeBudget--;
             if (node.nodeType === Node.TEXT_NODE) {
                 target.appendChild(this.document.createTextNode(node.textContent ?? ''));
             } else if (node.nodeType === Node.ELEMENT_NODE) {

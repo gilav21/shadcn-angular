@@ -1269,14 +1269,60 @@ describe('RichTextMarkdownService', () => {
         });
 
 
-        it('bounds total output across MANY NARROW rows, not just per row', () => {
-            // The per-row cap bounds the wide-row shape but not rows x columns:
-            // 5000 rows of one colspan="1000" cell turned 166KB of paste into
-            // 14.3MB of markdown, 88x sustained.
+        it('keeps every row of a many-narrow-rows table, and stays fast', () => {
+            // This asserted a 1MB output ceiling, which the cell budget met by
+            // DELETING rows -- 5000 rows became 953, silently, and saving made
+            // it permanent. The budget was hiding a quadratic walk in
+            // elementToMarkdown, not preventing a hang; with that fixed this
+            // shape converts in ~100ms.
+            //
+            // Output size is deliberately NOT asserted. colspan=1000 x 5000
+            // rows genuinely amplifies 88x (166KB -> 14.3MB) because markdown
+            // has to pad every row to the table's width -- but it is malformed
+            // input, and a REAL wide table shrinks instead (196KB -> 84KB).
+            // Bounding that output is an open product decision; losing the
+            // user's rows to meet a number is not.
             const row = '<tr><td colspan="1000">a</td></tr>';
             const html = '<table><tbody>' + row.repeat(5000) + '</tbody></table>';
+
+            const started = performance.now();
             const md = service.toMarkdown(html);
-            expect(md.length).toBeLessThan(1000000);
+            const elapsed = performance.now() - started;
+
+            // 5000 data rows + 1 separator; none dropped.
+            expect(md.split(String.fromCodePoint(10))).toHaveLength(5001);
+            expect(md).not.toContain('truncated');
+            expect(elapsed).toBeLessThan(5000);
+        });
+
+        it('converts a nested table subtree once, not once per level', () => {
+            // elementToMarkdown computed `inner` for EVERY element before the
+            // switch chose a renderer -- but <table> discards it and re-walks
+            // its own cells, so each level converted its subtree twice and
+            // nested tables doubled per level: 5, 9, 15, 27, 54ms at depths
+            // 9-13, minutes by depth 25 from a 430-byte document. The node
+            // budget hid it by cutting such input before conversion.
+            //
+            // Timing is asserted as a RATIO, not a threshold: depth 13 costs
+            // only ~53ms even when quadratic, so any absolute bound loose
+            // enough to be stable passes with the bug present. Doubling the
+            // depth must not explode the cost.
+            const nest = (d: number): string =>
+                '<table><tr><td>'.repeat(d) + 'x' + '</td></tr></table>'.repeat(d);
+
+            const time = (html: string): number => {
+                const started = performance.now();
+                service.toMarkdown(html);
+                return performance.now() - started;
+            };
+
+            time(nest(8));
+            const shallow = Math.max(time(nest(10)), 1);
+            const deep = time(nest(20));
+
+            // Linear: depth 20 is ~2x depth 10. Quadratic: ~1000x.
+            expect(deep / shallow).toBeLessThan(20);
+            expect(service.toMarkdown(nest(20))).toContain('x');
         });
 
 
