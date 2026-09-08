@@ -264,6 +264,28 @@ describe('RichTextSanitizerService', () => {
             expect(hidden).not.toContain('onload');
         });
 
+        it('rejects a payload that only LOOKS like an image after truncation', () => {
+            // Uint8Array takes a code point mod 256, so a run of multi-byte
+            // characters collapsed into valid PNG magic bytes and a data: URL
+            // holding no image at all passed the content check. U+0189 U+010D
+            // U+010A U+011A truncate to 0x89 0x0D 0x0A 0x1A.
+            const spoof = 'data:image/png,' + String.fromCodePoint(0x189) + 'PNG'
+                + String.fromCodePoint(0x10D, 0x10A, 0x11A, 0x10A) + 'X';
+            expect(service.sanitizeImageSrc(spoof)).toBeNull();
+
+            // An astral character is two code units; codePointAt with a ++ loop
+            // re-read the low surrogate and desynced the length.
+            expect(service.sanitizeImageSrc('data:image/png,' + String.fromCodePoint(0x1F600))).toBeNull();
+
+            // Genuine percent-encoded images are unaffected.
+            for (const src of [
+                'data:image/png,%89PNG%0D%0A%1A%0A',
+                'data:image/jpeg,%FF%D8%FF%E0',
+            ]) {
+                expect(service.sanitizeImageSrc(src)).toBe(src);
+            }
+        });
+
         it('should allow data:image/svg+xml with valid SVG and sanitize content', () => {
             const svg = '<svg xmlns="http://www.w3.org/2000/svg"><rect width="10" height="10"/></svg>';
             const src = `data:image/svg+xml;base64,${btoa(svg)}`;

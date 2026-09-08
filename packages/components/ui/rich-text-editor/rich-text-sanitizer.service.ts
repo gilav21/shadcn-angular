@@ -46,7 +46,16 @@ function percentDecodeToBytes(payload: string): Uint8Array | null {
     for (let i = 0; i < payload.length; i++) {
         const ch = payload[i];
         if (ch !== '%') {
-            out.push(payload.codePointAt(i) ?? 0);
+            // Rejected, not truncated. Uint8Array silently takes a code point
+            // mod 256, so a run of multi-byte characters (U+0189 U+010D ...)
+            // collapsed into valid PNG magic bytes and a non-image data: URL
+            // passed the content check. A genuine percent-encoded payload has
+            // no code point above 0xFF -- that is what the escapes are for.
+            // charCodeAt, not codePointAt: an astral character is two code
+            // units, and codePointAt with a ++ loop re-read the low surrogate.
+            const code = payload.charCodeAt(i);
+            if (code > 0xFF) return null;
+            out.push(code);
             continue;
         }
         const hex = payload.slice(i + 1, i + 3);
