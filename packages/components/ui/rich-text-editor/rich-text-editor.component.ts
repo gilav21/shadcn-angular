@@ -6306,6 +6306,32 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * caret inside it, returning that paragraph. Only reached when the browser
      * left typed characters unwrapped.
      */
+    /**
+     * The unbroken run of non-block children that contains (or sits next to) the
+     * caret. Blocks bound the run on both sides, so a wrap can never move a node
+     * across one.
+     */
+    private bareRunAround(editor: HTMLElement, caretNode: Node): ChildNode[] {
+        const children = Array.from(editor.childNodes);
+        const isBlock = (node: ChildNode): boolean =>
+            node instanceof HTMLElement && BLOCK_TAGS.has(node.tagName);
+
+        let anchorIndex = children.findIndex(
+            (node) => node === caretNode || node.contains(caretNode),
+        );
+        if (anchorIndex === -1) {
+            anchorIndex = children.findIndex((node) => !isBlock(node));
+        }
+        if (anchorIndex === -1 || isBlock(children[anchorIndex])) return [];
+
+        let start = anchorIndex;
+        while (start > 0 && !isBlock(children[start - 1])) start--;
+        let end = anchorIndex;
+        while (end + 1 < children.length && !isBlock(children[end + 1])) end++;
+
+        return children.slice(start, end + 1);
+    }
+
     private wrapBareTextInParagraph(editor: HTMLElement): HTMLElement | null {
         const selection = this.document.getSelection();
         if (!selection || selection.rangeCount === 0) return null;
@@ -6317,9 +6343,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         // document with real blocks in it got nested inside a new <p>: invalid
         // markup, a list losing top level, and a DOM/model desync that compounded
         // a nesting level and two empty paragraphs on every keystroke.
-        const bare = Array.from(editor.childNodes).filter(
-            (node) => !(node instanceof HTMLElement) || !BLOCK_TAGS.has(node.tagName),
-        );
+        // Only the CONTIGUOUS run holding the caret. Collecting every bare node
+        // in the document fused separated runs and teleported them: given
+        // "alpha<p>BLOCK</p>beta" it produced "<p>alphabeta</p><p>BLOCK</p>",
+        // moving text from after a block to before it and merging it with
+        // unrelated text.
+        const bare = this.bareRunAround(editor, startContainer);
         if (bare.length === 0) return null;
 
         const paragraph = this.document.createElement('p');

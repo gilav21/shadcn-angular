@@ -461,9 +461,18 @@ export class RichTextImageResizerComponent implements OnDestroy {
         }, KEYBOARD_RESIZE_COALESCE_MS);
     }
 
+    /**
+     * Clamp a width, symmetrically with {@link clampHeight}.
+     *
+     * The height fix was applied to only one of two mirror-image axes: width had
+     * no lower bound (a fast leftward drag computed a negative width, which
+     * onPointerMove then refused to write -- the "frozen drag" that fix claims
+     * to have removed) and no ceiling at all when maxWidth is unset, which is
+     * the default.
+     */
     private clampWidth(width: number): number {
-        const max = this.maxWidth();
-        return max === undefined ? width : Math.min(width, max);
+        const max = this.maxWidth() ?? MAX_IMAGE_DIMENSION;
+        return Math.min(Math.min(max, MAX_IMAGE_DIMENSION), Math.max(this.minWidth(), width));
     }
 
     private lockedSize(state: ResizeState, deltaX: number): { width: number; height: number } {

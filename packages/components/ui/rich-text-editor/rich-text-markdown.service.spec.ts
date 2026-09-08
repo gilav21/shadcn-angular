@@ -1108,4 +1108,31 @@ describe('RichTextMarkdownService', () => {
             expect(probe.querySelector('table')).toBeTruthy();
         });
     });
+
+    describe('resource bounds (round-21 audit)', () => {
+        it('does not hang on a deeply nested blockquote', () => {
+            // Two independent bounds were missing. buildBlockquote recursed with
+            // no depth guard, AND FENCE_PATTERN's quote-marker group backtracked
+            // catastrophically over a run of markers -- 59ms at depth 20, 385ms
+            // at 26, doubling per level. A 120-byte document froze the tab, and
+            // it arrives from paste, file import and <ui-rich-text-view [value]>.
+            const md = '> '.repeat(60) + 'x';
+            const started = performance.now();
+            const html = service.toHtml(md);
+            expect(performance.now() - started).toBeLessThan(1000);
+            expect(html).toContain('x');
+        });
+
+        it('bounds table amplification per ROW, not just per cell', () => {
+            // clampSpan caps one cell at 1000, but nothing bounded columns per
+            // row: 50 rows x 50 cells of colspan="1000" turned 63KB of pasted
+            // HTML into 7.8MB of markdown. The existing test used a SINGLE cell
+            // -- the one shape a per-cell cap already handles.
+            const cell = '<td colspan="1000">x</td>';
+            const row = '<tr>' + cell.repeat(50) + '</tr>';
+            const html = '<table><tbody>' + row.repeat(50) + '</tbody></table>';
+            const md = service.toMarkdown(html);
+            expect(md.length).toBeLessThan(500000);
+        });
+    });
 });

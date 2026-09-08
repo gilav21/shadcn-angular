@@ -864,28 +864,57 @@ describe('RichTextEditorComponent', () => {
     });
 
 
-    describe('wrapBareTextInParagraph (round-20 audit)', () => {
-        it('does not swallow existing block elements', () => {
-            // Despite its name it moved EVERY top-level child into a new <p>,
-            // guarded only by "the caret is on the editor" -- which holds
-            // whenever the caret sits between blocks. The result was invalid
-            // nested <p>, a list losing top level, and a DOM/model desync that
-            // compounded a level and two empty paragraphs per keystroke.
-            editor.innerHTML = '<p>alpha</p><ul><li>bravo</li></ul>';
+    describe('wrapBareTextInParagraph', () => {
+        function wrap(html: string, caretIndex: number): HTMLElement {
+            editor.innerHTML = html;
             const range = document.createRange();
-            range.setStart(editor, 1);
+            range.setStart(editor, caretIndex);
             range.collapse(true);
             const selection = document.getSelection();
             selection?.removeAllRanges();
             selection?.addRange(range);
-
-            const wrap = component as unknown as {
+            (component as unknown as {
                 wrapBareTextInParagraph(el: HTMLElement): HTMLElement | null;
-            };
-            wrap.wrapBareTextInParagraph(editor);
+            }).wrapBareTextInParagraph(editor);
+            return editor;
+        }
 
+        it('does not move text across a block boundary', () => {
+            // The round-20 fix collected EVERY bare node in the document, so
+            // separated runs were fused and reordered. The tests guarding it were
+            // vacuous: one used only blocks (bare.length === 0, so the function
+            // early-returned and neither assertion executed any logic), the other
+            // used a lone text node (no blocks, so ordering could not be wrong).
+            editor.innerHTML = '';
+            editor.append(
+                document.createTextNode('alpha'),
+                (() => { const p = document.createElement('p'); p.textContent = 'BLOCK'; return p; })(),
+                document.createTextNode('beta'),
+            );
+            const range = document.createRange();
+            range.setStart(editor.firstChild as Node, 2);
+            range.collapse(true);
+            const selection = document.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+            (component as unknown as {
+                wrapBareTextInParagraph(el: HTMLElement): HTMLElement | null;
+            }).wrapBareTextInParagraph(editor);
+
+            expect(editor.textContent).toBe('alphaBLOCKbeta');
             expect(editor.querySelector('p p')).toBeNull();
-            expect(editor.querySelector(':scope > ul')).toBeTruthy();
+        });
+
+        it('does not fuse two separated inline runs', () => {
+            const el = wrap('<p>a</p><b>bold</b><p>c</p><i>it</i>', 1);
+            expect(el.textContent).toBe('aboldcit');
+            expect(el.querySelector('p p')).toBeNull();
+        });
+
+        it('leaves a document of blocks alone', () => {
+            const el = wrap('<p>alpha</p><ul><li>bravo</li></ul>', 1);
+            expect(el.querySelector('p p')).toBeNull();
+            expect(el.querySelector(':scope > ul')).toBeTruthy();
         });
 
         it('still wraps a genuinely bare text node', () => {
@@ -897,11 +926,9 @@ describe('RichTextEditorComponent', () => {
             const selection = document.getSelection();
             selection?.removeAllRanges();
             selection?.addRange(range);
-
-            const wrap = component as unknown as {
+            const p = (component as unknown as {
                 wrapBareTextInParagraph(el: HTMLElement): HTMLElement | null;
-            };
-            const p = wrap.wrapBareTextInParagraph(editor);
+            }).wrapBareTextInParagraph(editor);
 
             expect(p?.tagName).toBe('P');
             expect(editor.querySelector('p')?.textContent).toBe('bare');

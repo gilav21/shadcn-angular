@@ -367,13 +367,24 @@ export class RichTextMarkdownService {
      * two characters on every save/load, forever. Quoted lists are ordinary
      * content; they get the ordinary treatment.
      */
-    private buildBlockquote(lines: readonly string[]): string {
+    private buildBlockquote(lines: readonly string[], depth = 0): string {
         // A quoted line that is itself quoted opens a deeper level. Stripping a
         // single ">" and never recursing left the second marker as a literal
         // ">" character in the output, so nested quotes -- ordinary markdown --
         // simply did not work.
-        if (lines.some((line) => line.startsWith('> ') || line === '>')) {
-            return `<blockquote>${this.parseBlockquotes(lines.join('\n'))}</blockquote>`;
+        //
+        // The depth cap is not cosmetic: each level re-runs parseBlockquotes AND
+        // parseLists over the remaining text, so the cost is exponential --
+        // measured 1ms, 7ms, 204ms at depths 10, 20, 25. An 81-byte document of
+        // 40 markers froze the tab, and it arrives from paste, file import and
+        // <ui-rich-text-view [value]>. Past the cap the rest stays literal text,
+        // which is what CommonMark implementations do.
+        const nested = lines.some((line) => line.startsWith('> ') || line === '>');
+        if (nested && depth < MAX_BLOCKQUOTE_DEPTH) {
+            return `<blockquote>${this.parseBlockquotes(lines.join('\n'), depth + 1)}</blockquote>`;
+        }
+        if (nested) {
+            return `<blockquote>${this.escapeHtml(lines.join('\n'))}</blockquote>`;
         }
 
         const listed = this.parseLists(lines.join('\n'));
@@ -383,7 +394,7 @@ export class RichTextMarkdownService {
         return `<blockquote>${body}</blockquote>`;
     }
 
-    private parseBlockquotes(html: string): string {
+    private parseBlockquotes(html: string, depth = 0): string {
         const lines = html.split('\n');
         const result: string[] = [];
         let inBlockquote = false;
@@ -395,7 +406,7 @@ export class RichTextMarkdownService {
                 blockquoteContent.push(line.replace(/^>\s?/, ''));
             } else {
                 if (inBlockquote) {
-                    result.push(this.buildBlockquote(blockquoteContent));
+                    result.push(this.buildBlockquote(blockquoteContent, depth));
                     blockquoteContent = [];
                     inBlockquote = false;
                 }
@@ -404,7 +415,7 @@ export class RichTextMarkdownService {
         }
 
         if (inBlockquote) {
-            result.push(this.buildBlockquote(blockquoteContent));
+            result.push(this.buildBlockquote(blockquoteContent, depth));
         }
 
         return result.join('\n');
@@ -903,22 +914,30 @@ export class RichTextMarkdownService {
     /** Pad `contents` out to `width`, inserting blanks after each spanning cell. */
     private padToWidth(contents: string[], cells: Element[], width: number): string[] {
         const padded: string[] = [];
-        cells.forEach((cell, index) => {
+        // Bounded per ROW, not just per cell. Capping one cell at 1000 still let
+        // 50 cells emit 50,000 columns: a 63 KB paste became 7.8 MB of markdown,
+        // 124x amplification. The per-cell cap only covers the single-cell shape
+        // the earlier test happened to use.
+        for (const [index, cell] of cells.entries()) {
+            if (padded.length >= MAX_TABLE_COLUMNS) break;
             padded.push(contents[index]);
             const span = Number.parseInt(cell.getAttribute('colspan') ?? '1', 10);
-            const extra = clampSpan(span) - 1;
+            const extra = Math.min(clampSpan(span) - 1, MAX_TABLE_COLUMNS - padded.length);
             for (let i = 0; i < extra; i++) padded.push('');
-        });
-        while (padded.length < width) padded.push('');
+        }
+        while (padded.length < Math.min(width, MAX_TABLE_COLUMNS)) padded.push('');
         return padded;
     }
 
     /** A row's width in columns, counting each cell's colspan. */
     private columnSpan(row: HTMLElement): number {
-        return Array.from(row.querySelectorAll('th, td')).reduce((total, cell) => {
+        const total = Array.from(row.querySelectorAll('th, td')).reduce((sum, cell) => {
             const span = Number.parseInt(cell.getAttribute('colspan') ?? '1', 10);
-            return total + clampSpan(span);
+            return sum + clampSpan(span);
         }, 0);
+        // Same row bound as padToWidth, so the separator cannot be wider than
+        // the rows it describes.
+        return Math.min(total, MAX_TABLE_COLUMNS);
     }
 
     private tableToMarkdown(table: HTMLElement): string {
@@ -1202,6 +1221,12 @@ function clampSpan(span: number): number {
     return Math.min(span, MAX_COLSPAN);
 }
 
+/** Widest row a table may emit, bounding paste amplification. */
+const MAX_TABLE_COLUMNS = 1000;
+
+/** How deep nested blockquotes may nest before the rest is left as text. */
+const MAX_BLOCKQUOTE_DEPTH = 32;
+
 /** HTML's own limit for a column span. */
 const MAX_COLSPAN = 1000;
 
@@ -1286,8 +1311,15 @@ function pairedTagOffsets(block: string): ReadonlySet<number> {
  * A fenced block, with whatever prefix opens its line. The prefix is the quote
  * markers and indentation that put the fence inside another block; body lines
  * repeat it and must have it removed before the code is read.
+ *
+ * The marker group is `(?:>[ 	]?)*`, NOT `(?:[ 	]*> ?)*`. The latter let the
+ * inner and trailing whitespace runs match the same spaces, which backtracks
+ * catastrophically on a run of quote markers: measured 59ms at depth 20, 385ms
+ * at 26, doubling per level, so a 120-byte document froze the tab. Indentation
+ * belongs to exactly one place -- after the markers -- so the two runs cannot
+ * compete.
  */
-const FENCE_PATTERN = /^((?:[ \t]*> ?)*[ \t]*)(```|~~~)(\w*)\n([\s\S]*?)^\1?\2/gm;
+const FENCE_PATTERN = /^((?:>[ \t]?)*[ \t]*)(```|~~~)(\w*)\n([\s\S]*?)^\1?\2/gm;
 
 /** Remove `prefix` (and any looser quote/indent form of it) from each line. */
 function stripBlockPrefix(code: string, prefix: string): string {

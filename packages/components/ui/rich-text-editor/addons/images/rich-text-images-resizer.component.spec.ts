@@ -923,6 +923,25 @@ describe('RichTextImageResizerComponent', () => {
             expect(huge.height).toBeLessThanOrEqual(10000);
         });
 
+
+        it('bounds WIDTH at both ends, like height', () => {
+            // The height fix covered one of two mirror-image axes. The guarding
+            // test dragged 100,000px on the axis that was fixed and 100px on the
+            // one that was broken -- a degenerate input for this bug.
+            const cmp = component as unknown as {
+                freeSize(
+                    s: { startWidth: number; startHeight: number; handle: string },
+                    dx: number,
+                    dy: number,
+                ): { width: number; height: number };
+                minWidth(): number;
+            };
+            const state = { startWidth: 200, startHeight: 100, handle: 'e' };
+
+            expect(cmp.freeSize(state, 100000, 0).width).toBeLessThanOrEqual(10000);
+            expect(cmp.freeSize(state, -5000, 0).width).toBeGreaterThanOrEqual(cmp.minWidth());
+        });
+
         it('ignores keys that are not arrows', () => {
             const img = mountWithImage();
             press(handle('e'), 'a');
