@@ -938,3 +938,49 @@ in the first place. A wrong test had encoded a wrong contract.
 
 Defects frozen into tests as asserted-correct: **twenty** (twelve now mine).
 Regressions introduced while fixing other findings: **twenty-eight**.
+
+---
+
+## Round 24 — adversarial sweep (10 findings, 8 fixed, 2 open)
+
+| # | Sev | Finding | Fix | Commit |
+|---|---|---|---|---|
+| R24-1 | HIGH | **ReDoS guard defeated by a redundant paren.** `scanGroup` recorded a quantifier only at depth 1, so `((a+))+$` took **12.4 s** on 28 characters and `((?:a+))+$` reintroduced the previous round's fix one level out. | Quantifiers tracked at any depth. | `8a9bed62` |
+| R24-2 | HIGH | **`rowspan` filed data under the wrong column.** A rowspan cell holds its column in later rows, so following cells must shift right — instead they shifted left, putting a Q figure under Region, permanently on save. | Carried columns filled before the row's own cells. | `d2c2a90d` |
+| R24-3 | HIGH | **Locked-aspect resize froze.** An 800×50 banner stopped responding at ~500 px: the derived height (18.75 px) failed the floor gate and the whole write was refused — the exact symptom the earlier fix claimed to remove, which had landed on `freeSize` where the axes are independent. | Floor applied inside the ratio calculation. | `8a9bed62` |
+| R24-4 | HIGH | **Hard line breaks destroyed on the second save.** `<br>` plus a kept newline round-tripped to a blank line — a paragraph break. Shift+Enter survived one save and was gone by the second. | Newline consumed. | `d2c2a90d` |
+| R24-5 | MEDIUM | The colspan `break` still dropped every cell after a wide span, emitting padding blanks in preference to content. | Padding yields to remaining cells. | `8a9bed62` |
+| R24-6 | MEDIUM | Table rows silently truncated by the cell budget. | **Open.** Notice code is in and correct, but no meaningful test — see below. | — |
+| R24-7 | MEDIUM | Fenced code escapes its list item on the first conversion. | **Open.** Stable fixed point after; the two-pass test passes because the damage lands on pass one. | — |
+| R24-8 | LOW | `<thead>` after `<tbody>` puts a body row in the header. | **Open.** | — |
+| R24-9 | LOW | Unscoped `tr` queries in the paste normalizer — the defect just fixed one file over. | **Open, latent.** Auditor could not reach `unwrapGhostTables` through `normalize()`; dead code today, one call-site change from live. | — |
+| R24-10 | LOW | `disabled` removed frozen checkboxes from screen-reader form navigation. | `aria-disabled` keeps them perceivable. | `0cd8e915` |
+
+### Three more tests that asserted the bug
+
+- Two **enshrined the resize freeze**, asserting an undersized drag writes
+  *nothing*, on a 2:1 fixture where that looks like a legitimate floor.
+- One asserted `<br>
+` — the very shape that made hard breaks decay.
+
+### The converter's own output is its most representative input
+
+R24-4's guarding test used `x<br>y`: no whitespace after the `<br>`, the one
+shape where the bug cannot manifest. **The service's own output was never among
+the inputs it was tested on.** For any `toX`/`fromX` pair, `fromX(toX(input))`
+belongs in the suite — that is where round-trip decay lives, and four separate
+findings in this series have been round-trip decay.
+
+### On stopping
+
+R24-6 consumed a dozen turns for a LOW-severity notice. Probes showed 20,000
+input rows arriving as 4,000 and `rowsEmitted === rows.length`, meaning the rows
+vanish upstream of `tableToMarkdown` rather than in the budget loop being
+patched. The test was removed rather than shipped passing-for-unknown-reasons,
+and the finding left open. **Time-boxing should have happened several turns
+earlier**, with the two HIGH findings still unfixed at that point.
+
+### Scoreboard
+
+Defects frozen into tests as asserted-correct: **twenty-three** (fifteen mine).
+Regressions introduced while fixing other findings: **thirty-two**.
