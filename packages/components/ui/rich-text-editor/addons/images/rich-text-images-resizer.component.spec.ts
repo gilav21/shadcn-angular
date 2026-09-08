@@ -1002,13 +1002,15 @@ describe('RichTextImageResizerComponent', () => {
         });
 
 
-        it('shrinks a wide banner instead of freezing at the height floor', () => {
-            // lockedSize floors WIDTH, then derives height by division. For an
-            // aspect > 1 the derived height drops under minWidth while the width
-            // is still far above it, and onPointerMove's gate refuses the whole
-            // write -- the image stops responding mid-drag with no feedback.
-            // That is the "frozen drag" the previous fix claims to have removed;
-            // it landed on freeSize, where the axes are independent.
+        it('honours the requested width while the ratio allows it', () => {
+            // The previous version asserted only that both axes cleared the
+            // floor, so 1600, 100000 or Infinity all passed -- it could not see
+            // the floor being back-projected onto the axis being dragged.
+            //
+            // With a 50:1 ratio and a 20px floor, ANY width under 1000px forces
+            // the height under the floor, so clamping to one minimum size there
+            // is correct geometry, not a freeze. What must hold is that the
+            // width tracks the request until that bound, and never exceeds it.
             const cmp = component as unknown as {
                 lockedSize(
                     s: { startWidth: number; startHeight: number; handle: string },
@@ -1016,13 +1018,28 @@ describe('RichTextImageResizerComponent', () => {
                 ): { width: number; height: number };
                 minWidth(): number;
             };
-            const banner = { startWidth: 800, startHeight: 50, handle: 'e' };
+            const banner = { startWidth: 2000, startHeight: 40, handle: 'e' };
             const min = cmp.minWidth();
 
-            // Dragging inward by 500 asks for a 300px width.
-            const size = cmp.lockedSize(banner, -500);
-            expect(size.width).toBeGreaterThanOrEqual(min);
-            expect(size.height).toBeGreaterThanOrEqual(min);
+            expect(cmp.lockedSize(banner, -500).width).toBeCloseTo(1500, 0);
+            expect(cmp.lockedSize(banner, -1000).width).toBeCloseTo(1000, 0);
+
+            // Past the bound both axes sit exactly on the floor, never under it,
+            // and never inflated above the request.
+            const clamped = cmp.lockedSize(banner, -1900);
+            expect(clamped.height).toBeCloseTo(min, 5);
+            expect(clamped.width).toBeLessThanOrEqual(1000);
+        });
+
+        it('never returns a dimension under the floor it enforces', () => {
+            const cmp = component as unknown as {
+                ratioBoundedSize(width: number, aspect: number): { width: number; height: number };
+                minWidth(): number;
+            };
+            const min = cmp.minWidth();
+            const r = cmp.ratioBoundedSize(9000, 0.001);
+            expect(r.width).toBeGreaterThanOrEqual(min);
+            expect(r.height).toBeGreaterThanOrEqual(min);
         });
 
         it('ignores keys that are not arrows', () => {

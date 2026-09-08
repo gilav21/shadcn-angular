@@ -147,6 +147,10 @@ const URL_SHIELD: ReadonlyArray<readonly [string, string]> = [
  */
 const PASSTHROUGH_TAG_PATTERN = /<\/?([a-zA-Z][a-zA-Z0-9]*)\b[^<>]{0,4096}>/g;
 
+/** Private-use delimiters parking an inline code span; distinct from the fence pair so a lone span is not read as a block. */
+const INLINE_CODE_OPEN = '';
+const INLINE_CODE_CLOSE = '';
+
 /** Private-use delimiters parking a fenced code block during the inline passes. */
 /** A block whose first token is a parked raw tag: already markup, not prose. */
 const RAW_TAG_ONLY_BLOCK = /^(\d{1,9})/;
@@ -205,6 +209,12 @@ export class RichTextMarkdownService {
         // -- rendering "</div>" as visible "&lt;/div&gt;".
         const protectedCode: string[] = [];
         html = this.protectCodeFences(html, protectedCode);
+        // Inline code is lifted out with the fences and for the same reason: a
+        // code span is inert text. parseInlineCode ran LAST, after the emphasis
+        // and line-break passes had already rewritten its contents, so
+        // documenting `<br>` or `<b>x</b>` corrupted it on the first save.
+        const protectedInline: string[] = [];
+        html = this.protectInlineCode(html, protectedInline);
 
         const protectedTags: string[] = [];
         html = this.protectRawTags(html, protectedTags);
@@ -224,7 +234,6 @@ export class RichTextMarkdownService {
         html = this.parseLinks(html);
         html = this.parseBoldItalic(html);
         html = this.parseStrikethrough(html);
-        html = this.parseInlineCode(html);
         html = this.parseLineBreaks(html);
 
         // After the emphasis passes, so the characters hidden in link and image
@@ -233,6 +242,7 @@ export class RichTextMarkdownService {
 
         html = this.restoreRawTags(html, protectedTags);
         html = this.restoreCodeFences(html, protectedCode);
+        html = this.restoreInlineCode(html, protectedInline);
 
         return this.sanitizer.sanitize(html);
     }
@@ -309,6 +319,25 @@ export class RichTextMarkdownService {
                 return token;
             },
         );
+    }
+
+    /**
+     * Park inline code spans, already escaped, in the same store the fences use.
+     *
+     * Both are inert text, so both must sit out every pass that rewrites
+     * content. Running `parseInlineCode` at the end instead meant the emphasis
+     * and line-break passes had already been through the span's body.
+     */
+    private protectInlineCode(markdown: string, store: string[]): string {
+        return markdown.replaceAll(/`([^`\n]+)`/g, (_match, code: string) => {
+            const token = `${INLINE_CODE_OPEN}${store.length}${INLINE_CODE_CLOSE}`;
+            store.push(`<code>${this.escapeHtml(code)}</code>`);
+            return token;
+        });
+    }
+
+    private restoreInlineCode(html: string, store: string[]): string {
+        return html.replaceAll(/(\d{1,9})/g, (_match, index: string) => store[Number(index)] ?? '');
     }
 
     private restoreCodeFences(html: string, store: string[]): string {
@@ -684,13 +713,6 @@ export class RichTextMarkdownService {
      */
     private parseStrikethrough(html: string): string {
         return html.replaceAll(/~~(.+?)~~/g, '<del>$1</del>');
-    }
-
-    /**
-     * Parse inline code `code`.
-     */
-    private parseInlineCode(html: string): string {
-        return html.replaceAll(/`([^`]+)`/g, '<code>$1</code>');
     }
 
     /**

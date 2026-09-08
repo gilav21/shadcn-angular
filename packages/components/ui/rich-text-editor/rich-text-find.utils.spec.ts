@@ -79,6 +79,21 @@ describe('compileFindRegex', () => {
             expect(compileFindRegex('((a{2,})){3,}$', opts({ useRegex: true }))).toBeNull();
         });
 
+
+        it('rejects a group whose only quantifier is ?', () => {
+            // QUANTIFIERS omitted '?', so the group read as unquantified:
+            // "(aa?)+$" backtracked exponentially -- 460ms at 37 chars, doubling
+            // every two characters -- inside a 256-character query cap.
+            for (const p of ['(aa?)+$', '(a?a)+$', '((a)?a)+$', '([ab]?[ab])+$']) {
+                expect(compileFindRegex(p, opts({ useRegex: true }))).toBeNull();
+            }
+        });
+
+        it('still accepts an optional group that is not repeated', () => {
+            expect(compileFindRegex('(foo)?bar', opts({ useRegex: true }))).not.toBeNull();
+            expect(compileFindRegex('colou?r', opts({ useRegex: true }))).not.toBeNull();
+        });
+
         it('still rejects the capturing form', () => {
             expect(compileFindRegex('(a+)+$', opts({ useRegex: true }))).toBeNull();
         });

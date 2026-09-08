@@ -1164,6 +1164,23 @@ describe('RichTextMarkdownService', () => {
         });
     });
 
+    describe('inline code (round-25 audit)', () => {
+        it('does not rewrite markdown metacharacters inside a code span', () => {
+            // parseInlineCode ran AFTER the emphasis and line-break passes and
+            // never escaped its body, so documenting markdown or HTML inside
+            // backticks corrupted it on the first save.
+            const probe = document.createElement('div');
+            probe.innerHTML = service.toHtml('Use `<b>x</b>` here');
+            expect(probe.querySelector('code')?.textContent).toBe('<b>x</b>');
+            expect(probe.querySelector('code b')).toBeNull();
+        });
+
+        it('round-trips a code span containing markup', () => {
+            const md = 'Use `<br>` for breaks';
+            expect(service.toMarkdown(service.toHtml(md))).toBe(md);
+        });
+    });
+
     describe('resource bounds (round-21 audit)', () => {
         it('does not hang on a deeply nested blockquote', () => {
             // Two independent bounds were missing. buildBlockquote recursed with

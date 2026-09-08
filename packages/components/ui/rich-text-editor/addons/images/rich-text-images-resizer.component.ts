@@ -494,30 +494,29 @@ export class RichTextImageResizerComponent implements OnDestroy {
      * onPointerMove, which rejects an undersized drag rather than snapping it.
      */
     /**
-     * Bound a width/height pair that must keep `aspect`, shared by the drag and
-     * keyboard paths so neither can drift from the other.
+     * Fit a ratio-locked size inside the bounds, scaling rather than overriding.
      *
-     * Only the CEILING is applied. The floor stays with onPointerMove, which
-     * rejects an undersized result outright rather than snapping it -- raising a
-     * too-small drag to the minimum would start writing sizes where the
-     * component currently writes nothing.
+     * The earlier version enforced the floor on the DERIVED axis and then
+     * back-projected it onto the axis the user was dragging, which pinned the
+     * width: a 2000x40 banner returned 1000px for a 500px request and for a
+     * 100px request alike, so the drag was unresponsive below 1000px -- the
+     * frozen drag relocated, not removed. It could also return a dimension under
+     * the very floor it exists to enforce.
+     *
+     * Scaling both axes by one factor keeps the ratio, keeps the drag
+     * responsive, and cannot produce a dimension outside the bounds.
      */
     private ratioBoundedSize(width: number, aspect: number): { width: number; height: number } {
-        const height = width / aspect;
-        if (height > MAX_IMAGE_DIMENSION) {
-            return { width: MAX_IMAGE_DIMENSION * aspect, height: MAX_IMAGE_DIMENSION };
-        }
-        // The FLOOR is applied here too, on whichever axis reaches it first.
-        // Leaving it to onPointerMove -- which refuses a write where either axis
-        // is under the minimum -- froze the drag on any image wider than it is
-        // tall: an 800x50 banner shrinking to 300px has a derived height of
-        // 18.75px, so the write was rejected and the image simply stopped
-        // responding at ~500px with no feedback. On the coupled path the gate
-        // cannot be satisfied by shrinking further, so it has to be met here.
         const min = this.minWidth();
-        if (height < min) return { width: min * aspect, height: min };
-        if (width < min) return { width: min, height: min / aspect };
-        return { width, height };
+        const height = width / aspect;
+
+        // Shrink if either axis is over the ceiling, grow if either is under the
+        // floor; the tighter constraint wins.
+        const overBy = Math.max(width / MAX_IMAGE_DIMENSION, height / MAX_IMAGE_DIMENSION, 1);
+        const scaled = { width: width / overBy, height: height / overBy };
+        const underBy = Math.max(min / scaled.width, min / scaled.height, 1);
+
+        return { width: scaled.width * underBy, height: scaled.height * underBy };
     }
 
     private lockedSize(state: ResizeState, deltaX: number): { width: number; height: number } {

@@ -182,8 +182,15 @@ function scanGroup(pattern: string, open: number): { end: number; quantifiedInsi
     return { end: i, quantifiedInside };
 }
 
-/** Characters that make the token before them repeatable. */
-const QUANTIFIERS = new Set(['+', '*', '}']);
+/**
+ * Characters that make the token before them repeatable.
+ *
+ * `?` counts. Omitting it let a group whose only quantifier was `?` read as
+ * unquantified, so `(aa?)+$` was admitted and backtracked exponentially --
+ * 460ms at 37 characters, doubling every two, hanging the tab well inside the
+ * 256-character query cap. Same family as `(a+)+`, spelled differently.
+ */
+const QUANTIFIERS = new Set(['+', '*', '}', '?']);
 
 export function compileFindRegex(query: string, options: FindOptions): RegExp | null {
     if (!query || query.length > FIND_MAX_QUERY_LENGTH) return null;
