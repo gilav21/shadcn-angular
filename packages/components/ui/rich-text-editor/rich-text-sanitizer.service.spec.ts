@@ -581,9 +581,12 @@ describe('RichTextSanitizerService', () => {
             expect(service.sanitizeImageSrc(bogus)).toBeNull();
         });
 
-        it('allows a data:image/png with no base64 marker (unchecked bytes)', () => {
-            expect(service.sanitizeImageSrc('data:image/png,rawplaceholder'))
-                .toBe('data:image/png,rawplaceholder');
+        it('rejects a non-base64 data:image/png whose payload is not an image', () => {
+            // This asserted the OPPOSITE, and its own title said why:
+            // "(unchecked bytes)". Skipping validation when ';base64,' is
+            // absent meant the encoding decided the verdict rather than the
+            // content -- the same bytes were rejected once base64-encoded.
+            expect(service.sanitizeImageSrc('data:image/png,rawplaceholder')).toBeNull();
         });
 
         it('rejects a data:image/png with an empty base64 payload', () => {
@@ -870,5 +873,44 @@ describe('RichTextSanitizerService — structural size ceiling', () => {
             const out = service.sanitizeImageSrc(hostile);
             expect(out === null || !decodeURIComponent(out).includes('onload')).toBe(true);
         });
+    });
+});
+
+describe('RichTextSanitizerService — data: URL encoding parity (round-26 audit)', () => {
+    let service: RichTextSanitizerService;
+
+    beforeEach(() => {
+        TestBed.configureTestingModule({});
+        service = TestBed.inject(RichTextSanitizerService);
+    });
+
+    const srcOf = (url: string): string | null => {
+        const out = service.sanitize('<img src="' + url + '">');
+        const parsed = new DOMParser().parseFromString(out, 'text/html');
+        return parsed.querySelector('img')?.getAttribute('src') ?? null;
+    };
+
+    it('judges a payload by its content, not by its encoding', () => {
+        // isAllowedDataUrl returned true as soon as ';base64,' was absent, so
+        // the percent-encoded form skipped magic-byte validation entirely:
+        // 'data:image/png,<script>...' was kept verbatim while the SAME bytes
+        // base64-encoded were rejected. The encoding decided the verdict.
+        for (const payload of [
+            '<script>alert(1)</script>',
+            '<html><body onload=alert(1)></body></html>',
+            'hello world, not an image at all',
+        ]) {
+            expect(srcOf('data:image/png,' + encodeURIComponent(payload))).toBeNull();
+            expect(srcOf('data:image/png;base64,' + btoa(payload))).toBeNull();
+        }
+    });
+
+    it('still accepts a real PNG in either encoding', () => {
+        // The bound must not over-reject: both forms of a genuine image pass.
+        const png = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D]
+            .map((b) => String.fromCodePoint(b))
+            .join('');
+        expect(srcOf('data:image/png,' + encodeURIComponent(png))).toContain('data:image/png');
+        expect(srcOf('data:image/png;base64,' + btoa(png))).toContain('data:image/png');
     });
 });

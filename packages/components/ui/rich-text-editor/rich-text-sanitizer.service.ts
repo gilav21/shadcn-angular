@@ -557,7 +557,26 @@ export class RichTextSanitizerService {
 
         const marker = ';base64,';
         const markerIndex = lowerUrl.indexOf(marker);
-        if (markerIndex === -1) return true;
+        if (markerIndex === -1) {
+            // A data: URL without ';base64,' carries a percent-encoded payload.
+            // Returning true here skipped content validation entirely, so
+            // 'data:image/png,<script>...' was kept verbatim while the SAME
+            // bytes base64-encoded were rejected -- the encoding decided the
+            // verdict, not the content. Every data:image/* payload is checked.
+            const comma = url.indexOf(',');
+            if (comma === -1) return false;
+            let decoded: string;
+            try {
+                decoded = decodeURIComponent(url.slice(comma + 1));
+            } catch {
+                return false;
+            }
+            const bytes = new Uint8Array(decoded.length);
+            for (let i = 0; i < decoded.length; i++) {
+                bytes[i] = decoded.codePointAt(i) ?? 0;
+            }
+            return isValidImageMagicBytes(bytes);
+        }
 
         const base64Start = markerIndex + marker.length;
         const chunk = url.substring(base64Start, base64Start + 16);

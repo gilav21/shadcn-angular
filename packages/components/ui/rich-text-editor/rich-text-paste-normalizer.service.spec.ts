@@ -938,10 +938,14 @@ describe('RichTextPasteNormalizerService', () => {
             expect(result).not.toContain('<p>');
         });
 
-        it('should wrap multi-line text joined into one paragraph in <p> tags', () => {
+        it('preserves the line breaks of a plain multi-line paste', () => {
             const multiLine = 'Line one.\nLine two.\nLine three.\nLine four.\nLine five.';
             const result = service.normalize(null, multiLine);
-            expect(result).toContain('<p>');
+            // The old title claimed these lines were joined into ONE paragraph;
+            // the code preserves them as <br> and the assertion (toContain
+            // '<p>')) was true either way, so the contradiction went unnoticed.
+            // Newlines the user pasted are content: they survive.
+            expect(result).toBe('<p>Line one.<br>Line two.<br>Line three.<br>Line four.<br>Line five.</p>');
         });
 
         it('should join PDF column-wrapped lines into paragraphs', () => {
@@ -963,6 +967,12 @@ describe('RichTextPasteNormalizerService', () => {
             expect(result).toContain('<p>');
             const paragraphCount = (result.match(/<p>/g) ?? []).length;
             expect(paragraphCount).toBe(2);
+            // The paragraph COUNT alone proves nothing: the non-PDF branch also
+            // yields 2 here, by splitting on the blank line. What distinguishes
+            // the PDF branch is that it JOINS the wrapped lines -- so no <br>
+            // survives, and the first two lines end up adjacent in one run.
+            expect(result).not.toContain('<br>');
+            expect(result).toContain('a paragraph that continues on the next line');
         });
 
         it('should preserve list items in PDF text as ul/li elements', () => {
@@ -1995,7 +2005,11 @@ describe('RichTextPasteNormalizerService', () => {
                 'a third long line of prose to round out the block',
             ].join('\n');
             const result = service.normalize(null, text);
-            expect(result).toContain('<p>');
+            // The PDF branch REFLOWS: consecutive lines are joined, so no <br>
+            // survives. That absence is what distinguishes this branch from the
+            // one below, and is the only assertion here that can fail.
+            expect(result).not.toContain('<br>');
+            expect(result).toContain('x a fairly long line');
         });
 
         it('does not treat varied lines with a blank separator as PDF text', () => {
@@ -2008,7 +2022,12 @@ describe('RichTextPasteNormalizerService', () => {
                 'z',
             ].join('\n');
             const result = service.normalize(null, text);
-            expect(result).toContain('<p>');
+            // Asserts the BR, not just the <p>: both branches wrap in <p>, so
+            // toContain('<p>') passed either way and could not tell the two
+            // apart. This test and the one above had OPPOSITE titles and the
+            // identical assertion; inverting the heuristic broke neither.
+            expect(result).toContain('<br>');
+            expect(result).toContain('x<br>a fairly long line');
         });
     });
 
