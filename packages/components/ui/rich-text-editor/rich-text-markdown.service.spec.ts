@@ -1642,6 +1642,61 @@ describe('RichTextMarkdownService', () => {
                 expect(service.toMarkdown(service.toHtml(second))).toBe(second);
             }
         });
+
+        it('keeps the paragraph after a list that HAS a continuation', () => {
+            // The tests above all use a list with NO continuation, which is the
+            // one shape where this cannot appear: the first fix populated
+            // orphanBlanks only when continuation.length === 0, conflating "no
+            // continuation at all" with "no blanks left over". A list that HAD a
+            // continuation still dropped the blank after it, so the same loss
+            // survived one indirection away and shipped again.
+            //
+            // This is the third round of one bug class (list fused with its
+            // neighbour), so the neighbours are enumerated rather than sampled.
+            const NLC = String.fromCodePoint(10);
+            const withCont = '- Alpha' + NLC + NLC + '  Cont' + NLC + NLC;
+            for (const [after, sel] of [
+                ['Outside', 'p'],
+                ['# Head', 'h1'],
+                ['> Quote', 'blockquote'],
+                ['- Second list', 'ul'],
+            ] as ReadonlyArray<readonly [string, string]>) {
+                const probe = document.createElement('div');
+                probe.innerHTML = service.toHtml(withCont + after);
+                // The following block is a SIBLING of the list, not swallowed by
+                // it. (A continuation legitimately puts a <p> inside the item, so
+                // the test is where the trailing block landed, not whether the
+                // list contains any element of that kind.)
+                const list = probe.querySelector('ul');
+                expect(list).toBeTruthy();
+                const trailing = Array.from(probe.querySelectorAll(sel))
+                    .find((el) => (el.textContent ?? '').includes(after.replace(/^[#>-]+ /, '')));
+                expect(trailing).toBeTruthy();
+                expect(trailing?.closest('li')).toBeNull();
+            }
+        });
+
+        it('keeps all three paragraphs of list-with-continuation then prose', () => {
+            // The editor's own path: HTML in, markdown out, HTML back.
+            const html = '<ul><li><p>Alpha</p><p>Second</p></li></ul><p>Outside</p>';
+            const md = service.toMarkdown(html);
+            const probe = document.createElement('div');
+            probe.innerHTML = service.toHtml(md);
+
+            // Outside is a PARAGRAPH, not a bare text node fused onto the list.
+            const outside = Array.from(probe.querySelectorAll('p'))
+                .find((el) => el.textContent === 'Outside');
+            expect(outside).toBeTruthy();
+            expect(outside?.closest('li')).toBeNull();
+
+            // And nothing was lost on the way.
+            for (const word of ['Alpha', 'Second', 'Outside']) {
+                expect(probe.textContent).toContain(word);
+            }
+
+            const second = service.toMarkdown(service.toHtml(md));
+            expect(service.toMarkdown(service.toHtml(second))).toBe(second);
+        });
     });
 
     describe('inline tags markdown cannot express (round-28 audit)', () => {

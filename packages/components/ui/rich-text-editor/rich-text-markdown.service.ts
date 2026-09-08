@@ -141,18 +141,23 @@ function absorbNonListLine(
 /**
  * Drain the held continuation lines into one block.
  *
- * Blank lines held speculatively come back as `orphanBlanks` when no
- * continuation followed, because the caller has to put them BACK. Dropping
- * them fused the list with what came next: a paragraph after a list reached
- * parseParagraphs separated by a single newline, so it was one block starting
- * with <ul>, matched the already-block-level guard, and was never wrapped --
- * "list, then prose" lost its <p> permanently, on the commonest shape there is.
+ * Whatever is still in `pendingBlank` arrived AFTER the last continuation line
+ * was claimed, so no continuation ever took it: it is an orphan and the caller
+ * has to put it back. Dropping it fused the list with whatever followed --
+ * the next paragraph reached parseParagraphs separated by a single newline, so
+ * it was one block starting with <ul>, matched the already-block-level guard,
+ * and was never wrapped. "List, then prose" lost its <p> permanently.
+ *
+ * The first fix for that tested `continuation.length === 0`, which conflates
+ * "no continuation at all" with "no blanks left over": a list that HAD a
+ * continuation still dropped the blank that followed it, so the same loss
+ * survived one indirection away. pendingBlank is the whole answer on its own.
  */
 function takeContinuation(
     continuation: string[],
     pendingBlank: string[],
 ): { block: string; orphanBlanks: string[] } {
-    const orphanBlanks = continuation.length === 0 ? [...pendingBlank] : [];
+    const orphanBlanks = [...pendingBlank];
     pendingBlank.length = 0;
     if (continuation.length === 0) return { block: '', orphanBlanks };
     const block = continuation.join('\n');
