@@ -1202,6 +1202,19 @@ describe('RichTextMarkdownService', () => {
             expect(html).toContain('x');
         });
 
+        it('does not hang on a deeply nested TIGHT blockquote', () => {
+            // The spaced form above was bounded, but the tight form never
+            // reached the recursion at all -- the escaping defect turned every
+            // marker after the first into text. Now that it parses, it is a
+            // genuinely new path through the same exponential recursion and
+            // needs its own bound.
+            const md = '>'.repeat(60) + ' x';
+            const started = performance.now();
+            const html = service.toHtml(md);
+            expect(performance.now() - started).toBeLessThan(1000);
+            expect(html).toContain('x');
+        });
+
 
 
         it('keeps every cell when a body row is wider than the header', () => {
@@ -1347,12 +1360,32 @@ describe('RichTextMarkdownService', () => {
             // The space after ">" is optional in CommonMark. Requiring it meant
             // ">> b" was not a quote line at all: a nested quote in the tight
             // form lost a level, and ">> b" on its own produced NO blockquote.
+            //
+            // DEPTH is asserted, not just the fixed point. A second defect sat
+            // upstream: the lookbehind that escapes a stray ">" to text did not
+            // treat ">" as a safe preceding character, so in ">>" the SECOND
+            // marker became "&gt;" before the parser ran. The tight form then
+            // collapsed to one level and drifted on every save. A fixed-point
+            // assertion alone could not see it -- a collapsed quote is a stable
+            // fixed point too, so this test passed throughout.
             const NLC = String.fromCodePoint(10);
-            const probe = document.createElement('div');
-            probe.innerHTML = service.toHtml('>> b');
-            expect(probe.querySelector('blockquote')).toBeTruthy();
+            const depthOf = (md: string): number => {
+                const probe = document.createElement('div');
+                probe.innerHTML = service.toHtml(md);
+                return probe.querySelectorAll('blockquote').length;
+            };
 
-            // And the tight nested form now reaches a round-trip fixed point.
+            expect(depthOf('>> b')).toBe(2);
+            expect(depthOf('>>> c')).toBe(3);
+
+            // The tight and spaced forms are the same document.
+            expect(depthOf('> a' + NLC + '>> b')).toBe(depthOf('> a' + NLC + '> > b'));
+            expect(depthOf('>>> c')).toBe(depthOf('> > > c'));
+
+            // A ">" that is not a quote marker is still escaped to text.
+            expect(depthOf('a > b')).toBe(0);
+
+            // And the tight nested form reaches a round-trip fixed point.
             const once = service.toMarkdown(service.toHtml('> a' + NLC + '>> b'));
             expect(service.toMarkdown(service.toHtml(once))).toBe(once);
         });

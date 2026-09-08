@@ -386,7 +386,13 @@ export class RichTextMarkdownService {
             // a blockquote had its ">" escaped to text before parseBlockquotes
             // ever ran — the first line rendered literally while later ones
             // quoted correctly.
-            .replaceAll(/(?<!^)(?<![\s\w*`~[\]!#-])>/gm, '&gt;'));
+            // ">" itself belongs in the safe-preceding class: in the tight
+            // nested form ">> b" the SECOND marker is preceded by the first,
+            // so it was escaped to text before parseBlockquotes ran. The tight
+            // form never reached the parser as markdown -- it collapsed to one
+            // level and drifted on every save. CommonMark treats ">>>" as three
+            // nested quotes, the same as "> > >".
+            .replaceAll(/(?<!^)(?<![\s\w*`~[\]!#>-])>/gm, '&gt;'));
     }
 
     /**
@@ -420,7 +426,13 @@ export class RichTextMarkdownService {
         // 40 markers froze the tab, and it arrives from paste, file import and
         // <ui-rich-text-view [value]>. Past the cap the rest stays literal text,
         // which is what CommonMark implementations do.
-        const nested = lines.some((line) => line.startsWith('> ') || line === '>');
+        // This test MUST use the same predicate as parseBlockquotes below.
+        // It required a space, so after one ">" was stripped ">>> c" became
+        // ">> c" -- a quote line by that function's rule but not by this one,
+        // so recursion stopped and three-deep tight quotes collapsed to depth 1
+        // and drifted on every save. The two disagreeing about what a quote
+        // line is was the whole defect.
+        const nested = lines.some((line) => line.startsWith('>'));
         if (nested && depth < MAX_BLOCKQUOTE_DEPTH) {
             return `<blockquote>${this.parseBlockquotes(lines.join('\n'), depth + 1)}</blockquote>`;
         }
