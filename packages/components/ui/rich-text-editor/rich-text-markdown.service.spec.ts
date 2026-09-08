@@ -1922,6 +1922,60 @@ describe('RichTextMarkdownService', () => {
             }
         });
 
+        it('never escapes the contents of a code span', () => {
+            // The test above sets host.textContent, so its paragraph holds ONE
+            // TEXT NODE and no elements -- it never reaches the <code> path where
+            // the escaping was wrong. Its 'a `b` c' case looks like it covers code
+            // spans but is a literal backtick in prose, which is exactly the shape
+            // where the bug is absent. Sabotaging escapeMarkdownText turns it red,
+            // so it reads healthy while a live defect ships.
+            //
+            // A code span is inert text: nothing inside it is ever escaped. The
+            // read side enforced that by copying spans whole; the write side did
+            // not, so a backslash accrued on EVERY save without bound
+            // (foo_bar -> foo\_bar -> foo\\_bar), and an escaped backtick closed
+            // the span early, spilling the tail into the paragraph.
+            //
+            // Asserted over three cycles on the <code> element itself, because
+            // one cycle cannot see growth and textContent cannot see the element
+            // boundary breaking.
+            const BT = String.fromCodePoint(96);
+            for (const content of [
+                'foo_bar',
+                'a*b',
+                '- x',
+                '> y',
+                'C:' + BS + 'temp',
+                'use ' + BT + 'z' + BT + ' here',
+            ]) {
+                const host = document.createElement('p');
+                const code = document.createElement('code');
+                code.textContent = content;
+                host.append(document.createTextNode('x '), code, document.createTextNode(' y'));
+
+                let md = service.toMarkdown(host.outerHTML);
+                for (let cycle = 0; cycle < 3; cycle++) {
+                    const probe = document.createElement('div');
+                    probe.innerHTML = service.toHtml(md);
+                    expect(probe.querySelector('code')?.textContent).toBe(content);
+                    md = service.toMarkdown(service.toHtml(md));
+                }
+            }
+        });
+
+        it('reads back a code span that contains a backtick', () => {
+            // handleCodeTag emits a delimiter run longer than any run inside the
+            // content, per CommonMark. protectInlineCode matched only single
+            // backticks, so it closed at the first inner tick and the rest of the
+            // code escaped the element into the surrounding prose.
+            const BT = String.fromCodePoint(96);
+            const probe = document.createElement('div');
+            probe.innerHTML = service.toHtml('x ' + BT + BT + 'use ' + BT + 'z' + BT + ' here' + BT + BT + ' y');
+            expect(probe.querySelectorAll('code')).toHaveLength(1);
+            expect(probe.querySelector('code')?.textContent).toBe('use ' + BT + 'z' + BT + ' here');
+            expect(probe.textContent).toBe('x use ' + BT + 'z' + BT + ' here y');
+        });
+
         it('does not escape punctuation that needs no escaping', () => {
             // The escape set is deliberately minimal: over-escaping would litter
             // documents with backslashes nobody typed.

@@ -303,6 +303,34 @@ const CODE_FENCE_CLOSE = '';
 const CONTENT_BEARING_UNSAFE_TAGS = new Set(['script', 'style', 'iframe', 'object', 'embed', 'template', 'noscript', 'title', 'textarea']);
 
 /**
+ * Index of the closing backtick run of exactly `runLength`, or -1. A run that
+ * is longer belongs to the span's content, not to its delimiter.
+ */
+function findClosingTickRun(source: string, from: number, runLength: number): number {
+    let i = from;
+    while (i < source.length) {
+        if (source[i] === '\n') return -1;
+        if (source[i] !== '`') {
+            i++;
+            continue;
+        }
+        const start = i;
+        while (source[i] === '`') i++;
+        if (i - start === runLength) return start;
+    }
+    return -1;
+}
+
+/**
+ * Drop the one padding space CommonMark allows on each side of a code span,
+ * which is how a span whose content starts or ends with a backtick is written.
+ */
+function stripCodeSpanPadding(code: string): string {
+    const padded = code.length >= 2 && code.startsWith(' ') && code.endsWith(' ');
+    return padded && code.trim() !== '' ? code.slice(1, -1) : code;
+}
+
+/**
  * Escape the literal characters that would otherwise be re-read as syntax.
  *
  * toMarkdown emitted text nodes raw, so a document containing "2 * 3 * 4"
@@ -557,16 +585,43 @@ export class RichTextMarkdownService {
         // Strip our own delimiters from the input first, exactly as the fence
         // and raw-tag stores do. Without it a document carrying U+E112/U+E113
         // could forge a token, and restoreInlineCode would expand it -- so a
-        // span the author wrote once rendered twice. This is the same defect
-        // that was fixed for fences and then reintroduced here.
-        return markdown
+        // span the author wrote once rendered twice.
+        //
+        // Scanned rather than matched with a regex: the delimiter is a RUN of
+        // backticks closed by a run of the SAME length (that is how a span
+        // holding a backtick is written, and what handleCodeTag emits), and
+        // expressing that needs a backreference against a lazy body, which is
+        // super-linear. The scan is O(n) and states the rule directly.
+        const source = markdown
             .replaceAll(INLINE_CODE_OPEN, '')
-            .replaceAll(INLINE_CODE_CLOSE, '')
-            .replaceAll(/`([^`\n]+)`/g, (_match, code: string) => {
-                const token = `${INLINE_CODE_OPEN}${store.length}${INLINE_CODE_CLOSE}`;
-                store.push(`<code>${this.escapeHtml(code)}</code>`);
-                return token;
-        });
+            .replaceAll(INLINE_CODE_CLOSE, '');
+        const out: string[] = [];
+        let i = 0;
+
+        while (i < source.length) {
+            if (source[i] !== '`') {
+                out.push(source[i]);
+                i++;
+                continue;
+            }
+
+            const openStart = i;
+            while (source[i] === '`') i++;
+            const runLength = i - openStart;
+            const closeIndex = findClosingTickRun(source, i, runLength);
+
+            if (closeIndex === -1) {
+                out.push(source.slice(openStart, i));
+                continue;
+            }
+
+            const code = stripCodeSpanPadding(source.slice(i, closeIndex));
+            out.push(`${INLINE_CODE_OPEN}${store.length}${INLINE_CODE_CLOSE}`);
+            store.push(`<code>${this.escapeHtml(code)}</code>`);
+            i = closeIndex + runLength;
+        }
+
+        return out.join('');
     }
 
     private restoreInlineCode(html: string, store: string[]): string {
@@ -1161,8 +1216,33 @@ export class RichTextMarkdownService {
         }
     }
 
+    /**
+     * Serialize an inline code span.
+     *
+     * Reads the element's OWN textContent rather than `inner`: nodeToMarkdown
+     * has already run escapeMarkdownText over the text node, and nothing inside
+     * a code span may be escaped -- it is inert text by definition. Using the
+     * escaped `inner` added a backslash on EVERY save without bound
+     * (<code>foo_bar</code> -> foo\_bar -> foo\\_bar -> ...), and an escaped
+     * backtick closed the span early, so the tail escaped the element into the
+     * paragraph and the code was destroyed on the first save. handlePreTag
+     * already read textContent for this reason; the inline path did not.
+     *
+     * The delimiter is a backtick RUN longer than any run inside the content,
+     * with padding spaces when the content starts or ends with one -- the same
+     * CommonMark rule the fenced-block path uses.
+     */
     private handleCodeTag(element: HTMLElement, inner: string): string {
-        return element.parentElement?.tagName.toLowerCase() === 'pre' ? inner : `\`${inner}\``;
+        if (element.parentElement?.tagName.toLowerCase() === 'pre') return inner;
+
+        const content = element.textContent ?? '';
+        const longestRun = Math.max(
+            0,
+            ...Array.from(content.matchAll(/`+/g), (m) => m[0].length),
+        );
+        const fence = '`'.repeat(longestRun + 1);
+        const pad = content.startsWith('`') || content.endsWith('`') ? ' ' : '';
+        return `${fence}${pad}${content}${pad}${fence}`;
     }
 
     private handleAnchorTag(element: HTMLElement, inner: string): string {
