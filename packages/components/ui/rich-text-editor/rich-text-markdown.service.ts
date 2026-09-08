@@ -935,6 +935,14 @@ export class RichTextMarkdownService {
      * token no longer looked indented and the fence escaped its item -- the
      * one-pass fix held, the round-trip did not.
      */
+    /**
+     * A fenced code block. The fence is three backticks, or longer when the
+     * body contains a backtick run of three or more -- CommonMark requires the
+     * fence to exceed any run inside it, which is how a code block containing a
+     * fence is written. Emitting exactly three destroyed such a block: the
+     * inner fence closed the outer one, and the remainder was re-parsed as
+     * markdown, so the content changed on every save.
+     */
     private handlePreTag(element: HTMLElement, inListItem = false): string {
         const lang = element.querySelector('code')?.dataset['language'] ?? '';
         const codeContent = element.textContent ?? '';
@@ -943,7 +951,12 @@ export class RichTextMarkdownService {
             .split('\n')
             .map((line) => indent + line)
             .join('\n');
-        return `\n${indent}\`\`\`${lang}\n${body}\n${indent}\`\`\`\n`;
+        const longestRun = Math.max(
+            0,
+            ...Array.from(codeContent.matchAll(/`+/g), (m) => m[0].length),
+        );
+        const fence = '`'.repeat(Math.max(3, longestRun + 1));
+        return `\n${indent}${fence}${lang}\n${body}\n${indent}${fence}\n`;
     }
 
     private handleUlTag(element: HTMLElement): string {
@@ -1472,7 +1485,16 @@ function pairedTagOffsets(block: string): ReadonlySet<number> {
  * belongs to exactly one place -- after the markers -- so the two runs cannot
  * compete.
  */
-const FENCE_PATTERN = /^((?:>[ \t]?)*[ \t]*)(```|~~~)(\w*)\n([\s\S]*?)^\1?\2/gm;
+/**
+ * A fenced code block, optionally quoted or indented.
+ *
+ * CommonMark allows THREE OR MORE fence characters, and a longer fence is how
+ * a code block that itself contains a fence is written. Matching exactly three
+ * meant a 4-backtick fence was not a fence at all: its lines were parsed as
+ * ordinary markdown, so the round trip never reached a fixed point -- the
+ * document gained newlines over the first few saves before settling.
+ */
+const FENCE_PATTERN = /^((?:>[ \t]?)*[ \t]*)(`{3,}|~{3,})(\w*)\n([\s\S]*?)^\1?\2/gm;
 
 /** Remove `prefix` (and any looser quote/indent form of it) from each line. */
 function stripBlockPrefix(code: string, prefix: string): string {

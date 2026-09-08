@@ -1471,4 +1471,48 @@ describe('RichTextMarkdownService', () => {
             expect(html).not.toContain('*<em>');
         });
     });
+
+    describe('fenced code blocks longer than three characters (round-26 audit)', () => {
+        const NLC = String.fromCodePoint(10);
+        const T = String.fromCodePoint(96);
+
+        it('treats a 4-backtick fence as a fence', () => {
+            // FENCE_PATTERN matched exactly ``` or ~~~, but CommonMark allows
+            // three OR MORE. A 4-backtick fence was not a fence at all: its
+            // lines were parsed as ordinary markdown and the round trip never
+            // reached a fixed point, gaining newlines over the first few saves.
+            const md = T.repeat(4) + NLC + 'let x = 1;' + NLC + T.repeat(4);
+            const html = service.toHtml(md);
+            expect(html).toContain('<pre>');
+            expect(html).toContain('let x = 1;');
+        });
+
+        it('round-trips a code block that CONTAINS a fence', () => {
+            // This is the whole reason longer fences exist. The serializer
+            // hardcoded three backticks, so the inner fence closed the outer
+            // block and the remainder was re-parsed as markdown -- the content
+            // changed on every save. The emitted fence must exceed the longest
+            // backtick run in the body.
+            const md = [T.repeat(4), T.repeat(3), 'x', T.repeat(3), T.repeat(4)].join(NLC);
+            const once = service.toMarkdown(service.toHtml(md));
+            expect(once).toBe(md);
+            expect(service.toMarkdown(service.toHtml(once))).toBe(once);
+        });
+
+        it('reaches a fixed point for every fence width', () => {
+            // Each case pairs the markdown with the body text that must survive,
+            // so the assertion cannot pass on a block whose content was eaten.
+            const cases: ReadonlyArray<readonly [string, string]> = [
+                [T.repeat(3) + NLC + 'code' + NLC + T.repeat(3), 'code'],
+                [T.repeat(5) + NLC + 'code' + NLC + T.repeat(5), 'code'],
+                ['~~~~' + NLC + 'code' + NLC + '~~~~', 'code'],
+                [T.repeat(4) + 'ts' + NLC + 'const a = 1;' + NLC + T.repeat(4), 'const a = 1;'],
+            ];
+            for (const [md, body] of cases) {
+                const once = service.toMarkdown(service.toHtml(md));
+                expect(once).toContain(body);
+                expect(service.toMarkdown(service.toHtml(once))).toBe(once);
+            }
+        });
+    });
 });
