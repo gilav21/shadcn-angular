@@ -442,7 +442,12 @@ export class RichTextMarkdownService {
         let blockquoteContent: string[] = [];
 
         for (const line of lines) {
-            if (line.startsWith('> ') || line === '>') {
+            // The space after ">" is optional in CommonMark. Requiring it meant
+            // ">> b" was not a quote line at all -- a nested quote written in
+            // the tight form produced depth 1 instead of 2, and ">> b" alone
+            // produced no blockquote whatsoever. The strip below already
+            // tolerates both forms; only this test was too narrow.
+            if (line.startsWith('>')) {
                 inBlockquote = true;
                 blockquoteContent.push(line.replace(/^>\s?/, ''));
             } else {

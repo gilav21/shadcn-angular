@@ -1320,6 +1320,21 @@ describe('RichTextMarkdownService', () => {
         });
 
 
+
+        it('reads a quote line whose marker has no space after it', () => {
+            // The space after ">" is optional in CommonMark. Requiring it meant
+            // ">> b" was not a quote line at all: a nested quote in the tight
+            // form lost a level, and ">> b" on its own produced NO blockquote.
+            const NLC = String.fromCodePoint(10);
+            const probe = document.createElement('div');
+            probe.innerHTML = service.toHtml('>> b');
+            expect(probe.querySelector('blockquote')).toBeTruthy();
+
+            // And the tight nested form now reaches a round-trip fixed point.
+            const once = service.toMarkdown(service.toHtml('> a' + NLC + '>> b'));
+            expect(service.toMarkdown(service.toHtml(once))).toBe(once);
+        });
+
         it('does not inject hard breaks into a multi-line quote', () => {
             // parseBlockquotes joins a quote's lines with <br>, and <br>
             // serializes to two spaces plus a newline -- so every multi-line
