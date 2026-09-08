@@ -926,17 +926,17 @@ export class RichTextMarkdownService {
             const extra = Math.min(clampSpan(span) - 1, limit - padded.length);
             for (let i = 0; i < extra; i++) padded.push('');
         }
-        // Truncated to the header's width, not merely padded up to it. A body row
-        // WIDER than the header emitted more cells than the separator describes,
-        // which is invalid GFM -- a 1-dash separator over a 3-cell row.
-        padded.length = Math.min(padded.length, limit);
+        // Padded UP only. A width derived from the widest row means nothing ever
+        // needs cutting here, and cutting is what silently deleted a body row's
+        // extra cells when the width came from row 0. The MAX_TABLE_COLUMNS
+        // ceiling still applies through `limit`, which bounds pasted input.
         while (padded.length < limit) padded.push('');
         return padded;
     }
 
     /** A row's width in columns, counting each cell's colspan. */
     private columnSpan(row: HTMLElement): number {
-        const total = Array.from(row.querySelectorAll('th, td')).reduce((sum, cell) => {
+        const total = Array.from(row.querySelectorAll(':scope > th, :scope > td')).reduce((sum, cell) => {
             const span = Number.parseInt(cell.getAttribute('colspan') ?? '1', 10);
             return sum + clampSpan(span);
         }, 0);
@@ -946,7 +946,10 @@ export class RichTextMarkdownService {
     }
 
     private tableToMarkdown(table: HTMLElement): string {
-        const rows = Array.from(table.querySelectorAll('tr'));
+        // Scoped to THIS table. An unscoped descendant query pulled a nested
+        // table's rows up as rows of the outer one, so they appeared both inside
+        // their cell and again at the top level.
+        const rows = Array.from(table.querySelectorAll(':scope > tr, :scope > thead > tr, :scope > tbody > tr, :scope > tfoot > tr'));
         if (rows.length === 0) return '';
 
         const lines: string[] = [];
@@ -959,7 +962,15 @@ export class RichTextMarkdownService {
         // <th>, so a headerless or colspan table emitted none -- and parseTables,
         // which requires header + separator, refused to read it back, leaving a
         // paragraph of literal pipe characters where the table had been.
-        const columnCount = this.columnSpan(rows[0]);
+        // The WIDEST row decides the width, not row 0. Sizing from the first row
+        // and truncating deleted every cell past it -- trading invalid GFM for
+        // silent data loss -- and an empty first row made the width 0, so the
+        // whole table serialized to nothing. Narrower rows are padded, which is
+        // what markdown requires; none are cut.
+        const columnCount = Math.min(
+            rows.reduce((widest, row) => Math.max(widest, this.columnSpan(row)), 0),
+            MAX_TABLE_COLUMNS,
+        );
 
         // A whole-table budget, not just a per-row one. Capping each row still
         // let 5000 narrow rows emit 14 MB from 166 KB of pasted HTML -- 88x
@@ -969,7 +980,7 @@ export class RichTextMarkdownService {
 
         for (const row of rows) {
             if (cellBudget <= 0) break;
-            const cells = Array.from(row.querySelectorAll('th, td'));
+            const cells = Array.from(row.querySelectorAll(':scope > th, :scope > td'));
             // Newlines inside a cell would split the row -- a one-row table came
             // back as two on reload -- so a <br> becomes the GFM in-cell break.
             const cellContents = cells.map(cell =>

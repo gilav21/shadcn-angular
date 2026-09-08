@@ -100,9 +100,14 @@ export class RichTextViewComponent {
 
     /**
      * Make rendered task checkboxes display-only: they show the authored state,
-     * they are out of the tab order, and they announce as read-only. The click
-     * listener above is what actually stops a toggle — `disabled` would grey
-     * them out, which is a different meaning.
+     * stay out of the tab order, and announce as unavailable.
+     *
+     * `disabled` is the attribute that carries that. An earlier version used
+     * `aria-readonly` on the argument that "disabled" means something different
+     * -- but ARIA defines no readonly state for `role="checkbox"`, so it
+     * announced nothing at all while the control was already unreachable by
+     * keyboard. The click listener above stays as belt and braces for pointer
+     * events.
      */
     private freezeTaskCheckboxes(root: HTMLElement): void {
         const boxes = root.querySelectorAll<HTMLInputElement>(

@@ -877,12 +877,19 @@ describe('RichTextMarkdownService', () => {
             expect(probe.querySelectorAll('tbody tr')).toHaveLength(1);
         });
 
-        it('sizes the separator to the header, not the widest row', () => {
-            // A 3-dash separator under a 2-column header is invalid GFM.
-            const html = '<table><thead><tr><th>a</th><th>b</th></tr></thead><tbody><tr><td>1</td><td>2</td><td>3</td></tr></tbody></table>';
+        it('sizes the separator so header and body agree, padding never cutting', () => {
+            // This asserted the HEADER's width, which is what made truncation
+            // look necessary -- and truncation deleted the extra cells. GFM only
+            // requires header and separator to agree; the honest way to reach
+            // that with a wider body row is to widen, since padding is lossless
+            // and cutting is not.
+            const html = '<table><thead><tr><th>a</th><th>b</th></tr></thead>'
+                + '<tbody><tr><td>1</td><td>2</td><td>3</td></tr></tbody></table>';
             const md = service.toMarkdown(html);
-            const separator = md.split('\n')[1];
-            expect(separator.split('|').filter((c) => c.trim())).toHaveLength(2);
+            const rows = md.split('\n').filter((l) => l.trim().startsWith('|'));
+            const counts = rows.map((l) => l.split('|').slice(1, -1).length);
+            expect(new Set(counts).size).toBe(1);
+            expect(md).toContain('3');
         });
     });
 
@@ -1123,6 +1130,46 @@ describe('RichTextMarkdownService', () => {
             expect(html).toContain('x');
         });
 
+
+
+        it('keeps every cell when a body row is wider than the header', () => {
+            // The round-22 truncation traded invalid GFM for DATA LOSS: cells
+            // past row 0's width were deleted outright. Its guarding test
+            // asserted only that all rows had EQUAL cell counts, which
+            // truncation and widening satisfy identically -- so the test could
+            // not steer the fix away from destroying content.
+            const html = '<table><tr><th>H</th></tr><tr><td>a</td><td>b</td><td>c</td></tr></table>';
+            const md = service.toMarkdown(html);
+            expect(md).toContain('b');
+            expect(md).toContain('c');
+            const counts = md
+                .split('\n')
+                .filter((l) => l.trim().startsWith('|'))
+                .map((l) => l.split('|').slice(1, -1).length);
+            expect(new Set(counts).size).toBe(1);
+        });
+
+        it('serializes a table whose first row has no cells', () => {
+            // columnCount came from rows[0] unconditionally, so an empty first
+            // row made the limit 0 and every row emitted nothing.
+            const html = '<table><tr></tr><tr><td>a</td><td>b</td></tr></table>';
+            const md = service.toMarkdown(html);
+            expect(md).toContain('a');
+            expect(md).toContain('b');
+        });
+
+        it('does not hoist a nested table into its parent', () => {
+            // querySelectorAll('tr') is an unscoped DESCENDANT query, so the
+            // nested table's row was emitted BOTH inside the cell and as a row
+            // of the outer table.
+            const html =
+                '<table><tr><th>H1</th><th>H2</th></tr>' +
+                '<tr><td>x</td><td><table><tr><td>n1</td><td>n2</td></tr></table></td></tr></table>';
+            const md = service.toMarkdown(html);
+            const bodyRows = md.split('\n').filter((l) => l.trim().startsWith('|')).length;
+            // header + separator + one body row
+            expect(bodyRows).toBe(3);
+        });
 
         it('bounds total output across MANY NARROW rows, not just per row', () => {
             // The per-row cap bounds the wide-row shape but not rows x columns:
