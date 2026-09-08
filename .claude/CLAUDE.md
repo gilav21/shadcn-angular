@@ -393,6 +393,21 @@ reference implementation for this pattern.
 >
 > If the scan cannot be run (no token / server / Docker), the task is **blocked,
 > not done** — say so explicitly rather than claiming SonarQube compliance.
+>
+> **🔴 Exit code 0 is NOT a verdict.** The gate has exited 0 without scanning at
+> all: if the coverage leg fails it prints `[coverage] FAILED … no tree
+> fingerprint written`, never scans, and still exits 0. A later run reported
+> `ANALYSIS SUCCESSFUL` against a commit *older* than the fixes it was meant to
+> verify. Confirm four things before claiming the gate passed:
+>
+> 1. no `coverage] FAILED` in the output;
+> 2. the `SCM revision ID` line matches `git rev-parse HEAD`;
+> 3. `coverage/.tree-hash` equals a live `treeHash()` (a stale file *timestamp*
+>    is fine — the hash is what matters);
+> 4. the server itself says so — query
+>    `/api/qualitygates/project_status` for `OK` and
+>    `/api/issues/search?inNewCodePeriod=true` for `total: 0`, rather than
+>    reading the log.
 
 All code must pass SonarQube with **zero issues**. Apply these rules from the start:
 
@@ -792,6 +807,86 @@ with no mouse or keyboard. Use the shared `touch.ts` utility
 
 ---
 
+## Fixing Bugs — Fix the Class, Not the Reproduction
+
+> **A bug report hands you a sample of the broken class, not its definition.**
+
+Evidence from this repo: an eight-round adversarial audit of the rich text
+editor (`docs/reviews/rte-full-audit-2026-09-07.md`) found ~88 issues — and
+**eighteen of them were regressions introduced while fixing earlier ones**. Tag
+pairing took five attempts across five rounds; an off-origin URL check took
+three, with a live open redirect surviving the first two. Every one of those
+attempts was correct for the input it was handed and wrong for the class.
+
+### 1. State the invariant before writing the fix
+
+Write the rule in one sentence first:
+
+- ❌ "escape `</u>`"  →  ✅ "escaping is symmetric for every tag the sanitizer keeps"
+- ❌ "reject `//host`" →  ✅ "reject every authority form a browser resolves off-origin"
+
+**A fix you cannot state as a rule is a patch on a symptom.** You will be back.
+
+### 2. For spec-defined behaviour, read the spec
+
+URL authority parsing, HTML tag matching, markdown block structure — these have
+real answers. A character-pattern guess at a specified algorithm is how the same
+bug ships three times.
+
+### 3. Re-read the diff against your own commit message
+
+One commit here is titled *"make tag pairing local"* and computes the locality,
+then unions it away. The message described the intent, the symptom was gone, and
+nobody re-read the code. Ten seconds of checking would have caught it.
+
+### 4. Two questions for every regression test, not one
+
+Sabotage-testing (break the fix, confirm the test goes red) proves the
+**assertion** is load-bearing. It says **nothing** about whether the **input** is
+representative. Ask both:
+
+1. **Can it fail?** — sabotage it.
+2. **Is this input the general case, or the one shape where the bug hides?**
+
+The second failure mode is a **degenerate input**: the test does fail under
+sabotage, so it looks healthy, but the bug cannot manifest for that input. Two
+security fixes here shipped with green sabotage tests and live bugs —
+a tag-pairing test using a lone stray closing tag (unpaired under both
+implementations), and an open-redirect test using only two-character backslash
+forms while `https:\host` and `https:///host` both still bypassed.
+
+Write down the full input class the code path accepts, then pick from the middle
+of it, not the edge you were handed.
+
+### 5. Run the consumers, not just the folder you edited
+
+Shared services have consumers elsewhere in the tree. `rich-text-view` injects
+the editor's markdown and sanitizer services, so:
+
+```bash
+# NOT enough when editing the shared services:
+npx vitest --run packages/components/ui/rich-text-editor
+# run the consumers too:
+npx vitest --run packages/components/ui/rich-text-editor packages/components/ui/rich-text-view
+```
+
+`npx shadcn-angular why <component>` prints reverse dependents.
+
+### 6. Watch for tests that assert the bug
+
+Thirteen were found in that audit series. Three species, in increasing subtlety:
+
+- a **weak assertion** that passes either way (a trailing substring);
+- a test **asserting broken behaviour as correct** — sometimes with a comment
+  admitting the spec predicted better;
+- a **degenerate input** (see §4).
+
+A comment saying "known quirk", "currently", or "the spec predicted X but…"
+next to an assertion is a red flag, not documentation. Fix the code and the
+test, and say so in the commit message.
+
+---
+
 ## Working Strategy — Zero Assumptions
 
 > **"Assuming is a bad working strategy."**
@@ -865,7 +960,16 @@ When generating or modifying components:
     `e2e/orchestrator/specs.ts` for single-component specs — they are
     auto-discovered from the harness folder. Only multi-component or
     `initArgs`-override specs belong in `EXPLICIT_SPECS`.
-14. **🔴 Final DONE gate — SonarQube server scan.** This is the LAST step before
+14. **Fixing a bug? Fix the CLASS, not the reproduction.** See the section
+    "Fixing Bugs — Fix the Class, Not the Reproduction". State the invariant as
+    a rule before writing the fix; read the spec for spec-defined behaviour;
+    re-read the diff against your own commit message; ask BOTH test questions
+    (can it fail, AND is the input the general case); run the consumers of any
+    shared service you touch. Eighteen of ~88 findings in the RTE audit series
+    were regressions from earlier fixes that were correct only for the input
+    they were handed.
+
+15. **🔴 Final DONE gate — SonarQube server scan.** This is the LAST step before
     declaring any task/plan/PR complete, and it is mandatory:
     `npm run sonar:gate` (coverage re-measured unless the tree fingerprint
     proves it current, then the Dockerized scanner against
