@@ -252,6 +252,13 @@ const VERBATIM_INLINE_TAGS = new Set(['u', 'mark', 'sub', 'sup', 'small', 'ins']
 
 const PASSTHROUGH_TAG_PATTERN = /<\/?([a-zA-Z][a-zA-Z0-9]*)\b[^<>]{0,4096}>/g;
 
+/** Private-use delimiters parking a backslash-escaped punctuation character. */
+/** ASCII punctuation a backslash may escape, per CommonMark. */
+const ESCAPABLE_PUNCTUATION = new Set("!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~".split(''));
+
+const ESCAPED_OPEN = '';
+const ESCAPED_CLOSE = '';
+
 /** Private-use delimiters parking an inline code span; distinct from the fence pair so a lone span is not read as a block. */
 const INLINE_CODE_OPEN = '';
 const INLINE_CODE_CLOSE = '';
@@ -281,6 +288,24 @@ const CODE_FENCE_CLOSE = '';
  * that sees them.
  */
 const CONTENT_BEARING_UNSAFE_TAGS = new Set(['script', 'style', 'iframe', 'object', 'embed', 'template', 'noscript', 'title', 'textarea']);
+
+/**
+ * Escape the literal characters that would otherwise be re-read as syntax.
+ *
+ * toMarkdown emitted text nodes raw, so a document containing "2 * 3 * 4"
+ * came back as "2  3  4" in italics, and a line of prose beginning "# " became
+ * a heading -- ordinary text corrupted on save, with no warning.
+ *
+ * Deliberately minimal. Measured by round-tripping every ASCII punctuation
+ * character in both positions: only these eight cases actually change meaning,
+ * so only these are escaped. Escaping the full CommonMark set would litter
+ * documents with backslashes nobody typed.
+ */
+function escapeMarkdownText(text: string): string {
+    return text
+        .replaceAll(/([*_`])/g, '\\$1')
+        .replaceAll(/^([ \t]*)([*#+>-])( )/gm, '$1\\$2$3');
+}
 
 @Injectable({ providedIn: 'root' })
 export class RichTextMarkdownService {
@@ -325,7 +350,15 @@ export class RichTextMarkdownService {
         // and line-break passes had already rewritten its contents, so
         // documenting `<br>` or `<b>x</b>` corrupted it on the first save.
         const protectedInline: string[] = [];
+        // BEFORE inline code: "\`" is a literal backtick and must not open a
+        // code span (CommonMark). A backslash inside a real code span is left
+        // alone because the span is parked whole, tokens and all, and restored
+        // verbatim.
+        const protectedEscapes: string[] = [];
+        html = this.protectEscapes(html, protectedEscapes);
+
         html = this.protectInlineCode(html, protectedInline);
+
 
         const protectedTags: string[] = [];
         html = this.protectRawTags(html, protectedTags);
@@ -358,6 +391,7 @@ export class RichTextMarkdownService {
         html = this.restoreRawTags(html, protectedTags);
         html = this.restoreCodeFences(html, protectedCode);
         html = this.restoreInlineCode(html, protectedInline);
+        html = this.restoreEscapes(html, protectedEscapes);
 
         return this.sanitizer.sanitize(html);
     }
@@ -433,6 +467,69 @@ export class RichTextMarkdownService {
                 store.push(`<pre><code${langAttr}>${this.escapeHtml(body.trimEnd())}</code></pre>`);
                 return token;
             },
+        );
+    }
+
+    /**
+     * Park a backslash-escaped punctuation character so no later pass reads it
+     * as syntax.
+     *
+     * CommonMark: a backslash before any ASCII punctuation makes that character
+     * literal. Neither half of that worked -- "2 \\* 3 \\* 4" came out as
+     * "2 \\ 3 \\ 4" in italics, so the escape was ignored AND the backslash
+     * rendered. Others (\\#, \\-, \\[) left a visible backslash.
+     *
+     * Runs after protectInlineCode, so a backslash inside `code` stays literal
+     * as the spec requires, and before every syntax pass.
+     */
+    private protectEscapes(markdown: string, store: string[]): string {
+        const source = markdown
+            .replaceAll(ESCAPED_OPEN, '')
+            .replaceAll(ESCAPED_CLOSE, '');
+        const out: string[] = [];
+
+        // A while loop with an explicit cursor: both branches consume more than
+        // one character, and mutating a for-loop counter to do that is a code
+        // smell the linter rightly flags.
+        let i = 0;
+        while (i < source.length) {
+            const ch = source[i];
+
+            if (ch === '\\' && ESCAPABLE_PUNCTUATION.has(source[i + 1])) {
+                out.push(`${ESCAPED_OPEN}${store.length}${ESCAPED_CLOSE}`);
+                store.push(source[i + 1]);
+                i += 2;
+                continue;
+            }
+
+            // A code span is copied WHOLE, so a backslash inside it stays literal
+            // as CommonMark requires -- `\\d+` and `C:\\temp` are the common
+            // case and must not be touched. Scanning here rather than parking
+            // escapes in a separate pass is what lets both rules hold at once:
+            // outside a span \\` is an escape and must not open one, inside a span
+            // it is not an escape at all.
+            if (ch === '`') {
+                const close = source.indexOf('`', i + 1);
+                if (close !== -1) {
+                    out.push(source.slice(i, close + 1));
+                    i = close + 1;
+                    continue;
+                }
+            }
+
+            out.push(ch);
+            i++;
+        }
+
+        return out.join('');
+    }
+
+    /** Put escaped characters back as literal text, HTML-escaped. */
+    private restoreEscapes(html: string, store: string[]): string {
+        if (store.length === 0) return html;
+        return html.replaceAll(
+            new RegExp(`${ESCAPED_OPEN}(\\d{1,9})${ESCAPED_CLOSE}`, 'g'),
+            (_match, index: string) => this.escapeHtml(store[Number(index)] ?? ''),
         );
     }
 
@@ -973,7 +1070,7 @@ export class RichTextMarkdownService {
 
         for (const child of Array.from(node.childNodes)) {
             if (child.nodeType === Node.TEXT_NODE) {
-                result.push(child.textContent ?? '');
+                result.push(escapeMarkdownText(child.textContent ?? ''));
             } else if (child.nodeType === Node.ELEMENT_NODE) {
                 result.push(this.elementToMarkdown(child as HTMLElement));
             }

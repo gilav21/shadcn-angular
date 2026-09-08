@@ -1858,4 +1858,76 @@ describe('RichTextMarkdownService', () => {
             expect(service.toMarkdown('<p>a <span>plain</span> b</p>')).toBe('a plain b');
         });
     });
+
+    describe('backslash escapes (CommonMark)', () => {
+        const BS = String.fromCodePoint(92);
+
+        it('treats escaped punctuation as literal, not syntax', () => {
+            // Both halves were broken: the escape was ignored AND the backslash
+            // rendered, so "2 \\* 3 \\* 4" came out as "2 \\ 3 \\ 4" in italics.
+            const cases: ReadonlyArray<readonly [string, string]> = [
+                ['a ' + BS + '* not em ' + BS + '* b', 'a * not em * b'],
+                ['a ' + BS + '_ not em ' + BS + '_ b', 'a _ not em _ b'],
+                [BS + '# not a heading', '# not a heading'],
+                [BS + '- not a list', '- not a list'],
+                [BS + '[not a link]', '[not a link]'],
+                ['a ' + BS + '`not code' + BS + '` b', 'a `not code` b'],
+                ['path C:' + BS + BS + 'temp', 'path C:' + BS + 'temp'],
+            ];
+            for (const [src, want] of cases) {
+                const probe = document.createElement('div');
+                probe.innerHTML = service.toHtml(src);
+                expect(probe.textContent).toBe(want);
+                expect(probe.querySelectorAll('em, strong')).toHaveLength(0);
+            }
+        });
+
+        it('leaves a backslash inside a code span alone', () => {
+            // CommonMark: escapes do NOT apply inside a code span. protectEscapes
+            // copies a span whole for this reason -- `\\d+` and `C:\\temp` are
+            // the common case and must survive untouched, while an escaped
+            // backtick OUTSIDE a span must not open one. Both rules hold at once
+            // only because the scan handles them in the same pass.
+            for (const [src, want] of [
+                ['use `' + BS + 'd+' + BS + 's*` here', BS + 'd+' + BS + 's*'],
+                ['use `C:' + BS + 'temp` here', 'C:' + BS + 'temp'],
+                ['use `a ' + BS + '* b` here', 'a ' + BS + '* b'],
+            ] as ReadonlyArray<readonly [string, string]>) {
+                const probe = document.createElement('div');
+                probe.innerHTML = service.toHtml(src);
+                expect(probe.querySelector('code')?.textContent).toBe(want);
+            }
+        });
+
+        it('escapes literal punctuation on the way OUT', () => {
+            // The serializer emitted text nodes raw, so plain prose corrupted on
+            // save: "2 * 3 * 4" came back "2  3  4" in italics and a line
+            // starting "# " became a heading. Measured across every ASCII
+            // punctuation character in both positions; these are the only eight
+            // shapes that change meaning, so only these are escaped.
+            for (const text of [
+                '2 * 3 * 4',
+                'a _b_ c',
+                'a `b` c',
+                '# not a heading',
+                '- not a list',
+                '+ not a list',
+                '> not a quote',
+            ]) {
+                const host = document.createElement('p');
+                host.textContent = text;
+                const probe = document.createElement('div');
+                probe.innerHTML = service.toHtml(service.toMarkdown(host.outerHTML));
+                expect(probe.textContent).toBe(text);
+            }
+        });
+
+        it('does not escape punctuation that needs no escaping', () => {
+            // The escape set is deliberately minimal: over-escaping would litter
+            // documents with backslashes nobody typed.
+            const host = document.createElement('p');
+            host.textContent = 'Hello, world! (see: item 1.) 50% ~ 100%';
+            expect(service.toMarkdown(host.outerHTML)).not.toContain(BS);
+        });
+    });
 });
