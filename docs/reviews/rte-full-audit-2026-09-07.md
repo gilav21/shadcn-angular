@@ -787,3 +787,68 @@ implementation half-delivered, and it asserted the half-broken output.
 
 Defects frozen into tests as asserted-correct: **thirteen** (five now mine).
 Regressions introduced while fixing other findings: **eighteen**.
+
+---
+
+## Round 21 — adversarial sweep (4 findings, all fixed)
+
+An eighth auditor, run **without browser tools** — the previous attempt wedged
+the shared Playwright tab and produced a 0-byte transcript in 62 minutes. Driving
+the test runner instead worked cleanly and is the better default.
+
+Its own summary was accurate: *"three are cases where a recent fix addressed the
+specific reported instance but missed the general class, and the accompanying
+test used a degenerate input that structurally cannot expose the gap."*
+
+| # | Sev | Finding | Fix | Commit |
+|---|---|---|---|---|
+| R21-1 | CRITICAL | An 81-byte document of `> ` markers froze the browser tab. | See below — the reported cause was not the real one. | `5bd9eab7` |
+| R21-2 | HIGH | `wrapBareTextInParagraph` collected *every* bare node, so `alpha<p>BLOCK</p>beta` became `<p>alphabeta</p><p>BLOCK</p>` — text teleported across a block and fused with unrelated text. | Wraps only the contiguous run at the caret. | `5bd9eab7` |
+| R21-3 | MEDIUM | `clampHeight` was bounded both ends in round 20; `clampWidth` was left with no lower bound and no ceiling when `maxWidth` is unset — the same "frozen drag" that fix claims to remove, live on the mirror axis. | Both ends, both axes. | `5bd9eab7` |
+| R21-4 | MEDIUM | `colspan` capped per **cell**, nothing per row: 50×50 cells of `colspan="1000"` turned 63 KB of paste into 7.8 MB of markdown. | Bounded per row; separator follows the same cap. | `5bd9eab7` |
+
+### The CRITICAL was misattributed — and the real cause was mine
+
+The auditor blamed unbounded recursion in `buildBlockquote`. That is real, and it
+got a depth cap. **The browser still died.** Rather than assume the fix worked:
+the harness was healthy (button suite, 46 tests, 7.7s), 142 tests passed with the
+new tests removed, and the blockquote test *alone* killed the page.
+
+The actual cause is `FENCE_PATTERN`, written by me in round 20 to accept
+quote-then-indent prefixes:
+
+```
+(?:[ 	]*> ?)*[ 	]*     ← inner and trailing runs match the same spaces
+```
+
+Catastrophic backtracking over a run of quote markers — **59 ms at depth 20,
+385 ms at 26, doubling per level.** Reachable from paste, file import, and
+`<ui-rich-text-view [value]>`. The fix gives indentation exactly one home,
+`(?:>[ 	]?)*[ 	]*`: flat at depth 200, all five fence shapes still matching.
+Both bounds are kept — they are independent defects.
+
+**eslint's ReDoS rule did not flag this**, though it caught two other patterns of
+mine in round 20. The lint is a filter, not a proof.
+
+### Every guarding test was degenerate
+
+The clearest pair, both mine from round 20:
+
+- *"does not swallow existing block elements"* used `<p>alpha</p><ul>…</ul>` —
+  **zero bare nodes**, so `bare.length === 0` early-returned and *neither
+  assertion executed any logic*.
+- *"still wraps a genuinely bare text node"* used a lone text node — no blocks, so
+  ordering could not be wrong.
+
+Neither had both bare *and* block nodes, which is the general case and exactly
+where the bug lived. The colspan test used a single cell; the resize test dragged
+100,000px on the axis that was fixed and 100px on the one that was broken.
+
+**The new tests fail against the exact code that shipped last round, which the
+old tests passed.** That is the difference between a degenerate and a general
+input, demonstrated rather than asserted.
+
+### Scoreboard
+
+Defects frozen into tests as asserted-correct: **seventeen** (nine now mine).
+Regressions introduced while fixing other findings: **twenty-two**.
