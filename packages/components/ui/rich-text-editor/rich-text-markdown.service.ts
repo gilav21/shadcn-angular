@@ -263,6 +263,32 @@ const URL_SHIELD: ReadonlyArray<readonly [string, string]> = [
 /** Inline tags Markdown cannot express; emitted as HTML and read back as-is. */
 const VERBATIM_INLINE_TAGS = new Set(['u', 'mark', 'sub', 'sup', 'small', 'ins']);
 
+/**
+ * Inline tags that WRAP their body in delimiters or a tag pair. When the body
+ * is empty there is nothing to wrap, so they serialize to nothing.
+ *
+ * An allowlist, not an exclusion list: <br> and <img> also have empty
+ * textContent but are meaningful on their own, and a first attempt that keyed
+ * off "empty textContent" alone swallowed every line break in the document.
+ */
+const BODY_WRAPPING_INLINE_TAGS = new Set([
+    'strong', 'b', 'em', 'i', 'del', 's', 'code',
+    'u', 'mark', 'sub', 'sup', 'small', 'ins',
+]);
+
+/**
+ * Whether an inline element wraps a body that turned out to be empty.
+ *
+ * `inner` AND textContent must both be empty: an element holding only an image
+ * or a line break has a non-empty `inner` and must be kept, and testing
+ * textContent alone swallowed <strong><img></strong>.
+ */
+function isEmptyWrapper(tagName: string, inner: string, element: HTMLElement): boolean {
+    return BODY_WRAPPING_INLINE_TAGS.has(tagName)
+        && inner === ''
+        && (element.textContent ?? '') === '';
+}
+
 const PASSTHROUGH_TAG_PATTERN = /<\/?([a-zA-Z][a-zA-Z0-9]*)\b[^<>]{0,4096}>/g;
 
 /** Private-use delimiters parking a backslash-escaped punctuation character. */
@@ -1180,6 +1206,22 @@ export class RichTextMarkdownService {
     }
 
     private inlineTagToMarkdown(tagName: string, inner: string, element: HTMLElement): string | null {
+        // An empty inline element carries nothing, so it serializes to nothing.
+        // Emitting the delimiters around an empty body produced VISIBLE literal
+        // punctuation the author never typed: <code></code> became a bare ``,
+        // <strong></strong> became ****, <em></em> ** and <del></del> ~~~~ --
+        // and none of those parse back, so the noise stuck. Deleting the text
+        // inside a bold or code run leaves exactly this shape, so it is reachable
+        // by an ordinary edit. <mark> and <u> were already fine, being emitted as
+        // tags rather than delimiters.
+        //
+        // <img> and <input> are excluded: they are legitimately empty and carry
+        // their content in attributes.
+        // `inner` is the serialized body, so an element holding only an image or
+        // a line break has a non-empty `inner` and is correctly kept -- testing
+        // element.textContent instead swallowed <strong><img></strong>.
+        if (isEmptyWrapper(tagName, inner, element)) return '';
+
         // Markdown has no syntax for these, so they are emitted verbatim --
         // protectRawTags already carries such tags back through toHtml unchanged.
         // Only <u> used to be handled, so its five siblings (all in the

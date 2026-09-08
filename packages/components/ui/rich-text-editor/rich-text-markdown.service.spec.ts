@@ -1984,4 +1984,51 @@ describe('RichTextMarkdownService', () => {
             expect(service.toMarkdown(host.outerHTML)).not.toContain(BS);
         });
     });
+
+    describe('empty inline elements emit nothing', () => {
+        it('does not turn an emptied bold or code run into visible punctuation', () => {
+            // Deleting the text inside a bold or code run leaves <strong></strong>
+            // or <code></code>, and the delimiters were emitted around the empty
+            // body: **** and `` appeared in the document as literal characters the
+            // author never typed, and neither parses back, so the noise stuck.
+            for (const tag of ['code', 'em', 'strong', 'del', 'mark', 'u']) {
+                const host = document.createElement('p');
+                host.append(
+                    document.createTextNode('a '),
+                    document.createElement(tag),
+                    document.createTextNode(' b'),
+                );
+                const md = service.toMarkdown(host.outerHTML);
+                const probe = document.createElement('div');
+                probe.innerHTML = service.toHtml(md);
+                expect(probe.textContent).toBe('a  b');
+                expect(service.toMarkdown(service.toHtml(md))).toBe(md);
+            }
+        });
+
+        it('still emits tags that are meaningfully empty', () => {
+            // The rule is an ALLOWLIST of body-wrapping tags, not "empty
+            // textContent": <br> and <img> are empty too but mean something on
+            // their own. A first attempt keyed off empty textContent alone and
+            // swallowed every line break in the document -- caught only because
+            // the existing <br> tests were there.
+            expect(service.toMarkdown('<p>x<br>y</p>')).toContain('x');
+            const probe = document.createElement('div');
+            probe.innerHTML = service.toHtml(service.toMarkdown('<p>x<br>y</p>'));
+            expect(probe.querySelector('br')).toBeTruthy();
+
+            const img = service.toMarkdown('<p><img src="https://e.com/i.png" alt="z"></p>');
+            expect(img).toContain('https://e.com/i.png');
+        });
+
+        it('keeps an inline whose only content is an image or a space', () => {
+            const withImg = service.toMarkdown('<p><strong><img src="https://e.com/i.png" alt="z"></strong></p>');
+            expect(withImg).toContain('https://e.com/i.png');
+            expect(withImg).toContain('**');
+
+            const probe = document.createElement('div');
+            probe.innerHTML = service.toHtml(service.toMarkdown('<p>a <code> </code> c</p>'));
+            expect(probe.querySelector('code')?.textContent).toBe(' ');
+        });
+    });
 });
