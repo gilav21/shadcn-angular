@@ -210,6 +210,9 @@ const URL_SHIELD: ReadonlyArray<readonly [string, string]> = [
  * listed seven tags by hand, so `<b>x</b>` rendered a literal `</b>` and
  * corrupted permanently on round-trip.
  */
+/** Inline tags Markdown cannot express; emitted as HTML and read back as-is. */
+const VERBATIM_INLINE_TAGS = new Set(['u', 'mark', 'sub', 'sup', 'small', 'ins']);
+
 const PASSTHROUGH_TAG_PATTERN = /<\/?([a-zA-Z][a-zA-Z0-9]*)\b[^<>]{0,4096}>/g;
 
 /** Private-use delimiters parking an inline code span; distinct from the fence pair so a lone span is not read as a block. */
@@ -967,6 +970,14 @@ export class RichTextMarkdownService {
     }
 
     private inlineTagToMarkdown(tagName: string, inner: string, element: HTMLElement): string | null {
+        // Markdown has no syntax for these, so they are emitted verbatim --
+        // protectRawTags already carries such tags back through toHtml unchanged.
+        // Only <u> used to be handled, so its five siblings (all in the
+        // sanitizer's ALLOWED_TAGS) were flattened to bare text on EVERY save in
+        // the default markdown mode: <mark>X</mark> became X, unrecoverably.
+        if (VERBATIM_INLINE_TAGS.has(tagName)) {
+            return `<${tagName}>${inner}</${tagName}>`;
+        }
         switch (tagName) {
             case 'strong':
             case 'b':
@@ -977,8 +988,11 @@ export class RichTextMarkdownService {
             case 'del':
             case 's':
                 return `~~${inner}~~`;
-            case 'u':
-                return `<u>${inner}</u>`;
+            // Markdown has no syntax for these, so they are emitted verbatim --
+            // protectRawTags already carries such tags back through toHtml
+            // unchanged. Only <u> was listed, so its five siblings (all in the
+            // sanitizer's ALLOWED_TAGS) were flattened to bare text on EVERY
+            // save in the default markdown mode: <mark>X</mark> became X.
             case 'code':
                 return this.handleCodeTag(element, inner);
             case 'a':

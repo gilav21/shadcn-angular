@@ -1615,4 +1615,39 @@ describe('RichTextMarkdownService', () => {
             expect(probe.textContent).toContain('Outside');
         });
     });
+
+    describe('inline tags markdown cannot express (round-28 audit)', () => {
+        it('keeps every sanitizer-allowed inline tag across a save', () => {
+            // mode defaults to 'markdown', so toMarkdown runs on EVERY save. The
+            // sanitizer admits mark/sub/sup/small/ins, but only <u> had a case in
+            // inlineTagToMarkdown -- the other five fell through to bare `inner`,
+            // so <mark>X</mark> became X and the formatting was gone for good.
+            // <u> was already emitted verbatim; this is that same precedent.
+            for (const tag of ['u', 'mark', 'sub', 'sup', 'small', 'ins']) {
+                const md = service.toMarkdown(`<p>A<${tag}>X</${tag}>B</p>`);
+                expect(md).toBe(`A<${tag}>X</${tag}>B`);
+
+                const probe = document.createElement('div');
+                probe.innerHTML = service.toHtml(md);
+                expect(probe.querySelector(tag)).toBeTruthy();
+                // Stable, so it does not decay on later saves either.
+                expect(service.toMarkdown(service.toHtml(md))).toBe(md);
+            }
+        });
+
+        it('keeps them when they wrap other markup', () => {
+            for (const html of [
+                '<p><mark>A<strong>B</strong>C</mark></p>',
+                '<p>x<sup>2</sup> + y<sub>1</sub></p>',
+            ]) {
+                const md = service.toMarkdown(html);
+                expect(service.toMarkdown(service.toHtml(md))).toBe(md);
+                const probe = document.createElement('div');
+                probe.innerHTML = service.toHtml(md);
+                expect(probe.textContent).toBe(
+                    new DOMParser().parseFromString(html, 'text/html').body.textContent,
+                );
+            }
+        });
+    });
 });
