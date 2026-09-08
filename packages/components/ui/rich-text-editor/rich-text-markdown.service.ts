@@ -138,12 +138,26 @@ function absorbNonListLine(
     return false;
 }
 
-function takeContinuation(continuation: string[], pendingBlank: string[]): string {
+/**
+ * Drain the held continuation lines into one block.
+ *
+ * Blank lines held speculatively come back as `orphanBlanks` when no
+ * continuation followed, because the caller has to put them BACK. Dropping
+ * them fused the list with what came next: a paragraph after a list reached
+ * parseParagraphs separated by a single newline, so it was one block starting
+ * with <ul>, matched the already-block-level guard, and was never wrapped --
+ * "list, then prose" lost its <p> permanently, on the commonest shape there is.
+ */
+function takeContinuation(
+    continuation: string[],
+    pendingBlank: string[],
+): { block: string; orphanBlanks: string[] } {
+    const orphanBlanks = continuation.length === 0 ? [...pendingBlank] : [];
     pendingBlank.length = 0;
-    if (continuation.length === 0) return '';
+    if (continuation.length === 0) return { block: '', orphanBlanks };
     const block = continuation.join('\n');
     continuation.length = 0;
-    return block;
+    return { block, orphanBlanks };
 }
 
 function indentContinuation(content: string, indent = ''): string {
@@ -606,17 +620,18 @@ export class RichTextMarkdownService {
         let continuationOwner: ListContext | undefined;
         const pendingBlank: string[] = [];
 
-        const flushContinuation = (): void => {
-            const block = takeContinuation(continuation, pendingBlank);
-            // The owner is captured when the continuation STARTS, not resolved
-            // here: a following sibling pops the deeper levels before this runs,
-            // so stack.at(-1) was an ancestor by then. A third-level item's
-            // heading was attached to its grandparent whenever a sibling
-            // followed it -- and that misplacement was a stable fixed point.
+        // The continuation owner is captured when the continuation STARTS:
+        // a following sibling pops the deeper levels before the flush runs, so
+        // stack.at(-1) would be an ancestor by then -- a third-level item's
+        // heading landed in its grandparent, as a stable fixed point.
+        const flushContinuation = (): string[] => {
+            const { block, orphanBlanks } = takeContinuation(continuation, pendingBlank);
             const openList = continuationOwner;
             continuationOwner = undefined;
-            if (!block || !openList?.items.length) return;
-            openList.items[openList.items.length - 1] += this.parseListContinuation(block, openList.indent);
+            if (block && openList?.items.length) {
+                openList.items[openList.items.length - 1] += this.parseListContinuation(block, openList.indent);
+            }
+            return orphanBlanks;
         };
 
         for (const line of lines) {
@@ -628,9 +643,9 @@ export class RichTextMarkdownService {
                     continuationOwner ??= openList;
                     continue;
                 }
-                flushContinuation();
+                const orphans = flushContinuation();
                 flushStack();
-                result.push(line);
+                result.push(...orphans, line);
                 continue;
             }
 

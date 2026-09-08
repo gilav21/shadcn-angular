@@ -1606,13 +1606,41 @@ describe('RichTextMarkdownService', () => {
             }
         });
 
-        it('still ends the list at an unindented line', () => {
+        it('still ends the list at an unindented line, as a PARAGRAPH', () => {
             // The continuation rule must not swallow ordinary text after a list.
+            //
+            // The <p> is asserted, not just the text. This test used
+            // toContain('Outside') on textContent, which is true whether the text
+            // is a paragraph or a bare node -- so it passed while the paragraph
+            // after EVERY list silently lost its <p> on the first save, on the
+            // commonest document shape there is. It never recovered: a stable
+            // fixed point.
             const probe = document.createElement('div');
             probe.innerHTML = service.toHtml('- Alpha' + NLC + NLC + 'Outside');
             expect(probe.querySelectorAll('li')).toHaveLength(1);
             expect(probe.querySelector('li')?.textContent).toBe('Alpha');
-            expect(probe.textContent).toContain('Outside');
+            expect(probe.querySelectorAll('p')).toHaveLength(1);
+            expect(probe.querySelector('p')?.textContent).toBe('Outside');
+        });
+
+        it('keeps the paragraph after a list, for every list type', () => {
+            for (const html of [
+                '<ul><li>Alpha</li></ul><p>Outside</p>',
+                '<ol><li>Alpha</li></ol><p>Outside</p>',
+                '<ul><li>Alpha</li></ul><p>One</p><p>Two</p>',
+            ]) {
+                const before = new DOMParser().parseFromString(html, 'text/html');
+                const md = service.toMarkdown(html);
+                const probe = document.createElement('div');
+                probe.innerHTML = service.toHtml(md);
+                expect(probe.querySelectorAll('p')).toHaveLength(
+                    before.querySelectorAll('p').length,
+                );
+                // Stable from the SECOND save: the first pass normalises the
+                // blank line between the list and the paragraph, then it holds.
+                const second = service.toMarkdown(service.toHtml(md));
+                expect(service.toMarkdown(service.toHtml(second))).toBe(second);
+            }
         });
     });
 
