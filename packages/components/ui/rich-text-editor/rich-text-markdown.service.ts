@@ -177,6 +177,19 @@ function indentContinuation(content: string, indent = ''): string {
     return [first, ...rest.map((line) => (line.trim() ? pad + line : line))].join('\n');
 }
 
+/** Emit every open root list into `result` and clear the parse stack. */
+function flushListStack(
+    rootLists: ListContext[],
+    stack: ListContext[],
+    result: string[],
+): ListContext[] {
+    for (const ctx of rootLists) {
+        result.push(buildListContextHtml(ctx));
+    }
+    stack.length = 0;
+    return [];
+}
+
 function buildListContextHtml(ctx: ListContext): string {
     const tag = ctx.type === 'task' ? 'ul' : ctx.type;
     const taskAttr = ctx.type === 'task' ? ' data-task-list' : '';
@@ -708,11 +721,7 @@ export class RichTextMarkdownService {
         let rootLists: ListContext[] = [];
 
         const flushStack = (): void => {
-            for (const ctx of rootLists) {
-                result.push(buildListContextHtml(ctx));
-            }
-            rootLists = [];
-            stack.length = 0;
+            rootLists = flushListStack(rootLists, stack, result);
         };
 
         // Lines held for the item currently open, and blank lines not yet known
