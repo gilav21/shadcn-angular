@@ -1,5 +1,94 @@
 # Rich Text Editor — full audit, 2026-09-07
 
+## Series summary (rounds 13–20)
+
+Eight independent adversarial audits, each run by an agent with **no context on
+prior rounds**, each followed by fixes, sabotage-tested regression tests, and
+browser verification. Rounds 15 onward were briefed to attack whatever the
+previous round had just changed.
+
+**Outcome: 27 fix commits, 88 findings triaged (69 tabulated below, the rest
+recorded in prose), 2,249 tests passing, and the SonarQube done-gate green with
+zero new issues on the changed code.**
+
+Not every finding became a fix: several were reported CONFIRMED by an auditor and
+did not reproduce, and those are recorded as not-bugs rather than quietly
+dropped.
+
+### What was found, by round
+
+| Round | Findings | Headline |
+| --- | --- | --- |
+| 13 | 16 | Stale DOM references surviving `innerHTML` replacement — the dominant class described below |
+| 14 | 4 | AI addon completely unreachable by keyboard (WCAG 2.1.1) plus three silent-to-AT surfaces |
+| 15 | 17 | `<u>` destroyed by every markdown round-trip; **mention spoofing** via code fence; scriptable SVG in `href` |
+| 16 | 15 | `if (x<y)` silently deleted the rest of the line in the default mode; forgeable fence tokens |
+| 17 | 11 | **Open redirect** (`/\host`); `DOMException` from stale table refs after undo |
+| 18 | 9 | A test of mine that could not fail; whole-document tag pairing deleting prose |
+| 19 | 8 | My "per block" fix was a no-op (computed locality, then unioned it away) |
+| 20 | 8 | Open redirect a third time; positional pairing; 887× colspan amplification |
+
+### The three recurring patterns
+
+**1. Stale DOM references.** An operation replaces nodes; a surviving reference
+is then used against dead DOM, and the action *silently does nothing*. Found in
+images, tables, fonts, selection, and the context menu. Now funnelled through a
+single `replaceEditorHtml` seam that clears every reference a replacement
+invalidates.
+
+**2. Compounding corruption.** A round-trip that is not a fixed point, so the
+document degrades a little on *every save and load*: underline gaining a visible
+`</u>` each cycle, blockquote markers doubling inside code fences, a nested list
+growing two characters of whitespace forever, `wrapBareTextInParagraph` adding a
+nesting level per keystroke. Each was invisible for one cycle and unrecoverable
+after ten.
+
+**3. Tests that cannot fail for the reason they exist.** Thirteen found, **five
+of them mine**. Three sub-species, in increasing subtlety:
+- a weak assertion (trailing substring that passes either way);
+- a test asserting broken behaviour as correct, sometimes with a comment
+  admitting the spec predicted better;
+- a **degenerate input** — the test *does* fail under sabotage, so it looks
+  load-bearing, but the input is the one shape where the bug cannot manifest.
+
+The third is the one that cost the most. Sabotage-testing proves an assertion is
+load-bearing; it says nothing about whether the input is representative. Those
+are two separate questions, and only the first was being asked. Two security
+fixes shipped with passing sabotage tests and live bugs: a tag-pairing test using
+a lone stray closing tag (unpaired under both implementations), and an
+open-redirect test using only two-character backslash forms while single-
+backslash and triple-slash both bypassed.
+
+### On the value of the loop
+
+**Eighteen of the findings were regressions I introduced while fixing earlier
+ones.** By round 17 the auditors were mostly catching my own work rather than the
+original code's — which is the argument for running the loop, not against it. The
+open redirect took three attempts to close properly; each earlier fix was correct
+for the shape I had tested and wrong for the general case.
+
+Two pieces of tooling came out of this and now prevent whole classes of error:
+`no-control-regex` in the eslint config (my Python editing scripts had written
+literal `` and tab characters into four separate regexes, once making an
+alternation silently never match), and the discipline of checking the SonarQube
+gate's *analysed revision and coverage fingerprint* rather than its exit code —
+the first gate run of the session exited 0 having never scanned at all.
+
+### Deliberately not fixed
+
+Recorded as decisions rather than quietly skipped: `<div>` vs `<p>` as the
+browser's default block separator; Ctrl+H intercepted by Chrome; the counter's
+"1 words" pluralisation (needs new strings across ten locales — a translation
+change, and imposing English plural rules on nine other languages would be
+worse); the AI panel's `role="dialog"` (a native `<dialog>` is `display:none`
+until `.show()`, so adopting it changes behaviour on a working non-modal panel —
+excluded via the project's documented `resourceKey` process, never an inline
+disable).
+
+---
+
+## Round 13 — the original audit
+
 Scope: the whole editor, not just the toolbar. Base component, 14 addons,
 sanitizer, paste normalizer, file-import parsers, image lifecycle,
 accessibility, responsive and touch.
