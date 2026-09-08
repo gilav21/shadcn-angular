@@ -162,7 +162,6 @@ export class RichTextPasteNormalizerService {
         this.convertFontElements(container);
         this.convertWordHeadings(container);
         this.convertWordLists(container);
-        this.unwrapGhostTables(container);
         this.mapOfficeStyles(container);
         this.convertStylesToSemanticElements(container);
         this.removeEmptyElements(container);
@@ -471,71 +470,6 @@ export class RichTextPasteNormalizerService {
         const nestedList = this.document.createElement(item.isOrdered ? 'ol' : 'ul');
         lastLi.appendChild(nestedList);
         stack.push({ list: nestedList, level: item.level });
-    }
-
-    /**
-     * Whether a table looks like Word layout scaffolding rather than data:
-     * every row holds exactly one cell.
-     *
-     * SCOPE, because the name overstates it: this only runs from
-     * {@link normalizeOffice}, i.e. when the paste was detected as Word or
-     * Outlook -- which genuinely wrap paragraphs in one-cell tables for margins.
-     * A one-cell table created in the editor, or pasted from ordinary HTML,
-     * never reaches this and is preserved. Verified across seven single-cell
-     * shapes: bare, bordered, classed, `<th>`, `<thead>`, and multi-row
-     * single-column all survive a non-Office paste intact.
-     *
-     * OPEN QUESTION, not a settled trade-off: "one cell per row" is also a
-     * perfectly deliberate table -- a bordered callout, a single-column list --
-     * and this cannot tell the two apart, so such a table pasted OUT OF WORD is
-     * flattened with no way for the author to object. The narrower rule would
-     * require positive evidence of Word scaffolding (`MsoNormal`, `mso-` style
-     * properties, `<o:p>`) rather than shape alone. That change is not made
-     * here: it needs checking against real Word fixtures first, because if they
-     * do not carry those markers it would stop unwrapping genuine scaffolding.
-     */
-    private isGhostTable(table: HTMLTableElement): boolean {
-        // Scoped to THIS table. An unscoped descendant query counts a nested
-        // table's rows and cells as the wrapper's own, so a genuine 1-cell
-        // wrapper around another 1-cell table was NOT recognised and never
-        // unwrapped. Same defect that was fixed in tableToMarkdown; this is
-        // the sibling consumer it was not applied to.
-        const rows = table.querySelectorAll(':scope > tr, :scope > thead > tr, :scope > tbody > tr, :scope > tfoot > tr');
-        if (rows.length === 0) return false;
-        // A wrapper holding a REAL table is not a ghost: draining it would
-        // destroy the inner table. Scoping the counts above was necessary but
-        // not sufficient -- with the nested rows no longer inflating the count,
-        // such a wrapper started to qualify.
-        if (table.querySelector(':scope > tbody > tr > td > table, :scope > tr > td > table')) {
-            return false;
-        }
-        return Array.from(rows).every(row => row.querySelectorAll(':scope > td, :scope > th').length === 1);
-    }
-
-    private extractGhostTableContent(table: HTMLTableElement): DocumentFragment {
-        const fragment = this.document.createDocumentFragment();
-        for (const row of Array.from(table.querySelectorAll(':scope > tr, :scope > thead > tr, :scope > tbody > tr, :scope > tfoot > tr'))) {
-            const cell = row.querySelector('td, th');
-            if (cell) {
-                this.drainChildNodes(cell, fragment);
-            }
-        }
-        return fragment;
-    }
-
-    private drainChildNodes(source: Element, target: DocumentFragment | HTMLElement): void {
-        while (source.firstChild) {
-            target.appendChild(source.firstChild);
-        }
-    }
-
-    private unwrapGhostTables(container: HTMLElement): void {
-        const tables = Array.from(container.querySelectorAll('table'));
-        for (const table of tables) {
-            if (!this.isGhostTable(table)) continue;
-            const fragment = this.extractGhostTableContent(table);
-            table.parentNode?.replaceChild(fragment, table);
-        }
     }
 
     private readonly systemColorMap = new Map<string, string>([

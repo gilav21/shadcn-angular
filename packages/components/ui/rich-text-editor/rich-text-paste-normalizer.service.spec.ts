@@ -16,7 +16,6 @@ type PasteNormalizerPrivate = {
     unwrapElement: (el: Element) => void;
     isEffectivelyEmpty: (el: HTMLElement) => boolean;
     applyMissingProps: (props: Map<string, string>, target: HTMLElement) => void;
-    extractGhostTableContent: (table: HTMLTableElement) => DocumentFragment;
     parseStyles: (styleAttr: string) => Map<string, string>;
 };
 
@@ -320,11 +319,16 @@ describe('RichTextPasteNormalizerService', () => {
             expect(result).toContain('Second');
         });
 
-        it('should unwrap single-cell layout tables', () => {
+        it('preserves a single-cell table pasted from Word', () => {
+            // A table in the source is content. Word does use one-cell tables
+            // as layout scaffolding, but the shape is indistinguishable from a
+            // deliberate bordered callout or single-column list, so removing it
+            // is drift from the original rather than a fix.
             const html = '<p class="MsoNormal">Before</p><table><tr><td><p class="MsoNormal">Cell content</p></td></tr></table>';
             const result = service.normalize(html, '');
             expect(result).toContain('Cell content');
-            expect(result).not.toContain('<table>');
+            expect(result).toContain('<table>');
+            expect(result).toContain('<td>');
         });
 
         it('should preserve real data tables', () => {
@@ -1782,7 +1786,7 @@ describe('RichTextPasteNormalizerService', () => {
             expect(result).toContain('Styled Title');
         });
 
-        it('unwraps an empty (rowless) ghost table', () => {
+        it('keeps surrounding content when a table has no rows', () => {
             const html = '<p class="MsoNormal">Before</p><table></table>';
             const result = service.normalize(html, '');
             expect(result).toContain('Before');
@@ -2169,19 +2173,6 @@ describe('RichTextPasteNormalizerService', () => {
             expect(result).toContain('Child');
         });
 
-        it('extractGhostTableContent skips rows that have no cell', () => {
-            const table = document.createElement('table');
-            const emptyRow = document.createElement('tr');
-            const cellRow = document.createElement('tr');
-            const td = document.createElement('td');
-            td.textContent = 'content';
-            cellRow.appendChild(td);
-            table.append(emptyRow, cellRow);
-
-            const fragment = priv().extractGhostTableContent(table as HTMLTableElement);
-            expect(fragment.textContent).toBe('content');
-        });
-
         it('maps color:auto to null (system color miss) without setting a value', () => {
             const html = '<p style="mso-x:1; background-color:red; background:blue; color:auto">x</p>';
             const result = service.normalize(html, '');
@@ -2322,38 +2313,6 @@ describe('RichTextPasteNormalizerService', () => {
             const html = '<span style="text-decoration:overline">deco</span>';
             const result = service.normalize(html, '');
             expect(result).toContain('text-decoration: overline');
-        });
-    });
-
-    describe('ghost table detection scoping (self-review)', () => {
-        const ghost = (html: string): boolean => {
-            const host = document.createElement('div');
-            host.innerHTML = html;
-            const table = host.querySelector('table') as HTMLTableElement;
-            return (service as unknown as {
-                isGhostTable(t: HTMLTableElement): boolean;
-            }).isGhostTable(table);
-        };
-
-        it('still unwraps a plain single-cell wrapper', () => {
-            expect(ghost('<table><tbody><tr><td>content</td></tr></tbody></table>')).toBe(true);
-        });
-
-        it('does not unwrap a wrapper that holds a real table', () => {
-            // The row/cell counts were unscoped, so a nested table's cells were
-            // counted as the wrapper's own. Scoping them was necessary but not
-            // sufficient: with the nested rows no longer inflating the count,
-            // such a wrapper STARTED to qualify as a ghost -- and draining it
-            // would destroy the inner table. Hence the explicit guard.
-            expect(ghost(
-                '<table><tbody><tr><td>' +
-                '<table><tbody><tr><td>x</td><td>y</td></tr></tbody></table>' +
-                '</td></tr></tbody></table>',
-            )).toBe(false);
-        });
-
-        it('does not treat a real multi-cell table as a ghost', () => {
-            expect(ghost('<table><tbody><tr><td>a</td><td>b</td></tr></tbody></table>')).toBe(false);
         });
     });
 });
