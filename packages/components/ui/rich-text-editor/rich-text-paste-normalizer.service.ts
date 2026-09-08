@@ -473,6 +473,27 @@ export class RichTextPasteNormalizerService {
         stack.push({ list: nestedList, level: item.level });
     }
 
+    /**
+     * Whether a table looks like Word layout scaffolding rather than data:
+     * every row holds exactly one cell.
+     *
+     * SCOPE, because the name overstates it: this only runs from
+     * {@link normalizeOffice}, i.e. when the paste was detected as Word or
+     * Outlook -- which genuinely wrap paragraphs in one-cell tables for margins.
+     * A one-cell table created in the editor, or pasted from ordinary HTML,
+     * never reaches this and is preserved. Verified across seven single-cell
+     * shapes: bare, bordered, classed, `<th>`, `<thead>`, and multi-row
+     * single-column all survive a non-Office paste intact.
+     *
+     * OPEN QUESTION, not a settled trade-off: "one cell per row" is also a
+     * perfectly deliberate table -- a bordered callout, a single-column list --
+     * and this cannot tell the two apart, so such a table pasted OUT OF WORD is
+     * flattened with no way for the author to object. The narrower rule would
+     * require positive evidence of Word scaffolding (`MsoNormal`, `mso-` style
+     * properties, `<o:p>`) rather than shape alone. That change is not made
+     * here: it needs checking against real Word fixtures first, because if they
+     * do not carry those markers it would stop unwrapping genuine scaffolding.
+     */
     private isGhostTable(table: HTMLTableElement): boolean {
         // Scoped to THIS table. An unscoped descendant query counts a nested
         // table's rows and cells as the wrapper's own, so a genuine 1-cell
