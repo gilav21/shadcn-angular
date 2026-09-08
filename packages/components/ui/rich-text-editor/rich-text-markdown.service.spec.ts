@@ -1298,6 +1298,21 @@ describe('RichTextMarkdownService', () => {
             expect(html.match(/SPAN/g) ?? []).toHaveLength(1);
         });
 
+
+        it('keeps a code span in alt text as plain text', () => {
+            // An alt attribute cannot hold markup, so a parked code span
+            // restored in there landed as the literal "<code>x</code>".
+            //
+            // The audit reported this as "the image is DELETED" using
+            // http://x/i.png -- but sanitizeImageSrc rejects plain http for
+            // images by policy, so that probe was blocked rather than broken.
+            // With an allowed scheme the image renders; only the alt was wrong.
+            const html = service.toHtml('![`alt`](https://x/i.png)');
+            expect(html).toContain('alt="alt"');
+            expect(html).not.toContain('code&gt;');
+            expect(service.toMarkdown(html)).toBe('![alt](https://x/i.png)');
+        });
+
         it('keeps a hard break that is followed by content', () => {
             const html = service.toHtml('a  ' + String.fromCodePoint(10) + 'b');
             expect(html).toContain('<br>');

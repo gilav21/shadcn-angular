@@ -235,7 +235,7 @@ export class RichTextMarkdownService {
         html = this.parseLineBreaks(html);
         html = this.parseParagraphs(html, protectedTags);
 
-        html = this.parseImages(html);
+        html = this.parseImages(html, protectedInline);
         html = this.parseLinks(html);
         html = this.parseBoldItalic(html);
         html = this.parseStrikethrough(html);
@@ -683,11 +683,15 @@ export class RichTextMarkdownService {
         return URL_SHIELD.reduce((acc, [ch, code]) => acc.replaceAll(code, ch), html);
     }
 
-    private parseImages(html: string): string {
+    private parseImages(html: string, inlineStore: readonly string[]): string {
         return html.replaceAll(MEDIA_TARGET_PATTERN.image, (_, alt, src) => {
             const safeSrc = this.sanitizer.sanitizeImageSrc(src);
             if (!safeSrc) return '';
-            return `<img src="${this.shieldUrl(safeSrc)}" alt="${this.shieldUrl(this.escapeHtml(alt))}">`;
+            // An alt attribute is plain text: a parked code span restored in
+            // there would land as the literal string "<code>x</code>". Resolve
+            // it back to the text the author typed instead.
+            const plainAlt = resolveInlineCodeText(alt, inlineStore);
+            return `<img src="${this.shieldUrl(safeSrc)}" alt="${this.shieldUrl(this.escapeHtml(plainAlt))}">`;
         });
     }
 
@@ -1472,4 +1476,18 @@ function trackRowspans(cells: readonly Element[], carried: Map<number, number>):
         const cols = clampSpan(Number.parseInt(cell.getAttribute('colspan') ?? '1', 10));
         column += cols;
     }
+}
+
+/**
+ * Replace parked inline-code tokens with the text they hold.
+ *
+ * Used where markup cannot go -- an `alt` attribute -- so a code span written in
+ * alt text reads as its own characters rather than a literal
+ * "&lt;code&gt;x&lt;/code&gt;".
+ */
+function resolveInlineCodeText(value: string, store: readonly string[]): string {
+    return value.replaceAll(/(\d{1,9})/g, (_match, index: string) => {
+        const parked = store[Number(index)] ?? '';
+        return parked.replace(/^<code>/, '').replace(/<\/code>$/, '');
+    });
 }
