@@ -369,7 +369,17 @@ function stripCodeSpanPadding(code: string): string {
  * documents with backslashes nobody typed.
  */
 function escapeMarkdownText(text: string): string {
+    // The BACKSLASH goes first, and it is not optional. protectEscapes consumes
+    // a backslash before ASCII punctuation on the way back in, so an unescaped
+    // one is eaten: every \\ in prose lost a backslash on the FIRST save and
+    // kept eroding (a Windows path or a regex bleeds one per save). Worse, a
+    // trailing backslash sat directly before the raw "</u>" that the verbatim
+    // and styled-span paths emit, so "\\<" parked the element's own closing
+    // bracket: the tag was decapitated, became literal text, and by the next
+    // cycle the content was gone. Escaping it first also stops the backslashes
+    // added below from being doubled.
     return text
+        .replaceAll('\\', String.raw`\\`)
         .replaceAll(/([*_`])/g, String.raw`\$1`)
         .replaceAll(/^([ \t]*)([*#+>-])( )/gm, String.raw`$1\$2$3`);
 }
@@ -576,12 +586,24 @@ export class RichTextMarkdownService {
             // outside a span \\` is an escape and must not open one, inside a span
             // it is not an escape at all.
             if (ch === '`') {
-                const close = source.indexOf('`', i + 1);
-                if (close !== -1) {
-                    out.push(source.slice(i, close + 1));
-                    i = close + 1;
+                // The delimiter is a RUN closed by a run of the SAME length, the
+                // same rule protectInlineCode uses. indexOf on a single backtick
+                // contradicted the comment above: for a ``-delimited span it
+                // copied only the two opening ticks and then scanned the BODY as
+                // prose, so a backslash inside a multi-tick span was parked and
+                // dropped -- exactly the spans that hold a backtick, like a regex
+                // or a shell snippet.
+                const openStart = i;
+                while (source[i] === '`') i++;
+                const runLength = i - openStart;
+                const closeIndex = findClosingTickRun(source, i, runLength);
+                if (closeIndex !== -1) {
+                    out.push(source.slice(openStart, closeIndex + runLength));
+                    i = closeIndex + runLength;
                     continue;
                 }
+                out.push(source.slice(openStart, i));
+                continue;
             }
 
             out.push(ch);
@@ -1278,12 +1300,42 @@ export class RichTextMarkdownService {
         if (element.parentElement?.tagName.toLowerCase() === 'pre') return inner;
 
         const content = element.textContent ?? '';
+
+        // A code span cannot cross a line, and an empty one has no delimiter
+        // that parses. Both used to be emitted anyway and neither could be read
+        // back: a <code> holding a newline lost the element and left its backticks
+        // as visible text (splitting the paragraph when the line was blank), and
+        // <code></code> emitted a bare `` that vanished with its content. The
+        // verbatim-tag form survives the round trip instead.
+        // Also when a code element sits directly against another: `a` + `b`
+        // joins as `a``b`, which reads back as ONE span holding "a``b" -- the
+        // two elements merge and four characters the author never typed appear
+        // in the content. The delimiters are only unambiguous with a gap, and
+        // inventing a space would change the text.
+        const abutsCode = (sibling: ChildNode | null): boolean =>
+            sibling?.nodeType === Node.ELEMENT_NODE
+            && (sibling as Element).tagName.toLowerCase() === 'code';
+
+        if (content === '' || content.includes('\n')
+            || abutsCode(element.previousSibling) || abutsCode(element.nextSibling)) {
+            return content === '' ? '' : `<code>${this.escapeHtml(content)}</code>`;
+        }
+
         const longestRun = Math.max(
             0,
             ...Array.from(content.matchAll(/`+/g), (m) => m[0].length),
         );
         const fence = '`'.repeat(longestRun + 1);
-        const pad = content.startsWith('`') || content.endsWith('`') ? ' ' : '';
+
+        // Padding is needed for a leading or trailing SPACE as well as a
+        // backtick: stripCodeSpanPadding removes one pair on the way back, so
+        // without it <code>  a  </code> lost a space from each side on every
+        // save until none were left -- and whitespace is meaningful in code.
+        // Not for all-whitespace content: stripCodeSpanPadding declines to strip
+        // there (CommonMark keeps a span of only spaces as-is), so padding it
+        // would accumulate a space on each side every save.
+        const needsPad = content.trim() !== '' && /^[ `]|[ `]$/.test(content);
+        const pad = needsPad ? ' ' : '';
         return `${fence}${pad}${content}${pad}${fence}`;
     }
 

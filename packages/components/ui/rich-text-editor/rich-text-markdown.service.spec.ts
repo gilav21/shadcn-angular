@@ -2031,4 +2031,129 @@ describe('RichTextMarkdownService', () => {
             expect(probe.querySelector('code')?.textContent).toBe(' ');
         });
     });
+
+    describe('backslashes and code spans (round-33 audit)', () => {
+        const BSC = String.fromCodePoint(92);
+        const TICK = String.fromCodePoint(96);
+        const NLC = String.fromCodePoint(10);
+
+        const cycleText = (html: string, times: number): string[] => {
+            let md = service.toMarkdown(html);
+            const seen: string[] = [];
+            for (let i = 0; i < times; i++) {
+                const probe = document.createElement('div');
+                probe.innerHTML = service.toHtml(md);
+                seen.push(probe.textContent ?? '');
+                md = service.toMarkdown(service.toHtml(md));
+            }
+            return seen;
+        };
+
+        it('keeps a trailing backslash inside a verbatim tag', () => {
+            // escapeMarkdownText did not escape the backslash, and the verbatim
+            // and styled-span paths emit a raw closing tag right after the text,
+            // so a trailing one parked the closing bracket of the tag itself.
+            // The tag was decapitated into literal text and the content was gone
+            // a cycle later; <u> lost the whole paragraph by cycle 2.
+            const seen = cycleText('<p>Copy to <mark>C:' + BSC + 'Users' + BSC + '</mark> now</p>', 3);
+            for (const text of seen) {
+                expect(text).toBe('Copy to C:' + BSC + 'Users' + BSC + ' now');
+            }
+
+            for (const html of ['<p><u>' + BSC + '</u></p>',
+                                '<p><span style="color: red">' + BSC + '</span></p>']) {
+                expect(cycleText(html, 3)).toEqual([BSC, BSC, BSC]);
+            }
+        });
+
+        it('does not erode a double backslash in prose', () => {
+            // protectEscapes consumes a backslash before ASCII punctuation on the
+            // way back, and the backslash is itself escapable, so a doubled one
+            // lost a character on the FIRST save and kept eroding. A document of
+            // regexes or Windows paths bled a backslash per save.
+            for (const want of ['a' + BSC + BSC + 'b', BSC + BSC, 'regex ' + BSC + BSC + 'd']) {
+                const host = document.createElement('p');
+                host.textContent = want;
+                for (const text of cycleText(host.outerHTML, 3)) {
+                    expect(text).toBe(want);
+                }
+            }
+        });
+
+        it('keeps backslashes inside a MULTI-tick code span', () => {
+            // protectEscapes claimed to copy a span whole but used indexOf on a
+            // single backtick, so for a two-tick span it copied the openers and
+            // scanned the BODY as prose, dropping backslashes in exactly the
+            // spans that hold a backtick. Every existing case here was a
+            // SINGLE-tick span, the one shape where the bug cannot appear.
+            for (const content of ['a ' + BSC + TICK + ' b', 'x ' + BSC + '* ' + TICK + 'y' + TICK]) {
+                const host = document.createElement('p');
+                const code = document.createElement('code');
+                code.textContent = content;
+                host.append(code);
+                const md = service.toMarkdown(host.outerHTML);
+                const probe = document.createElement('div');
+                probe.innerHTML = service.toHtml(md);
+                expect(probe.querySelector('code')?.textContent).toBe(content);
+            }
+        });
+
+        it('keeps two adjacent code elements apart', () => {
+            // Two spans written back to back join into one, and four characters
+            // nobody typed enter the content. The verbatim form keeps them
+            // separate without inventing a space.
+            const probe = document.createElement('div');
+            probe.innerHTML = service.toHtml(
+                service.toMarkdown('<p><code>a</code><code>b</code></p>'),
+            );
+            expect(probe.querySelectorAll('code')).toHaveLength(2);
+            expect(probe.textContent).toBe('ab');
+        });
+
+        it('keeps a code span that holds a newline', () => {
+            // A code span cannot cross a line, so the emitted backticks could not
+            // be read back: the element was lost and its delimiters became
+            // visible text, splitting the paragraph when the line was blank.
+            const probe = document.createElement('div');
+            probe.innerHTML = service.toHtml(
+                service.toMarkdown('<p><code>a' + NLC + 'b</code></p>'),
+            );
+            expect(probe.querySelector('code')?.textContent).toBe('a' + NLC + 'b');
+        });
+
+        it('does not erode padding spaces inside a code span', () => {
+            // stripCodeSpanPadding removes one pair on the way back, but padding
+            // was only added for a leading or trailing BACKTICK, so a space was
+            // eaten from each side on every save until none were left.
+            const host = document.createElement('p');
+            const code = document.createElement('code');
+            code.textContent = '  a  ';
+            host.append(code);
+            let md = service.toMarkdown(host.outerHTML);
+            for (let i = 0; i < 3; i++) {
+                const probe = document.createElement('div');
+                probe.innerHTML = service.toHtml(md);
+                expect(probe.querySelector('code')?.textContent).toBe('  a  ');
+                md = service.toMarkdown(service.toHtml(md));
+            }
+        });
+
+        it('does not accumulate padding on an all-space code span', () => {
+            // The padding fix had its own bug: CommonMark keeps a span of only
+            // spaces as-is, so the strip declines and added padding accumulates.
+            // Caught by a test written an hour earlier for a different reason.
+            const host = document.createElement('p');
+            const code = document.createElement('code');
+            code.textContent = ' ';
+            host.append(code);
+            let md = service.toMarkdown(host.outerHTML);
+            for (let i = 0; i < 3; i++) {
+                const probe = document.createElement('div');
+                probe.innerHTML = service.toHtml(md);
+                expect(probe.querySelector('code')?.textContent).toBe(' ');
+                md = service.toMarkdown(service.toHtml(md));
+            }
+        });
+    });
+
 });
