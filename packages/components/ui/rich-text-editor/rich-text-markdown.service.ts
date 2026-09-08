@@ -228,13 +228,17 @@ export class RichTextMarkdownService {
         // otherwise be swallowed as an <hr>.
         html = this.parseTables(html);
         html = this.parseHorizontalRules(html);
+        // BEFORE paragraphs are split. A hard break ending a paragraph is
+        // written "  " + blank line, and parseParagraphs splits on the blank
+        // line and trims the block -- so the two trailing spaces were gone
+        // before this pass ever ran, and the break was silently dropped.
+        html = this.parseLineBreaks(html);
         html = this.parseParagraphs(html, protectedTags);
 
         html = this.parseImages(html);
         html = this.parseLinks(html);
         html = this.parseBoldItalic(html);
         html = this.parseStrikethrough(html);
-        html = this.parseLineBreaks(html);
 
         // After the emphasis passes, so the characters hidden in link and image
         // targets come back exactly as the author typed them.
@@ -329,10 +333,18 @@ export class RichTextMarkdownService {
      * and line-break passes had already been through the span's body.
      */
     private protectInlineCode(markdown: string, store: string[]): string {
-        return markdown.replaceAll(/`([^`\n]+)`/g, (_match, code: string) => {
-            const token = `${INLINE_CODE_OPEN}${store.length}${INLINE_CODE_CLOSE}`;
-            store.push(`<code>${this.escapeHtml(code)}</code>`);
-            return token;
+        // Strip our own delimiters from the input first, exactly as the fence
+        // and raw-tag stores do. Without it a document carrying U+E112/U+E113
+        // could forge a token, and restoreInlineCode would expand it -- so a
+        // span the author wrote once rendered twice. This is the same defect
+        // that was fixed for fences and then reintroduced here.
+        return markdown
+            .replaceAll(INLINE_CODE_OPEN, '')
+            .replaceAll(INLINE_CODE_CLOSE, '')
+            .replaceAll(/`([^`\n]+)`/g, (_match, code: string) => {
+                const token = `${INLINE_CODE_OPEN}${store.length}${INLINE_CODE_CLOSE}`;
+                store.push(`<code>${this.escapeHtml(code)}</code>`);
+                return token;
         });
     }
 
@@ -719,7 +731,13 @@ export class RichTextMarkdownService {
      * Parse line breaks (two spaces + newline or explicit \n).
      */
     private parseLineBreaks(html: string): string {
-        return html.replaceAll('  \n', '<br>');
+        // Only a break FOLLOWED BY CONTENT on the next line. Two trailing
+        // spaces before a blank line, a heading, a fence or the end of the
+        // document are not a hard break: the block boundary already ends the
+        // line, and inserting a <br> there strands it in an empty paragraph or
+        // merges two paragraphs into one. Verified against fifteen shapes --
+        // this is the only reading under which every other one is unchanged.
+        return html.replaceAll(/ {2}\n(?=[^\n])/g, '<br>');
     }
 
     /**

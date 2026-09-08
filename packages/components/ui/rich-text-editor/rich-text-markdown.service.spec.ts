@@ -1284,4 +1284,41 @@ describe('RichTextMarkdownService', () => {
             expect(md.length).toBeLessThan(500000);
         });
     });
+
+    describe('inline code boundaries (self-review)', () => {
+        it('ignores delimiters the author typed', () => {
+            // protectInlineCode did not strip its own U+E112/U+E113 pair, so a
+            // document carrying them forged a token and the span rendered twice.
+            // The identical defect was fixed for fences in an earlier round and
+            // reintroduced here -- a store added without copying the guard the
+            // sibling store already had.
+            const OPEN = String.fromCodePoint(0xe112);
+            const CLOSE = String.fromCodePoint(0xe113);
+            const html = service.toHtml('`SPAN` ' + OPEN + '0' + CLOSE);
+            expect(html.match(/SPAN/g) ?? []).toHaveLength(1);
+        });
+
+        it('keeps a hard break that is followed by content', () => {
+            const html = service.toHtml('a  ' + String.fromCodePoint(10) + 'b');
+            expect(html).toContain('<br>');
+        });
+
+        it('does not emit a break before a block boundary', () => {
+            // Two trailing spaces before a heading are not a hard break: the
+            // block boundary already ends the line, and inserting one strands a
+            // <br> in an empty paragraph.
+            const NLC = String.fromCodePoint(10);
+            const html = service.toHtml('a  ' + NLC + NLC + '# H');
+            expect(html).not.toContain('<p></p>');
+        });
+
+        it('pairs bold across a hard break', () => {
+            // Moving parseLineBreaks ahead of parseParagraphs fixed this as a
+            // side effect: the ** pairing used to be broken by the inserted
+            // <br>, leaving a literal asterisk on each side.
+            const html = service.toHtml('**a  ' + String.fromCodePoint(10) + 'b**');
+            expect(html).toContain('<strong>');
+            expect(html).not.toContain('*<em>');
+        });
+    });
 });
