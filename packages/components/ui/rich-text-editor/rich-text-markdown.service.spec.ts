@@ -423,9 +423,15 @@ describe('RichTextMarkdownService', () => {
         });
 
         it('converts a blockquote prefixing each line with >', () => {
-            // <br> becomes a "  \n" (trailing double-space) line break in markdown.
+            // No trailing spaces. This asserted "> line1  " -- two trailing
+            // spaces, i.e. a HARD break -- because parseBlockquotes joins a
+            // quote's soft lines with <br> and this is the reverse of that join.
+            // Emitting the hard-break form meant every multi-line quote stopped
+            // being a round-trip fixed point. See the KNOWN LIMIT on
+            // handleBlockquoteTag: a deliberate break inside a quote is
+            // normalised away with it.
             const html = '<blockquote>line1<br>line2</blockquote>';
-            expect(service.toMarkdown(html)).toBe('> line1  \n> line2');
+            expect(service.toMarkdown(html)).toBe('> line1\n> line2');
         });
 
         it('converts a details block to :::details', () => {
@@ -1311,6 +1317,19 @@ describe('RichTextMarkdownService', () => {
             expect(html).toContain('alt="alt"');
             expect(html).not.toContain('code&gt;');
             expect(service.toMarkdown(html)).toBe('![alt](https://x/i.png)');
+        });
+
+
+        it('does not inject hard breaks into a multi-line quote', () => {
+            // parseBlockquotes joins a quote's lines with <br>, and <br>
+            // serializes to two spaces plus a newline -- so every multi-line
+            // quote came back with two trailing spaces on each line, turning
+            // into hard breaks and breaking the round-trip fixed point.
+            const NLC = String.fromCodePoint(10);
+            const md = '> a' + NLC + '> b';
+            const once = service.toMarkdown(service.toHtml(md));
+            expect(once).toBe(md);
+            expect(service.toMarkdown(service.toHtml(once))).toBe(once);
         });
 
         it('keeps a hard break that is followed by content', () => {

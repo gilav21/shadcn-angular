@@ -930,8 +930,23 @@ export class RichTextMarkdownService {
     }
 
     private handleBlockquoteTag(inner: string): string {
-        const quoteLines = inner.split('\n').filter(Boolean);
-        return '\n' + quoteLines.map(line => `> ${line}`).join('\n') + '\n';
+        // A quote's own line endings are not hard breaks. parseBlockquotes joins
+        // its lines with <br>, so on the way back every multi-line quote gained
+        // two trailing spaces per line -- "> a  " -- which is a HARD break in
+        // markdown, and the document was no longer a round-trip fixed point.
+        //
+        // KNOWN LIMIT: a hard break the author deliberately typed INSIDE a quote
+        // is indistinguishable from a soft one once parseBlockquotes has joined
+        // them, so it is normalised away here too. Telling them apart needs the
+        // join to stop conflating them, which is a change to that pass; between
+        // losing a rare deliberate break and corrupting every ordinary quote on
+        // every save, this is the better default.
+        const quoteLines = inner.split('\n').map((line) => line.trimEnd()).filter(Boolean);
+        // "> " with a space, so a nested quote emits "> > x" rather than
+        // ">> x". parseBlockquotes strips one "> " per level and reads both,
+        // but only the spaced form survives its own round trip -- the tight
+        // form left the inner marker as literal text on re-import.
+        return '\n' + quoteLines.map((line) => `> ${line}`).join('\n') + '\n';
     }
 
     private detailsToMarkdown(element: HTMLElement): string {
