@@ -1266,16 +1266,24 @@ describe('RichTextMarkdownService', () => {
             expect(md.length).toBeLessThan(1000000);
         });
 
-        it('truncates a body row wider than its header', () => {
-            // padToWidth only PADDED up to the header width and never truncated,
-            // so a 3-cell body row sat under a 1-dash separator -- invalid GFM.
+        it('widens the table to the widest row, keeping every cell', () => {
+            // This asserted only that all rows had the same cell COUNT -- a
+            // property a TRUNCATING implementation satisfies identically while
+            // deleting c and d. Its title still said "truncates" although the
+            // code was changed to pad, so it described the opposite of the
+            // behaviour and guarded neither. Assert the content, not the shape.
             const html = '<table><tr><td>a</td></tr><tr><td>b</td><td>c</td><td>d</td></tr></table>';
             const md = service.toMarkdown(html);
+
+            expect(md).toContain('c');
+            expect(md).toContain('d');
+
             const counts = md
                 .split('\n')
                 .filter((l) => l.trim().startsWith('|'))
                 .map((l) => l.split('|').slice(1, -1).length);
             expect(new Set(counts).size).toBe(1);
+            expect(counts[0]).toBe(3);
         });
 
         it('bounds table amplification per ROW, not just per cell', () => {
