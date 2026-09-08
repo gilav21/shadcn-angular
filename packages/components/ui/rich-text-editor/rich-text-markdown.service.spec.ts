@@ -1804,4 +1804,58 @@ describe('RichTextMarkdownService', () => {
             expect(probe.querySelectorAll('p')[2].textContent).toBe('c');
         });
     });
+
+    describe('styled spans survive a save (colour and highlight)', () => {
+        it('keeps colour, highlight and font on a round trip', () => {
+            // mode defaults to 'markdown', so toMarkdown runs on every save. The
+            // sanitizer preserves a styled <span> -- the colour and highlight
+            // toolbar buttons produce exactly that -- but spanToMarkdown returned
+            // only `inner`, so the user's formatting went plain on the next save
+            // with no warning. Emitted verbatim now, like u/mark/sub/sup.
+            for (const [style, html] of [
+                ['color: red', '<p>a <span style="color: red">RED</span> b</p>'],
+                ['background-color: yellow', '<p><span style="background-color: yellow">HL</span></p>'],
+                ['font-size: 20px', '<p><span style="font-size: 20px">big</span></p>'],
+            ] as ReadonlyArray<readonly [string, string]>) {
+                const md = service.toMarkdown(html);
+                expect(md).toContain(style);
+
+                const probe = document.createElement('div');
+                probe.innerHTML = service.toHtml(md);
+                expect(probe.querySelector('span')?.getAttribute('style')).toBe(style);
+                expect(service.toMarkdown(service.toHtml(md))).toBe(md);
+            }
+        });
+
+        it('keeps markdown nested inside a styled span', () => {
+            const md = service.toMarkdown('<p><span style="color: red">a <strong>b</strong></span></p>');
+            const probe = document.createElement('div');
+            probe.innerHTML = service.toHtml(md);
+            const span = probe.querySelector('span');
+            expect(span?.getAttribute('style')).toBe('color: red');
+            expect(span?.querySelector('strong')?.textContent).toBe('b');
+        });
+
+        it('cannot break out of the style attribute', () => {
+            // The span is emitted as raw HTML into markdown, so quoting matters.
+            //
+            // HONEST NOTE: this assertion passes even with the escapeHtml call
+            // removed -- I checked. A double quote reaching here has already been
+            // turned into a single quote by the sanitizer's normalizeStyleQuotes,
+            // so the escape is defence-in-depth behind that, not the active
+            // guard. The test is kept because the property is the one that
+            // matters (no second attribute is ever produced), but it must not be
+            // read as proving the escape is load-bearing.
+            const entityRoute = '<p><span style="color: red&quot; onmouseover=&quot;alert(1)">x</span></p>';
+            const probe = document.createElement('div');
+            probe.innerHTML = service.toHtml(service.toMarkdown(entityRoute));
+            const span = probe.querySelector('span');
+            expect(span?.hasAttribute('onmouseover')).toBe(false);
+            expect(Array.from(span?.attributes ?? []).map((a) => a.name)).toEqual(['style']);
+        });
+
+        it('leaves an unstyled span alone', () => {
+            expect(service.toMarkdown('<p>a <span>plain</span> b</p>')).toBe('a plain b');
+        });
+    });
 });

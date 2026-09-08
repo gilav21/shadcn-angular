@@ -1081,7 +1081,19 @@ export class RichTextMarkdownService {
         if ('tag' in element.dataset) {
             return `#${element.dataset['tag']}`;
         }
-        return inner;
+        // A styled span is emitted verbatim, like the VERBATIM_INLINE_TAGS:
+        // markdown cannot express colour, highlight or font, and returning just
+        // `inner` dropped it. The colour and highlight toolbar buttons produce
+        // exactly this markup, the sanitizer preserves it, and mode defaults to
+        // 'markdown' -- so a user coloured text and it went plain on the next
+        // save, with no warning.
+        //
+        // Safe to round-trip: the sanitizer's own style allowlist decides what
+        // survives. It keeps colour/background/font/text-decoration and strips
+        // position, behavior and url(javascript:...), and it runs again on load,
+        // so nothing is trusted here that would not be trusted from a paste.
+        const style = element.getAttribute('style');
+        return style ? `<span style="${this.escapeHtml(style)}">${inner}</span>` : inner;
     }
 
     private blockTagToMarkdown(tagName: string, inner: string, element: HTMLElement): string | null {
