@@ -984,3 +984,39 @@ earlier**, with the two HIGH findings still unfixed at that point.
 
 Defects frozen into tests as asserted-correct: **twenty-three** (fifteen mine).
 Regressions introduced while fixing other findings: **thirty-two**.
+
+---
+
+## Round 25 — adversarial sweep (9 findings, 6 fixed, 3 open)
+
+| # | Sev | Finding | Fix | Commit |
+|---|---|---|---|---|
+| R25-1 | HIGH | **My round-24 resize fix made it worse.** The floor was enforced on the derived axis then back-projected onto the axis being dragged: a 2000×40 banner returned 1000px for a 500px request *and* a 100px request — unresponsive below 1000px — and could return a dimension *under* the floor it enforces. | Both axes scaled by one factor. | `53626077` |
+| R25-2 | HIGH | **Inline code was not inert.** `parseInlineCode` ran last, after the emphasis and line-break passes had rewritten its body, and never escaped it: `` `<br>` `` became a literal break, `` `<b>x</b>` `` became live markup inside `<code>`. | Lifted out first, like fences, with its own delimiters. | `53626077` |
+| R25-3 | HIGH | **New ReDoS family from one missing character.** `QUANTIFIERS` omitted `?`, so `(aa?)+$` read as unquantified — 460 ms at 37 chars, doubling every two, inside a 256-char cap. | `?` added. | `53626077` |
+| R25-4 | MED-HIGH | The sanitizer's own node budget cuts tables *before* `tableToMarkdown` sees them, so the truncation notice can never fire for the many-narrow-rows shape it was written for. | **Open** — new evidence on a known-open item. | — |
+| R25-5 | MEDIUM | A `padToWidth` test asserts equal cell *counts*; a truncating implementation passes identically while deleting cells. Title still says "truncates" though the code now pads. | **Open.** | — |
+| R25-6 | MEDIUM | A hard break ending a paragraph is dropped. Confirmed `parseLineBreaks` creates the `<br>`; it is lost later, most likely where `parseParagraphs` splits on the blank line. | **Open** — blast radius on paragraph splitting not established; test removed rather than shipped half-fixed. | — |
+| R25-7 | MEDIUM | The restored caret used an editor child index as a paragraph index, landing N positions too far right. | Rebased by the run's start. | `2fc0c17d` |
+| R25-8 | MEDIUM | Nested blockquotes gain a blank line on the first save, splitting one quote into two. Converges after. | **Open.** | — |
+| R25-9 | LOW-MED | Frozen checkboxes had no accessible name — "checkbox, checked, unavailable" with no indication of *which* task. | Named from the item's text. | `2fc0c17d` |
+
+### The same test failure, one round later
+
+R25-1's guarding test asserted only that both axes cleared the floor, so
+`1600`, `100000` or `Infinity` all passed. That is **question 3 of the brief I
+had written the round before** — would a wrong-but-plausible fix also pass? —
+failed by my own test, in the very round after adding the question.
+
+Writing the rule down does not apply it. What applies it is an auditor who does
+not know what the fix was supposed to do.
+
+One thing that went right: when the *new* test still failed after the fix, I
+checked the geometry rather than the code. With a 50:1 ratio and a 20px floor,
+any width under 1000px forces the height under the floor — clamping there is
+correct, and the assertion was demanding the impossible.
+
+### Scoreboard
+
+Defects frozen into tests as asserted-correct: **twenty-six** (eighteen mine).
+Regressions introduced while fixing other findings: **thirty-five**.
