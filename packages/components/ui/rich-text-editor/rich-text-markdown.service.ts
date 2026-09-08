@@ -920,10 +920,13 @@ export class RichTextMarkdownService {
         // the earlier test happened to use.
         const limit = Math.min(width, MAX_TABLE_COLUMNS);
         for (const [index, cell] of cells.entries()) {
-            if (padded.length >= limit) break;
             padded.push(contents[index]);
             const span = Number.parseInt(cell.getAttribute('colspan') ?? '1', 10);
-            const extra = Math.min(clampSpan(span) - 1, limit - padded.length);
+            // Leave room for the cells still to come: a wide colspan used to
+            // fill the row and every later cell was dropped, so padding blanks
+            // were emitted in preference to the author's content.
+            const room = limit - padded.length - (cells.length - index - 1);
+            const extra = Math.max(0, Math.min(clampSpan(span) - 1, room));
             for (let i = 0; i < extra; i++) padded.push('');
         }
         // Padded UP only. A width derived from the widest row means nothing ever
@@ -949,7 +952,7 @@ export class RichTextMarkdownService {
         // Scoped to THIS table. An unscoped descendant query pulled a nested
         // table's rows up as rows of the outer one, so they appeared both inside
         // their cell and again at the top level.
-        const rows = Array.from(table.querySelectorAll(':scope > tr, :scope > thead > tr, :scope > tbody > tr, :scope > tfoot > tr'));
+        const rows = Array.from(table.querySelectorAll<HTMLElement>(':scope > tr, :scope > thead > tr, :scope > tbody > tr, :scope > tfoot > tr'));
         if (rows.length === 0) return '';
 
         const lines: string[] = [];
@@ -977,6 +980,7 @@ export class RichTextMarkdownService {
         // sustained. The per-row cap does bound the wide-row shape (a 50x50
         // colspan grid is 2.5x now), but nothing bounded rows x columns.
         let cellBudget = MAX_TABLE_CELLS;
+        let rowsEmitted = 0;
 
         for (const row of rows) {
             if (cellBudget <= 0) break;
@@ -1003,12 +1007,20 @@ export class RichTextMarkdownService {
             const paddedRow = this.padToWidth(cellContents, cells, columnCount);
             cellBudget -= paddedRow.length;
             lines.push('| ' + paddedRow.join(' | ') + ' |');
+            rowsEmitted++;
 
             if (!headerProcessed) {
                 const separator = new Array(Math.max(1, columnCount)).fill('---').join(' | ');
                 lines.push('| ' + separator + ' |');
                 headerProcessed = true;
             }
+        }
+
+        // A bound that destroys data has to say so. Breaking the loop silently
+        // turned a 5000-row paste into 954 lines on save, with no marker and no
+        // warning -- worse than the amplification it prevents.
+        if (rowsEmitted < rows.length) {
+            lines.push('| ' + TABLE_TRUNCATION_NOTICE + ' |'.repeat(Math.max(1, columnCount)));
         }
 
         return lines.join('\n');
@@ -1247,6 +1259,9 @@ function clampSpan(span: number): number {
 }
 
 /** Total cells a table may emit, bounding many-narrow-rows amplification. */
+/** Row appended when a table is cut short by the cell budget. */
+const TABLE_TRUNCATION_NOTICE = '… table truncated';
+
 const MAX_TABLE_CELLS = 20000;
 
 /** Widest row a table may emit, bounding paste amplification. */

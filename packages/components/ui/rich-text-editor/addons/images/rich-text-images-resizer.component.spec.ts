@@ -365,20 +365,22 @@ describe('RichTextImageResizerComponent', () => {
             expect(img.style.height).toBe('35px');
         });
 
-        it('does not resize below the 20px minimum', () => {
-            // Drag SW far enough that newWidth would drop to/under 20.
+        it('stops AT the 20px minimum rather than freezing', () => {
+            // This asserted that an undersized drag writes NOTHING -- which is
+            // the frozen-drag symptom, enshrined as the contract. With the ratio
+            // locked the gate in onPointerMove cannot be satisfied by shrinking
+            // further, so the image simply stopped responding. Clamping to the
+            // bound is what the resize was always documented to do.
             dragHandle('sw', 90);
-            // newWidth = 100 - 90 = 10 (< 20) -> no style applied
-            expect(img.style.width).toBe('');
-            expect(img.style.height).toBe('');
+            expect(Number.parseFloat(img.style.width)).toBeGreaterThanOrEqual(20);
+            expect(Number.parseFloat(img.style.height)).toBeGreaterThanOrEqual(20);
         });
 
         it('respects a custom minWidth floor', () => {
             fixture.componentRef.setInput('minWidth', 80);
             fixture.detectChanges();
-            // newWidth = 100 - 40 = 60 (< 80) -> rejected
             dragHandle('sw', 40);
-            expect(img.style.width).toBe('');
+            expect(Number.parseFloat(img.style.width)).toBeGreaterThanOrEqual(80);
         });
 
         it('clamps width to maxWidth when growing past the ceiling', () => {
@@ -997,6 +999,30 @@ describe('RichTextImageResizerComponent', () => {
             handle?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
             expect(Number.parseFloat(img.style.height)).toBeLessThanOrEqual(10000);
             img.remove();
+        });
+
+
+        it('shrinks a wide banner instead of freezing at the height floor', () => {
+            // lockedSize floors WIDTH, then derives height by division. For an
+            // aspect > 1 the derived height drops under minWidth while the width
+            // is still far above it, and onPointerMove's gate refuses the whole
+            // write -- the image stops responding mid-drag with no feedback.
+            // That is the "frozen drag" the previous fix claims to have removed;
+            // it landed on freeSize, where the axes are independent.
+            const cmp = component as unknown as {
+                lockedSize(
+                    s: { startWidth: number; startHeight: number; handle: string },
+                    dx: number,
+                ): { width: number; height: number };
+                minWidth(): number;
+            };
+            const banner = { startWidth: 800, startHeight: 50, handle: 'e' };
+            const min = cmp.minWidth();
+
+            // Dragging inward by 500 asks for a 300px width.
+            const size = cmp.lockedSize(banner, -500);
+            expect(size.width).toBeGreaterThanOrEqual(min);
+            expect(size.height).toBeGreaterThanOrEqual(min);
         });
 
         it('ignores keys that are not arrows', () => {

@@ -170,7 +170,12 @@ function scanGroup(pattern: string, open: number): { end: number; quantifiedInsi
         if (ch === '\\') i++;
         else if (ch === '(') depth++;
         else if (ch === ')') depth--;
-        else if (depth === 1 && QUANTIFIERS.has(ch)) quantifiedInside = true;
+        // ANY depth, not just the group's own level. Restricting this to
+        // depth 1 meant one redundant paren hid the quantifier: "((a+))+$" and
+        // "((?:a+))+$" were both admitted and took 12 SECONDS on a 28-character
+        // line -- the classic nested-quantifier shape this guard exists to
+        // reject, defeated by a pair of parentheses.
+        else if (QUANTIFIERS.has(ch)) quantifiedInside = true;
         i++;
     }
 

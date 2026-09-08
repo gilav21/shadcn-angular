@@ -504,8 +504,20 @@ export class RichTextImageResizerComponent implements OnDestroy {
      */
     private ratioBoundedSize(width: number, aspect: number): { width: number; height: number } {
         const height = width / aspect;
-        if (height <= MAX_IMAGE_DIMENSION) return { width, height };
-        return { width: MAX_IMAGE_DIMENSION * aspect, height: MAX_IMAGE_DIMENSION };
+        if (height > MAX_IMAGE_DIMENSION) {
+            return { width: MAX_IMAGE_DIMENSION * aspect, height: MAX_IMAGE_DIMENSION };
+        }
+        // The FLOOR is applied here too, on whichever axis reaches it first.
+        // Leaving it to onPointerMove -- which refuses a write where either axis
+        // is under the minimum -- froze the drag on any image wider than it is
+        // tall: an 800x50 banner shrinking to 300px has a derived height of
+        // 18.75px, so the write was rejected and the image simply stopped
+        // responding at ~500px with no feedback. On the coupled path the gate
+        // cannot be satisfied by shrinking further, so it has to be met here.
+        const min = this.minWidth();
+        if (height < min) return { width: min * aspect, height: min };
+        if (width < min) return { width: min, height: min / aspect };
+        return { width, height };
     }
 
     private lockedSize(state: ResizeState, deltaX: number): { width: number; height: number } {

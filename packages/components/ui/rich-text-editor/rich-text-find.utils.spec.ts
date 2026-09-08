@@ -64,6 +64,21 @@ describe('compileFindRegex', () => {
             expect(compileFindRegex('(?:(?:a+)+)+$', opts({ useRegex: true }))).toBeNull();
         });
 
+
+        it('rejects a nested quantifier hidden by a redundant paren', () => {
+            // scanGroup only recorded a quantifier at depth 1, so one extra pair
+            // of parentheses moved it out of view: "((a+))+$" took 12 SECONDS on
+            // a 28-character line, and "((?:a+))+$" reintroduced the previous
+            // round's non-capturing fix one level out.
+            for (const p of ['((a+))+$', '(?:(a+))+$', '((?:a+))+$', '(((a+)))+$']) {
+                expect(compileFindRegex(p, opts({ useRegex: true }))).toBeNull();
+            }
+        });
+
+        it('rejects a brace quantifier nested the same way', () => {
+            expect(compileFindRegex('((a{2,})){3,}$', opts({ useRegex: true }))).toBeNull();
+        });
+
         it('still rejects the capturing form', () => {
             expect(compileFindRegex('(a+)+$', opts({ useRegex: true }))).toBeNull();
         });

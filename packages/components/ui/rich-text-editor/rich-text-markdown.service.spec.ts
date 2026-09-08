@@ -1171,6 +1171,19 @@ describe('RichTextMarkdownService', () => {
             expect(bodyRows).toBe(3);
         });
 
+
+        it('keeps the neighbours of a colspan cell instead of dropping them', () => {
+            // "The truncation line is gone, so no cell can be dropped" -- but
+            // padToWidth still breaks at the column limit, so a row whose
+            // colspans SUM past it loses every later cell. Padding blanks were
+            // emitted in preference to real content.
+            const html = '<table><tr><td colspan="1000">A</td><td>B</td><td>C</td></tr></table>';
+            const md = service.toMarkdown(html);
+            expect(md).toContain('B');
+            expect(md).toContain('C');
+        });
+
+
         it('bounds total output across MANY NARROW rows, not just per row', () => {
             // The per-row cap bounds the wide-row shape but not rows x columns:
             // 5000 rows of one colspan="1000" cell turned 166KB of paste into
