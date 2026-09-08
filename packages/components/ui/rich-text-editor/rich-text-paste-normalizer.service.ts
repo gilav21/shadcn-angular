@@ -996,9 +996,17 @@ export class RichTextPasteNormalizerService {
     }
 
 
+    /**
+     * Wrap bare URLs in anchors. Runs on ALREADY-ESCAPED text, so a real "&" in
+     * a query string arrives as "&amp;" -- excluding "&" from the URL class cut
+     * every multi-parameter link at its first parameter, leaving a broken href
+     * and the remainder as visible junk. "&amp;" is matched as one unit so the
+     * whole URL is linked, while a bare "&" (which escaping cannot produce)
+     * still ends it.
+     */
     private autoLinkUrls(escaped: string): string {
         return escaped.replaceAll(
-            /(https?:\/\/[^\s<&]+)/g,
+            /(https?:\/\/(?:&amp;|[^\s<&])+)/g,
             '<a href="$1">$1</a>'
         );
     }

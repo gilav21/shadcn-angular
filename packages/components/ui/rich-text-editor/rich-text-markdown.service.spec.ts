@@ -1540,6 +1540,57 @@ describe('RichTextMarkdownService', () => {
             }
         });
 
+        it('keeps a DEEP block in its own item, even with a sibling after it', () => {
+            // The four cases above are all single-level, which is the one depth
+            // where a hardcoded two-space continuation indent is correct -- they
+            // could not catch a depth bug. Two independent ones lived here:
+            // indentContinuation emitted a fixed 2 spaces while nested items sit
+            // at 2 x depth, and the parser resolved the owning item at FLUSH
+            // time, by which point a following sibling had already popped the
+            // deeper levels. A third-level heading surfaced in its grandparent.
+            const html = '<ul><li>A<ul><li>B<ul><li>C<h2>H</h2></li></ul></li><li>B2</li></ul></li></ul>';
+            const md = service.toMarkdown(html);
+            const probe = document.createElement('div');
+            probe.innerHTML = service.toHtml(md);
+
+            const items = Array.from(probe.querySelectorAll('li'));
+            const owner = items.find((li) => li.querySelector(':scope > h2'));
+            expect(owner?.firstChild?.textContent).toBe('C');
+            expect(items.map((li) => li.firstChild?.textContent)).toEqual(['A', 'B', 'C', 'B2']);
+            expect(service.toMarkdown(service.toHtml(md))).toBe(md);
+        });
+
+        it('keeps a second paragraph as its own block', () => {
+            // A continuation that parsed to loose text was returned bare and
+            // concatenated onto the item's first line, so on each save the last
+            // word of one paragraph fused with the first of the next --
+            // compounding: a third paragraph was consumed a save later.
+            const html = '<ul><li><p>Alpha</p><p>Second</p><p>Third</p></li></ul>';
+            const md = service.toMarkdown(html);
+            const probe = document.createElement('div');
+            probe.innerHTML = service.toHtml(md);
+            const li = probe.querySelector('li');
+            expect(li?.textContent).toContain('Alpha');
+            expect(li?.textContent).toContain('Second');
+            expect(li?.textContent).toContain('Third');
+            // Asserted structurally, not on textContent: textContent never puts
+            // a separator between block elements, so 'AlphaSecond' there is
+            // normal DOM behaviour. What was broken is that the paragraphs were
+            // not separate ELEMENTS at all -- they were fused into one text run.
+            expect(li?.querySelectorAll('p').length).toBeGreaterThanOrEqual(2);
+            // Stable from the SECOND save on. The first pass normalises the
+            // blank lines between the paragraphs; what matters is that it then
+            // settles and no content is consumed -- the defect was that each
+            // save ate another word, compounding without bound.
+            const second = service.toMarkdown(service.toHtml(md));
+            expect(service.toMarkdown(service.toHtml(second))).toBe(second);
+            const settled = document.createElement('div');
+            settled.innerHTML = service.toHtml(second);
+            for (const word of ['Alpha', 'Second', 'Third']) {
+                expect(settled.textContent).toContain(word);
+            }
+        });
+
         it('parses a hand-written CommonMark continuation', () => {
             // parseBlockquotes and parseHeadings run BEFORE parseLists, so an
             // indented '> b' was consumed at document level and rendered as

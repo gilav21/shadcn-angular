@@ -128,11 +128,16 @@ function takeContinuation(continuation: string[], pendingBlank: string[]): strin
     return block;
 }
 
-function indentContinuation(content: string): string {
+function indentContinuation(content: string, indent = ''): string {
     const trimmed = content.trim();
     if (!trimmed.includes('\n')) return trimmed;
+    // The continuation column is the ITEM's own indent plus two, not a fixed
+    // two: a nested item sits at 2 x depth, so a hardcoded two spaces landed a
+    // deep item's block on an ANCESTOR item -- an <h2> in a third-level item
+    // reappeared in its grandparent, with the third level demoted below it.
+    const pad = indent + '  ';
     const [first, ...rest] = trimmed.split('\n');
-    return [first, ...rest.map((line) => (line.trim() ? '  ' + line : line))].join('\n');
+    return [first, ...rest.map((line) => (line.trim() ? pad + line : line))].join('\n');
 }
 
 function buildListContextHtml(ctx: ListContext): string {
@@ -577,20 +582,31 @@ export class RichTextMarkdownService {
         // to belong to it. Attached to the item on flush, after the block passes
         // have run over them at their own level.
         const continuation: string[] = [];
+        let continuationOwner: ListContext | undefined;
         const pendingBlank: string[] = [];
 
         const flushContinuation = (): void => {
             const block = takeContinuation(continuation, pendingBlank);
-            const openList = stack.at(-1);
+            // The owner is captured when the continuation STARTS, not resolved
+            // here: a following sibling pops the deeper levels before this runs,
+            // so stack.at(-1) was an ancestor by then. A third-level item's
+            // heading was attached to its grandparent whenever a sibling
+            // followed it -- and that misplacement was a stable fixed point.
+            const openList = continuationOwner;
+            continuationOwner = undefined;
             if (!block || !openList?.items.length) return;
-            openList.items[openList.items.length - 1] += this.parseListContinuation(block);
+            openList.items[openList.items.length - 1] += this.parseListContinuation(block, openList.indent);
         };
 
         for (const line of lines) {
             const parsed = parseListLine(line);
 
             if (!parsed) {
-                if (absorbNonListLine(line, stack.at(-1), continuation, pendingBlank)) continue;
+                const openList = stack.at(-1);
+                if (absorbNonListLine(line, openList, continuation, pendingBlank)) {
+                    continuationOwner ??= openList;
+                    continue;
+                }
                 flushContinuation();
                 flushStack();
                 result.push(line);
@@ -630,10 +646,10 @@ export class RichTextMarkdownService {
      * block passes here, on the dedented lines, is the same recursion
      * buildBlockquote uses for a nested quote.
      */
-    private parseListContinuation(block: string): string {
+    private parseListContinuation(block: string, baseIndent = 0): string {
         const dedented = block
             .split('\n')
-            .map((line) => line.replace(/^ {2}/, ''))
+            .map((line) => line.slice(Math.min(baseIndent + 2, line.length - line.trimStart().length)))
             .join('\n')
             .trim();
         if (!dedented) return '';
@@ -642,7 +658,15 @@ export class RichTextMarkdownService {
         html = this.parseHeadings(html);
         html = this.parseLists(html);
         html = this.parseTables(html);
-        return html.trim();
+        html = html.trim();
+        if (!html) return '';
+
+        // A continuation that produced no block element is loose text -- a
+        // second paragraph of the item. Wrapping it keeps it a separate block:
+        // returned bare it was concatenated onto the item's first line with no
+        // separator, so "Alpha" and "Second" fused into "AlphaSecond" and a
+        // word was destroyed on EVERY save, one per paragraph per cycle.
+        return /^</.test(html) ? html : `<p>${html}</p>`;
     }
 
     /**
@@ -1245,7 +1269,7 @@ export class RichTextMarkdownService {
     private listToMarkdown(listEl: HTMLElement, type: ListType, indent: string, result: string[]): void {
         const items = Array.from(listEl.children);
         items.forEach((li, index) => {
-            const { content, nestedList } = this.extractListItemContent(li);
+            const { content, nestedList } = this.extractListItemContent(li, indent);
             result.push(this.formatListItem(type, li as HTMLElement, content, indent, index));
 
             if (nestedList) {
@@ -1255,7 +1279,7 @@ export class RichTextMarkdownService {
         });
     }
 
-    private extractListItemContent(li: Element): { content: string; nestedList: HTMLElement | null } {
+    private extractListItemContent(li: Element, indent = ''): { content: string; nestedList: HTMLElement | null } {
         const childParts: string[] = [];
         let nestedList: HTMLElement | null = null;
         for (const ch of Array.from(li.childNodes)) {
@@ -1277,7 +1301,7 @@ export class RichTextMarkdownService {
                     : this.elementToMarkdown(ch as HTMLElement),
             );
         }
-        return { content: indentContinuation(childParts.join('')), nestedList };
+        return { content: indentContinuation(childParts.join(''), indent), nestedList };
     }
 
     private formatListItem(type: ListType, li: HTMLElement, content: string, indent: string, index: number): string {

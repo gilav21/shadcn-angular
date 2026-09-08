@@ -908,14 +908,29 @@ describe('RichTextPasteNormalizerService', () => {
             expect(result).toContain('Line 1<br>Line 2');
         });
 
-        it('should auto-link URLs', () => {
+        it('should auto-link URLs, including a query string', () => {
             const result = service.normalize(null, 'Visit https://example.com today');
             expect(result).toContain('<a href="https://example.com">https://example.com</a>');
+
+            // A bare URL is the ONE shape where the &-truncation bug cannot
+            // appear, so the test above could not fail for it. autoLinkUrls runs
+            // on escaped text, where a real "&" is already "&amp;"; excluding
+            // "&" from the URL class cut every multi-parameter link at its first
+            // parameter, leaving a broken href and the rest as visible text.
+            const query = service.normalize(null, 'see https://example.com/a?x=1&y=2 end');
+            expect(query).toContain('href="https://example.com/a?x=1&amp;y=2"');
         });
 
         it('should auto-link http URLs', () => {
             const result = service.normalize(null, 'Visit http://example.com today');
             expect(result).toContain('<a href="http://example.com">http://example.com</a>');
+        });
+
+        it('leaves a standalone ampersand entity alone', () => {
+            // The URL class matches "&amp;" as a unit; a lone entity elsewhere in
+            // the text must not be drawn into a link.
+            const result = service.normalize(null, 'a & b');
+            expect(result).not.toContain('<a ');
         });
 
         it('should not auto-link non-http URLs', () => {
