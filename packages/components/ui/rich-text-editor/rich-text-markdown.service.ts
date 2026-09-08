@@ -25,6 +25,17 @@ interface ParsedListLine {
     content: string;
 }
 
+/**
+ * The text of a list item, from the optional tail after its marker.
+ *
+ * The tail is one regex group rather than an alternation: a `(?:[ 	]+(.*)|)`
+ * form let the engine retry the quantifier against the empty branch, which
+ * SonarJS flags as super-linear backtracking.
+ */
+function listItemContent(tail: string | undefined): string {
+    return tail ? tail.replace(/^[ \t]+/, '') : '';
+}
+
 function parseListLine(line: string): ParsedListLine | null {
     const taskMatch = new RegExp(/^(\s*)[-*+]\s+\[([ xX])\]\s*(\S.*|)$/).exec(line);
     if (taskMatch) {
@@ -36,14 +47,21 @@ function parseListLine(line: string): ParsedListLine | null {
         };
     }
 
-    const ulMatch = new RegExp(/^(\s*)[-*+]\s+(\S.*|\s)$/).exec(line);
+    // The content group is OPTIONAL. Requiring \s+ then a non-space meant an
+    // EMPTY item -- which toMarkdown emits as "- ", one trailing space -- did
+    // not parse as a list item at all: it ended the list, split it in two, and
+    // left a literal "- " in the prose. <li><br></li> is what the browser makes
+    // when a user opens a bullet and clicks away, so this hit an everyday
+    // keystroke; for <ol> the second list also renumbered from 1.
+    // A rule (--- / *** / ___) still does not match: it has no space.
+    const ulMatch = new RegExp(/^([ \t]*)[-*+]([ \t].*)?$/).exec(line);
     if (ulMatch) {
-        return { indent: ulMatch[1].length, type: 'ul', content: ulMatch[2] };
+        return { indent: ulMatch[1].length, type: 'ul', content: listItemContent(ulMatch[2]) };
     }
 
-    const olMatch = new RegExp(/^(\s*)\d+\.\s+(\S.*|\s)$/).exec(line);
+    const olMatch = new RegExp(/^([ \t]*)\d+\.([ \t].*)?$/).exec(line);
     if (olMatch) {
-        return { indent: olMatch[1].length, type: 'ol', content: olMatch[2] };
+        return { indent: olMatch[1].length, type: 'ol', content: listItemContent(olMatch[2]) };
     }
 
     return null;
@@ -762,8 +780,19 @@ export class RichTextMarkdownService {
     /**
      * Parse horizontal rules (---, ***, ___).
      */
+    /**
+     * Replace a rule line with <hr>.
+     *
+     * Trailing whitespace is [ \t] and NOT \s: under /m, \s* matches the line
+     * terminator too and greedily ate the BLANK LINE after the rule -- the very
+     * separator parseParagraphs needs. The rule and the paragraph after it fused
+     * into one block, which then matched the "already block-level" guard, so the
+     * paragraph was never wrapped: <p>Intro</p><hr><p>Body</p> came back with
+     * Body as a bare text node, losing its paragraph styling and any block
+     * operation that addresses <p>.
+     */
     private parseHorizontalRules(html: string): string {
-        return html.replaceAll(/^([-*_]){3,}\s*$/gm, '<hr>');
+        return html.replaceAll(/^([-*_]){3,}[ \t]*$/gm, '<hr>');
     }
 
     /**

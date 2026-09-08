@@ -1650,4 +1650,75 @@ describe('RichTextMarkdownService', () => {
             }
         });
     });
+
+    describe('empty list items and horizontal rules (round-29 audit)', () => {
+
+        it('keeps an empty item inside its list', () => {
+            // toMarkdown emits an empty item as "- " (one trailing space), but
+            // parseListLine required whitespace THEN a non-space, so that line was
+            // not a list item at all: it ended the list, split it in two, and left
+            // a literal "- " in the prose. <li><br></li> is what the browser makes
+            // when a user opens a bullet and clicks away, so this was an everyday
+            // keystroke, and for <ol> the second list renumbered from 1.
+            for (const [html, tag] of [
+                ['<ul><li>A</li><li></li><li>B</li></ul>', 'ul'],
+                ['<ul><li>A</li><li><br></li><li>B</li></ul>', 'ul'],
+                ['<ol><li>A</li><li></li><li>B</li></ol>', 'ol'],
+            ] as ReadonlyArray<readonly [string, string]>) {
+                const md = service.toMarkdown(html);
+                const probe = document.createElement('div');
+                probe.innerHTML = service.toHtml(md);
+                expect(probe.querySelectorAll(tag)).toHaveLength(1);
+                expect(probe.querySelectorAll('li')).toHaveLength(3);
+                expect(probe.textContent).not.toContain('- ');
+                expect(service.toMarkdown(service.toHtml(md))).toBe(md);
+            }
+        });
+
+        it('still reads a rule, not a list item, for --- and friends', () => {
+            // Widening the item pattern must not swallow a rule: it has no space
+            // after the marker, which is what separates the two.
+            for (const rule of ['---', '***', '___', '----']) {
+                const probe = document.createElement('div');
+                probe.innerHTML = service.toHtml(rule);
+                expect(probe.querySelector('hr')).toBeTruthy();
+                expect(probe.querySelector('li')).toBeNull();
+            }
+        });
+
+        it('keeps the paragraph after a rule wrapped', () => {
+            // Under /m, \s* matches the line terminator, so it greedily ate the
+            // BLANK LINE after the rule -- the separator parseParagraphs needs.
+            // The rule and the next paragraph fused into one block, which matched
+            // the "already block-level" guard, so the paragraph was never wrapped
+            // and came back as a bare text node.
+            //
+            // The existing rule tests had NOTHING after the rule, which is the one
+            // shape where this cannot appear, and there was no hr round-trip test
+            // at all.
+            const md = service.toMarkdown('<p>Intro</p><hr><p>Body text</p>');
+            const probe = document.createElement('div');
+            probe.innerHTML = service.toHtml(md);
+            expect(probe.querySelectorAll('p')).toHaveLength(2);
+            expect(probe.querySelectorAll('hr')).toHaveLength(1);
+            expect(probe.querySelectorAll('p')[1].textContent).toBe('Body text');
+        });
+
+        it('settles after one save for a document with rules', () => {
+            // One blank line is added on the first pass, then it holds. Asserted
+            // from the SECOND save so the assertion is about stability, not about
+            // blessing the exact whitespace.
+            const first = service.toMarkdown('<p>a</p><hr><p>b</p><hr><p>c</p>');
+            const second = service.toMarkdown(service.toHtml(first));
+            expect(service.toMarkdown(service.toHtml(second))).toBe(second);
+
+            const probe = document.createElement('div');
+            probe.innerHTML = service.toHtml(second);
+            expect(probe.querySelectorAll('p')).toHaveLength(3);
+            expect(probe.querySelectorAll('hr')).toHaveLength(2);
+            expect(probe.querySelectorAll('p')[0].textContent).toBe('a');
+            expect(probe.querySelectorAll('p')[1].textContent).toBe('b');
+            expect(probe.querySelectorAll('p')[2].textContent).toBe('c');
+        });
+    });
 });
