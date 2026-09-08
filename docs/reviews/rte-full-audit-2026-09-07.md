@@ -894,3 +894,47 @@ a real risk for a cosmetic gain.
 
 Defects frozen into tests as asserted-correct: **eighteen** (ten now mine).
 Regressions introduced while fixing other findings: **twenty-four**.
+
+---
+
+## Round 23 — adversarial sweep (11 findings, 8 fixed, 3 recorded)
+
+The brief for this round led with one mechanical question: **is there a SIBLING
+path — an alternate branch, a default-true flag, a fallback, a second call site
+— with the same defect and no coverage?** All four HIGH findings answered it yes.
+
+| # | Sev | Finding | Fix | Commit |
+|---|---|---|---|---|
+| R23-1 | HIGH | Keyboard resize derives height by the **same unclamped division** fixed in `lockedSize` 55 lines below — 15,000px on one keypress, 5,000,000px with repeats. Hidden because this test block's own fixture sets `lockAspectRatio: false`. | Both paths share one `ratioBoundedSize`. | `6275a773` |
+| R23-2 | HIGH | `IndexSizeError` escaping the Angular listener: the caret was restored from a stale child index after the wrap shrank the child list, aborting the transform half-applied with no history entry. The fallback reaching this case was added last round; the restore was never migrated. | Caret re-pointed into the new paragraph. | `6275a773` |
+| R23-3 | HIGH | **Reintroduced a fixed bug via a constant edit.** `BLOCK_TAGS` was narrowed for `blockToSplit`, where those tags are dead — but `bareRunAround` uses the same set as its run *boundary*, so a blockquote became bare content and was swallowed into a `<p>`. | `LINE_OWNING_TAGS` for the boundary; `BLOCK_TAGS` stays narrow. | `6275a773` |
+| R23-4 | HIGH | The ReDoS guard skipped the whole `(?` family to pass over lookaheads — also skipping `(?:`, so `(?:a+)+$`, the idiomatic spelling of the pattern its own doc-comment names, hung **81 seconds** on a 41-char line while find runs per keystroke. | Non-capturing groups are groups. | `6275a773` |
+| R23-5 | MEDIUM | **My round-22 fix was destroying user data.** Truncating rows to row 0's width deleted every cell past it. | Width from the **widest** row; truncation removed entirely. | `094342b6` |
+| R23-6 | MEDIUM | Unscoped `querySelectorAll('tr')` hoisted a nested table's rows into the parent, emitting them twice. | `:scope >`. | `094342b6` |
+| R23-7 | MEDIUM | A table whose first row has no cells serialized to nothing. | Same width change. | `094342b6` |
+| R23-8 | LOW | The `rich-text-view` doc comment argued *against* the code directly beneath it. | Rewritten. | `094342b6` |
+| R23-9 | LOW | `sanitizeUrl` accepts `.\host` where `sanitizeImageSrc` rejects it. | **Recorded.** Verified against WHATWG resolution: it becomes a same-origin *path*, never another host. | — |
+| R23-10 | LOW | `colspan` uncapped into the live DOM. | **Recorded.** Browsers clamp at 1000; the markdown side is bounded. | — |
+| R23-11 | LOW | Emphasis accepts a space after the opening `*`. | **Recorded.** CommonMark deviation, pre-existing, outside the changed code. | — |
+
+### A test that could not have caught the data loss
+
+R23-5 is the sharpest instance yet of a *load-bearing but useless* assertion. My
+round-22 test asserted only that every row had an equal cell **count** — a
+property that truncating and widening satisfy identically. It passed sabotage.
+It never looked at the contents, so it could not distinguish the fix that
+preserves data from the one that deletes it.
+
+The lesson is narrower than "write better tests": **when two candidate fixes
+both satisfy your assertion, the assertion is not specifying the behaviour you
+care about.** Ask what a *wrong but plausible* fix would do, and assert the
+difference.
+
+Fixing it also required correcting an earlier test that demanded "size the
+separator to the header" — the requirement that made truncation look necessary
+in the first place. A wrong test had encoded a wrong contract.
+
+### Scoreboard
+
+Defects frozen into tests as asserted-correct: **twenty** (twelve now mine).
+Regressions introduced while fixing other findings: **twenty-eight**.
