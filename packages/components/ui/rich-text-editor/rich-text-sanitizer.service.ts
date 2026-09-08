@@ -33,6 +33,30 @@ export interface SanitizerAttributeRule {
 /** URL schemes a link in editor content may use. */
 const LINK_SCHEMES = new Set(['http', 'https', 'mailto', 'tel', 'sms', 'ftp']);
 
+/**
+ * Percent-decode a data: URL payload to raw BYTES.
+ *
+ * decodeURIComponent cannot be used here: it decodes to a UTF-8 STRING and
+ * throws URIError on any byte sequence that is not valid UTF-8, which is every
+ * binary image's magic number. Returns null only when a %XX escape is
+ * malformed.
+ */
+function percentDecodeToBytes(payload: string): Uint8Array | null {
+    const out: number[] = [];
+    for (let i = 0; i < payload.length; i++) {
+        const ch = payload[i];
+        if (ch !== '%') {
+            out.push(payload.codePointAt(i) ?? 0);
+            continue;
+        }
+        const hex = payload.slice(i + 1, i + 3);
+        if (!/^[0-9a-f]{2}$/i.test(hex)) return null;
+        out.push(Number.parseInt(hex, 16));
+        i += 2;
+    }
+    return new Uint8Array(out);
+}
+
 @Injectable({ providedIn: 'root' })
 export class RichTextSanitizerService {
     private readonly document = inject(DOCUMENT);
@@ -565,17 +589,15 @@ export class RichTextSanitizerService {
             // verdict, not the content. Every data:image/* payload is checked.
             const comma = url.indexOf(',');
             if (comma === -1) return false;
-            let decoded: string;
-            try {
-                decoded = decodeURIComponent(url.slice(comma + 1));
-            } catch {
-                return false;
-            }
-            const bytes = new Uint8Array(decoded.length);
-            for (let i = 0; i < decoded.length; i++) {
-                bytes[i] = decoded.codePointAt(i) ?? 0;
-            }
-            return isValidImageMagicBytes(bytes);
+            // Decoded to BYTES, not text. decodeURIComponent yields a UTF-8
+            // string and THROWS on any sequence that is not valid UTF-8 -- and
+            // every binary image format has a high byte in its magic number
+            // (PNG, ÿØ for JPEG), so it rejected every percent-encoded
+            // raster image. GIF and WebP survived only because their magic bytes
+            // happen to be ASCII. In a document that is not a refused paste, it
+            // is deletion: the <img> kept its alt and lost its src.
+            const bytes = percentDecodeToBytes(url.slice(comma + 1));
+            return bytes !== null && isValidImageMagicBytes(bytes);
         }
 
         const base64Start = markerIndex + marker.length;
@@ -612,14 +634,23 @@ export class RichTextSanitizerService {
         if (comma === -1) return false;
         const payload = url.slice(comma + 1);
         let decoded: string;
-        try {
-            decoded = /;base64/i.test(url.slice(0, comma))
-                ? atob(payload)
-                : decodeURIComponent(payload);
-        } catch {
-            // Undecodable payloads are not usable images either; treat them as
-            // suspect so they take the scrubbing path rather than passing.
-            return true;
+        if (/;base64/i.test(url.slice(0, comma))) {
+            try {
+                decoded = atob(payload);
+            } catch {
+                // Undecodable payloads are not usable images either; treat them
+                // as suspect so they take the scrubbing path rather than passing.
+                return true;
+            }
+        } else {
+            // Byte-wise, for the same reason as isAllowedDataUrl:
+            // decodeURIComponent throws on a PNG's or JPEG's high magic bytes,
+            // and the catch above then treated every percent-encoded raster
+            // image as suspect -- routing it into SVG scrubbing, which stripped
+            // the src and deleted the image from the document.
+            const bytes = percentDecodeToBytes(payload);
+            if (bytes === null) return true;
+            decoded = Array.from(bytes, (b) => String.fromCodePoint(b)).join('');
         }
         return /<\s*svg\b/i.test(decoded);
     }

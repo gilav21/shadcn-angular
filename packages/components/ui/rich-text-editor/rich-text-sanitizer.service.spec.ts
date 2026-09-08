@@ -218,6 +218,52 @@ describe('RichTextSanitizerService', () => {
             expect(service.sanitizeImageSrc(src)).toBe(src);
         });
 
+        it('should allow a PERCENT-ENCODED raster image, like the base64 form', () => {
+            // Every accept-path test above is base64, so the percent-encoded
+            // accept path was entirely untested -- and that is exactly where the
+            // bug lived: decodeURIComponent decodes to a UTF-8 STRING and throws
+            // on any non-UTF-8 sequence, which every binary magic number is
+            // (PNG, ÿØ). Percent-encoded PNGs and JPEGs were rejected
+            // and, in a document, deleted -- the <img> kept its alt and lost its
+            // src. GIF and WebP passed only because their magic bytes are ASCII,
+            // which is why a GIF-only test would still have looked healthy.
+            for (const src of [
+                'data:image/png,%89PNG%0D%0A%1A%0A',
+                'data:image/jpeg,%FF%D8%FF%E0',
+                'data:image/gif,GIF89a%00%00',
+                'data:image/webp,RIFF%00%00%00%00WEBP',
+            ]) {
+                expect(service.sanitizeImageSrc(src)).toBe(src);
+            }
+        });
+
+        it('keeps a percent-encoded image in a document', () => {
+            // The failure mode was deletion, not refusal: the src was stripped
+            // and the image vanished with no warning and no way back.
+            const html = '<p>before</p><img src="data:image/png,%89PNG%0D%0A%1A%0A" alt="chart"><p>after</p>';
+            const out = service.sanitize(html);
+            expect(out).toContain('src="data:image/png,%89PNG%0D%0A%1A%0A"');
+        });
+
+        it('rejects a non-image percent-encoded payload in either encoding', () => {
+            // Widening the decode must not reopen the hole: content still decides
+            // the verdict, and both encodings still agree.
+            for (const payload of ['<script>alert(1)</script>', 'not an image at all']) {
+                expect(service.sanitizeImageSrc('data:image/png,' + encodeURIComponent(payload))).toBeNull();
+                expect(service.sanitizeImageSrc('data:image/png;base64,' + btoa(payload))).toBeNull();
+            }
+            // A malformed %XX escape is not a usable image either.
+            expect(service.sanitizeImageSrc('data:image/png,%ZZ')).toBeNull();
+        });
+
+        it('scrubs SVG hidden inside a percent-encoded png payload', () => {
+            const hidden = service.sanitizeImageSrc(
+                'data:image/png,' + encodeURIComponent('<svg onload="alert(1)"></svg>'),
+            );
+            expect(hidden).not.toBeNull();
+            expect(hidden).not.toContain('onload');
+        });
+
         it('should allow data:image/svg+xml with valid SVG and sanitize content', () => {
             const svg = '<svg xmlns="http://www.w3.org/2000/svg"><rect width="10" height="10"/></svg>';
             const src = `data:image/svg+xml;base64,${btoa(svg)}`;
@@ -907,10 +953,19 @@ describe('RichTextSanitizerService — data: URL encoding parity (round-26 audit
 
     it('still accepts a real PNG in either encoding', () => {
         // The bound must not over-reject: both forms of a genuine image pass.
-        const png = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D]
-            .map((b) => String.fromCodePoint(b))
+        //
+        // The percent form is built from BYTE escapes, not from
+        // encodeURIComponent(String.fromCodePoint(...)) -- that produces the
+        // UTF-8 encoding of U+0089 ("%C2%89"), two bytes, not the single 0x89 a
+        // real PNG carries. The old input round-tripped through the same UTF-8
+        // assumption the implementation made, so it agreed with the bug instead
+        // of testing for it.
+        const bytes = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D];
+        const percent = bytes
+            .map((b) => '%' + b.toString(16).padStart(2, '0').toUpperCase())
             .join('');
-        expect(srcOf('data:image/png,' + encodeURIComponent(png))).toContain('data:image/png');
-        expect(srcOf('data:image/png;base64,' + btoa(png))).toContain('data:image/png');
+        const raw = bytes.map((b) => String.fromCodePoint(b)).join('');
+        expect(srcOf('data:image/png,' + percent)).toContain('data:image/png');
+        expect(srcOf('data:image/png;base64,' + btoa(raw))).toContain('data:image/png');
     });
 });
