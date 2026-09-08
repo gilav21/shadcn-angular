@@ -125,6 +125,12 @@ export class RichTextViewComponent {
             // click blocker stays as belt and braces for pointer events.
             box.setAttribute('aria-disabled', 'true');
             box.removeAttribute('aria-readonly');
+            // Name it from the task's own text. Without this a reader announces
+            // "checkbox, checked, unavailable" with no indication of WHICH task:
+            // the state was perceivable and the task was not, which defeats the
+            // point of keeping it in the tree at all.
+            const label = item?.textContent?.trim();
+            if (label) box.setAttribute('aria-label', label);
         }
     }
 

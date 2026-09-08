@@ -6367,6 +6367,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         // unrelated text.
         const bare = this.bareRunAround(editor, startContainer, startOffset);
         if (bare.length === 0) return null;
+        const runStart = Array.from(editor.childNodes).indexOf(bare[0]);
 
         const paragraph = this.document.createElement('p');
         bare[0].before(paragraph);
@@ -6382,7 +6383,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         // into the new paragraph instead.
         const restored = this.document.createRange();
         if (startContainer === editor) {
-            restored.setStart(paragraph, Math.min(startOffset, paragraph.childNodes.length));
+            // Rebased, not merely clamped. startOffset indexes the EDITOR's
+            // children; the run begins at `runStart`, so inside the paragraph the
+            // same position is startOffset - runStart. Reusing the raw value put
+            // the caret runStart positions too far right -- at the end of the
+            // paragraph rather than where the user was typing -- and the clamp
+            // only turned an out-of-range index into a silently wrong one.
+            const rebased = startOffset - runStart;
+            restored.setStart(paragraph, Math.max(0, Math.min(rebased, paragraph.childNodes.length)));
         } else {
             restored.setStart(startContainer, startOffset);
         }

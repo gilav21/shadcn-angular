@@ -1001,6 +1001,39 @@ describe('RichTextEditorComponent', () => {
             }).wrapBareTextInParagraph(editor)).not.toThrow();
         });
 
+
+        it('keeps the caret where it was when the run does not start at index 0', () => {
+            // startOffset is an index into the EDITOR's children; it was reused
+            // as an index into the new paragraph. When the run starts at editor
+            // index N > 0 the paragraph offset is startOffset - N, so the caret
+            // landed N positions too far right -- at the end of the paragraph
+            // rather than where the user was typing. The Math.min clamp only
+            // turned the out-of-range case into a silently wrong one.
+            editor.innerHTML = '';
+            const block = document.createElement('p');
+            block.textContent = 'BLOCK';
+            editor.append(
+                block,
+                document.createTextNode('a'),
+                document.createTextNode('b'),
+                document.createTextNode('c'),
+            );
+            const range = document.createRange();
+            range.setStart(editor, 3); // between "b" and "c"
+            range.collapse(true);
+            const selection = document.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+
+            (component as unknown as {
+                wrapBareTextInParagraph(el: HTMLElement): HTMLElement | null;
+            }).wrapBareTextInParagraph(editor);
+
+            const restored = document.getSelection()?.getRangeAt(0);
+            // The run is ["a","b","c"]; editor offset 3 is paragraph offset 2.
+            expect(restored?.startOffset).toBe(2);
+        });
+
         it('still wraps a genuinely bare text node', () => {
             editor.innerHTML = '';
             editor.appendChild(document.createTextNode('bare'));

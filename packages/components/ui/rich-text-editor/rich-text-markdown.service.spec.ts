@@ -1143,6 +1143,7 @@ describe('RichTextMarkdownService', () => {
             const html = service.toHtml('line1  \nline2');
             expect(service.toMarkdown(html)).toBe('line1  \nline2');
         });
+
     });
 
     describe('rowspan (round-24 audit)', () => {

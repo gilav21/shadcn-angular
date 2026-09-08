@@ -160,6 +160,9 @@ describe('RichTextViewComponent', () => {
         // by screen-reader form navigation, and a checked task in a published
         // document still has to be perceivable.
         expect(boxes[0].getAttribute('aria-disabled')).toBe('true');
+        // Named from the task text: "checkbox, checked, unavailable" with no
+        // indication of which task is state without content.
+        expect(boxes[0].getAttribute('aria-label')).toBe('done');
         expect(boxes[0].disabled).toBe(false);
         expect(boxes[0].getAttribute('aria-readonly')).toBeNull();
 

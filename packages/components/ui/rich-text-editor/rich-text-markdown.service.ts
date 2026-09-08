@@ -719,11 +719,6 @@ export class RichTextMarkdownService {
      * Parse line breaks (two spaces + newline or explicit \n).
      */
     private parseLineBreaks(html: string): string {
-        // The newline is CONSUMED, not kept. Emitting "<br>" plus the newline
-        // meant toMarkdown -- which maps <br> back to two spaces and a newline
-        // -- produced a BLANK line, i.e. a paragraph break. So a hard break
-        // survived one save and was gone by the second: Shift+Enter, a
-        // first-class gesture, silently became a paragraph split.
         return html.replaceAll('  \n', '<br>');
     }
 
