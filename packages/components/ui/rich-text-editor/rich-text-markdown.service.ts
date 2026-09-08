@@ -666,7 +666,7 @@ export class RichTextMarkdownService {
         // returned bare it was concatenated onto the item's first line with no
         // separator, so "Alpha" and "Second" fused into "AlphaSecond" and a
         // word was destroyed on EVERY save, one per paragraph per cycle.
-        return /^</.test(html) ? html : `<p>${html}</p>`;
+        return html.startsWith('<') ? html : `<p>${html}</p>`;
     }
 
     /**
