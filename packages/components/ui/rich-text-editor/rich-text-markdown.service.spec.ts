@@ -1266,6 +1266,20 @@ describe('RichTextMarkdownService', () => {
             expect(md.length).toBeLessThan(1000000);
         });
 
+
+        it('puts the real header first when <thead> follows <tbody>', () => {
+            // A single :scope query returns rows in DOCUMENT order, so a table
+            // written tbody-before-thead -- valid HTML, and what some editors
+            // emit -- placed a BODY row above the separator and the real header
+            // below it, inverting the table.
+            const html =
+                '<table><tbody><tr><td>b</td></tr></tbody>' +
+                '<thead><tr><th>H</th></tr></thead></table>';
+            const rows = service.toMarkdown(html).split(String.fromCodePoint(10));
+            expect(rows[0]).toContain('H');
+            expect(rows[2]).toContain('b');
+        });
+
         it('widens the table to the widest row, keeping every cell', () => {
             // This asserted only that all rows had the same cell COUNT -- a
             // property a TRUNCATING implementation satisfies identically while

@@ -1028,7 +1028,18 @@ export class RichTextMarkdownService {
         // Scoped to THIS table. An unscoped descendant query pulled a nested
         // table's rows up as rows of the outer one, so they appeared both inside
         // their cell and again at the top level.
-        const rows = Array.from(table.querySelectorAll<HTMLElement>(':scope > tr, :scope > thead > tr, :scope > tbody > tr, :scope > tfoot > tr'));
+        // thead rows first, whatever their DOM order. A single query returns
+        // them in document order, so a table written <tbody> before <thead>
+        // -- valid HTML -- put a BODY row in the header position and the real
+        // header underneath the separator, inverting the table.
+        const pick = (sel: string): HTMLElement[] =>
+            Array.from(table.querySelectorAll<HTMLElement>(sel));
+        const rows = [
+            ...pick(':scope > thead > tr'),
+            ...pick(':scope > tr'),
+            ...pick(':scope > tbody > tr'),
+            ...pick(':scope > tfoot > tr'),
+        ];
         if (rows.length === 0) return '';
 
         const lines: string[] = [];
