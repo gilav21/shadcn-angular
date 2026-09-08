@@ -852,3 +852,45 @@ input, demonstrated rather than asserted.
 
 Defects frozen into tests as asserted-correct: **seventeen** (nine now mine).
 Regressions introduced while fixing other findings: **twenty-two**.
+
+---
+
+## Round 22 — adversarial sweep (6 findings, 5 fixed, 1 recorded)
+
+| # | Sev | Finding | Fix | Commit |
+|---|---|---|---|---|
+| R22-1 | HIGH | **Locked-aspect resize height unbounded.** `clampWidth`/`clampHeight` were bounded in round 21 — and both guarding tests called `freeSize`, the `lockAspectRatio:false` function. The input **defaults to true**, and `lockedSize` derives height by division, skipping the clamp: a 20×10000 image reaches **5,000,000px**. | Ceiling applied, ratio preserved. | `290984f1` |
+| R22-2 | MEDIUM | `bareRunAround` fell back to "first bare node in the document" whenever no child contained the caret — exactly the container-offset range, i.e. the caret between two blocks. It wrapped text at the far end and returned its `<p>` as the caret's block, so an input rule rewrote a paragraph the user was nowhere near. | Uses the caret offset. | `290984f1` |
+| R22-3 | MEDIUM | Table output bounded per row but not in total: 5000 rows × one `colspan="1000"` cell = **166 KB in → 14.3 MB out**, 88× sustained. | Whole-table cell budget. | `290984f1` |
+| R22-4 | LOW | `padToWidth` padded up to the header width but never truncated, so a 3-cell body row sat under a 1-dash separator — invalid GFM. | Rows truncated to the header width. | `290984f1` |
+| R22-5 | LOW | `hasForeignAuthority` splits on the first colon, not a validated scheme. | **Not fixed, recorded.** Real but not exploitable — a relative URL cannot reach another origin — and the change broke 51 sanitizer tests. Churning working security code for a cosmetic inconsistency is the wrong trade. | — |
+| R22-6 | LOW | `rich-text-view` froze checkboxes with `aria-readonly`, which ARIA does not define for `role="checkbox"` — so a reader announced nothing while the control was also unreachable by keyboard. Its test asserted that attribute as correct. | `disabled`. | `290984f1` |
+
+### "I fixed the mirror axis and tested the mirror function"
+
+R22-1 is the most pointed critique of this series' method so far. Round 21's fix
+was *correct*; its tests exercised the sibling function and left the default path
+— the one most users are on — entirely uncovered. The auditor noted that the
+round-21 test even **calls out the previous degenerate input in its own comment
+while introducing a new one a level up**.
+
+The degenerate-input lesson had been written into `CLAUDE.md` and memory *before*
+this round ran. Writing it down did not prevent the next instance. What catches
+these is the independent auditor, not the note.
+
+R22-2 is the same teleport class for the third time: round 20 collected every
+bare node in the document; round 21 fixed that form and left the fallback open.
+**A bug class is not closed until every path into it is closed**, and "I fixed
+the reported form" has now been wrong three times running on this one function.
+
+### On declining a fix
+
+R22-5 was reverted after the change broke 51 tests. The finding is genuine, the
+severity is LOW, and the code is security-sensitive and working. Recording it as
+a known inconsistency is the honest outcome; forcing it through would have traded
+a real risk for a cosmetic gain.
+
+### Scoreboard
+
+Defects frozen into tests as asserted-correct: **eighteen** (ten now mine).
+Regressions introduced while fixing other findings: **twenty-four**.
