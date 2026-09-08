@@ -948,213 +948,51 @@ describe('RichTextPasteNormalizerService', () => {
             expect(result).toBe('<p>Line one.<br>Line two.<br>Line three.<br>Line four.<br>Line five.</p>');
         });
 
-        it('should join PDF column-wrapped lines into paragraphs', () => {
-            const pdfText = [
-                'This is the first line of a paragraph that',
-                'continues on the next line because the PDF',
-                'viewer wraps text at the column boundary.',
-                'This keeps going for a while so we have a',
-                'good amount of consistent-length lines to',
-                'trigger the PDF detection heuristic here.',
-                '',
-                'This is a second paragraph that also wraps',
-                'across multiple lines in the PDF document.',
-                'It should be separate from the first one.',
-                'And it continues with more wrapped content.',
-                'The lines are roughly the same length here.',
-            ].join('\n');
-            const result = service.normalize(null, pdfText);
-            expect(result).toContain('<p>');
-            const paragraphCount = (result.match(/<p>/g) ?? []).length;
-            expect(paragraphCount).toBe(2);
-            // The paragraph COUNT alone proves nothing: the non-PDF branch also
-            // yields 2 here, by splitting on the blank line. What distinguishes
-            // the PDF branch is that it JOINS the wrapped lines -- so no <br>
-            // survives, and the first two lines end up adjacent in one run.
+        it('preserves every line of a structured plain-text paste', () => {
+            // These replace 13 tests that asserted the REFLOW: any text passing
+            // looksLikePdfText had its consecutive lines joined, on the theory
+            // they were PDF column wrapping. That heuristic matches the shape of
+            // most multi-line text, so each of these collapsed into one run-on
+            // line -- and the address gained an <h2>, the diff lost its markers.
+            const NLC = String.fromCodePoint(10);
+            const cases: ReadonlyArray<readonly [string, readonly string[]]> = [
+                ['csv', ['alice,30,engineer', 'bob,25,designer', 'carol,35,manager', 'dave,28,analyst']],
+                ['address', ['John Smith', '123 Main Street', 'Springfield, IL 62704', 'United States']],
+                ['sql', ['SELECT id, name FROM users', 'WHERE active = true', 'ORDER BY created_at DESC', 'LIMIT 100;']],
+                ['shopping', ['Buy apples today', 'Buy oranges today', 'Buy bananas today', 'Buy grapes today']],
+                ['lyrics', ['I walked along the empty street', 'beneath the pale and silver moon', 'and thought of all the words unsaid']],
+            ];
+            for (const [, lines] of cases) {
+                const result = service.normalize(null, lines.join(NLC));
+                // One <br> per line break: nothing joined, nothing dropped.
+                expect(result.match(/<br>/g) ?? []).toHaveLength(lines.length - 1);
+                for (const line of lines) {
+                    expect(result).toContain(line);
+                }
+                // Nothing invented: no heading or list conjured from plain text.
+                expect(result).not.toContain('<h2>');
+                expect(result).not.toContain('<li>');
+            }
+        });
+
+        it('keeps list markers instead of turning them into <li>', () => {
+            // A pasted diff lost the leading '-' that carries its meaning: the
+            // markers were stripped and rebuilt as <ul><li>.
+            const NLC = String.fromCodePoint(10);
+            const diff = ['- removed line one', '- removed line two', '- removed line three'].join(NLC);
+            const result = service.normalize(null, diff);
+            expect(result).not.toContain('<li>');
+            expect(result).toContain('- removed line one');
+            expect(result).toContain('- removed line two');
+        });
+
+        it('still splits paragraphs on a blank line', () => {
+            // Blank-line paragraph splitting is real structure in the source and
+            // is kept; only the guessed line JOINING is gone.
+            const NLC = String.fromCodePoint(10);
+            const result = service.normalize(null, 'First paragraph here.' + NLC + NLC + 'Second paragraph here.');
+            expect(result.match(/<p>/g) ?? []).toHaveLength(2);
             expect(result).not.toContain('<br>');
-            expect(result).toContain('a paragraph that continues on the next line');
-        });
-
-        it('should preserve list items in PDF text as ul/li elements', () => {
-            const pdfText = [
-                'Here is some introduction text that goes',
-                'across multiple lines in the PDF document.',
-                'It keeps going for consistent line length.',
-                'And more text to trigger the PDF detection.',
-                '',
-                '- First item in the list',
-                '- Second item in the list',
-                '- Third item in the list',
-            ].join('\n');
-            const result = service.normalize(null, pdfText);
-            expect(result).toContain('<ul>');
-            expect(result).toContain('<li>First item in the list</li>');
-            expect(result).toContain('<li>Second item in the list</li>');
-            expect(result).toContain('<li>Third item in the list</li>');
-            expect(result).toContain('</ul>');
-        });
-
-        it('should detect paragraph boundaries via column width in PDF text', () => {
-            const pdfText = [
-                'This is the first paragraph that wraps at the column',
-                'boundary and continues here on the next line of the',
-                'document until it ends.',
-                'The second paragraph starts on a new line and wraps',
-                'at the column boundary with consistent line lengths',
-                'throughout this document as well.',
-                'Third paragraph here also wraps at the column width',
-                'boundary and continues for a while to fill the line.',
-            ].join('\n');
-            const result = service.normalize(null, pdfText);
-            const paragraphCount = (result.match(/<p>/g) ?? []).length;
-            expect(paragraphCount).toBeGreaterThanOrEqual(2);
-        });
-
-        it('should convert PDF headings to h2 elements', () => {
-            const pdfText = [
-                'INTRODUCTION',
-                '',
-                'This is a paragraph under the heading that',
-                'continues across lines in the PDF document.',
-                'It keeps going for consistent line length.',
-                'And more text to reach the detection limit.',
-                '',
-                'CONCLUSION',
-                '',
-                'This is the conclusion paragraph that also',
-                'wraps across multiple lines because of the',
-                'column width limitation in the PDF format.',
-                'More filler text to trigger the heuristic.',
-            ].join('\n');
-            const result = service.normalize(null, pdfText);
-            expect(result).toContain('<h2>INTRODUCTION</h2>');
-            expect(result).toContain('<h2>CONCLUSION</h2>');
-            const paragraphCount = (result.match(/<p>/g) ?? []).length;
-            expect(paragraphCount).toBe(2);
-        });
-
-        it('should convert PDF numbered list items to ol/li elements', () => {
-            const pdfText = [
-                'Here is some introduction text that goes',
-                'across multiple lines in the PDF document.',
-                'It keeps going for consistent line length.',
-                'And more text to trigger the PDF detection.',
-                'This paragraph continues with more content.',
-                'We need enough lines for heuristic to work.',
-                '',
-                '1) First step in the process',
-                '2) Second step in the process',
-                '3) Third step in the process',
-            ].join('\n');
-            const result = service.normalize(null, pdfText);
-            expect(result).toContain('<ol>');
-            expect(result).toContain('<li>First step in the process</li>');
-            expect(result).toContain('<li>Second step in the process</li>');
-            expect(result).toContain('<li>Third step in the process</li>');
-            expect(result).toContain('</ol>');
-        });
-
-        it('should handle mixed headings, paragraphs, and lists in PDF text', () => {
-            const pdfText = [
-                'GETTING STARTED',
-                '',
-                'This is an introductory paragraph that spans',
-                'multiple lines in the PDF and should be joined',
-                'into a single paragraph element by the parser.',
-                'More text to reach detection threshold length.',
-                '',
-                'REQUIREMENTS',
-                '',
-                '• Node.js version 18 or higher',
-                '• A package manager like npm or yarn',
-                '• A modern web browser for testing',
-                '',
-                'INSTALLATION STEPS',
-                '',
-                '1) Clone the repository from source',
-                '2) Run the install command for deps',
-                '3) Start the development server now',
-            ].join('\n');
-            const result = service.normalize(null, pdfText);
-            expect(result).toContain('<h2>GETTING STARTED</h2>');
-            expect(result).toContain('<h2>REQUIREMENTS</h2>');
-            expect(result).toContain('<h2>INSTALLATION STEPS</h2>');
-            expect(result).toContain('<p>');
-            expect(result).toContain('<ul>');
-            expect(result).toContain('<ol>');
-            expect(result).toContain('<li>Node.js version 18 or higher</li>');
-            expect(result).toContain('<li>Clone the repository from source</li>');
-        });
-
-        it('should auto-link URLs within PDF paragraphs', () => {
-            const pdfText = [
-                'Visit our website at https://example.com for',
-                'more details about the project and features.',
-                'Documentation is at https://docs.example.com',
-                'and the source code is available to everyone.',
-                'More lines to trigger the PDF heuristic well.',
-            ].join('\n');
-            const result = service.normalize(null, pdfText);
-            expect(result).toContain('<a href="https://example.com">https://example.com</a>');
-        });
-
-        it('should escape HTML entities in PDF text content', () => {
-            const pdfText = [
-                'The <script> tag is used for JavaScript and',
-                'should always be escaped in HTML documents.',
-                'Using < and > operators in code is common.',
-                'More text here to reach the detection limit.',
-                'And some more filler text for good measure.',
-            ].join('\n');
-            const result = service.normalize(null, pdfText);
-            expect(result).not.toContain('<script>');
-            expect(result).toContain('&lt;script&gt;');
-        });
-
-        it('should produce structured HTML from PDF text even when minimal HTML is on clipboard', () => {
-            const html = '<span style="white-space: pre-wrap;">INTRODUCTION\n\nThis is the first line of a paragraph that\ncontinues on the next line because the PDF\nviewer wraps text at the column boundary.\nThis keeps going for a while so we have a\ngood amount of consistent-length lines to\ntrigger the PDF detection heuristic here.\n\n- First item in the list\n- Second item in the list</span>';
-            const text = [
-                'INTRODUCTION',
-                '',
-                'This is the first line of a paragraph that',
-                'continues on the next line because the PDF',
-                'viewer wraps text at the column boundary.',
-                'This keeps going for a while so we have a',
-                'good amount of consistent-length lines to',
-                'trigger the PDF detection heuristic here.',
-                '',
-                '- First item in the list',
-                '- Second item in the list',
-            ].join('\n');
-            const result = service.normalize(html, text);
-            expect(result).toContain('<h2>INTRODUCTION</h2>');
-            expect(result).toContain('<p>');
-            expect(result).toContain('<ul>');
-            expect(result).toContain('<li>First item in the list</li>');
-        });
-
-        it('should switch list type when markers change from bullets to numbers', () => {
-            const pdfText = [
-                'Here is some introduction text that goes',
-                'across multiple lines in the PDF document.',
-                'It keeps going for consistent line length.',
-                'And more text to trigger the PDF detection.',
-                'This paragraph continues with more content.',
-                'We need enough lines for heuristic to work.',
-                '',
-                '• Unordered item one in the list',
-                '• Unordered item two in the list',
-                '',
-                '1) Ordered item one in the list',
-                '2) Ordered item two in the list',
-            ].join('\n');
-            const result = service.normalize(null, pdfText);
-            expect(result).toContain('<ul>');
-            expect(result).toContain('</ul>');
-            expect(result).toContain('<ol>');
-            expect(result).toContain('</ol>');
-            expect(result).toContain('<li>Unordered item one in the list</li>');
-            expect(result).toContain('<li>Ordered item one in the list</li>');
         });
     });
 
@@ -1994,23 +1832,7 @@ describe('RichTextPasteNormalizerService', () => {
         });
     });
 
-    describe('looksLikePdfText - varied-length branches', () => {
-        it('treats many varied-length lines with no blank lines as PDF text', () => {
-            const text = [
-                'x',
-                'a fairly long line of prose that keeps going on',
-                'y',
-                'another fairly long line of prose that continues',
-                'z',
-                'a third long line of prose to round out the block',
-            ].join('\n');
-            const result = service.normalize(null, text);
-            // The PDF branch REFLOWS: consecutive lines are joined, so no <br>
-            // survives. That absence is what distinguishes this branch from the
-            // one below, and is the only assertion here that can fail.
-            expect(result).not.toContain('<br>');
-            expect(result).toContain('x a fairly long line');
-        });
+    describe('looksLikePdfText - source routing only', () => {
 
         it('does not treat varied lines with a blank separator as PDF text', () => {
             const text = [
@@ -2031,72 +1853,31 @@ describe('RichTextPasteNormalizerService', () => {
         });
     });
 
-    describe('structurePdfTextToHtml - heading and paragraph edges', () => {
-        it('does not treat an over-long line or a one-char line as a heading', () => {
-            const longLine = 'This is a very long line that exceeds eighty characters in total length so it cannot be a heading at all.';
-            const text = [
-                longLine,
+    describe('plain text is never restructured', () => {
+        it('invents no heading from a short or a long line', () => {
+            // These two tests asserted only toContain('<p>') against the removed
+            // reflow, so they could not fail. What matters now is that no line,
+            // whatever its length, is promoted to a heading or a list item.
+            const NLC = String.fromCodePoint(10);
+            const lines = [
+                'This is a very long line that exceeds eighty characters in total length so it cannot be a heading at all.',
                 'a',
+                'SHOUTED TEXT THAT LOOKS LIKE A HEADING',
+                '1. Something that looks like a numbered heading',
                 'This is a normal paragraph line that continues on',
-                'for a while to keep the average line length high.',
-                'More filler content to trigger the PDF heuristic.',
-                'And even more filler content lines down here now.',
-            ].join('\n');
-            const result = service.normalize(null, text);
-            expect(result).toContain('<p>');
-        });
-
-        it('detects an all-caps heading not isolated by blank lines', () => {
-            const text = [
-                'SECTION HEADER TITLE',
-                'This paragraph immediately follows the heading and',
-                'continues across several lines in the PDF document.',
-                'It keeps going for consistent line length overall.',
-                'More filler text to reach the detection threshold.',
-                'And another filler line to keep the average up now.',
-            ].join('\n');
-            const result = service.normalize(null, text);
-            expect(result).toContain('<h2>SECTION HEADER TITLE</h2>');
-        });
-
-        it('detects a numbered heading followed by body text', () => {
-            const text = [
-                '1.2 Overview Of The System',
-                'This paragraph immediately follows the numbered head',
-                'and continues across several lines in the document.',
-                'It keeps going for consistent line length overall.',
-                'More filler text to reach the detection threshold.',
-                'And another filler line to keep the average up now.',
-            ].join('\n');
-            const result = service.normalize(null, text);
-            expect(result).toContain('<h2>1.2 Overview Of The System</h2>');
-        });
-
-        it('breaks a merged paragraph when the next line is a heading or list', () => {
-            const text = [
-                'This is a paragraph line that is fairly long indeed.',
-                'NEXT SECTION HEADING',
-                'Another paragraph that runs a bit long as well here.',
-                '- a bullet item that follows immediately after prose',
-                'More filler text to reach the detection threshold ok.',
-                'And another filler line to keep the average up now yes.',
-            ].join('\n');
-            const result = service.normalize(null, text);
-            expect(result).toContain('<h2>NEXT SECTION HEADING</h2>');
-            expect(result).toContain('<li>');
-        });
-
-        it('breaks a paragraph on a very short trailing line after enough prose', () => {
-            const text = [
-                'This first line of prose is long enough to matter here.',
-                'ok',
-                'This is another long line of prose that continues on now.',
-                'This is yet another long line of prose to fill the block.',
-                'More filler content lines to keep the average length up.',
-                'And a final filler line so the heuristic triggers cleanly.',
-            ].join('\n');
-            const result = service.normalize(null, text);
-            expect(result).toContain('<p>');
+                '42',
+            ];
+            const result = service.normalize(null, lines.join(NLC));
+            expect(result).not.toContain('<h1>');
+            expect(result).not.toContain('<h2>');
+            expect(result).not.toContain('<h3>');
+            expect(result).not.toContain('<li>');
+            // Every line survives, including the short numeric one that the old
+            // path deleted outright as PDF page furniture.
+            for (const line of lines) {
+                expect(result).toContain(line);
+            }
+            expect(result.match(/<br>/g) ?? []).toHaveLength(lines.length - 1);
         });
     });
 
@@ -2303,18 +2084,6 @@ describe('RichTextPasteNormalizerService', () => {
             expect(result).toContain('<p>');
         });
 
-        it('strips short numeric-only lines from PDF text', () => {
-            const text = [
-                'This first line of prose is long enough to matter here.',
-                '42',
-                'This second line of prose is also long enough to matter.',
-                'This third line of prose keeps the average length high.',
-                'And a fourth line of prose to keep things flowing along.',
-                'Finally a fifth line of prose so the heuristic triggers.',
-            ].join('\n');
-            const result = service.normalize(null, text);
-            expect(result).not.toContain('42');
-        });
 
         it('parseStyles skips declarations with an empty prop or value', () => {
             const parsed = priv().parseStyles('color:red; :orphan; empty:');

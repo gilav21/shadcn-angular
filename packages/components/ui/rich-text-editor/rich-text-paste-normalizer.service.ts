@@ -942,9 +942,25 @@ export class RichTextPasteNormalizerService {
     private normalizePlainText(text: string): string {
         if (!text) return '';
 
-        if (this.looksLikePdfText(text)) {
-            return this.structurePdfTextToHtml(text);
-        }
+        // No reflow here. This branch handed any text passing looksLikePdfText
+        // to a routine that JOINED consecutive lines, on the theory they were
+        // PDF column wrapping. The heuristic -- 3+ lines averaging 10 chars with
+        // 30% of similar length -- is the shape of most multi-line text, so a
+        // pasted CSV, postal address, SQL query or log excerpt collapsed into one
+        // run-on line, and a street address was promoted to an <h2>. It was also
+        // content-dependent: five short lines survived while four slightly longer
+        // ones did not, so the same paste gave different results with no warning
+        // and no undo once saved.
+        //
+        // No signal separates the two classes. Wrapped prose ends mid-sentence,
+        // but so does a CSV row; terminal punctuation vetoes sentences-per-line
+        // and bibliographies but reads poetry as wrapped prose. A newline the
+        // user pasted is content, so it survives: prose copied from a PDF keeps
+        // its column wrapping, which the author can reflow by hand. That is
+        // recoverable -- a collapsed spreadsheet is not.
+        //
+        // looksLikePdfText is kept for detectHtmlSource, where it only routes a
+        // paste with trivial HTML to this path; that path preserves newlines.
 
         let escaped = this.escapeHtml(text);
         escaped = this.autoLinkUrls(escaped);
@@ -979,140 +995,6 @@ export class RichTextPasteNormalizerService {
         return false;
     }
 
-    private flushPdfListBuffer(listBuffer: { text: string; ordered: boolean }[], htmlParts: string[]): void {
-        if (listBuffer.length === 0) return;
-        const isOrdered = listBuffer[0].ordered;
-        const tag = isOrdered ? 'ol' : 'ul';
-        htmlParts.push(`<${tag}>`);
-        for (const item of listBuffer) {
-            const escaped = this.escapeHtml(item.text);
-            const linked = this.autoLinkUrls(escaped);
-            htmlParts.push(`<li>${linked}</li>`);
-        }
-        htmlParts.push(`</${tag}>`);
-    }
-
-    private getPdfColumnWidth(lines: string[]): number {
-        const lengths = lines.map(l => l.trim().length).filter(len => len > 0).sort((a, b) => a - b);
-        return lengths.length > 3 ? lengths[Math.floor(lengths.length * 0.75)] : 80;
-    }
-
-    private processPdfLine(
-        trimmed: string, filtered: string[], i: number,
-        listBuffer: { text: string; ordered: boolean }[],
-        htmlParts: string[], columnWidth: number
-    ): { nextI: number; listBuffer: { text: string; ordered: boolean }[] } {
-        if (this.isPdfHeading(trimmed, filtered, i)) {
-            this.flushPdfListBuffer(listBuffer, htmlParts);
-            htmlParts.push(`<h2>${this.escapeHtml(trimmed)}</h2>`);
-            return { nextI: i + 1, listBuffer: [] };
-        }
-        if (this.isPdfListItem(trimmed)) {
-            const strippedText = this.stripPdfListMarker(trimmed);
-            const ordered = this.isPdfOrderedListItem(trimmed);
-            if (listBuffer.length > 0 && listBuffer[0].ordered !== ordered) {
-                this.flushPdfListBuffer(listBuffer, htmlParts);
-                listBuffer = [];
-            }
-            listBuffer.push({ text: strippedText, ordered });
-            return { nextI: i + 1, listBuffer };
-        }
-        this.flushPdfListBuffer(listBuffer, htmlParts);
-        const mergeResult = this.mergePdfParagraph(filtered, i, trimmed, columnWidth);
-        const linked = this.autoLinkUrls(this.escapeHtml(mergeResult.paragraph));
-        htmlParts.push(`<p>${linked}</p>`);
-        return { nextI: mergeResult.nextIndex, listBuffer: [] };
-    }
-
-    private structurePdfTextToHtml(text: string): string {
-        const filtered = text.split('\n').filter(line => {
-            const trimmed = line.trim();
-            return !(/^\d+$/.test(trimmed) && trimmed.length <= 4);
-        });
-
-        const columnWidth = this.getPdfColumnWidth(filtered);
-        const htmlParts: string[] = [];
-        let listBuffer: { text: string; ordered: boolean }[] = [];
-        let i = 0;
-
-        while (i < filtered.length) {
-            const trimmed = filtered[i].trim();
-            if (trimmed === '') { i++; continue; }
-            const result = this.processPdfLine(trimmed, filtered, i, listBuffer, htmlParts, columnWidth);
-            i = result.nextI;
-            listBuffer = result.listBuffer;
-        }
-
-        this.flushPdfListBuffer(listBuffer, htmlParts);
-        return htmlParts.join('');
-    }
-
-    private isPdfHeading(line: string, allLines: string[], index: number): boolean {
-        if (line.length > 80) return false;
-        if (line.length < 2) return false;
-
-        const nextLine = index + 1 < allLines.length ? allLines[index + 1].trim() : '';
-        const prevLine = index > 0 ? allLines[index - 1].trim() : '';
-
-        if (nextLine === '' && prevLine === '' && line.length < 60) return true;
-
-        if (/^[A-Z][A-Z\s\d:.-]{2,}$/.test(line) && line.length < 60) return true;
-
-        if (/^\d+(\.\d+)*\s+\S/.test(line) && line.length < 80 && nextLine !== '' && !line.endsWith('.')) return true;
-
-        return false;
-    }
-
-    private isPdfListItem(line: string): boolean {
-        return /^\s*[-•●○◦▪▸►–—]\s+/.test(line) ||
-            /^\s*\d+[.)]\s+/.test(line) ||
-            /^\s*[a-z][.)]\s+/i.test(line) ||
-            /^\s*[ivxlcdm]+[.)]\s+/i.test(line);
-    }
-
-    private mergePdfParagraph(
-        lines: string[], startIndex: number, firstLine: string, columnWidth: number
-    ): { paragraph: string; nextIndex: number } {
-        let paragraph = firstLine;
-        let lastLineLen = firstLine.length;
-        let i = startIndex + 1;
-        while (i < lines.length) {
-            const nextLine = lines[i].trim();
-            if (nextLine === '') break;
-            if (this.isPdfHeading(nextLine, lines, i)) break;
-            if (this.isPdfListItem(nextLine)) break;
-            if (this.isPdfLineBreak(paragraph, nextLine, lastLineLen, columnWidth)) break;
-            paragraph += ' ' + nextLine;
-            lastLineLen = nextLine.length;
-            i++;
-        }
-        return { paragraph, nextIndex: i };
-    }
-
-    private isPdfLineBreak(currentParagraph: string, nextLine: string, lastLineLength: number, columnWidth: number): boolean {
-        const isShortLine = lastLineLength < columnWidth * 0.85;
-
-        if (isShortLine && /[.!?]\s*$/.test(currentParagraph) && /^[A-Z]/.test(nextLine)) return true;
-
-        if (lastLineLength < columnWidth * 0.5 && currentParagraph.length > 30) return true;
-
-        if (nextLine.length < 20 && currentParagraph.length > 60) return true;
-
-        return false;
-    }
-
-    private isPdfOrderedListItem(line: string): boolean {
-        return /^\s*\d+[.)]\s+/.test(line) ||
-            /^\s*[a-z][.)]\s+/i.test(line);
-    }
-
-    private stripPdfListMarker(line: string): string {
-        return line
-            .replace(/^\s*[-•●○◦▪▸►–—]\s+/, '')
-            .replace(/^\s*\d+[.)]\s+/, '')
-            .replace(/^\s*[a-z][.)]\s+/i, '')
-            .replace(/^\s*[ivxlcdm]+[.)]\s+/i, '');
-    }
 
     private autoLinkUrls(escaped: string): string {
         return escaped.replaceAll(
