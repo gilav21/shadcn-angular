@@ -216,6 +216,17 @@ const BLOCK_CONTAINER_TAGS = new Set(['TD', 'TH', 'LI', 'BLOCKQUOTE', 'DETAILS',
  */
 const BLOCK_TAGS = new Set(['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'PRE', 'TABLE', 'HR']);
 
+/**
+ * Everything that owns a line, including the container tags. `BLOCK_TAGS` above
+ * is deliberately narrowed for {@link blockToSplit}, which tests
+ * {@link BLOCK_CONTAINER_TAGS} first and so can never see them -- but
+ * {@link bareRunAround} uses a set to decide where a bare run ENDS, and there
+ * they are exactly the boundary. Sharing the narrowed set made a blockquote read
+ * as bare content and swallowed it into a paragraph, reintroducing the
+ * document-swallowing bug through an edit made for the other consumer.
+ */
+const LINE_OWNING_TAGS = new Set([...BLOCK_TAGS, ...BLOCK_CONTAINER_TAGS]);
+
 let richTextEditorInstances = 0;
 
 @Component({
@@ -6314,7 +6325,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private bareRunAround(editor: HTMLElement, caretNode: Node, caretOffset: number): ChildNode[] {
         const children = Array.from(editor.childNodes);
         const isBlock = (node: ChildNode): boolean =>
-            node instanceof HTMLElement && BLOCK_TAGS.has(node.tagName);
+            node instanceof HTMLElement && LINE_OWNING_TAGS.has(node.tagName);
 
         let anchorIndex = children.findIndex(
             (node) => node === caretNode || node.contains(caretNode),
@@ -6363,8 +6374,18 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             paragraph.appendChild(node);
         }
 
+        // A caret held as a CHILD INDEX into the editor cannot be restored
+        // verbatim: the wrap removed N children and inserted 1, so the saved
+        // offset is out of range and setStart throws IndexSizeError -- escaping
+        // the listener and leaving the transform half-applied with no history
+        // entry. The wrapped run is where the caret was, so it is re-pointed
+        // into the new paragraph instead.
         const restored = this.document.createRange();
-        restored.setStart(startContainer, startOffset);
+        if (startContainer === editor) {
+            restored.setStart(paragraph, Math.min(startOffset, paragraph.childNodes.length));
+        } else {
+            restored.setStart(startContainer, startOffset);
+        }
         restored.collapse(true);
         selection.removeAllRanges();
         selection.addRange(restored);

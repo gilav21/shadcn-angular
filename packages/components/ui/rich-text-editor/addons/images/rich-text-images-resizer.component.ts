@@ -432,10 +432,15 @@ export class RichTextImageResizerComponent implements OnDestroy {
         const rect = t.getBoundingClientRect();
         const aspect = rect.height === 0 ? 1 : rect.width / rect.height;
 
-        const width = this.clampWidth(Math.max(this.minWidth(), rect.width + dx));
-        const height = this.lockAspectRatio()
-            ? width / aspect
-            : this.clampHeight(rect.height + dy);
+        // Both branches go through the same bounding as the drag path. The
+        // locked branch used to derive height by an unclamped division -- the
+        // identical defect that was fixed in lockedSize, 55 lines below, and
+        // missed here because this block's own fixture sets lockAspectRatio to
+        // false so every keyboard test ran the unlocked branch.
+        const requested = this.clampWidth(Math.max(this.minWidth(), rect.width + dx));
+        const { width, height } = this.lockAspectRatio()
+            ? this.ratioBoundedSize(requested, aspect)
+            : { width: requested, height: this.clampHeight(rect.height + dy) };
 
         t.style.width = `${width}px`;
         t.style.height = `${height}px`;
@@ -488,16 +493,25 @@ export class RichTextImageResizerComponent implements OnDestroy {
      * was. Only the ceiling is enforced here; the floor belongs to
      * onPointerMove, which rejects an undersized drag rather than snapping it.
      */
+    /**
+     * Bound a width/height pair that must keep `aspect`, shared by the drag and
+     * keyboard paths so neither can drift from the other.
+     *
+     * Only the CEILING is applied. The floor stays with onPointerMove, which
+     * rejects an undersized result outright rather than snapping it -- raising a
+     * too-small drag to the minimum would start writing sizes where the
+     * component currently writes nothing.
+     */
+    private ratioBoundedSize(width: number, aspect: number): { width: number; height: number } {
+        const height = width / aspect;
+        if (height <= MAX_IMAGE_DIMENSION) return { width, height };
+        return { width: MAX_IMAGE_DIMENSION * aspect, height: MAX_IMAGE_DIMENSION };
+    }
+
     private lockedSize(state: ResizeState, deltaX: number): { width: number; height: number } {
         const aspect = state.startWidth / state.startHeight;
         const width = this.clampWidth(state.startWidth + WIDTH_SIGN[state.handle] * deltaX);
-        const height = width / aspect;
-        if (height <= MAX_IMAGE_DIMENSION) return { width, height };
-        // Only the CEILING is applied here. The floor stays with
-        // onPointerMove, which rejects an undersized result outright rather than
-        // snapping it -- raising a too-small drag to the minimum would start
-        // writing sizes where the component currently writes nothing.
-        return { width: MAX_IMAGE_DIMENSION * aspect, height: MAX_IMAGE_DIMENSION };
+        return this.ratioBoundedSize(width, aspect);
     }
 
     private freeSize(state: ResizeState, deltaX: number, deltaY: number): { width: number; height: number } {

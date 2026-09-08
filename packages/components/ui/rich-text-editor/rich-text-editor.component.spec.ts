@@ -945,6 +945,62 @@ describe('RichTextEditorComponent', () => {
             expect(editor.firstChild?.nodeType).toBe(Node.TEXT_NODE);
         });
 
+
+        it('treats a blockquote as a run boundary, not as bare content', () => {
+            // BLOCK_TAGS was narrowed for blockToSplit's benefit -- LI,
+            // BLOCKQUOTE, DETAILS, FIGURE are dead there because
+            // BLOCK_CONTAINER_TAGS is tested first. bareRunAround uses the same
+            // set to decide where a run ENDS, where they are anything but dead:
+            // dropping them made a blockquote bare content, so it was swallowed
+            // into a <p>. Every existing test used <p>/<ul> as the interposed
+            // block, which still bounded correctly.
+            editor.innerHTML = '';
+            editor.append(
+                document.createTextNode('a'),
+                (() => { const q = document.createElement('blockquote'); q.textContent = 'QUOTED'; return q; })(),
+                document.createTextNode('b'),
+            );
+            const range = document.createRange();
+            range.setStart(editor.firstChild as Node, 1);
+            range.collapse(true);
+            const selection = document.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+
+            (component as unknown as {
+                wrapBareTextInParagraph(el: HTMLElement): HTMLElement | null;
+            }).wrapBareTextInParagraph(editor);
+
+            expect(editor.querySelector('p blockquote')).toBeNull();
+            expect(editor.querySelector(':scope > blockquote')).toBeTruthy();
+        });
+
+
+        it('restores a caret that was a child index into the editor', () => {
+            // With startContainer === editor, startOffset is a CHILD INDEX. The
+            // wrap removes N children and inserts 1, so the saved offset is out
+            // of range and setStart throws IndexSizeError -- escaping the
+            // Angular listener and aborting the transform mid-flight. The
+            // fallback branch that reaches this case was added one round before
+            // the restore was migrated to match.
+            editor.innerHTML = '';
+            editor.append(
+                document.createTextNode('# '),
+                document.createTextNode('b'),
+                document.createTextNode('c'),
+            );
+            const range = document.createRange();
+            range.setStart(editor, 2);
+            range.collapse(true);
+            const selection = document.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+
+            expect(() => (component as unknown as {
+                wrapBareTextInParagraph(el: HTMLElement): HTMLElement | null;
+            }).wrapBareTextInParagraph(editor)).not.toThrow();
+        });
+
         it('still wraps a genuinely bare text node', () => {
             editor.innerHTML = '';
             editor.appendChild(document.createTextNode('bare'));

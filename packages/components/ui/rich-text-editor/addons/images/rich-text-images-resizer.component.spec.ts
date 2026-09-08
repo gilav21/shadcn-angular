@@ -972,6 +972,33 @@ describe('RichTextImageResizerComponent', () => {
             expect(wide.width / wide.height).toBeCloseTo(2, 5);
         });
 
+
+        it('bounds height on the KEYBOARD path with the ratio locked', () => {
+            // Round 22 bounded lockedSize -- the DRAG path. The keyboard path 55
+            // lines above derives height by the same unclamped division, and this
+            // whole describe block's mountWithImage sets lockAspectRatio:false,
+            // so every keyboard test ran the ratio-unlocked branch. Third
+            // instance of testing the mirror function.
+            const img = document.createElement('img');
+            img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+            Object.defineProperty(img, 'getBoundingClientRect', {
+                value: () => ({ width: 20, height: 10000, top: 0, left: 0, right: 20, bottom: 10000 }),
+            });
+            document.body.appendChild(img);
+            fixture.componentRef.setInput('target', img);
+            fixture.componentRef.setInput('lockAspectRatio', true);
+            fixture.detectChanges();
+
+            // The SE corner: rendered while the ratio is locked (the edge
+            // handles are not), and WIDTH_SIGN is +1 there so ArrowRight grows.
+            const handle = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+                `button[aria-label="${component.handleLabel('se' as never)}"]`,
+            );
+            handle?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+            expect(Number.parseFloat(img.style.height)).toBeLessThanOrEqual(10000);
+            img.remove();
+        });
+
         it('ignores keys that are not arrows', () => {
             const img = mountWithImage();
             press(handle('e'), 'a');

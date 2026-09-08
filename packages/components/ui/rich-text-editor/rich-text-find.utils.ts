@@ -127,9 +127,27 @@ function escapeLiteral(query: string): string {
  * leaving `a+`, `\\d{2,4}` and `(foo|bar)` — the patterns people actually
  * search with — working.
  */
+/**
+ * Whether a user regex contains a quantified group that itself holds a
+ * quantifier -- the classic `(a+)+` shape, which backtracks exponentially.
+ *
+ * KNOWN LIMIT: this detects the nested-quantifier family only. Alternation
+ * overlap (`(a|a)+`) and sequential quantifiers (`a+a+a+b`) are also
+ * exponential and are NOT caught; measured 2.3s and 0.13s at 24 characters.
+ * Catching those reliably needs either a full regex parser or a runtime
+ * execution budget in a worker, neither of which belongs in this util. The
+ * length cap in {@link FIND_MAX_QUERY_LENGTH} bounds how bad it can get, and
+ * regex find is opt-in.
+ */
 function hasNestedQuantifier(pattern: string): boolean {
     for (let i = 0; i < pattern.length; i++) {
-        if (pattern[i] !== '(' || pattern[i + 1] === '?') continue;
+        if (pattern[i] !== '(') continue;
+        // Skip only true zero-width groups -- lookahead, lookbehind, and named
+        // references. "(?:" is a plain non-capturing group and quantifies like
+        // any other, so skipping the whole "(?" family let "(?:a+)+$" through:
+        // the idiomatic spelling of the exact pattern this guard exists to
+        // reject, and 81 seconds of backtracking on a 41-character line.
+        if (pattern[i + 1] === '?' && pattern[i + 2] !== ':') continue;
         const group = scanGroup(pattern, i);
         const after = pattern[group.end];
         if (group.quantifiedInside && (after === '+' || after === '*' || after === '{')) return true;

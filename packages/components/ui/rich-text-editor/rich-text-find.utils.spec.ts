@@ -52,4 +52,26 @@ describe('compileFindRegex', () => {
             expect(compileFindRegex('(a+)+$', opts({ useRegex: false }))).not.toBeNull();
         });
     });
+
+    describe('ReDoS guard coverage (round-23 audit)', () => {
+        it('rejects the NON-CAPTURING form of a nested quantifier', () => {
+            // The guard skipped anything starting "(?", which was meant to pass
+            // over lookaheads but also passed over "(?:" -- the idiomatic group.
+            // "(?:a+)+$" is the non-capturing spelling of the very pattern the
+            // guard's own doc-comment names, and it hung for 81 SECONDS on a
+            // 41-character line. Find runs on every keystroke.
+            expect(compileFindRegex('(?:a+)+$', opts({ useRegex: true }))).toBeNull();
+            expect(compileFindRegex('(?:(?:a+)+)+$', opts({ useRegex: true }))).toBeNull();
+        });
+
+        it('still rejects the capturing form', () => {
+            expect(compileFindRegex('(a+)+$', opts({ useRegex: true }))).toBeNull();
+        });
+
+        it('still accepts ordinary patterns', () => {
+            for (const p of ['hello', 'a+b', '(foo|bar)', '(?:foo)', '[a-z]+', '^start', 'end$']) {
+                expect(compileFindRegex(p, opts({ useRegex: true }))).not.toBeNull();
+            }
+        });
+    });
 });
