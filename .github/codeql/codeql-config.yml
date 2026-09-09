@@ -1,0 +1,27 @@
+# CodeQL configuration.
+#
+# Paired with the advanced (workflow-based) setup in `.github/workflows/codeql.yml`.
+# GitHub's default setup ignores this file — switching to a workflow is what
+# makes it apply.
+
+name: "shadcn-angular CodeQL"
+
+# Specs are excluded from analysis, not from the build.
+#
+# A security test proves a guard REJECTS an attack, so it necessarily contains
+# the attack. `rich-text-find.utils.spec.ts` feeds `(a+)+$`, `(a*)*b` and
+# `(x+x+)+y` to `compileFindRegex` and asserts each returns null. CodeQL reads
+# those literals as 16 high-severity `js/redos` findings — one per pattern, in
+# the file whose entire purpose is to prove they are refused.
+#
+# Suppressing them one by one in the Security tab would mean re-suppressing on
+# every future security test, and the pattern is not specific to ReDoS: the
+# same applies to the XSS, open-redirect and `data:`-URL fixtures elsewhere in
+# this tree.
+#
+# Shipped code stays fully analysed. `paths-ignore` covers only `*.spec.ts`,
+# `*.stories.ts` and the e2e harness — none of which reach a consumer.
+paths-ignore:
+  - "**/*.spec.ts"
+  - "**/*.stories.ts"
+  - "e2e/**"
