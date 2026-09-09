@@ -168,3 +168,18 @@ export function decodeCssEscapes(value: string): string {
         return literal ?? '';
     });
 }
+
+/**
+ * A component that carries a remote-host policy, so a nested one can opt into
+ * inheriting it.
+ *
+ * Both the editor and the view provide themselves under this token. It exists
+ * because Angular's DI only flows downward: a nested view cannot otherwise ask
+ * what policy encloses it. Inheritance is opt-in per component, so an empty
+ * host list keeps exactly one meaning -- no policy -- rather than becoming
+ * ambiguous between "none" and "inherit".
+ */
+export abstract class RichTextResourcePolicyHost {
+    /** The hosts this component permits. Empty means it sets no policy. */
+    abstract readonly allowedResourceHosts: () => readonly string[];
+}

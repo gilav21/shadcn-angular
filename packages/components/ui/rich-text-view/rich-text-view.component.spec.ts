@@ -1,11 +1,13 @@
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FormsModule } from '@angular/forms';
+import { By } from '@angular/platform-browser';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { RichTextViewComponent } from './rich-text-view.component';
 import {
     RICH_TEXT_PROSE_CLASSES,
     RichTextEditorComponent,
+    RichTextResourcePolicyDirective,
     RichTextSanitizerService,
 } from '../rich-text-editor';
 import {
@@ -435,11 +437,170 @@ describe('RichTextViewComponent — actions on a page with no editor', () => {
 
     it('T-28b the rules are gone once the directive is destroyed', () => {
         fixture.detectChanges();
-        const sanitizer = TestBed.inject(RichTextSanitizerService);
+        // The VIEW's sanitizer, not the root one. The view provides its own so
+        // its resource policy is per-instance, and with the directive on the
+        // view element the rules register there -- TestBed.inject() hands back
+        // an untouched root instance, which would make this pass for the wrong
+        // reason both before and after destroy.
+        const sanitizer = fixture.debugElement
+            .query(By.directive(RichTextViewComponent))
+            .injector.get(RichTextSanitizerService);
         expect(sanitizer.sanitize(ACTION_HTML)).toContain('data-action-click');
 
         fixture.destroy();
 
         expect(sanitizer.sanitize(ACTION_HTML)).not.toContain('data-action-click');
+    });
+});
+
+describe('RichTextViewComponent — remote resource policy', () => {
+    const TRACKER = 'https://tracker.example/p.png';
+    const TRUSTED = 'https://cdn.trusted.com/logo.png';
+
+    @Component({
+        selector: 'test-two-views',
+        standalone: true,
+        imports: [RichTextViewComponent],
+        template: `
+            <ui-rich-text-view
+                id="strict"
+                [value]="doc"
+                [allowedResourceHosts]="['cdn.trusted.com']" />
+            <ui-rich-text-view id="open" [value]="doc" />
+        `,
+    })
+    class TwoViewsComponent {
+        doc = `![a](${TRACKER})`;
+    }
+
+    afterEach(() => TestBed.resetTestingModule());
+
+    const imgIn = (fixture: ComponentFixture<unknown>, id: string): HTMLImageElement =>
+        (fixture.nativeElement as HTMLElement).querySelector(
+            `#${id} img`,
+        ) as HTMLImageElement;
+
+    it('T-P1 two views on one page hold independent policies', () => {
+        // The reason the services are component-scoped. On a root singleton the
+        // second view's empty list would overwrite the first view's, and which
+        // one won would depend on render order.
+        const fixture = TestBed.createComponent(TwoViewsComponent);
+        fixture.detectChanges();
+
+        expect(imgIn(fixture, 'strict').hasAttribute('src')).toBe(false);
+        expect(imgIn(fixture, 'strict').getAttribute('data-blocked-src')).toBe(TRACKER);
+        expect(imgIn(fixture, 'open').getAttribute('src')).toBe(TRACKER);
+    });
+
+    @Component({
+        selector: 'test-nested-views',
+        standalone: true,
+        imports: [RichTextViewComponent, RichTextResourcePolicyDirective],
+        template: `
+            <div [uiRichTextResourcePolicy]="hosts()">
+                <ui-rich-text-view
+                    id="inner"
+                    [value]="doc"
+                    [inheritResourcePolicy]="inherit()" />
+            </div>
+        `,
+    })
+    class NestedViewsComponent {
+        readonly hosts = signal<readonly string[]>(['cdn.trusted.com']);
+        readonly inherit = signal(false);
+        doc = `![a](${TRACKER})`;
+    }
+
+    it('T-P2 a view ignores an enclosing policy by default', () => {
+        // Opt-in, so an empty host list keeps exactly one meaning -- no policy.
+        const fixture = TestBed.createComponent(NestedViewsComponent);
+        fixture.detectChanges();
+
+        expect(imgIn(fixture, 'inner').getAttribute('src')).toBe(TRACKER);
+    });
+
+    it('T-P3 inheritResourcePolicy takes the enclosing policy', () => {
+        const fixture = TestBed.createComponent(NestedViewsComponent);
+        fixture.componentInstance.inherit.set(true);
+        fixture.detectChanges();
+
+        expect(imgIn(fixture, 'inner').hasAttribute('src')).toBe(false);
+        expect(imgIn(fixture, 'inner').getAttribute('data-blocked-src')).toBe(TRACKER);
+    });
+
+    it('T-P4 an inherited policy tracks a change to the ancestor list', () => {
+        // The policy is read inside renderedHtml, so it is a dependency of the
+        // computed. Set from an effect instead, this memoises on value alone and
+        // the image stays blocked forever.
+        const fixture = TestBed.createComponent(NestedViewsComponent);
+        fixture.componentInstance.inherit.set(true);
+        fixture.detectChanges();
+        expect(imgIn(fixture, 'inner').hasAttribute('src')).toBe(false);
+
+        fixture.componentInstance.hosts.set(['cdn.trusted.com', 'tracker.example']);
+        fixture.detectChanges();
+
+        expect(imgIn(fixture, 'inner').getAttribute('src')).toBe(TRACKER);
+    });
+
+    @Component({
+        selector: 'test-own-wins',
+        standalone: true,
+        imports: [RichTextViewComponent, RichTextResourcePolicyDirective],
+        template: `
+            <div [uiRichTextResourcePolicy]="['tracker.example']">
+                <ui-rich-text-view
+                    id="inner"
+                    [value]="doc"
+                    [inheritResourcePolicy]="true"
+                    [allowedResourceHosts]="['cdn.trusted.com']" />
+            </div>
+        `,
+    })
+    class OwnWinsComponent {
+        doc = `![a](${TRACKER}) ![b](${TRUSTED})`;
+    }
+
+    it('T-P5 its own list wins over an inherited one, and never merges', () => {
+        // A strict view must not widen to a looser ancestor. Both assertions
+        // matter: the tracker blocked proves the ancestor list is not applied,
+        // and the trusted one allowed proves its own list is -- an
+        // implementation that merged the two would pass a check for either
+        // alone.
+        const fixture = TestBed.createComponent(OwnWinsComponent);
+        fixture.detectChanges();
+
+        const imgs = Array.from(
+            (fixture.nativeElement as HTMLElement).querySelectorAll('#inner img'),
+        ) as HTMLImageElement[];
+        expect(imgs).toHaveLength(2);
+        expect(imgs[0].hasAttribute('src')).toBe(false);
+        expect(imgs[1].getAttribute('src')).toBe(TRUSTED);
+    });
+
+    it('T-P6 the policy governs HTML mode as well as the markdown default', () => {
+        // markdown is the default mode and routes through a different service,
+        // so a test in one mode says nothing about the other.
+        const fixture = TestBed.createComponent(TwoViewsComponent);
+        fixture.componentRef.setInput('doc', '');
+        fixture.detectChanges();
+
+        for (const mode of ['markdown', 'html'] as const) {
+            const solo = TestBed.createComponent(RichTextViewComponent);
+            solo.componentRef.setInput('mode', mode);
+            solo.componentRef.setInput('allowedResourceHosts', ['cdn.trusted.com']);
+            solo.componentRef.setInput(
+                'value',
+                mode === 'markdown' ? `![a](${TRACKER})` : `<p><img src="${TRACKER}" alt="a"></p>`,
+            );
+            solo.detectChanges();
+
+            const img = (solo.nativeElement as HTMLElement).querySelector(
+                'img',
+            ) as HTMLImageElement;
+            expect(img, mode).toBeTruthy();
+            expect(img.hasAttribute('src'), mode).toBe(false);
+            expect(img.getAttribute('data-blocked-src'), mode).toBe(TRACKER);
+        }
     });
 });

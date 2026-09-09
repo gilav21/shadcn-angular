@@ -21,7 +21,7 @@ import { cn } from '../../lib/utils';
 import { graphemeLength, truncateToGraphemes } from '../../lib/grapheme';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
-import { type ResourcePolicyDecision } from './rich-text-resource-policy';
+import { RichTextResourcePolicyHost, type ResourcePolicyDecision } from './rich-text-resource-policy';
 import { RichTextMarkdownService } from './rich-text-markdown.service';
 import { RichTextPasteNormalizerService } from './rich-text-paste-normalizer.service';
 import { RichTextToolbarComponent, ToolbarItem } from './sub/rich-text-toolbar.component';
@@ -258,6 +258,11 @@ let richTextEditorInstances = 0;
         // would bypass the policy entirely.
         RichTextSanitizerService,
         RichTextMarkdownService,
+        // So a view nested in an editor can opt into its policy.
+        {
+            provide: RichTextResourcePolicyHost,
+            useExisting: forwardRef(() => RichTextEditorComponent),
+        },
         provideComponentLocale(() => RichTextEditorComponent),
     ],
     templateUrl: './rich-text-editor.component.html',

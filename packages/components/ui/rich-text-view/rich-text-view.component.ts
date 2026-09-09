@@ -4,6 +4,7 @@ import {
     ElementRef,
     computed,
     effect,
+    forwardRef,
     inject,
     input,
     viewChild,
@@ -12,6 +13,7 @@ import { cn } from '../../lib/utils';
 import {
     RICH_TEXT_PROSE_CLASSES,
     RichTextMarkdownService,
+    RichTextResourcePolicyHost,
     RichTextSanitizerService,
     type EditorMode,
     type EditorSize,
@@ -45,10 +47,37 @@ const VIEW_SIZE_CLASSES: Record<NonNullable<EditorSize>, string> = {
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './rich-text-view.component.html',
     host: { class: 'block' },
+    providers: [
+        // Per instance, so this view's resource policy is its own. The markdown
+        // service comes along because it holds the sanitizer and does its own
+        // image check -- left in root scope it would use the root sanitizer,
+        // and since `mode` defaults to 'markdown' the policy would govern
+        // nothing.
+        //
+        // Contributed sanitizer rules still reach here from an ancestor: the
+        // sanitizer consults its enclosing instance for those, which is what
+        // keeps `[uiRichTextActions]` working on a wrapper element.
+        RichTextSanitizerService,
+        RichTextMarkdownService,
+        {
+            provide: RichTextResourcePolicyHost,
+            useExisting: forwardRef(() => RichTextViewComponent),
+        },
+    ],
 })
 export class RichTextViewComponent {
     private readonly sanitizer = inject(RichTextSanitizerService);
     private readonly markdown = inject(RichTextMarkdownService);
+
+    /**
+     * The nearest enclosing editor or view, when one exists. Read only when
+     * {@link inheritResourcePolicy} is on; `skipSelf` steps past this
+     * component's own registration, and `optional` handles a standalone view.
+     */
+    private readonly parentPolicy = inject(RichTextResourcePolicyHost, {
+        skipSelf: true,
+        optional: true,
+    });
 
     private readonly content = viewChild.required<ElementRef<HTMLElement>>('content');
 
@@ -56,6 +85,36 @@ export class RichTextViewComponent {
     readonly value = input<string>('');
     /** How to interpret {@link value}. Defaults to `'markdown'`, matching the editor. */
     readonly mode = input<EditorMode>('markdown');
+
+    /**
+     * Hosts whose remote images and CSS backgrounds may load. Empty (the
+     * default) means no policy, matching the editor and prior behaviour.
+     *
+     * This matters more here than in the editor. A remote image is a silent
+     * request every VIEWER's browser makes on render, so a tracking pixel in
+     * published content fires for each reader -- and this component is what
+     * readers see. A policy set on an editor governs what an author can insert;
+     * it does not travel with the document, so set the same list here.
+     *
+     * A blocked image keeps its element and alt and gains `data-blocked-src`,
+     * so nothing is fetched and allowing the host later restores it.
+     */
+    readonly allowedResourceHosts = input<readonly string[]>([]);
+
+    /**
+     * Take the policy from the nearest enclosing view or editor when this one
+     * sets none.
+     *
+     * Off by default, so an empty {@link allowedResourceHosts} keeps exactly one
+     * meaning -- no policy -- and the effective rule is readable from the
+     * component itself. Turn it on for a page that renders many views under a
+     * single policy, where repeating the list on each would be the more likely
+     * mistake. Ignored when this view sets its own list.
+     */
+    readonly inheritResourcePolicy = input(false);
+
+    /** Caption shown on an image {@link allowedResourceHosts} refused. Inserted as text. */
+    readonly blockedImageMessage = input<string>();
     /** Text size preset — the editor's `size` values. */
     readonly size = input<EditorSize>('default');
     /** Text direction for the content; unset inherits from the page. */
@@ -77,11 +136,23 @@ export class RichTextViewComponent {
      * sanitizes its own output, so the two paths are exclusive — sanitizing a
      * second time would be wasted work, not extra safety.
      */
-    readonly renderedHtml = computed(() =>
-        this.mode() === 'markdown'
+    readonly renderedHtml = computed(() => {
+        // Applied INSIDE the computed so the policy is a dependency: set from an
+        // effect instead, this memoised against value/mode alone and a policy
+        // change re-rendered nothing.
+        this.sanitizer.setRemoteHostPolicy(this.effectiveHosts());
+
+        return this.mode() === 'markdown'
             ? this.markdown.toHtml(this.value())
-            : this.sanitizer.sanitize(this.value()),
-    );
+            : this.sanitizer.sanitize(this.value());
+    });
+
+    /** This view's own host list, or an inherited one when it has none. */
+    private readonly effectiveHosts = computed<readonly string[]>(() => {
+        const own = this.allowedResourceHosts();
+        if (own.length > 0 || !this.inheritResourcePolicy()) return own;
+        return this.parentPolicy?.allowedResourceHosts() ?? [];
+    });
 
     constructor() {
         effect(() => {

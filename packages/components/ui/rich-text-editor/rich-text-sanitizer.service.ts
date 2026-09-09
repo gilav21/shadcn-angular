@@ -282,7 +282,22 @@ export class RichTextSanitizerService {
         return `${tag.toLowerCase()}|${attr.toLowerCase()}`;
     }
 
+    /**
+     * A contributed rule for this tag/attribute, from this instance or any
+     * enclosing one.
+     *
+     * Walking up is safe because LOCKED_ATTRS refuses any rule for `href`,
+     * `src`, `style` or `class`, so an inherited rule can only ever permit a
+     * data-* or aria-* attribute -- nothing a browser fetches. The REMOTE HOST
+     * POLICY is deliberately not inherited this way: that is per-instance
+     * configuration, and a strict view must never widen to a looser ancestor.
+     */
     private findContributedRule(tagName: string, attrName: string): SanitizerAttributeRule | undefined {
+        const own = this.ownContributedRule(tagName, attrName);
+        return own ?? this.parentSanitizer?.findContributedRule(tagName, attrName);
+    }
+
+    private ownContributedRule(tagName: string, attrName: string): SanitizerAttributeRule | undefined {
         return this.contributedRules.get(this.ruleKey(tagName, attrName))?.rule
             ?? this.contributedRules.get(this.ruleKey('*', attrName))?.rule;
     }
@@ -434,6 +449,22 @@ export class RichTextSanitizerService {
      * page can hold different policies.
      */
     private allowedHosts: readonly string[] = [];
+
+    /**
+     * The sanitizer of the nearest enclosing injector, or null at the root.
+     *
+     * A component that provides its own sanitizer is invisible to anything
+     * ABOVE it -- Angular's DI only flows downward -- so an addon directive on
+     * an ancestor registers its rules on a different instance. Holding the link
+     * lets a descendant consult upward for contributed rules, which is the only
+     * way `[uiRichTextActions]` on an ancestor can keep working.
+     *
+     * `optional` terminates the chain at the root, so there is no cycle.
+     */
+    private readonly parentSanitizer = inject(RichTextSanitizerService, {
+        skipSelf: true,
+        optional: true,
+    });
 
     /** Decisions made during the current pass, drained by the editor. */
     private readonly decisions: ResourcePolicyDecision[] = [];

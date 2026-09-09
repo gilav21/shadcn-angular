@@ -2647,6 +2647,7 @@
       "rich-text-editor/rich-text-paste-normalizer.service.ts",
       "rich-text-editor/rich-text-prose.ts",
       "rich-text-editor/rich-text-resource-policy.ts",
+      "rich-text-editor/rich-text-resource-policy.directive.ts",
       "rich-text-editor/rich-text-sanitizer.service.ts",
       "rich-text-editor/sub/rich-text-toolbar.component.css",
       "rich-text-editor/sub/rich-text-toolbar.component.html",
@@ -4701,6 +4702,7 @@
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts",
       "rich-text-editor/rich-text-resource-policy.ts",
+      "rich-text-editor/rich-text-resource-policy.directive.ts",
       "rich-text-editor/rich-text-sanitizer.service.ts",
       "rich-text-editor/rich-text-markdown.service.ts",
       "rich-text-editor/rich-text-command-registry.service.ts"
@@ -4984,6 +4986,7 @@
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts",
       "rich-text-editor/rich-text-resource-policy.ts",
+      "rich-text-editor/rich-text-resource-policy.directive.ts",
       "rich-text-editor/rich-text-sanitizer.service.ts"
     ],
     "attach": {
@@ -5087,6 +5090,7 @@
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts",
       "rich-text-editor/rich-text-resource-policy.ts",
+      "rich-text-editor/rich-text-resource-policy.directive.ts",
       "rich-text-editor/rich-text-sanitizer.service.ts",
       "rich-text-editor/rich-text-paste-normalizer.service.ts"
     ],
@@ -5137,6 +5141,7 @@
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts",
       "rich-text-editor/rich-text-resource-policy.ts",
+      "rich-text-editor/rich-text-resource-policy.directive.ts",
       "rich-text-editor/rich-text-sanitizer.service.ts"
     ],
     "attach": {
@@ -5210,6 +5215,7 @@
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts",
       "rich-text-editor/rich-text-resource-policy.ts",
+      "rich-text-editor/rich-text-resource-policy.directive.ts",
       "rich-text-editor/rich-text-sanitizer.service.ts"
     ],
     "attach": {
@@ -5262,6 +5268,7 @@
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts",
       "rich-text-editor/rich-text-resource-policy.ts",
+      "rich-text-editor/rich-text-resource-policy.directive.ts",
       "rich-text-editor/rich-text-sanitizer.service.ts"
     ],
     "attach": {

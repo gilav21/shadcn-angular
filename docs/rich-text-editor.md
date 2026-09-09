@@ -392,6 +392,41 @@ parser, with the editor's exact typography:
 | `size` | `'default'` | `'sm'` / `'lg'` apply the editor's text sizes. |
 | `dir` | unset | Unset inherits the page direction. |
 | `class` | `''` | Merged onto the content element. |
+| `allowedResourceHosts` | `[]` | Remote-host policy. Empty means no policy. |
+| `inheritResourcePolicy` | `false` | Take an enclosing policy when this view sets none. |
+| `blockedImageMessage` | unset | Overrides the blocked-image caption. |
+
+### The policy does not travel with the document
+
+Set it here too. A policy on the **editor** governs what an author can insert;
+it is not stored in the string they save. The tracking pixel fires when content
+is **rendered**, and this component is what your readers see — so a view with no
+policy loads every remote host the document names, whatever the editor allowed:
+
+```html
+<ui-rich-text-view [value]="post.body"
+                   [allowedResourceHosts]="['cdn.acme.com']" />
+```
+
+Everything above applies unchanged: same matching, same `data:`/relative
+exemptions, same reversible `data-blocked-src` placeholder.
+
+For a page rendering many views under one policy, put the list on a wrapper and
+opt each view in, rather than repeating it and eventually missing one:
+
+```html
+<div [uiRichTextResourcePolicy]="['cdn.acme.com', '*.assets.acme.com']">
+  @for (post of posts; track post.id) {
+    <ui-rich-text-view [value]="post.body" [inheritResourcePolicy]="true" />
+  }
+</div>
+```
+
+Inheritance is opt-in per view, so an empty `allowedResourceHosts` keeps exactly
+one meaning — no policy — instead of being ambiguous between "none" and
+"whatever encloses me". A view that sets its own list always wins, and the two
+lists are **never merged**: a strict view cannot be widened by a looser
+ancestor.
 
 It installs with `add rich-text-view`, which pulls the editor base for the two
 services. Task-list checkboxes render the authored state but are frozen: out of
