@@ -19,6 +19,11 @@ export interface RichTextViewDemoLocale extends LocaleMeta {
     sizesDescription: string;
     snippetsHeading: string;
     snippetsDescription: string;
+    policyHeading: string;
+    policyDescription: string;
+    policyNoneLabel: string;
+    policySetLabel: string;
+    policyNote: string;
 }
 
 export const RICH_TEXT_VIEW_DEMO_LOCALES: Record<string, RichTextViewDemoLocale> = {
@@ -46,6 +51,13 @@ export const RICH_TEXT_VIEW_DEMO_LOCALES: Record<string, RichTextViewDemoLocale>
         sizesDescription: 'The editor\'s size presets, plus dir for right-to-left content.',
         snippetsHeading: 'Copy-paste',
         snippetsDescription: 'The three things you will actually type.',
+        policyHeading: 'Remote images and tracking',
+        policyDescription:
+            'A remote image is a request every reader\u2019s browser makes on render, so a host named in a document learns who opened it. A policy on the editor governs what an author can insert \u2014 it is not stored in the document, so set it here too.',
+        policyNoneLabel: 'No policy \u2014 loads any host',
+        policySetLabel: 'Only cdn.trusted.com',
+        policyNote:
+            'The blocked image keeps its alt and its place, and retains the original URL, so allowing the host later restores it.',
     },
     he: {
         code: 'he',
@@ -72,5 +84,12 @@ export const RICH_TEXT_VIEW_DEMO_LOCALES: Record<string, RichTextViewDemoLocale>
         sizesDescription: 'הגדלים של העורך, בתוספת dir לתוכן מימין לשמאל.',
         snippetsHeading: 'העתק-הדבק',
         snippetsDescription: 'שלושת הדברים שבאמת תכתבו.',
+        policyHeading: '\u05EA\u05DE\u05D5\u05E0\u05D5\u05EA \u05DE\u05E8\u05D5\u05D7\u05E7\u05D5\u05EA \u05D5\u05DE\u05E2\u05E7\u05D1',
+        policyDescription:
+            '\u05EA\u05DE\u05D5\u05E0\u05D4 \u05DE\u05E8\u05D5\u05D7\u05E7\u05EA \u05D4\u05D9\u05D0 \u05D1\u05E7\u05E9\u05D4 \u05E9\u05D4\u05D3\u05E4\u05D3\u05E4\u05DF \u05E9\u05DC \u05DB\u05DC \u05E7\u05D5\u05E8\u05D0 \u05E9\u05D5\u05DC\u05D7 \u05D1\u05E2\u05EA \u05D4\u05E6\u05D2\u05D4. \u05DE\u05D3\u05D9\u05E0\u05D9\u05D5\u05EA \u05E9\u05E0\u05E7\u05D1\u05E2\u05D4 \u05D1\u05E2\u05D5\u05E8\u05DA \u05D0\u05D9\u05E0\u05D4 \u05E0\u05E9\u05DE\u05E8\u05EA \u05D1\u05DE\u05E1\u05DE\u05DA \u2014 \u05D9\u05E9 \u05DC\u05D4\u05D2\u05D3\u05D9\u05E8 \u05D0\u05D5\u05EA\u05D4 \u05D2\u05DD \u05DB\u05D0\u05DF.',
+        policyNoneLabel: '\u05DC\u05DC\u05D0 \u05DE\u05D3\u05D9\u05E0\u05D9\u05D5\u05EA',
+        policySetLabel: '\u05E8\u05E7 cdn.trusted.com',
+        policyNote:
+            '\u05D4\u05EA\u05DE\u05D5\u05E0\u05D4 \u05D4\u05D7\u05E1\u05D5\u05DE\u05D4 \u05E9\u05D5\u05DE\u05E8\u05EA \u05E2\u05DC \u05DE\u05E7\u05D5\u05DE\u05D4 \u05D5\u05E2\u05DC \u05D4\u05DB\u05EA\u05D5\u05D1\u05EA \u05D4\u05DE\u05E7\u05D5\u05E8\u05D9\u05EA, \u05DB\u05DA \u05E9\u05D0\u05D9\u05E9\u05D5\u05E8 \u05D4\u05DE\u05D0\u05E8\u05D7 \u05DE\u05D0\u05D5\u05D7\u05E8 \u05D9\u05E9\u05D7\u05D6\u05E8 \u05D0\u05D5\u05EA\u05D4.',
     },
 };

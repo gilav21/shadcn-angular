@@ -19,6 +19,11 @@ const HTML_SEED = '<h1>Release notes</h1><p>We shipped <strong>a read-only rende
 const MARKDOWN_SEED = '# Release notes\n\nWe shipped **a read-only renderer**.\n\n'
     + '- Same sanitizer\n- Same typography';
 
+const POLICY_SEED = '# Newsletter\n\n'
+    + '![Logo](https://cdn.trusted.com/logo.png)\n\n'
+    + 'Thanks for reading.\n\n'
+    + '![](https://pixel.tracker.example/open?id=42)';
+
 const RTL_SEED = '# שחרור גרסה\n\nהוספנו **מציג לקריאה בלבד**.';
 
 @Component({
@@ -85,6 +90,32 @@ const RTL_SEED = '# שחרור גרסה\n\nהוספנו **מציג לקריאה 
       </section>
 
       <section class="space-y-3">
+        <h3 class="text-lg font-medium">{{ t().policyHeading }}</h3>
+        <p class="text-sm text-muted-foreground max-w-3xl">{{ t().policyDescription }}</p>
+
+        <div class="grid gap-4 md:grid-cols-2">
+          <div class="space-y-2">
+            <p class="text-xs font-medium uppercase text-muted-foreground">
+              {{ t().policyNoneLabel }}
+            </p>
+            <div class="rounded-md border p-3">
+              <ui-rich-text-view [value]="policyDoc" />
+            </div>
+          </div>
+          <div class="space-y-2">
+            <p class="text-xs font-medium uppercase text-muted-foreground">
+              {{ t().policySetLabel }}
+            </p>
+            <div class="rounded-md border p-3">
+              <ui-rich-text-view [value]="policyDoc" [allowedResourceHosts]="policyHosts" />
+            </div>
+          </div>
+        </div>
+
+        <p class="text-sm text-muted-foreground max-w-3xl">{{ t().policyNote }}</p>
+      </section>
+
+      <section class="space-y-3">
         <h3 class="text-lg font-medium">{{ t().sizesHeading }}</h3>
         <p class="text-sm text-muted-foreground">{{ t().sizesDescription }}</p>
         <div class="grid gap-4 md:grid-cols-3">
@@ -110,6 +141,10 @@ export class RichTextViewDemoComponent {
 
     protected readonly mode = signal<EditorMode>('html');
     protected readonly doc = signal(HTML_SEED);
+
+    /** The same document rendered twice, with and without a policy. */
+    protected readonly policyDoc = POLICY_SEED;
+    protected readonly policyHosts: readonly string[] = ['cdn.trusted.com'];
     protected readonly markdown = MARKDOWN_SEED;
     protected readonly rtl = RTL_SEED;
 
