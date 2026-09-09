@@ -156,7 +156,7 @@ export class RichTextSanitizerService {
     /** Allowlisted attributes per element */
     private readonly ALLOWED_ATTRS: Record<string, Set<string>> = {
         'a': new Set(['href', 'title', 'target', 'rel']),
-        'img': new Set(['src', 'alt', 'width', 'height', 'title', 'data-align', 'data-auto-upload-id', 'data-auto-upload-status']),
+        'img': new Set(['src', 'alt', 'width', 'height', 'title', 'data-align', 'data-auto-upload-id', 'data-auto-upload-status', 'data-blocked-src']),
         'td': new Set(['colspan', 'rowspan']),
         'th': new Set(['colspan', 'rowspan', 'scope']),
         'pre': new Set(['data-language']),
@@ -438,6 +438,13 @@ export class RichTextSanitizerService {
     /** Decisions made during the current pass, drained by the editor. */
     private readonly decisions: ResourcePolicyDecision[] = [];
 
+    /**
+     * The URL of the most recent source refused by the HOST POLICY, as opposed
+     * to one refused for being unsafe. Consumed immediately by the `src`
+     * handler; a stale value cannot leak because that handler clears it.
+     */
+    private lastBlockedByPolicy: string | null = null;
+
     /** Replace the remote-host allowlist. Empty disables the policy. */
     setRemoteHostPolicy(hosts: readonly string[]): void {
         this.allowedHosts = [...hosts];
@@ -505,6 +512,30 @@ export class RichTextSanitizerService {
         return urls.every((url) => this.judgeResource(url, 'background'));
     }
 
+
+    /**
+     * Set an image source, or mark it as blocked.
+     *
+     * A source refused by the HOST POLICY keeps its element and its original
+     * URL, so the reader sees a labelled frame rather than a hole and the block
+     * is reversible if the host is later allowed. An UNSAFE source
+     * (javascript:, a mislabelled data: payload) is simply dropped -- that is
+     * not content the author should be invited to restore. `src` is never set
+     * in either case: nothing is fetched, which is the entire point.
+     */
+    private applyImageSrc(target: HTMLElement, value: string): void {
+        this.lastBlockedByPolicy = null;
+        const safeSrc = this.sanitizeImageSrc(value);
+        if (safeSrc) {
+            target.setAttribute('src', safeSrc);
+            return;
+        }
+        if (this.lastBlockedByPolicy !== null) {
+            target.setAttribute('data-blocked-src', this.lastBlockedByPolicy);
+            this.lastBlockedByPolicy = null;
+        }
+    }
+
     /** Validate and, for SVG, scrub a `data:image/*` source. */
     private sanitizeDataImageSrc(trimmed: string): string | null {
             if (!this.isAllowedDataUrl(trimmed)) return null;
@@ -545,7 +576,13 @@ export class RichTextSanitizerService {
             const url = new URL(trimmed);
 
             if (url.protocol === 'https:') {
-                return this.judgeResource(url.href, 'image') ? url.href : null;
+                if (this.judgeResource(url.href, 'image')) return url.href;
+                // Distinguish a policy block from a safety rejection, so the
+                // caller can keep the element for one and not the other. Set
+                // here because this is the only branch that knows the URL was
+                // otherwise acceptable.
+                this.lastBlockedByPolicy = url.href;
+                return null;
             }
 
             if (url.protocol === 'http:' && this.isLocalhostUrl(url)) {
@@ -658,10 +695,7 @@ export class RichTextSanitizerService {
                 return;
             }
             case 'src': {
-                const safeSrc = this.sanitizeImageSrc(value);
-                if (safeSrc) {
-                    target.setAttribute('src', safeSrc);
-                }
+                this.applyImageSrc(target, value);
                 return;
             }
             case 'class': {

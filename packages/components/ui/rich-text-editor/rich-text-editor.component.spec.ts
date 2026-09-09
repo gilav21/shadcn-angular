@@ -10210,6 +10210,7 @@ describe('RichTextEditorComponent - remote resource policy', () => {
         template: `
             <ui-rich-text-editor
                 [allowedResourceHosts]="hosts()"
+                [blockedImageMessage]="message()"
                 (remoteResource)="seen.push($event)" />
         `,
     })
@@ -10217,6 +10218,7 @@ describe('RichTextEditorComponent - remote resource policy', () => {
         // A signal, not a plain field: the template binding must actually
         // re-evaluate for the editor's effect to see a policy change.
         readonly hosts = signal<readonly string[]>([]);
+        readonly message = signal<string | undefined>(undefined);
         seen: ResourcePolicyDecision[] = [];
     }
 
@@ -10278,6 +10280,87 @@ describe('RichTextEditorComponent - remote resource policy', () => {
             .toBe('https://cdn.trusted.com/a.png');
         expect(sanitizerAt(fixture, 1).sanitizeImageSrc('https://cdn.trusted.com/a.png'))
             .toBeNull();
+    });
+
+    it('keeps a blocked image as a labelled placeholder, not a hole', () => {
+        // A stripped image used to leave a bare <img>: the reader saw nothing
+        // and could not tell anything had been there. The element, its alt and
+        // its position survive; src is never set, so nothing is fetched; and the
+        // original URL is retained so the block is reversible if the host is
+        // later allowed.
+        const fixture = TestBed.createComponent(PolicyHostComponent);
+        fixture.componentInstance.hosts.set(['cdn.trusted.com']);
+        fixture.detectChanges();
+
+        editorAt(fixture, 0).writeValue('<p><img src="https://tracker.example/p.png" alt="chart"></p>');
+        fixture.detectChanges();
+
+        const img = fixture.nativeElement.querySelector('img') as HTMLImageElement;
+        expect(img).toBeTruthy();
+        expect(img.hasAttribute('src')).toBe(false);
+        expect(img.getAttribute('data-blocked-src')).toBe('https://tracker.example/p.png');
+        expect(img.getAttribute('alt')).toBe('chart');
+        expect(img.getAttribute('data-blocked-label')).toBe('Image blocked by security policy');
+        // Announced rather than skipped: the alt alone would not say the image
+        // was withheld.
+        expect(img.getAttribute('role')).toBe('img');
+        expect(img.getAttribute('aria-label')).toContain('chart');
+        expect(img.getAttribute('aria-label')).toContain('blocked');
+    });
+
+    it('does not mark an UNSAFE source as a placeholder', () => {
+        // A javascript: source is not content the author should be invited to
+        // restore, so it is dropped outright with no marker and no caption.
+        const fixture = TestBed.createComponent(PolicyHostComponent);
+        fixture.componentInstance.hosts.set(['cdn.trusted.com']);
+        fixture.detectChanges();
+
+        editorAt(fixture, 0).writeValue('<p><img src="javascript:alert(1)" alt="bad"></p>');
+        fixture.detectChanges();
+
+        const img = fixture.nativeElement.querySelector('img') as HTMLImageElement | null;
+        expect(img?.hasAttribute('src')).toBeFalsy();
+        expect(img?.hasAttribute('data-blocked-src')).toBeFalsy();
+    });
+
+    it('shows a developer override as text, never as markup', () => {
+        const fixture = TestBed.createComponent(PolicyHostComponent);
+        fixture.componentInstance.hosts.set(['cdn.trusted.com']);
+        fixture.componentInstance.message.set('Ask #it-help to allow this CDN');
+        fixture.detectChanges();
+
+        editorAt(fixture, 0).writeValue('<p><img src="https://tracker.example/p.png" alt="c"></p>');
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('img').getAttribute('data-blocked-label'))
+            .toBe('Ask #it-help to allow this CDN');
+
+        // A message rendered into a document is not a place to accept markup.
+        fixture.componentInstance.message.set('<script>alert(1)</script>');
+        fixture.detectChanges();
+        editorAt(fixture, 0).writeValue('<p><img src="https://tracker.example/p.png" alt="c"></p>');
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('img').getAttribute('data-blocked-label'))
+            .toBe('<script>alert(1)</script>');
+        expect(fixture.nativeElement.querySelectorAll('script')).toHaveLength(0);
+    });
+
+    it('restores a blocked image once its host is allowed', () => {
+        // data-blocked-src is what makes the block reversible rather than lossy.
+        const fixture = TestBed.createComponent(PolicyHostComponent);
+        fixture.componentInstance.hosts.set(['cdn.trusted.com']);
+        fixture.detectChanges();
+
+        const doc = '<p><img src="https://tracker.example/p.png" alt="c"></p>';
+        editorAt(fixture, 0).writeValue(doc);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('img').hasAttribute('src')).toBe(false);
+
+        fixture.componentInstance.hosts.set(['cdn.trusted.com', 'tracker.example']);
+        fixture.detectChanges();
+        editorAt(fixture, 0).writeValue(doc);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('img').getAttribute('src'))
+            .toBe('https://tracker.example/p.png');
     });
 
     it('applies a policy change without recreating the editor', () => {

@@ -89,6 +89,8 @@ export interface RichTextLocale extends LocaleMeta {
         characters: string;
         words: string;
         formattingOptions: string;
+        /** Caption on an image whose host the resource policy refused. */
+        blockedImage: string;
     };
 }
 
@@ -170,6 +172,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             characters: '{count} characters',
             words: '{count} words',
             formattingOptions: 'Formatting options',
+            blockedImage: 'Image blocked by security policy',
         },
     },
     he: {
@@ -250,6 +253,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             characters: '{count} תווים',
             words: '{count} מילים',
             formattingOptions: 'אפשרויות עיצוב',
+            blockedImage: 'התמונה נחסמה על ידי מדיניות אבטחה',
         },
     },
     ar: {
@@ -330,6 +334,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             characters: '{count} حرف',
             words: '{count} كلمة',
             formattingOptions: 'خيارات التنسيق',
+            blockedImage: 'تم حظر الصورة بواسطة سياسة الأمان',
         },
     },
     de: {
@@ -409,6 +414,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             characters: '{count} Zeichen',
             words: '{count} Wörter',
             formattingOptions: 'Formatierungsoptionen',
+            blockedImage: 'Bild durch Sicherheitsrichtlinie blockiert',
         },
     },
     fr: {
@@ -488,6 +494,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             characters: '{count} caractères',
             words: '{count} mots',
             formattingOptions: 'Options de mise en forme',
+            blockedImage: 'Image bloquée par la politique de sécurité',
         },
     },
     es: {
@@ -567,6 +574,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             characters: '{count} caracteres',
             words: '{count} palabras',
             formattingOptions: 'Opciones de formato',
+            blockedImage: 'Imagen bloqueada por la política de seguridad',
         },
     },
     ja: {
@@ -646,6 +654,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             characters: '{count} 文字',
             words: '{count} 語',
             formattingOptions: '書式設定オプション',
+            blockedImage: 'セキュリティポリシーにより画像がブロックされました',
         },
     },
     zh: {
@@ -725,6 +734,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             characters: '{count} 个字符',
             words: '{count} 个词',
             formattingOptions: '格式选项',
+            blockedImage: '图片已被安全策略阻止',
         },
     },
     ru: {
@@ -804,6 +814,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             characters: '{count} символов',
             words: '{count} слов',
             formattingOptions: 'Параметры форматирования',
+            blockedImage: 'Изображение заблокирована политикой безопасности',
         },
     },
     pt: {
@@ -883,6 +894,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             characters: '{count} caracteres',
             words: '{count} palavras',
             formattingOptions: 'Opções de formatação',
+            blockedImage: 'Imagem bloqueada pela política de segurança',
         },
     },
 };

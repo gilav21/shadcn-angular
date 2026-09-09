@@ -251,7 +251,13 @@ let richTextEditorInstances = 0;
         // Scoped to the editor, not the app: the remote-host policy is
         // per-instance configuration, and on the root singleton two editors on
         // one page would overwrite each other's allowlist.
+        //
+        // The markdown service comes along because it injects the sanitizer and
+        // does its own sanitizeImageSrc call. Left in root scope it would hold
+        // the root sanitizer, so in markdown mode -- the DEFAULT -- every image
+        // would bypass the policy entirely.
         RichTextSanitizerService,
+        RichTextMarkdownService,
         provideComponentLocale(() => RichTextEditorComponent),
     ],
     templateUrl: './rich-text-editor.component.html',
@@ -396,6 +402,15 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * anyone, and `data:` is how a Word paste carries its images.
      */
     readonly allowedResourceHosts = input<readonly string[]>([]);
+
+    /**
+     * Caption shown on an image {@link allowedResourceHosts} refused.
+     *
+     * Unset uses the translated default. Override it to say something only you
+     * know -- who to ask for a host to be allowed, or why it is not. Inserted as
+     * text, never as markup.
+     */
+    readonly blockedImageMessage = input<string>();
 
 
     /**
@@ -553,10 +568,37 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private replaceEditorHtml(html: string): void {
         if (!this.editorDiv) return;
         this.editorDiv.nativeElement.innerHTML = html;
+        this.labelBlockedImages();
         this.selectedImageNode.set(null);
         this.tableCellSelected.set([]);
         this.tableCellSelectAnchor = null;
         this.tableContextMenuTarget = null;
+    }
+
+
+    /**
+     * Caption every image the resource policy refused.
+     *
+     * The sanitizer can mark the element but not translate, and CSS cannot read
+     * a locale -- so the text is written here, into `data-blocked-label` for the
+     * stylesheet to render, and into `aria-label` so a screen reader announces
+     * that something was withheld instead of skipping a captionless image.
+     *
+     * `blockedImageMessage` is a developer-supplied string set with
+     * setAttribute, never parsed as HTML: a message rendered into a document is
+     * not a place to accept markup.
+     */
+    private labelBlockedImages(): void {
+        const blocked = this.editorDiv?.nativeElement.querySelectorAll<HTMLImageElement>('img[data-blocked-src]');
+        if (!blocked?.length) return;
+
+        const label = this.blockedImageMessage() ?? this.resolvedLocale().editor.blockedImage;
+        for (const img of Array.from(blocked)) {
+            img.setAttribute('data-blocked-label', label);
+            img.setAttribute('role', 'img');
+            const alt = img.getAttribute('alt');
+            img.setAttribute('aria-label', alt ? `${alt} — ${label}` : label);
+        }
     }
 
     /** Select `image`, or clear the selection with `null`. */
