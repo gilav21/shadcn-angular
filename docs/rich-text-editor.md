@@ -278,6 +278,90 @@ and `isRichTextEmpty(value)`. The last is the single rule the editor's
 `isEmpty()` also uses, so a form's validity and a Send button's disabled state
 can never disagree.
 
+## Remote images and tracking
+
+By default the editor accepts any `https://` image, which is what every
+comparable editor does. Worth understanding before leaving it that way:
+
+**A remote image is a silent outbound request.** Every viewer's browser fetches
+it on render — no click, nothing visible to delete. So any host named in a
+pasted document learns who opened it and when. A 1×1 transparent pixel is the
+standard shape, and it reaches your documents through an ordinary paste from any
+page.
+
+The industry answer is to proxy the image through your own servers, as Gmail
+does. This editor has no backend, so it offers the next best thing: you name the
+hosts you already trust.
+
+### Seeing your exposure first
+
+`remoteResource` fires for **every** remote image and CSS background the content
+references, allowed or not, even with no policy configured:
+
+```html
+<ui-rich-text-editor (remoteResource)="onRemote($event)" />
+```
+
+```ts
+onRemote(e: ResourcePolicyDecision): void {
+  // { url, host, kind: 'image' | 'background',
+  //   allowed: true, reason: 'no-policy' }
+  console.log(e.kind, e.host, e.reason);
+}
+```
+
+Log it against your real content before deciding whether to restrict anything.
+
+### Setting a policy
+
+```html
+<ui-rich-text-editor
+  [allowedResourceHosts]="['cdn.acme.com', '*.assets.acme.com']" />
+```
+
+Entries match the **parsed hostname**, exactly and case-insensitively. `*.`
+matches subdomains by label — `*.assets.acme.com` covers `img.assets.acme.com`
+but never `img.assets.acme.com.evil.com`. List the apex separately if you want
+it too.
+
+Always permitted, whatever the policy:
+
+- **`data:` URLs** — they carry their payload inline and cannot contact anyone.
+  This is how a Word paste brings its images, so blocking them would break that.
+- **Relative URLs** (`/logo.png`, `./a.png`) — same-origin by definition.
+
+### What a blocked image looks like
+
+It does not disappear. The `<img>` keeps its `alt` and its place in the
+document, gains `data-blocked-src` with the original URL, and renders as a muted
+frame with a caption. `src` is never set, so nothing is fetched.
+
+Because the original URL is retained, adding the host to the allowlist later
+**restores the image** — the block is reversible, not lossy.
+
+The caption is translated. Override it when you know something the editor
+cannot — who to ask, or why a host is not allowed:
+
+```html
+<ui-rich-text-editor
+  [allowedResourceHosts]="hosts"
+  [blockedImageMessage]="'Blocked — ask #it-help to allow this CDN'" />
+```
+
+The message is inserted as text, never as markup.
+
+### What this does not do
+
+An allowlist narrows exposure to parties you have **named**. It does not remove
+it: a trusted host can still identify the reader through the URL itself, e.g.
+`https://cdn.acme.com/logo.png?viewer=bob`. Treat it as choosing who may see
+your readers, not as preventing anyone from seeing them.
+
+It is also **not** the XSS boundary. `javascript:`, `vbscript:`,
+`data:text/html`, mislabelled SVG payloads and off-origin authority tricks are
+refused by the sanitizer regardless of any allowlist, and always were. The host
+policy only narrows what survives that.
+
 ## Rendering published content — `ui-rich-text-view`
 
 Showing what someone authored does not need an editor. `ui-rich-text-view`

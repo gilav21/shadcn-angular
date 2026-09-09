@@ -997,16 +997,27 @@ export class RichTextPasteNormalizerService {
 
 
     /**
-     * Wrap bare URLs in anchors. Runs on ALREADY-ESCAPED text, so a real "&" in
-     * a query string arrives as "&amp;" -- excluding "&" from the URL class cut
-     * every multi-parameter link at its first parameter, leaving a broken href
-     * and the remainder as visible junk. "&amp;" is matched as one unit so the
-     * whole URL is linked, while a bare "&" (which escaping cannot produce)
-     * still ends it.
+     * Wrap bare URLs in anchors.
+     *
+     * Runs on ALREADY-ESCAPED text, so every character escapeHtml touches
+     * arrives as an entity. The class must therefore decide, per entity,
+     * whether it CONTINUES a URL or ends one:
+     *
+     * - `&amp;` and `&#x27;` continue it. Both are legal in a URL and ordinary
+     *   in real ones -- a query separator and an apostrophe in a slug. The first
+     *   fix here handled only `&amp;`, so an apostrophe still truncated the href
+     *   silently, giving a link to the WRONG page rather than a visibly broken
+     *   one.
+     * - `&lt;`, `&gt;` and `&quot;` end it. They are not legal unencoded in a
+     *   URL, and they delimit markup -- including them would let a URL swallow
+     *   the escaped tags around it.
+     *
+     * A bare `&`, `<`, `>`, `"` or `'` cannot survive escaping, so those ending
+     * the class costs nothing and guards against unescaped input reaching here.
      */
     private autoLinkUrls(escaped: string): string {
         return escaped.replaceAll(
-            /(https?:\/\/(?:&amp;|[^\s<&])+)/g,
+            /(https?:\/\/(?:&(?:amp|#x27);|[^\s<>&"'])+)/g,
             '<a href="$1">$1</a>'
         );
     }

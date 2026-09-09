@@ -926,6 +926,52 @@ describe('RichTextPasteNormalizerService', () => {
             expect(result).toContain('<a href="http://example.com">http://example.com</a>');
         });
 
+        it('keeps every entity that belongs INSIDE a url', () => {
+            // The class runs on already-escaped text, so it must decide per
+            // entity whether it continues a URL or ends one. The first fix
+            // handled only &amp;, leaving an apostrophe to truncate the href --
+            // a link to the WRONG page rather than a visibly broken one, which
+            // is the worse failure. Slugs with apostrophes are ordinary in CMS
+            // URLs.
+            const hrefOf = (text: string): string | null => {
+                const parsed = new DOMParser().parseFromString(service.normalize(null, text), 'text/html');
+                return parsed.querySelector('a')?.getAttribute('href') ?? null;
+            };
+
+            expect(hrefOf('see https://e.com/a?x=1&y=2 end'))
+                .toBe('https://e.com/a?x=1&y=2');
+            expect(hrefOf("see https://e.com/it's-here end"))
+                .toBe("https://e.com/it's-here");
+            expect(hrefOf('multi https://e.com/a?x=1&y=2&z=3 end'))
+                .toBe('https://e.com/a?x=1&y=2&z=3');
+        });
+
+        it('ends a url at a character that cannot appear unencoded in one', () => {
+            // <, > and " are not legal unencoded in a URL and they delimit
+            // markup, so a URL must not swallow the escaped tags around it.
+            const hrefOf = (text: string): string | null => {
+                const parsed = new DOMParser().parseFromString(service.normalize(null, text), 'text/html');
+                return parsed.querySelector('a')?.getAttribute('href') ?? null;
+            };
+
+            expect(hrefOf('see https://e.com/a"b end')).toBe('https://e.com/a');
+            expect(hrefOf('see https://e.com/a<b end')).toBe('https://e.com/a');
+            expect(hrefOf('quoted "https://e.com/a" end')).toBe('https://e.com/a');
+        });
+
+        it('preserves the visible text whatever the href ends up being', () => {
+            // Truncating the href must never eat the characters after it: the
+            // reader should still see the whole URL they pasted.
+            for (const text of [
+                "see https://e.com/it's-here end",
+                'see https://e.com/a"b end',
+                'see https://e.com/a?x=1&y=2 end',
+            ]) {
+                const parsed = new DOMParser().parseFromString(service.normalize(null, text), 'text/html');
+                expect(parsed.body.textContent).toBe(text);
+            }
+        });
+
         it('leaves a standalone ampersand entity alone', () => {
             // The URL class matches "&amp;" as a unit; a lone entity elsewhere in
             // the text must not be drawn into a link.

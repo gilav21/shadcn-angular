@@ -6841,6 +6841,10 @@
       "bytes": 1440,
       "lines": 36
     },
+    "rich-text-editor/__screenshots__/rich-text-paste-normalizer.service.spec.ts/RichTextPasteNormalizerService-normalizePlainText-keeps-every-entity-that-belongs-INSIDE-a-url-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
     "rich-text-editor/addons/actions/__screenshots__/actions-runtime.spec.ts/module-purity-the-runtime-source-imports-no--angular-package-1.png": {
       "bytes": 4290,
       "lines": 3
@@ -8370,7 +8374,7 @@
       "lines": 10379
     },
     "rich-text-editor/rich-text-editor.component.ts": {
-      "bytes": 305000,
+      "bytes": 304990,
       "lines": 7318
     },
     "rich-text-editor/rich-text-editor.host.ts": {
@@ -8418,12 +8422,12 @@
       "lines": 2074
     },
     "rich-text-editor/rich-text-paste-normalizer.service.spec.ts": {
-      "bytes": 104003,
-      "lines": 2121
+      "bytes": 106490,
+      "lines": 2167
     },
     "rich-text-editor/rich-text-paste-normalizer.service.ts": {
-      "bytes": 46110,
-      "lines": 1231
+      "bytes": 46648,
+      "lines": 1242
     },
     "rich-text-editor/rich-text-prose.ts": {
       "bytes": 3175,
@@ -8442,7 +8446,7 @@
       "lines": 1203
     },
     "rich-text-editor/rich-text-sanitizer.service.ts": {
-      "bytes": 37651,
+      "bytes": 37641,
       "lines": 949
     },
     "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-getTooltip-falls-back-to-the-raw-name-for-an-item-outside-the-union-1.png": {
