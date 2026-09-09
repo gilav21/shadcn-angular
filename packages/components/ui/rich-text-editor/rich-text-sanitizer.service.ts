@@ -3,6 +3,16 @@ import { DOCUMENT } from '@angular/common';
 import { isValidImageMagicBytes } from '../../lib/parsers/image-validator';
 import { sanitizeSvg } from '../../lib/parsers/svg-sanitizer';
 
+import {
+    containsCssUrl,
+    decodeCssEscapes,
+    extractCssUrls,
+    stripCssComments,
+    hostOf,
+    isHostAllowed,
+    isHostBearingUrl,
+    type ResourcePolicyDecision,
+} from './rich-text-resource-policy';
 /**
  * A per-attribute rule an addon contributes to widen the sanitizer allow-list.
  * Locked attributes (`on*`, `href`, `src`, `style`, `class`) can never be
@@ -68,18 +78,18 @@ function percentDecodeToBytes(payload: string): Uint8Array | null {
 }
 
 /** CSS functions and schemes that must never appear in a style value. */
-const UNSAFE_STYLE_TOKENS = ['url(', 'expression(', 'javascript:', 'vbscript:', 'data:'];
+/**
+ * CSS constructs that execute or embed, and are never permitted whatever their
+ * host. `url(` is deliberately NOT here: it is judged by the host policy in
+ * `isStyleValueAllowed`, because a url() to an allowlisted host is legitimate
+ * content while one to an unknown host is a tracking beacon.
+ */
+const UNSAFE_STYLE_TOKENS = ['expression(', 'javascript:', 'vbscript:', 'data:'];
 
-/** Remove CSS comments, which a tokenizer ignores between any two tokens. */
-function stripCssComments(value: string): string {
-    let out = value;
-    let start = out.indexOf('/*');
-    while (start !== -1) {
-        const end = out.indexOf('*/', start + 2);
-        out = end === -1 ? out.slice(0, start) : out.slice(0, start) + out.slice(end + 2);
-        start = out.indexOf('/*');
-    }
-    return out;
+/** Why a resource was allowed or refused, as a flat decision. */
+function resourceReason(noPolicy: boolean, allowed: boolean): ResourcePolicyDecision['reason'] {
+    if (noPolicy) return 'no-policy';
+    return allowed ? 'allowlisted' : 'blocked';
 }
 
 /**
@@ -98,14 +108,14 @@ function stripCssComments(value: string): string {
  *      allowlist -- colours, lengths, font names, alignments -- needs one, so
  *      refusing them costs nothing and closes whatever the decoder misses.
  */
-function isSafeStyleValue(value: string): boolean {
-    if (value.includes('\\')) return false;
+function hasUnsafeStyleToken(value: string): boolean {
+    // Escapes, comments and whitespace are all insignificant to a CSS
+    // tokenizer, so they are resolved before the test: "\\65xpression(" and
+    // "expression/**/(" and "expression (" are one construct.
+    const normalized = decodeCssEscapes(stripCssComments(value.toLowerCase()))
+        .replaceAll(/\s+/g, '');
 
-    // Whitespace and comments are also insignificant to a CSS tokenizer:
-    // "url ( x )" and "url/**/(x)" call the same function.
-    const normalized = stripCssComments(value.toLowerCase()).replaceAll(/\s+/g, '');
-
-    return !UNSAFE_STYLE_TOKENS.some((token) => normalized.includes(token));
+    return UNSAFE_STYLE_TOKENS.some((token) => normalized.includes(token));
 }
 
 @Injectable({ providedIn: 'root' })
@@ -412,6 +422,105 @@ export class RichTextSanitizerService {
      * stripped copy so obfuscated forms are caught, while the original input
      * is returned so legitimate paths keep characters browsers resolve.
      */
+
+    /**
+     * Hosts whose remote resources may be loaded. Empty means NO POLICY: every
+     * host is allowed, which is the default and preserves prior behaviour.
+     *
+     * Plain state with a setter rather than a DI token, because the allowlist is
+     * per-editor configuration and this project keeps configuration in the
+     * developer's own files rather than behind an injection token. The editor
+     * scopes this service per instance (see its `providers`) so two editors on a
+     * page can hold different policies.
+     */
+    private allowedHosts: readonly string[] = [];
+
+    /** Decisions made during the current pass, drained by the editor. */
+    private readonly decisions: ResourcePolicyDecision[] = [];
+
+    /** Replace the remote-host allowlist. Empty disables the policy. */
+    setRemoteHostPolicy(hosts: readonly string[]): void {
+        this.allowedHosts = [...hosts];
+    }
+
+    /** Take and clear the decisions recorded since the last drain. */
+    drainResourceDecisions(): ResourcePolicyDecision[] {
+        return this.decisions.splice(0, this.decisions.length);
+    }
+
+    /**
+     * Judge one remote reference, recording the decision either way.
+     *
+     * Allowed references are recorded too, with `reason: 'no-policy'` when
+     * nothing is configured -- that is what lets a developer see their real
+     * exposure before deciding whether to set an allowlist.
+     */
+    private judgeResource(url: string, kind: 'image' | 'background'): boolean {
+        if (!isHostBearingUrl(url)) return true;
+
+        const allowed = isHostAllowed(url, this.allowedHosts);
+        this.decisions.push({
+            url,
+            host: hostOf(url) ?? '',
+            kind,
+            allowed,
+            reason: resourceReason(this.allowedHosts.length === 0, allowed),
+        });
+        return allowed;
+    }
+
+
+    /**
+     * Whether a CSS declaration value may be kept.
+     *
+     * Two stages, in this order:
+     *   1. code constructs (expression(), javascript:, data:) are refused
+     *      outright, after escapes and comments resolve;
+     *   2. any url() is judged by HOST -- allowed when the allowlist permits it
+     *      (or when no allowlist is set), stripped otherwise.
+     *
+     * A value carrying a backslash that is not a resolvable escape is refused:
+     * nothing in the allowlist -- colours, lengths, font names, alignments --
+     * needs one, so refusing costs nothing and closes whatever the decoder
+     * misses.
+     */
+    private isStyleValueAllowed(value: string): boolean {
+        if (hasUnsafeStyleToken(value)) return false;
+
+        if (!containsCssUrl(value)) {
+            return !value.includes('\\');
+        }
+
+        // A value whose url() is written with escapes is refused even when the
+        // host would be allowed. The policy agreed with the browser here, but
+        // storing the obfuscated form means the document only stays safe while
+        // this decoder and the browser's keep agreeing -- and that divergence is
+        // exactly what the \75rl( bypass was. An author with a legitimate URL
+        // has no reason to escape it.
+        if (value.includes('\\')) return false;
+
+        const urls = extractCssUrls(value);
+        if (urls.length === 0) return false;
+
+        return urls.every((url) => this.judgeResource(url, 'background'));
+    }
+
+    /** Validate and, for SVG, scrub a `data:image/*` source. */
+    private sanitizeDataImageSrc(trimmed: string): string | null {
+            if (!this.isAllowedDataUrl(trimmed)) return null;
+            // Scrub by CONTENT, not by the MIME label. The label is attacker-
+            // controlled and the magic-byte check accepts SVG whatever it says,
+            // so "data:image/png;base64,<svg onload=...>" used to skip scrubbing
+            // altogether -- storing unsanitized, script-bearing markup in
+            // content the library asserts is clean. Current browsers will not
+            // render it as an <img>, but anything rendering that content another
+            // way (object/embed/inline, or a server sniffing by content) would.
+            if (this.declaresOrContainsSvg(trimmed)) {
+                return this.sanitizeSvgDataUrl(trimmed);
+            }
+            return trimmed;
+    }
+
     sanitizeImageSrc(src: string): string | null {
         if (!src || typeof src !== 'string') {
             return null;
@@ -429,25 +538,14 @@ export class RichTextSanitizerService {
         }
 
         if (trimmed.toLowerCase().startsWith('data:image/')) {
-            if (!this.isAllowedDataUrl(trimmed)) return null;
-            // Scrub by CONTENT, not by the MIME label. The label is attacker-
-            // controlled and the magic-byte check accepts SVG whatever it says,
-            // so "data:image/png;base64,<svg onload=...>" used to skip scrubbing
-            // altogether -- storing unsanitized, script-bearing markup in
-            // content the library asserts is clean. Current browsers will not
-            // render it as an <img>, but anything rendering that content another
-            // way (object/embed/inline, or a server sniffing by content) would.
-            if (this.declaresOrContainsSvg(trimmed)) {
-                return this.sanitizeSvgDataUrl(trimmed);
-            }
-            return trimmed;
+            return this.sanitizeDataImageSrc(trimmed);
         }
 
         try {
             const url = new URL(trimmed);
 
             if (url.protocol === 'https:') {
-                return url.href;
+                return this.judgeResource(url.href, 'image') ? url.href : null;
             }
 
             if (url.protocol === 'http:' && this.isLocalhostUrl(url)) {
@@ -754,7 +852,7 @@ export class RichTextSanitizerService {
                 // hex escape -- so "\\75rl(...)" sailed past a check for "url("
                 // and the browser then loaded it. A pasted document could plant
                 // a persistent tracking pixel that fires for every later viewer.
-                if (isSafeStyleValue(value)) {
+                if (this.isStyleValueAllowed(value)) {
                     safeStyles.push(`${property}: ${value}`);
                 }
             }

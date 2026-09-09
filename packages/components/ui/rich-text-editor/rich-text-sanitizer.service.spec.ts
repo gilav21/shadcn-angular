@@ -2,6 +2,13 @@ import { TestBed } from '@angular/core/testing';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 import { beforeEach, describe, expect, it } from 'vitest';
 
+/** The `style` attribute the sanitizer kept for a declaration, or null. */
+function sanitizedStyle(service: RichTextSanitizerService, decl: string): string | null {
+    const out = service.sanitize('<p style="' + decl + '">T</p>');
+    const parsed = new DOMParser().parseFromString(out, 'text/html');
+    return parsed.querySelector('p')?.getAttribute('style') ?? null;
+}
+
 describe('RichTextSanitizerService', () => {
     let service: RichTextSanitizerService;
 
@@ -1000,33 +1007,61 @@ describe('RichTextSanitizerService - CSS escapes in style values', () => {
         service = TestBed.inject(RichTextSanitizerService);
     });
 
-    const styleOf = (decl: string): string | null => {
-        const out = service.sanitize('<p style="' + decl + '">T</p>');
-        const parsed = new DOMParser().parseFromString(out, 'text/html');
-        return parsed.querySelector('p')?.getAttribute('style') ?? null;
-    };
+    const styleOf = (decl: string): string | null => sanitizedStyle(service, decl);
 
-    it('blocks url() however it is spelled', () => {
-        // The existing url() tests all spell the function LITERALLY, which is the
-        // one sub-class where a substring check cannot fail. CSS lets any
-        // identifier character be written as a hex escape, so a browser resolves
-        // "\75rl(...)" as url() while the raw text spells nothing the old check
-        // looked for. Verified live before the fix: the style was kept and
-        // getComputedStyle reported url("https://tracker.example/p.png") -- a
-        // paste could plant a tracking pixel that fires for every later viewer.
+    it('blocks an ESCAPED url() outright, whatever the host', () => {
+        // CSS lets any identifier character be written as a hex escape, so a
+        // browser resolves "\75rl(...)" as url() while the raw text spells
+        // nothing a substring check looks for. Verified live before the fix:
+        // getComputedStyle reported url("https://tracker.example/p.png") from
+        // the sanitizer's own output -- a paste could plant a tracking pixel
+        // that fires for every later viewer.
+        //
+        // These are refused even when the host WOULD be allowed. The decoder
+        // agrees with the browser today, but storing an obfuscated URL means the
+        // document stays safe only while the two keep agreeing -- and that
+        // divergence is exactly what the bypass was. An author with a legitimate
+        // URL has no reason to escape it.
         const B = String.fromCodePoint(92);
+        service.setRemoteHostPolicy(['tracker.example']);
         for (const decl of [
-            'background: url(https://tracker.example/p.png)',
             'background: ' + B + '75rl(https://tracker.example/p.png)',
             'background: ' + B + '000075rl(https://tracker.example/p.png)',
             'background: u' + B + '72 l(https://tracker.example/p.png)',
             'background: ur' + B + '6c(https://tracker.example/p.png)',
-            'background: URL(https://tracker.example/p.png)',
-            'background: url (https://tracker.example/p.png)',
-            'background: url/**/(https://tracker.example/p.png)',
         ]) {
             expect(styleOf(decl)).toBeNull();
         }
+    });
+
+    it('judges a plainly spelled url() by host', () => {
+        // url() is no longer banned outright: it is judged like an <img> src,
+        // because the same tracker reaches a document through <img> regardless
+        // and a background from an allowlisted host is legitimate content.
+        const spellings = [
+            'background: url(https://cdn.trusted.com/p.png)',
+            'background: URL(https://cdn.trusted.com/p.png)',
+            'background: url (https://cdn.trusted.com/p.png)',
+            'background: url/**/(https://cdn.trusted.com/p.png)',
+            // Single quotes inside the value: a double-quoted url() cannot
+            // survive a double-quoted style attribute, and is truncated by HTML
+            // parsing long before the sanitizer sees it.
+            "background: url('https://cdn.trusted.com/p.png')",
+        ];
+
+        // No policy: allowed, matching <img> behaviour.
+        for (const decl of spellings) {
+            expect(styleOf(decl)).not.toBeNull();
+        }
+
+        // With a policy: the listed host passes, an unlisted one does not --
+        // including the userinfo form, whose real host is evil.com.
+        service.setRemoteHostPolicy(['cdn.trusted.com']);
+        for (const decl of spellings) {
+            expect(styleOf(decl)).not.toBeNull();
+        }
+        expect(styleOf('background: url(https://tracker.example/p.png)')).toBeNull();
+        expect(styleOf('background: url(https://cdn.trusted.com@evil.com/p.png)')).toBeNull();
     });
 
     it('blocks expression() and script schemes the same way', () => {
@@ -1061,4 +1096,108 @@ describe('RichTextSanitizerService - CSS escapes in style values', () => {
         }
     });
 });
+
+describe('RichTextSanitizerService - remote host policy', () => {
+    let service: RichTextSanitizerService;
+
+    beforeEach(() => {
+        TestBed.configureTestingModule({ providers: [RichTextSanitizerService] });
+        service = TestBed.inject(RichTextSanitizerService);
+    });
+    const styleOf = (decl: string): string | null => sanitizedStyle(service, decl);
+
+    it('allows any https host when no policy is set', () => {
+        // The default preserves today's behaviour exactly. An empty allowlist
+        // means "no policy", never "deny all", and there is deliberately no
+        // built-in provider list to fall back on.
+        expect(service.sanitizeImageSrc('https://tracker.example/p.png'))
+            .toBe('https://tracker.example/p.png');
+    });
+
+    it('allows only listed hosts once a policy is set', () => {
+        service.setRemoteHostPolicy(['cdn.trusted.com']);
+        expect(service.sanitizeImageSrc('https://cdn.trusted.com/a.png'))
+            .toBe('https://cdn.trusted.com/a.png');
+        expect(service.sanitizeImageSrc('https://tracker.example/p.png')).toBeNull();
+    });
+
+    it('rejects the userinfo bypass through the sanitizer, not just the matcher', () => {
+        // Everything before "@" is credentials; the request goes to evil.com.
+        service.setRemoteHostPolicy(['cdn.trusted.com']);
+        expect(service.sanitizeImageSrc('https://cdn.trusted.com@evil.com/a.png')).toBeNull();
+    });
+
+    it('exempts data: and relative image sources from the policy', () => {
+        // data: cannot contact anyone and is how a Word paste carries its
+        // images; a relative URL is same-origin. Blocking either would break
+        // ordinary content for anyone who sets an allowlist.
+        service.setRemoteHostPolicy(['cdn.trusted.com']);
+        expect(service.sanitizeImageSrc('data:image/png,%89PNG%0D%0A%1A%0A'))
+            .toBe('data:image/png,%89PNG%0D%0A%1A%0A');
+        expect(service.sanitizeImageSrc('/local.png')).toBe('/local.png');
+
+        // The CSS path is where the exemption actually does work. In
+        // sanitizeImageSrc these two return at earlier branches and never reach
+        // the host check at all, so asserting only there cannot fail -- the
+        // first version of this test passed with the exemption deleted.
+        expect(styleOf('background: url(/local.png)')).not.toBeNull();
+        expect(styleOf('background: url(./local.png)')).not.toBeNull();
+    });
+
+    it('records a decision for every remote reference, allowed or not', () => {
+        // Allowed references are recorded too, with reason 'no-policy' when
+        // nothing is configured. That is what lets a developer see their real
+        // exposure before deciding whether to set an allowlist.
+        service.sanitizeImageSrc('https://tracker.example/p.png');
+        expect(service.drainResourceDecisions()).toEqual([
+            {
+                url: 'https://tracker.example/p.png',
+                host: 'tracker.example',
+                kind: 'image',
+                allowed: true,
+                reason: 'no-policy',
+            },
+        ]);
+
+        service.setRemoteHostPolicy(['cdn.trusted.com']);
+        service.sanitizeImageSrc('https://cdn.trusted.com/a.png');
+        service.sanitizeImageSrc('https://tracker.example/p.png');
+        expect(service.drainResourceDecisions().map((d) => [d.host, d.reason])).toEqual([
+            ['cdn.trusted.com', 'allowlisted'],
+            ['tracker.example', 'blocked'],
+        ]);
+    });
+
+    it('drains decisions, so a second read does not repeat them', () => {
+        service.sanitizeImageSrc('https://tracker.example/p.png');
+        expect(service.drainResourceDecisions()).toHaveLength(1);
+        expect(service.drainResourceDecisions()).toHaveLength(0);
+    });
+
+    it('does not record a decision for an exempt source', () => {
+        service.sanitizeImageSrc('/local.png');
+        service.sanitizeImageSrc('data:image/png,%89PNG%0D%0A%1A%0A');
+        expect(service.drainResourceDecisions()).toHaveLength(0);
+    });
+
+    it('applies one policy to both images and CSS backgrounds', () => {
+        service.setRemoteHostPolicy(['cdn.trusted.com']);
+
+        expect(service.sanitizeImageSrc('https://cdn.trusted.com/a.png')).not.toBeNull();
+        expect(styleOf('background: url(https://cdn.trusted.com/a.png)')).not.toBeNull();
+
+        expect(service.sanitizeImageSrc('https://tracker.example/p.png')).toBeNull();
+        expect(styleOf('background: url(https://tracker.example/p.png)')).toBeNull();
+    });
+
+    it('still refuses code constructs whatever the allowlist says', () => {
+        // The host policy narrows tracking; it never widens what may execute.
+        service.setRemoteHostPolicy(['cdn.trusted.com', 'tracker.example']);
+        expect(styleOf('width: expression(alert(1))')).toBeNull();
+        expect(styleOf('background: url(javascript:alert(1))')).toBeNull();
+        expect(service.sanitizeImageSrc('javascript:alert(1)')).toBeNull();
+        expect(service.sanitizeImageSrc('data:text/html,<script>alert(1)</script>')).toBeNull();
+    });
+});
+
 
