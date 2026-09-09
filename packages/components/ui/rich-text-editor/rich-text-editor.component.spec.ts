@@ -10211,7 +10211,8 @@ describe('RichTextEditorComponent - remote resource policy', () => {
             <ui-rich-text-editor
                 [allowedResourceHosts]="hosts()"
                 [blockedImageMessage]="message()"
-                (remoteResource)="seen.push($event)" />
+                (remoteResource)="seen.push($event)"
+                (markdownChange)="saved = $event" />
         `,
     })
     class PolicyHostComponent {
@@ -10220,6 +10221,7 @@ describe('RichTextEditorComponent - remote resource policy', () => {
         readonly hosts = signal<readonly string[]>([]);
         readonly message = signal<string | undefined>(undefined);
         seen: ResourcePolicyDecision[] = [];
+        saved = '';
     }
 
     @Component({
@@ -10374,21 +10376,50 @@ describe('RichTextEditorComponent - remote resource policy', () => {
 
     it('restores a blocked image once its host is allowed', () => {
         // data-blocked-src is what makes the block reversible rather than lossy.
+        //
+        // The input is MARKDOWN and the assertion runs on what the editor
+        // actually SAVED. An earlier version of this test wrote HTML into an
+        // editor whose mode defaults to 'markdown', so it exercised only the
+        // HTML branch -- the one branch where the marker survives -- and passed
+        // while the default path serialized "![c]()" and destroyed the URL on
+        // the first save.
         const fixture = TestBed.createComponent(PolicyHostComponent);
         fixture.componentInstance.hosts.set(['cdn.trusted.com']);
         fixture.detectChanges();
 
-        const doc = '<p><img src="https://tracker.example/p.png" alt="c"></p>';
-        editorAt(fixture, 0).writeValue(doc);
+        editorAt(fixture, 0).writeValue('![c](https://tracker.example/p.png)');
         fixture.detectChanges();
         expect(fixture.nativeElement.querySelector('img').hasAttribute('src')).toBe(false);
 
+        // Round trip through the SAVED markdown, not the original input.
+        const saved = fixture.componentInstance.saved;
+        expect(saved).toContain('https://tracker.example/p.png');
+
         fixture.componentInstance.hosts.set(['cdn.trusted.com', 'tracker.example']);
         fixture.detectChanges();
-        editorAt(fixture, 0).writeValue(doc);
+        editorAt(fixture, 0).writeValue(saved);
         fixture.detectChanges();
         expect(fixture.nativeElement.querySelector('img').getAttribute('src'))
             .toBe('https://tracker.example/p.png');
+    });
+
+    it('survives repeated saves while still blocked', () => {
+        // Three cycles through the saved markdown: the URL must not erode, and
+        // the placeholder must not decay into literal text.
+        const fixture = TestBed.createComponent(PolicyHostComponent);
+        fixture.componentInstance.hosts.set(['cdn.trusted.com']);
+        fixture.detectChanges();
+
+        let doc = '![c](https://tracker.example/p.png)';
+        for (let cycle = 0; cycle < 3; cycle++) {
+            editorAt(fixture, 0).writeValue(doc);
+            fixture.detectChanges();
+            const img = fixture.nativeElement.querySelector('img') as HTMLImageElement;
+            expect(img).toBeTruthy();
+            expect(img.getAttribute('data-blocked-src')).toBe('https://tracker.example/p.png');
+            expect(img.getAttribute('alt')).toBe('c');
+            doc = fixture.componentInstance.saved;
+        }
     });
 
     it('applies a policy change without recreating the editor', () => {

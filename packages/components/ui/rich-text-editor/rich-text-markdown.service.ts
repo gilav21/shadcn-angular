@@ -1393,8 +1393,17 @@ export class RichTextMarkdownService {
     }
 
     private handleImageTag(element: HTMLElement): string {
-        const src = element.getAttribute('src') ?? '';
         const alt = element.getAttribute('alt') ?? '';
+        // A blocked image serializes with its ORIGINAL url, not an empty one.
+        // It has no `src` -- that is the point -- so writing `src` alone gave
+        // "![alt]()", which loses the URL permanently on the first save and
+        // reloads as visible literal text. The block is meant to be reversible:
+        // allowing the host later must bring the image back, and it cannot if
+        // the address was thrown away. Re-reading it just re-applies the policy,
+        // so a still-blocked image simply blocks again.
+        const src = element.getAttribute('src')
+            ?? element.dataset['blockedSrc']
+            ?? '';
         return `![${alt}](${src})`;
     }
 

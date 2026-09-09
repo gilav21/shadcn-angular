@@ -1049,9 +1049,14 @@ describe('RichTextSanitizerService - CSS escapes in style values', () => {
             "background: url('https://cdn.trusted.com/p.png')",
         ];
 
-        // No policy: allowed, matching <img> behaviour.
+        // No policy: REFUSED, exactly as before this feature existed. The ban
+        // was first relaxed here on the argument that <img> lets a tracker
+        // through anyway -- but an <img> is visible content the author placed,
+        // while a CSS background beacon is invisible. Relaxing it opened a
+        // channel that was closed for every existing consumer, on upgrade, with
+        // no code change.
         for (const decl of spellings) {
-            expect(styleOf(decl)).not.toBeNull();
+            expect(styleOf(decl)).toBeNull();
         }
 
         // With a policy: the listed host passes, an unlisted one does not --

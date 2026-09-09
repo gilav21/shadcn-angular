@@ -324,6 +324,11 @@ matches subdomains by label — `*.assets.acme.com` covers `img.assets.acme.com`
 but never `img.assets.acme.com.evil.com`. List the apex separately if you want
 it too.
 
+**CSS `url()` needs an allowlist.** With no policy set, a `url()` in pasted
+inline styles is refused outright, as it always has been — a CSS background is
+invisible to the reader, so it cannot be noticed or deleted the way a stray
+image can. Naming hosts is what permits one, and only from those hosts.
+
 Always permitted, whatever the policy:
 
 - **`data:` URLs** — they carry their payload inline and cannot contact anyone.

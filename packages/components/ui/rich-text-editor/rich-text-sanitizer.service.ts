@@ -520,6 +520,19 @@ export class RichTextSanitizerService {
         // has no reason to escape it.
         if (value.includes('\\')) return false;
 
+        // With NO allowlist, a url() is refused -- as it always was. The
+        // original ban was justified on the grounds that <img> lets a tracker
+        // through anyway, so blocking backgrounds bought nothing. That was
+        // wrong: an <img> is visible content the author placed and a reader can
+        // see, while a CSS background beacon is invisible. Relaxing the default
+        // opened a channel that was closed for every existing consumer, on
+        // upgrade, with no code change -- the opposite of "the default is
+        // unchanged".
+        //
+        // A url() is permitted only where a developer has named hosts, which is
+        // a deliberate act with the trade-off in front of them.
+        if (this.allowedHosts.length === 0) return false;
+
         const urls = extractCssUrls(value);
         if (urls.length === 0) return false;
 
