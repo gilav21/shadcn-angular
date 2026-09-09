@@ -10,8 +10,7 @@ export * from './sub/rich-text-toolbar.component';
 export * from './rich-text-editor.api';
 export * from './rich-text-editor.validators';
 export * from './rich-text-prose';
-export {
-    RichTextResourcePolicyHost,
-    type ResourcePolicyDecision,
-} from './rich-text-resource-policy';
+export * from './rich-text-resource-policy';
 export { RichTextResourcePolicyDirective } from './rich-text-resource-policy.directive';
+export * from './rich-text-find.utils';
+export * from './rich-text-editor.fixtures';

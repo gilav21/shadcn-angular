@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { RichTextMarkdownService } from './rich-text-markdown.service';
-import { RichTextSanitizerService } from './rich-text-sanitizer.service';
+import { RichTextMarkdownService } from './index';
+import { RichTextSanitizerService } from './index';
 
 describe('RichTextMarkdownService', () => {
     let service: RichTextMarkdownService;

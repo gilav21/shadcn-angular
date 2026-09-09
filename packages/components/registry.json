@@ -2635,9 +2635,10 @@
       "rich-text-editor/index.ts",
       "rich-text-editor/rich-text-command-registry.service.ts",
       "rich-text-editor/rich-text-editor.api.ts",
-      "rich-text-editor/rich-text-editor.component.html",
       "rich-text-editor/rich-text-editor.component.css",
+      "rich-text-editor/rich-text-editor.component.html",
       "rich-text-editor/rich-text-editor.component.ts",
+      "rich-text-editor/rich-text-editor.fixtures.ts",
       "rich-text-editor/rich-text-editor.host.ts",
       "rich-text-editor/rich-text-editor.validators.ts",
       "rich-text-editor/rich-text-find.utils.ts",
@@ -2646,8 +2647,8 @@
       "rich-text-editor/rich-text-markdown.service.ts",
       "rich-text-editor/rich-text-paste-normalizer.service.ts",
       "rich-text-editor/rich-text-prose.ts",
-      "rich-text-editor/rich-text-resource-policy.ts",
       "rich-text-editor/rich-text-resource-policy.directive.ts",
+      "rich-text-editor/rich-text-resource-policy.ts",
       "rich-text-editor/rich-text-sanitizer.service.ts",
       "rich-text-editor/sub/rich-text-toolbar.component.css",
       "rich-text-editor/sub/rich-text-toolbar.component.html",
@@ -2661,9 +2662,11 @@
       "rich-text-editor/rich-text-command-registry.service.spec.ts",
       "rich-text-editor/rich-text-editor.component.spec.ts",
       "rich-text-editor/rich-text-editor.validators.spec.ts",
+      "rich-text-editor/rich-text-find.utils.spec.ts",
       "rich-text-editor/rich-text-input-rules.spec.ts",
       "rich-text-editor/rich-text-markdown.service.spec.ts",
       "rich-text-editor/rich-text-paste-normalizer.service.spec.ts",
+      "rich-text-editor/rich-text-resource-policy.spec.ts",
       "rich-text-editor/rich-text-sanitizer.service.spec.ts",
       "rich-text-editor/sub/rich-text-toolbar.component.spec.ts"
     ],
@@ -4701,8 +4704,6 @@
     ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts",
-      "rich-text-editor/rich-text-resource-policy.ts",
-      "rich-text-editor/rich-text-resource-policy.directive.ts",
       "rich-text-editor/rich-text-sanitizer.service.ts",
       "rich-text-editor/rich-text-markdown.service.ts",
       "rich-text-editor/rich-text-command-registry.service.ts"
@@ -4823,13 +4824,17 @@
       "rich-text-editor/addons/history/rich-text-history-panel.component.html",
       "rich-text-editor/addons/history/rich-text-history-panel.component.ts",
       "rich-text-editor/addons/history/rich-text-history.directive.ts",
-      "rich-text-editor/addons/history/rich-text-history.locales.ts"
+      "rich-text-editor/addons/history/rich-text-history.locales.ts",
+      "rich-text-editor/rich-text-resource-policy.ts",
+      "rich-text-editor/rich-text-sanitizer.service.ts"
     ],
     "libFiles": [
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
-      "i18n/index.ts"
+      "i18n/index.ts",
+      "parsers/image-validator.ts",
+      "parsers/svg-sanitizer.ts"
     ],
     "dependencies": [
       "button",
@@ -4840,7 +4845,17 @@
     ],
     "testFiles": [
       "rich-text-editor/addons/history/rich-text-history-panel.component.spec.ts",
-      "rich-text-editor/addons/history/rich-text-history.directive.spec.ts"
+      "rich-text-editor/addons/history/rich-text-history.directive.spec.ts",
+      "rich-text-editor/barrel.spec.ts",
+      "rich-text-editor/rich-text-command-registry.service.spec.ts",
+      "rich-text-editor/rich-text-editor.component.spec.ts",
+      "rich-text-editor/rich-text-editor.validators.spec.ts",
+      "rich-text-editor/rich-text-find.utils.spec.ts",
+      "rich-text-editor/rich-text-input-rules.spec.ts",
+      "rich-text-editor/rich-text-markdown.service.spec.ts",
+      "rich-text-editor/rich-text-paste-normalizer.service.spec.ts",
+      "rich-text-editor/rich-text-resource-policy.spec.ts",
+      "rich-text-editor/rich-text-sanitizer.service.spec.ts"
     ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts"
@@ -4985,8 +5000,6 @@
     ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts",
-      "rich-text-editor/rich-text-resource-policy.ts",
-      "rich-text-editor/rich-text-resource-policy.directive.ts",
       "rich-text-editor/rich-text-sanitizer.service.ts"
     ],
     "attach": {
@@ -5089,8 +5102,6 @@
     ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts",
-      "rich-text-editor/rich-text-resource-policy.ts",
-      "rich-text-editor/rich-text-resource-policy.directive.ts",
       "rich-text-editor/rich-text-sanitizer.service.ts",
       "rich-text-editor/rich-text-paste-normalizer.service.ts"
     ],
@@ -5140,8 +5151,6 @@
     ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts",
-      "rich-text-editor/rich-text-resource-policy.ts",
-      "rich-text-editor/rich-text-resource-policy.directive.ts",
       "rich-text-editor/rich-text-sanitizer.service.ts"
     ],
     "attach": {
@@ -5214,8 +5223,6 @@
     ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts",
-      "rich-text-editor/rich-text-resource-policy.ts",
-      "rich-text-editor/rich-text-resource-policy.directive.ts",
       "rich-text-editor/rich-text-sanitizer.service.ts"
     ],
     "attach": {
@@ -5267,8 +5274,6 @@
     ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts",
-      "rich-text-editor/rich-text-resource-policy.ts",
-      "rich-text-editor/rich-text-resource-policy.directive.ts",
       "rich-text-editor/rich-text-sanitizer.service.ts"
     ],
     "attach": {

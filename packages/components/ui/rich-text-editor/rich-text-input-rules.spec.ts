@@ -3,7 +3,7 @@ import {
     INLINE_RULE_LOOKBEHIND,
     matchBlockInputRule,
     matchInlineInputRule,
-} from './rich-text-input-rules';
+} from './index';
 
 describe('matchBlockInputRule', () => {
     // T-1 — heading markers, and the deliberate absence of h4+.

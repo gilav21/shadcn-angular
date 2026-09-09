@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { RichTextSanitizerService } from './rich-text-sanitizer.service';
+import { RichTextSanitizerService } from './index';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 /** The `style` attribute the sanitizer kept for a declaration, or null. */

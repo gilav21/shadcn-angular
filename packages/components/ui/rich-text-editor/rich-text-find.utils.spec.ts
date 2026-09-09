@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compileFindRegex, FIND_MAX_QUERY_LENGTH } from './rich-text-find.utils';
+import { compileFindRegex, FIND_MAX_QUERY_LENGTH } from './index';
 
 const opts = (over: Partial<{ useRegex: boolean; wholeWord: boolean; caseSensitive: boolean }> = {}) => ({
     useRegex: false,

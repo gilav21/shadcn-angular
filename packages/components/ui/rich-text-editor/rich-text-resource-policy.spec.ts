@@ -6,7 +6,7 @@ import {
     hostOf,
     isHostAllowed,
     isHostBearingUrl,
-} from './rich-text-resource-policy';
+} from './index';
 
 const TRUSTED = ['cdn.trusted.com'];
 

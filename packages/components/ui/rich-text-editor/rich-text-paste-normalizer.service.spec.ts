@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
-import { RichTextPasteNormalizerService } from './rich-text-paste-normalizer.service';
-import { RichTextSanitizerService } from './rich-text-sanitizer.service';
-import { RichTextMarkdownService } from './rich-text-markdown.service';
+import { RichTextPasteNormalizerService } from './index';
+import { RichTextSanitizerService } from './index';
+import { RichTextMarkdownService } from './index';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 type PasteNormalizerPrivate = {

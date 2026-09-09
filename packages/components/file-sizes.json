@@ -8342,11 +8342,11 @@
       "lines": 41
     },
     "rich-text-editor/index.ts": {
-      "bytes": 740,
-      "lines": 17
+      "bytes": 758,
+      "lines": 16
     },
     "rich-text-editor/rich-text-command-registry.service.spec.ts": {
-      "bytes": 3429,
+      "bytes": 3400,
       "lines": 90
     },
     "rich-text-editor/rich-text-command-registry.service.ts": {
@@ -8366,12 +8366,16 @@
       "lines": 301
     },
     "rich-text-editor/rich-text-editor.component.spec.ts": {
-      "bytes": 447360,
+      "bytes": 447176,
       "lines": 10438
     },
     "rich-text-editor/rich-text-editor.component.ts": {
-      "bytes": 305222,
-      "lines": 7323
+      "bytes": 304990,
+      "lines": 7318
+    },
+    "rich-text-editor/rich-text-editor.fixtures.ts": {
+      "bytes": 817,
+      "lines": 22
     },
     "rich-text-editor/rich-text-editor.host.ts": {
       "bytes": 18774,
@@ -8382,15 +8386,15 @@
       "lines": 722
     },
     "rich-text-editor/rich-text-editor.validators.spec.ts": {
-      "bytes": 10914,
-      "lines": 262
+      "bytes": 10300,
+      "lines": 245
     },
     "rich-text-editor/rich-text-editor.validators.ts": {
       "bytes": 8841,
       "lines": 224
     },
     "rich-text-editor/rich-text-find.utils.spec.ts": {
-      "bytes": 4907,
+      "bytes": 4892,
       "lines": 107
     },
     "rich-text-editor/rich-text-find.utils.ts": {
@@ -8398,7 +8402,7 @@
       "lines": 245
     },
     "rich-text-editor/rich-text-input-rules.spec.ts": {
-      "bytes": 8935,
+      "bytes": 8919,
       "lines": 230
     },
     "rich-text-editor/rich-text-input-rules.ts": {
@@ -8410,7 +8414,7 @@
       "lines": 900
     },
     "rich-text-editor/rich-text-markdown.service.spec.ts": {
-      "bytes": 112936,
+      "bytes": 112893,
       "lines": 2238
     },
     "rich-text-editor/rich-text-markdown.service.ts": {
@@ -8418,7 +8422,7 @@
       "lines": 2093
     },
     "rich-text-editor/rich-text-paste-normalizer.service.spec.ts": {
-      "bytes": 106490,
+      "bytes": 106418,
       "lines": 2167
     },
     "rich-text-editor/rich-text-paste-normalizer.service.ts": {
@@ -8434,15 +8438,15 @@
       "lines": 43
     },
     "rich-text-editor/rich-text-resource-policy.spec.ts": {
-      "bytes": 6800,
+      "bytes": 6780,
       "lines": 159
     },
     "rich-text-editor/rich-text-resource-policy.ts": {
-      "bytes": 7753,
-      "lines": 185
+      "bytes": 7962,
+      "lines": 189
     },
     "rich-text-editor/rich-text-sanitizer.service.spec.ts": {
-      "bytes": 56081,
+      "bytes": 56059,
       "lines": 1208
     },
     "rich-text-editor/rich-text-sanitizer.service.ts": {
@@ -8566,8 +8570,8 @@
       "lines": 215
     },
     "rich-text-view/rich-text-view.stories.ts": {
-      "bytes": 4124,
-      "lines": 115
+      "bytes": 6171,
+      "lines": 167
     },
     "ripple.directive.spec.ts": {
       "bytes": 8679,

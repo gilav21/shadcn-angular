@@ -3,19 +3,19 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_TOOLBAR_ITEMS, FIND_MAX_PAINTED_RECTS, RichTextEditorComponent, type RichTextHistoryState } from './rich-text-editor.component';
-import type { RichTextEditorApi } from './rich-text-editor.api';
-import { isRichTextEmpty } from './rich-text-editor.validators';
-import { EMPTINESS_FIXTURES } from './rich-text-editor.validators.spec';
-import { RichTextEditorAddonHost } from './rich-text-editor.host';
+import { DEFAULT_TOOLBAR_ITEMS, FIND_MAX_PAINTED_RECTS, RichTextEditorComponent, type RichTextHistoryState } from './index';
+import type { RichTextEditorApi } from './index';
+import { isRichTextEmpty } from './index';
+import { EMPTINESS_FIXTURES } from './index';
+import { RichTextEditorAddonHost } from './index';
 import { ShortcutBindingService } from '../../lib/shortcut-binding.service';
 import { provideUiLocale } from '../../lib/i18n/i18n.token';
 import { createLocaleBindings } from '../../lib/i18n/i18n.utils';
 import type { LocaleInput, LocaleMeta } from '../../lib/i18n/i18n.types';
-import { RichTextCommandRegistry } from './rich-text-command-registry.service';
-import { RICH_TEXT_LOCALES, RichTextLocale } from './rich-text-locales';
-import { RichTextSanitizerService } from './rich-text-sanitizer.service';
-import type { ResourcePolicyDecision } from './rich-text-resource-policy';
+import { RichTextCommandRegistry } from './index';
+import { RICH_TEXT_LOCALES, RichTextLocale } from './index';
+import { RichTextSanitizerService } from './index';
+import type { ResourcePolicyDecision } from './index';
 
 /** Collapse the selection to a caret at the given node/offset. */
 const setCaretAt = (node: Node, offset: number) => {
