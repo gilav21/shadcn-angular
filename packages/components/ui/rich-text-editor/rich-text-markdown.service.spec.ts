@@ -2156,4 +2156,83 @@ describe('RichTextMarkdownService', () => {
         });
     });
 
+
+    describe('narrow-input findings (input-class audit)', () => {
+        const NLC = String.fromCodePoint(10);
+
+        it('keeps block content inside a toggle block', () => {
+            // Every :::details test used a body of plain inline prose, the one
+            // sub-class where a blind <p> wrap loses nothing. parseToggleBlocks
+            // runs BEFORE the block passes, so a list, heading, quote or table in
+            // a toggle was frozen as literal text -- and a table swallowed the
+            // whole <details> element into a header cell.
+            const cases: ReadonlyArray<readonly [string, string]> = [
+                [':::details T' + NLC + '- a' + NLC + '- b' + NLC + ':::', 'ul'],
+                [':::details T' + NLC + '## H' + NLC + ':::', 'h2'],
+                [':::details T' + NLC + '> quote' + NLC + ':::', 'blockquote'],
+                [':::details T' + NLC + '| a | b |' + NLC + '| --- | --- |' + NLC + '| 1 | 2 |' + NLC + ':::', 'table'],
+            ];
+            for (const [src, tag] of cases) {
+                const probe = document.createElement('div');
+                probe.innerHTML = service.toHtml(src);
+                const details = probe.querySelector('details');
+                expect(details).toBeTruthy();
+                expect(details?.querySelector(tag)).toBeTruthy();
+            }
+        });
+
+        it('keeps a heading or rule inside a blockquote', () => {
+            // buildBlockquote ran only parseLists over its body, and every test
+            // used plain lines or a list -- the one block type that survived. A
+            // quoted heading or divider was demoted to literal characters on the
+            // first save, as a stable fixed point.
+            const cases: ReadonlyArray<readonly [string, string]> = [
+                ['<blockquote><h2>Q</h2></blockquote>', 'h2'],
+                ['<blockquote><p>a</p><hr></blockquote>', 'hr'],
+                ['<blockquote><ul><li>x</li></ul></blockquote>', 'ul'],
+            ];
+            for (const [html, tag] of cases) {
+                const md = service.toMarkdown(html);
+                const probe = document.createElement('div');
+                probe.innerHTML = service.toHtml(md);
+                expect(probe.querySelector('blockquote')?.querySelector(tag)).toBeTruthy();
+            }
+        });
+
+        it('keeps style on a verbatim inline tag', () => {
+            // The verbatim-tag test used bare tags with no attributes; the styling
+            // test covered only <span>. The two conditions were never combined, so
+            // a user who highlighted text and then coloured it lost the colour on
+            // save -- the flattened-span defect, one element away.
+            for (const tag of ['u', 'mark', 'sub', 'sup', 'small', 'ins']) {
+                const md = service.toMarkdown(
+                    '<p>A<' + tag + ' style="color: red">X</' + tag + '>B</p>',
+                );
+                const probe = document.createElement('div');
+                probe.innerHTML = service.toHtml(md);
+                expect(probe.querySelector(tag)?.getAttribute('style')).toBe('color: red');
+                expect(service.toMarkdown(service.toHtml(md))).toBe(md);
+            }
+        });
+
+        it('keeps a link or image whose TEXT contains brackets', () => {
+            // The URL half of this pattern was hardened across several rounds
+            // (parentheses, * and _), but link TEXT was always bracket-free -- and
+            // the text class explicitly excluded "]", so "see [1]" or "[Draft]
+            // spec" destroyed the anchor and showed its markdown source as text.
+            const cases: ReadonlyArray<readonly [string, string]> = [
+                ['<p><a href="https://e.com">see [1]</a></p>', 'a'],
+                ['<p><a href="https://e.com">[Draft] spec</a></p>', 'a'],
+                ['<p><img src="https://e.com/a.png" alt="fig [1]"></p>', 'img'],
+                ['<p><a href="https://e.com">a (b)</a></p>', 'a'],
+            ];
+            for (const [html, tag] of cases) {
+                const md = service.toMarkdown(html);
+                const probe = document.createElement('div');
+                probe.innerHTML = service.toHtml(md);
+                expect(probe.querySelector(tag)).toBeTruthy();
+            }
+        });
+    });
+
 });

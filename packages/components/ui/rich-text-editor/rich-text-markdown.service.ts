@@ -234,9 +234,13 @@ function buildListContextHtml(ctx: ListContext): string {
  * case, not adversarial input — leaving a broken link and dumping the rest of
  * the URL on the page as visible text.
  */
+// The TEXT half allows one level of balanced brackets, matching what the URL
+// half already does for parentheses. A flat [^\\]]* meant "see [1]" or
+// "[Draft] spec" -- everyday link and alt text -- did not match at all, so the
+// anchor was destroyed on save and its markdown source shown as page text.
 const MEDIA_TARGET_PATTERN = {
-    image: /!\[([^\]]*)\]\(((?:[^()]|\([^()]*\))+)\)/g,
-    link: /\[([^\]]{1,4096})\]\(((?:[^()]|\([^()]*\)){1,4096})\)/g,
+    image: /!\[((?:[^[\]]|\[[^[\]]*\]){0,4096})\]\(((?:[^()]|\([^()]*\))+)\)/g,
+    link: /\[((?:[^[\]]|\[[^[\]]*\]){1,4096})\]\(((?:[^()]|\([^()]*\)){1,4096})\)/g,
 } as const;
 
 /**
@@ -724,9 +728,27 @@ export class RichTextMarkdownService {
      */
     private parseToggleBlocks(html: string): string {
         return html.replaceAll(/:::details[^\S\n]{1,4096}([^\n]{0,4096})\n([\s\S]{0,100000}?):::/g, (_match, title: string, content: string) => {
-            const parsedContent = content.trim();
-            return `<details open><summary>${title}</summary><p>${parsedContent}</p></details>`;
+            // The body gets the block passes, not a blind <p> wrap. This pass
+            // runs BEFORE them, so a list, heading, quote or table inside a
+            // toggle was frozen as literal text -- and a table swallowed the
+            // whole <details> element into a header cell, destroying the block
+            // and corrupting the document around it.
+            const parsedContent = this.parseDetailsBody(content.trim());
+            return `<details open><summary>${title}</summary>${parsedContent}</details>`;
         });
+    }
+
+    /** Parse a toggle block's body: real blocks if it holds any, else a paragraph. */
+    private parseDetailsBody(content: string): string {
+        if (!content) return '<p></p>';
+
+        let parsed = this.parseBlockquotes(content);
+        parsed = this.parseHeadings(parsed);
+        parsed = this.parseLists(parsed);
+        parsed = this.parseTables(parsed);
+        parsed = this.parseHorizontalRules(parsed);
+
+        return parsed === content ? `<p>${content}</p>` : parsed;
     }
 
     /**
@@ -764,10 +786,19 @@ export class RichTextMarkdownService {
             return `<blockquote>${this.escapeHtml(lines.join('\n'))}</blockquote>`;
         }
 
-        const listed = this.parseLists(lines.join('\n'));
-        const body = listed.includes('<ul') || listed.includes('<ol')
-            ? listed
-            : lines.join('<br>');
+        // Headings, rules and tables inside a quote get a pass too, not just
+        // lists. Only parseLists ran here, so "> ## H" and "> ---" came back as
+        // literal characters -- a quoted heading or divider was silently demoted
+        // to text on the first save, as a stable fixed point that never
+        // recovered. Same recursion parseListContinuation uses for an item's
+        // continuation block.
+        const source = lines.join('\n');
+        let parsed = this.parseLists(source);
+        parsed = this.parseHeadings(parsed);
+        parsed = this.parseTables(parsed);
+        parsed = this.parseHorizontalRules(parsed);
+
+        const body = parsed === source ? lines.join('<br>') : parsed;
         return `<blockquote>${body}</blockquote>`;
     }
 
@@ -1250,7 +1281,14 @@ export class RichTextMarkdownService {
         // sanitizer's ALLOWED_TAGS) were flattened to bare text on EVERY save in
         // the default markdown mode: <mark>X</mark> became X, unrecoverably.
         if (VERBATIM_INLINE_TAGS.has(tagName)) {
-            return `<${tagName}>${inner}</${tagName}>`;
+            // The style attribute rides along, exactly as spanToMarkdown carries
+            // it for a styled <span>. The sanitizer keeps style on these tags, so
+            // dropping it here lost a user's colour the moment they applied it to
+            // highlighted or underlined text -- the same defect as the flattened
+            // span, one element away. Everything else is still dropped.
+            const style = element.getAttribute('style');
+            const attr = style ? ` style="${this.escapeHtml(style)}"` : '';
+            return `<${tagName}${attr}>${inner}</${tagName}>`;
         }
         switch (tagName) {
             case 'strong':
