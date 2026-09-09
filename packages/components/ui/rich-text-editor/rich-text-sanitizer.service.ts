@@ -445,6 +445,20 @@ export class RichTextSanitizerService {
      */
     private lastBlockedByPolicy: string | null = null;
 
+    /**
+     * Take the URL of the source the last `sanitizeImageSrc` call refused on
+     * POLICY grounds, or null when it was refused as unsafe (or not at all).
+     *
+     * Reading clears it, so a caller cannot mistake a stale value for its own
+     * result. Callers use it to keep a blocked image as a placeholder while
+     * still dropping an unsafe one outright.
+     */
+    takeBlockedByPolicy(): string | null {
+        const url = this.lastBlockedByPolicy;
+        this.lastBlockedByPolicy = null;
+        return url;
+    }
+
     /** Replace the remote-host allowlist. Empty disables the policy. */
     setRemoteHostPolicy(hosts: readonly string[]): void {
         this.allowedHosts = [...hosts];
@@ -530,9 +544,9 @@ export class RichTextSanitizerService {
             target.setAttribute('src', safeSrc);
             return;
         }
-        if (this.lastBlockedByPolicy !== null) {
-            target.dataset['blockedSrc'] = this.lastBlockedByPolicy;
-            this.lastBlockedByPolicy = null;
+        const blocked = this.takeBlockedByPolicy();
+        if (blocked !== null) {
+            target.dataset['blockedSrc'] = blocked;
         }
     }
 

@@ -1118,7 +1118,17 @@ export class RichTextMarkdownService {
     private parseImages(html: string, inlineStore: readonly string[]): string {
         return html.replaceAll(MEDIA_TARGET_PATTERN.image, (_, alt, src) => {
             const safeSrc = this.sanitizer.sanitizeImageSrc(src);
-            if (!safeSrc) return '';
+            if (!safeSrc) {
+                // A POLICY-blocked image keeps its element and alt, so the
+                // reader sees a labelled frame rather than nothing and the block
+                // is reversible. An UNSAFE one is still dropped outright. The
+                // HTML path does the same; without this, markdown mode -- the
+                // DEFAULT -- silently deleted blocked images instead.
+                const blocked = this.sanitizer.takeBlockedByPolicy();
+                if (blocked === null) return '';
+                const blockedAlt = resolveInlineCodeText(alt, inlineStore);
+                return `<img data-blocked-src="${this.shieldUrl(blocked)}" alt="${this.shieldUrl(this.escapeHtml(blockedAlt))}">`;
+            }
             // An alt attribute is plain text: a parked code span restored in
             // there would land as the literal string "<code>x</code>". Resolve
             // it back to the text the author typed instead.

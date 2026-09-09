@@ -10308,6 +10308,34 @@ describe('RichTextEditorComponent - remote resource policy', () => {
         expect(img.getAttribute('aria-label')).toContain('blocked');
     });
 
+    it('keeps a blocked image in MARKDOWN mode too', () => {
+        // mode defaults to 'markdown', so this is the path most documents take.
+        // parseImages dropped a refused image outright -- correct for an unsafe
+        // source, but it deleted policy-blocked ones instead of showing the
+        // placeholder the HTML path produces.
+        const fixture = TestBed.createComponent(PolicyHostComponent);
+        fixture.componentInstance.hosts.set(['cdn.trusted.com']);
+        fixture.detectChanges();
+
+        editorAt(fixture, 0).writeValue('![chart](https://tracker.example/p.png)');
+        fixture.detectChanges();
+
+        const img = fixture.nativeElement.querySelector('img') as HTMLImageElement;
+        expect(img).toBeTruthy();
+        expect(img.hasAttribute('src')).toBe(false);
+        expect(img.getAttribute('data-blocked-src')).toBe('https://tracker.example/p.png');
+        expect(img.getAttribute('alt')).toBe('chart');
+        expect(img.getAttribute('data-blocked-label')).toBe('Image blocked by security policy');
+    });
+
+    it('still drops an UNSAFE source in markdown mode', () => {
+        const fixture = TestBed.createComponent(PolicyHostComponent);
+        fixture.detectChanges();
+        editorAt(fixture, 0).writeValue('![bad](javascript:alert(1))');
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('img')).toBeNull();
+    });
+
     it('does not mark an UNSAFE source as a placeholder', () => {
         // A javascript: source is not content the author should be invited to
         // restore, so it is dropped outright with no marker and no caption.
