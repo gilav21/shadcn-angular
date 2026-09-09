@@ -1890,7 +1890,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * into a single text node, collapsing the block's lines into one.
      */
     private trailingBreakIn(root: Node): HTMLBRElement | null {
-        const children = [...root.childNodes];
+        const children = Array.from(root.childNodes);
         for (let i = children.length - 1; i >= 0; i--) {
             const node = children[i];
             if (node.nodeType === Node.TEXT_NODE && !(node as Text).data.trim()) continue;
