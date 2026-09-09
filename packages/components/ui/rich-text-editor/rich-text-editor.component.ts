@@ -6,6 +6,7 @@ import {
     computed,
     signal,
     inject,
+    isDevMode,
     ElementRef,
     ViewChild,
     OnInit,
@@ -20,6 +21,7 @@ import { cn } from '../../lib/utils';
 import { graphemeLength, truncateToGraphemes } from '../../lib/grapheme';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
+import { type ResourcePolicyDecision } from './rich-text-resource-policy';
 import { RichTextMarkdownService } from './rich-text-markdown.service';
 import { RichTextPasteNormalizerService } from './rich-text-paste-normalizer.service';
 import { RichTextToolbarComponent, ToolbarItem } from './sub/rich-text-toolbar.component';
@@ -246,6 +248,10 @@ let richTextEditorInstances = 0;
             useExisting: forwardRef(() => RichTextEditorComponent),
         },
         RichTextCommandRegistry,
+        // Scoped to the editor, not the app: the remote-host policy is
+        // per-instance configuration, and on the root singleton two editors on
+        // one page would overwrite each other's allowlist.
+        RichTextSanitizerService,
         provideComponentLocale(() => RichTextEditorComponent),
     ],
     templateUrl: './rich-text-editor.component.html',
@@ -366,6 +372,33 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
 
     /**
+     * Hosts whose remote images and CSS backgrounds may load. Empty (the
+     * default) means no policy: any `https://` source is permitted, which is how
+     * every comparable editor behaves.
+     *
+     * Worth knowing before leaving it empty: a remote image is a silent outbound
+     * request that every viewer's browser makes on render. Any host named in a
+     * pasted document therefore learns who opened it and when, with nothing to
+     * click and nothing visible to delete -- a 1x1 transparent pixel is the
+     * standard shape. Wire up {@link remoteResource} to see which hosts your
+     * real content actually loads from before deciding.
+     *
+     * An allowlist narrows that exposure to parties you have named; it does not
+     * remove it, because a trusted host can still identify the reader through
+     * the URL itself (`https://cdn.example.com/logo.png?viewer=bob`).
+     *
+     * Entries are matched against the parsed hostname, exactly and
+     * case-insensitively. A `*.` prefix matches subdomains by label
+     * (`*.assets.example` covers `img.assets.example`, never
+     * `img.assets.example.evil.com`); list the apex separately if you want it.
+     *
+     * `data:` and relative sources are always permitted -- they cannot contact
+     * anyone, and `data:` is how a Word paste carries its images.
+     */
+    readonly allowedResourceHosts = input<readonly string[]>([]);
+
+
+    /**
      * Language/locale for all editor UI strings. Pass a locale key (e.g. `'en'`)
      * to use a built-in locale, or pass a full {@link RichTextLocale} object for
      * custom translations.
@@ -442,6 +475,17 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * {@link canUndo} / {@link canRedo} directly.
      */
     readonly historyChange = output<RichTextHistoryState>();
+
+    /**
+     * Emits once per remote image or CSS background the content references,
+     * whether it was allowed or blocked.
+     *
+     * It fires even when {@link allowedResourceHosts} is empty, with
+     * `reason: 'no-policy'` -- that is the point. Log it to discover which hosts
+     * your documents really load from before you decide whether to restrict
+     * them.
+     */
+    readonly remoteResource = output<ResourcePolicyDecision>();
 
     /** Emits when the editor gains focus. */
     readonly focused = output<void>();
@@ -806,8 +850,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     private setupOutputEffects(): void {
+        // The policy is pushed before any content effect runs, so the first
+        // sanitize of an initial value is already governed by it.
+        effect(() => {
+            this.sanitizer.setRemoteHostPolicy(this.allowedResourceHosts());
+        });
         effect(() => {
             const html = this.htmlOutput();
+            this.drainResourceDecisions();
             this.htmlChange.emit(html);
         });
         effect(() => {
@@ -817,6 +867,31 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         effect(() => {
             this.wordCountChange.emit(this.wordCount());
         });
+    }
+
+
+    /**
+     * Report every remote resource the last sanitize pass judged.
+     *
+     * The sanitizer cannot emit component outputs, so it buffers its decisions
+     * and the editor drains them here. Blocked resources also warn in dev mode:
+     * the reader lost content they can see is missing, and the developer is the
+     * only one who can allow the host.
+     */
+    private drainResourceDecisions(): void {
+        for (const decision of this.sanitizer.drainResourceDecisions()) {
+            this.remoteResource.emit(decision);
+            if (!decision.allowed && isDevMode()) {
+                // console.error, not warn: the project's lint config allows only
+                // error, and the RTE already reserves it for developer-facing
+                // misconfiguration (see the actions and file-import addons).
+                // A blocked host is exactly that -- the reader cannot fix it.
+                console.error(
+                    `[rich-text-editor] blocked a ${decision.kind} from "${decision.host}": `
+                    + 'its host is not in allowedResourceHosts.',
+                );
+            }
+        }
     }
 
     private setupFloatingToolbarEffect(): void {
@@ -845,6 +920,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     ngOnInit(): void {
         this.shortcutHandle = this.shortcutBindings.registerComponent('rich-text-editor', this.buildShortcutBindings());
         this.pushHistory();
+        // The initial value is sanitized while inputs are bound, which is before
+        // any effect runs -- so those decisions are still buffered here, and this
+        // is the first point at which an output has a subscriber to receive
+        // them. Later passes are drained by the htmlChange effect.
+        this.drainResourceDecisions();
     }
 
     private buildInlineEditShortcuts(canEdit: () => boolean): ShortcutRegistration[] {

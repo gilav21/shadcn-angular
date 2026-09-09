@@ -6,6 +6,20 @@ import { RichTextActionsDirective } from './rich-text-actions.directive';
 import type { ActionParams, RichTextActionDefinition, RichTextActionTrigger } from './rich-text-actions.types';
 import { RichTextEditorComponent, RichTextSanitizerService } from '../..';
 
+/**
+ * The sanitizer the EDITOR uses.
+ *
+ * The editor provides its own instance so the remote-host policy can differ per
+ * editor, which means TestBed.inject() returns a different, untouched object.
+ * Asserting against that one made the "registers nothing" cases pass for the
+ * wrong reason and the "registers rules" case fail outright.
+ */
+function editorSanitizer(fixture: ComponentFixture<unknown>): RichTextSanitizerService {
+    const editor = fixture.debugElement.query(By.directive(RichTextEditorComponent));
+    return editor.injector.get(RichTextSanitizerService);
+}
+
+
 interface ApplyTargetLike {
     kind: 'text' | 'image';
     existing: HTMLElement | null;
@@ -83,7 +97,7 @@ describe('RichTextActionsDirective', () => {
     it('registers a toolbar slot + sanitizer rules when defs are present', () => {
         const fixture = createFixture();
         fixture.detectChanges();
-        const sanitizer = TestBed.inject(RichTextSanitizerService);
+        const sanitizer = editorSanitizer(fixture);
         expect(sanitizer.sanitize('<span data-action-click="open-dialog">x</span>'))
             .toBe('<span data-action-click="open-dialog">x</span>');
         const slotBtn = fixture.nativeElement.querySelector('[data-addon-slot="actions.attach"]');
@@ -94,7 +108,7 @@ describe('RichTextActionsDirective', () => {
         const fixture = createFixture();
         fixture.componentInstance.defs = [];
         fixture.detectChanges();
-        const sanitizer = TestBed.inject(RichTextSanitizerService);
+        const sanitizer = editorSanitizer(fixture);
         expect(sanitizer.sanitize('<span data-action-click="a">x</span>')).toBe('<span>x</span>');
         expect(fixture.nativeElement.querySelector('[data-addon-slot="actions.attach"]')).toBeFalsy();
     });
@@ -102,8 +116,13 @@ describe('RichTextActionsDirective', () => {
     it('tears down registrations on destroy', () => {
         const fixture = createFixture();
         fixture.detectChanges();
+        // Captured BEFORE destroy: the editor cannot be queried once it is gone,
+        // and this asserts the teardown ran on the instance that held the rules.
+        const sanitizer = editorSanitizer(fixture);
+        expect(sanitizer.sanitize('<span data-action-click="open-dialog">x</span>'))
+            .toBe('<span data-action-click="open-dialog">x</span>');
+
         fixture.destroy();
-        const sanitizer = TestBed.inject(RichTextSanitizerService);
         expect(sanitizer.sanitize('<span data-action-click="open-dialog">x</span>'))
             .toBe('<span>x</span>');
     });

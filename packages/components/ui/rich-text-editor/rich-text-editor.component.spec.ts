@@ -14,6 +14,8 @@ import { createLocaleBindings } from '../../lib/i18n/i18n.utils';
 import type { LocaleInput, LocaleMeta } from '../../lib/i18n/i18n.types';
 import { RichTextCommandRegistry } from './rich-text-command-registry.service';
 import { RICH_TEXT_LOCALES, RichTextLocale } from './rich-text-locales';
+import { RichTextSanitizerService } from './rich-text-sanitizer.service';
+import type { ResourcePolicyDecision } from './rich-text-resource-policy';
 
 /** Collapse the selection to a caret at the given node/offset. */
 const setCaretAt = (node: Node, offset: number) => {
@@ -10198,4 +10200,97 @@ describe('RichTextEditorComponent — locale cascade', () => {
         expect(hello(fixture)).toBe('שלום');
     });
 
+});
+
+
+describe('RichTextEditorComponent - remote resource policy', () => {
+    @Component({
+        standalone: true,
+        imports: [RichTextEditorComponent],
+        template: `
+            <ui-rich-text-editor
+                [allowedResourceHosts]="hosts()"
+                (remoteResource)="seen.push($event)" />
+        `,
+    })
+    class PolicyHostComponent {
+        // A signal, not a plain field: the template binding must actually
+        // re-evaluate for the editor's effect to see a policy change.
+        readonly hosts = signal<readonly string[]>([]);
+        seen: ResourcePolicyDecision[] = [];
+    }
+
+    @Component({
+        standalone: true,
+        imports: [RichTextEditorComponent],
+        template: `
+            <ui-rich-text-editor [allowedResourceHosts]="['cdn.trusted.com']" />
+            <ui-rich-text-editor [allowedResourceHosts]="['other.example']" />
+        `,
+    })
+    class TwoEditorsComponent {}
+
+    const editorAt = (fixture: ComponentFixture<unknown>, index: number): RichTextEditorComponent =>
+        fixture.debugElement.queryAll(By.directive(RichTextEditorComponent))[index]
+            .componentInstance as RichTextEditorComponent;
+
+    const sanitizerAt = (fixture: ComponentFixture<unknown>, index: number): RichTextSanitizerService =>
+        fixture.debugElement.queryAll(By.directive(RichTextEditorComponent))[index]
+            .injector.get(RichTextSanitizerService);
+
+    it('reports a remote resource even when no policy is set', () => {
+        // The permissive default is only defensible if it is observable: this is
+        // how a developer discovers which hosts their documents load from.
+        const fixture = TestBed.createComponent(PolicyHostComponent);
+        fixture.detectChanges();
+
+        editorAt(fixture, 0).writeValue('<p><img src="https://tracker.example/p.png" alt="x"></p>');
+        fixture.detectChanges();
+
+        const seen = fixture.componentInstance.seen;
+        expect(seen.some((d) => d.host === 'tracker.example' && d.reason === 'no-policy')).toBe(true);
+        expect(seen.every((d) => d.allowed)).toBe(true);
+    });
+
+    it('blocks and reports a host that is not allowed', () => {
+        const fixture = TestBed.createComponent(PolicyHostComponent);
+        fixture.componentInstance.hosts.set(['cdn.trusted.com']);
+        fixture.detectChanges();
+
+        editorAt(fixture, 0).writeValue('<p><img src="https://tracker.example/p.png" alt="x"></p>');
+        fixture.detectChanges();
+
+        const blocked = fixture.componentInstance.seen.filter((d) => !d.allowed);
+        expect(blocked.length).toBeGreaterThan(0);
+        expect(blocked[0].host).toBe('tracker.example');
+        expect(blocked[0].reason).toBe('blocked');
+        expect(blocked[0].kind).toBe('image');
+    });
+
+    it('keeps two editors on one page independent', () => {
+        // The whole reason the sanitizer moved out of root scope. On the shared
+        // singleton the second editor's allowlist would overwrite the first's.
+        const fixture = TestBed.createComponent(TwoEditorsComponent);
+        fixture.detectChanges();
+
+        expect(sanitizerAt(fixture, 0)).not.toBe(sanitizerAt(fixture, 1));
+        expect(sanitizerAt(fixture, 0).sanitizeImageSrc('https://cdn.trusted.com/a.png'))
+            .toBe('https://cdn.trusted.com/a.png');
+        expect(sanitizerAt(fixture, 1).sanitizeImageSrc('https://cdn.trusted.com/a.png'))
+            .toBeNull();
+    });
+
+    it('applies a policy change without recreating the editor', () => {
+        const fixture = TestBed.createComponent(PolicyHostComponent);
+        fixture.detectChanges();
+        const sanitizer = sanitizerAt(fixture, 0);
+        expect(sanitizer.sanitizeImageSrc('https://tracker.example/p.png')).not.toBeNull();
+
+        // Through the signal, so the binding re-evaluates and the editor's
+        // effect actually sees the change -- mutating a plain field would leave
+        // the policy stale and the test would pass for the wrong reason.
+        fixture.componentInstance.hosts.set(['cdn.trusted.com']);
+        fixture.detectChanges();
+        expect(sanitizer.sanitizeImageSrc('https://tracker.example/p.png')).toBeNull();
+    });
 });
