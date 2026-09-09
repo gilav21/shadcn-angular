@@ -22,7 +22,17 @@ jobs:
   e2e:
     name: e2e suite
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # 60 was set when the full suite measured 25.2min. It has grown since --
+    # five more harnesses, three of them `pkg-*` legs that build and install a
+    # compiled tarball before a single assertion runs -- and a PR whose base is
+    # far behind master has almost every spec marked impacted. PR #131 reached
+    # 36min with 332 tests green and work still queued, and was killed at the
+    # wall clock rather than by any failure.
+    #
+    # Raised rather than trimming the suite or re-tuning --workers: the worker
+    # count is measured (see the note on the run step) and 8 is slower than 4 on
+    # this runner.
+    timeout-minutes: 90
 
     steps:
       # fetch-depth: 0 so `git diff base...HEAD` in the impact step can
