@@ -51,3 +51,33 @@ test('the shared typography classes reach the rendered container', async ({ page
     expect(className).not.toContain('[&_img]:cursor-pointer');
     expect(className).not.toContain('[&_*]:outline-none');
 });
+
+test('the resource policy survives a pristine consumer install', async ({ page }) => {
+    // The point of running this in the harness rather than only in unit tests:
+    // the policy spans a new file, a barrel export and a registry entry, and
+    // each of those can be correct in the workspace and missing in a real
+    // install. A blocked image is also the visible proof nothing was fetched.
+    await page.goto('/');
+
+    const srcOf = (testid: string, alt: string) =>
+        page.locator(`[data-testid="${testid}"] img[alt="${alt}"]`);
+
+    // No policy: both load.
+    await expect(srcOf('view-open', 'ok')).toHaveAttribute('src', /cdn\.trusted\.com/);
+    await expect(srcOf('view-open', 'no')).toHaveAttribute('src', /tracker\.example/);
+
+    // Its own policy: the listed host loads, the other is blocked but kept.
+    await expect(srcOf('view-strict', 'ok')).toHaveAttribute('src', /cdn\.trusted\.com/);
+    await expect(srcOf('view-strict', 'no')).not.toHaveAttribute('src', /./);
+    await expect(srcOf('view-strict', 'no')).toHaveAttribute(
+        'data-blocked-src',
+        /tracker\.example/,
+    );
+
+    // Inherited from the wrapper directive, and only when opted in.
+    await expect(srcOf('view-inherit', 'no')).toHaveAttribute(
+        'data-blocked-src',
+        /tracker\.example/,
+    );
+    await expect(srcOf('view-no-inherit', 'no')).toHaveAttribute('src', /tracker\.example/);
+});

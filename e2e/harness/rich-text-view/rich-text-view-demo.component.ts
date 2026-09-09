@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { RichTextResourcePolicyDirective } from '@/components/ui/rich-text-editor';
 import { RichTextViewComponent } from '@/components/ui/rich-text-view';
 
 /**
@@ -12,7 +13,7 @@ import { RichTextViewComponent } from '@/components/ui/rich-text-view';
     selector: 'app-rich-text-view-demo',
     standalone: true,
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [RichTextViewComponent],
+    imports: [RichTextViewComponent, RichTextResourcePolicyDirective],
     template: `
         <main class="p-8 space-y-6">
             <section>
@@ -24,6 +25,27 @@ import { RichTextViewComponent } from '@/components/ui/rich-text-view';
                 <h2 class="mb-2 font-semibold">Markdown mode</h2>
                 <ui-rich-text-view data-testid="view-md" [value]="markdown()" />
             </section>
+
+            <section>
+                <h2 class="mb-2 font-semibold">Resource policy</h2>
+                <ui-rich-text-view
+                    data-testid="view-open"
+                    [value]="remote()" />
+                <ui-rich-text-view
+                    data-testid="view-strict"
+                    [value]="remote()"
+                    [allowedResourceHosts]="hosts" />
+
+                <div [uiRichTextResourcePolicy]="hosts">
+                    <ui-rich-text-view
+                        data-testid="view-inherit"
+                        [value]="remote()"
+                        [inheritResourcePolicy]="true" />
+                    <ui-rich-text-view
+                        data-testid="view-no-inherit"
+                        [value]="remote()" />
+                </div>
+            </section>
         </main>
     `,
 })
@@ -32,4 +54,10 @@ export class RichTextViewDemoComponent {
         '<h1>Title</h1><p>Body</p><script>window.pwned = true</script>',
     );
     protected readonly markdown = signal('# Md\n\nSome **bold**');
+
+    /** One allowed host and one that is not, so a blanket verdict cannot pass. */
+    protected readonly remote = signal(
+        '![ok](https://cdn.trusted.com/a.png) ![no](https://tracker.example/p.png)',
+    );
+    protected readonly hosts: readonly string[] = ['cdn.trusted.com'];
 }

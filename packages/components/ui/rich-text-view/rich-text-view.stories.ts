@@ -2,6 +2,7 @@ import { Component, signal } from '@angular/core';
 import type { Meta, StoryObj } from '@storybook/angular';
 import { moduleMetadata } from '@storybook/angular';
 import { RichTextViewComponent } from './rich-text-view.component';
+import { RichTextResourcePolicyDirective } from '../rich-text-editor';
 import {
     RichTextActionsBindDirective,
     type RichTextActionEvent,
@@ -46,6 +47,57 @@ export const Html: Story = {
 
 export const Markdown: Story = {
     args: { mode: 'markdown', value: MARKDOWN_DOC },
+};
+
+const REMOTE_DOC = '# Newsletter\n\n'
+    + '![Logo](https://cdn.trusted.com/logo.png)\n\n'
+    + 'Thanks for reading.\n\n'
+    + '![](https://pixel.tracker.example/open?id=42)';
+
+@Component({
+    selector: 'rich-text-view-policy',
+    standalone: true,
+    imports: [RichTextViewComponent, RichTextResourcePolicyDirective],
+    template: `
+        <div class="space-y-6">
+            <div class="space-y-2">
+                <p class="text-xs font-medium uppercase text-muted-foreground">
+                    No policy — every host loads
+                </p>
+                <ui-rich-text-view [value]="doc" />
+            </div>
+
+            <div class="space-y-2">
+                <p class="text-xs font-medium uppercase text-muted-foreground">
+                    Only cdn.trusted.com
+                </p>
+                <ui-rich-text-view [value]="doc" [allowedResourceHosts]="hosts" />
+            </div>
+
+            <div class="space-y-2" [uiRichTextResourcePolicy]="hosts">
+                <p class="text-xs font-medium uppercase text-muted-foreground">
+                    Inherited from a wrapper — opt-in per view
+                </p>
+                <ui-rich-text-view [value]="doc" [inheritResourcePolicy]="true" />
+            </div>
+        </div>
+    `,
+})
+class RichTextViewPolicyStory {
+    /** One allowed host and one that is not, so the difference is visible. */
+    readonly doc = REMOTE_DOC;
+    readonly hosts: readonly string[] = ['cdn.trusted.com'];
+}
+
+/**
+ * A remote image is a request every reader's browser makes on render. A policy
+ * on the editor governs what an author can insert; it is not stored in the
+ * document, so the view needs its own. A blocked image keeps its alt and its
+ * place and retains the URL, so allowing the host later restores it.
+ */
+export const ResourcePolicy: Story = {
+    render: () => ({ template: '<rich-text-view-policy />' }),
+    decorators: [moduleMetadata({ imports: [RichTextViewPolicyStory] })],
 };
 
 @Component({
