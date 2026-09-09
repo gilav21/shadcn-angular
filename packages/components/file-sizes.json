@@ -6841,10 +6841,6 @@
       "bytes": 1440,
       "lines": 36
     },
-    "rich-text-editor/__screenshots__/rich-text-paste-normalizer.service.spec.ts/RichTextPasteNormalizerService-normalizePlainText-keeps-every-entity-that-belongs-INSIDE-a-url-1.png": {
-      "bytes": 4290,
-      "lines": 3
-    },
     "rich-text-editor/addons/actions/__screenshots__/actions-runtime.spec.ts/module-purity-the-runtime-source-imports-no--angular-package-1.png": {
       "bytes": 4290,
       "lines": 3
@@ -8370,8 +8366,8 @@
       "lines": 301
     },
     "rich-text-editor/rich-text-editor.component.spec.ts": {
-      "bytes": 444384,
-      "lines": 10379
+      "bytes": 447360,
+      "lines": 10438
     },
     "rich-text-editor/rich-text-editor.component.ts": {
       "bytes": 304990,
@@ -8418,8 +8414,8 @@
       "lines": 2238
     },
     "rich-text-editor/rich-text-markdown.service.ts": {
-      "bytes": 90023,
-      "lines": 2074
+      "bytes": 91332,
+      "lines": 2093
     },
     "rich-text-editor/rich-text-paste-normalizer.service.spec.ts": {
       "bytes": 106490,
@@ -8442,12 +8438,12 @@
       "lines": 170
     },
     "rich-text-editor/rich-text-sanitizer.service.spec.ts": {
-      "bytes": 55723,
-      "lines": 1203
+      "bytes": 56081,
+      "lines": 1208
     },
     "rich-text-editor/rich-text-sanitizer.service.ts": {
-      "bytes": 37641,
-      "lines": 949
+      "bytes": 38933,
+      "lines": 976
     },
     "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-getTooltip-falls-back-to-the-raw-name-for-an-item-outside-the-union-1.png": {
       "bytes": 6736,
@@ -8496,6 +8492,14 @@
     "rich-text-security.spec.ts": {
       "bytes": 12753,
       "lines": 276
+    },
+    "rich-text-view/__screenshots__/rich-text-view.component.spec.ts/RichTextViewComponent---actions-on-a-page-with-no-editor-T-27b-works-when-the-directive-sits-on-an-ancestor-of-the-view-1.png": {
+      "bytes": 4638,
+      "lines": 3
+    },
+    "rich-text-view/__screenshots__/rich-text-view.component.spec.ts/RichTextViewComponent---actions-on-a-page-with-no-editor-T-28b-the-rules-are-gone-once-the-directive-is-destroyed-1.png": {
+      "bytes": 4638,
+      "lines": 3
     },
     "rich-text-view/__screenshots__/rich-text-view.component.spec.ts/RichTextViewComponent---shared-typography-T-22c-the-editable-keeps-the-editor-only-chrome-the-constant-excludes-1.png": {
       "bytes": 14820,
