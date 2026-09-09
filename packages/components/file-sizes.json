@@ -8342,8 +8342,8 @@
       "lines": 41
     },
     "rich-text-editor/index.ts": {
-      "bytes": 539,
-      "lines": 12
+      "bytes": 740,
+      "lines": 17
     },
     "rich-text-editor/rich-text-command-registry.service.spec.ts": {
       "bytes": 3429,
@@ -8370,8 +8370,8 @@
       "lines": 10438
     },
     "rich-text-editor/rich-text-editor.component.ts": {
-      "bytes": 304990,
-      "lines": 7318
+      "bytes": 305222,
+      "lines": 7323
     },
     "rich-text-editor/rich-text-editor.host.ts": {
       "bytes": 18774,
@@ -8429,21 +8429,25 @@
       "bytes": 3175,
       "lines": 43
     },
+    "rich-text-editor/rich-text-resource-policy.directive.ts": {
+      "bytes": 1832,
+      "lines": 43
+    },
     "rich-text-editor/rich-text-resource-policy.spec.ts": {
       "bytes": 6800,
       "lines": 159
     },
     "rich-text-editor/rich-text-resource-policy.ts": {
-      "bytes": 7091,
-      "lines": 170
+      "bytes": 7753,
+      "lines": 185
     },
     "rich-text-editor/rich-text-sanitizer.service.spec.ts": {
       "bytes": 56081,
       "lines": 1208
     },
     "rich-text-editor/rich-text-sanitizer.service.ts": {
-      "bytes": 38933,
-      "lines": 976
+      "bytes": 40397,
+      "lines": 1007
     },
     "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-getTooltip-falls-back-to-the-raw-name-for-an-item-outside-the-union-1.png": {
       "bytes": 6736,
@@ -8501,6 +8505,34 @@
       "bytes": 4638,
       "lines": 3
     },
+    "rich-text-view/__screenshots__/rich-text-view.component.spec.ts/RichTextViewComponent---remote-resource-policy-T-P1-two-views-on-one-page-hold-independent-policies-1.png": {
+      "bytes": 6209,
+      "lines": 4
+    },
+    "rich-text-view/__screenshots__/rich-text-view.component.spec.ts/RichTextViewComponent---remote-resource-policy-T-P2-a-nested-view-ignores-the-enclosing-policy-by-default-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-view/__screenshots__/rich-text-view.component.spec.ts/RichTextViewComponent---remote-resource-policy-T-P2-a-view-ignores-an-enclosing-policy-by-default-1.png": {
+      "bytes": 5093,
+      "lines": 6
+    },
+    "rich-text-view/__screenshots__/rich-text-view.component.spec.ts/RichTextViewComponent---remote-resource-policy-T-P3-inheritResourcePolicy-takes-the-enclosing-policy-1.png": {
+      "bytes": 5093,
+      "lines": 6
+    },
+    "rich-text-view/__screenshots__/rich-text-view.component.spec.ts/RichTextViewComponent---remote-resource-policy-T-P4-an-inherited-policy-tracks-a-change-to-the-ancestor-list-1.png": {
+      "bytes": 5093,
+      "lines": 6
+    },
+    "rich-text-view/__screenshots__/rich-text-view.component.spec.ts/RichTextViewComponent---remote-resource-policy-T-P5-its-own-list-wins-over-an-inherited-one--and-never-merges-1.png": {
+      "bytes": 5093,
+      "lines": 6
+    },
+    "rich-text-view/__screenshots__/rich-text-view.component.spec.ts/RichTextViewComponent---remote-resource-policy-T-P6-the-policy-governs-HTML-mode-as-well-as-the-markdown-default-1.png": {
+      "bytes": 5093,
+      "lines": 6
+    },
     "rich-text-view/__screenshots__/rich-text-view.component.spec.ts/RichTextViewComponent---shared-typography-T-22c-the-editable-keeps-the-editor-only-chrome-the-constant-excludes-1.png": {
       "bytes": 14820,
       "lines": 11
@@ -8526,12 +8558,12 @@
       "lines": 1
     },
     "rich-text-view/rich-text-view.component.spec.ts": {
-      "bytes": 17799,
-      "lines": 445
+      "bytes": 24528,
+      "lines": 606
     },
     "rich-text-view/rich-text-view.component.ts": {
-      "bytes": 5726,
-      "lines": 144
+      "bytes": 9037,
+      "lines": 215
     },
     "rich-text-view/rich-text-view.stories.ts": {
       "bytes": 4124,
