@@ -170,14 +170,18 @@ export function decodeCssEscapes(value: string): string {
 }
 
 /**
- * A component that carries a remote-host policy, so a nested one can opt into
- * inheriting it.
+ * Something that declares a remote-host policy for the editors and views
+ * beneath it in the DOM.
  *
- * Both the editor and the view provide themselves under this token. It exists
- * because Angular's DI only flows downward: a nested view cannot otherwise ask
- * what policy encloses it. Inheritance is opt-in per component, so an empty
- * host list keeps exactly one meaning -- no policy -- rather than becoming
- * ambiguous between "none" and "inherit".
+ * Provided by `RichTextResourcePolicyDirective`, which a consumer puts on a
+ * wrapper element. It is deliberately NOT provided by the editor or the view:
+ * neither projects content, so neither can ever have one of the others as a DOM
+ * descendant, and a provider on them could never be reached. A wrapper element
+ * is what makes an enclosing policy expressible at all.
+ *
+ * Inheritance is opt-in per component, so an empty host list keeps exactly one
+ * meaning -- no policy -- rather than becoming ambiguous between "none" and
+ * "whatever encloses me".
  */
 export abstract class RichTextResourcePolicyHost {
     /** The hosts this component permits. Empty means it sets no policy. */
