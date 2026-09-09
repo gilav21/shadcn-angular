@@ -594,7 +594,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
         const label = this.blockedImageMessage() ?? this.resolvedLocale().editor.blockedImage;
         for (const img of Array.from(blocked)) {
-            img.setAttribute('data-blocked-label', label);
+            img.dataset['blockedLabel'] = label;
             img.setAttribute('role', 'img');
             const alt = img.getAttribute('alt');
             img.setAttribute('aria-label', alt ? `${alt} — ${label}` : label);

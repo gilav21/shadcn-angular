@@ -531,7 +531,7 @@ export class RichTextSanitizerService {
             return;
         }
         if (this.lastBlockedByPolicy !== null) {
-            target.setAttribute('data-blocked-src', this.lastBlockedByPolicy);
+            target.dataset['blockedSrc'] = this.lastBlockedByPolicy;
             this.lastBlockedByPolicy = null;
         }
     }

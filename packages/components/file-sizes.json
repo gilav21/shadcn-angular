@@ -2945,6 +2945,14 @@
       "bytes": 85,
       "lines": 2
     },
+    "emoji-picker/__screenshots__/emoji-picker.component.spec.ts/EmojiPickerComponent-gives-every-emoji-button-a-spoken-name--not-just-the-glyph-1.png": {
+      "bytes": 72616,
+      "lines": 105
+    },
+    "emoji-picker/__screenshots__/emoji-picker.component.spec.ts/EmojiPickerComponent-names-the-grinning-face-from-its-keyword-list-1.png": {
+      "bytes": 72616,
+      "lines": 105
+    },
     "emoji-picker/__screenshots__/emoji-picker.component.spec.ts/EmojiPickerComponent-updates-the-active-category-from-a-real-scroll-event-1.png": {
       "bytes": 72987,
       "lines": 116
@@ -2958,12 +2966,12 @@
       "lines": 3
     },
     "emoji-picker/emoji-data.ts": {
-      "bytes": 32732,
-      "lines": 906
+      "bytes": 71684,
+      "lines": 1624
     },
     "emoji-picker/emoji-picker.component.spec.ts": {
-      "bytes": 17946,
-      "lines": 479
+      "bytes": 19667,
+      "lines": 518
     },
     "emoji-picker/emoji-picker.component.ts": {
       "bytes": 21932,
@@ -2978,8 +2986,8 @@
       "lines": 3
     },
     "emoji-picker/sub/emoji-picker-content.component.ts": {
-      "bytes": 14892,
-      "lines": 365
+      "bytes": 16096,
+      "lines": 389
     },
     "emoji-picker/sub/emoji-picker-trigger.component.ts": {
       "bytes": 2049,
@@ -4200,6 +4208,10 @@
     "infinite-canvas/__screenshots__/infinite-canvas.perf.spec.ts/infinite-canvas-performance-gates--T-8--T-9--T-8---a-pan-frame-of-a-10k-graph-holds-the-frame-budget-1.png": {
       "bytes": 37532,
       "lines": 73
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.perf.spec.ts/infinite-canvas-performance-gates--T-8--T-9--T-8---a-zoom-frame-of-a-10k-graph-holds-the-frame-budget-1.png": {
+      "bytes": 49792,
+      "lines": 95
     },
     "infinite-canvas/__screenshots__/infinite-canvas.pointer.spec.ts/CanvasPointerMachine-a-release-that-never-arrived-must-not-turn-the-mouse-into-a-pinch-does-not-begin-a-pinch-when-the-same-pointer-id-presses-twice-1.png": {
       "bytes": 4290,
@@ -6829,278 +6841,6 @@
       "bytes": 1440,
       "lines": 36
     },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---addon-host-is-provided-via-DI-as-RichTextEditorAddonHost-1.png": {
-      "bytes": 11365,
-      "lines": 4
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---addon-host-mutateContent-applies-a-change-and-pushes-an-undoable-history-entry-1.png": {
-      "bytes": 11365,
-      "lines": 4
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---addon-host-registerExclusivePopover-closes-every-other-registered-panel-when-one-opens-1.png": {
-      "bytes": 10024,
-      "lines": 8
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---addon-host-renders-a-registered-toolbar-slot-after-built-ins-and-fires-its-onClick-1.png": {
-      "bytes": 11365,
-      "lines": 4
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---addon-host-saveSelection-restoreSelection-survive-a-focus-change-1.png": {
-      "bytes": 11365,
-      "lines": 4
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---addon-host-selection---reports-none-when-the-editor-is-empty-and-unfocused-1.png": {
-      "bytes": 11365,
-      "lines": 4
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---addon-host-selection---reports-text-kind-and-the-selected-string-1.png": {
-      "bytes": 11365,
-      "lines": 4
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---addon-host-wrapSelection-wraps-the-current-text-range-in-the-built-element-1.png": {
-      "bytes": 11365,
-      "lines": 4
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---find-and-replace-T-28-a-2-000-match-500-KB-document-searches-in---200-ms-and-paints-a-capped-number-of-rects-1.png": {
-      "bytes": 26576,
-      "lines": 51
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---formatting--blocks---lists-counts-an-emoji-as-one-character--not-its-UTF-16-code-units-1.png": {
-      "bytes": 9682,
-      "lines": 11
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---formatting--blocks---lists-does-not-let-redo-resurrect-a-branch-the-user-typed-over-1.png": {
-      "bytes": 9439,
-      "lines": 5
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---formatting--blocks---lists-keeps-the-caret-inside-the-item-so-a-second-indent-still-works-1.png": {
-      "bytes": 11627,
-      "lines": 8
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---formatting--blocks---lists-keeps-the-caret-inside-the-item-when-outdenting-1.png": {
-      "bytes": 10465,
-      "lines": 9
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---formatting--blocks---lists-refuses-addon-inserts-once-maxLength-is-exhausted-1.png": {
-      "bytes": 13650,
-      "lines": 8
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---formatting--blocks---lists-truncates-an-over-long-paste-without-splitting-a-character-in-half-1.png": {
-      "bytes": 10573,
-      "lines": 4
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---formatting--blocks---lists-unwraps-inline-code-on-a-second-apply-instead-of-nesting-it-1.png": {
-      "bytes": 12244,
-      "lines": 9
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---imperative-API-T-2-focus---focuses-the-editable-and-restores-the-saved-caret-1.png": {
-      "bytes": 11733,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---keydown-behaviours-Enter-in-a-code-block-inserts-a-newline-rather-than-a-new-paragraph-1.png": {
-      "bytes": 11660,
-      "lines": 7
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---output-formats---counts-emits-markdownChange-and-htmlChange-on-input-1.png": {
-      "bytes": 9907,
-      "lines": 7
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---reactive-forms-disabled-state-touch-table-cell-selection-is-a-no-op-while-the-form-has-disabled-the-control-1.png": {
-      "bytes": 12393,
-      "lines": 7
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---table-mouse--resize---cell-selection-starts-a-column-resize-from-a-touch-on-the-resize-border-1.png": {
-      "bytes": 12366,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---table-mouse--resize---cell-selection-startTableResize-returns-true-without-starting-a-drag-when-the-table-reports-no-rows--white-box--1.png": {
-      "bytes": 12366,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---tables-applies-an-inline-format-to-the-selected-cells-only-1.png": {
-      "bytes": 12743,
-      "lines": 8
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---tables-Ctrl-click-toggles-individual-cells-and-collapses-the-text-selection-1.png": {
-      "bytes": 10470,
-      "lines": 8
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---tables-drops-a-multi-cell-selection-whose-cells-a-header-retag-replaced-1.png": {
-      "bytes": 13061,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---tables-ignores-a-menu-action-whose-target-was-detached-by-an-undo-1.png": {
-      "bytes": 11274,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---tables-Shift-click-selects-the-rectangle-from-the-anchor-cell-1.png": {
-      "bytes": 10464,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---tables-toggles-the-header-row-off-again-without-re-targeting-the-cell-1.png": {
-      "bytes": 10473,
-      "lines": 9
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---targeted-branch-coverage-top-up-Enter-in-a-code-block-without-a--code--child-inserts-a-newline-into-the-pre-1.png": {
-      "bytes": 10727,
-      "lines": 8
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---targeted-branch-coverage-top-up-onEditorTouchStart-outside-a-cell-starts-no-selection-1.png": {
-      "bytes": 8635,
-      "lines": 4
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---targeted-branch-coverage-top-up-onInput-skips-history-scheduling-during-an-undo-redo-replay-1.png": {
-      "bytes": 9221,
-      "lines": 5
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---toolbar-actions--link--image--color--font--formats-the-live-selection--not-a-stale-savedRange-from-the-last-blur-1.png": {
-      "bytes": 10939,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-does-not-allow-attribute-injection-through-image-alt-text-1.png": {
-      "bytes": 12558,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-marks-list-items-in-history-previews-with-a-real-bullet-character-1.png": {
-      "bytes": 11373,
-      "lines": 10
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-selection-inline-style---applyInlineStyle-seam-falls-back-to-computed-style-when-the-caret-has-no-pending-colour-1.png": {
-      "bytes": 9654,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-selection-inline-style---applyInlineStyle-seam-falls-back-to-computed-style-when-the-caret-has-no-pending-colour-2.png": {
-      "bytes": 9654,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-selection-inline-style---applyInlineStyle-seam-falls-back-to-computed-style-when-the-caret-has-no-pending-colour-3.png": {
-      "bytes": 9654,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-selection-inline-style---applyInlineStyle-seam-gives-the-next-typed-character-both-colours-chosen-at-the-caret-1.png": {
-      "bytes": 9654,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-selection-inline-style---applyInlineStyle-seam-ignores-a-selection-that-has-collapsed-outside-the-editor-1.png": {
-      "bytes": 10294,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-selection-inline-style---applyInlineStyle-seam-ignores-a-selection-that-has-collapsed-outside-the-editor-2.png": {
-      "bytes": 10294,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-selection-inline-style---applyInlineStyle-seam-ignores-a-selection-that-has-collapsed-outside-the-editor-3.png": {
-      "bytes": 10294,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-selection-inline-style---applyInlineStyle-seam-keeps-the-pending-colour-while-the-caret-has-not-moved-1.png": {
-      "bytes": 9654,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-selection-inline-style---applyInlineStyle-seam-keeps-the-pending-colour-while-the-caret-has-not-moved-2.png": {
-      "bytes": 9654,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-selection-inline-style---applyInlineStyle-seam-keeps-the-pending-colour-while-the-caret-has-not-moved-3.png": {
-      "bytes": 9654,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-selection-inline-style---applyInlineStyle-seam-leaves-styleWithCSS-on-while-a-caret-holds-a-pending-colour-1.png": {
-      "bytes": 9654,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-selection-inline-style---applyInlineStyle-seam-reflects-a-pending-typing-colour-at-a-collapsed-caret-1.png": {
-      "bytes": 9654,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-selection-inline-style---applyInlineStyle-seam-reflects-a-pending-typing-colour-at-a-collapsed-caret-2.png": {
-      "bytes": 9654,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-selection-inline-style---applyInlineStyle-seam-reflects-a-pending-typing-colour-at-a-collapsed-caret-3.png": {
-      "bytes": 9654,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-selection-inline-style---applyInlineStyle-seam-reflects-a-pending-typing-highlight-at-a-collapsed-caret-1.png": {
-      "bytes": 9654,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-selection-inline-style---applyInlineStyle-seam-reflects-a-pending-typing-highlight-at-a-collapsed-caret-2.png": {
-      "bytes": 9654,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-selection-inline-style---applyInlineStyle-seam-reflects-a-pending-typing-highlight-at-a-collapsed-caret-3.png": {
-      "bytes": 9654,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-selection-inline-style---applyInlineStyle-seam-restores-styleWithCSS-once-the-caret-leaves-the-pending-colour-1.png": {
-      "bytes": 9654,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-selection-inline-style---applyInlineStyle-seam-stops-reporting-a-pending-colour-once-the-selection-changes-1.png": {
-      "bytes": 9654,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-selection-inline-style---applyInlineStyle-seam-stops-reporting-a-pending-colour-once-the-selection-changes-2.png": {
-      "bytes": 9654,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-selection-inline-style---applyInlineStyle-seam-stops-reporting-a-pending-colour-once-the-selection-changes-3.png": {
-      "bytes": 9654,
-      "lines": 6
-    },
-    "rich-text-editor/__screenshots__/rich-text-markdown.service.spec.ts/RichTextMarkdownService-coverage-edge-cases-closes-a-mid-text-blockquote-when-a-non-quote-line-follows-1.png": {
-      "bytes": 4290,
-      "lines": 3
-    },
-    "rich-text-editor/__screenshots__/rich-text-markdown.service.spec.ts/RichTextMarkdownService-list-round-trips-keeps-list-item-text-when-serializing-to-markdown-1.png": {
-      "bytes": 4290,
-      "lines": 3
-    },
-    "rich-text-editor/__screenshots__/rich-text-markdown.service.spec.ts/RichTextMarkdownService-list-round-trips-keeps-numbered-list-item-text-too-1.png": {
-      "bytes": 4290,
-      "lines": 3
-    },
-    "rich-text-editor/__screenshots__/rich-text-markdown.service.spec.ts/RichTextMarkdownService-list-round-trips-merges-adjacent-bullets-into-one-list-1.png": {
-      "bytes": 4290,
-      "lines": 3
-    },
-    "rich-text-editor/__screenshots__/rich-text-markdown.service.spec.ts/RichTextMarkdownService-list-round-trips-merges-adjacent-markdown-list-lines-into-one-list-1.png": {
-      "bytes": 4290,
-      "lines": 3
-    },
-    "rich-text-editor/__screenshots__/rich-text-markdown.service.spec.ts/RichTextMarkdownService-span-serializer-extension-keeps-inner-markdown-semantics-inside-an-actioned-span-through-toHtml-1.png": {
-      "bytes": 4290,
-      "lines": 3
-    },
-    "rich-text-editor/__screenshots__/rich-text-markdown.service.spec.ts/RichTextMarkdownService-span-serializer-extension-leaves-mention-tag-spans-to-the-built-in-handler--regression--1.png": {
-      "bytes": 4290,
-      "lines": 3
-    },
-    "rich-text-editor/__screenshots__/rich-text-markdown.service.spec.ts/RichTextMarkdownService-span-serializer-extension-round-trips-html--md--html-losslessly-for-an-action-span-1.png": {
-      "bytes": 4290,
-      "lines": 3
-    },
-    "rich-text-editor/__screenshots__/rich-text-markdown.service.spec.ts/RichTextMarkdownService-span-serializer-extension-serializes-an-action-span-as-inline-HTML-with-inner-markdown-preserved-1.png": {
-      "bytes": 4290,
-      "lines": 3
-    },
-    "rich-text-editor/__screenshots__/rich-text-markdown.service.spec.ts/RichTextMarkdownService-toHtml-converts-a-multi-line-blockquote--joining-lines-with--br--1.png": {
-      "bytes": 4290,
-      "lines": 3
-    },
-    "rich-text-editor/__screenshots__/rich-text-markdown.service.spec.ts/RichTextMarkdownService-toHtml-emits-a-separate--ul--per-consecutive-top-level-item--known-quirk--1.png": {
-      "bytes": 4290,
-      "lines": 3
-    },
-    "rich-text-editor/__screenshots__/rich-text-markdown.service.spec.ts/RichTextMarkdownService-toMarkdown-loses-bare-text-node-li-content--known-bug--1.png": {
-      "bytes": 4290,
-      "lines": 3
-    },
-    "rich-text-editor/__screenshots__/rich-text-sanitizer.service.spec.ts/RichTextSanitizerService-sanitize-preserves-pdf-readable-side-by-side-columns-with-a-nested-table-1.png": {
-      "bytes": 4290,
-      "lines": 3
-    },
     "rich-text-editor/addons/actions/__screenshots__/actions-runtime.spec.ts/module-purity-the-runtime-source-imports-no--angular-package-1.png": {
       "bytes": 4290,
       "lines": 3
@@ -7125,6 +6865,14 @@
       "bytes": 4290,
       "lines": 3
     },
+    "rich-text-editor/addons/actions/__screenshots__/rich-text-actions.directive.spec.ts/RichTextActionsDirective-closes-the-popover-when-setContent-replaces-the-content-under-it-1.png": {
+      "bytes": 13894,
+      "lines": 11
+    },
+    "rich-text-editor/addons/actions/__screenshots__/rich-text-actions.directive.spec.ts/RichTextActionsDirective-does-not-keep-a-popover-pointing-at-content-that-was-replaced-1.png": {
+      "bytes": 13894,
+      "lines": 11
+    },
     "rich-text-editor/addons/actions/__screenshots__/rich-text-actions.directive.spec.ts/RichTextActionsDirective-hides-all-entry-points-when-the-editor-is-readonly-1.png": {
       "bytes": 4290,
       "lines": 3
@@ -7138,8 +6886,8 @@
       "lines": 4
     },
     "rich-text-editor/addons/actions/__screenshots__/rich-text-actions.directive.spec.ts/RichTextActionsDirective-registers-a-toolbar-slot---sanitizer-rules-when-defs-are-present-1.png": {
-      "bytes": 4290,
-      "lines": 3
+      "bytes": 12023,
+      "lines": 8
     },
     "rich-text-editor/addons/actions/__screenshots__/rich-text-actions.directive.spec.ts/RichTextActionsDirective-rejects-non-flat-params-from-a-tier-and-does-not-attach-1.png": {
       "bytes": 4290,
@@ -7158,8 +6906,8 @@
       "lines": 3
     },
     "rich-text-editor/addons/actions/__screenshots__/rich-text-actions.directive.spec.ts/RichTextActionsDirective-tears-down-registrations-on-destroy-1.png": {
-      "bytes": 4290,
-      "lines": 3
+      "bytes": 10024,
+      "lines": 8
     },
     "rich-text-editor/addons/actions/__screenshots__/rich-text-actions.directive.spec.ts/RichTextActionsDirective-tier-3-resolveParams-returning-null-cancels-cleanly-with-no-attach-1.png": {
       "bytes": 4290,
@@ -7270,12 +7018,12 @@
       "lines": 72
     },
     "rich-text-editor/addons/actions/rich-text-actions.directive.spec.ts": {
-      "bytes": 40379,
-      "lines": 787
+      "bytes": 42744,
+      "lines": 833
     },
     "rich-text-editor/addons/actions/rich-text-actions.directive.ts": {
-      "bytes": 24016,
-      "lines": 533
+      "bytes": 24884,
+      "lines": 551
     },
     "rich-text-editor/addons/actions/rich-text-actions.locales.ts": {
       "bytes": 2843,
@@ -7301,6 +7049,10 @@
       "bytes": 10689,
       "lines": 7
     },
+    "rich-text-editor/addons/ai/__screenshots__/rich-text-ai.directive.spec.ts/RichTextAiDirective-lets-Tab-reach-the-AI-panel-instead-of-typing-a-tab-character-1.png": {
+      "bytes": 21747,
+      "lines": 32
+    },
     "rich-text-editor/addons/ai/__screenshots__/rich-text-ai.directive.spec.ts/RichTextAiDirective-refuses-to-commit-a-draft-that-would-exceed-maxLength-1.png": {
       "bytes": 14381,
       "lines": 18
@@ -7322,8 +7074,8 @@
       "lines": 20
     },
     "rich-text-editor/addons/ai/rich-text-ai-panel.component.html": {
-      "bytes": 2475,
-      "lines": 57
+      "bytes": 2465,
+      "lines": 56
     },
     "rich-text-editor/addons/ai/rich-text-ai-panel.component.spec.ts": {
       "bytes": 5995,
@@ -7342,12 +7094,12 @@
       "lines": 57
     },
     "rich-text-editor/addons/ai/rich-text-ai.directive.spec.ts": {
-      "bytes": 27071,
-      "lines": 685
+      "bytes": 28224,
+      "lines": 711
     },
     "rich-text-editor/addons/ai/rich-text-ai.directive.ts": {
-      "bytes": 20552,
-      "lines": 516
+      "bytes": 21885,
+      "lines": 544
     },
     "rich-text-editor/addons/ai/rich-text-ai.locales.ts": {
       "bytes": 10020,
@@ -7573,6 +7325,14 @@
       "bytes": 1892,
       "lines": 67
     },
+    "rich-text-editor/addons/file-import/__screenshots__/rich-text-file-import-overlay.component.spec.ts/RichTextFileImportOverlayComponent-keeps-both-live-regions-mounted-while-idle--so-later-text-is-announced-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/addons/file-import/__screenshots__/rich-text-file-import.directive.spec.ts/RichTextFileImportDirective-caps-how-many-imported-font-stylesheets-accumulate-1.png": {
+      "bytes": 10857,
+      "lines": 9
+    },
     "rich-text-editor/addons/file-import/__screenshots__/rich-text-file-import.directive.spec.ts/RichTextFileImportDirective-does-not-import-when-readonly-1.png": {
       "bytes": 6189,
       "lines": 6
@@ -7598,12 +7358,12 @@
       "lines": 59
     },
     "rich-text-editor/addons/file-import/rich-text-file-import-overlay.component.html": {
-      "bytes": 530,
-      "lines": 17
+      "bytes": 1457,
+      "lines": 41
     },
     "rich-text-editor/addons/file-import/rich-text-file-import-overlay.component.spec.ts": {
-      "bytes": 2053,
-      "lines": 47
+      "bytes": 3745,
+      "lines": 82
     },
     "rich-text-editor/addons/file-import/rich-text-file-import-overlay.component.ts": {
       "bytes": 1789,
@@ -7618,12 +7378,12 @@
       "lines": 20
     },
     "rich-text-editor/addons/file-import/rich-text-file-import.directive.spec.ts": {
-      "bytes": 22911,
-      "lines": 524
+      "bytes": 24049,
+      "lines": 546
     },
     "rich-text-editor/addons/file-import/rich-text-file-import.directive.ts": {
-      "bytes": 14258,
-      "lines": 351
+      "bytes": 14924,
+      "lines": 364
     },
     "rich-text-editor/addons/file-import/rich-text-file-import.locales.ts": {
       "bytes": 5549,
@@ -7809,6 +7569,94 @@
       "bytes": 4290,
       "lines": 3
     },
+    "rich-text-editor/addons/images/__screenshots__/rich-text-images-resizer.component.spec.ts/RichTextImageResizerComponent-handle---toolbar-rendering-keeps-only-the-delete-button-when-showAlignment-is-false-1.png": {
+      "bytes": 4198,
+      "lines": 4
+    },
+    "rich-text-editor/addons/images/__screenshots__/rich-text-images-resizer.component.spec.ts/RichTextImageResizerComponent-handle---toolbar-rendering-renders-alignment-buttons-plus-delete-by-default-1.png": {
+      "bytes": 4183,
+      "lines": 3
+    },
+    "rich-text-editor/addons/images/__screenshots__/rich-text-images-resizer.component.spec.ts/RichTextImageResizerComponent-keyboard-activation-of-the-overlay-buttons--round-15-audit--applies-an-alignment-on-a-keyboard-generated-click-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/addons/images/__screenshots__/rich-text-images-resizer.component.spec.ts/RichTextImageResizerComponent-keyboard-activation-of-the-overlay-buttons--round-15-audit--emits-a-removal-once-for-a-keyboard-click-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/addons/images/__screenshots__/rich-text-images-resizer.component.spec.ts/RichTextImageResizerComponent-keyboard-resizing--round-15-audit--emits-resizeEnd-so-one-keypress-is-one-undo-entry-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/addons/images/__screenshots__/rich-text-images-resizer.component.spec.ts/RichTextImageResizerComponent-keyboard-resizing--round-15-audit--grows-the-image-on-ArrowRight-and-shrinks-it-on-ArrowLeft-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/addons/images/__screenshots__/rich-text-images-resizer.component.spec.ts/RichTextImageResizerComponent-keyboard-resizing--round-15-audit--takes-a-larger-step-with-Shift-held-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/addons/images/__screenshots__/rich-text-images-resizer.component.spec.ts/RichTextImageResizerComponent-keyboard-resizing-bounds-height-at-an-absolute-maximum-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/addons/images/__screenshots__/rich-text-images-resizer.component.spec.ts/RichTextImageResizerComponent-keyboard-resizing-bounds-height-on-the-KEYBOARD-path-with-the-ratio-locked-1.png": {
+      "bytes": 63630,
+      "lines": 3
+    },
+    "rich-text-editor/addons/images/__screenshots__/rich-text-images-resizer.component.spec.ts/RichTextImageResizerComponent-keyboard-resizing-bounds-height-on-the-LOCKED-aspect-path--which-is-the-default-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/addons/images/__screenshots__/rich-text-images-resizer.component.spec.ts/RichTextImageResizerComponent-keyboard-resizing-clamps-height-at-the-minimum-instead-of-freezing-the-drag-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/addons/images/__screenshots__/rich-text-images-resizer.component.spec.ts/RichTextImageResizerComponent-keyboard-resizing-does-not-apply-the-WIDTH-ceiling-to-height-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/addons/images/__screenshots__/rich-text-images-resizer.component.spec.ts/RichTextImageResizerComponent-keyboard-resizing-does-not-resize-width-from-a-handle-that-only-moves-vertically-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/addons/images/__screenshots__/rich-text-images-resizer.component.spec.ts/RichTextImageResizerComponent-keyboard-resizing-folds-a-run-of-keypresses-into-ONE-history-entry-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/addons/images/__screenshots__/rich-text-images-resizer.component.spec.ts/RichTextImageResizerComponent-keyboard-resizing-honours-the-handle--the-west-edge-SHRINKS-on-ArrowRight-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/addons/images/__screenshots__/rich-text-images-resizer.component.spec.ts/RichTextImageResizerComponent-keyboard-resizing-honours-the-requested-width-when-shrinking-a-wide-banner-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/addons/images/__screenshots__/rich-text-images-resizer.component.spec.ts/RichTextImageResizerComponent-keyboard-resizing-leaves-a-vertical-arrow-on-a-corner-to-the-page-when-aspect-is-locked-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/addons/images/__screenshots__/rich-text-images-resizer.component.spec.ts/RichTextImageResizerComponent-keyboard-resizing-never-returns-a-dimension-under-the-floor-it-enforces-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/addons/images/__screenshots__/rich-text-images-resizer.component.spec.ts/RichTextImageResizerComponent-keyboard-resizing-respects-the-maximum-on-a-keyboard-resize--as-the-drag-path-does-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/addons/images/__screenshots__/rich-text-images-resizer.component.spec.ts/RichTextImageResizerComponent-keyboard-resizing-shrinks-a-wide-banner-instead-of-freezing-at-the-height-floor-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/addons/images/__screenshots__/rich-text-images-resizer.component.spec.ts/RichTextImageResizerComponent-resize-drag-does-not-resize-below-the-20px-minimum-1.png": {
+      "bytes": 5648,
+      "lines": 6
+    },
+    "rich-text-editor/addons/images/__screenshots__/rich-text-images-resizer.component.spec.ts/RichTextImageResizerComponent-resize-drag-respects-a-custom-minWidth-floor-1.png": {
+      "bytes": 5648,
+      "lines": 6
+    },
     "rich-text-editor/addons/images/__screenshots__/rich-text-images-resizer.component.spec.ts/RichTextImageResizerComponent-tracking-lifecycle-becomes-visible-and-computes-a-rect-when-target-overlaps-the-container-1.png": {
       "bytes": 4290,
       "lines": 3
@@ -7849,9 +7697,33 @@
       "bytes": 11386,
       "lines": 4
     },
+    "rich-text-editor/addons/images/__screenshots__/rich-text-images.directive.spec.ts/RichTextImagesDirective-drops-a-manual-upload-that-resolves-after-the-editor-is-destroyed-1.png": {
+      "bytes": 11212,
+      "lines": 4
+    },
     "rich-text-editor/addons/images/__screenshots__/rich-text-images.directive.spec.ts/RichTextImagesDirective-drops-an-auto-upload-result-whose-image-was-detached-mid-flight-1.png": {
       "bytes": 10112,
       "lines": 4
+    },
+    "rich-text-editor/addons/images/__screenshots__/rich-text-images.directive.spec.ts/RichTextImagesDirective-shared-upload-styles--round-15-audit--keeps-the-tag-while-another-editor-still-needs-it-1.png": {
+      "bytes": 10024,
+      "lines": 8
+    },
+    "rich-text-editor/addons/images/__screenshots__/rich-text-images.directive.spec.ts/RichTextImagesDirective-shared-upload-styles--round-15-audit--removes-the-global-style-tag-when-the-last-editor-using-it-goes-1.png": {
+      "bytes": 10024,
+      "lines": 8
+    },
+    "rich-text-editor/addons/images/__screenshots__/zz-probe.spec.ts/probe--ratioBoundedSize-bounds-P1--exceeds-MAX-IMAGE-DIMENSION-on-the-derived-axis-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/addons/images/__screenshots__/zz-probe.spec.ts/probe--ratioBoundedSize-bounds-P2--exceeds-maxWidth-ceiling-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/addons/images/__screenshots__/zz-probe.spec.ts/probe--ratioBoundedSize-bounds-P3--lockedSize-with-maxWidth-blows-past-the-ceiling-1.png": {
+      "bytes": 4290,
+      "lines": 3
     },
     "rich-text-editor/addons/images/index.ts": {
       "bytes": 337,
@@ -7882,16 +7754,16 @@
       "lines": 99
     },
     "rich-text-editor/addons/images/rich-text-images-resizer.component.html": {
-      "bytes": 3924,
-      "lines": 55
+      "bytes": 6605,
+      "lines": 84
     },
     "rich-text-editor/addons/images/rich-text-images-resizer.component.spec.ts": {
-      "bytes": 27569,
-      "lines": 690
+      "bytes": 44507,
+      "lines": 1052
     },
     "rich-text-editor/addons/images/rich-text-images-resizer.component.ts": {
-      "bytes": 15044,
-      "lines": 364
+      "bytes": 24976,
+      "lines": 575
     },
     "rich-text-editor/addons/images/rich-text-images.context.spec.ts": {
       "bytes": 483,
@@ -7902,12 +7774,12 @@
       "lines": 28
     },
     "rich-text-editor/addons/images/rich-text-images.directive.spec.ts": {
-      "bytes": 37677,
-      "lines": 840
+      "bytes": 40197,
+      "lines": 901
     },
     "rich-text-editor/addons/images/rich-text-images.directive.ts": {
-      "bytes": 25533,
-      "lines": 632
+      "bytes": 27201,
+      "lines": 667
     },
     "rich-text-editor/addons/images/rich-text-images.locales.ts": {
       "bytes": 7191,
@@ -8105,29 +7977,113 @@
       "bytes": 7723,
       "lines": 202
     },
-    "rich-text-editor/addons/outline/__screenshots__/rich-text-outline.directive.spec.ts/RichTextOutlineDirective-hides-the-toolbar-button-when--uiRteOutlineButton--is-false-but-keeps-the--outline-command-1.png": {
-      "bytes": 9602,
+    "rich-text-editor/addons/outline/__screenshots__/rich-text-outline-panel.component.spec.ts/RichTextOutlinePanelComponent-closes-from-the-header-close-button-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/addons/outline/__screenshots__/rich-text-outline-panel.component.spec.ts/RichTextOutlinePanelComponent-exposes-the-panel-as-a-named-navigation-landmark-with-a-real-heading-1.png": {
+      "bytes": 8578,
       "lines": 4
+    },
+    "rich-text-editor/addons/outline/__screenshots__/rich-text-outline-panel.component.spec.ts/RichTextOutlinePanelComponent-lists-headings-indented-by-level-and-jumps-on-click-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/addons/outline/__screenshots__/rich-text-outline-panel.component.spec.ts/RichTextOutlinePanelComponent-marks-the-entries-up-as-an-ordered-list-so-position-and-count-are-announced-1.png": {
+      "bytes": 7264,
+      "lines": 7
+    },
+    "rich-text-editor/addons/outline/__screenshots__/rich-text-outline-panel.component.spec.ts/RichTextOutlinePanelComponent-renders-nothing-while-the-panel-is-closed-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/addons/outline/__screenshots__/rich-text-outline-panel.component.spec.ts/RichTextOutlinePanelComponent-routes-keyboard-activation-on-a-row-to-onEntryKeydown-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/addons/outline/__screenshots__/rich-text-outline-panel.component.spec.ts/RichTextOutlinePanelComponent-shows-the-empty-state-when-there-are-no-headings-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/addons/outline/__screenshots__/rich-text-outline.directive.spec.ts/RichTextOutlineDirective-closes-the-panel-from-the-close-button-1.png": {
+      "bytes": 10307,
+      "lines": 9
+    },
+    "rich-text-editor/addons/outline/__screenshots__/rich-text-outline.directive.spec.ts/RichTextOutlineDirective-directs-the-docked-panel-to-the-start-edge-in-RTL-1.png": {
+      "bytes": 10307,
+      "lines": 9
+    },
+    "rich-text-editor/addons/outline/__screenshots__/rich-text-outline.directive.spec.ts/RichTextOutlineDirective-disables-the-outline-button-while-the-editor-is-disabled-1.png": {
+      "bytes": 10307,
+      "lines": 9
+    },
+    "rich-text-editor/addons/outline/__screenshots__/rich-text-outline.directive.spec.ts/RichTextOutlineDirective-hides-the-toolbar--and-its-outline-button--while-readonly-1.png": {
+      "bytes": 10307,
+      "lines": 9
+    },
+    "rich-text-editor/addons/outline/__screenshots__/rich-text-outline.directive.spec.ts/RichTextOutlineDirective-hides-the-toolbar-button-when--uiRteOutlineButton--is-false-but-keeps-the--outline-command-1.png": {
+      "bytes": 10307,
+      "lines": 9
+    },
+    "rich-text-editor/addons/outline/__screenshots__/rich-text-outline.directive.spec.ts/RichTextOutlineDirective-lists-every-heading-in-document-order-with-its-level-1.png": {
+      "bytes": 10307,
+      "lines": 9
+    },
+    "rich-text-editor/addons/outline/__screenshots__/rich-text-outline.directive.spec.ts/RichTextOutlineDirective-localizes-the-button-tooltip-and-panel-title-for-Hebrew-1.png": {
+      "bytes": 10307,
+      "lines": 9
+    },
+    "rich-text-editor/addons/outline/__screenshots__/rich-text-outline.directive.spec.ts/RichTextOutlineDirective-refreshes-the-heading-list-when-content-changes-while-the-panel-is-open-1.png": {
+      "bytes": 10307,
+      "lines": 9
+    },
+    "rich-text-editor/addons/outline/__screenshots__/rich-text-outline.directive.spec.ts/RichTextOutlineDirective-registers-a--outline-command--on-the-editor-instance-registry--that-opens-the-panel-1.png": {
+      "bytes": 10307,
+      "lines": 9
     },
     "rich-text-editor/addons/outline/__screenshots__/rich-text-outline.directive.spec.ts/RichTextOutlineDirective-registers-a--outline-command-that-opens-the-panel-1.png": {
       "bytes": 11365,
       "lines": 4
+    },
+    "rich-text-editor/addons/outline/__screenshots__/rich-text-outline.directive.spec.ts/RichTextOutlineDirective-removes-the-toolbar-button-live-when-uiRteOutline-flips-to-false-and-restores-on-re-enable-1.png": {
+      "bytes": 12023,
+      "lines": 8
+    },
+    "rich-text-editor/addons/outline/__screenshots__/rich-text-outline.directive.spec.ts/RichTextOutlineDirective-renders-the-outline-toolbar-button-after-the-built-in-items-1.png": {
+      "bytes": 10307,
+      "lines": 9
+    },
+    "rich-text-editor/addons/outline/__screenshots__/rich-text-outline.directive.spec.ts/RichTextOutlineDirective-scrolls-the-editor-container--not-any-heading-or-the-page--when-an-entry-is-clicked-1.png": {
+      "bytes": 10307,
+      "lines": 9
+    },
+    "rich-text-editor/addons/outline/__screenshots__/rich-text-outline.directive.spec.ts/RichTextOutlineDirective-scrolls-to-a-heading-on-Enter-Space-keyboard-activation-1.png": {
+      "bytes": 10307,
+      "lines": 9
+    },
+    "rich-text-editor/addons/outline/__screenshots__/rich-text-outline.directive.spec.ts/RichTextOutlineDirective-shows-the-empty-state-when-the-document-has-no-headings-1.png": {
+      "bytes": 10307,
+      "lines": 9
+    },
+    "rich-text-editor/addons/outline/__screenshots__/rich-text-outline.directive.spec.ts/RichTextOutlineDirective-toggles-the-docked-panel-when-the-toolbar-button-is-clicked-1.png": {
+      "bytes": 10307,
+      "lines": 9
     },
     "rich-text-editor/addons/outline/index.ts": {
       "bytes": 190,
       "lines": 4
     },
     "rich-text-editor/addons/outline/rich-text-outline-panel.component.html": {
-      "bytes": 1947,
-      "lines": 47
+      "bytes": 2345,
+      "lines": 56
     },
     "rich-text-editor/addons/outline/rich-text-outline-panel.component.spec.ts": {
-      "bytes": 4290,
-      "lines": 122
+      "bytes": 5402,
+      "lines": 148
     },
     "rich-text-editor/addons/outline/rich-text-outline-panel.component.ts": {
-      "bytes": 1167,
-      "lines": 25
+      "bytes": 1557,
+      "lines": 34
     },
     "rich-text-editor/addons/outline/rich-text-outline.context.spec.ts": {
       "bytes": 457,
@@ -8381,10 +8337,6 @@
       "bytes": 2350,
       "lines": 72
     },
-    "rich-text-editor/audit7.probe.spec.ts": {
-      "bytes": 806,
-      "lines": 23
-    },
     "rich-text-editor/barrel.spec.ts": {
       "bytes": 2035,
       "lines": 41
@@ -8406,20 +8358,20 @@
       "lines": 102
     },
     "rich-text-editor/rich-text-editor.component.css": {
-      "bytes": 1344,
-      "lines": 46
+      "bytes": 2330,
+      "lines": 77
     },
     "rich-text-editor/rich-text-editor.component.html": {
-      "bytes": 17336,
-      "lines": 267
+      "bytes": 19296,
+      "lines": 301
     },
     "rich-text-editor/rich-text-editor.component.spec.ts": {
-      "bytes": 402759,
-      "lines": 9487
+      "bytes": 444384,
+      "lines": 10379
     },
     "rich-text-editor/rich-text-editor.component.ts": {
-      "bytes": 277935,
-      "lines": 6769
+      "bytes": 305000,
+      "lines": 7318
     },
     "rich-text-editor/rich-text-editor.host.ts": {
       "bytes": 18774,
@@ -8437,9 +8389,13 @@
       "bytes": 8841,
       "lines": 224
     },
+    "rich-text-editor/rich-text-find.utils.spec.ts": {
+      "bytes": 4907,
+      "lines": 107
+    },
     "rich-text-editor/rich-text-find.utils.ts": {
-      "bytes": 5948,
-      "lines": 164
+      "bytes": 9679,
+      "lines": 245
     },
     "rich-text-editor/rich-text-input-rules.spec.ts": {
       "bytes": 8935,
@@ -8450,36 +8406,44 @@
       "lines": 163
     },
     "rich-text-editor/rich-text-locales.ts": {
-      "bytes": 34480,
-      "lines": 888
+      "bytes": 35415,
+      "lines": 900
     },
     "rich-text-editor/rich-text-markdown.service.spec.ts": {
-      "bytes": 25803,
-      "lines": 597
+      "bytes": 112936,
+      "lines": 2238
     },
     "rich-text-editor/rich-text-markdown.service.ts": {
-      "bytes": 29139,
-      "lines": 849
+      "bytes": 90023,
+      "lines": 2074
     },
     "rich-text-editor/rich-text-paste-normalizer.service.spec.ts": {
-      "bytes": 113289,
-      "lines": 2328
+      "bytes": 104003,
+      "lines": 2121
     },
     "rich-text-editor/rich-text-paste-normalizer.service.ts": {
-      "bytes": 51322,
-      "lines": 1374
+      "bytes": 46110,
+      "lines": 1231
     },
     "rich-text-editor/rich-text-prose.ts": {
-      "bytes": 3174,
+      "bytes": 3175,
       "lines": 43
     },
+    "rich-text-editor/rich-text-resource-policy.spec.ts": {
+      "bytes": 6800,
+      "lines": 159
+    },
+    "rich-text-editor/rich-text-resource-policy.ts": {
+      "bytes": 7091,
+      "lines": 170
+    },
     "rich-text-editor/rich-text-sanitizer.service.spec.ts": {
-      "bytes": 29969,
-      "lines": 671
+      "bytes": 55723,
+      "lines": 1203
     },
     "rich-text-editor/rich-text-sanitizer.service.ts": {
-      "bytes": 21869,
-      "lines": 613
+      "bytes": 37651,
+      "lines": 949
     },
     "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-getTooltip-falls-back-to-the-raw-name-for-an-item-outside-the-union-1.png": {
       "bytes": 6736,
@@ -8514,7 +8478,7 @@
       "lines": 59
     },
     "rich-text-editor/sub/rich-text-toolbar.component.html": {
-      "bytes": 3545,
+      "bytes": 3583,
       "lines": 79
     },
     "rich-text-editor/sub/rich-text-toolbar.component.spec.ts": {
@@ -8533,9 +8497,17 @@
       "bytes": 14820,
       "lines": 11
     },
+    "rich-text-view/__screenshots__/rich-text-view.component.spec.ts/RichTextViewComponent-T-21b-renders-a-raw-HTML-block-in-markdown-mode-through-the-sanitizer--not-as-live-markup-1.png": {
+      "bytes": 5339,
+      "lines": 3
+    },
     "rich-text-view/__screenshots__/rich-text-view.component.spec.ts/RichTextViewComponent-T-22a-the-prose-constant-actually-covers-the-document-elements-it-claims-to-1.png": {
       "bytes": 4290,
       "lines": 3
+    },
+    "rich-text-view/__screenshots__/rich-text-view.component.spec.ts/RichTextViewComponent-T-24-task-checkboxes-reflect-data-checked--are-not-focusable-and-do-not-toggle-1.png": {
+      "bytes": 6090,
+      "lines": 4
     },
     "rich-text-view/index.ts": {
       "bytes": 44,
@@ -8546,12 +8518,12 @@
       "lines": 1
     },
     "rich-text-view/rich-text-view.component.spec.ts": {
-      "bytes": 17048,
-      "lines": 433
+      "bytes": 17799,
+      "lines": 445
     },
     "rich-text-view/rich-text-view.component.ts": {
-      "bytes": 4455,
-      "lines": 126
+      "bytes": 5726,
+      "lines": 144
     },
     "rich-text-view/rich-text-view.stories.ts": {
       "bytes": 4124,
