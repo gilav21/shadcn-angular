@@ -67,6 +67,47 @@ function percentDecodeToBytes(payload: string): Uint8Array | null {
     return new Uint8Array(out);
 }
 
+/** CSS functions and schemes that must never appear in a style value. */
+const UNSAFE_STYLE_TOKENS = ['url(', 'expression(', 'javascript:', 'vbscript:', 'data:'];
+
+/** Remove CSS comments, which a tokenizer ignores between any two tokens. */
+function stripCssComments(value: string): string {
+    let out = value;
+    let start = out.indexOf('/*');
+    while (start !== -1) {
+        const end = out.indexOf('*/', start + 2);
+        out = end === -1 ? out.slice(0, start) : out.slice(0, start) + out.slice(end + 2);
+        start = out.indexOf('/*');
+    }
+    return out;
+}
+
+/**
+ * Whether a CSS declaration value is safe to keep.
+ *
+ * The test runs on the value as a BROWSER resolves it. Substring checks on the
+ * raw text are not enough: CSS lets any identifier character be written as a
+ * hex escape, so "\\75rl(https://x/p.png)" is the url() function to a browser
+ * while spelling nothing a naive check looks for. That bypass survived the
+ * whole paste pipeline and planted a live external-resource load -- a tracking
+ * pixel firing for every later viewer of the document.
+ *
+ * Two layers, because one decoder is a thing to be wrong about:
+ *   1. decode CSS hex escapes, then test;
+ *   2. reject any value that still carries a backslash at all. Nothing in the
+ *      allowlist -- colours, lengths, font names, alignments -- needs one, so
+ *      refusing them costs nothing and closes whatever the decoder misses.
+ */
+function isSafeStyleValue(value: string): boolean {
+    if (value.includes('\\')) return false;
+
+    // Whitespace and comments are also insignificant to a CSS tokenizer:
+    // "url ( x )" and "url/**/(x)" call the same function.
+    const normalized = stripCssComments(value.toLowerCase()).replaceAll(/\s+/g, '');
+
+    return !UNSAFE_STYLE_TOKENS.some((token) => normalized.includes(token));
+}
+
 @Injectable({ providedIn: 'root' })
 export class RichTextSanitizerService {
     private readonly document = inject(DOCUMENT);
@@ -707,11 +748,13 @@ export class RichTextSanitizerService {
             const value = declaration.substring(colonIndex + 1).trim();
 
             if (this.ALLOWED_STYLE_PROPERTIES.has(property) && value) {
-                /** Basic value sanitization - no url(), expression(), etc. */
-                const lowerValue = value.toLowerCase();
-                if (!lowerValue.includes('url(') &&
-                    !lowerValue.includes('expression(') &&
-                    !lowerValue.includes('javascript:')) {
+                // Tested against the value a BROWSER resolves, not its raw
+                // spelling. These were substring checks on attacker-controlled
+                // text, and CSS lets any identifier character be written as a
+                // hex escape -- so "\\75rl(...)" sailed past a check for "url("
+                // and the browser then loaded it. A pasted document could plant
+                // a persistent tracking pixel that fires for every later viewer.
+                if (isSafeStyleValue(value)) {
                     safeStyles.push(`${property}: ${value}`);
                 }
             }

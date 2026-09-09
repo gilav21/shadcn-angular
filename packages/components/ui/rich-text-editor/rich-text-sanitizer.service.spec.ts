@@ -991,3 +991,74 @@ describe('RichTextSanitizerService — data: URL encoding parity (round-26 audit
         expect(srcOf('data:image/png;base64,' + btoa(raw))).toContain('data:image/png');
     });
 });
+
+describe('RichTextSanitizerService - CSS escapes in style values', () => {
+    let service: RichTextSanitizerService;
+
+    beforeEach(() => {
+        TestBed.configureTestingModule({});
+        service = TestBed.inject(RichTextSanitizerService);
+    });
+
+    const styleOf = (decl: string): string | null => {
+        const out = service.sanitize('<p style="' + decl + '">T</p>');
+        const parsed = new DOMParser().parseFromString(out, 'text/html');
+        return parsed.querySelector('p')?.getAttribute('style') ?? null;
+    };
+
+    it('blocks url() however it is spelled', () => {
+        // The existing url() tests all spell the function LITERALLY, which is the
+        // one sub-class where a substring check cannot fail. CSS lets any
+        // identifier character be written as a hex escape, so a browser resolves
+        // "\75rl(...)" as url() while the raw text spells nothing the old check
+        // looked for. Verified live before the fix: the style was kept and
+        // getComputedStyle reported url("https://tracker.example/p.png") -- a
+        // paste could plant a tracking pixel that fires for every later viewer.
+        const B = String.fromCodePoint(92);
+        for (const decl of [
+            'background: url(https://tracker.example/p.png)',
+            'background: ' + B + '75rl(https://tracker.example/p.png)',
+            'background: ' + B + '000075rl(https://tracker.example/p.png)',
+            'background: u' + B + '72 l(https://tracker.example/p.png)',
+            'background: ur' + B + '6c(https://tracker.example/p.png)',
+            'background: URL(https://tracker.example/p.png)',
+            'background: url (https://tracker.example/p.png)',
+            'background: url/**/(https://tracker.example/p.png)',
+        ]) {
+            expect(styleOf(decl)).toBeNull();
+        }
+    });
+
+    it('blocks expression() and script schemes the same way', () => {
+        const B = String.fromCodePoint(92);
+        for (const decl of [
+            'width: expression(alert(1))',
+            'width: ' + B + '65xpression(alert(1))',
+            'color: javascript:alert(1)',
+            'color: ' + B + '6aavascript:alert(1)',
+        ]) {
+            expect(styleOf(decl)).toBeNull();
+        }
+    });
+
+    it('keeps ordinary styles, including the ones Word pastes', () => {
+        // The guard rejects any value carrying a backslash, so this asserts the
+        // cost of that is nil for real content.
+        for (const decl of [
+            'color: red',
+            'color: rgb(255, 0, 0)',
+            'color: rgba(0, 0, 0, 0.5)',
+            'background-color: yellow',
+            'font-size: 20px',
+            'font-family: monospace',
+            "font-family: 'Segoe UI', sans-serif",
+            'text-align: center',
+            'border: 1pt solid #4472C4',
+            'padding: 0in 5.4pt',
+            'text-decoration: underline',
+        ]) {
+            expect(styleOf(decl)).toBe(decl);
+        }
+    });
+});
+
