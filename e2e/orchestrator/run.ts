@@ -84,6 +84,41 @@ function remoteCliArgs(flags: CliFlags): string[] {
  * it proves the documented three-line contract actually works, and because the
  * README and the fixture render from the same function they cannot drift.
  */
+/**
+ * Re-enables Tailwind scanning of the directories the repo's `.gitignore`
+ * excludes.
+ *
+ * Tailwind v4 honours ignore files when it expands a glob, and the repo ignores
+ * everything the CLI writes into the fixture — `src/components/`,
+ * `src/app/test-pages/`, `src/tailwind.css` — so that install output is never
+ * committed. The consequence is that `@source "../src/**"` matches the app
+ * scaffold and nothing else: the installed components and the harness page are
+ * both invisible to it.
+ *
+ * The result is not a build error. Tailwind emits a valid stylesheet with only
+ * the handful of utilities it could see (9.29 kB -> 6.36 kB for the accordion
+ * spec), the page renders unstyled, and every assertion that waits for a styled
+ * element times out somewhere unrelated to the component under test.
+ *
+ * An explicit `@source` on a directory is scanned regardless of ignore rules,
+ * which is exactly the escape hatch this needs. It belongs here rather than in
+ * the shipped template: a real consumer COMMITS their components, so their
+ * `../src/**` glob already covers them, and shipping these lines would put
+ * fixture-specific paths in every consumer's stylesheet.
+ */
+function unignoreInstalledSources(fixtureApp: string): void {
+    const tailwindCss = path.join(fixtureApp, 'src/tailwind.css');
+    if (!fs.existsSync(tailwindCss)) return;
+
+    const existing = fs.readFileSync(tailwindCss, 'utf-8');
+    const sources = ['../src/components', '../src/app/test-pages']
+        .map((dir) => `@source "${dir}";`)
+        .filter((line) => !existing.includes(line));
+    if (sources.length === 0) return;
+
+    fs.writeFileSync(tailwindCss, `${existing.trimEnd()}\n${sources.join('\n')}\n`);
+}
+
 async function installPackages(spec: ComponentSpec, fixtureApp: string): Promise<void> {
     const ids = spec.packages ?? [];
 
@@ -151,6 +186,7 @@ async function runOne(spec: ComponentSpec, flags: CliFlags, worker: Worker): Pro
         if (spec.names.length > 0) {
             await runCli([...(spec.initArgs ?? ['init', '--yes']), ...remoteArgs], worker.fixtureApp);
             await runCli(['add', ...spec.names, ...(spec.addArgs ?? []), '--yes', ...remoteArgs], worker.fixtureApp);
+            unignoreInstalledSources(worker.fixtureApp);
         }
         await npmInstall(worker.fixtureApp);
 
