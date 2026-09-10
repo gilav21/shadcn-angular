@@ -70,9 +70,12 @@ markdown parser, same typography, no editor on the page.
 <ui-rich-text-view mode="html" [value]="post.html" size="lg" dir="rtl" />
 ```
 
-Install with `add rich-text-view`; it pulls the editor base for the two shared
-services. Task-list checkboxes render their authored state but are frozen —
-out of the tab order, and a click will not toggle them.
+Install with `add rich-text-view`. It pulls in the editor base, because the
+sanitizer and markdown parser are shared.
+
+One behaviour worth knowing: task-list checkboxes render the state they were
+authored with, but they are frozen — out of the tab order, and clicking one
+will not toggle it.
 
 ### 🔒 Remote images and tracking
 
@@ -110,10 +113,17 @@ means no policy and today's behaviour exactly.
   caption with `[blockedImageMessage]`.
 - **Matching is on the parsed hostname**, exact and case-insensitive.
   `*.acme.com` matches by label, so `cdn.acme.com.evil.com` never passes.
-- **`data:` and relative URLs are always permitted** — that is how a Word paste
-  carries its images.
-- **CSS `url()` still needs an allowlist.** Refused by default, as always; a
-  background is invisible to the reader in a way a stray image is not.
+- **Inline and relative URLs are always permitted** — a `data:` URL carries its
+  payload with it and can contact nobody, and a relative one is same-origin by
+  definition. This matters: `data:` is how a Word paste brings its images, so
+  blocking it would break that path for anyone who sets a list.
+- **CSS `url()` is stricter than `<img>`, on purpose.** With no list set, an
+  `<img>` still loads from any https host and the list only *narrows* that; a
+  `url()` is refused outright until you name hosts. Once a list exists the two
+  converge on the same host check. The asymmetry is deliberate: a placed image
+  is visible content a reader can see, while a CSS background beacon is
+  invisible, and loosening the `url()` default would have opened that channel
+  for every existing consumer on upgrade, with no code change on their side.
 - **What it does not do:** an allowlist narrows exposure to a party you
   *named*. `cdn.acme.com/logo.png?viewer=bob` still identifies the reader. It
   is a tracking control layered on the XSS guard, not a replacement for it.
@@ -123,12 +133,28 @@ means no policy and today's behaviour exactly.
 - **A consumer API** — `RichTextEditorApi` with `setContent`, `focus`,
   `format`, `insertHtml`, `insertText`, `isEmpty`, `selection`, `undo`, `redo`
   and `markClean`, plus dirty tracking and a `(historyChange)` output.
-- **Markdown input rules** — `# `, `- `, `> `, fences and inline markers
-  transform as you type. On by default; `[markdownShortcuts]="false"` opts out.
-- **Find & replace v2**, on an overlay that no longer lives in the content.
+- **Markdown input rules** — a marker becomes real formatting the moment you
+  finish typing it. Thirteen rules, the complete set: `# ` / `## ` / `### `,
+  `- ` or `* `, `1. `, `> `, `[] ` / `[x] `, `---`, ```` ``` ```` (with an
+  optional language), `**bold**`, `*italic*` and `` `code` ``. A transform is
+  one undo step, and Backspace immediately after reverts it to the literal
+  characters. On by default; `[markdownShortcuts]="false"` opts out. Full table
+  in [the Markdown shortcuts docs](docs/rich-text-editor.md#markdown-shortcuts).
+
+  Nested blockquotes work: `>>` and `> > >` parse to 32 levels, and several
+  fixes below repair exactly that. The *typing shortcut* is the one-level part
+  — it fires on a single `>`, so deeper nesting comes from markdown you paste
+  or load rather than from typing extra markers.
+- **Find & replace v2.** Highlights are drawn in a layer above the text
+  instead of by wrapping matches in `<mark>` tags. That was a data bug, not a
+  cosmetic one: typing with the find panel open used to save those tags into
+  your document, the form value and the undo history. Also new — whole-word
+  and regex toggles (an invalid pattern surfaces as `findRegexError` rather
+  than throwing), a debounced query, an announced "3 of 12" counter, a `find`
+  toolbar item for touch, and matches that survive inline markup splitting a
+  phrase.
 - **A Text style select**, now the toolbar default, with the caret's current
   block reported through `activeFormats`.
-- **Print the document**, not the window onto it.
 - **Spreadsheet-style table cell selection.**
 - **A character limit** that is both shown and announced.
 - **One `[locale]` binding localises every addon.**
@@ -165,6 +191,18 @@ the paragraph after a list or a rule; nested and tight (`>>`) blockquotes; GFM
 tables; percent-encoded PNG and JPEG images; single-cell tables from Word
 pastes; fences longer than three characters; and plain-text pastes, which were
 being reflowed.
+
+**Printing**
+
+- **The document no longer prints truncated.** The editable area is a
+  fixed-height scroll box, so Ctrl/Cmd+P printed only what fitted on screen —
+  measured at 40 paragraphs, 59% of the content was silently missing from the
+  page. There is no Print button; this fixes what your browser's own print and
+  Save-as-PDF already do. The editor's first stylesheet lifts the height and
+  overflow constraints for print, hides chrome that means nothing on paper
+  (toolbar, find overlay, outline panel), and adds page-break hints for rows,
+  images and headings. Every rule sits inside `@media print`, so nothing on
+  screen changes.
 
 **Editing**
 
@@ -209,7 +247,46 @@ builds for production. Only the peer range had ever excluded 20.
 
 ### 🛠 CLI
 
-- **`--preset`** installs a named addon bundle in one command.
+- **`--preset`** installs a group of addons in one command.
+
+  The rich text editor has 13 addons. Without a preset you install the base and
+  then add them one at a time, which means knowing the names up front and
+  deciding which of the 13 your case needs. A preset is a shortcut for the
+  combinations people actually reach for together.
+
+  **Grouped by the job you are doing**, not by anything cosmetic: `writing` is
+  prose authoring, `media` is getting non-text content in, `styling` is surface
+  appearance, `reporting` is getting data back out. Nothing a preset does is
+  unavailable by hand — same addons, same result — it just saves the lookup,
+  and records the intended groupings somewhere.
+
+  Two things to know: `core` is deliberately empty, so "base only" is something
+  you can state rather than infer from omitting the flag; and a preset is a
+  starting point, not a mode — you can apply more addons afterwards. Three
+  addons (`actions`, `mentions`, `ai`) sit outside the themed groups and come
+  only with `everything`, or individually.
+
+  The name resolves against the component you are adding:
+
+  ```bash
+  npx @gilav21/shadcn-angular add rich-text-editor --preset writing
+  npx @gilav21/shadcn-angular add data-table --preset everything
+  ```
+
+  | Component | Preset | Pulls in |
+  |---|---|---|
+  | `rich-text-editor` | `core` | nothing — the base alone |
+  | | `writing` | slash-commands, links, history, outline |
+  | | `media` | images, tables, file-import |
+  | | `styling` | colors, typography, emoji |
+  | | `everything` | all 13 addons + `full` |
+  | `data-table` | `core` | nothing — the base alone |
+  | | `menus` | context-menu |
+  | | `reporting` | export, pivot |
+  | | `everything` | context-menu, export, pivot |
+
+  An unknown name lists the valid ones for that component rather than failing
+  blankly.
 - The **install summary groups components by why each one is there** —
   requested, dependency, or addon.
 - Install-time output explains what owning the code means.

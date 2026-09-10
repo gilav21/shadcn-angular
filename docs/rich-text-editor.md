@@ -95,13 +95,21 @@ is complete. This is on by default — no import, no addon, no configuration.
 | `# ` / `## ` / `### ` | Heading 1 / 2 / 3 |
 | `- ` or `* ` | Bullet list |
 | `1. ` (1-3 digits) | Numbered list |
-| `> ` | Blockquote |
+| `> ` | Blockquote (nests to 32 levels — see below) |
 | `[] ` / `[x] ` | Task item, unchecked / checked |
 | `---` | Horizontal rule |
 | `` ``` `` then Space or Enter | Code block (`` ```ts `` sets the language) |
 | `**bold**` | `<strong>` |
 | `*italic*` | `<em>` |
 | `` `code` `` | Inline `<code>` |
+
+**Nested quotes, and where the shortcut stops.** Nesting is fully supported:
+`>>` and `> > >` parse into nested blockquotes up to 32 levels deep, and they
+round-trip through a save.
+
+The *typing shortcut* is the one-level part. Each rule matches a single marker,
+so `>` starts a quote while typing `>>` matches nothing and stays literal text.
+To author a nested quote, write the markdown and load it, or paste it in.
 
 **Undo semantics.** A transform is exactly one undo step. `Mod+Z` right after
 typing `# ` gives you back the literal `# `, not the paragraph before it.
@@ -324,10 +332,23 @@ matches subdomains by label — `*.assets.acme.com` covers `img.assets.acme.com`
 but never `img.assets.acme.com.evil.com`. List the apex separately if you want
 it too.
 
-**CSS `url()` needs an allowlist.** With no policy set, a `url()` in pasted
-inline styles is refused outright, as it always has been — a CSS background is
-invisible to the reader, so it cannot be noticed or deleted the way a stray
-image can. Naming hosts is what permits one, and only from those hosts.
+**CSS `url()` is stricter than `<img>`, deliberately.** The two defaults are
+not the same:
+
+| | No policy set | Hosts named |
+|---|---|---|
+| `<img src>` | loads from any `https` host | listed hosts only |
+| CSS `url()` | refused outright | listed hosts only |
+
+So a policy *narrows* what images may load, but it is what *permits* a
+background to load at all. Once a list exists the two run the same host check
+and agree.
+
+The asymmetry is the point. An `<img>` is visible content the author placed —
+a reader can see it and delete it. A CSS background beacon is invisible, so it
+cannot be noticed or removed the same way. Relaxing the `url()` default to
+match images would have opened that channel for every existing consumer on
+upgrade, with no code change on their side.
 
 Always permitted, whatever the policy:
 
@@ -428,9 +449,12 @@ one meaning — no policy — instead of being ambiguous between "none" and
 lists are **never merged**: a strict view cannot be widened by a looser
 ancestor.
 
-It installs with `add rich-text-view`, which pulls the editor base for the two
-services. Task-list checkboxes render the authored state but are frozen: out of
-the tab order, and a click will not toggle them.
+It installs with `add rich-text-view`, which pulls in the editor base — the
+sanitizer and the markdown parser are shared.
+
+Task-list checkboxes are the one thing that behaves differently from the
+editor: they render the state they were authored with, but they are frozen —
+out of the tab order, and clicking one will not toggle it.
 
 The typography both components share is exported as `RICH_TEXT_PROSE_CLASSES`,
 if you are restyling. Note that these are ordinary Tailwind utilities, not
