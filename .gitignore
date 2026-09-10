@@ -48,6 +48,11 @@ e2e/fixture-app/components.lock.json
 e2e/fixture-app/package-lock.json
 e2e/fixture-app/src/components/
 e2e/fixture-app/src/app/test-pages/
+# Written by cli-specs (stale-selector-build, cross-component-typecheck, ...).
+# Committed twice by mistake; the second time it imported a component the
+# next spec never installs, so `ng serve` never compiled and EVERY worker-0
+# spec died on its 120s startup timeout.
+e2e/fixture-app/src/legacy-consumer.ts
 e2e/fixture-app/src/tailwind.css
 
 # Compiled-package sources, regenerated from the registry closure by
