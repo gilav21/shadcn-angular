@@ -56,7 +56,26 @@ export async function serve(
         }
     });
 
-    await waitForReady(port, () => crashed);
+    // A startup failure MUST still tree-kill the child.
+    //
+    // `waitForReady` throws on a crash or a timeout, and before this guard it
+    // threw straight out of `serve()` — so the caller never received a handle,
+    // its `finally { if (server) await server.stop() }` had nothing to stop,
+    // and the `ng serve` that failed to become ready was left running.
+    //
+    // It does not sit idle. It keeps watching the fixture the worker is about
+    // to scrub and reinstall for the next spec, rebuilding and failing on every
+    // change. On PR #131 one such leak from the `features` spec rebuilt 110
+    // times over 23 minutes, taking its worker from 22.9s to 76.8s per spec
+    // (3.4x) and dragging the other three down ~45% through CPU contention on a
+    // 2-4 core runner. The suite ran out of wall clock with 332 tests passed
+    // and ZERO failed, which reads as "the suite got too big" and is not.
+    try {
+        await waitForReady(port, () => crashed);
+    } catch (err: unknown) {
+        await stopChild(child, port);
+        throw err;
+    }
 
     return {
         stop: () => stopChild(child, port),
