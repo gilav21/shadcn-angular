@@ -72,6 +72,11 @@ export class PopoverComponent implements OnDestroy {
      */
     private readonly escapeListener = (event: KeyboardEvent): void => {
         if (event.key !== 'Escape' || !this.open()) return;
+        // Consumed here, in the CAPTURE phase, so the key never reaches the
+        // panel of a dialog the popover sits in. Left to bubble, one Escape
+        // closed the popover AND the dialog behind it -- a date picker inside a
+        // form dialog took the whole form with it. One Escape, one layer.
+        event.stopPropagation();
         this.hide();
     };
 
@@ -79,7 +84,7 @@ export class PopoverComponent implements OnDestroy {
 
     constructor() {
         this.document.addEventListener('click', this.clickListener);
-        this.document.addEventListener('keydown', this.escapeListener);
+        this.document.addEventListener('keydown', this.escapeListener, true);
 
         effect(() => {
             const isOpen = this.open();
@@ -114,7 +119,7 @@ export class PopoverComponent implements OnDestroy {
 
     ngOnDestroy(): void {
         this.document.removeEventListener('click', this.clickListener);
-        this.document.removeEventListener('keydown', this.escapeListener);
+        this.document.removeEventListener('keydown', this.escapeListener, true);
         this.removeScrollListener();
     }
 

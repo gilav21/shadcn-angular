@@ -1313,8 +1313,8 @@ WYSIWYG editor with toolbar, formatting, mentions, images, and markdown.
 - Category: editor
 - Depends on: `separator`
 - npm dependencies: none
-- Inputs: `ariaDescribedBy: string | undefined`, `ariaLabel: string | undefined`, `class: string = ''`, `disabled: boolean = false`, `findDebounceMs: number = 150`, `historyDebounceMs: number = 450`, `historyLimit: number = 100`, `locale: LocaleInput<RichTextLocale>`, `markdownShortcuts: boolean = true`, `maxHeight: string = '400px'`, `maxLength: number | undefined`, `minHeight: string = '120px'`, `mode: EditorMode = 'markdown'`, `placeholder: string = ''`, `readonly: boolean = false`, `recordExternalWrites: boolean = false`, `showCount: boolean = false`, `showWordCount: boolean = false`, `size: EditorSize = 'default'`, `toolbar: ToolbarPosition = 'top'`, `toolbarItems: ToolbarItem[] = DEFAULT_TOOLBAR_ITEMS`, `variant: EditorVariant = 'default'`
-- Outputs: `blurred: void`, `focused: void`, `historyChange: RichTextHistoryState`, `htmlChange: string`, `markdownChange: string`, `wordCountChange: number`
+- Inputs: `allowedResourceHosts: readonly string[] = []`, `ariaDescribedBy: string | undefined`, `ariaLabel: string | undefined`, `blockedImageMessage: string`, `class: string = ''`, `disabled: boolean = false`, `findDebounceMs: number = 150`, `historyDebounceMs: number = 450`, `historyLimit: number = 100`, `locale: LocaleInput<RichTextLocale>`, `markdownShortcuts: boolean = true`, `maxHeight: string = '400px'`, `maxLength: number | undefined`, `minHeight: string = '120px'`, `mode: EditorMode = 'markdown'`, `placeholder: string = ''`, `readonly: boolean = false`, `recordExternalWrites: boolean = false`, `showCount: boolean = false`, `showWordCount: boolean = false`, `size: EditorSize = 'default'`, `toolbar: ToolbarPosition = 'top'`, `toolbarItems: ToolbarItem[] = DEFAULT_TOOLBAR_ITEMS`, `variant: EditorVariant = 'default'`
+- Outputs: `blurred: void`, `focused: void`, `historyChange: RichTextHistoryState`, `htmlChange: string`, `markdownChange: string`, `remoteResource: ResourcePolicyDecision`, `wordCountChange: number`
 
 ```html
 <ui-rich-text-editor />
@@ -1544,7 +1544,8 @@ Read-only renderer for rich-text-editor output (HTML or markdown) with the edito
 - Category: editor
 - Depends on: `rich-text-editor`
 - npm dependencies: none
-- Inputs: `class: string = ''`, `dir: "ltr" | "rtl" | "auto"`, `mode: EditorMode = 'markdown'`, `size: EditorSize = 'default'`, `value: string = ''`
+- Inputs: `allowedResourceHosts: readonly string[] = []`, `blockedImageMessage: string`, `class: string = ''`, `dir: "ltr" | "rtl" | "auto"`, `inheritResourcePolicy: boolean = false`, `locale: LocaleInput<RichTextLocale>`, `mode: EditorMode = 'markdown'`, `size: EditorSize = 'default'`, `value: string = ''`
+- Outputs: `remoteResource: ResourcePolicyDecision`
 
 ```html
 <ui-rich-text-view />

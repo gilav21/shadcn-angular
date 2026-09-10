@@ -1,0 +1,31 @@
+/*
+ * A remote image the host policy refused.
+ *
+ * Mirrors the rule of the same name in
+ * ../rich-text-editor/rich-text-editor.component.css -- that file is the
+ * source of truth; the two are kept identical by hand because component styles
+ * are encapsulated per component and a view has no editor to inherit from.
+ * Without this the view rendered a blocked image as a broken-image glyph with
+ * no caption, while its docs promised the labelled frame.
+ */
+:host img[data-blocked-src] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 8rem;
+  min-height: 4.5rem;
+  padding: calc(0.75rem * var(--_d, 1));
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background-color: color-mix(in oklab, var(--muted) 60%, transparent);
+  backdrop-filter: blur(2px);
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  text-align: center;
+  font-style: italic;
+}
+
+:host img[data-blocked-src]::after {
+  content: attr(data-blocked-label);
+}

@@ -10436,3 +10436,184 @@ describe('RichTextEditorComponent - remote resource policy', () => {
         expect(sanitizer.sanitizeImageSrc('https://tracker.example/p.png')).toBeNull();
     });
 });
+
+describe('RichTextEditorComponent - remote resource policy on the FIRST render (fine-comb review)', () => {
+    const TRACKER = 'https://tracker.example/p.png';
+
+    // The shape every earlier policy test avoided: the value arrives through a
+    // reactive form, whose directive calls writeValue from ngOnChanges -- before
+    // any of the editor's effects has run. With the policy pushed from an
+    // effect, that first sanitize ran with no policy and the tracker image was
+    // rendered with a real src, once per load.
+    @Component({
+        standalone: true,
+        imports: [ReactiveFormsModule, RichTextEditorComponent],
+        template: `
+            <ui-rich-text-editor
+                mode="html"
+                [formControl]="control"
+                [allowedResourceHosts]="hosts()"
+                (remoteResource)="seen.push($event)" />
+        `,
+    })
+    class FormPolicyHostComponent {
+        readonly control = new FormControl(
+            `<p><img src="${TRACKER}" alt="chart"></p>`,
+            { nonNullable: true },
+        );
+        readonly hosts = signal<readonly string[]>(['cdn.trusted.com']);
+        seen: ResourcePolicyDecision[] = [];
+    }
+
+    const img = (fixture: ComponentFixture<unknown>): HTMLImageElement | null =>
+        (fixture.nativeElement as HTMLElement).querySelector('img');
+
+    it('a reactive-form initial value is judged under the policy on the very first render', () => {
+        const fixture = TestBed.createComponent(FormPolicyHostComponent);
+        fixture.detectChanges();
+
+        const rendered = img(fixture);
+        expect(rendered).toBeTruthy();
+        expect(rendered?.hasAttribute('src')).toBe(false);
+        expect(rendered?.getAttribute('data-blocked-src')).toBe(TRACKER);
+        expect(rendered?.getAttribute('data-blocked-label')).toBe('Image blocked by security policy');
+
+        // And it was never reported as allowed: the decisions from that first
+        // pass are the ones a developer auditing exposure would act on.
+        const tracker = fixture.componentInstance.seen.filter((d) => d.host === 'tracker.example');
+        expect(tracker.length).toBeGreaterThan(0);
+        expect(tracker.every((d) => !d.allowed && d.reason === 'blocked')).toBe(true);
+    });
+
+    it('a policy change re-judges the rendered document in place, in HTML mode', () => {
+        // No second writeValue: the consumer only changes the list. Allowing the
+        // host restores the image; removing it again blocks it, with its caption.
+        const fixture = TestBed.createComponent(FormPolicyHostComponent);
+        fixture.detectChanges();
+        expect(img(fixture)?.hasAttribute('src')).toBe(false);
+
+        fixture.componentInstance.hosts.set(['cdn.trusted.com', 'tracker.example']);
+        fixture.detectChanges();
+        expect(img(fixture)?.getAttribute('src')).toBe(TRACKER);
+        expect(img(fixture)?.hasAttribute('data-blocked-src')).toBe(false);
+
+        fixture.componentInstance.hosts.set(['cdn.trusted.com']);
+        fixture.detectChanges();
+        expect(img(fixture)?.hasAttribute('src')).toBe(false);
+        expect(img(fixture)?.getAttribute('data-blocked-src')).toBe(TRACKER);
+        expect(img(fixture)?.getAttribute('data-blocked-label')).toBe('Image blocked by security policy');
+    });
+
+    it('an image blocked on insert is captioned immediately, not on the next reload', () => {
+        const fixture = TestBed.createComponent(FormPolicyHostComponent);
+        fixture.componentInstance.control.setValue('<p>text</p>');
+        fixture.detectChanges();
+        const editor = fixture.debugElement.query(By.directive(RichTextEditorComponent))
+            .componentInstance as RichTextEditorComponent;
+
+        editor.insertHtml(`<p><img src="${TRACKER}" alt="pasted"></p>`);
+
+        const rendered = img(fixture);
+        expect(rendered?.getAttribute('data-blocked-src')).toBe(TRACKER);
+        expect(rendered?.getAttribute('data-blocked-label')).toBe('Image blocked by security policy');
+        expect(rendered?.getAttribute('aria-label')).toContain('pasted');
+    });
+});
+
+describe('RichTextEditorComponent - replace keeps everything but the matched text (fine-comb review)', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLElement;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [RichTextEditorComponent] }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        fixture.componentRef.setInput('mode', 'html');
+        // Synchronous search, so replaceAll sees the matches without a timer.
+        fixture.componentRef.setInput('findDebounceMs', 0);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLElement;
+    });
+
+    const load = (html: string): void => {
+        component.writeValue(html);
+        fixture.detectChanges();
+    };
+
+    const replaceAllWith = (query: string, replacement: string): void => {
+        component.openFindReplace(true);
+        component.onFindQueryChange(query);
+        component.replaceText.set(replacement);
+        component.replaceAll();
+    };
+
+    /** Tag names of every element in the editor, in document order. */
+    const tagsIn = (): string[] => Array.from(editor.querySelectorAll('*')).map((el) => el.tagName);
+
+    it('keeps an image that sits beside the match', () => {
+        // An <img> has empty textContent and no descendants, so the old
+        // "remove whatever emptied" sweep removed the picture next to the word.
+        load('<p>the cat <img src="/x.png" alt="x"> sat</p>');
+        replaceAllWith('cat', 'dog');
+        expect(editor.querySelector('img')).not.toBeNull();
+        expect(editor.textContent).toBe('the dog  sat');
+    });
+
+    it('keeps a line break inside the paragraph', () => {
+        load('<p>line one<br>line cat</p>');
+        replaceAllWith('cat', 'dog');
+        expect(editor.querySelector('br')).not.toBeNull();
+        expect(editor.querySelector('p')?.innerHTML).toBe('line one<br>line dog');
+    });
+
+    it('keeps a table cell whose only text was the match, on an empty replacement', () => {
+        load('<table><tbody><tr><td>TBD</td><td>keep</td></tr></tbody></table>');
+        replaceAllWith('TBD', '');
+        expect(editor.querySelectorAll('td')).toHaveLength(2);
+        expect(editor.querySelector('table')).not.toBeNull();
+        expect(editor.querySelectorAll('td')[0].textContent).toBe('');
+    });
+
+    it('keeps a task item and its checkbox when its text is replaced with nothing', () => {
+        load('<ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>cat</span></li></ul>');
+        replaceAllWith('cat', '');
+        expect(editor.querySelector('li[data-task]')).not.toBeNull();
+        expect(editor.querySelector('input[type="checkbox"]')).not.toBeNull();
+        expect(editor.querySelector('li[data-task] > span')).not.toBeNull();
+    });
+
+    it('keeps a heading emptied by the replacement', () => {
+        load('<h1>cat</h1><p>body</p>');
+        replaceAllWith('cat', '');
+        expect(editor.querySelector('h1')).not.toBeNull();
+    });
+
+    it('still drops an inline wrapper the deletion emptied', () => {
+        // The one removal that IS wanted, so the fix does not overshoot.
+        load('<p>the <b>cat</b> sat</p>');
+        replaceAllWith('cat', '');
+        expect(editor.querySelector('b')).toBeNull();
+        expect(editor.textContent).toBe('the  sat');
+    });
+
+    it('property: a same-length replacement changes text nodes only', () => {
+        // Whatever the document, replacing text with text must leave the element
+        // tree untouched. This is the rule the four shapes above are samples of.
+        const corpus = [
+            '<p>cat <img src="/a.png" alt="a"> cat<br>cat</p>',
+            '<ul><li>cat</li><li><b>cat</b> <i>cat</i></li></ul>',
+            '<table><tbody><tr><td>cat</td><td><code>cat</code></td></tr></tbody></table>',
+            '<blockquote><p>cat</p><hr><p>x cat y</p></blockquote>',
+            '<h2>cat</h2><ul data-task-list><li data-task data-checked="true"><input type="checkbox"><span>cat</span></li></ul>',
+            '<p><a href="https://example.com/">cat</a> <mark>cat</mark> <span style="color: red">cat</span></p>',
+        ];
+        for (const html of corpus) {
+            load(html);
+            const before = tagsIn();
+            replaceAllWith('cat', 'dog');
+            expect(tagsIn(), html).toEqual(before);
+            expect(editor.textContent, html).not.toContain('cat');
+        }
+    });
+});

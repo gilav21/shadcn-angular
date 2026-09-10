@@ -1437,6 +1437,7 @@
       "file-viewer/file-viewer.component.spec.ts"
     ],
     "libFiles": [
+      "parsers/byte-sink.ts",
       "parsers/doc-enhanced-parser.ts",
       "parsers/docx-parser.ts",
       "parsers/file-type-detector.ts",
@@ -1855,6 +1856,9 @@
     "testFiles": [
       "popover/popover.component.spec.ts",
       "popover/popover.coverage.spec.ts"
+    ],
+    "testDependencies": [
+      "dialog"
     ]
   },
   "progress": {
@@ -2664,6 +2668,7 @@
       "rich-text-editor/rich-text-editor.validators.spec.ts",
       "rich-text-editor/rich-text-find.utils.spec.ts",
       "rich-text-editor/rich-text-input-rules.spec.ts",
+      "rich-text-editor/rich-text-markdown.roundtrip.spec.ts",
       "rich-text-editor/rich-text-markdown.service.spec.ts",
       "rich-text-editor/rich-text-paste-normalizer.service.spec.ts",
       "rich-text-editor/rich-text-resource-policy.spec.ts",
@@ -2807,8 +2812,15 @@
     ],
     "files": [
       "rich-text-view/index.ts",
+      "rich-text-view/rich-text-view.component.css",
       "rich-text-view/rich-text-view.component.html",
       "rich-text-view/rich-text-view.component.ts"
+    ],
+    "libFiles": [
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts"
     ],
     "dependencies": [
       "rich-text-editor"
@@ -4852,6 +4864,7 @@
       "rich-text-editor/rich-text-editor.validators.spec.ts",
       "rich-text-editor/rich-text-find.utils.spec.ts",
       "rich-text-editor/rich-text-input-rules.spec.ts",
+      "rich-text-editor/rich-text-markdown.roundtrip.spec.ts",
       "rich-text-editor/rich-text-markdown.service.spec.ts",
       "rich-text-editor/rich-text-paste-normalizer.service.spec.ts",
       "rich-text-editor/rich-text-resource-policy.spec.ts",
@@ -5190,6 +5203,7 @@
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts",
+      "parsers/byte-sink.ts",
       "parsers/docx-parser.ts",
       "parsers/docx-to-editor-html.ts",
       "parsers/image-validator.ts",

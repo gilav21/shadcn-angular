@@ -1,12 +1,16 @@
+import { ByteSink } from './byte-sink';
 import { zlibInflate } from './inflate';
 
 /**
  * Ceiling for a single decoded PDF stream. A stream's filter chain can expand
  * without bound, and a malformed or hostile document can exploit that to
- * exhaust memory, so the decoder bounds what it will materialise. 256 MB is far
- * above any legitimate single stream in a real document.
+ * exhaust memory, so the decoder bounds what it will materialise. 64 MB is
+ * still far above any legitimate single stream in a real document, and -- now
+ * that every decoder accumulates into a one-byte-per-byte {@link ByteSink} --
+ * it is also what the guard actually costs, where the earlier 256 MB on a
+ * `number[]` let a bomb take over a gigabyte before it tripped.
  */
-const MAX_DECODED_STREAM_BYTES = 256 * 1024 * 1024;
+export const MAX_DECODED_STREAM_BYTES = 64 * 1024 * 1024;
 
 // ── Stream filter decoders ──────────────────────────────────────────────
 
@@ -60,7 +64,7 @@ function ascii85DecodeGroup(group: number[]): number[] {
 
 function decodeASCII85(data: Uint8Array): Uint8Array {
     const text = new TextDecoder('latin1').decode(data);
-    const output: number[] = [];
+    const output = new ByteSink(MAX_DECODED_STREAM_BYTES);
     let i = 0;
 
     while (i < text.length) {
@@ -68,7 +72,7 @@ function decodeASCII85(data: Uint8Array): Uint8Array {
         if (' \t\r\n\0\f'.includes(text[i])) { i++; continue; }
 
         if (text[i] === 'z') {
-            output.push(0, 0, 0, 0);
+            output.pushSlice([0, 0, 0, 0]);
             i++;
             continue;
         }
@@ -77,10 +81,10 @@ function decodeASCII85(data: Uint8Array): Uint8Array {
         i = nextIndex;
 
         if (group.length < 2) break;
-        for (const byte of ascii85DecodeGroup(group)) output.push(byte);
+        output.pushSlice(ascii85DecodeGroup(group));
     }
 
-    return new Uint8Array(output);
+    return output.toUint8Array();
 }
 
 interface LZWState {
@@ -143,12 +147,13 @@ function lzwExtendTable(state: LZWState, prevEntry: Uint8Array, nextByte: number
  *
  * LZW's dictionary rechains, so each successive code can emit a longer run than
  * the last and a small stream can expand without limit — the same
- * decompression-bomb shape the Flate path already guards against. The ceiling is
- * checked as the output grows, so a hostile stream is stopped while it inflates
- * rather than after it has exhausted memory.
+ * decompression-bomb shape the Flate path already guards against. The sink
+ * THROWS at the ceiling, exactly as Flate does, so the stream is refused
+ * through `decodeStreamData`'s catch rather than silently truncated and handed
+ * on as if it were complete.
  */
 function decodeLZW(data: Uint8Array, earlyChange: number): Uint8Array {
-    const output: number[] = [];
+    const output = new ByteSink(MAX_DECODED_STREAM_BYTES);
     const state: LZWState = { bitPos: 0, codeSize: 9, nextCode: 258, table: [] };
     lzwInitTable(state);
     let prevEntry: Uint8Array | null = null;
@@ -166,17 +171,16 @@ function decodeLZW(data: Uint8Array, earlyChange: number): Uint8Array {
         const entry = lzwResolveEntry(code, state, prevEntry);
         if (!entry) break;
 
-        for (const byte of entry) output.push(byte);
-        if (output.length > MAX_DECODED_STREAM_BYTES) break;
+        output.pushSlice(entry);
 
         if (prevEntry) lzwExtendTable(state, prevEntry, entry[0], earlyChange);
         prevEntry = entry;
     }
 
-    return new Uint8Array(output);
+    return output.toUint8Array();
 }
 
-function rleCopyLiteral(data: Uint8Array, output: number[], start: number, count: number): number {
+function rleCopyLiteral(data: Uint8Array, output: ByteSink, start: number, count: number): number {
     let i = start;
     for (let j = 0; j <= count && i < data.length; j++) {
         output.push(data[i++]);
@@ -184,7 +188,7 @@ function rleCopyLiteral(data: Uint8Array, output: number[], start: number, count
     return i;
 }
 
-function rleRepeatByte(data: Uint8Array, output: number[], pos: number, len: number): number {
+function rleRepeatByte(data: Uint8Array, output: ByteSink, pos: number, len: number): number {
     if (pos >= data.length) return pos;
     const byte = data[pos];
     const repeatCount = 257 - len;
@@ -193,7 +197,7 @@ function rleRepeatByte(data: Uint8Array, output: number[], pos: number, len: num
 }
 
 function decodeRunLength(data: Uint8Array): Uint8Array {
-    const output: number[] = [];
+    const output = new ByteSink(MAX_DECODED_STREAM_BYTES);
     let i = 0;
     while (i < data.length) {
         const len = data[i];
@@ -205,7 +209,7 @@ function decodeRunLength(data: Uint8Array): Uint8Array {
             i = rleRepeatByte(data, output, i, len);
         }
     }
-    return new Uint8Array(output);
+    return output.toUint8Array();
 }
 
 // ── CCITT Fax decoder (Group 3 1D / Group 4 2D) ────────────────────────

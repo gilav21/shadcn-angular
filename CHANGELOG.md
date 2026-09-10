@@ -109,10 +109,19 @@ means no policy and today's behaviour exactly.
   when content is **rendered**.
 - **Blocked images are reversible, not lost.** The `<img>` keeps its `alt` and
   its position, gains `data-blocked-src` with the original URL, and renders as
-  a labelled placeholder. Allowing the host later restores it. Override the
-  caption with `[blockedImageMessage]`.
+  a labelled placeholder — in the editor and in the view alike. Allowing the
+  host later restores it, in HTML mode as well as markdown, and without
+  writing the value again: changing the list re-judges the document in place.
+  Override the caption with `[blockedImageMessage]`; the view takes a `locale`
+  for the default caption.
+- **Judged under the policy from the very first render.** A value arriving
+  through a reactive form is sanitized before any effect runs; the sanitizer
+  now reads the live list at every pass rather than a copy pushed later, so
+  that first pass can no longer run with no policy.
 - **Matching is on the parsed hostname**, exact and case-insensitive.
   `*.acme.com` matches by label, so `cdn.acme.com.evil.com` never passes.
+  Entries are normalised first, so `https://cdn.acme.com/`, `cdn.acme.com:8443`
+  and an internationalised name all match the host they name.
 - **Inline and relative URLs are always permitted** — a `data:` URL carries its
   payload with it and can contact nobody, and a relative one is same-origin by
   definition. This matters: `data:` is how a Word paste brings its images, so
@@ -124,9 +133,40 @@ means no policy and today's behaviour exactly.
   is visible content a reader can see, while a CSS background beacon is
   invisible, and loosening the `url()` default would have opened that channel
   for every existing consumer on upgrade, with no code change on their side.
+- **Every other CSS image function is refused**, whatever the list says.
+  `image-set()` takes a bare string, so it named no `url()` for the check to
+  see and a browser fetched it anyway (probed in headless Chrome). A style
+  value may now call only functions known not to fetch, plus `url()`.
 - **What it does not do:** an allowlist narrows exposure to a party you
   *named*. `cdn.acme.com/logo.png?viewer=bob` still identifies the reader. It
   is a tracking control layered on the XSS guard, not a replacement for it.
+
+### 🐛 Fixed in the pre-merge review
+
+- **Find & replace no longer deletes what sits beside the match.** Replacing
+  a word removed any `<img>`, `<br>`, `<hr>` or checkbox in the same paragraph,
+  and replacing with nothing removed the table cell, row, list item or heading
+  the match was in. Only an inline wrapper the deletion itself emptied is
+  removed now.
+- **Escape inside a dialog closes the popover only.** A popover consumed the
+  key on the document, after the dialog's own handler had already seen it, so
+  one press closed both. It is consumed in the capture phase now.
+- **Regex find rejects `(?<name>a+)+`** — the named-group spelling of the
+  nested-quantifier shape the guard already refused.
+- **Decompression ceilings cost what they say.** Every stream decoder now
+  accumulates into a one-byte-per-byte buffer with a hard ceiling (64 MB per
+  PDF stream) instead of a `number[]` that took several bytes per byte, and
+  LZW throws at the ceiling like Flate instead of handing on a truncated
+  stream.
+- **The markdown parser escapes its own attribute values**, so a quote in a
+  relative link or image target cannot end the attribute early.
+
+### 🎨 `init` template
+
+- The light `--accent` token is darker (`0.97` → `0.922` lightness) for every
+  base colour, so hovered and active items are actually visible. This is the
+  file `init` writes into a **new** project; existing projects own their copy
+  and are unchanged.
 
 ### ✨ New features on the editor
 

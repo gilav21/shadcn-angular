@@ -769,7 +769,7 @@ describe('PdfReader - filter decoders (unit)', () => {
         // worse than the bomb) and never exceeds the ceiling.
         expect(decoded).not.toBeNull();
         expect(decoded!.length).toBeGreaterThan(0);
-        expect(decoded!.length).toBeLessThanOrEqual(256 * 1024 * 1024);
+        expect(decoded!.length).toBeLessThanOrEqual(64 * 1024 * 1024);
         expect(decoded![0]).toBe(0x41);
     });
 

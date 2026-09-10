@@ -62,7 +62,27 @@ export function isHostAllowed(url: string, allowedHosts: readonly string[]): boo
     const host = hostOf(url);
     if (host === null) return false;
 
-    return allowedHosts.some((entry) => matchesHostEntry(host, entry.trim().toLowerCase()));
+    return allowedHosts.some((entry) => matchesHostEntry(host, normalizeHostEntry(entry)));
+}
+
+/**
+ * An allowlist entry reduced to the hostname it names.
+ *
+ * Matching compares against `new URL(...).hostname`, which is lowercase,
+ * port-less and punycode. An entry written the way people write hosts --
+ * `https://cdn.acme.com/`, `cdn.acme.com:8443`, `CDN.Acme.com`, an IDN host --
+ * therefore never matched, silently, and the developer saw every image from a
+ * host they had just listed refused. Each entry is run through the same parser
+ * so both sides speak the same form; a `*.` prefix is kept and applied to the
+ * normalised remainder.
+ */
+export function normalizeHostEntry(entry: string): string {
+    let host = entry.trim().toLowerCase();
+    const wildcard = host.startsWith('*.');
+    if (wildcard) host = host.slice(2);
+    const parsed = hostOf(host.includes('://') ? host : `https://${host}`);
+    if (parsed !== null && parsed !== '') host = parsed;
+    return wildcard ? `*.${host}` : host;
 }
 
 /**
@@ -139,6 +159,65 @@ export function containsCssUrl(value: string): boolean {
     return /url\s*\(/i.test(decodeCssEscapes(stripCssComments(value)));
 }
 
+/**
+ * CSS functions a style value may call. Every one of these computes a colour,
+ * a length or a gradient from its arguments alone; none can name a remote
+ * resource.
+ *
+ * `url()` is deliberately absent: it IS the fetching function, and it is judged
+ * by host in the sanitizer rather than allowed or refused wholesale.
+ */
+const SAFE_CSS_FUNCTIONS = new Set([
+    'rgb', 'rgba', 'hsl', 'hsla', 'hwb', 'lab', 'lch', 'oklab', 'oklch',
+    'color', 'color-mix', 'light-dark',
+    'var', 'env', 'calc', 'min', 'max', 'clamp', 'round', 'mod', 'rem', 'abs', 'sign',
+    'linear-gradient', 'radial-gradient', 'conic-gradient',
+    'repeating-linear-gradient', 'repeating-radial-gradient', 'repeating-conic-gradient',
+]);
+
+/**
+ * Every function a CSS value calls, lowercased, after escapes and comments
+ * resolve. Vendor prefixes are part of the name (`-webkit-image-set`). No
+ * whitespace is tolerated before the paren: to a CSS tokenizer `image-set (`
+ * is an identifier followed by a block, not a function call.
+ */
+export function cssFunctionCalls(value: string): string[] {
+    const source = decodeCssEscapes(stripCssComments(value));
+    const names: string[] = [];
+    for (let i = 0; i < source.length; i++) {
+        if (source[i] !== '(') continue;
+        let start = i;
+        while (start > 0 && isCssIdentChar(source[start - 1])) start--;
+        const name = source.slice(start, i);
+        if (/^-?[a-z_]/i.test(name)) names.push(name.toLowerCase());
+    }
+    return names;
+}
+
+/** A character that can continue a CSS identifier. */
+function isCssIdentChar(ch: string): boolean {
+    return /[\w-]/.test(ch);
+}
+
+/**
+ * Whether a CSS value calls a function that is neither `url()` nor known to be
+ * fetch-free.
+ *
+ * Judging `url()` alone was a substring test on the one spelling the author
+ * happened to know. CSS has other functions that take an image: `image-set()`
+ * accepts a bare STRING, so `background: image-set("https://t/p.png" 1x)`
+ * contains no `url(` at all -- and a headless Chrome probe confirmed it
+ * resolves to `url()` in computed style and issues the request. `image()`,
+ * `cross-fade()`, `src()`, `element()` and `paint()` are the same family.
+ *
+ * The rule is therefore an ALLOWLIST of functions, not a denylist of the ones
+ * found so far: a value may call only what is known not to fetch, and `url()`,
+ * which is judged separately by host.
+ */
+export function hasUnsafeCssFunction(value: string): boolean {
+    return cssFunctionCalls(value).some((name) => name !== 'url' && !SAFE_CSS_FUNCTIONS.has(name));
+}
+
 /** Remove CSS comments, which a tokenizer ignores between any two tokens. */
 export function stripCssComments(value: string): string {
     let out = value;
@@ -186,4 +265,28 @@ export function decodeCssEscapes(value: string): string {
 export abstract class RichTextResourcePolicyHost {
     /** The hosts this component permits. Empty means it sets no policy. */
     abstract readonly allowedResourceHosts: () => readonly string[];
+}
+
+/**
+ * Caption every image the resource policy refused, in `root`.
+ *
+ * The sanitizer can mark the element but not translate, and CSS cannot read a
+ * locale -- so the text is written here, into `data-blocked-label` for the
+ * stylesheet's `::after` to render, and into `aria-label` so a screen reader
+ * announces that something was withheld instead of skipping a captionless
+ * image. Shared by the editor and the read-only view so the two surfaces cannot
+ * drift: the view used to have no labelling at all and rendered a blocked image
+ * as a broken-image glyph, while its docs promised the caption.
+ *
+ * `label` is set with `setAttribute`, never parsed as HTML: a message rendered
+ * into a document is not a place to accept markup.
+ */
+export function labelBlockedImages(root: ParentNode, label: string): void {
+    const blocked = root.querySelectorAll<HTMLImageElement>('img[data-blocked-src]');
+    for (const img of Array.from(blocked)) {
+        img.dataset['blockedLabel'] = label;
+        img.setAttribute('role', 'img');
+        const alt = img.getAttribute('alt');
+        img.setAttribute('aria-label', alt ? `${alt} — ${label}` : label);
+    }
 }

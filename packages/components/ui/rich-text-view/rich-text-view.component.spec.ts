@@ -9,6 +9,7 @@ import {
     RichTextEditorComponent,
     RichTextResourcePolicyDirective,
     RichTextSanitizerService,
+    type ResourcePolicyDecision,
 } from '../rich-text-editor';
 import {
     RichTextActionsBindDirective,
@@ -602,5 +603,83 @@ describe('RichTextViewComponent — remote resource policy', () => {
             expect(img.hasAttribute('src'), mode).toBe(false);
             expect(img.getAttribute('data-blocked-src'), mode).toBe(TRACKER);
         }
+    });
+});
+
+describe('RichTextViewComponent — blocked-image caption and exposure report (fine-comb review)', () => {
+    const TRACKER = 'https://tracker.example/p.png';
+
+    @Component({
+        selector: 'test-captioned-view',
+        standalone: true,
+        imports: [RichTextViewComponent],
+        template: `
+            <ui-rich-text-view
+                [value]="doc()"
+                [allowedResourceHosts]="['cdn.trusted.com']"
+                [blockedImageMessage]="message()"
+                [locale]="locale()"
+                (remoteResource)="seen.push($event)" />
+        `,
+    })
+    class CaptionedViewComponent {
+        readonly doc = signal(`![chart](${TRACKER})`);
+        readonly message = signal<string | undefined>(undefined);
+        readonly locale = signal<string | undefined>(undefined);
+        seen: ResourcePolicyDecision[] = [];
+    }
+
+    afterEach(() => TestBed.resetTestingModule());
+
+    const imgOf = (fixture: ComponentFixture<unknown>): HTMLImageElement =>
+        (fixture.nativeElement as HTMLElement).querySelector('img') as HTMLImageElement;
+
+    it('captions a blocked image and announces it, like the editor does', () => {
+        // The view had no labelling at all: a blocked image rendered as a
+        // broken-image glyph while the docs promised the labelled frame, and
+        // the blockedImageMessage input was never read.
+        const fixture = TestBed.createComponent(CaptionedViewComponent);
+        fixture.detectChanges();
+
+        const img = imgOf(fixture);
+        expect(img.hasAttribute('src')).toBe(false);
+        expect(img.getAttribute('data-blocked-label')).toBe('Image blocked by security policy');
+        expect(img.getAttribute('role')).toBe('img');
+        expect(img.getAttribute('aria-label')).toContain('chart');
+        expect(img.getAttribute('aria-label')).toContain('blocked');
+    });
+
+    it('takes the developer override as text, and the locale otherwise', () => {
+        const fixture = TestBed.createComponent(CaptionedViewComponent);
+        fixture.componentInstance.message.set('<b>Ask #it-help</b>');
+        fixture.detectChanges();
+        expect(imgOf(fixture).getAttribute('data-blocked-label')).toBe('<b>Ask #it-help</b>');
+        expect((fixture.nativeElement as HTMLElement).querySelectorAll('b')).toHaveLength(0);
+
+        fixture.componentInstance.message.set(undefined);
+        fixture.componentInstance.locale.set('he');
+        fixture.detectChanges();
+        expect(imgOf(fixture).getAttribute('data-blocked-label')).toBe('התמונה נחסמה על ידי מדיניות אבטחה');
+    });
+
+    it('reports every remote resource it judged and drains the buffer each render', () => {
+        const fixture = TestBed.createComponent(CaptionedViewComponent);
+        fixture.detectChanges();
+
+        const seen = fixture.componentInstance.seen;
+        expect(seen.filter((d) => d.host === 'tracker.example' && !d.allowed && d.reason === 'blocked'))
+            .toHaveLength(1);
+
+        // Twenty re-renders of a live preview must not leave twenty decisions
+        // behind in the sanitizer: nothing but the view drains it.
+        const sanitizer = fixture.debugElement
+            .query(By.directive(RichTextViewComponent))
+            .injector.get(RichTextSanitizerService);
+        for (let i = 0; i < 20; i++) {
+            fixture.componentInstance.doc.set(`![chart ${i}](${TRACKER})`);
+            fixture.detectChanges();
+        }
+        expect(sanitizer.drainResourceDecisions()).toEqual([]);
+        expect(seen).toHaveLength(21);
     });
 });

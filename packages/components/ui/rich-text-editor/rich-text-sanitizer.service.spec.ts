@@ -1206,3 +1206,104 @@ describe('RichTextSanitizerService - remote host policy', () => {
 });
 
 
+
+describe('RichTextSanitizerService - CSS functions that fetch without url() (fine-comb review)', () => {
+    let service: RichTextSanitizerService;
+
+    beforeEach(() => {
+        TestBed.configureTestingModule({ providers: [RichTextSanitizerService] });
+        service = TestBed.inject(RichTextSanitizerService);
+    });
+
+    const styleOf = (decl: string): string | null => sanitizedStyle(service, decl);
+    const B = String.fromCodePoint(0x5c);
+
+    // Probed in headless Chrome 151: each of these resolved to url() in the
+    // computed style AND issued a network request, while containing no "url("
+    // for the substring test to see. The bare-string image-set form is the one
+    // that needs no url() at all.
+    const spellings = [
+        'background: image-set("https://tracker.example/p.png" 1x)',
+        'background: -webkit-image-set(url("https://tracker.example/p.png") 1x)',
+        'background: image-set(url("https://tracker.example/p.png") 1x)',
+        'background: image("https://tracker.example/p.png")',
+        'background: cross-fade(url(https://tracker.example/a.png), url(https://tracker.example/b.png), 50%)',
+        'background: ' + B + '69mage-set("https://tracker.example/p.png" 1x)',
+        'background: red image-set("https://tracker.example/p.png" 1x)',
+    ];
+
+    it('refuses them with no policy', () => {
+        for (const decl of spellings) expect(styleOf(decl), decl).toBeNull();
+    });
+
+    it('refuses them even when the host is allowlisted', () => {
+        // The allowlist governs url() only. Every other image function is
+        // refused outright, so an allowlisted host cannot be reached through a
+        // spelling the host check does not parse.
+        service.setRemoteHostPolicy(['tracker.example']);
+        for (const decl of spellings) expect(styleOf(decl), decl).toBeNull();
+    });
+
+    it('keeps the fetch-free functions authors actually use', () => {
+        for (const decl of [
+            'color: rgb(10, 20, 30)',
+            'background: linear-gradient(red, blue)',
+            'width: calc(100% - 2rem)',
+            'color: var(--primary)',
+            'background-color: color-mix(in oklab, red 40%, blue)',
+        ]) {
+            expect(styleOf(decl), decl).not.toBeNull();
+        }
+    });
+});
+
+describe('RichTextSanitizerService - data-blocked-src is re-judged, never copied (fine-comb review)', () => {
+    let service: RichTextSanitizerService;
+    const TRACKER = 'https://tracker.example/p.png';
+
+    beforeEach(() => {
+        TestBed.configureTestingModule({ providers: [RichTextSanitizerService] });
+        service = TestBed.inject(RichTextSanitizerService);
+    });
+
+    const imgOf = (html: string): HTMLImageElement | null =>
+        new DOMParser().parseFromString(service.sanitize(html), 'text/html').querySelector('img');
+
+    it('restores the image when its host is allowed now', () => {
+        // The saved HTML form of a blocked image has no src. This is the only
+        // way the URL comes back on the HTML path, so it must go through the
+        // same gate a src does -- and reversibility in HTML mode depends on it.
+        service.setRemoteHostPolicy(['tracker.example']);
+        const img = imgOf(`<p><img data-blocked-src="${TRACKER}" alt="c"></p>`);
+        expect(img?.getAttribute('src')).toBe(TRACKER);
+        expect(img?.hasAttribute('data-blocked-src')).toBe(false);
+    });
+
+    it('restores it under no policy, matching the markdown path', () => {
+        const img = imgOf(`<p><img data-blocked-src="${TRACKER}" alt="c"></p>`);
+        expect(img?.getAttribute('src')).toBe(TRACKER);
+    });
+
+    it('keeps the marker while the host is still blocked', () => {
+        service.setRemoteHostPolicy(['cdn.trusted.com']);
+        const img = imgOf(`<p><img data-blocked-src="${TRACKER}" alt="c"></p>`);
+        expect(img?.hasAttribute('src')).toBe(false);
+        expect(img?.getAttribute('data-blocked-src')).toBe(TRACKER);
+    });
+
+    it('drops an UNSAFE marker outright instead of carrying it verbatim', () => {
+        for (const bad of ['javascript:alert(1)', '//evil.example/p.png', 'data:text/html,<script>']) {
+            const img = imgOf(`<p><img data-blocked-src="${bad}" alt="c"></p>`);
+            expect(img?.hasAttribute('src'), bad).toBe(false);
+            expect(img?.hasAttribute('data-blocked-src'), bad).toBe(false);
+        }
+    });
+
+    it('reads a policy reader live, so a list changed after the handover is honoured', () => {
+        const hosts: string[] = ['cdn.trusted.com'];
+        service.setRemoteHostPolicy(() => hosts);
+        expect(service.sanitizeImageSrc(TRACKER)).toBeNull();
+        hosts.push('tracker.example');
+        expect(service.sanitizeImageSrc(TRACKER)).toBe(TRACKER);
+    });
+});

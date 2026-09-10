@@ -1839,19 +1839,25 @@ describe('RichTextMarkdownService', () => {
         it('cannot break out of the style attribute', () => {
             // The span is emitted as raw HTML into markdown, so quoting matters.
             //
-            // HONEST NOTE: this assertion passes even with the escapeHtml call
-            // removed -- I checked. A double quote reaching here has already been
-            // turned into a single quote by the sanitizer's normalizeStyleQuotes,
-            // so the escape is defence-in-depth behind that, not the active
-            // guard. The test is kept because the property is the one that
-            // matters (no second attribute is ever produced), but it must not be
-            // read as proving the escape is load-bearing.
+            // The smuggled value `color: red" onmouseover="alert(1)` is refused
+            // whole by the sanitizer's CSS function allowlist (`alert(` is not a
+            // function a style may call), so the span reaches markdown with no
+            // style and is flattened to its text. Before that allowlist the
+            // junk survived INSIDE the style value and this test asserted a
+            // `style` attribute was still present; the property that matters --
+            // no second attribute is ever produced, on either side of the
+            // round trip -- is the one asserted now.
             const entityRoute = '<p><span style="color: red&quot; onmouseover=&quot;alert(1)">x</span></p>';
+            const markdown = service.toMarkdown(entityRoute);
+            expect(markdown).not.toContain('onmouseover');
+
             const probe = document.createElement('div');
-            probe.innerHTML = service.toHtml(service.toMarkdown(entityRoute));
-            const span = probe.querySelector('span');
-            expect(span?.hasAttribute('onmouseover')).toBe(false);
-            expect(Array.from(span?.attributes ?? []).map((a) => a.name)).toEqual(['style']);
+            probe.innerHTML = service.toHtml(markdown);
+            expect(probe.querySelector('[onmouseover]')).toBeNull();
+            expect(probe.textContent).toBe('x');
+            for (const el of Array.from(probe.querySelectorAll('*'))) {
+                expect(Array.from(el.attributes).map((a) => a.name).filter((n) => n !== 'style')).toEqual([]);
+            }
         });
 
         it('leaves an unstyled span alone', () => {
@@ -2235,4 +2241,41 @@ describe('RichTextMarkdownService', () => {
         });
     });
 
+});
+
+describe('RichTextMarkdownService - attribute values cannot break out of their attribute (fine-comb review)', () => {
+    let service: RichTextMarkdownService;
+
+    beforeEach(() => {
+        TestBed.configureTestingModule({ providers: [RichTextMarkdownService, RichTextSanitizerService] });
+        service = TestBed.inject(RichTextMarkdownService);
+    });
+
+    const parse = (md: string): HTMLElement =>
+        new DOMParser().parseFromString(service.toHtml(md), 'text/html').body;
+
+    it('a quote in a relative image target stays inside src', () => {
+        // A relative target is returned verbatim by sanitizeImageSrc, so the
+        // quote reached the attribute unescaped and opened a second one.
+        const img = parse('![x](./a"b.png)').querySelector('img');
+        expect(img?.getAttribute('src')).toBe('./a"b.png');
+        expect(img?.attributes).toHaveLength(2);
+    });
+
+    it('a quote in a relative link target stays inside href', () => {
+        const a = parse('[x](/docs/a"b)').querySelector('a');
+        expect(a?.getAttribute('href')).toBe('/docs/a"b');
+        expect(a?.hasAttribute('style')).toBe(false);
+    });
+
+    it('an attempted attribute injection writes no attribute', () => {
+        const img = parse('![x](./a" style="color:red)').querySelector('img');
+        expect(img?.hasAttribute('style')).toBe(false);
+        expect(img?.getAttribute('src')).toBe('./a" style="color:red');
+    });
+
+    it('an ampersand in a target survives the round trip', () => {
+        const a = parse('[x](https://example.com/?a=1&b=2)').querySelector('a');
+        expect(a?.getAttribute('href')).toBe('https://example.com/?a=1&b=2');
+    });
 });

@@ -7,6 +7,7 @@ import {
     containsCssUrl,
     decodeCssEscapes,
     extractCssUrls,
+    hasUnsafeCssFunction,
     stripCssComments,
     hostOf,
     isHostAllowed,
@@ -448,7 +449,7 @@ export class RichTextSanitizerService {
      * scopes this service per instance (see its `providers`) so two editors on a
      * page can hold different policies.
      */
-    private allowedHosts: readonly string[] = [];
+    private allowedHosts: () => readonly string[] = () => [];
 
     /**
      * The sanitizer of the nearest enclosing injector, or null at the root.
@@ -490,9 +491,25 @@ export class RichTextSanitizerService {
         return url;
     }
 
-    /** Replace the remote-host allowlist. Empty disables the policy. */
-    setRemoteHostPolicy(hosts: readonly string[]): void {
-        this.allowedHosts = [...hosts];
+    /**
+     * Replace the remote-host allowlist. Empty disables the policy.
+     *
+     * Accepts a READER as well as a list. A component whose policy is an input
+     * signal passes the signal itself, so every sanitize pass reads the current
+     * value at the moment it runs. Pushing a copy from an effect looked
+     * equivalent and was not: a reactive form writes its initial value from
+     * `ngOnChanges`, before any effect has run, so the first sanitize of every
+     * such document ran with no policy at all -- the tracker image got a real
+     * `src`, the editor rendered it, and the request fired once per load. A
+     * reader cannot be stale, so that ordering no longer exists.
+     */
+    setRemoteHostPolicy(hosts: readonly string[] | (() => readonly string[])): void {
+        if (typeof hosts === 'function') {
+            this.allowedHosts = hosts;
+            return;
+        }
+        const copy = [...hosts];
+        this.allowedHosts = () => copy;
     }
 
     /** Take and clear the decisions recorded since the last drain. */
@@ -510,14 +527,22 @@ export class RichTextSanitizerService {
     private judgeResource(url: string, kind: 'image' | 'background'): boolean {
         if (!isHostBearingUrl(url)) return true;
 
-        const allowed = isHostAllowed(url, this.allowedHosts);
-        this.decisions.push({
-            url,
-            host: hostOf(url) ?? '',
-            kind,
-            allowed,
-            reason: resourceReason(this.allowedHosts.length === 0, allowed),
-        });
+        const hosts = this.allowedHosts();
+        const allowed = isHostAllowed(url, hosts);
+        // One decision per distinct reference per drain. The markdown path
+        // judges an image twice on purpose -- once when parsing `![]()` and
+        // again when the final sanitize re-reads the placeholder's
+        // `data-blocked-src` -- and a consumer counting exposure must not see
+        // the same tracker reported twice for one document.
+        if (!this.decisions.some((d) => d.url === url && d.kind === kind)) {
+            this.decisions.push({
+                url,
+                host: hostOf(url) ?? '',
+                kind,
+                allowed,
+                reason: resourceReason(hosts.length === 0, allowed),
+            });
+        }
         return allowed;
     }
 
@@ -538,6 +563,13 @@ export class RichTextSanitizerService {
      */
     private isStyleValueAllowed(value: string): boolean {
         if (hasUnsafeStyleToken(value)) return false;
+
+        // An allowlist of functions, because judging `url()` alone judged one
+        // spelling of "fetch an image": `image-set("https://t/p.png" 1x)` has
+        // no `url(` in it and a browser fetches it all the same (probed in
+        // headless Chrome). Anything not known to be fetch-free is refused,
+        // whatever the host policy says.
+        if (hasUnsafeCssFunction(value)) return false;
 
         if (!containsCssUrl(value)) {
             return !value.includes('\\');
@@ -562,7 +594,7 @@ export class RichTextSanitizerService {
         //
         // A url() is permitted only where a developer has named hosts, which is
         // a deliberate act with the trade-off in front of them.
-        if (this.allowedHosts.length === 0) return false;
+        if (this.allowedHosts().length === 0) return false;
 
         const urls = extractCssUrls(value);
         if (urls.length === 0) return false;
@@ -756,6 +788,19 @@ export class RichTextSanitizerService {
                 this.applyImageSrc(target, value);
                 return;
             }
+            case 'data-blocked-src': {
+                // Re-judged, never copied. A blocked image is saved WITHOUT a
+                // `src` and WITH this marker, so on the HTML path this is the
+                // only place the original URL comes back through -- and it goes
+                // through the same gate a `src` does. Allowed now: it becomes
+                // `src` and the marker is dropped, which is what makes the
+                // block reversible in HTML mode as well as markdown. Still
+                // blocked: the marker is re-applied. Unsafe: dropped outright,
+                // so a hand-written `data-blocked-src="javascript:..."` never
+                // rides along verbatim.
+                if (!target.hasAttribute('src')) this.applyImageSrc(target, value);
+                return;
+            }
             case 'class': {
                 const safeClasses = this.sanitizeClasses(value);
                 if (safeClasses) {
@@ -777,9 +822,7 @@ export class RichTextSanitizerService {
                 return;
             }
             case 'dir': {
-                if (value === 'rtl' || value === 'ltr' || value === 'auto') {
-                    target.setAttribute('dir', value);
-                }
+                if (isTextDirection(value)) target.setAttribute('dir', value);
                 return;
             }
             default:
@@ -983,6 +1026,11 @@ export class RichTextSanitizerService {
  * were decorated with rel="noopener noreferrer" so the link read as vetted.
  * Counting the delimiter run is the general rule.
  */
+/** The three values `dir` accepts. */
+function isTextDirection(value: string): boolean {
+    return value === 'rtl' || value === 'ltr' || value === 'auto';
+}
+
 /** A single backslash, spelled by code point so no escaping is needed. */
 const BACKSLASH = '\u005C';
 

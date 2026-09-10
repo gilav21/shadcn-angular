@@ -63,6 +63,22 @@ import { RichTextEditorComponent } from '@/components/ui/rich-text-editor';
             </section>
 
             <section>
+                <h2 class="mb-2 font-semibold">Reactive form with a resource policy</h2>
+                <!-- The value is in the control BEFORE first render, which is the
+                     shape a form-bound document takes and the one the unit tests
+                     could not prove "nothing is fetched" for. The spec counts
+                     requests to the tracker host at the network layer. -->
+                <ui-rich-text-editor
+                    data-testid="editor-policy"
+                    mode="html"
+                    [formControl]="policyControl"
+                    [allowedResourceHosts]="['cdn.trusted.example']"
+                    (remoteResource)="onRemoteResource()"
+                />
+                <pre data-testid="policy-seen" class="sr-only">{{ remoteSeen() }}</pre>
+            </section>
+
+            <section>
                 <h2 class="mb-2 font-semibold">Reactive form</h2>
                 <ui-rich-text-editor
                     data-testid="editor-form"
@@ -90,6 +106,18 @@ export class RichTextEditorDemoComponent {
     protected readonly markdown = signal('# Title\n\nSome **bold** text');
     protected readonly emptyMarkdown = signal('');
     protected readonly control = new FormControl('<p>form</p>', { nonNullable: true });
+
+    /** A document naming a host the policy does not allow, present before first render. */
+    protected readonly policyControl = new FormControl(
+        '<p>pixel: <img src="https://tracker.example/p.png" alt="chart"></p>',
+        { nonNullable: true },
+    );
+    protected readonly remoteSeen = signal(0);
+
+    /** Counts decisions; the spec only needs to know at least one was reported. */
+    protected onRemoteResource(): void {
+        this.remoteSeen.update((n) => n + 1);
+    }
 
     /** The `[disabled]` input — one of the two independent locking paths. */
     protected readonly inputDisabled = signal(false);

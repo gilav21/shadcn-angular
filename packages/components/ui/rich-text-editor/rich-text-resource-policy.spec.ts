@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
     containsCssUrl,
+    cssFunctionCalls,
+    normalizeHostEntry,
     decodeCssEscapes,
     extractCssUrls,
+    hasUnsafeCssFunction,
     hostOf,
     isHostAllowed,
     isHostBearingUrl,
@@ -155,5 +158,84 @@ describe('extractCssUrls / containsCssUrl', () => {
             expect(containsCssUrl(value)).toBe(false);
             expect(extractCssUrls(value)).toEqual([]);
         }
+    });
+});
+
+describe('cssFunctionCalls / hasUnsafeCssFunction', () => {
+    it('lists every function a value calls, lowercased, prefix included', () => {
+        expect(cssFunctionCalls('color: RGB(1,2,3); background: -webkit-image-set(url(a) 1x)'))
+            .toEqual(['rgb', '-webkit-image-set', 'url']);
+    });
+
+    it('sees through escapes and comments, exactly like the url() extractor', () => {
+        const B = String.fromCodePoint(0x5c);
+        expect(cssFunctionCalls(B + '69mage-set("https://t/p.png" 1x)')).toEqual(['image-set']);
+        expect(cssFunctionCalls('image-set/**/("https://t/p.png" 1x)')).toEqual(['image-set']);
+    });
+
+    it('does not read an identifier followed by a spaced paren as a call', () => {
+        // To a CSS tokenizer "image-set (" is an ident and a block, not a
+        // function, so the browser will not fetch it and neither do we count it.
+        expect(cssFunctionCalls('image-set ("https://t/p.png" 1x)')).toEqual([]);
+    });
+
+    it('accepts the fetch-free functions and url()', () => {
+        for (const value of [
+            'rgb(1, 2, 3)', 'hsla(1, 2%, 3%, 0.5)', 'oklch(0.7 0.1 200)', 'color-mix(in oklab, red, blue)',
+            'var(--x)', 'calc(100% - 2rem)', 'clamp(1rem, 2vw, 3rem)', 'min(1px, 2px)',
+            'linear-gradient(red, blue)', 'repeating-radial-gradient(red, blue)',
+            'url(https://cdn.trusted.com/a.png)', 'red',
+        ]) {
+            expect(hasUnsafeCssFunction(value), value).toBe(false);
+        }
+    });
+
+    it('refuses every image-taking function that is not url()', () => {
+        for (const value of [
+            'image-set("https://tracker.example/p.png" 1x)',
+            '-webkit-image-set(url("https://tracker.example/p.png") 1x)',
+            'image-set(url("https://tracker.example/p.png") 1x)',
+            'image("https://tracker.example/p.png")',
+            'cross-fade(url(a.png), url(b.png), 50%)',
+            'src("https://tracker.example/p.png")',
+            'element(#target)',
+            'paint(worklet)',
+            'attr(data-x)',
+            'linear-gradient(red, blue), image-set("https://t/p.png" 1x)',
+        ]) {
+            expect(hasUnsafeCssFunction(value), value).toBe(true);
+        }
+    });
+});
+
+describe('normalizeHostEntry (fine-comb review)', () => {
+    it('reduces the forms people actually write to the parsed hostname', () => {
+        // Every one of these used to match nothing, because the comparison is
+        // against a lowercase, port-less, punycode hostname.
+        expect(normalizeHostEntry('https://cdn.acme.com/')).toBe('cdn.acme.com');
+        expect(normalizeHostEntry('http://cdn.acme.com/images')).toBe('cdn.acme.com');
+        expect(normalizeHostEntry('cdn.acme.com:8443')).toBe('cdn.acme.com');
+        expect(normalizeHostEntry('  CDN.Acme.COM ')).toBe('cdn.acme.com');
+        expect(normalizeHostEntry('bücher.example')).toBe('xn--bcher-kva.example');
+    });
+
+    it('keeps a wildcard prefix and normalises what follows it', () => {
+        expect(normalizeHostEntry('*.Assets.Acme.com:443')).toBe('*.assets.acme.com');
+        expect(normalizeHostEntry('*.bücher.example')).toBe('*.xn--bcher-kva.example');
+    });
+
+    it('so an entry in any of those forms allows the host', () => {
+        const url = 'https://cdn.acme.com/logo.png';
+        for (const entry of ['https://cdn.acme.com', 'cdn.acme.com:8443', 'CDN.ACME.COM', 'https://CDN.acme.com:8443/x']) {
+            expect(isHostAllowed(url, [entry]), entry).toBe(true);
+        }
+        expect(isHostAllowed('https://xn--bcher-kva.example/a.png', ['bücher.example'])).toBe(true);
+        expect(isHostAllowed('https://img.assets.acme.com/a.png', ['*.assets.acme.com:443'])).toBe(true);
+    });
+
+    it('does not widen: a normalised entry still matches exactly', () => {
+        expect(isHostAllowed('https://cdn.acme.com.evil.com/a.png', ['https://cdn.acme.com'])).toBe(false);
+        expect(isHostAllowed('https://evil.com/?x=cdn.acme.com', ['cdn.acme.com:8443'])).toBe(false);
+        expect(isHostAllowed('https://cdn.acme.com/a.png', ['https://cdn.acme.com@evil.com'])).toBe(false);
     });
 });

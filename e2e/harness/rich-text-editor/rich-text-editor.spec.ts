@@ -448,3 +448,33 @@ test('a page button calling editor.format("bold") bolds the selection', async ({
     await expect(editor.locator('b, strong').first()).toBeVisible();
     await expect(page.getByTestId('editor-html')).toContainText(/<(b|strong)>/);
 });
+
+test('a form-bound document never fetches from a host the policy refuses', async ({ page }) => {
+    // Asserted at the NETWORK layer, which is the only place "nothing is
+    // fetched" can be proven: an absent `src` attribute says what the DOM
+    // holds, not what the browser did during the first render.
+    const trackerRequests: string[] = [];
+    await page.route('**/*', async (route) => {
+        const url = route.request().url();
+        if (url.includes('tracker.example')) {
+            trackerRequests.push(url);
+            await route.fulfill({ status: 200, contentType: 'image/png', body: '' });
+            return;
+        }
+        await route.continue();
+    });
+
+    await page.goto('/');
+    const editor = editable(page, 'editor-policy');
+    const img = editor.locator('img');
+
+    await expect(img).toHaveCount(1);
+    await expect(img).not.toHaveAttribute('src', /.+/);
+    await expect(img).toHaveAttribute('data-blocked-src', 'https://tracker.example/p.png');
+    await expect(img).toHaveAttribute('data-blocked-label', 'Image blocked by security policy');
+    await expect(page.getByTestId('policy-seen')).not.toHaveText('0');
+
+    // Give a stray request every chance to show up before asserting none did.
+    await page.waitForTimeout(500);
+    expect(trackerRequests).toEqual([]);
+});

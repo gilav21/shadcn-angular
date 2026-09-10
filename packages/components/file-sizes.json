@@ -2418,7 +2418,7 @@
       "lines": 6854
     },
     "data-table/data-table.component.ts": {
-      "bytes": 220595,
+      "bytes": 220625,
       "lines": 6134
     },
     "data-table/data-table.coverage.spec.ts": {
@@ -6365,6 +6365,10 @@
       "bytes": 7445,
       "lines": 8
     },
+    "popover/__screenshots__/popover.component.spec.ts/PopoverComponent---Escape-inside-a-dialog--fine-comb-review--with-the-popover-closed--Escape-still-reaches-the-dialog-1.png": {
+      "bytes": 6364,
+      "lines": 6
+    },
     "popover/__screenshots__/popover.component.spec.ts/PopoverComponent-closes-on-Escape-1.png": {
       "bytes": 4290,
       "lines": 3
@@ -6578,12 +6582,12 @@
       "lines": 4
     },
     "popover/popover.component.spec.ts": {
-      "bytes": 22477,
-      "lines": 598
+      "bytes": 24926,
+      "lines": 649
     },
     "popover/popover.component.ts": {
-      "bytes": 6138,
-      "lines": 167
+      "bytes": 6493,
+      "lines": 172
     },
     "popover/popover.coverage.spec.ts": {
       "bytes": 24561,
@@ -6840,6 +6844,38 @@
     "result/sub/result-detail.component.ts": {
       "bytes": 1440,
       "lines": 36
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---remote-resource-policy-on-the-FIRST-render--fine-comb-review--content-written-from-a-parent-ngOnInit-is-judged-under-the-policy-too-1.png": {
+      "bytes": 12479,
+      "lines": 5
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---replace-keeps-everything-but-the-matched-text--fine-comb-review--keeps-a-line-break-inside-the-paragraph-1.png": {
+      "bytes": 18058,
+      "lines": 22
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---replace-keeps-everything-but-the-matched-text--fine-comb-review--keeps-a-table-cell-whose-only-text-was-the-match--on-an-empty-replacement-1.png": {
+      "bytes": 18718,
+      "lines": 23
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---replace-keeps-everything-but-the-matched-text--fine-comb-review--keeps-a-task-item-and-its-checkbox-when-its-text-is-replaced-with-nothing-1.png": {
+      "bytes": 18675,
+      "lines": 22
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---replace-keeps-everything-but-the-matched-text--fine-comb-review--keeps-an-image-that-sits-beside-the-match-1.png": {
+      "bytes": 18005,
+      "lines": 27
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---replace-keeps-everything-but-the-matched-text--fine-comb-review--property--a-same-length-replacement-changes-text-nodes-only-1.png": {
+      "bytes": 18058,
+      "lines": 22
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---replace-keeps-everything-but-the-matched-text--fine-comb-review--still-drops-an-inline-wrapper-the-deletion-emptied-1.png": {
+      "bytes": 18675,
+      "lines": 22
+    },
+    "rich-text-editor/__screenshots__/rich-text-markdown.service.spec.ts/RichTextMarkdownService-styled-spans-survive-a-save--colour-and-highlight--cannot-break-out-of-the-style-attribute-1.png": {
+      "bytes": 4290,
+      "lines": 3
     },
     "rich-text-editor/addons/actions/__screenshots__/actions-runtime.spec.ts/module-purity-the-runtime-source-imports-no--angular-package-1.png": {
       "bytes": 4290,
@@ -8366,12 +8402,12 @@
       "lines": 301
     },
     "rich-text-editor/rich-text-editor.component.spec.ts": {
-      "bytes": 447176,
-      "lines": 10438
+      "bytes": 455932,
+      "lines": 10619
     },
     "rich-text-editor/rich-text-editor.component.ts": {
-      "bytes": 304990,
-      "lines": 7318
+      "bytes": 308665,
+      "lines": 7385
     },
     "rich-text-editor/rich-text-editor.fixtures.ts": {
       "bytes": 817,
@@ -8394,12 +8430,12 @@
       "lines": 224
     },
     "rich-text-editor/rich-text-find.utils.spec.ts": {
-      "bytes": 4892,
-      "lines": 107
+      "bytes": 5677,
+      "lines": 122
     },
     "rich-text-editor/rich-text-find.utils.ts": {
-      "bytes": 9679,
-      "lines": 245
+      "bytes": 10061,
+      "lines": 254
     },
     "rich-text-editor/rich-text-input-rules.spec.ts": {
       "bytes": 8919,
@@ -8413,13 +8449,17 @@
       "bytes": 35415,
       "lines": 900
     },
+    "rich-text-editor/rich-text-markdown.roundtrip.spec.ts": {
+      "bytes": 3719,
+      "lines": 68
+    },
     "rich-text-editor/rich-text-markdown.service.spec.ts": {
-      "bytes": 112893,
-      "lines": 2238
+      "bytes": 114833,
+      "lines": 2281
     },
     "rich-text-editor/rich-text-markdown.service.ts": {
-      "bytes": 91332,
-      "lines": 2093
+      "bytes": 91805,
+      "lines": 2105
     },
     "rich-text-editor/rich-text-paste-normalizer.service.spec.ts": {
       "bytes": 106418,
@@ -8438,20 +8478,20 @@
       "lines": 43
     },
     "rich-text-editor/rich-text-resource-policy.spec.ts": {
-      "bytes": 6780,
-      "lines": 159
+      "bytes": 10981,
+      "lines": 241
     },
     "rich-text-editor/rich-text-resource-policy.ts": {
-      "bytes": 7962,
-      "lines": 189
+      "bytes": 12611,
+      "lines": 292
     },
     "rich-text-editor/rich-text-sanitizer.service.spec.ts": {
-      "bytes": 56059,
-      "lines": 1208
+      "bytes": 60818,
+      "lines": 1309
     },
     "rich-text-editor/rich-text-sanitizer.service.ts": {
-      "bytes": 40397,
-      "lines": 1007
+      "bytes": 43065,
+      "lines": 1055
     },
     "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-getTooltip-falls-back-to-the-raw-name-for-an-item-outside-the-union-1.png": {
       "bytes": 6736,
@@ -8509,6 +8549,10 @@
       "bytes": 4638,
       "lines": 3
     },
+    "rich-text-view/__screenshots__/rich-text-view.component.spec.ts/RichTextViewComponent---blocked-image-caption-and-exposure-report--fine-comb-review--reports-every-remote-resource-it-judged-and-drains-the-buffer-each-render-1.png": {
+      "bytes": 5509,
+      "lines": 3
+    },
     "rich-text-view/__screenshots__/rich-text-view.component.spec.ts/RichTextViewComponent---remote-resource-policy-T-P1-two-views-on-one-page-hold-independent-policies-1.png": {
       "bytes": 6209,
       "lines": 4
@@ -8557,17 +8601,21 @@
       "bytes": 44,
       "lines": 1
     },
+    "rich-text-view/rich-text-view.component.css": {
+      "bytes": 1016,
+      "lines": 31
+    },
     "rich-text-view/rich-text-view.component.html": {
       "bytes": 104,
       "lines": 1
     },
     "rich-text-view/rich-text-view.component.spec.ts": {
-      "bytes": 24528,
-      "lines": 606
+      "bytes": 28132,
+      "lines": 685
     },
     "rich-text-view/rich-text-view.component.ts": {
-      "bytes": 9037,
-      "lines": 215
+      "bytes": 11304,
+      "lines": 270
     },
     "rich-text-view/rich-text-view.stories.ts": {
       "bytes": 6171,
@@ -11227,6 +11275,14 @@
       "bytes": 4290,
       "lines": 3
     },
+    "parsers/byte-sink.spec.ts": {
+      "bytes": 2276,
+      "lines": 55
+    },
+    "parsers/byte-sink.ts": {
+      "bytes": 3122,
+      "lines": 89
+    },
     "parsers/doc-enhanced-parser.spec.ts": {
       "bytes": 47082,
       "lines": 1076
@@ -11288,8 +11344,8 @@
       "lines": 202
     },
     "parsers/inflate.ts": {
-      "bytes": 8641,
-      "lines": 256
+      "bytes": 8153,
+      "lines": 244
     },
     "parsers/ole2-reader.spec.ts": {
       "bytes": 20589,
@@ -11300,12 +11356,12 @@
       "lines": 353
     },
     "parsers/pdf-parser.spec.ts": {
-      "bytes": 131767,
+      "bytes": 131766,
       "lines": 2878
     },
     "parsers/pdf-parser.ts": {
-      "bytes": 256461,
-      "lines": 6719
+      "bytes": 256774,
+      "lines": 6723
     },
     "parsers/pdf-pixel-perfect.spec.ts": {
       "bytes": 97142,

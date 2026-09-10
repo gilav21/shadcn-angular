@@ -7,16 +7,23 @@ import {
     forwardRef,
     inject,
     input,
+    isDevMode,
+    output,
     viewChild,
 } from '@angular/core';
 import { cn } from '../../lib/utils';
+import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
 import {
+    RICH_TEXT_LOCALES,
     RICH_TEXT_PROSE_CLASSES,
     RichTextMarkdownService,
     RichTextResourcePolicyHost,
     RichTextSanitizerService,
+    labelBlockedImages,
     type EditorMode,
     type EditorSize,
+    type ResourcePolicyDecision,
+    type RichTextLocale,
 } from '../rich-text-editor';
 
 /** Text-size presets, mirroring the editor's `size` variants. */
@@ -46,6 +53,7 @@ const VIEW_SIZE_CLASSES: Record<NonNullable<EditorSize>, string> = {
     selector: 'ui-rich-text-view',
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './rich-text-view.component.html',
+    styleUrl: './rich-text-view.component.css',
     host: { class: 'block' },
     providers: [
         // Per instance, so this view's resource policy is its own. The markdown
@@ -113,8 +121,29 @@ export class RichTextViewComponent {
      */
     readonly inheritResourcePolicy = input(false);
 
-    /** Caption shown on an image {@link allowedResourceHosts} refused. Inserted as text. */
+    /**
+     * Caption shown on an image {@link allowedResourceHosts} refused. Inserted
+     * as text, never as markup. Unset uses the translated default from
+     * {@link locale}.
+     */
     readonly blockedImageMessage = input<string>();
+
+    /**
+     * Locale for the strings this component renders itself -- today only the
+     * blocked-image caption. Same shape as the editor's `locale`; unset falls
+     * through to the app-wide `UI_LOCALE_ID`.
+     */
+    readonly locale = input<LocaleInput<RichTextLocale>>();
+
+    /**
+     * Emits once per remote image or CSS background the rendered content
+     * references, allowed or blocked -- with `reason: 'no-policy'` when no list
+     * is set. The view is what readers see, so this is where exposure is
+     * measured; the editor has the same output for what authors insert.
+     */
+    readonly remoteResource = output<ResourcePolicyDecision>();
+
+    private readonly i18n = createLocaleBindings(this.locale, RICH_TEXT_LOCALES);
     /** Text size preset — the editor's `size` values. */
     readonly size = input<EditorSize>('default');
     /** Text direction for the content; unset inherits from the page. */
@@ -137,10 +166,11 @@ export class RichTextViewComponent {
      * second time would be wasted work, not extra safety.
      */
     readonly renderedHtml = computed(() => {
-        // Applied INSIDE the computed so the policy is a dependency: set from an
-        // effect instead, this memoised against value/mode alone and a policy
-        // change re-rendered nothing.
-        this.sanitizer.setRemoteHostPolicy(this.effectiveHosts());
+        // Read INSIDE the computed so the policy is a dependency: the sanitizer
+        // holds the reader itself (set in the constructor), but without this
+        // read the computed memoises against value/mode alone and a policy
+        // change re-renders nothing.
+        this.effectiveHosts();
 
         return this.mode() === 'markdown'
             ? this.markdown.toHtml(this.value())
@@ -155,10 +185,14 @@ export class RichTextViewComponent {
     });
 
     constructor() {
+        this.sanitizer.setRemoteHostPolicy(this.effectiveHosts);
+
         effect(() => {
             const el = this.content().nativeElement;
             el.innerHTML = this.renderedHtml();
             this.freezeTaskCheckboxes(el);
+            labelBlockedImages(el, this.blockedImageMessage() ?? this.i18n.t().editor.blockedImage);
+            this.drainResourceDecisions();
         });
 
         const onClick = (event: Event): void => this.blockCheckboxToggle(event);
@@ -167,6 +201,27 @@ export class RichTextViewComponent {
             host.addEventListener('click', onClick);
             onCleanup(() => host.removeEventListener('click', onClick));
         });
+    }
+
+    /**
+     * Report every remote resource the last render judged, then forget them.
+     *
+     * The sanitizer buffers its decisions and nothing but this drains them, so a
+     * view that re-rendered often -- a live preview beside an editor does it on
+     * every keystroke -- grew that buffer without bound. Blocked resources also
+     * warn in dev mode, as the editor does: the reader lost content and only
+     * the developer can allow the host.
+     */
+    private drainResourceDecisions(): void {
+        for (const decision of this.sanitizer.drainResourceDecisions()) {
+            this.remoteResource.emit(decision);
+            if (!decision.allowed && isDevMode()) {
+                console.error(
+                    `[rich-text-view] blocked a ${decision.kind} from "${decision.host}": `
+                    + 'its host is not in allowedResourceHosts.',
+                );
+            }
+        }
     }
 
     /**

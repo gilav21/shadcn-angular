@@ -92,10 +92,10 @@ describe('stagedFiles (T-2)', () => {
         return out;
     }
 
-    it('rte stages 283 files = union(files) ∪ union(libFiles) ∪ utils.ts', () => {
+    it('rte stages 284 files = union(files) ∪ union(libFiles) ∪ utils.ts', () => {
         const staged = stagedFiles('rte');
         expect(new Set(staged.map((f) => f.dest))).toEqual(expectedDests('rte'));
-        expect(staged).toHaveLength(283);
+        expect(staged).toHaveLength(284);
     });
 
     it('data-table stages 176 files', () => {

@@ -103,5 +103,20 @@ describe('compileFindRegex', () => {
                 expect(compileFindRegex(p, opts({ useRegex: true }))).not.toBeNull();
             }
         });
+
+        it('rejects the nested quantifier under a NAMED group (fine-comb review)', () => {
+            // "(?<n>" was skipped as if it were a lookaround. It is a plain
+            // group that quantifies like any other, so "(?<n>a+)+$" hung the
+            // tab exactly like "(a+)+$" did.
+            for (const p of ['(?<n>a+)+$', '(?<n>(?<m>a+))+$', '((?<n>a+))+$']) {
+                expect(compileFindRegex(p, opts({ useRegex: true }))).toBeNull();
+            }
+        });
+
+        it('still accepts lookarounds and an unrepeated named group', () => {
+            for (const p of ['(?=a+)b', '(?!a+)b', '(?<=a+)b', '(?<!a+)b', '(?<word>a+)b', '(?<n>foo)?bar']) {
+                expect(compileFindRegex(p, opts({ useRegex: true }))).not.toBeNull();
+            }
+        });
     });
 });

@@ -1110,6 +1110,18 @@ export class RichTextMarkdownService {
         return URL_SHIELD.reduce((acc, [ch, code]) => acc.replaceAll(ch, code), url);
     }
 
+    /**
+     * An attribute value: HTML-escaped so a quote in a link target cannot end
+     * the attribute early, then shielded from the emphasis passes. The final
+     * sanitize would have caught anything dangerous that broke out, but the
+     * parser must not depend on it for the integrity of its own markup -- a
+     * relative target such as `./a" style="…` used to write a second
+     * attribute of its own.
+     */
+    private attr(value: string): string {
+        return this.shieldUrl(this.escapeHtml(value));
+    }
+
     /** Restore the characters {@link shieldUrl} hid, once those passes are done. */
     private unshieldUrls(html: string): string {
         return URL_SHIELD.reduce((acc, [ch, code]) => acc.replaceAll(code, ch), html);
@@ -1127,13 +1139,13 @@ export class RichTextMarkdownService {
                 const blocked = this.sanitizer.takeBlockedByPolicy();
                 if (blocked === null) return '';
                 const blockedAlt = resolveInlineCodeText(alt, inlineStore);
-                return `<img data-blocked-src="${this.shieldUrl(blocked)}" alt="${this.shieldUrl(this.escapeHtml(blockedAlt))}">`;
+                return `<img data-blocked-src="${this.attr(blocked)}" alt="${this.attr(blockedAlt)}">`;
             }
             // An alt attribute is plain text: a parked code span restored in
             // there would land as the literal string "<code>x</code>". Resolve
             // it back to the text the author typed instead.
             const plainAlt = resolveInlineCodeText(alt, inlineStore);
-            return `<img src="${this.shieldUrl(safeSrc)}" alt="${this.shieldUrl(this.escapeHtml(plainAlt))}">`;
+            return `<img src="${this.attr(safeSrc)}" alt="${this.attr(plainAlt)}">`;
         });
     }
 
@@ -1144,7 +1156,7 @@ export class RichTextMarkdownService {
         return html.replaceAll(MEDIA_TARGET_PATTERN.link, (_, text, url) => {
             const safeUrl = this.sanitizer.sanitizeUrl(url);
             if (!safeUrl) return text;
-            return `<a href="${this.shieldUrl(safeUrl)}" rel="noopener noreferrer">${text}</a>`;
+            return `<a href="${this.attr(safeUrl)}" rel="noopener noreferrer">${text}</a>`;
         });
     }
 

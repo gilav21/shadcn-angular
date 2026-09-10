@@ -12,6 +12,7 @@ import {
     OnInit,
     forwardRef,
     effect,
+    untracked,
     AfterViewInit,
     OnDestroy,
 } from '@angular/core';
@@ -21,7 +22,7 @@ import { cn } from '../../lib/utils';
 import { graphemeLength, truncateToGraphemes } from '../../lib/grapheme';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
-import { type ResourcePolicyDecision } from './rich-text-resource-policy';
+import { labelBlockedImages, type ResourcePolicyDecision } from './rich-text-resource-policy';
 import { RichTextMarkdownService } from './rich-text-markdown.service';
 import { RichTextPasteNormalizerService } from './rich-text-paste-normalizer.service';
 import { RichTextToolbarComponent, ToolbarItem } from './sub/rich-text-toolbar.component';
@@ -228,6 +229,19 @@ const BLOCK_TAGS = new Set(['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL'
  * document-swallowing bug through an edit made for the other consumer.
  */
 const LINE_OWNING_TAGS = new Set([...BLOCK_TAGS, ...BLOCK_CONTAINER_TAGS]);
+
+/**
+ * Inline elements that exist to wrap text. A find-and-replace may remove one of
+ * these once the deletion has emptied it; nothing else -- not a block, not a
+ * void element -- is ever removed by a replacement.
+ */
+const INLINE_WRAPPER_TAGS = new Set([
+    'B', 'STRONG', 'I', 'EM', 'U', 'S', 'DEL', 'INS', 'CODE', 'SPAN', 'MARK', 'SUB', 'SUP', 'SMALL', 'A',
+]);
+const INLINE_WRAPPER_SELECTOR = [...INLINE_WRAPPER_TAGS].join(',').toLowerCase();
+
+/** Elements that are content on their own with no text: a wrapper holding one is not empty. */
+const VOID_CONTENT_SELECTOR = 'img, br, hr, input';
 
 let richTextEditorInstances = 0;
 
@@ -577,28 +591,15 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
 
     /**
-     * Caption every image the resource policy refused.
-     *
-     * The sanitizer can mark the element but not translate, and CSS cannot read
-     * a locale -- so the text is written here, into `data-blocked-label` for the
-     * stylesheet to render, and into `aria-label` so a screen reader announces
-     * that something was withheld instead of skipping a captionless image.
-     *
-     * `blockedImageMessage` is a developer-supplied string set with
-     * setAttribute, never parsed as HTML: a message rendered into a document is
-     * not a place to accept markup.
+     * Caption every image the resource policy refused, through the helper the
+     * read-only view shares. Runs after every wholesale replace AND after every
+     * sanitized insert (paste, drop, `insertHtml`), because an image blocked on
+     * paste used to sit uncaptioned until the next reload.
      */
     private labelBlockedImages(): void {
-        const blocked = this.editorDiv?.nativeElement.querySelectorAll<HTMLImageElement>('img[data-blocked-src]');
-        if (!blocked?.length) return;
-
-        const label = this.blockedImageMessage() ?? this.resolvedLocale().editor.blockedImage;
-        for (const img of Array.from(blocked)) {
-            img.dataset['blockedLabel'] = label;
-            img.setAttribute('role', 'img');
-            const alt = img.getAttribute('alt');
-            img.setAttribute('aria-label', alt ? `${alt} — ${label}` : label);
-        }
+        const root = this.editorDiv?.nativeElement;
+        if (!root) return;
+        labelBlockedImages(root, this.blockedImageMessage() ?? this.resolvedLocale().editor.blockedImage);
     }
 
     /** Select `image`, or clear the selection with `null`. */
@@ -871,6 +872,15 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     constructor() {
         super();
+        // The policy is handed over as the INPUT SIGNAL itself, not as a value
+        // pushed from an effect. A reactive form writes its initial value from
+        // `ngOnChanges`, before any effect has run, so a pushed copy was still
+        // empty for the first sanitize of every form-bound document: the
+        // tracker image got a real `src`, was rendered, and fired once per
+        // load. A reader is read at the moment each pass runs and cannot be
+        // stale. Inputs are bound before the hooks that write content, and the
+        // input has a default, so reading it here is always safe.
+        this.sanitizer.setRemoteHostPolicy(this.allowedResourceHosts);
         this.setupOutputEffects();
         this.setupFloatingToolbarEffect();
         this.setupFindRefreshEffect();
@@ -892,10 +902,17 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     private setupOutputEffects(): void {
-        // The policy is pushed before any content effect runs, so the first
-        // sanitize of an initial value is already governed by it.
+        // A policy change after first render re-judges the document in place.
+        // The sanitizer already reads the live list, so this exists only to
+        // re-run it over content that was judged under the previous list: an
+        // image blocked under the old policy must appear once its host is
+        // allowed, and one allowed under it must become a placeholder once its
+        // host is dropped -- without the consumer having to write the value
+        // again. The first run is a no-op: nothing is rendered yet, and the
+        // initial write is judged under the live list as it happens.
         effect(() => {
-            this.sanitizer.setRemoteHostPolicy(this.allowedResourceHosts());
+            this.allowedResourceHosts();
+            untracked(() => this.rejudgeRenderedContent());
         });
         effect(() => {
             const html = this.htmlOutput();
@@ -911,6 +928,19 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         });
     }
 
+
+    /**
+     * Re-run the sanitizer over the rendered document under the current policy
+     * and replace the editable's content with the result. Only once something
+     * is rendered; the initial write needs no second pass.
+     */
+    private rejudgeRenderedContent(): void {
+        if (!this.editorDiv?.nativeElement) return;
+        const html = this.sanitizer.sanitize(this.htmlContent());
+        this.htmlContent.set(html);
+        this.replaceEditorHtml(html);
+        this.enableTaskCheckboxes(this.editorDiv.nativeElement);
+    }
 
     /**
      * Report every remote resource the last sanitize pass judged.
@@ -5238,21 +5268,56 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * are then removed rather than left as invisible stubs.
      */
     private replaceRange(range: Range, text: string): void {
-        const touched: Element[] = [];
-        for (let node = range.commonAncestorContainer; node; node = node.parentNode as Node) {
-            if (node === this.editorDiv?.nativeElement) break;
-            if (node.nodeType === Node.ELEMENT_NODE) touched.push(node as Element);
-        }
-        const descendants = touched[0]
-            ? Array.from(touched[0].querySelectorAll('*'))
-            : [];
+        // Only INLINE WRAPPERS the range touches are candidates for removal, and
+        // only when the deletion itself emptied them. The previous version took
+        // every element under the nearest ancestor plus every ancestor up to
+        // the root and removed whatever had empty text -- which is every <img>,
+        // <br>, <hr> and <input> beside the match (empty text, no descendants),
+        // and, for an empty replacement, the <td>, <tr>, <table>, <li> or <h1>
+        // the match sat in. "Replace cat with dog" deleted the picture next to
+        // the word; "replace TBD with nothing" deleted the table cell.
+        const candidates = this.inlineWrappersTouchedBy(range);
 
         range.deleteContents();
         if (text) range.insertNode(this.document.createTextNode(text));
 
-        for (const el of [...descendants, ...touched]) {
-            if (el.textContent === '' && !el.querySelector('img, br')) el.remove();
+        for (const el of candidates) {
+            if (el.isConnected && el.textContent === '' && !el.querySelector(VOID_CONTENT_SELECTOR)) {
+                el.remove();
+            }
         }
+    }
+
+    /**
+     * The inline wrapper elements a range starts in, ends in, or overlaps --
+     * walked from each boundary up to the first block, never past it.
+     */
+    private inlineWrappersTouchedBy(range: Range): Set<Element> {
+        const editor = this.editorDiv?.nativeElement;
+        const candidates = new Set<Element>();
+        // A task item's text lives in a <span> the editor itself created as the
+        // caret target; emptying it must leave it in place, or the item loses
+        // the one node a caret can sit in.
+        const isStructural = (el: Element): boolean =>
+            el.tagName === 'SPAN' && el.parentElement?.matches('li[data-task]') === true;
+        const climb = (from: Node): void => {
+            for (let node: Node | null = from; node && node !== editor; node = node.parentNode) {
+                if (node.nodeType !== Node.ELEMENT_NODE) continue;
+                const el = node as Element;
+                if (!INLINE_WRAPPER_TAGS.has(el.tagName)) break;
+                if (!isStructural(el)) candidates.add(el);
+            }
+        };
+        climb(range.startContainer);
+        climb(range.endContainer);
+
+        const ancestor = range.commonAncestorContainer;
+        if (ancestor.nodeType === Node.ELEMENT_NODE) {
+            for (const el of Array.from((ancestor as Element).querySelectorAll(INLINE_WRAPPER_SELECTOR))) {
+                if (range.intersectsNode(el) && !isStructural(el)) candidates.add(el);
+            }
+        }
+        return candidates;
     }
 
     /**
@@ -5357,6 +5422,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const selection = this.document.getSelection();
         if (!selection || selection.rangeCount === 0 || !this.editorDiv?.nativeElement) {
             this.editorDiv?.nativeElement?.insertAdjacentHTML('beforeend', sanitized);
+            this.labelBlockedImages();
             this.syncContentFromEditor();
             return;
         }
@@ -5379,6 +5445,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         newRange.collapse(true);
         selection.removeAllRanges();
         selection.addRange(newRange);
+        this.labelBlockedImages();
         this.syncContentFromEditor();
     }
 

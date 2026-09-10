@@ -203,7 +203,6 @@ export class AppComponent {
     { id: 'rich-text-editor-addons', name: 'Rich Text Editor Addons', category: 'Inputs', icon: '🧩' },
     { id: 'rich-text-actions', name: 'Rich Text Actions', category: 'Inputs', icon: '⚡' },
     { id: 'rich-text-view', name: 'Rich Text View', category: 'Inputs', icon: '📄' },
-    { id: 'wave-showcase', name: '★ Wave Showcase (temp)', category: 'Inputs', icon: '🧪' },
     { id: 'select', name: 'Select', category: 'Inputs', icon: '📋' },
     { id: 'slider', name: 'Slider', category: 'Inputs', icon: '🎚️' },
     { id: 'sortable', name: 'Sortable', category: 'Inputs', icon: '↕️' },

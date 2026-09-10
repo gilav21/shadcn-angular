@@ -17,6 +17,8 @@ All **181** components and addons install as source you own. **0** of them pull 
 
 Registry today: 153 components, 28 opt-in addons, 10 composed blocks.
 
+Two of the largest components are *also* published as ordinary compiled packages for teams that would rather take a dependency than own the source: `@gilav21/shadcn-angular-rte` and `@gilav21/shadcn-angular-data-table`. They are an alternative, not a requirement — the copy model above never needs them.
+
 ## Tested versions
 
 | | Developed against | Verified in a consumer install |

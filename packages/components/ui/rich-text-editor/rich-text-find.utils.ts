@@ -142,17 +142,26 @@ function escapeLiteral(query: string): string {
 function hasNestedQuantifier(pattern: string): boolean {
     for (let i = 0; i < pattern.length; i++) {
         if (pattern[i] !== '(') continue;
-        // Skip only true zero-width groups -- lookahead, lookbehind, and named
-        // references. "(?:" is a plain non-capturing group and quantifies like
-        // any other, so skipping the whole "(?" family let "(?:a+)+$" through:
-        // the idiomatic spelling of the exact pattern this guard exists to
-        // reject, and 81 seconds of backtracking on a 41-character line.
-        if (pattern[i + 1] === '?' && pattern[i + 2] !== ':') continue;
+        // Skip only true zero-width groups -- lookahead and lookbehind, which
+        // cannot be quantified. "(?:" is a plain non-capturing group and
+        // "(?<name>" a plain NAMED one; both quantify like any other, so
+        // skipping the whole "(?" family let "(?:a+)+$" through, and skipping
+        // everything but "(?:" still let "(?<n>a+)+$" through -- the same
+        // exponential shape under one more spelling.
+        if (isLookaround(pattern, i)) continue;
         const group = scanGroup(pattern, i);
         const after = pattern[group.end];
         if (group.quantifiedInside && (after === '+' || after === '*' || after === '{')) return true;
     }
     return false;
+}
+
+/** Whether the group opening at `open` is a lookahead or lookbehind. */
+function isLookaround(pattern: string, open: number): boolean {
+    if (pattern[open + 1] !== '?') return false;
+    const kind = pattern[open + 2];
+    if (kind === '=' || kind === '!') return true;
+    return kind === '<' && (pattern[open + 3] === '=' || pattern[open + 3] === '!');
 }
 
 /**

@@ -61,3 +61,15 @@ registry with `sync-registry --fix` rather than merging `registry.json`.
   (`ref.insertText` → `editor.insertText()` instead of `host.insertTextAtCaret`).
 - Spec 1 (label expansion) and spec 6 (`packages?` field) both edit
   `e2e/orchestrator/specs.ts`; merge 1 first, rebase 6.
+
+
+## Follow-ups from the fine-comb review of PR #131 (2026-09-10)
+
+Recorded here rather than done in the PR because each changes a shared
+mechanism beyond the RTE.
+
+| # | Follow-up | Why | Where |
+|---|-----------|-----|-------|
+| F1 | Let the browser canonicalise CSS before judging it: assign the declaration to a detached element, read back `cssText`, then run the function allowlist. | Retires the hand-written escape/comment decoders as the only line of defence; keep the backslash refusal as belt-and-braces. | `rich-text-sanitizer.service.ts` `isStyleValueAllowed` |
+| F2 | An overlay layer stack: dialog, sheet, drawer and popover register on open; only the top-most layer consumes Escape. | The popover fix consumes Escape in capture, which is right for one nested layer and ad hoc for three. | new `lib/overlay-stack.service.ts`, the four overlay components |
+| F3 | `sanitizeSvgDataUrl`: decode percent-encoded payloads with `percentDecodeToBytes` + `TextDecoder` instead of `decodeURIComponent`. | A stray non-UTF-8 byte is scrubbed instead of silently dropping the image. | `rich-text-sanitizer.service.ts` |

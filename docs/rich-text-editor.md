@@ -332,6 +332,10 @@ matches subdomains by label — `*.assets.acme.com` covers `img.assets.acme.com`
 but never `img.assets.acme.com.evil.com`. List the apex separately if you want
 it too.
 
+Write an entry however you write hosts: `https://cdn.acme.com/`,
+`cdn.acme.com:8443`, `CDN.Acme.com` and an internationalised name all reduce to
+the same hostname before matching, so none of them silently matches nothing.
+
 **CSS `url()` is stricter than `<img>`, deliberately.** The two defaults are
 not the same:
 
@@ -339,6 +343,14 @@ not the same:
 |---|---|---|
 | `<img src>` | loads from any `https` host | listed hosts only |
 | CSS `url()` | refused outright | listed hosts only |
+| any other CSS image function | refused outright | refused outright |
+
+The last row is what makes the second one honest. `image-set()` takes a bare
+string, so `background: image-set("https://t/p.png" 1x)` names no `url()` and
+a browser fetches it anyway; `image()`, `cross-fade()`, `src()`, `element()` and
+`paint()` are the same family. A style value may therefore call only functions
+known not to fetch — colours, `var()`, `calc()` and friends, gradients — plus
+`url()`, which the host check judges.
 
 So a policy *narrows* what images may load, but it is what *permits* a
 background to load at all. Once a list exists the two run the same host check
@@ -416,6 +428,10 @@ parser, with the editor's exact typography:
 | `allowedResourceHosts` | `[]` | Remote-host policy. Empty means no policy. |
 | `inheritResourcePolicy` | `false` | Take an enclosing policy when this view sets none. |
 | `blockedImageMessage` | unset | Overrides the blocked-image caption. |
+| `locale` | unset | Locale for the caption; falls through to the app-wide `UI_LOCALE_ID`. |
+
+The view has the same `(remoteResource)` output as the editor. It is the
+surface readers see, so it is where exposure is best measured.
 
 ### The policy does not travel with the document
 
