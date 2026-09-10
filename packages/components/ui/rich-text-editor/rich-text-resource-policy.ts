@@ -285,8 +285,15 @@ export function labelBlockedImages(root: ParentNode, label: string): void {
     const blocked = root.querySelectorAll<HTMLImageElement>('img[data-blocked-src]');
     for (const img of Array.from(blocked)) {
         img.dataset['blockedLabel'] = label;
-        img.setAttribute('role', 'img');
+        // Announced only when the author gave the image an alt. An empty alt
+        // declares the image decorative, which makes it presentational to
+        // assistive tech -- and a 1x1 tracking pixel is exactly that shape.
+        // Putting role="img" and a name on a presentational element is an ARIA
+        // conflict axe flags, and reading "blocked image" aloud for a pixel the
+        // author never meant anyone to perceive would be noise.
         const alt = img.getAttribute('alt');
-        img.setAttribute('aria-label', alt ? `${alt} — ${label}` : label);
+        if (!alt) continue;
+        img.setAttribute('role', 'img');
+        img.setAttribute('aria-label', `${alt} — ${label}`);
     }
 }

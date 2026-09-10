@@ -649,6 +649,22 @@ describe('RichTextViewComponent — blocked-image caption and exposure report (f
         expect(img.getAttribute('aria-label')).toContain('blocked');
     });
 
+    it('keeps a blocked image with an EMPTY alt presentational', () => {
+        // An empty alt declares the image decorative; giving it role="img" and
+        // a name is an ARIA conflict (axe: presentation-role-conflict), and the
+        // tracking pixel this policy exists for is exactly that shape. It still
+        // gets its visible caption; it is just not announced.
+        const fixture = TestBed.createComponent(CaptionedViewComponent);
+        fixture.componentInstance.doc.set(`![](${TRACKER})`);
+        fixture.detectChanges();
+
+        const img = imgOf(fixture);
+        expect(img.getAttribute('data-blocked-src')).toBe(TRACKER);
+        expect(img.getAttribute('data-blocked-label')).toBe('Image blocked by security policy');
+        expect(img.hasAttribute('role')).toBe(false);
+        expect(img.hasAttribute('aria-label')).toBe(false);
+    });
+
     it('takes the developer override as text, and the locale otherwise', () => {
         const fixture = TestBed.createComponent(CaptionedViewComponent);
         fixture.componentInstance.message.set('<b>Ask #it-help</b>');
