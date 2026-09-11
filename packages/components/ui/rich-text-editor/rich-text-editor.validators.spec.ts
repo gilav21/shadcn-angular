@@ -243,3 +243,14 @@ describe('richTextMinWords', () => {
         });
     });
 });
+
+describe('markdown carrying verbatim inline tags is still markdown (fine-comb review)', () => {
+    it('strips markdown syntax around a <u> or <mark> the editor itself emitted', () => {
+        // toMarkdown emits these tags verbatim, so a bold+underlined document is
+        // exactly this shape. Read as HTML, the `**` counted as characters.
+        expect(richTextVisibleText('**bold** <u>text</u>')).toBe('bold text');
+        expect(richTextVisibleText('a <mark>m</mark> and <sub>s</sub> and <code>c</code>')).toBe('a m and s and c');
+        expect(richTextMaxLength(10)({ value: '**bold** <u>text</u>' } as never)).toBeNull();
+        expect(isRichTextEmpty('**** <u></u>')).toBe(true);
+    });
+});

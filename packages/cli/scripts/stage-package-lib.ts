@@ -201,7 +201,7 @@ export function toPackageTheme(stylesTemplate: string): string {
             return !trimmed.startsWith('/* Tell Tailwind');
         })
         .join('\n');
-    return `${kept.replace(/^\n+/, '').replace(/\n{3,}/g, '\n\n').trimEnd()}\n`;
+    return `${kept.replace(/^\n+/, '').replaceAll(/\n{3,}/g, '\n\n').trimEnd()}\n`;
 }
 
 /**

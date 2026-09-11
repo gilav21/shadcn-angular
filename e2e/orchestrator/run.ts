@@ -107,11 +107,16 @@ function remoteCliArgs(flags: CliFlags): string[] {
  * fixture-specific paths in every consumer's stylesheet.
  */
 function unignoreInstalledSources(fixtureApp: string): void {
+    appendTailwindSources(fixtureApp, ['../src/components', '../src/app/test-pages']);
+}
+
+/** Append an `@source` line per directory to the fixture's tailwind.css, skipping ones already present. */
+function appendTailwindSources(fixtureApp: string, dirs: readonly string[]): void {
     const tailwindCss = path.join(fixtureApp, 'src/tailwind.css');
     if (!fs.existsSync(tailwindCss)) return;
 
     const existing = fs.readFileSync(tailwindCss, 'utf-8');
-    const sources = ['../src/components', '../src/app/test-pages']
+    const sources = dirs
         .map((dir) => `@source "${dir}";`)
         .filter((line) => !existing.includes(line));
     if (sources.length === 0) return;
@@ -129,16 +134,7 @@ async function installPackages(spec: ComponentSpec, fixtureApp: string): Promise
         // and the package's components render unstyled in exactly the app that
         // most needs to look right. Appending is what a real mixed consumer
         // does, and it keeps this leg able to catch a styling regression.
-        const tailwindCss = path.join(fixtureApp, 'src/tailwind.css');
-        if (fs.existsSync(tailwindCss)) {
-            const existing = fs.readFileSync(tailwindCss, 'utf-8');
-            const sources = ids
-                .map((id) => `@source "../node_modules/${PACKAGE_NAMES[id]}";`)
-                .filter((line) => !existing.includes(line));
-            if (sources.length > 0) {
-                fs.writeFileSync(tailwindCss, `${existing.trimEnd()}\n${sources.join('\n')}\n`);
-            }
-        }
+        appendTailwindSources(fixtureApp, ids.map((id) => `../node_modules/${PACKAGE_NAMES[id]}`));
     }
 
     if (spec.names.length === 0) {

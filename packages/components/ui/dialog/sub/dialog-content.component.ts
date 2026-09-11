@@ -128,6 +128,11 @@ export class DialogContentComponent implements AfterViewInit {
      */
     onKeydown(event: KeyboardEvent): void {
         if (event.key === 'Escape') {
+            // A popover open inside this panel owns the key: it closes itself
+            // from a document-level listener that runs after this one, and
+            // closing the dialog as well took a whole form with a date picker.
+            // One Escape, one layer -- the innermost.
+            if (this.contentEl?.querySelector('[data-slot="popover-content"][data-state="open"]')) return;
             event.preventDefault();
             this.close();
             return;

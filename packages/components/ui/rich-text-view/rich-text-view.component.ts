@@ -7,7 +7,6 @@ import {
     forwardRef,
     inject,
     input,
-    isDevMode,
     output,
     viewChild,
 } from '@angular/core';
@@ -20,6 +19,7 @@ import {
     RichTextResourcePolicyHost,
     RichTextSanitizerService,
     labelBlockedImages,
+    reportResourceDecisions,
     type EditorMode,
     type EditorSize,
     type ResourcePolicyDecision,
@@ -213,15 +213,11 @@ export class RichTextViewComponent {
      * the developer can allow the host.
      */
     private drainResourceDecisions(): void {
-        for (const decision of this.sanitizer.drainResourceDecisions()) {
-            this.remoteResource.emit(decision);
-            if (!decision.allowed && isDevMode()) {
-                console.error(
-                    `[rich-text-view] blocked a ${decision.kind} from "${decision.host}": `
-                    + 'its host is not in allowedResourceHosts.',
-                );
-            }
-        }
+        reportResourceDecisions(
+            this.sanitizer.drainResourceDecisions(),
+            (decision) => this.remoteResource.emit(decision),
+            'rich-text-view',
+        );
     }
 
     /**

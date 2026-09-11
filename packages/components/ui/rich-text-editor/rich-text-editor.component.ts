@@ -6,7 +6,6 @@ import {
     computed,
     signal,
     inject,
-    isDevMode,
     ElementRef,
     ViewChild,
     OnInit,
@@ -22,7 +21,12 @@ import { cn } from '../../lib/utils';
 import { graphemeLength, truncateToGraphemes } from '../../lib/grapheme';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
-import { labelBlockedImages, type ResourcePolicyDecision } from './rich-text-resource-policy';
+import {
+    labelBlockedImages,
+    reportResourceDecisions,
+    RichTextResourcePolicyHost,
+    type ResourcePolicyDecision,
+} from './rich-text-resource-policy';
 import { RichTextMarkdownService } from './rich-text-markdown.service';
 import { RichTextPasteNormalizerService } from './rich-text-paste-normalizer.service';
 import { RichTextToolbarComponent, ToolbarItem } from './sub/rich-text-toolbar.component';
@@ -137,15 +141,6 @@ interface SerializedSelection {
 }
 
 /**
- * The default toolbar layout used when `[toolbarItems]` is not provided.
- * Groups: formatting | block type | lists | alignment | colors/size | insert | code | clear.
- *
- * Block type is one `'textStyle'` select rather than four buttons: on a 320px
- * phone the toolbar scrolls horizontally, and those four were its biggest fixed
- * cost. A consumer who prefers the buttons can still list
- * `'paragraph', 'heading1', 'heading2', 'heading3'` explicitly.
- */
-/**
  * Upper bound on the highlight rectangles the find overlay paints at once.
  * Every match is still counted and navigable; beyond this many, only the
  * current match's rectangles are guaranteed to be drawn, which keeps a
@@ -172,6 +167,15 @@ export interface RichTextHistoryState {
     canRedo: boolean;
 }
 
+/**
+ * The default toolbar layout used when `[toolbarItems]` is not provided.
+ * Groups: formatting | block type | lists | alignment | colors/size | insert | code | clear.
+ *
+ * Block type is one `'textStyle'` select rather than four buttons: on a 320px
+ * phone the toolbar scrolls horizontally, and those four were its biggest fixed
+ * cost. A consumer who prefers the buttons can still list
+ * `'paragraph', 'heading1', 'heading2', 'heading3'` explicitly.
+ */
 export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     'bold', 'italic', 'underline',
     'separator',
@@ -203,7 +207,6 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
     { actionId: 'rich-text.find-replace', description: 'Find and replace', defaultShortcut: 'Mod+H', category: 'Navigation' },
 ];
 
-/** Tags that own a line of their own, so an incoming one cannot nest inside them. */
 /** Structures inside a quote that own their own Enter handling. */
 const QUOTE_STRUCTURE_TAGS = new Set(['UL', 'OL', 'LI', 'TABLE', 'TR', 'TD', 'TH', 'PRE', 'CODE', 'DETAILS']);
 
@@ -416,6 +419,26 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * anyone, and `data:` is how a Word paste carries its images.
      */
     readonly allowedResourceHosts = input<readonly string[]>([]);
+
+    /**
+     * Take the policy from an enclosing `[uiRichTextResourcePolicy]` wrapper
+     * when this editor sets none. Off by default, as on the view, so an empty
+     * {@link allowedResourceHosts} keeps exactly one meaning. Ignored when this
+     * editor sets its own list. The wrapper directive's contract named "every
+     * editor and view beneath" it, but only the view honoured it: an editor
+     * under the wrapper read its own empty list and fetched every image.
+     */
+    readonly inheritResourcePolicy = input(false);
+
+    /** The nearest enclosing policy wrapper, read only when {@link inheritResourcePolicy} is on. */
+    private readonly parentPolicy = inject(RichTextResourcePolicyHost, { optional: true });
+
+    /** This editor's own host list, or the inherited one when it has none. */
+    private readonly effectiveResourceHosts = computed<readonly string[]>(() => {
+        const own = this.allowedResourceHosts();
+        if (own.length > 0 || !this.inheritResourcePolicy()) return own;
+        return this.parentPolicy?.allowedResourceHosts() ?? [];
+    });
 
     /**
      * Caption shown on an image {@link allowedResourceHosts} refused.
@@ -715,7 +738,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     private history: HistoryEntry[] = [];
     private historyIndex = -1;
-    private isUndoRedo = false;
     private historyDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     private shortcutHandle: ShortcutComponentHandle | null = null;
     private readonly keydownInterceptors = new Set<(event: KeyboardEvent) => boolean>();
@@ -761,11 +783,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             '[&_*]:outline-none',
             RICH_TEXT_PROSE_CLASSES,
             '[&_img]:cursor-pointer',
-            // An inset ring, not a background: a cell carrying its own inline
-            // background colour would paint straight over `bg-*`, leaving a
-            // selected cell with no marking at all. `box-shadow` layers above
-            // the cell's own background, so every cell reads as selected
-            // whatever colour the author gave it.
             // A tint painted as an ::after overlay, not a background: a cell
             // carrying its own inline background colour paints straight over
             // `bg-*`, so a coloured cell showed no marking at all. An overlay
@@ -880,7 +897,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         // load. A reader is read at the moment each pass runs and cannot be
         // stale. Inputs are bound before the hooks that write content, and the
         // input has a default, so reading it here is always safe.
-        this.sanitizer.setRemoteHostPolicy(this.allowedResourceHosts);
+        this.sanitizer.setRemoteHostPolicy(this.effectiveResourceHosts);
         this.setupOutputEffects();
         this.setupFloatingToolbarEffect();
         this.setupFindRefreshEffect();
@@ -911,7 +928,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         // again. The first run is a no-op: nothing is rendered yet, and the
         // initial write is judged under the live list as it happens.
         effect(() => {
-            this.allowedResourceHosts();
+            this.effectiveResourceHosts();
             untracked(() => this.rejudgeRenderedContent());
         });
         effect(() => {
@@ -951,19 +968,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * only one who can allow the host.
      */
     private drainResourceDecisions(): void {
-        for (const decision of this.sanitizer.drainResourceDecisions()) {
-            this.remoteResource.emit(decision);
-            if (!decision.allowed && isDevMode()) {
-                // console.error, not warn: the project's lint config allows only
-                // error, and the RTE already reserves it for developer-facing
-                // misconfiguration (see the actions and file-import addons).
-                // A blocked host is exactly that -- the reader cannot fix it.
-                console.error(
-                    `[rich-text-editor] blocked a ${decision.kind} from "${decision.host}": `
-                    + 'its host is not in allowedResourceHosts.',
-                );
-            }
-        }
+        reportResourceDecisions(
+            this.sanitizer.drainResourceDecisions(),
+            (decision) => this.remoteResource.emit(decision),
+            'rich-text-editor',
+        );
     }
 
     private setupFloatingToolbarEffect(): void {
@@ -1741,7 +1750,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         // Enter inside a quoted list, table or code block escaped the quote
         // instead of doing the thing that structure calls for.
         const line = this.enclosingQuotedLine(range.startContainer, quote);
-        if (!line || line.textContent?.replaceAll('\u200B', '').trim()) return false;
+        if (!line || !this.holdsNoContent(line)) return false;
         // Only from the LAST line. From a blank line in the middle the new
         // paragraph still went after the whole quote, teleporting the caret past
         // text the user was editing above; the browser's own split is right
@@ -1801,7 +1810,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private handleEnterLeavingList(event: KeyboardEvent, range: Range, selection: Selection): boolean {
         const li = this.findAncestorByTag(range.startContainer, 'LI');
         if (!li) return false;
-        if (li.textContent?.replaceAll('​', '').trim()) return false;
+        if (!this.holdsNoContent(li)) return false;
 
         const list = li.parentElement;
         if (!list || (list.tagName !== 'UL' && list.tagName !== 'OL')) return false;
@@ -1833,7 +1842,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
         const isAtEnd = range.startOffset >= (range.startContainer.textContent?.length ?? 0);
         const isInLastChild = lastChild.contains(range.startContainer);
-        if (!isAtEnd || !isInLastChild || lastChild.textContent?.trim()) return false;
+        if (!isAtEnd || !isInLastChild || !this.holdsNoContent(lastChild)) return false;
 
         event.preventDefault();
         const p = this.document.createElement('p');
@@ -1973,16 +1982,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             return;
         }
 
-        const max = this.maxLength() as number;
-        const currentText = this.perceivedText();
-        const selection = this.document.getSelection();
-        const selectedLength = selection && !selection.isCollapsed
-            ? graphemeLength(selection.toString())
-            : 0;
-        const insertedLength = graphemeLength(inputEvent.data ?? '');
-        const nextLength = graphemeLength(currentText) - selectedLength + insertedLength;
-
-        if (nextLength > max) {
+        if (this.exceedsMaxLength(inputEvent.data ?? '')) {
             event.preventDefault();
         }
     }
@@ -2038,9 +2038,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * or a link carries far more markup than the characters a reader sees.
      */
     private plainTextOf(html: string): string {
-        const scratch = this.document.createElement('div');
-        scratch.innerHTML = html;
-        return scratch.textContent ?? '';
+        // The sanitizer's inert DOMParser, not a live element: the markup here
+        // is not yet sanitized, and assigning it to a live div starts image
+        // fetches and compiles inline handlers on the detached tree.
+        return this.sanitizer.stripTags(html);
     }
 
     /**
@@ -2070,7 +2071,9 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const max = this.maxLength();
         if (!max) return Number.POSITIVE_INFINITY;
         const currentText = this.perceivedText();
-        return Math.max(0, max - (graphemeLength(currentText) - this.getSelectedTextLength()));
+        // Signed, not clamped at zero: an addon whose text is already in the
+        // document needs to know whether it is OVER, and zero cannot say.
+        return max - (graphemeLength(currentText) - this.getSelectedTextLength());
     }
 
     /**
@@ -2160,19 +2163,19 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private exceedsMaxLength(text: string): boolean {
         const max = this.maxLength();
         if (!max) return false;
-        const currentText = this.perceivedText();
-        const remaining = max - (graphemeLength(currentText) - this.getSelectedTextLength());
-        return graphemeLength(text) > remaining;
+        // Graphemes never outnumber UTF-16 units, so when the raw lengths fit
+        // the insert cannot exceed the limit and the document need not be
+        // segmented at all -- which is the case on nearly every keystroke.
+        const selected = this.document.getSelection()?.toString().length ?? 0;
+        if (this.perceivedText().length - selected + text.length <= max) return false;
+        return graphemeLength(text) > this.remainingLength();
     }
 
     private handlePasteMaxLength(text: string): boolean {
-        if (!this.maxLength()) {
+        const remaining = this.remainingLength();
+        if (!Number.isFinite(remaining)) {
             return false;
         }
-        const max = this.maxLength() as number;
-        const currentText = this.perceivedText();
-        const selectedLength = this.getSelectedTextLength();
-        const remaining = max - (graphemeLength(currentText) - selectedLength);
 
         if (remaining <= 0) {
             return true;
@@ -3010,12 +3013,15 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     private getCaretOffset(element: HTMLElement): number {
         const selection = this.document.getSelection();
-        if (!selection || selection.rangeCount === 0) return 0;
+        if (!selection?.anchorNode) return 0;
+        return this.textOffsetWithin(element, selection.anchorNode, selection.anchorOffset);
+    }
 
-        const range = selection.getRangeAt(0).cloneRange();
-        range.selectNodeContents(element);
-        if (!selection.anchorNode) return 0;
-        range.setEnd(selection.anchorNode, selection.anchorOffset);
+    /** Characters of `root`'s text before the point `(node, offset)`. */
+    private textOffsetWithin(root: HTMLElement, node: Node, offset: number): number {
+        const range = this.document.createRange();
+        range.selectNodeContents(root);
+        range.setEnd(node, offset);
         return range.toString().length;
     }
 
@@ -4706,16 +4712,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (!selection || selection.rangeCount === 0) return null;
         const range = selection.getRangeAt(0);
         if (!block.contains(range.startContainer)) return null;
-
-        const walker = this.document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
-        let offset = 0;
-        let node = walker.nextNode() as Text | null;
-        while (node) {
-            if (node === range.startContainer) return offset + range.startOffset;
-            offset += node.data.length;
-            node = walker.nextNode() as Text | null;
-        }
-        return offset;
+        return this.textOffsetWithin(block, range.startContainer, range.startOffset);
     }
 
     /** Re-place a caret captured by {@link captureCaretOffsetIn} after a move. */
@@ -4914,7 +4911,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     closeFindReplace(): void {
         const current = this.findMatches()[this.findCurrentIndex()]?.cloneRange();
         this.cancelPendingFind();
-        this.clearFindHighlights();
+        this.teardownFindOverlay();
         this.findReplaceVisible.set(false);
         this.findQuery.set('');
         this.replaceText.set('');
@@ -5114,6 +5111,25 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
+    /**
+     * Drop the overlay and everything that repainted it. Called when the panel
+     * closes, not only on destroy: left attached, the scroll listener and the
+     * ResizeObserver kept scheduling a repaint of an empty overlay on every
+     * scroll and resize for the rest of the editor's life.
+     */
+    private teardownFindOverlay(): void {
+        if (this.findRepaintHandle !== null) {
+            cancelAnimationFrame(this.findRepaintHandle);
+            this.findRepaintHandle = null;
+        }
+        this.findResizeObserver?.disconnect();
+        this.findResizeObserver = null;
+        this.findScrollHandler?.();
+        this.findScrollHandler = null;
+        this.findOverlay?.remove();
+        this.findOverlay = null;
+    }
+
     /** Coalesce repaint requests onto one animation frame. */
     private requestFindRepaint(): void {
         if (this.findRepaintHandle !== null) return;
@@ -5250,15 +5266,23 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * to the matched text so `$1`-style group references expand; otherwise the
      * replacement is inserted literally.
      */
-    private replacementFor(matched: string): string {
-        if (!this.findUseRegex()) return this.replaceText();
+    /**
+     * The function that turns one matched string into its replacement, built
+     * once per sweep: in regex mode the pattern is compiled a single time and
+     * capture groups expand through `String.replace`, in literal mode the
+     * replacement text is returned as is.
+     */
+    private replacerForQuery(): (matched: string) => string {
+        const replacement = this.replaceText();
+        if (!this.findUseRegex()) return () => replacement;
         const regex = compileFindRegex(this.findQuery(), {
             caseSensitive: this.findCaseSensitive(),
             wholeWord: this.findWholeWord(),
             useRegex: true,
         });
-        if (!regex) return this.replaceText();
-        return matched.replace(new RegExp(regex.source, regex.flags.replace('g', '')), this.replaceText());
+        if (!regex) return () => replacement;
+        const single = new RegExp(regex.source, regex.flags.replace('g', ''));
+        return (matched) => matched.replace(single, replacement);
     }
 
     /**
@@ -5333,7 +5357,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (!range) return;
 
         this.flushPendingHistoryPush();
-        this.replaceRange(range, this.replacementFor(range.toString()));
+        this.replaceRange(range, this.replacerForQuery()(range.toString()));
         this.syncContentFromEditor();
         this.pushHistory();
         this.performFind({ preserveIndex: true });
@@ -5352,8 +5376,9 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (matches.length === 0) return;
 
         this.flushPendingHistoryPush();
+        const replacer = this.replacerForQuery();
         for (const range of [...matches].reverse()) {
-            this.replaceRange(range, this.replacementFor(range.toString()));
+            this.replaceRange(range, replacer(range.toString()));
         }
         this.syncContentFromEditor();
         this.pushHistory();
@@ -6395,7 +6420,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * history entry instead of the usual debounced push.
      */
     private applyInputRules(event: Event): boolean {
-        if (!this.markdownShortcuts() || this.isUndoRedo) return false;
+        if (!this.markdownShortcuts()) return false;
         if (this.isDisabled() || this.readonly()) return false;
 
         const inputType = (event as InputEvent).inputType ?? 'insertText';
@@ -6874,6 +6899,17 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
+    /**
+     * Whether a block is blank for the purpose of "Enter leaves the structure":
+     * no visible text AND nothing that is content on its own. A list item or
+     * quoted line holding only an image has empty textContent, and the exit
+     * rules used to remove it -- deleting the image on Enter.
+     */
+    private holdsNoContent(block: Element): boolean {
+        const text = (block.textContent ?? '').replaceAll('​', '').trim();
+        return text === '' && block.querySelector('img, hr, input, table') === null;
+    }
+
     private isEmptyBlock(block: HTMLElement): boolean {
         const text = (block.textContent ?? '').replaceAll('\u200B', '').trim();
         if (text.length > 0) {
@@ -7094,31 +7130,36 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     undo(): void {
         this.flushPendingHistoryPush();
-        if (this.historyIndex > 0) {
-            this.isUndoRedo = true;
-            this.historyIndex--;
-            const entry = this.history[this.historyIndex];
-            const html = this.reconstructHtmlCached(this.historyIndex);
-            this.htmlContent.set(html);
+        if (this.historyIndex > 0) this.applyHistoryEntry(this.historyIndex - 1);
+    }
 
-            if (this.editorDiv?.nativeElement) {
-                this.replaceEditorHtml(html);
-                this.enableTaskCheckboxes(this.editorDiv.nativeElement);
-            }
-            this.restoreSerializedSelection(entry.selection);
+    /**
+     * Make `index` the current history entry: reconstruct it, write it to the
+     * editable, restore its selection and tell the form. Shared by undo and
+     * redo, which differ only in the direction they step.
+     *
+     * Rewriting innerHTML fires no `input` event, so no flag is needed to keep
+     * the replay from being recorded as typing; an earlier guard flag for that
+     * was set and cleared within this same synchronous call and could never be
+     * observed.
+     */
+    private applyHistoryEntry(index: number): void {
+        this.historyIndex = index;
+        const entry = this.history[index];
+        const html = this.reconstructHtmlCached(index);
+        this.htmlContent.set(html);
 
-            const outputValue = this.mode() === 'markdown'
-                ? this.markdownService.toMarkdown(html)
-                : html;
-            this.onChange(outputValue);
-            this.bumpHistoryVersion();
-            // Cleared here, not on the next input. Rewriting innerHTML fires no
-            // `input` event, so a flag left set survived until the user's next
-            // real keystroke — and that keystroke was then skipped as if it were
-            // part of the undo. The abandoned forward branch stayed intact, so a
-            // later redo overwrote what had just been typed, unrecoverably.
-            this.isUndoRedo = false;
+        if (this.editorDiv?.nativeElement) {
+            this.replaceEditorHtml(html);
+            this.enableTaskCheckboxes(this.editorDiv.nativeElement);
         }
+        this.restoreSerializedSelection(entry.selection);
+
+        const outputValue = this.mode() === 'markdown'
+            ? this.markdownService.toMarkdown(html)
+            : html;
+        this.onChange(outputValue);
+        this.bumpHistoryVersion();
     }
 
     /**
@@ -7129,31 +7170,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     redo(): void {
         this.flushPendingHistoryPush();
-        if (this.historyIndex < this.history.length - 1) {
-            this.isUndoRedo = true;
-            this.historyIndex++;
-            const entry = this.history[this.historyIndex];
-            const html = this.reconstructHtmlCached(this.historyIndex);
-            this.htmlContent.set(html);
-
-            if (this.editorDiv?.nativeElement) {
-                this.replaceEditorHtml(html);
-                this.enableTaskCheckboxes(this.editorDiv.nativeElement);
-            }
-            this.restoreSerializedSelection(entry.selection);
-
-            const outputValue = this.mode() === 'markdown'
-                ? this.markdownService.toMarkdown(html)
-                : html;
-            this.onChange(outputValue);
-            this.bumpHistoryVersion();
-            // Cleared here, not on the next input. Rewriting innerHTML fires no
-            // `input` event, so a flag left set survived until the user's next
-            // real keystroke — and that keystroke was then skipped as if it were
-            // part of the undo. The abandoned forward branch stayed intact, so a
-            // later redo overwrote what had just been typed, unrecoverably.
-            this.isUndoRedo = false;
-        }
+        if (this.historyIndex < this.history.length - 1) this.applyHistoryEntry(this.historyIndex + 1);
     }
 
     private scheduleDebouncedHistoryPush(): void {
@@ -7354,14 +7371,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
         this.releaseTableDragListeners();
         this.cancelPendingFind();
-        if (this.findRepaintHandle !== null) {
-            cancelAnimationFrame(this.findRepaintHandle);
-            this.findRepaintHandle = null;
-        }
-        this.findResizeObserver?.disconnect();
-        this.findResizeObserver = null;
-        this.findScrollHandler?.();
-        this.findScrollHandler = null;
+        this.teardownFindOverlay();
         this.closeTableContextMenu();
         this.removeFloatingScrollListener();
     }

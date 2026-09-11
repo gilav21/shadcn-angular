@@ -3,6 +3,7 @@ import {
     containsCssUrl,
     cssFunctionCalls,
     normalizeHostEntry,
+    remoteHostOf,
     decodeCssEscapes,
     extractCssUrls,
     hasUnsafeCssFunction,
@@ -237,5 +238,26 @@ describe('normalizeHostEntry (fine-comb review)', () => {
         expect(isHostAllowed('https://cdn.acme.com.evil.com/a.png', ['https://cdn.acme.com'])).toBe(false);
         expect(isHostAllowed('https://evil.com/?x=cdn.acme.com', ['cdn.acme.com:8443'])).toBe(false);
         expect(isHostAllowed('https://cdn.acme.com/a.png', ['https://cdn.acme.com@evil.com'])).toBe(false);
+    });
+});
+
+describe('protocol-relative references are judged, not exempted (fine-comb review)', () => {
+    it('treats //host as host-bearing, resolved the way a browser would', () => {
+        // `new URL('//evil.com/p.png')` throws without a base, and "cannot
+        // parse" used to read as "relative, so same-origin". A CSS
+        // url(//evil.com/p.png) therefore went unjudged and unreported.
+        for (const url of ['//evil.com/p.png', '///evil.com/p.png', '/\\evil.com/p.png']) {
+            expect(isHostBearingUrl(url), url).toBe(true);
+            expect(remoteHostOf(url), url).toBe('evil.com');
+            expect(isHostAllowed(url, ['cdn.trusted.com']), url).toBe(false);
+        }
+        expect(isHostAllowed('//cdn.trusted.com/a.png', ['cdn.trusted.com'])).toBe(true);
+    });
+
+    it('still exempts same-origin references, absolute or relative', () => {
+        const here = new URL(document.baseURI);
+        expect(isHostBearingUrl(`${here.origin}/a.png`)).toBe(false);
+        expect(isHostBearingUrl('/a.png')).toBe(false);
+        expect(isHostBearingUrl('a.png')).toBe(false);
     });
 });

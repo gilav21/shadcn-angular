@@ -1,13 +1,15 @@
 import type { AbstractControl, ValidationErrors, ValidatorFn } from '@angular/forms';
 
 /**
- * A value is HTML when it carries a tag other than `<span>` / `<img>`. Those
- * two are the only raw tags the editor's markdown output can contain (the
- * actions addon serializes them and `protectRawTags` keeps them opaque through
- * the parser), so treating them as markdown is what lets an actioned markdown
- * document still have its `**` stripped.
+ * A value is HTML when it carries a tag other than the ones the editor's
+ * markdown output can itself contain: `<span>` and `<img>` from the actions
+ * addon, and the inline tags markdown has no syntax for (`u`, `mark`, `sub`,
+ * `sup`, `small`, `ins`, and `code` for a span that cannot be fenced), which
+ * `toMarkdown` emits verbatim. Listing only the first two classified a
+ * markdown document holding underlined text as HTML, so its `**` were counted
+ * as visible characters and the validators disagreed with the editor's counter.
  */
-const HTML_MARKER = /<\/?(?!span\b|img\b)[a-z][^>]*>/i;
+const HTML_MARKER = /<\/?(?!span\b|img\b|u\b|mark\b|sub\b|sup\b|small\b|ins\b|code\b)[a-z][^>]*>/i;
 
 /** Elements whose boundary is a line break in the visible text. */
 const BLOCK_SELECTOR =
@@ -24,6 +26,7 @@ const CELL_SELECTOR = 'td,th';
 const MARKDOWN_STRIP: ReadonlyArray<readonly [RegExp, string]> = [
     [/<span\b[^>]{0,4096}>|<\/span>/gi, ''],
     [/<img\b[^>]{0,4096}>/gi, ''],
+    [/<\/?(?:u|mark|sub|sup|small|ins|code)\b[^>]{0,4096}>/gi, ''],
     [/!\[([^\]]{0,4096})\]\([^)]{0,4096}\)/g, '$1'],
     [/\[([^\]]{1,4096})\]\([^)]{0,4096}\)/g, '$1'],
     [/^#{1,6}[ \t]+/gm, ''],
@@ -69,7 +72,11 @@ function parseBody(value: string): HTMLElement {
 
 /** Text of an HTML document, with block boundaries turned into separators. */
 function htmlToText(value: string): string {
-    const body = parseBody(value);
+    return bodyToText(parseBody(value));
+}
+
+/** Text of a parsed body, with block boundaries turned into separators. Mutates `body`. */
+function bodyToText(body: HTMLElement): string {
     for (const el of Array.from(body.querySelectorAll(BLOCK_SELECTOR))) {
         el.append(body.ownerDocument.createTextNode('\n'));
     }
@@ -170,7 +177,18 @@ export function richTextHasMedia(value: unknown): boolean {
  * rule, which is exactly what Angular's `Validators.required` gets wrong.
  */
 export function isRichTextEmpty(value: unknown): boolean {
-    return richTextVisibleText(value) === '' && !richTextHasMedia(value);
+    const source = toSource(value);
+    if (source === '') return true;
+    if (!HTML_MARKER.test(source)) {
+        return normalise(markdownToText(source)) === '' && !richTextHasMedia(source);
+    }
+    // One parse for both questions. The media check runs first because it is
+    // a single querySelector, and only when the text is empty does it decide
+    // anything; parsing the document twice per keystroke was the cost of
+    // asking the two questions through their public helpers.
+    const body = parseBody(source);
+    if (body.querySelector('img, hr, table') !== null) return false;
+    return normalise(bodyToText(body)) === '';
 }
 
 /**

@@ -51,8 +51,6 @@ export interface RichTextLocale extends LocaleMeta {
         previous: string;
         /** Accessible name of the next-match button. */
         next: string;
-        /** Tooltip of the toolbar button that opens the panel. */
-        findToolbar: string;
     };
 
 
@@ -139,7 +137,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             matchCounter: '{current} of {total}',
             previous: 'Previous match',
             next: 'Next match',
-            findToolbar: 'Find and replace',
         },
         table: {
             rows: 'Rows',
@@ -220,7 +217,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             matchCounter: '{current} מתוך {total}',
             previous: 'התאמה קודמת',
             next: 'התאמה הבאה',
-            findToolbar: 'חיפוש והחלפה',
         },
         table: {
             rows: 'שורות',
@@ -301,7 +297,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             matchCounter: '{current} من {total}',
             previous: 'التطابق السابق',
             next: 'التطابق التالي',
-            findToolbar: 'بحث واستبدال',
         },
         table: {
             rows: 'صفوف',
@@ -381,7 +376,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             matchCounter: '{current} von {total}',
             previous: 'Vorheriger Treffer',
             next: 'Nächster Treffer',
-            findToolbar: 'Suchen und ersetzen',
         },
         table: {
             rows: 'Zeilen',
@@ -461,7 +455,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             matchCounter: '{current} sur {total}',
             previous: 'Résultat précédent',
             next: 'Résultat suivant',
-            findToolbar: 'Rechercher et remplacer',
         },
         table: {
             rows: 'Lignes',
@@ -541,7 +534,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             matchCounter: '{current} de {total}',
             previous: 'Coincidencia anterior',
             next: 'Coincidencia siguiente',
-            findToolbar: 'Buscar y reemplazar',
         },
         table: {
             rows: 'Filas',
@@ -621,7 +613,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             matchCounter: '{total} 件中 {current} 件目',
             previous: '前の一致',
             next: '次の一致',
-            findToolbar: '検索と置換',
         },
         table: {
             rows: '行',
@@ -701,7 +692,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             matchCounter: '第 {current} 项，共 {total} 项',
             previous: '上一个匹配',
             next: '下一个匹配',
-            findToolbar: '查找和替换',
         },
         table: {
             rows: '行',
@@ -781,7 +771,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             matchCounter: '{current} из {total}',
             previous: 'Предыдущее совпадение',
             next: 'Следующее совпадение',
-            findToolbar: 'Найти и заменить',
         },
         table: {
             rows: 'Строки',
@@ -861,7 +850,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             matchCounter: '{current} de {total}',
             previous: 'Correspondência anterior',
             next: 'Próxima correspondência',
-            findToolbar: 'Localizar e substituir',
         },
         table: {
             rows: 'Linhas',

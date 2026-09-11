@@ -913,9 +913,17 @@ describe('RichTextSanitizerService — structural size ceiling', () => {
             expect(service.isUrlSafe('https://example.com/a')).toBe(true);
         });
 
-        it('strips such an href in a full sanitize pass', () => {
+        it('rewrites such an href to the explicit absolute URL in a full sanitize pass', () => {
+            // Not dropped: an explicit https link to the same host is allowed,
+            // so dropping the shorthand deleted legitimate links while
+            // protecting nothing. What must not survive is the RELATIVE-LOOKING
+            // spelling, which a reader cannot tell is off-origin.
             const html = service.sanitize('<a href="/\\evil.example/steal">click</a>');
-            expect(html).not.toContain('evil.example');
+            expect(html).not.toContain('/\\evil.example');
+            // Resolved against THIS page: either dropped, or stored as an
+            // explicit absolute URL -- never as the relative-looking spelling.
+            const href = /href="([^"]*)"/.exec(html)?.[1];
+            expect(href === undefined || /^https?:\/\//.test(href)).toBe(true);
         });
 
         it('still allows an ordinary rooted path', () => {
@@ -1305,5 +1313,76 @@ describe('RichTextSanitizerService - data-blocked-src is re-judged, never copied
         expect(service.sanitizeImageSrc(TRACKER)).toBeNull();
         hosts.push('tracker.example');
         expect(service.sanitizeImageSrc(TRACKER)).toBe(TRACKER);
+    });
+});
+
+describe('RichTextSanitizerService - references resolved from the page (fine-comb review)', () => {
+    let service: RichTextSanitizerService;
+
+    beforeEach(() => {
+        TestBed.configureTestingModule({ providers: [RichTextSanitizerService] });
+        service = TestBed.inject(RichTextSanitizerService);
+    });
+
+    const styleOf = (decl: string): string | null => sanitizedStyle(service, decl);
+
+    it('judges a protocol-relative CSS url() by its real host', () => {
+        // `//evil.com` could not be parsed without a base, read as "relative",
+        // and walked past the allowlist unjudged and unreported.
+        service.setRemoteHostPolicy(['cdn.trusted.com']);
+        expect(styleOf('background: url(//evil.com/p.png)')).toBeNull();
+        expect(styleOf('background: url(///evil.com/p.png)')).toBeNull();
+        expect(styleOf('background: url(//cdn.trusted.com/p.png)')).not.toBeNull();
+        const blocked = service.drainResourceDecisions().filter((d) => !d.allowed);
+        expect(blocked.map((d) => d.host)).toEqual(['evil.com', 'evil.com']);
+    });
+
+    it('keeps a same-origin link whose query holds another URL', () => {
+        // The authority check split on the first colon anywhere, so a path
+        // with `file:///` in its query looked like an `https:///` authority.
+        for (const href of ['/search?q=file:///etc/hosts', '/proxy?src=c:\\images\\a.png', '/redirect?to=https://x']) {
+            const html = service.sanitize(`<a href="${href}">x</a>`);
+            expect(html, href).toContain('href="');
+        }
+        expect(service.sanitizeImageSrc('/proxy?src=c:\\images\\a.png')).toBe('/proxy?src=c:\\images\\a.png');
+    });
+
+    it('rewrites a protocol-relative link to the explicit absolute URL', () => {
+        // A scheme-less form takes the page's scheme; an explicit one keeps its own.
+        expect(service.sanitizeUrl('//cdn.example.com/whitepaper.pdf')).toBe(`${location.protocol}//cdn.example.com/whitepaper.pdf`);
+        expect(service.sanitizeUrl('https:\\\\evil.example/x')).toBe('https://evil.example/x');
+        // Whatever the browser resolves a backslash form to, the stored value
+        // is never the relative-looking spelling.
+        const stored = service.sanitizeUrl('\\\\evil.example/steal');
+        expect(stored === null || /^https?:\/\//.test(stored)).toBe(true);
+        // Still refused when the resolved scheme is not a link scheme.
+        expect(service.sanitizeUrl('javascript:alert(1)')).toBeNull();
+    });
+
+    it('does not carry a stale policy block onto the next unsafe image', () => {
+        service.setRemoteHostPolicy(['cdn.trusted.com']);
+        expect(service.sanitizeImageSrc('https://tracker.example/p.png')).toBeNull();
+        // Nobody took the marker. The next refusal is for an UNSAFE source.
+        expect(service.sanitizeImageSrc('javascript:alert(1)')).toBeNull();
+        expect(service.takeBlockedByPolicy()).toBeNull();
+    });
+
+    it('never keeps both src and data-blocked-src, whatever the attribute order', () => {
+        service.setRemoteHostPolicy(['cdn.acme.com']);
+        for (const html of [
+            '<img data-blocked-src="https://tracker.example/p.png" src="https://cdn.acme.com/a.png" alt="a">',
+            '<img src="https://cdn.acme.com/a.png" data-blocked-src="https://tracker.example/p.png" alt="a">',
+        ]) {
+            const img = new DOMParser().parseFromString(service.sanitize(html), 'text/html').querySelector('img');
+            expect(img?.getAttribute('src'), html).toBe('https://cdn.acme.com/a.png');
+            expect(img?.hasAttribute('data-blocked-src'), html).toBe(false);
+        }
+    });
+
+    it('caps the undrained decision buffer', () => {
+        for (let i = 0; i < 300; i++) service.sanitizeImageSrc(`https://h${i}.example/p.png`);
+        const drained = service.drainResourceDecisions();
+        expect(drained.length).toBeLessThanOrEqual(256);
+        expect(drained.at(-1)?.host).toBe('h299.example');
     });
 });

@@ -36,7 +36,15 @@ function listItemContent(tail: string | undefined): string {
     return tail ? tail.replace(/^[ \t]+/, '') : '';
 }
 
+/** A thematic break: three or more of one marker, spaces allowed between. */
+const THEMATIC_BREAK = /^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$/;
+/** The same, applied line by line across a document. */
+const THEMATIC_BREAK_LINE = /^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$/gm;
+
 function parseListLine(line: string): ParsedListLine | null {
+    // "* * *" and "- - -" are rules, not bullets holding "* *". The rule pass
+    // runs after this one, so the refusal has to live here.
+    if (THEMATIC_BREAK.test(line)) return null;
     const taskMatch = new RegExp(/^(\s*)[-*+]\s+\[([ xX])\]\s*(\S.*|)$/).exec(line);
     if (taskMatch) {
         const checked = taskMatch[2] !== ' ';
@@ -310,6 +318,10 @@ const INLINE_CODE_CLOSE = '';
 /** A block whose first token is a parked raw tag: already markup, not prose. */
 const RAW_TAG_ONLY_BLOCK = /^(\d{1,9})/;
 
+/** Opening and closing block tags, counted to track nesting depth across lines. */
+const BLOCK_OPEN_TAG = /<(?:h[1-6]|ul|ol|li|blockquote|pre|div|p|table|thead|tbody|tr|th|td|details|summary|figure)\b[^>]*>/gi;
+const BLOCK_CLOSE_TAG = /<\/(?:h[1-6]|ul|ol|li|blockquote|pre|div|p|table|thead|tbody|tr|th|td|details|summary|figure)>/gi;
+
 /** Block-level tags: a parked one of these means the block is already markup. */
 const BLOCK_LEVEL_TAG_PATTERN = /^<(?:p|div|h[1-6]|ul|ol|li|blockquote|pre|table|thead|tbody|tr|th|td|hr|figure|details|summary)\b/i;
 
@@ -321,6 +333,10 @@ const INDENTED_FENCE_TOKEN = /^\s+\d{1,9}\s*$/;
  * list item above it, whatever block it turns out to hold.
  */
 const CONTINUATION_LINE = /^ {2,}\S/;
+
+/** Private-use delimiters parking a raw HTML tag during the inline passes. */
+const RAW_TAG_OPEN = '';
+const RAW_TAG_CLOSE = '';
 
 const CODE_FENCE_OPEN = '';
 const CODE_FENCE_CLOSE = '';
@@ -385,7 +401,14 @@ function escapeMarkdownText(text: string): string {
     return text
         .replaceAll('\\', String.raw`\\`)
         .replaceAll(/([*_`])/g, String.raw`\$1`)
-        .replaceAll(/^([ \t]*)([*#+>-])( )/gm, String.raw`$1\$2$3`);
+        .replaceAll(/^([ \t]*)([*#+>-])( )/gm, String.raw`$1\$2$3`)
+        // "2024. A good year" is prose; unescaped it re-parsed as an ordered
+        // list on the next load and the number was gone for good.
+        .replaceAll(/^([ \t]*)(\d{1,9})\.( )/gm, String.raw`$1$2\.$3`)
+        // A literal "<b>" in prose (an author writing ABOUT markup) became a
+        // real element on reload. Only a tag-shaped "<" is escaped, so "a < b"
+        // stays as typed; CommonMark reads "\<" as the literal character.
+        .replaceAll(/<(?=[a-z/])/gi, String.raw`\<`);
 }
 
 @Injectable({ providedIn: 'root' })
@@ -448,9 +471,11 @@ export class RichTextMarkdownService {
         html = this.parseToggleBlocks(html);
         html = this.parseBlockquotes(html);
         html = this.parseHeadings(html);
+        // Lists first: an indented "---" or "> b" under an item is that item's
+        // continuation and must not be taken at document level. parseListLine
+        // itself refuses a spaced rule such as "* * *". Tables before rules,
+        // because a separator row is all dashes.
         html = this.parseLists(html);
-        // Before horizontal rules: a table's `| --- |` separator row would
-        // otherwise be swallowed as an <hr>.
         html = this.parseTables(html);
         html = this.parseHorizontalRules(html);
         // BEFORE paragraphs are split. A hard break ending a paragraph is
@@ -619,11 +644,7 @@ export class RichTextMarkdownService {
 
     /** Put escaped characters back as literal text, HTML-escaped. */
     private restoreEscapes(html: string, store: string[]): string {
-        if (store.length === 0) return html;
-        return html.replaceAll(
-            new RegExp(String.raw`${ESCAPED_OPEN}(\d{1,9})${ESCAPED_CLOSE}`, 'g'),
-            (_match, index: string) => this.escapeHtml(store[Number(index)] ?? ''),
-        );
+        return restoreParked(html, ESCAPED_OPEN, ESCAPED_CLOSE, store, (s) => this.escapeHtml(s));
     }
 
     /**
@@ -677,16 +698,16 @@ export class RichTextMarkdownService {
     }
 
     private restoreInlineCode(html: string, store: string[]): string {
-        return html.replaceAll(/(\d{1,9})/g, (_match, index: string) => store[Number(index)] ?? '');
+        return restoreParked(html, INLINE_CODE_OPEN, INLINE_CODE_CLOSE, store);
     }
 
     private restoreCodeFences(html: string, store: string[]): string {
-        return html.replaceAll(/(\d{1,9})/g, (_match, index: string) => store[Number(index)] ?? '');
+        return restoreParked(html, CODE_FENCE_OPEN, CODE_FENCE_CLOSE, store);
     }
 
 
     private restoreRawTags(html: string, store: string[]): string {
-        return html.replaceAll(/(\d{1,9})/g, (_match, index: string) => store[Number(index)] ?? '');
+        return restoreParked(html, RAW_TAG_OPEN, RAW_TAG_CLOSE, store);
     }
 
     /**
@@ -814,6 +835,10 @@ export class RichTextMarkdownService {
             // the tight form produced depth 1 instead of 2, and ">> b" alone
             // produced no blockquote whatsoever. The strip below already
             // tolerates both forms; only this test was too narrow.
+            // Only an UNINDENTED marker opens a quote here. CommonMark allows
+            // up to three leading spaces, but an indented "> b" under a list
+            // item is that item's continuation, and this pass runs before the
+            // list pass -- taking it here pulled the quote out of its item.
             if (line.startsWith('>')) {
                 inBlockquote = true;
                 blockquoteContent.push(line.replace(/^>\s?/, ''));
@@ -1052,7 +1077,10 @@ export class RichTextMarkdownService {
      * operation that addresses <p>.
      */
     private parseHorizontalRules(html: string): string {
-        return html.replaceAll(/^([-*_]){3,}[ \t]*$/gm, '<hr>');
+        // "* * *" and "- - -" are rules too: CommonMark allows interior spaces
+        // and up to three leading ones. parseListLine refuses the same shape,
+        // so the spaced spelling is never read as a bullet holding "* *".
+        return html.replaceAll(THEMATIC_BREAK_LINE, '<hr>');
     }
 
     /**
@@ -1074,7 +1102,7 @@ export class RichTextMarkdownService {
             const trimmed = block.trim();
 
             if (/^<(h[1-6]|ul|ol|li|blockquote|pre|div|p|hr|table|details|figure)/i.test(trimmed)) {
-                return trimmed;
+                return this.wrapLooseLines(trimmed);
             }
 
             // A parked code fence is a block, even though it currently looks
@@ -1100,6 +1128,45 @@ export class RichTextMarkdownService {
 
             return `<p>${trimmed}</p>`;
         }).filter(Boolean).join('\n');
+    }
+
+    /**
+     * Wrap the prose lines that follow a block element within one chunk.
+     *
+     * A chunk that merely STARTED with a block tag was returned whole, so
+     * "# Title\nBody" left "Body" as a bare text node beside the heading -- no
+     * paragraph, so block operations and consumer styling on `p` missed it.
+     * Three earlier fixes each taught one upstream pass to preserve the blank
+     * line this guard relied on (after a rule, after a list, a held blank);
+     * this fixes the guard instead, for every block construct at once.
+     *
+     * Only lines at the top level count: a line inside a multi-line block
+     * element (a details body, a nested list) is left where it is.
+     */
+    private wrapLooseLines(chunk: string): string {
+        const lines = chunk.split('\n');
+        const out: string[] = [];
+        let prose: string[] = [];
+        let depth = 0;
+        const flush = (): void => {
+            if (prose.length > 0) out.push(`<p>${prose.join('\n')}</p>`);
+            prose = [];
+        };
+        for (const line of lines) {
+            const trimmed = line.trim();
+            const opens = (line.match(BLOCK_OPEN_TAG) ?? []).length;
+            const closes = (line.match(BLOCK_CLOSE_TAG) ?? []).length;
+            const isMarkup = depth > 0 || trimmed.startsWith('<') || trimmed.startsWith(CODE_FENCE_OPEN) || trimmed === '';
+            if (isMarkup) {
+                flush();
+                out.push(line);
+            } else {
+                prose.push(line);
+            }
+            depth = Math.max(0, depth + opens - closes);
+        }
+        flush();
+        return out.join('\n');
     }
 
     /**
@@ -2102,4 +2169,22 @@ function resolveInlineCodeText(value: string, store: readonly string[]): string 
         const parked = store[Number(index)] ?? '';
         return parked.replace(/^<code>/, '').replace(/<\/code>$/, '');
     });
+}
+
+/**
+ * Expand every parked token of one delimiter pair back into the text it holds,
+ * through `map` (identity by default). The five restore passes used to carry
+ * five copies of this loop, differing only in the delimiters, so a change to
+ * the token shape or the out-of-range fallback had to be made five times.
+ */
+function restoreParked(
+    html: string,
+    open: string,
+    close: string,
+    store: readonly string[],
+    map: (s: string) => string = (s) => s,
+): string {
+    if (store.length === 0) return html;
+    const pattern = new RegExp(String.raw`${open}(\d{1,9})${close}`, 'g');
+    return html.replaceAll(pattern, (_match, index: string) => map(store[Number(index)] ?? ''));
 }

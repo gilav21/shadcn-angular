@@ -400,6 +400,11 @@ It is also **not** the XSS boundary. `javascript:`, `vbscript:`,
 refused by the sanitizer regardless of any allowlist, and always were. The host
 policy only narrows what survives that.
 
+Links are a separate, fixed allowlist: an `href` keeps only `http`, `https`,
+`mailto`, `tel`, `sms` and `ftp`. A custom scheme (`slack://`, `geo:`) is
+stripped on save. A protocol-relative `//host/x` is kept, stored as the explicit
+absolute URL it resolves to, so a reader can always see where a link goes.
+
 ## Rendering published content — `ui-rich-text-view`
 
 Showing what someone authored does not need an editor. `ui-rich-text-view`
@@ -452,6 +457,7 @@ For a page rendering many views under one policy, put the list on a wrapper and
 opt each view in, rather than repeating it and eventually missing one:
 
 ```html
+<!-- Editors opt in the same way: [inheritResourcePolicy]="true" -->
 <div [uiRichTextResourcePolicy]="['cdn.acme.com', '*.assets.acme.com']">
   @for (post of posts; track post.id) {
     <ui-rich-text-view [value]="post.body" [inheritResourcePolicy]="true" />
@@ -618,7 +624,7 @@ it is the entire supported surface — 39 members, grouped:
 | `selectionInlineStyle: Signal<RichTextSelectionInlineStyle>` | The inline style in force at the caret. |
 | `commitContent()` | Flush the current DOM into the model and emit. |
 | `contentRoot: HTMLElement` | The contenteditable element. Read it; mutate through the seams above. |
-| `remainingLength()` | Characters the document can still take (`Infinity` when no `maxLength`), in the same grapheme units the counter shows. `mutateContent` bypasses the base's own limit checks, so ask before inserting anything sizeable. |
+| `remainingLength()` | Characters the document can still take (`Infinity` when no `maxLength`, negative when already over), in the same grapheme units the counter shows. `mutateContent` bypasses the base's own limit checks, so ask before inserting anything sizeable. |
 | `setActiveSuggestionPopup(popup)` | Announce an open suggestion list on the editable (`aria-expanded`/`aria-controls`/`aria-activedescendant`), or `null` to clear. Focus stays in the editable while a mention or slash menu is open, so the editable is what a screen reader reads. |
 | `isDisabled: Signal<boolean>` / `readonly: Signal<boolean>` | Editor state for `isEnabled` predicates. Effective: `[disabled]` OR `control.disable()`. |
 | `disabled: Signal<boolean>` | The `[disabled]` input alone. Guard on `isDisabled`, or your addon stays live under `control.disable()`. |

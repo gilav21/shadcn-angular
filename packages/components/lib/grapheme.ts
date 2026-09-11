@@ -14,12 +14,26 @@
  */
 export function graphemeLength(text: string): number {
     if (!text) return 0;
-    if (typeof Intl === 'undefined' || typeof Intl.Segmenter !== 'function') {
-        return text.length;
-    }
+    const segmenter = graphemeSegmenter();
+    if (!segmenter) return text.length;
     let count = 0;
-    for (const _ of new Intl.Segmenter().segment(text)) count++;
+    for (const _ of segmenter.segment(text)) count++;
     return count;
+}
+
+/**
+ * One shared segmenter. Constructing `Intl.Segmenter` is the expensive part
+ * (it loads locale data), and the editor counts the whole document on every
+ * keystroke while `maxLength` is set.
+ */
+let sharedSegmenter: Intl.Segmenter | null | undefined;
+function graphemeSegmenter(): Intl.Segmenter | null {
+    if (sharedSegmenter === undefined) {
+        sharedSegmenter = typeof Intl === 'undefined' || typeof Intl.Segmenter !== 'function'
+            ? null
+            : new Intl.Segmenter();
+    }
+    return sharedSegmenter;
 }
 
 /**
@@ -32,12 +46,11 @@ export function graphemeLength(text: string): number {
  */
 export function truncateToGraphemes(text: string, count: number): string {
     if (count <= 0) return '';
-    if (typeof Intl === 'undefined' || typeof Intl.Segmenter !== 'function') {
-        return text.substring(0, count);
-    }
+    const segmenter = graphemeSegmenter();
+    if (!segmenter) return text.substring(0, count);
     let out = '';
     let taken = 0;
-    for (const { segment } of new Intl.Segmenter().segment(text)) {
+    for (const { segment } of segmenter.segment(text)) {
         if (taken >= count) break;
         out += segment;
         taken++;

@@ -203,7 +203,11 @@ export abstract class RichTextEditorAddonHost {
     abstract readonly contentRoot: HTMLElement;
     /**
      * How many more user-perceived characters the document can take, or
-     * `Infinity` when no `maxLength` is set.
+     * `Infinity` when no `maxLength` is set. NEGATIVE when the document is
+     * already over the limit -- which is how an addon whose content is already
+     * in the document (a streamed AI draft, say) asks whether committing it
+     * would leave the document too long. A clamped zero could not tell "exactly
+     * full" from "over".
      *
      * The base enforces `maxLength` on typing, paste and its own insert seams,
      * but an addon that mutates content directly through

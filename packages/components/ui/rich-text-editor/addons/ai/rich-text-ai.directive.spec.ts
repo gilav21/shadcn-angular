@@ -651,6 +651,30 @@ describe('RichTextAiDirective', () => {
         expect(fixture.componentInstance.errors.at(-1)).toBeDefined();
     });
 
+    it('commits a draft that fits, even when it is longer than the room left after it', () => {
+        // The other shape of the limit check. The draft is already in the
+        // document when accept() runs, so comparing its length against the
+        // REMAINING budget counted it twice: a 26-character answer into a
+        // 40-character field holding 3 was refused at 29. The earlier test
+        // only used a draft far past the limit, where both readings agree.
+        const fixture = createFixture();
+        fixture.componentInstance.maxLength.set(40);
+        fixture.componentInstance.provider.set(() => 'twenty-six characters here');
+        fixture.detectChanges();
+        const el = setContent(fixture, '<p>src</p>');
+        selectAll(el);
+        fixture.detectChanges();
+
+        const dir = directiveOf(fixture);
+        dir.openPanel();
+        dir.runTask('rewrite');
+        dir.accept();
+        fixture.detectChanges();
+
+        expect(el.textContent).toContain('twenty-six characters here');
+        expect(fixture.componentInstance.errors).toHaveLength(0);
+    });
+
     it('lets Tab reach the AI panel instead of typing a tab character', () => {
         // The base editor intercepts Tab unconditionally to indent or insert a
         // tab. With a selection-triggered panel open that is a keyboard trap AND

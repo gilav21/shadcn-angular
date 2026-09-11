@@ -1,3 +1,5 @@
+import { isDevMode } from '@angular/core';
+
 /**
  * Host policy for remote resources referenced by editor content.
  *
@@ -59,10 +61,43 @@ export interface ResourcePolicyDecision {
 export function isHostAllowed(url: string, allowedHosts: readonly string[]): boolean {
     if (allowedHosts.length === 0) return true;
 
-    const host = hostOf(url);
+    const host = remoteHostOf(url);
     if (host === null) return false;
 
     return allowedHosts.some((entry) => matchesHostEntry(host, normalizeHostEntry(entry)));
+}
+
+/**
+ * The origin every reference is resolved against: the page's own, or a
+ * placeholder where there is no document (server rendering).
+ */
+function pageBase(): URL {
+    return new URL(globalThis.document?.baseURI ?? 'https://localhost/');
+}
+
+/**
+ * The URL a reference resolves to from this page, or null when it cannot be
+ * parsed even with a base.
+ *
+ * Resolved WITH the page as base, deliberately. A bare `new URL(url)` throws
+ * on every relative form, and one relative-looking form is not relative at
+ * all: `//evil.com/p.png` keeps the page's scheme and goes to evil.com. Parsing
+ * it bare failed, the failure read as "relative, so same-origin", and a CSS
+ * `url(//evil.com/p.png)` walked past the allowlist unjudged and unreported.
+ * Resolving the way a browser does makes `//host`, `/\host` and the rest fall
+ * out of the same parse, with no list of spellings to maintain.
+ */
+export function resolveFromPage(url: string): URL | null {
+    try {
+        return new URL(url, pageBase());
+    } catch {
+        return null;
+    }
+}
+
+/** The hostname a reference reaches from this page, lowercased, or null when unparsable. */
+export function remoteHostOf(url: string): string | null {
+    return resolveFromPage(url)?.hostname.toLowerCase() ?? null;
 }
 
 /**
@@ -111,7 +146,11 @@ export function hostOf(url: string): string | null {
 export function isHostBearingUrl(url: string): boolean {
     const trimmed = url.trim().toLowerCase();
     if (trimmed.startsWith('data:')) return false;
-    return hostOf(url) !== null;
+    const resolved = resolveFromPage(url);
+    // Unparsable even against a base is not "relative": it is judged, and an
+    // allowlist that cannot find a host in it refuses it.
+    if (resolved === null) return true;
+    return resolved.origin !== pageBase().origin;
 }
 
 function matchesHostEntry(host: string, entry: string): boolean {
@@ -295,5 +334,27 @@ export function labelBlockedImages(root: ParentNode, label: string): void {
         if (!alt) continue;
         img.setAttribute('role', 'img');
         img.setAttribute('aria-label', `${alt} — ${label}`);
+    }
+}
+
+/**
+ * Hand every drained decision to the component's output, warning in dev mode
+ * for the blocked ones -- the reader lost content they can see is missing, and
+ * only the developer can allow the host. One helper for the editor and the
+ * view, so the message and the rule cannot drift between the two surfaces.
+ */
+export function reportResourceDecisions(
+    decisions: readonly ResourcePolicyDecision[],
+    emit: (decision: ResourcePolicyDecision) => void,
+    surface: string,
+): void {
+    for (const decision of decisions) {
+        emit(decision);
+        if (!decision.allowed && isDevMode()) {
+            console.error(
+                `[${surface}] blocked a ${decision.kind} from "${decision.host}": `
+                + 'its host is not in allowedResourceHosts.',
+            );
+        }
     }
 }

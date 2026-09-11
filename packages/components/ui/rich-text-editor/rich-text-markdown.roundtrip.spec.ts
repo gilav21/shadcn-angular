@@ -47,6 +47,11 @@ describe('RichTextMarkdownService - round-trip fixed point', () => {
         ['strikethrough and code span', '~~gone~~ and `kept`'],
         ['list followed by prose', '- a\n- b\n\nA paragraph after the list.'],
         ['paragraph with asterisks', '2 * 3 * 4 = 24'],
+        ['prose that starts with a year', '2024. A good year for the team.'],
+        ['prose about markup', 'Use the <b> element for bold, and <br> for a break.'],
+        ['heading followed directly by prose', '# Title\nBody text on the next line'],
+        ['quote followed directly by prose', '> quoted\nBody after the quote'],
+        ['spaced thematic break', 'above\n\n* * *\n\nbelow'],
     ];
 
     it.each(corpus)('%s is stable after one normalising cycle', (_name, md) => {
@@ -64,5 +69,43 @@ describe('RichTextMarkdownService - round-trip fixed point', () => {
             return body.replaceAll(/[^\p{L}\p{N}]/gu, '');
         };
         expect(letters(service.toHtml(cycle(md)))).toBe(letters(service.toHtml(md)));
+    });
+});
+
+describe('RichTextMarkdownService - shapes the round-trip used to corrupt (fine-comb review)', () => {
+    let service: RichTextMarkdownService;
+
+    beforeEach(() => {
+        TestBed.configureTestingModule({ providers: [RichTextMarkdownService, RichTextSanitizerService] });
+        service = TestBed.inject(RichTextMarkdownService);
+    });
+
+    const parse = (md: string): HTMLElement => new DOMParser().parseFromString(service.toHtml(md), 'text/html').body;
+
+    it('keeps "2024. A good year" as prose across a save', () => {
+        const md = service.toMarkdown('<p>2024. A good year for the team</p>');
+        const body = parse(md);
+        expect(body.querySelector('ol')).toBeNull();
+        expect(body.textContent).toBe('2024. A good year for the team');
+    });
+
+    it('keeps a literal <b> in prose as text across a save', () => {
+        const md = service.toMarkdown('<p>Use the &lt;b&gt; element</p>');
+        const body = parse(md);
+        expect(body.querySelector('b')).toBeNull();
+        expect(body.textContent).toBe('Use the <b> element');
+    });
+
+    it('wraps prose that directly follows a heading, a quote or a table in a paragraph', () => {
+        expect(parse('# Title\nBody text').querySelector('p')?.textContent).toBe('Body text');
+        expect(parse('> q\nBody').querySelector('p')?.textContent).toBe('Body');
+        expect(parse('| a |\n| --- |\n| b |\nAfter').querySelector('p')?.textContent).toBe('After');
+        expect(parse('- item\nAfter').querySelector('p')?.textContent).toBe('After');
+    });
+
+    it('reads a spaced thematic break as a rule, not a bullet', () => {
+        expect(parse('* * *').querySelector('hr')).not.toBeNull();
+        expect(parse('- - -').querySelector('ul')).toBeNull();
+        expect(parse('- - -').querySelector('hr')).not.toBeNull();
     });
 });

@@ -15,6 +15,7 @@ import type { LocaleInput, LocaleMeta } from '../../lib/i18n/i18n.types';
 import { RichTextCommandRegistry } from './index';
 import { RICH_TEXT_LOCALES, RichTextLocale } from './index';
 import { RichTextSanitizerService } from './index';
+import { RichTextResourcePolicyDirective } from './index';
 import type { ResourcePolicyDecision } from './index';
 
 /** Collapse the selection to a caret at the given node/offset. */
@@ -4429,7 +4430,7 @@ describe('RichTextEditorComponent — find and replace', () => {
 
     it('every locale supplies the new find & replace strings', () => {
         const added = [
-            'wholeWord', 'useRegex', 'invalidRegex', 'matchCounter', 'previous', 'next', 'findToolbar',
+            'wholeWord', 'useRegex', 'invalidRegex', 'matchCounter', 'previous', 'next',
         ] as const;
         const locales = Object.entries(RICH_TEXT_LOCALES);
         expect(locales.length).toBeGreaterThanOrEqual(10);
@@ -7390,13 +7391,10 @@ describe('RichTextEditorComponent — targeted branch coverage top-up', () => {
         expect(() => component.ngAfterViewInit()).not.toThrow();
     });
 
-    it('clears the undo/redo replay flag when the replay finishes, not on the next input', () => {
-        // The flag exists so an undo's own DOM rewrite is not recorded as a new
-        // edit. It used to be cleared inside onInput — but rewriting innerHTML
-        // fires no `input` event, so it survived until the user's next real
-        // keystroke and swallowed it, leaving the abandoned forward branch
-        // intact for a later redo to overwrite the new typing. It is now
-        // cleared where the replay ends.
+    it('typing after an undo is recorded as a new edit, not swallowed by the replay', () => {
+        // Rewriting innerHTML fires no `input` event, so no replay flag exists
+        // any more; the observable guarantee is that the first keystroke after
+        // an undo becomes its own history entry rather than being skipped.
         component.writeValue('<p>seed</p>');
         fixture.detectChanges();
         editor.innerHTML = '<p>seed edited</p>';
@@ -7404,8 +7402,15 @@ describe('RichTextEditorComponent — targeted branch coverage top-up', () => {
         priv().flushPendingHistoryPush();
 
         component.undo();
+        expect(editor.textContent).not.toContain('edited');
 
-        expect(priv().isUndoRedo).toBe(false);
+        editor.innerHTML = '<p>seed again</p>';
+        component.onInput({ target: editor } as unknown as Event);
+        priv().flushPendingHistoryPush();
+
+        expect(component.htmlOutput()).toContain('seed again');
+        component.undo();
+        expect(editor.textContent).not.toContain('again');
     });
 
     it('Enter in an empty trailing task item exits while keeping earlier items', () => {
@@ -8638,23 +8643,6 @@ describe('RichTextEditorComponent markdown input rules', () => {
             range.setEnd(textNode, 4);
             selection?.removeAllRanges();
             selection?.addRange(range);
-
-            const applied = (
-                component as unknown as { applyInputRules(event: Event): boolean }
-            ).applyInputRules(new InputEvent('input', { inputType: 'insertText', data: ' ' }));
-
-            expect(applied).toBe(false);
-            expect(editor.querySelector('h1')).toBeNull();
-        });
-
-        // Undo restores the literal markers. If the input event that an undo
-        // replay raises were treated as authoring, the rule would fire again
-        // and the markers the author asked to get back would vanish at once.
-        it('does not fire while replaying an undo', () => {
-            const block = seed('<p><br></p>');
-            const textNode = block.insertBefore(document.createTextNode('# '), block.firstChild) as Text;
-            setCaretAt(textNode, 2);
-            (component as unknown as { isUndoRedo: boolean }).isUndoRedo = true;
 
             const applied = (
                 component as unknown as { applyInputRules(event: Event): boolean }
@@ -10615,5 +10603,75 @@ describe('RichTextEditorComponent - replace keeps everything but the matched tex
             expect(tagsIn(), html).toEqual(before);
             expect(editor.textContent, html).not.toContain('cat');
         }
+    });
+});
+
+describe('RichTextEditorComponent - wrapper policy and Enter on image-only blocks (fine-comb review)', () => {
+    const TRACKER = 'https://tracker.example/p.png';
+
+    @Component({
+        standalone: true,
+        imports: [ReactiveFormsModule, RichTextEditorComponent, RichTextResourcePolicyDirective],
+        template: `
+            <div [uiRichTextResourcePolicy]="['cdn.trusted.com']">
+                <ui-rich-text-editor mode="html" [formControl]="control" [inheritResourcePolicy]="inherit()" />
+            </div>
+        `,
+    })
+    class WrappedEditorComponent {
+        readonly control = new FormControl(`<p><img src="${TRACKER}" alt="chart"></p>`, { nonNullable: true });
+        readonly inherit = signal(true);
+    }
+
+    it('an editor under [uiRichTextResourcePolicy] takes the wrapper policy when it opts in', () => {
+        // The wrapper's contract named "every editor and view beneath", but
+        // only the view honoured it: an editor read its own empty list.
+        const fixture = TestBed.createComponent(WrappedEditorComponent);
+        fixture.detectChanges();
+        const img = (fixture.nativeElement as HTMLElement).querySelector('img');
+        expect(img?.hasAttribute('src')).toBe(false);
+        expect(img?.getAttribute('data-blocked-src')).toBe(TRACKER);
+    });
+
+    it('and ignores it by default, so an empty list keeps one meaning', () => {
+        const fixture = TestBed.createComponent(WrappedEditorComponent);
+        fixture.componentInstance.inherit.set(false);
+        fixture.detectChanges();
+        expect((fixture.nativeElement as HTMLElement).querySelector('img')?.getAttribute('src')).toBe(TRACKER);
+    });
+
+    describe('Enter on a block holding only an image', () => {
+        let fixture: ComponentFixture<RichTextEditorComponent>;
+        let component: RichTextEditorComponent;
+        let editor: HTMLElement;
+
+        beforeEach(async () => {
+            await TestBed.configureTestingModule({ imports: [RichTextEditorComponent] }).compileComponents();
+            fixture = TestBed.createComponent(RichTextEditorComponent);
+            fixture.componentRef.setInput('mode', 'html');
+            component = fixture.componentInstance;
+            fixture.detectChanges();
+            editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLElement;
+        });
+
+        const enterAfter = (el: Element): void => {
+            setCaretAt(el, el.childNodes.length);
+            component.onKeydown(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+        };
+
+        it('keeps the image in a last list item', () => {
+            component.writeValue('<ul><li>a</li><li><img src="/x.png" alt="pic"></li></ul>');
+            fixture.detectChanges();
+            enterAfter(editor.querySelectorAll('li')[1]);
+            expect(editor.querySelector('img')).not.toBeNull();
+            expect(editor.querySelectorAll('li')).toHaveLength(2);
+        });
+
+        it('keeps the image in the last quoted line', () => {
+            component.writeValue('<blockquote><p>q</p><p><img src="/x.png" alt="pic"></p></blockquote>');
+            fixture.detectChanges();
+            enterAfter(editor.querySelectorAll('blockquote p')[1]);
+            expect(editor.querySelector('blockquote img')).not.toBeNull();
+        });
     });
 });

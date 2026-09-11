@@ -404,8 +404,13 @@ export class RichTextAiDirective {
         }
         // A model can return far more than the editor's maxLength allows, and
         // committing through mutateContent bypasses every base-level check. The
-        // draft already occupies the document, so only its own text counts.
-        if (span && graphemeLength(span.textContent ?? '') > this.host.remainingLength()) {
+        // draft already sits in the document -- and is the live selection -- so
+        // the document AS IT STANDS is over the limit exactly when the selected
+        // text is longer than the budget that remains after excluding it.
+        // Comparing the draft's own length against that budget counted it twice
+        // and refused any draft longer than the room LEFT AFTER it: a 26-char
+        // answer into a 40-char field holding 3 was rejected at 29.
+        if (span && graphemeLength(this.host.selection().text) > this.host.remainingLength()) {
             this.discard();
             this.aiError.emit(this.i18n.t().tooLong);
             return;

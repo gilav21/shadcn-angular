@@ -9,9 +9,9 @@ import {
     extractCssUrls,
     hasUnsafeCssFunction,
     stripCssComments,
-    hostOf,
     isHostAllowed,
     isHostBearingUrl,
+    remoteHostOf,
     type ResourcePolicyDecision,
 } from './rich-text-resource-policy';
 /**
@@ -43,6 +43,11 @@ export interface SanitizerAttributeRule {
  */
 /** URL schemes a link in editor content may use. */
 const LINK_SCHEMES = new Set(['http', 'https', 'mailto', 'tel', 'sms', 'ftp']);
+
+/** How many resource decisions may wait undrained before the oldest is dropped. */
+const MAX_BUFFERED_DECISIONS = 256;
+
+
 
 /**
  * Percent-decode a data: URL payload to raw BYTES.
@@ -423,10 +428,32 @@ export class RichTextSanitizerService {
      * Returns null if URL is unsafe.
      */
     sanitizeUrl(url: string): string | null {
-        if (!this.isUrlSafe(url)) {
+        if (this.isUrlSafe(url)) return url;
+        return this.canonicalOffOriginLink(url);
+    }
+
+    /**
+     * A link written in a form that LOOKS relative but resolves off-origin --
+     * `//host/x`, `/\\host/x`, `https:\\host/x` -- rewritten as the explicit
+     * absolute URL the browser would reach, or null when it is unsafe.
+     *
+     * Dropping such links was a regression: an explicit `https://host/x` to
+     * the same resource is allowed, so refusing the shorthand protected
+     * nothing and deleted legitimate protocol-relative links from pasted
+     * content. What the earlier fix was right about is that the shorthand
+     * must not be STORED -- a reader cannot tell it is off-origin. Resolving
+     * it, like `sanitizeImageSrc` already stores `url.href`, keeps the link
+     * and makes its destination visible.
+     */
+    private canonicalOffOriginLink(url: string): string | null {
+        const probe = url.replace(this.URL_STRIP_PATTERN, '').toLowerCase();
+        if (!/^[\\/]{2}/.test(probe) && !hasForeignAuthority(probe)) return null;
+        try {
+            const resolved = new URL(url, this.document.baseURI);
+            return LINK_SCHEMES.has(resolved.protocol.slice(0, -1)) ? resolved.href : null;
+        } catch {
             return null;
         }
-        return url;
     }
 
     /**
@@ -467,8 +494,15 @@ export class RichTextSanitizerService {
         optional: true,
     });
 
-    /** Decisions made during the current pass, drained by the editor. */
+    /**
+     * Decisions made during the current pass, drained by the editor or the
+     * view. Bounded: a consumer that injects the ROOT service directly and
+     * renders through `toHtml` never drains, and an unbounded buffer would grow
+     * for the life of the app. Past the cap the oldest decision is dropped.
+     */
     private readonly decisions: ResourcePolicyDecision[] = [];
+    /** `kind + url` of every buffered decision, so the dedupe below is O(1). */
+    private readonly decisionKeys = new Set<string>();
 
     /**
      * The URL of the most recent source refused by the HOST POLICY, as opposed
@@ -514,6 +548,7 @@ export class RichTextSanitizerService {
 
     /** Take and clear the decisions recorded since the last drain. */
     drainResourceDecisions(): ResourcePolicyDecision[] {
+        this.decisionKeys.clear();
         return this.decisions.splice(0, this.decisions.length);
     }
 
@@ -534,10 +569,16 @@ export class RichTextSanitizerService {
         // again when the final sanitize re-reads the placeholder's
         // `data-blocked-src` -- and a consumer counting exposure must not see
         // the same tracker reported twice for one document.
-        if (!this.decisions.some((d) => d.url === url && d.kind === kind)) {
+        const key = `${kind}\u0000${url}`;
+        if (!this.decisionKeys.has(key)) {
+            if (this.decisions.length >= MAX_BUFFERED_DECISIONS) {
+                const oldest = this.decisions.shift();
+                if (oldest) this.decisionKeys.delete(`${oldest.kind}\u0000${oldest.url}`);
+            }
+            this.decisionKeys.add(key);
             this.decisions.push({
                 url,
-                host: hostOf(url) ?? '',
+                host: remoteHostOf(url) ?? '',
                 kind,
                 allowed,
                 reason: resourceReason(hosts.length === 0, allowed),
@@ -643,6 +684,13 @@ export class RichTextSanitizerService {
     }
 
     sanitizeImageSrc(src: string): string | null {
+        // Cleared on ENTRY, so the marker only ever describes this call. It
+        // used to be cleared only by the attribute path; a caller that judged a
+        // URL and never took the marker (an addon's insert-by-URL, say) left it
+        // set, and the next markdown image that was refused as UNSAFE was
+        // attributed the stale blocked URL -- a placeholder for an image the
+        // author never placed, which would load if that host were later allowed.
+        this.lastBlockedByPolicy = null;
         if (!src || typeof src !== 'string') {
             return null;
         }
@@ -760,7 +808,7 @@ export class RichTextSanitizerService {
                 continue;
             }
 
-            this.applyAllowedAttribute(attrName, attr.value, target);
+            this.applyAllowedAttribute(attrName, attr.value, target, source);
         }
     }
 
@@ -774,7 +822,7 @@ export class RichTextSanitizerService {
         target.setAttribute(attrName, kept);
     }
 
-    private applyAllowedAttribute(attrName: string, value: string, target: HTMLElement): void {
+    private applyAllowedAttribute(attrName: string, value: string, target: HTMLElement, source: HTMLElement): void {
         switch (attrName) {
             case 'href': {
                 const safeUrl = this.sanitizeUrl(value);
@@ -798,7 +846,11 @@ export class RichTextSanitizerService {
                 // blocked: the marker is re-applied. Unsafe: dropped outright,
                 // so a hand-written `data-blocked-src="javascript:..."` never
                 // rides along verbatim.
-                if (!target.hasAttribute('src')) this.applyImageSrc(target, value);
+                // Judged by what the SOURCE carries, not by what has landed on
+                // the target so far: with the marker written before `src` in
+                // attribute order the target had no src yet, both were applied,
+                // and a loading image wore a stale blocked marker.
+                if (!source.hasAttribute('src')) this.applyImageSrc(target, value);
                 return;
             }
             case 'class': {
@@ -1035,8 +1087,11 @@ function isTextDirection(value: string): boolean {
 const BACKSLASH = '\u005C';
 
 function hasForeignAuthority(url: string): boolean {
-    const colon = url.indexOf(':');
-    const afterScheme = colon === -1 ? url : url.slice(colon + 1);
+    // Only a LEADING scheme separates an authority; splitting on the first
+    // colon anywhere read `/search?q=file:///etc` -- a same-origin path with a
+    // URL in its query -- as an `https:///`-style authority and dropped it.
+    const scheme = /^[a-z][a-z0-9+.-]*:/i.exec(url);
+    const afterScheme = scheme ? url.slice(scheme[0].length) : url;
 
     let run = 0;
     let backslashes = 0;
@@ -1050,6 +1105,6 @@ function hasForeignAuthority(url: string): boolean {
     // while the naive checks did not: a single backslash and three slashes
     // both reach the host.
     if (backslashes > 0) return true;
-    if (colon === -1) return run >= 2;
+    if (!scheme) return run >= 2;
     return run > 2;
 }

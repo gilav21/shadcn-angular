@@ -172,3 +172,26 @@ describe('RichTextMentionPopoverComponent', () => {
         expect(component.asTag(TAGS[0]).color).toBe('#f00');
     });
 });
+
+describe('RichTextMentionPopoverComponent - listbox ids (fine-comb review)', () => {
+    let restore: Restore;
+    beforeEach(() => { restore = installStubs(); });
+    afterEach(() => { restore(); TestBed.resetTestingModule(); });
+
+    it('derives its ids from a counter, never from crypto.randomUUID', () => {
+        // randomUUID is undefined outside a secure context (plain http), and a
+        // field initialiser that calls it throws before the popover exists.
+        const cryptoRef = globalThis.crypto as { randomUUID?: unknown };
+        const original = cryptoRef.randomUUID;
+        Object.defineProperty(cryptoRef, 'randomUUID', { value: undefined, configurable: true, writable: true });
+        try {
+            const a = TestBed.createComponent(RichTextMentionPopoverComponent).componentInstance;
+            const b = TestBed.createComponent(RichTextMentionPopoverComponent).componentInstance;
+            expect(a.listboxId).toMatch(/^rte-suggestions-\d+$/);
+            expect(a.listboxId).not.toBe(b.listboxId);
+            expect(a.optionId(2)).toBe(`${a.listboxId}-option-2`);
+        } finally {
+            Object.defineProperty(cryptoRef, 'randomUUID', { value: original, configurable: true, writable: true });
+        }
+    });
+});

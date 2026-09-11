@@ -160,6 +160,33 @@ means no policy and today's behaviour exactly.
   stream.
 - **The markdown parser escapes its own attribute values**, so a quote in a
   relative link or image target cannot end the attribute early.
+- **A CSS `url(//host/…)` is judged by its real host.** Parsed without a base
+  it looked unparsable, unparsable read as "relative", and the reference
+  walked past the allowlist unjudged. Every reference now resolves the way
+  the browser resolves it, from the page.
+- **`[uiRichTextResourcePolicy]` reaches editors too.** The editor gains
+  `[inheritResourcePolicy]`, like the view; the wrapper's contract said
+  "every editor and view beneath" and only the view honoured it.
+- **Enter on a list item or quoted line that holds only an image** no longer
+  deletes the image.
+- **AI addon: accepting a draft respected the wrong limit.** A draft longer
+  than the room left *after* it was refused, so most answers into a
+  `maxLength` field were rejected while under the limit.
+- **Mentions popover on plain HTTP.** Its listbox id came from
+  `crypto.randomUUID()`, which exists only in secure contexts, so the popover
+  threw before it opened on an intranet page.
+- **Markdown**: `2024. A good year` is no longer re-read as an ordered list on
+  reload; a literal `<b>` in prose stays text; prose directly under a heading,
+  quote, table or list gets its paragraph; `* * *` is a rule, not a bullet.
+- **Validators** treat a markdown document holding `<u>`, `<mark>`, `<sub>`,
+  `<sup>`, `<small>`, `<ins>` or `<code>` as markdown, so its `**` markers are
+  not counted as characters.
+- **A stale "blocked by policy" marker** could be attributed to the next
+  unsafe image; and an image carrying both `src` and `data-blocked-src` in
+  the source now keeps only the judged `src`.
+- Escape inside a dialog: the dialog now defers to an open popover inside it,
+  instead of the popover intercepting the key before the focused control's
+  own handler could run.
 
 ### 🎨 `init` template
 
@@ -218,7 +245,11 @@ content your users can paste.
   parser.
 - **ReDoS**: find patterns that hang the tab, fence backtracking, and a
   quote-depth blind spot in the guard itself.
-- **Link schemes allowlisted.**
+- **Link schemes allowlisted.** An `href` keeps only `http`, `https`,
+  `mailto`, `tel`, `sms` and `ftp`; `blob:`, `file:`, `about:` and every
+  `data:` are refused. Worth knowing: a custom scheme in existing content
+  (`slack://`, `geo:`, `xmpp:`) is stripped on the first save. A protocol-
+  relative link (`//host/x`) is kept, stored as the explicit absolute URL.
 - Whether a string is a tag is now decided **by the sanitizer**, not by
   guessing at characters.
 

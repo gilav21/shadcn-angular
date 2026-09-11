@@ -19,6 +19,13 @@ import { ScrollAreaComponent } from '../../../scroll-area';
 import { RICH_TEXT_MENTIONS_LOCALES, type RichTextMentionsLocale } from './rich-text-mentions.locales';
 import type { MentionItem, TagItem } from './rich-text-mentions.types';
 
+/**
+ * Per-instance id source. A counter, not `crypto.randomUUID()`: that API exists
+ * only in secure contexts, so on a plain-HTTP intranet deployment the field
+ * initialiser threw and the mention popover never opened at all.
+ */
+let nextPopoverId = 0;
+
 @Component({
   selector: 'ui-rich-text-mention-popover',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -86,7 +93,7 @@ export class RichTextMentionPopoverComponent implements AfterViewInit, OnDestroy
    * popover is open, so without these a screen reader is never told the list
    * exists or which option is highlighted.
    */
-  readonly listboxId = `rte-suggestions-${crypto.randomUUID().slice(0, 8)}`;
+  readonly listboxId = `rte-suggestions-${nextPopoverId++}`;
   optionId(index: number): string {
     return `${this.listboxId}-option-${index}`;
   }
