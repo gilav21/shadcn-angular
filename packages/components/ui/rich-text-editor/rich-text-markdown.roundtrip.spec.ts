@@ -98,7 +98,7 @@ describe('RichTextMarkdownService - shapes the round-trip used to corrupt (fine-
 
     it('wraps prose that directly follows a heading, a quote or a table in a paragraph', () => {
         expect(parse('# Title\nBody text').querySelector('p')?.textContent).toBe('Body text');
-        expect(parse('> q\nBody').querySelector('p')?.textContent).toBe('Body');
+        expect(parse('> q\nBody').querySelector('blockquote + p')?.textContent).toBe('Body');
         expect(parse('| a |\n| --- |\n| b |\nAfter').querySelector('p')?.textContent).toBe('After');
         expect(parse('- item\nAfter').querySelector('p')?.textContent).toBe('After');
     });

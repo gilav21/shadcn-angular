@@ -2578,7 +2578,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             case 'heading2': this.execEditorCommand('formatBlock', '<h2>'); return true;
             case 'heading3': this.execEditorCommand('formatBlock', '<h3>'); return true;
             case 'paragraph': this.execEditorCommand('formatBlock', '<p>'); return true;
-            case 'blockquote': this.execEditorCommand('formatBlock', '<blockquote>'); return true;
+            case 'blockquote': this.toggleBlockquote(); return true;
             case 'codeBlock': this.insertCodeBlock(); return true;
             case 'horizontalRule': this.insertHorizontalRule(); return true;
             case 'undo': this.undo(); return true;
@@ -6374,12 +6374,15 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             return this.wrapBlockInList(anchorBlock, 'ol');
         }
 
+        if (command === 'blockquote') {
+            return this.quoteBlocks([anchorBlock])[0];
+        }
+
         const tagMap: Record<string, string> = {
             paragraph: 'p',
             heading1: 'h1',
             heading2: 'h2',
             heading3: 'h3',
-            blockquote: 'blockquote',
         };
         const nextTag = tagMap[command];
         if (!nextTag) {
@@ -6414,6 +6417,101 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.syncContentFromEditor();
         this.updateActiveFormats();
         this.pushHistory();
+    }
+
+    /**
+     * Wraps sibling blocks in one `<blockquote>` and returns them as its lines.
+     *
+     * The invariant every quote path shares: a blockquote's direct children
+     * are line blocks, never bare text. `handleEnterInBlockquote` only exits
+     * from a blank LINE, so a quote built as `<blockquote>text</blockquote>`
+     * had no line for it to find and Enter fell to the browser, which opened a
+     * sibling blockquote on every keypress -- the quote could not be left at
+     * all. A `<div>` becomes a `<p>` on the way in, matching every other block
+     * this component builds.
+     */
+    private quoteBlocks(blocks: readonly HTMLElement[]): HTMLElement[] {
+        const quote = this.document.createElement('blockquote');
+        blocks[0].parentNode?.insertBefore(quote, blocks[0]);
+        return blocks.map((block) => {
+            const line = block.tagName === 'DIV' ? this.replaceBlockTag(block, 'p') : block;
+            quote.appendChild(line);
+            return line;
+        });
+    }
+
+    /** Moves a quote's lines out in its place, so the caret's own nodes survive untouched. */
+    private unquoteBlocks(quote: HTMLElement): void {
+        const parent = quote.parentNode;
+        if (!parent) return;
+        while (quote.firstChild) parent.insertBefore(quote.firstChild, quote);
+        quote.remove();
+    }
+
+    /**
+     * Toolbar blockquote is a toggle: quote the selected top-level blocks, or
+     * lift the selection's quote back out.
+     *
+     * `execCommand('formatBlock', '<blockquote>')` was used before. Chrome
+     * re-tags the paragraph itself into the blockquote (bare text, no line
+     * block), so the Enter exit rule could not see a line to leave from, and
+     * a second click did nothing rather than unquoting.
+     */
+    private toggleBlockquote(): void {
+        const selection = this.document.getSelection();
+        const editor = this.editorDiv?.nativeElement;
+        if (!selection || selection.rangeCount === 0 || !editor) return;
+        const range = selection.getRangeAt(0);
+        const restore = { node: range.startContainer, offset: range.startOffset };
+
+        const quote = this.findAncestorByTag(range.startContainer, 'BLOCKQUOTE');
+        if (quote) {
+            this.unquoteBlocks(quote);
+        } else {
+            const blocks = this.topLevelBlocksInRange(range, editor);
+            if (blocks.length === 0) return;
+            this.quoteBlocks(blocks);
+        }
+
+        // Re-anchoring after the moves: Chrome drops a selection whose
+        // container was re-parented, and the container itself is intact.
+        // Content sync, history and the active-format refresh are the
+        // caller's applyMutation, as for every other block command.
+        this.setSelectionRange(selection, restore.node, restore.offset);
+    }
+
+    /**
+     * The editor's direct children the range touches, bare text wrapped into a
+     * paragraph first so the quote gets a line block.
+     */
+    private topLevelBlocksInRange(range: Range, editor: HTMLElement): HTMLElement[] {
+        const first = this.topLevelBlockOf(range.startContainer, editor);
+        const last = this.topLevelBlockOf(range.endContainer, editor);
+        if (!first || !last) return [];
+        const blocks: HTMLElement[] = [];
+        let current: Node | null = first;
+        while (current) {
+            const block = this.ensureLineBlock(current);
+            blocks.push(block);
+            if (current === last) break;
+            current = block.nextSibling;
+        }
+        return blocks;
+    }
+
+    private topLevelBlockOf(node: Node, editor: HTMLElement): Node | null {
+        if (node === editor) return node.childNodes[0] ?? null;
+        let current: Node | null = node;
+        while (current && current.parentNode !== editor) current = current.parentNode;
+        return current;
+    }
+
+    private ensureLineBlock(node: Node): HTMLElement {
+        if (node.nodeType === Node.ELEMENT_NODE) return node as HTMLElement;
+        const p = this.document.createElement('p');
+        node.parentNode?.insertBefore(p, node);
+        p.appendChild(node);
+        return p;
     }
 
     private replaceBlockTag(block: HTMLElement, targetTagName: string): HTMLElement {
@@ -6765,7 +6863,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             case 'orderedList':
                 return this.finishBlockRule(this.wrapBlockInList(block, 'ol'));
             case 'blockquote':
-                return this.finishBlockRule(this.replaceBlockTag(block, 'blockquote'));
+                return this.finishBlockRule(this.quoteBlocks([block])[0]);
             case 'taskUnchecked':
                 return this.buildTaskBlock(block, false);
             case 'taskChecked':

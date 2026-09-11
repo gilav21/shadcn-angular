@@ -2781,7 +2781,38 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
 
         component.onFormatCommand('blockquote');
 
-        expect(editor.querySelector('blockquote')).toBeTruthy();
+        expect(editor.querySelector('blockquote > p')?.textContent).toBe('quote me');
+    });
+
+    it('lifts the caret\'s quote back out on a second blockquote click', () => {
+        component.writeValue('<p>before</p><blockquote><p>quoted</p></blockquote><p>after</p>');
+        fixture.detectChanges();
+        setCaretAt(editor.querySelector('blockquote p')!.firstChild!, 2);
+
+        component.onFormatCommand('blockquote');
+
+        expect(editor.querySelector('blockquote')).toBeNull();
+        expect(Array.from(editor.children).map((el) => el.textContent)).toEqual(['before', 'quoted', 'after']);
+        const selection = document.getSelection();
+        expect(editor.children[1].contains(selection?.anchorNode ?? null)).toBe(true);
+    });
+
+    it('quotes every top-level block the selection spans, wrapping bare text in a paragraph', () => {
+        component.writeValue('<p>one</p><div>two</div>');
+        fixture.detectChanges();
+        editor.append(document.createTextNode('three'));
+        const range = document.createRange();
+        range.setStart(editor.querySelector('p')!.firstChild!, 1);
+        range.setEnd(editor.lastChild!, 2);
+        const selection = document.getSelection()!;
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        component.onFormatCommand('blockquote');
+
+        expect(editor.querySelectorAll('blockquote')).toHaveLength(1);
+        expect(Array.from(editor.querySelectorAll('blockquote > *')).map((el) => `${el.tagName}:${el.textContent}`))
+            .toEqual(['P:one', 'P:two', 'P:three']);
     });
 
     it('inserts a code block with insertCodeBlock', () => {
@@ -6464,6 +6495,18 @@ describe('RichTextEditorComponent - addon host', () => {
         expect(editor.querySelector('h1')?.textContent).toBe('hello');
     });
 
+    it('executeToolbarCommandOnBlock keeps the block as the line of the quote it opens', () => {
+        // A slash-command quote re-tagged the paragraph into a bare
+        // blockquote, the same shape the Enter exit rule cannot leave.
+        const host = fixture.debugElement.injector.get(RichTextEditorAddonHost);
+        editor.innerHTML = '<p>quoted</p>';
+        const block = editor.querySelector('p')!;
+        caretIn(block.firstChild!, 6);
+        host.executeToolbarCommandOnBlock('blockquote', block);
+        expect(editor.querySelector('blockquote > p')?.textContent).toBe('quoted');
+        expect(editor.querySelector('blockquote > p')?.contains(document.getSelection()?.anchorNode ?? null)).toBe(true);
+    });
+
     it('executeToolbarCommandOnBlock wraps a block in a bullet list', () => {
         const host = fixture.debugElement.injector.get(RichTextEditorAddonHost);
         editor.innerHTML = '<p>item</p>';
@@ -8445,11 +8488,34 @@ describe('RichTextEditorComponent markdown input rules', () => {
     });
 
     // T-12 — blockquote.
-    it('re-tags the paragraph as a blockquote for "> "', () => {
+    it('wraps the paragraph in a blockquote for "> ", keeping it as the quote\'s line', () => {
         typeInto(seed('<p><br></p>'), '> ');
 
-        expect(editor.querySelector('blockquote')).not.toBeNull();
-        expect(editor.querySelector('p')).toBeNull();
+        // The paragraph stays as the quote's line. Re-tagging it INTO the
+        // blockquote left bare text with no line block, so the Enter exit
+        // rule (which leaves from a blank line) never fired and every Enter
+        // opened a sibling quote instead -- the quote could not be escaped.
+        const line = editor.querySelector('blockquote > p');
+        expect(line).not.toBeNull();
+        expect(editor.querySelectorAll('blockquote')).toHaveLength(1);
+        expect(line?.contains(caretElement())).toBe(true);
+    });
+
+    it('escapes a "> " quote with two Enters, as the user types it', () => {
+        typeInto(seed('<p><br></p>'), '> ');
+        const line = editor.querySelector('blockquote > p') as HTMLElement;
+        line.textContent = 'asdasd';
+        // The browser's own Enter splits the line; the synthetic key cannot,
+        // so the split result is seeded by hand.
+        const blank = document.createElement('p');
+        blank.innerHTML = '<br>';
+        line.after(blank);
+        setCaretAt(blank, 0);
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+
+        expect(editor.querySelectorAll('blockquote')).toHaveLength(1);
+        expect(editor.querySelector('blockquote + p')).not.toBeNull();
+        expect(editor.querySelector('blockquote + p')?.contains(caretElement())).toBe(true);
     });
 
     // T-13 — task items, checked and unchecked, with trailing text.

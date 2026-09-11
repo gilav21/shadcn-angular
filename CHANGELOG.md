@@ -174,6 +174,15 @@ means no policy and today's behaviour exactly.
   and view beneath" and only the view honoured it.
 - **Enter on a list item or quoted line that holds only an image** no longer
   deletes the image.
+- **A blockquote can be left with Enter again, whatever opened it.** The
+  Enter rule leaves a quote from a blank *line*, but `> ` typed in the editor,
+  the toolbar button, a slash command and the markdown parser all built the
+  quote as bare text with no line in it, so every Enter opened another
+  sibling quote instead. A quote's direct children are now always `<p>` lines:
+  the editor builds them that way, and the sanitizer regroups the bare shape
+  older documents and pasted HTML carry. The toolbar button is a real toggle
+  (a second click lifts the quote), and the "two clicks" needed for
+  Horizontal Rule and Clear Formatting inside such a quote go with it.
 - **AI addon: accepting a draft respected the wrong limit.** A draft longer
   than the room left *after* it was refused, so most answers into a
   `maxLength` field were rejected while under the limit.

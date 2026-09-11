@@ -130,13 +130,23 @@ describe('RichTextMarkdownService', () => {
             );
         });
 
-        it('converts a multi-line blockquote, joining lines with <br>', () => {
+        it('converts a multi-line blockquote into one <p> line per quoted line', () => {
             // Was locked in as a "known quirk": the leading ">" was escaped
             // before the blockquote pass ran, so the first line rendered as
             // literal text and the test asserted that as correct — while its own
-            // title said it joined the lines. It does now.
+            // title said it joined the lines.
+            //
+            // The lines are `<p>` blocks, not bare text joined with `<br>`: the
+            // editor leaves a quote from a blank LINE block, and the bare shape
+            // gave it no line to leave from, so a quote loaded from markdown
+            // could not be escaped with Enter.
             expect(service.toHtml('> line1\n> line2'))
-                .toBe('<blockquote>line1<br>line2</blockquote>');
+                .toBe('<blockquote><p>line1</p><p>line2</p></blockquote>');
+        });
+
+        it('round-trips a multi-line quote as a fixed point', () => {
+            const md = '> line1\n> line2';
+            expect(service.toMarkdown(service.toHtml(md))).toBe(md);
         });
 
         it('converts horizontal rules', () => {
@@ -430,8 +440,10 @@ describe('RichTextMarkdownService', () => {
             // being a round-trip fixed point. See the KNOWN LIMIT on
             // handleBlockquoteTag: a deliberate break inside a quote is
             // normalised away with it.
-            const html = '<blockquote>line1<br>line2</blockquote>';
+            const html = '<blockquote><p>line1</p><p>line2</p></blockquote>';
             expect(service.toMarkdown(html)).toBe('> line1\n> line2');
+            // The bare shape older documents carry reads the same way.
+            expect(service.toMarkdown('<blockquote>line1<br>line2</blockquote>')).toBe('> line1\n> line2');
         });
 
         it('converts a details block to :::details', () => {
@@ -686,7 +698,7 @@ describe('RichTextMarkdownService', () => {
             // middle line becomes a blockquote and the following plain line
             // triggers the "flush blockquote then push line" branch.
             const html = service.toHtml('para\n> quoted\nafter');
-            expect(html).toContain('<blockquote>quoted</blockquote>');
+            expect(html).toContain('<blockquote><p>quoted</p></blockquote>');
             expect(html).toContain('after');
         });
 

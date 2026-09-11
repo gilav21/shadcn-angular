@@ -1492,3 +1492,39 @@ describe('RichTextSanitizerService - style values judged as the browser reads th
         expect(styleOf('background: url(https://cdn.trusted.com/p.png)')).not.toBeNull();
     });
 });
+
+describe('RichTextSanitizerService - a blockquote holds line blocks, never bare text', () => {
+    let service: RichTextSanitizerService;
+
+    beforeEach(() => {
+        TestBed.configureTestingModule({ providers: [RichTextSanitizerService] });
+        service = TestBed.inject(RichTextSanitizerService);
+    });
+
+    it('groups bare and inline children into <p> lines, one per <br>', () => {
+        // The editor leaves a quote from a blank LINE block. Bare text gave it
+        // no line to leave from, so Enter fell to the browser and opened a
+        // sibling quote per keypress; markdown, paste and older documents all
+        // arrive in the bare shape.
+        expect(service.sanitize('<blockquote>a <b>bold</b><br>b</blockquote>'))
+            .toBe('<blockquote><p>a <b>bold</b></p><p>b</p></blockquote>');
+    });
+
+    it('keeps a blank line only where a <br> ended it, and never a trailing one', () => {
+        expect(service.sanitize('<blockquote>a<br><br>b<br></blockquote>'))
+            .toBe('<blockquote><p>a</p><p><br></p><p>b</p></blockquote>');
+    });
+
+    it('passes block children through and drops the whitespace between them', () => {
+        expect(service.sanitize('<blockquote><h2>H</h2>\n<ul><li>x</li></ul>\ntail</blockquote>'))
+            .toBe('<blockquote><h2>H</h2><ul><li>x</li></ul><p>tail</p></blockquote>');
+        expect(service.sanitize('<blockquote><blockquote>in</blockquote>out</blockquote>'))
+            .toBe('<blockquote><blockquote><p>in</p></blockquote><p>out</p></blockquote>');
+    });
+
+    it('is a fixed point on an already well-formed quote', () => {
+        const once = service.sanitize('<blockquote>a<br>b</blockquote>');
+        expect(service.sanitize(once)).toBe(once);
+        expect(service.sanitize('<blockquote><p>a</p><p><br></p></blockquote>')).toBe('<blockquote><p>a</p><p><br></p></blockquote>');
+    });
+});

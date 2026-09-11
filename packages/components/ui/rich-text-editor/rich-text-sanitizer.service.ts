@@ -116,6 +116,11 @@ function percentDecodeToBytes(payload: string): Uint8Array | null {
  */
 const UNSAFE_STYLE_TOKENS = ['expression(', 'javascript:', 'vbscript:', 'data:'];
 
+/** Elements that are a line of a quote on their own; anything else is grouped into `<p>` lines. */
+const QUOTE_LINE_BLOCK_TAGS = new Set([
+    'P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'PRE', 'TABLE', 'HR', 'BLOCKQUOTE', 'DETAILS', 'FIGURE',
+]);
+
 /** Why a resource was allowed or refused, as a flat decision. */
 function resourceReason(noPolicy: boolean, allowed: boolean): ResourcePolicyDecision['reason'] {
     if (noPolicy) return 'no-policy';
@@ -370,8 +375,77 @@ export class RichTextSanitizerService {
 
         this.processNodes(doc.body, cleanContainer);
         this.dropOrphanCompanionAttributes(cleanContainer);
+        this.normalizeQuoteLines(cleanContainer);
 
         return this.normalizeStyleQuotes(cleanContainer.innerHTML);
+    }
+
+    /**
+     * A blockquote's direct children are line blocks, never bare text.
+     *
+     * The editor's Enter rule leaves a quote only from a blank LINE block. A
+     * quote arriving as `<blockquote>a<br>b</blockquote>` -- the markdown
+     * parser's shape, and what older documents and pasted HTML carry -- had no
+     * line for it to find, so Enter fell to the browser and opened a sibling
+     * blockquote per keypress; the quote could not be escaped. Every quote
+     * passes through here, so the editor sees one shape whatever produced it.
+     * Bare and inline children are grouped into `<p>` lines, a `<br>` ends a
+     * line, and block children pass through untouched.
+     */
+    private normalizeQuoteLines(root: HTMLElement): void {
+        for (const quote of Array.from(root.querySelectorAll('blockquote'))) {
+            const bare = Array.from(quote.childNodes).some((node) => !this.isQuoteLineBlock(node));
+            if (!bare) continue;
+            quote.replaceChildren(...this.groupQuoteLines(Array.from(quote.childNodes)));
+        }
+    }
+
+    private groupQuoteLines(nodes: readonly Node[]): Node[] {
+        const out: Node[] = [];
+        let run: Node[] = [];
+        const flush = (keepEmpty: boolean): void => {
+            const line = this.quoteLineFrom(run, keepEmpty);
+            if (line) out.push(line);
+            run = [];
+        };
+        for (const node of nodes) {
+            if (this.isQuoteLineBlock(node)) {
+                flush(false);
+                out.push(node);
+            } else if ((node as Element).tagName === 'BR') {
+                flush(true);
+            } else {
+                run.push(node);
+            }
+        }
+        flush(false);
+        return out;
+    }
+
+    /** A `<p>` for a run of inline nodes; a blank run is a line only when a `<br>` ended it. */
+    private quoteLineFrom(run: readonly Node[], keepEmpty: boolean): HTMLElement | null {
+        const blank = run.every((node) => node.nodeType === Node.TEXT_NODE && (node.textContent ?? '').trim() === '');
+        if (blank && !keepEmpty) return null;
+        const p = this.document.createElement('p');
+        if (blank) {
+            p.appendChild(this.document.createElement('br'));
+        } else {
+            p.append(...run);
+            this.trimLineEdges(p);
+        }
+        return p;
+    }
+
+    /** Source formatting between blocks is not content; a rendered line never shows edge whitespace anyway. */
+    private trimLineEdges(line: HTMLElement): void {
+        const first = line.firstChild;
+        if (first?.nodeType === Node.TEXT_NODE) first.textContent = (first.textContent ?? '').trimStart();
+        const last = line.lastChild;
+        if (last?.nodeType === Node.TEXT_NODE) last.textContent = (last.textContent ?? '').trimEnd();
+    }
+
+    private isQuoteLineBlock(node: Node): boolean {
+        return node.nodeType === Node.ELEMENT_NODE && QUOTE_LINE_BLOCK_TAGS.has((node as Element).tagName);
     }
 
     /**
