@@ -259,6 +259,20 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
 /** Structures inside a quote that own their own Enter handling. */
 const QUOTE_STRUCTURE_TAGS = new Set(['UL', 'OL', 'LI', 'TABLE', 'TR', 'TD', 'TH', 'PRE', 'CODE', 'DETAILS']);
 
+/** Blocks that hold one line of prose; what the list, task-list and code-block toggles operate on. */
+const LINE_BLOCK_TAGS = new Set(['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6']);
+
+/** What a block toggle starts from: the live selection and the nodes it can put the selection back on. */
+interface BlockToggleContext {
+    readonly selection: Selection;
+    readonly editor: HTMLElement;
+    readonly range: Range;
+    readonly anchor: Node;
+    readonly offset: number;
+    readonly focus: Node;
+    readonly focusOffset: number;
+}
+
 /** Elements that legitimately contain block children, so a paste inside one needs no split. */
 const BLOCK_CONTAINER_TAGS = new Set(['TD', 'TH', 'LI', 'BLOCKQUOTE', 'DETAILS', 'FIGURE']);
 
@@ -2576,7 +2590,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             case 'heading3': this.execEditorCommand('formatBlock', '<h3>'); return true;
             case 'paragraph': this.execEditorCommand('formatBlock', '<p>'); return true;
             case 'blockquote': this.toggleBlockquote(); return true;
-            case 'codeBlock': this.insertCodeBlock(); return true;
+            case 'codeBlock': this.toggleCodeBlock(); return true;
             case 'horizontalRule': this.insertHorizontalRule(); return true;
             case 'undo': this.undo(); return true;
             case 'redo': this.redo(); return true;
@@ -2602,11 +2616,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     private executeListFormatCommand(command: string): boolean {
         switch (command) {
-            case 'bulletList': this.execEditorCommand('insertUnorderedList'); return true;
-            case 'orderedList': this.execEditorCommand('insertOrderedList'); return true;
+            case 'bulletList': this.toggleList('ul'); return true;
+            case 'orderedList': this.toggleList('ol'); return true;
             case 'indent': this.indentBlock(); return true;
             case 'outdent': this.outdentBlock(); return true;
-            case 'taskList': this.insertTaskList(); return true;
+            case 'taskList': this.toggleTaskList(); return true;
             case 'toggle': this.insertToggleBlock(); return true;
             default: return false;
         }
@@ -2725,12 +2739,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             return;
         }
         if (command === 'bulletList') {
-            this.execEditorCommand('insertUnorderedList');
+            this.toggleList('ul');
             selection.collapseToEnd();
             return;
         }
         if (command === 'orderedList') {
-            this.execEditorCommand('insertOrderedList');
+            this.toggleList('ol');
             selection.collapseToEnd();
         }
     }
@@ -3162,10 +3176,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             const anchor = this.document.createTextNode('​');
             element.appendChild(anchor);
             newRange.setStart(anchor, anchor.data.length);
+            newRange.collapse(true);
         } else {
-            newRange.setStartAfter(element);
+            // The text stays selected, as after bold or italic: the button then
+            // reads as pressed and a second click unwraps. Collapsing after the
+            // element left the caret outside it, so the second click wrapped an
+            // empty <code> beside the first instead.
+            newRange.selectNodeContents(element);
         }
-        newRange.collapse(true);
         selection.removeAllRanges();
         selection.addRange(newRange);
     }
@@ -3197,25 +3215,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         restored.setEndAfter(last);
         selection.removeAllRanges();
         selection.addRange(restored);
-    }
-
-    private insertCodeBlock(): void {
-        const selection = this.document.getSelection();
-        if (selection && selection.rangeCount > 0) {
-            const range = selection.getRangeAt(0);
-            const pre = this.document.createElement('pre');
-            const code = this.document.createElement('code');
-            code.textContent = selection.toString() || '\n';
-            pre.appendChild(code);
-            range.deleteContents();
-            range.insertNode(pre);
-
-            const newRange = this.document.createRange();
-            newRange.selectNodeContents(code);
-            newRange.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(newRange);
-        }
     }
 
     private insertHorizontalRule(): void {
@@ -4916,48 +4915,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         for (const item of following) nested.appendChild(item);
     }
 
-    private insertTaskList(): void {
-        const selection = this.document.getSelection();
-        if (!selection || selection.rangeCount === 0) return;
-
-        let node: Node | null = selection.getRangeAt(0).startContainer;
-        while (node && node !== this.editorDiv?.nativeElement) {
-            if (node.nodeType === Node.ELEMENT_NODE) {
-                const el = node as HTMLElement;
-                if (el.closest('ul[data-task-list]')) {
-                    this.execEditorCommand('insertUnorderedList');
-                    return;
-                }
-            }
-            node = node.parentNode;
-        }
-
-        const ul = this.document.createElement('ul');
-        ul.dataset['taskList'] = '';
-        const li = this.document.createElement('li');
-        li.dataset['task'] = '';
-        li.dataset['checked'] = 'false';
-        const checkbox = this.document.createElement('input');
-        checkbox.type = 'checkbox';
-        const textSpan = this.document.createElement('span');
-        textSpan.appendChild(this.document.createTextNode('\u00A0'));
-        li.appendChild(checkbox);
-        li.appendChild(textSpan);
-        ul.appendChild(li);
-
-        const range = selection.getRangeAt(0);
-        range.deleteContents();
-        range.insertNode(ul);
-
-        const newRange = this.document.createRange();
-        newRange.setStart(textSpan, 0);
-        newRange.setEnd(textSpan, 0);
-        selection.removeAllRanges();
-        selection.addRange(newRange);
-        this.syncContentFromEditor();
-        this.pushHistory();
-    }
-
     private insertToggleBlock(): void {
         const html = '<details open><summary>Toggle title</summary><p>Content here...</p></details>';
         this.insertHtmlFragment(html);
@@ -6060,7 +6017,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private updateActiveFormats(): void {
         const formats = new Set<string>();
 
-        if (this.queryEditorCommandState('bold')) formats.add('bold');
+        if (this.queryEditorCommandState('bold') && !this.boldOnlyFromHeading()) formats.add('bold');
         if (this.queryEditorCommandState('italic')) formats.add('italic');
         if (this.queryEditorCommandState('underline')) formats.add('underline');
         if (this.queryEditorCommandState('strikeThrough')) formats.add('strikethrough');
@@ -6068,10 +6025,34 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (this.queryEditorCommandState('insertOrderedList')) formats.add('orderedList');
 
         this.detectBlockFormats(formats);
+        // A task list is a <ul> to the browser; only its own button reads pressed.
+        if (formats.has('taskList')) formats.delete('bulletList');
         this.activeFormats.set(formats);
         this.detectCurrentFontSize();
         this.detectCurrentFontFamily();
         this.detectCurrentColors();
+    }
+
+    /**
+     * Whether the browser reports bold only because the caret sits in a
+     * heading. `queryCommandState('bold')` reads the computed weight, so every
+     * heading lit the Bold button although no bold formatting was applied and
+     * the button could not "turn it off".
+     */
+    private boldOnlyFromHeading(): boolean {
+        const editor = this.editorDiv?.nativeElement;
+        const selection = this.document.getSelection();
+        if (!editor || !selection || selection.rangeCount === 0) return false;
+        let current: Node | null = selection.getRangeAt(0).startContainer;
+        while (current && current !== editor) {
+            if (current.nodeType === Node.ELEMENT_NODE) {
+                const el = current as HTMLElement;
+                if (el.tagName === 'B' || el.tagName === 'STRONG' || /^(bold|[6-9]\d\d)$/.test(el.style.fontWeight)) return false;
+                if (/^H[1-6]$/.test(el.tagName)) return true;
+            }
+            current = current.parentNode;
+        }
+        return false;
     }
 
     /**
@@ -6562,6 +6543,262 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     /**
+     * The selection, editor and a caret anchor every block toggle needs, or
+     * null when there is nothing to act on. The anchor is a node that the
+     * toggles move but never destroy, so the caret can be put back on it after
+     * the DOM around it has been rebuilt.
+     */
+    private blockToggleContext(): BlockToggleContext | null {
+        const selection = this.document.getSelection();
+        const editor = this.editorDiv?.nativeElement;
+        if (!selection || selection.rangeCount === 0 || !editor) return null;
+        const range = selection.getRangeAt(0);
+        if (!editor.contains(range.startContainer)) return null;
+        return {
+            selection,
+            editor,
+            range,
+            anchor: range.startContainer,
+            offset: range.startOffset,
+            focus: range.endContainer,
+            focusOffset: range.endOffset,
+        };
+    }
+
+    /** The selection back on its anchors when they survived, else a caret at the start of `fallback`. */
+    private restoreToggleCaret(ctx: BlockToggleContext, fallback: HTMLElement | null): void {
+        const alive = (node: Node): boolean => ctx.editor.contains(node) && node.isConnected;
+        if (!alive(ctx.anchor)) {
+            if (fallback) this.placeCaretAtStartOfBlock(fallback);
+            return;
+        }
+        const clamp = (node: Node, offset: number): number =>
+            Math.min(offset, node.nodeType === Node.TEXT_NODE ? (node as Text).length : node.childNodes.length);
+        const restored = this.document.createRange();
+        restored.setStart(ctx.anchor, clamp(ctx.anchor, ctx.offset));
+        if (alive(ctx.focus)) {
+            restored.setEnd(ctx.focus, clamp(ctx.focus, ctx.focusOffset));
+        } else {
+            restored.collapse(true);
+        }
+        ctx.selection.removeAllRanges();
+        ctx.selection.addRange(restored);
+    }
+
+    /**
+     * Bullet and numbered lists are block toggles built by the editor itself.
+     *
+     * `execCommand('insertUnorderedList')` was used before, and Chrome builds
+     * the list INSIDE the paragraph (`<p><ul><li>…</li></ul></p>`), which is not
+     * valid HTML and which the sanitizer then has to take apart on every save.
+     * The list is now placed at the paragraph's level, one item per selected
+     * line block; the same kind of list toggles back to paragraphs, the other
+     * kind re-tags it, and a task list is stripped of its checkboxes on the way.
+     */
+    private toggleList(tag: 'ul' | 'ol'): void {
+        const ctx = this.blockToggleContext();
+        if (!ctx) return;
+        const list = this.enclosingList(ctx.range.startContainer, ctx.editor);
+        let fallback: HTMLElement | null = null;
+        if (list && list.tagName === tag.toUpperCase() && list.dataset['taskList'] === undefined) {
+            fallback = this.unwrapList(list);
+        } else if (list) {
+            this.stripTaskMarkers(list);
+            this.replaceBlockTag(list, tag);
+        } else {
+            fallback = this.wrapLineBlocksInList(this.lineBlocksInRange(ctx.range, ctx.editor), tag);
+        }
+        this.restoreToggleCaret(ctx, fallback);
+    }
+
+    /**
+     * Task list toggle: the selected line blocks become task items keeping
+     * their text, a plain list gains checkboxes, and a task list goes back to
+     * paragraphs. The old command inserted an empty item at the caret, which
+     * REPLACED the selected text and, on the way out, left the bare checkbox
+     * sitting in the paragraph.
+     */
+    private toggleTaskList(): void {
+        const ctx = this.blockToggleContext();
+        if (!ctx) return;
+        const list = this.enclosingList(ctx.range.startContainer, ctx.editor);
+        let fallback: HTMLElement | null = null;
+        if (list?.dataset['taskList'] !== undefined) {
+            fallback = this.unwrapList(list);
+        } else if (list) {
+            this.addTaskMarkers(list);
+        } else {
+            const created = this.wrapLineBlocksInList(this.lineBlocksInRange(ctx.range, ctx.editor), 'ul');
+            if (!created) return;
+            this.addTaskMarkers(created);
+            fallback = created.querySelector('span');
+        }
+        this.restoreToggleCaret(ctx, fallback);
+    }
+
+    private enclosingList(node: Node, editor: HTMLElement): HTMLElement | null {
+        let current: Node | null = node;
+        while (current && current !== editor) {
+            if (current.nodeType === Node.ELEMENT_NODE && ((current as Element).tagName === 'UL' || (current as Element).tagName === 'OL')) {
+                return current as HTMLElement;
+            }
+            current = current.parentNode;
+        }
+        return null;
+    }
+
+    /** One `<li>` per block, in the block's place; returns the list, or null with nothing to wrap. */
+    private wrapLineBlocksInList(blocks: readonly HTMLElement[], tag: 'ul' | 'ol'): HTMLElement | null {
+        if (blocks.length === 0) return null;
+        const list = this.document.createElement(tag);
+        blocks[0].parentNode?.insertBefore(list, blocks[0]);
+        for (const block of blocks) {
+            const item = this.document.createElement('li');
+            while (block.firstChild) item.appendChild(block.firstChild);
+            if (this.isEmptyBlock(item)) item.innerHTML = '<br>';
+            list.appendChild(item);
+            block.remove();
+        }
+        return list;
+    }
+
+    /** Every item back to a paragraph in the list's place; nested lists stay lists beside it. Returns the first paragraph. */
+    private unwrapList(list: HTMLElement): HTMLElement | null {
+        const parent = list.parentNode;
+        if (!parent) return null;
+        this.stripTaskMarkers(list);
+        let first: HTMLElement | null = null;
+        for (const item of Array.from(list.children)) {
+            const p = this.document.createElement('p');
+            for (const child of Array.from(item.childNodes)) {
+                if (child.nodeType === Node.ELEMENT_NODE && ((child as Element).tagName === 'UL' || (child as Element).tagName === 'OL')) {
+                    parent.insertBefore(child, list);
+                } else {
+                    p.appendChild(child);
+                }
+            }
+            if (this.isEmptyBlock(p)) p.innerHTML = '<br>';
+            parent.insertBefore(p, list);
+            first ??= p;
+        }
+        list.remove();
+        return first;
+    }
+
+    private addTaskMarkers(list: HTMLElement): void {
+        const target = list.tagName === 'OL' ? this.replaceBlockTag(list, 'ul') : list;
+        target.dataset['taskList'] = '';
+        for (const item of Array.from(target.children) as HTMLElement[]) {
+            if (item.dataset['task'] !== undefined) continue;
+            const built = this.createTaskListItem(false);
+            const span = built.querySelector('span') as HTMLElement;
+            span.textContent = '';
+            for (const child of Array.from(item.childNodes)) {
+                if (child.nodeType === Node.ELEMENT_NODE && ((child as Element).tagName === 'UL' || (child as Element).tagName === 'OL')) {
+                    built.appendChild(child);
+                } else {
+                    span.appendChild(child);
+                }
+            }
+            if (this.holdsNoContent(span)) span.textContent = '​';
+            item.replaceWith(built);
+        }
+        this.enableTaskCheckboxes(target);
+    }
+
+    private stripTaskMarkers(list: HTMLElement): void {
+        if (list.dataset['taskList'] === undefined) return;
+        delete list.dataset['taskList'];
+        for (const item of Array.from(list.children) as HTMLElement[]) {
+            delete item.dataset['task'];
+            delete item.dataset['checked'];
+            item.querySelector(':scope > input[type="checkbox"]')?.remove();
+            const span = item.querySelector(':scope > span');
+            if (span) {
+                while (span.firstChild) item.insertBefore(span.firstChild, span);
+                span.remove();
+            }
+        }
+    }
+
+    /**
+     * Code block toggle on the caret's line blocks: their text becomes one
+     * `<pre><code>` in their place, and a code block goes back to one
+     * paragraph per line. It used to wrap only the selected characters in a
+     * `<pre>` inside the paragraph and, clicked again, nest another one.
+     */
+    private toggleCodeBlock(): void {
+        const ctx = this.blockToggleContext();
+        if (!ctx) return;
+        const pre = this.findAncestorByTag(ctx.range.startContainer, 'PRE');
+        if (pre) {
+            const first = this.unwrapCodeBlock(pre);
+            if (first) this.placeCaretAtStartOfBlock(first);
+            return;
+        }
+        const blocks = this.lineBlocksInRange(ctx.range, ctx.editor);
+        if (blocks.length === 0) return;
+        const text = blocks.map((block) => (block.textContent ?? '').replaceAll('​', '')).join('\n');
+        const built = this.document.createElement('pre');
+        const code = this.document.createElement('code');
+        // An empty block keeps the seeded newline the Enter-to-exit rule looks for.
+        code.textContent = text.trim() === '' ? '\n' : text;
+        built.appendChild(code);
+        blocks[0].parentNode?.insertBefore(built, blocks[0]);
+        for (const block of blocks) block.remove();
+        this.setSelectionRange(ctx.selection, code.firstChild ?? code, 0);
+    }
+
+    private unwrapCodeBlock(pre: HTMLElement): HTMLElement | null {
+        const parent = pre.parentNode;
+        if (!parent) return null;
+        const lines = (pre.textContent ?? '').replace(/\n$/, '').split('\n');
+        let first: HTMLElement | null = null;
+        for (const line of lines) {
+            const p = this.document.createElement('p');
+            if (line === '') {
+                p.innerHTML = '<br>';
+            } else {
+                p.textContent = line;
+            }
+            parent.insertBefore(p, pre);
+            first ??= p;
+        }
+        pre.remove();
+        return first;
+    }
+
+    /**
+     * The line blocks (paragraphs, divs, headings) the range touches, walking
+     * up from bare text to its nearest one; a caret inside a structure with no
+     * line block of its own -- a list, a table -- yields that structure.
+     */
+    private lineBlocksInRange(range: Range, editor: HTMLElement): HTMLElement[] {
+        const first = this.lineBlockOrTopLevel(range.startContainer, editor);
+        const last = this.lineBlockOrTopLevel(range.endContainer, editor);
+        if (!first || !last) return [];
+        const blocks: HTMLElement[] = [];
+        let current: Node | null = first;
+        while (current) {
+            const block = this.ensureLineBlock(current);
+            blocks.push(block);
+            if (current === last) break;
+            current = block.nextSibling;
+        }
+        return blocks;
+    }
+
+    private lineBlockOrTopLevel(node: Node, editor: HTMLElement): Node | null {
+        let current: Node | null = node === editor ? (editor.childNodes[0] ?? null) : node;
+        while (current && current !== editor) {
+            if (current.nodeType === Node.ELEMENT_NODE && LINE_BLOCK_TAGS.has((current as Element).tagName)) return current;
+            if (current.parentNode === editor) return current;
+            current = current.parentNode;
+        }
+        return null;
+    }
+
+    /**
      * The editor's direct children the range touches, bare text wrapped into a
      * paragraph first so the quote gets a line block.
      */
@@ -7005,7 +7242,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     /**
      * Replaces the block with a task-list item carrying its remaining text,
-     * built the same way {@link insertTaskList} builds one so both paths produce
+     * built the same way {@link toggleTaskList} builds one so both paths produce
      * the structure the sanitizer and the Enter rules already understand.
      */
     private buildTaskBlock(block: HTMLElement, checked: boolean): HTMLElement {
@@ -7067,7 +7304,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     /**
      * Replaces the block with a fenced code block holding whatever text
      * followed the fence, or a newline when it was empty — the same shape
-     * {@link insertCodeBlock} produces, so the Enter-to-exit rule works in it.
+     * {@link toggleCodeBlock} produces, so the Enter-to-exit rule works in it.
      */
     private buildCodeBlockForRule(block: HTMLElement, language: string): HTMLElement {
         const pre = this.document.createElement('pre');

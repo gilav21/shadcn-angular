@@ -2592,11 +2592,14 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         const code = editor.querySelector('code')!;
         expect(code.textContent).toBe('hello');
 
-        // Toggling a pressed button must remove the formatting, the way bold and
-        // italic do — not wrap the run in a second <code>.
-        selectRangeIn(code.firstChild!, 0, 5);
+        // The wrapped text stays selected, so the toolbar reads pressed and the
+        // second click -- with no re-selection -- unwraps rather than wrapping
+        // an empty <code> beside it.
+        expect(document.getSelection()?.toString()).toBe('hello');
+        expect(component.activeFormats().has('code')).toBe(true);
         component.onFormatCommand('code');
 
+        expect(editor.querySelectorAll('code')).toHaveLength(0);
         expect(editor.querySelectorAll('code code')).toHaveLength(0);
         expect(editor.querySelectorAll('code')).toHaveLength(0);
         expect(editor.textContent).toBe('hello world');
@@ -2836,17 +2839,41 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
             .toEqual(['P:one', 'P:two', 'P:three']);
     });
 
-    it('inserts a code block with insertCodeBlock', () => {
-        component.writeValue('<p>snippet body</p>');
+    it("turns the caret's paragraph into a code block, and back into paragraphs", () => {
+        component.writeValue('<p>before</p><p>snippet body</p><p>after</p>');
         fixture.detectChanges();
-        selectContents(editor.querySelector('p')!);
+        // A caret, not a selection: the whole line becomes the block. It used to
+        // wrap only the selected characters in a <pre> INSIDE the paragraph.
+        setCaretAt(editor.querySelectorAll('p')[1].firstChild!, 3);
 
         component.onFormatCommand('codeBlock');
 
-        const pre = editor.querySelector('pre');
-        expect(pre).toBeTruthy();
-        expect(pre?.querySelector('code')).toBeTruthy();
-        expect(pre?.textContent).toContain('snippet body');
+        expect(Array.from(editor.children).map((el) => el.tagName)).toEqual(['P', 'PRE', 'P']);
+        expect(editor.querySelector('pre > code')?.textContent).toBe('snippet body');
+        expect(editor.querySelector('pre')?.contains(document.getSelection()?.anchorNode ?? null)).toBe(true);
+
+        component.onFormatCommand('codeBlock');
+
+        expect(editor.querySelector('pre')).toBeNull();
+        expect(Array.from(editor.children).map((el) => el.textContent)).toEqual(['before', 'snippet body', 'after']);
+    });
+
+    it('joins several selected lines into one code block and splits it back per line', () => {
+        component.writeValue('<p>one</p><p>two</p>');
+        fixture.detectChanges();
+        const range = document.createRange();
+        range.setStart(editor.querySelectorAll('p')[0].firstChild!, 1);
+        range.setEnd(editor.querySelectorAll('p')[1].firstChild!, 1);
+        const selection = document.getSelection()!;
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        component.onFormatCommand('codeBlock');
+        expect(editor.querySelectorAll('pre')).toHaveLength(1);
+        expect(editor.querySelector('pre > code')?.textContent).toBe('one\ntwo');
+
+        component.onFormatCommand('codeBlock');
+        expect(Array.from(editor.querySelectorAll('p')).map((p) => p.textContent)).toEqual(['one', 'two']);
     });
 
     it('inserts a horizontal rule', () => {
@@ -2868,6 +2895,33 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
 
         expect(editor.querySelector('ul')).toBeTruthy();
         expect(editor.querySelector('ul li')?.textContent).toContain('item one');
+    });
+
+    it("builds the list at the paragraph's level and toggles it back to paragraphs", () => {
+        // execCommand('insertUnorderedList') in Chrome builds the list INSIDE
+        // the paragraph -- <p><ul><li>…</li></ul></p> -- which is not valid HTML.
+        component.writeValue('<p>first</p><p>second</p><p>third</p>');
+        fixture.detectChanges();
+        const range = document.createRange();
+        range.setStart(editor.querySelectorAll('p')[0].firstChild!, 0);
+        range.setEnd(editor.querySelectorAll('p')[1].firstChild!, 3);
+        const selection = document.getSelection()!;
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        component.onFormatCommand('bulletList');
+
+        expect(editor.querySelector('p ul')).toBeNull();
+        expect(Array.from(editor.children).map((el) => el.tagName)).toEqual(['UL', 'P']);
+        expect(Array.from(editor.querySelectorAll('ul > li')).map((li) => li.textContent)).toEqual(['first', 'second']);
+        expect(editor.querySelector('ul')?.contains(document.getSelection()?.anchorNode ?? null)).toBe(true);
+
+        component.onFormatCommand('orderedList');
+        expect(Array.from(editor.children).map((el) => el.tagName)).toEqual(['OL', 'P']);
+
+        component.onFormatCommand('orderedList');
+        expect(Array.from(editor.children).map((el) => el.tagName)).toEqual(['P', 'P', 'P']);
+        expect(editor.children[0].textContent).toBe('first');
     });
 
     it('toggles an ordered list', () => {
@@ -2892,6 +2946,40 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         const li = ul?.querySelector('li[data-task]');
         expect(li?.getAttribute('data-checked')).toBe('false');
         expect(li?.querySelector('input[type="checkbox"]')).toBeTruthy();
+        // The paragraph's text is the item's text; the old command inserted an
+        // empty item at the caret and deleted whatever was selected.
+        expect(li?.querySelector('span')?.textContent).toBe('start');
+        expect(editor.querySelector('p')).toBeNull();
+    });
+
+    it('keeps selected text when making a task list, and toggles back to a plain paragraph', () => {
+        component.writeValue('<p>hello world</p>');
+        fixture.detectChanges();
+        selectRangeIn(editor.querySelector('p')!.firstChild!, 0, 5);
+
+        component.onFormatCommand('taskList');
+        expect(editor.querySelector('li[data-task] > span')?.textContent).toBe('hello world');
+        expect(editor.textContent).toBe('hello world');
+
+        component.onFormatCommand('taskList');
+        expect(editor.querySelector('ul')).toBeNull();
+        expect(editor.querySelector('input')).toBeNull();
+        expect(editor.querySelector('p')?.textContent).toBe('hello world');
+    });
+
+    it('converts a task list to a numbered list without its checkboxes, and a bullet list to tasks', () => {
+        component.writeValue('<p>a</p>');
+        fixture.detectChanges();
+        setCaretAt(editor.querySelector('p')!.firstChild!, 1);
+        component.onFormatCommand('taskList');
+
+        component.onFormatCommand('orderedList');
+        expect(editor.querySelector('ol > li')?.textContent).toBe('a');
+        expect(editor.querySelector('input, [data-task-list], [data-task]')).toBeNull();
+
+        component.onFormatCommand('taskList');
+        expect(editor.querySelector('ul[data-task-list] > li[data-task] > input[type="checkbox"]')).not.toBeNull();
+        expect(editor.querySelector('li[data-task] > span')?.textContent).toBe('a');
     });
 
     it('inserts a collapsible toggle block', () => {
@@ -7765,17 +7853,18 @@ describe('RichTextEditorComponent — targeted branch coverage top-up', () => {
         expect(() => priv().wrapSelectionWithTag('code')).not.toThrow();
     });
 
-    it('insertCodeBlock is a no-op without a selection', () => {
+    it('toggleCodeBlock is a no-op without a selection', () => {
         document.getSelection()?.removeAllRanges();
-        expect(() => priv().insertCodeBlock()).not.toThrow();
+        expect(() => priv().toggleCodeBlock()).not.toThrow();
     });
 
-    it('insertCodeBlock seeds an empty code element with a newline', () => {
-        component.writeValue('<p>x</p>');
+    it("toggleCodeBlock seeds an empty block's code element with a newline", () => {
+        component.writeValue('<p><br></p>');
         fixture.detectChanges();
-        caretIn(editor.querySelector('p')!.firstChild!, 1);
-        priv().insertCodeBlock();
+        caretIn(editor.querySelector('p')!, 0);
+        priv().toggleCodeBlock();
         expect(editor.querySelector('pre code')!.textContent).toBe('\n');
+        expect(editor.querySelector('p')).toBeNull();
     });
 
     it('registerLinkEditor disposer is inert once a newer editor replaced it', () => {
@@ -9370,12 +9459,31 @@ describe('RichTextEditorComponent block-state activeFormats', () => {
     it('reports bulletList, orderedList and taskList', () => {
         expect(caretIn('<ul><li>a</li></ul>', 'li')).toContain('bulletList');
         expect(caretIn('<ol><li>a</li></ol>', 'li')).toContain('orderedList');
-        expect(
-            caretIn(
-                '<ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>a</span></li></ul>',
-                'span'
-            )
-        ).toContain('taskList');
+        const task = caretIn(
+            '<ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>a</span></li></ul>',
+            'span'
+        );
+        expect(task).toContain('taskList');
+        // A task list is a <ul> to the browser; only its own button reads pressed.
+        expect(task).not.toContain('bulletList');
+    });
+
+    it('tells the weight a heading inherits apart from bold formatting', () => {
+        // queryCommandState('bold') reads the computed weight, so every heading
+        // lit the Bold button with nothing for it to turn off. The browser only
+        // answers that query for a focused document, which the harness is not,
+        // so the guard that filters its answer is exercised directly.
+        const guard = component as unknown as { boldOnlyFromHeading(): boolean };
+        const inheritedOnly = (html: string, selector: string): boolean => {
+            editor.innerHTML = html;
+            setCaretAt(editor.querySelector(selector)!.firstChild!, 1);
+            return guard.boldOnlyFromHeading();
+        };
+        expect(inheritedOnly('<h2>title</h2>', 'h2')).toBe(true);
+        expect(inheritedOnly('<h2>a <b>bb</b></h2>', 'b')).toBe(false);
+        expect(inheritedOnly('<h3><span style="font-weight:700">xx</span></h3>', 'span')).toBe(false);
+        expect(inheritedOnly('<p><strong>xx</strong></p>', 'strong')).toBe(false);
+        expect(inheritedOnly('<p>plain</p>', 'p')).toBe(false);
     });
 
     it('does not report paragraph inside a list item', () => {

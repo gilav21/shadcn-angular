@@ -189,6 +189,24 @@ means no policy and today's behaviour exactly.
   editor and triggered one, and the SVG under the pointer was replaced before
   mouseup, so Chrome fired no click. Icons are now cached, so the glyph nodes
   stay put.
+- **Every toolbar toggle now toggles, on real text.** A click-through of the
+  whole toolbar in a browser found four that did not:
+  - *Inline Code* wrapped the word but dropped the selection, so it never read
+    as pressed and a second click added an empty `<code>` beside it. The text
+    stays selected and the second click unwraps.
+  - *Code Block* wrapped only the selected characters in a `<pre>` inside the
+    paragraph and nested another on the next click. It now converts the
+    caret's line blocks into one code block and back into paragraphs.
+  - *Task List* inserted an empty item at the caret, deleting the selected
+    text, and toggling it off left the bare checkbox in the paragraph. It now
+    converts the current blocks keeping their text, switches to and from
+    bullet/numbered lists cleanly, and goes back to paragraphs.
+  - *Bullet* and *Numbered* lists were built by the browser INSIDE the
+    paragraph (`<p><ul>…</ul></p>`). The editor builds them itself at the
+    paragraph's level, one item per selected line, and toggles them back.
+- **Bold no longer lights up inside a heading** for the weight the heading
+  inherits; only bold formatting reads as pressed. A task list no longer
+  lights the Bullet List button as well.
 - **Clear Formatting works with a caret, not only a selection.** With nothing
   selected the browser's `removeFormat` is a no-op, so from inside bold text
   the button did nothing and the next keystroke stayed bold. It now clears
