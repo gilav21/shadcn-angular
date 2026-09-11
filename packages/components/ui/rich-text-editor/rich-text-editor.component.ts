@@ -6567,7 +6567,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     /** The selection back on its anchors when they survived, else a caret at the start of `fallback`. */
     private restoreToggleCaret(ctx: BlockToggleContext, fallback: HTMLElement | null): void {
-        const alive = (node: Node): boolean => ctx.editor.contains(node) && node.isConnected;
+        const alive = (node: Node): boolean => node.isConnected && ctx.editor.contains(node);
         if (!alive(ctx.anchor)) {
             if (fallback) this.placeCaretAtStartOfBlock(fallback);
             return;
@@ -6600,7 +6600,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (!ctx) return;
         const list = this.enclosingList(ctx.range.startContainer, ctx.editor);
         let fallback: HTMLElement | null = null;
-        if (list && list.tagName === tag.toUpperCase() && list.dataset['taskList'] === undefined) {
+        if (list?.tagName === tag.toUpperCase() && list.dataset['taskList'] === undefined) {
             fallback = this.unwrapList(list);
         } else if (list) {
             this.stripTaskMarkers(list);
@@ -6664,21 +6664,20 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     /** Every item back to a paragraph in the list's place; nested lists stay lists beside it. Returns the first paragraph. */
     private unwrapList(list: HTMLElement): HTMLElement | null {
-        const parent = list.parentNode;
-        if (!parent) return null;
+        if (!list.parentNode) return null;
         this.stripTaskMarkers(list);
         let first: HTMLElement | null = null;
         for (const item of Array.from(list.children)) {
             const p = this.document.createElement('p');
             for (const child of Array.from(item.childNodes)) {
                 if (child.nodeType === Node.ELEMENT_NODE && ((child as Element).tagName === 'UL' || (child as Element).tagName === 'OL')) {
-                    parent.insertBefore(child, list);
+                    list.before(child);
                 } else {
                     p.appendChild(child);
                 }
             }
             if (this.isEmptyBlock(p)) p.innerHTML = '<br>';
-            parent.insertBefore(p, list);
+            list.before(p);
             first ??= p;
         }
         list.remove();
@@ -6750,8 +6749,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     private unwrapCodeBlock(pre: HTMLElement): HTMLElement | null {
-        const parent = pre.parentNode;
-        if (!parent) return null;
+        if (!pre.parentNode) return null;
         const lines = (pre.textContent ?? '').replace(/\n$/, '').split('\n');
         let first: HTMLElement | null = null;
         for (const line of lines) {
@@ -6761,7 +6759,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             } else {
                 p.textContent = line;
             }
-            parent.insertBefore(p, pre);
+            pre.before(p);
             first ??= p;
         }
         pre.remove();
