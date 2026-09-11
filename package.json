@@ -16,6 +16,7 @@
     "release:package": "tsx packages/cli/scripts/release-package.ts",
     "preflight": "node scripts/preflight.mjs",
     "check:completeness": "tsx packages/cli/scripts/check-completeness.ts",
+    "check:fixture": "tsx packages/cli/scripts/check-fixture-pristine.ts",
     "check:registry": "tsx packages/cli/scripts/sync-registry.ts",
     "hook:pre-commit": "lint-staged",
     "hook:pre-push": "node scripts/pre-push.mjs",
@@ -72,7 +73,8 @@
     "pre-push": "npm run hook:pre-push"
   },
   "lint-staged": {
-    "*.{ts,mjs,js,html}": "eslint --fix --no-warn-ignored"
+    "*.{ts,mjs,js,html}": "eslint --fix --no-warn-ignored",
+    "e2e/fixture-app*/**": "tsx packages/cli/scripts/check-fixture-pristine.ts --staged"
   },
   "keywords": [
     "angular",

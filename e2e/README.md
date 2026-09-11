@@ -130,6 +130,12 @@ For each component `<name>`:
    (`git checkout HEAD -- e2e/fixture-app && git clean -fd e2e/fixture-app/`).
    `node_modules` and `.angular/cache` are gitignored and survive reset
    so subsequent components reuse the cache.
+   **Never commit what a run leaves in the fixture** (a harness route in
+   `app.routes.ts`, `init`'s edits to `styles.scss` / `tsconfig.json` /
+   `package.json`, anything under `src/components/`): the pre-commit and
+   pre-push hooks run `npm run check:fixture` and refuse it, because a
+   committed run breaks every pristine build in CI and leaves `init` nothing
+   to change. `npm run e2e:reset` restores the scaffold.
 2. **Init**: `node packages/cli/dist/index.js init --yes` inside the fixture.
 3. **Add**: `node packages/cli/dist/index.js add <name> --yes`.
 4. **Install**: `npm install` (cached after the first cold run).
