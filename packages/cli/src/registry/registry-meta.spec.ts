@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
-import { registry, CATEGORIES } from './index.js';
+import { registry, CATEGORIES, type ComponentName } from './index.js';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
 
@@ -152,4 +152,20 @@ describe('rich-text-editor breaking notes after the locale cascade', () => {
     }
   });
 
+});
+
+/**
+ * `ComponentName` must stay the union of registry keys. When the literal grew
+ * past what TypeScript would check against `defineRegistry`'s constraint, the
+ * check fell back silently and the type widened to `string` -- no compile
+ * error anywhere, only 46 "unnecessary assertion" findings. The line below
+ * fails to type-check (TS2578, unused @ts-expect-error) the moment that
+ * happens again.
+ */
+describe('ComponentName stays a union of the registry keys', () => {
+  it('rejects a name the registry does not have, at compile time', () => {
+    // @ts-expect-error -- 'not-a-component' is not a registry key
+    const bad: ComponentName = 'not-a-component';
+    expect(Object.keys(registry)).not.toContain(bad);
+  });
 });

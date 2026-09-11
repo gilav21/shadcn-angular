@@ -178,7 +178,16 @@ export interface BreakingChange {
   readonly suggestedAddon?: string;
 }
 
-function defineRegistry<T extends Record<string, ComponentDefinition>>(reg: T): { readonly [K in keyof T]: ComponentDefinition } {
+/**
+ * Keys come from inference on the bare `T`; values are checked through the
+ * intersection. With the constraint on `T` instead, TypeScript checked the
+ * whole inferred literal against `Record<string, ComponentDefinition>`, and
+ * past a certain size that check gave up SILENTLY and fell back to the
+ * constraint -- `ComponentName` became `string`, every `as ComponentName`
+ * read as unnecessary, and nothing failed to compile. `registry-meta.spec.ts`
+ * guards the key type at the type level.
+ */
+function defineRegistry<T>(reg: T & { readonly [K in keyof T]: ComponentDefinition }): { readonly [K in keyof T]: ComponentDefinition } {
     return reg;
 }
 
