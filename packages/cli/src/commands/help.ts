@@ -103,6 +103,7 @@ function buildInstallCommands(branchDefault: string): string[] {
     '    ' + chalk.gray('-y, --yes') + '            Install newly-required dependencies without prompting',
     '    ' + chalk.gray('-o, --overwrite') + '      Take upstream whole-file instead of 3-way merging your edits',
     '    ' + chalk.gray('--dry-run') + '            Preview what would update without writing',
+    '    ' + chalk.gray('--fix') + '                Rewrite your templates for renamed, merged or removed inputs',
     '    ' + chalk.gray('-b, --branch') + ' <branch> GitHub branch to fetch from ' + branchDefault,
     '',
   ];

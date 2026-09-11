@@ -213,6 +213,7 @@ component carries `testFiles`.
 ```bash
 npx @gilav21/shadcn-angular update             # all installed components
 npx @gilav21/shadcn-angular update data-table  # only the named components
+npx @gilav21/shadcn-angular update --fix       # also rewrite your templates for renamed inputs
 ```
 
 By default `update` performs a **3-way merge**, so your local edits survive and

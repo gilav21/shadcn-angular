@@ -41,6 +41,13 @@ remote images, and ~110 fixes from a 25-round adversarial audit.
   Every option object has an exported type with documented defaults, so an
   IDE completes the fields. The editor also gains the view's `dir` input.
 
+  **Migrating:** `npx @gilav21/shadcn-angular update` lists every place your
+  own templates bind an old name, with file and line; `update --fix` rewrites
+  them — renames, the object merges and the removed input — and tells you the
+  one thing it cannot decide for you: a view that had `inheritResourcePolicy`
+  off now inherits unless it sets its own list. Compiled-package users get the
+  same table in this changelog and a build error naming each old binding.
+
 **One breaking change.** Every other breaking entry the CLI reports for the
 rich text editor — the addon extractions for images, links, tables, mentions,
 emoji, colours, typography, slash-commands, history, file-import, AI and

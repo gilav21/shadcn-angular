@@ -2751,9 +2751,84 @@
         "kind": "removal",
         "from": "the 'image' toolbar item + its insert popover, image paste/drag-drop, the [images]/[imageUploader]/[autoImageUpload]/[imageSources]/[imageResize]/[imageAlignment]/[defaultImageWidth]/[defaultImageHeight]/[defaultImageAlignment]/[minImageWidth]/[maxImageWidth]/[lockImageAspectRatio] inputs, the (imageUploadStart)/(imageUploadComplete)/(imageUploadError)/(autoImageUploadComplete)/(autoImageUploadError) outputs, and the resize/align overlay on <ui-rich-text-editor>",
         "to": "the uiRteImages directive",
-        "note": "The whole image feature moved to the opt-in images addon, dropping the image UI (toolbar button, insert popover, paste/drop insertion, upload + auto-upload pipeline, and the resize/align overlay) from the base. Run `npx @gilav21/shadcn-angular apply rich-text-editor/images`, add `uiRteImages` to the editor element, and remap the inputs/outputs to the uiRteImages* prefix: [images]->[uiRteImages], [imageUploader]->[uiRteImagesUploader], [autoImageUpload]->[uiRteImagesAutoUpload], [imageSources]->[uiRteImagesSources], [imageResize]->[uiRteImagesResize], [imageAlignment]->[uiRteImagesAlignment], [defaultImageWidth]->[uiRteImagesDefaultWidth], [defaultImageHeight]->[uiRteImagesDefaultHeight], [defaultImageAlignment]->[uiRteImagesDefaultAlignment], [minImageWidth]->[uiRteImagesMinWidth], [maxImageWidth]->[uiRteImagesMaxWidth], [lockImageAspectRatio]->[uiRteImagesLockAspectRatio]. The upload outputs (imageUploadStart/Complete/Error, autoImageUploadComplete/Error) move onto the directive with the same names. Remove 'image' from any custom [toolbarItems] arrays (the button now renders after the built-in items). Content-level image support stays in the base — the sanitizer keeps allowing <img> and markdown still serializes images — so existing image content keeps rendering with the base alone; only the editing UI is opt-in. The base RichTextLocale no longer carries the `image` or `imageResizer` sections, `toolbar.insertImage`, or the `editor.uploadingImage`/`autoUpload*` keys; image strings resolve from [uiRteImagesLocale] (or the global UI_LOCALE_ID), and otherwise inherit the editor's [locale]. This extraction also removes `popover` from the base's dependencies (the image button was its last consumer).",
+        "note": "The whole image feature moved to the opt-in images addon, dropping the image UI (toolbar button, insert popover, paste/drop insertion, upload + auto-upload pipeline, and the resize/align overlay) from the base. Run `npx @gilav21/shadcn-angular apply rich-text-editor/images`, add `uiRteImages` to the editor element, and remap the inputs: [images]->[uiRteImages]; [imageUploader]/[autoImageUpload]/[imageSources] onto [uiRteImagesUpload]='{ uploader, auto, sources }'; [imageResize]/[imageAlignment]/[defaultImageWidth]/[defaultImageHeight]/[defaultImageAlignment]/[minImageWidth]/[maxImageWidth]/[lockImageAspectRatio] onto [uiRteImagesLayout]='{ resize, alignment, defaultWidth, defaultHeight, defaultAlignment, minWidth, maxWidth, lockAspectRatio }'. The upload outputs (imageUploadStart/Complete/Error, autoImageUploadComplete/Error) move onto the directive with the same names. Remove 'image' from any custom [toolbarItems] arrays (the button now renders after the built-in items). Content-level image support stays in the base — the sanitizer keeps allowing <img> and markdown still serializes images — so existing image content keeps rendering with the base alone; only the editing UI is opt-in. The base RichTextLocale no longer carries the `image` or `imageResizer` sections, `toolbar.insertImage`, or the `editor.uploadingImage`/`autoUpload*` keys; image strings resolve from [uiRteImagesLocale] (or the global UI_LOCALE_ID), and otherwise inherit the editor's [locale]. This extraction also removes `popover` from the base's dependencies (the image button was its last consumer).",
         "codemod": "none",
         "suggestedAddon": "rich-text-editor/images"
+      },
+      {
+        "kind": "input",
+        "from": "[allowedResourceHosts] on <ui-rich-text-editor>",
+        "to": "[allowedImageHosts]",
+        "note": "Renamed so the pair says what it governs: allowedImageHosts for images and CSS backgrounds, allowedLinkSchemes for links. Same values, same matching.",
+        "codemod": "input-rename",
+        "rename": {
+          "allowedResourceHosts": "allowedImageHosts"
+        }
+      },
+      {
+        "kind": "input",
+        "from": "[inheritResourcePolicy] on <ui-rich-text-editor>",
+        "note": "Removed. An editor or view under a [uiRichTextAllow] wrapper takes the wrapper policy by default now, and its own [allowedImageHosts] wins whole when set. Review any element that had it set to false: it inherits now unless you give it a list of its own.",
+        "codemod": "input-drop",
+        "drop": [
+          "inheritResourcePolicy"
+        ]
+      },
+      {
+        "kind": "input",
+        "from": "[uiRichTextResourcePolicy]=\"hosts\" on a wrapper element",
+        "to": "[uiRichTextAllow]=\"{ imageHosts: hosts, linkSchemes: [...] }\"",
+        "note": "The wrapper carries image hosts AND link schemes as one RichTextAllow object, and every editor and view beneath it inherits without opting in.",
+        "codemod": "input-merge",
+        "merge": {
+          "into": "uiRichTextAllow",
+          "keys": {
+            "uiRichTextResourcePolicy": "imageHosts"
+          }
+        }
+      },
+      {
+        "kind": "type",
+        "from": "RichTextResourcePolicyDirective / RichTextResourcePolicyHost",
+        "to": "RichTextAllowDirective / RichTextAllowHost",
+        "note": "Import names follow the wrapper rename; the file is rich-text-allow.directive.ts.",
+        "codemod": "identifier-rename",
+        "rename": {
+          "RichTextResourcePolicyDirective": "RichTextAllowDirective",
+          "RichTextResourcePolicyHost": "RichTextAllowHost"
+        }
+      },
+      {
+        "kind": "output",
+        "from": "(remoteResource) on <ui-rich-text-editor>",
+        "to": "(imageBlocked)",
+        "note": "Emits only for a remote image or background the policy BLOCKED; allowed and no-policy decisions no longer fire. A handler that filtered on `allowed` can drop the filter.",
+        "codemod": "output-rename",
+        "rename": {
+          "remoteResource": "imageBlocked"
+        }
+      },
+      {
+        "kind": "input",
+        "from": "[showCount] + [showWordCount] on <ui-rich-text-editor>",
+        "to": "counter=\"characters\" | \"words\" | \"both\"",
+        "note": "One input for the counter row (CounterMode). Two literal booleans become the matching value; bound expressions become a ternary you may want to simplify.",
+        "codemod": "rte-counter"
+      },
+      {
+        "kind": "input",
+        "from": "[historyLimit] + [historyDebounceMs] + [recordExternalWrites] on <ui-rich-text-editor>",
+        "to": "[history]=\"{ limit, debounceMs, recordExternalWrites }\"",
+        "note": "One RichTextHistoryOptions object; unset fields keep the defaults (100, 450, false).",
+        "codemod": "input-merge",
+        "merge": {
+          "into": "history",
+          "keys": {
+            "historyLimit": "limit",
+            "historyDebounceMs": "debounceMs",
+            "recordExternalWrites": "recordExternalWrites"
+          }
+        }
       },
       {
         "kind": "removal",
@@ -2834,6 +2909,37 @@
     ],
     "testDependencies": [
       "rich-text-editor/actions"
+    ],
+    "breaking": [
+      {
+        "kind": "input",
+        "from": "[allowedResourceHosts] on <ui-rich-text-view>",
+        "to": "[allowedImageHosts]",
+        "note": "Renamed so the pair says what it governs: allowedImageHosts for images and CSS backgrounds, allowedLinkSchemes for links.",
+        "codemod": "input-rename",
+        "rename": {
+          "allowedResourceHosts": "allowedImageHosts"
+        }
+      },
+      {
+        "kind": "input",
+        "from": "[inheritResourcePolicy] on <ui-rich-text-view>",
+        "note": "Removed. A view under a [uiRichTextAllow] wrapper takes the wrapper policy by default now, and its own [allowedImageHosts] wins whole when set. Review any view that had it set to false: it inherits now unless you give it a list of its own.",
+        "codemod": "input-drop",
+        "drop": [
+          "inheritResourcePolicy"
+        ]
+      },
+      {
+        "kind": "output",
+        "from": "(remoteResource) on <ui-rich-text-view>",
+        "to": "(imageBlocked)",
+        "note": "Emits only for a remote image or background the policy BLOCKED.",
+        "codemod": "output-rename",
+        "rename": {
+          "remoteResource": "imageBlocked"
+        }
+      }
     ]
   },
   "pie-chart": {
@@ -5121,6 +5227,43 @@
       "rich-text-editor/rich-text-editor.host.ts",
       "rich-text-editor/rich-text-sanitizer.service.ts",
       "rich-text-editor/rich-text-paste-normalizer.service.ts"
+    ],
+    "breaking": [
+      {
+        "kind": "input",
+        "from": "[uiRteImagesUploader] + [uiRteImagesAutoUpload] + [uiRteImagesSources] on <ui-rich-text-editor uiRteImages>",
+        "to": "[uiRteImagesUpload]=\"{ uploader, auto, sources }\"",
+        "note": "One RichTextImagesUploadOptions object; unset fields keep the defaults (no uploader, auto false, sources all).",
+        "codemod": "input-merge",
+        "merge": {
+          "into": "uiRteImagesUpload",
+          "keys": {
+            "uiRteImagesUploader": "uploader",
+            "uiRteImagesAutoUpload": "auto",
+            "uiRteImagesSources": "sources"
+          }
+        }
+      },
+      {
+        "kind": "input",
+        "from": "[uiRteImagesResize] + [uiRteImagesAlignment] + [uiRteImagesDefaultWidth] + [uiRteImagesDefaultHeight] + [uiRteImagesDefaultAlignment] + [uiRteImagesMinWidth] + [uiRteImagesMaxWidth] + [uiRteImagesLockAspectRatio] on <ui-rich-text-editor uiRteImages>",
+        "to": "[uiRteImagesLayout]=\"{ resize, alignment, defaultWidth, defaultHeight, defaultAlignment, minWidth, maxWidth, lockAspectRatio }\"",
+        "note": "One RichTextImagesLayoutOptions object; unset fields keep the defaults (resize and alignment on, inline, minWidth 20, aspect ratio locked).",
+        "codemod": "input-merge",
+        "merge": {
+          "into": "uiRteImagesLayout",
+          "keys": {
+            "uiRteImagesResize": "resize",
+            "uiRteImagesAlignment": "alignment",
+            "uiRteImagesDefaultWidth": "defaultWidth",
+            "uiRteImagesDefaultHeight": "defaultHeight",
+            "uiRteImagesDefaultAlignment": "defaultAlignment",
+            "uiRteImagesMinWidth": "minWidth",
+            "uiRteImagesMaxWidth": "maxWidth",
+            "uiRteImagesLockAspectRatio": "lockAspectRatio"
+          }
+        }
+      }
     ],
     "attach": {
       "import": "RichTextImagesDirective from './ui/rich-text-editor/addons/images'",

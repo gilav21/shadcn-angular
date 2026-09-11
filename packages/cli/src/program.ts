@@ -103,6 +103,7 @@ function registerSyncCommands(program: Command): void {
         .option('-y, --yes', 'Install newly-required dependencies without prompting')
         .option('-o, --overwrite', 'Overwrite local changes whole-file instead of 3-way merging')
         .option('--dry-run', 'Show what would update without writing')
+        .option('--fix', 'Rewrite your templates for inputs/outputs the update renamed, merged or removed')
         .option('--include-tests', 'Also refresh each component\'s unit tests (persists tests.include in components.json)')
         .option('--no-tests', 'Skip test files for this invocation (overrides tests.include)')
         .option('--remote', 'Force remote fetch from GitHub registry')

@@ -23,6 +23,8 @@ export interface AddOptions extends FetchOptions {
     includeTests?: boolean;
     /** `add`/`update`: `false` (via `--no-tests`) forces specs off for this invocation. */
     tests?: boolean;
+    /** `update`: rewrite the consumer's templates for renamed/merged inputs declared as breaking. */
+    fix?: boolean;
 }
 
 export interface ConflictCheckResult {
