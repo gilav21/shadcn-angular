@@ -2559,8 +2559,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
                 this.toggleMentionTextDecoration(mentionTargets, 'line-through');
                 return true;
             case 'clear':
-                this.execEditorCommand('removeFormat');
-                this.clearMentionStyles(mentionTargets);
+                this.clearFormatting(mentionTargets);
                 return true;
             case 'code':
                 this.wrapSelectionWithTag('code');
@@ -5724,6 +5723,90 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private setMentionStyle(elements: HTMLElement[], prop: 'color' | 'backgroundColor' | 'fontSize' | 'fontFamily', value: string): void {
         for (const el of elements) {
             el.style[prop] = value;
+        }
+    }
+
+    /**
+     * Clear formatting acts on the selection, or, with a collapsed caret, on
+     * the formatted run around it. `removeFormat` with nothing selected is a
+     * no-op, so from inside bold text the button did nothing however often it
+     * was clicked and the text typed next stayed bold. The caret goes back to
+     * the same character afterwards.
+     */
+    private clearFormatting(mentionTargets: HTMLElement[]): void {
+        const selection = this.document.getSelection();
+        const editor = this.editorDiv?.nativeElement;
+        if (!selection || selection.rangeCount === 0 || !editor) return;
+        const range = selection.getRangeAt(0);
+        if (!range.collapsed) {
+            this.execEditorCommand('removeFormat');
+            this.clearMentionStyles(mentionTargets);
+            return;
+        }
+        const caret = this.caretTextPosition(range, editor);
+        const run = this.formattedRunAround(range.startContainer, editor);
+        if (!caret || !run) return;
+        // Unwrapped by hand rather than through removeFormat over a widened
+        // range: Chrome's command is unreliable at element boundaries -- it
+        // stripped only the outer wrapper, or nothing, depending on how the
+        // range was expressed.
+        this.unwrapInlineFormatting(run);
+        this.clearMentionStyles(mentionTargets);
+        this.placeCaretAtTextPosition(selection, caret);
+    }
+
+    /** Lifts the text out of every formatting wrapper in the run; links and mention chips stay, minus their styles. */
+    private unwrapInlineFormatting(run: HTMLElement): void {
+        const wrappers = [run, ...Array.from(run.querySelectorAll<HTMLElement>(`${INLINE_WRAPPER_SELECTOR}, font`))];
+        wrappers.reverse();
+        for (const wrapper of wrappers) {
+            if (wrapper.tagName === 'A' || wrapper.dataset['mention'] !== undefined) {
+                wrapper.removeAttribute('style');
+                continue;
+            }
+            const parent = wrapper.parentNode;
+            if (!parent) continue;
+            while (wrapper.firstChild) parent.insertBefore(wrapper.firstChild, wrapper);
+            wrapper.remove();
+        }
+    }
+
+    /** The outermost inline wrapper between `node` and its line block, or null in plain text. */
+    private formattedRunAround(node: Node, editor: HTMLElement): HTMLElement | null {
+        let run: HTMLElement | null = null;
+        let current = node.nodeType === Node.ELEMENT_NODE ? (node as HTMLElement) : node.parentElement;
+        while (current && current !== editor && !LINE_OWNING_TAGS.has(current.tagName)) {
+            if (INLINE_WRAPPER_TAGS.has(current.tagName) || current.tagName === 'FONT') run = current;
+            current = current.parentElement;
+        }
+        return run;
+    }
+
+    /** The caret as a character offset inside its line block, which survives the block's inline nodes being rebuilt. */
+    private caretTextPosition(range: Range, editor: HTMLElement): { block: HTMLElement; offset: number } | null {
+        let block = range.startContainer.nodeType === Node.ELEMENT_NODE
+            ? (range.startContainer as HTMLElement)
+            : range.startContainer.parentElement;
+        while (block && block !== editor && !LINE_OWNING_TAGS.has(block.tagName)) block = block.parentElement;
+        if (!block || block === editor) return null;
+        const before = this.document.createRange();
+        before.setStart(block, 0);
+        before.setEnd(range.startContainer, range.startOffset);
+        return { block, offset: before.toString().length };
+    }
+
+    private placeCaretAtTextPosition(selection: Selection, caret: { block: HTMLElement; offset: number }): void {
+        const walker = this.document.createTreeWalker(caret.block, NodeFilter.SHOW_TEXT);
+        let remaining = caret.offset;
+        let text = walker.nextNode() as Text | null;
+        while (text && remaining > text.data.length) {
+            remaining -= text.data.length;
+            text = walker.nextNode() as Text | null;
+        }
+        if (text) {
+            this.setSelectionRange(selection, text, remaining);
+        } else {
+            this.setSelectionRange(selection, caret.block, caret.block.childNodes.length);
         }
     }
 

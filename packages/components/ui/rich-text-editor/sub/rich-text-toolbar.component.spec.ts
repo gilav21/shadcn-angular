@@ -287,6 +287,23 @@ describe('RichTextToolbarComponent', () => {
             expect(icon).toBeTruthy();
         });
 
+        it('returns the same SafeHtml object for the same glyph, so change detection keeps the SVG nodes', () => {
+            // A fresh wrapper per call re-rendered every glyph on every change
+            // detection; the SVG under the pointer was replaced between
+            // mousedown and mouseup and Chrome dropped the click, so every
+            // button needed two clicks from inside the editor.
+            expect(component.getIcon('bold')).toBe(component.getIcon('bold'));
+            expect(component.getSafeIcon('<svg data-x="1"></svg>')).toBe(component.getSafeIcon('<svg data-x="1"></svg>'));
+
+            const svgBefore = (fixture.nativeElement as HTMLElement).querySelector('button[data-toolbar-item="bold"] svg');
+            fixture.componentRef.setInput('activeFormats', new Set(['bold']));
+            fixture.detectChanges();
+            fixture.detectChanges();
+            const svgAfter = (fixture.nativeElement as HTMLElement).querySelector('button[data-toolbar-item="bold"] svg');
+            expect(svgBefore).not.toBeNull();
+            expect(svgAfter).toBe(svgBefore);
+        });
+
         it('swaps alignLeft/alignRight icons in RTL', () => {
             const ltr = component.getIcon('alignLeft');
             fixture.componentRef.setInput('locale', RICH_TEXT_LOCALES['he']);

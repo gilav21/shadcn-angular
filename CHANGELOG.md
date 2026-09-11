@@ -182,9 +182,18 @@ means no policy and today's behaviour exactly.
   children are now always `<p>` lines: the editor builds them that way and
   the sanitizer regroups the bare shape older documents and pasted HTML
   carry. A quoted list, table or code block still owns its own Enter. The
-  toolbar button is a real toggle (a second click lifts the quote), and the
-  "two clicks" needed for Horizontal Rule and Clear Formatting inside such a
-  quote go with it.
+  toolbar button is a real toggle (a second click lifts the quote).
+- **Every toolbar button works on the first click.** From inside a focused
+  editor a button needed two clicks: the toolbar rebuilt every icon on each
+  change detection (a fresh `SafeHtml` per call), the mousedown blurred the
+  editor and triggered one, and the SVG under the pointer was replaced before
+  mouseup, so Chrome fired no click. Icons are now cached, so the glyph nodes
+  stay put.
+- **Clear Formatting works with a caret, not only a selection.** With nothing
+  selected the browser's `removeFormat` is a no-op, so from inside bold text
+  the button did nothing and the next keystroke stayed bold. It now clears
+  the formatted run around the caret (links and mention chips keep their
+  element, minus styles) and leaves the caret where it was.
 - **AI addon: accepting a draft respected the wrong limit.** A draft longer
   than the room left *after* it was refused, so most answers into a
   `maxLength` field were rejected while under the limit.

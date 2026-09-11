@@ -428,10 +428,24 @@ export class RichTextToolbarComponent implements AfterViewInit {
    * `'separator'` has no glyph and the template never asks it for one.
    */
   getIcon(item: ToolbarItem): SafeHtml {
-    if (item === 'separator') return this.sanitizer.bypassSecurityTrustHtml('');
+    if (item === 'separator') return this.getSafeIcon('');
     const key = this.locale().rtl ? mirrorIcon(item) : item;
-    return this.sanitizer.bypassSecurityTrustHtml(TOOLBAR_BUTTONS[key]?.icon ?? '');
+    return this.getSafeIcon(TOOLBAR_BUTTONS[key]?.icon ?? '');
   }
+
+  /**
+   * One `SafeHtml` per distinct markup, for the life of the toolbar.
+   *
+   * `bypassSecurityTrustHtml` returns a new wrapper each call, and Angular
+   * compares `[innerHTML]` bindings by identity, so every change detection
+   * re-rendered every glyph. A button click blurs the editor on mousedown,
+   * that runs change detection, and the SVG under the pointer was replaced
+   * before mouseup -- Chrome fires no click when the mousedown target has left
+   * the document. Every toolbar button therefore needed two clicks from
+   * inside the editor. Same-markup calls now return the same object, so the
+   * glyph nodes stay put.
+   */
+  private readonly safeIcons = new Map<string, SafeHtml>();
 
   /**
    * The button's `title` — the localized label plus its keyboard shortcut in
@@ -513,7 +527,12 @@ export class RichTextToolbarComponent implements AfterViewInit {
    * Never feed it markup that came from editor content or a remote source.
    */
   getSafeIcon(svgHtml: string): SafeHtml {
-    return this.sanitizer.bypassSecurityTrustHtml(svgHtml);
+    let safe = this.safeIcons.get(svgHtml);
+    if (!safe) {
+      safe = this.sanitizer.bypassSecurityTrustHtml(svgHtml);
+      this.safeIcons.set(svgHtml, safe);
+    }
+    return safe;
   }
 
   /**

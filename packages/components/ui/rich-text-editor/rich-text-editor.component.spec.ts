@@ -3109,6 +3109,46 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         expect(editor.querySelector('b')).toBeNull();
         expect(editor.textContent).toBe('bold text');
     });
+
+    it('clears the formatted run around a collapsed caret, keeping the caret in place', () => {
+        // removeFormat with nothing selected is a no-op, so from inside bold
+        // text the button did nothing however often it was clicked.
+        component.writeValue('<p>plain <i><b>bold text</b></i> tail</p>');
+        fixture.detectChanges();
+        setCaretAt(editor.querySelector('b')!.firstChild!, 4);
+
+        component.onFormatCommand('clear');
+
+        expect(editor.querySelector('b, i')).toBeNull();
+        expect(editor.textContent).toBe('plain bold text tail');
+        const selection = document.getSelection()!;
+        expect(selection.isCollapsed).toBe(true);
+        const before = document.createRange();
+        before.setStart(editor.querySelector('p')!, 0);
+        before.setEnd(selection.anchorNode!, selection.anchorOffset);
+        expect(before.toString()).toBe('plain bold');
+    });
+
+    it('keeps a link when clearing the formatting around a caret inside it', () => {
+        component.writeValue('<p><b><a href="https://x.test/">link <u>text</u></a></b></p>');
+        fixture.detectChanges();
+        setCaretAt(editor.querySelector('u')!.firstChild!, 1);
+
+        component.onFormatCommand('clear');
+
+        expect(editor.querySelector('b, u')).toBeNull();
+        expect(editor.querySelector('a')?.textContent).toBe('link text');
+    });
+
+    it('leaves plain text alone when the caret is not in a formatted run', () => {
+        component.writeValue('<p>plain <b>bold</b></p>');
+        fixture.detectChanges();
+        setCaretAt(editor.querySelector('p')!.firstChild!, 2);
+
+        component.onFormatCommand('clear');
+
+        expect(editor.querySelector('b')?.textContent).toBe('bold');
+    });
 });
 
 describe('RichTextEditorComponent — toolbar actions (link, image, color, font)', () => {
