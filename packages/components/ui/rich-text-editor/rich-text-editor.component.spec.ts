@@ -713,17 +713,41 @@ describe('RichTextEditorComponent', () => {
             return event;
         }
 
-        it('splits a quoted paragraph instead of escaping the quote', () => {
-            // The handler fired on ANY Enter with a blockquote ancestor, so
-            // splitting a quoted paragraph was impossible: the caret jumped out
-            // of the quote and the text stayed whole.
+        it('leaves the quote on Enter from any plain quoted line, text kept whole', () => {
+            // Enter exits, Shift+Enter adds a row -- the same contract as a
+            // code block. Round 17 had made Enter split the paragraph instead,
+            // which left no one-key way out of a quote.
             component.writeValue('<blockquote><p>hello world</p></blockquote>');
             fixture.detectChanges();
             const text = editor.querySelector('blockquote p')?.firstChild as Text;
             const event = pressEnterAt(text, 5);
 
+            expect(event.defaultPrevented).toBe(true);
+            expect(editor.querySelector('blockquote')?.textContent).toBe('hello world');
+            const next = editor.querySelector('blockquote + p');
+            expect(next).not.toBeNull();
+            expect(next?.contains(document.getSelection()?.anchorNode ?? null)).toBe(true);
+        });
+
+        it('leaves Shift+Enter to the browser, which adds a row inside the quote', () => {
+            component.writeValue('<blockquote><p>hello</p></blockquote>');
+            fixture.detectChanges();
+            setCaretAt(editor.querySelector('blockquote p')?.firstChild as Text, 5);
+            const event = new KeyboardEvent('keydown', { key: 'Enter', shiftKey: true, bubbles: true, cancelable: true });
+            editor.dispatchEvent(event);
+
             expect(event.defaultPrevented).toBe(false);
-            expect(editor.querySelector('blockquote')?.textContent).toContain('hello');
+            expect(editor.querySelector('blockquote + p')).toBeNull();
+        });
+
+        it('leaves a quote that arrived as bare text too', () => {
+            const quote = document.createElement('blockquote');
+            quote.textContent = 'bare';
+            editor.replaceChildren(quote);
+            const event = pressEnterAt(quote.firstChild as Text, 4);
+
+            expect(event.defaultPrevented).toBe(true);
+            expect(editor.querySelector('blockquote + p')).not.toBeNull();
         });
 
         it('leaves a quoted list item to the list handler', () => {
@@ -750,11 +774,7 @@ describe('RichTextEditorComponent', () => {
         });
 
 
-        it('leaves a blank line in the MIDDLE of a quote to the browser', () => {
-            // Exiting only makes sense from the end. From a blank middle line the
-            // handler still inserted its paragraph after the whole quote, so the
-            // caret was teleported past text the user was editing above -- and
-            // the blank line stayed behind.
+        it('exits from a blank line in the MIDDLE of a quote, dropping only that line', () => {
             component.writeValue(
                 '<blockquote><p>first</p><p><br></p><p>third</p></blockquote>',
             );
@@ -762,8 +782,9 @@ describe('RichTextEditorComponent', () => {
             const blank = editor.querySelectorAll('blockquote p')[1] as HTMLElement;
             const event = pressEnterAt(blank, 0);
 
-            expect(event.defaultPrevented).toBe(false);
-            expect(editor.querySelector('blockquote')?.textContent).toContain('third');
+            expect(event.defaultPrevented).toBe(true);
+            expect(Array.from(editor.querySelectorAll('blockquote p')).map((p) => p.textContent)).toEqual(['first', 'third']);
+            expect(editor.querySelector('blockquote + p')).not.toBeNull();
         });
 
         it('removes the spent blank line when exiting from the end', () => {
@@ -8501,19 +8522,15 @@ describe('RichTextEditorComponent markdown input rules', () => {
         expect(line?.contains(caretElement())).toBe(true);
     });
 
-    it('escapes a "> " quote with two Enters, as the user types it', () => {
+    it('escapes a "> " quote with one Enter, as the user types it', () => {
         typeInto(seed('<p><br></p>'), '> ');
         const line = editor.querySelector('blockquote > p') as HTMLElement;
         line.textContent = 'asdasd';
-        // The browser's own Enter splits the line; the synthetic key cannot,
-        // so the split result is seeded by hand.
-        const blank = document.createElement('p');
-        blank.innerHTML = '<br>';
-        line.after(blank);
-        setCaretAt(blank, 0);
+        setCaretAt(line.firstChild as Text, 6);
         component.onKeydown(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
 
         expect(editor.querySelectorAll('blockquote')).toHaveLength(1);
+        expect(editor.querySelector('blockquote > p')?.textContent).toBe('asdasd');
         expect(editor.querySelector('blockquote + p')).not.toBeNull();
         expect(editor.querySelector('blockquote + p')?.contains(caretElement())).toBe(true);
     });

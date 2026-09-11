@@ -1851,18 +1851,13 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const quote = this.findAncestorByTag(range.startContainer, 'BLOCKQUOTE');
         if (!quote) return false;
 
-        // Only a blank quoted LINE exits the quote. This used to fire on any
-        // Enter with a blockquote ancestor, so splitting a quoted paragraph was
-        // impossible -- the caret jumped out and the text stayed whole -- and
-        // Enter inside a quoted list, table or code block escaped the quote
-        // instead of doing the thing that structure calls for.
+        // A quoted list, table or code block owns its Enter; every other line
+        // of the quote is left on Enter, as a code block is. Round 17 narrowed
+        // this to a blank last line so a quoted paragraph could be split with
+        // Enter, which silently retired the one-key exit: with Shift+Enter
+        // already adding a row, Enter had no job left but leaving.
         const line = this.enclosingQuotedLine(range.startContainer, quote);
-        if (!line || !this.holdsNoContent(line)) return false;
-        // Only from the LAST line. From a blank line in the middle the new
-        // paragraph still went after the whole quote, teleporting the caret past
-        // text the user was editing above; the browser's own split is right
-        // there.
-        if (line !== quote.lastElementChild) return false;
+        if (!line) return false;
 
         event.preventDefault();
 
@@ -1871,10 +1866,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         quote.parentNode?.insertBefore(p, quote.nextSibling);
         this.setSelectionRange(selection, p, 0);
 
-        // The blank line has done its job either way; leaving it behind put an
-        // empty row at the end of the quote.
-        line.remove();
-        if (!quote.textContent?.replaceAll('\u200B', '').trim()) {
+        // A blank line has done its job; leaving it behind put an empty row at
+        // the end of the quote.
+        if (this.holdsNoContent(line)) line.remove();
+        if (this.holdsNoContent(quote)) {
             quote.remove();
         }
 
@@ -1886,7 +1881,9 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     /**
      * The direct child of `quote` holding the caret, when that child is a plain
      * line. A list, table or code block inside the quote owns its own Enter, so
-     * null is returned for those and the quote handler stands down.
+     * null is returned for those and the quote handler stands down. Bare text
+     * directly under the quote -- a shape the sanitizer no longer lets in --
+     * counts as the quote's own line rather than as no line at all.
      */
     private enclosingQuotedLine(node: Node, quote: HTMLElement): HTMLElement | null {
         let current: Node | null = node;
@@ -1896,9 +1893,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
                 if (QUOTE_STRUCTURE_TAGS.has(tag)) return null;
                 if (current.parentNode === quote) return current as HTMLElement;
             }
+            if (current.parentNode === quote) return quote;
             current = current.parentNode;
         }
-        return null;
+        return current === quote ? quote : null;
     }
 
     /**
