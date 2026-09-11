@@ -42,8 +42,7 @@ export const CustomOrderAndLocale: Story = {
         template: `
             <ui-rich-text-editor
                 mode="html"
-                uiRteEmoji
-                [uiRteEmojiOrder]="100"
+                [uiRteEmoji]="{ order: 100 }"
                 uiRteEmojiLocale="he"
                 locale="he"
                 minHeight="150px"

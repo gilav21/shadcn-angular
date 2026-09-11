@@ -9,8 +9,8 @@ import { RichTextEmojiDirective } from './rich-text-emoji.directive';
 @Component({
     standalone: true,
     imports: [RichTextEditorComponent, RichTextEmojiDirective],
-    template: `<ui-rich-text-editor mode="html" [disabled]="disabled()" uiRteEmoji
-        [uiRteEmojiLocale]="locale()" [uiRteEmojiOrder]="order()"
+    template: `<ui-rich-text-editor mode="html" [disabled]="disabled()" [uiRteEmoji]="{ order: order() }"
+        [uiRteEmojiLocale]="locale()"
         (emojiInsert)="inserted.push($event)"></ui-rich-text-editor>`,
 })
 class HostCmp {

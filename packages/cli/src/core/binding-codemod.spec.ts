@@ -95,6 +95,17 @@ describe('rewriteTemplate — merges', () => {
         expect(out.content).toBe(`<div [uiRichTextAllow]="{ imageHosts: hosts }"><ui-rich-text-view [value]="a" /></div>`);
     });
 
+    it('absorbs a bare enable attribute into the merged object, keeping its position', () => {
+        const out = rewriteTemplate(
+            `<ui-rich-text-editor mode="html" uiRteImages [uiRteImagesToolbar]="false" placeholder="x" [uiRteImagesOrder]="10" />`,
+            rules(merge('uiRteImages', { uiRteImagesToolbar: 'toolbar', uiRteImagesOrder: 'order' })),
+        );
+        expect(out.content).toBe(
+            `<ui-rich-text-editor mode="html" [uiRteImages]="{ toolbar: false, order: 10 }" placeholder="x" />`,
+        );
+        expect(out.manual).toEqual([]);
+    });
+
     it('refuses to merge into an element that already binds the target, and says so', () => {
         const src = `<ui-rich-text-editor [history]="{ limit: 5 }" [historyLimit]="200" />`;
         const out = rewriteTemplate(src, rules(history));

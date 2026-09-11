@@ -213,10 +213,10 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
         @if (!richTextShowHistoryButton()) {
         <p class="text-xs text-muted-foreground">{{ t().historyHiddenNote }}</p>
         }
-        <ui-rich-text-editor mode="markdown" toolbar="top" uiRteHistory uiRteMentions [uiRteMentionsSearch]="searchMentions"
+        <ui-rich-text-editor mode="markdown" toolbar="top" [uiRteHistory]="{ toolbar: richTextShowHistoryButton() }" uiRteMentions [uiRteMentionsSearch]="searchMentions"
           [uiRteMentionsRender]="mentionLinkRender" [uiRteTags]="true" [uiRteTagsSearch]="searchTags" [uiRteTagsRender]="tagLinkRender"
           counter="both" [maxLength]="220"
-          [uiRteHistoryButton]="richTextShowHistoryButton()" [history]="{ limit: 180, debounceMs: 500 }"
+          [history]="{ limit: 180, debounceMs: 500 }"
           [placeholder]="t().advancedPlaceholder" minHeight="160px" />
         <app-docs-for name="rich-text-editor/history" />
       </div>
@@ -232,7 +232,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
           </label>
         </div>
         <ui-rich-text-editor mode="html" toolbar="top"
-          uiRteOutline [uiRteOutlineButton]="richTextOutlineShowToolbarItem()"
+          [uiRteOutline]="{ toolbar: richTextOutlineShowToolbarItem() }"
           [toolbarItems]="outlineToolbarBase"
           [(ngModel)]="richTextOutlineContent"
           minHeight="320px" />

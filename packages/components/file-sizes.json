@@ -7410,7 +7410,7 @@
       "lines": 444
     },
     "rich-text-editor/addons/colors/rich-text-colors.directive.ts": {
-      "bytes": 11955,
+      "bytes": 12023,
       "lines": 285
     },
     "rich-text-editor/addons/colors/rich-text-colors.locales.ts": {
@@ -7466,11 +7466,11 @@
       "lines": 16
     },
     "rich-text-editor/addons/emoji/rich-text-emoji.directive.spec.ts": {
-      "bytes": 8635,
+      "bytes": 8630,
       "lines": 218
     },
     "rich-text-editor/addons/emoji/rich-text-emoji.directive.ts": {
-      "bytes": 3595,
+      "bytes": 3714,
       "lines": 91
     },
     "rich-text-editor/addons/emoji/rich-text-emoji.locales.ts": {
@@ -7478,8 +7478,8 @@
       "lines": 24
     },
     "rich-text-editor/addons/emoji/rich-text-emoji.stories.ts": {
-      "bytes": 1892,
-      "lines": 67
+      "bytes": 1871,
+      "lines": 66
     },
     "rich-text-editor/addons/file-import/__screenshots__/rich-text-file-import-overlay.component.spec.ts/RichTextFileImportOverlayComponent-keeps-both-live-regions-mounted-while-idle--so-later-text-is-announced-1.png": {
       "bytes": 4290,
@@ -7534,12 +7534,12 @@
       "lines": 20
     },
     "rich-text-editor/addons/file-import/rich-text-file-import.directive.spec.ts": {
-      "bytes": 24049,
+      "bytes": 24038,
       "lines": 546
     },
     "rich-text-editor/addons/file-import/rich-text-file-import.directive.ts": {
-      "bytes": 14924,
-      "lines": 364
+      "bytes": 14946,
+      "lines": 362
     },
     "rich-text-editor/addons/file-import/rich-text-file-import.locales.ts": {
       "bytes": 5549,
@@ -7622,8 +7622,8 @@
       "lines": 4
     },
     "rich-text-editor/addons/history/__screenshots__/rich-text-history.directive.spec.ts/RichTextHistoryDirective-opens-the-browser-dialog-via-the-shortcut-when-the-button-is-hidden-1.png": {
-      "bytes": 11365,
-      "lines": 4
+      "bytes": 21981,
+      "lines": 30
     },
     "rich-text-editor/addons/history/__screenshots__/rich-text-history.directive.spec.ts/RichTextHistoryDirective-opens-the-popover-via-the-shortcut-when-the-button-is-visible-1.png": {
       "bytes": 11365,
@@ -7654,20 +7654,20 @@
       "lines": 323
     },
     "rich-text-editor/addons/history/rich-text-history.directive.spec.ts": {
-      "bytes": 13073,
-      "lines": 314
+      "bytes": 13059,
+      "lines": 313
     },
     "rich-text-editor/addons/history/rich-text-history.directive.ts": {
-      "bytes": 4432,
-      "lines": 110
+      "bytes": 4494,
+      "lines": 111
     },
     "rich-text-editor/addons/history/rich-text-history.locales.ts": {
       "bytes": 9296,
       "lines": 226
     },
     "rich-text-editor/addons/history/rich-text-history.stories.ts": {
-      "bytes": 2398,
-      "lines": 73
+      "bytes": 2383,
+      "lines": 72
     },
     "rich-text-editor/addons/images/__screenshots__/rich-text-images-button.component.spec.ts/RichTextImagesButtonComponent-clears-the-URL-and-alt-fields-after-an-insert-1.png": {
       "bytes": 5224,
@@ -7930,12 +7930,12 @@
       "lines": 28
     },
     "rich-text-editor/addons/images/rich-text-images.directive.spec.ts": {
-      "bytes": 40152,
+      "bytes": 40145,
       "lines": 898
     },
     "rich-text-editor/addons/images/rich-text-images.directive.ts": {
-      "bytes": 28481,
-      "lines": 704
+      "bytes": 28524,
+      "lines": 702
     },
     "rich-text-editor/addons/images/rich-text-images.locales.ts": {
       "bytes": 7191,
@@ -8014,8 +8014,8 @@
       "lines": 493
     },
     "rich-text-editor/addons/links/rich-text-links.directive.ts": {
-      "bytes": 15604,
-      "lines": 378
+      "bytes": 15498,
+      "lines": 374
     },
     "rich-text-editor/addons/links/rich-text-links.locales.ts": {
       "bytes": 5729,
@@ -8250,20 +8250,20 @@
       "lines": 37
     },
     "rich-text-editor/addons/outline/rich-text-outline.directive.spec.ts": {
-      "bytes": 11412,
-      "lines": 293
+      "bytes": 11398,
+      "lines": 292
     },
     "rich-text-editor/addons/outline/rich-text-outline.directive.ts": {
-      "bytes": 10073,
-      "lines": 259
+      "bytes": 9890,
+      "lines": 255
     },
     "rich-text-editor/addons/outline/rich-text-outline.locales.ts": {
       "bytes": 4508,
       "lines": 123
     },
     "rich-text-editor/addons/outline/rich-text-outline.stories.ts": {
-      "bytes": 2966,
-      "lines": 82
+      "bytes": 2951,
+      "lines": 81
     },
     "rich-text-editor/addons/slash-commands/__screenshots__/rich-text-slash-commands-menu.component.spec.ts/RichTextSlashCommandsMenuComponent-does-not-scroll-when-the-active-option-is-already-visible-1.png": {
       "bytes": 29174,
@@ -8430,7 +8430,7 @@
       "lines": 214
     },
     "rich-text-editor/addons/tables/rich-text-tables.directive.ts": {
-      "bytes": 4390,
+      "bytes": 4500,
       "lines": 102
     },
     "rich-text-editor/addons/tables/rich-text-tables.locales.ts": {
@@ -8482,7 +8482,7 @@
       "lines": 419
     },
     "rich-text-editor/addons/typography/rich-text-typography.directive.ts": {
-      "bytes": 8139,
+      "bytes": 8199,
       "lines": 216
     },
     "rich-text-editor/addons/typography/rich-text-typography.locales.ts": {
@@ -8538,8 +8538,8 @@
       "lines": 22
     },
     "rich-text-editor/rich-text-editor.host.ts": {
-      "bytes": 19068,
-      "lines": 387
+      "bytes": 20968,
+      "lines": 429
     },
     "rich-text-editor/rich-text-editor.stories.ts": {
       "bytes": 23531,

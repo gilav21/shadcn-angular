@@ -124,6 +124,25 @@ The outputs: `htmlChange`, `markdownChange`, `wordCountChange`,
 `historyChange`, `focused`, `blurred`, and `imageBlocked` for every remote
 image the host policy refused.
 
+### One attribute per addon
+
+Every toolbar-contributing addon is switched on by its bare attribute and tuned
+by the same attribute, as an object (`RichTextAddonOptions`):
+
+```html
+<ui-rich-text-editor uiRteImages />                              <!-- on, defaults -->
+<ui-rich-text-editor [uiRteImages]="false" />                    <!-- off -->
+<ui-rich-text-editor [uiRteImages]="{ toolbar: false }" />       <!-- paste and drop only -->
+<ui-rich-text-editor [uiRteLinks]="{ order: 100, slashCommand: false }" />
+<ui-rich-text-editor [uiRteHistory]="{ toolbar: false }" />      <!-- shortcut only, no corner button -->
+```
+
+`toolbar` (default `true`) contributes the button; `slashCommand` (default
+`true`) registers the addon's `/command` where it has one; `order` sorts the
+button among addon buttons, each addon carrying its own default. Fields you do
+not name keep their defaults. The addon reads the resolved
+`RichTextAddonState`, which adds `enabled`.
+
 ### Your own toolbar buttons
 
 A button is data. Give it an `onClick` and there is nothing else to wire:

@@ -12,7 +12,7 @@ import {
     signal,
     type ComponentRef,
 } from '@angular/core';
-import { RichTextEditorAddonHost, RichTextSanitizerService } from '../..';
+import { addonSetting, type RichTextAddonSetting, type RichTextAddonState, RichTextEditorAddonHost, RichTextSanitizerService} from '../..';
 import { createLocaleBindings, type LocaleInput } from '../../../../lib/i18n';
 import { RichTextLinksFormComponent, type RichTextLinkSubmit } from './rich-text-links-form.component';
 import { RichTextLinksButtonComponent } from './rich-text-links-button.component';
@@ -66,14 +66,14 @@ export class RichTextLinksDirective {
 
     /** Locale for the addon UI: a registry key (`'en'`/`'he'`/…) or a full dictionary. */
     readonly uiRteLinksLocale = input<LocaleInput<RichTextLinksLocale>>();
-    /** Enable the links addon (the bare `uiRteLinks` attribute). Flip to `false` to remove the whole feature live. */
-    readonly uiRteLinks = input(true, { transform: coerceEnabled });
-    /** Sort order of the link button among addon toolbar slots. */
-    readonly uiRteLinksOrder = input(320);
-    /** Contribute the toolbar button (default true). */
-    readonly uiRteLinksToolbar = input(true);
-    /** Contribute the `/link` slash command (default true). */
-    readonly uiRteLinksSlashCommand = input(true);
+    /**
+     * Enable the addon (the bare `uiRteLinks` attribute), or tune it: `[uiRteLinks]="{ toolbar: false }"` keeps the feature without its button, `{ order: 100 }` moves the button.
+     * See {@link RichTextAddonOptions}.
+     */
+    readonly uiRteLinks = input<RichTextAddonState, RichTextAddonSetting>(addonSetting(320)(true), { transform: addonSetting(320) });
+
+    /** Read this, not the whole setting, where only on/off matters: an options change must not remount the feature. */
+    private readonly enabled = computed(() => this.uiRteLinks().enabled);
 
     /** Emits after a link is inserted or its href/text updated. */
     readonly linkInsert = output<RichTextLinkSubmit>();
@@ -103,7 +103,7 @@ export class RichTextLinksDirective {
 
     private registerLinkEditorSeam(): void {
         effect((onCleanup) => {
-            if (!this.uiRteLinks()) return;
+            if (!this.enabled()) return;
             onCleanup(this.host.registerLinkEditor((caretHint) => this.openInsertOverlay(caretHint)));
         });
     }
@@ -121,10 +121,10 @@ export class RichTextLinksDirective {
             parent: this.injector,
         });
         effect((onCleanup) => {
-            if (!this.uiRteLinks() || !this.uiRteLinksToolbar()) return;
+            if (!this.enabled() || !this.uiRteLinks().toolbar) return;
             onCleanup(this.host.toolbarSlots.register({
                 id: LINK_SLOT_ID,
-                order: this.uiRteLinksOrder(),
+                order: this.uiRteLinks().order,
                 component: RichTextLinksButtonComponent,
                 injector: slotInjector,
             }));
@@ -133,7 +133,7 @@ export class RichTextLinksDirective {
 
     private registerSlashCommand(): void {
         effect((onCleanup) => {
-            if (!this.uiRteLinks() || !this.uiRteLinksSlashCommand()) return;
+            if (!this.enabled() || !this.uiRteLinks().slashCommand) return;
             const l = this.i18n.t();
             onCleanup(this.host.commands.registerCommand({
                 id: 'insert.link',
@@ -148,7 +148,7 @@ export class RichTextLinksDirective {
 
     private registerEditProbe(): void {
         effect((onCleanup) => {
-            if (!this.viewReady() || !this.uiRteLinks()) return;
+            if (!this.viewReady() || !this.enabled()) return;
             const root = this.host.contentRoot;
             const doc = root.ownerDocument;
             root.addEventListener('mouseup', this.editProbeBound);
@@ -357,10 +357,6 @@ export class RichTextLinksDirective {
     }
 }
 
-/** Coerce the bare `uiRteLinks` attribute (empty string) to `true`. */
-function coerceEnabled(value: boolean | string | undefined): boolean {
-    return value === '' || value === true || value === undefined;
-}
 
 /** Escape text for safe inclusion in element content. */
 function escapeHtml(value: string): string {

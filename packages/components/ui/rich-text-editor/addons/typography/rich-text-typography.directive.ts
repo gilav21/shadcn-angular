@@ -9,7 +9,7 @@ import {
     signal,
     type Signal,
 } from '@angular/core';
-import { RichTextEditorAddonHost } from '../..';
+import { addonSetting, type RichTextAddonSetting, type RichTextAddonState, RichTextEditorAddonHost} from '../..';
 import { createLocaleBindings, type LocaleInput } from '../../../../lib/i18n';
 import { RichTextTypographyButtonComponent } from './rich-text-typography-button.component';
 import {
@@ -86,10 +86,14 @@ export class RichTextTypographyDirective {
 
     /** Locale for the addon UI: a registry key (`'en'`/`'he'`/…) or a full dictionary. */
     readonly uiRteTypographyLocale = input<LocaleInput<RichTextTypographyLocale>>();
-    /** Enable the typography addon (the bare `uiRteTypography` attribute). Flip to `false` to remove both buttons live. */
-    readonly uiRteTypography = input(true, { transform: coerceEnabled });
-    /** Base sort order of the typography buttons among addon toolbar slots; the family button follows the size button. */
-    readonly uiRteTypographyOrder = input(310);
+    /**
+     * Enable the addon (the bare `uiRteTypography` attribute), or tune it: `[uiRteTypography]="{ toolbar: false }"` keeps the feature without its button, `{ order: 100 }` moves the button.
+     * See {@link RichTextAddonOptions}.
+     */
+    readonly uiRteTypography = input<RichTextAddonState, RichTextAddonSetting>(addonSetting(310)(true), { transform: addonSetting(310) });
+
+    /** Read this, not the whole setting, where only on/off matters: an options change must not remount the feature. */
+    private readonly enabled = computed(() => this.uiRteTypography().enabled);
     /** Custom font families for the font-family dropdown (see {@link FontFamilyStrategy}). */
     readonly uiRteTypographyFamilies = input<string[]>([]);
     /** Whether custom {@link uiRteTypographyFamilies} replace or extend the defaults. */
@@ -130,7 +134,7 @@ export class RichTextTypographyDirective {
             options: this.sizeOptions,
             filter: false,
             seededValue: this.seededSize,
-            order: () => this.uiRteTypographyOrder(),
+            order: () => this.uiRteTypography().order,
         });
         this.registerSlot({
             kind: 'family',
@@ -141,7 +145,7 @@ export class RichTextTypographyDirective {
             options: this.familyOptions,
             filter: true,
             seededValue: this.seededFamily,
-            order: () => this.uiRteTypographyOrder() + 1,
+            order: () => this.uiRteTypography().order + 1,
         });
     }
 
@@ -173,7 +177,7 @@ export class RichTextTypographyDirective {
             parent: this.injector,
         });
         effect((onCleanup) => {
-            if (!this.uiRteTypography()) return;
+            if (!this.enabled()) return;
             onCleanup(this.host.toolbarSlots.register({
                 id,
                 order: order(),
@@ -210,7 +214,3 @@ export class RichTextTypographyDirective {
     }
 }
 
-/** Coerce the bare `uiRteTypography` attribute (empty string) to `true`. */
-function coerceEnabled(value: boolean | string | undefined): boolean {
-    return value === '' || value === true || value === undefined;
-}

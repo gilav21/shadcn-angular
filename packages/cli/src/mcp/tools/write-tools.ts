@@ -8,6 +8,7 @@ import { collectBreakingChanges } from '../../core/plan.js';
 import { resolvePreset, PresetError } from '../../core/presets.js';
 import { hasUnresolvedConflicts } from '../../core/merge.js';
 import { scanStaleSelectors } from '../../core/codemod.js';
+import { rewriteBreakingBindings } from '../../core/binding-codemod.js';
 import { initProject } from '../../core/init-core.js';
 import { applyCore, resolveAddonInfo, ApplyError } from '../../core/apply-core.js';
 import { diffComponentFiles, type ComponentDiff } from '../../core/diff-core.js';
@@ -167,10 +168,11 @@ function registerUpdateTool(server: ToolHost, cwd: string): void {
             overwrite: z.boolean().optional().describe('Replace local edits whole-file instead of 3-way merging.'),
             includeTests: z.boolean().optional().describe('Also refresh each component\'s unit tests (persists tests.include in components.json).'),
             testRunner: z.enum(['vitest', 'jest']).optional().describe('Runner the refreshed tests target; auto-detected when omitted.'),
+            fix: z.boolean().optional().describe('Rewrite your own templates for inputs/outputs these updates renamed, merged or removed (mirrors `update --fix`). Without it the rewrites are only reported.'),
             ...sourceInputSchema,
         },
         annotations: { destructiveHint: true },
-    }, async ({ names, overwrite, includeTests, testRunner, ...source }) => {
+    }, async ({ names, overwrite, includeTests, testRunner, fix, ...source }) => {
         const config = await getConfig(cwd);
         if (!config) return err('Project not initialized — run init_project first.');
         const options = { ...await resolveSource(source, config), overwrite };
@@ -191,6 +193,10 @@ function registerUpdateTool(server: ToolHost, cwd: string): void {
         // templates still using a renamed selector — the silent NG8113 class.
         const breakingChanges = collectBreakingChanges(names as ComponentName[]);
         const staleSelectors = await scanStaleSelectors(cwd, names as ComponentName[]);
+        const managed = [config.aliases.ui, config.aliases.blocks]
+            .filter((a): a is string => Boolean(a))
+            .map(a => resolveProjectPath(cwd, aliasToProjectPath(a)));
+        const bindingRewrites = await rewriteBreakingBindings(names as ComponentName[], cwd, managed, { write: Boolean(fix) });
         return json({
             ...result,
             hadConflicts: hasUnresolvedConflicts(result.mergeReport),
@@ -198,6 +204,7 @@ function registerUpdateTool(server: ToolHost, cwd: string): void {
             libWarnings: lib.warnings,
             breakingChanges,
             staleSelectors,
+            bindingRewrites: { applied: Boolean(fix), ...bindingRewrites },
         });
     });
 }

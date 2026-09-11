@@ -34,8 +34,7 @@ import { RichTextEditorComponent } from '../..';
     imports: [RichTextEditorComponent, RichTextHistoryDirective],
     template: `<ui-rich-text-editor
         mode="html"
-        uiRteHistory
-        [uiRteHistoryButton]="button()"
+        [uiRteHistory]="{ toolbar: button() }"
         [uiRteHistoryLocale]="locale()"
         (historyRestore)="restored.set($event)"
     ></ui-rich-text-editor>`,

@@ -236,21 +236,25 @@ function applyMerge(attrs: Attr[], into: string, keys: Readonly<Record<string, s
     const matched = attrs.filter((a) => a.name in keys);
     if (matched.length === 0) return { attrs, edits: [], manual: [] };
     const existing = attrs.find((a) => a.name === into);
-    if (existing) {
+    // A bare `uiRteImages` (or a literal true) is the enable switch the merged
+    // object implies, so it is absorbed; a bound expression is not ours to guess.
+    const absorbable = existing !== undefined && (existing.value === null || (existing.form === 'static' && ['', 'true'].includes(existing.value)));
+    if (existing && !absorbable) {
         return {
             attrs,
             edits: [],
             manual: matched.map((a) => ({ at: a.at, from: label(a), to: `already binds ${label(existing)}; merge by hand` })),
         };
     }
+    const anchor = existing ?? matched[0];
     const fields = matched.map((a) => `${keys[a.name]}: ${expressionOf(a)}`);
     const merged: Attr = {
-        gap: matched[0].gap, at: matched[0].at, name: into, form: 'prop', value: `{ ${fields.join(', ')} }`, quote: '"',
+        gap: anchor.gap, at: anchor.at, name: into, form: 'prop', value: `{ ${fields.join(', ')} }`, quote: '"',
     };
     const out: Attr[] = [];
     for (const a of attrs) {
-        if (a === matched[0]) out.push(merged);
-        else if (!matched.includes(a)) out.push(a);
+        if (a === anchor) out.push(merged);
+        else if (!matched.includes(a) && a !== existing) out.push(a);
     }
     return { attrs: out, edits: matched.map((a) => ({ at: a.at, from: label(a), to: label(merged) })), manual: [] };
 }

@@ -14,11 +14,11 @@ import {
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { firstValueFrom, from, type Observable, type Subscription } from 'rxjs';
-import {
+import { addonSetting, type RichTextAddonSetting, type RichTextAddonState,
     RichTextEditorAddonHost,
     RichTextSanitizerService,
     RichTextPasteNormalizerService,
-} from '../..';
+ } from '../..';
 import { isValidImageDataUrl } from '../../../../lib/parsers/image-validator';
 import { createLocaleBindings, type LocaleInput } from '../../../../lib/i18n';
 import {
@@ -154,12 +154,14 @@ export class RichTextImagesDirective {
 
     /** Locale for the addon UI: a registry key (`'en'`/`'he'`/…) or a full dictionary. */
     readonly uiRteImagesLocale = input<LocaleInput<RichTextImagesLocale>>();
-    /** Master toggle for the whole image feature (default true). */
-    readonly uiRteImages = input(true, { transform: coerceEnabled });
-    /** Sort order of the image button among addon toolbar slots. */
-    readonly uiRteImagesOrder = input(325);
-    /** Contribute the toolbar button (default true). */
-    readonly uiRteImagesToolbar = input(true);
+    /**
+     * Enable the addon (the bare `uiRteImages` attribute), or tune it: `[uiRteImages]="{ toolbar: false }"` keeps the feature without its button, `{ order: 100 }` moves the button.
+     * See {@link RichTextAddonOptions}.
+     */
+    readonly uiRteImages = input<RichTextAddonState, RichTextAddonSetting>(addonSetting(325)(true), { transform: addonSetting(325) });
+
+    /** Read this, not the whole setting, where only on/off matters: an options change must not remount the feature. */
+    private readonly enabled = computed(() => this.uiRteImages().enabled);
     /**
      * How images get uploaded — see {@link RichTextImagesUploadOptions}. Set
      * only the fields you change: `{ uploader, auto: true }`.
@@ -289,10 +291,10 @@ export class RichTextImagesDirective {
             parent: this.injector,
         });
         effect((onCleanup) => {
-            if (!this.uiRteImages() || !this.uiRteImagesToolbar()) return;
+            if (!this.enabled() || !this.uiRteImages().toolbar) return;
             onCleanup(this.host.toolbarSlots.register({
                 id: IMAGE_SLOT_ID,
-                order: this.uiRteImagesOrder(),
+                order: this.uiRteImages().order,
                 component: RichTextImagesButtonComponent,
                 injector: slotInjector,
             }));
@@ -322,13 +324,13 @@ export class RichTextImagesDirective {
      */
     private registerImageFileSeam(): void {
         effect((onCleanup) => {
-            if (!this.uiRteImages() || !this.canUseUpload()) return;
+            if (!this.enabled() || !this.canUseUpload()) return;
             onCleanup(this.host.registerImageFileHandler((file) => void this.insertImageFile(file)));
         });
     }
 
     private onPaste(event: ClipboardEvent): boolean {
-        if (!this.uiRteImages()) return false;
+        if (!this.enabled()) return false;
         const imageFile = Array.from(event.clipboardData?.files ?? [])
             .find((f) => f.type.startsWith('image/'));
         if (!imageFile) return false;
@@ -350,7 +352,7 @@ export class RichTextImagesDirective {
     }
 
     private canAcceptDrag(): boolean {
-        return this.uiRteImages() && (this.canUseUpload() || this.canUseUrl());
+        return this.enabled() && (this.canUseUpload() || this.canUseUrl());
     }
 
 
@@ -435,7 +437,7 @@ export class RichTextImagesDirective {
     }
 
     private onContentClick(event: Event): void {
-        if (!this.uiRteImages()) {
+        if (!this.enabled()) {
             this.selectedImage.set(null);
             return;
         }
@@ -460,7 +462,7 @@ export class RichTextImagesDirective {
     private registerAutoUpload(): void {
         effect((onCleanup) => {
             if (!this.viewReady()) return;
-            const enabled = this.uiRteImages() && this.upload().auto;
+            const enabled = this.enabled() && this.upload().auto;
             if (!enabled) return;
             this.injectAutoUploadStyles();
             onCleanup(() => this.releaseAutoUploadStyles());
@@ -676,7 +678,7 @@ export class RichTextImagesDirective {
         ref.setInput('locale', this.i18n.t());
         ref.setInput('resizerLabels', this.resizerLabels());
         ref.setInput('container', this.host.contentRoot);
-        ref.setInput('target', this.uiRteImages() ? this.selectedImage() : null);
+        ref.setInput('target', this.enabled() ? this.selectedImage() : null);
         ref.setInput('resizable', this.layout().resize);
         ref.setInput('showAlignment', this.layout().alignment);
         ref.setInput('minWidth', this.layout().minWidth);
@@ -698,7 +700,3 @@ export class RichTextImagesDirective {
     }
 }
 
-/** Coerce the bare `uiRteImages` attribute (empty string) to `true`. */
-function coerceEnabled(value: boolean | string | undefined): boolean {
-    return value === '' || value === true || value === undefined;
-}

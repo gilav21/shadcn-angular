@@ -35,8 +35,7 @@ function stubResizeObserver(): Restore {
         mode="html"
         [disabled]="disabled()"
         [readonly]="readonly()"
-        uiRteOutline
-        [uiRteOutlineButton]="button()"
+        [uiRteOutline]="{ toolbar: button() }"
         [uiRteOutlineLocale]="locale()"
     ></ui-rich-text-editor>`,
 })

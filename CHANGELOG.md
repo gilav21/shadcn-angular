@@ -37,6 +37,7 @@ remote images, and ~110 fixes from a 25-round adversarial audit.
   | `[historyLimit]`, `[historyDebounceMs]`, `[recordExternalWrites]` | `[history]="{ limit, debounceMs, recordExternalWrites }"` (`RichTextHistoryOptions`) |
   | `[uiRteImagesUploader]`, `[uiRteImagesAutoUpload]`, `[uiRteImagesSources]` | `[uiRteImagesUpload]="{ uploader, auto, sources }"` (`RichTextImagesUploadOptions`) |
   | `[uiRteImagesResize]`, `…Alignment`, `…DefaultWidth`, `…DefaultHeight`, `…DefaultAlignment`, `…MinWidth`, `…MaxWidth`, `…LockAspectRatio` | `[uiRteImagesLayout]="{ … }"` (`RichTextImagesLayoutOptions`) |
+  | `[uiRte<Addon>Order]`, `[uiRte<Addon>Toolbar]`, `[uiRte<Addon>SlashCommand]`, `[uiRteHistoryButton]`, `[uiRteOutlineButton]` on colors, emoji, file-import, history, images, links, outline, tables, typography | `[uiRte<Addon>]="{ toolbar, slashCommand, order }"` — the enable attribute takes the options (`RichTextAddonOptions`) |
 
   Every option object has an exported type with documented defaults, so an
   IDE completes the fields. The editor also gains the view's `dir` input.

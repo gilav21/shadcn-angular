@@ -385,3 +385,45 @@ export abstract class RichTextEditorAddonHost {
      */
     abstract registerShortcutAction(actionId: string, run: () => void, when?: () => boolean): () => void;
 }
+
+/**
+ * The switches every toolbar-contributing addon accepts on its `uiRte<Addon>`
+ * input, so one attribute both enables the addon and tunes where it shows:
+ *
+ * ```html
+ * <ui-rich-text-editor uiRteImages />                            <!-- on -->
+ * <ui-rich-text-editor [uiRteImages]="false" />                  <!-- off -->
+ * <ui-rich-text-editor [uiRteImages]="{ toolbar: false }" />     <!-- paste and drop only -->
+ * <ui-rich-text-editor [uiRteLinks]="{ order: 100, slashCommand: false }" />
+ * ```
+ */
+export interface RichTextAddonOptions {
+    /** Contribute the addon's toolbar button (or corner button). Default `true`. */
+    readonly toolbar?: boolean;
+    /** Register the addon's slash command, where it has one. Default `true`. */
+    readonly slashCommand?: boolean;
+    /** Sort order among addon toolbar buttons; lower first. Each addon has its own default. */
+    readonly order?: number;
+}
+
+/** What a `uiRte<Addon>` attribute accepts: bare (`''`), a boolean, or the options. */
+export type RichTextAddonSetting = boolean | '' | RichTextAddonOptions;
+
+/** The resolved form the addon reads: every option filled in, plus `enabled`. */
+export interface RichTextAddonState extends Required<RichTextAddonOptions> {
+    readonly enabled: boolean;
+}
+
+/**
+ * The input transform behind every `uiRte<Addon>` attribute. A bare attribute
+ * or `true` enables with the defaults; `false` disables; an object enables and
+ * overrides the fields it names.
+ */
+export function addonSetting(defaultOrder: number): (value: RichTextAddonSetting) => RichTextAddonState {
+    const defaults: RichTextAddonState = { enabled: true, toolbar: true, slashCommand: true, order: defaultOrder };
+    return (value) => {
+        if (value === '' || value === true) return defaults;
+        if (value === false) return { ...defaults, enabled: false };
+        return { ...defaults, ...value };
+    };
+}

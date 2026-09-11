@@ -12,7 +12,7 @@ import {
     signal,
     type ComponentRef,
 } from '@angular/core';
-import { RichTextEditorAddonHost } from '../..';
+import { addonSetting, type RichTextAddonSetting, type RichTextAddonState, RichTextEditorAddonHost} from '../..';
 import { createLocaleBindings, type LocaleInput } from '../../../../lib/i18n';
 import {
     RICH_TEXT_FILE_IMPORT_LOCALES,
@@ -90,12 +90,14 @@ export class RichTextFileImportDirective {
 
     /** Locale for the addon UI: a registry key (`'en'`/`'he'`/…) or a full dictionary. */
     readonly uiRteFileImportLocale = input<LocaleInput<RichTextFileImportLocale>>();
-    /** Master toggle for the whole import feature (default true). */
-    readonly uiRteFileImport = input(true, { transform: coerceEnabled });
-    /** Sort order of the import button among addon toolbar slots; lower first. */
-    readonly uiRteFileImportOrder = input(340);
-    /** Contribute the toolbar button (default true). */
-    readonly uiRteFileImportToolbar = input(true);
+    /**
+     * Enable the addon (the bare `uiRteFileImport` attribute), or tune it: `[uiRteFileImport]="{ toolbar: false }"` keeps the feature without its button, `{ order: 100 }` moves the button.
+     * See {@link RichTextAddonOptions}.
+     */
+    readonly uiRteFileImport = input<RichTextAddonState, RichTextAddonSetting>(addonSetting(340)(true), { transform: addonSetting(340) });
+
+    /** Read this, not the whole setting, where only on/off matters: an options change must not remount the feature. */
+    private readonly enabled = computed(() => this.uiRteFileImport().enabled);
     /**
      * `accept` attribute for the toolbar file picker. Leave unset to accept the
      * document formats plus, when an addon owns image files, the image formats
@@ -149,10 +151,10 @@ export class RichTextFileImportDirective {
             parent: this.injector,
         });
         effect((onCleanup) => {
-            if (!this.uiRteFileImport() || !this.uiRteFileImportToolbar()) return;
+            if (!this.enabled() || !this.uiRteFileImport().toolbar) return;
             onCleanup(this.host.toolbarSlots.register({
                 id: FILE_IMPORT_SLOT_ID,
-                order: this.uiRteFileImportOrder(),
+                order: this.uiRteFileImport().order,
                 component: RichTextFileImportButtonComponent,
                 injector: slotInjector,
             }));
@@ -170,7 +172,7 @@ export class RichTextFileImportDirective {
     }
 
     private onDrop(event: DragEvent): boolean {
-        if (!this.uiRteFileImport()) return false;
+        if (!this.enabled()) return false;
         const file = Array.from(event.dataTransfer?.files ?? []).find(isSupportedDocumentFile);
         if (!file) return false;
         event.preventDefault();
@@ -179,12 +181,12 @@ export class RichTextFileImportDirective {
     }
 
     private canAcceptDrag(event: DragEvent): boolean {
-        return this.uiRteFileImport() && dragHasSupportedDocument(event.dataTransfer);
+        return this.enabled() && dragHasSupportedDocument(event.dataTransfer);
     }
 
 
     private async importFile(file: File): Promise<void> {
-        if (!this.uiRteFileImport() || this.host.readonly() || this.host.isDisabled()) return;
+        if (!this.enabled() || this.host.readonly() || this.host.isDisabled()) return;
         this.host.flushPendingHistoryPush();
 
         const header = new Uint8Array(await file.slice(0, HEADER_BYTES).arrayBuffer());
@@ -358,7 +360,3 @@ export class RichTextFileImportDirective {
     }
 }
 
-/** Coerce the bare `uiRteFileImport` attribute (empty string) to `true`. */
-function coerceEnabled(value: boolean | string | undefined): boolean {
-    return value === '' || value === true || value === undefined;
-}

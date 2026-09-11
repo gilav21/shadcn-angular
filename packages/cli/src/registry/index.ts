@@ -1743,6 +1743,9 @@ export const registry = defineRegistry({
     dependencies: ['emoji-picker', 'rich-text-editor'],
     testFiles: ['rich-text-editor/addons/emoji/rich-text-emoji-button.component.spec.ts', 'rich-text-editor/addons/emoji/rich-text-emoji.context.spec.ts', 'rich-text-editor/addons/emoji/rich-text-emoji.directive.spec.ts'],
     requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts'],
+    breaking: [
+      { kind: 'input', from: '[uiRteEmojiOrder] on <ui-rich-text-editor uiRteEmoji>', to: '[uiRteEmoji]="{ order }"', note: 'The enable attribute now also tunes the addon (RichTextAddonOptions): a bare `uiRteEmoji` keeps the defaults, `[uiRteEmoji]="false"` turns it off, `[uiRteEmoji]="{ order }"` overrides the fields you name.', codemod: 'input-merge', merge: { into: 'uiRteEmoji', keys: { uiRteEmojiOrder: 'order' } } },
+    ],
     attach: {
       import: "RichTextEmojiDirective from './ui/rich-text-editor/addons/emoji'",
       selector: 'uiRteEmoji',
@@ -1777,6 +1780,9 @@ export const registry = defineRegistry({
     dependencies: ['button', 'dialog', 'popover', 'rich-text-editor', 'scroll-area'],
     testFiles: ['rich-text-editor/addons/history/rich-text-history-panel.component.spec.ts', 'rich-text-editor/addons/history/rich-text-history.directive.spec.ts', 'rich-text-editor/barrel.spec.ts', 'rich-text-editor/rich-text-command-registry.service.spec.ts', 'rich-text-editor/rich-text-editor.component.spec.ts', 'rich-text-editor/rich-text-editor.validators.spec.ts', 'rich-text-editor/rich-text-find.utils.spec.ts', 'rich-text-editor/rich-text-input-rules.spec.ts', 'rich-text-editor/rich-text-markdown.roundtrip.spec.ts', 'rich-text-editor/rich-text-markdown.service.spec.ts', 'rich-text-editor/rich-text-paste-normalizer.service.spec.ts', 'rich-text-editor/rich-text-resource-policy.spec.ts', 'rich-text-editor/rich-text-sanitizer.service.spec.ts'],
     requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts'],
+    breaking: [
+      { kind: 'input', from: '[uiRteHistoryButton] on <ui-rich-text-editor uiRteHistory>', to: '[uiRteHistory]="{ toolbar }"', note: 'The enable attribute now also tunes the addon (RichTextAddonOptions): a bare `uiRteHistory` keeps the defaults, `[uiRteHistory]="false"` turns it off, `[uiRteHistory]="{ toolbar }"` overrides the fields you name.', codemod: 'input-merge', merge: { into: 'uiRteHistory', keys: { uiRteHistoryButton: 'toolbar' } } },
+    ],
     attach: {
       import: "RichTextHistoryDirective from './ui/rich-text-editor/addons/history'",
       selector: 'uiRteHistory',
@@ -1794,6 +1800,9 @@ export const registry = defineRegistry({
     dependencies: ['color-picker', 'popover', 'rich-text-editor'],
     testFiles: ['rich-text-editor/addons/colors/rich-text-colors-button.component.spec.ts', 'rich-text-editor/addons/colors/rich-text-colors.context.spec.ts', 'rich-text-editor/addons/colors/rich-text-colors.directive.spec.ts'],
     requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts'],
+    breaking: [
+      { kind: 'input', from: '[uiRteColorsOrder] on <ui-rich-text-editor uiRteColors>', to: '[uiRteColors]="{ order }"', note: 'The enable attribute now also tunes the addon (RichTextAddonOptions): a bare `uiRteColors` keeps the defaults, `[uiRteColors]="false"` turns it off, `[uiRteColors]="{ order }"` overrides the fields you name.', codemod: 'input-merge', merge: { into: 'uiRteColors', keys: { uiRteColorsOrder: 'order' } } },
+    ],
     attach: {
       import: "RichTextColorsDirective from './ui/rich-text-editor/addons/colors'",
       selector: 'uiRteColors',
@@ -1811,6 +1820,9 @@ export const registry = defineRegistry({
     dependencies: ['autocomplete', 'popover', 'rich-text-editor'],
     testFiles: ['rich-text-editor/addons/typography/rich-text-typography.context.spec.ts', 'rich-text-editor/addons/typography/rich-text-typography.directive.spec.ts'],
     requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts'],
+    breaking: [
+      { kind: 'input', from: '[uiRteTypographyOrder] on <ui-rich-text-editor uiRteTypography>', to: '[uiRteTypography]="{ order }"', note: 'The enable attribute now also tunes the addon (RichTextAddonOptions): a bare `uiRteTypography` keeps the defaults, `[uiRteTypography]="false"` turns it off, `[uiRteTypography]="{ order }"` overrides the fields you name.', codemod: 'input-merge', merge: { into: 'uiRteTypography', keys: { uiRteTypographyOrder: 'order' } } },
+    ],
     attach: {
       import: "RichTextTypographyDirective from './ui/rich-text-editor/addons/typography'",
       selector: 'uiRteTypography',
@@ -1828,6 +1840,9 @@ export const registry = defineRegistry({
     dependencies: ['button', 'popover', 'rich-text-editor'],
     testFiles: ['rich-text-editor/addons/links/rich-text-links-button.component.spec.ts', 'rich-text-editor/addons/links/rich-text-links-form.component.spec.ts', 'rich-text-editor/addons/links/rich-text-links.context.spec.ts', 'rich-text-editor/addons/links/rich-text-links.directive.spec.ts'],
     requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-sanitizer.service.ts'],
+    breaking: [
+      { kind: 'input', from: '[uiRteLinksOrder] + [uiRteLinksToolbar] + [uiRteLinksSlashCommand] on <ui-rich-text-editor uiRteLinks>', to: '[uiRteLinks]="{ order, slashCommand, toolbar }"', note: 'The enable attribute now also tunes the addon (RichTextAddonOptions): a bare `uiRteLinks` keeps the defaults, `[uiRteLinks]="false"` turns it off, `[uiRteLinks]="{ order, slashCommand, toolbar }"` overrides the fields you name.', codemod: 'input-merge', merge: { into: 'uiRteLinks', keys: { uiRteLinksOrder: 'order', uiRteLinksToolbar: 'toolbar', uiRteLinksSlashCommand: 'slashCommand' } } },
+    ],
     attach: {
       import: "RichTextLinksDirective from './ui/rich-text-editor/addons/links'",
       selector: 'uiRteLinks',
@@ -1845,6 +1860,9 @@ export const registry = defineRegistry({
     dependencies: ['popover', 'rich-text-editor'],
     testFiles: ['rich-text-editor/addons/tables/rich-text-tables-button.component.spec.ts', 'rich-text-editor/addons/tables/rich-text-tables.context.spec.ts', 'rich-text-editor/addons/tables/rich-text-tables.directive.spec.ts'],
     requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts'],
+    breaking: [
+      { kind: 'input', from: '[uiRteTablesOrder] on <ui-rich-text-editor uiRteTables>', to: '[uiRteTables]="{ order }"', note: 'The enable attribute now also tunes the addon (RichTextAddonOptions): a bare `uiRteTables` keeps the defaults, `[uiRteTables]="false"` turns it off, `[uiRteTables]="{ order }"` overrides the fields you name.', codemod: 'input-merge', merge: { into: 'uiRteTables', keys: { uiRteTablesOrder: 'order' } } },
+    ],
     attach: {
       import: "RichTextTablesDirective from './ui/rich-text-editor/addons/tables'",
       selector: 'uiRteTables',
@@ -1865,6 +1883,7 @@ export const registry = defineRegistry({
     breaking: [
       { kind: 'input', from: '[uiRteImagesUploader] + [uiRteImagesAutoUpload] + [uiRteImagesSources] on <ui-rich-text-editor uiRteImages>', to: '[uiRteImagesUpload]="{ uploader, auto, sources }"', note: 'One RichTextImagesUploadOptions object; unset fields keep the defaults (no uploader, auto false, sources all).', codemod: 'input-merge', merge: { into: 'uiRteImagesUpload', keys: { uiRteImagesUploader: 'uploader', uiRteImagesAutoUpload: 'auto', uiRteImagesSources: 'sources' } } },
       { kind: 'input', from: '[uiRteImagesResize] + [uiRteImagesAlignment] + [uiRteImagesDefaultWidth] + [uiRteImagesDefaultHeight] + [uiRteImagesDefaultAlignment] + [uiRteImagesMinWidth] + [uiRteImagesMaxWidth] + [uiRteImagesLockAspectRatio] on <ui-rich-text-editor uiRteImages>', to: '[uiRteImagesLayout]="{ resize, alignment, defaultWidth, defaultHeight, defaultAlignment, minWidth, maxWidth, lockAspectRatio }"', note: 'One RichTextImagesLayoutOptions object; unset fields keep the defaults (resize and alignment on, inline, minWidth 20, aspect ratio locked).', codemod: 'input-merge', merge: { into: 'uiRteImagesLayout', keys: { uiRteImagesResize: 'resize', uiRteImagesAlignment: 'alignment', uiRteImagesDefaultWidth: 'defaultWidth', uiRteImagesDefaultHeight: 'defaultHeight', uiRteImagesDefaultAlignment: 'defaultAlignment', uiRteImagesMinWidth: 'minWidth', uiRteImagesMaxWidth: 'maxWidth', uiRteImagesLockAspectRatio: 'lockAspectRatio' } } },
+      { kind: 'input', from: '[uiRteImagesOrder] + [uiRteImagesToolbar] on <ui-rich-text-editor uiRteImages>', to: '[uiRteImages]="{ order, toolbar }"', note: 'The enable attribute now also tunes the addon (RichTextAddonOptions): a bare `uiRteImages` keeps the defaults, `[uiRteImages]="false"` turns it off, `[uiRteImages]="{ order, toolbar }"` overrides the fields you name.', codemod: 'input-merge', merge: { into: 'uiRteImages', keys: { uiRteImagesOrder: 'order', uiRteImagesToolbar: 'toolbar' } } },
     ],
     attach: {
       import: "RichTextImagesDirective from './ui/rich-text-editor/addons/images'",
@@ -1900,6 +1919,9 @@ export const registry = defineRegistry({
     dependencies: ['rich-text-editor'],
     testFiles: ['rich-text-editor/addons/file-import/rich-text-file-import-button.component.spec.ts', 'rich-text-editor/addons/file-import/rich-text-file-import-overlay.component.spec.ts', 'rich-text-editor/addons/file-import/rich-text-file-import.context.spec.ts', 'rich-text-editor/addons/file-import/rich-text-file-import.directive.spec.ts', 'rich-text-editor/addons/file-import/rich-text-file-import.utils.spec.ts'],
     requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-sanitizer.service.ts'],
+    breaking: [
+      { kind: 'input', from: '[uiRteFileImportOrder] + [uiRteFileImportToolbar] on <ui-rich-text-editor uiRteFileImport>', to: '[uiRteFileImport]="{ order, toolbar }"', note: 'The enable attribute now also tunes the addon (RichTextAddonOptions): a bare `uiRteFileImport` keeps the defaults, `[uiRteFileImport]="false"` turns it off, `[uiRteFileImport]="{ order, toolbar }"` overrides the fields you name.', codemod: 'input-merge', merge: { into: 'uiRteFileImport', keys: { uiRteFileImportOrder: 'order', uiRteFileImportToolbar: 'toolbar' } } },
+    ],
     attach: {
       import: "RichTextFileImportDirective from './ui/rich-text-editor/addons/file-import'",
       selector: 'uiRteFileImport',
@@ -1934,6 +1956,9 @@ export const registry = defineRegistry({
     dependencies: ['button', 'rich-text-editor', 'scroll-area'],
     testFiles: ['rich-text-editor/addons/outline/rich-text-outline-panel.component.spec.ts', 'rich-text-editor/addons/outline/rich-text-outline.context.spec.ts', 'rich-text-editor/addons/outline/rich-text-outline.directive.spec.ts'],
     requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts'],
+    breaking: [
+      { kind: 'input', from: '[uiRteOutlineButton] + [uiRteOutlineOrder] + [uiRteOutlineSlashCommand] on <ui-rich-text-editor uiRteOutline>', to: '[uiRteOutline]="{ order, slashCommand, toolbar }"', note: 'The enable attribute now also tunes the addon (RichTextAddonOptions): a bare `uiRteOutline` keeps the defaults, `[uiRteOutline]="false"` turns it off, `[uiRteOutline]="{ order, slashCommand, toolbar }"` overrides the fields you name.', codemod: 'input-merge', merge: { into: 'uiRteOutline', keys: { uiRteOutlineButton: 'toolbar', uiRteOutlineOrder: 'order', uiRteOutlineSlashCommand: 'slashCommand' } } },
+    ],
     attach: {
       import: "RichTextOutlineDirective from './ui/rich-text-editor/addons/outline'",
       selector: 'uiRteOutline',

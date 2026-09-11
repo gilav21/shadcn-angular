@@ -4868,6 +4868,21 @@
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts"
     ],
+    "breaking": [
+      {
+        "kind": "input",
+        "from": "[uiRteEmojiOrder] on <ui-rich-text-editor uiRteEmoji>",
+        "to": "[uiRteEmoji]=\"{ order }\"",
+        "note": "The enable attribute now also tunes the addon (RichTextAddonOptions): a bare `uiRteEmoji` keeps the defaults, `[uiRteEmoji]=\"false\"` turns it off, `[uiRteEmoji]=\"{ order }\"` overrides the fields you name.",
+        "codemod": "input-merge",
+        "merge": {
+          "into": "uiRteEmoji",
+          "keys": {
+            "uiRteEmojiOrder": "order"
+          }
+        }
+      }
+    ],
     "attach": {
       "import": "RichTextEmojiDirective from './ui/rich-text-editor/addons/emoji'",
       "selector": "uiRteEmoji"
@@ -4976,6 +4991,21 @@
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts"
     ],
+    "breaking": [
+      {
+        "kind": "input",
+        "from": "[uiRteHistoryButton] on <ui-rich-text-editor uiRteHistory>",
+        "to": "[uiRteHistory]=\"{ toolbar }\"",
+        "note": "The enable attribute now also tunes the addon (RichTextAddonOptions): a bare `uiRteHistory` keeps the defaults, `[uiRteHistory]=\"false\"` turns it off, `[uiRteHistory]=\"{ toolbar }\"` overrides the fields you name.",
+        "codemod": "input-merge",
+        "merge": {
+          "into": "uiRteHistory",
+          "keys": {
+            "uiRteHistoryButton": "toolbar"
+          }
+        }
+      }
+    ],
     "attach": {
       "import": "RichTextHistoryDirective from './ui/rich-text-editor/addons/history'",
       "selector": "uiRteHistory"
@@ -5023,6 +5053,21 @@
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts"
     ],
+    "breaking": [
+      {
+        "kind": "input",
+        "from": "[uiRteColorsOrder] on <ui-rich-text-editor uiRteColors>",
+        "to": "[uiRteColors]=\"{ order }\"",
+        "note": "The enable attribute now also tunes the addon (RichTextAddonOptions): a bare `uiRteColors` keeps the defaults, `[uiRteColors]=\"false\"` turns it off, `[uiRteColors]=\"{ order }\"` overrides the fields you name.",
+        "codemod": "input-merge",
+        "merge": {
+          "into": "uiRteColors",
+          "keys": {
+            "uiRteColorsOrder": "order"
+          }
+        }
+      }
+    ],
     "attach": {
       "import": "RichTextColorsDirective from './ui/rich-text-editor/addons/colors'",
       "selector": "uiRteColors"
@@ -5067,6 +5112,21 @@
     ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts"
+    ],
+    "breaking": [
+      {
+        "kind": "input",
+        "from": "[uiRteTypographyOrder] on <ui-rich-text-editor uiRteTypography>",
+        "to": "[uiRteTypography]=\"{ order }\"",
+        "note": "The enable attribute now also tunes the addon (RichTextAddonOptions): a bare `uiRteTypography` keeps the defaults, `[uiRteTypography]=\"false\"` turns it off, `[uiRteTypography]=\"{ order }\"` overrides the fields you name.",
+        "codemod": "input-merge",
+        "merge": {
+          "into": "uiRteTypography",
+          "keys": {
+            "uiRteTypographyOrder": "order"
+          }
+        }
+      }
     ],
     "attach": {
       "import": "RichTextTypographyDirective from './ui/rich-text-editor/addons/typography'",
@@ -5118,6 +5178,23 @@
       "rich-text-editor/rich-text-editor.host.ts",
       "rich-text-editor/rich-text-sanitizer.service.ts"
     ],
+    "breaking": [
+      {
+        "kind": "input",
+        "from": "[uiRteLinksOrder] + [uiRteLinksToolbar] + [uiRteLinksSlashCommand] on <ui-rich-text-editor uiRteLinks>",
+        "to": "[uiRteLinks]=\"{ order, slashCommand, toolbar }\"",
+        "note": "The enable attribute now also tunes the addon (RichTextAddonOptions): a bare `uiRteLinks` keeps the defaults, `[uiRteLinks]=\"false\"` turns it off, `[uiRteLinks]=\"{ order, slashCommand, toolbar }\"` overrides the fields you name.",
+        "codemod": "input-merge",
+        "merge": {
+          "into": "uiRteLinks",
+          "keys": {
+            "uiRteLinksOrder": "order",
+            "uiRteLinksToolbar": "toolbar",
+            "uiRteLinksSlashCommand": "slashCommand"
+          }
+        }
+      }
+    ],
     "attach": {
       "import": "RichTextLinksDirective from './ui/rich-text-editor/addons/links'",
       "selector": "uiRteLinks"
@@ -5162,6 +5239,21 @@
     ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts"
+    ],
+    "breaking": [
+      {
+        "kind": "input",
+        "from": "[uiRteTablesOrder] on <ui-rich-text-editor uiRteTables>",
+        "to": "[uiRteTables]=\"{ order }\"",
+        "note": "The enable attribute now also tunes the addon (RichTextAddonOptions): a bare `uiRteTables` keeps the defaults, `[uiRteTables]=\"false\"` turns it off, `[uiRteTables]=\"{ order }\"` overrides the fields you name.",
+        "codemod": "input-merge",
+        "merge": {
+          "into": "uiRteTables",
+          "keys": {
+            "uiRteTablesOrder": "order"
+          }
+        }
+      }
     ],
     "attach": {
       "import": "RichTextTablesDirective from './ui/rich-text-editor/addons/tables'",
@@ -5254,6 +5346,20 @@
             "uiRteImagesMinWidth": "minWidth",
             "uiRteImagesMaxWidth": "maxWidth",
             "uiRteImagesLockAspectRatio": "lockAspectRatio"
+          }
+        }
+      },
+      {
+        "kind": "input",
+        "from": "[uiRteImagesOrder] + [uiRteImagesToolbar] on <ui-rich-text-editor uiRteImages>",
+        "to": "[uiRteImages]=\"{ order, toolbar }\"",
+        "note": "The enable attribute now also tunes the addon (RichTextAddonOptions): a bare `uiRteImages` keeps the defaults, `[uiRteImages]=\"false\"` turns it off, `[uiRteImages]=\"{ order, toolbar }\"` overrides the fields you name.",
+        "codemod": "input-merge",
+        "merge": {
+          "into": "uiRteImages",
+          "keys": {
+            "uiRteImagesOrder": "order",
+            "uiRteImagesToolbar": "toolbar"
           }
         }
       }
@@ -5379,6 +5485,22 @@
       "rich-text-editor/rich-text-editor.host.ts",
       "rich-text-editor/rich-text-sanitizer.service.ts"
     ],
+    "breaking": [
+      {
+        "kind": "input",
+        "from": "[uiRteFileImportOrder] + [uiRteFileImportToolbar] on <ui-rich-text-editor uiRteFileImport>",
+        "to": "[uiRteFileImport]=\"{ order, toolbar }\"",
+        "note": "The enable attribute now also tunes the addon (RichTextAddonOptions): a bare `uiRteFileImport` keeps the defaults, `[uiRteFileImport]=\"false\"` turns it off, `[uiRteFileImport]=\"{ order, toolbar }\"` overrides the fields you name.",
+        "codemod": "input-merge",
+        "merge": {
+          "into": "uiRteFileImport",
+          "keys": {
+            "uiRteFileImportOrder": "order",
+            "uiRteFileImportToolbar": "toolbar"
+          }
+        }
+      }
+    ],
     "attach": {
       "import": "RichTextFileImportDirective from './ui/rich-text-editor/addons/file-import'",
       "selector": "uiRteFileImport"
@@ -5475,6 +5597,23 @@
     ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts"
+    ],
+    "breaking": [
+      {
+        "kind": "input",
+        "from": "[uiRteOutlineButton] + [uiRteOutlineOrder] + [uiRteOutlineSlashCommand] on <ui-rich-text-editor uiRteOutline>",
+        "to": "[uiRteOutline]=\"{ order, slashCommand, toolbar }\"",
+        "note": "The enable attribute now also tunes the addon (RichTextAddonOptions): a bare `uiRteOutline` keeps the defaults, `[uiRteOutline]=\"false\"` turns it off, `[uiRteOutline]=\"{ order, slashCommand, toolbar }\"` overrides the fields you name.",
+        "codemod": "input-merge",
+        "merge": {
+          "into": "uiRteOutline",
+          "keys": {
+            "uiRteOutlineButton": "toolbar",
+            "uiRteOutlineOrder": "order",
+            "uiRteOutlineSlashCommand": "slashCommand"
+          }
+        }
+      }
     ],
     "attach": {
       "import": "RichTextOutlineDirective from './ui/rich-text-editor/addons/outline'",

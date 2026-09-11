@@ -1,4 +1,5 @@
 import {
+    computed,
     type ComponentRef,
     DestroyRef,
     Directive,
@@ -11,7 +12,7 @@ import {
     output,
     signal,
 } from '@angular/core';
-import { RichTextEditorAddonHost } from '../..';
+import { addonSetting, type RichTextAddonSetting, type RichTextAddonState, RichTextEditorAddonHost} from '../..';
 import { createLocaleBindings, type LocaleInput } from '../../../../lib/i18n';
 import { RichTextHistoryPanelComponent } from './rich-text-history-panel.component';
 import { RICH_TEXT_HISTORY_LOCALES, type RichTextHistoryLocale } from './rich-text-history.locales';
@@ -26,7 +27,7 @@ const HISTORY_SHORTCUT_ACTION = 'rich-text.history';
  * `dialog` dependency.
  *
  * Replaces the former `[showHistoryPanel]` / `[showHistoryButton]` inputs:
- * adding the directive enables the feature, and `[uiRteHistoryButton]` toggles
+ * adding the directive enables the feature, and `[uiRteHistory]="{ toolbar }"` toggles
  * the corner button (false = shortcut-only, opening the browser dialog).
  *
  * The panel's strings resolve from `[uiRteHistoryLocale]` (a registry key or a
@@ -35,7 +36,7 @@ const HISTORY_SHORTCUT_ACTION = 'rich-text.history';
  *
  * ```html
  * <ui-rich-text-editor uiRteHistory />
- * <ui-rich-text-editor uiRteHistory [uiRteHistoryButton]="false" />
+ * <ui-rich-text-editor [uiRteHistory]="{ toolbar: false }" />
  * ```
  */
 @Directive({
@@ -47,10 +48,14 @@ export class RichTextHistoryDirective {
     private readonly vcr = inject(ViewContainerRef);
     private readonly injector = inject(Injector);
 
-    /** Enable the revision-history addon (the bare `uiRteHistory` attribute). Flip to `false` to remove the button + panel live. */
-    readonly uiRteHistory = input(true, { transform: coerceEnabled });
-    /** Show the corner "Revisions" button. When `false`, the panel opens only via the keyboard shortcut. */
-    readonly uiRteHistoryButton = input(true);
+    /**
+     * Enable the addon (the bare `uiRteHistory` attribute), or tune it: `[uiRteHistory]="{ toolbar: false }"` keeps the panel and its shortcut without the corner button.
+     * See {@link RichTextAddonOptions}.
+     */
+    readonly uiRteHistory = input<RichTextAddonState, RichTextAddonSetting>(addonSetting(0)(true), { transform: addonSetting(0) });
+
+    /** Read this, not the whole setting, where only on/off matters: an options change must not remount the feature. */
+    private readonly enabled = computed(() => this.uiRteHistory().enabled);
     /** Locale for the panel UI: a registry key (`'en'`/`'he'`/…) or a full dictionary. */
     readonly uiRteHistoryLocale = input<LocaleInput<RichTextHistoryLocale>>();
 
@@ -71,14 +76,14 @@ export class RichTextHistoryDirective {
         afterNextRender(() => this.viewReady.set(true));
 
         effect((onCleanup) => {
-            if (!this.uiRteHistory() || !this.viewReady()) return;
+            if (!this.enabled() || !this.viewReady()) return;
             this.mountPanel();
             onCleanup(() => this.destroyPanel());
         });
 
         effect(() => {
             const locale = this.i18n.t();
-            const showButton = this.uiRteHistoryButton();
+            const showButton = this.uiRteHistory().toolbar;
             if (!this.panelReady()) return;
             this.panelRef?.setInput('locale', locale);
             this.panelRef?.setInput('showButton', showButton);
@@ -104,7 +109,3 @@ export class RichTextHistoryDirective {
     }
 }
 
-/** Coerce the bare `uiRteHistory` attribute (empty string) to `true`. */
-function coerceEnabled(value: boolean | string | undefined): boolean {
-    return value === '' || value === true || value === undefined;
-}

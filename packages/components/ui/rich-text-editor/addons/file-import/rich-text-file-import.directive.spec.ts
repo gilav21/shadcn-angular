@@ -151,7 +151,7 @@ function pdfBytesWithStream(stream: string): Uint8Array {
     standalone: true,
     imports: [RichTextEditorComponent, RichTextFileImportDirective],
     template: `<ui-rich-text-editor mode="html" [disabled]="disabled()" [readonly]="readonly()"
-        [uiRteFileImport]="enabled()" [uiRteFileImportToolbar]="toolbar()" [uiRteFileImportLocale]="locale()"
+        [uiRteFileImport]="enabled() && { toolbar: toolbar() }" [uiRteFileImportLocale]="locale()"
         [uiRteFileImportAccept]="accept()"
         (fileImportStart)="starts.push($event)"
         (fileImportComplete)="completes.push($event)"
