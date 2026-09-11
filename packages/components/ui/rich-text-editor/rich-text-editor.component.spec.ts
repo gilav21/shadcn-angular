@@ -4,7 +4,7 @@ import { By } from '@angular/platform-browser';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_TOOLBAR_ITEMS, FIND_MAX_PAINTED_RECTS, RichTextEditorComponent, type RichTextHistoryState } from './index';
-import type { RichTextEditorApi } from './index';
+import type { RichTextEditorApi, RichTextEditorRef } from './index';
 import { isRichTextEmpty } from './index';
 import { EMPTINESS_FIXTURES } from './index';
 import { RichTextEditorAddonHost } from './index';
@@ -3326,17 +3326,64 @@ describe('RichTextEditorComponent — toolbar actions (link, image, color, font)
         expect(dropSeen).toHaveBeenCalledTimes(1);
     });
 
-    // T-10 — Rec 16: the `customToolbarItems` extension path is deleted, not
-    // deprecated. A template still binding it now fails to compile (NG8002)
-    // instead of silently rendering nothing.
-    it('exposes no customToolbarItems input and no customToolbarAction output', () => {
-        // Angular reports an unknown input through the console (NG0303 at
-        // runtime, NG8002 at build time) rather than by throwing, so the
-        // component's own property surface is the assertable evidence.
-        const surface = component as unknown as Record<string, unknown>;
-        expect('customToolbarItems' in surface).toBe(false);
-        expect('customToolbarAction' in surface).toBe(false);
-        expect('onCustomToolbarAction' in surface).toBe(false);
+    describe('customToolbarItems — a toolbar button from data', () => {
+        const slotButton = (id: string): HTMLButtonElement | null =>
+            fixture.nativeElement.querySelector(`button[data-addon-slot="${id}"]`);
+
+        it('renders each item as a toolbar button and tears it down when the array changes', () => {
+            fixture.componentRef.setInput('customToolbarItems', [
+                { id: 'stamp', icon: '📅', tooltip: 'Insert date' },
+                { id: 'sign', icon: '<svg></svg>', tooltip: 'Sign', order: 1 },
+            ]);
+            fixture.detectChanges();
+            expect(slotButton('stamp')).not.toBeNull();
+            expect(slotButton('sign')?.getAttribute('title') ?? slotButton('sign')?.getAttribute('aria-label')).toContain('Sign');
+
+            fixture.componentRef.setInput('customToolbarItems', []);
+            fixture.detectChanges();
+            expect(slotButton('stamp')).toBeNull();
+            expect(component.toolbarSlots.slots()).toHaveLength(0);
+        });
+
+        it('runs the item onClick with a ref whose insert records a history entry, and emits the action', () => {
+            component.writeValue('<p>ref</p>');
+            fixture.detectChanges();
+            setCaretAt(editor.querySelector('p')!.firstChild as Text, 3);
+            const seen: { id: string; ref: RichTextEditorRef }[] = [];
+            component.customToolbarAction.subscribe((e) => seen.push(e));
+            const clicks: string[] = [];
+            fixture.componentRef.setInput('customToolbarItems', [{
+                id: 'stamp', icon: '📅', tooltip: 'Insert date',
+                onClick: (ref: RichTextEditorRef) => { clicks.push(ref.getSelectedText()); ref.insertText('INJECTED'); },
+            }]);
+            fixture.detectChanges();
+
+            slotButton('stamp')!.click();
+            fixture.detectChanges();
+
+            expect(clicks).toEqual(['']);
+            expect(editor.textContent).toContain('INJECTED');
+            expect(seen).toHaveLength(1);
+            expect(seen[0].id).toBe('stamp');
+            expect(seen[0].ref.getHtmlContent()).toContain('INJECTED');
+
+            // The insert went through the editor, so undo steps back over it.
+            component.undo();
+            fixture.detectChanges();
+            expect(editor.textContent).not.toContain('INJECTED');
+        });
+
+        it('reflects isActive from the formats at the caret', () => {
+            component.writeValue('<p><b>bold</b></p>');
+            fixture.detectChanges();
+            fixture.componentRef.setInput('customToolbarItems', [{
+                id: 'shout', icon: 'S', tooltip: 'Shout', isActive: (formats: Set<string>) => formats.has('bold'),
+            }]);
+            fixture.detectChanges();
+            component.activeFormats.set(new Set(['bold']));
+            fixture.detectChanges();
+            expect(slotButton('shout')?.getAttribute('aria-pressed')).toBe('true');
+        });
     });
 });
 

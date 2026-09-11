@@ -1,5 +1,5 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
-import { RichTextEditorComponent } from './rich-text-editor.component';
+import { RichTextEditorComponent, type RichTextCustomToolbarItem, type RichTextEditorRef } from './rich-text-editor.component';
 import { RichTextHistoryDirective } from './addons/history';
 import { RichTextToolbarComponent } from './sub/rich-text-toolbar.component';
 import { RichTextMentionsDirective, type MentionItem, type TagItem } from './addons/mentions';
@@ -111,6 +111,10 @@ const meta: Meta<RichTextEditorComponent> = {
             description: 'Which counter to show below the editor',
         },
         maxLength: { control: 'number', description: 'Maximum character count (undefined = unlimited)' },
+        customToolbarItems: {
+            control: false,
+            description: 'Your own toolbar buttons as data: { id, icon, tooltip, order?, isActive?, onClick? }',
+        },
     },
 };
 
@@ -710,4 +714,40 @@ export const FindReplaceRTL: Story = {
             },
         },
     },
+};
+
+/**
+ * A toolbar button is one object in an array. `onClick` receives a
+ * `RichTextEditorRef` whose inserts go through the editor, so undo works.
+ */
+export const CustomToolbarButtons: Story = {
+    render: () => ({
+        props: {
+            items: [
+                {
+                    id: 'stamp',
+                    icon: '📅',
+                    tooltip: "Insert today's date",
+                    onClick: (ref: RichTextEditorRef) => ref.insertText(new Date().toLocaleDateString()),
+                },
+                {
+                    id: 'sign',
+                    icon: '✍️',
+                    tooltip: 'Insert signature',
+                    onClick: (ref: RichTextEditorRef) => ref.insertHtml('<p><i>— Dana</i></p>'),
+                },
+            ] satisfies RichTextCustomToolbarItem[],
+            clicked: [] as string[],
+        },
+        template: `
+            <ui-rich-text-editor
+                mode="html"
+                [customToolbarItems]="items"
+                (customToolbarAction)="clicked.push($event.id)"
+                placeholder="Click 📅 or ✍️ in the toolbar, then undo."
+                minHeight="160px"
+            />
+            <p class="mt-2 text-sm text-muted-foreground">Clicked: {{ clicked.join(', ') || 'nothing yet' }}</p>
+        `,
+    }),
 };

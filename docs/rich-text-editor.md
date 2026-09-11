@@ -124,6 +124,33 @@ The outputs: `htmlChange`, `markdownChange`, `wordCountChange`,
 `historyChange`, `focused`, `blurred`, and `imageBlocked` for every remote
 image the host policy refused.
 
+### Your own toolbar buttons
+
+A button is data. Give it an `onClick` and there is nothing else to wire:
+
+```ts
+readonly items: RichTextCustomToolbarItem[] = [
+  { id: 'stamp', icon: '📅', tooltip: "Insert today's date",
+    onClick: (ref) => ref.insertText(new Date().toLocaleDateString()) },
+  { id: 'sign', icon: SIGN_SVG, tooltip: 'Insert signature',
+    onClick: (ref) => ref.insertHtml('<p><i>— Dana</i></p>') },
+];
+```
+
+```html
+<ui-rich-text-editor [customToolbarItems]="items" />
+```
+
+`icon` is inline SVG or a short text glyph; `order` sorts among your buttons
+(built-ins always come first); `isActive(formats)` drives the pressed state.
+The `RichTextEditorRef` a click receives has `insertText`, `insertHtml`,
+`focus`, `getSelectedText` and `getHtmlContent`, and every write goes through
+the editor, so it emits the outputs and records a history entry like a
+built-in button. `(customToolbarAction)` fires for every click as well, for
+a page that would rather handle all its buttons in one place. Addon authors
+who need a popover or a component in the toolbar use the slot registry
+described under "Writing your own addon"; the data path is built on it.
+
 ## Markdown shortcuts
 
 Typing a recognised Markdown marker turns it into real formatting the moment it
@@ -798,12 +825,6 @@ worked example.
 
 ## What is *not* an extension point
 
-- **`[customToolbarItems]` / `(customToolbarAction)` are gone.** They were a
-  third way to add a toolbar button, and the weakest: their inserts updated the
-  model but recorded no history entry, so undo would not step over them. Use a
-  toolbar slot. `RichTextCustomToolbarItem` and `RichTextEditorRef` went with
-  them; `npx @gilav21/shadcn-angular update rich-text-editor` prints the
-  mapping.
 - **The base barrel.** It never re-exports an addon, by design and by a
   `sync-registry` hard error.
 - **`contentRoot` as a write target.** Reading it is fine; writing to it

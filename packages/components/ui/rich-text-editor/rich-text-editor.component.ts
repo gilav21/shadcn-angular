@@ -116,6 +116,39 @@ export interface RichTextHistoryOptions {
 
 const DEFAULT_HISTORY_LIMIT = 100;
 const DEFAULT_HISTORY_DEBOUNCE_MS = 450;
+
+/**
+ * A toolbar button you add from data, no directive required — see
+ * {@link RichTextEditorComponent.customToolbarItems}.
+ */
+export interface RichTextCustomToolbarItem {
+    /** Stable id; the button renders with `data-addon-slot="<id>"`. */
+    readonly id: string;
+    /** Inline SVG markup, or a short text glyph such as an emoji. */
+    readonly icon: string;
+    readonly tooltip: string;
+    /** Sort order among added buttons; lower first. Default 500. */
+    readonly order?: number;
+    /** Pressed state, judged from the formats active at the caret. */
+    readonly isActive?: (formats: Set<string>) => boolean;
+    /** Handle the click here; `(customToolbarAction)` fires as well. */
+    readonly onClick?: (ref: RichTextEditorRef) => void;
+}
+
+/**
+ * The editor as a custom toolbar button sees it. Every write goes through
+ * the editor, so it lands in the model, emits the outputs and records a
+ * history entry like any built-in button.
+ */
+export interface RichTextEditorRef {
+    insertText(text: string): void;
+    insertHtml(html: string): void;
+    focus(): void;
+    getSelectedText(): string;
+    getHtmlContent(): string;
+}
+
+const CUSTOM_TOOLBAR_ITEM_ORDER = 500;
 /**
  * Determines the output format and internal handling of content.
  *
@@ -335,6 +368,27 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * @see {@link DEFAULT_TOOLBAR_ITEMS} for the default set.
      */
     readonly toolbarItems = input<ToolbarItem[]>(DEFAULT_TOOLBAR_ITEMS);
+
+    /**
+     * Your own toolbar buttons, as data. Each renders after the built-in items
+     * with the built-in styling; a click runs the item's `onClick` with a
+     * {@link RichTextEditorRef} and emits {@link customToolbarAction}.
+     *
+     * ```html
+     * <ui-rich-text-editor [customToolbarItems]="[
+     *   { id: 'stamp', icon: '📅', tooltip: 'Insert date', onClick: stamp }
+     * ]" />
+     * ```
+     */
+    readonly customToolbarItems = input<readonly RichTextCustomToolbarItem[]>([]);
+
+    /**
+     * Emits when a {@link customToolbarItems} button is clicked, with the
+     * item's `id` and a {@link RichTextEditorRef} for this editor. Use it when
+     * you would rather handle every custom button in one place than give each
+     * item an `onClick`.
+     */
+    readonly customToolbarAction = output<{ id: string; ref: RichTextEditorRef }>();
 
 
     /** Placeholder text shown when the editor is empty. Falls back to the locale default. */
@@ -916,6 +970,43 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.setupOutputEffects();
         this.setupFloatingToolbarEffect();
         this.setupFindRefreshEffect();
+        this.setupCustomToolbarItems();
+    }
+
+    /**
+     * Registers each {@link customToolbarItems} entry as a toolbar slot, so the
+     * data-driven path and the addon path render and behave identically. The
+     * previous registration is torn down first whenever the array changes.
+     */
+    private setupCustomToolbarItems(): void {
+        effect((onCleanup) => {
+            const ref = this.editorRef();
+            for (const item of this.customToolbarItems()) {
+                onCleanup(this.toolbarSlots.register({
+                    id: item.id,
+                    icon: item.icon,
+                    tooltip: item.tooltip,
+                    order: item.order ?? CUSTOM_TOOLBAR_ITEM_ORDER,
+                    isEnabled: () => !this.readonly() && !this.isDisabled(),
+                    isActive: item.isActive ? () => item.isActive?.(this.activeFormats()) ?? false : undefined,
+                    onClick: () => {
+                        item.onClick?.(ref);
+                        this.customToolbarAction.emit({ id: item.id, ref });
+                    },
+                }));
+            }
+        });
+    }
+
+    /** The editor as a custom button sees it; every write goes through the history-recording seams. */
+    private editorRef(): RichTextEditorRef {
+        return {
+            insertText: (text) => this.insertTextAtCaret(text),
+            insertHtml: (html) => this.insertHtmlAtCaret(html),
+            focus: () => this.focus(),
+            getSelectedText: () => this.selection().text,
+            getHtmlContent: () => this.htmlOutput(),
+        };
     }
 
     /**

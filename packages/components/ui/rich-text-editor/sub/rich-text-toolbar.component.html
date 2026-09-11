@@ -69,6 +69,7 @@
         [class]="addonButtonClasses(slot)"
         [title]="slot.tooltip"
         [attr.aria-label]="slot.tooltip"
+        [attr.aria-pressed]="slot.isActive ? addonSlotActive(slot) : null"
         [disabled]="interactionDisabled() || !addonSlotEnabled(slot)"
         (click)="addonSlotClick.emit({ slot, event: $event })"
       >

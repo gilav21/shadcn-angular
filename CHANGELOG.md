@@ -48,41 +48,26 @@ remote images, and ~110 fixes from a 25-round adversarial audit.
   off now inherits unless it sets its own list. Compiled-package users get the
   same table in this changelog and a build error naming each old binding.
 
-**One breaking change.** Every other breaking entry the CLI reports for the
-rich text editor — the addon extractions for images, links, tables, mentions,
-emoji, colours, typography, slash-commands, history, file-import, AI and
-outline — shipped in an earlier release and is unchanged here.
+**`[customToolbarItems]` stays, and now behaves.** A toolbar button is still
+one object in an array — `{ id, icon, tooltip }` — and a click still emits
+`(customToolbarAction)` with an editor ref. Two things changed underneath:
+the ref's `insertText` / `insertHtml` go through the editor now, so the
+insert lands in the model, fires the outputs and records a history entry
+(before, undo would not step over it); and an item may carry its own
+`onClick(ref)`, so a button that inserts a date is three lines with no
+handler to wire:
 
-- **`[customToolbarItems]` / `(customToolbarAction)` are removed**, along with
-  the `RichTextCustomToolbarItem` and `RichTextEditorRef` types, and the
-  toolbar's `[customItems]` / `(customItemClick)` / `customButtonClasses`.
+```html
+<ui-rich-text-editor [customToolbarItems]="[
+  { id: 'stamp', icon: '📅', tooltip: 'Insert date', onClick: stamp }
+]" />
+```
 
-  There were three ways to add a toolbar button and the weakest looked the
-  simplest. `customToolbarItems` handed you a ref whose inserts updated the
-  model but recorded **no history entry**, so undo would not step over them
-  cleanly.
-
-  Migrate to the addon-host seam, which is now the only path:
-
-  ```ts
-  // Before — removed
-  <ui-rich-text-editor [customToolbarItems]="items"
-                       (customToolbarAction)="onAction($event)" />
-
-  // After — a directive on the editor element
-  @Directive({ selector: '[myToolbarButton]', standalone: true })
-  export class MyToolbarButtonDirective {
-      private readonly host = inject(RichTextEditorAddonHost);
-      constructor() { this.host.toolbarSlots.register(/* ... */); }
-  }
-  ```
-
-  A template still binding the old input fails to compile (NG8002) rather than
-  silently ignoring it, and `npx @gilav21/shadcn-angular diff rich-text-editor`
-  prints the mapping from every removed ref method to its host equivalent.
-
-  No compat shim: the library is pre-1.0 and hedging with optional fields costs
-  more than it saves.
+The addon-host `toolbarSlots` path stays for addon authors; the data path is
+built on it. Every other breaking entry the CLI reports for the rich text
+editor — the addon extractions for images, links, tables, mentions, emoji,
+colours, typography, slash-commands, history, file-import, AI and outline —
+shipped in an earlier release and is unchanged here.
 
 ### ✨ New — `ui-rich-text-view`
 
