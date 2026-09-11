@@ -41,8 +41,32 @@ export interface SanitizerAttributeRule {
  * - Event handler removal
  * - Deep DOM traversal and cleaning
  */
-/** URL schemes a link in editor content may use. */
-const LINK_SCHEMES = new Set(['http', 'https', 'mailto', 'tel', 'sms', 'ftp']);
+/**
+ * URL schemes a link in editor content may use by default: the web's own,
+ * plus well-known application schemes a browser hands straight to an installed
+ * app (chat, calls, calendars, maps, source control). None of them can run
+ * script in the page. Consumers add their own through
+ * `[allowedLinkSchemes]` on the editor and the view.
+ */
+export const DEFAULT_LINK_SCHEMES: readonly string[] = [
+    'http', 'https', 'mailto', 'tel', 'sms', 'ftp', 'ftps', 'sftp',
+    'callto', 'sip', 'sips', 'facetime', 'facetime-audio',
+    'xmpp', 'matrix', 'irc', 'ircs', 'news', 'nntp',
+    'geo', 'maps', 'webcal', 'ssh', 'git',
+    'slack', 'msteams', 'skype', 'zoommtg', 'zoomus', 'whatsapp', 'tg', 'signal', 'spotify', 'discord',
+];
+
+/**
+ * Schemes no allowlist may re-admit: each one runs script, embeds a document,
+ * or reaches the local machine, so listing it under `[allowedLinkSchemes]` is
+ * a mistake the sanitizer refuses rather than honours.
+ */
+const FORBIDDEN_LINK_SCHEMES = new Set([
+    'javascript', 'vbscript', 'data', 'blob', 'filesystem', 'file', 'about', 'view-source',
+    'chrome', 'chrome-extension', 'moz-extension', 'ms-msdt', 'search-ms', 'ms-officecmd', 'res',
+]);
+
+const LINK_SCHEMES = new Set(DEFAULT_LINK_SCHEMES);
 
 /** How many resource decisions may wait undrained before the oldest is dropped. */
 const MAX_BUFFERED_DECISIONS = 256;
@@ -402,7 +426,7 @@ export class RichTextSanitizerService {
         // file: all reached a live href. Only the schemes ordinary links use are
         // accepted; a URL with no scheme at all is relative, and fine.
         const scheme = /^([a-z][a-z0-9+.-]*):/.exec(probe)?.[1];
-        if (scheme && !LINK_SCHEMES.has(scheme)) {
+        if (scheme && !this.isLinkSchemeAllowed(scheme)) {
             return false;
         }
 
@@ -450,10 +474,38 @@ export class RichTextSanitizerService {
         if (!/^[\\/]{2}/.test(probe) && !hasForeignAuthority(probe)) return null;
         try {
             const resolved = new URL(url, this.document.baseURI);
-            return LINK_SCHEMES.has(resolved.protocol.slice(0, -1)) ? resolved.href : null;
+            return this.isLinkSchemeAllowed(resolved.protocol.slice(0, -1)) ? resolved.href : null;
         } catch {
             return null;
         }
+    }
+
+    /**
+     * Extra link schemes the consumer allows, read live like the host policy.
+     * Empty by default; the built-in list is {@link DEFAULT_LINK_SCHEMES}.
+     */
+    private extraLinkSchemes: () => readonly string[] = () => [];
+
+    /**
+     * Widen the link-scheme allowlist. Accepts a reader so a component can hand
+     * over its input signal, for the same reason `setRemoteHostPolicy` does.
+     * A forbidden scheme (`javascript`, `data`, `file`, …) is ignored however
+     * it is listed.
+     */
+    setLinkSchemePolicy(schemes: readonly string[] | (() => readonly string[])): void {
+        if (typeof schemes === 'function') {
+            this.extraLinkSchemes = schemes;
+            return;
+        }
+        const copy = [...schemes];
+        this.extraLinkSchemes = () => copy;
+    }
+
+    private isLinkSchemeAllowed(scheme: string): boolean {
+        const lower = scheme.toLowerCase();
+        if (FORBIDDEN_LINK_SCHEMES.has(lower)) return false;
+        if (LINK_SCHEMES.has(lower)) return true;
+        return this.extraLinkSchemes().some((extra) => extra.trim().toLowerCase().replace(/:$/, '') === lower);
     }
 
     /**
@@ -991,6 +1043,12 @@ export class RichTextSanitizerService {
         return /<\s*svg\b/i.test(decoded);
     }
 
+    /** A percent-encoded payload as text, or null when an escape is malformed. */
+    private percentDecodeToText(payload: string): string | null {
+        const bytes = percentDecodeToBytes(payload);
+        return bytes === null ? null : new TextDecoder().decode(bytes);
+    }
+
     sanitizeSvgDataUrl(url: string): string | null {
         const comma = url.indexOf(',');
         if (comma === -1) return null;
@@ -1004,7 +1062,13 @@ export class RichTextSanitizerService {
         const isBase64 = /;base64/i.test(url.slice(0, comma));
 
         try {
-            const svgString = isBase64 ? atob(payload) : decodeURIComponent(payload);
+            // Byte-wise, then decoded with replacement: `decodeURIComponent`
+            // throws on any sequence that is not valid UTF-8, and the catch
+            // below then dropped the whole image for one stray byte in an
+            // otherwise ordinary SVG. A replacement character is scrubbed like
+            // any other text.
+            const svgString = isBase64 ? atob(payload) : this.percentDecodeToText(payload);
+            if (svgString === null) return null;
             const sanitized = sanitizeSvg(svgString);
             if (!sanitized) return null;
             return isBase64
@@ -1039,13 +1103,40 @@ export class RichTextSanitizerService {
                 // hex escape -- so "\\75rl(...)" sailed past a check for "url("
                 // and the browser then loaded it. A pasted document could plant
                 // a persistent tracking pixel that fires for every later viewer.
-                if (this.isStyleValueAllowed(value)) {
+                //
+                // Both the raw value and the browser's own reading of it must
+                // pass. The hand-written escape and comment decoders are one
+                // line of defence; the browser's tokenizer is the authority on
+                // what the value will actually mean, so the canonical form is
+                // judged too. The RAW value is what is stored, so output does
+                // not change shape (hex colours stay hex).
+                const canonical = this.canonicalStyleValue(property, value);
+                if (this.isStyleValueAllowed(value) && (canonical === null || this.isStyleValueAllowed(canonical))) {
                     safeStyles.push(`${property}: ${value}`);
                 }
             }
         }
 
         return safeStyles.join('; ');
+    }
+
+    /**
+     * A declaration's value as the browser serialises it after parsing, or
+     * null when the browser rejects the declaration or cannot serialise the
+     * property (some shorthands). Parsed through a constructed stylesheet that
+     * is never adopted, so nothing is fetched or applied.
+     */
+    private canonicalStyleValue(property: string, value: string): string | null {
+        if (typeof CSSStyleSheet !== 'function') return null;
+        try {
+            const sheet = new CSSStyleSheet();
+            sheet.replaceSync(`x{${property}:${value.replaceAll('}', '')}}`);
+            const rule = sheet.cssRules[0] as CSSStyleRule | undefined;
+            const canonical = rule?.style.getPropertyValue(property) ?? '';
+            return canonical === '' ? null : canonical;
+        } catch {
+            return null;
+        }
     }
 
     /**

@@ -85,6 +85,45 @@ inherent to the copy model: the base barrel can never re-export an addon,
 because the file would not compile for anyone who installed the base without
 it. `sync-registry` enforces that boundary as a hard error.
 
+## Configuring the editor
+
+Every option that has more than one knob is one input taking a typed object,
+so an IDE completes the fields and the defaults are documented on the type.
+Set only the fields you change.
+
+```html
+<ui-rich-text-editor
+  counter="both"
+  [history]="{ limit: 200, recordExternalWrites: true }"
+  [allowedImageHosts]="['cdn.acme.com']"
+  [allowedLinkSchemes]="['acme-crm']"
+  dir="rtl" />
+```
+
+| Input | Type | Default | Notes |
+|---|---|---|---|
+| `mode` | `EditorMode` | `'markdown'` | `'markdown'` or `'html'`: what the editor emits. |
+| `counter` | `CounterMode` | unset | `'characters'`, `'words'` or `'both'` below the editor. |
+| `maxLength` | `number` | unset | Advisory character limit, shown and announced. |
+| `history` | `RichTextHistoryOptions` | `{}` | `limit` (100), `debounceMs` (450), `recordExternalWrites` (false). |
+| `findDebounceMs` | `number` | `150` | Quiet time before a find query runs. |
+| `allowedImageHosts` | `string[]` | `[]` | Hosts images and CSS backgrounds may load from; empty means no policy. |
+| `allowedLinkSchemes` | `string[]` | `[]` | Link schemes on top of `DEFAULT_LINK_SCHEMES`. |
+| `blockedImageMessage` | `string` | unset | Caption on a blocked image; the locale's default otherwise. |
+| `dir` | `TextDirection` | unset | `'ltr'`, `'rtl'` or `'auto'`; unset follows the locale. |
+| `locale` | `LocaleInput<RichTextLocale>` | unset | A locale key or a full dictionary; addons inherit it. |
+
+Addons follow the same rule. The images addon, for instance, takes
+`[uiRteImagesUpload]` (`RichTextImagesUploadOptions`: `uploader`, `auto`,
+`sources`) and `[uiRteImagesLayout]` (`RichTextImagesLayoutOptions`: `resize`,
+`alignment`, `defaultWidth`, `defaultHeight`, `defaultAlignment`, `minWidth`,
+`maxWidth`, `lockAspectRatio`). The option types are exported from the barrel
+that owns the input.
+
+The outputs: `htmlChange`, `markdownChange`, `wordCountChange`,
+`historyChange`, `focused`, `blurred`, and `imageBlocked` for every remote
+image the host policy refused.
+
 ## Markdown shortcuts
 
 Typing a recognised Markdown marker turns it into real formatting the moment it
@@ -301,30 +340,11 @@ The industry answer is to proxy the image through your own servers, as Gmail
 does. This editor has no backend, so it offers the next best thing: you name the
 hosts you already trust.
 
-### Seeing your exposure first
-
-`remoteResource` fires for **every** remote image and CSS background the content
-references, allowed or not, even with no policy configured:
-
-```html
-<ui-rich-text-editor (remoteResource)="onRemote($event)" />
-```
-
-```ts
-onRemote(e: ResourcePolicyDecision): void {
-  // { url, host, kind: 'image' | 'background',
-  //   allowed: true, reason: 'no-policy' }
-  console.log(e.kind, e.host, e.reason);
-}
-```
-
-Log it against your real content before deciding whether to restrict anything.
-
-### Setting a policy
+### Naming the hosts you trust
 
 ```html
 <ui-rich-text-editor
-  [allowedResourceHosts]="['cdn.acme.com', '*.assets.acme.com']" />
+  [allowedImageHosts]="['cdn.acme.com', '*.assets.acme.com']" />
 ```
 
 Entries match the **parsed hostname**, exactly and case-insensitively. `*.`
@@ -382,11 +402,30 @@ cannot — who to ask, or why a host is not allowed:
 
 ```html
 <ui-rich-text-editor
-  [allowedResourceHosts]="hosts"
+  [allowedImageHosts]="hosts"
   [blockedImageMessage]="'Blocked — ask #it-help to allow this CDN'" />
 ```
 
 The message is inserted as text, never as markup.
+
+### Knowing what was blocked
+
+`imageBlocked` fires once per remote image or CSS background the policy
+refused, so a placeholder never appears without a record of why:
+
+```html
+<ui-rich-text-editor [allowedImageHosts]="hosts" (imageBlocked)="onBlocked($event)" />
+```
+
+```ts
+onBlocked(e: ResourcePolicyDecision): void {
+  // { url, host, kind: 'image' | 'background' }
+  console.warn(`blocked ${e.kind} from ${e.host}`);
+}
+```
+
+Nothing fires without a policy, because nothing is blocked. In dev mode each
+block is also logged to the console.
 
 ### What this does not do
 
@@ -400,10 +439,21 @@ It is also **not** the XSS boundary. `javascript:`, `vbscript:`,
 refused by the sanitizer regardless of any allowlist, and always were. The host
 policy only narrows what survives that.
 
-Links are a separate, fixed allowlist: an `href` keeps only `http`, `https`,
-`mailto`, `tel`, `sms` and `ftp`. A custom scheme (`slack://`, `geo:`) is
-stripped on save. A protocol-relative `//host/x` is kept, stored as the explicit
-absolute URL it resolves to, so a reader can always see where a link goes.
+Links have their own allowlist. An `href` keeps the web's schemes (`http`,
+`https`, `mailto`, `tel`, `sms`, `ftp`, …) plus well-known application schemes
+such as `slack`, `msteams`, `skype`, `zoommtg`, `whatsapp`, `tg`, `geo`, `webcal`,
+`xmpp` and `sip`; the full list is exported as `DEFAULT_LINK_SCHEMES`. An
+intranet with its own handler adds it on the editor and the view:
+
+```html
+<ui-rich-text-editor [allowedLinkSchemes]="['acme-crm']" />
+<ui-rich-text-view   [allowedLinkSchemes]="['acme-crm']" [value]="doc" />
+```
+
+Schemes that run script or reach the machine (`javascript`, `data`, `file`, …)
+are refused even if listed. A protocol-relative `//host/x` is kept, stored as
+the explicit absolute URL it resolves to, so a reader can always see where a
+link goes.
 
 ## Rendering published content — `ui-rich-text-view`
 
@@ -430,13 +480,13 @@ parser, with the editor's exact typography:
 | `size` | `'default'` | `'sm'` / `'lg'` apply the editor's text sizes. |
 | `dir` | unset | Unset inherits the page direction. |
 | `class` | `''` | Merged onto the content element. |
-| `allowedResourceHosts` | `[]` | Remote-host policy. Empty means no policy. |
-| `inheritResourcePolicy` | `false` | Take an enclosing policy when this view sets none. |
+| `allowedImageHosts` | `[]` | Hosts images and backgrounds may load from. Empty means no policy. |
+| `linkSchemes` | `[]` | Link schemes allowed on top of the built-in list. |
 | `blockedImageMessage` | unset | Overrides the blocked-image caption. |
 | `locale` | unset | Locale for the caption; falls through to the app-wide `UI_LOCALE_ID`. |
 
-The view has the same `(remoteResource)` output as the editor. It is the
-surface readers see, so it is where exposure is best measured.
+The view has the same `(imageBlocked)` output as the editor. It is the
+surface readers see, so it is where a block matters most.
 
 ### The policy does not travel with the document
 
@@ -447,29 +497,27 @@ policy loads every remote host the document names, whatever the editor allowed:
 
 ```html
 <ui-rich-text-view [value]="post.body"
-                   [allowedResourceHosts]="['cdn.acme.com']" />
+                   [allowedImageHosts]="['cdn.acme.com']" />
 ```
 
 Everything above applies unchanged: same matching, same `data:`/relative
 exemptions, same reversible `data-blocked-src` placeholder.
 
-For a page rendering many views under one policy, put the list on a wrapper and
-opt each view in, rather than repeating it and eventually missing one:
+For a page rendering many views under one policy, put it on a wrapper rather
+than repeating it and eventually missing one. Editors beneath the wrapper take
+it the same way:
 
 ```html
-<!-- Editors opt in the same way: [inheritResourcePolicy]="true" -->
-<div [uiRichTextResourcePolicy]="['cdn.acme.com', '*.assets.acme.com']">
+<div [uiRichTextAllow]="{ imageHosts: ['cdn.acme.com', '*.assets.acme.com'], linkSchemes: ['acme-crm'] }">
   @for (post of posts; track post.id) {
-    <ui-rich-text-view [value]="post.body" [inheritResourcePolicy]="true" />
+    <ui-rich-text-view [value]="post.body" />
   }
 </div>
 ```
 
-Inheritance is opt-in per view, so an empty `allowedResourceHosts` keeps exactly
-one meaning — no policy — instead of being ambiguous between "none" and
-"whatever encloses me". A view that sets its own list always wins, and the two
-lists are **never merged**: a strict view cannot be widened by a looser
-ancestor.
+A view or editor that sets its own `allowedImageHosts` or `linkSchemes` keeps that
+list whole; the wrapper's is **never merged** in, so a strict view cannot be
+widened by a looser ancestor.
 
 It installs with `add rich-text-view`, which pulls in the editor base — the
 sanitizer and the markdown parser are shared.

@@ -2622,8 +2622,8 @@
       "lines": 591
     },
     "dialog/dialog.component.ts": {
-      "bytes": 1328,
-      "lines": 45
+      "bytes": 1834,
+      "lines": 60
     },
     "dialog/dialog.stories.ts": {
       "bytes": 8451,
@@ -2642,8 +2642,8 @@
       "lines": 42
     },
     "dialog/sub/dialog-content.component.ts": {
-      "bytes": 5582,
-      "lines": 156
+      "bytes": 5940,
+      "lines": 161
     },
     "dialog/sub/dialog-description.component.ts": {
       "bytes": 400,
@@ -2794,8 +2794,8 @@
       "lines": 337
     },
     "drawer/drawer.component.ts": {
-      "bytes": 3467,
-      "lines": 112
+      "bytes": 3821,
+      "lines": 119
     },
     "drawer/drawer.coverage.spec.ts": {
       "bytes": 13221,
@@ -2818,8 +2818,8 @@
       "lines": 40
     },
     "drawer/sub/drawer-content.component.ts": {
-      "bytes": 4394,
-      "lines": 127
+      "bytes": 4676,
+      "lines": 131
     },
     "drawer/sub/drawer-description.component.ts": {
       "bytes": 381,
@@ -6369,6 +6369,10 @@
       "bytes": 6364,
       "lines": 6
     },
+    "popover/__screenshots__/popover.component.spec.ts/PopoverComponent---overlay-layers--follow-up-F2--closes-only-the-innermost-of-two-open-popovers-per-Escape-1.png": {
+      "bytes": 6134,
+      "lines": 4
+    },
     "popover/__screenshots__/popover.component.spec.ts/PopoverComponent-closes-on-Escape-1.png": {
       "bytes": 4290,
       "lines": 3
@@ -6582,12 +6586,12 @@
       "lines": 4
     },
     "popover/popover.component.spec.ts": {
-      "bytes": 24926,
-      "lines": 649
+      "bytes": 26710,
+      "lines": 693
     },
     "popover/popover.component.ts": {
-      "bytes": 6493,
-      "lines": 172
+      "bytes": 6954,
+      "lines": 182
     },
     "popover/popover.coverage.spec.ts": {
       "bytes": 24561,
@@ -6845,6 +6849,54 @@
       "bytes": 1440,
       "lines": 36
     },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---allowedLinkSchemes-on-the-editor--follow-up-F6--keeps-a-custom-scheme-once-listed--and-re-judges-the-document-when-the-list-changes-1.png": {
+      "bytes": 11324,
+      "lines": 9
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---find-and-replace-T-17-replaceAll-flushes-pending-typing-then-records-exactly-one-entry--one-undo-restores-all-1.png": {
+      "bytes": 10081,
+      "lines": 12
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---find-and-replace-T-18-replaceSingle-records-one-entry-and-advances-to-the-next-remaining-match-1.png": {
+      "bytes": 10853,
+      "lines": 8
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---find-and-replace-T-28-a-2-000-match-500-KB-document-searches-in---200-ms-and-paints-a-capped-number-of-rects-1.png": {
+      "bytes": 26576,
+      "lines": 51
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---history-delta--undo-redo---destroy-reconstructHtml-walks-a-keyframe-entry-mid-loop-when-the-flag-flips-between-the-backward-scan-and-the-forward-pass--white-box--provably-unreachable-via-any-static-history-array--1.png": {
+      "bytes": 9210,
+      "lines": 4
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---history-delta--undo-redo---destroy-reconstructHtml-walks-through-an-interior-keyframe-and-a-delta-less-entry-in-a-malformed-history--white-box--1.png": {
+      "bytes": 9210,
+      "lines": 4
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---history-delta--undo-redo---destroy-reconstructs-content-from-delta-entries-across-many-snapshots--undo-walks-back-exactly--1.png": {
+      "bytes": 10655,
+      "lines": 4
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---history-delta--undo-redo---destroy-selecting-then-pushing-new-content-truncates-the-redo-branch-1.png": {
+      "bytes": 11169,
+      "lines": 5
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---history-delta--undo-redo---destroy-trims-history-to-the-configured-limit--promoting-a-new-keyframe-1.png": {
+      "bytes": 10052,
+      "lines": 5
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---imperative-API-T-3-insertText-from-a-blurred-editor-inserts-at-the-saved-caret--calls-onChange-once--pushes-one-entry-and-focuses-1.png": {
+      "bytes": 12038,
+      "lines": 10
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---imperative-API-T-5-insertHtml-sanitizes--pushes-one-entry-and-calls-onChange-once-1.png": {
+      "bytes": 9531,
+      "lines": 8
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---imperative-API-T-6b-format--bold---bolds-the-selection--records-one-entry--updates-activeFormats-and-focuses-1.png": {
+      "bytes": 11116,
+      "lines": 10
+    },
     "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---remote-resource-policy-on-the-FIRST-render--fine-comb-review--content-written-from-a-parent-ngOnInit-is-judged-under-the-policy-too-1.png": {
       "bytes": 12479,
       "lines": 5
@@ -6873,7 +6925,71 @@
       "bytes": 18675,
       "lines": 22
     },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---targeted-branch-coverage-top-up-clears-the-undo-redo-replay-flag-when-the-replay-finishes--not-on-the-next-input-1.png": {
+      "bytes": 12023,
+      "lines": 8
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---targeted-branch-coverage-top-up-typing-after-an-undo-is-recorded-as-a-new-edit--not-swallowed-by-the-replay-1.png": {
+      "bytes": 12023,
+      "lines": 8
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---undo-consistency-T-31-setContent-records-one-entry-by-default--calls-onChange--undo-redo-round-trips-1.png": {
+      "bytes": 10623,
+      "lines": 7
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---undo-consistency-T-34-recordExternalWrites-true-makes-writeValue-push-one-entry--undo-restores-the-previous-content-1.png": {
+      "bytes": 11744,
+      "lines": 9
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent---undo-consistency-T-35-insertTextFromOverlay-records-its-own-entry--one-undo-removes-only-the-inserted-text--1.png": {
+      "bytes": 11276,
+      "lines": 6
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-debounces-history-snapshots-for-rapid-typing-1.png": {
+      "bytes": 9900,
+      "lines": 6
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-markdown-input-rules-guards-does-not-fire-while-replaying-an-undo-1.png": {
+      "bytes": 10165,
+      "lines": 6
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-marks-list-items-in-history-previews-with-a-real-bullet-character-1.png": {
+      "bytes": 11323,
+      "lines": 7
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-selecting-a-history-entry-restores-content-and-keeps-forward-history-for-redo-1.png": {
+      "bytes": 10820,
+      "lines": 7
+    },
+    "rich-text-editor/__screenshots__/rich-text-editor.component.spec.ts/RichTextEditorComponent-stores-multiline-friendly-preview-lines-in-history-entries-1.png": {
+      "bytes": 11320,
+      "lines": 12
+    },
+    "rich-text-editor/__screenshots__/rich-text-markdown.roundtrip.spec.ts/RichTextMarkdownService---shapes-the-round-trip-used-to-corrupt--fine-comb-review--reads-a-spaced-thematic-break-as-a-rule--not-a-bullet-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/__screenshots__/rich-text-markdown.service.spec.ts/RichTextMarkdownService-block-content-inside-a-list-item--round-26-audit--keeps-a-quote--heading--table-or-code-block-inside-its-item-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/__screenshots__/rich-text-markdown.service.spec.ts/RichTextMarkdownService-block-content-inside-a-list-item--round-26-audit--parses-a-hand-written-CommonMark-continuation-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
     "rich-text-editor/__screenshots__/rich-text-markdown.service.spec.ts/RichTextMarkdownService-styled-spans-survive-a-save--colour-and-highlight--cannot-break-out-of-the-style-attribute-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/__screenshots__/rich-text-sanitizer.service.spec.ts/RichTextSanitizerService---references-resolved-from-the-page--fine-comb-review--rewrites-a-protocol-relative-link-to-the-explicit-absolute-URL-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/__screenshots__/rich-text-sanitizer.service.spec.ts/RichTextSanitizerService---structural-size-ceiling-backslash-forms-of-a-protocol-relative-URL--round-17-audit--rewrites-such-an-href-to-the-explicit-absolute-URL-in-a-full-sanitize-pass-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "rich-text-editor/__screenshots__/rich-text-sanitizer.service.spec.ts/RichTextSanitizerService---style-values-judged-as-the-browser-reads-them--follow-up-F1--keeps-ordinary-values--shorthands-included--in-their-original-spelling-1.png": {
       "bytes": 4290,
       "lines": 3
     },
@@ -7090,8 +7206,8 @@
       "lines": 32
     },
     "rich-text-editor/addons/ai/__screenshots__/rich-text-ai.directive.spec.ts/RichTextAiDirective-refuses-to-commit-a-draft-that-would-exceed-maxLength-1.png": {
-      "bytes": 14381,
-      "lines": 18
+      "bytes": 14393,
+      "lines": 14
     },
     "rich-text-editor/addons/ai/index.ts": {
       "bytes": 217,
@@ -7130,12 +7246,12 @@
       "lines": 57
     },
     "rich-text-editor/addons/ai/rich-text-ai.directive.spec.ts": {
-      "bytes": 28224,
-      "lines": 711
+      "bytes": 29322,
+      "lines": 735
     },
     "rich-text-editor/addons/ai/rich-text-ai.directive.ts": {
-      "bytes": 21885,
-      "lines": 544
+      "bytes": 22278,
+      "lines": 549
     },
     "rich-text-editor/addons/ai/rich-text-ai.locales.ts": {
       "bytes": 10020,
@@ -7321,6 +7437,10 @@
       "bytes": 4290,
       "lines": 3
     },
+    "rich-text-editor/addons/emoji/__screenshots__/rich-text-emoji.directive.spec.ts/RichTextEmojiDirective-T-43-picking-an-emoji-creates-exactly-one-history-entry-1.png": {
+      "bytes": 11707,
+      "lines": 6
+    },
     "rich-text-editor/addons/emoji/index.ts": {
       "bytes": 183,
       "lines": 4
@@ -7346,7 +7466,7 @@
       "lines": 16
     },
     "rich-text-editor/addons/emoji/rich-text-emoji.directive.spec.ts": {
-      "bytes": 8631,
+      "bytes": 8635,
       "lines": 218
     },
     "rich-text-editor/addons/emoji/rich-text-emoji.directive.ts": {
@@ -7474,8 +7594,8 @@
       "lines": 4
     },
     "rich-text-editor/addons/history/__screenshots__/rich-text-history.directive.spec.ts/RichTextHistoryDirective-flushes-a-pending-debounced-snapshot-when-the-panel-opens-1.png": {
-      "bytes": 11365,
-      "lines": 4
+      "bytes": 12633,
+      "lines": 7
     },
     "rich-text-editor/addons/history/__screenshots__/rich-text-history.directive.spec.ts/RichTextHistoryDirective-honours-a-shortcut-binding-override-for-the-history-action-1.png": {
       "bytes": 11365,
@@ -7514,8 +7634,8 @@
       "lines": 4
     },
     "rich-text-editor/addons/history/__screenshots__/rich-text-history.directive.spec.ts/RichTextHistoryDirective-restores-an-earlier-revision-and-keeps-forward-entries-for-redo-1.png": {
-      "bytes": 11365,
-      "lines": 4
+      "bytes": 11617,
+      "lines": 5
     },
     "rich-text-editor/addons/history/index.ts": {
       "bytes": 145,
@@ -7534,7 +7654,7 @@
       "lines": 323
     },
     "rich-text-editor/addons/history/rich-text-history.directive.spec.ts": {
-      "bytes": 13069,
+      "bytes": 13073,
       "lines": 314
     },
     "rich-text-editor/addons/history/rich-text-history.directive.ts": {
@@ -7546,7 +7666,7 @@
       "lines": 226
     },
     "rich-text-editor/addons/history/rich-text-history.stories.ts": {
-      "bytes": 2392,
+      "bytes": 2398,
       "lines": 73
     },
     "rich-text-editor/addons/images/__screenshots__/rich-text-images-button.component.spec.ts/RichTextImagesButtonComponent-clears-the-URL-and-alt-fields-after-an-insert-1.png": {
@@ -7810,20 +7930,20 @@
       "lines": 28
     },
     "rich-text-editor/addons/images/rich-text-images.directive.spec.ts": {
-      "bytes": 40197,
-      "lines": 901
+      "bytes": 40152,
+      "lines": 898
     },
     "rich-text-editor/addons/images/rich-text-images.directive.ts": {
-      "bytes": 27201,
-      "lines": 667
+      "bytes": 28481,
+      "lines": 704
     },
     "rich-text-editor/addons/images/rich-text-images.locales.ts": {
       "bytes": 7191,
       "lines": 37
     },
     "rich-text-editor/addons/images/rich-text-images.stories.ts": {
-      "bytes": 3576,
-      "lines": 111
+      "bytes": 3425,
+      "lines": 106
     },
     "rich-text-editor/addons/images/rich-text-images.utils.spec.ts": {
       "bytes": 7777,
@@ -7978,12 +8098,12 @@
       "lines": 71
     },
     "rich-text-editor/addons/mentions/rich-text-mention-popover.component.spec.ts": {
-      "bytes": 6644,
-      "lines": 174
+      "bytes": 7904,
+      "lines": 197
     },
     "rich-text-editor/addons/mentions/rich-text-mention-popover.component.ts": {
-      "bytes": 7975,
-      "lines": 228
+      "bytes": 8215,
+      "lines": 235
     },
     "rich-text-editor/addons/mentions/rich-text-mentions.directive.spec.ts": {
       "bytes": 20492,
@@ -8378,8 +8498,12 @@
       "lines": 41
     },
     "rich-text-editor/index.ts": {
-      "bytes": 758,
+      "bytes": 739,
       "lines": 16
+    },
+    "rich-text-editor/rich-text-allow.directive.ts": {
+      "bytes": 1426,
+      "lines": 38
     },
     "rich-text-editor/rich-text-command-registry.service.spec.ts": {
       "bytes": 3400,
@@ -8398,36 +8522,36 @@
       "lines": 77
     },
     "rich-text-editor/rich-text-editor.component.html": {
-      "bytes": 19296,
+      "bytes": 19304,
       "lines": 301
     },
     "rich-text-editor/rich-text-editor.component.spec.ts": {
-      "bytes": 455932,
-      "lines": 10619
+      "bytes": 460149,
+      "lines": 10709
     },
     "rich-text-editor/rich-text-editor.component.ts": {
-      "bytes": 308665,
-      "lines": 7385
+      "bytes": 310050,
+      "lines": 7411
     },
     "rich-text-editor/rich-text-editor.fixtures.ts": {
       "bytes": 817,
       "lines": 22
     },
     "rich-text-editor/rich-text-editor.host.ts": {
-      "bytes": 18774,
-      "lines": 383
+      "bytes": 19068,
+      "lines": 387
     },
     "rich-text-editor/rich-text-editor.stories.ts": {
-      "bytes": 22367,
-      "lines": 722
+      "bytes": 21969,
+      "lines": 713
     },
     "rich-text-editor/rich-text-editor.validators.spec.ts": {
-      "bytes": 10300,
-      "lines": 245
+      "bytes": 11008,
+      "lines": 256
     },
     "rich-text-editor/rich-text-editor.validators.ts": {
-      "bytes": 8841,
-      "lines": 224
+      "bytes": 9859,
+      "lines": 242
     },
     "rich-text-editor/rich-text-find.utils.spec.ts": {
       "bytes": 5677,
@@ -8446,20 +8570,20 @@
       "lines": 163
     },
     "rich-text-editor/rich-text-locales.ts": {
-      "bytes": 35415,
-      "lines": 900
+      "bytes": 34824,
+      "lines": 888
     },
     "rich-text-editor/rich-text-markdown.roundtrip.spec.ts": {
-      "bytes": 3719,
-      "lines": 68
+      "bytes": 5941,
+      "lines": 111
     },
     "rich-text-editor/rich-text-markdown.service.spec.ts": {
       "bytes": 114833,
       "lines": 2281
     },
     "rich-text-editor/rich-text-markdown.service.ts": {
-      "bytes": 91805,
-      "lines": 2105
+      "bytes": 96074,
+      "lines": 2190
     },
     "rich-text-editor/rich-text-paste-normalizer.service.spec.ts": {
       "bytes": 106418,
@@ -8473,25 +8597,21 @@
       "bytes": 3175,
       "lines": 43
     },
-    "rich-text-editor/rich-text-resource-policy.directive.ts": {
-      "bytes": 1832,
-      "lines": 43
-    },
     "rich-text-editor/rich-text-resource-policy.spec.ts": {
-      "bytes": 10981,
-      "lines": 241
+      "bytes": 12109,
+      "lines": 263
     },
     "rich-text-editor/rich-text-resource-policy.ts": {
-      "bytes": 12611,
-      "lines": 292
+      "bytes": 15917,
+      "lines": 374
     },
     "rich-text-editor/rich-text-sanitizer.service.spec.ts": {
-      "bytes": 60818,
-      "lines": 1309
+      "bytes": 70786,
+      "lines": 1494
     },
     "rich-text-editor/rich-text-sanitizer.service.ts": {
-      "bytes": 43065,
-      "lines": 1055
+      "bytes": 50620,
+      "lines": 1201
     },
     "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-getTooltip-falls-back-to-the-raw-name-for-an-item-outside-the-union-1.png": {
       "bytes": 6736,
@@ -8502,7 +8622,7 @@
       "lines": 5
     },
     "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-keyboard-navigation--WAI-ARIA-toolbar-pattern--gives-the-text-style-select-and-addon-buttons-a-roving-tabindex-too-1.png": {
-      "bytes": 6181,
+      "bytes": 6311,
       "lines": 4
     },
     "rich-text-editor/sub/__screenshots__/rich-text-toolbar.component.spec.ts/RichTextToolbarComponent-keyboard-navigation--WAI-ARIA-toolbar-pattern--jumps-to-the-first-and-last-button-with-Home-and-End-1.png": {
@@ -8530,12 +8650,12 @@
       "lines": 79
     },
     "rich-text-editor/sub/rich-text-toolbar.component.spec.ts": {
-      "bytes": 34634,
-      "lines": 754
+      "bytes": 34819,
+      "lines": 757
     },
     "rich-text-editor/sub/rich-text-toolbar.component.ts": {
-      "bytes": 33262,
-      "lines": 606
+      "bytes": 34113,
+      "lines": 622
     },
     "rich-text-security.spec.ts": {
       "bytes": 12753,
@@ -8610,15 +8730,15 @@
       "lines": 1
     },
     "rich-text-view/rich-text-view.component.spec.ts": {
-      "bytes": 28132,
-      "lines": 685
+      "bytes": 28845,
+      "lines": 696
     },
     "rich-text-view/rich-text-view.component.ts": {
-      "bytes": 11304,
-      "lines": 270
+      "bytes": 10625,
+      "lines": 251
     },
     "rich-text-view/rich-text-view.stories.ts": {
-      "bytes": 6171,
+      "bytes": 6106,
       "lines": 167
     },
     "ripple.directive.spec.ts": {
@@ -8826,8 +8946,8 @@
       "lines": 598
     },
     "sheet/sheet.component.ts": {
-      "bytes": 3389,
-      "lines": 114
+      "bytes": 3742,
+      "lines": 121
     },
     "sheet/sheet.stories.ts": {
       "bytes": 7297,
@@ -8838,8 +8958,8 @@
       "lines": 58
     },
     "sheet/sub/sheet-content.component.ts": {
-      "bytes": 6848,
-      "lines": 194
+      "bytes": 7128,
+      "lines": 198
     },
     "sheet/sub/sheet-description.component.ts": {
       "bytes": 378,
@@ -11088,8 +11208,8 @@
       "lines": 123
     },
     "grapheme.ts": {
-      "bytes": 1693,
-      "lines": 46
+      "bytes": 2149,
+      "lines": 59
     },
     "i18n/calendar.locales.ts": {
       "bytes": 7619,
@@ -11122,6 +11242,14 @@
     "input-group.token.ts": {
       "bytes": 462,
       "lines": 12
+    },
+    "overlay-stack.service.spec.ts": {
+      "bytes": 1413,
+      "lines": 41
+    },
+    "overlay-stack.service.ts": {
+      "bytes": 1647,
+      "lines": 41
     },
     "page-builder.types.ts": {
       "bytes": 2523,

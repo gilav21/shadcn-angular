@@ -24,6 +24,23 @@ remote images, and ~110 fixes from a 25-round adversarial audit.
 
 ### ⚠️ Breaking
 
+- **Simpler names on the editor and the view.** The security inputs read as
+  sentences now, and two pairs of knobs became one input each:
+
+  | Before | Now |
+  |---|---|
+  | `[allowedResourceHosts]` | `[allowedImageHosts]` |
+  | `[inheritResourcePolicy]` | gone — a component under a wrapper takes it unless it sets its own list |
+  | `[uiRichTextResourcePolicy]="hosts"` | `[uiRichTextAllow]="{ imageHosts, linkSchemes }"` |
+  | `(remoteResource)` (every reference, allowed or not) | `(imageBlocked)` (blocks only) |
+  | `[showCount]` + `[showWordCount]` | `counter="characters" \| "words" \| "both"` |
+  | `[historyLimit]`, `[historyDebounceMs]`, `[recordExternalWrites]` | `[history]="{ limit, debounceMs, recordExternalWrites }"` (`RichTextHistoryOptions`) |
+  | `[uiRteImagesUploader]`, `[uiRteImagesAutoUpload]`, `[uiRteImagesSources]` | `[uiRteImagesUpload]="{ uploader, auto, sources }"` (`RichTextImagesUploadOptions`) |
+  | `[uiRteImagesResize]`, `…Alignment`, `…DefaultWidth`, `…DefaultHeight`, `…DefaultAlignment`, `…MinWidth`, `…MaxWidth`, `…LockAspectRatio` | `[uiRteImagesLayout]="{ … }"` (`RichTextImagesLayoutOptions`) |
+
+  Every option object has an exported type with documented defaults, so an
+  IDE completes the fields. The editor also gains the view's `dir` input.
+
 **One breaking change.** Every other breaking entry the CLI reports for the
 rich text editor — the addon extractions for images, links, tables, mentions,
 emoji, colours, typography, slash-commands, history, file-import, AI and
@@ -88,18 +105,14 @@ so it offers the next best thing — you name the hosts you already trust.
 means no policy and today's behaviour exactly.
 
 ```html
-<!-- See your exposure first: fires for EVERY remote image and CSS background,
-     allowed or not, even with no policy set -->
-<ui-rich-text-editor (remoteResource)="log($event)" />
+<!-- Name the hosts you trust, on the editor and the view -->
+<ui-rich-text-editor [allowedImageHosts]="['cdn.acme.com', '*.assets.acme.com']" />
+<ui-rich-text-view   [allowedImageHosts]="hosts" (imageBlocked)="log($event)" />
 
-<!-- Then restrict, on the editor and the view -->
-<ui-rich-text-editor [allowedResourceHosts]="['cdn.acme.com', '*.assets.acme.com']" />
-<ui-rich-text-view   [allowedResourceHosts]="hosts" />
-
-<!-- Or once, for a page full of views -->
-<div [uiRichTextResourcePolicy]="hosts">
+<!-- Or once, for a page full of views and editors -->
+<div [uiRichTextAllow]="{ imageHosts, linkSchemes: ['acme-crm'] }">
   @for (post of posts; track post.id) {
-    <ui-rich-text-view [value]="post.body" [inheritResourcePolicy]="true" />
+    <ui-rich-text-view [value]="post.body" />
   }
 </div>
 ```
@@ -164,9 +177,8 @@ means no policy and today's behaviour exactly.
   it looked unparsable, unparsable read as "relative", and the reference
   walked past the allowlist unjudged. Every reference now resolves the way
   the browser resolves it, from the page.
-- **`[uiRichTextResourcePolicy]` reaches editors too.** The editor gains
-  `[inheritResourcePolicy]`, like the view; the wrapper's contract said
-  "every editor and view beneath" and only the view honoured it.
+- **The allow wrapper reaches editors too.** Its contract said "every editor
+  and view beneath" and only the view honoured it.
 - **Enter on a list item or quoted line that holds only an image** no longer
   deletes the image.
 - **AI addon: accepting a draft respected the wrong limit.** A draft longer
@@ -225,8 +237,8 @@ means no policy and today's behaviour exactly.
 - **Spreadsheet-style table cell selection.**
 - **A character limit** that is both shown and announced.
 - **One `[locale]` binding localises every addon.**
-- `[recordExternalWrites]`, `[findDebounceMs]`, `[historyDebounceMs]` and
-  `[historyLimit]` for tuning.
+- `[history]="{ limit, debounceMs, recordExternalWrites }"` and
+  `[findDebounceMs]` for tuning.
 
 ### 🔐 Security fixes
 

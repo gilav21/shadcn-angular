@@ -78,7 +78,7 @@ interface AutoUploadPending {
  * Opt-in images addon for `<ui-rich-text-editor>`. Attaches via DI to the
  * `RichTextEditorAddonHost` the base provides and owns the whole image feature:
  * the toolbar image button + insert popover, image paste and drag-and-drop, the
- * upload pipeline (`uiRteImagesUploader` + `uiRteImagesAutoUpload`), and the
+ * upload pipeline (`uiRteImagesUpload`), and the
  * resize/align overlay on a selected image. The base editor keeps only
  * content-level image support (sanitizer + markdown); every image control is
  * opt-in through this directive.
@@ -92,9 +92,54 @@ interface AutoUploadPending {
  * `[locale]` input.
  *
  * ```html
- * <ui-rich-text-editor uiRteImages [uiRteImagesUploader]="upload" />
+ * <ui-rich-text-editor uiRteImages [uiRteImagesUpload]="{ uploader: upload }" />
  * ```
  */
+/**
+ * How images reach their final URL. Every field optional; unset fields keep
+ * the defaults shown.
+ */
+export interface RichTextImagesUploadOptions {
+    /** Turns a picked, dropped or pasted `File` into the URL stored in the document. Without it, files are refused. */
+    readonly uploader?: (file: File) => Observable<string>;
+    /** Also send base64 images that were pasted or typed through `uploader`. Default `false`. */
+    readonly auto?: boolean;
+    /** Which sources the insert popover offers. Default `'all'`. */
+    readonly sources?: RichTextImageSources;
+}
+
+/**
+ * How inserted images are sized and placed. Every field optional; unset
+ * fields keep the defaults shown.
+ */
+export interface RichTextImagesLayoutOptions {
+    /** Drag handles on a selected image. Default `true`. */
+    readonly resize?: boolean;
+    /** Alignment buttons on a selected image. Default `true`. */
+    readonly alignment?: boolean;
+    /** Width applied to every inserted image (px or any CSS length). */
+    readonly defaultWidth?: number | string;
+    /** Height applied to every inserted image (px or any CSS length). */
+    readonly defaultHeight?: number | string;
+    /** Alignment applied to every inserted image. Default `'inline'`. */
+    readonly defaultAlignment?: ImageAlignment;
+    /** Lower clamp for drag-resizing, in px. Default `20`. */
+    readonly minWidth?: number;
+    /** Upper clamp for drag-resizing, in px. No ceiling when unset. */
+    readonly maxWidth?: number;
+    /** Keep the aspect ratio while resizing. Default `true`. */
+    readonly lockAspectRatio?: boolean;
+}
+
+const DEFAULT_UPLOAD: Required<Pick<RichTextImagesUploadOptions, 'auto' | 'sources'>> = { auto: false, sources: 'all' };
+const DEFAULT_LAYOUT: Required<Pick<RichTextImagesLayoutOptions, 'resize' | 'alignment' | 'defaultAlignment' | 'minWidth' | 'lockAspectRatio'>> = {
+    resize: true,
+    alignment: true,
+    defaultAlignment: 'inline',
+    minWidth: 20,
+    lockAspectRatio: true,
+};
+
 @Directive({
     selector: 'ui-rich-text-editor[uiRteImages], ui-rich-text-editor[uiRteFull]',
     standalone: true,
@@ -115,28 +160,20 @@ export class RichTextImagesDirective {
     readonly uiRteImagesOrder = input(325);
     /** Contribute the toolbar button (default true). */
     readonly uiRteImagesToolbar = input(true);
-    /** Custom upload handler; returns an `Observable<string>` of the final URL. */
-    readonly uiRteImagesUploader = input<((file: File) => Observable<string>) | undefined>(undefined);
-    /** Auto-upload base64 images pasted/typed into the editor. */
-    readonly uiRteImagesAutoUpload = input(false);
-    /** Which sources the insert popover offers. */
-    readonly uiRteImagesSources = input<RichTextImageSources>('all');
-    /** Allow drag-resizing inserted images. */
-    readonly uiRteImagesResize = input(true);
-    /** Show the alignment buttons on a selected image. */
-    readonly uiRteImagesAlignment = input(true);
-    /** Default width applied to every inserted image. */
-    readonly uiRteImagesDefaultWidth = input<number | string>();
-    /** Default height applied to every inserted image. */
-    readonly uiRteImagesDefaultHeight = input<number | string>();
-    /** Alignment applied to every inserted image. */
-    readonly uiRteImagesDefaultAlignment = input<ImageAlignment>('inline');
-    /** Lower clamp (px) for drag-resizing. */
-    readonly uiRteImagesMinWidth = input(20);
-    /** Upper clamp (px) for drag-resizing. No ceiling when unset. */
-    readonly uiRteImagesMaxWidth = input<number>();
-    /** Keep aspect ratio locked while resizing. */
-    readonly uiRteImagesLockAspectRatio = input(true);
+    /**
+     * How images get uploaded — see {@link RichTextImagesUploadOptions}. Set
+     * only the fields you change: `{ uploader, auto: true }`.
+     */
+    readonly uiRteImagesUpload = input<RichTextImagesUploadOptions>({});
+    /**
+     * How inserted images are sized and placed — see
+     * {@link RichTextImagesLayoutOptions}. Set only the fields you change:
+     * `{ defaultWidth: 240, maxWidth: 480 }`.
+     */
+    readonly uiRteImagesLayout = input<RichTextImagesLayoutOptions>({});
+
+    private readonly upload = computed(() => ({ ...DEFAULT_UPLOAD, ...this.uiRteImagesUpload() }));
+    private readonly layout = computed(() => ({ ...DEFAULT_LAYOUT, ...this.uiRteImagesLayout() }));
 
     /** Emits the `File` when an image upload begins. */
     readonly imageUploadStart = output<File>();
@@ -221,20 +258,20 @@ export class RichTextImagesDirective {
 
 
     private canUseUpload(): boolean {
-        const s = this.uiRteImagesSources();
+        const s = this.upload().sources;
         return s === 'all' || s === 'upload';
     }
 
     private canUseUrl(): boolean {
-        const s = this.uiRteImagesSources();
+        const s = this.upload().sources;
         return s === 'all' || s === 'url';
     }
 
     private insertDefaults(): ImageInsertDefaults {
         return {
-            width: this.uiRteImagesDefaultWidth(),
-            height: this.uiRteImagesDefaultHeight(),
-            alignment: this.uiRteImagesDefaultAlignment(),
+            width: this.layout().defaultWidth,
+            height: this.layout().defaultHeight,
+            alignment: this.layout().defaultAlignment,
         };
     }
 
@@ -242,7 +279,7 @@ export class RichTextImagesDirective {
     private registerToolbarSlot(): void {
         const context: RichTextImagesButtonContext = {
             locale: computed(() => this.i18n.t()),
-            sources: computed(() => this.uiRteImagesSources()),
+            sources: computed(() => this.upload().sources),
             onOpen: () => this.host.saveSelection(),
             onInsertUrl: (url, alt) => this.insertFromUrl(url, alt),
             onUploadFile: (file) => void this.insertImageFile(file),
@@ -336,7 +373,7 @@ export class RichTextImagesDirective {
     }
 
     private async insertImageFile(file: File): Promise<void> {
-        const uploader = this.uiRteImagesUploader();
+        const uploader = this.upload().uploader;
         if (this.canUseUpload() && uploader) {
             await this.uploadImageFile(file, uploader);
             return;
@@ -423,7 +460,7 @@ export class RichTextImagesDirective {
     private registerAutoUpload(): void {
         effect((onCleanup) => {
             if (!this.viewReady()) return;
-            const enabled = this.uiRteImages() && this.uiRteImagesAutoUpload();
+            const enabled = this.uiRteImages() && this.upload().auto;
             if (!enabled) return;
             this.injectAutoUploadStyles();
             onCleanup(() => this.releaseAutoUploadStyles());
@@ -473,7 +510,7 @@ export class RichTextImagesDirective {
     }
 
     private scanForBase64Images(): void {
-        if (!this.uiRteImagesUploader() || this.host.isDisabled() || this.host.readonly()) return;
+        if (!this.upload().uploader || this.host.isDisabled() || this.host.readonly()) return;
         const editor = this.host.contentRoot;
         if (!editor) return;
         for (const img of Array.from(editor.querySelectorAll('img'))) {
@@ -485,7 +522,7 @@ export class RichTextImagesDirective {
     }
 
     private processAutoUploadImage(img: HTMLImageElement): void {
-        const uploader = this.uiRteImagesUploader();
+        const uploader = this.upload().uploader;
         if (!uploader) return;
         const uploadId = `auto-upload-${++this.autoUploadCounter}`;
         const dataUrl = img.getAttribute('src') ?? '';
@@ -640,11 +677,11 @@ export class RichTextImagesDirective {
         ref.setInput('resizerLabels', this.resizerLabels());
         ref.setInput('container', this.host.contentRoot);
         ref.setInput('target', this.uiRteImages() ? this.selectedImage() : null);
-        ref.setInput('resizable', this.uiRteImagesResize());
-        ref.setInput('showAlignment', this.uiRteImagesAlignment());
-        ref.setInput('minWidth', this.uiRteImagesMinWidth());
-        ref.setInput('maxWidth', this.uiRteImagesMaxWidth());
-        ref.setInput('lockAspectRatio', this.uiRteImagesLockAspectRatio());
+        ref.setInput('resizable', this.layout().resize);
+        ref.setInput('showAlignment', this.layout().alignment);
+        ref.setInput('minWidth', this.layout().minWidth);
+        ref.setInput('maxWidth', this.layout().maxWidth);
+        ref.setInput('lockAspectRatio', this.layout().lockAspectRatio);
         ref.setInput('uploading', this.uploading());
         ref.setInput('errorEntries', this.errorEntries());
         ref.changeDetectorRef.markForCheck();

@@ -61,7 +61,7 @@ describe('RichTextToolbarComponent', () => {
             fixture.detectChanges();
         });
 
-        it('gives the text-style select and addon buttons a roving tabindex too', () => {
+        it('gives the text-style select and addon buttons a roving tabindex too', async () => {
             // A roving toolbar has ONE tab stop. Managing only the built-in
             // buttons left the select, every addon button and the file input as
             // extra tab stops, so Tab jumped into the middle of the toolbar and
@@ -69,6 +69,9 @@ describe('RichTextToolbarComponent', () => {
             // again.
             fixture.componentRef.setInput('items', ['bold', 'textStyle', 'italic']);
             fixture.detectChanges();
+            // Stops added by a re-render are managed from a MutationObserver,
+            // which the browser delivers one microtask later.
+            await Promise.resolve();
             const toolbar = fixture.nativeElement.querySelector('[role="toolbar"]') as HTMLElement;
             const focusables = Array.from(
                 toolbar.querySelectorAll<HTMLElement>('button, select, input, [tabindex]'),

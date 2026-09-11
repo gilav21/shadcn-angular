@@ -26,7 +26,22 @@ import {
     setPackageVersion,
     type BumpLevel,
     type Commit,
+    type GitProbe,
+    type BaseRef,
+    resolveBaseRefFor,
 } from './release-cli-lib.js';
+export {
+    changedFilesSince,
+    parseCommitLog,
+    dirtyTreeRefusal,
+    branchRefusal,
+    RELEASE_BRANCH,
+    type GitProbe,
+    type BaseRef,
+    type Refusal,
+} from './release-cli-lib.js';
+import { branchRefusal, changedFilesSince, dirtyTreeRefusal, parseCommitLog, type Refusal } from './release-cli-lib.js';
+import { specsInstallingPackage } from '../../../e2e/orchestrator/specs.js';
 import {
     PACKAGE_IDS,
     PACKAGE_NAMES,
@@ -171,25 +186,6 @@ export function packageVerdict(
 // ── Git-shaped decisions ───────────────────────────────────────────────────
 
 /**
- * The git probes the release flow needs, as injected functions.
- *
- * `run` throws on a non-zero exit; `probe` returns `null` instead, because for
- * these queries a non-zero exit is an expected ANSWER ("no such tag"), not an
- * error. Passing them in is what lets the whole flow be driven from a literal
- * git transcript in tests, with no repo and no subprocess.
- */
-export interface GitProbe {
-    readonly run: (...args: string[]) => string;
-    readonly probe: (...args: string[]) => string | null;
-}
-
-export interface BaseRef {
-    readonly ref: string;
-    /** Human-readable provenance, printed so the maintainer can sanity-check it. */
-    readonly how: string;
-}
-
-/**
  * The previous release point of one package.
  *
  * Three fallbacks, most-specific first: the newest `<id>-v*` tag; before the
@@ -199,26 +195,7 @@ export interface BaseRef {
  * file in the repo as a reason.
  */
 export function resolveBaseRef(id: PackageId, git: GitProbe): BaseRef {
-    const tag = git.probe('describe', '--tags', '--abbrev=0', '--match', `${id}-v*`);
-    if (tag) return { ref: tag, how: `latest ${id}-v* tag (${tag})` };
-
-    const pkgJson = `${packageDir(id)}/package.json`;
-    const versionCommit = git.probe('log', '-1', '--format=%H', '--', pkgJson);
-    if (versionCommit) {
-        return {
-            ref: versionCommit,
-            how: `no ${id}-v* tag yet — using the last commit touching ${pkgJson} (${versionCommit.slice(0, 8)})`,
-        };
-    }
-    return {
-        ref: git.run('rev-list', '--max-parents=0', 'HEAD'),
-        how: 'no tag and no history — using the root commit',
-    };
-}
-
-export function changedFilesSince(baseRef: string, git: GitProbe): string[] {
-    const out = git.probe('diff', '--name-only', `${baseRef}..HEAD`);
-    return out ? out.split('\n').filter(Boolean) : [];
+    return resolveBaseRefFor({ tagPattern: `${id}-v*`, versionFile: `${packageDir(id)}/package.json` }, git);
 }
 
 /**
@@ -235,15 +212,6 @@ export function closureDirs(paths: ReadonlySet<string>): string[] {
     return [...dirs];
 }
 
-/** Parses `git log --format=%H%x09%s` output into commits. */
-export function parseCommitLog(out: string | null): Commit[] {
-    if (!out) return [];
-    return out.split('\n').filter(Boolean).map((line) => {
-        const [hash, ...rest] = line.split('\t');
-        return { hash, subject: rest.join('\t') };
-    });
-}
-
 /** Conventional commits since the base that touched anything in the closure. */
 export function packageCommits(baseRef: string, paths: ReadonlySet<string>, git: GitProbe): Commit[] {
     return parseCommitLog(
@@ -252,36 +220,6 @@ export function packageCommits(baseRef: string, paths: ReadonlySet<string>, git:
 }
 
 // ── Guards ─────────────────────────────────────────────────────────────────
-
-/** A refusal the entry must print before exiting 1, or `null` to proceed. */
-export type Refusal = readonly string[] | null;
-
-/**
- * Refuses a dirty working tree unless `--allow-dirty`.
- *
- * A release commit is pathspec-scoped, so unrelated staged work would not be
- * swept into it — but it WOULD be pushed on the same branch, unreviewed, under
- * a release tag. Refusing by default keeps that accident impossible.
- */
-export function dirtyTreeRefusal(status: string, args: PackageReleaseArgs): Refusal {
-    if (status.length === 0 || args.allowDirty) return null;
-    return [
-        'Working tree is dirty — commit or stash first:\n',
-        status,
-        '\n(override with --allow-dirty)',
-    ];
-}
-
-export const RELEASE_BRANCH = 'master';
-
-/** Refuses a release cut from any branch but `master` unless `--allow-branch`. */
-export function branchRefusal(branch: string, args: PackageReleaseArgs): Refusal {
-    if (branch === RELEASE_BRANCH || args.allowBranch) return null;
-    return [
-        `On branch "${branch}" — releases are cut from "${RELEASE_BRANCH}".`,
-        '(override with --allow-branch)',
-    ];
-}
 
 // ── Verdict reporting ──────────────────────────────────────────────────────
 
@@ -342,14 +280,15 @@ export function verdictReport(
 // ── Preflight ──────────────────────────────────────────────────────────────
 
 /**
- * The e2e labels that must pass before a package release.
- *
- * `pkg-mixed` is RTE-only: it is the leg that installs both packages into one
- * app, and it belongs to whichever release could break the combination — the
- * RTE package is the one carrying the shared closure.
+ * The e2e labels that must pass before a package release: every spec whose
+ * `packages` installs this one, on every fixture. `pkg-mixed` lists only the
+ * RTE package, so it belongs to the RTE release — the one carrying the shared
+ * closure that could break the combination.
  */
 export function preflightLegs(id: PackageId): string {
-    return id === 'rte' ? 'pkg-rte pkg-rte-ng21 pkg-mixed' : 'pkg-data-table pkg-data-table-ng21';
+    // Derived from the e2e spec table, so a new `pkg-*` spec is run here the
+    // moment it is registered instead of waiting for someone to edit a string.
+    return specsInstallingPackage(id).join(' ');
 }
 
 /** The npm commands the preflight runs, in order. */

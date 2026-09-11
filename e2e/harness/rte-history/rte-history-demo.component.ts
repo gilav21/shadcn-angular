@@ -24,7 +24,7 @@ import { RichTextHistoryDirective } from '@/components/ui/rich-text-editor/addon
                     data-testid="editor"
                     mode="html"
                     uiRteHistory
-                    [historyDebounceMs]="150"
+                    [history]="{ debounceMs: 150 }"
                     [ngModel]="content()"
                     (ngModelChange)="content.set($event)"
                 />

@@ -36,7 +36,14 @@ import {
     renderReleaseNotes,
     setPackageVersion,
     tagName,
+    branchRefusal,
+    changedFilesSince,
+    dirtyTreeRefusal,
+    parseCommitLog,
+    resolveBaseRefFor,
+    type BaseRef,
     type Commit,
+    type GitProbe,
     type PublishVerdict,
     type ReleaseArgs,
 } from './release-cli-lib';
@@ -47,7 +54,6 @@ const CLI_DIR = path.resolve(REPO_ROOT, 'packages/cli');
 const PKG_JSON = path.join(CLI_DIR, 'package.json');
 const CHANGELOG = path.join(CLI_DIR, 'CHANGELOG.md');
 const REGISTRY_MODULE = 'packages/cli/src/registry/index.ts';
-const RELEASE_BRANCH = 'master';
 
 // ── git plumbing ────────────────────────────────────────────────────────
 
@@ -76,34 +82,20 @@ function npm(command: string, cwd: string): void {
     execSync(`npm ${command}`, { cwd, stdio: 'inherit' });
 }
 
-/**
- * The previous release point: the newest `cli-v*` tag, or — before the first
- * tagged release — the last commit that touched the CLI's package.json (i.e.
- * the last hand-rolled `npm version patch`), or the root commit.
- */
-function resolveBaseRef(): { ref: string; how: string } {
-    const tag = gitOrNull('describe', '--tags', '--abbrev=0', '--match', 'cli-v*');
-    if (tag) return { ref: tag, how: `latest cli-v* tag (${tag})` };
+/** The CLI's git, in the injected shape the shared release helpers take. */
+const gitProbe: GitProbe = { run: git, probe: gitOrNull };
 
-    const versionCommit = gitOrNull('log', '-1', '--format=%H', '--', 'packages/cli/package.json');
-    if (versionCommit) {
-        return { ref: versionCommit, how: `no cli-v* tag yet — using the last commit touching packages/cli/package.json (${versionCommit.slice(0, 8)})` };
-    }
-    return { ref: git('rev-list', '--max-parents=0', 'HEAD'), how: 'no tag and no history — using the root commit' };
+/** The previous release point of the CLI train — see `resolveBaseRefFor`. */
+function resolveBaseRef(): BaseRef {
+    return resolveBaseRefFor({ tagPattern: 'cli-v*', versionFile: 'packages/cli/package.json' }, gitProbe);
 }
 
 function changedFiles(baseRef: string): string[] {
-    const out = gitOrNull('diff', '--name-only', `${baseRef}..HEAD`);
-    return out ? out.split('\n').filter(Boolean) : [];
+    return changedFilesSince(baseRef, gitProbe);
 }
 
 function cliCommits(baseRef: string): Commit[] {
-    const out = gitOrNull('log', `${baseRef}..HEAD`, '--no-merges', '--format=%H%x09%s', '--', 'packages/cli');
-    if (!out) return [];
-    return out.split('\n').filter(Boolean).map((line) => {
-        const [hash, ...rest] = line.split('\t');
-        return { hash, subject: rest.join('\t') };
-    });
+    return parseCommitLog(gitOrNull('log', `${baseRef}..HEAD`, '--no-merges', '--format=%H%x09%s', '--', 'packages/cli'));
 }
 
 function registryShapeAt(ref: string): string | null {
@@ -119,18 +111,17 @@ function registryShapeNow(): string | null {
 // ── guards ──────────────────────────────────────────────────────────────
 
 function assertCleanTree(args: ReleaseArgs): void {
-    const status = git('status', '--porcelain');
-    if (status.length === 0 || args.allowDirty) return;
-    console.error('Working tree is dirty — commit or stash first:\n');
-    console.error(status);
-    console.error('\n(override with --allow-dirty)');
+    const refusal = dirtyTreeRefusal(git('status', '--porcelain'), args);
+    if (!refusal) return;
+    for (const line of refusal) console.error(line);
     process.exit(1);
 }
 
 function assertReleaseBranch(args: ReleaseArgs): string {
     const branch = git('rev-parse', '--abbrev-ref', 'HEAD');
-    if (branch === RELEASE_BRANCH || args.allowBranch) return branch;
-    console.error(`On branch "${branch}" — releases are cut from "${RELEASE_BRANCH}". (override with --allow-branch)`);
+    const refusal = branchRefusal(branch, args);
+    if (!refusal) return branch;
+    for (const line of refusal) console.error(line);
     process.exit(1);
 }
 

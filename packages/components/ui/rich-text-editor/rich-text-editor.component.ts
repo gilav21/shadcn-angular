@@ -24,7 +24,7 @@ import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 import {
     labelBlockedImages,
     reportResourceDecisions,
-    RichTextResourcePolicyHost,
+    RichTextAllowHost,
     type ResourcePolicyDecision,
 } from './rich-text-resource-policy';
 import { RichTextMarkdownService } from './rich-text-markdown.service';
@@ -99,7 +99,23 @@ export type EditorVariant = VariantProps<typeof editorVariants>['variant'];
  * - `'lg'` — Larger text (`text-lg`), good for article editing.
  */
 export type EditorSize = VariantProps<typeof editorVariants>['size'];
+/** Which counter renders below the editor. */
+export type CounterMode = 'characters' | 'words' | 'both';
+/** Text direction override; unset follows the locale. */
+export type TextDirection = 'ltr' | 'rtl' | 'auto';
 
+/** Undo-history tuning; every field optional, see {@link RichTextEditorComponent.history}. */
+export interface RichTextHistoryOptions {
+    /** Snapshots retained; oldest dropped past it. Default 100, floor 10. */
+    readonly limit?: number;
+    /** Quiet time after typing before a snapshot is taken. Default 450. */
+    readonly debounceMs?: number;
+    /** Record each form `setValue` / `patchValue` as an undoable entry. Default off. */
+    readonly recordExternalWrites?: boolean;
+}
+
+const DEFAULT_HISTORY_LIMIT = 100;
+const DEFAULT_HISTORY_DEBOUNCE_MS = 450;
 /**
  * Determines the output format and internal handling of content.
  *
@@ -356,11 +372,15 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     readonly markdownShortcuts = input<boolean>(true);
 
-    /** Show a character count below the editor. */
-    readonly showCount = input<boolean>(false);
+    /**
+     * Which counter to show below the editor: `'characters'`, `'words'` or
+     * `'both'`. Unset shows none. {@link maxLength} is reported on the
+     * character counter.
+     */
+    readonly counter = input<CounterMode | undefined>();
 
-    /** Show a word count below the editor. */
-    readonly showWordCount = input<boolean>(false);
+    protected readonly showCount = computed(() => this.counter() === 'characters' || this.counter() === 'both');
+    protected readonly showWordCount = computed(() => this.counter() === 'words' || this.counter() === 'both');
 
     /**
      * Maximum character limit. When set, the character counter turns red
@@ -370,8 +390,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     readonly maxLength = input<number | undefined>(undefined);
 
 
-    /** Maximum number of history snapshots to retain. Oldest entries are dropped when exceeded. */
-    readonly historyLimit = input<number>(100);
+    /**
+     * Undo history tuning: `limit` caps retained snapshots (default 100),
+     * `debounceMs` is the quiet time after typing before a snapshot is taken
+     * (default 450), and `recordExternalWrites` makes a form's `setValue` /
+     * `patchValue` undoable (off by default: a programmatic write is not an
+     * edit). Set only the fields you change.
+     */
+    readonly history = input<RichTextHistoryOptions>({});
 
     /**
      * Milliseconds of quiet before a changed find query is searched, so a burst
@@ -379,19 +405,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * on every keystroke.
      */
     readonly findDebounceMs = input<number>(150);
-
-    /**
-     * Record a history entry for each `ControlValueAccessor` write, so a form's
-     * `setValue` / `patchValue` can be undone. Off by default, matching the
-     * long-standing behaviour that a programmatic write is not an edit.
-     */
-    readonly recordExternalWrites = input<boolean>(false);
-
-    /**
-     * Debounce interval in milliseconds for capturing history snapshots.
-     * A snapshot is saved after the user stops typing for this duration.
-     */
-    readonly historyDebounceMs = input<number>(450);
 
 
     /**
@@ -403,8 +416,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * request that every viewer's browser makes on render. Any host named in a
      * pasted document therefore learns who opened it and when, with nothing to
      * click and nothing visible to delete -- a 1x1 transparent pixel is the
-     * standard shape. Wire up {@link remoteResource} to see which hosts your
-     * real content actually loads from before deciding.
+     * standard shape. Start with the hosts you serve images from;
+     * {@link imageBlocked} tells you what else your content tried to load.
      *
      * An allowlist narrows that exposure to parties you have named; it does not
      * remove it, because a trusted host can still identify the reader through
@@ -418,30 +431,33 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * `data:` and relative sources are always permitted -- they cannot contact
      * anyone, and `data:` is how a Word paste carries its images.
      */
-    readonly allowedResourceHosts = input<readonly string[]>([]);
+    readonly allowedImageHosts = input<readonly string[]>([]);
 
     /**
-     * Take the policy from an enclosing `[uiRichTextResourcePolicy]` wrapper
-     * when this editor sets none. Off by default, as on the view, so an empty
-     * {@link allowedResourceHosts} keeps exactly one meaning. Ignored when this
-     * editor sets its own list. The wrapper directive's contract named "every
-     * editor and view beneath" it, but only the view honoured it: an editor
-     * under the wrapper read its own empty list and fetched every image.
+     * Link schemes allowed in addition to the built-in list
+     * (`DEFAULT_LINK_SCHEMES`: the web's own plus well-known application
+     * schemes such as `slack`, `msteams`, `zoommtg`, `geo`). An intranet with
+     * its own handler lists it here: `['acme-crm']`. Schemes that run script
+     * or reach the machine (`javascript`, `data`, `file`, …) are refused even
+     * if listed.
      */
-    readonly inheritResourcePolicy = input(false);
+    readonly allowedLinkSchemes = input<readonly string[]>([]);
 
-    /** The nearest enclosing policy wrapper, read only when {@link inheritResourcePolicy} is on. */
-    private readonly parentPolicy = inject(RichTextResourcePolicyHost, { optional: true });
-
-    /** This editor's own host list, or the inherited one when it has none. */
-    private readonly effectiveResourceHosts = computed<readonly string[]>(() => {
-        const own = this.allowedResourceHosts();
-        if (own.length > 0 || !this.inheritResourcePolicy()) return own;
-        return this.parentPolicy?.allowedResourceHosts() ?? [];
-    });
+    /** The nearest enclosing `[uiRichTextAllow]` wrapper, if any. */
+    private readonly parentAllow = inject(RichTextAllowHost, { optional: true });
 
     /**
-     * Caption shown on an image {@link allowedResourceHosts} refused.
+     * Own list when set, else the wrapper's, never merged: a strict editor
+     * must not widen to a looser ancestor.
+     */
+    private readonly effectiveHosts = computed<readonly string[]>(() =>
+        this.allowedImageHosts().length > 0 ? this.allowedImageHosts() : (this.parentAllow?.allow().imageHosts ?? []));
+
+    private readonly effectiveLinkSchemes = computed<readonly string[]>(() =>
+        this.allowedLinkSchemes().length > 0 ? this.allowedLinkSchemes() : (this.parentAllow?.allow().linkSchemes ?? []));
+
+    /**
+     * Caption shown on an image {@link allowedImageHosts} refused.
      *
      * Unset uses the translated default. Override it to say something only you
      * know -- who to ask for a host to be allowed, or why it is not. Inserted as
@@ -495,8 +511,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     private readonly i18n = createLocaleBindings(this.locale, RICH_TEXT_LOCALES);
     readonly resolvedLocale = this.i18n.t;
-    readonly isRtl = this.i18n.isRtl;
-    readonly dir = this.i18n.dir;
+    /** Text direction of the content. Unset follows the locale. */
+    readonly dir = input<TextDirection | undefined>();
+    protected readonly resolvedDir = computed<TextDirection | null>(() => this.dir() ?? this.i18n.dir());
+    readonly isRtl = computed(() => this.resolvedDir() === 'rtl');
 
     /**
      * Base-owned slash commands surfaced to the slash-commands addon through the
@@ -518,7 +536,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     readonly markdownChange = output<string>();
 
-    /** Emits the current word count after every content change. Pair with `[showWordCount]`. */
+    /** Emits the current word count after every content change. Pair with `counter="words"`. */
     readonly wordCountChange = output<number>();
 
     /**
@@ -529,15 +547,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     readonly historyChange = output<RichTextHistoryState>();
 
     /**
-     * Emits once per remote image or CSS background the content references,
-     * whether it was allowed or blocked.
-     *
-     * It fires even when {@link allowedResourceHosts} is empty, with
-     * `reason: 'no-policy'` -- that is the point. Log it to discover which hosts
-     * your documents really load from before you decide whether to restrict
-     * them.
+     * Emits once per remote image or CSS background {@link allowedImageHosts}
+     * refused, with its URL, host and kind. Nothing fires without a policy.
+     * In dev mode each block is also logged to the console.
      */
-    readonly remoteResource = output<ResourcePolicyDecision>();
+    readonly imageBlocked = output<ResourcePolicyDecision>();
 
     /** Emits when the editor gains focus. */
     readonly focused = output<void>();
@@ -672,7 +686,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     /** Whether a redo step is available — mirrors {@link historyChange}'s `canRedo`. */
     readonly canRedo = computed(() => {
         this.historyVersion();
-        return this.historyIndex < this.history.length - 1;
+        return this.historyIndex < this.snapshots.length - 1;
     });
 
     /**
@@ -736,7 +750,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private findResizeObserver: ResizeObserver | null = null;
     private findScrollHandler: (() => void) | null = null;
 
-    private history: HistoryEntry[] = [];
+    private snapshots: HistoryEntry[] = [];
     private historyIndex = -1;
     private historyDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     private shortcutHandle: ShortcutComponentHandle | null = null;
@@ -897,7 +911,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         // load. A reader is read at the moment each pass runs and cannot be
         // stale. Inputs are bound before the hooks that write content, and the
         // input has a default, so reading it here is always safe.
-        this.sanitizer.setRemoteHostPolicy(this.effectiveResourceHosts);
+        this.sanitizer.setRemoteHostPolicy(this.effectiveHosts);
+        this.sanitizer.setLinkSchemePolicy(this.effectiveLinkSchemes);
         this.setupOutputEffects();
         this.setupFloatingToolbarEffect();
         this.setupFindRefreshEffect();
@@ -928,7 +943,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         // again. The first run is a no-op: nothing is rendered yet, and the
         // initial write is judged under the live list as it happens.
         effect(() => {
-            this.effectiveResourceHosts();
+            this.effectiveHosts();
+            this.effectiveLinkSchemes();
             untracked(() => this.rejudgeRenderedContent());
         });
         effect(() => {
@@ -970,7 +986,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private drainResourceDecisions(): void {
         reportResourceDecisions(
             this.sanitizer.drainResourceDecisions(),
-            (decision) => this.remoteResource.emit(decision),
+            (decision) => this.imageBlocked.emit(decision),
             'rich-text-editor',
         );
     }
@@ -1147,11 +1163,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * is by definition the saved one, so {@link isDirty} reads false after it.
      */
     writeValue(value: string): void {
-        if (this.recordExternalWrites()) {
+        if (this.history().recordExternalWrites) {
             this.flushPendingHistoryPush();
         }
         this.applyExternalHtml(value);
-        if (this.recordExternalWrites()) {
+        if (this.history().recordExternalWrites) {
             this.pushHistory();
         }
         this.markClean();
@@ -2333,13 +2349,13 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * entry's content, restores its selection, and emits a change.
      */
     restoreHistoryEntry(entryIndex: number): void {
-        if (entryIndex < 0 || entryIndex >= this.history.length) {
+        if (entryIndex < 0 || entryIndex >= this.snapshots.length) {
             return;
         }
 
         this.flushPendingHistoryPush();
         this.historyIndex = entryIndex;
-        const entry = this.history[this.historyIndex];
+        const entry = this.snapshots[this.historyIndex];
         const html = this.reconstructHtmlCached(this.historyIndex);
 
         this.htmlContent.set(html);
@@ -7035,20 +7051,20 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     private reconstructHtml(index: number): string {
-        const entry = this.history[index];
+        const entry = this.snapshots[index];
         if (entry.keyframe) {
             return entry.html;
         }
         let keyframeIdx = index;
-        while (keyframeIdx >= 0 && !this.history[keyframeIdx].keyframe) {
+        while (keyframeIdx >= 0 && !this.snapshots[keyframeIdx].keyframe) {
             keyframeIdx--;
         }
         if (keyframeIdx < 0) {
             return entry.html;
         }
-        let html = this.history[keyframeIdx].html;
+        let html = this.snapshots[keyframeIdx].html;
         for (let i = keyframeIdx + 1; i <= index; i++) {
-            const e = this.history[i];
+            const e = this.snapshots[i];
             if (e.keyframe) {
                 html = e.html;
             } else if (e.delta) {
@@ -7075,18 +7091,18 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     private pushHistory(): void {
         const currentHtml = this.htmlContent();
-        const lastEntry = this.history.at(-1);
-        const lastHtml = lastEntry ? this.reconstructHtmlCached(this.history.length - 1) : '';
+        const lastEntry = this.snapshots.at(-1);
+        const lastHtml = lastEntry ? this.reconstructHtmlCached(this.snapshots.length - 1) : '';
         if (lastEntry && lastHtml === currentHtml) {
             return;
         }
         const previewData = this.buildHistoryPreview(currentHtml);
 
-        if (this.historyIndex < this.history.length - 1) {
-            this.history = this.history.slice(0, this.historyIndex + 1);
+        if (this.historyIndex < this.snapshots.length - 1) {
+            this.snapshots = this.snapshots.slice(0, this.historyIndex + 1);
         }
 
-        const isKeyframe = !lastEntry || this.history.length % 10 === 0;
+        const isKeyframe = !lastEntry || this.snapshots.length % 10 === 0;
         const delta = (!isKeyframe && lastEntry)
             ? this.computeDelta(lastHtml, currentHtml)
             : null;
@@ -7102,19 +7118,19 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             lineCount: previewData.lineCount,
         };
 
-        this.history.push(entry);
-        this.historyIndex = this.history.length - 1;
+        this.snapshots.push(entry);
+        this.historyIndex = this.snapshots.length - 1;
         this.lastReconstructedIndex = this.historyIndex;
         this.lastReconstructedHtml = currentHtml;
 
-        const maxEntries = Math.max(10, this.historyLimit());
-        if (this.history.length > maxEntries) {
-            if (!this.history[0].keyframe && this.history.length > 1) {
-                this.history[1].html = this.reconstructHtml(1);
-                this.history[1].keyframe = true;
-                this.history[1].delta = null;
+        const maxEntries = Math.max(10, this.history().limit ?? DEFAULT_HISTORY_LIMIT);
+        if (this.snapshots.length > maxEntries) {
+            if (!this.snapshots[0].keyframe && this.snapshots.length > 1) {
+                this.snapshots[1].html = this.reconstructHtml(1);
+                this.snapshots[1].keyframe = true;
+                this.snapshots[1].delta = null;
             }
-            this.history.shift();
+            this.snapshots.shift();
             this.historyIndex--;
             this.lastReconstructedIndex--;
         }
@@ -7145,7 +7161,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     private applyHistoryEntry(index: number): void {
         this.historyIndex = index;
-        const entry = this.history[index];
+        const entry = this.snapshots[index];
         const html = this.reconstructHtmlCached(index);
         this.htmlContent.set(html);
 
@@ -7170,11 +7186,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     redo(): void {
         this.flushPendingHistoryPush();
-        if (this.historyIndex < this.history.length - 1) this.applyHistoryEntry(this.historyIndex + 1);
+        if (this.historyIndex < this.snapshots.length - 1) this.applyHistoryEntry(this.historyIndex + 1);
     }
 
     private scheduleDebouncedHistoryPush(): void {
-        const delay = Math.max(0, this.historyDebounceMs());
+        const delay = Math.max(0, this.history().debounceMs ?? DEFAULT_HISTORY_DEBOUNCE_MS);
         if (this.historyDebounceTimer) {
             clearTimeout(this.historyDebounceTimer);
         }
@@ -7197,7 +7213,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     /** Read-only projection of the history stack, oldest first (addon host surface). */
     historyEntries(): readonly RichTextHistoryEntrySnapshot[] {
         this.historyVersion();
-        return this.history.map((entry, index) => ({
+        return this.snapshots.map((entry, index) => ({
             index,
             timestamp: entry.timestamp,
             preview: entry.preview,
@@ -7214,7 +7230,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     /** Reconstruct a history entry's HTML + Markdown (addon host surface). */
     reconstructHistoryEntry(index: number): { html: string; markdown: string } | null {
-        if (index < 0 || index >= this.history.length) {
+        if (index < 0 || index >= this.snapshots.length) {
             return null;
         }
         const html = this.reconstructHtmlCached(index);
@@ -7230,7 +7246,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this._historyVersion.update(v => v + 1);
         this.historyChange.emit({
             canUndo: this.historyIndex > 0,
-            canRedo: this.historyIndex < this.history.length - 1,
+            canRedo: this.historyIndex < this.snapshots.length - 1,
         });
     }
 

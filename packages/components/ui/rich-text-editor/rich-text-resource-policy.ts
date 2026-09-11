@@ -288,22 +288,35 @@ export function decodeCssEscapes(value: string): string {
 }
 
 /**
- * Something that declares a remote-host policy for the editors and views
+ * What content may load from and link to.
+ *
+ * The `[uiRichTextAllow]` wrapper carries one of these for every editor and
+ * view beneath it; each component's own `allowedImageHosts` / `linkSchemes` input
+ * is the same thing, set on the component itself.
+ */
+export interface RichTextAllow {
+    /** Hosts remote images and CSS backgrounds may load from. Empty means no policy. */
+    readonly imageHosts?: readonly string[];
+    /** Link schemes allowed in addition to `DEFAULT_LINK_SCHEMES`. */
+    readonly linkSchemes?: readonly string[];
+}
+
+/**
+ * Something that declares a {@link RichTextAllow} for the editors and views
  * beneath it in the DOM.
  *
- * Provided by `RichTextResourcePolicyDirective`, which a consumer puts on a
- * wrapper element. It is deliberately NOT provided by the editor or the view:
- * neither projects content, so neither can ever have one of the others as a DOM
+ * Provided by `RichTextAllowDirective`, which a consumer puts on a wrapper
+ * element. It is deliberately NOT provided by the editor or the view: neither
+ * projects content, so neither can ever have one of the others as a DOM
  * descendant, and a provider on them could never be reached. A wrapper element
  * is what makes an enclosing policy expressible at all.
  *
- * Inheritance is opt-in per component, so an empty host list keeps exactly one
- * meaning -- no policy -- rather than becoming ambiguous between "none" and
- * "whatever encloses me".
+ * A component beneath a wrapper takes the wrapper's lists unless it sets its
+ * own; a list it sets wins whole, never merged, so a strict component cannot
+ * be widened by a looser ancestor.
  */
-export abstract class RichTextResourcePolicyHost {
-    /** The hosts this component permits. Empty means it sets no policy. */
-    abstract readonly allowedResourceHosts: () => readonly string[];
+export abstract class RichTextAllowHost {
+    abstract readonly allow: () => RichTextAllow;
 }
 
 /**
@@ -349,11 +362,12 @@ export function reportResourceDecisions(
     surface: string,
 ): void {
     for (const decision of decisions) {
+        if (decision.allowed) continue;
         emit(decision);
-        if (!decision.allowed && isDevMode()) {
+        if (isDevMode()) {
             console.error(
                 `[${surface}] blocked a ${decision.kind} from "${decision.host}": `
-                + 'its host is not in allowedResourceHosts.',
+                + 'its host is not in allowedImageHosts.',
             );
         }
     }

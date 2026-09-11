@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
-import { RichTextResourcePolicyDirective } from '@/components/ui/rich-text-editor';
+import { RichTextAllowDirective } from '@/components/ui/rich-text-editor';
 import { RichTextViewComponent } from '@/components/ui/rich-text-view';
 
 /**
@@ -13,7 +13,7 @@ import { RichTextViewComponent } from '@/components/ui/rich-text-view';
     selector: 'app-rich-text-view-demo',
     standalone: true,
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [RichTextViewComponent, RichTextResourcePolicyDirective],
+    imports: [RichTextViewComponent, RichTextAllowDirective],
     template: `
         <main class="p-8 space-y-6">
             <section>
@@ -34,16 +34,16 @@ import { RichTextViewComponent } from '@/components/ui/rich-text-view';
                 <ui-rich-text-view
                     data-testid="view-strict"
                     [value]="remote()"
-                    [allowedResourceHosts]="hosts" />
+                    [allowedImageHosts]="hosts" />
 
-                <div [uiRichTextResourcePolicy]="hosts">
+                <div [uiRichTextAllow]="{ imageHosts: hosts }">
                     <ui-rich-text-view
                         data-testid="view-inherit"
-                        [value]="remote()"
-                        [inheritResourcePolicy]="true" />
-                    <ui-rich-text-view
-                        data-testid="view-no-inherit"
                         [value]="remote()" />
+                    <ui-rich-text-view
+                        data-testid="view-own-wins"
+                        [value]="remote()"
+                        [allowedImageHosts]="['tracker.example']" />
                 </div>
             </section>
         </main>

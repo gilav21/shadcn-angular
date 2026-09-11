@@ -15,7 +15,7 @@ import type { LocaleInput, LocaleMeta } from '../../lib/i18n/i18n.types';
 import { RichTextCommandRegistry } from './index';
 import { RICH_TEXT_LOCALES, RichTextLocale } from './index';
 import { RichTextSanitizerService } from './index';
-import { RichTextResourcePolicyDirective } from './index';
+import { RichTextAllowDirective } from './index';
 import type { ResourcePolicyDecision } from './index';
 
 /** Collapse the selection to a caret at the given node/offset. */
@@ -40,7 +40,7 @@ const selectRangeIn = (node: Node, start: number, end: number) => {
 
 /** Number of entries currently on the editor's private undo stack. */
 const historyLength = (component: RichTextEditorComponent): number =>
-    (component as unknown as { history: unknown[] }).history.length;
+    (component as unknown as { snapshots: unknown[] }).snapshots.length;
 
 /** A `Ctrl+Z` keydown event, as the editable area receives it. */
 const undoKey = (): KeyboardEvent =>
@@ -598,13 +598,13 @@ describe('RichTextEditorComponent', () => {
         it('announces the count through a live region', () => {
             // There was no live region anywhere in the component, so a screen
             // reader user got no signal at all when input stopped.
-            fixture.componentRef.setInput('showCount', true);
+            fixture.componentRef.setInput('counter', 'characters');
             fixture.detectChanges();
             expect(counter()?.getAttribute('aria-live')).toBe('polite');
         });
 
         it('shows the limit alongside the count', () => {
-            fixture.componentRef.setInput('showCount', true);
+            fixture.componentRef.setInput('counter', 'characters');
             fixture.componentRef.setInput('maxLength', 120);
             fixture.detectChanges();
             // "0 characters (120 max)" -- the localized phrase intact, the limit
@@ -614,14 +614,14 @@ describe('RichTextEditorComponent', () => {
         });
 
         it('shows no limit when none is set', () => {
-            fixture.componentRef.setInput('showCount', true);
+            fixture.componentRef.setInput('counter', 'characters');
             fixture.componentRef.setInput('maxLength', undefined);
             fixture.detectChanges();
             expect(counter()?.textContent).not.toContain('max');
         });
 
         it('marks the counter when the limit is reached', () => {
-            fixture.componentRef.setInput('showCount', true);
+            fixture.componentRef.setInput('counter', 'characters');
             fixture.componentRef.setInput('maxLength', 3);
             fixture.detectChanges();
             expect(component.atCharacterLimit()).toBe(false);
@@ -845,7 +845,7 @@ describe('RichTextEditorComponent', () => {
             // The counter was a sibling status region with nothing referring to
             // it, so a screen-reader user tabbing in was never told a limit
             // existed -- only a change firing while focused would announce it.
-            fixture.componentRef.setInput('showCount', true);
+            fixture.componentRef.setInput('counter', 'characters');
             fixture.componentRef.setInput('maxLength', 120);
             fixture.detectChanges();
 
@@ -856,7 +856,7 @@ describe('RichTextEditorComponent', () => {
         });
 
         it('keeps a consumer-supplied aria-describedby alongside the counter', () => {
-            fixture.componentRef.setInput('showCount', true);
+            fixture.componentRef.setInput('counter', 'characters');
             fixture.componentRef.setInput('ariaDescribedBy', 'consumer-hint');
             fixture.detectChanges();
 
@@ -1308,7 +1308,7 @@ describe('RichTextEditorComponent', () => {
 
     it('debounces history snapshots for rapid typing', () => {
         vi.useFakeTimers();
-        fixture.componentRef.setInput('historyDebounceMs', 200);
+        fixture.componentRef.setInput('history', { debounceMs: 200 });
         fixture.detectChanges();
 
         editor.textContent = 'a';
@@ -1318,14 +1318,14 @@ describe('RichTextEditorComponent', () => {
         editor.textContent = 'abc';
         editor.dispatchEvent(new Event('input', { bubbles: true }));
 
-        expect((component as any).history).toHaveLength(1);
+        expect((component as any).snapshots).toHaveLength(1);
 
         vi.advanceTimersByTime(199);
-        expect((component as any).history).toHaveLength(1);
+        expect((component as any).snapshots).toHaveLength(1);
 
         vi.advanceTimersByTime(1);
-        expect((component as any).history).toHaveLength(2);
-        expect((component as any).history.at(-1).preview).toContain('abc');
+        expect((component as any).snapshots).toHaveLength(2);
+        expect((component as any).snapshots.at(-1).preview).toContain('abc');
 
         vi.useRealTimers();
     });
@@ -1343,14 +1343,14 @@ describe('RichTextEditorComponent', () => {
         fixture.detectChanges();
         (component as any).pushHistory();
 
-        const baselineLength = (component as any).history.length;
+        const baselineLength = (component as any).snapshots.length;
         expect(baselineLength).toBeGreaterThanOrEqual(4);
 
         component.restoreHistoryEntry(1);
 
         expect(editor.textContent).toContain('one');
         expect((component as any).historyIndex).toBe(1);
-        expect((component as any).history).toHaveLength(baselineLength);
+        expect((component as any).snapshots).toHaveLength(baselineLength);
     });
 
     it('stores multiline-friendly preview lines in history entries', () => {
@@ -1358,7 +1358,7 @@ describe('RichTextEditorComponent', () => {
         fixture.detectChanges();
         (component as any).pushHistory();
 
-        const latest = (component as any).history.at(-1);
+        const latest = (component as any).snapshots.at(-1);
         expect(latest.lineCount).toBe(4);
         expect(latest.previewLines).toEqual(['Line one', 'Line two', 'Line three']);
     });
@@ -1368,7 +1368,7 @@ describe('RichTextEditorComponent', () => {
         fixture.detectChanges();
         (component as any).pushHistory();
 
-        const latest = (component as any).history.at(-1);
+        const latest = (component as any).snapshots.at(-1);
         expect(latest.previewLines).toEqual(['• First item', '• Second item']);
     });
 
@@ -2629,7 +2629,7 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         // The commonest editing sequence there is: type, undo, type something
         // different, then hit redo out of habit. Redo must be dead at that
         // point — the forward branch was abandoned the moment new input landed.
-        fixture.componentRef.setInput('historyDebounceMs', 10);
+        fixture.componentRef.setInput('history', { debounceMs: 10 });
         component.writeValue('');
         fixture.detectChanges();
 
@@ -4846,7 +4846,7 @@ describe('RichTextEditorComponent — history delta, undo/redo & destroy', () =>
     let editor: HTMLDivElement;
 
     const push = () => (component as unknown as { pushHistory: () => void }).pushHistory();
-    const getHistory = () => (component as unknown as { history: unknown[] }).history;
+    const getHistory = () => (component as unknown as { snapshots: unknown[] }).snapshots;
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
@@ -4883,7 +4883,7 @@ describe('RichTextEditorComponent — history delta, undo/redo & destroy', () =>
     });
 
     it('trims history to the configured limit, promoting a new keyframe', () => {
-        fixture.componentRef.setInput('historyLimit', 10);
+        fixture.componentRef.setInput('history', { limit: 10 });
         fixture.detectChanges();
         for (let i = 0; i < 30; i++) {
             component.writeValue(`<p>entry ${i}</p>`);
@@ -4902,8 +4902,8 @@ describe('RichTextEditorComponent — history delta, undo/redo & destroy', () =>
         push();
 
         type Entry = { html: string; delta: string | null; keyframe: boolean; selection: unknown; timestamp: number; preview: string; previewLines: string[]; lineCount: number };
-        const base = (component as unknown as { history: Entry[] }).history[0];
-        (component as unknown as { history: Entry[] }).history = [
+        const base = (component as unknown as { snapshots: Entry[] }).snapshots[0];
+        (component as unknown as { snapshots: Entry[] }).snapshots = [
             { ...base, html: '<p>a</p>', delta: null, keyframe: true },
             { ...base, html: '<p>b</p>', delta: null, keyframe: true },
             { ...base, html: '<p>c</p>', delta: null, keyframe: false },
@@ -4930,7 +4930,7 @@ describe('RichTextEditorComponent — history delta, undo/redo & destroy', () =>
         push();
 
         type Entry = { html: string; delta: string | null; keyframe: boolean; selection: unknown; timestamp: number; preview: string; previewLines: string[]; lineCount: number };
-        const base = (component as unknown as { history: Entry[] }).history[0];
+        const base = (component as unknown as { snapshots: Entry[] }).snapshots[0];
         const flakyKeyframeEntry: Entry = { ...base, html: '<p>flaky</p>', delta: null, keyframe: false };
         let reads = 0;
         Object.defineProperty(flakyKeyframeEntry, 'keyframe', {
@@ -4942,7 +4942,7 @@ describe('RichTextEditorComponent — history delta, undo/redo & destroy', () =>
             configurable: true,
         });
 
-        (component as unknown as { history: Entry[] }).history = [
+        (component as unknown as { snapshots: Entry[] }).snapshots = [
             { ...base, html: '<p>a</p>', delta: null, keyframe: true },
             flakyKeyframeEntry,
         ];
@@ -9000,7 +9000,7 @@ describe('RichTextEditorComponent markdown input rules', () => {
         };
 
         it('captures the marker state as its own history entry, so undo restores the literal text', () => {
-            fixture.componentRef.setInput('historyDebounceMs', 0);
+            fixture.componentRef.setInput('history', { debounceMs: 0 });
             fixture.detectChanges();
 
             typeInto(seed('<p><br></p>'), '# ');
@@ -9490,7 +9490,7 @@ describe('RichTextEditorComponent — undo consistency', () => {
     });
 
     it('T-34b recordExternalWrites flushes an in-flight typing burst before the write', () => {
-        fixture.componentRef.setInput('recordExternalWrites', true);
+        fixture.componentRef.setInput('history', { recordExternalWrites: true });
         fixture.detectChanges();
         type('one typed');
 
@@ -9526,7 +9526,7 @@ describe('RichTextEditorComponent — undo consistency', () => {
     });
 
     it('T-34 recordExternalWrites=true makes writeValue push one entry; undo restores the previous content', () => {
-        fixture.componentRef.setInput('recordExternalWrites', true);
+        fixture.componentRef.setInput('history', { recordExternalWrites: true });
         fixture.detectChanges();
         const before = historyLength(component);
 
@@ -9577,7 +9577,7 @@ describe('RichTextEditorComponent — undo consistency', () => {
     });
 
     it('T-36b history trim still emits historyChange', () => {
-        fixture.componentRef.setInput('historyLimit', 10);
+        fixture.componentRef.setInput('history', { limit: 10 });
         fixture.detectChanges();
         const seen: RichTextHistoryState[] = [];
         component.historyChange.subscribe(s => seen.push(s));
@@ -10197,9 +10197,9 @@ describe('RichTextEditorComponent - remote resource policy', () => {
         imports: [RichTextEditorComponent],
         template: `
             <ui-rich-text-editor
-                [allowedResourceHosts]="hosts()"
+                [allowedImageHosts]="hosts()"
                 [blockedImageMessage]="message()"
-                (remoteResource)="seen.push($event)"
+                (imageBlocked)="seen.push($event)"
                 (markdownChange)="saved = $event" />
         `,
     })
@@ -10216,8 +10216,8 @@ describe('RichTextEditorComponent - remote resource policy', () => {
         standalone: true,
         imports: [RichTextEditorComponent],
         template: `
-            <ui-rich-text-editor [allowedResourceHosts]="['cdn.trusted.com']" />
-            <ui-rich-text-editor [allowedResourceHosts]="['other.example']" />
+            <ui-rich-text-editor [allowedImageHosts]="['cdn.trusted.com']" />
+            <ui-rich-text-editor [allowedImageHosts]="['other.example']" />
         `,
     })
     class TwoEditorsComponent {}
@@ -10230,18 +10230,16 @@ describe('RichTextEditorComponent - remote resource policy', () => {
         fixture.debugElement.queryAll(By.directive(RichTextEditorComponent))[index]
             .injector.get(RichTextSanitizerService);
 
-    it('reports a remote resource even when no policy is set', () => {
-        // The permissive default is only defensible if it is observable: this is
-        // how a developer discovers which hosts their documents load from.
+    it('reports nothing when no policy is set, because nothing is blocked', () => {
         const fixture = TestBed.createComponent(PolicyHostComponent);
         fixture.detectChanges();
 
         editorAt(fixture, 0).writeValue('<p><img src="https://tracker.example/p.png" alt="x"></p>');
         fixture.detectChanges();
 
-        const seen = fixture.componentInstance.seen;
-        expect(seen.some((d) => d.host === 'tracker.example' && d.reason === 'no-policy')).toBe(true);
-        expect(seen.every((d) => d.allowed)).toBe(true);
+        expect(fixture.componentInstance.seen).toEqual([]);
+        expect((fixture.nativeElement as HTMLElement).querySelector('img')?.getAttribute('src'))
+            .toBe('https://tracker.example/p.png');
     });
 
     it('blocks and reports a host that is not allowed', () => {
@@ -10440,8 +10438,8 @@ describe('RichTextEditorComponent - remote resource policy on the FIRST render (
             <ui-rich-text-editor
                 mode="html"
                 [formControl]="control"
-                [allowedResourceHosts]="hosts()"
-                (remoteResource)="seen.push($event)" />
+                [allowedImageHosts]="hosts()"
+                (imageBlocked)="seen.push($event)" />
         `,
     })
     class FormPolicyHostComponent {
@@ -10611,31 +10609,36 @@ describe('RichTextEditorComponent - wrapper policy and Enter on image-only block
 
     @Component({
         standalone: true,
-        imports: [ReactiveFormsModule, RichTextEditorComponent, RichTextResourcePolicyDirective],
+        imports: [ReactiveFormsModule, RichTextEditorComponent, RichTextAllowDirective],
         template: `
-            <div [uiRichTextResourcePolicy]="['cdn.trusted.com']">
-                <ui-rich-text-editor mode="html" [formControl]="control" [inheritResourcePolicy]="inherit()" />
+            <div [uiRichTextAllow]="{ imageHosts: ['cdn.trusted.com'], linkSchemes: ['acme-crm'] }">
+                <ui-rich-text-editor mode="html" [formControl]="control" [allowedImageHosts]="own()" />
             </div>
         `,
     })
     class WrappedEditorComponent {
-        readonly control = new FormControl(`<p><img src="${TRACKER}" alt="chart"></p>`, { nonNullable: true });
-        readonly inherit = signal(true);
+        readonly control = new FormControl(
+            `<p><img src="${TRACKER}" alt="chart"> <a href="acme-crm://contact/42">crm</a></p>`,
+            { nonNullable: true },
+        );
+        readonly own = signal<readonly string[]>([]);
     }
 
-    it('an editor under [uiRichTextResourcePolicy] takes the wrapper policy when it opts in', () => {
+    it('an editor under [uiRichTextAllow] takes the wrapper hosts and link schemes', () => {
         // The wrapper's contract named "every editor and view beneath", but
         // only the view honoured it: an editor read its own empty list.
         const fixture = TestBed.createComponent(WrappedEditorComponent);
         fixture.detectChanges();
-        const img = (fixture.nativeElement as HTMLElement).querySelector('img');
+        const root = fixture.nativeElement as HTMLElement;
+        const img = root.querySelector('img');
         expect(img?.hasAttribute('src')).toBe(false);
         expect(img?.getAttribute('data-blocked-src')).toBe(TRACKER);
+        expect(root.querySelector('a')?.getAttribute('href')).toBe('acme-crm://contact/42');
     });
 
-    it('and ignores it by default, so an empty list keeps one meaning', () => {
+    it('and its own list wins whole over the wrapper, never merged', () => {
         const fixture = TestBed.createComponent(WrappedEditorComponent);
-        fixture.componentInstance.inherit.set(false);
+        fixture.componentInstance.own.set(['tracker.example']);
         fixture.detectChanges();
         expect((fixture.nativeElement as HTMLElement).querySelector('img')?.getAttribute('src')).toBe(TRACKER);
     });
@@ -10673,5 +10676,34 @@ describe('RichTextEditorComponent - wrapper policy and Enter on image-only block
             enterAfter(editor.querySelectorAll('blockquote p')[1]);
             expect(editor.querySelector('blockquote img')).not.toBeNull();
         });
+    });
+});
+
+describe('RichTextEditorComponent - allowedLinkSchemes on the editor (follow-up F6)', () => {
+    @Component({
+        standalone: true,
+        imports: [RichTextEditorComponent],
+        template: `<ui-rich-text-editor mode="html" [allowedLinkSchemes]="schemes()" />`,
+    })
+    class SchemesHostComponent {
+        readonly schemes = signal<readonly string[]>([]);
+    }
+
+    it('keeps a custom scheme once listed, and re-judges the document when the list changes', () => {
+        const fixture = TestBed.createComponent(SchemesHostComponent);
+        fixture.detectChanges();
+        const editor = fixture.debugElement.query(By.directive(RichTextEditorComponent))
+            .componentInstance as RichTextEditorComponent;
+        editor.writeValue('<p><a href="acme-crm://contact/42">crm</a> <a href="slack://channel?id=1">slack</a></p>');
+        fixture.detectChanges();
+        const anchors = (): string[] => Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('a[href]'))
+            .map((a) => a.getAttribute('href') ?? '');
+        expect(anchors()).toEqual(['slack://channel?id=1']);
+
+        fixture.componentInstance.schemes.set(['acme-crm']);
+        fixture.detectChanges();
+        editor.writeValue('<p><a href="acme-crm://contact/42">crm</a></p>');
+        fixture.detectChanges();
+        expect(anchors()).toEqual(['acme-crm://contact/42']);
     });
 });

@@ -33,7 +33,7 @@ export const Default: Story = {
                 mode="html"
                 toolbar="top"
                 uiRteHistory
-                [historyDebounceMs]="400"
+                [history]="{ debounceMs: 400 }"
                 placeholder="Type, pause, then open Revisions (top-right) to jump between snapshots…"
                 minHeight="200px"
             />

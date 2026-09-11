@@ -7,7 +7,7 @@ import { test, expect, type Page } from '@playwright/test';
 // against BOTH the DOM and the bound model, because the ControlValueAccessor
 // seam is exactly where a base refactor silently breaks.
 
-/** `historyDebounceMs` defaults to 450 in the component; +100ms of slack. */
+/** `history.debounceMs` defaults to 450 in the component; +100ms of slack. */
 const HISTORY_DEBOUNCE_MS = 550;
 
 const editable = (page: Page, testId = 'editor') =>

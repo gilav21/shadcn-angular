@@ -72,8 +72,8 @@ import { RichTextEditorComponent } from '@/components/ui/rich-text-editor';
                     data-testid="editor-policy"
                     mode="html"
                     [formControl]="policyControl"
-                    [allowedResourceHosts]="['cdn.trusted.example']"
-                    (remoteResource)="onRemoteResource()"
+                    [allowedImageHosts]="['cdn.trusted.example']"
+                    (imageBlocked)="onImageBlocked()"
                 />
                 <pre data-testid="policy-seen" class="sr-only">{{ remoteSeen() }}</pre>
             </section>
@@ -114,8 +114,8 @@ export class RichTextEditorDemoComponent {
     );
     protected readonly remoteSeen = signal(0);
 
-    /** Counts decisions; the spec only needs to know at least one was reported. */
-    protected onRemoteResource(): void {
+    /** Counts blocks; the spec only needs to know at least one was reported. */
+    protected onImageBlocked(): void {
         this.remoteSeen.update((n) => n + 1);
     }
 

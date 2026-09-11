@@ -1073,7 +1073,8 @@
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
-      "i18n/index.ts"
+      "i18n/index.ts",
+      "overlay-stack.service.ts"
     ],
     "testFiles": [
       "dialog/dialog.component.spec.ts"
@@ -1254,7 +1255,8 @@
       "drawer/sub/drawer-trigger.component.ts"
     ],
     "libFiles": [
-      "a11y.ts"
+      "a11y.ts",
+      "overlay-stack.service.ts"
     ],
     "testFiles": [
       "drawer/drawer.component.spec.ts",
@@ -1851,7 +1853,8 @@
       "popover/sub/popover-trigger.component.ts"
     ],
     "libFiles": [
-      "a11y.ts"
+      "a11y.ts",
+      "overlay-stack.service.ts"
     ],
     "testFiles": [
       "popover/popover.component.spec.ts",
@@ -2071,7 +2074,8 @@
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
-      "i18n/index.ts"
+      "i18n/index.ts",
+      "overlay-stack.service.ts"
     ],
     "testFiles": [
       "sheet/sheet.component.spec.ts"
@@ -2637,6 +2641,7 @@
     },
     "files": [
       "rich-text-editor/index.ts",
+      "rich-text-editor/rich-text-allow.directive.ts",
       "rich-text-editor/rich-text-command-registry.service.ts",
       "rich-text-editor/rich-text-editor.api.ts",
       "rich-text-editor/rich-text-editor.component.css",
@@ -2651,7 +2656,6 @@
       "rich-text-editor/rich-text-markdown.service.ts",
       "rich-text-editor/rich-text-paste-normalizer.service.ts",
       "rich-text-editor/rich-text-prose.ts",
-      "rich-text-editor/rich-text-resource-policy.directive.ts",
       "rich-text-editor/rich-text-resource-policy.ts",
       "rich-text-editor/rich-text-sanitizer.service.ts",
       "rich-text-editor/sub/rich-text-toolbar.component.css",

@@ -12,6 +12,7 @@ import {
     DestroyRef,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
+import { OverlayStackService } from '../../lib/overlay-stack.service';
 export type PopoverSide = 'top' | 'right' | 'bottom' | 'left';
 export type PopoverAlign = 'start' | 'center' | 'end';
 
@@ -28,6 +29,8 @@ export class PopoverComponent implements OnDestroy {
     private readonly el = inject(ElementRef);
     private readonly document = inject(DOCUMENT);
     private readonly destroyRef = inject(DestroyRef);
+    /** Registers this popover as an overlay layer while open, so Escape reaches only the innermost one. */
+    private readonly layers = inject(OverlayStackService);
 
     /**
      * Two-way open state, shared with the trigger and content through DI. Clicking
@@ -73,10 +76,11 @@ export class PopoverComponent implements OnDestroy {
     private readonly escapeListener = (event: KeyboardEvent): void => {
         if (event.key !== 'Escape' || !this.open()) return;
         // Bubble phase on the document, so every handler on the way up -- the
-        // focused control's own, an autocomplete's list -- has already run. A
-        // dialog that contains an open popover defers to it (see
-        // DialogContentComponent), which is what keeps one Escape to one layer
-        // without this listener having to intercept anything.
+        // focused control's own, an autocomplete's list -- has already run.
+        // The overlay stack keeps one Escape to one layer: a popover opened
+        // after this one (an autocomplete's list inside it) owns the key, and
+        // a dialog beneath it defers to it.
+        if (this.layers.hasOverlayAbove(this)) return;
         this.hide();
     };
 
@@ -85,6 +89,11 @@ export class PopoverComponent implements OnDestroy {
     constructor() {
         this.document.addEventListener('click', this.clickListener);
         this.document.addEventListener('keydown', this.escapeListener);
+
+        effect(() => {
+            if (this.open()) this.layers.push(this);
+            else this.layers.remove(this);
+        });
 
         effect(() => {
             const isOpen = this.open();
@@ -121,6 +130,7 @@ export class PopoverComponent implements OnDestroy {
         this.document.removeEventListener('click', this.clickListener);
         this.document.removeEventListener('keydown', this.escapeListener);
         this.removeScrollListener();
+        this.layers.remove(this);
     }
 
     /** Flips the open state. This is what the trigger calls, and the usual entry point for a custom trigger of your own. */

@@ -40,7 +40,7 @@ import {
     registry,
     type ComponentName,
 } from '../../packages/cli/src/registry/index.js';
-import { ALL_COMPONENTS, specLabel, type ComponentSpec } from './specs.js';
+import { ALL_COMPONENTS, specLabel, specsInstallingPackage, type ComponentSpec } from './specs.js';
 import { PACKAGE_ROOTS } from '../../packages/cli/scripts/stage-package-lib.js';
 
 const REGISTRY_FILE = 'packages/cli/src/registry/index.ts';
@@ -116,13 +116,6 @@ function specsForHarnessFolder(folder: string): readonly string[] {
         if (harness === folder) labels.push(specLabel(spec));
     }
     return labels;
-}
-
-/** Every spec label that installs the given compiled package, on any fixture. */
-function specsInstallingPackage(id: string): readonly string[] {
-    return ALL_COMPONENTS
-        .filter((spec) => (spec.packages ?? []).includes(id as never))
-        .map(specLabel);
 }
 
 /**

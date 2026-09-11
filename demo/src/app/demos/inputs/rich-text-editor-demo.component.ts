@@ -164,7 +164,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
         <ui-rich-text-editor #findEditor mode="html"
           toolbar="top"
           [toolbarItems]="findToolbarItems"
-          [recordExternalWrites]="true"
+          [history]="{ recordExternalWrites: true }"
           [findDebounceMs]="150"
           [(ngModel)]="findUndoContent"
           (historyChange)="findUndoHistory.set($event)"
@@ -197,7 +197,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
 
       <div class="space-y-2">
         <h3 class="text-lg font-medium">{{ t().countHeading }}</h3>
-        <ui-rich-text-editor mode="markdown" toolbar="top" [showCount]="true" [showWordCount]="true"
+        <ui-rich-text-editor mode="markdown" toolbar="top" counter="both"
           [maxLength]="120" [placeholder]="t().countPlaceholder"
           minHeight="100px" />
       </div>
@@ -215,8 +215,8 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
         }
         <ui-rich-text-editor mode="markdown" toolbar="top" uiRteHistory uiRteMentions [uiRteMentionsSearch]="searchMentions"
           [uiRteMentionsRender]="mentionLinkRender" [uiRteTags]="true" [uiRteTagsSearch]="searchTags" [uiRteTagsRender]="tagLinkRender"
-          [showCount]="true" [showWordCount]="true" [maxLength]="220" [historyLimit]="180"
-          [uiRteHistoryButton]="richTextShowHistoryButton()" [historyDebounceMs]="500"
+          counter="both" [maxLength]="220"
+          [uiRteHistoryButton]="richTextShowHistoryButton()" [history]="{ limit: 180, debounceMs: 500 }"
           [placeholder]="t().advancedPlaceholder" minHeight="160px" />
         <app-docs-for name="rich-text-editor/history" />
       </div>
@@ -255,7 +255,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
       <div class="space-y-2">
         <h3 class="text-lg font-medium">{{ t().hebrewHeading }}</h3>
         <p class="text-sm text-muted-foreground">{{ t().hebrewDescription }}</p>
-        <ui-rich-text-editor mode="markdown" toolbar="top" locale="he" [showCount]="true" [showWordCount]="true"
+        <ui-rich-text-editor mode="markdown" toolbar="top" locale="he" counter="both"
           uiRteFull minHeight="150px" />
       </div>
 
@@ -282,7 +282,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
       <div class="space-y-2">
         <h3 class="text-lg font-medium">{{ t().imageUploadHeading }}</h3>
         <p class="text-sm text-muted-foreground">{{ t().imageUploadDescription }}</p>
-        <ui-rich-text-editor mode="html" toolbar="top" uiRteImages [uiRteImagesAutoUpload]="true" [uiRteImagesUploader]="fakeImageUploader"
+        <ui-rich-text-editor mode="html" toolbar="top" uiRteImages [uiRteImagesUpload]="{ uploader: fakeImageUploader, auto: true }"
           (autoImageUploadComplete)="lastAutoUploadUrl = $event"
           (autoImageUploadError)="lastAutoUploadError = $event"
           [placeholder]="t().imageUploadPlaceholder" minHeight="160px" />
@@ -347,14 +347,16 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
         </div>
 
         <ui-rich-text-editor mode="html" toolbar="top" uiRteImages
-          [uiRteImagesResize]="imgResize()"
-          [uiRteImagesAlignment]="imgAlignmentButtons()"
-          [uiRteImagesDefaultWidth]="imgDefaultWidth()"
-          [uiRteImagesDefaultHeight]="imgDefaultHeight()"
-          [uiRteImagesDefaultAlignment]="imgDefaultAlignment()"
-          [uiRteImagesMinWidth]="imgMinWidth()"
-          [uiRteImagesMaxWidth]="imgMaxWidth()"
-          [uiRteImagesLockAspectRatio]="imgLockAspect()"
+          [uiRteImagesLayout]="{
+            resize: imgResize(),
+            alignment: imgAlignmentButtons(),
+            defaultWidth: imgDefaultWidth(),
+            defaultHeight: imgDefaultHeight(),
+            defaultAlignment: imgDefaultAlignment(),
+            minWidth: imgMinWidth(),
+            maxWidth: imgMaxWidth(),
+            lockAspectRatio: imgLockAspect()
+          }"
           [placeholder]="t().imageControlsPlaceholder" minHeight="200px" />
       </div>
     </section>

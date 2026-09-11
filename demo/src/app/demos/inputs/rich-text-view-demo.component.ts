@@ -107,7 +107,7 @@ const RTL_SEED = '# שחרור גרסה\n\nהוספנו **מציג לקריאה 
               {{ t().policySetLabel }}
             </p>
             <div class="rounded-md border p-3">
-              <ui-rich-text-view [value]="policyDoc" [allowedResourceHosts]="policyHosts" />
+              <ui-rich-text-view [value]="policyDoc" [allowedImageHosts]="policyHosts" />
             </div>
           </div>
         </div>

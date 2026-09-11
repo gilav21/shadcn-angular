@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { RichTextSanitizerService } from './index';
+import { DEFAULT_LINK_SCHEMES, RichTextSanitizerService } from './index';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 /** The `style` attribute the sanitizer kept for a declaration, or null. */
@@ -1384,5 +1384,111 @@ describe('RichTextSanitizerService - references resolved from the page (fine-com
         const drained = service.drainResourceDecisions();
         expect(drained.length).toBeLessThanOrEqual(256);
         expect(drained.at(-1)?.host).toBe('h299.example');
+    });
+});
+
+describe('RichTextSanitizerService - link schemes: a curated base list plus the consumer\'s own (follow-up F6)', () => {
+    let service: RichTextSanitizerService;
+
+    beforeEach(() => {
+        TestBed.configureTestingModule({ providers: [RichTextSanitizerService] });
+        service = TestBed.inject(RichTextSanitizerService);
+    });
+
+    const hrefOf = (href: string): string | null =>
+        new DOMParser().parseFromString(service.sanitize(`<a href="${href}">x</a>`), 'text/html')
+            .querySelector('a')?.getAttribute('href') ?? null;
+
+    it('keeps well-known application schemes by default', () => {
+        for (const href of [
+            'slack://channel?team=T1&id=C1', 'msteams://teams.microsoft.com/l/chat/0/0',
+            'skype:echo123?call', 'zoommtg://zoom.us/join?confno=1', 'whatsapp://send?text=hi',
+            'tg://resolve?domain=x', 'geo:31.7,35.2', 'webcal://example.com/cal.ics',
+            'xmpp:user@host', 'sip:alice@example.com', 'ssh://git@example.com/repo',
+        ]) {
+            expect(hrefOf(href), href).toBe(href);
+        }
+    });
+
+    it('refuses a scheme nobody listed, then keeps it once the consumer lists it', () => {
+        expect(hrefOf('acme-crm://contact/42')).toBeNull();
+        service.setLinkSchemePolicy(['acme-crm', 'ACME-ERP:']);
+        expect(hrefOf('acme-crm://contact/42')).toBe('acme-crm://contact/42');
+        expect(hrefOf('acme-erp://order/7')).toBe('acme-erp://order/7');
+        expect(hrefOf('other://x')).toBeNull();
+    });
+
+    it('reads the consumer list live, so a signal handed over is honoured as it changes', () => {
+        const extra: string[] = [];
+        service.setLinkSchemePolicy(() => extra);
+        expect(hrefOf('acme-crm://contact/42')).toBeNull();
+        extra.push('acme-crm');
+        expect(hrefOf('acme-crm://contact/42')).toBe('acme-crm://contact/42');
+    });
+
+    it('never lets a listed forbidden scheme through', () => {
+        // The allowlist widens what a link may point at, not what may run.
+        service.setLinkSchemePolicy(['javascript', 'data', 'file', 'blob', 'ms-msdt']);
+        for (const href of ['javascript:alert(1)', 'data:text/html,<b>x</b>', 'file:///etc/passwd', 'blob:https://x/y', 'ms-msdt:/id PCWDiagnostic']) {
+            expect(hrefOf(href), href).toBeNull();
+        }
+    });
+
+    it('exports the base list so a consumer can see what is already covered', () => {
+        expect(DEFAULT_LINK_SCHEMES).toContain('https');
+        expect(DEFAULT_LINK_SCHEMES).toContain('slack');
+        expect(DEFAULT_LINK_SCHEMES).not.toContain('javascript');
+    });
+});
+
+describe('RichTextSanitizerService - SVG data URLs decoded byte-wise (follow-up F3)', () => {
+    let service: RichTextSanitizerService;
+
+    beforeEach(() => {
+        TestBed.configureTestingModule({ providers: [RichTextSanitizerService] });
+        service = TestBed.inject(RichTextSanitizerService);
+    });
+
+    it('keeps a percent-encoded SVG that carries a byte decodeURIComponent would throw on', () => {
+        // %FF is not valid UTF-8 on its own; decodeURIComponent threw and the
+        // catch dropped the whole image for one stray byte.
+        const svg = '<svg xmlns="http://www.w3.org/2000/svg"><title>caf%FF</title><rect width="1" height="1"/></svg>';
+        const out = service.sanitizeSvgDataUrl(`data:image/svg+xml,${encodeURIComponent(svg).replace('%25FF', '%FF')}`);
+        expect(out).not.toBeNull();
+        expect(decodeURIComponent(out ?? '')).toContain('<rect');
+    });
+
+    it('still scrubs script from such an SVG', () => {
+        const svg = '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><script>alert(1)</script><rect/></svg>';
+        const out = service.sanitizeSvgDataUrl(`data:image/svg+xml,${encodeURIComponent(svg)}`);
+        expect(out).not.toBeNull();
+        expect(decodeURIComponent(out ?? '')).not.toContain('script');
+        expect(decodeURIComponent(out ?? '')).not.toContain('onload');
+    });
+});
+
+describe('RichTextSanitizerService - style values judged as the browser reads them (follow-up F1)', () => {
+    let service: RichTextSanitizerService;
+
+    beforeEach(() => {
+        TestBed.configureTestingModule({ providers: [RichTextSanitizerService] });
+        service = TestBed.inject(RichTextSanitizerService);
+    });
+
+    const styleOf = (decl: string): string | null => sanitizedStyle(service, decl);
+
+    it('keeps ordinary values, shorthands included, in their original spelling', () => {
+        for (const decl of ['border: 1px solid red', 'background: #4a86e8', "font-family: 'Comic Sans MS', cursive", 'margin: 0 auto', 'text-decoration: underline dotted']) {
+            expect(styleOf(decl), decl).toContain(decl.split(':')[1].trim());
+        }
+    });
+
+    it('refuses a value the browser reads as a fetch even when the raw text hides it', () => {
+        // Judged twice -- raw and canonical -- and either refusal wins.
+        const B = String.fromCodePoint(0x5c);
+        service.setRemoteHostPolicy(['cdn.trusted.com']);
+        expect(styleOf('background: ' + B + '69mage-set("https://tracker.example/p.png" 1x)')).toBeNull();
+        expect(styleOf('background: image-set(url(https://tracker.example/p.png) 1x)')).toBeNull();
+        expect(styleOf('background: url(https://cdn.trusted.com/p.png)')).not.toBeNull();
     });
 });

@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { cn } from '../../../lib/utils';
 import { DRAWER, drawerVariants } from '../drawer.component';
+import { OverlayStackService } from '../../../lib/overlay-stack.service';
 import { DrawerHeaderComponent } from './drawer-header.component';
 import { DrawerTitleComponent } from './drawer-title.component';
 import { DrawerDescriptionComponent } from './drawer-description.component';
@@ -27,6 +28,7 @@ import { DrawerDescriptionComponent } from './drawer-description.component';
 })
 export class DrawerContentComponent implements AfterViewInit {
     readonly drawer = inject(DRAWER, { optional: true });
+    private readonly layers = inject(OverlayStackService);
     private readonly el = inject(ElementRef);
     /**
      * Extra classes merged onto the panel (not the backdrop), after the
@@ -101,6 +103,8 @@ export class DrawerContentComponent implements AfterViewInit {
      */
     onKeydown(event: KeyboardEvent): void {
         if (event.key === 'Escape') {
+            // One Escape, one layer: an overlay opened after this drawer owns it.
+            if (this.layers.hasOverlayAbove(this.drawer)) return;
             event.preventDefault();
             this.drawer?.hide();
             return;

@@ -14,12 +14,13 @@
  * Everything here is a pure value→value function except `stagePackage`, which is
  * the one filesystem entry point.
  */
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { resolveDependencies } from '../src/core/resolve.js';
 import { registry, type ComponentName } from '../src/registry/index.js';
 import { getStylesTemplate } from '../src/templates/styles.js';
+import { readNamespace } from './gen-file-sizes.js';
 
 export const PACKAGE_IDS = ['rte', 'data-table'] as const;
 export type PackageId = (typeof PACKAGE_IDS)[number];
@@ -220,16 +221,6 @@ export function consumerCssSnippet(ids: readonly PackageId[]): string {
 
 const IMPORT_RE = /(?:from\s*|import\s*\(\s*)['"](\.[^'"]*)['"]/g;
 
-function walkTsFiles(dir: string, out: string[] = []): string[] {
-    if (!existsSync(dir)) return out;
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-        const full = path.join(dir, entry.name);
-        if (entry.isDirectory()) walkTsFiles(full, out);
-        else if (entry.name.endsWith('.ts')) out.push(full);
-    }
-    return out;
-}
-
 function resolves(fromFile: string, specifier: string): boolean {
     const base = path.resolve(path.dirname(fromFile), specifier);
     const candidates = [
@@ -253,12 +244,15 @@ function resolves(fromFile: string, specifier: string): boolean {
  */
 export function auditStagedImports(srcRoot: string): string[] {
     const unresolved: string[] = [];
-    for (const file of walkTsFiles(srcRoot)) {
-        const source = readFileSync(file, 'utf-8');
-        for (const match of source.matchAll(IMPORT_RE)) {
+    // One walker for the scripts (gen-file-sizes owns it); its paths are
+    // repo-style forward slashes on every platform, so the report reads the
+    // same on Windows as everywhere else.
+    for (const file of readNamespace(srcRoot).filter((f) => f.path.endsWith('.ts'))) {
+        const absolute = path.join(srcRoot, file.path);
+        for (const match of file.contents.matchAll(IMPORT_RE)) {
             const specifier = match[1];
-            if (resolves(file, specifier)) continue;
-            unresolved.push(`${path.relative(srcRoot, file)} → ${specifier}`);
+            if (resolves(absolute, specifier)) continue;
+            unresolved.push(`${file.path} → ${specifier}`);
         }
     }
     return unresolved.sort((a, b) => a.localeCompare(b));
@@ -272,17 +266,7 @@ export interface StageResult {
 }
 
 function countFiles(dir: string): number {
-    return walkAll(dir).length;
-}
-
-function walkAll(dir: string, out: string[] = []): string[] {
-    if (!existsSync(dir)) return out;
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-        const full = path.join(dir, entry.name);
-        if (entry.isDirectory()) walkAll(full, out);
-        else out.push(full);
-    }
-    return out;
+    return readNamespace(dir).length;
 }
 
 /**

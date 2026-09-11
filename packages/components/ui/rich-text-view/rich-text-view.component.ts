@@ -4,7 +4,6 @@ import {
     ElementRef,
     computed,
     effect,
-    forwardRef,
     inject,
     input,
     output,
@@ -16,7 +15,7 @@ import {
     RICH_TEXT_LOCALES,
     RICH_TEXT_PROSE_CLASSES,
     RichTextMarkdownService,
-    RichTextResourcePolicyHost,
+    RichTextAllowHost,
     RichTextSanitizerService,
     labelBlockedImages,
     reportResourceDecisions,
@@ -24,6 +23,7 @@ import {
     type EditorSize,
     type ResourcePolicyDecision,
     type RichTextLocale,
+    type TextDirection,
 } from '../rich-text-editor';
 
 /** Text-size presets, mirroring the editor's `size` variants. */
@@ -67,25 +67,14 @@ const VIEW_SIZE_CLASSES: Record<NonNullable<EditorSize>, string> = {
         // keeps `[uiRichTextActions]` working on a wrapper element.
         RichTextSanitizerService,
         RichTextMarkdownService,
-        {
-            provide: RichTextResourcePolicyHost,
-            useExisting: forwardRef(() => RichTextViewComponent),
-        },
     ],
 })
 export class RichTextViewComponent {
     private readonly sanitizer = inject(RichTextSanitizerService);
     private readonly markdown = inject(RichTextMarkdownService);
 
-    /**
-     * The nearest enclosing editor or view, when one exists. Read only when
-     * {@link inheritResourcePolicy} is on; `skipSelf` steps past this
-     * component's own registration, and `optional` handles a standalone view.
-     */
-    private readonly parentPolicy = inject(RichTextResourcePolicyHost, {
-        skipSelf: true,
-        optional: true,
-    });
+    /** The nearest enclosing `[uiRichTextAllow]` wrapper, if any. */
+    private readonly parentAllow = inject(RichTextAllowHost, { optional: true });
 
     private readonly content = viewChild.required<ElementRef<HTMLElement>>('content');
 
@@ -107,22 +96,17 @@ export class RichTextViewComponent {
      * A blocked image keeps its element and alt and gains `data-blocked-src`,
      * so nothing is fetched and allowing the host later restores it.
      */
-    readonly allowedResourceHosts = input<readonly string[]>([]);
+    readonly allowedImageHosts = input<readonly string[]>([]);
 
     /**
-     * Take the policy from the nearest enclosing view or editor when this one
-     * sets none.
-     *
-     * Off by default, so an empty {@link allowedResourceHosts} keeps exactly one
-     * meaning -- no policy -- and the effective rule is readable from the
-     * component itself. Turn it on for a page that renders many views under a
-     * single policy, where repeating the list on each would be the more likely
-     * mistake. Ignored when this view sets its own list.
+     * Link schemes allowed in addition to the built-in list, as on the editor.
+     * A link a document carries is only as useful as the page that renders
+     * it, so set the same list here.
      */
-    readonly inheritResourcePolicy = input(false);
+    readonly allowedLinkSchemes = input<readonly string[]>([]);
 
     /**
-     * Caption shown on an image {@link allowedResourceHosts} refused. Inserted
+     * Caption shown on an image {@link allowedImageHosts} refused. Inserted
      * as text, never as markup. Unset uses the translated default from
      * {@link locale}.
      */
@@ -136,18 +120,17 @@ export class RichTextViewComponent {
     readonly locale = input<LocaleInput<RichTextLocale>>();
 
     /**
-     * Emits once per remote image or CSS background the rendered content
-     * references, allowed or blocked -- with `reason: 'no-policy'` when no list
-     * is set. The view is what readers see, so this is where exposure is
-     * measured; the editor has the same output for what authors insert.
+     * Emits once per remote image or CSS background {@link allowedImageHosts}
+     * refused. The view is what readers see, so this is where a block matters
+     * most; the editor has the same output for what authors insert.
      */
-    readonly remoteResource = output<ResourcePolicyDecision>();
+    readonly imageBlocked = output<ResourcePolicyDecision>();
 
     private readonly i18n = createLocaleBindings(this.locale, RICH_TEXT_LOCALES);
     /** Text size preset — the editor's `size` values. */
     readonly size = input<EditorSize>('default');
     /** Text direction for the content; unset inherits from the page. */
-    readonly dir = input<'ltr' | 'rtl' | 'auto'>();
+    readonly dir = input<TextDirection | undefined>();
     /** Extra classes merged onto the content element. */
     readonly class = input('');
 
@@ -171,6 +154,7 @@ export class RichTextViewComponent {
         // read the computed memoises against value/mode alone and a policy
         // change re-renders nothing.
         this.effectiveHosts();
+        this.effectiveLinkSchemes();
 
         return this.mode() === 'markdown'
             ? this.markdown.toHtml(this.value())
@@ -178,14 +162,15 @@ export class RichTextViewComponent {
     });
 
     /** This view's own host list, or an inherited one when it has none. */
-    private readonly effectiveHosts = computed<readonly string[]>(() => {
-        const own = this.allowedResourceHosts();
-        if (own.length > 0 || !this.inheritResourcePolicy()) return own;
-        return this.parentPolicy?.allowedResourceHosts() ?? [];
-    });
+    private readonly effectiveHosts = computed<readonly string[]>(() =>
+        this.allowedImageHosts().length > 0 ? this.allowedImageHosts() : (this.parentAllow?.allow().imageHosts ?? []));
+
+    private readonly effectiveLinkSchemes = computed<readonly string[]>(() =>
+        this.allowedLinkSchemes().length > 0 ? this.allowedLinkSchemes() : (this.parentAllow?.allow().linkSchemes ?? []));
 
     constructor() {
         this.sanitizer.setRemoteHostPolicy(this.effectiveHosts);
+        this.sanitizer.setLinkSchemePolicy(this.effectiveLinkSchemes);
 
         effect(() => {
             const el = this.content().nativeElement;
@@ -215,7 +200,7 @@ export class RichTextViewComponent {
     private drainResourceDecisions(): void {
         reportResourceDecisions(
             this.sanitizer.drainResourceDecisions(),
-            (decision) => this.remoteResource.emit(decision),
+            (decision) => this.imageBlocked.emit(decision),
             'rich-text-view',
         );
     }

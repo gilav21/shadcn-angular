@@ -79,7 +79,7 @@ describe('RichTextEmojiDirective', () => {
         const editorCmp = fixture.debugElement.query(By.directive(RichTextEditorComponent))
             .componentInstance as RichTextEditorComponent;
         const stackLength = (): number =>
-            (editorCmp as unknown as { history: unknown[] }).history.length;
+            (editorCmp as unknown as { snapshots: unknown[] }).snapshots.length;
         const picker = fixture.debugElement.query(By.directive(EmojiPickerComponent))
             .componentInstance as EmojiPickerComponent;
 

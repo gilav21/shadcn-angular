@@ -647,3 +647,47 @@ describe('PopoverComponent - Escape inside a dialog (fine-comb review)', () => {
         expect(fixture.componentInstance.dialogOpen).toBe(false);
     });
 });
+
+describe('PopoverComponent - overlay layers (follow-up F2)', () => {
+    @Component({
+        template: `
+            <ui-popover #outer>
+                <ui-popover-trigger>Outer</ui-popover-trigger>
+                <ui-popover-content>
+                    <ui-popover #inner>
+                        <ui-popover-trigger>Inner</ui-popover-trigger>
+                        <ui-popover-content><button id="deep" type="button">deep</button></ui-popover-content>
+                    </ui-popover>
+                </ui-popover-content>
+            </ui-popover>
+        `,
+        imports: [PopoverComponent, PopoverTriggerComponent, PopoverContentComponent],
+    })
+    class NestedHostComponent {}
+
+    afterEach(() => TestBed.resetTestingModule());
+
+    it('closes only the innermost of two open popovers per Escape', () => {
+        const fixture = TestBed.createComponent(NestedHostComponent);
+        fixture.detectChanges();
+        const popovers = (): PopoverComponent[] => fixture.debugElement
+            .queryAll(By.directive(PopoverComponent))
+            .map((d) => d.componentInstance as PopoverComponent);
+        const outer = popovers()[0];
+        outer.show();
+        fixture.detectChanges();
+        // The inner popover lives in the outer's content, so it exists only now.
+        const inner = popovers()[1];
+        inner.show();
+        fixture.detectChanges();
+
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        fixture.detectChanges();
+        expect(inner.open()).toBe(false);
+        expect(outer.open()).toBe(true);
+
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        fixture.detectChanges();
+        expect(outer.open()).toBe(false);
+    });
+});

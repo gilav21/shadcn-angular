@@ -29,6 +29,11 @@ import {
  * a package folder with a version, one closure source file, and a registry
  * stub the staging lib can resolve.
  */
+const FIXTURE_SPECS = `export function specsInstallingPackage(id: string): readonly string[] {
+    return id === 'rte' ? ['pkg-rte'] : ['pkg-data-table'];
+}
+`;
+
 const FIXTURE_PKG_JSON = `{
   "name": "@gilav21/shadcn-angular-rte",
   "version": "0.1.0",
@@ -77,7 +82,12 @@ function seedFixture(change: Change): string {
         'release-package-lib.ts',
         'release-cli-lib.ts',
         'stage-package-lib.ts',
+        'gen-file-sizes.ts',
+        'gen-file-sizes-lib.ts',
     ]);
+    // The preflight legs come from the e2e spec table; the fixture gets a
+    // one-leg stand-in for the same reason it gets a two-component registry.
+    write(root, 'e2e/orchestrator/specs.ts', FIXTURE_SPECS);
     // `stage-package-lib` reaches into the CLI's registry and resolver to derive
     // the closure. In a throwaway repo those do not exist, so the fixture gets a
     // tiny stand-in: a two-component registry whose closure is one RTE file.

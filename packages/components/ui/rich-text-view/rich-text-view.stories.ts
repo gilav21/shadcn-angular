@@ -2,7 +2,7 @@ import { Component, signal } from '@angular/core';
 import type { Meta, StoryObj } from '@storybook/angular';
 import { moduleMetadata } from '@storybook/angular';
 import { RichTextViewComponent } from './rich-text-view.component';
-import { RichTextResourcePolicyDirective } from '../rich-text-editor';
+import { RichTextAllowDirective } from '../rich-text-editor';
 import {
     RichTextActionsBindDirective,
     type RichTextActionEvent,
@@ -57,7 +57,7 @@ const REMOTE_DOC = '# Newsletter\n\n'
 @Component({
     selector: 'rich-text-view-policy',
     standalone: true,
-    imports: [RichTextViewComponent, RichTextResourcePolicyDirective],
+    imports: [RichTextViewComponent, RichTextAllowDirective],
     template: `
         <div class="space-y-6">
             <div class="space-y-2">
@@ -71,14 +71,14 @@ const REMOTE_DOC = '# Newsletter\n\n'
                 <p class="text-xs font-medium uppercase text-muted-foreground">
                     Only cdn.trusted.com
                 </p>
-                <ui-rich-text-view [value]="doc" [allowedResourceHosts]="hosts" />
+                <ui-rich-text-view [value]="doc" [allowedImageHosts]="hosts" />
             </div>
 
-            <div class="space-y-2" [uiRichTextResourcePolicy]="hosts">
+            <div class="space-y-2" [uiRichTextAllow]="{ imageHosts: hosts }">
                 <p class="text-xs font-medium uppercase text-muted-foreground">
-                    Inherited from a wrapper — opt-in per view
+                    Inherited from a wrapper
                 </p>
-                <ui-rich-text-view [value]="doc" [inheritResourcePolicy]="true" />
+                <ui-rich-text-view [value]="doc" />
             </div>
         </div>
     `,

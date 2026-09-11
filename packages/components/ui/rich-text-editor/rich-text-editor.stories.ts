@@ -99,16 +99,18 @@ const meta: Meta<RichTextEditorComponent> = {
             options: Object.keys(RICH_TEXT_LOCALES),
             description: 'Locale for UI strings and automatic RTL',
         },
-        historyDebounceMs: {
-            control: { type: 'number', min: 0, max: 2000, step: 50 },
-            description: 'Debounce duration (ms) before a typing snapshot is persisted',
+        history: {
+            control: 'object',
+            description: 'Undo history tuning: { limit, debounceMs, recordExternalWrites }',
         },
         disabled: { control: 'boolean', description: 'Disables the editor' },
         readonly: { control: 'boolean', description: 'Renders content read-only (no editing)' },
-        showCount: { control: 'boolean', description: 'Show the character counter' },
-        showWordCount: { control: 'boolean', description: 'Show the word counter' },
+        counter: {
+            control: 'select',
+            options: [undefined, 'characters', 'words', 'both'],
+            description: 'Which counter to show below the editor',
+        },
         maxLength: { control: 'number', description: 'Maximum character count (undefined = unlimited)' },
-        historyLimit: { control: 'number', description: 'Maximum number of undo/redo snapshots retained' },
     },
 };
 
@@ -130,10 +132,8 @@ export const Playground: Story = {
         maxHeight: '400px',
         disabled: false,
         readonly: false,
-        showCount: true,
-        showWordCount: true,
-        historyDebounceMs: 450,
-        historyLimit: 100,
+        counter: 'both',
+        history: { limit: 100, debounceMs: 450 },
     },
 };
 
@@ -218,8 +218,7 @@ export const WithCharacterCount: Story = {
     args: {
         mode: 'markdown',
         toolbar: 'top',
-        showCount: true,
-        showWordCount: true,
+        counter: 'both',
         placeholder: 'Type something to see character count...',
         minHeight: '150px',
     },
@@ -229,11 +228,9 @@ export const AdvancedEditorConfig: Story = {
     args: {
         mode: 'markdown',
         toolbar: 'top',
-        showCount: true,
-        showWordCount: true,
+        counter: 'both',
         maxLength: 240,
-        historyLimit: 150,
-        historyDebounceMs: 500,
+        history: { limit: 150, debounceMs: 500 },
         placeholder: 'Try @john-doe, #angular.ui, paste content, then undo/redo.',
         minHeight: '180px',
     },
@@ -251,8 +248,7 @@ export const HebrewRTL: Story = {
         mode: 'markdown',
         toolbar: 'top',
         locale: 'he',
-        showCount: true,
-        showWordCount: true,
+        counter: 'both',
         minHeight: '180px',
     },
     parameters: {
@@ -269,8 +265,7 @@ export const ArabicRTL: Story = {
         mode: 'markdown',
         toolbar: 'top',
         locale: 'ar',
-        showCount: true,
-        showWordCount: true,
+        counter: 'both',
         minHeight: '180px',
     },
     parameters: {
@@ -287,8 +282,7 @@ export const FrenchLocale: Story = {
         mode: 'markdown',
         toolbar: 'top',
         locale: 'fr',
-        showCount: true,
-        showWordCount: true,
+        counter: 'both',
         minHeight: '180px',
     },
     parameters: {
@@ -305,8 +299,7 @@ export const JapaneseLocale: Story = {
         mode: 'markdown',
         toolbar: 'top',
         locale: 'ja',
-        showCount: true,
-        showWordCount: true,
+        counter: 'both',
         minHeight: '180px',
     },
     parameters: {
@@ -425,11 +418,9 @@ class RichTextDemoComponent {
         [uiRteMentionsSearch]="mentionSearch"
         [uiRteTags]="true"
         [uiRteTagsSearch]="tagSearch"
-        [showCount]="true"
-        [showWordCount]="true"
+        counter="both"
         [maxLength]="220"
-        [historyLimit]="200"
-        [historyDebounceMs]="500"
+        [history]="{ limit: 200, debounceMs: 500 }"
         placeholder="Type content, paste text, and use undo/redo to validate history behavior..."
         minHeight="180px"
         [(ngModel)]="content"

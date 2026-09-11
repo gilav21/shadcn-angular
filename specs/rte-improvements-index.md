@@ -78,3 +78,13 @@ mechanism beyond the RTE.
 | F5 | Share `resolveBaseRef` / `changedFilesSince` / dirty-tree and branch refusals between `release-cli.ts` and `release-package-lib.ts`; derive `preflightLegs` from `specs.ts` (`spec.packages`) rather than a hand-written label list; replace `stage-package-lib`'s two directory walkers with `gen-file-sizes`' `readNamespace`. | Two release trains carry copies of the same git logic; a new `pkg-*` spec is run by impact analysis but skipped by the release preflight. | `packages/cli/scripts/` |
 | F6 | Decide the link-scheme policy explicitly: keep the fixed allowlist (current), or add a consumer-facing `allowedLinkSchemes` input for intranet schemes (`slack://`, `msteams:`, `geo:`). | The allowlist silently strips custom schemes from existing content on first save. | `rich-text-sanitizer.service.ts` |
 | F7 | Comment density: the PR adds ~790 `//` rationale lines inside method bodies, which CLAUDE.md's "no non-JSDoc comments" rule reads literally. Either relax the rule to permit *why* comments or move the histories into the spec logs. | Policy call, not a defect; flagged by the conventions finder. | `.claude/CLAUDE.md` |
+
+**Closed 2026-09-11 (third review round, PR #131).** All seven landed in the
+PR itself: F1 judges both the raw and the browser-canonical value; F2 is
+`lib/overlay-stack.service.ts`, used by dialog, sheet, drawer and popover; F3
+decodes byte-wise; F4 applies once in `ngAfterViewInit` and re-applies from a
+`MutationObserver`; F5 shares the git helpers through `release-cli-lib.ts`,
+derives the preflight legs from `specs.ts` and walks with `readNamespace`; F6
+became a curated `DEFAULT_LINK_SCHEMES` list plus `allowedLinkSchemes` on the
+editor, the view and the `[uiRichTextAllow]` wrapper; F7 relaxed the rule to
+"comments say *why*, never *what*".

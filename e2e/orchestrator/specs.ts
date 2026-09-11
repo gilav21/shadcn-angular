@@ -429,6 +429,17 @@ function loadSpecs(): readonly ComponentSpec[] {
  */
 export const ALL_COMPONENTS: readonly ComponentSpec[] = loadSpecs();
 
+/**
+ * Every spec label that installs the given compiled package, on any fixture.
+ * Read by the impact analyzer and by the package release preflight, so both
+ * derive "which specs exercise this package" from the one table above.
+ */
+export function specsInstallingPackage(id: string): readonly string[] {
+    return ALL_COMPONENTS
+        .filter((spec) => (spec.packages ?? []).includes(id as PackageId))
+        .map(specLabel);
+}
+
 export interface CliSpecEntry {
     readonly label: string;
     readonly module: string;

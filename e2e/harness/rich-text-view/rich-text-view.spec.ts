@@ -74,10 +74,15 @@ test('the resource policy survives a pristine consumer install', async ({ page }
         /tracker\.example/,
     );
 
-    // Inherited from the wrapper directive, and only when opted in.
+    // Inherited from the wrapper directive by default; a view's own list wins
+    // whole over it, never merged.
     await expect(srcOf('view-inherit', 'no')).toHaveAttribute(
         'data-blocked-src',
         /tracker\.example/,
     );
-    await expect(srcOf('view-no-inherit', 'no')).toHaveAttribute('src', /tracker\.example/);
+    await expect(srcOf('view-own-wins', 'no')).toHaveAttribute('src', /tracker\.example/);
+    await expect(srcOf('view-own-wins', 'ok')).toHaveAttribute(
+        'data-blocked-src',
+        /cdn\.trusted\.com/,
+    );
 });

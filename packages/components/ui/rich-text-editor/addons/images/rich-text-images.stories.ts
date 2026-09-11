@@ -19,7 +19,7 @@ const meta: Meta = {
                 component:
                     'Opt-in images addon: `apply rich-text-editor/images`, then add `uiRteImages` to the editor ' +
                     'element. Owns the whole image feature — the toolbar image button + insert popover, image paste ' +
-                    'and drag-and-drop, the upload pipeline (`uiRteImagesUploader` + `uiRteImagesAutoUpload`), and the ' +
+                    'and drag-and-drop, the upload pipeline (`uiRteImagesUpload`), and the ' +
                     'resize/align overlay on a selected image. The base editor keeps only content-level image support ' +
                     '(the sanitizer allows `<img>` and markdown serializes images); every image control is opt-in.',
             },
@@ -69,8 +69,7 @@ export const AutoUpload: Story = {
             <ui-rich-text-editor
                 mode="html"
                 uiRteImages
-                [uiRteImagesAutoUpload]="true"
-                [uiRteImagesUploader]="uploader"
+                [uiRteImagesUpload]="{ uploader: uploader, auto: true }"
                 placeholder="Paste or drag an image to watch it auto-upload…"
                 minHeight="200px"
             />
@@ -84,11 +83,7 @@ export const InsertControls: Story = {
             <ui-rich-text-editor
                 mode="html"
                 uiRteImages
-                [uiRteImagesDefaultWidth]="240"
-                uiRteImagesDefaultAlignment="center"
-                [uiRteImagesMinWidth]="80"
-                [uiRteImagesMaxWidth]="480"
-                [uiRteImagesLockAspectRatio]="false"
+                [uiRteImagesLayout]="{ defaultWidth: 240, defaultAlignment: 'center', minWidth: 80, maxWidth: 480, lockAspectRatio: false }"
                 placeholder="Insert an image, select it, then drag the corner or edge handles…"
                 minHeight="220px"
             />

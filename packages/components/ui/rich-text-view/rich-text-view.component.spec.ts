@@ -7,7 +7,7 @@ import { RichTextViewComponent } from './rich-text-view.component';
 import {
     RICH_TEXT_PROSE_CLASSES,
     RichTextEditorComponent,
-    RichTextResourcePolicyDirective,
+    RichTextAllowDirective,
     RichTextSanitizerService,
     type ResourcePolicyDecision,
 } from '../rich-text-editor';
@@ -466,7 +466,7 @@ describe('RichTextViewComponent — remote resource policy', () => {
             <ui-rich-text-view
                 id="strict"
                 [value]="doc"
-                [allowedResourceHosts]="['cdn.trusted.com']" />
+                [allowedImageHosts]="['cdn.trusted.com']" />
             <ui-rich-text-view id="open" [value]="doc" />
         `,
     })
@@ -496,37 +496,34 @@ describe('RichTextViewComponent — remote resource policy', () => {
     @Component({
         selector: 'test-nested-views',
         standalone: true,
-        imports: [RichTextViewComponent, RichTextResourcePolicyDirective],
+        imports: [RichTextViewComponent, RichTextAllowDirective],
         template: `
-            <div [uiRichTextResourcePolicy]="hosts()">
-                <ui-rich-text-view
-                    id="inner"
-                    [value]="doc"
-                    [inheritResourcePolicy]="inherit()" />
+            <div [uiRichTextAllow]="{ imageHosts: hosts(), linkSchemes: ['acme-crm'] }">
+                <ui-rich-text-view id="inner" [value]="doc" />
             </div>
         `,
     })
     class NestedViewsComponent {
         readonly hosts = signal<readonly string[]>(['cdn.trusted.com']);
-        readonly inherit = signal(false);
-        doc = `![a](${TRACKER})`;
+        doc = `![a](${TRACKER}) [c](acme-crm://contact/42)`;
     }
 
-    it('T-P2 a view ignores an enclosing policy by default', () => {
-        // Opt-in, so an empty host list keeps exactly one meaning -- no policy.
+    it('T-P2 a view under a wrapper takes its hosts without opting in', () => {
+        // A wrapper exists to be inherited; a view that wants its own policy
+        // sets one.
         const fixture = TestBed.createComponent(NestedViewsComponent);
-        fixture.detectChanges();
-
-        expect(imgIn(fixture, 'inner').getAttribute('src')).toBe(TRACKER);
-    });
-
-    it('T-P3 inheritResourcePolicy takes the enclosing policy', () => {
-        const fixture = TestBed.createComponent(NestedViewsComponent);
-        fixture.componentInstance.inherit.set(true);
         fixture.detectChanges();
 
         expect(imgIn(fixture, 'inner').hasAttribute('src')).toBe(false);
         expect(imgIn(fixture, 'inner').getAttribute('data-blocked-src')).toBe(TRACKER);
+    });
+
+    it('T-P3 the wrapper carries link schemes as well as hosts', () => {
+        const fixture = TestBed.createComponent(NestedViewsComponent);
+        fixture.detectChanges();
+
+        const a = (fixture.nativeElement as HTMLElement).querySelector('#inner a');
+        expect(a?.getAttribute('href')).toBe('acme-crm://contact/42');
     });
 
     it('T-P4 an inherited policy tracks a change to the ancestor list', () => {
@@ -534,7 +531,6 @@ describe('RichTextViewComponent — remote resource policy', () => {
         // computed. Set from an effect instead, this memoises on value alone and
         // the image stays blocked forever.
         const fixture = TestBed.createComponent(NestedViewsComponent);
-        fixture.componentInstance.inherit.set(true);
         fixture.detectChanges();
         expect(imgIn(fixture, 'inner').hasAttribute('src')).toBe(false);
 
@@ -547,14 +543,13 @@ describe('RichTextViewComponent — remote resource policy', () => {
     @Component({
         selector: 'test-own-wins',
         standalone: true,
-        imports: [RichTextViewComponent, RichTextResourcePolicyDirective],
+        imports: [RichTextViewComponent, RichTextAllowDirective],
         template: `
-            <div [uiRichTextResourcePolicy]="['tracker.example']">
+            <div [uiRichTextAllow]="{ imageHosts: ['tracker.example'] }">
                 <ui-rich-text-view
                     id="inner"
                     [value]="doc"
-                    [inheritResourcePolicy]="true"
-                    [allowedResourceHosts]="['cdn.trusted.com']" />
+                    [allowedImageHosts]="['cdn.trusted.com']" />
             </div>
         `,
     })
@@ -589,7 +584,7 @@ describe('RichTextViewComponent — remote resource policy', () => {
         for (const mode of ['markdown', 'html'] as const) {
             const solo = TestBed.createComponent(RichTextViewComponent);
             solo.componentRef.setInput('mode', mode);
-            solo.componentRef.setInput('allowedResourceHosts', ['cdn.trusted.com']);
+            solo.componentRef.setInput('allowedImageHosts', ['cdn.trusted.com']);
             solo.componentRef.setInput(
                 'value',
                 mode === 'markdown' ? `![a](${TRACKER})` : `<p><img src="${TRACKER}" alt="a"></p>`,
@@ -616,10 +611,10 @@ describe('RichTextViewComponent — blocked-image caption and exposure report (f
         template: `
             <ui-rich-text-view
                 [value]="doc()"
-                [allowedResourceHosts]="['cdn.trusted.com']"
+                [allowedImageHosts]="['cdn.trusted.com']"
                 [blockedImageMessage]="message()"
                 [locale]="locale()"
-                (remoteResource)="seen.push($event)" />
+                (imageBlocked)="seen.push($event)" />
         `,
     })
     class CaptionedViewComponent {

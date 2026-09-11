@@ -42,11 +42,8 @@ const TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAE
     imports: [RichTextEditorComponent, RichTextImagesDirective],
     template: `<ui-rich-text-editor mode="html" [disabled]="disabled()" [readonly]="readonly()"
         [uiRteImages]="enabled()" [uiRteImagesToolbar]="toolbar()" [uiRteImagesLocale]="locale()"
-        [uiRteImagesSources]="sources()"
-        [uiRteImagesAutoUpload]="autoUpload()"
-        [uiRteImagesUploader]="uploader()"
-        [uiRteImagesDefaultWidth]="defaultWidth()"
-        [uiRteImagesDefaultAlignment]="defaultAlignment()"
+        [uiRteImagesUpload]="{ sources: sources(), auto: autoUpload(), uploader: uploader() }"
+        [uiRteImagesLayout]="{ defaultWidth: defaultWidth(), defaultAlignment: defaultAlignment() }"
         (imageUploadComplete)="uploadComplete.push($event)"
         (imageUploadError)="uploadError.push($event)"
         (autoImageUploadComplete)="autoComplete.push($event)"

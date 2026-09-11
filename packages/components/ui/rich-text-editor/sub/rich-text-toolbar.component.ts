@@ -8,7 +8,8 @@ import {
   inject,
   signal,
   ElementRef,
-  type AfterViewChecked,
+  type AfterViewInit,
+  DestroyRef,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NgComponentOutlet } from '@angular/common';
@@ -206,7 +207,7 @@ function mirrorLabel(item: ToolbarButtonItem): ToolbarButtonItem {
     '(focusin)': 'onToolbarFocusIn($event)',
   },
 })
-export class RichTextToolbarComponent implements AfterViewChecked {
+export class RichTextToolbarComponent implements AfterViewInit {
   /**
    * Every item that is a toggle — one that names a state the caret can be in,
    * and therefore renders pressed when {@link activeFormats} reports it. The
@@ -221,6 +222,7 @@ export class RichTextToolbarComponent implements AfterViewChecked {
 
   private readonly sanitizer = inject(DomSanitizer);
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly destroyRef = inject(DestroyRef);
 
   /**
    * Index of the button that currently holds the toolbar's single tab stop.
@@ -600,7 +602,21 @@ export class RichTextToolbarComponent implements AfterViewChecked {
     this.applyRovingTabIndex(stops);
   }
 
-  ngAfterViewChecked(): void {
+  /**
+   * Keep the single tab stop written as the toolbar's controls come and go.
+   *
+   * Once after the first render, then on every DOM mutation inside the
+   * toolbar (an addon slot rendering its button, an item list change). This
+   * replaces an `AfterViewChecked` hook that re-queried the DOM and read
+   * `offsetParent` -- a forced layout -- on every change-detection pass, which
+   * is every caret move in the editor.
+   */
+  ngAfterViewInit(): void {
     this.applyRovingTabIndex();
+    const toolbar = this.elementRef.nativeElement.querySelector('[role="toolbar"]');
+    if (!toolbar || typeof MutationObserver !== 'function') return;
+    const observer = new MutationObserver(() => this.applyRovingTabIndex());
+    observer.observe(toolbar, { childList: true, subtree: true });
+    this.destroyRef.onDestroy(() => observer.disconnect());
   }
 }

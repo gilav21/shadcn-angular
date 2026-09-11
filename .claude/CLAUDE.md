@@ -337,9 +337,14 @@ reference implementation for this pattern.
 
 ### 2. Code Hygiene
 
-- **No Non-JSDoc Comments**: Avoid implementation comments inside methods.
-  Code should be self-documenting. Use JSDoc `/** ... */` only for public APIs
-  (inputs, outputs, exported methods).
+- **Comments say *why*, never *what***: code should be self-documenting, so a
+  comment that narrates what the next line does is noise — delete it. A
+  comment inside a method is welcome when it records something the code cannot:
+  the invariant a guard protects, the bug a shape prevents, the spec clause a
+  branch implements, or why the obvious alternative is wrong. Keep those short
+  and next to the line they explain. No commented-out code. Use JSDoc
+  `/** ... */` for public APIs (inputs, outputs, exported methods) and for any
+  private member whose contract is not obvious from its name.
 - **No Unused Declarations**: Remove all unused imports, variables,
   parameters, and types in TypeScript files and the
   `@Component({ imports: [...] })` array. The compiler enforces

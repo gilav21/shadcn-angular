@@ -12,6 +12,7 @@ import { cn } from '../../../lib/utils';
 import { createLocaleBindings, type LocaleInput } from '../../../lib/i18n';
 import { COMMON_LOCALES, type CommonLocale } from '../../../lib/i18n/common.locales';
 import { DIALOG } from '../dialog.component';
+import { OverlayStackService } from '../../../lib/overlay-stack.service';
 import { DialogHeaderComponent } from './dialog-header.component';
 import { DialogTitleComponent } from './dialog-title.component';
 import { DialogDescriptionComponent } from './dialog-description.component';
@@ -30,6 +31,7 @@ import { DialogDescriptionComponent } from './dialog-description.component';
 })
 export class DialogContentComponent implements AfterViewInit {
     readonly dialog = inject(DIALOG, { optional: true });
+    private readonly layers = inject(OverlayStackService);
     private readonly el = inject(ElementRef);
     /**
      * Extra classes merged onto the centred panel (not the backdrop). Overrides
@@ -128,11 +130,9 @@ export class DialogContentComponent implements AfterViewInit {
      */
     onKeydown(event: KeyboardEvent): void {
         if (event.key === 'Escape') {
-            // A popover open inside this panel owns the key: it closes itself
-            // from a document-level listener that runs after this one, and
-            // closing the dialog as well took a whole form with a date picker.
-            // One Escape, one layer -- the innermost.
-            if (this.contentEl?.querySelector('[data-slot="popover-content"][data-state="open"]')) return;
+            // One Escape, one layer -- the innermost. An overlay opened after
+            // this dialog (a popover inside it, a nested dialog) owns the key.
+            if (this.layers.hasOverlayAbove(this.dialog)) return;
             event.preventDefault();
             this.close();
             return;

@@ -11,6 +11,6 @@ export * from './rich-text-editor.api';
 export * from './rich-text-editor.validators';
 export * from './rich-text-prose';
 export * from './rich-text-resource-policy';
-export { RichTextResourcePolicyDirective } from './rich-text-resource-policy.directive';
+export { RichTextAllowDirective } from './rich-text-allow.directive';
 export * from './rich-text-find.utils';
 export * from './rich-text-editor.fixtures';
