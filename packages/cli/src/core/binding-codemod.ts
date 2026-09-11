@@ -196,7 +196,8 @@ function expressionOf(a: Attr): string {
     if (a.value === null) return 'true';
     if (a.form !== 'static') return a.value;
     if (LITERAL.test(a.value.trim())) return a.value.trim();
-    return `'${a.value.replaceAll("'", "\\'")}'`;
+    const escaped = a.value.replaceAll("'", String.raw`\'`);
+    return `'${escaped}'`;
 }
 
 interface TagOutcome {

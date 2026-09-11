@@ -28,7 +28,12 @@ import {
     type Commit,
     type GitProbe,
     type BaseRef,
+    type Refusal,
     resolveBaseRefFor,
+    branchRefusal,
+    changedFilesSince,
+    dirtyTreeRefusal,
+    parseCommitLog,
 } from './release-cli-lib.js';
 export {
     changedFilesSince,
@@ -40,7 +45,6 @@ export {
     type BaseRef,
     type Refusal,
 } from './release-cli-lib.js';
-import { branchRefusal, changedFilesSince, dirtyTreeRefusal, parseCommitLog, type Refusal } from './release-cli-lib.js';
 import { specsInstallingPackage } from '../../../e2e/orchestrator/specs.js';
 import {
     PACKAGE_IDS,
