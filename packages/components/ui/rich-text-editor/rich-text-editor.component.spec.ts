@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_TOOLBAR_ITEMS, FIND_MAX_PAINTED_RECTS, RichTextEditorComponent, type RichTextHistoryState } from './index';
+import { DEFAULT_TOOLBAR_ITEMS, FIND_MAX_PAINTED_RECTS, RICH_TEXT_PROSE_CLASSES, RichTextEditorComponent, type RichTextHistoryState } from './index';
 import type { RichTextEditorApi, RichTextEditorRef } from './index';
 import { isRichTextEmpty } from './index';
 import { EMPTINESS_FIXTURES } from './index';
@@ -5805,6 +5805,61 @@ describe('RichTextEditorComponent — task checkbox & image element handlers', (
 
         component.onEditorClick({ target: checkbox, preventDefault: vi.fn() } as unknown as MouseEvent);
         expect(li.getAttribute('data-checked')).toBe('false');
+    });
+
+    const nestedTasks = () => component.writeValue(
+        '<ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox"><span>parent</span>'
+        + '<ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox"><span>child a</span>'
+        + '<ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox"><span>grandchild</span></li></ul></li>'
+        + '<li data-task="" data-checked="true"><input type="checkbox"><span>child b</span></li></ul></li></ul>');
+    const checkedStates = () => Array.from(editor.querySelectorAll<HTMLElement>('li[data-task]'))
+        .map(li => `${li.querySelector('span')?.textContent}:${li.dataset['checked']}:${li.querySelector<HTMLInputElement>(':scope > input')?.checked}`);
+    const clickBox = (rowText: string) => {
+        const li = Array.from(editor.querySelectorAll<HTMLElement>('li[data-task]'))
+            .find(el => el.querySelector(':scope > span')?.textContent === rowText)!;
+        const checkbox = li.querySelector<HTMLInputElement>(':scope > input')!;
+        component.onEditorClick({ target: checkbox, preventDefault: vi.fn() } as unknown as MouseEvent);
+    };
+
+    it('checking a task row checks every row nested under it', () => {
+        nestedTasks();
+        fixture.detectChanges();
+
+        clickBox('parent');
+
+        expect(checkedStates()).toEqual([
+            'parent:true:true', 'child a:true:true', 'grandchild:true:true', 'child b:true:true',
+        ]);
+    });
+
+    it('unchecking a task row unchecks every row nested under it', () => {
+        nestedTasks();
+        fixture.detectChanges();
+        clickBox('parent');
+
+        clickBox('parent');
+
+        expect(checkedStates()).toEqual([
+            'parent:false:false', 'child a:false:false', 'grandchild:false:false', 'child b:false:false',
+        ]);
+    });
+
+    it('unchecking a nested task row reopens every row above it and leaves its siblings alone', () => {
+        nestedTasks();
+        fixture.detectChanges();
+        clickBox('parent');
+
+        clickBox('grandchild');
+
+        expect(checkedStates()).toEqual([
+            'parent:false:false', 'child a:false:false', 'grandchild:false:false', 'child b:true:true',
+        ]);
+    });
+
+    it('strikes only a checked row\'s own text, not the rows nested under it', () => {
+        const rule = RICH_TEXT_PROSE_CLASSES.find(c => c.includes('data-checked=true'))!;
+        expect(rule).toContain('[&_li[data-task][data-checked=true]>span]:line-through');
+        expect(rule).not.toMatch(/\[&_li\[data-task]\[data-checked=true]]:/);
     });
 
     it('clicking a checkbox with no data-task ancestor <li> is a no-op', () => {

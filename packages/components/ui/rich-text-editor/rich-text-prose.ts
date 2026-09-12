@@ -34,7 +34,9 @@ export const RICH_TEXT_PROSE_CLASSES: readonly string[] = [
     '[&_li[data-task]>ul]:w-full',
     '[&_li[data-task]_input[type=checkbox]]:mt-1 [&_li[data-task]_input[type=checkbox]]:h-4 [&_li[data-task]_input[type=checkbox]]:w-4 [&_li[data-task]_input[type=checkbox]]:cursor-pointer [&_li[data-task]_input[type=checkbox]]:accent-primary',
     '[&_li[data-task]_input[type=checkbox]]:shrink-0',
-    '[&_li[data-task][data-checked=true]]:line-through [&_li[data-task][data-checked=true]]:text-muted-foreground',
+    // Only the row's own text is struck: a rule on the whole row cascaded into
+    // the rows nested under it, done or not.
+    '[&_li[data-task][data-checked=true]>span]:line-through [&_li[data-task][data-checked=true]>span]:text-muted-foreground',
     '[&_details]:border [&_details]:border-border [&_details]:rounded-md [&_details]:my-2 [&_details]:overflow-hidden',
     '[&_summary]:bg-muted/40 [&_summary]:px-3 [&_summary]:py-2 [&_summary]:cursor-pointer [&_summary]:font-medium',
     '[&_details>:not(summary)]:px-3 [&_details>:not(summary)]:py-2',

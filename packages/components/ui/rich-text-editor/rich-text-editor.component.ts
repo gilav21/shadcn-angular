@@ -949,22 +949,39 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
+    /**
+     * Toggle a task row, and keep its tree consistent: a row checked or
+     * unchecked takes every row nested under it along, and a row unchecked
+     * reopens every row above it — a parent cannot be done while one of its
+     * subtasks is not.
+     */
     private handleTaskCheckboxClick(event: MouseEvent, cb: HTMLInputElement): void {
         const li = cb.closest<HTMLElement>('li[data-task]');
         if (!li) return;
 
         event.preventDefault();
         const newChecked = li.dataset['checked'] !== 'true';
-        li.dataset['checked'] = String(newChecked);
-        if (newChecked) {
-            cb.setAttribute('checked', '');
-        } else {
-            cb.removeAttribute('checked');
+        this.applyTaskChecked(li, newChecked);
+        for (const nested of li.querySelectorAll<HTMLElement>('li[data-task]')) this.applyTaskChecked(nested, newChecked);
+        if (!newChecked) {
+            for (let parent = li.parentElement?.closest<HTMLElement>('li[data-task]'); parent; parent = parent.parentElement?.closest<HTMLElement>('li[data-task]')) {
+                this.applyTaskChecked(parent, false);
+            }
         }
+        // The prevented click reverts the clicked box's own `checked` after
+        // this handler returns, so it is written again once that has happened.
         setTimeout(() => { cb.checked = newChecked; });
         this.placeCaretAfterTaskCheckbox(li);
         this.syncContentFromEditor();
         this.pushHistory();
+    }
+
+    private applyTaskChecked(li: HTMLElement, checked: boolean): void {
+        li.dataset['checked'] = String(checked);
+        const cb = li.querySelector<HTMLInputElement>(':scope > input[type="checkbox"]');
+        if (!cb) return;
+        cb.toggleAttribute('checked', checked);
+        cb.checked = checked;
     }
 
     private placeCaretAfterTaskCheckbox(li: HTMLElement): void {
