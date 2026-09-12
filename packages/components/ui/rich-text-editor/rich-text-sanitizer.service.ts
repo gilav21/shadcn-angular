@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
+import { isNestedList } from './rich-text-lines';
 import { isValidImageMagicBytes } from '../../lib/parsers/image-validator';
 import { sanitizeSvg } from '../../lib/parsers/svg-sanitizer';
 
@@ -116,14 +117,20 @@ function percentDecodeToBytes(payload: string): Uint8Array | null {
  */
 const UNSAFE_STYLE_TOKENS = ['expression(', 'javascript:', 'vbscript:', 'data:'];
 
-/** Elements that are a line of a quote on their own; anything else is grouped into `<p>` lines. */
-/** Elements that must hold a line of text or blocks, never both. */
-const STRAY_LINE_HOSTS = 'li, td, th, blockquote, dd, dt, figcaption, div, summary';
+/**
+ * Elements that must hold a line of text or blocks, never both.
+ *
+ * Only tags this sanitizer actually keeps: a selector for a tag it strips
+ * would never match, and reading like a rule it does not enforce.
+ */
+const STRAY_LINE_HOSTS = 'li, td, th, blockquote, div, summary';
 
+/** Elements that end the run of inline content around them inside a {@link STRAY_LINE_HOSTS}. */
 const STRAY_LINE_BLOCKS = new Set([
-    'P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'TABLE', 'BLOCKQUOTE', 'PRE', 'DETAILS', 'FIGURE', 'DL',
+    'P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'TABLE', 'BLOCKQUOTE', 'PRE', 'DETAILS',
 ]);
 
+/** Elements that are a line of a quote on their own; anything else is grouped into `<p>` lines. */
 const QUOTE_LINE_BLOCK_TAGS = new Set([
     'P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'PRE', 'TABLE', 'HR', 'BLOCKQUOTE', 'DETAILS', 'FIGURE',
 ]);
@@ -390,18 +397,6 @@ export class RichTextSanitizerService {
     }
 
     /**
-     * A blockquote's direct children are line blocks, never bare text.
-     *
-     * The editor's Enter rule leaves a quote only from a blank LINE block. A
-     * quote arriving as `<blockquote>a<br>b</blockquote>` -- the markdown
-     * parser's shape, and what older documents and pasted HTML carry -- had no
-     * line for it to find, so Enter fell to the browser and opened a sibling
-     * blockquote per keypress; the quote could not be escaped. Every quote
-     * passes through here, so the editor sees one shape whatever produced it.
-     * Bare and inline children are grouped into `<p>` lines, a `<br>` ends a
-     * line, and block children pass through untouched.
-     */
-    /**
      * A task row's text lives in a `<span>` after its checkbox.
      *
      * The editor builds rows that way and the markdown parser emits them that
@@ -416,14 +411,26 @@ export class RichTextSanitizerService {
         for (const row of Array.from(root.querySelectorAll('li[data-task]'))) {
             const checkbox: ChildNode | null = row.querySelector(':scope > input[type="checkbox"]');
             const content = Array.from(row.childNodes)
-                .filter((node) => node !== checkbox && !this.isNestedList(node));
+                .filter((node) => node !== checkbox && !isNestedList(node));
             if (content.length === 1 && content[0].nodeName === 'SPAN') continue;
             const span = this.document.createElement('span');
-            for (const node of content) span.appendChild(node);
+            // A row's text is inline. A block among its content is unwrapped
+            // rather than nested, or the row would own a line and the block
+            // would own one too, and the same text would belong to both.
+            for (const node of content) this.appendRowContent(node, span);
             // The row's own nested list renders under its text, so the span
             // goes before it.
-            row.insertBefore(span, Array.from(row.childNodes).find((node) => this.isNestedList(node)) ?? null);
+            row.insertBefore(span, Array.from(row.childNodes).find((node) => isNestedList(node)) ?? null);
         }
+    }
+
+    /** Move one node into a task row's span, unwrapping a block child. */
+    private appendRowContent(node: Node, span: HTMLElement): void {
+        if (STRAY_LINE_BLOCKS.has(node.nodeName)) {
+            while (node.firstChild) this.appendRowContent(node.firstChild, span);
+            return;
+        }
+        span.appendChild(node);
     }
 
     /**
@@ -482,13 +489,21 @@ export class RichTextSanitizerService {
      */
     private needsItsOwnLine(node: Node, within: Element): boolean {
         if (!STRAY_LINE_BLOCKS.has(node.nodeName)) return false;
-        return !(within.nodeName === 'LI' && this.isNestedList(node));
+        return !(within.nodeName === 'LI' && isNestedList(node));
     }
 
-    private isNestedList(node: Node): boolean {
-        return node.nodeName === 'UL' || node.nodeName === 'OL';
-    }
-
+    /**
+     * A blockquote's direct children are line blocks, never bare text.
+     *
+     * The editor's Enter rule leaves a quote only from a blank LINE block. A
+     * quote arriving as `<blockquote>a<br>b</blockquote>` -- the markdown
+     * parser's shape, and what older documents and pasted HTML carry -- had no
+     * line for it to find, so Enter fell to the browser and opened a sibling
+     * blockquote per keypress; the quote could not be escaped. Every quote
+     * passes through here, so the editor sees one shape whatever produced it.
+     * Bare and inline children are grouped into `<p>` lines, a `<br>` ends a
+     * line, and block children pass through untouched.
+     */
     private normalizeQuoteLines(root: HTMLElement): void {
         for (const quote of Array.from(root.querySelectorAll('blockquote'))) {
             const bare = Array.from(quote.childNodes).some((node) => !this.isQuoteLineBlock(node));

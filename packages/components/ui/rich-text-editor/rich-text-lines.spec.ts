@@ -8,6 +8,7 @@ import {
     lineAbove,
     lineBelow,
     lineIsEmpty,
+    lineIsTextOnly,
     lineOf,
     lineOwnNodes,
     lineText,
@@ -198,6 +199,23 @@ describe('rich text line model — the rules', () => {
         empty.setStart(root.querySelector('p')!.lastChild!, 0);
         empty.collapse(true);
         expect(rangeShowsNothing(empty)).toBe(true);
+    });
+
+    it('a line holding an image is not text only, though it is not empty either', () => {
+        // Two different questions: whether a line shows anything, and whether
+        // what it shows is text. Answering the second with the first dropped an
+        // image into a code block toggle and out of a join.
+        const withImage = rootOf('<p>before<img src="x.png"></p>');
+        const line = lineOf(withImage.querySelector('p')!, withImage)!;
+        expect(lineIsEmpty(line)).toBe(false);
+        expect(lineIsTextOnly(line)).toBe(false);
+
+        const prose = rootOf('<p>just <b>text</b></p>');
+        const plain = lineOf(prose.querySelector('p')!, prose)!;
+        expect(lineIsTextOnly(plain)).toBe(true);
+
+        const blank = rootOf('<p><br></p>');
+        expect(lineIsTextOnly(lineOf(blank.querySelector('p')!, blank)!)).toBe(true);
     });
 
     it('a container that IS content holds something, even when it has no text', () => {

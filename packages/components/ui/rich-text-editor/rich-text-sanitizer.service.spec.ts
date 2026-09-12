@@ -113,6 +113,20 @@ describe('RichTextSanitizerService — an element holds a line or holds blocks',
         expect(Array.from(item.children).map((el) => el.textContent)).toEqual(['before', 'middle', 'after']);
     });
 
+    it('unwraps a block inside a task row rather than nesting it in the span', () => {
+        // The PDF-import shape named in the docstring. Wrapping the block into
+        // the span left the row owning a line and the block owning one too, and
+        // the pass that repairs that shape has no `span` among its hosts, so it
+        // was stable rather than fixed.
+        const out = clean('<ul><li data-task><input type="checkbox">intro<blockquote>quoted</blockquote></li></ul>');
+        const span = out.querySelector('li[data-task] > span')!;
+
+        expect(span.querySelector('blockquote, p, h1, div')).toBeNull();
+        expect(span.textContent).toBe('introquoted');
+        expect(Array.from(out.querySelector('li[data-task]')!.children).map((el) => el.tagName))
+            .toEqual(['INPUT', 'SPAN']);
+    });
+
     it('leaves a sub-list where it is when wrapping an item that also holds a block', () => {
         // Honouring the sub-list exception when deciding where a run STOPS but
         // not when collecting it moved the list into the new paragraph: a <ul>

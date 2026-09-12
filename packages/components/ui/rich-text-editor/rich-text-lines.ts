@@ -310,6 +310,17 @@ export function lineOwnNodes(line: Line): readonly ChildNode[] {
         .filter((node) => node !== checkbox && !isNestedList(node));
 }
 
+/**
+ * Whether a line's content is text and nothing else.
+ *
+ * A code block is text by definition, so a command that turns lines into one
+ * has to ask this first: building the block from `lineText` silently dropped an
+ * image, and toggling back could not bring it back.
+ */
+export function lineIsTextOnly(line: Line): boolean {
+    return !lineOwnNodes(line).some((node) => holdsReplacedContent(node));
+}
+
 /** A line's text as the author sees it, placeholders included. */
 export function lineText(line: Line): string {
     return lineOwnNodes(line).map((node) => node.textContent ?? '').join('');

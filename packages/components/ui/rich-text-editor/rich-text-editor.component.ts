@@ -41,12 +41,12 @@ import {
     caretPosition,
     holdsNothing,
     isLineOwner,
-    isTaskRow,
     isNestedList,
     type Line,
     lineAbove,
     lineBelow,
     lineIsEmpty,
+    lineIsTextOnly,
     lineOf,
     lineKeepsItsElement,
     lineTagIsFixed,
@@ -1658,9 +1658,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         // The fourth line walker this replaced had no TD or TH in its tag set,
         // so inside a table cell it walked past the cell to the editor and
         // returned null: Enter in inline code in a cell did nothing at all.
-        // The fourth line walker this replaced had no TD or TH in its tag set,
-        // so inside a table cell it walked past the cell to the editor and
-        // returned null: Enter in inline code in a cell did nothing at all.
         const editor = this.editorDiv?.nativeElement;
         const line = editor ? lineOf(code, editor) : null;
         if (!line) return false;
@@ -1881,9 +1878,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     /** Move the lists nested under `row` into `list`, in `row`'s place. */
     private promoteNestedRows(row: HTMLElement, list: Element | null): void {
+        // Not `list?.insertBefore` inside the loop: with no list the child is
+        // never removed and the loop never ends. A hang, not a no-op.
+        if (!list) return;
         for (const nested of Array.from(row.children)) {
             if (!isNestedList(nested)) continue;
-            while (nested.firstChild) list?.insertBefore(nested.firstChild, row);
+            while (nested.firstChild) list.insertBefore(nested.firstChild, row);
         }
     }
 
@@ -1901,7 +1901,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         options: { keepCaret?: boolean; placeholder?: 'line' | 'block' } = {},
     ): void {
         const target = lineOwnNodes(into);
-        if (PLACEHOLDER_ONLY.test(target.map((node) => node.textContent ?? '').join(''))) {
+        // The one emptiness rule, not a text test of its own: a target line
+        // holding an image carries no text, so testing text alone read it as
+        // padding and deleted the image before the incoming text landed.
+        if (lineIsEmpty(into)) {
             for (const node of target) node.remove();
         }
         const moved = lineOwnNodes(from).filter((node) =>
@@ -1964,6 +1967,26 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (this.caretBesideLineText()) selection.modify('move', direction, 'line');
         this.confineCaretToTaskText();
         return true;
+    }
+
+    /**
+     * Move text the browser left beside a row's span back into it.
+     *
+     * The span is the row's line, and every caret, strike and emptiness rule
+     * reads it. Contenteditable does not honour that on its own: text typed at
+     * the span's edge can land in the row instead, and the row then renders
+     * unstruck when checked and reads as empty, so Enter left the list rather
+     * than adding a row. Repaired as the caret moves, on the caret's row only.
+     */
+    private gatherStrayRowText(row: HTMLElement, span: HTMLElement): void {
+        const stray = Array.from(row.childNodes).filter((node) =>
+            node !== span && node.nodeName !== 'INPUT' && !isNestedList(node));
+        if (stray.length === 0) return;
+        const selection = this.document.getSelection();
+        const caret = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+        const anchor = caret ? { node: caret.startContainer, offset: caret.startOffset } : null;
+        for (const node of stray) span.appendChild(node);
+        if (selection && anchor?.node.isConnected) this.setSelectionRange(selection, anchor.node, anchor.offset);
     }
 
     /** Whether the caret sits in a line but outside its text — a checkbox's own stop. */
@@ -2030,6 +2053,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const taskLi = this.getParentTaskListItem();
         const span = taskLi?.querySelector<HTMLElement>(':scope > span');
         if (!taskLi || !span) return;
+        this.gatherStrayRowText(taskLi, span);
         const range = selection.getRangeAt(0);
         const container = range.startContainer;
         const element = container.nodeType === Node.ELEMENT_NODE ? (container as Element) : container.parentElement;
@@ -2089,8 +2113,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private insertNewTaskListItem(taskLi: HTMLElement, selection: Selection): void {
         const newLi = this.createTaskListItem(false);
         taskLi.parentNode?.insertBefore(newLi, taskLi.nextSibling);
-        const textSpan = newLi.querySelector<HTMLElement>(':scope > span');
-        if (textSpan) this.setSelectionRange(selection, textSpan, 0);
+        // Inside the seeded text, not at the span's boundary: typing then lands
+        // in the span whatever the browser makes of the boundary, and before
+        // the seed so the row does not start with a space.
+        const anchor = newLi.querySelector<HTMLElement>(':scope > span')?.firstChild;
+        if (anchor) this.setSelectionRange(selection, anchor, 0);
     }
 
     private exitTaskList(taskLi: HTMLElement, selection: Selection): void {
@@ -6926,8 +6953,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             // span the whole editor relies on: neither takes a heading, and
             // forcing one in produced a row with no heading and a paragraph
             // buried in its span.
-            if (line.kind === 'code' || isTaskRow(line.owner)) continue;
-            last = lineTagIsFixed(line) ? this.wrapLineTextIn(line, tag) : this.replaceBlockTag(line.owner, tag);
+            // A list item, a cell, a summary and a code block are not
+            // paragraphs: re-tagging one destroys what it is, and putting the
+            // heading INSIDE it builds a block-in-a-line that markdown has no
+            // way to carry, so a save turned the heading into literal "# ".
+            if (lineTagIsFixed(line)) continue;
+            last = this.replaceBlockTag(line.owner, tag);
         }
         this.restoreToggleCaret(ctx, last);
     }
@@ -7070,16 +7101,32 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             const span = built.querySelector('span') as HTMLElement;
             span.textContent = '';
             for (const child of Array.from(item.childNodes)) {
-                if (child.nodeType === Node.ELEMENT_NODE && ((child as Element).tagName === 'UL' || (child as Element).tagName === 'OL')) {
+                if (isNestedList(child)) {
                     built.appendChild(child);
                 } else {
-                    span.appendChild(child);
+                    this.appendAsInline(child, span);
                 }
             }
             if (this.holdsNoContent(span)) span.textContent = '​';
             item.replaceWith(built);
         }
         this.enableTaskCheckboxes(target);
+    }
+
+    /**
+     * Move a node into a task row's text, unwrapping a block.
+     *
+     * A row keeps its text in an inline span, and every caret and line rule
+     * relies on that. Nesting a block inside it — the shape a heading on a
+     * list item used to leave behind — made the row a line AND the block a
+     * line, so the same text belonged to two lines at once.
+     */
+    private appendAsInline(node: Node, span: HTMLElement): void {
+        if (node.nodeType === Node.ELEMENT_NODE && isLineOwner(node as Element, this.editorDiv?.nativeElement ?? span)) {
+            while (node.firstChild) span.appendChild(node.firstChild);
+            return;
+        }
+        span.appendChild(node);
     }
 
     private stripTaskMarkers(list: HTMLElement): void {
@@ -7114,6 +7161,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
         const lines = this.commandLines(ctx);
         if (lines.length === 0) return;
+        // A code block holds text. Building one from a line that also holds an
+        // image dropped the image, and toggling back could not restore it, so
+        // the command stands down instead of destroying content.
+        if (!lines.every((line) => lineIsTextOnly(line))) return;
         const text = lines.map((line) => lineText(line).replaceAll('​', '')).join('\n');
         const built = this.document.createElement('pre');
         const code = this.document.createElement('code');
@@ -7153,14 +7204,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return touched.filter((line) => line.owner.parentNode === container);
     }
 
-    /**
-     * The element that holds the line at a range boundary, wrapping bare text
-     * in a paragraph when it has no line of its own.
-     *
-     * Nodes are resolved and wrapped here rather than by normalising the range,
-     * because re-parenting a text node moves a live range's boundary onto the
-     * old parent instead of following it.
-     */
     /** The node a range boundary points at, resolving one anchored on the editor. */
     private boundaryNodeOf(container: Node, offset: number, editor: HTMLElement): Node | null {
         if (container !== editor) return container;
@@ -7169,7 +7212,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return children[Math.min(offset, children.length - 1)];
     }
 
-    /** The element holding the line at `node`, giving a stray run one if it has none. */
+    /**
+     * The element that holds the line at a range boundary, wrapping a stray run
+     * in a paragraph when it has none.
+     *
+     * Nodes are resolved and wrapped here rather than by normalising the range,
+     * because re-parenting a text node moves a live range's boundary onto the
+     * old parent instead of following it.
+     */
     private lineHostFor(node: Node, editor: HTMLElement): Node | null {
         if (lineOf(node, editor)) return node;
         return this.wrapStrayRunAround(node, editor);
@@ -7721,7 +7771,13 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         checkbox.type = 'checkbox';
         checkbox.checked = checked;
         const textSpan = this.document.createElement('span');
-        textSpan.appendChild(this.document.createTextNode(' '));
+        // A non-breaking space. Not a plain one: that is collapsible
+        // whitespace, so Chrome normalises a caret at the span's boundary to
+        // the position BEFORE the span, the first thing typed lands beside the
+        // span, and the row then reads as empty. Not a zero-width one either:
+        // the span gets no width, so the browser has nothing to draw the caret
+        // against and a new row looks like it has no cursor at all.
+        textSpan.appendChild(this.document.createTextNode('\u00A0'));
         item.appendChild(checkbox);
         item.appendChild(textSpan);
         return item;

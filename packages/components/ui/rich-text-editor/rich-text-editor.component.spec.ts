@@ -2893,6 +2893,24 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         expect(editor.querySelector('ul > pre')).toBeNull();
     });
 
+    it("a block put in an item's place goes above that item's sub-list", () => {
+        // positionOfLine chooses `before: owner.firstChild`, and every other
+        // test of that branch uses a shape where the owner is left empty, so
+        // appending would give the same DOM. A surviving sub-list is what makes
+        // the choice observable — the same blind spot as the join's insertion
+        // point, in the sibling function.
+        component.writeValue('<ul><li>text<ul><li>sub</li></ul></li></ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li')!.firstChild as Text, 2);
+
+        component.onFormatCommand('codeBlock');
+
+        const item = editor.querySelector('li')!;
+        expect(Array.from(item.children).map(el => el.tagName)).toEqual(['PRE', 'UL']);
+        expect(item.querySelector('pre code')?.textContent).toBe('text');
+        expect(item.querySelector('ul > li')?.textContent).toBe('sub');
+    });
+
     it("the code block toggle acts on the caret's table cell, not the whole table", () => {
         component.writeValue('<table><tbody><tr><td>a</td><td>b</td></tr></tbody></table>');
         fixture.detectChanges();
@@ -5176,6 +5194,64 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         }
     });
 
+    it('a join keeps an image on the line it joins onto', () => {
+        // moveLineText tested the target's TEXT to decide whether it held only
+        // padding, and a line holding an image has no text, so every node was
+        // cleared and the image went. That is what lineIsEmpty is for.
+        component.writeValue('<ul data-task-list="">'
+            + '<li data-task="" data-checked="false"><input type="checkbox"><span>'
+            + '<img src="data:image/gif;base64,R0lGODlhAQABAAAAACw="></span></li>'
+            + row(false, '<span>text</span>')
+            + '</ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelectorAll('li[data-task] > span')[1].firstChild as Text, 0);
+
+        component.onKeydown(backspace());
+
+        expect(editor.querySelectorAll('img')).toHaveLength(1);
+        expect(editor.querySelector('li[data-task] > span')?.textContent).toBe('text');
+    });
+
+    it('a join onto a plain paragraph keeps its image too', () => {
+        component.writeValue('<p><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw="></p><ul><li>text</li></ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li')!.firstChild as Text, 0);
+
+        component.onKeydown(backspace());
+
+        expect(editor.querySelectorAll('img')).toHaveLength(1);
+        expect(editor.querySelector('p')?.textContent).toBe('text');
+    });
+
+    it('the code block toggle stands down rather than drop what is not text', () => {
+        // It built the block from the line's text, so an image on that line was
+        // dropped and toggling back could not bring it back.
+        component.writeValue('<p>before<img src="data:image/gif;base64,R0lGODlhAQABAAAAACw="></p>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('p')!.firstChild as Text, 3);
+
+        component.onFormatCommand('codeBlock');
+
+        expect(editor.querySelector('pre')).toBeNull();
+        expect(editor.querySelectorAll('img')).toHaveLength(1);
+        expect(editor.querySelector('p')?.textContent).toBe('before');
+    });
+
+    it('the task list toggle never nests a block inside a row span', () => {
+        // A row keeps its text in an inline span that every line rule relies
+        // on; a block in there made the row a line and the block a line, so the
+        // same text belonged to two lines at once.
+        component.writeValue('<ul><li><h1>Title</h1></li></ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('h1')!.firstChild as Text, 1);
+
+        component.onFormatCommand('taskList');
+
+        const span = editor.querySelector('li[data-task] > span')!;
+        expect(span.querySelector('h1, p, div, blockquote')).toBeNull();
+        expect(span.textContent).toBe('Title');
+    });
+
     it('a heading on a details summary keeps the summary', () => {
         // Re-tagging the element destroyed the disclosure's label and turned
         // its text into hidden body content.
@@ -5190,7 +5266,12 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         expect(editor.querySelector('details > h1')).toBeNull();
     });
 
-    it('a heading on a list item goes inside the item and keeps the list', () => {
+    it('a heading leaves a list item as it is, rather than building a block markdown cannot carry', () => {
+        // Chrome's formatBlock wrapped the whole <ul> in the heading, so this
+        // became editor-owned. Putting the heading INSIDE the item was the
+        // first attempt, and a heading in a list item survives no save: the
+        // markdown writer emits "- # Title" and the reader brings it back as
+        // literal text. The item keeps its own tag instead.
         component.writeValue('<ul><li>one</li><li>two</li></ul>');
         fixture.detectChanges();
         caretIn(editor.querySelector('li')!.firstChild as Text, 1);
@@ -5198,9 +5279,9 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         component.onFormatCommand('heading1');
 
         expect(editor.querySelectorAll('li')).toHaveLength(2);
-        expect(editor.querySelector('li > h1')?.textContent).toBe('one');
-        expect(editor.querySelector('h1 li')).toBeNull();
-        expect(editor.querySelector('h1 ul')).toBeNull();
+        expect(editor.querySelector('h1')).toBeNull();
+        expect(editor.querySelector('li')?.textContent).toBe('one');
+        expect(editor.querySelector('ul')).not.toBeNull();
     });
 
     it('a heading leaves a task row alone rather than burying a block in its span', () => {
@@ -5571,6 +5652,55 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         caretIn(added.querySelector(':scope > span')!.firstChild as Text, 1);
         component.onKeydown(enterKey());
         expect(editor.querySelectorAll('li[data-task]')).toHaveLength(1);
+    });
+
+    it('Enter adds another row after text typed into a row Enter created', () => {
+        // The row Enter builds seeded its span with a PLAIN space and parked
+        // the caret at the span's boundary. A plain space is collapsible
+        // whitespace, so Chrome normalised that caret to the position BEFORE
+        // the span and the first thing typed landed beside it:
+        //   <li data-task><input>typed<span> </span></li>
+        // The span then held only padding, the row read as empty, and the next
+        // Enter left the list instead of adding a row.
+        component.writeValue('<ul data-task-list=""><li data-task="" data-checked="false">'
+            + '<input type="checkbox"><span>first</span></li></ul>');
+        fixture.detectChanges();
+        const span = editor.querySelector('li[data-task] > span')!;
+        caretIn(span.firstChild as Text, 5);
+        component.onKeydown(enterKey());
+
+        const added = editor.querySelectorAll('li[data-task]')[1];
+        const anchorNode = document.getSelection()?.anchorNode;
+        expect(added.querySelector(':scope > span')?.contains(anchorNode ?? null)).toBe(true);
+        expect(anchorNode?.nodeType).toBe(Node.TEXT_NODE);
+
+        // Type where the caret actually is, as the browser would.
+        const target = anchorNode as Text;
+        target.data = target.data + 'second';
+        caretIn(target, target.data.length);
+        component.onKeydown(enterKey());
+
+        expect(editor.querySelectorAll('li[data-task]')).toHaveLength(3);
+        expect(editor.querySelector('p')).toBeNull();
+    });
+
+    it('text the browser leaves beside a row span is gathered back into it', () => {
+        // Contenteditable can still put a keystroke outside the span; the row
+        // then renders unstruck when checked and reads as empty to every rule.
+        component.writeValue('<ul data-task-list=""><li data-task="" data-checked="false">'
+            + '<input type="checkbox"><span>\u200B</span></li></ul>');
+        fixture.detectChanges();
+        const row = editor.querySelector('li[data-task]')!;
+        row.appendChild(document.createTextNode('typed'));
+        caretIn(row.lastChild as Text, 5);
+
+        component.onSelectionChange();
+
+        expect(row.querySelector(':scope > span')?.textContent).toContain('typed');
+        expect(Array.from(row.childNodes).map(n => n.nodeName)).toEqual(['INPUT', 'SPAN']);
+
+        component.onKeydown(enterKey());
+        expect(editor.querySelectorAll('li[data-task]')).toHaveLength(2);
     });
 
     it('Enter exits an empty task row however the row was seeded', () => {
