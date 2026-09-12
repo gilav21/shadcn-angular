@@ -40,7 +40,6 @@ import {
     buildLineIndex,
     caretPosition,
     holdsNothing,
-    indexOfLine,
     isLineOwner,
     isTaskRow,
     isNestedList,
@@ -51,6 +50,7 @@ import {
     lineOf,
     lineKeepsItsElement,
     lineTagIsFixed,
+    linesBetween,
     linesMayJoin,
     lineOwnNodes,
     lineText,
@@ -7147,16 +7147,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (!from || !to) return [];
 
         const index = buildLineIndex(ctx.editor);
-        const first = lineOf(from, ctx.editor);
-        const last = lineOf(to, ctx.editor);
-        if (!first || !last) return [];
-        const start = indexOfLine(index, first);
-        const stop = indexOfLine(index, last);
-        if (start < 0 || stop < 0) return [];
-        const container = first.owner.parentNode;
-        return index.lines
-            .slice(Math.min(start, stop), Math.max(start, stop) + 1)
-            .filter((line) => line.owner.parentNode === container);
+        const touched = linesBetween(index, from, to);
+        if (touched.length === 0) return [];
+        const container = touched[0].owner.parentNode;
+        return touched.filter((line) => line.owner.parentNode === container);
     }
 
     /**

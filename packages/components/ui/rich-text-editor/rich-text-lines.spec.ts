@@ -13,7 +13,7 @@ import {
     lineText,
     lineTagIsFixed,
     rangeShowsNothing,
-    linesInRange,
+    linesBetween,
     linesMayJoin,
     placeCaretIn,
     positionAfterLine,
@@ -326,21 +326,29 @@ describe('rich text line model — the rules', () => {
 
         const range = placeCaretIn(line, 99);
 
-        expect(line.holder.contains(range.startContainer)).toBe(true);
-        const after = document.createRange();
-        after.setStart(range.startContainer, range.startOffset);
-        after.setEndAfter(lineOwnNodes(line).at(-1)!);
-        expect(after.toString()).toBe('');
-        expect(range.startContainer.nodeName).not.toBe('UL');
+        // The broken version collapsed to the end of the ELEMENT, giving
+        // (LI, 2) — past the sub-list. Every obvious assertion passes for that:
+        // `contains` includes self, a backwards range reads as empty, and the
+        // container is the LI either way. What separates them is whether the
+        // caret sits in the line's own text at all, and whether it precedes
+        // the sub-list.
+        const sublist = root.querySelector('li > ul')!;
+        const atSublist = document.createRange();
+        atSublist.setStartBefore(sublist);
+        expect(range.compareBoundaryPoints(Range.START_TO_START, atSublist)).toBeLessThanOrEqual(0);
+
+        // And not before the line's own text either: the caret goes to its end.
+        const atTextEnd = document.createRange();
+        atTextEnd.setStartAfter(lineOwnNodes(line).at(-1)!);
+        expect(range.compareBoundaryPoints(Range.START_TO_START, atTextEnd)).toBe(0);
     });
 
-    it('a selection anchored on the root still touches every line', () => {
+    it('two nodes in the same line yield just that line', () => {
         const root = rootOf('<p>one</p><p>two</p>');
         const index = buildLineIndex(root);
-        const all = document.createRange();
-        all.selectNodeContents(root);
+        const first = root.querySelector('p')!.firstChild!;
 
-        expect(linesInRange(index, all).map((line) => lineText(line))).toEqual(['one', 'two']);
+        expect(linesBetween(index, first, first).map((line) => lineText(line))).toEqual(['one']);
     });
 
     it('prose joins to prose inside one island, never across a cell or a code block', () => {
@@ -366,14 +374,16 @@ describe('rich text line model — the rules', () => {
         expect(linesMayJoin(b, c)).toBe(false);
     });
 
-    it('a range spanning into a nested list includes the items it reaches', () => {
+    it('the lines between two nodes descend into a nested list', () => {
         const root = rootOf('<ul><li>one<ul><li>sub</li></ul></li><li>two</li></ul>');
         const index = buildLineIndex(root);
-        const range = document.createRange();
-        range.setStart(root.querySelector('li')!.firstChild!, 0);
-        range.setEnd(root.querySelectorAll('li')[2].firstChild!, 1);
+        const items = root.querySelectorAll('li');
 
-        expect(linesInRange(index, range).map((line) => lineText(line))).toEqual(['one', 'sub', 'two']);
+        expect(linesBetween(index, items[0].firstChild!, items[2].firstChild!).map((l) => lineText(l)))
+            .toEqual(['one', 'sub', 'two']);
+        // Given the other way round it answers the same, in document order.
+        expect(linesBetween(index, items[2].firstChild!, items[0].firstChild!).map((l) => lineText(l)))
+            .toEqual(['one', 'sub', 'two']);
     });
 
     it('a caret round-trips through a character offset across inline markup', () => {

@@ -2787,7 +2787,7 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         expect(editor.textContent).toBe('0123456789');
     });
 
-    it('converts the current block to a heading via formatBlock', () => {
+    it('converts the current block to a heading', () => {
         component.writeValue('<p>title text</p>');
         fixture.detectChanges();
         selectAll();

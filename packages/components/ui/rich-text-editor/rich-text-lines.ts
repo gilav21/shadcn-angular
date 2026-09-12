@@ -255,20 +255,6 @@ export function lineBelow(index: LineIndex, line: Line): Line | null {
     return at >= 0 && at + 1 < index.lines.length ? index.lines[at + 1] : null;
 }
 
-/**
- * The node a range boundary points at, resolving one anchored on the root.
- *
- * A Select All hands over the root itself with a child index; asking for the
- * line of the root is null by construction, so the range appeared to touch no
- * lines at all.
- */
-function boundaryNode(container: Node, offset: number, root: HTMLElement): Node {
-    if (container !== root) return container;
-    const children = Array.from(root.childNodes);
-    if (children.length === 0) return root;
-    return children[Math.min(offset, children.length - 1)];
-}
-
 /** Elements a line may never be joined across: their content is structure, not prose. */
 const JOIN_ISLANDS = new Set(['TABLE', 'PRE', 'DETAILS', 'FIGURE', 'TD', 'TH']);
 
@@ -298,15 +284,23 @@ function islandOf(line: Line): Element | null {
     return null;
 }
 
-/** Every line a range touches, from the line it starts in to the line it ends in. */
-export function linesInRange(index: LineIndex, range: Range): readonly Line[] {
-    const first = lineOf(boundaryNode(range.startContainer, range.startOffset, index.root), index.root);
-    const last = lineOf(boundaryNode(range.endContainer, range.endOffset, index.root), index.root);
+/**
+ * Every line from the one holding `from` to the one holding `to`, in document
+ * order, whichever way round the two are given.
+ *
+ * It takes NODES rather than a `Range` because every caller resolves its
+ * boundaries first: a selection made with Select All is anchored on the root
+ * with a child index, and a boundary in bare text has no line until something
+ * wraps it, so a range on its own cannot answer this.
+ */
+export function linesBetween(index: LineIndex, from: Node, to: Node): readonly Line[] {
+    const first = lineOf(from, index.root);
+    const last = lineOf(to, index.root);
     if (!first || !last) return [];
-    const from = indexOfLine(index, first);
-    const to = indexOfLine(index, last);
-    if (from < 0 || to < 0) return [];
-    return index.lines.slice(Math.min(from, to), Math.max(from, to) + 1);
+    const start = indexOfLine(index, first);
+    const stop = indexOfLine(index, last);
+    if (start < 0 || stop < 0) return [];
+    return index.lines.slice(Math.min(start, stop), Math.max(start, stop) + 1);
 }
 
 /** The nodes making up a line's own text, structure excluded (rules 4 and 5). */
