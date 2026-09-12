@@ -11,6 +11,7 @@ import {
     lineOf,
     lineOwnNodes,
     lineText,
+    lineTagIsFixed,
     rangeShowsNothing,
     linesInRange,
     linesMayJoin,
@@ -259,6 +260,64 @@ describe('rich text line model — the rules', () => {
         beforeBold.setStart(mixed.querySelector('p')!, 1);
         beforeBold.collapse(true);
         expect(caretPosition(mixedIndex, beforeBold)?.offset).toBe('read '.length);
+    });
+
+    it('an element-anchored caret nested in inline markup counts every character before it', () => {
+        // Adding the child index to the text before the line's own node skipped
+        // the text between that node's start and the boundary.
+        const root = rootOf('<p>a<b>q<i>xy</i></b></p>');
+        const index = buildLineIndex(root);
+        const range = document.createRange();
+        range.setStart(root.querySelector('i')!, 0);
+        range.collapse(true);
+
+        const position = caretPosition(index, range)!;
+        expect(position.offset).toBe(2);
+
+        // Offset 0 on an element is the one index that reads the same either
+        // way, so the general case is a boundary PAST a child: after "q",
+        // before the <i>, which is also two characters in.
+        const pastChild = document.createRange();
+        pastChild.setStart(root.querySelector('b')!, 1);
+        pastChild.collapse(true);
+        expect(caretPosition(index, pastChild)?.offset).toBe(2);
+
+        // And one further in, after the whole <i>.
+        const pastInline = document.createRange();
+        pastInline.setStart(root.querySelector('b')!, 2);
+        pastInline.collapse(true);
+        expect(caretPosition(index, pastInline)?.offset).toBe(4);
+
+        const back = placeCaretIn(position.line, position.offset);
+        const measured = document.createRange();
+        measured.setStart(root.querySelector('p')!, 0);
+        measured.setEnd(back.startContainer, back.startOffset);
+        expect(measured.toString()).toHaveLength(2);
+    });
+
+    it.each(LINE_SHAPE_FIXTURES)('%s — a caret offset survives the round trip', (_name, html) => {
+        const root = rootOf(html);
+        const index = buildLineIndex(root);
+        for (const line of index.lines) {
+            const text = lineText(line);
+            for (const offset of [0, Math.floor(text.length / 2), text.length]) {
+                const range = placeCaretIn(line, offset);
+                const back = caretPosition(index, range);
+                expect(back?.line.owner, `${line.owner.tagName} at ${offset}`).toBe(line.owner);
+                expect(back?.offset, `${line.owner.tagName} at ${offset}`).toBe(Math.min(offset, text.length));
+            }
+        }
+    });
+
+    it('a line whose element carries its meaning may not be re-tagged', () => {
+        const details = rootOf('<details><summary>head</summary><p>body</p></details>');
+        expect(lineTagIsFixed(lineOf(details.querySelector('summary')!, details)!)).toBe(true);
+
+        const item = rootOf('<ul><li>one</li></ul>');
+        expect(lineTagIsFixed(lineOf(item.querySelector('li')!, item)!)).toBe(true);
+
+        const prose = rootOf('<p>one</p>');
+        expect(lineTagIsFixed(lineOf(prose.querySelector('p')!, prose)!)).toBe(false);
     });
 
     it('a caret offset past the text stops at the end of the line, not below its sublist', () => {

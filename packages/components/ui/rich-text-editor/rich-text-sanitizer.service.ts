@@ -117,6 +117,9 @@ function percentDecodeToBytes(payload: string): Uint8Array | null {
 const UNSAFE_STYLE_TOKENS = ['expression(', 'javascript:', 'vbscript:', 'data:'];
 
 /** Elements that are a line of a quote on their own; anything else is grouped into `<p>` lines. */
+/** Elements that must hold a line of text or blocks, never both. */
+const STRAY_LINE_HOSTS = 'li, td, th, blockquote, dd, dt, figcaption, div, summary';
+
 const STRAY_LINE_BLOCKS = new Set([
     'P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'TABLE', 'BLOCKQUOTE', 'PRE', 'DETAILS', 'FIGURE', 'DL',
 ]);
@@ -433,8 +436,8 @@ export class RichTextSanitizerService {
      * paragraph of its own, where it already lives.
      */
     private normalizeStrayLines(root: HTMLElement): void {
-        for (const el of Array.from(root.querySelectorAll('li, td, th, blockquote, dd, figcaption'))) {
-            if (!Array.from(el.children).some((child) => this.endsALine(child, el))) continue;
+        for (const el of Array.from(root.querySelectorAll(STRAY_LINE_HOSTS))) {
+            if (!Array.from(el.children).some((child) => this.needsItsOwnLine(child, el))) continue;
             for (const run of this.strayRunsOf(el)) {
                 const paragraph = this.document.createElement('p');
                 run[0].before(paragraph);
@@ -443,12 +446,19 @@ export class RichTextSanitizerService {
         }
     }
 
-    /** Runs of inline content between the block children of `el`. */
+    /**
+     * Runs of inline content between the block children of `el`.
+     *
+     * A block ENDS a run and is never part of one. Letting a nested list stay
+     * in the run — because the sub-list exception says it does not make its
+     * item a container — moved the list into the new paragraph, producing a
+     * `<ul>` inside a `<p>` and one more empty paragraph on every save.
+     */
     private strayRunsOf(el: Element): ChildNode[][] {
         const runs: ChildNode[][] = [];
         let run: ChildNode[] = [];
         for (const node of Array.from(el.childNodes)) {
-            if (this.endsALine(node, el)) {
+            if (STRAY_LINE_BLOCKS.has(node.nodeName)) {
                 if (run.length > 0) runs.push(run);
                 run = [];
                 continue;
@@ -462,13 +472,15 @@ export class RichTextSanitizerService {
     }
 
     /**
-     * Whether a node ends the run of inline content around it.
+     * Whether a block child means its host's own text needs a line of its own.
      *
-     * A list nested in an item is that item's SUB-list, not a block that ends
-     * its line, exactly as the line model has it: wrapping an item's text
-     * because it also has a sub-list would make every nested row a container.
+     * A list nested in an item does NOT: that item still shows its own line
+     * above the sub-list, exactly as the line model has it, and wrapping its
+     * text would make every nested row a container. This answers only whether
+     * the host needs normalising; where runs break is a separate question, and
+     * conflating the two moved a sub-list into a paragraph.
      */
-    private endsALine(node: Node, within: Element): boolean {
+    private needsItsOwnLine(node: Node, within: Element): boolean {
         if (!STRAY_LINE_BLOCKS.has(node.nodeName)) return false;
         return !(within.nodeName === 'LI' && this.isNestedList(node));
     }

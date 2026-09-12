@@ -218,6 +218,20 @@ export function positionOfLine(line: Line): { parent: Node; before: Node | null 
     return { parent, before: owner };
 }
 
+/** Elements whose tag is the meaning, so a block command may not replace them. */
+const FIXED_TAGS = new Set(['LI', 'TD', 'TH', 'SUMMARY', 'DT', 'DD', 'PRE']);
+
+/**
+ * Whether a line's element must survive a block command unchanged.
+ *
+ * Re-tagging it destroys what it is: a heading set on a `<summary>` replaced
+ * the disclosure's label with an `<h1>`, so the details block lost its summary
+ * and the text became hidden body content.
+ */
+export function lineTagIsFixed(line: Line): boolean {
+    return FIXED_TAGS.has(line.owner.nodeName);
+}
+
 /** Whether a block put in place of `line` has to go inside it (rule of {@link positionOfLine}). */
 export function lineKeepsItsElement(line: Line): boolean {
     const parent = line.owner.parentNode;
@@ -381,35 +395,23 @@ export function caretPosition(index: LineIndex, range: Range): LinePosition | nu
     const own = lineOwnNodes(line);
     const container = range.startContainer;
 
-    if (container.nodeType === Node.ELEMENT_NODE) {
-        const children = Array.from(container.childNodes);
-        const before = children.slice(0, range.startOffset);
-        const counted = container === line.holder
-            ? before.filter((node) => own.includes(node))
-            : before;
-        const head = counted.map((node) => node.textContent ?? '').join('').length;
-        return { line, offset: container === line.holder ? head : precedingText(own, container) + head };
+    // The holder itself: the offset is an index into the line's own nodes.
+    if (container === line.holder) {
+        const counted = Array.from(container.childNodes)
+            .slice(0, range.startOffset)
+            .filter((node) => own.includes(node));
+        return { line, offset: counted.map((node) => node.textContent ?? '').join('').length };
     }
 
     let offset = 0;
     for (const node of own) {
-        if (node === container) return { line, offset: offset + range.startOffset };
+        if (node === container) return { line, offset: offset + textOffsetWithin(node, container, range.startOffset) };
         if (node.contains(container)) {
             return { line, offset: offset + textOffsetWithin(node, container, range.startOffset) };
         }
         offset += (node.textContent ?? '').length;
     }
     return { line, offset };
-}
-
-/** The text of a line's own nodes that precede the one holding `node`. */
-function precedingText(own: readonly ChildNode[], node: Node): number {
-    let seen = 0;
-    for (const candidate of own) {
-        if (candidate === node || candidate.contains(node)) return seen;
-        seen += (candidate.textContent ?? '').length;
-    }
-    return seen;
 }
 
 /** A collapsed range at a character offset into a line's own text. */
@@ -445,15 +447,21 @@ export function placeCaretIn(line: Line, offset: number): Range {
 function textOffsetWithin(container: Node, node: Node, offset: number): number {
     const doc = container.ownerDocument;
     if (!doc) return offset;
-    const walker = doc.createTreeWalker(container, NodeFilter.SHOW_TEXT);
-    let seen = 0;
-    let text = walker.nextNode() as Text | null;
-    while (text) {
-        if (text === node) return seen + offset;
-        seen += text.data.length;
-        text = walker.nextNode() as Text | null;
+    // An ELEMENT boundary carries a child index, not a character count, so it
+    // is measured as "all the text before that child". Treating the index as
+    // characters undercounted a caret nested in inline markup, and the caret
+    // then came back somewhere else entirely.
+    const boundary = doc.createRange();
+    boundary.setStart(container, 0);
+    if (node.nodeType === Node.TEXT_NODE) {
+        boundary.setEnd(node, offset);
+    } else {
+        const children = Array.from(node.childNodes);
+        const at = Math.min(offset, children.length);
+        if (at === 0) boundary.setEnd(node, 0);
+        else boundary.setEndAfter(children[at - 1]);
     }
-    return seen;
+    return boundary.toString().length;
 }
 
 /** The first text node of a subtree, or the node itself when it is one. */

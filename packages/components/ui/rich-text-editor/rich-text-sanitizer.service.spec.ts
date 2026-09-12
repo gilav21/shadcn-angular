@@ -113,6 +113,44 @@ describe('RichTextSanitizerService — an element holds a line or holds blocks',
         expect(Array.from(item.children).map((el) => el.textContent)).toEqual(['before', 'middle', 'after']);
     });
 
+    it('leaves a sub-list where it is when wrapping an item that also holds a block', () => {
+        // Honouring the sub-list exception when deciding where a run STOPS but
+        // not when collecting it moved the list into the new paragraph: a <ul>
+        // inside a <p>, which the parser then takes apart.
+        const out = clean('<ul><li>text<ul><li>sub</li></ul><p>para</p></li></ul>');
+        const item = out.querySelector('li')!;
+
+        expect(item.querySelector('p ul')).toBeNull();
+        expect(item.querySelector(':scope > ul > li')?.textContent).toBe('sub');
+        expect(Array.from(item.children).map((el) => el.tagName)).toEqual(['P', 'UL', 'P']);
+        expect(item.querySelector(':scope > p')?.textContent).toBe('text');
+    });
+
+    it('is a fixed point: sanitizing its own output changes nothing', () => {
+        // The wrapped sub-list added one more empty paragraph on every pass, so
+        // a document drifted a little each time it was saved.
+        for (const input of [
+            '<ul><li>text<ul><li>sub</li></ul><p>para</p></li></ul>',
+            '<ul><li>own<blockquote><p>deep</p></blockquote></li></ul>',
+            '<div>stray<p>para</p></div>',
+            '<table><tbody><tr><td>text<p>para</p></td></tr></tbody></table>',
+            '<details><summary>head</summary><p>body</p></details>',
+        ]) {
+            const once = service.sanitize(input);
+            expect(service.sanitize(once), input).toBe(once);
+        }
+    });
+
+    it('gives stray text in a div its own line', () => {
+        // DIV became a container in the line model, which created exactly the
+        // shape this pass exists to remove.
+        const out = clean('<div>stray<p>para</p></div>');
+        const div = out.querySelector('div')!;
+
+        expect(Array.from(div.children).map((el) => el.textContent)).toEqual(['stray', 'para']);
+        expect(Array.from(div.childNodes).every((n) => n.nodeType === Node.ELEMENT_NODE)).toBe(true);
+    });
+
     it('leaves a task row alone, whose checkbox is structure and not a stray run', () => {
         const out = clean('<ul data-task-list><li data-task><input type="checkbox"><span>todo</span></li></ul>');
         const row = out.querySelector('li[data-task]')!;

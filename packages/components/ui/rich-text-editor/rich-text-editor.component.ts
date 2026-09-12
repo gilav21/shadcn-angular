@@ -42,6 +42,7 @@ import {
     holdsNothing,
     indexOfLine,
     isLineOwner,
+    isTaskRow,
     isNestedList,
     type Line,
     lineAbove,
@@ -49,6 +50,7 @@ import {
     lineIsEmpty,
     lineOf,
     lineKeepsItsElement,
+    lineTagIsFixed,
     linesMayJoin,
     lineOwnNodes,
     lineText,
@@ -6920,15 +6922,34 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (!ctx || lines.length === 0) return;
         let last: HTMLElement | null = null;
         for (const line of lines) {
-            if (lineKeepsItsElement(line)) {
-                this.giveLineItsOwnBlock(line);
-                const block = Array.from(line.owner.children).find((child) => child.nodeName === 'P');
-                last = block ? this.replaceBlockTag(block as HTMLElement, tag) : last;
-            } else {
-                last = this.replaceBlockTag(line.owner, tag);
-            }
+            // A code block is not prose, and a task row keeps its text in a
+            // span the whole editor relies on: neither takes a heading, and
+            // forcing one in produced a row with no heading and a paragraph
+            // buried in its span.
+            if (line.kind === 'code' || isTaskRow(line.owner)) continue;
+            last = lineTagIsFixed(line) ? this.wrapLineTextIn(line, tag) : this.replaceBlockTag(line.owner, tag);
         }
         this.restoreToggleCaret(ctx, last);
+    }
+
+    /**
+     * Put a line's own text inside a new `tag` within its element.
+     *
+     * For a line whose element must not be re-tagged — an item, a cell, a
+     * summary — this is what "make this line a heading" means: the heading
+     * goes in, the element stays.
+     */
+    private wrapLineTextIn(line: Line, tag: string): HTMLElement {
+        const own = lineOwnNodes(line);
+        const built = this.document.createElement(tag);
+        if (own.length > 0) {
+            own[0].before(built);
+            for (const node of own) built.appendChild(node);
+        } else {
+            line.holder.appendChild(built);
+            built.innerHTML = '<br>';
+        }
+        return built;
     }
 
     /**
@@ -7115,8 +7136,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * leave a command with no lines and nothing to do.
      */
     private commandLines(ctx: BlockToggleContext): Line[] {
-        const from = this.lineHostFor(ctx.range.startContainer, ctx.range.startOffset, ctx.editor);
-        const to = this.lineHostFor(ctx.range.endContainer, ctx.range.endOffset, ctx.editor);
+        // Both boundaries are resolved to NODES first: wrapping a stray run
+        // re-parents nodes, which moves a live range's other boundary onto the
+        // old parent, and the second lookup then wrapped a whole container.
+        const startNode = this.boundaryNodeOf(ctx.range.startContainer, ctx.range.startOffset, ctx.editor);
+        const endNode = this.boundaryNodeOf(ctx.range.endContainer, ctx.range.endOffset, ctx.editor);
+        if (!startNode || !endNode) return [];
+        const from = this.lineHostFor(startNode, ctx.editor);
+        const to = this.lineHostFor(endNode, ctx.editor);
         if (!from || !to) return [];
 
         const index = buildLineIndex(ctx.editor);
@@ -7140,11 +7167,16 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * because re-parenting a text node moves a live range's boundary onto the
      * old parent instead of following it.
      */
-    private lineHostFor(container: Node, offset: number, editor: HTMLElement): Node | null {
-        const node = container === editor
-            ? (editor.childNodes[Math.min(offset, editor.childNodes.length - 1)] ?? null)
-            : container;
-        if (!node) return null;
+    /** The node a range boundary points at, resolving one anchored on the editor. */
+    private boundaryNodeOf(container: Node, offset: number, editor: HTMLElement): Node | null {
+        if (container !== editor) return container;
+        const children = Array.from(editor.childNodes);
+        if (children.length === 0) return null;
+        return children[Math.min(offset, children.length - 1)];
+    }
+
+    /** The element holding the line at `node`, giving a stray run one if it has none. */
+    private lineHostFor(node: Node, editor: HTMLElement): Node | null {
         if (lineOf(node, editor)) return node;
         return this.wrapStrayRunAround(node, editor);
     }

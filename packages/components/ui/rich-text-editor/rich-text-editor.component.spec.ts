@@ -5176,6 +5176,65 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         }
     });
 
+    it('a heading on a details summary keeps the summary', () => {
+        // Re-tagging the element destroyed the disclosure's label and turned
+        // its text into hidden body content.
+        component.writeValue('<details><summary>head</summary><p>body</p></details>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('summary')!.firstChild as Text, 2);
+
+        component.onFormatCommand('heading1');
+
+        expect(editor.querySelector('details > summary')).not.toBeNull();
+        expect(editor.querySelector('details > summary')?.textContent).toBe('head');
+        expect(editor.querySelector('details > h1')).toBeNull();
+    });
+
+    it('a heading on a list item goes inside the item and keeps the list', () => {
+        component.writeValue('<ul><li>one</li><li>two</li></ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li')!.firstChild as Text, 1);
+
+        component.onFormatCommand('heading1');
+
+        expect(editor.querySelectorAll('li')).toHaveLength(2);
+        expect(editor.querySelector('li > h1')?.textContent).toBe('one');
+        expect(editor.querySelector('h1 li')).toBeNull();
+        expect(editor.querySelector('h1 ul')).toBeNull();
+    });
+
+    it('a heading leaves a task row alone rather than burying a block in its span', () => {
+        // Forcing one in produced a row with no heading and a paragraph inside
+        // the span the rest of the editor relies on.
+        component.writeValue('<ul data-task-list=""><li data-task="" data-checked="false">'
+            + '<input type="checkbox"><span>todo</span></li></ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 2);
+
+        component.onFormatCommand('heading1');
+
+        const row = editor.querySelector('li[data-task]')!;
+        expect(Array.from(row.children).map(el => el.tagName)).toEqual(['INPUT', 'SPAN']);
+        expect(row.querySelector('span > p')).toBeNull();
+        expect(row.querySelector('h1')).toBeNull();
+        expect(row.querySelector(':scope > span')?.textContent).toBe('todo');
+    });
+
+    it('a block command on stray text in a div never wraps the div', () => {
+        // Resolving the second boundary AFTER wrapping the first found no line
+        // for the div, because the wrap had moved the boundary onto it.
+        component.writeValue('<div>stray<p>para</p></div>');
+        fixture.detectChanges();
+        const stray = editor.querySelector('div > p')!;
+        caretIn(stray.firstChild as Text, 2);
+
+        component.onFormatCommand('codeBlock');
+
+        expect(editor.querySelector('p > div')).toBeNull();
+        expect(editor.querySelector('div > pre code')?.textContent).toBe('stray');
+        expect(editor.textContent).toContain('para');
+    });
+
     it('a block command on an item that also holds a block keeps every line in it', () => {
         // The item is a container, so its own text had no line; the command
         // walked out to the editor's child and wrapped the whole list.
