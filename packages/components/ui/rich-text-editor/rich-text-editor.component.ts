@@ -2064,18 +2064,19 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return true;
     }
 
+    /**
+     * The row Enter adds below the caret's row, built by
+     * {@link createTaskListItem} like every other row.
+     *
+     * It used to build its own, with a different placeholder and without
+     * writing the checkbox's `checked` property, so a row's behaviour depended
+     * on which of the two builders happened to make it.
+     */
     private insertNewTaskListItem(taskLi: HTMLElement, selection: Selection): void {
-        const newLi = this.document.createElement('li');
-        newLi.dataset['task'] = '';
-        newLi.dataset['checked'] = 'false';
-        const checkbox = this.document.createElement('input');
-        checkbox.type = 'checkbox';
-        const textSpan = this.document.createElement('span');
-        textSpan.appendChild(this.document.createTextNode('\u00A0'));
-        newLi.appendChild(checkbox);
-        newLi.appendChild(textSpan);
+        const newLi = this.createTaskListItem(false);
         taskLi.parentNode?.insertBefore(newLi, taskLi.nextSibling);
-        this.setSelectionRange(selection, textSpan, 0);
+        const textSpan = newLi.querySelector<HTMLElement>(':scope > span');
+        if (textSpan) this.setSelectionRange(selection, textSpan, 0);
     }
 
     private exitTaskList(taskLi: HTMLElement, selection: Selection): void {

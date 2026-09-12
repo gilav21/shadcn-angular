@@ -5238,6 +5238,47 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         expect((component as unknown as { isEmptyBlock(el: HTMLElement): boolean }).isEmptyBlock(blank)).toBe(true);
     });
 
+    it('Enter builds the next row exactly as every other row is built', () => {
+        // Enter had its own builder with a different placeholder and no
+        // checked property, so a row's behaviour depended on which builder
+        // happened to make it.
+        component.writeValue('<ul data-task-list=""><li data-task="" data-checked="false">'
+            + '<input type="checkbox"><span>todo</span></li></ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 4);
+
+        component.onKeydown(enterKey());
+
+        const rows = Array.from(editor.querySelectorAll<HTMLElement>('li[data-task]'));
+        expect(rows).toHaveLength(2);
+        const added = rows[1];
+        expect(added.dataset['checked']).toBe('false');
+        expect(added.querySelector<HTMLInputElement>(':scope > input')?.checked).toBe(false);
+        expect(added.querySelector(':scope > span')).not.toBeNull();
+        // The new row is empty by the editor's own rule, so Enter leaves the list from it.
+        caretIn(added.querySelector(':scope > span')!.firstChild as Text, 1);
+        component.onKeydown(enterKey());
+        expect(editor.querySelectorAll('li[data-task]')).toHaveLength(1);
+    });
+
+    it('Enter exits an empty task row however the row was seeded', () => {
+        // The old test stripped only whitespace and NBSP, and a zero-width
+        // space is not \s, so a row seeded by the toolbar toggle or by a "[]"
+        // marker could not be exited with Enter while one made by pressing
+        // Enter could. Two row builders, two seeds, two behaviours.
+        for (const seed of ['\u200B', '\u00A0', ' ']) {
+            component.writeValue('<ul data-task-list=""><li data-task="" data-checked="false">'
+                + '<input type="checkbox"><span>' + seed + '</span></li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 1);
+
+            component.onKeydown(enterKey());
+
+            expect(editor.querySelector('li[data-task]'), seed.codePointAt(0)?.toString(16)).toBeNull();
+            expect(editor.querySelector('p')).not.toBeNull();
+        }
+    });
+
     it('Enter in an empty task list item exits the task list into a paragraph', () => {
         component.writeValue('<ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox"><span> </span></li></ul>');
         fixture.detectChanges();
