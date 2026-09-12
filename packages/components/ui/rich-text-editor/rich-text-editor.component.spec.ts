@@ -5014,8 +5014,11 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         expect(editor.querySelector('li[data-task] > ul > li')?.textContent).toBe('deep');
     });
 
-    it('Backspace onto a plain item puts the text on that item\'s line, above its sublist', () => {
-        // Appending to the <li> itself landed the joined word below the sublist.
+    it('Backspace joins the line visually above, the deepest item of a sublist included', () => {
+        // The line above "task" is "sub", not "plain": a sub-list renders
+        // between an item and its next sibling. The earlier rule skipped the
+        // sub-list and joined the item at the same level, which is the one
+        // behaviour this round deliberately changed.
         component.writeValue('<ul data-task-list=""><li>plain<ul><li>sub</li></ul></li>'
             + row(false, '<span>task</span>') + '</ul>');
         fixture.detectChanges();
@@ -5023,10 +5026,11 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
 
         component.onKeydown(backspace());
 
-        const plain = editor.querySelector('li')!;
-        expect(plain.firstChild?.textContent).toBe('plain');
-        expect(Array.from(plain.childNodes).map(n => n.textContent).join('|')).toBe('plain|task|sub');
-        expect(plain.querySelector('ul li')?.textContent).toBe('sub');
+        const items = Array.from(editor.querySelectorAll('li'));
+        expect(items).toHaveLength(2);
+        expect(items[0].firstChild?.textContent).toBe('plain');
+        expect(items[1].textContent).toBe('subtask');
+        expect(editor.querySelector('li[data-task]')).toBeNull();
     });
 
     it('Backspace at the start of the first row of a nested list joins the row it is nested under', () => {
@@ -5044,6 +5048,60 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         expect(editor.querySelector('li p')).toBeNull();
         expect(Array.from(editor.querySelectorAll<HTMLElement>('li[data-task] > span')).map(s => s.textContent))
             .toEqual(['parentchild', 'sibling']);
+    });
+
+    it('a checkbox inside the line text is not dropped by a join', () => {
+        // Excluding every INPUT by tag deleted a checkbox the author had put in
+        // the text; only the row's own direct-child box is structural.
+        component.writeValue('<ul data-task-list="">'
+            + row(false, '<span>first</span>')
+            + row(false, '<span>mid<input type="checkbox">end</span>')
+            + '</ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelectorAll('li[data-task] > span')[1].firstChild as Text, 0);
+
+        component.onKeydown(backspace());
+
+        const joined = editor.querySelector('li[data-task] > span')!;
+        expect(joined.textContent).toBe('firstmidend');
+        expect(joined.querySelectorAll('input')).toHaveLength(1);
+    });
+
+    it('Delete on the last row of a nested list pulls up the row after that list', () => {
+        // rowBelow looked only at the row's own sublist and its next sibling,
+        // so a row last in its list had no line below even though one shows.
+        component.writeValue('<ul data-task-list="">'
+            + row(false, '<span>parent</span><ul data-task-list="">' + row(false, '<span>child</span>') + '</ul>')
+            + row(false, '<span>after</span>')
+            + '</ul>');
+        fixture.detectChanges();
+        const child = editor.querySelectorAll('li[data-task] > span')[1];
+        caretIn(child.firstChild as Text, 'child'.length);
+
+        const ev = del();
+        component.onKeydown(ev);
+
+        expect(ev.defaultPrevented).toBe(true);
+        expect(Array.from(editor.querySelectorAll<HTMLElement>('li[data-task] > span')).map(s => s.textContent))
+            .toEqual(['parent', 'childafter']);
+    });
+
+    it('Backspace never puts text directly inside a list', () => {
+        // previousElementSibling was taken without checking it was an item, so
+        // a list that was a sibling of the row became the join target.
+        component.writeValue('<ul data-task-list=""><li>plain</li><ul><li>sub</li></ul>'
+            + row(false, '<span>task</span>') + '</ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 0);
+
+        component.onKeydown(backspace());
+
+        for (const list of Array.from(editor.querySelectorAll('ul, ol'))) {
+            const strayText = Array.from(list.childNodes)
+                .filter(node => node.nodeType === Node.TEXT_NODE && (node.textContent ?? '').trim() !== '');
+            expect(strayText).toHaveLength(0);
+        }
+        expect(editor.textContent).toContain('subtask');
     });
 
     it('Backspace in the only, empty task row leaves an empty paragraph', () => {

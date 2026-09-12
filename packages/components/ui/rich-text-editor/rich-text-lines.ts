@@ -237,6 +237,23 @@ export function holdsNothing(el: Element): boolean {
     return (el.textContent ?? '').replaceAll(PLACEHOLDERS, '').trim() === '';
 }
 
+/**
+ * Whether a range covers nothing the author would see.
+ *
+ * Deliberately stricter than {@link lineIsEmpty} about `<br>`. A blank line
+ * often IS a lone `<br>`, so a line holding one shows nothing; but a `<br>`
+ * BEFORE the caret is a break the author put there, and Backspace's job is to
+ * delete it. Answering both questions with one predicate made Backspace at the
+ * start of a wrapped row join two rows instead of removing the break.
+ */
+export function rangeShowsNothing(range: Range): boolean {
+    const holder = range.commonAncestorContainer.ownerDocument?.createElement('div');
+    if (!holder) return true;
+    holder.appendChild(range.cloneContents());
+    if (holder.querySelector('br') !== null) return false;
+    return holdsNothing(holder);
+}
+
 /** Whether a node is, or contains, something the author sees without text. */
 function holdsReplacedContent(node: Node): boolean {
     if (node.nodeType !== Node.ELEMENT_NODE) return false;

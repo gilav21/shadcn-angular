@@ -36,6 +36,16 @@ import {
     offsetToPosition,
     type FindIndex,
 } from './rich-text-find.utils';
+import {
+    buildLineIndex,
+    isNestedList,
+    type Line,
+    lineAbove,
+    lineBelow,
+    lineOf,
+    lineOwnNodes,
+    rangeShowsNothing,
+} from './rich-text-lines';
 import { ShortcutBindingService, ShortcutComponentHandle, ShortcutRegistration } from '../../lib/shortcut-binding.service';
 import {
     RichTextCommandRegistry,
@@ -260,17 +270,19 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
 const QUOTE_STRUCTURE_TAGS = new Set(['UL', 'OL', 'LI', 'TABLE', 'TR', 'TD', 'TH', 'PRE', 'CODE', 'DETAILS']);
 
 /** The placeholders an empty task row's text span is seeded with. */
-const TASK_TEXT_PLACEHOLDERS = /[\u00A0\u200B]/g;
-
-/** Elements a range renders as no text at all, though the author sees them. */
-const VOID_CONTENT_TAGS = 'img, br, hr, input, video, audio, iframe, object, embed, svg, canvas, table';
+/** A run of nothing but the padding a blank line carries to hold a caret. */
+const PLACEHOLDER_ONLY = /^[\u00A0\u200B]*$/;
 
 /** Elements that are content in themselves, whatever text they hold. */
 const REPLACED_CONTENT_TAGS = 'img, hr, input, table';
 
-/** A collapsed caret inside a task row's text span. */
+/** A collapsed caret inside a line's own text, with the line it belongs to. */
 interface TaskRowCaret {
+    /** The line the caret is in. */
+    line: Line;
+    /** The list row that owns the line, when the line is one. */
     row: HTMLElement;
+    /** Where the line's text lives: a task row's span, else the line's element. */
     span: HTMLElement;
     range: Range;
 }
@@ -1771,22 +1783,27 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     /**
-     * Backspace at the start of a task row, or Delete at its end, joins rows
-     * the way the browser would join paragraphs — text and all.
+     * Backspace at the start of a line, or Delete at its end, joins it to the
+     * line next to it, the way the browser joins two paragraphs.
      *
-     * The browser cannot do this itself: a row is
-     * `<li><input type="checkbox"><span>…</span></li>`, so what its own
+     * The browser cannot do this itself inside a task list: a row is
+     * `<li><input type="checkbox"><span>...</span></li>`, so what its own
      * Backspace or Delete finds next is the checkbox, and deleting that merges
-     * the rows with the row's struck, muted rendering baked into inline
-     * styles on the surviving text.
+     * the rows with the row's struck, muted rendering baked into inline styles
+     * on the surviving text.
+     *
+     * Which line is next to it is {@link lineAbove}/{@link lineBelow}, in
+     * document order, so a sub-list, a plain item among task rows and the last
+     * row of a nested list are one case instead of three rules that each
+     * missed a different one.
      */
     private handleTaskRowJoin(event: KeyboardEvent): boolean {
         if (event.key !== 'Backspace' && event.key !== 'Delete') return false;
         const caret = this.taskRowCaret();
         if (!caret) return false;
         const joined = event.key === 'Backspace'
-            ? this.joinTaskRowUpwards(caret)
-            : this.joinNextTaskRow(caret);
+            ? this.joinLineUpwards(caret)
+            : this.joinLineFromBelow(caret);
         if (!joined) return false;
         event.preventDefault();
         this.syncContentFromEditor();
@@ -1794,16 +1811,132 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return true;
     }
 
+    /** Backspace at a line's start: its text moves onto the line above it. */
+    private joinLineUpwards(caret: TaskRowCaret): boolean {
+        if (!this.atLineTextStart(caret)) return false;
+        const editor = this.editorDiv?.nativeElement;
+        if (!editor) return false;
+        const above = lineAbove(buildLineIndex(editor), caret.line);
+        if (!above) return this.firstLineLeavesItsList(caret);
+        this.moveLineText(caret.line, above);
+        this.removeJoinedLine(caret.line);
+        return true;
+    }
+
+    /** Delete at a line's end: the text of the line below moves onto it. */
+    private joinLineFromBelow(caret: TaskRowCaret): boolean {
+        if (!this.atLineTextEnd(caret)) return false;
+        const editor = this.editorDiv?.nativeElement;
+        if (!editor) return false;
+        const below = lineBelow(buildLineIndex(editor), caret.line);
+        if (!below) return false;
+        this.moveLineText(below, caret.line, { keepCaret: true });
+        this.removeJoinedLine(below);
+        return true;
+    }
+
+    /**
+     * The caret is on the document's very first line and that line is a list
+     * row: it leaves the list as a paragraph carrying its text, and the rows
+     * after it keep their list.
+     */
+    private firstLineLeavesItsList(caret: TaskRowCaret): boolean {
+        const list = caret.row.parentElement;
+        if (!list || !isNestedList(list)) return false;
+        const paragraph = this.document.createElement('p');
+        list.parentNode?.insertBefore(paragraph, list);
+        this.moveLineText(
+            caret.line,
+            { kind: 'block', owner: paragraph, holder: paragraph },
+            { placeholder: 'block' },
+        );
+        this.promoteNestedRows(caret.row, list);
+        this.placeCaretInJoinedParagraph(paragraph);
+        caret.row.remove();
+        if (list.children.length === 0) list.remove();
+        return true;
+    }
+
+    /**
+     * Take a line out once its text has gone, keeping the lines nested under it
+     * at the level it occupied and dropping a list left with no items.
+     */
+    private removeJoinedLine(line: Line): void {
+        const owner = line.owner;
+        const list = owner.parentElement;
+        this.promoteNestedRows(owner, list);
+        owner.remove();
+        if (list && isNestedList(list) && list.children.length === 0) list.remove();
+    }
+
+    /** Move the lists nested under `row` into `list`, in `row`'s place. */
+    private promoteNestedRows(row: HTMLElement, list: Element | null): void {
+        for (const nested of Array.from(row.children)) {
+            if (!isNestedList(nested)) continue;
+            while (nested.firstChild) list?.insertBefore(nested.firstChild, row);
+        }
+    }
+
+    /**
+     * Append one line's text to another. A line left empty keeps a space so it
+     * can still hold a caret; a `'block'` target is left truly empty for its
+     * own caller. Unless `keepCaret`, the caret lands on the join.
+     *
+     * The text goes BEFORE the target's own nested list, or it would render
+     * under that list instead of on the line it joined.
+     */
+    private moveLineText(
+        from: Line,
+        into: Line,
+        options: { keepCaret?: boolean; placeholder?: 'line' | 'block' } = {},
+    ): void {
+        const target = lineOwnNodes(into);
+        if (PLACEHOLDER_ONLY.test(target.map((node) => node.textContent ?? '').join(''))) {
+            for (const node of target) node.remove();
+        }
+        const moved = lineOwnNodes(from).filter((node) =>
+            !(node.nodeType === Node.TEXT_NODE && PLACEHOLDER_ONLY.test((node as Text).data)));
+        const holder = into.holder;
+        const stop = Array.from(holder.childNodes).find((node) => isNestedList(node)) ?? null;
+        const joinAt = stop ? Array.prototype.indexOf.call(holder.childNodes, stop) : holder.childNodes.length;
+        for (const node of moved) holder.insertBefore(node, stop);
+        if (lineOwnNodes(into).length === 0 && options.placeholder !== 'block') {
+            holder.appendChild(this.document.createTextNode('\u00A0'));
+        }
+        if (options.keepCaret) return;
+        const selection = this.document.getSelection();
+        if (!selection) return;
+        const caret = this.document.createRange();
+        caret.setStart(holder, Math.min(joinAt, holder.childNodes.length));
+        caret.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(caret);
+    }
+
+    /**
+     * Put the caret in the paragraph a joined-away first line left behind,
+     * keeping an emptied one a genuinely empty block (`<p><br></p>`) rather
+     * than a paragraph holding a space, which counts as a character and hides
+     * the placeholder.
+     */
+    private placeCaretInJoinedParagraph(paragraph: HTMLElement): void {
+        if (paragraph.hasChildNodes()) {
+            this.placeCaretAtStartOfBlock(paragraph);
+            return;
+        }
+        paragraph.innerHTML = '<br>';
+        const selection = this.document.getSelection();
+        if (selection) this.setSelectionRange(selection, paragraph, 0);
+    }
+
     /**
      * ArrowUp / ArrowDown from a task row's text, moved by the editor.
      *
-     * The browser counts the caret position before the row's checkbox as a
-     * line stop of its own, so from the start of a row one press went there
-     * and only a second press reached the row above — and once the caret is
-     * confined to the text, that first press went nowhere at all. The move is
-     * made here and repeated once when it landed on such a position. A row
-     * that wraps over several lines is NOT a reason to repeat: its own lines
-     * are real stops the author is stepping through.
+     * The browser counts the caret position beside the row's checkbox as a line
+     * stop of its own, so one press went there and only a second reached the
+     * row above. The move is made here and repeated once when it landed on such
+     * a position. A row that WRAPS over several lines is not a reason to
+     * repeat: its own lines are real stops the author is stepping through.
      */
     private handleVerticalArrowInTaskRow(event: KeyboardEvent): boolean {
         if ((event.key !== 'ArrowUp' && event.key !== 'ArrowDown')
@@ -1815,210 +1948,56 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         event.preventDefault();
         const direction = event.key === 'ArrowUp' ? 'backward' : 'forward';
         selection.modify('move', direction, 'line');
-        if (this.caretOnCheckboxPosition()) selection.modify('move', direction, 'line');
+        if (this.caretBesideLineText()) selection.modify('move', direction, 'line');
         this.confineCaretToTaskText();
         return true;
     }
 
-    /** Whether the caret sits in a task row but beside its text — the checkbox's own line stop. */
-    private caretOnCheckboxPosition(): boolean {
+    /** Whether the caret sits in a line but outside its text — a checkbox's own stop. */
+    private caretBesideLineText(): boolean {
         const selection = this.document.getSelection();
-        if (!selection?.isCollapsed || selection.rangeCount === 0) return false;
-        const row = this.getParentTaskListItem();
-        const span = row?.querySelector<HTMLElement>(':scope > span');
-        return !!span && !span.contains(selection.getRangeAt(0).startContainer);
+        const editor = this.editorDiv?.nativeElement;
+        if (!selection?.isCollapsed || selection.rangeCount === 0 || !editor) return false;
+        const line = lineOf(selection.getRangeAt(0).startContainer, editor);
+        if (!line || line.holder === line.owner) return false;
+        return !line.holder.contains(selection.getRangeAt(0).startContainer);
     }
 
-    /** A collapsed caret inside a task row's text span, with the row and span. */
+    /**
+     * A collapsed caret inside the text of a line that belongs to a list row.
+     *
+     * The join and arrow rules only run for list rows: a plain paragraph's
+     * Backspace and Delete are the browser's own job and always were.
+     */
     private taskRowCaret(): TaskRowCaret | null {
         const selection = this.document.getSelection();
-        if (!selection || selection.rangeCount === 0) return null;
+        const editor = this.editorDiv?.nativeElement;
+        if (!selection || selection.rangeCount === 0 || !editor) return null;
         const range = selection.getRangeAt(0);
         if (!range.collapsed) return null;
-        const row = this.getParentTaskListItem();
-        const span = row?.querySelector<HTMLElement>(':scope > span');
-        if (!row || !span?.contains(range.startContainer)) return null;
-        return { row, span, range };
+        const line = lineOf(range.startContainer, editor);
+        if (!line || line.kind !== 'item') return null;
+        if (!line.holder.contains(range.startContainer)) return null;
+        return { line, row: line.owner, span: line.holder, range };
     }
 
-    /** Whether the caret sits at the very start of its row's text, placeholders aside. */
-    private atTaskTextStart({ span, range }: TaskRowCaret): boolean {
+    /** Whether the caret sits at the very start of its line's text, padding aside. */
+    private atLineTextStart({ line, range }: TaskRowCaret): boolean {
         const before = this.document.createRange();
-        before.setStart(span, 0);
+        before.setStart(line.holder, 0);
         before.setEnd(range.startContainer, range.startOffset);
-        return this.rangeHoldsNothing(before);
+        return rangeShowsNothing(before);
     }
 
-    /** Whether the caret sits at the very end of its row's text, placeholders aside. */
-    private atTaskTextEnd({ span, range }: TaskRowCaret): boolean {
+    /** Whether the caret sits at the very end of its line's text, padding aside. */
+    private atLineTextEnd({ line, range }: TaskRowCaret): boolean {
+        const nodes = lineOwnNodes(line);
+        const last = nodes[nodes.length - 1];
+        if (!last) return true;
         const after = this.document.createRange();
         after.setStart(range.startContainer, range.startOffset);
-        after.setEnd(span, span.childNodes.length);
-        return this.rangeHoldsNothing(after);
-    }
-
-    /**
-     * Whether a range covers nothing the author would see.
-     *
-     * `Range.toString()` alone answers this wrongly: it renders an `<img>` or
-     * a `<br>` as the empty string, so a row starting with either read as
-     * "the caret is at the start" and Backspace joined the rows instead of
-     * deleting the element the author meant.
-     */
-    private rangeHoldsNothing(range: Range): boolean {
-        const contents = range.cloneContents();
-        if (contents.querySelector(VOID_CONTENT_TAGS)) return false;
-        return (contents.textContent ?? '').replaceAll(TASK_TEXT_PLACEHOLDERS, '').length === 0;
-    }
-
-    /**
-     * Backspace at the start of a row: its text joins the row above it —
-     * the previous sibling, or the row this list is nested under. The very
-     * first row of a top-level list leaves the list as a paragraph instead.
-     * Rows nested under the row that goes stay where they were, one level up.
-     * The row used to be dropped with everything the author had typed in it.
-     */
-    private joinTaskRowUpwards(caret: TaskRowCaret): boolean {
-        if (!this.atTaskTextStart(caret)) return false;
-        const { row, span } = caret;
-        const list = row.parentElement;
-        const previous = row.previousElementSibling as HTMLElement | null;
-        const parentRow = list?.parentElement?.closest<HTMLElement>('li[data-task]') ?? null;
-        if (previous) {
-            this.moveTaskText(span, this.lineHolderOf(previous));
-            // The rows under it follow the row they joined.
-            for (const nested of this.nestedListsOf(row)) previous.appendChild(nested);
-        } else if (parentRow) {
-            this.moveTaskText(span, this.lineHolderOf(parentRow));
-            this.promoteNestedRows(row, list);
-        } else if (list) {
-            const p = this.document.createElement('p');
-            this.moveTaskText(span, p, { placeholder: 'block' });
-            list.parentNode?.insertBefore(p, list);
-            this.promoteNestedRows(row, list);
-            this.placeCaretInJoinedParagraph(p);
-        }
-        row.remove();
-        if (list?.children.length === 0) list.remove();
-        return true;
-    }
-
-    /** Delete at the end of a row: the text of the row below it comes up. */
-    private joinNextTaskRow(caret: TaskRowCaret): boolean {
-        if (!this.atTaskTextEnd(caret)) return false;
-        const { row, span } = caret;
-        const next = this.rowBelow(row);
-        if (!next) return false;
-        const rowList = row.parentElement;
-        const nextList = next.parentElement;
-        this.moveTaskText(this.lineHolderOf(next), span, { keepCaret: true });
-        if (nextList === rowList) {
-            for (const nested of this.nestedListsOf(next)) row.appendChild(nested);
-        } else {
-            this.promoteNestedRows(next, nextList);
-        }
-        next.remove();
-        if (nextList !== rowList && nextList?.children.length === 0) nextList.remove();
-        return true;
-    }
-
-    /**
-     * The list item rendered immediately below `row`.
-     *
-     * That is a question of child position, not of kind: a row's own nested
-     * list renders between it and its next sibling, so the item below is that
-     * list's first item whatever kind it is. Asking the nested list for a
-     * `li[data-task]` instead let a plain item be skipped, and — since
-     * `querySelector` returns the first matching DESCENDANT — could reach a
-     * task row two positions down and pull up a line nobody touched.
-     */
-    private rowBelow(row: HTMLElement): HTMLElement | null {
-        const nestedFirst = this.nestedListsOf(row)[0]?.firstElementChild;
-        const below = nestedFirst ?? row.nextElementSibling;
-        return below?.tagName === 'LI' ? (below as HTMLElement) : null;
-    }
-
-    /**
-     * The element holding a list item's own line of text: a task row's span,
-     * or a plain item itself. Its nested list is not part of that line.
-     */
-    private lineHolderOf(li: HTMLElement): HTMLElement {
-        if (li.dataset['task'] === undefined) return li;
-        return li.querySelector<HTMLElement>(':scope > span') ?? li;
-    }
-
-    /** A list nested inside a list item, which renders below that item's text. */
-    private isNestedList(node: Node): boolean {
-        return node.nodeName === 'UL' || node.nodeName === 'OL';
-    }
-
-    /** The nodes making up a list item's own line of text. */
-    private lineNodesOf(holder: HTMLElement): ChildNode[] {
-        return Array.from(holder.childNodes)
-            .filter((node) => !this.isNestedList(node) && node.nodeName !== 'INPUT');
-    }
-
-    /** Move the rows nested under `row` into `list`, in `row`'s place. */
-    private promoteNestedRows(row: HTMLElement, list: Element | null): void {
-        for (const nested of this.nestedListsOf(row)) {
-            while (nested.firstChild) list?.insertBefore(nested.firstChild, row);
-        }
-    }
-
-    /**
-     * Put the caret in the paragraph a joined-away first row left behind,
-     * keeping an emptied one a genuinely empty block (`<p><br></p>`) rather
-     * than a paragraph holding a space, which counts as a character and hides
-     * the placeholder.
-     */
-    private placeCaretInJoinedParagraph(p: HTMLElement): void {
-        if (p.hasChildNodes()) {
-            this.placeCaretAtStartOfBlock(p);
-            return;
-        }
-        p.innerHTML = '<br>';
-        const selection = this.document.getSelection();
-        if (selection) this.setSelectionRange(selection, p, 0);
-    }
-
-    private nestedListsOf(row: HTMLElement): HTMLElement[] {
-        return Array.from(row.children).filter((el): el is HTMLElement => el.tagName === 'UL' || el.tagName === 'OL');
-    }
-
-    /**
-     * Append one line's text to another, dropping the placeholder an empty task
-     * row is seeded with on either side. Unless `keepCaret`, the caret lands on
-     * the join. A task row that ends up empty keeps a space to hold the caret;
-     * a `'block'` target is left truly empty for its own caller.
-     *
-     * A nested list is never part of a line: it stays with its own item, and
-     * the text goes BEFORE the target's nested list, or it would render under
-     * that list instead of on the line it joined.
-     */
-    private moveTaskText(
-        from: HTMLElement,
-        into: HTMLElement,
-        options: { keepCaret?: boolean; placeholder?: 'row' | 'block' } = {},
-    ): void {
-        const seed = /^[\u00A0\u200B]*$/;
-        const target = this.lineNodesOf(into);
-        if (seed.test(target.map((node) => node.textContent ?? '').join(''))) {
-            for (const node of target) node.remove();
-        }
-        const moved = this.lineNodesOf(from).filter(node =>
-            !(node.nodeType === Node.TEXT_NODE && seed.test((node as Text).data)));
-        const stop = Array.from(into.childNodes).find((node) => this.isNestedList(node)) ?? null;
-        const joinAt = stop ? Array.prototype.indexOf.call(into.childNodes, stop) : into.childNodes.length;
-        for (const node of moved) into.insertBefore(node, stop);
-        if (this.lineNodesOf(into).length === 0 && options.placeholder !== 'block') into.appendChild(this.document.createTextNode('\u00A0'));
-        if (options.keepCaret) return;
-        const selection = this.document.getSelection();
-        if (!selection) return;
-        const caret = this.document.createRange();
-        caret.setStart(into, Math.min(joinAt, into.childNodes.length));
-        caret.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(caret);
+        after.setEndAfter(last);
+        return rangeShowsNothing(after);
     }
 
     /**

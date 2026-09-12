@@ -11,6 +11,7 @@ import {
     lineOf,
     lineOwnNodes,
     lineText,
+    rangeShowsNothing,
     linesInRange,
     placeCaretIn,
     taskCheckboxOf,
@@ -170,6 +171,28 @@ describe('rich text line model — the rules', () => {
 
         const withSpan = rootOf('<p><span></span></p>');
         expect(lineIsEmpty(lineOf(withSpan.querySelector('p')!, withSpan)!)).toBe(true);
+    });
+
+    it('a break is nothing to a line and something to a range, which are two questions', () => {
+        // A blank line often IS a lone <br>, so the line shows nothing. A <br>
+        // before the caret is a break the author put there, and Backspace's job
+        // is to delete it rather than to join two lines.
+        const root = rootOf('<p><br>text</p>');
+        const line = lineOf(root.querySelector('p')!, root)!;
+        expect(lineIsEmpty(line)).toBe(false);
+
+        const blank = rootOf('<p><br></p>');
+        expect(lineIsEmpty(lineOf(blank.querySelector('p')!, blank)!)).toBe(true);
+
+        const beforeCaret = document.createRange();
+        beforeCaret.setStart(root.querySelector('p')!, 0);
+        beforeCaret.setEnd(root.querySelector('p')!.lastChild!, 0);
+        expect(rangeShowsNothing(beforeCaret)).toBe(false);
+
+        const empty = document.createRange();
+        empty.setStart(root.querySelector('p')!.lastChild!, 0);
+        empty.collapse(true);
+        expect(rangeShowsNothing(empty)).toBe(true);
     });
 
     it('a container that IS content holds something, even when it has no text', () => {
