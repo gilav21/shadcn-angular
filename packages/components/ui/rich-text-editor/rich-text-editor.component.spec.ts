@@ -5238,6 +5238,34 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         expect((component as unknown as { isEmptyBlock(el: HTMLElement): boolean }).isEmptyBlock(blank)).toBe(true);
     });
 
+    it('Enter at the end of a bold run in a details block does not leave the block', () => {
+        // A line with content is never the line the block is left from,
+        // however close to its end the caret is.
+        component.writeValue('<details><summary>head</summary><p><b>bold</b> more</p></details>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('b')!.firstChild as Text, 4);
+
+        const ev = enterKey();
+        component.onKeydown(ev);
+
+        expect(ev.defaultPrevented).toBe(false);
+        expect(editor.querySelector('details')).not.toBeNull();
+        expect(editor.querySelector('details p')).not.toBeNull();
+    });
+
+    it('Enter on the empty last line of a details block still leaves it', () => {
+        component.writeValue('<details><summary>head</summary><p><br></p></details>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('details p')!, 0);
+
+        const ev = enterKey();
+        component.onKeydown(ev);
+
+        expect(ev.defaultPrevented).toBe(true);
+        expect(editor.querySelector('details p')).toBeNull();
+        expect(Array.from(editor.children).map(el => el.tagName)).toEqual(['DETAILS', 'P']);
+    });
+
     it('Enter in inline code inside a table cell leaves the code span', () => {
         // The walker this replaced had no TD in its tag set, so it walked past
         // the cell to the editor, returned null, and the key did nothing.

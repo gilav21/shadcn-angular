@@ -270,8 +270,6 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
 ];
 
 /** Structures inside a quote that own their own Enter handling. */
-const QUOTE_STRUCTURE_TAGS = new Set(['UL', 'OL', 'LI', 'TABLE', 'TR', 'TD', 'TH', 'PRE', 'CODE', 'DETAILS']);
-
 /** The placeholders an empty task row's text span is seeded with. */
 /** A run of nothing but the padding a blank line carries to hold a caret. */
 const PLACEHOLDER_ONLY = /^[\u00A0\u200B]*$/;
@@ -2124,8 +2122,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         // this to a blank last line so a quoted paragraph could be split with
         // Enter, which silently retired the one-key exit: with Shift+Enter
         // already adding a row, Enter had no job left but leaving.
-        const line = this.enclosingQuotedLine(range.startContainer, quote);
-        if (!line) return false;
+        // A quoted list, table or code block owns its own Enter: its lines are
+        // not the quote's own, so the handler stands down. That used to be a
+        // bespoke walk with its own tag set; it is now just "is this line the
+        // quote's own child".
+        const editor = this.editorDiv?.nativeElement;
+        const quoted = editor ? lineOf(range.startContainer, editor) : null;
+        if (!quoted || (quoted.owner.parentElement !== quote && quoted.owner !== quote)) return false;
+        const line = quoted.owner;
 
         event.preventDefault();
 
@@ -2144,27 +2148,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.syncContentFromEditor();
         this.pushHistory();
         return true;
-    }
-
-    /**
-     * The direct child of `quote` holding the caret, when that child is a plain
-     * line. A list, table or code block inside the quote owns its own Enter, so
-     * null is returned for those and the quote handler stands down. Bare text
-     * directly under the quote -- a shape the sanitizer no longer lets in --
-     * counts as the quote's own line rather than as no line at all.
-     */
-    private enclosingQuotedLine(node: Node, quote: HTMLElement): HTMLElement | null {
-        let current: Node | null = node;
-        while (current && current !== quote) {
-            if (current.nodeType === Node.ELEMENT_NODE) {
-                const tag = (current as Element).tagName;
-                if (QUOTE_STRUCTURE_TAGS.has(tag)) return null;
-                if (current.parentNode === quote) return current as HTMLElement;
-            }
-            if (current.parentNode === quote) return quote;
-            current = current.parentNode;
-        }
-        return current === quote ? quote : null;
     }
 
     /**
@@ -2213,14 +2196,20 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const lastChild = detailsEl.lastElementChild;
         if (!lastChild || lastChild.tagName === 'SUMMARY') return false;
 
-        const isAtEnd = range.startOffset >= (range.startContainer.textContent?.length ?? 0);
-        const isInLastChild = lastChild.contains(range.startContainer);
-        if (!isAtEnd || !isInLastChild || !this.holdsNoContent(lastChild)) return false;
+        // The block is left from its last line, and only when that line is
+        // blank. The old at-end test compared the caret's offset with its own
+        // container's text length, which says nothing about the end of a line
+        // whose caret sits in a nested inline element — and it earned nothing
+        // either, because a line with any content is refused on the next test.
+        const editor = this.editorDiv?.nativeElement;
+        const line = editor ? lineOf(range.startContainer, editor) : null;
+        if (!line || !lastChild.contains(range.startContainer) || !lineIsEmpty(line)) return false;
 
         event.preventDefault();
         const p = this.document.createElement('p');
         p.innerHTML = '<br>';
-        detailsEl.parentNode?.insertBefore(p, detailsEl.nextSibling);
+        const at = positionAfterLine({ kind: 'block', owner: detailsEl, holder: detailsEl });
+        at.parent.insertBefore(p, at.before);
         lastChild.remove();
         this.setSelectionRange(selection, p, 0);
         this.syncContentFromEditor();
