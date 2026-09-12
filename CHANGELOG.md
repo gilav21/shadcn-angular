@@ -234,9 +234,6 @@ means no policy and today's behaviour exactly.
 - **A checked task row strikes only its own text.** The rule sat on the
   whole row, so every row nested under a checked one rendered struck and
   muted whether it was done or not, in the editor and in `ui-rich-text-view`.
-- **Task rows keep their tree consistent.** Checking or unchecking a row
-  takes every row nested under it along, and unchecking a row reopens every
-  row above it. (Obsidian leaves rows independent; this is stricter.)
 - **Table and Horizontal Rule go after the caret's line, whole.** Inserted
   mid-word they cut the word in two; the block now lands after the current
   line (or in the place of an empty one) with the caret in its first cell or

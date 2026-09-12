@@ -950,10 +950,9 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     /**
-     * Toggle a task row, and keep its tree consistent: a row checked or
-     * unchecked takes every row nested under it along, and a row unchecked
-     * reopens every row above it — a parent cannot be done while one of its
-     * subtasks is not.
+     * Toggle one task row. Rows are independent, as in Obsidian: a parent's
+     * state says nothing about the rows nested under it, and theirs nothing
+     * about it.
      */
     private handleTaskCheckboxClick(event: MouseEvent, cb: HTMLInputElement): void {
         const li = cb.closest<HTMLElement>('li[data-task]');
@@ -962,12 +961,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         event.preventDefault();
         const newChecked = li.dataset['checked'] !== 'true';
         this.applyTaskChecked(li, newChecked);
-        for (const nested of li.querySelectorAll<HTMLElement>('li[data-task]')) this.applyTaskChecked(nested, newChecked);
-        if (!newChecked) {
-            for (let parent = li.parentElement?.closest<HTMLElement>('li[data-task]'); parent; parent = parent.parentElement?.closest<HTMLElement>('li[data-task]')) {
-                this.applyTaskChecked(parent, false);
-            }
-        }
         // The prevented click reverts the clicked box's own `checked` after
         // this handler returns, so it is written again once that has happened.
         setTimeout(() => { cb.checked = newChecked; });

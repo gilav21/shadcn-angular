@@ -5821,38 +5821,19 @@ describe('RichTextEditorComponent — task checkbox & image element handlers', (
         component.onEditorClick({ target: checkbox, preventDefault: vi.fn() } as unknown as MouseEvent);
     };
 
-    it('checking a task row checks every row nested under it', () => {
+    it('toggling a task row leaves the rows nested under it and above it alone', () => {
+        // Rows are independent, as in Obsidian.
         nestedTasks();
         fixture.detectChanges();
 
         clickBox('parent');
-
         expect(checkedStates()).toEqual([
-            'parent:true:true', 'child a:true:true', 'grandchild:true:true', 'child b:true:true',
+            'parent:true:true', 'child a:false:false', 'grandchild:false:false', 'child b:true:true',
         ]);
-    });
 
-    it('unchecking a task row unchecks every row nested under it', () => {
-        nestedTasks();
-        fixture.detectChanges();
-        clickBox('parent');
-
-        clickBox('parent');
-
+        clickBox('child b');
         expect(checkedStates()).toEqual([
-            'parent:false:false', 'child a:false:false', 'grandchild:false:false', 'child b:false:false',
-        ]);
-    });
-
-    it('unchecking a nested task row reopens every row above it and leaves its siblings alone', () => {
-        nestedTasks();
-        fixture.detectChanges();
-        clickBox('parent');
-
-        clickBox('grandchild');
-
-        expect(checkedStates()).toEqual([
-            'parent:false:false', 'child a:false:false', 'grandchild:false:false', 'child b:true:true',
+            'parent:true:true', 'child a:false:false', 'grandchild:false:false', 'child b:false:false',
         ]);
     });
 
