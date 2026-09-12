@@ -2670,6 +2670,7 @@
       "rich-text-editor/barrel.spec.ts",
       "rich-text-editor/rich-text-command-registry.service.spec.ts",
       "rich-text-editor/rich-text-editor.component.spec.ts",
+      "rich-text-editor/rich-text-editor.properties.spec.ts",
       "rich-text-editor/rich-text-editor.validators.spec.ts",
       "rich-text-editor/rich-text-find.utils.spec.ts",
       "rich-text-editor/rich-text-input-rules.spec.ts",
@@ -4957,6 +4958,7 @@
       "rich-text-editor/addons/history/rich-text-history-panel.component.ts",
       "rich-text-editor/addons/history/rich-text-history.directive.ts",
       "rich-text-editor/addons/history/rich-text-history.locales.ts",
+      "rich-text-editor/rich-text-lines.ts",
       "rich-text-editor/rich-text-resource-policy.ts",
       "rich-text-editor/rich-text-sanitizer.service.ts"
     ],
@@ -4981,6 +4983,7 @@
       "rich-text-editor/barrel.spec.ts",
       "rich-text-editor/rich-text-command-registry.service.spec.ts",
       "rich-text-editor/rich-text-editor.component.spec.ts",
+      "rich-text-editor/rich-text-editor.properties.spec.ts",
       "rich-text-editor/rich-text-editor.validators.spec.ts",
       "rich-text-editor/rich-text-find.utils.spec.ts",
       "rich-text-editor/rich-text-input-rules.spec.ts",

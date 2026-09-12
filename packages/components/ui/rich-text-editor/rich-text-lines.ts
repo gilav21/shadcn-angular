@@ -96,7 +96,7 @@ export function isNestedList(node: Node): boolean {
 }
 
 /** A task row, which keeps its text in a span after its checkbox. */
-export function isTaskRow(el: Element): boolean {
+function isTaskRow(el: Element): boolean {
     return el.nodeName === 'LI' && (el as HTMLElement).dataset['task'] !== undefined;
 }
 
@@ -104,7 +104,7 @@ export function isTaskRow(el: Element): boolean {
  * The checkbox that belongs to a task row's structure, never one the author
  * typed into the line: only a direct child of a task row counts.
  */
-export function taskCheckboxOf(el: Element): HTMLInputElement | null {
+function taskCheckboxOf(el: Element): HTMLInputElement | null {
     if (!isTaskRow(el)) return null;
     return el.querySelector<HTMLInputElement>(':scope > input[type="checkbox"]');
 }
@@ -239,7 +239,7 @@ export function lineKeepsItsElement(line: Line): boolean {
 }
 
 /** Where a line sits in an index, or -1 once it has been removed. */
-export function indexOfLine(index: LineIndex, line: Line): number {
+function indexOfLine(index: LineIndex, line: Line): number {
     return index.lines.findIndex((candidate) => candidate.owner === line.owner);
 }
 
