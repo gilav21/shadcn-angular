@@ -68,9 +68,20 @@ export function measure(contents: string): FileSize {
     };
 }
 
+/**
+ * Failure screenshots the browser test runner writes beside a spec.
+ *
+ * They are git-ignored and never installed, but they sit under the component
+ * roots, so the manifest recorded whichever ones the last local test run left
+ * behind: 1,200 PNG entries that no checkout but the author's could reproduce.
+ */
+const TEST_ARTIFACT = /(^|\/)__screenshots__\//;
+
 function index(files: readonly MeasuredFile[]): Record<string, FileSize> {
     const out: Record<string, FileSize> = {};
-    for (const file of [...files].sort((a, b) => a.path.localeCompare(b.path))) {
+    const measured = files.filter((file) => !TEST_ARTIFACT.test(file.path));
+    measured.sort((a, b) => a.path.localeCompare(b.path));
+    for (const file of measured) {
         out[file.path] = measure(file.contents);
     }
     return out;

@@ -71,6 +71,26 @@ describe('buildFileSizes', () => {
         )));
     });
 
+    it('leaves out the failure screenshots a local test run writes', () => {
+        const withArtifacts = buildFileSizes(
+            [
+                { path: 'button/button.component.ts', contents: 'x' },
+                { path: 'button/__screenshots__/button.component.spec.ts/fails-1.png', contents: 'png' },
+                { path: 'data-table/sub/__screenshots__/a.png', contents: 'png' },
+            ],
+            [{ path: '__screenshots__/utils.png', contents: 'png' }],
+            [{ path: 'login/__screenshots__/login.png', contents: 'png' }],
+        );
+        expect(Object.keys(withArtifacts.ui)).toEqual(['button/button.component.ts']);
+        expect(withArtifacts.lib).toEqual({});
+        expect(withArtifacts.blocks).toEqual({});
+    });
+
+    it('keeps a source file whose name only mentions screenshots', () => {
+        const built = buildFileSizes([{ path: 'capture/screenshots.ts', contents: 'x' }], []);
+        expect(Object.keys(built.ui)).toEqual(['capture/screenshots.ts']);
+    });
+
     it('defaults blocks to empty so an older caller still type-checks', () => {
         expect(buildFileSizes([], []).blocks).toEqual({});
     });
@@ -99,6 +119,13 @@ describe('the committed manifest', () => {
             }
         }
         expect(missing).toEqual([]);
+    });
+
+    it('records no test artifact, which only the author\'s own checkout holds', () => {
+        const artifacts = [committed.ui, committed.lib, committed.blocks]
+            .flatMap((namespace) => Object.keys(namespace))
+            .filter((file) => file.includes('__screenshots__'));
+        expect(artifacts).toEqual([]);
     });
 
     it('records a positive size for every measured file', () => {
