@@ -7077,15 +7077,18 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         let first: HTMLElement | null = null;
         for (const item of Array.from(list.children)) {
             const p = this.document.createElement('p');
+            const sublists: ChildNode[] = [];
             for (const child of Array.from(item.childNodes)) {
-                if (child.nodeType === Node.ELEMENT_NODE && ((child as Element).tagName === 'UL' || (child as Element).tagName === 'OL')) {
-                    list.before(child);
-                } else {
-                    p.appendChild(child);
-                }
+                if (isNestedList(child)) sublists.push(child);
+                else p.appendChild(child);
             }
             if (this.isEmptyBlock(p)) p.innerHTML = '<br>';
+            // The item's own line first, then its sub-lists: moving each
+            // sub-list out as it was met put it ahead of the paragraph built
+            // from the same item, so un-bulleting a parent showed its children
+            // above it.
             list.before(p);
+            for (const sublist of sublists) list.before(sublist);
             first ??= p;
         }
         list.remove();
@@ -7708,8 +7711,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             return existing;
         }
 
-        block.innerHTML = '';
-        return block.appendChild(this.document.createTextNode('\u200B')) as Text;
+        // Only a block that shows nothing is cleared for the anchor. A block
+        // holding just an image or a rule has no text node either, and
+        // clearing it to seed the anchor deleted the image whenever a command
+        // put the caret there.
+        if (holdsNothing(block)) block.replaceChildren();
+        return block.insertBefore(this.document.createTextNode('\u200B'), block.firstChild);
     }
 
     /**

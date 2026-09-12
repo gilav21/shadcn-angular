@@ -113,6 +113,23 @@ describe('RichTextSanitizerService — an element holds a line or holds blocks',
         expect(Array.from(item.children).map((el) => el.textContent)).toEqual(['before', 'middle', 'after']);
     });
 
+    it.each([
+        ['a quote holding a paragraph', '<blockquote><p>quoted</p></blockquote>', 'introquoted'],
+        ['a quote holding bare text, which the quote pass turns into a paragraph', '<blockquote>quoted</blockquote>', 'introquoted'],
+        ['a quote holding two paragraphs', '<blockquote><p>one</p><p>two</p></blockquote>', 'introonetwo'],
+        ['a div holding a list', '<div><ul><li>item</li></ul></div>', 'introitem'],
+        ['a table', '<table><tbody><tr><td>cell</td><td>next</td></tr></tbody></table>', 'introcellnext'],
+    ])('finishes unwrapping %s inside a task row', (_name, block, text) => {
+        // Draining a block that held a block looped forever: the emptied inner
+        // block stayed in place and the outer loop kept finding it. The single
+        // level input the first test used could not show that.
+        const out = clean(`<ul><li data-task><input type="checkbox">intro${block}</li></ul>`);
+        const span = out.querySelector('li[data-task] > span')!;
+
+        expect(span.textContent).toBe(text);
+        expect(span.querySelector('blockquote, p, div, ul, ol, li, table, tr, td, th')).toBeNull();
+    });
+
     it('unwraps a block inside a task row rather than nesting it in the span', () => {
         // The PDF-import shape named in the docstring. Wrapping the block into
         // the span left the row owning a line and the block owning one too, and

@@ -130,6 +130,19 @@ const STRAY_LINE_BLOCKS = new Set([
     'P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'TABLE', 'BLOCKQUOTE', 'PRE', 'DETAILS',
 ]);
 
+/**
+ * Block containers a task row's inline content is flattened out of.
+ *
+ * Wider than {@link STRAY_LINE_BLOCKS}: a list or a table inside a row has to
+ * lose its items and cells too, or an `<li>` or a `<td>` ends up inside the
+ * row's span. `HR` is deliberately absent: it holds no children, so unwrapping
+ * it would delete the rule rather than flatten it.
+ */
+const ROW_UNWRAP_BLOCKS = new Set([
+    ...STRAY_LINE_BLOCKS,
+    'LI', 'DT', 'DD', 'THEAD', 'TBODY', 'TFOOT', 'TR', 'TD', 'TH', 'SUMMARY', 'FIGCAPTION', 'FIGURE', 'DL',
+]);
+
 /** Elements that are a line of a quote on their own; anything else is grouped into `<p>` lines. */
 const QUOTE_LINE_BLOCK_TAGS = new Set([
     'P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'PRE', 'TABLE', 'HR', 'BLOCKQUOTE', 'DETAILS', 'FIGURE',
@@ -426,8 +439,14 @@ export class RichTextSanitizerService {
 
     /** Move one node into a task row's span, unwrapping a block child. */
     private appendRowContent(node: Node, span: HTMLElement): void {
-        if (STRAY_LINE_BLOCKS.has(node.nodeName)) {
-            while (node.firstChild) this.appendRowContent(node.firstChild, span);
+        if (ROW_UNWRAP_BLOCKS.has(node.nodeName)) {
+            // A snapshot, and the emptied block removed. Draining with
+            // `while (node.firstChild)` looped forever on a block holding a
+            // block: the inner one was emptied but stayed in place, so the
+            // outer loop kept finding it. A quote holds a <p> by the time this
+            // runs, so quoting a task row hung the page.
+            for (const child of Array.from(node.childNodes)) this.appendRowContent(child, span);
+            (node as ChildNode).remove();
             return;
         }
         span.appendChild(node);

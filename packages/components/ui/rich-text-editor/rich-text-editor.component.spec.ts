@@ -2911,6 +2911,38 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         expect(item.querySelector('ul > li')?.textContent).toBe('sub');
     });
 
+    it.each([
+        ['bulletList', '<ul><li><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="x"></li></ul>'],
+        ['orderedList', '<ol><li><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="x"></li></ol>'],
+        ['taskList', '<ul data-task-list><li data-task data-checked="false"><input type="checkbox">'
+            + '<span><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="x"></span></li></ul>'],
+    ])('turning %s off keeps an item that holds only an image', (command, html) => {
+        // Found by the property matrix: placing the caret in the new paragraph
+        // cleared any block without a text node, image included.
+        component.writeValue(html);
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li')!, 0);
+
+        component.onFormatCommand(command);
+        fixture.detectChanges();
+
+        expect(editor.querySelector('ul, ol')).toBeNull();
+        expect(editor.querySelector('p > img')?.getAttribute('alt')).toBe('x');
+    });
+
+    it('turning bullets off keeps each sub-list below the item it belonged to', () => {
+        // Found by the property matrix: each sub-list was moved out as it was
+        // met, ahead of the paragraph built from its own item.
+        component.writeValue('<ul><li>parent<ul><li>child</li></ul></li><li>next</li></ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li')!.firstChild as Text, 2);
+
+        component.onFormatCommand('bulletList');
+
+        expect(Array.from(editor.children).map(el => el.tagName + ':' + el.textContent))
+            .toEqual(['P:parent', 'UL:child', 'P:next']);
+    });
+
     it("the code block toggle acts on the caret's table cell, not the whole table", () => {
         component.writeValue('<table><tbody><tr><td>a</td><td>b</td></tr></tbody></table>');
         fixture.detectChanges();
@@ -5250,6 +5282,23 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         const span = editor.querySelector('li[data-task] > span')!;
         expect(span.querySelector('h1, p, div, blockquote')).toBeNull();
         expect(span.textContent).toBe('Title');
+    });
+
+    it('Quote on a task row finishes and leaves the row with its text', () => {
+        // Found by the property matrix as a hang, not a failure: quoting put a
+        // <blockquote><p> inside the row, and the sanitizer's row unwrap then
+        // looped forever on the nested block during the content sync.
+        component.writeValue('<ul data-task-list=""><li data-task="" data-checked="false">'
+            + '<input type="checkbox"><span>first</span></li></ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 1);
+
+        component.onFormatCommand('blockquote');
+        fixture.detectChanges();
+
+        expect(editor.querySelectorAll('li[data-task]')).toHaveLength(1);
+        expect(editor.textContent).toContain('first');
+        expect(editor.querySelector('li[data-task] > span blockquote, li[data-task] > span p')).toBeNull();
     });
 
     it('a heading on a details summary keeps the summary', () => {

@@ -237,9 +237,23 @@ means no policy and today's behaviour exactly.
   out of it.
 - **Headings and Normal text are applied by the editor, not the browser.**
   `formatBlock` applied the tag to whichever ancestor it chose, so a heading set
-  inside a list item wrapped the entire list in the heading. A line whose
-  element cannot be re-tagged, an item or a cell, gets the heading inside it and
-  keeps its list or table.
+  inside a list item wrapped the entire list in the heading. Headings now change
+  paragraphs and headings only: on a list item, a table cell, a disclosure's
+  summary or a code block the command leaves the line as it is. A heading inside
+  an item was tried first and could not survive a save, since markdown writes it
+  as `- # Title` and reads it back as literal text.
+- **Code block leaves a line with an image alone.** A code block holds text, so
+  the command used to drop the image, and toggling back could not restore it.
+- **Quote on a task row no longer freezes the page.** Content sync flattens a
+  block inside a task row into the row's text, and flattening a block that held
+  another block looped forever, so the tab hung. Rows holding a quote, a list or
+  a table from pasted or imported HTML hit the same loop on load.
+- **Turning bullets off keeps each sub-list under its own item.** Each sub-list
+  was moved out ahead of the paragraph built from its parent, so the children
+  appeared above the item they belonged to.
+- **Turning a list off keeps an item that holds only an image.** Placing the
+  caret in the new paragraph cleared any block without a text node, so an
+  image-only bullet, numbered or task item came back as an empty paragraph.
 - **An element holds a line of text or holds blocks, never both.** Content in
   an element that also held a block belonged to no line, so a block command
   given such an item reached out to the whole list and destroyed every line in
