@@ -191,6 +191,9 @@ function mirrorLabel(item: ToolbarButtonItem): ToolbarButtonItem {
   }
 }
 
+/** A panel an addon button opens inside the toolbar's DOM: its own focus scope, not part of the roving order. */
+const HOSTED_PANEL = '[data-slot="popover-content"]';
+
 @Component({
   selector: 'ui-rich-text-toolbar',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -544,14 +547,17 @@ export class RichTextToolbarComponent implements AfterViewInit {
    * slots render their own templates through `ngComponentOutlet` — the toolbar
    * cannot know what they contain. The file input the import addon keeps in the
    * DOM is skipped: it is visually hidden and driven by its own button, so
-   * landing on it would be a stop with nothing to see.
+   * landing on it would be a stop with nothing to see. So is every control
+   * inside a panel an addon button opens (the link form, the image picker):
+   * the panel lives in the toolbar's DOM but is its own focus scope, and
+   * stamping its buttons `tabindex=-1` took them out of the Tab order.
    */
   private rovingStops(): HTMLElement[] {
     const toolbar = this.elementRef.nativeElement.querySelector('[role="toolbar"]');
     if (!toolbar) return [];
     return Array.from(
       toolbar.querySelectorAll<HTMLElement>('button, select'),
-    ).filter(el => el.offsetParent !== null || el.tagName === 'SELECT');
+    ).filter(el => (el.offsetParent !== null || el.tagName === 'SELECT') && !el.closest(HOSTED_PANEL));
   }
 
   /**
@@ -585,15 +591,20 @@ export class RichTextToolbarComponent implements AfterViewInit {
    *
    * Disabled buttons keep their slot rather than being skipped — the toolbar
    * disables everything at once, so there would be nowhere to land.
+   *
+   * Only a key pressed ON a stop moves it. A key from anywhere else in the
+   * toolbar's DOM — the URL field of the link panel, say — belongs to that
+   * control; treating it as the first stop's key yanked the focus out of the
+   * field on every arrow press.
    */
   protected onToolbarKeydown(event: KeyboardEvent): void {
     const target = event.target as HTMLElement | null;
     const stops = this.rovingStops();
-    if (stops.length === 0) return;
+    const current = stops.indexOf(target as HTMLElement);
+    if (current === -1) return;
 
     const forward = this.locale().rtl ? 'ArrowLeft' : 'ArrowRight';
     const backward = this.locale().rtl ? 'ArrowRight' : 'ArrowLeft';
-    const current = Math.max(0, stops.indexOf(target as HTMLElement));
     let next: number | null = null;
 
     if (event.key === forward) next = (current + 1) % stops.length;

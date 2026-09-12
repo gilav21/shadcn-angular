@@ -356,7 +356,7 @@ export class RichTextLinksDirective {
     }
 
     private pointerOnLink(event: MouseEvent, anchor: HTMLAnchorElement): boolean {
-        for (const rect of anchor.getClientRects()) {
+        for (const rect of Array.from(anchor.getClientRects())) {
             const inX = event.clientX >= rect.left - LINK_HIT_SLACK_PX && event.clientX <= rect.right + LINK_HIT_SLACK_PX;
             const inY = event.clientY >= rect.top - LINK_HIT_SLACK_PX && event.clientY <= rect.bottom + LINK_HIT_SLACK_PX;
             if (inX && inY) return true;

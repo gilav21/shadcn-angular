@@ -216,6 +216,13 @@ means no policy and today's behaviour exactly.
   so clicking anywhere in a link's column opened its editor; a pointer now
   has to land on the link's own box (a few pixels of slack), while a caret
   moved by the keyboard still opens it.
+- **Arrow keys inside a toolbar panel stay in the panel.** The link and image
+  panels render inside the toolbar's DOM, so an arrow press in their fields
+  reached the toolbar's roving-tabindex handler, which read it as the first
+  button's and pulled the focus back onto the toolbar; the panels' own
+  buttons were also swept into the roving order and stamped `tabindex=-1`,
+  dropping them from the Tab order. A key now moves the tab stop only when
+  pressed on a toolbar control, and panel controls are left alone.
 - **Table and Horizontal Rule go after the caret's line, whole.** Inserted
   mid-word they cut the word in two; the block now lands after the current
   line (or in the place of an empty one) with the caret in its first cell or

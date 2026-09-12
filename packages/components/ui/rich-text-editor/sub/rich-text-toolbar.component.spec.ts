@@ -18,6 +18,19 @@ import { RICH_TEXT_LOCALES } from '../rich-text-locales';
 })
 class SlotProbeComponent {}
 
+/** An addon button with an open panel, shaped like ui-popover renders one. */
+@Component({
+    standalone: true,
+    template: `
+        <button type="button" data-testid="panel-trigger">Link</button>
+        <div data-slot="popover-content">
+            <input data-testid="panel-input" />
+            <button type="button" data-testid="panel-ok">Update</button>
+        </div>
+    `,
+})
+class PanelProbeComponent {}
+
 @Component({
     standalone: true,
     template: `<span data-testid="compact-probe">compact:{{ view?.compact() }}</span>`,
@@ -91,9 +104,44 @@ describe('RichTextToolbarComponent', () => {
             const focused = () => stops().findIndex(el => el.tabIndex === 0);
 
             expect(focused()).toBe(0);
-            toolbar.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
-            fixture.detectChanges();
+            pressOnToolbar('ArrowRight');
             expect(stops()[focused()].tagName.toLowerCase()).toBe('select');
+        });
+
+        it('leaves the arrows to a field inside an addon panel instead of moving the tab stop', async () => {
+            // The link panel's URL field lives in the toolbar's DOM, so its
+            // arrow presses bubbled to the roving handler, which read them as
+            // the first stop's and pulled the focus back onto the toolbar.
+            fixture.componentRef.setInput('addonSlots', [
+                { id: 'links.insert', component: PanelProbeComponent },
+            ]);
+            fixture.detectChanges();
+            await Promise.resolve();
+            const input = fixture.nativeElement.querySelector('[data-testid="panel-input"]') as HTMLInputElement;
+            input.focus();
+            const press = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true });
+            input.dispatchEvent(press);
+            fixture.detectChanges();
+
+            expect(press.defaultPrevented).toBe(false);
+            expect(document.activeElement).toBe(input);
+            expect(buttonsOf()[0].tabIndex).toBe(0);
+        });
+
+        it('keeps an addon panel\'s own buttons out of the roving order and in the Tab order', async () => {
+            fixture.componentRef.setInput('addonSlots', [
+                { id: 'links.insert', component: PanelProbeComponent },
+            ]);
+            fixture.detectChanges();
+            await Promise.resolve();
+            const ok = fixture.nativeElement.querySelector('[data-testid="panel-ok"]') as HTMLButtonElement;
+            const trigger = fixture.nativeElement.querySelector('[data-testid="panel-trigger"]') as HTMLButtonElement;
+            expect(ok.tabIndex).toBe(0);
+            expect(trigger.tabIndex).toBe(-1);
+
+            pressOnToolbar('End');
+            expect(trigger.tabIndex).toBe(0);
+            expect(ok.tabIndex).toBe(0);
         });
 
         it('does not trap the tab stop on the text-style select', () => {
