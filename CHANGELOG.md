@@ -234,6 +234,38 @@ means no policy and today's behaviour exactly.
 - **A checked task row strikes only its own text.** The rule sat on the
   whole row, so every row nested under a checked one rendered struck and
   muted whether it was done or not, in the editor and in `ui-rich-text-view`.
+- **An empty table survives a block inserted from inside it.** The
+  emptiness check searched an element's descendants, and a table is not its
+  own descendant, so an all-empty table read as a blank line and inserting a
+  second table or a rule from one of its cells replaced it. Silent content
+  loss; an element that is itself a table, image, rule or input now counts as
+  content.
+- **A selection running past a link is new link text, not an edit.** The
+  toolbar popover seeded only the part inside the link and, on submit, wrote
+  that text into the anchor while the rest stayed in the paragraph, so
+  "see docs now" became "see docs now now". Selections that reach past a link
+  now insert, unwrapping the link markup they cover so no empty anchor is
+  left behind.
+- **Task rows always carry their text in a span.** The editor and the
+  markdown parser built them that way but nothing enforced it, so rows from
+  another producer (the PDF import path) or from consumer HTML lost the
+  checked-row strike and gave the caret nowhere of its own to sit. The
+  sanitizer now gives every task row the shape, for the editor and the view.
+- **Backspace and Delete in task rows follow the line below, not the row
+  kind.** Deleting at a row's end skipped a plain nested item, and could
+  reach a task row two positions down and pull up an untouched line; joining
+  onto a plain item put the text below that item's sublist. The item below a
+  row is now the first item rendered after it, whatever kind it is, and a
+  nested list is never part of a line's text.
+- **Images and line breaks count as content in a task row.** A range renders
+  them as no text, so a row starting with either read as empty and Backspace
+  merged the rows instead of deleting the element.
+- **Arrow keys step one line inside a wrapped task row.** The move was
+  repeated whenever the caret stayed in the same row, which is exactly where
+  a row wrapping over several lines stays.
+- **The emoji panel is not part of the toolbar's arrow navigation.** Its
+  panel is not a popover, so every emoji button became a toolbar tab stop and
+  the arrows fought the picker's own grid.
 - **Table and Horizontal Rule go after the caret's line, whole.** Inserted
   mid-word they cut the word in two; the block now lands after the current
   line (or in the place of an empty one) with the caret in its first cell or

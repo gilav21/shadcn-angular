@@ -12,7 +12,7 @@ import {
     signal,
     type ComponentRef,
 } from '@angular/core';
-import { addonSetting, type RichTextAddonSetting, type RichTextAddonState, RichTextEditorAddonHost, RichTextSanitizerService} from '../..';
+import { addonSetting, type RichTextAddonSetting, type RichTextAddonState, RichTextEditorAddonHost, RichTextSanitizerService, type RichTextSelectionSnapshot } from '../..';
 import { createLocaleBindings, type LocaleInput } from '../../../../lib/i18n';
 import { RichTextLinksFormComponent, type RichTextLinkSubmit } from './rich-text-links-form.component';
 import { RichTextLinksButtonComponent } from './rich-text-links-button.component';
@@ -191,12 +191,55 @@ export class RichTextLinksDirective {
         this.host.restoreSelection();
         this.host.saveSelection();
         const selection = this.host.selection();
-        const anchor = overlayAnchor ?? selection.closestWithAttrs(['href']);
+        const anchor = overlayAnchor ?? this.anchorHoldingSelection(selection);
         const editing = anchor instanceof HTMLAnchorElement ? anchor : null;
         this.toolbarAnchor.set(editing);
         this.seededText.set(editing ? (editing.textContent ?? '') : selection.text);
         this.seededUrl.set(editing?.getAttribute('href') ?? '');
         this.urlError.set('');
+    }
+
+    /**
+     * Clear the link markup the selection covers before it is re-linked.
+     *
+     * The insertion replaces the selected text, which empties an anchor the
+     * selection covered and leaves it in the document as an invisible
+     * `<a href></a>`; inserting into that husk nests one link inside another.
+     * The browser's own `unlink` is used rather than unwrapping the anchors by
+     * hand, because an anchor the selection only PARTLY covers has to be split
+     * at the selection boundary -- unwrapping it whole threw away the author's
+     * link on the text they had not selected -- and because it leaves the live
+     * selection in place, where re-anchoring boundaries by hand breaks as soon
+     * as one of them is an element that the unwrap removes.
+     */
+    private stripLinksFromSelection(): void {
+        const doc = this.host.contentRoot.ownerDocument;
+        const live = doc.getSelection();
+        if (!live || live.rangeCount === 0 || live.isCollapsed) return;
+        const range = live.getRangeAt(0);
+        const covered = Array.from(this.host.contentRoot.querySelectorAll('a'))
+            .some((anchor) => range.intersectsNode(anchor));
+        if (!covered) return;
+        // Typed structurally, as the base does, because the DOM lib marks
+        // execCommand deprecated while the editor still runs on it.
+        const legacy = doc as unknown as { execCommand?: (id: string, showUI?: boolean) => boolean };
+        legacy.execCommand?.('unlink', false);
+    }
+
+    /**
+     * The link the popover would edit: the one the selection sits inside.
+     *
+     * A selection that STARTS in a link and runs past it is new link text the
+     * author picked, not an edit of that link. Seeding from the anchor dropped
+     * the part outside it, and submitting wrote the text into the anchor while
+     * the tail stayed in the paragraph — "see docs now" became "see docs now now".
+     */
+    private anchorHoldingSelection(selection: RichTextSelectionSnapshot): HTMLElement | null {
+        const anchor = selection.closestWithAttrs(['href']);
+        if (!anchor) return null;
+        const range = selection.range;
+        if (range && !range.collapsed && !anchor.contains(range.endContainer)) return null;
+        return anchor;
     }
 
     private submitFromToolbar(payload: RichTextLinkSubmit): void {
@@ -304,6 +347,7 @@ export class RichTextLinksDirective {
         }
         this.urlError.set('');
         this.host.restoreSelection();
+        this.stripLinksFromSelection();
         this.host.insertHtmlAtCaret(anchorHtml(safeUrl, payload.text || safeUrl));
         this.linkInsert.emit({ text: payload.text || safeUrl, url: safeUrl });
         this.closeOverlay();

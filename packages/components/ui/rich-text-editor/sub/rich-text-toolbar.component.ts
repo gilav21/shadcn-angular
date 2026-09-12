@@ -192,7 +192,7 @@ function mirrorLabel(item: ToolbarButtonItem): ToolbarButtonItem {
 }
 
 /** A panel an addon button opens inside the toolbar's DOM: its own focus scope, not part of the roving order. */
-const HOSTED_PANEL = '[data-slot="popover-content"]';
+const HOSTED_PANEL = '[data-slot="popover-content"], [data-slot="emoji-picker-content"]';
 
 @Component({
   selector: 'ui-rich-text-toolbar',

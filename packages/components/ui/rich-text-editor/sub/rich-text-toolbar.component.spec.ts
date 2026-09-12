@@ -128,6 +128,36 @@ describe('RichTextToolbarComponent', () => {
             expect(buttonsOf()[0].tabIndex).toBe(0);
         });
 
+        it('leaves the emoji picker\'s panel out of the roving order too', async () => {
+            // Its panel is not a ui-popover, so its buttons were roving stops:
+            // every emoji became a tab stop and the arrows fought the grid.
+            @Component({
+                standalone: true,
+                template: `
+                    <button type="button" data-testid="emoji-trigger">Emoji</button>
+                    <div data-slot="emoji-picker-content">
+                        <button type="button" data-testid="emoji-a">A</button>
+                    </div>
+                `,
+            })
+            class EmojiPanelProbeComponent {}
+
+            fixture.componentRef.setInput('addonSlots', [
+                { id: 'emoji.insert', component: EmojiPanelProbeComponent },
+            ]);
+            fixture.detectChanges();
+            await Promise.resolve();
+            const emoji = fixture.nativeElement.querySelector('[data-testid="emoji-a"]') as HTMLButtonElement;
+            const trigger = fixture.nativeElement.querySelector('[data-testid="emoji-trigger"]') as HTMLButtonElement;
+
+            expect(emoji.tabIndex).toBe(0);
+            expect(trigger.tabIndex).toBe(-1);
+
+            const press = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true });
+            emoji.dispatchEvent(press);
+            expect(press.defaultPrevented).toBe(false);
+        });
+
         it('keeps an addon panel\'s own buttons out of the roving order and in the Tab order', async () => {
             fixture.componentRef.setInput('addonSlots', [
                 { id: 'links.insert', component: PanelProbeComponent },

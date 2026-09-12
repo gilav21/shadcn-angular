@@ -2911,6 +2911,30 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         expect(Array.from(editor.children).map((el) => el.tagName)).toEqual(['P', 'HR', 'P']);
     });
 
+    it('keeps an empty table when a block is inserted from inside it', () => {
+        // `holdsNoContent` searched DESCENDANTS for a table, and a table is not
+        // its own descendant, so an all-empty table read as an empty line and
+        // the inserter replaced it — the author's table vanished.
+        component.writeValue('<table><tbody><tr><td><br></td><td><br></td></tr></tbody></table>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('td')!, 0);
+
+        component.insertBlockAtCaret('<table><tbody><tr><td><br></td></tr></tbody></table><p><br></p>');
+
+        expect(editor.querySelectorAll('table')).toHaveLength(2);
+    });
+
+    it('keeps an empty table when the horizontal rule is inserted from inside it', () => {
+        component.writeValue('<table><tbody><tr><td><br></td></tr></tbody></table>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('td')!, 0);
+
+        component.onFormatCommand('horizontalRule');
+
+        expect(editor.querySelector('table')).not.toBeNull();
+        expect(editor.querySelector('hr')).not.toBeNull();
+    });
+
     it('insertBlockAtCaret lands the caret in the first cell of an inserted table', () => {
         component.writeValue('<p>intro text</p>');
         fixture.detectChanges();
@@ -4882,6 +4906,182 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         component.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));
 
         expect(editor.querySelector('p')!.contains(caretNode())).toBe(true);
+    });
+
+    const backspace = () => new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true });
+    const del = () => new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true });
+    const row = (checked: boolean, inner: string) =>
+        `<li data-task="" data-checked="${checked}"><input type="checkbox">${inner}</li>`;
+
+    it('Backspace after an image at the start of a task row deletes the image, not the row', () => {
+        // Range.toString() renders <img> as '', so the caret after one read as
+        // "at the start of the row" and the rows were joined instead.
+        component.writeValue('<ul data-task-list="">'
+            + row(false, '<span>first</span>')
+            + row(false, '<span><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=">text</span>')
+            + '</ul>');
+        fixture.detectChanges();
+        const text = editor.querySelectorAll('li[data-task] > span')[1].lastChild as Text;
+        caretIn(text, 0);
+
+        const ev = backspace();
+        component.onKeydown(ev);
+
+        expect(ev.defaultPrevented).toBe(false);
+        expect(editor.querySelectorAll('li[data-task]')).toHaveLength(2);
+    });
+
+    it('Backspace after a line break in a task row is left to the browser', () => {
+        component.writeValue('<ul data-task-list="">'
+            + row(false, '<span>first</span>')
+            + row(false, '<span><br>two</span>')
+            + '</ul>');
+        fixture.detectChanges();
+        const text = editor.querySelectorAll('li[data-task] > span')[1].lastChild as Text;
+        caretIn(text, 0);
+
+        const ev = backspace();
+        component.onKeydown(ev);
+
+        expect(ev.defaultPrevented).toBe(false);
+        expect(editor.querySelectorAll('li[data-task]')).toHaveLength(2);
+    });
+
+    it('Delete at the end of a row pulls up its own nested row, not the row after the list', () => {
+        // The nested list renders between the row and its next sibling, so the
+        // sibling used to jump the queue and the document order changed.
+        component.writeValue('<ul data-task-list="">'
+            + row(false, '<span>parent</span><ul data-task-list="">' + row(false, '<span>child</span>') + '</ul>')
+            + row(false, '<span>after</span>')
+            + '</ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 'parent'.length);
+
+        component.onKeydown(del());
+
+        expect(Array.from(editor.querySelectorAll<HTMLElement>('li[data-task] > span')).map(s => s.textContent))
+            .toEqual(['parentchild', 'after']);
+        expect(editor.querySelector('li[data-task] ul')).toBeNull();
+    });
+
+    it('Delete at the end of a row pulls up a plain nested item, not the row after the list', () => {
+        // The row below is a child-position question, not an li[data-task]
+        // search: a plain nested item was skipped and the sibling jumped up.
+        component.writeValue('<ul data-task-list="">'
+            + row(false, '<span>parent</span><ul><li>plain</li></ul>')
+            + row(false, '<span>after</span>')
+            + '</ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 'parent'.length);
+
+        component.onKeydown(del());
+
+        expect(editor.querySelector('li[data-task] > span')?.textContent).toBe('parentplain');
+        expect(editor.querySelectorAll('li[data-task] > span')[1]?.textContent).toBe('after');
+        expect(editor.querySelector('li[data-task] ul')).toBeNull();
+    });
+
+    it('Delete never reaches past the item below it to a later task row', () => {
+        // querySelector returns the first matching DESCENDANT, so a nested list
+        // whose first item was plain handed back a row two positions down.
+        component.writeValue('<ul data-task-list="">'
+            + row(false, '<span>parent</span><ul data-task-list=""><li>plain</li>'
+                + row(false, '<span>second</span>') + '</ul>')
+            + '</ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 'parent'.length);
+
+        component.onKeydown(del());
+
+        expect(editor.querySelector('li[data-task] > span')?.textContent).toBe('parentplain');
+        expect(editor.textContent).toContain('second');
+    });
+
+    it("Delete pulls up only the line below it, leaving that line's own sublist a list", () => {
+        // A nested list is not part of a line's text; moving it into the span
+        // would bury a whole sub-tree inside one row's text.
+        component.writeValue('<ul data-task-list="">'
+            + row(false, '<span>parent</span><ul><li>plain<ul><li>deep</li></ul></li></ul>')
+            + '</ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 'parent'.length);
+
+        component.onKeydown(del());
+
+        const span = editor.querySelector('li[data-task] > span')!;
+        expect(span.textContent).toBe('parentplain');
+        expect(span.querySelector('ul, li')).toBeNull();
+        expect(editor.querySelector('li[data-task] > ul > li')?.textContent).toBe('deep');
+    });
+
+    it('Backspace onto a plain item puts the text on that item\'s line, above its sublist', () => {
+        // Appending to the <li> itself landed the joined word below the sublist.
+        component.writeValue('<ul data-task-list=""><li>plain<ul><li>sub</li></ul></li>'
+            + row(false, '<span>task</span>') + '</ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 0);
+
+        component.onKeydown(backspace());
+
+        const plain = editor.querySelector('li')!;
+        expect(plain.firstChild?.textContent).toBe('plain');
+        expect(Array.from(plain.childNodes).map(n => n.textContent).join('|')).toBe('plain|task|sub');
+        expect(plain.querySelector('ul li')?.textContent).toBe('sub');
+    });
+
+    it('Backspace at the start of the first row of a nested list joins the row it is nested under', () => {
+        // It used to take the "first row" path and drop a <p> inside the <li>.
+        component.writeValue('<ul data-task-list="">'
+            + row(false, '<span>parent</span><ul data-task-list="">'
+                + row(false, '<span>child</span>') + row(false, '<span>sibling</span>') + '</ul>')
+            + '</ul>');
+        fixture.detectChanges();
+        const childSpan = editor.querySelectorAll('li[data-task] > span')[1];
+        caretIn(childSpan.firstChild as Text, 0);
+
+        component.onKeydown(backspace());
+
+        expect(editor.querySelector('li p')).toBeNull();
+        expect(Array.from(editor.querySelectorAll<HTMLElement>('li[data-task] > span')).map(s => s.textContent))
+            .toEqual(['parentchild', 'sibling']);
+    });
+
+    it('Backspace in the only, empty task row leaves an empty paragraph', () => {
+        component.writeValue('<ul data-task-list="">' + row(false, '<span>​</span>') + '</ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 1);
+
+        component.onKeydown(backspace());
+
+        expect(editor.querySelector('ul')).toBeNull();
+        expect(editor.querySelector('p')?.innerHTML).toBe('<br>');
+        expect(editor.textContent).toBe('');
+    });
+
+    it('ArrowDown inside a wrapped task row moves one visual line, not two', () => {
+        // The repeat was keyed on "still in the same row", which is exactly
+        // where a row wrapping over several lines legitimately stays.
+        editor.style.width = '150px';
+        component.writeValue('<ul data-task-list="">'
+            + row(false, '<span>alpha bravo charlie delta echo foxtrot golf hotel india juliet</span>') + '</ul>');
+        fixture.detectChanges();
+        editor.focus();
+        const text = editor.querySelector('li[data-task] > span')!.firstChild as Text;
+        const topAt = (offset: number) => {
+            const probe = document.createRange();
+            probe.setStart(text, offset);
+            probe.setEnd(text, Math.min(offset + 1, text.data.length));
+            return Math.round(probe.getBoundingClientRect().top);
+        };
+        const lines = [...new Set(Array.from({ length: text.data.length }, (_, i) => topAt(i)))].sort((a, b) => a - b);
+        expect(lines.length).toBeGreaterThan(2);
+        caretIn(text, 0);
+
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+
+        const sel = document.getSelection()!;
+        expect(sel.anchorNode).toBe(text);
+        expect(topAt(sel.anchorOffset)).toBe(lines[1]);
     });
 
     it('leaves a caret in a list nested under a task row alone', () => {

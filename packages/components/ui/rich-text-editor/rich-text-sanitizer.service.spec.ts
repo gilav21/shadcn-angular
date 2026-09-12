@@ -9,6 +9,59 @@ function sanitizedStyle(service: RichTextSanitizerService, decl: string): string
     return parsed.querySelector('p')?.getAttribute('style') ?? null;
 }
 
+describe('RichTextSanitizerService — task row shape', () => {
+    let service: RichTextSanitizerService;
+
+    beforeEach(() => {
+        TestBed.configureTestingModule({ providers: [RichTextSanitizerService] });
+        service = TestBed.inject(RichTextSanitizerService);
+    });
+
+    const rowOf = (html: string): HTMLElement => {
+        const holder = document.createElement('div');
+        holder.innerHTML = service.sanitize(html);
+        return holder.querySelector('li[data-task]')!;
+    };
+
+    it('wraps a task row whose text sits bare beside the checkbox', () => {
+        // The PDF import path emits this shape; the checked-row strike and
+        // every caret rule key off the span, so a bare row lost both.
+        const row = rowOf('<ul data-task-list><li data-task data-checked="true"><input type="checkbox">done</li></ul>');
+
+        expect(row.querySelector(':scope > span')?.textContent).toBe('done');
+        expect(row.childNodes).toHaveLength(2);
+        expect(row.firstChild?.nodeName).toBe('INPUT');
+    });
+
+    it('keeps the inline markup of a bare row inside the new span', () => {
+        const row = rowOf('<ul data-task-list><li data-task><input type="checkbox">read <b>the</b> docs</li></ul>');
+
+        expect(row.querySelector(':scope > span')?.innerHTML).toBe('read <b>the</b> docs');
+    });
+
+    it('leaves a row that already has its span alone', () => {
+        const row = rowOf('<ul data-task-list><li data-task><input type="checkbox"><span>todo</span></li></ul>');
+
+        expect(row.querySelectorAll('span')).toHaveLength(1);
+        expect(row.querySelector(':scope > span')?.textContent).toBe('todo');
+    });
+
+    it('puts the span before a nested list and leaves that list nested', () => {
+        const row = rowOf('<ul data-task-list><li data-task><input type="checkbox">parent'
+            + '<ul data-task-list><li data-task><input type="checkbox">child</li></ul></li></ul>');
+
+        expect(Array.from(row.children).map((el) => el.tagName)).toEqual(['INPUT', 'SPAN', 'UL']);
+        expect(row.querySelector(':scope > span')?.textContent).toBe('parent');
+        expect(row.querySelector(':scope > ul > li[data-task] > span')?.textContent).toBe('child');
+    });
+
+    it('gives a row with no text a span to hold the caret', () => {
+        const row = rowOf('<ul data-task-list><li data-task><input type="checkbox"></li></ul>');
+
+        expect(row.querySelector(':scope > span')).not.toBeNull();
+    });
+});
+
 describe('RichTextSanitizerService', () => {
     let service: RichTextSanitizerService;
 

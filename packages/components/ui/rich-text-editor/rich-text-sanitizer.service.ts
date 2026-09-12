@@ -376,6 +376,7 @@ export class RichTextSanitizerService {
         this.processNodes(doc.body, cleanContainer);
         this.dropOrphanCompanionAttributes(cleanContainer);
         this.normalizeQuoteLines(cleanContainer);
+        this.normalizeTaskRows(cleanContainer);
 
         return this.normalizeStyleQuotes(cleanContainer.innerHTML);
     }
@@ -392,6 +393,35 @@ export class RichTextSanitizerService {
      * Bare and inline children are grouped into `<p>` lines, a `<br>` ends a
      * line, and block children pass through untouched.
      */
+    /**
+     * A task row's text lives in a `<span>` after its checkbox.
+     *
+     * The editor builds rows that way and the markdown parser emits them that
+     * way, but nothing enforced it, so a row from another producer (the PDF
+     * import path emits `<li data-task><input>text</li>`) or from consumer
+     * HTML carried its text bare. Every caret rule and the checked-row strike
+     * key off that span, so such a row silently lost its strike and gave the
+     * caret nowhere of its own to sit. Every row reaching the editor or the
+     * view passes through here, so all of them have the shape.
+     */
+    private normalizeTaskRows(root: HTMLElement): void {
+        for (const row of Array.from(root.querySelectorAll('li[data-task]'))) {
+            const checkbox: ChildNode | null = row.querySelector(':scope > input[type="checkbox"]');
+            const content = Array.from(row.childNodes)
+                .filter((node) => node !== checkbox && !this.isNestedList(node));
+            if (content.length === 1 && content[0].nodeName === 'SPAN') continue;
+            const span = this.document.createElement('span');
+            for (const node of content) span.appendChild(node);
+            // The row's own nested list renders under its text, so the span
+            // goes before it.
+            row.insertBefore(span, Array.from(row.childNodes).find((node) => this.isNestedList(node)) ?? null);
+        }
+    }
+
+    private isNestedList(node: Node): boolean {
+        return node.nodeName === 'UL' || node.nodeName === 'OL';
+    }
+
     private normalizeQuoteLines(root: HTMLElement): void {
         for (const quote of Array.from(root.querySelectorAll('blockquote'))) {
             const bare = Array.from(quote.childNodes).some((node) => !this.isQuoteLineBlock(node));

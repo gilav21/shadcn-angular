@@ -328,6 +328,83 @@ describe('RichTextLinksDirective', () => {
         expect(el.textContent).toBe('new');
     });
 
+    it('treats a selection running past a link as new link text, not an edit of that link', () => {
+        // Seeding from the anchor dropped the part of the selection outside it,
+        // and submitting left that part behind: "see docs now" became
+        // "see docs now now".
+        const fixture = createFixture();
+        const { el } = setContent(fixture, '<p>see <a href="https://old.example/">docs</a> now</p>');
+        const anchorText = el.querySelector('a')!.firstChild!;
+        const tail = el.querySelector('p')!.lastChild!;
+        const range = document.createRange();
+        range.setStart(anchorText, 0);
+        range.setEnd(tail, 4);
+        const selection = document.getSelection()!;
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        const probe = buttonProbe(fixture);
+        probe.context.onOpen();
+        fixture.detectChanges();
+
+        expect(probe.context.editing()).toBe(false);
+        expect(probe.context.seededText()).toBe('docs now');
+
+        probe.context.onSubmit({ text: 'docs now', url: 'https://new.example/' });
+        fixture.detectChanges();
+        expect(el.textContent).toBe('see docs now');
+        expect(el.querySelectorAll('a')).toHaveLength(1);
+    });
+
+    it('keeps the link on the part of it the selection did not cover', () => {
+        // Unwrapping the whole anchor threw away the author's URL on text they
+        // never selected; a partly covered link has to be split, not unwrapped.
+        const fixture = createFixture();
+        const { el } = setContent(fixture, '<p><a href="https://old.example/">docs here</a> now</p>');
+        const linkText = el.querySelector('a')!.firstChild!;
+        const tail = el.querySelector('p')!.lastChild!;
+        const range = document.createRange();
+        range.setStart(linkText, 'docs '.length);
+        range.setEnd(tail, 4);
+        const selection = document.getSelection()!;
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        const probe = buttonProbe(fixture);
+        probe.context.onOpen();
+        probe.context.onSubmit({ text: 'here now', url: 'https://new.example/' });
+        fixture.detectChanges();
+
+        expect(el.querySelector('a[href="https://old.example/"]')?.textContent).toBe('docs ');
+        expect(el.querySelector('a[href="https://new.example/"]')?.textContent).toBe('here now');
+        expect(el.textContent).toBe('docs here now');
+    });
+
+    it('replaces a selection whose boundary is an element, not a text node', () => {
+        // Re-anchoring the range by hand collapsed it when a boundary node was
+        // the very anchor being unwrapped, so nothing was replaced.
+        const fixture = createFixture();
+        const { el } = setContent(
+            fixture,
+            '<p><a href="https://a.example/">one</a> mid <a href="https://b.example/">two</a></p>',
+        );
+        const second = el.querySelectorAll('a')[1];
+        const range = document.createRange();
+        range.setStart(el.querySelector('a')!, 0);
+        range.setEnd(second.firstChild!, 2);
+        const selection = document.getSelection()!;
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        const probe = buttonProbe(fixture);
+        probe.context.onOpen();
+        probe.context.onSubmit({ text: 'ALL', url: 'https://new.example/' });
+        fixture.detectChanges();
+
+        expect(el.textContent).toBe('ALLo');
+        expect(el.querySelector('a[href="https://new.example/"]')?.textContent).toBe('ALL');
+    });
+
     it('removes the link under the caret from the toolbar popover, keeping its text', () => {
         const fixture = createFixture();
         const { el } = setContent(fixture, '<p>see <a href="https://old.example/">the docs</a> now</p>');
