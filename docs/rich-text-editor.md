@@ -713,6 +713,7 @@ it is the entire supported surface — 39 members, grouped:
 | `wrapSelection(build)` | Wrap the current selection in elements built by `build`. |
 | `insertTextAtCaret(text)` | Insert plain text at the caret. |
 | `insertHtmlAtCaret(html)` | Insert sanitized HTML at the caret. |
+| `insertBlockAtCaret(html)` | Insert sanitized block markup (a table, a rule) after the caret's line, or in the place of an empty one, with the caret in its first cell or paragraph. |
 | `insertTextFromOverlay(text)` | Insert from an overlay that took focus (restores the selection first). |
 | `applyInlineStyle(style)` | Apply an inline style to the selection. |
 | `selectionInlineStyle: Signal<RichTextSelectionInlineStyle>` | The inline style in force at the caret. |

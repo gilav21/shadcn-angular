@@ -25,6 +25,8 @@ import { RICH_TEXT_LINKS_LOCALES, type RichTextLinksLocale } from './rich-text-l
 const LINK_SLOT_ID = 'links.insert';
 const OVERLAY_WIDTH = 320;
 const OVERLAY_HEIGHT = 220;
+/** How far outside a link's glyph boxes a click still counts as on the link. */
+const LINK_HIT_SLACK_PX = 4;
 
 /** Where the insert/edit overlay is anchored on screen. */
 interface OverlayAnchorRect {
@@ -96,7 +98,7 @@ export class RichTextLinksDirective {
     private overlayRef?: ComponentRef<RichTextLinksFormComponent>;
     private editingAnchor: HTMLAnchorElement | null = null;
     private readonly outsidePointerBound = (e: Event): void => this.onOutsidePointer(e);
-    private readonly editProbeBound = (): void => this.probeEditableLink();
+    private readonly editProbeBound = (e: Event): void => this.probeEditableLink(e);
     private readonly scrollDismissBound = (e: Event): void => this.onScrollDismiss(e);
     private readonly escapeDismissBound = (e: KeyboardEvent): void => this.onEscapeDismiss(e);
 
@@ -335,17 +337,31 @@ export class RichTextLinksDirective {
         this.closeOverlay();
     }
 
-    private probeEditableLink(): void {
+    private probeEditableLink(event: Event): void {
         if (this.host.isDisabled() || this.host.readonly()) return;
         const el = this.host.selection().closestWithAttrs(['href']);
         const anchor = el?.tagName === 'A' && el.isContentEditable ? (el as HTMLAnchorElement) : null;
-        if (!anchor) {
+        // A click in the blank space beside or below a line parks the caret at
+        // the nearest text, which may be inside a link the pointer never
+        // touched. Only the link's own boxes count for a pointer; a caret moved
+        // by the keyboard is the author's intent and opens on its own.
+        const onLink = anchor && (!(event instanceof MouseEvent) || this.pointerOnLink(event, anchor));
+        if (!onLink) {
             if (this.editingAnchor) this.closeOverlay();
             return;
         }
         if (anchor !== this.editingAnchor) {
             this.openEditOverlay(anchor);
         }
+    }
+
+    private pointerOnLink(event: MouseEvent, anchor: HTMLAnchorElement): boolean {
+        for (const rect of anchor.getClientRects()) {
+            const inX = event.clientX >= rect.left - LINK_HIT_SLACK_PX && event.clientX <= rect.right + LINK_HIT_SLACK_PX;
+            const inY = event.clientY >= rect.top - LINK_HIT_SLACK_PX && event.clientY <= rect.bottom + LINK_HIT_SLACK_PX;
+            if (inX && inY) return true;
+        }
+        return false;
     }
 
     private onOutsidePointer(event: Event): void {

@@ -400,6 +400,59 @@ describe('RichTextLinksDirective', () => {
         expect(cmp.commands.listCommands().some((c) => c.id === 'insert.link')).toBe(true);
     });
 
+    it('does not open the edit overlay for a click in the blank space below the link', async () => {
+        // Chrome parks the caret at the nearest text when the click lands in
+        // the editor's padding, so the caret is inside the link although the
+        // pointer never touched it.
+        const fixture = createFixture();
+        const { el, cmp } = setContent(fixture, '<p><a href="https://old.test">old link</a> text</p>');
+        await fixture.whenStable();
+        const anchor = el.querySelector('a')!;
+        caretInside(anchor.firstChild!, 1);
+        const rect = anchor.getBoundingClientRect();
+        cmp.contentRoot.dispatchEvent(new MouseEvent('mouseup', {
+            bubbles: true, clientX: rect.left + rect.width / 2, clientY: rect.bottom + 40,
+        }));
+        fixture.detectChanges();
+
+        expect(overlayForms(fixture)).toHaveLength(0);
+    });
+
+    it('opens the edit overlay for a click within a few pixels of the link\'s box', async () => {
+        const fixture = createFixture();
+        const { el, cmp } = setContent(fixture, '<p><a href="https://old.test">old link</a> text</p>');
+        await fixture.whenStable();
+        const anchor = el.querySelector('a')!;
+        caretInside(anchor.firstChild!, 1);
+        const rect = anchor.getBoundingClientRect();
+        cmp.contentRoot.dispatchEvent(new MouseEvent('mouseup', {
+            bubbles: true, clientX: rect.left + rect.width / 2, clientY: rect.bottom + 2,
+        }));
+        fixture.detectChanges();
+
+        expect(overlayForms(fixture)).toHaveLength(1);
+    });
+
+    it('closes an open edit overlay when the next click misses the link', async () => {
+        const fixture = createFixture();
+        const { el, cmp } = setContent(fixture, '<p><a href="https://old.test">old link</a> text</p>');
+        await fixture.whenStable();
+        const anchor = el.querySelector('a')!;
+        caretInside(anchor.firstChild!, 1);
+        const rect = anchor.getBoundingClientRect();
+        cmp.contentRoot.dispatchEvent(new MouseEvent('mouseup', {
+            bubbles: true, clientX: rect.left + 2, clientY: rect.top + rect.height / 2,
+        }));
+        fixture.detectChanges();
+        expect(overlayForms(fixture)).toHaveLength(1);
+
+        cmp.contentRoot.dispatchEvent(new MouseEvent('mouseup', {
+            bubbles: true, clientX: rect.left + 2, clientY: rect.bottom + 40,
+        }));
+        fixture.detectChanges();
+        expect(overlayForms(fixture)).toHaveLength(0);
+    });
+
     it('opens an edit overlay with remove when the caret enters an existing link', async () => {
         const fixture = createFixture();
         const { el, cmp } = setContent(fixture, '<p><a href="https://old.test">old</a></p>');

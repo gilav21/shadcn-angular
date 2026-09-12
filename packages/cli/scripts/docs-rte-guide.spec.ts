@@ -37,8 +37,11 @@ const README = path.join(REPO_ROOT, 'README.md');
  * 41 -> 42 on 2026-09-07 for `setActiveSuggestionPopup`: the combobox ARIA
  * belongs on the editable, which the base owns, while the popup belongs to the
  * addon — so the two need a seam between them.
+ * 42 -> 43 on 2026-09-12 for `insertBlockAtCaret`: a table or a rule inserted
+ * through `insertHtmlAtCaret` split the caret's block mid-word, which suits
+ * pasted prose and not a command; the block seam lands after the line instead.
  */
-const HOST_MEMBER_COUNT = 42;
+const HOST_MEMBER_COUNT = 43;
 
 const read = (file: string): string => readFileSync(file, 'utf-8');
 

@@ -211,6 +211,11 @@ means no policy and today's behaviour exactly.
   empty form and inserted a second anchor inside the first; it now shows the
   link's text and URL with Update and Remove, also when the click-to-edit
   overlay had just been dismissed by the button press.
+- **The click-to-edit link overlay opens only for clicks on the link.** A
+  click in the blank space below a line parks the caret at the nearest text,
+  so clicking anywhere in a link's column opened its editor; a pointer now
+  has to land on the link's own box (a few pixels of slack), while a caret
+  moved by the keyboard still opens it.
 - **Table and Horizontal Rule go after the caret's line, whole.** Inserted
   mid-word they cut the word in two; the block now lands after the current
   line (or in the place of an empty one) with the caret in its first cell or
