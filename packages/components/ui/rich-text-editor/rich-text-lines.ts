@@ -194,6 +194,28 @@ export function positionAfterLine(line: Line): { parent: Node; before: Node | nu
     return { parent, before: owner.nextSibling };
 }
 
+/**
+ * Where a block goes to take the place of `line`.
+ *
+ * The mirror of {@link positionAfterLine}: next to the line when its parent
+ * accepts a block, and otherwise inside the line, since a `<pre>` cannot be a
+ * child of a `<ul>` or a `<tr>` any more than a `<p>` can.
+ */
+export function positionOfLine(line: Line): { parent: Node; before: Node | null } {
+    const owner = line.owner;
+    const parent = owner.parentNode;
+    if (!parent || REJECTS_BLOCK_CHILD.has(parent.nodeName)) {
+        return { parent: owner, before: owner.firstChild };
+    }
+    return { parent, before: owner };
+}
+
+/** Whether a block put in place of `line` has to go inside it (rule of {@link positionOfLine}). */
+export function lineKeepsItsElement(line: Line): boolean {
+    const parent = line.owner.parentNode;
+    return !parent || REJECTS_BLOCK_CHILD.has(parent.nodeName);
+}
+
 /** Where a line sits in an index, or -1 once it has been removed. */
 export function indexOfLine(index: LineIndex, line: Line): number {
     return index.lines.findIndex((candidate) => candidate.owner === line.owner);

@@ -2876,6 +2876,73 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         expect(Array.from(editor.querySelectorAll('p')).map((p) => p.textContent)).toEqual(['one', 'two']);
     });
 
+    it("the code block toggle acts on the caret's list item, not the whole list", () => {
+        // The walker it used had no LI, so a caret in an item resolved to the
+        // outer <ul> and the toggle flattened every item into one block.
+        component.writeValue('<ul><li>one</li><li>two</li><li>three</li></ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelectorAll('li')[1].firstChild as Text, 1);
+
+        component.onFormatCommand('codeBlock');
+
+        expect(editor.querySelectorAll('li')).toHaveLength(3);
+        const items = Array.from(editor.querySelectorAll('li'));
+        expect(items[1].querySelector('pre code')?.textContent).toBe('two');
+        expect(items[0].textContent).toBe('one');
+        expect(items[2].textContent).toBe('three');
+        expect(editor.querySelector('ul > pre')).toBeNull();
+    });
+
+    it("the code block toggle acts on the caret's table cell, not the whole table", () => {
+        component.writeValue('<table><tbody><tr><td>a</td><td>b</td></tr></tbody></table>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('td')!.firstChild as Text, 1);
+
+        component.onFormatCommand('codeBlock');
+
+        expect(editor.querySelector('table')).not.toBeNull();
+        expect(editor.querySelectorAll('td')).toHaveLength(2);
+        expect(editor.querySelector('td pre code')?.textContent).toBe('a');
+        expect(editor.querySelector('tr > pre')).toBeNull();
+    });
+
+    it('a block command stops at a container boundary instead of gutting a list', () => {
+        // A selection reaching from a paragraph into a list item must not pull
+        // the item out of its list: that put an <li> straight inside the quote.
+        component.writeValue('<p>one</p><ul><li>item</li></ul>');
+        fixture.detectChanges();
+        const range = document.createRange();
+        range.setStart(editor.querySelector('p')!.firstChild!, 0);
+        range.setEnd(editor.querySelector('li')!.firstChild!, 2);
+        const selection = document.getSelection()!;
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        component.onFormatCommand('blockquote');
+
+        expect(editor.querySelector('blockquote > p')?.textContent).toBe('one');
+        expect(editor.querySelector('blockquote > li')).toBeNull();
+        expect(editor.querySelector('blockquote li')).toBeNull();
+        expect(editor.querySelector('ul > li')?.textContent).toBe('item');
+    });
+
+    it('the code block toggle still joins a run of selected paragraphs', () => {
+        component.writeValue('<p>one</p><p>two</p><p>three</p>');
+        fixture.detectChanges();
+        const paragraphs = editor.querySelectorAll('p');
+        const range = document.createRange();
+        range.setStart(paragraphs[0].firstChild!, 0);
+        range.setEnd(paragraphs[2].firstChild!, 5);
+        const selection = document.getSelection()!;
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        component.onFormatCommand('codeBlock');
+
+        expect(editor.querySelectorAll('p')).toHaveLength(0);
+        expect(editor.querySelector('pre code')?.textContent).toBe('one\ntwo\nthree');
+    });
+
     it('inserts a horizontal rule', () => {
         component.writeValue('<p>before</p>');
         fixture.detectChanges();
