@@ -1897,7 +1897,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const holder = into.holder;
         const stop = Array.from(holder.childNodes).find((node) => isNestedList(node)) ?? null;
         const joinAt = stop ? Array.prototype.indexOf.call(holder.childNodes, stop) : holder.childNodes.length;
-        for (const node of moved) holder.insertBefore(node, stop);
+        for (const node of moved) {
+            if (stop) stop.before(node);
+            else holder.appendChild(node);
+        }
         if (lineOwnNodes(into).length === 0 && options.placeholder !== 'block') {
             holder.appendChild(this.document.createTextNode('\u00A0'));
         }
@@ -1974,7 +1977,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const range = selection.getRangeAt(0);
         if (!range.collapsed) return null;
         const line = lineOf(range.startContainer, editor);
-        if (!line || line.kind !== 'item') return null;
+        if (line?.kind !== 'item') return null;
         if (!line.holder.contains(range.startContainer)) return null;
         return { line, row: line.owner, span: line.holder, range };
     }
@@ -1990,7 +1993,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     /** Whether the caret sits at the very end of its line's text, padding aside. */
     private atLineTextEnd({ line, range }: TaskRowCaret): boolean {
         const nodes = lineOwnNodes(line);
-        const last = nodes[nodes.length - 1];
+        const last = nodes.at(-1);
         if (!last) return true;
         const after = this.document.createRange();
         after.setStart(range.startContainer, range.startOffset);
