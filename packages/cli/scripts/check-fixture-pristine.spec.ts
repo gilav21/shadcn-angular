@@ -33,7 +33,9 @@ describe('fixtureViolations', () => {
     });
 });
 
-describe('check-fixture-pristine entry', () => {
+// Each test runs several git subprocesses in a fresh repo; under the parallel
+// browser coverage leg they take 5-8s, past the 5s default.
+describe('check-fixture-pristine entry', { timeout: 30_000 }, () => {
     let root = '';
     const routes = 'e2e/fixture-app/src/app/app.routes.ts';
 
