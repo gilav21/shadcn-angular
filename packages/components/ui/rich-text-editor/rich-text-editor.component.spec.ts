@@ -5214,6 +5214,30 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         expect(editor.querySelectorAll('li[data-task]')).toHaveLength(2);
     });
 
+    it('Enter in a task row holding only an image keeps the row and the image', () => {
+        // The handler tested the row's text alone, so a row holding only an
+        // image read as blank, Enter took the "leave the list" branch and the
+        // image went with the row. Found by inventory, not by a report.
+        component.writeValue('<ul data-task-list=""><li data-task="" data-checked="false">'
+            + '<input type="checkbox"><span><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw="></span></li></ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li[data-task] > span')!, 1);
+
+        component.onKeydown(enterKey());
+
+        expect(editor.querySelector('img')).not.toBeNull();
+        expect(editor.querySelectorAll('li[data-task]')).toHaveLength(2);
+    });
+
+    it('an empty span does not make a blank line look full', () => {
+        // One of the two old predicates counted any child element as content.
+        component.writeValue('<p>text</p><p><span></span></p>');
+        fixture.detectChanges();
+
+        const blank = editor.querySelectorAll('p')[1];
+        expect((component as unknown as { isEmptyBlock(el: HTMLElement): boolean }).isEmptyBlock(blank)).toBe(true);
+    });
+
     it('Enter in an empty task list item exits the task list into a paragraph', () => {
         component.writeValue('<ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox"><span> </span></li></ul>');
         fixture.detectChanges();

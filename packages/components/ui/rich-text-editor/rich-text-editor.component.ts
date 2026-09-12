@@ -38,10 +38,12 @@ import {
 } from './rich-text-find.utils';
 import {
     buildLineIndex,
+    holdsNothing,
     isNestedList,
     type Line,
     lineAbove,
     lineBelow,
+    lineIsEmpty,
     lineOf,
     lineOwnNodes,
     rangeShowsNothing,
@@ -272,9 +274,6 @@ const QUOTE_STRUCTURE_TAGS = new Set(['UL', 'OL', 'LI', 'TABLE', 'TR', 'TD', 'TH
 /** The placeholders an empty task row's text span is seeded with. */
 /** A run of nothing but the padding a blank line carries to hold a caret. */
 const PLACEHOLDER_ONLY = /^[\u00A0\u200B]*$/;
-
-/** Elements that are content in themselves, whatever text they hold. */
-const REPLACED_CONTENT_TAGS = 'img, hr, input, table';
 
 /** A collapsed caret inside a line's own text, with the line it belongs to. */
 interface TaskRowCaret {
@@ -2050,11 +2049,15 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (!taskLi) return false;
 
         event.preventDefault();
-        const textContent = taskLi.textContent?.replaceAll(/[\s\u00A0]/g, '') || '';
-        if (textContent) {
-            this.insertNewTaskListItem(taskLi, selection);
-        } else {
+        // Its own text-only test deleted a row holding only an image: the row
+        // read as blank, so Enter took the "leave the list" branch and took the
+        // image with it.
+        const editor = this.editorDiv?.nativeElement;
+        const line = editor ? lineOf(taskLi, editor) : null;
+        if (line && lineIsEmpty(line)) {
             this.exitTaskList(taskLi, selection);
+        } else {
+            this.insertNewTaskListItem(taskLi, selection);
         }
         this.syncContentFromEditor();
         this.pushHistory();
@@ -7709,22 +7712,22 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * quoted line holding only an image has empty textContent, and the exit
      * rules used to remove it -- deleting the image on Enter.
      */
+    /**
+     * Whether a block shows the author nothing.
+     *
+     * Both of the editor's own predicates are gone: one counted any child
+     * element as content, so a blank line holding an empty `<span>` looked
+     * full; the other searched descendants only, so an empty table, not being
+     * its own descendant, read as blank and was replaced. {@link holdsNothing}
+     * is the single rule, and it asks about the element itself as well.
+     */
     private holdsNoContent(block: Element): boolean {
-        const text = (block.textContent ?? '').replaceAll('​', '').trim();
-        // `querySelector` searches DESCENDANTS only, so an empty table reported
-        // as holding nothing and the block inserter replaced it — the author's
-        // table vanished when they inserted a rule from inside it.
-        if (block.matches(REPLACED_CONTENT_TAGS)) return false;
-        return text === '' && block.querySelector(REPLACED_CONTENT_TAGS) === null;
+        return holdsNothing(block);
     }
 
+    /** Whether a block shows nothing. The same rule as {@link holdsNoContent}. */
     private isEmptyBlock(block: HTMLElement): boolean {
-        const text = (block.textContent ?? '').replaceAll('\u200B', '').trim();
-        if (text.length > 0) {
-            return false;
-        }
-        const nonEmptyElement = Array.from(block.children).find(child => child.tagName !== 'BR');
-        return !nonEmptyElement;
+        return holdsNothing(block);
     }
 
     private buildTriggerAwareText(html: string): string {
