@@ -259,6 +259,16 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
 /** Structures inside a quote that own their own Enter handling. */
 const QUOTE_STRUCTURE_TAGS = new Set(['UL', 'OL', 'LI', 'TABLE', 'TR', 'TD', 'TH', 'PRE', 'CODE', 'DETAILS']);
 
+/** The placeholders an empty task row's text span is seeded with. */
+const TASK_TEXT_PLACEHOLDERS = /[\u00A0\u200B]/g;
+
+/** A collapsed caret inside a task row's text span. */
+interface TaskRowCaret {
+    row: HTMLElement;
+    span: HTMLElement;
+    range: Range;
+}
+
 /** Blocks that hold one line of prose; what the list, task-list and code-block toggles operate on. */
 const LINE_BLOCK_TAGS = new Set(['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6']);
 
@@ -1547,8 +1557,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             return;
         }
         this.lastInputRule = null;
+        this.confineCaretToTaskText();
 
-        if (event.key === 'Backspace' && this.handleBackspaceInTaskList(event)) return;
+        if (this.handleTaskRowJoin(event)) return;
+        if (this.handleVerticalArrowInTaskRow(event)) return;
 
         if ((event.key === 'Delete' || event.key === 'Backspace')
             && this.handleDeleteAcrossTableBoundary(event)) return;
@@ -1742,43 +1754,181 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         selection?.addRange(collapsed);
     }
 
-    private handleBackspaceInTaskList(event: KeyboardEvent): boolean {
-        const selection = this.document.getSelection();
-        if (!selection || selection.rangeCount === 0) return false;
-        const range = selection.getRangeAt(0);
-        if (!range.collapsed) return false;
-
-        const taskLi = this.getParentTaskListItem();
-        if (!taskLi) return false;
-
-        const span = taskLi.querySelector('span');
-        if (!span?.contains(range.startContainer)) return false;
-
-        // Only at the very start of the row's text, allowing for the
-        // zero-width anchor the task builder seeds an empty row with.
-        const before = (range.startContainer.textContent ?? '').slice(0, range.startOffset);
-        if (before.replaceAll('​', '').length > 0) return false;
-
+    /**
+     * Backspace at the start of a task row, or Delete at its end, joins rows
+     * the way the browser would join paragraphs — text and all.
+     *
+     * The browser cannot do this itself: a row is
+     * `<li><input type="checkbox"><span>…</span></li>`, so what its own
+     * Backspace or Delete finds next is the checkbox, and deleting that merges
+     * the rows with the row's struck, muted rendering baked into inline
+     * styles on the surviving text.
+     */
+    private handleTaskRowJoin(event: KeyboardEvent): boolean {
+        if (event.key !== 'Backspace' && event.key !== 'Delete') return false;
+        const caret = this.taskRowCaret();
+        if (!caret) return false;
+        const joined = event.key === 'Backspace'
+            ? this.joinTaskRowUpwards(caret)
+            : this.joinNextTaskRow(caret);
+        if (!joined) return false;
         event.preventDefault();
-
-        const list = taskLi.parentElement;
-        const previous = taskLi.previousElementSibling as HTMLElement | null;
-        taskLi.remove();
-
-        if (list?.children.length === 0) {
-            const p = this.document.createElement('p');
-            p.innerHTML = '<br>';
-            list.parentNode?.insertBefore(p, list);
-            list.remove();
-            this.setSelectionRange(selection, p, 0);
-        } else if (previous) {
-            const target = previous.querySelector('span') ?? previous;
-            this.placeCaretAtEndOf(target);
-        }
-
         this.syncContentFromEditor();
         this.pushHistory();
         return true;
+    }
+
+    /**
+     * ArrowUp / ArrowDown from a task row's text, moved by the editor.
+     *
+     * The browser counts the caret position before the row's checkbox as a
+     * line stop of its own, so from the start of a row one press went there
+     * and only a second press reached the row above — and once the caret is
+     * confined to the text, that first press went nowhere at all. The move is
+     * made here and repeated once when it did not leave the row.
+     */
+    private handleVerticalArrowInTaskRow(event: KeyboardEvent): boolean {
+        if ((event.key !== 'ArrowUp' && event.key !== 'ArrowDown')
+            || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return false;
+        const caret = this.taskRowCaret();
+        const selection = this.document.getSelection();
+        if (!caret || typeof selection?.modify !== 'function') return false;
+
+        event.preventDefault();
+        const direction = event.key === 'ArrowUp' ? 'backward' : 'forward';
+        selection.modify('move', direction, 'line');
+        if (this.getParentTaskListItem() === caret.row) selection.modify('move', direction, 'line');
+        this.confineCaretToTaskText();
+        return true;
+    }
+
+    /** A collapsed caret inside a task row's text span, with the row and span. */
+    private taskRowCaret(): TaskRowCaret | null {
+        const selection = this.document.getSelection();
+        if (!selection || selection.rangeCount === 0) return null;
+        const range = selection.getRangeAt(0);
+        if (!range.collapsed) return null;
+        const row = this.getParentTaskListItem();
+        const span = row?.querySelector<HTMLElement>(':scope > span');
+        if (!row || !span?.contains(range.startContainer)) return null;
+        return { row, span, range };
+    }
+
+    /** Whether the caret sits at the very start of its row's text, placeholders aside. */
+    private atTaskTextStart({ span, range }: TaskRowCaret): boolean {
+        const before = this.document.createRange();
+        before.setStart(span, 0);
+        before.setEnd(range.startContainer, range.startOffset);
+        return before.toString().replaceAll(TASK_TEXT_PLACEHOLDERS, '').length === 0;
+    }
+
+    /** Whether the caret sits at the very end of its row's text, placeholders aside. */
+    private atTaskTextEnd({ span, range }: TaskRowCaret): boolean {
+        const after = this.document.createRange();
+        after.setStart(range.startContainer, range.startOffset);
+        after.setEnd(span, span.childNodes.length);
+        return after.toString().replaceAll(TASK_TEXT_PLACEHOLDERS, '').length === 0;
+    }
+
+    /**
+     * Backspace at the start of a row: the row joins the one above, or, as
+     * the first row, leaves the list as a paragraph carrying its text; rows
+     * nested under it step up one level and the rows after it keep their list.
+     * The row used to be dropped with everything the author had typed in it.
+     */
+    private joinTaskRowUpwards(caret: TaskRowCaret): boolean {
+        if (!this.atTaskTextStart(caret)) return false;
+        const { row, span } = caret;
+        const list = row.parentElement;
+        const previous = row.previousElementSibling as HTMLElement | null;
+        if (previous) {
+            this.moveTaskText(span, previous.querySelector<HTMLElement>(':scope > span') ?? previous);
+            for (const nested of this.nestedListsOf(row)) previous.appendChild(nested);
+        } else if (list) {
+            const p = this.document.createElement('p');
+            this.moveTaskText(span, p);
+            list.parentNode?.insertBefore(p, list);
+            for (const nested of this.nestedListsOf(row)) {
+                while (nested.firstChild) list.insertBefore(nested.firstChild, row);
+            }
+            this.placeCaretAtStartOfBlock(p);
+        }
+        row.remove();
+        if (list?.children.length === 0) list.remove();
+        return true;
+    }
+
+    /** Delete at the end of a row: the next task row's text comes onto it. */
+    private joinNextTaskRow(caret: TaskRowCaret): boolean {
+        if (!this.atTaskTextEnd(caret)) return false;
+        const { row, span } = caret;
+        const next = row.nextElementSibling as HTMLElement | null;
+        const nextSpan = next?.dataset['task'] === undefined ? null : next?.querySelector<HTMLElement>(':scope > span');
+        if (!next || !nextSpan) return false;
+        this.moveTaskText(nextSpan, span, { keepCaret: true });
+        for (const nested of this.nestedListsOf(next)) row.appendChild(nested);
+        next.remove();
+        return true;
+    }
+
+    private nestedListsOf(row: HTMLElement): HTMLElement[] {
+        return Array.from(row.children).filter((el): el is HTMLElement => el.tagName === 'UL' || el.tagName === 'OL');
+    }
+
+    /**
+     * Append the text of one task row to another, dropping the placeholder an
+     * empty row is seeded with on either side. Unless `keepCaret`, the caret
+     * lands on the join.
+     */
+    private moveTaskText(from: HTMLElement, into: HTMLElement, options: { keepCaret?: boolean } = {}): void {
+        const seed = /^[\u00A0\u200B]*$/;
+        if (seed.test(into.textContent ?? '')) into.textContent = '';
+        const moved = Array.from(from.childNodes).filter(node =>
+            !(node.nodeType === Node.TEXT_NODE && seed.test((node as Text).data)));
+        const joinAt = into.childNodes.length;
+        for (const node of moved) into.appendChild(node);
+        if (!into.hasChildNodes()) into.appendChild(this.document.createTextNode('\u00A0'));
+        if (options.keepCaret) return;
+        const selection = this.document.getSelection();
+        if (!selection) return;
+        const caret = this.document.createRange();
+        caret.setStart(into, Math.min(joinAt, into.childNodes.length));
+        caret.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(caret);
+    }
+
+    /**
+     * Confine a collapsed caret in a task item to the item's text span.
+     *
+     * `<li><input type="checkbox"><span>…</span></li>` has caret positions
+     * before and after the checkbox that the browser happily lands on: ArrowUp
+     * from the row below stops on them, and so does a click at the row's edge.
+     * Text typed there ends up before the checkbox, and Backspace there hands
+     * the browser the checkbox to delete, which merges the row into its
+     * neighbour and bakes the row's struck, muted rendering into inline styles
+     * on the surviving text. The span is the only place a caret belongs.
+     */
+    private confineCaretToTaskText(): void {
+        const selection = this.document.getSelection();
+        if (!selection?.isCollapsed || selection.rangeCount === 0) return;
+        const taskLi = this.getParentTaskListItem();
+        const span = taskLi?.querySelector<HTMLElement>(':scope > span');
+        if (!taskLi || !span) return;
+        const range = selection.getRangeAt(0);
+        const container = range.startContainer;
+        const element = container.nodeType === Node.ELEMENT_NODE ? (container as Element) : container.parentElement;
+        // A caret in a list nested under the row belongs to that list.
+        if (span.contains(container) || element?.closest('li, ul, ol, table') !== taskLi) return;
+
+        const spanStart = this.document.createRange();
+        spanStart.setStart(span, 0);
+        spanStart.collapse(true);
+        if (range.compareBoundaryPoints(Range.START_TO_START, spanStart) < 0) {
+            this.placeCaretAtStartOfBlock(span);
+        } else {
+            this.placeCaretAtEndOf(span);
+        }
     }
 
     /** Put the caret after the last character of `element`. */
@@ -2428,6 +2578,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * drag reports collapsed for an instant.
      */
     onSelectionChange(): void {
+        this.confineCaretToTaskText();
         this.closeInputRuleRevertWindowIfMoved();
         this.updateActiveFormats();
         this.releaseCaretColor();

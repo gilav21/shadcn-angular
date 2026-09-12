@@ -223,6 +223,14 @@ means no policy and today's behaviour exactly.
   buttons were also swept into the roving order and stamped `tabindex=-1`,
   dropping them from the Tab order. A key now moves the tab stop only when
   pressed on a toolbar control, and panel controls are left alone.
+- **The caret in a task row stays in the row's text.** The browser let it
+  stop before or on the checkbox (ArrowUp from the row below landed there,
+  sometimes needing a second press), so text typed there sat before the box
+  and Backspace there deleted the box and merged the rows, baking the row's
+  struck, muted rendering into inline styles on the surviving text. The caret
+  is now confined to the text span; Backspace at the start of a row joins its
+  text onto the row above (the first row becomes a paragraph) instead of
+  dropping the text; Delete at the end pulls the next row's text in.
 - **Table and Horizontal Rule go after the caret's line, whole.** Inserted
   mid-word they cut the word in two; the block now lands after the current
   line (or in the place of an empty one) with the caret in its first cell or

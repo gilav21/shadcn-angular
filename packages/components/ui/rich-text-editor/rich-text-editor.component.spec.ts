@@ -4802,6 +4802,160 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         expect(editor.querySelectorAll('li[data-task]')).toHaveLength(2);
     });
 
+    const twoTasks = () => component.writeValue(
+        '<ul data-task-list=""><li data-task="" data-checked="true"><input type="checkbox"><span>first</span></li>'
+        + '<li data-task="" data-checked="false"><input type="checkbox"><span>second</span></li></ul>');
+    const taskSpans = () => Array.from(editor.querySelectorAll<HTMLElement>('li[data-task] > span'));
+    const caretNode = () => document.getSelection()?.anchorNode ?? null;
+
+    it('moves a caret that landed before a task checkbox into the row\'s text on selection change', () => {
+        // ArrowUp from the row below stops before the checkbox; anything typed
+        // there sat before the box, and Backspace there deleted the box.
+        twoTasks();
+        fixture.detectChanges();
+        const li = editor.querySelectorAll('li[data-task]')[1];
+        caretIn(li, 0);
+
+        component.onSelectionChange();
+
+        const span = taskSpans()[1];
+        expect(span.contains(caretNode())).toBe(true);
+        expect(document.getSelection()?.anchorOffset).toBe(0);
+    });
+
+    it('moves a caret between the checkbox and the text into the text before a key is handled', () => {
+        twoTasks();
+        fixture.detectChanges();
+        const li = editor.querySelectorAll('li[data-task]')[0];
+        caretIn(li, 1);
+
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'a', bubbles: true, cancelable: true }));
+
+        expect(taskSpans()[0].contains(caretNode())).toBe(true);
+    });
+
+    it('moves a caret after the text span to the end of the text', () => {
+        twoTasks();
+        fixture.detectChanges();
+        const li = editor.querySelectorAll('li[data-task]')[0];
+        caretIn(li, li.childNodes.length);
+
+        component.onSelectionChange();
+
+        expect(taskSpans()[0].contains(caretNode())).toBe(true);
+        expect(document.getSelection()?.anchorOffset).toBe('first'.length);
+    });
+
+    it('ArrowUp from the start of a task row reaches the row above in one press', () => {
+        // The position before the checkbox counted as a line of its own, so
+        // one press stopped there and a second was needed.
+        twoTasks();
+        fixture.detectChanges();
+        editor.focus();
+        caretIn(taskSpans()[1].firstChild as Text, 0);
+
+        const ev = new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true });
+        component.onKeydown(ev);
+
+        expect(ev.defaultPrevented).toBe(true);
+        expect(taskSpans()[0].contains(caretNode())).toBe(true);
+    });
+
+    it('ArrowDown from a task row lands in the text of the row below', () => {
+        twoTasks();
+        fixture.detectChanges();
+        editor.focus();
+        caretIn(taskSpans()[0].firstChild as Text, 0);
+
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+
+        expect(taskSpans()[1].contains(caretNode())).toBe(true);
+    });
+
+    it('ArrowUp from the first task row leaves the list for the block above', () => {
+        component.writeValue(
+            '<p>above</p><ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox"><span>only</span></li></ul>');
+        fixture.detectChanges();
+        editor.focus();
+        caretIn(taskSpans()[0].firstChild as Text, 0);
+
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));
+
+        expect(editor.querySelector('p')!.contains(caretNode())).toBe(true);
+    });
+
+    it('leaves a caret in a list nested under a task row alone', () => {
+        component.writeValue(
+            '<ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox"><span>parent</span>'
+            + '<ul><li>child</li></ul></li></ul>');
+        fixture.detectChanges();
+        const child = editor.querySelector('li li')!.firstChild as Text;
+        caretIn(child, 2);
+
+        component.onSelectionChange();
+
+        expect(caretNode()).toBe(child);
+        expect(document.getSelection()?.anchorOffset).toBe(2);
+    });
+
+    it('Backspace at the start of a task row joins its text onto the row above instead of dropping it', () => {
+        twoTasks();
+        fixture.detectChanges();
+        caretIn(taskSpans()[1].firstChild as Text, 0);
+
+        const ev = new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true });
+        component.onKeydown(ev);
+
+        expect(ev.defaultPrevented).toBe(true);
+        expect(editor.querySelectorAll('li[data-task]')).toHaveLength(1);
+        expect(taskSpans()[0].textContent).toBe('firstsecond');
+        expect(editor.querySelector('[style]')).toBeNull();
+        const sel = document.getSelection()!;
+        expect(sel.anchorNode).toBe(taskSpans()[0]);
+        expect(sel.anchorOffset).toBe(1);
+    });
+
+    it('Backspace at the start of the first task row makes it a paragraph and keeps the rows after it', () => {
+        twoTasks();
+        fixture.detectChanges();
+        caretIn(taskSpans()[0].firstChild as Text, 0);
+
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }));
+
+        expect(Array.from(editor.children).map(el => el.tagName)).toEqual(['P', 'UL']);
+        expect(editor.querySelector('p')?.textContent).toBe('first');
+        expect(editor.querySelector('p')?.querySelector('input')).toBeNull();
+        expect(taskSpans().map(s => s.textContent)).toEqual(['second']);
+        expect(editor.querySelector('p')!.contains(caretNode())).toBe(true);
+    });
+
+    it('Delete at the end of a task row pulls the next row\'s text onto it', () => {
+        twoTasks();
+        fixture.detectChanges();
+        caretIn(taskSpans()[0].firstChild as Text, 'first'.length);
+
+        const ev = new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true });
+        component.onKeydown(ev);
+
+        expect(ev.defaultPrevented).toBe(true);
+        expect(editor.querySelectorAll('li[data-task]')).toHaveLength(1);
+        expect(editor.querySelectorAll('input')).toHaveLength(1);
+        expect(taskSpans()[0].textContent).toBe('firstsecond');
+        expect(document.getSelection()?.anchorOffset).toBe('first'.length);
+    });
+
+    it('Delete before the end of a task row is left to the browser', () => {
+        twoTasks();
+        fixture.detectChanges();
+        caretIn(taskSpans()[0].firstChild as Text, 2);
+
+        const ev = new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true });
+        component.onKeydown(ev);
+
+        expect(ev.defaultPrevented).toBe(false);
+        expect(editor.querySelectorAll('li[data-task]')).toHaveLength(2);
+    });
+
     it('Enter in an empty task list item exits the task list into a paragraph', () => {
         component.writeValue('<ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox"><span> </span></li></ul>');
         fixture.detectChanges();
