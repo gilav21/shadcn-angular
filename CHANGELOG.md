@@ -223,6 +223,28 @@ means no policy and today's behaviour exactly.
   buttons were also swept into the roving order and stamped `tabindex=-1`,
   dropping them from the Tab order. A key now moves the tab stop only when
   pressed on a toolbar control, and panel controls are left alone.
+- **Breaking: Backspace at the start of a line joins the line above it on
+  screen.** A row whose neighbour above has sub-items now joins the deepest of
+  those sub-items, rather than skipping the sub-list to reach the item at the
+  same level. Up and down are now exact mirrors of each other, which is how
+  word processors behave. A join also never crosses into a table cell or a code
+  block: prose joins to prose.
+- **Breaking: Quote, Code block and the list toggles act on the caret's own
+  line.** With the caret inside a list item or a table cell they used to walk
+  up to the whole list or table, so Code block turned every item of a list into
+  one block; now only the line you are on changes. A selection reaching from a
+  paragraph into a list also stops at the list's edge instead of pulling items
+  out of it.
+- **Headings and Normal text are applied by the editor, not the browser.**
+  `formatBlock` applied the tag to whichever ancestor it chose, so a heading set
+  inside a list item wrapped the entire list in the heading. A line whose
+  element cannot be re-tagged, an item or a cell, gets the heading inside it and
+  keeps its list or table.
+- **An element holds a line of text or holds blocks, never both.** Content in
+  an element that also held a block belonged to no line, so a block command
+  given such an item reached out to the whole list and destroyed every line in
+  it. The sanitizer gives that content a line of its own, and the editor no
+  longer creates the shape.
 - **The caret in a task row stays in the row's text.** The browser let it
   stop before or on the checkbox (ArrowUp from the row below landed there,
   sometimes needing a second press), so text typed there sat before the box

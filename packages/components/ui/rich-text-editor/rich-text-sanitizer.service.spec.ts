@@ -62,6 +62,65 @@ describe('RichTextSanitizerService — task row shape', () => {
     });
 });
 
+describe('RichTextSanitizerService — an element holds a line or holds blocks', () => {
+    let service: RichTextSanitizerService;
+
+    beforeEach(() => {
+        TestBed.configureTestingModule({ providers: [RichTextSanitizerService] });
+        service = TestBed.inject(RichTextSanitizerService);
+    });
+
+    const clean = (html: string): HTMLElement => {
+        const holder = document.createElement('div');
+        holder.innerHTML = service.sanitize(html);
+        return holder;
+    };
+
+    it('gives an item that also holds a block a line of its own for its text', () => {
+        // Such text belongs to no line, and a block command given the item
+        // reached out to the whole list and destroyed every line in it.
+        const out = clean('<ul><li>own text<blockquote><p>deep</p></blockquote></li></ul>');
+        const item = out.querySelector('li')!;
+
+        expect(Array.from(item.children).map((el) => el.tagName)).toEqual(['P', 'BLOCKQUOTE']);
+        expect(item.querySelector(':scope > p')?.textContent).toBe('own text');
+        expect(Array.from(item.childNodes).every((n) => n.nodeType === Node.ELEMENT_NODE)).toBe(true);
+    });
+
+    it('leaves an item whose only block child is its own sub-list alone', () => {
+        // A sub-list does not end its item's line, exactly as the line model
+        // has it; wrapping here would make every nested row a container.
+        const out = clean('<ul><li>own text<ul><li>sub</li></ul></li></ul>');
+        const item = out.querySelector('li')!;
+
+        expect(item.firstChild?.textContent).toBe('own text');
+        expect(item.querySelector(':scope > p')).toBeNull();
+        expect(item.querySelector(':scope > ul > li')?.textContent).toBe('sub');
+    });
+
+    it('gives a cell that also holds a block a line of its own for its text', () => {
+        const out = clean('<table><tbody><tr><td>text<p>para</p></td></tr></tbody></table>');
+        const cell = out.querySelector('td')!;
+
+        expect(Array.from(cell.children).map((el) => el.tagName)).toEqual(['P', 'P']);
+        expect(cell.querySelector('p')?.textContent).toBe('text');
+    });
+
+    it('wraps each run between blocks, not just the first', () => {
+        const out = clean('<ul><li>before<p>middle</p>after</li></ul>');
+        const item = out.querySelector('li')!;
+
+        expect(Array.from(item.children).map((el) => el.textContent)).toEqual(['before', 'middle', 'after']);
+    });
+
+    it('leaves a task row alone, whose checkbox is structure and not a stray run', () => {
+        const out = clean('<ul data-task-list><li data-task><input type="checkbox"><span>todo</span></li></ul>');
+        const row = out.querySelector('li[data-task]')!;
+
+        expect(Array.from(row.children).map((el) => el.tagName)).toEqual(['INPUT', 'SPAN']);
+    });
+});
+
 describe('RichTextSanitizerService', () => {
     let service: RichTextSanitizerService;
 

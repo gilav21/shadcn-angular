@@ -117,6 +117,10 @@ function percentDecodeToBytes(payload: string): Uint8Array | null {
 const UNSAFE_STYLE_TOKENS = ['expression(', 'javascript:', 'vbscript:', 'data:'];
 
 /** Elements that are a line of a quote on their own; anything else is grouped into `<p>` lines. */
+const STRAY_LINE_BLOCKS = new Set([
+    'P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'TABLE', 'BLOCKQUOTE', 'PRE', 'DETAILS', 'FIGURE', 'DL',
+]);
+
 const QUOTE_LINE_BLOCK_TAGS = new Set([
     'P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'PRE', 'TABLE', 'HR', 'BLOCKQUOTE', 'DETAILS', 'FIGURE',
 ]);
@@ -377,6 +381,7 @@ export class RichTextSanitizerService {
         this.dropOrphanCompanionAttributes(cleanContainer);
         this.normalizeQuoteLines(cleanContainer);
         this.normalizeTaskRows(cleanContainer);
+        this.normalizeStrayLines(cleanContainer);
 
         return this.normalizeStyleQuotes(cleanContainer.innerHTML);
     }
@@ -416,6 +421,56 @@ export class RichTextSanitizerService {
             // goes before it.
             row.insertBefore(span, Array.from(row.childNodes).find((node) => this.isNestedList(node)) ?? null);
         }
+    }
+
+    /**
+     * An element either holds a line of text or holds blocks, never both.
+     *
+     * `<li>text<blockquote>…</blockquote></li>` puts a visible line of text in
+     * an element that is a container, so that text belongs to no line: every
+     * caret and block rule keys off lines, and a block command given such an
+     * item reached out to the whole list and destroyed it. The stray run gets a
+     * paragraph of its own, where it already lives.
+     */
+    private normalizeStrayLines(root: HTMLElement): void {
+        for (const el of Array.from(root.querySelectorAll('li, td, th, blockquote, dd, figcaption'))) {
+            if (!Array.from(el.children).some((child) => this.endsALine(child, el))) continue;
+            for (const run of this.strayRunsOf(el)) {
+                const paragraph = this.document.createElement('p');
+                run[0].before(paragraph);
+                for (const node of run) paragraph.appendChild(node);
+            }
+        }
+    }
+
+    /** Runs of inline content between the block children of `el`. */
+    private strayRunsOf(el: Element): ChildNode[][] {
+        const runs: ChildNode[][] = [];
+        let run: ChildNode[] = [];
+        for (const node of Array.from(el.childNodes)) {
+            if (this.endsALine(node, el)) {
+                if (run.length > 0) runs.push(run);
+                run = [];
+                continue;
+            }
+            if (node.nodeType === Node.TEXT_NODE && (node.textContent ?? '').trim() === '') continue;
+            if (node.nodeName === 'INPUT') continue;
+            run.push(node);
+        }
+        if (run.length > 0) runs.push(run);
+        return runs;
+    }
+
+    /**
+     * Whether a node ends the run of inline content around it.
+     *
+     * A list nested in an item is that item's SUB-list, not a block that ends
+     * its line, exactly as the line model has it: wrapping an item's text
+     * because it also has a sub-list would make every nested row a container.
+     */
+    private endsALine(node: Node, within: Element): boolean {
+        if (!STRAY_LINE_BLOCKS.has(node.nodeName)) return false;
+        return !(within.nodeName === 'LI' && this.isNestedList(node));
     }
 
     private isNestedList(node: Node): boolean {

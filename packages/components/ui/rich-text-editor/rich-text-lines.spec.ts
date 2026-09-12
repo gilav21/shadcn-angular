@@ -13,6 +13,7 @@ import {
     lineText,
     rangeShowsNothing,
     linesInRange,
+    linesMayJoin,
     placeCaretIn,
     positionAfterLine,
     taskCheckboxOf,
@@ -50,6 +51,8 @@ const EXPECTED: Readonly<Record<string, readonly ExpectedLine[]>> = {
     'quote lines': [['P', 'quoted', false], ['P', 'lines', false]],
     'a quote holding a list': [['LI', 'quoted item', false]],
     'a code block': [['PRE', 'one\ntwo', false]],
+    'a div wrapping blocks': [['P', 'one', false], ['P', 'two', false]],
+    'an item holding text and a block': [['P', 'deep', false]],
     'a details block': [['SUMMARY', 'head', false], ['P', 'body', false]],
     'a horizontal rule between lines': [['P', 'before', false], ['P', 'after', false]],
 };
@@ -216,6 +219,92 @@ describe('rich text line model — the rules', () => {
         const prose = rootOf('<p>one</p><p>two</p>');
         const first = lineOf(prose.querySelector('p')!.firstChild!, prose)!;
         expect(positionAfterLine(first)).toEqual({ parent: prose, before: prose.children[1] });
+    });
+
+    it('a container element holding both text and a block is a shape the sanitizer removes', () => {
+        // The model answers honestly that such text belongs to no line, which
+        // is why nothing may hold both: a block command given that item used to
+        // reach out to the whole list and destroy it. The editor never builds
+        // the shape and the sanitizer takes it apart on the way in, so the raw
+        // fixture below is the only place it exists.
+        const raw = rootOf('<ul><li>own text<blockquote><p>deep</p></blockquote></li></ul>');
+        expect(buildLineIndex(raw).lines.map((line) => lineText(line))).toEqual(['deep']);
+        expect(lineOf(raw.querySelector('li')!.firstChild!, raw)).toBeNull();
+    });
+
+    it('a div that wraps blocks is a container, not a line of its own', () => {
+        // It was in the always-a-line set, so the same text belonged to two
+        // lines and the line above a paragraph could be the div containing it.
+        const root = rootOf('<div><p>one</p><p>two</p></div>');
+        expect(isLineOwner(root.querySelector('div')!, root)).toBe(false);
+        expect(buildLineIndex(root).lines.map((line) => line.owner.tagName)).toEqual(['P', 'P']);
+
+        const leaf = rootOf('<div>body</div>');
+        expect(isLineOwner(leaf.querySelector('div')!, leaf)).toBe(true);
+    });
+
+    it('an element-anchored caret reads as a child index, not as characters', () => {
+        // Contenteditable produces these routinely; adding the index as
+        // characters reported the END of the line for a caret at its start.
+        const root = rootOf('<p>hello</p>');
+        const index = buildLineIndex(root);
+        const atStart = document.createRange();
+        atStart.setStart(root.querySelector('p')!, 0);
+        atStart.collapse(true);
+        expect(caretPosition(index, atStart)?.offset).toBe(0);
+
+        const mixed = rootOf('<p>read <b>the</b> docs</p>');
+        const mixedIndex = buildLineIndex(mixed);
+        const beforeBold = document.createRange();
+        beforeBold.setStart(mixed.querySelector('p')!, 1);
+        beforeBold.collapse(true);
+        expect(caretPosition(mixedIndex, beforeBold)?.offset).toBe('read '.length);
+    });
+
+    it('a caret offset past the text stops at the end of the line, not below its sublist', () => {
+        const root = rootOf('<ul><li>own<ul><li>sub</li></ul></li></ul>');
+        const line = lineOf(root.querySelector('li')!.firstChild!, root)!;
+
+        const range = placeCaretIn(line, 99);
+
+        expect(line.holder.contains(range.startContainer)).toBe(true);
+        const after = document.createRange();
+        after.setStart(range.startContainer, range.startOffset);
+        after.setEndAfter(lineOwnNodes(line).at(-1)!);
+        expect(after.toString()).toBe('');
+        expect(range.startContainer.nodeName).not.toBe('UL');
+    });
+
+    it('a selection anchored on the root still touches every line', () => {
+        const root = rootOf('<p>one</p><p>two</p>');
+        const index = buildLineIndex(root);
+        const all = document.createRange();
+        all.selectNodeContents(root);
+
+        expect(linesInRange(index, all).map((line) => lineText(line))).toEqual(['one', 'two']);
+    });
+
+    it('prose joins to prose inside one island, never across a cell or a code block', () => {
+        const mixed = rootOf('<table><tbody><tr><td>cell</td></tr></tbody></table>'
+            + '<pre><code>code</code></pre><p>para</p><ul><li>item</li></ul>');
+        const index = buildLineIndex(mixed);
+        const byText = (text: string) => index.lines.find((line) => lineText(line) === text)!;
+
+        expect(linesMayJoin(byText('para'), byText('item'))).toBe(true);
+        expect(linesMayJoin(byText('item'), byText('cell'))).toBe(false);
+        expect(linesMayJoin(byText('item'), byText('code'))).toBe(false);
+        expect(linesMayJoin(byText('cell'), byText('para'))).toBe(false);
+    });
+
+    it('two lines in the same cell may join, two lines in different cells may not', () => {
+        const root = rootOf('<table><tbody><tr>'
+            + '<td><p>a</p><p>b</p></td><td><p>c</p></td>'
+            + '</tr></tbody></table>');
+        const index = buildLineIndex(root);
+        const [a, b, c] = index.lines;
+
+        expect(linesMayJoin(a, b)).toBe(true);
+        expect(linesMayJoin(b, c)).toBe(false);
     });
 
     it('a range spanning into a nested list includes the items it reaches', () => {

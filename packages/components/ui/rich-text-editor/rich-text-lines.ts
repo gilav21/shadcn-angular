@@ -63,10 +63,18 @@ export interface LineIndex {
 }
 
 /** Elements that always hold exactly one line of text. */
-const ALWAYS_LINE = new Set(['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'DIV', 'PRE']);
+const ALWAYS_LINE = new Set(['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'PRE']);
 
-/** Elements that hold a line only when no block-level child took the job. */
-const LINE_OR_CONTAINER = new Set(['LI', 'TD', 'TH', 'SUMMARY', 'BLOCKQUOTE', 'FIGCAPTION', 'DD', 'DT']);
+/**
+ * Elements that hold a line only when no block-level child took the job.
+ *
+ * `DIV` belongs here and not with the always-lines: a `<div>` wrapping two
+ * paragraphs was counted as a line of its own AND as their container, so the
+ * same text belonged to two lines and the line above a paragraph could be the
+ * element containing it. The sanitizer keeps pasted `div`s, so that shape
+ * arrives from outside.
+ */
+const LINE_OR_CONTAINER = new Set(['DIV', 'LI', 'TD', 'TH', 'SUMMARY', 'BLOCKQUOTE', 'FIGCAPTION', 'DD', 'DT']);
 
 /** Elements that are never a line: they contain lines. */
 const CONTAINER_ONLY = new Set(['UL', 'OL', 'TABLE', 'THEAD', 'TBODY', 'TFOOT', 'TR', 'DETAILS', 'FIGURE', 'DL']);
@@ -233,10 +241,53 @@ export function lineBelow(index: LineIndex, line: Line): Line | null {
     return at >= 0 && at + 1 < index.lines.length ? index.lines[at + 1] : null;
 }
 
+/**
+ * The node a range boundary points at, resolving one anchored on the root.
+ *
+ * A Select All hands over the root itself with a child index; asking for the
+ * line of the root is null by construction, so the range appeared to touch no
+ * lines at all.
+ */
+function boundaryNode(container: Node, offset: number, root: HTMLElement): Node {
+    if (container !== root) return container;
+    const children = Array.from(root.childNodes);
+    if (children.length === 0) return root;
+    return children[Math.min(offset, children.length - 1)];
+}
+
+/** Elements a line may never be joined across: their content is structure, not prose. */
+const JOIN_ISLANDS = new Set(['TABLE', 'PRE', 'DETAILS', 'FIGURE', 'TD', 'TH']);
+
+/**
+ * Whether two lines may have their text merged.
+ *
+ * Prose joins to prose, inside one island. Without this the document-order
+ * rule happily joined a list item into the table cell above it — which ate the
+ * whole list — merged a code block's text into a list item, and destroyed a
+ * `<pre>` from the other direction. A cell's or a code block's content is
+ * structure the author placed; only a line's neighbour in the same island is
+ * its neighbour for the purpose of joining.
+ */
+export function linesMayJoin(a: Line, b: Line): boolean {
+    if (a.kind !== 'item' && a.kind !== 'block') return false;
+    if (b.kind !== 'item' && b.kind !== 'block') return false;
+    return islandOf(a) === islandOf(b);
+}
+
+/** The structural island a line sits in, or null at the top level. */
+function islandOf(line: Line): Element | null {
+    let current: Element | null = line.owner.parentElement;
+    while (current) {
+        if (JOIN_ISLANDS.has(current.nodeName)) return current;
+        current = current.parentElement;
+    }
+    return null;
+}
+
 /** Every line a range touches, from the line it starts in to the line it ends in. */
 export function linesInRange(index: LineIndex, range: Range): readonly Line[] {
-    const first = lineOf(range.startContainer, index.root);
-    const last = lineOf(range.endContainer, index.root);
+    const first = lineOf(boundaryNode(range.startContainer, range.startOffset, index.root), index.root);
+    const last = lineOf(boundaryNode(range.endContainer, range.endOffset, index.root), index.root);
     if (!first || !last) return [];
     const from = indexOfLine(index, first);
     const to = indexOfLine(index, last);
@@ -315,19 +366,50 @@ function isAuthorInput(el: Element): boolean {
     return !parent || taskCheckboxOf(parent) !== (el as HTMLInputElement);
 }
 
-/** The caret as a line plus a character offset across that line's own text. */
+/**
+ * The caret as a line plus a character offset across that line's own text.
+ *
+ * A boundary anchored on an ELEMENT carries a CHILD INDEX, not a character
+ * offset, and contenteditable produces those routinely — a click at a line's
+ * edge, and this editor's own caret placement. Adding the index as characters
+ * reported the end of the line for a caret at its start, which sent Tab's
+ * caret to the wrong end of the row.
+ */
 export function caretPosition(index: LineIndex, range: Range): LinePosition | null {
     const line = lineOf(range.startContainer, index.root);
     if (!line) return null;
+    const own = lineOwnNodes(line);
+    const container = range.startContainer;
+
+    if (container.nodeType === Node.ELEMENT_NODE) {
+        const children = Array.from(container.childNodes);
+        const before = children.slice(0, range.startOffset);
+        const counted = container === line.holder
+            ? before.filter((node) => own.includes(node))
+            : before;
+        const head = counted.map((node) => node.textContent ?? '').join('').length;
+        return { line, offset: container === line.holder ? head : precedingText(own, container) + head };
+    }
+
     let offset = 0;
-    for (const node of lineOwnNodes(line)) {
-        if (node === range.startContainer) return { line, offset: offset + range.startOffset };
-        if (node.contains(range.startContainer)) {
-            return { line, offset: offset + textOffsetWithin(node, range.startContainer, range.startOffset) };
+    for (const node of own) {
+        if (node === container) return { line, offset: offset + range.startOffset };
+        if (node.contains(container)) {
+            return { line, offset: offset + textOffsetWithin(node, container, range.startOffset) };
         }
         offset += (node.textContent ?? '').length;
     }
     return { line, offset };
+}
+
+/** The text of a line's own nodes that precede the one holding `node`. */
+function precedingText(own: readonly ChildNode[], node: Node): number {
+    let seen = 0;
+    for (const candidate of own) {
+        if (candidate === node || candidate.contains(node)) return seen;
+        seen += (candidate.textContent ?? '').length;
+    }
+    return seen;
 }
 
 /** A collapsed range at a character offset into a line's own text. */
@@ -346,8 +428,16 @@ export function placeCaretIn(line: Line, offset: number): Range {
         }
         remaining -= length;
     }
-    range.selectNodeContents(line.holder);
-    range.collapse(false);
+    // After the line's own text, never after its nested list: collapsing to the
+    // end of the holder put the caret below the sub-list, on another line.
+    const own = lineOwnNodes(line);
+    const last = own.at(-1);
+    if (last) {
+        range.setStartAfter(last);
+    } else {
+        range.setStart(line.holder, 0);
+    }
+    range.collapse(true);
     return range;
 }
 

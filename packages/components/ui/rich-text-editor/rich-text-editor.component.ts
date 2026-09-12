@@ -41,6 +41,7 @@ import {
     caretPosition,
     holdsNothing,
     indexOfLine,
+    isLineOwner,
     isNestedList,
     type Line,
     lineAbove,
@@ -48,6 +49,7 @@ import {
     lineIsEmpty,
     lineOf,
     lineKeepsItsElement,
+    linesMayJoin,
     lineOwnNodes,
     lineText,
     placeCaretIn,
@@ -1666,7 +1668,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const p = this.document.createElement('p');
         p.innerHTML = '<br>';
         // Not simply after the line: after an `<li>` or a `<td>` that would put
-        // a paragraph inside a list or a table row.
+        // a paragraph inside a list or a table row. When the block has to go
+        // INSIDE the line, the line's own text gets a paragraph first, or it
+        // would be left in an element that is now a container and belong to no
+        // line at all.
+        if (lineKeepsItsElement(line)) this.giveLineItsOwnBlock(line);
         const at = positionAfterLine(line);
         at.parent.insertBefore(p, at.before);
         this.setSelectionRange(selection, p, 0);
@@ -1816,6 +1822,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (!editor) return false;
         const above = lineAbove(buildLineIndex(editor), caret.line);
         if (!above) return this.firstLineLeavesItsList(caret);
+        // A neighbour in document order is not automatically a neighbour to
+        // join with: merging a row into the cell or the code block above it
+        // destroyed them both.
+        if (!linesMayJoin(caret.line, above)) return false;
         this.moveLineText(caret.line, above);
         this.removeJoinedLine(caret.line);
         return true;
@@ -1827,7 +1837,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const editor = this.editorDiv?.nativeElement;
         if (!editor) return false;
         const below = lineBelow(buildLineIndex(editor), caret.line);
-        if (!below) return false;
+        if (!below || !linesMayJoin(caret.line, below)) return false;
         this.moveLineText(below, caret.line, { keepCaret: true });
         this.removeJoinedLine(below);
         return true;
@@ -2835,10 +2845,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     private executeBlockFormatCommand(command: string): boolean {
         switch (command) {
-            case 'heading1': this.execEditorCommand('formatBlock', '<h1>'); return true;
-            case 'heading2': this.execEditorCommand('formatBlock', '<h2>'); return true;
-            case 'heading3': this.execEditorCommand('formatBlock', '<h3>'); return true;
-            case 'paragraph': this.execEditorCommand('formatBlock', '<p>'); return true;
+            case 'heading1': this.retagLines('h1'); return true;
+            case 'heading2': this.retagLines('h2'); return true;
+            case 'heading3': this.retagLines('h3'); return true;
+            case 'paragraph': this.retagLines('p'); return true;
             case 'blockquote': this.toggleBlockquote(); return true;
             case 'codeBlock': this.toggleCodeBlock(); return true;
             case 'horizontalRule': this.insertHorizontalRule(); return true;
@@ -2983,8 +2993,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             return;
         }
         if (command === 'heading1' || command === 'heading2' || command === 'heading3') {
-            const level = command.replace('heading', '');
-            this.execEditorCommand('formatBlock', `<h${level}>`);
+            this.retagLines(`h${command.replace('heading', '')}`);
             selection.collapseToEnd();
             return;
         }
@@ -6896,6 +6905,33 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     /**
+     * Headings and paragraphs re-tag the caret's own lines.
+     *
+     * `execCommand('formatBlock')` was used before, and Chrome applies it to
+     * whatever ancestor it likes: with the caret in a list item it wrapped the
+     * whole `<ul>` in the heading, which is neither valid nor what was asked.
+     * A line whose element cannot be re-tagged — a list item, a table cell —
+     * gets the heading as its own block inside it instead, so the list or the
+     * table survives.
+     */
+    private retagLines(tag: string): void {
+        const ctx = this.blockToggleContext();
+        const lines = ctx ? this.commandLines(ctx) : [];
+        if (!ctx || lines.length === 0) return;
+        let last: HTMLElement | null = null;
+        for (const line of lines) {
+            if (lineKeepsItsElement(line)) {
+                this.giveLineItsOwnBlock(line);
+                const block = Array.from(line.owner.children).find((child) => child.nodeName === 'P');
+                last = block ? this.replaceBlockTag(block as HTMLElement, tag) : last;
+            } else {
+                last = this.replaceBlockTag(line.owner, tag);
+            }
+        }
+        this.restoreToggleCaret(ctx, last);
+    }
+
+    /**
      * Bullet and numbered lists are block toggles built by the editor itself.
      *
      * `execCommand('insertUnorderedList')` was used before, and Chrome builds
@@ -7110,15 +7146,68 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             : container;
         if (!node) return null;
         if (lineOf(node, editor)) return node;
+        return this.wrapStrayRunAround(node, editor);
+    }
 
-        let top: Node | null = node;
-        while (top && top.parentNode !== editor) top = top.parentNode;
-        if (!top) return null;
-        if (top.nodeType === Node.ELEMENT_NODE && lineOf(top, editor)) return top;
+    /**
+     * Give a run of inline content with no line of its own one, in place.
+     *
+     * Text can sit in an element that is a CONTAINER rather than a line — an
+     * `<li>` that also holds a block, which is the shape Enter inside inline
+     * code produces. Walking out to the editor's own child and wrapping THAT
+     * moved the whole list inside the new block, so a code-block toggle on such
+     * an item destroyed every line in it. Only the stray run is wrapped, and it
+     * is wrapped where it already lives.
+     */
+    private wrapStrayRunAround(node: Node, editor: HTMLElement): Node | null {
+        let stray: Node = node;
+        while (stray.parentNode && stray.parentNode !== editor && !lineOf(stray.parentNode, editor)
+            && !isLineOwner(stray.parentNode as Element, editor)) {
+            if (stray.parentNode.nodeType !== Node.ELEMENT_NODE) break;
+            if (this.holdsALine(stray.parentNode as Element, editor)) break;
+            stray = stray.parentNode;
+        }
+        const host = stray.parentNode;
+        if (!host) return null;
+        const siblings = Array.from(host.childNodes);
+        const at = siblings.indexOf(stray as ChildNode);
+        const run: ChildNode[] = [];
+        for (let i = at; i >= 0; i--) {
+            if (this.startsItsOwnLine(siblings[i], editor)) break;
+            run.unshift(siblings[i]);
+        }
+        for (let i = at + 1; i < siblings.length; i++) {
+            if (this.startsItsOwnLine(siblings[i], editor)) break;
+            run.push(siblings[i]);
+        }
+        if (run.length === 0) return null;
         const paragraph = this.document.createElement('p');
-        top.parentNode?.insertBefore(paragraph, top);
-        paragraph.appendChild(top);
+        run[0].before(paragraph);
+        for (const part of run) paragraph.appendChild(part);
         return paragraph;
+    }
+
+    /**
+     * Wrap a line's own text in a paragraph, so its element can hold blocks
+     * without orphaning that text.
+     */
+    private giveLineItsOwnBlock(line: Line): void {
+        const own = lineOwnNodes(line);
+        if (own.length === 0) return;
+        const paragraph = this.document.createElement('p');
+        own[0].before(paragraph);
+        for (const node of own) paragraph.appendChild(node);
+    }
+
+    /** Whether an element has a line of its own among its children. */
+    private holdsALine(el: Element, editor: HTMLElement): boolean {
+        return Array.from(el.children).some((child) => isLineOwner(child, editor));
+    }
+
+    /** Whether a node is a line of its own, so a stray run stops at it. */
+    private startsItsOwnLine(node: Node, editor: HTMLElement): boolean {
+        return node.nodeType === Node.ELEMENT_NODE
+            && (isLineOwner(node as Element, editor) || isNestedList(node) || node.nodeName === 'TABLE');
     }
 
     /**

@@ -5137,6 +5137,74 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
             .toEqual(['parentchild', 'sibling']);
     });
 
+    it('Backspace never joins a list item into the cell or the code block above it', () => {
+        // Document order made the cell above the list the item's neighbour, so
+        // the join ate the whole list into the cell. Prose joins to prose only.
+        for (const before of [
+            '<table><tbody><tr><td>cell</td></tr></tbody></table>',
+            '<pre><code>x</code></pre>',
+        ]) {
+            component.writeValue(before + '<ul><li>item</li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('li')!.firstChild as Text, 0);
+
+            const ev = backspace();
+            component.onKeydown(ev);
+
+            expect(ev.defaultPrevented, before).toBe(false);
+            expect(editor.querySelector('li')?.textContent, before).toBe('item');
+            expect(editor.querySelector('td, pre'), before).not.toBeNull();
+        }
+    });
+
+    it('Delete never pulls a cell or a code block into the list item above it', () => {
+        for (const after of [
+            '<table><tbody><tr><td>cell</td></tr></tbody></table>',
+            '<pre><code>x</code></pre>',
+        ]) {
+            component.writeValue('<ul><li>item</li></ul>' + after);
+            fixture.detectChanges();
+            caretIn(editor.querySelector('li')!.firstChild as Text, 4);
+
+            const ev = del();
+            component.onKeydown(ev);
+
+            expect(ev.defaultPrevented, after).toBe(false);
+            expect(editor.querySelector('li')?.textContent, after).toBe('item');
+            expect(editor.querySelector('td, pre'), after).not.toBeNull();
+            expect(editor.querySelector('li code'), after).toBeNull();
+        }
+    });
+
+    it('a block command on an item that also holds a block keeps every line in it', () => {
+        // The item is a container, so its own text had no line; the command
+        // walked out to the editor's child and wrapped the whole list.
+        component.writeValue('<ul><li>outer<blockquote><p>deep</p></blockquote></li></ul>');
+        fixture.detectChanges();
+        // The sanitizer gives the item's own text a line on the way in.
+        const outer = editor.querySelector('li > p')!;
+        caretIn(outer.firstChild as Text, 2);
+
+        component.onFormatCommand('codeBlock');
+
+        expect(editor.querySelector('li > pre code')?.textContent).toBe('outer');
+        expect(editor.querySelector('li > blockquote p')?.textContent).toBe('deep');
+        expect(editor.querySelectorAll('li')).toHaveLength(1);
+    });
+
+    it('Heading on an item that also holds a block never wraps the list in the heading', () => {
+        component.writeValue('<ul><li>outer<blockquote><p>deep</p></blockquote></li></ul>');
+        fixture.detectChanges();
+        const outer = editor.querySelector('li > p')!;
+        caretIn(outer.firstChild as Text, 2);
+
+        component.onFormatCommand('heading1');
+
+        expect(editor.querySelector('h1 ul')).toBeNull();
+        expect(editor.querySelector('h1 li')).toBeNull();
+        expect(editor.textContent).toContain('deep');
+    });
+
     it('a checkbox inside the line text is not dropped by a join', () => {
         // Excluding every INPUT by tag deleted a checkbox the author had put in
         // the text; only the row's own direct-child box is structural.
@@ -5365,8 +5433,13 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
 
         expect(ev.defaultPrevented).toBe(true);
         const cell = editor.querySelector('td')!;
-        expect(cell.querySelector('p')).not.toBeNull();
-        expect(cell.querySelector('p')?.querySelector('code')).toBeNull();
+        // The cell's own text gets a line of its own, then the new empty line
+        // follows it: nothing is left in the cell outside a line.
+        const lines = Array.from(cell.querySelectorAll(':scope > p'));
+        expect(lines).toHaveLength(2);
+        expect(lines[0].querySelector('code')?.textContent).toBe('fn()');
+        expect(lines[1].querySelector('code')).toBeNull();
+        expect(Array.from(cell.childNodes).every(n => n.nodeName === 'P')).toBe(true);
     });
 
     it('the indent buttons move the caret line, so they work inside a cell', () => {

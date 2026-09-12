@@ -64,6 +64,8 @@ export const LINE_SHAPE_FIXTURES: ReadonlyArray<readonly [string, string]> = [
     ['quote lines', '<blockquote><p>quoted</p><p>lines</p></blockquote>'],
     ['a quote holding a list', '<blockquote><ul><li>quoted item</li></ul></blockquote>'],
     ['a code block', '<pre><code>one\ntwo</code></pre>'],
+    ['a div wrapping blocks', '<div><p>one</p><p>two</p></div>'],
+    ['an item holding text and a block', '<ul><li>own text<blockquote><p>deep</p></blockquote></li></ul>'],
     ['a details block', '<details><summary>head</summary><p>body</p></details>'],
     ['a horizontal rule between lines', '<p>before</p><hr><p>after</p>'],
 ];
