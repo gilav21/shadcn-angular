@@ -38,6 +38,7 @@ import {
 } from './rich-text-find.utils';
 import {
     buildLineIndex,
+    caretPosition,
     holdsNothing,
     isNestedList,
     type Line,
@@ -46,6 +47,7 @@ import {
     lineIsEmpty,
     lineOf,
     lineOwnNodes,
+    placeCaretIn,
     positionAfterLine,
     rangeShowsNothing,
 } from './rich-text-lines';
@@ -5068,16 +5070,16 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             }
             prevLi.appendChild(nestedList);
         }
-        const caret = this.captureCaretOffsetIn(li);
+        const caret = this.caretOffsetInLine(li);
         nestedList.appendChild(li);
-        this.restoreCaretOffsetIn(li, caret);
+        this.restoreCaretInLine(li, caret);
 
         this.applyMutation({ focus: true, updateActiveFormats: true });
     }
 
     /**
-     * The caret's character offset within `block`, measured across every text
-     * node it contains, or `null` when the caret is elsewhere.
+     * The caret's character offset within a line's own text, or null when the
+     * caret is elsewhere.
      *
      * Moving a list item re-parents the node the selection points at, which
      * silently drops the caret onto the editor container. Capturing an offset
@@ -5085,39 +5087,36 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * left it, so a second `Tab` still finds a list item to indent instead of
      * falling through and inserting a literal tab.
      */
-    private captureCaretOffsetIn(block: HTMLElement): number | null {
+    private caretOffsetInLine(li: HTMLElement): number | null {
+        const editor = this.editorDiv?.nativeElement;
         const selection = this.document.getSelection();
-        if (!selection || selection.rangeCount === 0) return null;
+        if (!editor || !selection || selection.rangeCount === 0) return null;
         const range = selection.getRangeAt(0);
-        if (!block.contains(range.startContainer)) return null;
-        return this.textOffsetWithin(block, range.startContainer, range.startOffset);
+        if (!li.contains(range.startContainer)) return null;
+        return caretPosition(buildLineIndex(editor), range)?.offset ?? null;
     }
 
-    /** Re-place a caret captured by {@link captureCaretOffsetIn} after a move. */
-    private restoreCaretOffsetIn(block: HTMLElement, offset: number | null): void {
-        if (offset === null) return;
+    /** Put the caret back at a character offset into a line's own text. */
+    private restoreCaretInLine(li: HTMLElement, offset: number | null): void {
+        const editor = this.editorDiv?.nativeElement;
         const selection = this.document.getSelection();
-        if (!selection) return;
-
-        const walker = this.document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
-        let remaining = offset;
-        let node = walker.nextNode() as Text | null;
-        let target: Text | null = null;
-        while (node) {
-            if (remaining <= node.data.length) { target = node; break; }
-            remaining -= node.data.length;
-            node = walker.nextNode() as Text | null;
-        }
-        if (!target) {
-            target = this.emptyBlockCaretTarget(block);
-            remaining = target.data.length;
-        }
-
-        const range = this.document.createRange();
-        range.setStart(target, Math.min(remaining, target.data.length));
-        range.collapse(true);
+        if (offset === null || !editor || !selection) return;
+        const line = lineOf(li, editor);
+        if (!line) return;
+        const range = lineOwnNodes(line).length > 0
+            ? placeCaretIn(line, offset)
+            : this.emptyLineCaretRange(line.holder);
         selection.removeAllRanges();
         selection.addRange(range);
+    }
+
+    /** A caret range in a line with no text of its own, seeding an anchor to hold it. */
+    private emptyLineCaretRange(holder: HTMLElement): Range {
+        const target = this.emptyBlockCaretTarget(holder);
+        const range = this.document.createRange();
+        range.setStart(target, target.data.length);
+        range.collapse(true);
+        return range;
     }
 
     private getListDepth(li: HTMLElement): number {
@@ -5146,14 +5145,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const grandparentList = grandparentLi.parentElement;
         if (!grandparentList) return;
 
-        const caret = this.captureCaretOffsetIn(li);
+        const caret = this.caretOffsetInLine(li);
         this.reparentFollowingSiblings(li, parentList);
         grandparentList.insertBefore(li, grandparentLi.nextSibling);
 
         if (!parentList.hasChildNodes() || parentList.children.length === 0) {
             parentList.remove();
         }
-        this.restoreCaretOffsetIn(li, caret);
+        this.restoreCaretInLine(li, caret);
 
         this.applyMutation({ focus: true, updateActiveFormats: true });
     }

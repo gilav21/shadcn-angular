@@ -4803,6 +4803,26 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         expect(editor.querySelector('li > ul')).toBeNull();
     });
 
+    it("Tab keeps the caret where the author left it in a task row", () => {
+        // Indent re-parents the item, which drops the caret onto the editor
+        // container unless it is carried across. Measured and restored through
+        // the line, so the row's structure is never part of the offset.
+        component.writeValue('<ul data-task-list="">'
+            + '<li data-task="" data-checked="false"><input type="checkbox"><span>first</span></li>'
+            + '<li data-task="" data-checked="false"><input type="checkbox"><span>second</span></li>'
+            + '</ul>');
+        fixture.detectChanges();
+        const rows = editor.querySelectorAll('li[data-task] > span');
+        caretIn(rows[1].firstChild as Text, 3);
+
+        component.onKeydown(tabKey());
+
+        const nested = editor.querySelector('li > ul > li[data-task] > span')!;
+        expect(nested.textContent).toBe('second');
+        expect(nested.contains(document.getSelection()?.anchorNode ?? null)).toBe(true);
+        expect(document.getSelection()?.anchorOffset).toBe(3);
+    });
+
     it('Tab outside a list inserts a tab character', () => {
         component.writeValue('<p>indent</p>');
         fixture.detectChanges();
