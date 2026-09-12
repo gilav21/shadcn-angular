@@ -235,7 +235,10 @@ actually contains, never a marker the editor is about to rewrite.
 
 The default toolbar's block-type group is one `'textStyle'` select — Normal
 text / Heading 1 / 2 / 3 — rather than four buttons. It both reflects the
-caret's block and sets it.
+caret's block and sets it. It changes paragraphs and headings only: with the
+caret in a list item, a table cell, a disclosure's summary or a code block the
+line is left as it is, because a heading inside any of those does not survive a
+Markdown save.
 
 ```html
 <!-- default: the select -->
