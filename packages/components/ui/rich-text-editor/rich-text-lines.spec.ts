@@ -320,6 +320,21 @@ describe('rich text line model — the rules', () => {
         expect(lineTagIsFixed(lineOf(prose.querySelector('p')!, prose)!)).toBe(false);
     });
 
+    it('a caret anchored on a line that has a sub-list counts only the line\'s own text', () => {
+        // The holder of an item line IS the item, so its children include the
+        // sub-list. Counting every child before the index added the sub-list's
+        // text to the offset, which the task-row shape cannot show: there the
+        // holder is a span and every child is already the line's own.
+        const root = rootOf('<ul><li>own<ul><li>sub</li></ul></li></ul>');
+        const index = buildLineIndex(root);
+        const item = root.querySelector('li')!;
+        const pastSublist = document.createRange();
+        pastSublist.setStart(item, 2);
+        pastSublist.collapse(true);
+
+        expect(caretPosition(index, pastSublist)?.offset).toBe('own'.length);
+    });
+
     it('a caret offset past the text stops at the end of the line, not below its sublist', () => {
         const root = rootOf('<ul><li>own<ul><li>sub</li></ul></li></ul>');
         const line = lineOf(root.querySelector('li')!.firstChild!, root)!;

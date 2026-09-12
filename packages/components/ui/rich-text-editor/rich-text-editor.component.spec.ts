@@ -5220,6 +5220,45 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         expect(row.querySelector(':scope > span')?.textContent).toBe('todo');
     });
 
+    it('Delete into a line that has a sub-list puts the text above that list', () => {
+        // With a task row the holder is the span and the sub-list is outside
+        // it, so the insertion point never mattered. With a plain item the
+        // holder IS the item, and appending put the joined text below the list.
+        // Two nested items, so the sub-list SURVIVES the join. With one item
+        // the list is removed as empty and the insertion point cannot matter,
+        // which is what made the first version of this test pass either way.
+        component.writeValue('<ul><li>parent<ul><li>child</li><li>second</li></ul></li></ul>');
+        fixture.detectChanges();
+        const parent = editor.querySelector('li')!;
+        caretIn(parent.firstChild as Text, 'parent'.length);
+
+        component.onKeydown(del());
+
+        const item = editor.querySelector('li')!;
+        expect(Array.from(item.childNodes).map(n => n.nodeName + ':' + n.textContent))
+            .toEqual(['#text:parent', '#text:child', 'UL:second']);
+        expect(item.querySelector('ul > li')?.textContent).toBe('second');
+    });
+
+    it('a block command on stray text inside a list item gives that text a line, not the list', () => {
+        // Reachable by editing rather than by writeValue, which sanitizes: the
+        // shape is what the browser leaves behind when it splits a block inside
+        // an item. Wrapping the editor's own child instead moved the whole list
+        // into the new block.
+        component.writeValue('<ul><li>placeholder</li></ul>');
+        fixture.detectChanges();
+        const item = editor.querySelector('li')!;
+        item.innerHTML = 'stray<p>para</p>';
+        caretIn(item.firstChild as Text, 2);
+
+        component.onFormatCommand('codeBlock');
+
+        expect(editor.querySelector('p > ul')).toBeNull();
+        expect(editor.querySelector('pre > ul')).toBeNull();
+        expect(editor.querySelector('li > pre code')?.textContent).toBe('stray');
+        expect(editor.querySelector('li > p')?.textContent).toBe('para');
+    });
+
     it('a block command on stray text in a div never wraps the div', () => {
         // Resolving the second boundary AFTER wrapping the first found no line
         // for the div, because the wrap had moved the boundary onto it.
