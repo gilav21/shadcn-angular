@@ -5238,6 +5238,32 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         expect((component as unknown as { isEmptyBlock(el: HTMLElement): boolean }).isEmptyBlock(blank)).toBe(true);
     });
 
+    it('Enter in inline code inside a table cell leaves the code span', () => {
+        // The walker this replaced had no TD in its tag set, so it walked past
+        // the cell to the editor, returned null, and the key did nothing.
+        component.writeValue('<table><tbody><tr><td><code>fn()</code></td></tr></tbody></table>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('code')!.firstChild as Text, 4);
+
+        const ev = enterKey();
+        component.onKeydown(ev);
+
+        expect(ev.defaultPrevented).toBe(true);
+        const cell = editor.querySelector('td')!;
+        expect(cell.querySelector('p')).not.toBeNull();
+        expect(cell.querySelector('p')?.querySelector('code')).toBeNull();
+    });
+
+    it('the indent buttons move the caret line, so they work inside a cell', () => {
+        component.writeValue('<table><tbody><tr><td><p>text</p></td></tr></tbody></table>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('p')!.firstChild as Text, 2);
+
+        component.onFormatCommand('indent');
+
+        expect(editor.querySelector('p')?.style.marginLeft).not.toBe('');
+    });
+
     it('Enter builds the next row exactly as every other row is built', () => {
         // Enter had its own builder with a different placeholder and no
         // checked property, so a row's behaviour depended on which builder

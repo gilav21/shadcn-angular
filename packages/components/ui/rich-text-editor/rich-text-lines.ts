@@ -171,6 +171,29 @@ export function buildLineIndex(root: HTMLElement): LineIndex {
     return { root, lines };
 }
 
+/** Parents that reject a block child: a `<p>` cannot be their direct child. */
+const REJECTS_BLOCK_CHILD = new Set(['UL', 'OL', 'TABLE', 'THEAD', 'TBODY', 'TFOOT', 'TR', 'DL']);
+
+/**
+ * Where a new block has to go to follow `line` in document order without
+ * breaking the markup around it.
+ *
+ * Next to the line, normally. But a line's parent may not accept a block at
+ * all: putting a `<p>` after an `<li>` makes it a child of the `<ul>`, and
+ * after a `<td>` a child of the `<tr>`. The handlers that did this by hand each
+ * produced a stray block in a list or a row, which browsers then relocate or
+ * drop. In that case the block belongs INSIDE the line instead, where it
+ * becomes the line that follows.
+ */
+export function positionAfterLine(line: Line): { parent: Node; before: Node | null } {
+    const owner = line.owner;
+    const parent = owner.parentNode;
+    if (!parent || REJECTS_BLOCK_CHILD.has(parent.nodeName)) {
+        return { parent: owner, before: null };
+    }
+    return { parent, before: owner.nextSibling };
+}
+
 /** Where a line sits in an index, or -1 once it has been removed. */
 export function indexOfLine(index: LineIndex, line: Line): number {
     return index.lines.findIndex((candidate) => candidate.owner === line.owner);

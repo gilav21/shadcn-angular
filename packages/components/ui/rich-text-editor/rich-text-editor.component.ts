@@ -46,6 +46,7 @@ import {
     lineIsEmpty,
     lineOf,
     lineOwnNodes,
+    positionAfterLine,
     rangeShowsNothing,
 } from './rich-text-lines';
 import { ShortcutBindingService, ShortcutComponentHandle, ShortcutRegistration } from '../../lib/shortcut-binding.service';
@@ -1649,32 +1650,29 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const code = this.findAncestorByTag(range.startContainer, 'CODE');
         if (!code || this.findAncestorByTag(range.startContainer, 'PRE')) return false;
 
-        const block = this.findBlockAncestor(code) ?? code.parentElement;
-        if (!block) return false;
+        // The fourth line walker this replaced had no TD or TH in its tag set,
+        // so inside a table cell it walked past the cell to the editor and
+        // returned null: Enter in inline code in a cell did nothing at all.
+        // The fourth line walker this replaced had no TD or TH in its tag set,
+        // so inside a table cell it walked past the cell to the editor and
+        // returned null: Enter in inline code in a cell did nothing at all.
+        const editor = this.editorDiv?.nativeElement;
+        const line = editor ? lineOf(code, editor) : null;
+        if (!line) return false;
 
         event.preventDefault();
 
         const p = this.document.createElement('p');
         p.innerHTML = '<br>';
-        block.parentNode?.insertBefore(p, block.nextSibling);
+        // Not simply after the line: after an `<li>` or a `<td>` that would put
+        // a paragraph inside a list or a table row.
+        const at = positionAfterLine(line);
+        at.parent.insertBefore(p, at.before);
         this.setSelectionRange(selection, p, 0);
 
         this.syncContentFromEditor();
         this.pushHistory();
         return true;
-    }
-
-    /** The nearest block-level ancestor of `node` within the editable. */
-    private findBlockAncestor(node: Node): HTMLElement | null {
-        const blocks = new Set(['P', 'DIV', 'LI', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE']);
-        let current: Node | null = node;
-        while (current && current !== this.editorDiv?.nativeElement) {
-            if (current.nodeType === Node.ELEMENT_NODE && blocks.has((current as Element).tagName)) {
-                return current as HTMLElement;
-            }
-            current = current.parentNode;
-        }
-        return null;
     }
 
     /**
@@ -5042,7 +5040,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private stepBlockIndent(deltaRem: number): void {
         const selection = this.document.getSelection();
         if (!selection || selection.rangeCount === 0) return;
-        const block = this.findBlockAncestor(selection.getRangeAt(0).startContainer);
+        const editor = this.editorDiv?.nativeElement;
+        const block = editor ? lineOf(selection.getRangeAt(0).startContainer, editor)?.owner : null;
         if (!block) return;
 
         const current = Number.parseFloat(block.style.marginLeft) || 0;

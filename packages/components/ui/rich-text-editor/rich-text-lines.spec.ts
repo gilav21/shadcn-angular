@@ -14,6 +14,7 @@ import {
     rangeShowsNothing,
     linesInRange,
     placeCaretIn,
+    positionAfterLine,
     taskCheckboxOf,
 } from './index';
 
@@ -199,6 +200,22 @@ describe('rich text line model — the rules', () => {
         const root = rootOf('<table><tbody><tr><td><br></td></tr></tbody></table>');
         expect(holdsNothing(root.querySelector('table')!)).toBe(false);
         expect(holdsNothing(root.querySelector('td')!)).toBe(true);
+    });
+
+    it('a block that follows a line goes inside it when the parent rejects blocks', () => {
+        // After an <li> would be a child of the <ul>; after a <td> a child of
+        // the <tr>. Both are stray blocks the browser relocates or drops.
+        const list = rootOf('<ul><li>item</li></ul>');
+        const itemLine = lineOf(list.querySelector('li')!.firstChild!, list)!;
+        expect(positionAfterLine(itemLine)).toEqual({ parent: itemLine.owner, before: null });
+
+        const table = rootOf('<table><tbody><tr><td>cell</td></tr></tbody></table>');
+        const cellLine = lineOf(table.querySelector('td')!.firstChild!, table)!;
+        expect(positionAfterLine(cellLine)).toEqual({ parent: cellLine.owner, before: null });
+
+        const prose = rootOf('<p>one</p><p>two</p>');
+        const first = lineOf(prose.querySelector('p')!.firstChild!, prose)!;
+        expect(positionAfterLine(first)).toEqual({ parent: prose, before: prose.children[1] });
     });
 
     it('a range spanning into a nested list includes the items it reaches', () => {
