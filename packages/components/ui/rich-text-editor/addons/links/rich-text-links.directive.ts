@@ -82,6 +82,14 @@ export class RichTextLinksDirective {
 
     private readonly i18n = createLocaleBindings(this.uiRteLinksLocale, RICH_TEXT_LINKS_LOCALES);
     private readonly seededText = signal('');
+    private readonly seededUrl = signal('');
+    /**
+     * The anchor the toolbar popover is editing. With the caret inside a link
+     * the button used to seed an empty text field and, on submit, insert a
+     * SECOND link inside the first; the click-to-edit overlay already knew how
+     * to update one, so the popover now does the same.
+     */
+    private readonly toolbarAnchor = signal<HTMLAnchorElement | null>(null);
     private readonly urlError = signal('');
     private readonly viewReady = signal(false);
 
@@ -112,9 +120,12 @@ export class RichTextLinksDirective {
         const context: RichTextLinksButtonContext = {
             locale: computed(() => this.i18n.t()),
             seededText: this.seededText.asReadonly(),
+            seededUrl: this.seededUrl.asReadonly(),
+            editing: computed(() => this.toolbarAnchor() !== null),
             urlError: this.urlError.asReadonly(),
             onOpen: () => this.seedFromSelection(),
-            onSubmit: (payload) => this.insertLink(payload),
+            onSubmit: (payload) => this.submitFromToolbar(payload),
+            onRemove: () => this.removeFromToolbar(),
         };
         const slotInjector = Injector.create({
             providers: [{ provide: RICH_TEXT_LINKS_BUTTON_CONTEXT, useValue: context }],
@@ -168,9 +179,37 @@ export class RichTextLinksDirective {
     }
 
     private seedFromSelection(): void {
+        // Clicking into a link opens the click-to-edit overlay, whose field
+        // takes focus; the toolbar button's mousedown then closes that overlay
+        // as an outside click, so by the time the popover opens the live
+        // selection is nowhere. The editor saved the caret when it blurred
+        // into the overlay, and that caret is inside the link.
+        const overlayAnchor = this.editingAnchor;
+        this.closeOverlay();
+        this.host.restoreSelection();
         this.host.saveSelection();
-        this.seededText.set(this.host.selection().text);
+        const selection = this.host.selection();
+        const anchor = overlayAnchor ?? selection.closestWithAttrs(['href']);
+        const editing = anchor instanceof HTMLAnchorElement ? anchor : null;
+        this.toolbarAnchor.set(editing);
+        this.seededText.set(editing ? (editing.textContent ?? '') : selection.text);
+        this.seededUrl.set(editing?.getAttribute('href') ?? '');
         this.urlError.set('');
+    }
+
+    private submitFromToolbar(payload: RichTextLinkSubmit): void {
+        const anchor = this.toolbarAnchor();
+        if (anchor?.isConnected) {
+            this.updateLink(anchor, payload);
+        } else {
+            this.insertLink(payload);
+        }
+    }
+
+    private removeFromToolbar(): void {
+        const anchor = this.toolbarAnchor();
+        if (anchor?.isConnected) this.removeAnchor(anchor);
+        this.toolbarAnchor.set(null);
     }
 
     private openInsertOverlay(caretHint?: { x: number; y: number }): void {

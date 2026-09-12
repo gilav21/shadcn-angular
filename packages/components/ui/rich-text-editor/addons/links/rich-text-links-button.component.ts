@@ -75,6 +75,11 @@ export class RichTextLinksButtonComponent {
         this.open.set(next);
     }
 
+    protected onRemove(): void {
+        this.context.onRemove();
+        this.open.set(false);
+    }
+
     protected onSubmit(payload: RichTextLinkSubmit): void {
         this.context.onSubmit(payload);
         // Only close if the URL was accepted. Closing regardless discarded what

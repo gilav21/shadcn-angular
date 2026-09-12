@@ -323,6 +323,14 @@ export abstract class RichTextEditorAddonHost {
     /** Insert sanitized HTML at the live caret as one history entry. */
     abstract insertHtmlAtCaret(html: string): void;
     /**
+     * Insert sanitized block markup (a table, a rule, a details block) at the
+     * caret's line as one history entry: after the block the caret is in, or in
+     * its place when that block is empty. `insertHtmlAtCaret` splits the block
+     * at the caret, which suits pasted prose and cuts a word in two for a
+     * command. The caret lands in the first cell or paragraph inserted.
+     */
+    abstract insertBlockAtCaret(html: string): void;
+    /**
      * Open the link editor. A delegation seam: the base keeps this method (so the
      * `Ctrl/Cmd+K` shortcut and the `/link` slash command have a stable entry
      * point) but ships no link UI — it forwards to the editor registered via

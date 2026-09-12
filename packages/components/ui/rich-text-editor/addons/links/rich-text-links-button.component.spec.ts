@@ -22,12 +22,16 @@ describe('RichTextLinksButtonComponent', () => {
     let fixture: ComponentFixture<RichTextLinksButtonComponent>;
     let probe: ButtonProbe;
 
+    const onRemove = vi.fn();
     const context: RichTextLinksButtonContext = {
         locale: signal(RICH_TEXT_LINKS_LOCALES['en']),
         seededText: signal('seed'),
+        seededUrl: signal(''),
+        editing: signal(false),
         urlError: signal(''),
         onOpen,
         onSubmit,
+        onRemove,
     };
 
     beforeEach(async () => {

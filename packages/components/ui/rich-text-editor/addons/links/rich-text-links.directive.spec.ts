@@ -269,6 +269,91 @@ describe('RichTextLinksDirective', () => {
         expect(probe.context.seededText()).toBe('anchor me');
     });
 
+    it('edits the link under the caret from the toolbar button instead of nesting a second one', () => {
+        // The popover seeded an empty text field for a caret inside a link and,
+        // on submit, inserted a SECOND anchor inside the first.
+        const fixture = createFixture();
+        const { el } = setContent(fixture, '<p>see <a href="https://old.example/">the docs</a> now</p>');
+        caretInside(el.querySelector('a')!.firstChild!, 2);
+
+        const probe = buttonProbe(fixture);
+        probe.context.onOpen();
+        fixture.detectChanges();
+
+        expect(probe.context.editing()).toBe(true);
+        expect(probe.context.seededText()).toBe('the docs');
+        expect(probe.context.seededUrl()).toBe('https://old.example/');
+
+        probe.context.onSubmit({ text: 'new docs', url: 'https://new.example/' });
+        fixture.detectChanges();
+
+        const links = el.querySelectorAll('a');
+        expect(links).toHaveLength(1);
+        expect(links[0].getAttribute('href')).toBe('https://new.example/');
+        expect(el.textContent).toBe('see new docs now');
+    });
+
+    it('seeds the toolbar popover from the click-to-edit overlay\'s link and closes that overlay', async () => {
+        // The overlay's field holds focus once it opens, so the live selection
+        // is outside the editor when the toolbar button is pressed.
+        const fixture = createFixture();
+        const { el, cmp } = setContent(fixture, '<p><a href="https://old.test">old</a></p>');
+        await fixture.whenStable();
+        caretInside(el.querySelector('a')!.firstChild!, 1);
+        cmp.contentRoot.dispatchEvent(new Event('mouseup', { bubbles: true }));
+        fixture.detectChanges();
+        expect(overlayForms(fixture)).toHaveLength(1);
+        // The editor blurs into the overlay's field and saves its caret; the
+        // toolbar button's mousedown then closes the overlay as an outside click
+        // and leaves no live selection at all.
+        cmp.onBlur();
+        document.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        fixture.detectChanges();
+        expect(overlayForms(fixture)).toHaveLength(0);
+        document.getSelection()?.removeAllRanges();
+
+        const probe = buttonProbe(fixture);
+        probe.context.onOpen();
+        fixture.detectChanges();
+
+        expect(overlayForms(fixture)).toHaveLength(0);
+        expect(probe.context.editing()).toBe(true);
+        expect(probe.context.seededText()).toBe('old');
+        expect(probe.context.seededUrl()).toBe('https://old.test');
+
+        probe.context.onSubmit({ text: 'new', url: 'https://new.test/' });
+        fixture.detectChanges();
+        expect(el.querySelectorAll('a')).toHaveLength(1);
+        expect(el.querySelector('a')?.getAttribute('href')).toBe('https://new.test/');
+        expect(el.textContent).toBe('new');
+    });
+
+    it('removes the link under the caret from the toolbar popover, keeping its text', () => {
+        const fixture = createFixture();
+        const { el } = setContent(fixture, '<p>see <a href="https://old.example/">the docs</a> now</p>');
+        caretInside(el.querySelector('a')!.firstChild!, 2);
+
+        const probe = buttonProbe(fixture);
+        probe.context.onOpen();
+        probe.context.onRemove();
+        fixture.detectChanges();
+
+        expect(el.querySelector('a')).toBeNull();
+        expect(el.textContent).toBe('see the docs now');
+        expect(probe.context.editing()).toBe(false);
+    });
+
+    it('seeds an empty url and inserts when the caret is not inside a link', () => {
+        const fixture = createFixture();
+        const { el } = setContent(fixture, '<p>plain</p>');
+        caretInside(el.querySelector('p')!.firstChild!, 2);
+
+        const probe = buttonProbe(fixture);
+        probe.context.onOpen();
+        expect(probe.context.editing()).toBe(false);
+        expect(probe.context.seededUrl()).toBe('');
+    });
+
     it('opens the caret overlay when the base delegates showLinkDialog (Ctrl+K / slash)', () => {
         const fixture = createFixture();
         const { el, cmp } = setContent(fixture, '<p>link me</p>');

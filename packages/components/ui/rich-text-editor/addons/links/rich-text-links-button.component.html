@@ -14,9 +14,12 @@
     <ui-rich-text-links-form
       [locale]="context.locale()"
       [text]="context.seededText()"
+      [url]="context.seededUrl()"
+      [showRemove]="context.editing()"
       [errorMessage]="context.urlError()"
       (submitLink)="onSubmit($event)"
       (cancelLink)="open.set(false)"
+      (removeLink)="onRemove()"
     />
   </ui-popover-content>
 </ui-popover>

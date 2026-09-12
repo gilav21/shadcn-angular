@@ -2817,6 +2817,37 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.pushHistory();
     }
 
+    /** Insert block markup at the caret's line (addon host surface). */
+    insertBlockAtCaret(html: string): void {
+        const sanitized = this.sanitizer.sanitize(html);
+        if (this.exceedsMaxLength(this.plainTextOf(sanitized))) return;
+        const editor = this.editorDiv?.nativeElement;
+        if (!editor) return;
+        const template = this.document.createElement('template');
+        template.innerHTML = sanitized;
+        const fragment = template.content;
+        const landing = fragment.querySelector<HTMLElement>('td, th, p, li, summary');
+
+        const ctx = this.blockToggleContext();
+        const line = ctx ? this.lineBlockOrTopLevel(ctx.range.startContainer, ctx.editor) : null;
+        if (line) {
+            const block = this.ensureLineBlock(line);
+            // An empty line is the place the author cleared for it; a line with
+            // content stays whole and the block goes after it.
+            if (this.holdsNoContent(block)) {
+                block.replaceWith(fragment);
+            } else {
+                block.after(fragment);
+            }
+        } else {
+            editor.appendChild(fragment);
+        }
+        if (landing) this.placeCaretAtStartOfBlock(landing);
+        this.labelBlockedImages();
+        this.syncContentFromEditor();
+        this.pushHistory();
+    }
+
     /** Register an addon keydown interceptor (addon host surface). */
     /**
      * Join the toolbar's mutually-exclusive popover group (addon host surface).
@@ -3218,8 +3249,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     private insertHorizontalRule(): void {
-        this.insertHtmlFragment('<hr><p><br></p>');
-        this.pushHistory();
+        this.insertBlockAtCaret('<hr><p><br></p>');
     }
 
     /**

@@ -2886,6 +2886,43 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         expect(editor.querySelector('hr')).toBeTruthy();
     });
 
+    it('inserts the rule after the caret\'s line, whole, with the caret in the paragraph that follows', () => {
+        // The fragment inserter splits the block at the caret, which is right
+        // for pasted prose and cut a word in two for the toolbar command.
+        component.writeValue('<p>hello world</p><p>after</p>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('p')!.firstChild as Text, 2);
+
+        component.onFormatCommand('horizontalRule');
+
+        expect(Array.from(editor.children).map((el) => el.tagName + ':' + el.textContent?.replaceAll('​', ''))).toEqual([
+            'P:hello world', 'HR:', 'P:', 'P:after',
+        ]);
+        expect(editor.children[2].contains(document.getSelection()?.anchorNode ?? null)).toBe(true);
+    });
+
+    it('puts the rule in the place of an empty line', () => {
+        component.writeValue('<p>hello</p><p><br></p>');
+        fixture.detectChanges();
+        caretIn(editor.querySelectorAll('p')[1], 0);
+
+        component.onFormatCommand('horizontalRule');
+
+        expect(Array.from(editor.children).map((el) => el.tagName)).toEqual(['P', 'HR', 'P']);
+    });
+
+    it('insertBlockAtCaret lands the caret in the first cell of an inserted table', () => {
+        component.writeValue('<p>intro text</p>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('p')!.firstChild as Text, 5);
+
+        component.insertBlockAtCaret('<table><tbody><tr><td><br></td><td><br></td></tr></tbody></table><p><br></p>');
+
+        expect(editor.querySelector('p')?.textContent).toBe('intro text');
+        expect(Array.from(editor.children).map((el) => el.tagName)).toEqual(['P', 'TABLE', 'P']);
+        expect(editor.querySelector('td')?.contains(document.getSelection()?.anchorNode ?? null)).toBe(true);
+    });
+
     it('toggles an unordered list', () => {
         component.writeValue('<p>item one</p>');
         fixture.detectChanges();

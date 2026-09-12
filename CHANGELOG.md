@@ -207,6 +207,14 @@ means no policy and today's behaviour exactly.
 - **Bold no longer lights up inside a heading** for the weight the heading
   inherits; only bold formatting reads as pressed. A task list no longer
   lights the Bullet List button as well.
+- **The toolbar Link button edits the link under the caret.** It seeded an
+  empty form and inserted a second anchor inside the first; it now shows the
+  link's text and URL with Update and Remove, also when the click-to-edit
+  overlay had just been dismissed by the button press.
+- **Table and Horizontal Rule go after the caret's line, whole.** Inserted
+  mid-word they cut the word in two; the block now lands after the current
+  line (or in the place of an empty one) with the caret in its first cell or
+  the paragraph after the rule. Addons get this as `insertBlockAtCaret`.
 - **Clear Formatting works with a caret, not only a selection.** With nothing
   selected the browser's `removeFormat` is a no-op, so from inside bold text
   the button did nothing and the next keystroke stayed bold. It now clears
