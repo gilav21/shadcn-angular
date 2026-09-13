@@ -571,6 +571,7 @@ describe('rich text editor — properties over generated documents', () => {
                 expect(countOf(after, 'img'), `images\n${why}`).toBe(countOf(before, 'img'));
                 expect(countOf(after, 'hr'), `rules\n${why}`).toBe(countOf(before, 'hr') - rulesWithoutMarkdownForm(before));
                 expect(invalidMarkup(after), why).toBe('');
+                expect(countOf(after, 'p:empty'), `empty paragraphs\n${why}`).toBeLessThanOrEqual(countOf(before, 'p:empty'));
                 expect(second === first, `second save differs ${firstDifference(first, second)}\n${why}`).toBe(true);
             } finally {
                 before.remove();
@@ -650,14 +651,19 @@ describe('rich text editor — properties over generated documents', () => {
         /** A markdown save of what the editor shows keeps every word, image and rule it can represent. */
         function expectSaveKeeps(scenario: Scenario, step: string): void {
             const shown = sanitizer.sanitize(editor.innerHTML);
+            const first = markdown.toHtml(markdown.toMarkdown(shown));
             const before = hostFor(shown);
-            const after = hostFor(markdown.toHtml(markdown.toMarkdown(shown)));
+            const after = hostFor(first);
             try {
                 expect.soft(wordsOf(after).join(' '), context(scenario, `words ${step}`)).toBe(wordsOf(before).join(' '));
                 expect.soft(countOf(after, 'img'), context(scenario, `images ${step}`)).toBe(countOf(before, 'img'));
                 expect.soft(countOf(after, 'hr'), context(scenario, `rules ${step}`))
                     .toBe(countOf(before, 'hr') - rulesWithoutMarkdownForm(before));
                 expect.soft(invalidMarkup(after), context(scenario, `markup ${step}`)).toBe('');
+                // A save the page shows as written, and that the next save keeps.
+                expect.soft(countOf(after, 'p:empty'), context(scenario, `empty paragraphs ${step}`))
+                    .toBeLessThanOrEqual(countOf(before, 'p:empty'));
+                expect.soft(markdown.toHtml(markdown.toMarkdown(first)), context(scenario, `second save ${step}`)).toBe(first);
             } finally {
                 before.remove();
                 after.remove();
