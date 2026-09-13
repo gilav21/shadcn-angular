@@ -1288,6 +1288,32 @@ describe('RichTextMarkdownService', () => {
             expect(holder.querySelectorAll('li')).toHaveLength(2);
         });
 
+        it('keeps a details block under forty nested bullets a details block through saves', () => {
+            // A sub-list adds no level when read, but the save counted every list
+            // item, so it unwrapped a details block the reader had kept.
+            let html = '<details><summary>deep</summary><p>body</p></details>';
+            for (let level = 0; level < 40; level++) html = `<ul><li>l${level}${html}</li></ul>`;
+            const first = service.toMarkdown(html);
+            const holder = document.createElement('div');
+            holder.innerHTML = service.toHtml(first);
+
+            expect(holder.querySelector('details > summary')?.textContent).toBe('deep');
+            expect(service.toMarkdown(holder.innerHTML)).toBe(first);
+        });
+
+        it('reads a staircase of nested items each opening a details block that closes past its item in linear time', () => {
+            // A cache per list still rescanned from every opener when each one sat
+            // in a list of its own: 4.3s for 250 KB.
+            const levels = 300;
+            let md = '';
+            for (let level = 0; level < levels; level++) md += ' '.repeat(level) + '- a\n' + ' '.repeat(level + 2) + ':::details x\n';
+            md += 'x\n'.repeat(20000) + '\ny\n' + ':::\n'.repeat(levels);
+            const started = performance.now();
+            service.toHtml(md);
+
+            expect(performance.now() - started).toBeLessThan(600);
+        });
+
         it('does not hang on a deeply nested TIGHT blockquote', () => {
             // The spaced form above was bounded, but the tight form never
             // reached the recursion at all -- the escaping defect turned every

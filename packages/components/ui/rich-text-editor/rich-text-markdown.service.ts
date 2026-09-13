@@ -120,46 +120,64 @@ function contentColumn(line: string, markerEnd: number): number {
 }
 
 /**
- * The first line after `from` that is not the item's: a list marker at the
- * item's indent or shallower, which starts a sibling or leaves the list, or after
- * a blank line a line indented short of the item's content.
+ * For each line, the deepest item indent it ends. An item at indent I ends at a
+ * list marker at I or shallower, which starts a sibling or leaves the list, and
+ * after a blank line at a line indented short of I + 2, the item's content; so a
+ * marker's key is its indent, a line after a blank has indent - 1, and a blank
+ * line or any other line ends nothing.
  */
-function firstLineOutsideItem(lines: readonly string[], from: number, itemIndent: number): number {
+function itemEndKeys(lines: readonly string[]): number[] {
+    const keys: number[] = [];
     let blankBefore = false;
-    for (let at = from + 1; at < lines.length; at++) {
-        const line = lines[at];
+    for (const line of lines) {
         if (line.trim() === '') {
+            keys.push(Infinity);
             blankBefore = true;
             continue;
         }
-        const marker = parseListLine(line);
-        if (marker && marker.indent <= itemIndent) return at;
-        if (blankBefore && indentOf(line) < itemIndent + 2) return at;
+        const indent = indentOf(line);
+        if (blankBefore) keys.push(indent - 1);
+        else keys.push(parseListLine(line) ? indent : Infinity);
         blankBefore = false;
     }
-    return lines.length;
+    return keys;
+}
+
+/** The first index at or after `start` in a min segment tree whose value is at most `limit`, or -1. */
+function firstAtMost(tree: readonly number[], node: number, span: readonly [number, number], start: number, limit: number): number {
+    const [low, high] = span;
+    if (high < start || tree[node] > limit) return -1;
+    if (low === high) return low;
+    const middle = Math.floor((low + high) / 2);
+    const left = firstAtMost(tree, node * 2, [low, middle], start, limit);
+    return left >= 0 ? left : firstAtMost(tree, node * 2 + 1, [middle + 1, high], start, limit);
 }
 
 /** Where the open item of a list ends, from a line inside it. */
 type ItemEndFinder = (list: ListContext, from: number) => number;
 
 /**
- * An ItemEndFinder that reads each item's lines once.
+ * An ItemEndFinder that reads the lines once, for every item.
  *
  * Scanning ahead from every details opener read the same lines again for each
  * one: an item holding thousands of openers whose closers lie past the next item
- * took seconds to load. The end found from one line of an item is the end from
- * every later line of it that is not blank, since where the scan starts changes
- * nothing after such a line.
+ * took seconds to load, and a cache per list still rescanned for openers in a
+ * staircase of nested items, one list each. The keys (see itemEndKeys) go into
+ * a segment tree built on the first query, and each query is one descent.
  */
 function itemEndFinder(lines: readonly string[]): ItemEndFinder {
-    const ends = new Map<ListContext, number>();
+    let tree: number[] | null = null;
+    let size = 1;
     return (list, from) => {
-        const known = ends.get(list);
-        if (known !== undefined && known > from) return known;
-        const end = firstLineOutsideItem(lines, from, list.indent);
-        ends.set(list, end);
-        return end;
+        if (!tree) {
+            const keys = itemEndKeys(lines);
+            while (size < keys.length) size *= 2;
+            tree = new Array<number>(size * 2).fill(Infinity);
+            for (const [at, key] of keys.entries()) tree[size + at] = key;
+            for (let node = size - 1; node > 0; node--) tree[node] = Math.min(tree[node * 2], tree[node * 2 + 1]);
+        }
+        const end = firstAtMost(tree, 1, [0, size - 1], from + 1, list.indent);
+        return end < 0 ? lines.length : end;
     };
 }
 
@@ -952,9 +970,9 @@ function prepareForMarkdown(root: HTMLElement): void {
  * The reader leaves markdown nested past the cap as text, so written whole, a
  * deeper document came back with its markers as text, escaped on the next save:
  * the saves never agreed, and a quote's inner markers showed on the page. The
- * depth counted here, one for every details block, quote and list item around an
- * element, is never less than the depth the reader counts for what is written,
- * so every block that is written is read back as that block.
+ * depth counted here (see nestingDepthOf) is never less than the depth the
+ * reader counts for what is written, so every block that is written is read
+ * back as that block.
  */
 function unnestPastTheCap(root: HTMLElement): void {
     for (const block of Array.from(root.querySelectorAll('details, blockquote'))) {
@@ -970,11 +988,20 @@ function unnestPastTheCap(root: HTMLElement): void {
     }
 }
 
-/** How many details blocks, quotes and list items hold `element`, below `root`. */
+/**
+ * The nesting depth of `element` below `root` as a save writes it: one for every
+ * details block and quote around it, and one for every list item that holds it in
+ * the item's own content. A list item reached through its sub-list adds none: the
+ * sub-list is written as indented lines the reader takes in the item's own pass,
+ * and counted, forty nested bullets unwrapped a details block the reader had kept.
+ * A quote counts even when the reader would not (a quote holding no nested
+ * quote), which keeps this never less than the reader's depth.
+ */
 function nestingDepthOf(element: Element, root: HTMLElement): number {
     let depth = 0;
-    for (let at = element.parentElement; at && at !== root; at = at.parentElement) {
-        if (at.nodeName === 'DETAILS' || at.nodeName === 'BLOCKQUOTE' || at.nodeName === 'LI') depth++;
+    for (let child: Element = element, at = element.parentElement; at && at !== root; child = at, at = at.parentElement) {
+        const holdsInOwnContent = at.nodeName === 'LI' && child.nodeName !== 'UL' && child.nodeName !== 'OL';
+        if (at.nodeName === 'DETAILS' || at.nodeName === 'BLOCKQUOTE' || holdsInOwnContent) depth++;
     }
     return depth;
 }
@@ -1677,14 +1704,17 @@ export class RichTextMarkdownService {
      * buildBlockquote uses for a nested quote.
      */
     private parseListContinuation(block: string, list: ListContext, depth: number): string {
-        // Dedented to the last item's content column. Two past the item's indent
-        // left a numbered item's block one space in, where neither a details block
-        // nor a quote opens. A line short of the column, as the writer indents a
-        // numbered item's blocks, loses the indent it has.
+        // One width for the whole block: the last item's content column, or less
+        // when a line is indented less, as the writer indents a numbered item's
+        // blocks by two. Two past the item's indent left a numbered item's block
+        // one space in, where neither a details block nor a quote opens; and
+        // sliced line by line, lines at different indents lost different widths,
+        // so a nested list or a nested item's block moved to another level.
         const column = list.items.at(-1)?.column ?? list.indent + 2;
-        const dedented = block
-            .split('\n')
-            .map((line) => line.slice(Math.min(column, indentOf(line))))
+        const lines = block.split('\n');
+        const width = lines.filter((line) => line.trim() !== '').reduce((least, line) => Math.min(least, indentOf(line)), column);
+        const dedented = lines
+            .map((line) => line.slice(Math.min(width, indentOf(line))))
             .join('\n')
             .trim();
         if (!dedented) return '';
@@ -1911,6 +1941,15 @@ export class RichTextMarkdownService {
         return this.shieldUrl(this.escapeHtml(value));
     }
 
+    /**
+     * An attribute value made of document text, which escapeHtmlInContent has
+     * already escaped: only a quote is escaped here. Escaped again, a "<" in alt
+     * text came back as the characters "&lt;", one more layer on every save.
+     */
+    private textAttr(value: string): string {
+        return this.shieldUrl(value.replaceAll('"', '&quot;'));
+    }
+
     /** Restore the characters {@link shieldUrl} hid, once those passes are done. */
     private unshieldUrls(html: string): string {
         return URL_SHIELD.reduce((acc, [ch, code]) => acc.replaceAll(code, ch), html);
@@ -1928,13 +1967,13 @@ export class RichTextMarkdownService {
                 const blocked = this.sanitizer.takeBlockedByPolicy();
                 if (blocked === null) return '';
                 const blockedAlt = resolveInlineCodeText(alt, inlineStore);
-                return `<img data-blocked-src="${this.attr(blocked)}" alt="${this.attr(blockedAlt)}">`;
+                return `<img data-blocked-src="${this.attr(blocked)}" alt="${this.textAttr(blockedAlt)}">`;
             }
             // An alt attribute is plain text: a parked code span restored in
             // there would land as the literal string "<code>x</code>". Resolve
             // it back to the text the author typed instead.
             const plainAlt = resolveInlineCodeText(alt, inlineStore);
-            return `<img src="${this.attr(safeSrc)}" alt="${this.attr(plainAlt)}">`;
+            return `<img src="${this.attr(safeSrc)}" alt="${this.textAttr(plainAlt)}">`;
         });
     }
 
@@ -2196,12 +2235,13 @@ export class RichTextMarkdownService {
             sibling?.nodeType === Node.ELEMENT_NODE
             && (sibling as Element).tagName.toLowerCase() === 'code';
 
-        if (content === '' || content.includes('\n')
+        // A break has no text, so a code span written from the text alone lost it
+        // and fused the words around it; the tag form keeps it as the tag.
+        const holdsBreak = element.querySelector('br') !== null;
+        if (content === '' && !holdsBreak) return '';
+        if (holdsBreak || content.includes('\n')
             || abutsCode(element.previousSibling) || abutsCode(element.nextSibling)) {
-            // Its newlines as character references: a raw one ended a heading
-            // or a task row the tag sat in, a blank line split the tag pair, and
-            // the break rewrite changed the code's own spaces.
-            return content === '' ? '' : `<code>${this.escapeHtml(escapeInlineSyntax(content)).replaceAll('\n', '&#10;')}</code>`;
+            return `<code>${this.codeTagContent(element)}</code>`;
         }
 
         const longestRun = Math.max(
@@ -2222,11 +2262,27 @@ export class RichTextMarkdownService {
         return `${fence}${pad}${content}${pad}${fence}`;
     }
 
+    /**
+     * A code element's content for its tag form: its text escaped, each break as
+     * the tag, and newlines as character references -- a raw one ended a heading
+     * or a task row the tag sat in, a blank line split the tag pair, and the break
+     * rewrite changed the code's own spaces.
+     */
+    private codeTagContent(node: Node): string {
+        return Array.from(node.childNodes, (child) => {
+            if (child.nodeName === 'BR') return '<br>';
+            if (child.nodeType === Node.ELEMENT_NODE) return this.codeTagContent(child);
+            return this.escapeHtml(escapeInlineSyntax(child.textContent ?? '')).replaceAll('\n', '&#10;');
+        }).join('');
+    }
+
     private handleAnchorTag(element: HTMLElement, inner: string): string {
         const href = element.getAttribute('href') ?? '';
-        // A link with nothing to show is kept as its tag. As `[](href)` it had no
-        // link text to read, and came back as that text on the page.
-        if (inner.trim() === '') return `<a href="${this.escapeHtml(href)}"></a>`;
+        // A link with no text is kept as its tag. As `[](href)` it had no link text
+        // to read, and came back as that text on the page. What it held -- a space,
+        // a break -- is written after the tag: dropped, the words on either side
+        // of the link fused.
+        if (inner.trim() === '') return `<a href="${this.escapeHtml(href)}"></a>${inner}`;
         return `[${inner}](${href})`;
     }
 
@@ -2242,10 +2298,11 @@ export class RichTextMarkdownService {
         const src = element.getAttribute('src')
             ?? element.dataset['blockedSrc']
             ?? '';
-        // The alt text is link text on one line: an unescaped "]" ended it and the
-        // image came back as its markdown source, a newline split the paragraph
-        // inside the attribute, and backticks or asterisks were read as syntax.
-        const text = escapeInlineSyntax(alt.replaceAll(/[ \t\n\r\f]+/g, ' '));
+        // The alt text is text on one line, escaped as text is: an unescaped "]"
+        // ended it and the image came back as its markdown source, a newline split
+        // the paragraph inside the attribute, backticks or asterisks were read as
+        // syntax, and "&copy;" or "<i>" came back as a character or a tag.
+        const text = escapeMarkdownText(alt.replaceAll(/[ \t\n\r\f]+/g, ' '));
         return `![${text}](${src})`;
     }
 
@@ -2837,9 +2894,11 @@ const MAX_TABLE_COLUMNS = 1000;
 
 /**
  * How deep blocks nest before the reader leaves the rest as text; see
- * parseToggleBlocks and buildBlockquote. The depth counts every details block,
- * quote and list item between them, so a details block nested through a list or
- * a quote meets the same cap.
+ * parseToggleBlocks and buildBlockquote. The reader counts a level for every
+ * details body, quote holding a nested quote and list item's block, so a details
+ * block nested through a list or a quote meets the same cap; a sub-list, read in
+ * its parent's pass, adds none. The writer counts the same list items and every
+ * quote (see nestingDepthOf), which is never less.
  */
 const MAX_NESTING_DEPTH = 32;
 

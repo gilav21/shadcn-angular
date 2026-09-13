@@ -392,10 +392,18 @@ means no policy and today's behaviour exactly.
   - Loose text beside a block keeps the spaces between its words when it gets a
     paragraph of its own.
   - Outdenting the last item of a sub-list takes along what its parent item held
-    after the sub-list, instead of leaving that above the item; for a task row it
-    becomes an item of its own after the row.
+    after the sub-list, instead of leaving that above the item; a task row keeps
+    the lists among it as its own sub-lists, and the rest becomes an item after
+    the row. A break or an empty element after a nested list no longer adds an
+    empty task row.
   - A code block in a quote inside a list item stays a code block of the quote;
     after a list in that quote it joined the list item's text on save.
+  - A sub-list or a nested item's block inside a details block in a numbered item
+    keeps its level through a save.
+  - A link holding only a space or a break keeps it, so the words around the link
+    no longer fuse; a break inside inline code is kept; and image alt text holding
+    "<", "&" or a quote reads back unchanged.
+  - A staircase of nested items each opening a details block loads in linear time.
   - Italic runs side by side stay italic; code written inside a heading or with
     a blank line keeps its spaces and newlines; a code block whose language is
     "c++" or "c#" stays a code block; an image whose alt text holds "]" stays an

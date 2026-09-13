@@ -190,9 +190,11 @@ is complete. This is on by default — no import, no addon, no configuration.
 
 **Nested quotes, and where the shortcut stops.** Nesting is fully supported:
 `>>` and `> > >` parse into nested blockquotes up to 32 levels deep, and they
-round-trip through a save. The 32 counts every details block, quote and list
-item a block sits in; deeper markdown stays text when loaded, and a deeper
-details block or quote is unwrapped when saved, its words kept in order.
+round-trip through a save. A details block, a quote holding another and a
+block inside a list item each add a level, and a sub-list does not; markdown
+nested past 32 levels stays text when loaded. A save unwraps a details block or
+quote nested 32 or more levels deep, counted the same way except that every
+quote counts, keeping its words in order, so everything it writes loads back.
 
 The *typing shortcut* is the one-level part. Each rule matches a single marker,
 so `>` starts a quote while typing `>>` matches nothing and stays literal text.

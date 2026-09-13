@@ -334,6 +334,60 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         expect(saved(once)).toBe(once);
     });
 
+    it.each([
+        ['a sub-list in a details block in item ten', '<ol start="10"><li>ten<details><summary>X</summary><ul><li>c<ul><li>d</li></ul></li></ul></details></li></ol>'],
+        ['a details block in a numbered item in a details block in a numbered item',
+            '<ol><li><p>a</p><details><summary>s</summary><ol><li><p>b</p><details><summary>t</summary><p>c</p></details></li></ol></details></li></ol>'],
+        ['two paragraphs of a bullet in a details block in a numbered item', '<ol><li>a<details><summary>s</summary><ul><li><p>b</p><p>c</p></li></ul></details></li></ol>'],
+        ['a quote in a bullet in a details block in item ten', '<ol start="10"><li>a<details><summary>s</summary><ul><li><p>b</p><blockquote><p>c</p></blockquote></li></ul></details></li></ol>'],
+    ])('keeps %s at its level through a save, and settles', (_name, html) => {
+        // Each line of a numbered item's block was dedented by its own width, so
+        // lines at different indents lost different amounts and moved a level.
+        const levels = (root: HTMLElement): string[] => {
+            const out: string[] = [];
+            const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+            for (let text = walker.nextNode(); text; text = walker.nextNode()) {
+                if (!text.textContent?.trim()) continue;
+                const path: string[] = [];
+                for (let at = text.parentElement; at && at !== root; at = at.parentElement) {
+                    if (['UL', 'OL', 'LI', 'DETAILS', 'SUMMARY', 'BLOCKQUOTE'].includes(at.nodeName)) path.unshift(at.nodeName);
+                }
+                out.push(`${text.textContent.trim()}:${path.join('>')}`);
+            }
+            return out;
+        };
+        const once = saved(html);
+
+        expect(levels(read(once))).toEqual(levels(read(html)));
+        expect(read(once).textContent).not.toContain(':::');
+        expect(saved(once)).toBe(once);
+    });
+
+    it.each([
+        ['a space', '<p>a<a href="https://x.test"> </a>b</p>', 'a b', null],
+        ['a break', '<p>a<a href="https://x.test"><br></a>b</p>', 'ab', 'br'],
+    ])('keeps %s held by a link with no text, and settles', (_name, html, text, kept) => {
+        // Written as an empty tag, the space or break inside was dropped and the
+        // words on either side fused.
+        const once = saved(html);
+        const out = read(once);
+
+        expect(out.textContent).toBe(text);
+        if (kept) expect(out.querySelector(kept)).not.toBeNull();
+        expect(out.querySelector('a[href="https://x.test"]')).not.toBeNull();
+        expect(saved(once)).toBe(once);
+    });
+
+    it('keeps a break inside inline code, and settles', () => {
+        // The code span was written from its text, which a break does not have.
+        const once = saved('<p>x <code>a<br>b</code> y</p>');
+        const out = read(once);
+
+        expect(out.querySelector('code br')).not.toBeNull();
+        expect(out.querySelector('code')?.textContent).toBe('ab');
+        expect(saved(once)).toBe(once);
+    });
+
     it('keeps a paragraph after a task row nested list after it, as the next row', () => {
         const once = saved('<ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>a</span>'
             + '<ul data-task-list><li data-task data-checked="true"><input type="checkbox"><span>b</span></li></ul><p>c</p></li></ul>');
@@ -975,6 +1029,8 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         ['a blank line', 'a\n\nb', 'p', 'a b'],
         ['a newline inside a heading', 'a\nb', 'h1', 'a b'],
         ['backticks and asterisks', 'x `y` *z*', 'p', 'x `y` *z*'],
+        ['a tag, an entity and a bare angle bracket', 'use <i> &copy; & <', 'p', 'use <i> &copy; & <'],
+        ['a quote', 'say "hi"', 'p', 'say "hi"'],
     ])('keeps an image whose alt text holds %s one image, and settles', (_name, alt, wrap, kept) => {
         const holder = document.createElement(wrap);
         const image = document.createElement('img');
