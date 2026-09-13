@@ -219,6 +219,8 @@ describe('RichTextSanitizerService — output the HTML parser reads back unchang
         ['a span holding a paragraph', '<div><p>a</p><span><p>b</p></span></div>'],
         ['bold holding a list', '<b><ul><li>x</li></ul></b>'],
         ['a heading holding a block', '<h2>title<div>body</div></h2>'],
+        ['a task row in a plain list', '<ul><li>a</li><li data-task data-checked="true"><input type="checkbox"><span>b</span></li></ul>'],
+        ['a stray summary holding a paragraph', '<summary><p>x</p></summary>'],
         ['a task row whose span holds a paragraph', '<ul data-task-list><li data-task><input type="checkbox"><span>a<p>b</p></span></li></ul>'],
     ])('reads %s back unchanged, and a second pass changes nothing', (_name, html) => {
         // Each shape was wrapped in a paragraph the parser will not keep, so
@@ -229,6 +231,62 @@ describe('RichTextSanitizerService — output the HTML parser reads back unchang
         expect(service.sanitize(out)).toBe(out);
         expect(holder.querySelector('p:empty')).toBeNull();
         expect(holder.querySelector('p hr, p li, p ul, p summary, p table, span p, span ul')).toBeNull();
+    });
+
+    it('parses a paragraph holding a table as the page will, so it reads back unchanged', () => {
+        // Parsed with no doctype the table stayed inside the paragraph, and the
+        // page, which renders in standards mode, took them apart on read-back.
+        // The empty paragraph a stray </p> leaves is what the page makes too.
+        const { out, holder } = readBack('<p>a<table><tbody><tr><td>b</td></tr></tbody></table></p>');
+
+        expect(holder.innerHTML).toBe(out);
+        expect(service.sanitize(out)).toBe(out);
+        expect(holder.querySelector('p table')).toBeNull();
+        expect(holder.querySelector('td')?.textContent).toBe('b');
+    });
+
+    it('splits a list whose items change kind, keeping every item, its state and the numbering', () => {
+        const { holder } = readBack('<ol start="3"><li>a</li><li data-task data-checked="true"><input type="checkbox"><span>b</span></li><li>c</li></ol>');
+        const lists = Array.from(holder.children) as HTMLElement[];
+
+        expect(lists.map((list) => `${list.tagName}:${list.textContent}`)).toEqual(['OL:a', 'UL:b', 'OL:c']);
+        expect(lists[0].getAttribute('start')).toBe('3');
+        expect(lists[1].dataset['taskList']).toBe('');
+        expect((lists[1].firstElementChild as HTMLElement).dataset['checked']).toBe('true');
+        expect(lists[2].getAttribute('start')).toBe('4');
+    });
+
+    it.each([
+        ['5', '5'],
+        ['0', '0'],
+        ['007', '7'],
+        ['999999999', '999999999'],
+        ['-2', null],
+        ['1000000000', null],
+        ['2.5', null],
+    ])('keeps a list start of %s only when markdown can write it back', (start, kept) => {
+        const { holder } = readBack(`<ol start="${start}"><li>a</li></ol>`);
+
+        expect(holder.querySelector('ol')?.getAttribute('start') ?? null).toBe(kept);
+    });
+
+    it('keeps a list nested directly in a list when it splits the list by kind', () => {
+        const { holder } = readBack('<ul><li>plain</li><ul><li>sub</li></ul>'
+            + '<li data-task data-checked="false"><input type="checkbox"><span>task</span></li></ul>');
+
+        expect(holder.textContent).toBe('plainsubtask');
+    });
+
+    it('puts a details block\'s summary first, where a browser shows it', () => {
+        const { holder } = readBack('<details><p>body</p><summary>label</summary></details>');
+
+        expect(Array.from(holder.querySelector('details')!.children).map((el) => el.tagName)).toEqual(['SUMMARY', 'P']);
+    });
+
+    it('turns a stray summary holding a paragraph into that paragraph, keeping the text', () => {
+        const { holder } = readBack('<summary><p>x</p></summary>');
+
+        expect(Array.from(holder.children).map((el) => `${el.tagName}:${el.textContent}`)).toEqual(['P:x']);
     });
 
     it('keeps a quote\'s rule between its two lines', () => {

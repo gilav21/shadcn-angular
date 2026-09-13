@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
-import { flattenIntoRowText, isInlineHoldingBlock, isNestedList, isPhrasing } from './rich-text-lines';
+import { flattenIntoRowText, isInlineHoldingBlock, isNestedList, isPhrasing, separateListKinds } from './rich-text-lines';
 import { isValidImageMagicBytes } from '../../lib/parsers/image-validator';
 import { sanitizeSvg } from '../../lib/parsers/svg-sanitizer';
 
@@ -374,7 +374,11 @@ export class RichTextSanitizerService {
 
         /** Parse HTML into DOM */
         const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
+        // In standards mode, the mode the editor and the view render in. With no
+        // doctype the parser runs in quirks mode, where a <table> does not close
+        // an open <p>, so a pasted `<p>a<table>` was kept whole and came apart
+        // only when the page read it back: a different document on every pass.
+        const doc = parser.parseFromString(`<!DOCTYPE html>${html}`, 'text/html');
 
         /** Create a clean container */
         const cleanContainer = this.document.createElement('div');
@@ -384,6 +388,9 @@ export class RichTextSanitizerService {
         this.pushInlineWrappersIntoBlocks(cleanContainer);
         this.liftBlocksOutOfLines(cleanContainer);
         this.adoptStrayItems(cleanContainer);
+        this.markTaskListItems(cleanContainer);
+        this.leadDetailsWithSummary(cleanContainer);
+        this.normalizeListKinds(cleanContainer);
         this.normalizeQuoteLines(cleanContainer);
         this.normalizeTaskRows(cleanContainer);
         this.normalizeStrayLines(cleanContainer);
@@ -491,8 +498,51 @@ export class RichTextSanitizerService {
             if (summary.parentElement?.nodeName === 'DETAILS') continue;
             const paragraph = this.document.createElement('p');
             paragraph.append(...Array.from(summary.childNodes));
-            summary.replaceWith(paragraph);
+            // A block the summary held goes beside its paragraph, not inside:
+            // `<p><p>x</p></p>` came apart on every read.
+            summary.replaceWith(...this.splitAroundBlocks(paragraph));
         }
+    }
+
+    /**
+     * Every item of a task list is a task row.
+     *
+     * The markdown writer has always read a task list's items as rows from the
+     * list's own marker, so `<ul data-task-list><li>` arrives from consumer HTML
+     * without `data-task`. Without this, the pass that keeps a list to one kind
+     * split such a list into plain bullets, and every checkbox was lost.
+     */
+    private markTaskListItems(root: HTMLElement): void {
+        for (const item of Array.from(root.querySelectorAll<HTMLElement>('ul[data-task-list] > li:not([data-task])'))) {
+            const checkbox = item.querySelector<HTMLInputElement>(':scope > input[type="checkbox"]');
+            const checked = item.dataset['checked'] === 'true' || checkbox?.hasAttribute('checked') === true;
+            item.dataset['task'] = '';
+            item.dataset['checked'] = String(checked);
+            if (checkbox) continue;
+            const box = this.document.createElement('input');
+            box.type = 'checkbox';
+            if (checked) box.setAttribute('checked', '');
+            item.prepend(box);
+        }
+    }
+
+    /**
+     * A details block's summary is its first child.
+     *
+     * A browser shows the summary at the top wherever it sits, so a summary
+     * written after the body read first on screen and last in the document, and
+     * a save wrote it in document order: the text moved.
+     */
+    private leadDetailsWithSummary(root: HTMLElement): void {
+        for (const details of Array.from(root.querySelectorAll('details'))) {
+            const summary = details.querySelector(':scope > summary');
+            if (summary && details.firstElementChild !== summary) details.prepend(summary);
+        }
+    }
+
+    /** Every list holds one kind of item; see {@link separateListKinds}. */
+    private normalizeListKinds(root: HTMLElement): void {
+        for (const list of Array.from(root.querySelectorAll<HTMLElement>('ul, ol'))) separateListKinds(list);
     }
 
     /** The previous sibling element, stepping over the blank text formatting leaves between elements. */
@@ -1213,6 +1263,10 @@ export class RichTextSanitizerService {
                 }
                 return;
             }
+            case 'start': {
+                this.applyListStart(value, target);
+                return;
+            }
             case 'dir': {
                 if (isTextDirection(value)) target.setAttribute('dir', value);
                 return;
@@ -1220,6 +1274,15 @@ export class RichTextSanitizerService {
             default:
                 target.setAttribute(attrName, value);
         }
+    }
+
+    /**
+     * A list number a markdown save can write back, 0 to 999999999. A negative
+     * or longer one came back renumbered, or with the next item's number read as
+     * its text.
+     */
+    private applyListStart(value: string, target: HTMLElement): void {
+        if (/^\d{1,9}$/.test(value.trim())) target.setAttribute('start', String(Number.parseInt(value, 10)));
     }
 
     /**
