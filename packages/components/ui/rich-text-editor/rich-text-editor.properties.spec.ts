@@ -74,6 +74,46 @@ class DocumentGenerator {
             () => `<code>${this.word()}</code>`,
             () => `<span>${this.inlineRun(depth + 1)}</span>`,
             () => IMAGE,
+            () => `<strong>${this.inlineRun(depth + 1)}</strong>`,
+            () => `<em>${this.inlineRun(depth + 1)}</em>`,
+            () => this.wrapped(this.pick(['u', 's', 'del', 'ins', 'mark', 'sub', 'sup', 'small']), this.word()),
+            () => `${this.word()}<br>${this.word()}`,
+            // Emphasis inside a word, which markdown only reads with some delimiters.
+            () => `${this.word()}<em>${this.word()}</em>${this.word()}`,
+            () => this.syntaxText(),
+        ])();
+    }
+
+    private wrapped(tag: string, inner: string): string {
+        return `<${tag}>${inner}</${tag}>`;
+    }
+
+    /**
+     * Text a markdown reader could take for syntax. Each piece keeps a distinct
+     * word beside it, so a save that turns the text into structure changes the
+     * words and shows.
+     */
+    private syntaxText(): string {
+        const w = this.word();
+        return this.pick<() => string>([
+            () => `2024. ${w}`,
+            () => `2024.`,
+            () => `- ${w}`,
+            () => '-',
+            () => `+ ${w}`,
+            () => `&gt;50% ${w}`,
+            () => `--- ${w}`,
+            () => '---',
+            () => `~~${w}~~`,
+            () => '~~~',
+            () => `:::details ${w}`,
+            () => `[${w}](https://example.com/)`,
+            () => `# ${w}`,
+            () => `2 * 3 * 4 ${w}`,
+            () => `a\\*b ${w}`,
+            () => `| ${w} |`,
+            () => '```',
+            () => `[x] ${w}`,
         ])();
     }
 
@@ -88,7 +128,7 @@ class DocumentGenerator {
             () => `<h2>${this.inlineRun(0)}</h2>`,
             () => '<hr>',
             () => `<pre><code>${this.word()}\n\n${this.word()}</code></pre>`,
-            () => this.table(depth),
+            () => this.table(),
         ];
         if (depth >= 2) return this.pick(plain)();
         return this.pick([
@@ -106,7 +146,30 @@ class DocumentGenerator {
             () => `<div><p>${this.word()}</p><span><p>${this.word()}</p></span></div>`,
             () => `<h2>${this.word()}<div>${this.word()}</div></h2>`,
             () => `<blockquote><pre><code>${this.word()}\n\n${this.word()}</code></pre></blockquote>`,
+            () => this.heading(),
+            () => '<h2><br></h2>',
+            () => `<p>${this.syntaxText()}</p>`,
+            () => this.fullTable(),
+            () => `<ol start="${this.pick(['0', '5', '999999999', '-2'])}">${this.repeat(1, 3, () => this.item(depth)).join('')}</ol>`,
+            () => `<details><summary><br></summary>${this.block(depth + 1)}</details>`,
+            () => `<details>${this.block(depth + 1)}</details>`,
+            () => `<details><details><summary>${this.word()}</summary><p>${this.word()}</p></details><summary>${this.word()}</summary></details>`,
+            () => `<summary><p>${this.word()}</p></summary>`,
+            () => `<p>${this.word()}<table><tbody><tr><td>${this.word()}</td></tr></tbody></table></p>`,
+            () => `<blockquote><table><tbody><tr><td>${this.word()}</td><td>${this.word()}</td></tr></tbody></table><p>${this.word()} | ${this.word()}</p></blockquote>`,
+            () => `<ul><li>${this.word()}</li><li data-task data-checked="false"><input type="checkbox"><span>${this.word()}</span></li></ul>`,
+            () => `<ol><li data-task data-checked="true"><input type="checkbox"><span>${this.word()}</span></li><li>${this.word()}</li></ol>`,
         ])();
+    }
+
+    private heading(): string {
+        const level = this.pick(['1', '2', '3', '4', '5', '6']);
+        return `<h${level}>${this.inlineRun(0)}</h${level}>`;
+    }
+
+    private fullTable(): string {
+        const row = (cell: string): string => `<tr><${cell}>${this.word()}</${cell}><${cell}>${this.word()}</${cell}></tr>`;
+        return `<table><thead>${row('th')}</thead><tbody>${row('td')}</tbody><tfoot>${row('td')}</tfoot></table>`;
     }
 
     private item(depth: number): string {
@@ -117,6 +180,9 @@ class DocumentGenerator {
             () => `<li><p>${this.word()}</p><p>${this.word()}</p></li>`,
             () => `<li>${this.block(depth + 1)}</li>`,
             () => `<li>${this.word()}<hr>${this.word()}</li>`,
+            () => `<li><details><summary>${this.word()}</summary><p>${this.word()}</p><h2>${this.word()}</h2><blockquote><p>${this.word()}</p></blockquote></details></li>`,
+            () => `<li><p>${this.word()}</p><p>${this.word()}</p><table><tbody><tr><td>${this.word()}</td></tr></tbody></table></li>`,
+            () => `<li>${this.syntaxText()}</li>`,
         ])();
     }
 
@@ -136,6 +202,7 @@ class DocumentGenerator {
             () => `${open}<span>${this.word()}<p>${this.word()}</p></span></li>`,
             () => `${open}<blockquote><p>${this.word()}</p><p>${this.word()}</p></blockquote></li>`,
             () => `${open}<table><tbody><tr><td>${this.word()}</td><td>${this.word()}</td></tr></tbody></table></li>`,
+            () => `${open}<span>${this.syntaxText()}</span></li>`,
         ])();
     }
 
@@ -152,9 +219,9 @@ class DocumentGenerator {
         ])();
     }
 
-    private table(depth: number): string {
+    private table(): string {
         const rows = this.repeat(1, 2, () => `<tr>${this.cell()}${this.cell()}</tr>`).join('');
-        return depth >= 0 ? `<table><tbody>${rows}</tbody></table>` : '';
+        return `<table><tbody>${rows}</tbody></table>`;
     }
 }
 
@@ -231,11 +298,23 @@ function wordsOf(root: Node): string[] {
         if (node.nodeType !== Node.ELEMENT_NODE) return;
         const boundary = !PHRASING.has(node.nodeName) || node.nodeName === 'BR';
         if (boundary) parts.push(' ');
-        for (const child of Array.from(node.childNodes)) walk(child);
+        for (const child of childrenInReadingOrder(node)) walk(child);
         if (boundary) parts.push(' ');
     };
     walk(root);
     return parts.join('').replaceAll(/[\u00A0\u200B]/g, ' ').split(/\s+/).filter(Boolean);
+}
+
+/**
+ * A node's children in the order a reader sees them. A browser shows a details
+ * block's summary first wherever it sits, so a summary written after the body
+ * reads first on screen.
+ */
+function childrenInReadingOrder(node: Node): Node[] {
+    const children = Array.from(node.childNodes);
+    if (node.nodeName !== 'DETAILS') return children;
+    const summary = children.find((child) => child.nodeName === 'SUMMARY');
+    return summary ? [summary, ...children.filter((child) => child !== summary)] : children;
 }
 
 function countOf(root: ParentNode, selector: string): number {
@@ -260,7 +339,7 @@ function firstDifference(expected: string, actual: string): string {
 function invalidMarkup(root: HTMLElement): string {
     const problems = new Set<string>();
     for (const el of Array.from(root.querySelectorAll('*'))) {
-        for (const problem of [placementProblem(el), lineProblem(el), mixedProblem(el)]) {
+        for (const problem of [placementProblem(el), kindProblem(el), lineProblem(el), mixedProblem(el)]) {
             if (problem) problems.add(problem);
         }
     }
@@ -275,6 +354,26 @@ function isTaskRow(el: Element | null): boolean {
 
 function isBlankText(node: Node): boolean {
     return node.nodeType === Node.TEXT_NODE && (node.textContent ?? '').replaceAll('\u200B', '').trim() === '';
+}
+
+/** A task list: the only list a task row may sit in, and one that holds only task rows. */
+function isTaskList(el: Element | null): boolean {
+    return el?.nodeName === 'UL' && (el as HTMLElement).dataset['taskList'] !== undefined;
+}
+
+/**
+ * A list item of a different kind from its list. A save writes an item by its
+ * list's kind, so a task row in a plain list lost its checkbox, and a plain item
+ * in a task list gained one.
+ */
+function kindProblem(el: Element): string | null {
+    const list = el.parentElement;
+    if (el.nodeName !== 'LI' || !list || !isNestedList(list)) return null;
+    return isTaskRow(el) === isTaskList(list) ? null : 'a list item whose kind differs from its list';
+}
+
+function isNestedList(el: Element): boolean {
+    return el.nodeName === 'UL' || el.nodeName === 'OL';
 }
 
 /** An element somewhere its parent cannot hold it. */
@@ -627,10 +726,14 @@ describe('rich text editor — properties over generated documents', () => {
             load(scenario.html);
             if (!placeCaret(scenario.caretSeed)) return;
             const text = textFor(scenario.first);
+            const images = countOf(editor, 'img');
+            const rules = countOf(editor, 'hr') + [scenario.first, scenario.second].filter((action) => action === 'horizontalRule').length;
             run(scenario.first);
             placeCaret(scenario.caretSeed + 7);
             run(scenario.second);
             expect.soft(textFor(scenario.first), context(scenario, `words after ${scenario.second}`)).toBe(text);
+            expect.soft(countOf(editor, 'img'), context(scenario, `images after ${scenario.second}`)).toBe(images);
+            expect.soft(countOf(editor, 'hr'), context(scenario, `rules after ${scenario.second}`)).toBe(rules);
             expectShapesThatSave(scenario, `after ${scenario.second}`);
             expectSaveKeeps(scenario, `saved after ${scenario.second}`);
         }
