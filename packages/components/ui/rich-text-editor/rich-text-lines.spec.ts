@@ -18,6 +18,7 @@ import {
     linesMayJoin,
     placeCaretIn,
     positionAfterLine,
+    rowRunsOf,
 } from './index';
 
 const TASK_ROWS =
@@ -516,5 +517,32 @@ describe('rich text line model — the rules', () => {
 
         expect(lineBelow(buildLineIndex(root), buildLineIndex(root).lines[0])).toBeNull();
         expect(lineAbove(buildLineIndex(root), second)).toBeNull();
+    });
+});
+
+describe('rich text line model — the task rows a list item makes', () => {
+    const itemOf = (html: string): Element => {
+        const holder = document.createElement('div');
+        holder.innerHTML = html;
+        return holder.firstElementChild!;
+    };
+    const rowsOf = (item: Element, skip: Node | null = null): [string, number][] =>
+        rowRunsOf(item, skip).map((run) => [run.content.map((node) => node.nodeName === '#text' ? node.textContent : node.nodeName).join(','), run.lists.length]);
+
+    it.each([
+        ['text alone', '<li>a</li>', [['a', 0]]],
+        ['text and a sub-list', '<li>a<ul><li>b</li></ul></li>', [['a', 1]]],
+        ['two sub-lists with blank text between', '<li>a<ul><li>b</li></ul> <ol><li>c</li></ol></li>', [['a', 2]]],
+        ['a paragraph after a sub-list', '<li>a<ul><li>b</li></ul><p>c</p></li>', [['a', 1], ['P', 0]]],
+        ['a sub-list first, then text and another', '<li><ul><li>b</li></ul>c<ol><li>d</li></ol></li>', [['', 1], ['c', 1]]],
+    ])('makes %s into rows split at the content after each nested list', (_name, html, rows) => {
+        expect(rowsOf(itemOf(html))).toEqual(rows);
+    });
+
+    it('leaves out the node it is told to skip', () => {
+        const item = itemOf('<li><input type="checkbox">a</li>');
+
+        expect(rowsOf(item, item.firstChild)).toEqual([['a', 0]]);
+        expect(rowsOf(item)).toEqual([['INPUT,a', 0]]);
     });
 });

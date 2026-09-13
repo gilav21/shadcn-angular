@@ -4911,7 +4911,8 @@
       "rich-text-editor/addons/slash-commands/rich-text-slash-commands.defaults.ts",
       "rich-text-editor/addons/slash-commands/rich-text-slash-commands.directive.ts",
       "rich-text-editor/addons/slash-commands/rich-text-slash-commands.locales.ts",
-      "rich-text-editor/addons/slash-commands/rich-text-slash-commands.utils.ts"
+      "rich-text-editor/addons/slash-commands/rich-text-slash-commands.utils.ts",
+      "rich-text-editor/rich-text-lines.ts"
     ],
     "libFiles": [
       "addon-slots.ts",
@@ -4928,7 +4929,20 @@
       "rich-text-editor/addons/slash-commands/rich-text-slash-commands-menu.component.spec.ts",
       "rich-text-editor/addons/slash-commands/rich-text-slash-commands.defaults.spec.ts",
       "rich-text-editor/addons/slash-commands/rich-text-slash-commands.directive.spec.ts",
-      "rich-text-editor/addons/slash-commands/rich-text-slash-commands.utils.spec.ts"
+      "rich-text-editor/addons/slash-commands/rich-text-slash-commands.utils.spec.ts",
+      "rich-text-editor/barrel.spec.ts",
+      "rich-text-editor/rich-text-command-registry.service.spec.ts",
+      "rich-text-editor/rich-text-editor.component.spec.ts",
+      "rich-text-editor/rich-text-editor.properties.spec.ts",
+      "rich-text-editor/rich-text-editor.validators.spec.ts",
+      "rich-text-editor/rich-text-find.utils.spec.ts",
+      "rich-text-editor/rich-text-input-rules.spec.ts",
+      "rich-text-editor/rich-text-lines.spec.ts",
+      "rich-text-editor/rich-text-markdown.roundtrip.spec.ts",
+      "rich-text-editor/rich-text-markdown.service.spec.ts",
+      "rich-text-editor/rich-text-paste-normalizer.service.spec.ts",
+      "rich-text-editor/rich-text-resource-policy.spec.ts",
+      "rich-text-editor/rich-text-sanitizer.service.spec.ts"
     ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts",

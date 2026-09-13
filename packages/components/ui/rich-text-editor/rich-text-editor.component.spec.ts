@@ -3133,6 +3133,52 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
             expect(span.querySelector('blockquote, p')).toBeNull();
         });
 
+        it('outdenting the last item of a sub-list carries what its parent holds after the sub-list, keeping the words in order', () => {
+            // The item moved to just after its parent, and the heading and second
+            // sub-list after the sub-list stayed in the parent, above the item.
+            component.writeValue('<ul><li><p>a</p><ul><li>b</li><li>c</li></ul><h2>d</h2><ol><li>e</li></ol></li><li>f</li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelectorAll('li li')[1].firstChild as Text, 1);
+
+            component.onFormatCommand('outdent');
+
+            const items = Array.from(editor.querySelector('ul')!.children);
+            expect(editor.textContent).toBe('abcdef');
+            expect(items.map((item) => item.textContent)).toEqual(['ab', 'cde', 'f']);
+            // The item now holds blocks, so its own text is a paragraph, with the caret still in it.
+            expect(Array.from(items[1].children, (child) => child.nodeName)).toEqual(['P', 'H2', 'OL']);
+            expect(items[1].querySelector(':scope > p')!.contains(document.getSelection()!.anchorNode)).toBe(true);
+        });
+
+        it('outdenting a task row out of a plain item puts what followed its list in an item after the row', () => {
+            component.writeValue('<ul><li><p>a</p><ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>b</span></li></ul>'
+                + '<p>c</p></li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 1);
+
+            component.onFormatCommand('outdent');
+
+            expect(editor.textContent).toBe('abc');
+            const items = Array.from(editor.querySelectorAll(':scope > ul > li'));
+            expect(items.map((item) => item.textContent)).toEqual(['a', 'b', 'c']);
+            expect(Array.from(items[1].children, (child) => child.nodeName)).toEqual(['INPUT', 'SPAN']);
+            expect(items[2].matches('li:not([data-task])')).toBe(true);
+            expect(Array.from(items[2].children, (child) => child.nodeName)).toEqual(['P']);
+        });
+
+        it('a task list starts the next row with the content after an item sub-list, keeping the words in order', () => {
+            component.writeValue('<ul><li><p>a</p><ul><li>b</li></ul><p>c</p></li><li>z</li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('ul')!.children[1].firstChild as Text, 1);
+
+            component.onFormatCommand('taskList');
+
+            const rows = Array.from(editor.querySelector('ul[data-task-list]')!.children);
+            expect(rows.map((row) => row.querySelector(':scope > span')?.textContent)).toEqual(['a', 'c', 'z']);
+            expect(rows[0].querySelector(':scope > ul > li')?.textContent).toBe('b');
+            expect(editor.textContent).toBe('abcz');
+        });
+
         it('a heading picked from the slash menu on a list item leaves the item as it is', () => {
             component.writeValue('<ul><li>one</li></ul>');
             fixture.detectChanges();

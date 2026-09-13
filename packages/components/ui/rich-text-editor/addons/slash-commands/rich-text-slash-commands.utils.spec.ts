@@ -260,6 +260,28 @@ describe('rich-text-slash-commands.utils', () => {
     });
 
     describe('findClosestEditableBlock', () => {
+        it.each([
+            ['a summary', '<details open><summary>Title</summary><p>Body</p></details>', 'summary', 'SUMMARY'],
+            ['a table cell', '<table><tbody><tr><td>first</td><td>second</td></tr><tr><td>last</td></tr></tbody></table>', 'td', 'TD'],
+            ['a cell of a table in a list item', '<ul><li>item<table><tbody><tr><td>cell</td></tr></tbody></table></li></ul>', 'td', 'TD'],
+            ['a level-five heading in a quote', '<blockquote><h5>deep</h5></blockquote>', 'h5', 'H5'],
+        ])('anchors to the line the caret sits in: %s', (_name, html, selector, tag) => {
+            // The addon's own tag list had none of these, so the anchor was the
+            // details block, the table or the quote around them.
+            const root = makeRoot(html);
+            const text = root.querySelector(selector)!.firstChild as Text;
+
+            expect(findClosestEditableBlock(document, root, text)!.tagName).toBe(tag);
+            expect(findClosestEditableBlock(document, root, text)).toBe(root.querySelector(selector));
+        });
+
+        it('anchors loose text in a list item that also holds a table to the item, not the list', () => {
+            const root = makeRoot('<ul><li>item<table><tbody><tr><td>cell</td></tr></tbody></table></li></ul>');
+            const text = root.querySelector('li')!.firstChild as Text;
+
+            expect(findClosestEditableBlock(document, root, text)).toBe(root.querySelector('li'));
+        });
+
         it('walks up to the nearest editable block tag', () => {
             const root = makeRoot('<blockquote><span>deep</span></blockquote>');
             const text = root.querySelector('span')!.firstChild as Text;
@@ -301,6 +323,20 @@ describe('rich-text-slash-commands.utils', () => {
     });
 
     describe('removeSlashTriggerText', () => {
+        it('returns the table cell a trigger was typed in, not the table', () => {
+            const root = makeRoot('<table><tbody><tr><td>first /go</td><td>second</td></tr><tr><td>last</td></tr></tbody></table>');
+            const text = root.querySelector('td')!.firstChild as Text;
+            const range = document.createRange();
+            range.setStart(text, text.data.length);
+            range.collapse(true);
+            setCaret(text, text.data.length);
+
+            const block = removeSlashTriggerText(document, root, 'go', range, null);
+
+            expect(block).toBe(root.querySelector('td'));
+            expect(root.querySelector('td')!.textContent).toBe('first ');
+        });
+
         it('removes the trigger through the captured range', () => {
             const root = makeRoot('<p>hi /go</p>');
             const text = root.querySelector('p')!.firstChild as Text;

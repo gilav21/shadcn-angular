@@ -59,6 +59,7 @@ import {
     placeCaretIn,
     positionAfterLine,
     rangeShowsNothing,
+    rowRunsOf,
     lastOwnInlineNode,
     separateListKinds,
     structureAround,
@@ -5331,34 +5332,81 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const li = this.getParentListItem();
         if (!li) return;
         const caret = this.caretOffsetInLine(li);
-        if (!this.moveItemOutOneLevel(li)) return;
-        this.restoreCaretInLine(li, caret);
+        const line = this.moveItemOutOneLevel(li);
+        if (!line) return;
+        this.restoreCaretInLine(line, caret);
 
         this.applyMutation({ focus: true, updateActiveFormats: true });
     }
 
     /**
      * Move a nested item up one level, to just after its parent item, taking the
-     * items that followed it along as its own sub-list. False when the item is
-     * not nested, and nothing moves.
+     * items that followed it along as its own sub-list. Returns the element that
+     * holds the item's own line afterwards, or null when the item is not nested
+     * and nothing moves.
      */
-    private moveItemOutOneLevel(li: HTMLElement): boolean {
+    private moveItemOutOneLevel(li: HTMLElement): HTMLElement | null {
         const parentList = li.parentElement;
-        if (!parentList || !isNestedList(parentList)) return false;
+        if (!parentList || !isNestedList(parentList)) return null;
 
         const grandparentLi = parentList.parentElement;
-        if (grandparentLi?.tagName !== 'LI') return false;
+        if (grandparentLi?.tagName !== 'LI') return null;
 
         const grandparentList = grandparentLi.parentElement;
-        if (!grandparentList) return false;
+        if (!grandparentList) return null;
 
         this.reparentFollowingSiblings(li, parentList);
+        const trailing: ChildNode[] = [];
+        for (let node = parentList.nextSibling; node; node = node.nextSibling) trailing.push(node);
         grandparentList.insertBefore(li, grandparentLi.nextSibling);
         if (parentList.children.length === 0) parentList.remove();
+        const line = this.carryTrailingContent(li, trailing);
         // A task row stepping into a plain list, or a plain item into a task
         // list, keeps its own kind in a list of its own.
         separateListKinds(grandparentList);
-        return true;
+        return line;
+    }
+
+    /**
+     * Put what the parent item held after the moved item's list -- more text, a
+     * block, another sub-list -- at the end of the moved item: it shows below
+     * that item, and left in the parent it moved above it. A task row is one line,
+     * so for a row it becomes an item of its own after the row. Returns the
+     * element holding the moved item's own line.
+     */
+    private carryTrailingContent(li: HTMLElement, trailing: readonly ChildNode[]): HTMLElement {
+        if (trailing.every((node) => node.nodeType === Node.TEXT_NODE && (node.textContent ?? '').trim() === '')) return li;
+        const holder = li.dataset['task'] === undefined ? li : this.document.createElement('li');
+        if (holder !== li) li.after(holder);
+        holder.append(...trailing);
+        if (trailing.every((node) => isPhrasing(node) || isNestedList(node))) return li;
+        // A block among it makes the item a container: text beside a block
+        // belongs to no line, so each run of the item's loose text gets a paragraph.
+        const lead = this.wrapLooseRuns(holder);
+        return holder === li && lead ? lead : li;
+    }
+
+    /**
+     * Wrap each run of loose inline content in `el` in a paragraph of its own;
+     * returns the paragraph for the content before the first block, if there is any.
+     */
+    private wrapLooseRuns(el: HTMLElement): HTMLElement | null {
+        const runs: ChildNode[][] = [[]];
+        for (const node of Array.from(el.childNodes)) {
+            if (isPhrasing(node) && node.nodeName !== 'INPUT') runs.at(-1)?.push(node);
+            else runs.push([]);
+        }
+        const paragraphs = runs.map((run) => this.paragraphAround(run));
+        return paragraphs[0];
+    }
+
+    /** A paragraph put where `run` was, holding it; null when the run shows nothing. */
+    private paragraphAround(run: readonly ChildNode[]): HTMLElement | null {
+        if (run.every((node) => node.nodeType === Node.TEXT_NODE && (node.textContent ?? '').trim() === '')) return null;
+        const paragraph = this.document.createElement('p');
+        run[0].before(paragraph);
+        paragraph.append(...run);
+        return paragraph;
     }
 
     /**
@@ -7288,23 +7336,20 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         target.dataset['taskList'] = '';
         for (const item of Array.from(target.children) as HTMLElement[]) {
             if (item.dataset['task'] !== undefined) continue;
-            const built = this.createTaskListItem(false);
-            const span = built.querySelector('span') as HTMLElement;
-            span.textContent = '';
-            const content: Node[] = [];
-            for (const child of Array.from(item.childNodes)) {
-                if (isNestedList(child)) {
-                    built.appendChild(child);
-                } else {
-                    content.push(child);
-                }
-            }
-            // A row is one line of text, so a block among the item's content is
-            // flattened into it: the rule the sanitizer applies to a pasted row.
-            // Appending a quote or a table whole put a block inside the span.
-            flattenIntoRowText(content, span);
-            if (this.holdsNoContent(span)) span.textContent = '​';
-            item.replaceWith(built);
+            // Content after a nested list starts the next row (see rowRunsOf).
+            const rows = rowRunsOf(item).map((run) => {
+                const built = this.createTaskListItem(false);
+                const span = built.querySelector('span') as HTMLElement;
+                span.textContent = '';
+                // A row is one line of text, so a block among the item's content is
+                // flattened into it: the rule the sanitizer applies to a pasted row.
+                // Appending a quote or a table whole put a block inside the span.
+                flattenIntoRowText(run.content, span);
+                if (this.holdsNoContent(span)) span.textContent = '​';
+                built.append(...run.lists);
+                return built;
+            });
+            item.replaceWith(...rows);
         }
         this.enableTaskCheckboxes(target);
     }
@@ -8586,7 +8631,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 }
 
-/** How many zero-width anchors sit before `offset` in `text`. */
 /** The last child element of `parent` whose tag is `tagName`, or null. */
 function lastChildTagged(parent: Element, tagName: string): Element | null {
     for (let child = parent.lastElementChild; child; child = child.previousElementSibling) {
@@ -8595,6 +8639,7 @@ function lastChildTagged(parent: Element, tagName: string): Element | null {
     return null;
 }
 
+/** How many zero-width anchors sit before `offset` in `text`. */
 function countZeroWidthBefore(text: string, offset: number): number {
     let count = 0;
     for (let i = 0; i < offset && i < text.length; i++) {

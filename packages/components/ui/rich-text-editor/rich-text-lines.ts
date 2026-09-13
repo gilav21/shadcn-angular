@@ -122,6 +122,36 @@ export function isInlineHoldingBlock(node: Node): boolean {
     return node.nodeType === Node.ELEMENT_NODE && PHRASING_TAGS.has(node.nodeName) && !isPhrasing(node);
 }
 
+/** A task row's content and the nested lists under it; see rowRunsOf. */
+export interface RowRun {
+    readonly content: Node[];
+    readonly lists: Node[];
+}
+
+/**
+ * A list item's children as task rows, in order: each row's content, then the
+ * nested lists under it. Content after a nested list starts the next row: a
+ * row's text shows above its nested lists, so gathered into one row the words
+ * after a list moved ahead of the list's own. `skip`, a row's own checkbox, is
+ * left where it is, and so is blank text after a list.
+ */
+export function rowRunsOf(item: Element, skip: Node | null = null): RowRun[] {
+    let run: RowRun = { content: [], lists: [] };
+    const runs = [run];
+    for (const node of Array.from(item.childNodes)) {
+        if (node === skip) continue;
+        if (isNestedList(node)) {
+            run.lists.push(node);
+        } else if (run.lists.length === 0) {
+            run.content.push(node);
+        } else if (node.nodeType !== Node.TEXT_NODE || (node.textContent ?? '').trim() !== '') {
+            run = { content: [node], lists: [] };
+            runs.push(run);
+        }
+    }
+    return runs;
+}
+
 /**
  * Move `nodes` into a task row's text, flattening every block among them.
  *

@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
-import { flattenIntoRowText, isInlineHoldingBlock, isNestedList, isPhrasing, separateListKinds } from './rich-text-lines';
+import { flattenIntoRowText, isInlineHoldingBlock, isNestedList, isPhrasing, rowRunsOf, separateListKinds } from './rich-text-lines';
 import { isValidImageMagicBytes } from '../../lib/parsers/image-validator';
 import { sanitizeSvg } from '../../lib/parsers/svg-sanitizer';
 
@@ -566,23 +566,44 @@ export class RichTextSanitizerService {
      * view passes through here, so all of them have the shape.
      */
     private normalizeTaskRows(root: HTMLElement): void {
-        for (const row of Array.from(root.querySelectorAll('li[data-task]'))) {
+        for (const row of Array.from(root.querySelectorAll<HTMLElement>('li[data-task]'))) {
             const checkbox: ChildNode | null = row.querySelector(':scope > input[type="checkbox"]');
-            const content = Array.from(row.childNodes)
-                .filter((node) => node !== checkbox && !isNestedList(node));
-            // A span holding a paragraph -- what a loose markdown task item
-            // parses to -- no longer reaches here: the inline-wrapper pass has
-            // already moved the paragraph out of it, so a lone span is inline.
-            if (content.length === 1 && content[0].nodeName === 'SPAN') continue;
-            const span = this.document.createElement('span');
-            // A row's text is inline. A block among its content is flattened
-            // into it rather than nested, or the row would own a line and the
-            // block would own one too, and the same text would belong to both.
-            flattenIntoRowText(content, span);
-            // The row's own nested list renders under its text, so the span
-            // goes before it.
-            row.insertBefore(span, Array.from(row.childNodes).find((node) => isNestedList(node)) ?? null);
+            const [own, ...later] = rowRunsOf(row, checkbox);
+            let previous = row;
+            for (const run of later) {
+                const next = this.rowLike(row, checkbox);
+                next.append(...run.content, ...run.lists);
+                previous.after(next);
+                previous = next;
+                this.gatherRowText(next, run.content);
+            }
+            this.gatherRowText(row, own.content);
         }
+    }
+
+    /** Gather a task row's content into the span its text lives in, before its nested lists. */
+    private gatherRowText(row: HTMLElement, content: readonly Node[]): void {
+        // A span holding a paragraph -- what a loose markdown task item
+        // parses to -- no longer reaches here: the inline-wrapper pass has
+        // already moved the paragraph out of it, so a lone span is inline.
+        if (content.length === 1 && content[0].nodeName === 'SPAN') return;
+        const span = this.document.createElement('span');
+        // A row's text is inline. A block among its content is flattened
+        // into it rather than nested, or the row would own a line and the
+        // block would own one too, and the same text would belong to both.
+        flattenIntoRowText(content, span);
+        // The row's own nested list renders under its text, so the span
+        // goes before it.
+        row.insertBefore(span, Array.from(row.childNodes).find((node) => isNestedList(node)) ?? null);
+    }
+
+    /** A new task row in the state of `row`, for the content after its nested list (see rowRunsOf). */
+    private rowLike(row: HTMLElement, checkbox: ChildNode | null): HTMLElement {
+        const next = this.document.createElement('li');
+        next.dataset['task'] = '';
+        if (row.dataset['checked'] !== undefined) next.dataset['checked'] = row.dataset['checked'];
+        if (checkbox) next.appendChild(checkbox.cloneNode());
+        return next;
     }
 
     /**
@@ -622,7 +643,9 @@ export class RichTextSanitizerService {
                 run = [];
                 continue;
             }
-            if (node.nodeType === Node.TEXT_NODE && (node.textContent ?? '').trim() === '') continue;
+            // Blank text between two of the run's nodes is the space between
+            // their words: left outside the paragraph, "<b>a</b> <i>b</i>" read "ab".
+            if (run.length === 0 && node.nodeType === Node.TEXT_NODE && (node.textContent ?? '').trim() === '') continue;
             if (node.nodeName === 'INPUT') continue;
             run.push(node);
         }

@@ -55,6 +55,25 @@ describe('RichTextSanitizerService — task row shape', () => {
         expect(row.querySelector(':scope > ul > li[data-task] > span')?.textContent).toBe('child');
     });
 
+    it.each([
+        ['text', '<ul data-task-list><li data-task data-checked="true"><input type="checkbox" checked>a'
+            + '<ul data-task-list><li data-task><input type="checkbox">b</li></ul>c</li></ul>', 'abc'],
+        ['a paragraph, and a second list after it', '<ul data-task-list><li data-task data-checked="true"><input type="checkbox" checked><span>a</span>'
+            + '<ul><li>b</li></ul><p>c</p><ul><li>d</li></ul></li></ul>', 'abcd'],
+    ])('starts the next row with %s after a row nested list, every word kept in order', (_name, html, words) => {
+        // Gathered into the row's text, which shows above its nested list, the
+        // words after the list moved ahead of it.
+        const holder = document.createElement('div');
+        holder.innerHTML = service.sanitize(html);
+        const rows = holder.querySelectorAll(':scope > ul > li[data-task]');
+
+        expect(holder.textContent).toBe(words);
+        expect(rows).toHaveLength(2);
+        expect(rows[1].getAttribute('data-checked')).toBe('true');
+        expect(rows[1].querySelector(':scope > input[type="checkbox"]')?.hasAttribute('checked')).toBe(true);
+        expect(service.sanitize(holder.innerHTML)).toBe(holder.innerHTML);
+    });
+
     it('gives a row with no text a span to hold the caret', () => {
         const row = rowOf('<ul data-task-list><li data-task><input type="checkbox"></li></ul>');
 
@@ -1876,5 +1895,28 @@ describe('RichTextSanitizerService - a blockquote holds line blocks, never bare 
         const once = service.sanitize('<blockquote>a<br>b</blockquote>');
         expect(service.sanitize(once)).toBe(once);
         expect(service.sanitize('<blockquote><p>a</p><p><br></p></blockquote>')).toBe('<blockquote><p>a</p><p><br></p></blockquote>');
+    });
+});
+
+describe('RichTextSanitizerService — loose text given a line of its own', () => {
+    let service: RichTextSanitizerService;
+
+    beforeEach(() => {
+        TestBed.configureTestingModule({ providers: [RichTextSanitizerService] });
+        service = TestBed.inject(RichTextSanitizerService);
+    });
+
+    it.each([
+        ['a list item', '<ul><li><b>a</b> <i>b</i> <code>c</code><p>d</p></li></ul>'],
+        ['a div', '<div><b>a</b> <i>b</i> <code>c</code><p>d</p></div>'],
+        ['a quote', '<blockquote><b>a</b> <i>b</i> <code>c</code><p>d</p></blockquote>'],
+    ])('keeps the spaces between the words of loose text in %s', (_name, html) => {
+        // Blank text between inline elements was left out of the new paragraph,
+        // so "a b c" read "abc".
+        const holder = document.createElement('div');
+        holder.innerHTML = service.sanitize(html);
+
+        expect(holder.querySelector('p')?.textContent).toBe('a b c');
+        expect(service.sanitize(holder.innerHTML)).toBe(holder.innerHTML);
     });
 });
