@@ -328,12 +328,15 @@ const INLINE_ANCESTORS = new Set(['a', 'span', 'strong', 'b', 'em', 'i', 'u', 's
 
 /**
  * A quote's lines without its blank ones -- except inside a fenced code block,
- * where a blank row and trailing spaces are content. Filtering every line
- * deleted the blank rows of each quoted code block on the first save.
+ * where a blank row and trailing spaces are content, and between two table
+ * rows, where the blank line is what ends one table. Filtering every line
+ * deleted the blank rows of each quoted code block, and fused two tables in a
+ * quote into one whose second header read back as a data row.
  */
 function quoteBodyLines(inner: string): string[] {
     const lines: string[] = [];
     let fence: string | null = null;
+    let skippedBlank = false;
     for (const raw of inner.split('\n')) {
         const marker = /^\s*(`{3,}|~{3,})/.exec(raw)?.[1] ?? null;
         if (fence) {
@@ -343,7 +346,13 @@ function quoteBodyLines(inner: string): string[] {
         }
         if (marker) fence = marker;
         const line = raw.trimEnd();
-        if (line) lines.push(line);
+        if (!line) {
+            skippedBlank = lines.length > 0;
+            continue;
+        }
+        if (skippedBlank && line.startsWith('|') && (lines.at(-1) ?? '').startsWith('|')) lines.push('');
+        skippedBlank = false;
+        lines.push(line);
     }
     return lines;
 }

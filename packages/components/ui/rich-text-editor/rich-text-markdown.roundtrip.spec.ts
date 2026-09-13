@@ -275,6 +275,19 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         expect(saved(once)).toBe(once);
     });
 
+    it('keeps two tables side by side inside a quote as two tables', () => {
+        // The quote dropped the blank line between them, so the second table's
+        // header and separator read back as rows of the first.
+        const table = (a: string, b: string): string =>
+            `<table><tbody><tr><td>${a}</td><td>${b}</td></tr><tr><td>${a}2</td><td>${b}2</td></tr></tbody></table>`;
+        const once = saved(`<blockquote>${table('a', 'b')}${table('c', 'd')}</blockquote>`);
+        const out = read(once);
+
+        expect(out.querySelectorAll('blockquote > table')).toHaveLength(2);
+        expect(out.textContent).not.toContain('---');
+        expect(saved(once)).toBe(once);
+    });
+
     it('writes no start attribute for a list that counts from one', () => {
         expect(read(service.toHtml('1. one\n2. two')).querySelector('ol')?.hasAttribute('start')).toBe(false);
     });

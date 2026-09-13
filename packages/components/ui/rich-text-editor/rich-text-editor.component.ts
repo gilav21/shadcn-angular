@@ -7171,6 +7171,9 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (list?.dataset['taskList'] !== undefined) {
             fallback = this.unwrapList(list);
         } else if (list) {
+            // A row is one line of text, so flattening an item that holds a rule
+            // would delete the rule. The command stands down rather than lose it.
+            if (this.itemsHoldARule(list)) return;
             this.addTaskMarkers(list);
         } else {
             const created = this.wrapLinesInList(lines, 'ul');
@@ -7269,6 +7272,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             kept.unshift(empty);
         }
         return kept;
+    }
+
+    /** Whether any item of `list` holds a rule of its own, outside the item's sub-lists. */
+    private itemsHoldARule(list: HTMLElement): boolean {
+        return Array.from(list.children).some((item) =>
+            Array.from(item.querySelectorAll('hr')).some((rule) => rule.closest('li') === item));
     }
 
     private addTaskMarkers(list: HTMLElement): void {

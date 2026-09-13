@@ -3083,6 +3083,18 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
             expect(editor.querySelector('p pre')).toBeNull();
         });
 
+        it('a task list leaves a list whose item holds a rule as it is, rather than delete the rule', () => {
+            component.writeValue('<ul><li><p>a</p><hr><p>b</p></li></ul>');
+            fixture.detectChanges();
+            const before = editor.innerHTML;
+            caretIn(editor.querySelector('li > p')!.firstChild as Text, 1);
+
+            component.onFormatCommand('taskList');
+
+            expect(editor.innerHTML).toBe(before);
+            expect(editor.querySelector('li hr')).not.toBeNull();
+        });
+
         it('a task list flattens an item\'s quote into the row, one space between its lines', () => {
             component.writeValue('<ul><li><blockquote><p>one</p><p>two</p></blockquote></li><li>z</li></ul>');
             fixture.detectChanges();
