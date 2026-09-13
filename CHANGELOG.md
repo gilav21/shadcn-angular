@@ -323,11 +323,12 @@ means no policy and today's behaviour exactly.
   A row indented under an item, or carried under it by an outdent, went into
   the item's first sub-list of that tag, ahead of rows already in a later one,
   and an outdent could leave a plain item inside a task list until reload. It
-  now goes after everything the item holds, in a list of its own kind.
+  now goes after everything the item holds, in a list of its own kind, and a
+  numbered row keeps counting past a list of another kind.
 - **The slash menu acts on the line it was typed in.** On an item holding a
   sub-list, a table or a code block, the caret was put at the end of the
   nested block, so a list, quote or inline-code command acted on the sub-list's
-  last item or did nothing.
+  last item or did nothing, also when the item's own line was blank.
 - **A list holds one kind of item.** A save writes an item by its list's kind,
   so a task row outdented into a plain list, pasted into one or promoted there
   by a join saved as a plain bullet and lost its checkbox, and a plain item in a
@@ -369,9 +370,24 @@ means no policy and today's behaviour exactly.
     tags into visible text.
   - Emphasis next to an empty span keeps its formatting.
   - A details block with only a summary no longer gains an empty paragraph.
+  - Italic runs side by side stay italic; code written inside a heading or with
+    a blank line keeps its spaces and newlines; a code block whose language is
+    "c++" or "c#" stays a code block; an image whose alt text holds "]" stays an
+    image.
+  - A quote keeps its paragraphs apart beside a list, a heading or a code
+    block, where two of them read back as one; a quoted line starting with "|"
+    or the text after a quoted code block no longer gains an empty line; and a
+    line break nested inside a quote stays a line break.
+  - Text is saved as the page shows it: a span that carries nothing is dropped
+    and its text joined with the text beside it, and blanks and newlines in the
+    markup become the single space they show, so syntax split across spans
+    (`~<span>~</span>~`, `&<span>lt;</span>`) and entity-looking text with no
+    semicolon, such as `&copy`, stay text.
   - An unclosed `:::details` in a list item stays text in that item instead of
-    pulling the rest of the document into it, and details blocks nested past
-    32 levels stay text, so deeply nested input no longer stalls the page.
+    pulling the rest of the document into it, or a later item or paragraph
+    that happens to be followed by a closer; and details blocks nested past 32
+    levels, counting the quotes and list items between them, stay text, so
+    deeply nested input no longer stalls the page.
   - A quote holding inline code with a backtick run, or strikethrough starting
     with a tilde, no longer gains an empty line on every save; the paragraph
     after a table in a list item inside a quote is no longer read as its row.

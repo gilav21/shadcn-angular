@@ -4470,8 +4470,8 @@
       "lines": 88
     },
     "rich-text-editor/addons/slash-commands/rich-text-slash-commands.utils.spec.ts": {
-      "bytes": 22451,
-      "lines": 505
+      "bytes": 23024,
+      "lines": 517
     },
     "rich-text-editor/addons/slash-commands/rich-text-slash-commands.utils.ts": {
       "bytes": 15475,
@@ -4586,12 +4586,12 @@
       "lines": 301
     },
     "rich-text-editor/rich-text-editor.component.spec.ts": {
-      "bytes": 553598,
-      "lines": 12539
+      "bytes": 555555,
+      "lines": 12574
     },
     "rich-text-editor/rich-text-editor.component.ts": {
-      "bytes": 367018,
-      "lines": 8597
+      "bytes": 367510,
+      "lines": 8604
     },
     "rich-text-editor/rich-text-editor.fixtures.ts": {
       "bytes": 818,
@@ -4602,8 +4602,8 @@
       "lines": 437
     },
     "rich-text-editor/rich-text-editor.properties.spec.ts": {
-      "bytes": 36774,
-      "lines": 778
+      "bytes": 37415,
+      "lines": 788
     },
     "rich-text-editor/rich-text-editor.stories.ts": {
       "bytes": 23531,
@@ -4634,28 +4634,28 @@
       "lines": 163
     },
     "rich-text-editor/rich-text-lines.spec.ts": {
-      "bytes": 26138,
-      "lines": 518
+      "bytes": 26356,
+      "lines": 520
     },
     "rich-text-editor/rich-text-lines.ts": {
-      "bytes": 28268,
-      "lines": 651
+      "bytes": 28953,
+      "lines": 667
     },
     "rich-text-editor/rich-text-locales.ts": {
       "bytes": 34824,
       "lines": 888
     },
     "rich-text-editor/rich-text-markdown.roundtrip.spec.ts": {
-      "bytes": 41200,
-      "lines": 805
+      "bytes": 48781,
+      "lines": 957
     },
     "rich-text-editor/rich-text-markdown.service.spec.ts": {
-      "bytes": 116269,
-      "lines": 2306
+      "bytes": 119039,
+      "lines": 2349
     },
     "rich-text-editor/rich-text-markdown.service.ts": {
-      "bytes": 122199,
-      "lines": 2737
+      "bytes": 127647,
+      "lines": 2851
     },
     "rich-text-editor/rich-text-paste-normalizer.service.spec.ts": {
       "bytes": 106418,
