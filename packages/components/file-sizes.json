@@ -4586,12 +4586,12 @@
       "lines": 301
     },
     "rich-text-editor/rich-text-editor.component.spec.ts": {
-      "bytes": 539519,
-      "lines": 12304
+      "bytes": 540622,
+      "lines": 12322
     },
     "rich-text-editor/rich-text-editor.component.ts": {
-      "bytes": 365853,
-      "lines": 8597
+      "bytes": 366344,
+      "lines": 8603
     },
     "rich-text-editor/rich-text-editor.fixtures.ts": {
       "bytes": 818,

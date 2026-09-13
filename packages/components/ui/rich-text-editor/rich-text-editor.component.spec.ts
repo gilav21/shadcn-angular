@@ -3181,6 +3181,19 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
             expect(editor.querySelector('pre > code')?.textContent).toBe('a\nb');
         });
 
+        it('a keypress puts a caret left beside an empty row checkbox before the row seed, not after it', () => {
+            // After the seed, whatever the author typed began with a space.
+            component.writeValue('<ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>&nbsp;</span></li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('li[data-task]')!, 0);
+
+            component.onKeydown(new KeyboardEvent('keydown', { key: 'Shift' }));
+
+            const selection = document.getSelection()!;
+            expect(selection.anchorNode).toBe(editor.querySelector('li[data-task] > span')!.firstChild);
+            expect(selection.anchorOffset).toBe(0);
+        });
+
         it('a keypress puts a caret left after a row at the end of its text, not after its first word', () => {
             component.writeValue('<ul data-task-list><li data-task data-checked="false"><input type="checkbox">'
                 + '<span>hello <b>world</b></span></li></ul>');
@@ -6054,6 +6067,11 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         expect(editor.querySelectorAll(':scope > ul > li[data-task]')).toHaveLength(2);
         expect(editor.querySelector('li[data-task] li[data-task], li p')).toBeNull();
         expect(editor.querySelector('li[data-task] > span')?.textContent).toBe('parent');
+        // Typing starts before the row's seed, so the text gains no leading space.
+        const selection = document.getSelection()!;
+        const moved = editor.querySelectorAll(':scope > ul > li[data-task]')[1].querySelector(':scope > span')!;
+        expect(selection.anchorNode).toBe(moved.firstChild);
+        expect(selection.anchorOffset).toBe(0);
     });
 
     it('Enter is a no-op when there is no active selection', () => {

@@ -2150,8 +2150,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         // does. Leaving the list from there built a paragraph inside the parent
         // row, which the next keypress moved into that row's text.
         if (this.moveItemOutOneLevel(taskLi)) {
-            const span = taskLi.querySelector<HTMLElement>(':scope > span');
-            if (span) this.placeCaretAtStartOfBlock(span);
+            // Inside the row's seed, before it, as a new row puts it: placed
+            // after the seed, the author's text followed a leading space.
+            const anchor = taskLi.querySelector<HTMLElement>(':scope > span')?.firstChild;
+            if (anchor) this.setSelectionRange(selection, anchor, 0);
             return;
         }
         const parentList = taskLi.parentElement;
@@ -7900,7 +7902,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (!selection) return;
 
         const target = this.emptyBlockCaretTarget(block);
-        const offset = this.isEmptyBlock(block) ? target.data.length : 0;
+        // After an invisible zero-width anchor, which a browser will not type
+        // into from its start; before a row's non-breaking-space seed, which
+        // shows. After the seed, everything the author typed followed a space.
+        const afterAnchor = this.isEmptyBlock(block) && !target.data.includes('\u00A0');
+        const offset = afterAnchor ? target.data.length : 0;
 
         const range = this.document.createRange();
         range.setStart(target, offset);
