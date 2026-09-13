@@ -1,4 +1,5 @@
 import { Injectable, inject } from '@angular/core';
+import { isPhrasing } from './rich-text-lines';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 
 /**
@@ -89,6 +90,39 @@ function parseListLine(line: string): ParsedListLine | null {
     return null;
 }
 
+/** How a line moves the depth of the details blocks it is inside: up at an opener, down at a closer. */
+function detailsDepthChange(line: string): number {
+    const trimmed = line.trim();
+    if (toggleOpener(trimmed)) return 1;
+    return trimmed === ':::' ? -1 : 0;
+}
+
+/**
+ * Hold a line inside a details block that opened in an item's continuation,
+ * and return the depth after it.
+ */
+function holdInsideDetails(line: string, depth: number, continuation: string[], pendingBlank: string[]): number {
+    continuation.push(...pendingBlank, line);
+    pendingBlank.length = 0;
+    return Math.max(0, depth + detailsDepthChange(line));
+}
+
+/** Close the list levels that a line at `indent` of kind `type` does not continue. */
+function closeLevelsFor(stack: ListContext[], indent: number, type: ListType): void {
+    // Pop only DEEPER levels. Popping the current one too (`>=`) threw away the
+    // list a sibling belongs to, so every line started a fresh one — an ordered
+    // list renumbered from 1 on every row, and a screen reader announced
+    // "list, 1 item" over and over.
+    while (stack.length > 0 && (stack.at(-1)?.indent ?? -1) > indent) {
+        stack.pop();
+    }
+    // A same-indent line of a DIFFERENT kind (bullet after numbered) is its own
+    // list, so that one context is replaced rather than appended.
+    if (stack.at(-1)?.indent === indent && stack.at(-1)?.type !== type) {
+        stack.pop();
+    }
+}
+
 function pushListItem(
     stack: ListContext[],
     rootLists: ListContext[],
@@ -148,7 +182,15 @@ function absorbNonListLine(
 ): boolean {
     if (!openList?.items.length) return false;
     if (INDENTED_FENCE_TOKEN.test(line)) {
-        openList.items[openList.items.length - 1] += line.trim();
+        // Into the continuation once one has started, among the item's other
+        // blocks: glued onto the item's first line, the code jumped ahead of the
+        // details block it sat in.
+        if (continuation.length > 0) {
+            continuation.push(...pendingBlank, line);
+            pendingBlank.length = 0;
+        } else {
+            openList.items[openList.items.length - 1] += line.trim();
+        }
         return true;
     }
     if (line.trim() === '') {
@@ -224,8 +266,15 @@ function flushListStack(
  */
 function listStartOf(list: Element): number {
     const start = Number.parseInt(list.getAttribute('start') ?? '', 10);
-    return Number.isInteger(start) && start >= 0 ? start : 1;
+    return Number.isInteger(start) && start >= 0 && start <= MAX_LIST_NUMBER ? start : 1;
 }
+
+/**
+ * The largest item number the parser reads: nine digits, as CommonMark allows.
+ * Past it an item's number is written as the first item's, which the parser
+ * ignores after the first line, rather than as text the next save keeps.
+ */
+const MAX_LIST_NUMBER = 999_999_999;
 
 /** Markdown written on one line: each line trimmed, blank ones dropped, the rest joined by a space. */
 function oneLine(text: string): string {
@@ -275,36 +324,39 @@ function leadingBlockContinuation(content: string, indent = ''): string {
 }
 
 /**
- * The prefix and title of a line that opens a details block, or null.
+ * The title of a line that opens a details block, or null.
  *
- * The prefix may not hold a quote marker: this pass runs before quotes are
- * stripped, so a details block inside a quote was taken here with its "> "
- * markers still in its body, which parsed as a quote of its own and gained a
- * level on every save. A quoted block is parsed inside its quote instead.
- * At least one space or tab separates the keyword from the title, which may be
- * empty.
+ * Only at the start of a line. A details block nested in a list item or a quote
+ * is indented or marked there, and is parsed inside its item or quote once those
+ * are stripped. Taken here instead, its body kept the item's indent, so its
+ * headings and quotes came back as text, and inside a quote it kept the "> "
+ * markers and gained a quote level on every save. The title may be empty, and a
+ * quote trims the space after the keyword, so the keyword may end the line.
  */
-function toggleOpener(line: string): { prefix: string; title: string } | null {
-    const at = line.indexOf(':::details');
-    if (at < 0) return null;
-    const prefix = line.slice(0, at);
-    const rest = line.slice(at + ':::details'.length);
-    if (prefix.includes('>') || !/^[ \t]/.test(rest)) return null;
-    return { prefix, title: rest.trimStart() };
+function toggleOpener(line: string): { title: string } | null {
+    if (!line.startsWith(':::details')) return null;
+    const rest = line.slice(':::details'.length);
+    if (rest !== '' && !/^[ \t]/.test(rest)) return null;
+    return { title: rest.trimStart() };
 }
 
-/** The index of the line closing the details block whose body starts at `from`, or -1. */
-function toggleCloserFor(lines: readonly string[], from: number): number {
-    let depth = 0;
-    for (let at = from; at < lines.length; at++) {
-        if (toggleOpener(lines[at])) {
-            depth++;
-        } else if (lines[at].trim() === ':::') {
-            if (depth === 0) return at;
-            depth--;
+/**
+ * The closing line of every details block, keyed by its opening line, in one
+ * pass. Scanning ahead from each opener instead cost a pass per opener, which
+ * is quadratic in a document of unclosed openers.
+ */
+function pairToggleBlocks(lines: readonly string[]): Map<number, number> {
+    const pairs = new Map<number, number>();
+    const open: number[] = [];
+    for (const [at, line] of lines.entries()) {
+        if (toggleOpener(line)) {
+            open.push(at);
+        } else if (line.trimEnd() === ':::') {
+            const opener = open.pop();
+            if (opener !== undefined) pairs.set(opener, at);
         }
     }
-    return -1;
+    return pairs;
 }
 
 /**
@@ -330,8 +382,90 @@ function delimit(inner: string, mark: string): string {
  * next save. `_**x** y_` has one reading.
  */
 function italicMarkFor(inner: string): string {
+    return edgedWithAsterisk(inner) ? '_' : '*';
+}
+
+/**
+ * The bold delimiter for `inner`: underscores when an asterisk is at its edge.
+ *
+ * Bold ending in italic beside bold opening with one was `**a *h*** ***f* g**`,
+ * and the reader paired the two `***` runs across the space between them into
+ * an empty bold-italic, scrambling both. `__a *h*__ __*f* g__` has one reading.
+ */
+function boldMarkFor(inner: string): string {
+    return edgedWithAsterisk(inner) ? '__' : '**';
+}
+
+function edgedWithAsterisk(inner: string): boolean {
     const body = inner.trim();
-    return body.startsWith('*') || body.endsWith('*') ? '_' : '*';
+    return body.startsWith('*') || body.endsWith('*');
+}
+
+/**
+ * Emphasis for `inner`: delimiters, or the tag itself inside a word.
+ *
+ * The parser does not read delimiters with a letter on their outer side, so
+ * `un*believ*able` came back as literal asterisks. Inside a word the tag pair
+ * is written verbatim, as `<u>` always is, and read back unchanged.
+ */
+function emphasisFor(element: Element, inner: string, tag: string, mark: string): string {
+    return touchesWord(element) ? `<${tag}>${inner}</${tag}>` : delimit(inner, mark);
+}
+
+/** Whether an inline element sits against a letter or digit on either side. */
+function touchesWord(element: Element): boolean {
+    return /[\p{L}\p{N}]$/u.test(textBeside(element, 'previousSibling'))
+        || /^[\p{L}\p{N}]/u.test(textBeside(element, 'nextSibling'));
+}
+
+/**
+ * The text beside a node on its line, on one side.
+ *
+ * An inline wrapper does not end the line: in `<span><em>x</em></span>y` the
+ * y is against the emphasis. Asking the emphasis's own siblings alone wrote
+ * `*x*y`, which reads back as literal asterisks.
+ */
+function textBeside(node: Node, side: 'previousSibling' | 'nextSibling'): string {
+    let at: Node = node;
+    while (!at[side] && at.parentNode?.nodeType === Node.ELEMENT_NODE && isPhrasing(at.parentNode)) {
+        at = at.parentNode;
+    }
+    const beside = at[side];
+    if (beside?.nodeType !== Node.TEXT_NODE && beside?.nodeType !== Node.ELEMENT_NODE) return '';
+    return beside.textContent ?? '';
+}
+
+/** The level of the heading a line opens, or 0: one to six "#", then a space, a tab or the line's end. */
+function headingLevelOf(line: string): number {
+    let level = 0;
+    while (level < line.length && line[level] === '#') level++;
+    if (level === 0 || level > 6) return 0;
+    if (level === line.length) return level;
+    return line[level] === ' ' || line[level] === '\t' ? level : 0;
+}
+
+/**
+ * `markdown` with each hard break written as a `<br>` tag.
+ *
+ * For a construct that is one line in markdown -- a heading, a summary, a task
+ * row. A hard break is two spaces and a newline, and inside one of those the
+ * newline ended the construct: the heading lost its second half, emphasis
+ * around the break came back as stray asterisks, and a task row's text split
+ * into pieces on every save. The tag is read back as the break it was.
+ */
+function breaksAsTags(markdown: string): string {
+    return markdown.replaceAll(/ {2}\n[ \t]*/g, '<br>');
+}
+
+/**
+ * Whether a child of a list item is written on the item's marker line: inline
+ * content, or a paragraph with nothing before it, which shares the marker's line.
+ * A later paragraph is a line of its own, and one holding only a padding break
+ * written as the tag joined the item's lines back into one.
+ */
+function onMarkerLine(child: Node, before: readonly string[]): boolean {
+    if (isPhrasing(child)) return true;
+    return (child.nodeName === 'P' || child.nodeName === 'DIV') && before.every((part) => part.trim() === '');
 }
 
 /** Tags that apply the same emphasis, so one nested in another adds nothing. */
@@ -343,10 +477,10 @@ const INLINE_ANCESTORS = new Set(['a', 'span', 'strong', 'b', 'em', 'i', 'u', 's
 
 /**
  * A quote's lines without its blank ones -- except inside a fenced code block,
- * where a blank row and trailing spaces are content, and between two table
- * rows, where the blank line is what ends one table. Filtering every line
- * deleted the blank rows of each quoted code block, and fused two tables in a
- * quote into one whose second header read back as a data row.
+ * where a blank row and trailing spaces are content, and after a table row,
+ * where the blank line is what ends the table. Filtering every line deleted
+ * the blank rows of each quoted code block, and let the line after a quoted
+ * table -- another table, or text holding a pipe -- read back as its rows.
  */
 function quoteBodyLines(inner: string): string[] {
     const lines: string[] = [];
@@ -365,11 +499,36 @@ function quoteBodyLines(inner: string): string[] {
             skippedBlank = lines.length > 0;
             continue;
         }
-        if (skippedBlank && line.startsWith('|') && (lines.at(-1) ?? '').startsWith('|')) lines.push('');
+        if (skippedBlank && (lines.at(-1) ?? '').startsWith('|')) lines.push('');
         skippedBlank = false;
         lines.push(line);
     }
     return lines;
+}
+
+/**
+ * A `<br>` as markdown: a hard break, or the tag inside formatting in a quote.
+ *
+ * A quote reads each of its lines as a line of its own, so a break between runs
+ * is rightly a line ending. Inside bold or italic it is not: the emphasis could
+ * not close across the line ending, and in a quote that also held a block it
+ * came back as literal asterisks. The tag keeps the break inside the emphasis.
+ */
+function breakToMarkdown(br: Element): string {
+    return br.closest('blockquote') && insideWrittenFormatting(br) ? '<br>' : '  \n';
+}
+
+/**
+ * Whether a break sits inside inline formatting a save writes around it.
+ *
+ * A span is written as its text alone, so a break in one is between runs once
+ * read back: written as the tag, the next save wrote it as a line ending.
+ */
+function insideWrittenFormatting(br: Element): boolean {
+    for (let at = br.parentElement; at && isPhrasing(at); at = at.parentElement) {
+        if (at.nodeName !== 'SPAN') return true;
+    }
+    return false;
 }
 
 function buildListContextHtml(ctx: ListContext): string {
@@ -557,32 +716,34 @@ function stripCodeSpanPadding(code: string): string {
  * came back as "2  3  4" in italics, and a line of prose beginning "# " became
  * a heading -- ordinary text corrupted on save, with no warning.
  *
- * Deliberately minimal. Measured by round-tripping every ASCII punctuation
- * character in both positions: only these eight cases actually change meaning,
- * so only these are escaped. Escaping the full CommonMark set would litter
- * documents with backslashes nobody typed.
+ * Kept to what this parser reads as syntax, so a document is not littered with
+ * backslashes nobody typed. An earlier list required a space after each line
+ * marker, and missed the shapes the parser takes without one: "2024." or "-" on
+ * a line of their own, ">50%", "---", "~~a~~", ":::details", "[t](u)" came back
+ * as a list, a quote, a rule, strikethrough, a details block or a link.
  */
 function escapeMarkdownText(text: string): string {
     // The BACKSLASH goes first, and it is not optional. protectEscapes consumes
     // a backslash before ASCII punctuation on the way back in, so an unescaped
     // one is eaten: every \\ in prose lost a backslash on the FIRST save and
-    // kept eroding (a Windows path or a regex bleeds one per save). Worse, a
-    // trailing backslash sat directly before the raw "</u>" that the verbatim
-    // and styled-span paths emit, so "\\<" parked the element's own closing
-    // bracket: the tag was decapitated, became literal text, and by the next
-    // cycle the content was gone. Escaping it first also stops the backslashes
-    // added below from being doubled.
+    // kept eroding (a Windows path or a regex bleeds one per save). Escaping it
+    // first also stops the backslashes added below from being doubled.
     return text
         .replaceAll('\\', String.raw`\\`)
         .replaceAll(/([*_`])/g, String.raw`\$1`)
-        .replaceAll(/^([ \t]*)([*#+>-])( )/gm, String.raw`$1\$2$3`)
-        // "2024. A good year" is prose; unescaped it re-parsed as an ordered
-        // list on the next load and the number was gone for good.
-        .replaceAll(/^([ \t]*)(\d{1,9})\.( )/gm, String.raw`$1$2\.$3`)
+        // A run of tildes opens strikethrough or a fence; a single one does not.
+        .replaceAll(/~(?=~)|(?<=~)~/g, String.raw`\~`)
+        // A bracket pair on one line: a link, an image or a task marker. Both
+        // halves, or the unescaped closer ended a link's text early.
+        .replaceAll(/\[([^\]\n]{0,4096})\]/g, String.raw`\[$1\]`)
         // A literal "<b>" in prose (an author writing ABOUT markup) became a
-        // real element on reload. Only a tag-shaped "<" is escaped, so "a < b"
-        // stays as typed; CommonMark reads "\<" as the literal character.
-        .replaceAll(/<(?=[a-z/])/gi, String.raw`\<`);
+        // real element on reload. Only a tag-shaped "<" is escaped.
+        .replaceAll(/<(?=[a-z/])/gi, String.raw`\<`)
+        .replaceAll(/^([ \t]*)(#{1,6}|[+-])(?=[ \t]|$)/gm, String.raw`$1\$2`)
+        .replaceAll(/^([ \t]*)>/gm, String.raw`$1\>`)
+        .replaceAll(/^([ \t]*)(\d{1,9})\.(?=[ \t]|$)/gm, String.raw`$1$2\.`)
+        .replaceAll(/^([ \t]*)-(?=-)/gm, String.raw`$1\-`)
+        .replaceAll(/^([ \t]*):::/gm, String.raw`$1\:::`);
 }
 
 @Injectable({ providedIn: 'root' })
@@ -929,18 +1090,19 @@ export class RichTextMarkdownService {
         // wrap, so a list, heading, quote or table inside a toggle is real
         // content.
         const lines = html.split('\n');
+        const pairs = pairToggleBlocks(lines);
         const out: string[] = [];
         let at = 0;
         while (at < lines.length) {
             const open = toggleOpener(lines[at]);
-            const close = open ? toggleCloserFor(lines, at + 1) : -1;
+            const close = open ? (pairs.get(at) ?? -1) : -1;
             if (!open || close < 0) {
                 out.push(lines[at]);
                 at++;
                 continue;
             }
             const body = this.parseDetailsBody(lines.slice(at + 1, close).join('\n').trim());
-            out.push(`${open.prefix}<details open><summary>${open.title}</summary>${body}</details>`);
+            out.push(`<details open><summary>${open.title}</summary>${body}</details>`);
             at = close + 1;
         }
         return out.join('\n');
@@ -974,7 +1136,12 @@ export class RichTextMarkdownService {
         // left text beside a block bare inside the details element, where the
         // document-level paragraph pass split it apart: a stray line break in
         // a paragraph and one more empty paragraph on each save.
-        return this.parseNestedBlocks(content)
+        return this.blocksWithParagraphs(this.parseNestedBlocks(content));
+    }
+
+    /** Parsed blocks with each chunk of loose text between blank lines given a paragraph of its own. */
+    private blocksWithParagraphs(html: string): string {
+        return html
             .split(/\n{2,}/)
             .map((chunk) => this.wrapLooseLines(chunk.trim()))
             .filter(Boolean)
@@ -1069,10 +1236,12 @@ export class RichTextMarkdownService {
      * Parse headings (# - ######).
      */
     private parseHeadings(html: string): string {
-        return html.replaceAll(/^(#{1,6})\s+(\S.*|\s)$/gm, (_, hashes, content) => {
-            const level = hashes.length;
-            return `<h${level}>${content}</h${level}>`;
-        });
+        // A line scan. The pattern it replaced matched "\s+" across the line
+        // end, so an empty heading took the paragraph after it as its text.
+        return html.split('\n').map((line) => {
+            const level = headingLevelOf(line);
+            return level === 0 ? line : `<h${level}>${line.slice(level).trim()}</h${level}>`;
+        }).join('\n');
     }
 
     /**
@@ -1095,6 +1264,8 @@ export class RichTextMarkdownService {
         const continuation: string[] = [];
         let continuationOwner: ListContext | undefined;
         const pendingBlank: string[] = [];
+        // Details blocks open in the continuation being held.
+        let detailsDepth = 0;
 
         // The continuation owner is captured when the continuation STARTS:
         // a following sibling pops the deeper levels before the flush runs, so
@@ -1104,6 +1275,7 @@ export class RichTextMarkdownService {
             const { block, orphanBlanks } = takeContinuation(continuation, pendingBlank);
             const openList = continuationOwner;
             continuationOwner = undefined;
+            detailsDepth = 0;
             if (block && openList?.items.length) {
                 openList.items[openList.items.length - 1] += this.parseListContinuation(block, openList.indent);
             }
@@ -1111,12 +1283,20 @@ export class RichTextMarkdownService {
         };
 
         for (const line of lines) {
+            // A details block opened in an item's continuation owns every line
+            // until it closes. A list-looking line inside it is the block's own
+            // list: taken as the next item, it cut the block off from its closer.
+            if (detailsDepth > 0) {
+                detailsDepth = holdInsideDetails(line, detailsDepth, continuation, pendingBlank);
+                continue;
+            }
             const parsed = parseListLine(line);
 
             if (!parsed) {
                 const openList = stack.at(-1);
                 if (absorbNonListLine(line, openList, continuation, pendingBlank)) {
                     continuationOwner ??= openList;
+                    detailsDepth = Math.max(0, detailsDepth + detailsDepthChange(line));
                     continue;
                 }
                 const orphans = flushContinuation();
@@ -1126,20 +1306,7 @@ export class RichTextMarkdownService {
             }
 
             const { indent, type, content } = parsed;
-
-            // Pop only DEEPER levels. Popping the current one too (`>=`) threw
-            // away the list a sibling belongs to, so every line started a fresh
-            // one — an ordered list renumbered from 1 on every row, and a screen
-            // reader announced "list, 1 item" over and over.
-            while (stack.length > 0 && (stack.at(-1)?.indent ?? -1) > indent) {
-                stack.pop();
-            }
-            // A same-indent line of a DIFFERENT kind (bullet after numbered) is
-            // its own list, so that one context is replaced rather than appended.
-            if (stack.at(-1)?.indent === indent && stack.at(-1)?.type !== type) {
-                stack.pop();
-            }
-
+            closeLevelsFor(stack, indent, type);
             flushContinuation();
             pushListItem(stack, rootLists, type, content, indent, parsed.number ?? 1);
         }
@@ -1166,16 +1333,12 @@ export class RichTextMarkdownService {
             .trim();
         if (!dedented) return '';
 
-        let html = this.parseNestedBlocks(dedented);
-        html = html.trim();
-        if (!html) return '';
-
-        // A continuation that produced no block element is loose text -- a
-        // second paragraph of the item. Wrapping it keeps it a separate block:
-        // returned bare it was concatenated onto the item's first line with no
-        // separator, so "Alpha" and "Second" fused into "AlphaSecond" and a
-        // word was destroyed on EVERY save, one per paragraph per cycle.
-        return html.startsWith('<') ? html : `<p>${html}</p>`;
+        // Loose text becomes paragraphs, chunk by chunk. Returned bare it was
+        // concatenated onto the item's first line, so "Alpha" and "Second" fused
+        // into one word; and wrapped whole only when it did not start with a tag,
+        // text after a block kept its blank line inside the item, where the
+        // document-level paragraph pass split the list apart.
+        return this.blocksWithParagraphs(this.parseNestedBlocks(dedented));
     }
 
     /**
@@ -1537,7 +1700,7 @@ export class RichTextMarkdownService {
 
         const headingLevel = this.headingTagLevel(tagName);
         if (headingLevel > 0) {
-            return `\n${'#'.repeat(headingLevel)} ${inner}\n`;
+            return `\n${'#'.repeat(headingLevel)} ${breaksAsTags(inner)}\n`;
         }
 
         const inlineResult = this.inlineTagToMarkdown(tagName, inner, element);
@@ -1610,10 +1773,12 @@ export class RichTextMarkdownService {
         }
     }
 
-    /** Bold or italic delimiters around `inner`, or null for any other tag. */
+    /** Bold or italic markdown for `inner`, or null for any other tag. */
     private emphasisToMarkdown(tagName: string, inner: string, element: HTMLElement): string | null {
-        if (BOLD_TAGS.includes(tagName)) return this.insideEmphasis(element, BOLD_TAGS) ? inner : delimit(inner, '**');
-        if (ITALIC_TAGS.includes(tagName)) return this.insideEmphasis(element, ITALIC_TAGS) ? inner : delimit(inner, italicMarkFor(inner));
+        if (BOLD_TAGS.includes(tagName)) return this.insideEmphasis(element, BOLD_TAGS) ? inner : emphasisFor(element, inner, 'strong', boldMarkFor(inner));
+        if (ITALIC_TAGS.includes(tagName)) {
+            return this.insideEmphasis(element, ITALIC_TAGS) ? inner : emphasisFor(element, inner, 'em', italicMarkFor(inner));
+        }
         return null;
     }
 
@@ -1758,7 +1923,7 @@ export class RichTextMarkdownService {
             case 'div':
                 return `\n${inner}\n`;
             case 'br':
-                return '  \n';
+                return breakToMarkdown(element);
             case 'hr':
                 return '\n---\n';
             case 'table':
@@ -1816,13 +1981,9 @@ export class RichTextMarkdownService {
         // its lines with <br>, so on the way back every multi-line quote gained
         // two trailing spaces per line -- "> a  " -- which is a HARD break in
         // markdown, and the document was no longer a round-trip fixed point.
-        //
-        // KNOWN LIMIT: a hard break the author deliberately typed INSIDE a quote
-        // is indistinguishable from a soft one once parseBlockquotes has joined
-        // them, so it is normalised away here too. Telling them apart needs the
-        // join to stop conflating them, which is a change to that pass; between
-        // losing a rare deliberate break and corrupting every ordinary quote on
-        // every save, this is the better default.
+        // A break between runs is therefore a new line of the quote, the way the
+        // quote reads it back; one inside formatting is written as the tag (see
+        // breakToMarkdown).
         const quoteLines = quoteBodyLines(inner);
         // "> " with a space, so a nested quote emits "> > x" rather than
         // ">> x". parseBlockquotes strips one "> " per level and reads both,
@@ -1832,26 +1993,32 @@ export class RichTextMarkdownService {
     }
 
     private detailsToMarkdown(element: HTMLElement): string {
-        const summaryEl = element.querySelector('summary');
+        // Its own summary. An unscoped query found a nested details block's
+        // summary first, took its title, and dropped this block's own.
+        const summaryEl = element.querySelector(':scope > summary');
         // The summary's own markdown on one line: its text alone dropped every
         // image, link and emphasis in it on the first save.
-        const summaryText = summaryEl ? oneLine(this.nodeToMarkdown(summaryEl)) : 'Toggle';
+        // A summary is one line, so a break in it is written as the tag. With no
+        // summary the title stays empty: "Toggle" was written in its place, a
+        // word the author never typed.
+        const summaryText = summaryEl ? oneLine(breaksAsTags(this.nodeToMarkdown(summaryEl))) : '';
         const contentParts: string[] = [];
         for (const ch of Array.from(element.childNodes)) {
-            if (ch.nodeType === Node.ELEMENT_NODE && (ch as Element).tagName === 'SUMMARY') continue;
+            if (summaryEl?.isSameNode(ch)) continue;
             // A node, not its children — the same trap the list serializer fell
             // into: nodeToMarkdown walks a node's OWN children, so a bare text
             // node between blocks yielded nothing and its text vanished.
             contentParts.push(
                 ch.nodeType === Node.TEXT_NODE
-                    ? (ch.textContent ?? '')
+                    ? escapeMarkdownText(ch.textContent ?? '')
                     : this.elementToMarkdown(ch as HTMLElement),
             );
         }
         // Blocks in the body are separated by a blank line, as they are at document
         // level. A single newline let two paragraphs, or a paragraph and the line
         // after a rule, read back as one paragraph on the next save.
-        return `\n:::details ${summaryText}\n${contentParts.map(trimBlankLines).filter(Boolean).join('\n\n')}\n:::\n`;
+        const opener = summaryText ? `:::details ${summaryText}` : ':::details';
+        return `\n${opener}\n${contentParts.map(trimBlankLines).filter(Boolean).join('\n\n')}\n:::\n`;
     }
 
     /**
@@ -2008,7 +2175,8 @@ export class RichTextMarkdownService {
         const first = type === 'ol' ? listStartOf(listEl) : 1;
         items.forEach((li, index) => {
             const { content, nestedLists } = this.extractListItemContent(li, indent);
-            result.push(this.formatListItem(type, li as HTMLElement, content, indent, first + index));
+            const ordinal = first + index <= MAX_LIST_NUMBER ? first + index : first;
+            result.push(this.formatListItem(type, li as HTMLElement, content, indent, ordinal));
 
             // Every sub-list, in order. Only the last one was kept, so an item
             // holding two -- bullets under numbers, which indenting beside an
@@ -2036,11 +2204,14 @@ export class RichTextMarkdownService {
             // children, which is right for an element but yields nothing for the
             // bare text node a plain `<li>text</li>` holds — so every bullet's
             // text vanished from the saved markdown while the HTML looked fine.
-            childParts.push(
-                ch.nodeType === Node.TEXT_NODE
-                    ? (ch.textContent ?? '')
-                    : this.elementToMarkdown(ch as HTMLElement),
-            );
+            const part = ch.nodeType === Node.TEXT_NODE
+                ? escapeMarkdownText(ch.textContent ?? '')
+                : this.elementToMarkdown(ch as HTMLElement);
+            // The marker line is one line, so a break in what is written on it is
+            // written as the tag. As a hard break the next line read back as a
+            // paragraph of the item: emphasis around the break split in two, the
+            // space beside it was lost, and the item changed on every save.
+            childParts.push(onMarkerLine(ch, childParts) ? breaksAsTags(part) : part);
         }
         const joined = childParts.join('');
         const content = opensWithBlock(li) ? leadingBlockContinuation(joined, indent) : indentContinuation(joined, indent);
@@ -2050,7 +2221,7 @@ export class RichTextMarkdownService {
     private formatListItem(type: ListType, li: HTMLElement, content: string, indent: string, ordinal: number): string {
         if (type === 'task') {
             const checked = li.dataset['checked'] === 'true';
-            return `${indent}- [${checked ? 'x' : ' '}] ${content}\n`;
+            return `${indent}- [${checked ? 'x' : ' '}] ${breaksAsTags(content)}\n`;
         }
         if (type === 'ol') {
             return `${indent}${ordinal}. ${content}\n`;

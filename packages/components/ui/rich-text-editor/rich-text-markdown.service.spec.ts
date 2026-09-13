@@ -453,7 +453,9 @@ describe('RichTextMarkdownService', () => {
 
         it('uses default summary when details has no summary', () => {
             const html = '<details><p>hidden</p></details>';
-            expect(service.toMarkdown(html)).toBe(':::details Toggle\nhidden\n:::');
+            // No title rather than an invented one: "Toggle" was a word the author
+            // never wrote, and it came back as the summary's text.
+            expect(service.toMarkdown(html)).toBe(':::details\nhidden\n:::');
         });
 
         it('converts hr to ---', () => {

@@ -262,7 +262,8 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         // written around the space and read back as literal characters.
         const out = read(saved(html));
 
-        expect(out.querySelector(selector)?.textContent).toBe('x');
+        // Beside a letter the emphasis is kept as its tag, space and all.
+        expect(out.querySelector(selector)?.textContent?.trim()).toBe('x');
         expect(out.textContent).not.toMatch(/[*~]/);
     });
 
@@ -304,6 +305,321 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
 
         expect(out.querySelector('li details pre code')?.textContent).toBe('x\n\ny');
         expect(out.textContent).not.toContain('```');
+        expect(saved(once)).toBe(once);
+    });
+
+    it('keeps the heading and the quote of a details block inside a list item', () => {
+        const once = saved('<ul><li><details><summary>s</summary><p>a</p><h2>h</h2><blockquote><p>q</p></blockquote></details></li></ul>');
+        const out = read(once);
+
+        expect(out.querySelector('li details h2')?.textContent).toBe('h');
+        expect(out.querySelector('li details blockquote p')?.textContent).toBe('q');
+        expect(out.textContent).not.toMatch(/##|>/);
+        expect(saved(once)).toBe(once);
+    });
+
+    it('keeps a details block with an empty summary inside a quote', () => {
+        const once = saved('<blockquote><details><summary><br></summary><p>b</p></details></blockquote>');
+        const out = read(once);
+
+        expect(out.querySelector('blockquote details')).not.toBeNull();
+        expect(out.textContent).not.toContain(':::');
+        expect(saved(once)).toBe(once);
+    });
+
+    it.each([
+        ['a rule', '<ul><li><p>a</p><hr><p>b</p></li></ul>'],
+        ['a table after two paragraphs', '<ul><li><p>a</p><p>x</p><table><tbody><tr><td>c</td></tr></tbody></table></li></ul>'],
+    ])('keeps an item holding %s whole, with no empty paragraph inside or after it', (_name, html) => {
+        const once = saved(html);
+        const out = read(once);
+
+        expect(Array.from(out.children).map((el) => el.tagName)).toEqual(['UL']);
+        expect(out.querySelector('p:empty, p table, p hr')).toBeNull();
+        expect(saved(once)).toBe(once);
+    });
+
+    it('takes the summary that belongs to a details block, not a nested block\'s', () => {
+        const out = read(saved('<details><details><summary>i</summary><p>y</p></details><summary>o</summary></details>'));
+
+        expect(out.querySelector(':scope > details > summary')?.textContent).toBe('o');
+        expect(out.querySelector(':scope > details > details > summary')?.textContent).toBe('i');
+        expect(out.textContent).toContain('y');
+    });
+
+    it.each([
+        '2024.', '-', '+', '>50%', '---', '~~a~~', '~~~', ':::details x', '[t](https://example.com/)',
+        '# tag', '#', '[x] done', '2 * 3 * 4', 'a\\b',
+    ])('keeps the text %j as text through a save, in a paragraph and in a list item', (text) => {
+        // Each is a shape the parser reads as syntax without a following space,
+        // and each came back as a list, a quote, a rule, strikethrough, a code
+        // block, a details block, a link, a heading or a task row.
+        for (const wrap of [(inner: string) => `<p>${inner}</p>`, (inner: string) => `<ul><li>${inner}</li></ul>`]) {
+            const holder = document.createElement('span');
+            holder.textContent = text;
+            const out = read(saved(wrap(holder.innerHTML)));
+
+            expect(out.textContent).toBe(text);
+            expect(out.querySelector('ol, ul ul, blockquote, hr, del, pre, details, a, h1, h2, em, strong, input')).toBeNull();
+        }
+    });
+
+    it('keeps a details opener and closer typed as paragraphs as text', () => {
+        // A lone opener pairs with nothing, so only a closer after it shows
+        // whether the keyword was escaped.
+        const once = saved('<p>:::details x</p><p>body</p><p>:::</p>');
+        const out = read(once);
+
+        expect(out.querySelector('details')).toBeNull();
+        expect(Array.from(out.querySelectorAll('p')).map((p) => p.textContent)).toEqual([':::details x', 'body', ':::']);
+        expect(saved(once)).toBe(once);
+    });
+
+    it('reads a details opener indented under a list item as the item block, with its closer at the margin', () => {
+        // Taken at document level, the indented opener paired with the closer
+        // and pulled the block out of its item.
+        const out = read(service.toHtml('- item\n  :::details s\n  body\n:::'));
+
+        expect(out.querySelector(':scope > details')).toBeNull();
+        expect(out.querySelector('li details > summary')?.textContent).toBe('s');
+        expect(out.textContent).not.toContain(':::');
+    });
+
+    it('keeps a details block with no summary a details block through two saves', () => {
+        // Saved as a bare keyword line with no title, which the reader must
+        // still take as an opener.
+        const once = saved('<details><p>hidden</p></details>');
+        const out = read(once);
+
+        expect(out.querySelector('details > p')?.textContent).toBe('hidden');
+        expect(out.textContent).not.toContain(':::');
+        expect(saved(once)).toBe(once);
+    });
+
+    it('gives a details block with no summary of its own no title, not the title of a block inside it', () => {
+        const once = saved('<details><p>a</p><details><summary>i</summary><p>y</p></details></details>');
+        const out = read(once);
+
+        expect(out.querySelector(':scope > details > summary')?.textContent ?? '').toBe('');
+        expect(out.querySelector(':scope > details > details > summary')?.textContent).toBe('i');
+        expect(out.textContent).toBe('aiy');
+        expect(saved(once)).toBe(once);
+    });
+
+    it('keeps a code block after the second paragraph of a list item in its place', () => {
+        // The fence arrives as a parked token; glued onto the item first line
+        // it jumped ahead of the paragraph before it.
+        const once = saved('<ul><li><p>a</p><p>b</p><pre><code>x = 1</code></pre></li><li>c</li></ul>');
+        const out = read(once);
+
+        expect(out.querySelector('li')?.textContent).toBe('abx = 1');
+        expect(out.querySelector('li > pre > code')?.textContent).toBe('x = 1');
+        expect(out.querySelectorAll(':scope > ul > li')).toHaveLength(2);
+        expect(saved(once)).toBe(once);
+    });
+
+    it.each([
+        ['bold', '<ul><li><strong>a<br>b</strong> c</li></ul>', 'li > strong', 'ab c'],
+        ['italic beside a link', '<ol><li><a href="https://example.com/">l</a> <em>x<br>y</em></li></ol>', 'li > em', 'l xy'],
+        ['italic before a sub-list', '<ul><li><em>a<br>b</em> c<ul><li>d</li></ul></li></ul>', 'li > em', 'ab cd'],
+    ])('keeps a line break inside %s on the line of a list item, and settles', (_name, html, selector, text) => {
+        // Written as a hard break, the second half read back as a paragraph of
+        // the item, splitting the emphasis and losing the space beside it.
+        const once = saved(html);
+        const out = read(once);
+
+        expect(out.querySelector(`${selector} br`)).not.toBeNull();
+        expect(out.querySelector('li p')).toBeNull();
+        expect(out.querySelector('li')?.textContent).toBe(text);
+        expect(saved(once)).toBe(once);
+    });
+
+    it.each([
+        ['inside emphasis', '<ol><li><p><em>a<br>b</em> c</p></li><li>d</li></ol>', 'abcd'],
+        ['between runs, before a second paragraph', '<ul><li><p>a<br>b</p><p>c</p></li></ul>', 'abc'],
+    ])('keeps a line break in the first paragraph of a list item, %s, and settles', (_name, html, text) => {
+        // The first paragraph is written on the marker line, where a hard break
+        // ended the line and the rest read back as a paragraph of its own.
+        const once = saved(html);
+        const out = read(once);
+
+        expect(out.querySelector('li br')).not.toBeNull();
+        expect(out.textContent?.replaceAll(/\s/g, '')).toBe(text);
+        expect(saved(once)).toBe(once);
+    });
+
+    it('keeps the words of a list item whose last paragraph holds only a break, and settles', () => {
+        // Enter leaves this shape. Writing the empty paragraph's padding break as
+        // the tag joined the item's lines, and the space between the code span
+        // and the link went with it.
+        const once = saved('<ul><li><p><code>a</code> <a href="https://example.com/">b</a> c</p><p><br></p></li><li>d</li></ul>');
+        const out = read(once);
+
+        expect(out.querySelector('li')?.textContent).toContain('a b c');
+        expect(saved(once)).toBe(once);
+    });
+
+    it('keeps a line break inside emphasis in a paragraph of a list item, and settles', () => {
+        const once = saved('<ul><li><p>a</p><p><em>x<br>y</em> z</p></li></ul>');
+        const out = read(once);
+
+        expect(out.querySelector('li em br')).not.toBeNull();
+        expect(out.querySelector('li')?.textContent).toBe('axy z');
+        expect(saved(once)).toBe(once);
+    });
+
+    it.each([
+        ['only text', '<blockquote><p><strong>a<br>b</strong> c</p></blockquote>'],
+        ['a code block too', '<blockquote><p><strong>a<br>b</strong> c</p><pre><code>x  \n\ny</code></pre></blockquote>'],
+        ['a nested quote too', '<blockquote><p><strong>a<br>b</strong> c</p><blockquote><p>d</p></blockquote></blockquote>'],
+    ])('keeps a line break inside bold in a quote holding %s, and settles', (_name, html) => {
+        // Written as a line ending, which bold cannot close across. Beside a
+        // block the bold came back as literal asterisks.
+        const once = saved(html);
+        const out = read(once);
+
+        expect(out.querySelector('blockquote > p > strong br')).not.toBeNull();
+        expect(out.querySelector('blockquote > p > strong')?.textContent).toBe('ab');
+        expect(out.textContent).not.toContain('*');
+        expect(saved(once)).toBe(once);
+    });
+
+    it.each([
+        ['after a paragraph', '<blockquote><p>a</p><p>b<br>c</p></blockquote>', 'abc'],
+        ['after a task list with a sub-list', '<blockquote><ul data-task-list=""><li data-task="" data-checked="false">'
+            + '<input type="checkbox"><span>x</span><ul data-task-list=""><li data-task="" data-checked="false">'
+            + '<input type="checkbox"><span>y</span></li></ul></li></ul><p>b<br>c</p></blockquote>', 'xybc'],
+        ['in a span inside a details block', '<blockquote><details><summary>s</summary><p>a <span>b<br>c</span></p></details></blockquote>', 'sabc'],
+    ])('keeps every word of a quoted paragraph with a break between runs, %s, and settles after one save', (_name, html, text) => {
+        // A quote reads each of its lines as a line of its own. Written as the
+        // tag, a break between runs read back as two lines, and the next save
+        // wrote something else. A span is no formatting: it is written as its
+        // text alone.
+        const once = saved(html);
+
+        expect(read(once).textContent?.replaceAll(/\s/g, '')).toBe(text);
+        expect(saved(once)).toBe(once);
+    });
+
+    it.each([
+        ['after it', '<p>c <span><em>x y</em></span>z</p>', 'c x yz'],
+        ['before it', '<p>c<span><u><em>x</em></u></span> z</p>', 'cx z'],
+    ])('keeps emphasis inside a wrapper that touches a word %s as emphasis, and settles', (_name, html, text) => {
+        const once = saved(html);
+        const out = read(once);
+
+        expect(out.querySelector('em')).not.toBeNull();
+        expect(out.textContent).toBe(text);
+        expect(saved(once)).toBe(once);
+    });
+
+    it.each([
+        ['italic before bold', '<p><em>x</em><b>y</b> z</p>', 'em, i', 'strong, b'],
+        ['bold before italic', '<p><strong>x</strong><i>y</i> z</p>', 'strong, b', 'em, i'],
+    ])('keeps emphasis against another emphasis with no space between, %s, and settles', (_name, html, first, second) => {
+        // Only a text neighbour counted as a word, so the two runs were written
+        // as `*x***y**`, whose asterisks the reader paired the wrong way.
+        const once = saved(html);
+        const out = read(once);
+
+        expect(out.querySelector(first)?.textContent).toBe('x');
+        expect(out.querySelector(second)?.textContent).toBe('y');
+        expect(out.textContent).toBe('xy z');
+        expect(saved(once)).toBe(once);
+    });
+
+    it('keeps bold ending in italic beside bold opening with italic as the two runs, and settles', () => {
+        const once = saved('<p><strong>a <em>h</em></strong> <b><em>f</em> g</b></p>');
+        const out = read(once);
+
+        expect(Array.from(out.querySelectorAll('strong, b')).map((el) => el.textContent)).toEqual(['a h', 'f g']);
+        expect(Array.from(out.querySelectorAll('em, i')).map((el) => el.textContent)).toEqual(['h', 'f']);
+        expect(out.textContent).toBe('a h f g');
+        expect(saved(once)).toBe(once);
+    });
+
+    it('keeps emphasis inside a word as emphasis, with no stray asterisks', () => {
+        const once = saved('<p>un<em>believ</em>able</p>');
+        const out = read(once);
+
+        expect(out.querySelector('p > em')?.textContent).toBe('believ');
+        expect(out.textContent).toBe('unbelievable');
+        expect(saved(once)).toBe(once);
+    });
+
+    it.each([
+        ['with a space after its marker', '## \n\nPara'],
+        ['with nothing after its marker', '##\n\nPara'],
+    ])('reads a hand-written empty heading %s as empty, leaving the paragraph after it', (_name, markdown) => {
+        // The editor writes an empty heading with a break tag, so only markdown
+        // typed by hand has a marker with nothing after it.
+        const out = read(service.toHtml(markdown));
+
+        expect(out.querySelector('h2')?.textContent ?? '').toBe('');
+        expect(out.querySelector('p')?.textContent).toBe('Para');
+    });
+
+    it('keeps the paragraph after an empty heading a paragraph', () => {
+        const out = read(saved('<h2><br></h2><p>Para</p>'));
+
+        expect(out.querySelector('p')?.textContent).toBe('Para');
+        expect(out.querySelector('h2')?.textContent).not.toContain('Para');
+    });
+
+    it('keeps a numbered list that starts at the largest number markdown writes', () => {
+        const out = read(saved('<ol start="999999999"><li>a</li><li>b</li></ol>'));
+
+        expect(out.querySelector('ol')?.getAttribute('start')).toBe('999999999');
+        expect(out.querySelectorAll('ol > li')).toHaveLength(2);
+        expect(out.textContent).toBe('ab');
+    });
+
+    it('keeps the paragraph after a quoted table a paragraph, pipe and all', () => {
+        const out = read(saved('<blockquote><table><tbody><tr><td>a</td><td>b</td></tr></tbody></table><p>x | y</p></blockquote>'));
+
+        expect(out.querySelector('blockquote > p')?.textContent).toBe('x | y');
+        expect(out.querySelectorAll('blockquote tr')).toHaveLength(1);
+    });
+
+    it.each([
+        ['a heading', '<h2>one<br>two</h2>', 'h2'],
+        ['a task row', '<ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>one<br>two</span></li></ul>', 'li[data-task] > span'],
+        ['a summary', '<details><summary>one<br>two</summary><p>body</p></details>', 'summary'],
+    ])('keeps a line break inside %s, which is one line in markdown', (_name, html, selector) => {
+        const once = saved(html);
+        const out = read(once);
+
+        expect(out.querySelector(`${selector} br`)).not.toBeNull();
+        expect(out.querySelector(selector)?.textContent).toBe('onetwo');
+        expect(saved(once)).toBe(once);
+    });
+
+    it('keeps bold with a line break inside a heading as one bold run', () => {
+        const out = read(saved('<h2><strong>one<br>two</strong></h2>'));
+
+        expect(out.querySelector('h2 strong')?.textContent).toBe('onetwo');
+        expect(out.textContent).not.toContain('*');
+    });
+
+    it('keeps a details block inside a list item inside another details block', () => {
+        const once = saved('<details><summary>outer</summary><ol><li>a</li><li><details><summary>inner</summary><p>b</p></details></li></ol></details>');
+        const out = read(once);
+
+        expect(out.querySelector('details ol li details > summary')?.textContent).toBe('inner');
+        expect(out.textContent).not.toContain(':::');
+        expect(saved(once)).toBe(once);
+    });
+
+    it('keeps a numbered list inside a details block inside a list item a list of that block', () => {
+        // A list-looking line inside the block was read as the outer list's
+        // next item, which cut the block off from its closer.
+        const once = saved('<ul><li><details><summary>s</summary><ol><li>a</li></ol><p>b</p></details></li><li>c</li></ul>');
+        const out = read(once);
+
+        expect(out.querySelector(':scope > ul > li > details ol > li')?.textContent).toBe('a');
+        expect(out.querySelector(':scope > ul > li > details > p')?.textContent).toBe('b');
+        expect(out.querySelectorAll(':scope > ul > li')).toHaveLength(2);
+        expect(out.textContent).not.toContain(':::');
         expect(saved(once)).toBe(once);
     });
 
