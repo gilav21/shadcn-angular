@@ -1178,7 +1178,7 @@ export class RichTextMarkdownService {
         html = this.parseLineBreaks(html);
         html = this.parseParagraphs(html, protectedTags);
 
-        html = this.parseImages(html, protectedInline);
+        html = this.parseImages(html, protectedInline, protectedTags);
         html = this.parseLinks(html);
         html = this.parseBoldItalic(html);
         html = this.parseStrikethrough(html);
@@ -1704,15 +1704,17 @@ export class RichTextMarkdownService {
      * buildBlockquote uses for a nested quote.
      */
     private parseListContinuation(block: string, list: ListContext, depth: number): string {
-        // One width for the whole block: the last item's content column, or less
-        // when a line is indented less, as the writer indents a numbered item's
-        // blocks by two. Two past the item's indent left a numbered item's block
-        // one space in, where neither a details block nor a quote opens; and
-        // sliced line by line, lines at different indents lost different widths,
-        // so a nested list or a nested item's block moved to another level.
-        const column = list.items.at(-1)?.column ?? list.indent + 2;
+        // The block's own indent is its first line's, up to the last item's content
+        // column, and every line loses that width, or less when it is indented
+        // less. Two past the item's indent left a numbered item's block one space
+        // in, where neither a details block nor a quote opens. Sliced each by its
+        // own width, the writer's lines at two and four spaces under a wide marker
+        // lost different amounts and a nested list moved a level. Taken from the
+        // least indented line, one later line at two spaces pulled a hand-written
+        // block short, and its quotes and details blocks came back as text.
         const lines = block.split('\n');
-        const width = lines.filter((line) => line.trim() !== '').reduce((least, line) => Math.min(least, indentOf(line)), column);
+        const opening = lines.find((line) => line.trim() !== '') ?? '';
+        const width = Math.min(list.items.at(-1)?.column ?? list.indent + 2, indentOf(opening));
         const dedented = lines
             .map((line) => line.slice(Math.min(width, indentOf(line))))
             .join('\n')
@@ -1955,7 +1957,17 @@ export class RichTextMarkdownService {
         return URL_SHIELD.reduce((acc, [ch, code]) => acc.replaceAll(code, ch), html);
     }
 
-    private parseImages(html: string, inlineStore: readonly string[]): string {
+    /**
+     * An image's alt text as attribute text: a parked code span becomes the text it
+     * holds, and a parked raw tag the escaped characters of that tag. Restored only
+     * after the attribute was written, a tag's quotes ended the attribute and the
+     * rest of the tag showed on the page.
+     */
+    private altText(alt: string, inlineStore: readonly string[], tagStore: readonly string[]): string {
+        return restoreParked(resolveInlineCodeText(alt, inlineStore), RAW_TAG_OPEN, RAW_TAG_CLOSE, tagStore, (tag) => this.escapeHtml(tag));
+    }
+
+    private parseImages(html: string, inlineStore: readonly string[], tagStore: readonly string[]): string {
         return html.replaceAll(MEDIA_TARGET_PATTERN.image, (_, alt, src) => {
             const safeSrc = this.sanitizer.sanitizeImageSrc(src);
             if (!safeSrc) {
@@ -1966,13 +1978,13 @@ export class RichTextMarkdownService {
                 // DEFAULT -- silently deleted blocked images instead.
                 const blocked = this.sanitizer.takeBlockedByPolicy();
                 if (blocked === null) return '';
-                const blockedAlt = resolveInlineCodeText(alt, inlineStore);
+                const blockedAlt = this.altText(alt, inlineStore, tagStore);
                 return `<img data-blocked-src="${this.attr(blocked)}" alt="${this.textAttr(blockedAlt)}">`;
             }
             // An alt attribute is plain text: a parked code span restored in
             // there would land as the literal string "<code>x</code>". Resolve
             // it back to the text the author typed instead.
-            const plainAlt = resolveInlineCodeText(alt, inlineStore);
+            const plainAlt = this.altText(alt, inlineStore, tagStore);
             return `<img src="${this.attr(safeSrc)}" alt="${this.textAttr(plainAlt)}">`;
         });
     }
@@ -2235,11 +2247,12 @@ export class RichTextMarkdownService {
             sibling?.nodeType === Node.ELEMENT_NODE
             && (sibling as Element).tagName.toLowerCase() === 'code';
 
-        // A break has no text, so a code span written from the text alone lost it
-        // and fused the words around it; the tag form keeps it as the tag.
-        const holdsBreak = element.querySelector('br') !== null;
-        if (content === '' && !holdsBreak) return '';
-        if (holdsBreak || content.includes('\n')
+        // A break or an image has no text, so a code span written from the text
+        // alone lost it -- a break fused the words around it, and code holding
+        // only an image was dropped whole; the tag form keeps each.
+        const showsWithoutText = element.querySelector('br, img') !== null;
+        if (content === '' && !showsWithoutText) return '';
+        if (showsWithoutText || content.includes('\n')
             || abutsCode(element.previousSibling) || abutsCode(element.nextSibling)) {
             return `<code>${this.codeTagContent(element)}</code>`;
         }
@@ -2264,13 +2277,14 @@ export class RichTextMarkdownService {
 
     /**
      * A code element's content for its tag form: its text escaped, each break as
-     * the tag, and newlines as character references -- a raw one ended a heading
-     * or a task row the tag sat in, a blank line split the tag pair, and the break
-     * rewrite changed the code's own spaces.
+     * the tag, each image as markdown, and newlines as character references -- a
+     * raw one ended a heading or a task row the tag sat in, a blank line split the
+     * tag pair, and the break rewrite changed the code's own spaces.
      */
     private codeTagContent(node: Node): string {
         return Array.from(node.childNodes, (child) => {
             if (child.nodeName === 'BR') return '<br>';
+            if (child.nodeName === 'IMG') return this.handleImageTag(child as HTMLElement);
             if (child.nodeType === Node.ELEMENT_NODE) return this.codeTagContent(child);
             return this.escapeHtml(escapeInlineSyntax(child.textContent ?? '')).replaceAll('\n', '&#10;');
         }).join('');

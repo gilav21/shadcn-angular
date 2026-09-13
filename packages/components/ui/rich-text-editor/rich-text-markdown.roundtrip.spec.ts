@@ -378,6 +378,22 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         expect(saved(once)).toBe(once);
     });
 
+    it.each([
+        ['between words', '<p><code>a<img src="https://x.test/i.png" alt="pic">b</code></p>', 'ab'],
+        ['alone', '<p>x <code><img src="https://x.test/i.png" alt="pic"></code> y</p>', ''],
+        ['in a heading', '<h2><code>a<img src="https://x.test/i.png" alt="pic">b</code></h2>', 'ab'],
+        ['beside a break', '<p><code>a<br><img src="https://x.test/i.png" alt="pic">b</code></p>', 'ab'],
+    ])('keeps an image inside inline code %s, and settles', (_name, html, codeText) => {
+        // The code span was written from its text, which an image does not have:
+        // the image was dropped, and code holding only an image vanished.
+        const once = saved(html);
+        const out = read(once);
+
+        expect(out.querySelector('code img')?.getAttribute('alt')).toBe('pic');
+        expect(out.querySelector('code')?.textContent).toBe(codeText);
+        expect(saved(once)).toBe(once);
+    });
+
     it('keeps a break inside inline code, and settles', () => {
         // The code span was written from its text, which a break does not have.
         const once = saved('<p>x <code>a<br>b</code> y</p>');

@@ -315,7 +315,9 @@ checkboxes. Every item of a task list is read as a task row.
 **What Markdown cannot hold.** A task row is one line of text: a quote,
 paragraphs or a table pasted inside one are flattened into it, with a space at
 each boundary, and a rule pasted inside a row is dropped. Content after a row's
-nested list becomes the next row, so its words stay after the list's. A pipe-table cell is
+nested list becomes the next row, so its words stay after the list's; what would
+show nothing in a row there, such as a rule or an empty block, joins the row
+above instead. A pipe-table cell is
 one line too, so in `mode="markdown"` a rule inside a cell is saved as a line
 break. HTML mode keeps the rule.
 

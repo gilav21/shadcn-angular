@@ -394,8 +394,10 @@ means no policy and today's behaviour exactly.
   - Outdenting the last item of a sub-list takes along what its parent item held
     after the sub-list, instead of leaving that above the item; a task row keeps
     the lists among it as its own sub-lists, and the rest becomes an item after
-    the row. A break or an empty element after a nested list no longer adds an
-    empty task row.
+    the row. What would show nothing in a row after its nested list -- a break,
+    an empty element, a rule, an empty block -- no longer adds an empty task row,
+    while an outdent carries an empty paragraph, code block or list item along as
+    the line it is.
   - A code block in a quote inside a list item stays a code block of the quote;
     after a list in that quote it joined the list item's text on save.
   - A sub-list or a nested item's block inside a details block in a numbered item
@@ -404,6 +406,9 @@ means no policy and today's behaviour exactly.
     no longer fuse; a break inside inline code is kept; and image alt text holding
     "<", "&" or a quote reads back unchanged.
   - A staircase of nested items each opening a details block loads in linear time.
+  - An image inside inline code is kept; a hand-written list item keeps its
+    quotes and details blocks when a later line is indented less than they are;
+    and a raw tag written in image alt text stays alt text.
   - Italic runs side by side stay italic; code written inside a heading or with
     a blank line keeps its spaces and newlines; a code block whose language is
     "c++" or "c#" stays a code block; an image whose alt text holds "]" stays an

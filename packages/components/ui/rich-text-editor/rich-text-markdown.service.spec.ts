@@ -2398,6 +2398,32 @@ describe('RichTextMarkdownService', () => {
             expect(out.textContent).not.toContain(':::');
         });
 
+        it.each([
+            ['a details block, then a paragraph at two spaces', '1. a\n\n   :::details X\n   body\n   :::\n\n  tail', 'li > details > summary', 'X', 'tail'],
+            ['a heading and a quote, then a paragraph at two spaces', '10. a\n\n    ## h\n\n    > q\n    > r\n\n  t', 'li > blockquote', 'qr', 't'],
+            ['a quote, then a lazy line at two spaces', '-   a\n    b\n\n    > q\n    > r\n  c', 'li > blockquote', 'qr', 'c'],
+        ])('reads %s under a wide marker as blocks of the item', (_name, markdown, selector, text, last) => {
+            // Dedented by its least indented line, one later line at two spaces
+            // left the block's quotes and details blocks one or two spaces in,
+            // where neither opens, and their markers showed as text.
+            const out = readMarkdown(markdown);
+
+            expect(out.querySelector(selector)?.textContent).toBe(text);
+            expect(out.textContent).not.toContain(':::');
+            expect(out.textContent).not.toContain('>');
+            expect(out.querySelector('li')?.textContent).toContain(last);
+        });
+
+        it('keeps a raw tag written in image alt text as the alt text', () => {
+            // The parked tag was restored after the attribute was written, so its
+            // quotes ended the attribute and the rest of the tag showed on the page.
+            const out = readMarkdown('![<span style="color:red">x</span>](https://x.test/a.png)');
+
+            expect(out.querySelectorAll('img')).toHaveLength(1);
+            expect(out.querySelector('img')?.getAttribute('alt')).toBe('<span style="color:red">x</span>');
+            expect(out.textContent).toBe('');
+        });
+
         it('gives a line after a blank, indented short of a sub-list\'s items, to the item holding the sub-list', () => {
             const out = readMarkdown('- a\n  - b\n\n  c');
 
