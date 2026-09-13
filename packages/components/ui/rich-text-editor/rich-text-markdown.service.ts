@@ -292,6 +292,33 @@ function toggleCloserFor(lines: readonly string[], from: number): number {
     return -1;
 }
 
+/**
+ * `inner` between two delimiters, with its edge whitespace kept outside them.
+ *
+ * Markdown opens emphasis only before a non-space and closes it only after
+ * one, so `<i> x</i>` written as `* x*` read back as two literal asterisks.
+ */
+function delimit(inner: string, mark: string): string {
+    const body = inner.trim();
+    if (!body) return inner;
+    const lead = inner.slice(0, inner.length - inner.trimStart().length);
+    const trail = inner.slice(inner.trimEnd().length);
+    return `${lead}${mark}${body}${mark}${trail}`;
+}
+
+/**
+ * The italic delimiter for `inner`: an underscore when the text starts or ends
+ * with an asterisk -- bold at its edge -- and an asterisk otherwise.
+ *
+ * `<i><b>x</b> y</i>` written with asterisks is `***x** y*`, which reads back
+ * as bold-italic x followed by a separate italic, a different document on the
+ * next save. `_**x** y_` has one reading.
+ */
+function italicMarkFor(inner: string): string {
+    const body = inner.trim();
+    return body.startsWith('*') || body.endsWith('*') ? '_' : '*';
+}
+
 /** Tags that apply the same emphasis, so one nested in another adds nothing. */
 const BOLD_TAGS: readonly string[] = ['strong', 'b'];
 const ITALIC_TAGS: readonly string[] = ['em', 'i'];
@@ -1541,7 +1568,7 @@ export class RichTextMarkdownService {
         switch (tagName) {
             case 'del':
             case 's':
-                return `~~${inner}~~`;
+                return delimit(inner, '~~');
             // Markdown has no syntax for these, so they are emitted verbatim --
             // protectRawTags already carries such tags back through toHtml
             // unchanged. Only <u> was listed, so its five siblings (all in the
@@ -1562,8 +1589,8 @@ export class RichTextMarkdownService {
 
     /** Bold or italic delimiters around `inner`, or null for any other tag. */
     private emphasisToMarkdown(tagName: string, inner: string, element: HTMLElement): string | null {
-        if (BOLD_TAGS.includes(tagName)) return this.insideEmphasis(element, BOLD_TAGS) ? inner : `**${inner}**`;
-        if (ITALIC_TAGS.includes(tagName)) return this.insideEmphasis(element, ITALIC_TAGS) ? inner : `*${inner}*`;
+        if (BOLD_TAGS.includes(tagName)) return this.insideEmphasis(element, BOLD_TAGS) ? inner : delimit(inner, '**');
+        if (ITALIC_TAGS.includes(tagName)) return this.insideEmphasis(element, ITALIC_TAGS) ? inner : delimit(inner, italicMarkFor(inner));
         return null;
     }
 

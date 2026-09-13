@@ -39,9 +39,11 @@ import {
 import {
     buildLineIndex,
     caretPosition,
+    flattenIntoRowText,
     holdsNothing,
     isLineOwner,
     isNestedList,
+    isPhrasing,
     type Line,
     lineAbove,
     lineBelow,
@@ -56,8 +58,8 @@ import {
     lineText,
     placeCaretIn,
     positionAfterLine,
-    positionOfLine,
     rangeShowsNothing,
+    structureAround,
 } from './rich-text-lines';
 import { ShortcutBindingService, ShortcutComponentHandle, ShortcutRegistration } from '../../lib/shortcut-binding.service';
 import {
@@ -2070,16 +2072,39 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
-    /** Put the caret after the last character of `element`. */
+    /**
+     * Put the caret after the last character of `element`.
+     *
+     * It used the element's FIRST text node, so a row reading "hello <b>world</b>"
+     * put a caret meant for the end of the line after "hello", and typing landed
+     * in the middle.
+     */
     private placeCaretAtEndOf(element: Element): void {
         const selection = this.document.getSelection();
         if (!selection) return;
-        const target = this.emptyBlockCaretTarget(element as HTMLElement);
         const range = this.document.createRange();
-        range.setStart(target, target.data.length);
+        const last = this.lastShownText(element);
+        if (last) {
+            range.setStart(last, last.data.length);
+        } else if (holdsNothing(element)) {
+            const target = this.emptyBlockCaretTarget(element as HTMLElement);
+            range.setStart(target, target.data.length);
+        } else {
+            range.setStart(element, element.childNodes.length);
+        }
         range.collapse(true);
         selection.removeAllRanges();
         selection.addRange(range);
+    }
+
+    /** The last text node in `element` that shows a character other than caret padding. */
+    private lastShownText(element: Element): Text | null {
+        const walker = this.document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+        let found: Text | null = null;
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+            if (!PLACEHOLDER_ONLY.test((node as Text).data)) found = node as Text;
+        }
+        return found;
     }
 
     private handleEnterInTaskList(event: KeyboardEvent, selection: Selection): boolean {
@@ -2121,6 +2146,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     private exitTaskList(taskLi: HTMLElement, selection: Selection): void {
+        // A row in a nested list steps out one level, as a plain nested item
+        // does. Leaving the list from there built a paragraph inside the parent
+        // row, which the next keypress moved into that row's text.
+        if (this.moveItemOutOneLevel(taskLi)) {
+            const span = taskLi.querySelector<HTMLElement>(':scope > span');
+            if (span) this.placeCaretAtStartOfBlock(span);
+            return;
+        }
         const parentList = taskLi.parentElement;
         const p = this.document.createElement('p');
         p.innerHTML = '<br>';
@@ -3119,15 +3152,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const ctx = this.blockToggleContext();
         const line = ctx ? this.commandLines(ctx)[0] : null;
         if (line) {
-            // An empty line is the place the author cleared for it; a line with
-            // content stays whole and the block goes after it. Either way the
-            // position comes from the model, so a caret in a cell or an item
-            // cannot put a table inside a row or a list.
-            const at = lineIsEmpty(line) ? positionOfLine(line) : positionAfterLine(line);
-            const emptied = lineIsEmpty(line) ? lineOwnNodes(line) : [];
-            at.parent.insertBefore(fragment, at.before);
-            for (const node of emptied) node.remove();
-            if (lineIsEmpty(line) && !lineKeepsItsElement(line)) line.owner.remove();
+            this.placeInsertedBlock(fragment, line);
         } else {
             editor.appendChild(fragment);
         }
@@ -3135,6 +3160,118 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.labelBlockedImages();
         this.syncContentFromEditor();
         this.pushHistory();
+    }
+
+    /**
+     * Put an inserted block at the caret's line, somewhere a save keeps it.
+     *
+     * Beside a line that stands on its own: in its place when the author cleared
+     * it, after it otherwise. A line inside a list splits the list after its
+     * top-level item and the block goes between the halves; inside a table or a
+     * summary the block goes after that element, which puts it after the table
+     * or at the start of the details body. Putting it inside the item or the
+     * cell built a rule or a table markdown cannot carry, and in a task row the
+     * next keypress moved it into the row's text.
+     */
+    private placeInsertedBlock(fragment: DocumentFragment, line: Line): void {
+        const outer = this.structureOf(line).at(-1);
+        if (!outer) {
+            const empty = lineIsEmpty(line);
+            line.owner.parentNode?.insertBefore(fragment, empty ? line.owner : line.owner.nextSibling);
+            if (empty) line.owner.remove();
+            return;
+        }
+        if (outer.nodeName !== 'LI') {
+            outer.after(fragment);
+            return;
+        }
+        const list = outer.parentElement;
+        if (!list) return;
+        const tail = this.splitListAfter(outer);
+        list.after(fragment);
+        // An empty item the caret sat in is the place the author cleared for it.
+        if (line.owner === outer && lineIsEmpty(line) && !outer.querySelector(':scope > ul, :scope > ol')) outer.remove();
+        this.settleSplitList(list, tail);
+    }
+
+    /** The list items, tables and summaries around a line, innermost first. */
+    private structureOf(line: Line): HTMLElement[] {
+        const editor = this.editorDiv?.nativeElement;
+        return editor ? structureAround(line, editor) : [];
+    }
+
+    /**
+     * Move the items after `item` into a new list of the same kind, placed
+     * right after its own, so a block can go between the two halves. Returns the
+     * new list, or null when `item` is the last.
+     */
+    private splitListAfter(item: HTMLElement): HTMLElement | null {
+        const list = item.parentElement;
+        if (!list || !item.nextElementSibling) return null;
+        const tail = list.cloneNode(false) as HTMLElement;
+        while (item.nextSibling) tail.appendChild(item.nextSibling);
+        list.after(tail);
+        return tail;
+    }
+
+    /**
+     * Finish a split: a numbered list's second half counts on from the items
+     * left in the first, and a first half left with no items goes.
+     */
+    private settleSplitList(head: HTMLElement, tail: HTMLElement | null): void {
+        const count = head.querySelectorAll(':scope > li').length;
+        if (tail?.tagName === 'OL') {
+            const start = this.listStartOf(head) + count;
+            if (start === 1) {
+                tail.removeAttribute('start');
+            } else {
+                tail.setAttribute('start', String(start));
+            }
+        }
+        if (count === 0) head.remove();
+    }
+
+    /** The number an ordered list counts from. */
+    private listStartOf(list: HTMLElement): number {
+        const start = Number.parseInt(list.getAttribute('start') ?? '', 10);
+        return Number.isInteger(start) ? start : 1;
+    }
+
+    /**
+     * How a block that takes the place of `lines` may be built, or null when it
+     * may not be.
+     *
+     * Beside lines that stand on their own. In place of top-level list items of
+     * one line each, by splitting the list around them, so the author's text
+     * keeps its order. Anywhere else -- a nested item, an item holding several
+     * lines, a cell, a summary -- the block has no form a save keeps without
+     * reordering or burying that text, so the command stands down.
+     */
+    private replacementFor(lines: readonly Line[]): 'lines' | 'items' | null {
+        const structures = lines.map((line) => this.structureOf(line));
+        if (structures.every((found) => found.length === 0)) return 'lines';
+        const topLevelItems = lines.every((line, i) =>
+            line.owner.nodeName === 'LI' && structures[i].length === 1 && structures[i][0] === line.owner);
+        if (!topLevelItems) return null;
+        const holdsSublist = lines.some((line) => line.owner.querySelector(':scope > ul, :scope > ol'));
+        return holdsSublist && lines.length > 1 ? null : 'items';
+    }
+
+    /**
+     * Put `built` in place of list items, splitting their list around it. A
+     * single item's sub-list follows the block as a list of its own.
+     */
+    private putBlockInPlaceOfItems(built: HTMLElement, lines: readonly Line[]): void {
+        const first = lines[0].owner;
+        const last = lines.at(-1)?.owner ?? first;
+        const list = first.parentElement;
+        if (!list) return;
+        const tail = this.splitListAfter(last);
+        const sublist = lines.length === 1 ? first.querySelector(':scope > ul, :scope > ol') : null;
+        list.after(built);
+        if (sublist) built.after(sublist);
+        for (const line of lines) line.owner.remove();
+        this.settleSplitList(list, tail);
     }
 
     /** Register an addon keydown interceptor (addon host surface). */
@@ -5178,26 +5315,32 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private outdentListItem(): void {
         const li = this.getParentListItem();
         if (!li) return;
-
-        const parentList = li.parentElement;
-        if (!parentList || (parentList.tagName !== 'UL' && parentList.tagName !== 'OL')) return;
-
-        const grandparentLi = parentList.parentElement;
-        if (grandparentLi?.tagName !== 'LI') return;
-
-        const grandparentList = grandparentLi.parentElement;
-        if (!grandparentList) return;
-
         const caret = this.caretOffsetInLine(li);
-        this.reparentFollowingSiblings(li, parentList);
-        grandparentList.insertBefore(li, grandparentLi.nextSibling);
-
-        if (!parentList.hasChildNodes() || parentList.children.length === 0) {
-            parentList.remove();
-        }
+        if (!this.moveItemOutOneLevel(li)) return;
         this.restoreCaretInLine(li, caret);
 
         this.applyMutation({ focus: true, updateActiveFormats: true });
+    }
+
+    /**
+     * Move a nested item up one level, to just after its parent item, taking the
+     * items that followed it along as its own sub-list. False when the item is
+     * not nested, and nothing moves.
+     */
+    private moveItemOutOneLevel(li: HTMLElement): boolean {
+        const parentList = li.parentElement;
+        if (!parentList || !isNestedList(parentList)) return false;
+
+        const grandparentLi = parentList.parentElement;
+        if (grandparentLi?.tagName !== 'LI') return false;
+
+        const grandparentList = grandparentLi.parentElement;
+        if (!grandparentList) return false;
+
+        this.reparentFollowingSiblings(li, parentList);
+        grandparentList.insertBefore(li, grandparentLi.nextSibling);
+        if (parentList.children.length === 0) parentList.remove();
+        return true;
     }
 
     /**
@@ -6049,7 +6192,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private formattedRunAround(node: Node, editor: HTMLElement): HTMLElement | null {
         let run: HTMLElement | null = null;
         let current = node.nodeType === Node.ELEMENT_NODE ? (node as HTMLElement) : node.parentElement;
-        while (current && current !== editor && !LINE_OWNING_TAGS.has(current.tagName)) {
+        // A task row's span holds the row's text: it is the line, not formatting,
+        // and clearing it as a wrapper left the text bare beside the checkbox.
+        const holder = lineOf(node, editor)?.holder ?? null;
+        while (current && current !== editor && current !== holder && !LINE_OWNING_TAGS.has(current.tagName)) {
             if (INLINE_WRAPPER_TAGS.has(current.tagName) || current.tagName === 'FONT') run = current;
             current = current.parentElement;
         }
@@ -6746,11 +6892,15 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             return null;
         }
 
-        if (command === 'bulletList') {
-            return this.wrapBlockInList(anchorBlock, 'ul');
-        }
-        if (command === 'orderedList') {
-            return this.wrapBlockInList(anchorBlock, 'ol');
+        // The same rules the toolbar follows. A list cannot go in a cell or a
+        // summary, and a heading only goes on a line of its own; the slash menu
+        // re-tagged its anchor directly, so a heading picked in a list item put
+        // an <h1> straight inside the <ul>.
+        const line = lineOf(anchorBlock, editor);
+        const structure = line ? structureAround(line, editor) : [];
+        if (command === 'bulletList' || command === 'orderedList') {
+            if (structure[0] && structure[0].nodeName !== 'LI') return anchorBlock;
+            return this.wrapBlockInList(anchorBlock, command === 'bulletList' ? 'ul' : 'ol');
         }
 
         if (command === 'blockquote') {
@@ -6767,6 +6917,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (!nextTag) {
             return null;
         }
+        if (!line || lineTagIsFixed(line) || structure.length > 0) return anchorBlock;
         return this.replaceBlockTag(anchorBlock, nextTag);
     }
 
@@ -6825,22 +6976,24 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     private quoteLines(lines: readonly Line[]): HTMLElement[] {
+        const replacement = this.replacementFor(lines);
+        if (replacement === null) return [];
         const quote = this.document.createElement('blockquote');
-        const first = lines[0];
-        if (lineKeepsItsElement(first)) {
-            const displaced = lines.map((line) => ({ line, nodes: lineOwnNodes(line) }));
-            const at = positionOfLine(first);
-            at.parent.insertBefore(quote, at.before);
-            const built: HTMLElement[] = [];
-            for (const { line, nodes } of displaced) {
+        if (replacement === 'items') {
+            // Each item's text becomes a line of the quote, and the list is
+            // split around it. Building the quote inside the item put a block
+            // before a task row's checkbox, and the quote was gone on reload.
+            const paragraphs = lines.map((line) => {
                 const paragraph = this.document.createElement('p');
-                for (const node of nodes) paragraph.appendChild(node);
+                for (const node of lineOwnNodes(line)) paragraph.appendChild(node);
+                if (holdsNothing(paragraph)) paragraph.innerHTML = '<br>';
                 quote.appendChild(paragraph);
-                built.push(paragraph);
-                if (line !== first) line.owner.remove();
-            }
-            return built;
+                return paragraph;
+            });
+            this.putBlockInPlaceOfItems(quote, lines);
+            return paragraphs;
         }
+        const first = lines[0];
         first.owner.parentNode?.insertBefore(quote, first.owner);
         return lines.map(({ owner }) => {
             const line = owner.tagName === 'DIV' ? this.replaceBlockTag(owner, 'p') : owner;
@@ -6939,9 +7092,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * `execCommand('formatBlock')` was used before, and Chrome applies it to
      * whatever ancestor it likes: with the caret in a list item it wrapped the
      * whole `<ul>` in the heading, which is neither valid nor what was asked.
-     * A line whose element cannot be re-tagged — a list item, a table cell —
-     * gets the heading as its own block inside it instead, so the list or the
-     * table survives.
+     * A line inside a list item, a table cell or a summary keeps its tag.
      */
     private retagLines(tag: string): void {
         const ctx = this.blockToggleContext();
@@ -6949,38 +7100,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (!ctx || lines.length === 0) return;
         let last: HTMLElement | null = null;
         for (const line of lines) {
-            // A code block is not prose, and a task row keeps its text in a
-            // span the whole editor relies on: neither takes a heading, and
-            // forcing one in produced a row with no heading and a paragraph
-            // buried in its span.
-            // A list item, a cell, a summary and a code block are not
-            // paragraphs: re-tagging one destroys what it is, and putting the
-            // heading INSIDE it builds a block-in-a-line that markdown has no
-            // way to carry, so a save turned the heading into literal "# ".
-            if (lineTagIsFixed(line)) continue;
+            // A code block is not prose, and a line inside an item, a cell or a
+            // summary -- even a paragraph within one -- has no heading form in
+            // markdown: a save turned it into a literal "# ". Asking the line's
+            // own tag missed the paragraph inside an item.
+            if (lineTagIsFixed(line) || this.structureOf(line).length > 0) continue;
             last = this.replaceBlockTag(line.owner, tag);
         }
         this.restoreToggleCaret(ctx, last);
-    }
-
-    /**
-     * Put a line's own text inside a new `tag` within its element.
-     *
-     * For a line whose element must not be re-tagged — an item, a cell, a
-     * summary — this is what "make this line a heading" means: the heading
-     * goes in, the element stays.
-     */
-    private wrapLineTextIn(line: Line, tag: string): HTMLElement {
-        const own = lineOwnNodes(line);
-        const built = this.document.createElement(tag);
-        if (own.length > 0) {
-            own[0].before(built);
-            for (const node of own) built.appendChild(node);
-        } else {
-            line.holder.appendChild(built);
-            built.innerHTML = '<br>';
-        }
-        return built;
     }
 
     /**
@@ -6995,8 +7122,9 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     private toggleList(tag: 'ul' | 'ol'): void {
         const ctx = this.blockToggleContext();
-        if (!ctx) return;
-        const list = this.enclosingList(ctx.range.startContainer, ctx.editor);
+        const target = ctx ? this.listToggleTarget(ctx) : null;
+        if (!ctx || !target) return;
+        const { list, lines } = target;
         let fallback: HTMLElement | null = null;
         if (list?.tagName === tag.toUpperCase() && list.dataset['taskList'] === undefined) {
             fallback = this.unwrapList(list);
@@ -7004,9 +7132,27 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             this.stripTaskMarkers(list);
             this.replaceBlockTag(list, tag);
         } else {
-            fallback = this.wrapLinesInList(this.commandLines(ctx), tag);
+            fallback = this.wrapLinesInList(lines, tag);
         }
         this.restoreToggleCaret(ctx, fallback);
+    }
+
+    /**
+     * What a list toggle acts on: the list of the innermost item holding the
+     * caret's line, or no list. Null inside a table cell or a summary, where a
+     * list has no form a save keeps.
+     *
+     * The list used to be the nearest list ancestor of any kind, so a caret in
+     * a table inside a list item toggled the whole outer list.
+     */
+    private listToggleTarget(ctx: BlockToggleContext): { list: HTMLElement | null; lines: Line[] } | null {
+        const lines = this.commandLines(ctx);
+        // A code block's line breaks have no place in a list item: moved into
+        // one they became inline code, which a save wrote as literal markup.
+        if (lines.some((line) => line.kind === 'code')) return null;
+        const inner = lines[0] ? this.structureOf(lines[0])[0] : undefined;
+        if (inner && inner.nodeName !== 'LI') return null;
+        return { list: inner?.parentElement ?? null, lines };
     }
 
     /**
@@ -7018,15 +7164,16 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     private toggleTaskList(): void {
         const ctx = this.blockToggleContext();
-        if (!ctx) return;
-        const list = this.enclosingList(ctx.range.startContainer, ctx.editor);
+        const target = ctx ? this.listToggleTarget(ctx) : null;
+        if (!ctx || !target) return;
+        const { list, lines } = target;
         let fallback: HTMLElement | null = null;
         if (list?.dataset['taskList'] !== undefined) {
             fallback = this.unwrapList(list);
         } else if (list) {
             this.addTaskMarkers(list);
         } else {
-            const created = this.wrapLinesInList(this.commandLines(ctx), 'ul');
+            const created = this.wrapLinesInList(lines, 'ul');
             if (!created) return;
             this.addTaskMarkers(created);
             fallback = created.querySelector('span');
@@ -7034,38 +7181,21 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.restoreToggleCaret(ctx, fallback);
     }
 
-    private enclosingList(node: Node, editor: HTMLElement): HTMLElement | null {
-        let current: Node | null = node;
-        while (current && current !== editor) {
-            if (current.nodeType === Node.ELEMENT_NODE && ((current as Element).tagName === 'UL' || (current as Element).tagName === 'OL')) {
-                return current as HTMLElement;
-            }
-            current = current.parentNode;
-        }
-        return null;
-    }
-
-    /** One `<li>` per block, in the block's place; returns the list, or null with nothing to wrap. */
     /**
-     * Turn lines into a list, one item per line, in place.
-     *
-     * A line whose element cannot be moved into the list — a table cell —
-     * keeps its element and hands over its text, so the table survives.
+     * Turn lines that stand on their own into a list, one item per line, in
+     * place; returns the list, or null with nothing to wrap. A line in a cell
+     * or a summary never reaches here: the toggle stands down there.
      */
     private wrapLinesInList(lines: readonly Line[], tag: 'ul' | 'ol'): HTMLElement | null {
         if (lines.length === 0) return null;
-        const first = lines[0];
         const list = this.document.createElement(tag);
-        const keepsElement = lineKeepsItsElement(first);
-        const displaced = lines.map((line) => ({ line, nodes: lineOwnNodes(line) }));
-        const at = positionOfLine(first);
-        at.parent.insertBefore(list, at.before);
-        for (const { line, nodes } of displaced) {
+        lines[0].owner.before(list);
+        for (const line of lines) {
             const item = this.document.createElement('li');
-            for (const node of nodes) item.appendChild(node);
+            for (const node of lineOwnNodes(line)) item.appendChild(node);
             if (holdsNothing(item)) item.innerHTML = '<br>';
             list.appendChild(item);
-            if (!keepsElement || line !== first) line.owner.remove();
+            line.owner.remove();
         }
         return list;
     }
@@ -7073,26 +7203,72 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     /** Every item back to a paragraph in the list's place; nested lists stay lists beside it. Returns the first paragraph. */
     private unwrapList(list: HTMLElement): HTMLElement | null {
         if (!list.parentNode) return null;
+        const parentItem = list.parentElement?.nodeName === 'LI' ? list.parentElement : null;
+        // A sub-list's items cannot become paragraphs inside its item: a task
+        // row cannot hold a block, and a plain item would hold a line and blocks
+        // at once. They go after the top-level item instead, which keeps the
+        // text in order only when the sub-list ends a top-level item.
+        if (parentItem && (this.outermostItemAround(list) !== parentItem || parentItem.lastElementChild !== list)) return null;
         this.stripTaskMarkers(list);
-        let first: HTMLElement | null = null;
-        for (const item of Array.from(list.children)) {
-            const p = this.document.createElement('p');
-            const sublists: ChildNode[] = [];
-            for (const child of Array.from(item.childNodes)) {
-                if (isNestedList(child)) sublists.push(child);
-                else p.appendChild(child);
+        const pieces = Array.from(list.children).flatMap((item) => this.itemAsBlocks(item));
+        if (parentItem?.parentElement) {
+            const head = parentItem.parentElement;
+            list.remove();
+            const tail = this.splitListAfter(parentItem);
+            let at: ChildNode = head;
+            for (const piece of pieces) {
+                at.after(piece);
+                at = piece as ChildNode;
             }
-            if (this.isEmptyBlock(p)) p.innerHTML = '<br>';
-            // The item's own line first, then its sub-lists: moving each
-            // sub-list out as it was met put it ahead of the paragraph built
-            // from the same item, so un-bulleting a parent showed its children
-            // above it.
-            list.before(p);
-            for (const sublist of sublists) list.before(sublist);
-            first ??= p;
+            this.settleSplitList(head, tail);
+        } else {
+            for (const piece of pieces) list.before(piece);
+            list.remove();
         }
-        list.remove();
-        return first;
+        return (pieces.find((piece) => piece.nodeName === 'P') as HTMLElement | undefined) ?? null;
+    }
+
+    /** The top-level item a list sits in, below the nearest quote, details block or cell; null at top level. */
+    private outermostItemAround(list: HTMLElement): HTMLElement | null {
+        const editor = this.editorDiv?.nativeElement;
+        let item: HTMLElement | null = null;
+        for (let el = list.parentElement; el && el !== editor; el = el.parentElement) {
+            if (['BLOCKQUOTE', 'DETAILS', 'TD', 'TH', 'SUMMARY'].includes(el.nodeName)) break;
+            if (el.nodeName === 'LI') item = el;
+        }
+        return item;
+    }
+
+    /**
+     * An item's content as blocks, in its own order: each run of inline content
+     * becomes a paragraph, and a block -- a code block, a quote, a sub-list --
+     * moves out as it is.
+     *
+     * Putting every child into one paragraph built `<p><pre>…</pre></p>`, which
+     * the parser takes apart, and moving sub-lists out as they were met put them
+     * above the paragraph of their own item.
+     */
+    private itemAsBlocks(item: Element): Node[] {
+        const pieces: Node[] = [];
+        let run: HTMLElement | null = null;
+        for (const child of Array.from(item.childNodes)) {
+            if (isPhrasing(child)) {
+                run ??= this.document.createElement('p');
+                run.appendChild(child);
+                continue;
+            }
+            if (run) pieces.push(run);
+            run = null;
+            pieces.push(child);
+        }
+        if (run) pieces.push(run);
+        const kept = pieces.filter((piece) => piece.nodeName !== 'P' || !holdsNothing(piece as Element));
+        if (kept.every((piece) => isNestedList(piece))) {
+            const empty = this.document.createElement('p');
+            empty.innerHTML = '<br>';
+            kept.unshift(empty);
+        }
+        return kept;
     }
 
     private addTaskMarkers(list: HTMLElement): void {
@@ -7103,33 +7279,22 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             const built = this.createTaskListItem(false);
             const span = built.querySelector('span') as HTMLElement;
             span.textContent = '';
+            const content: Node[] = [];
             for (const child of Array.from(item.childNodes)) {
                 if (isNestedList(child)) {
                     built.appendChild(child);
                 } else {
-                    this.appendAsInline(child, span);
+                    content.push(child);
                 }
             }
+            // A row is one line of text, so a block among the item's content is
+            // flattened into it: the rule the sanitizer applies to a pasted row.
+            // Appending a quote or a table whole put a block inside the span.
+            flattenIntoRowText(content, span);
             if (this.holdsNoContent(span)) span.textContent = '​';
             item.replaceWith(built);
         }
         this.enableTaskCheckboxes(target);
-    }
-
-    /**
-     * Move a node into a task row's text, unwrapping a block.
-     *
-     * A row keeps its text in an inline span, and every caret and line rule
-     * relies on that. Nesting a block inside it — the shape a heading on a
-     * list item used to leave behind — made the row a line AND the block a
-     * line, so the same text belonged to two lines at once.
-     */
-    private appendAsInline(node: Node, span: HTMLElement): void {
-        if (node.nodeType === Node.ELEMENT_NODE && isLineOwner(node as Element, this.editorDiv?.nativeElement ?? span)) {
-            while (node.firstChild) span.appendChild(node.firstChild);
-            return;
-        }
-        span.appendChild(node);
     }
 
     private stripTaskMarkers(list: HTMLElement): void {
@@ -7168,13 +7333,19 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         // image dropped the image, and toggling back could not restore it, so
         // the command stands down instead of destroying content.
         if (!lines.every((line) => lineIsTextOnly(line))) return;
+        const replacement = this.replacementFor(lines);
+        if (replacement === null) return;
         const text = lines.map((line) => lineText(line).replaceAll('​', '')).join('\n');
         const built = this.document.createElement('pre');
         const code = this.document.createElement('code');
         // An empty block keeps the seeded newline the Enter-to-exit rule looks for.
         code.textContent = text.trim() === '' ? '\n' : text;
         built.appendChild(code);
-        this.putBlockInPlaceOfLines(built, lines);
+        if (replacement === 'items') {
+            this.putBlockInPlaceOfItems(built, lines);
+        } else {
+            this.putBlockInPlaceOfLines(built, lines);
+        }
         this.setSelectionRange(ctx.selection, code.firstChild ?? code, 0);
     }
 
@@ -7290,23 +7461,13 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     /**
-     * Put `built` where `lines` were, and take their text with it.
-     *
-     * The lines' container may not accept a block at all — a run of list items
-     * lives in a `<ul>`, cells in a `<tr>` — and inserting there produced
-     * markup the browser then relocated or dropped. In that case `built` goes
-     * INSIDE the first line's element and the others give up their text and go.
+     * Put `built` where lines that stand on their own were; their text is
+     * already in it. Lines in a list go through {@link putBlockInPlaceOfItems},
+     * and lines in a cell or a summary never get here.
      */
     private putBlockInPlaceOfLines(built: HTMLElement, lines: readonly Line[]): void {
-        const first = lines[0];
-        const keepsElement = lineKeepsItsElement(first);
-        // Captured BEFORE the insertion: afterwards `built` is one of the
-        // line's own nodes, and clearing them would delete it again.
-        const displaced = keepsElement ? lineOwnNodes(first) : [];
-        const at = positionOfLine(first);
-        at.parent.insertBefore(built, at.before);
-        for (const node of displaced) node.remove();
-        for (const line of keepsElement ? lines.slice(1) : lines) line.owner.remove();
+        lines[0].owner.before(built);
+        for (const line of lines) line.owner.remove();
     }
 
     private unwrapCodeBlock(pre: HTMLElement): HTMLElement | null {

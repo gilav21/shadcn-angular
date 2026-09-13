@@ -2876,39 +2876,29 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         expect(Array.from(editor.querySelectorAll('p')).map((p) => p.textContent)).toEqual(['one', 'two']);
     });
 
-    it("the code block toggle acts on the caret's list item, not the whole list", () => {
-        // The walker it used had no LI, so a caret in an item resolved to the
-        // outer <ul> and the toggle flattened every item into one block.
+    it("the code block toggle takes the caret's list item out, splitting the list around it", () => {
+        // It acted on the item by building the code block INSIDE it, a shape a
+        // markdown save cannot carry. The list now splits and the block sits
+        // between the halves, with every other item where it was.
         component.writeValue('<ul><li>one</li><li>two</li><li>three</li></ul>');
         fixture.detectChanges();
         caretIn(editor.querySelectorAll('li')[1].firstChild as Text, 1);
 
         component.onFormatCommand('codeBlock');
 
-        expect(editor.querySelectorAll('li')).toHaveLength(3);
-        const items = Array.from(editor.querySelectorAll('li'));
-        expect(items[1].querySelector('pre code')?.textContent).toBe('two');
-        expect(items[0].textContent).toBe('one');
-        expect(items[2].textContent).toBe('three');
-        expect(editor.querySelector('ul > pre')).toBeNull();
+        expect(Array.from(editor.children).map((el) => `${el.tagName}:${el.textContent}`))
+            .toEqual(['UL:one', 'PRE:two', 'UL:three']);
+        expect(editor.querySelector('li pre')).toBeNull();
     });
 
-    it("a block put in an item's place goes above that item's sub-list", () => {
-        // positionOfLine chooses `before: owner.firstChild`, and every other
-        // test of that branch uses a shape where the owner is left empty, so
-        // appending would give the same DOM. A surviving sub-list is what makes
-        // the choice observable — the same blind spot as the join's insertion
-        // point, in the sibling function.
+    it("a code block taken from an item keeps the item's sub-list, as a list after the block", () => {
         component.writeValue('<ul><li>text<ul><li>sub</li></ul></li></ul>');
         fixture.detectChanges();
         caretIn(editor.querySelector('li')!.firstChild as Text, 2);
 
         component.onFormatCommand('codeBlock');
 
-        const item = editor.querySelector('li')!;
-        expect(Array.from(item.children).map(el => el.tagName)).toEqual(['PRE', 'UL']);
-        expect(item.querySelector('pre code')?.textContent).toBe('text');
-        expect(item.querySelector('ul > li')?.textContent).toBe('sub');
+        expect(Array.from(editor.children).map((el) => `${el.tagName}:${el.textContent}`)).toEqual(['PRE:text', 'UL:sub']);
     });
 
     it.each([
@@ -2943,17 +2933,268 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
             .toEqual(['P:parent', 'UL:child', 'P:next']);
     });
 
-    it("the code block toggle acts on the caret's table cell, not the whole table", () => {
+    describe('block commands where a save can keep the block', () => {
+        // Caret padding is not text: the paragraph after an inserted block holds
+        // a zero-width anchor so a caret can sit in it.
+        const tags = (root: Element): string[] => Array.from(root.children)
+            .map((el) => `${el.tagName}:${(el.textContent ?? '').replaceAll('\u200B', '')}`);
+
+        it('a rule on a list item splits the list and sits between the halves', () => {
+            component.writeValue('<ul><li>a</li><li>b</li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('li')!.firstChild as Text, 1);
+
+            component.onFormatCommand('horizontalRule');
+
+            expect(tags(editor)).toEqual(['UL:a', 'HR:', 'P:', 'UL:b']);
+        });
+
+        it('a numbered list split by a rule keeps counting in its second half', () => {
+            component.writeValue('<ol><li>a</li><li>b</li><li>c</li></ol>');
+            fixture.detectChanges();
+            caretIn(editor.querySelectorAll('li')[1].firstChild as Text, 1);
+
+            component.onFormatCommand('horizontalRule');
+
+            const lists = editor.querySelectorAll('ol');
+            expect(Array.from(lists).map((ol) => ol.textContent)).toEqual(['ab', 'c']);
+            expect(lists[1].getAttribute('start')).toBe('3');
+        });
+
+        it('a rule on a task row keeps both halves task lists', () => {
+            component.writeValue('<ul data-task-list><li data-task data-checked="true"><input type="checkbox"><span>a</span></li>'
+                + '<li data-task data-checked="false"><input type="checkbox"><span>b</span></li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 1);
+
+            component.onFormatCommand('horizontalRule');
+
+            expect(editor.querySelectorAll('ul[data-task-list]')).toHaveLength(2);
+            expect(editor.querySelector('li hr, span hr')).toBeNull();
+        });
+
+        it('a rule on a nested row goes after its top-level item, and no text moves', () => {
+            component.writeValue('<ul><li>parent<ul><li>child</li><li>second</li></ul></li><li>next</li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelectorAll('li')[1].firstChild as Text, 2);
+
+            component.onFormatCommand('horizontalRule');
+
+            expect(tags(editor)).toEqual(['UL:parentchildsecond', 'HR:', 'P:', 'UL:next']);
+        });
+
+        it('a rule on an empty item takes that item\'s place', () => {
+            component.writeValue('<ul><li>a</li><li><br></li><li>b</li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelectorAll('li')[1], 0);
+
+            component.onFormatCommand('horizontalRule');
+
+            expect(tags(editor)).toEqual(['UL:a', 'HR:', 'P:', 'UL:b']);
+            // An empty item adds no text, so only a count shows it was replaced.
+            expect(editor.querySelectorAll('li')).toHaveLength(2);
+        });
+
+        it('a rule in a summary goes to the start of the details body', () => {
+            component.writeValue('<details><summary>head</summary><p>body</p></details>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('summary')!.firstChild as Text, 2);
+
+            component.onFormatCommand('horizontalRule');
+
+            expect(tags(editor.querySelector('details')!)).toEqual(['SUMMARY:head', 'HR:', 'P:', 'P:body']);
+        });
+
+        it('a quote on a numbered item splits the list, and the second half counts on', () => {
+            component.writeValue('<ol><li>a</li><li>b</li><li>c</li></ol>');
+            fixture.detectChanges();
+            caretIn(editor.querySelectorAll('li')[1].firstChild as Text, 1);
+
+            component.onFormatCommand('blockquote');
+
+            expect(tags(editor)).toEqual(['OL:a', 'BLOCKQUOTE:b', 'OL:c']);
+            expect(editor.querySelectorAll('ol')[1].getAttribute('start')).toBe('2');
+        });
+
+        it('a quote on a nested row leaves the document as it was', () => {
+            // Taking the row out would put its text below the rows after it.
+            component.writeValue('<ul><li>parent<ul><li>child</li><li>second</li></ul></li></ul>');
+            fixture.detectChanges();
+            const before = editor.innerHTML;
+            caretIn(editor.querySelectorAll('li')[1].firstChild as Text, 2);
+
+            component.onFormatCommand('blockquote');
+
+            expect(editor.innerHTML).toBe(before);
+        });
+
+        it('a heading leaves a paragraph inside a list item as it is', () => {
+            component.writeValue('<ul><li><p>a</p><p>b</p></li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('li > p')!.firstChild as Text, 1);
+
+            component.onFormatCommand('heading1');
+
+            expect(editor.querySelector('h1')).toBeNull();
+            expect(Array.from(editor.querySelectorAll('li > p')).map((p) => p.textContent)).toEqual(['a', 'b']);
+        });
+
+        it.each(['bulletList', 'orderedList', 'taskList'])('%s leaves a table cell as it is', (command) => {
+            component.writeValue('<table><tbody><tr><td>a</td><td>b</td></tr></tbody></table>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('td')!.firstChild as Text, 1);
+
+            component.onFormatCommand(command);
+
+            expect(editor.querySelector('ul, ol')).toBeNull();
+            expect(Array.from(editor.querySelectorAll('td')).map((td) => td.textContent)).toEqual(['a', 'b']);
+        });
+
+        it('bullets leave a list around a table cell alone, rather than un-bulleting the outer list', () => {
+            component.writeValue('<ul><li><table><tbody><tr><td>cell</td></tr></tbody></table></li><li>next</li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('td')!.firstChild as Text, 2);
+
+            component.onFormatCommand('bulletList');
+
+            expect(editor.querySelectorAll('ul > li')).toHaveLength(2);
+            expect(editor.querySelector('li table td')?.textContent).toBe('cell');
+        });
+
+        it('a task list leaves a summary as it is', () => {
+            component.writeValue('<details><summary>head</summary><p>body</p></details>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('summary')!.firstChild as Text, 1);
+
+            component.onFormatCommand('taskList');
+
+            expect(editor.querySelector('ul')).toBeNull();
+            expect(editor.querySelector('details > summary')?.textContent).toBe('head');
+        });
+
+        it('turning bullets off moves an item\'s code block out as a block, never into a paragraph', () => {
+            component.writeValue('<ul><li><pre><code>x = 1</code></pre></li><li>y</li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelectorAll('li')[1].firstChild as Text, 1);
+
+            component.onFormatCommand('bulletList');
+
+            expect(tags(editor)).toEqual(['PRE:x = 1', 'P:y']);
+            expect(editor.querySelector('p pre')).toBeNull();
+        });
+
+        it('a task list flattens an item\'s quote into the row, one space between its lines', () => {
+            component.writeValue('<ul><li><blockquote><p>one</p><p>two</p></blockquote></li><li>z</li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelectorAll('li')[1].firstChild as Text, 1);
+
+            component.onFormatCommand('taskList');
+
+            const span = editor.querySelector('li[data-task] > span')!;
+            expect(span.textContent).toBe('one two');
+            expect(span.querySelector('blockquote, p')).toBeNull();
+        });
+
+        it('a heading picked from the slash menu on a list item leaves the item as it is', () => {
+            component.writeValue('<ul><li>one</li></ul>');
+            fixture.detectChanges();
+
+            component.executeToolbarCommandOnBlock('heading1', editor.querySelector('li'));
+
+            expect(editor.querySelector('h1')).toBeNull();
+            expect(editor.querySelector('ul > li')?.textContent).toBe('one');
+        });
+
+        it('clear formatting inside a task row keeps the row\'s text in its span', () => {
+            component.writeValue('<ul data-task-list><li data-task data-checked="true"><input type="checkbox">'
+                + '<span>plain <b>bold</b></span></li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('li[data-task] b')!.firstChild as Text, 2);
+
+            component.onFormatCommand('clear');
+
+            const row = editor.querySelector('li[data-task]')!;
+            expect(Array.from(row.children).map((el) => el.tagName)).toEqual(['INPUT', 'SPAN']);
+            expect(row.querySelector(':scope > span')?.textContent).toBe('plain bold');
+            expect(row.querySelector('b')).toBeNull();
+        });
+
+        it('clear formatting on a task row\'s plain text leaves the row as it is', () => {
+            component.writeValue('<ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>todo</span></li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 2);
+
+            component.onFormatCommand('clear');
+
+            expect(editor.querySelector('li[data-task] > span')?.textContent).toBe('todo');
+        });
+
+        it.each([
+            ['bulletList', '<ul><li>parent<ul><li>child</li></ul></li><li>next</li></ul>', 'li li'],
+            ['taskList', '<ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>parent</span>'
+                + '<ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>child</span></li></ul></li>'
+                + '<li data-task data-checked="false"><input type="checkbox"><span>next</span></li></ul>', 'li li span'],
+        ])('%s off on a sub-list puts its items after the top-level item, splitting the list', (command, html, childSelector) => {
+            component.writeValue(html);
+            fixture.detectChanges();
+            caretIn(editor.querySelector(childSelector)!.firstChild as Text, 2);
+
+            component.onFormatCommand(command);
+
+            expect(tags(editor)).toEqual(['UL:parent', 'P:child', 'UL:next']);
+            expect(editor.querySelector('li p')).toBeNull();
+        });
+
+        it('bullets off on a sub-list two levels down leave the document as it was', () => {
+            // Its paragraphs would have to go after the top-level item, below
+            // items that come after them in the document.
+            component.writeValue('<ul><li>a<ul><li>b<ul><li>c</li></ul></li><li>d</li></ul></li></ul>');
+            fixture.detectChanges();
+            const before = editor.innerHTML;
+            caretIn(editor.querySelector('li li li')!.firstChild as Text, 1);
+
+            component.onFormatCommand('bulletList');
+
+            expect(editor.innerHTML).toBe(before);
+        });
+
+        it.each(['bulletList', 'orderedList', 'taskList'])('%s leaves a code block as it is', (command) => {
+            component.writeValue('<pre><code>a\nb</code></pre>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('code')!.firstChild as Text, 1);
+
+            component.onFormatCommand(command);
+
+            expect(editor.querySelector('ul, ol')).toBeNull();
+            expect(editor.querySelector('pre > code')?.textContent).toBe('a\nb');
+        });
+
+        it('a keypress puts a caret left after a row at the end of its text, not after its first word', () => {
+            component.writeValue('<ul data-task-list><li data-task data-checked="false"><input type="checkbox">'
+                + '<span>hello <b>world</b></span></li></ul>');
+            fixture.detectChanges();
+            const row = editor.querySelector('li[data-task]')!;
+            caretIn(row, row.childNodes.length);
+
+            component.onKeydown(new KeyboardEvent('keydown', { key: 'Shift' }));
+
+            const selection = document.getSelection()!;
+            expect(selection.anchorNode?.textContent).toBe('world');
+            expect(selection.anchorOffset).toBe('world'.length);
+        });
+    });
+
+    it('the code block toggle leaves a table cell as it is, since a pipe table cannot hold one', () => {
+        // It used to build the code block inside the cell; a markdown save wrote
+        // the fence into the row and the table came back broken.
         component.writeValue('<table><tbody><tr><td>a</td><td>b</td></tr></tbody></table>');
         fixture.detectChanges();
         caretIn(editor.querySelector('td')!.firstChild as Text, 1);
 
         component.onFormatCommand('codeBlock');
 
-        expect(editor.querySelector('table')).not.toBeNull();
-        expect(editor.querySelectorAll('td')).toHaveLength(2);
-        expect(editor.querySelector('td pre code')?.textContent).toBe('a');
-        expect(editor.querySelector('tr > pre')).toBeNull();
+        expect(editor.querySelector('pre')).toBeNull();
+        expect(Array.from(editor.querySelectorAll('td')).map((td) => td.textContent)).toEqual(['a', 'b']);
     });
 
     it('a block command stops at a container boundary instead of gutting a list', () => {
@@ -3039,6 +3280,9 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         component.insertBlockAtCaret('<table><tbody><tr><td><br></td></tr></tbody></table><p><br></p>');
 
         expect(editor.querySelectorAll('table')).toHaveLength(2);
+        // After the table, never inside its cell: a table in a cell has no
+        // markdown form.
+        expect(Array.from(editor.children).map((el) => el.tagName)).toEqual(['TABLE', 'TABLE', 'P']);
     });
 
     it('keeps an empty table when the horizontal rule is inserted from inside it', () => {
@@ -3048,8 +3292,7 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
 
         component.onFormatCommand('horizontalRule');
 
-        expect(editor.querySelector('table')).not.toBeNull();
-        expect(editor.querySelector('hr')).not.toBeNull();
+        expect(Array.from(editor.children).map((el) => el.tagName)).toEqual(['TABLE', 'HR', 'P']);
     });
 
     it('insertBlockAtCaret lands the caret in the first cell of an inserted table', () => {
@@ -5284,10 +5527,11 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         expect(span.textContent).toBe('Title');
     });
 
-    it('Quote on a task row finishes and leaves the row with its text', () => {
-        // Found by the property matrix as a hang, not a failure: quoting put a
-        // <blockquote><p> inside the row, and the sanitizer's row unwrap then
-        // looped forever on the nested block during the content sync.
+    it('Quote on a task row takes the row out into a quote holding its text', () => {
+        // Found by the property matrix as a hang: quoting built the quote inside
+        // the row, and the sanitizer looped on it. After that fix the quote still
+        // sat before the checkbox and was gone on reload, so the row now leaves
+        // its list as a quote, which a save keeps.
         component.writeValue('<ul data-task-list=""><li data-task="" data-checked="false">'
             + '<input type="checkbox"><span>first</span></li></ul>');
         fixture.detectChanges();
@@ -5296,9 +5540,8 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         component.onFormatCommand('blockquote');
         fixture.detectChanges();
 
-        expect(editor.querySelectorAll('li[data-task]')).toHaveLength(1);
-        expect(editor.textContent).toContain('first');
-        expect(editor.querySelector('li[data-task] > span blockquote, li[data-task] > span p')).toBeNull();
+        expect(editor.querySelector('li[data-task], ul')).toBeNull();
+        expect(editor.querySelector('blockquote > p')?.textContent).toBe('first');
     });
 
     it('a heading on a details summary keeps the summary', () => {
@@ -5370,7 +5613,7 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         expect(item.querySelector('ul > li')?.textContent).toBe('second');
     });
 
-    it('a block command on stray text inside a list item gives that text a line, not the list', () => {
+    it('a block command on stray text inside a list item gives that text a line and leaves the item whole', () => {
         // Reachable by editing rather than by writeValue, which sanitizes: the
         // shape is what the browser leaves behind when it splits a block inside
         // an item. Wrapping the editor's own child instead moved the whole list
@@ -5383,10 +5626,11 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
 
         component.onFormatCommand('codeBlock');
 
+        // The item holds two lines now, so a code block has no single item to
+        // take out; the command stands down rather than burying one in it.
         expect(editor.querySelector('p > ul')).toBeNull();
-        expect(editor.querySelector('pre > ul')).toBeNull();
-        expect(editor.querySelector('li > pre code')?.textContent).toBe('stray');
-        expect(editor.querySelector('li > p')?.textContent).toBe('para');
+        expect(editor.querySelector('pre')).toBeNull();
+        expect(Array.from(editor.querySelectorAll('li > p')).map((p) => p.textContent)).toEqual(['stray', 'para']);
     });
 
     it('a block command on stray text in a div never wraps the div', () => {
@@ -5406,7 +5650,9 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
 
     it('a block command on an item that also holds a block keeps every line in it', () => {
         // The item is a container, so its own text had no line; the command
-        // walked out to the editor's child and wrapped the whole list.
+        // walked out to the editor's child and wrapped the whole list. The item
+        // holds two lines, so a code block has no single item to take out and
+        // the command now stands down, leaving both lines where they were.
         component.writeValue('<ul><li>outer<blockquote><p>deep</p></blockquote></li></ul>');
         fixture.detectChanges();
         // The sanitizer gives the item's own text a line on the way in.
@@ -5415,7 +5661,8 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
 
         component.onFormatCommand('codeBlock');
 
-        expect(editor.querySelector('li > pre code')?.textContent).toBe('outer');
+        expect(editor.querySelector('pre')).toBeNull();
+        expect(editor.querySelector('li > p')?.textContent).toBe('outer');
         expect(editor.querySelector('li > blockquote p')?.textContent).toBe('deep');
         expect(editor.querySelectorAll('li')).toHaveLength(1);
     });
@@ -5780,6 +6027,21 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
 
         expect(editor.querySelector('li[data-task]')).toBeNull();
         expect(editor.querySelector('p')).toBeTruthy();
+    });
+
+    it('Enter on an empty nested task row steps it out one level instead of leaving the list', () => {
+        // Leaving the list from a nested row built a paragraph inside the parent
+        // row, and the next keypress moved that paragraph into the row's text.
+        component.writeValue('<ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox"><span>parent</span>'
+            + '<ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox"><span>&nbsp;</span></li></ul></li></ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li[data-task] li[data-task] > span')!.firstChild as Text, 0);
+
+        component.onKeydown(enterKey());
+
+        expect(editor.querySelectorAll(':scope > ul > li[data-task]')).toHaveLength(2);
+        expect(editor.querySelector('li[data-task] li[data-task], li p')).toBeNull();
+        expect(editor.querySelector('li[data-task] > span')?.textContent).toBe('parent');
     });
 
     it('Enter is a no-op when there is no active selection', () => {

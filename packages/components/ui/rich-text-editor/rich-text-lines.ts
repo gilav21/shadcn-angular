@@ -286,6 +286,30 @@ export function positionOfLine(line: Line): { parent: Node; before: Node | null 
     return { parent, before: owner };
 }
 
+/** Elements whose blocks a save keeps as blocks; the root is one too. */
+const BLOCK_HOSTS = new Set(['BLOCKQUOTE', 'DETAILS']);
+
+/** Structure a line can sit inside that decides where a block command's result may go. */
+const LINE_STRUCTURES = new Set(['LI', 'TABLE', 'SUMMARY']);
+
+/**
+ * The list items, tables and summaries around a line, innermost first, up to
+ * the nearest element that holds blocks: the root, a quote or a details block.
+ *
+ * Block commands asked the line's own element instead, so a heading refused a
+ * list item but not a paragraph inside one, and a rule placed after a line in
+ * a cell went inside the cell. Markdown has no form for either, so a save
+ * turned them into literal text. What surrounds the line decides.
+ */
+export function structureAround(line: Line, root: HTMLElement): HTMLElement[] {
+    const found: HTMLElement[] = [];
+    for (let el: HTMLElement | null = line.owner; el && el !== root; el = el.parentElement) {
+        if (BLOCK_HOSTS.has(el.nodeName)) break;
+        if (LINE_STRUCTURES.has(el.nodeName)) found.push(el);
+    }
+    return found;
+}
+
 /** Elements whose tag is the meaning, so a block command may not replace them. */
 const FIXED_TAGS = new Set(['LI', 'TD', 'TH', 'SUMMARY', 'DT', 'DD', 'PRE']);
 

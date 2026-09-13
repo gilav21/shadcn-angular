@@ -253,6 +253,28 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         expect(saved(once)).toBe(once);
     });
 
+    it.each([
+        ['italic', '<p>a<i> x</i> b</p>', 'em, i'],
+        ['bold', '<p>a <b>x </b>b</p>', 'strong, b'],
+        ['strikethrough', '<p>a<s> x </s>b</p>', 'del, s'],
+    ])('keeps %s that starts or ends with a space as that emphasis, with no stray delimiters', (_name, html, selector) => {
+        // Markdown opens emphasis only before a non-space: the delimiters were
+        // written around the space and read back as literal characters.
+        const out = read(saved(html));
+
+        expect(out.querySelector(selector)?.textContent).toBe('x');
+        expect(out.textContent).not.toMatch(/[*~]/);
+    });
+
+    it('reads italic around bold at its edge back as the same nesting, and settles', () => {
+        const once = saved('<p><i><b>x</b> y</i></p>');
+        const out = read(once);
+
+        expect(out.querySelector('em > strong, i > b, em > b, i > strong')?.textContent).toBe('x');
+        expect(out.querySelector('em, i')?.textContent).toBe('x y');
+        expect(saved(once)).toBe(once);
+    });
+
     it('writes no start attribute for a list that counts from one', () => {
         expect(read(service.toHtml('1. one\n2. two')).querySelector('ol')?.hasAttribute('start')).toBe(false);
     });
