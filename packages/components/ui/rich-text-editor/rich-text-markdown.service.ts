@@ -489,11 +489,14 @@ const STRIKE_TAGS: readonly string[] = ['s', 'del'];
 const INLINE_ANCESTORS = new Set(['a', 'span', 'strong', 'b', 'em', 'i', 'u', 's', 'del', 'ins', 'mark', 'sub', 'sup', 'small']);
 
 /**
- * A quote's lines without its blank ones -- except inside a fenced code block,
- * where a blank row and trailing spaces are content, and after a table row,
- * where the blank line is what ends the table. Filtering every line deleted
- * the blank rows of each quoted code block, and let the line after a quoted
- * table -- another table, or text holding a pipe -- read back as its rows.
+ * A quote's lines: one blank line between its blocks, and a fenced code block's
+ * lines as written.
+ *
+ * The blank line is what keeps two blocks apart when the quote is read back.
+ * Dropped, two paragraphs beside a list or a heading read back as one, a table
+ * took the paragraph after it as a row, and the text after a code block gained
+ * an empty line. Line ends are not trimmed: a hard break nested in the quote is
+ * two spaces and a newline, and trimmed it read back as a soft line ending.
  */
 function quoteBodyLines(inner: string): string[] {
     const lines: string[] = [];
@@ -511,30 +514,38 @@ function quoteBodyLines(inner: string): string[] {
             continue;
         }
         if (marker) fence = marker;
-        const line = raw.trimEnd();
-        if (!line) {
+        if (raw.trim() === '') {
             skippedBlank = lines.length > 0;
             continue;
         }
-        // A table row indented in a list item too: without the blank line the
-        // paragraph after the table read back as its row.
-        if (skippedBlank && (lines.at(-1) ?? '').trimStart().startsWith('|')) lines.push('');
+        if (skippedBlank) lines.push('');
         skippedBlank = false;
-        lines.push(line);
+        lines.push(raw);
     }
     return lines;
 }
 
 /**
- * A `<br>` as markdown: a hard break, or the tag inside formatting in a quote.
+ * A `<br>` as markdown: a hard break; in a quote, the tag inside formatting, and
+ * the end of a paragraph on the quote's own line.
  *
- * A quote reads each of its lines as a line of its own, so a break between runs
- * is rightly a line ending. Inside bold or italic it is not: the emphasis could
- * not close across the line ending, and in a quote that also held a block it
- * came back as literal asterisks. The tag keeps the break inside the emphasis.
+ * A quote holds lines, and a break on one of its own lines starts the next: the
+ * sanitizer splits the line there. Written as a line ending, the reader kept the
+ * two halves as one paragraph beside a list or a heading, and the saves
+ * disagreed. Inside bold or italic the break stays in the emphasis as the tag: a
+ * line ending there left the emphasis open, and it came back as asterisks.
  */
 function breakToMarkdown(br: Element): string {
-    return br.closest('blockquote') && insideWrittenFormatting(br) ? '<br>' : '  \n';
+    if (!br.closest('blockquote')) return '  \n';
+    if (insideWrittenFormatting(br)) return '<br>';
+    return onQuoteLine(br) ? '\n\n' : '  \n';
+}
+
+/** Whether a break sits on a quote's own line: in the quote, or in a paragraph or div that is its child. */
+function onQuoteLine(br: Element): boolean {
+    const line = br.parentElement?.closest('p, div, li, td, th, h1, h2, h3, h4, h5, h6, summary, details, pre, blockquote');
+    if (line?.nodeName === 'BLOCKQUOTE') return true;
+    return (line?.nodeName === 'P' || line?.nodeName === 'DIV') && line.parentElement?.nodeName === 'BLOCKQUOTE';
 }
 
 /**
@@ -756,56 +767,96 @@ function escapeMarkdownText(text: string): string {
         // task marker split by an element (`[see <b>this</b>](u)`,
         // `[<span>x</span>] done`) or holding a nested pair came back as syntax.
         .replaceAll(/[[\]]/g, String.raw`\$&`)
-        // An entity-shaped "&": the page decoded "&lt;" typed as text into "<".
-        .replaceAll(/&(?=#?\w+;)/g, String.raw`\&`)
+        // An "&" that can start a character reference. The page decoded "&lt;"
+        // typed as text into "<", and legacy names such as "&copy" decode with
+        // no semicolon at all.
+        .replaceAll(/&(?=[A-Za-z#])/g, String.raw`\&`)
         // A literal "<b>" in prose (an author writing ABOUT markup) became a
         // real element on reload. Only a tag-shaped "<" is escaped.
         .replaceAll(/<(?=[a-z/])/gi, String.raw`\<`));
 }
 
-/** Parents whose text is written on one markdown line. */
-const ONE_LINE_PARENTS = new Set(['H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'SUMMARY', 'TD', 'TH', 'LI']);
+/**
+ * The parsed document shaped as the page shows it, before it is written.
+ *
+ * A span with no attributes writes nothing of its own, so it is unwrapped and
+ * the text on either side merged: escaped one text node at a time,
+ * `~<span>~</span>~`, `&<span>lt;</span>` and `<span>&lt;</span>b>` came back as
+ * a fence, an entity and a tag. The only span serializer, for actions, keys on
+ * attributes. Whitespace outside code is then collapsed the way the browser
+ * renders it, so a newline or a run of blanks in the markup is written as the
+ * single space it shows, and nothing at the start of a line.
+ */
+function prepareForMarkdown(root: HTMLElement): void {
+    for (const span of Array.from(root.querySelectorAll('span'))) {
+        if (span.attributes.length === 0) span.replaceWith(...Array.from(span.childNodes));
+    }
+    root.normalize();
+    collapseRenderedWhitespace(root);
+}
+
+/** A rendered line's pieces in reading order: its text, a line boundary, or something shown without text. */
+type LineToken = Text | 'break' | 'content';
+
+/** Elements whose text is kept as written: code keeps every space and newline. */
+const VERBATIM_TEXT_TAGS = new Set(['PRE', 'CODE', 'TEXTAREA']);
+
+function lineTokens(root: Node, out: LineToken[]): LineToken[] {
+    for (const child of Array.from(root.childNodes)) {
+        if (child.nodeType === Node.TEXT_NODE) {
+            out.push(child as Text);
+        } else if (child.nodeType === Node.ELEMENT_NODE) {
+            pushElementTokens(child as Element, out);
+        }
+    }
+    return out;
+}
+
+function pushElementTokens(element: Element, out: LineToken[]): void {
+    if (element.nodeName === 'BR') {
+        out.push('break');
+        return;
+    }
+    const inline = isPhrasing(element);
+    // An inline element that shows nothing, such as emptied code, is not on the
+    // line at all: counted as content, the spaces on both its sides stayed.
+    if (inline && showsNothing(element)) return;
+    if (VERBATIM_TEXT_TAGS.has(element.nodeName) || SHOWS_WITHOUT_TEXT.has(element.nodeName)) {
+        out.push(inline ? 'content' : 'break');
+        return;
+    }
+    if (!inline) out.push('break');
+    lineTokens(element, out);
+    if (!inline) out.push('break');
+}
 
 /**
- * A text node as markdown text.
- *
- * A newline in text shows as a space. Where the text is written on one markdown
- * line -- in an inline element, a heading, a summary, a table cell or a list
- * item's own text -- it is written as one: kept, it ended the heading or the
- * task row, and bold around it came back as asterisks. Elsewhere it is the soft
- * line break it reads back as, without the blanks before it, which made a hard
- * break the page never showed. Blank text in a one-line parent is a space too:
- * kept between two inline runs, it put the second run on a line of its own.
+ * Collapse whitespace as the browser renders it: a run of blanks is one space,
+ * and a space is dropped after another space and at the start of a line, after
+ * a line break too, wherever the elements around it split the text.
  */
-function textToMarkdown(node: Node): string {
-    const text = node.textContent ?? '';
-    if (!text.includes('\n')) return escapeMarkdownText(text);
-    const parts = text.split('\n');
-    const last = parts.length - 1;
-    if (!writesOnOneLine(node)) {
-        return escapeMarkdownText(parts.map((part, i) => (i === last ? part : withoutTrailingBlanks(part))).join('\n'));
+function collapseRenderedWhitespace(root: HTMLElement): void {
+    const tokens = lineTokens(root, []);
+    collapseAlongLines(tokens);
+}
+
+function collapseAlongLines(tokens: readonly LineToken[]): void {
+    let afterSpace = true;
+    for (const token of tokens) {
+        if (typeof token === 'string') {
+            afterSpace = token === 'break';
+            continue;
+        }
+        let text = token.data.replaceAll(/[ \t\n\r\f]+/g, ' ');
+        if (afterSpace && text.startsWith(' ')) text = text.slice(1);
+        if (text !== '') afterSpace = text.endsWith(' ');
+        token.data = text;
     }
-    return escapeMarkdownText(parts.map((part, i) => {
-        const start = i === 0 ? part : withoutLeadingBlanks(part);
-        return i === last ? start : withoutTrailingBlanks(start);
-    }).join(' '));
 }
 
-function writesOnOneLine(node: Node): boolean {
-    const parent = node.parentElement;
-    return parent !== null && (ONE_LINE_PARENTS.has(parent.nodeName) || isPhrasing(parent));
-}
-
-function withoutTrailingBlanks(part: string): string {
-    let end = part.length;
-    while (end > 0 && (part[end - 1] === ' ' || part[end - 1] === '\t')) end--;
-    return part.slice(0, end);
-}
-
-function withoutLeadingBlanks(part: string): string {
-    let start = 0;
-    while (start < part.length && (part[start] === ' ' || part[start] === '\t')) start++;
-    return part.slice(start);
+/** A text node as markdown text; its whitespace is already as rendered (see prepareForMarkdown). */
+function textToMarkdown(node: Node): string {
+    return escapeMarkdownText(node.textContent ?? '');
 }
 
 /**
@@ -1298,7 +1349,12 @@ export class RichTextMarkdownService {
         // Loose text after a blank line gets its paragraph here. Left bare, the
         // document-level paragraph pass split the quote's markup at that blank
         // line and left an empty paragraph after the quote.
-        const body = parsed === source ? lines.join('<br>') : this.blocksWithParagraphs(parsed);
+        // Lines with no blank between them are lines of one quote, joined with
+        // breaks the sanitizer makes paragraphs of. A blank line separates
+        // blocks, including two paragraphs, or a code block and the text after
+        // it, which the break join turned into an empty line between them.
+        const separated = lines.some((line) => line.trim() === '');
+        const body = parsed === source && !separated ? lines.join('<br>') : this.blocksWithParagraphs(parsed);
         return `<blockquote>${body}</blockquote>`;
     }
 
@@ -1769,6 +1825,7 @@ export class RichTextMarkdownService {
         /** Parse into DOM */
         const parser = new DOMParser();
         const doc = parser.parseFromString(cleanHtml, 'text/html');
+        prepareForMarkdown(doc.body);
 
         return this.nodeToMarkdown(doc.body).trim();
     }
@@ -2096,13 +2153,10 @@ export class RichTextMarkdownService {
     }
 
     private handleBlockquoteTag(inner: string): string {
-        // A quote's own line endings are not hard breaks. parseBlockquotes joins
-        // its lines with <br>, so on the way back every multi-line quote gained
-        // two trailing spaces per line -- "> a  " -- which is a HARD break in
-        // markdown, and the document was no longer a round-trip fixed point.
-        // A break between runs is therefore a new line of the quote, the way the
-        // quote reads it back; one inside formatting is written as the tag (see
-        // breakToMarkdown).
+        // One blank quote line between blocks, and a break on a quote line ends
+        // its paragraph (see quoteBodyLines and breakToMarkdown), so the reader
+        // rebuilds the same paragraphs whether or not the quote also holds a
+        // list, a table or a code block.
         const quoteLines = quoteBodyLines(inner);
         // "> " with a space, so a nested quote emits "> > x" rather than
         // ">> x". parseBlockquotes strips one "> " per level and reads both,

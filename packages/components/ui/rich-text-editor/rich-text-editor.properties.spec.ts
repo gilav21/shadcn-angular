@@ -114,6 +114,8 @@ class DocumentGenerator {
             () => `| ${w} |`,
             () => '```',
             () => `[x] ${w}`,
+            () => `&amp;copy ${w}`,
+            () => `~<span>~</span>~ ${w}`,
         ])();
     }
 
@@ -315,6 +317,11 @@ function childrenInReadingOrder(node: Node): Node[] {
     if (node.nodeName !== 'DETAILS') return children;
     const summary = children.find((child) => child.nodeName === 'SUMMARY');
     return summary ? [summary, ...children.filter((child) => child !== summary)] : children;
+}
+
+/** Paragraphs with text directly in a quote; a save that merged two of them lowers it. */
+function quoteParagraphs(root: ParentNode): number {
+    return Array.from(root.querySelectorAll('blockquote > p')).filter((p) => (p.textContent ?? '').trim() !== '').length;
 }
 
 function countOf(root: ParentNode, selector: string): number {
@@ -572,6 +579,7 @@ describe('rich text editor — properties over generated documents', () => {
                 expect(countOf(after, 'hr'), `rules\n${why}`).toBe(countOf(before, 'hr') - rulesWithoutMarkdownForm(before));
                 expect(invalidMarkup(after), why).toBe('');
                 expect(countOf(after, 'p:empty'), `empty paragraphs\n${why}`).toBeLessThanOrEqual(countOf(before, 'p:empty'));
+                expect(quoteParagraphs(after), `quote paragraphs\n${why}`).toBeGreaterThanOrEqual(quoteParagraphs(before));
                 expect(second === first, `second save differs ${firstDifference(first, second)}\n${why}`).toBe(true);
             } finally {
                 before.remove();
@@ -663,6 +671,8 @@ describe('rich text editor — properties over generated documents', () => {
                 // A save the page shows as written, and that the next save keeps.
                 expect.soft(countOf(after, 'p:empty'), context(scenario, `empty paragraphs ${step}`))
                     .toBeLessThanOrEqual(countOf(before, 'p:empty'));
+                expect.soft(quoteParagraphs(after), context(scenario, `quote paragraphs ${step}`))
+                    .toBeGreaterThanOrEqual(quoteParagraphs(before));
                 expect.soft(markdown.toHtml(markdown.toMarkdown(first)), context(scenario, `second save ${step}`)).toBe(first);
             } finally {
                 before.remove();

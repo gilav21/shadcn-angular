@@ -714,6 +714,85 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         expect(saved(once)).toBe(once);
     });
 
+    it.each([
+        ['a fence split by spans', '<p>~<span>~</span>~</p><p>code</p><p>~<span>~</span>~</p>', '~~~code~~~', 'pre'],
+        ['an entity split by a span', '<p>a <span>&amp;</span>lt; b</p>', 'a &lt; b', 'b, strong'],
+        ['a tag split by spans', '<p><span>&lt;</span>b&gt;x<span>&lt;</span>/b&gt; y</p>', '<b>x</b> y', 'b, strong'],
+    ])('keeps %s, whose text nodes each looked harmless, as text, and settles', (_name, html, text, selector) => {
+        // Escaped one text node at a time, the syntax only formed once the
+        // nodes were written next to each other.
+        const once = saved(html);
+        const out = read(once);
+
+        expect(out.textContent?.replaceAll('\n', '')).toBe(text);
+        expect(out.querySelector(selector)).toBeNull();
+        expect(saved(once)).toBe(once);
+    });
+
+    it.each([
+        ['&copy 2024', '&amp;copy 2024'],
+        ['a &lt b', 'a &amp;lt b'],
+        ['&#169 x', '&amp;#169 x'],
+        ['AT&T&amp', 'AT&amp;T&amp;amp'],
+    ])('keeps the entity-looking text %j with no semicolon as text through a save', (text, html) => {
+        // The page decodes legacy names and numbers without a semicolon.
+        const once = saved(`<p>${html}</p>`);
+
+        expect(read(once).textContent).toBe(text);
+        expect(saved(once)).toBe(once);
+    });
+
+    it.each([
+        ['blanks in a span before a newline', '<p><span>a  </span>\nb</p>', 'a b', 0],
+        ['a blank after bold beside a newline', '<p><b>a </b> \nb</p>', 'a b', 0],
+        ['a newline after a line break', '<p>a<br>\nb</p>', 'ab', 1],
+    ])('writes %s as the page shows it, and settles', (_name, html, text, breaks) => {
+        // Trimmed one text node at a time, blanks from another node invented a
+        // line break, or the second save differed from the first.
+        const once = saved(html);
+        const out = read(once);
+
+        expect(out.textContent).toBe(text);
+        expect(out.querySelectorAll('p')).toHaveLength(1);
+        expect(out.querySelectorAll('br')).toHaveLength(breaks);
+        expect(saved(once)).toBe(once);
+    });
+
+    it('keeps the spaces and newlines inside inline code and a code block as written', () => {
+        const once = saved('<p>a <code>x  y</code> b</p><pre><code>one  \n\n  two</code></pre>');
+        const out = read(once);
+
+        expect(out.querySelector('p code')?.textContent).toBe('x  y');
+        expect(out.querySelector('pre code')?.textContent).toBe('one  \n\n  two');
+        expect(saved(once)).toBe(once);
+    });
+
+    it.each([
+        ['prose that starts with a pipe', '<blockquote><p>| a</p><p>b</p></blockquote>', 2],
+        ['a code block and the text after it', '<blockquote><pre><code>c</code></pre><p>x</p></blockquote>', 1],
+        ['a list and two paragraphs', '<blockquote><ul><li>a</li></ul><p>x</p><p>y</p></blockquote>', 2],
+        ['a heading and two paragraphs', '<blockquote><h2>h</h2><p>x</p><p>y</p></blockquote>', 2],
+        ['two paragraphs and a list', '<blockquote><p>x</p><p>y</p><ul><li>a</li></ul></blockquote>', 2],
+        ['a paragraph with a break beside a list', '<blockquote><ul><li>a</li></ul><p>b<br>c</p></blockquote>', 2],
+    ])('keeps every paragraph of a quote holding %s apart, with no empty line, and settles', (_name, html, paragraphs) => {
+        // The quote wrote its blocks with no blank line between them: beside a
+        // block, two paragraphs read back as one, or an empty line was added.
+        const once = saved(html);
+        const quoteParagraphs = Array.from(read(once).querySelectorAll('blockquote > p'));
+
+        expect(quoteParagraphs.filter((p) => (p.textContent ?? '').trim() !== '')).toHaveLength(paragraphs);
+        expect(quoteParagraphs.filter((p) => (p.textContent ?? '').trim() === '' && !p.querySelector('img'))).toHaveLength(0);
+        expect(saved(once)).toBe(once);
+    });
+
+    it('keeps a hard break nested inside a quote a line break', () => {
+        // The quote trimmed its line ends, and the break's two spaces with them.
+        const once = saved('<blockquote><details><summary>s</summary><p>a<br>b</p></details></blockquote>');
+
+        expect(read(once).querySelector('blockquote details p br')).not.toBeNull();
+        expect(saved(once)).toBe(once);
+    });
+
     it('keeps emphasis inside a word as emphasis, with no stray asterisks', () => {
         const once = saved('<p>un<em>believ</em>able</p>');
         const out = read(once);

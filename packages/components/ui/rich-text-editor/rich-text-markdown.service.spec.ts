@@ -145,8 +145,14 @@ describe('RichTextMarkdownService', () => {
         });
 
         it('round-trips a multi-line quote as a fixed point', () => {
+            // Two lines of a quote are two paragraphs in the editor, written with a
+            // blank quote line between them, as markdown keeps paragraphs apart:
+            // without it a markdown reader takes them as one. The first save
+            // writes that form, and the next one keeps it.
             const md = '> line1\n> line2';
-            expect(service.toMarkdown(service.toHtml(md))).toBe(md);
+            const once = service.toMarkdown(service.toHtml(md));
+            expect(once).toBe('> line1\n>\n> line2');
+            expect(service.toMarkdown(service.toHtml(once))).toBe(once);
         });
 
         it('converts horizontal rules', () => {
@@ -437,13 +443,13 @@ describe('RichTextMarkdownService', () => {
             // spaces, i.e. a HARD break -- because parseBlockquotes joins a
             // quote's soft lines with <br> and this is the reverse of that join.
             // Emitting the hard-break form meant every multi-line quote stopped
-            // being a round-trip fixed point. See the KNOWN LIMIT on
-            // handleBlockquoteTag: a deliberate break inside a quote is
-            // normalised away with it.
+            // being a round-trip fixed point. Each line is its own paragraph,
+            // separated by a blank quote line: without it, beside a list or a
+            // heading in the same quote, two paragraphs read back as one.
             const html = '<blockquote><p>line1</p><p>line2</p></blockquote>';
-            expect(service.toMarkdown(html)).toBe('> line1\n> line2');
-            // The bare shape older documents carry reads the same way.
-            expect(service.toMarkdown('<blockquote>line1<br>line2</blockquote>')).toBe('> line1\n> line2');
+            expect(service.toMarkdown(html)).toBe('> line1\n>\n> line2');
+            // The bare shape older documents carry: a break on a quote line ends it.
+            expect(service.toMarkdown('<blockquote>line1<br>line2</blockquote>')).toBe('> line1\n>\n> line2');
         });
 
         it('converts a details block to :::details', () => {
@@ -1484,7 +1490,10 @@ describe('RichTextMarkdownService', () => {
             const NLC = String.fromCodePoint(10);
             const md = '> a' + NLC + '> b';
             const once = service.toMarkdown(service.toHtml(md));
-            expect(once).toBe(md);
+            // Its two lines are paragraphs, kept apart by a blank quote line, with
+            // no trailing spaces on either.
+            expect(once).toBe('> a' + NLC + '>' + NLC + '> b');
+            expect(once).not.toContain('  ' + NLC);
             expect(service.toMarkdown(service.toHtml(once))).toBe(once);
         });
 
@@ -2047,7 +2056,9 @@ describe('RichTextMarkdownService', () => {
                 const md = service.toMarkdown(host.outerHTML);
                 const probe = document.createElement('div');
                 probe.innerHTML = service.toHtml(md);
-                expect(probe.textContent).toBe('a  b');
+                // One space: the two around the emptied run show as one on the
+                // page, and the save writes what the page shows.
+                expect(probe.textContent).toBe('a b');
                 expect(service.toMarkdown(service.toHtml(md))).toBe(md);
             }
         });
