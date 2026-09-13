@@ -298,6 +298,15 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         expect(saved(once)).toBe(once);
     });
 
+    it('keeps a code block with a blank row inside a details block inside a list item', () => {
+        const once = saved('<ul><li><details><summary>s</summary><pre><code>x\n\ny</code></pre></details></li></ul>');
+        const out = read(once);
+
+        expect(out.querySelector('li details pre code')?.textContent).toBe('x\n\ny');
+        expect(out.textContent).not.toContain('```');
+        expect(saved(once)).toBe(once);
+    });
+
     it('writes no start attribute for a list that counts from one', () => {
         expect(read(service.toHtml('1. one\n2. two')).querySelector('ol')?.hasAttribute('start')).toBe(false);
     });

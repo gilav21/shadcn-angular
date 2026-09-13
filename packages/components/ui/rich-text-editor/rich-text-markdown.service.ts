@@ -233,6 +233,20 @@ function oneLine(text: string): string {
 }
 
 /**
+ * `text` without its blank first and last lines, keeping the first shown line's
+ * own indent. A code block written inside a list item carries that item's
+ * indent on every line; trimming it off the opening fence alone left the fence
+ * and its closer at different columns, so the fence never closed and the code
+ * came back as literal text -- in a list item, and in a details body within one.
+ */
+function trimBlankLines(text: string): string {
+    const lines = text.split('\n');
+    while (lines.length > 0 && lines[0].trim() === '') lines.shift();
+    while (lines.length > 0 && (lines.at(-1) ?? '').trim() === '') lines.pop();
+    return lines.join('\n');
+}
+
+/**
  * Blocks that cannot share a list marker's line.
  *
  * An item whose first child was one of these was written on the marker line --
@@ -256,14 +270,8 @@ function opensWithBlock(li: Element): boolean {
  */
 function leadingBlockContinuation(content: string, indent = ''): string {
     const pad = indent + '  ';
-    const lines = content.split('\n');
-    // Blank lines at either end go, but not the first line's own indent: a code
-    // block already carries its item indent, and trimming it off the opening
-    // fence alone left the fence and its closer at different columns, so the
-    // fence never closed and came back as text.
-    while (lines.length > 0 && lines[0].trim() === '') lines.shift();
-    while (lines.length > 0 && (lines.at(-1) ?? '').trim() === '') lines.pop();
-    return '\n' + lines.map((line) => (line.trim() ? pad + line : line)).join('\n');
+    const body = trimBlankLines(content);
+    return '\n' + body.split('\n').map((line) => (line.trim() ? pad + line : line)).join('\n');
 }
 
 /**
@@ -1843,7 +1851,7 @@ export class RichTextMarkdownService {
         // Blocks in the body are separated by a blank line, as they are at document
         // level. A single newline let two paragraphs, or a paragraph and the line
         // after a rule, read back as one paragraph on the next save.
-        return `\n:::details ${summaryText}\n${contentParts.map(part => part.trim()).filter(Boolean).join('\n\n')}\n:::\n`;
+        return `\n:::details ${summaryText}\n${contentParts.map(trimBlankLines).filter(Boolean).join('\n\n')}\n:::\n`;
     }
 
     /**
