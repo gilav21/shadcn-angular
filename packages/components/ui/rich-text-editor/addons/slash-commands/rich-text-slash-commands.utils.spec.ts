@@ -462,6 +462,7 @@ describe('rich-text-slash-commands.utils', () => {
             ['a sub-list', '<ul><li>parent<ul><li>child</li></ul></li></ul>', 'parent'],
             ['a table', '<ul><li>text<table><tbody><tr><td>cell</td></tr></tbody></table></li></ul>', 'text'],
             ['a code block and blank text', '<ul><li>line<pre><code>x</code></pre>\n</li></ul>', 'line'],
+            ['a sub-list after a blank line of its own', '<ul><li>\u00a0<ul><li>child</li></ul></li></ul>', '\u00a0'],
         ])('places the caret at the end of the item own text, not in %s nested at its end', (_name, html, text) => {
             const root = makeRoot(html);
             placeCaretAtEndOfBlock(document, root.querySelector('li')!);
@@ -470,6 +471,17 @@ describe('rich-text-slash-commands.utils', () => {
             expect(selection.anchorNode?.textContent).toBe(text);
             expect(selection.anchorOffset).toBe(text.length);
         });
+    });
+
+    it('places the caret in the empty text a removed trigger leaves, not in the item sub-list', () => {
+        const root = makeRoot('<ul><li><ul><li>child</li></ul></li></ul>');
+        const item = root.querySelector('li')!;
+        const blank = document.createTextNode('');
+        item.insertBefore(blank, item.firstChild);
+
+        placeCaretAtEndOfBlock(document, item);
+
+        expect(document.getSelection()!.anchorNode).toBe(blank);
     });
 
     describe('removeCaretSentinelAtSelection', () => {

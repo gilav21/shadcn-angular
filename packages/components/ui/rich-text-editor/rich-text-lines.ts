@@ -456,10 +456,11 @@ export function lineIsTextOnly(line: Line): boolean {
 }
 
 /**
- * The deepest last node of a block's own inline content, or null when it has
- * none. Blocks nested at its end, and blank text after them, are not its line:
- * a slash command on an item holding a sub-list put the caret at the end of the
- * sub-list and acted on the wrong line.
+ * The deepest last node of a block's own inline content; when all of that is
+ * blank, the blank text before its first block, which is its own empty line; or
+ * null when it has no inline content at all. Blocks nested at its end, and blank
+ * text after them, are not its line: a slash command on an item holding a
+ * sub-list put the caret at the end of the sub-list and acted on the wrong line.
  */
 export function lastOwnInlineNode(block: Element): Node | null {
     for (let node: ChildNode | null = block.lastChild; node; node = node.previousSibling) {
@@ -470,7 +471,22 @@ export function lastOwnInlineNode(block: Element): Node | null {
         while (deepest.lastChild) deepest = deepest.lastChild;
         return deepest;
     }
-    return null;
+    return blankTextBeforeBlocks(block);
+}
+
+/**
+ * The last text node before a block's first nested block. A slash typed on an
+ * item holding only a sub-list, or only its non-breaking-space seed, leaves
+ * such a node once the trigger is removed; passed over, the caret went into the
+ * sub-list.
+ */
+function blankTextBeforeBlocks(block: Element): Text | null {
+    let found: Text | null = null;
+    for (const node of Array.from(block.childNodes)) {
+        if (!isPhrasing(node)) break;
+        if (node.nodeType === Node.TEXT_NODE) found = node as Text;
+    }
+    return found;
 }
 
 /**

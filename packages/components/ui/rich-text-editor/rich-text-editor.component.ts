@@ -3253,7 +3253,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     /** The number an ordered list counts from. */
-    private listStartOf(list: HTMLElement): number {
+    private listStartOf(list: Element): number {
         const start = Number.parseInt(list.getAttribute('start') ?? '', 10);
         return Number.isInteger(start) ? start : 1;
     }
@@ -5402,6 +5402,13 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (last?.nodeName === tag.toUpperCase()) return last as HTMLElement;
         const made = this.document.createElement(tag);
         if (taskList) made.dataset['taskList'] = '';
+        // Past a list of another kind, a numbered list keeps counting from the
+        // item's last one, as a list split by kind does; it restarted at 1.
+        const previous = tag === 'ol' ? Array.from(item.children).filter((child) => child.nodeName === 'OL').at(-1) : undefined;
+        if (previous) {
+            const start = this.listStartOf(previous) + previous.querySelectorAll(':scope > li').length;
+            if (start !== 1) made.setAttribute('start', String(start));
+        }
         item.appendChild(made);
         return made;
     }

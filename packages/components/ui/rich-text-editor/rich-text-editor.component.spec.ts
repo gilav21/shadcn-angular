@@ -3302,6 +3302,8 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
             component.onFormatCommand('indent');
 
             expect(Array.from(editor.querySelector(':scope > ol > li')!.querySelectorAll('li')).map((li) => li.textContent)).toEqual(['n', 't', 'b']);
+            // It keeps counting past the task list, as a list split by kind does.
+            expect(editor.querySelector(':scope > ol > li > ol:last-of-type')?.getAttribute('start')).toBe('2');
         });
 
         it.each([
@@ -3329,6 +3331,39 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
                 component.writeValue(html);
                 fixture.detectChanges();
                 caretIn(editor.querySelector('li')!.firstChild as Text, 3);
+                component.onFormatCommand(command);
+                const byToolbar = editor.innerHTML.replaceAll('\u200B', '');
+
+                component.writeValue(html);
+                fixture.detectChanges();
+                component.executeToolbarCommandOnBlock(command, editor.querySelector('li'));
+
+                expect(editor.innerHTML.replaceAll('\u200B', '')).toBe(byToolbar);
+            },
+        );
+
+        it('Shift+Tab carrying a numbered item past a task sub-list keeps its number counting', () => {
+            component.writeValue('<ol><li>P<ol><li>x<ol><li>s</li></ol><ul data-task-list><li data-task data-checked="false">'
+                + '<input type="checkbox"><span>t</span></li></ul></li><li>y</li></ol></li></ol>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('ol ol > li')!.firstChild as Text, 1);
+
+            component.onFormatCommand('outdent');
+
+            expect(editor.textContent).toBe('Pxsty');
+            const carried = Array.from(editor.querySelectorAll('ol')).find((ol) => ol.textContent === 'y');
+            expect(carried?.getAttribute('start')).toBe('2');
+        });
+
+        it.each(['bulletList', 'orderedList', 'blockquote'])(
+            '%s from the slash menu on an item whose own line is blank acts on that line, as the toolbar does',
+            (command) => {
+                // With nothing but the seed of its own, the caret went into the
+                // sub-list and the command acted on the child line.
+                const html = '<ul><li>&nbsp;<ul><li>child</li></ul></li><li>next</li></ul>';
+                component.writeValue(html);
+                fixture.detectChanges();
+                caretIn(editor.querySelector('li')!.firstChild as Text, 1);
                 component.onFormatCommand(command);
                 const byToolbar = editor.innerHTML.replaceAll('\u200B', '');
 

@@ -124,6 +124,8 @@ describe('rich text line model — the shape table', () => {
         ['its own text before a sub-list', '<li>parent<ul><li>child</li></ul></li>', 'parent'],
         ['its own formatting before a table and blank text', '<li>a <b>bold</b><table><tbody><tr><td>c</td></tr></tbody></table>\n</li>', 'bold'],
         ['nothing of its own, only a list', '<li><ul><li>x</li></ul></li>', null],
+        ['only a blank line of its own before a sub-list', '<li>\u00a0<ul><li>child</li></ul></li>', '\u00a0'],
+        ['blank text before and after a sub-list', '<li>\u00a0<ul><li>child</li></ul>\n</li>', '\u00a0'],
     ])('finds the last node of a block holding %s', (_name, html, text) => {
         const root = document.createElement('ul');
         root.innerHTML = html;
