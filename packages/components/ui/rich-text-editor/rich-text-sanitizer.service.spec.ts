@@ -83,6 +83,20 @@ describe('RichTextSanitizerService — task row shape', () => {
         expect(service.sanitize(holder.innerHTML)).toBe(holder.innerHTML);
     });
 
+    it.each([
+        ['a rule', '<hr>'],
+        ['an empty table', '<table><tbody><tr><td></td></tr></tbody></table>'],
+        ['a rule and a break', '<hr><br>'],
+    ])('adds no empty row for %s after a row nested list, and settles', (_name, after) => {
+        // Flattened into a row, it shows nothing, so a row of its own was an empty row.
+        const holder = document.createElement('div');
+        holder.innerHTML = service.sanitize('<ul data-task-list><li data-task data-checked="true"><input type="checkbox" checked><span>a</span>'
+            + `<ul><li>b</li></ul>${after}</li></ul>`);
+
+        expect(holder.querySelectorAll(':scope > ul > li[data-task]')).toHaveLength(1);
+        expect(service.sanitize(holder.innerHTML)).toBe(holder.innerHTML);
+    });
+
     it('gives a row with no text a span to hold the caret', () => {
         const row = rowOf('<ul data-task-list><li data-task><input type="checkbox"></li></ul>');
 

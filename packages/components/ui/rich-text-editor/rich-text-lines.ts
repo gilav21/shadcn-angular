@@ -130,12 +130,14 @@ export interface RowRun {
 
 /**
  * A list item's children as task rows, in order: each row's content, then the
- * nested lists under it. Content after a nested list that shows something starts
- * the next row: a row's text shows above its nested lists, so gathered into one
- * row the words after a list moved ahead of the list's own. An element after a
- * list that shows nothing, a trailing `<br>` or an empty span, stays in the row's
- * text, where it still shows nothing; as a row of its own it was an empty row.
- * `skip`, a row's own checkbox, is left where it is, and so is blank text after a list.
+ * nested lists under it. Content after a nested list that shows something in a
+ * row's text starts the next row: a row's text shows above its nested lists, so
+ * gathered into one row the words after a list moved ahead of the list's own. An
+ * element after a list that would show nothing in a row -- a trailing `<br>`, an
+ * empty span, a rule, an empty block (see showsInRowText) -- joins the row's text
+ * instead, flattened there like any block in a row; as a row of its own it was an
+ * empty row. `skip`, a row's own checkbox, is left where it is, and so is blank
+ * text after a list.
  */
 export function rowRunsOf(item: Element, skip: Node | null = null): RowRun[] {
     let run: RowRun = { content: [], lists: [] };
@@ -146,7 +148,7 @@ export function rowRunsOf(item: Element, skip: Node | null = null): RowRun[] {
             run.lists.push(node);
         } else if (run.lists.length === 0) {
             run.content.push(node);
-        } else if (!nodeShowsNothing(node)) {
+        } else if (showsInRowText(node)) {
             run = { content: [node], lists: [] };
             runs.push(run);
         } else if (node.nodeType === Node.ELEMENT_NODE) {
@@ -575,10 +577,30 @@ export function holdsNothing(el: Element): boolean {
     return (el.textContent ?? '').replaceAll(PLACEHOLDERS, '').trim() === '';
 }
 
-/** Whether a node shows the author nothing: blank text, or an element that holds nothing (see holdsNothing). */
+/**
+ * Whether a node shows the author nothing and is no line of its own: blank text,
+ * or an inline element that holds nothing (see holdsNothing). A block is a line
+ * even when it is empty -- a blank paragraph, an empty code block or list item
+ * the author made -- so it never counts: taken for nothing, an outdent left it
+ * behind, above the item it belonged under.
+ */
 export function nodeShowsNothing(node: Node): boolean {
-    if (node.nodeType === Node.ELEMENT_NODE) return holdsNothing(node as Element);
+    if (node.nodeType === Node.ELEMENT_NODE) return isPhrasing(node) && holdsNothing(node as Element);
     return (node.textContent ?? '').replaceAll(PLACEHOLDERS, '').trim() === '';
+}
+
+/**
+ * Whether a node shows something once flattened into a task row's text (see
+ * flattenIntoRowText): text other than placeholders, or an inline element such as
+ * an image that the flattening keeps. A rule is dropped and a block keeps only its
+ * text, so a rule, an empty block or an empty table shows nothing there.
+ */
+function showsInRowText(node: Node): boolean {
+    if ((node.textContent ?? '').replaceAll(PLACEHOLDERS, '').trim() !== '') return true;
+    if (node.nodeType !== Node.ELEMENT_NODE) return false;
+    const el = node as Element;
+    return [el, ...Array.from(el.querySelectorAll('*'))]
+        .some((inner) => (REPLACED_TAGS.has(inner.nodeName) || isAuthorInput(inner)) && isPhrasing(inner));
 }
 
 /**

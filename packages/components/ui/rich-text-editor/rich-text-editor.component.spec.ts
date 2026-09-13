@@ -3167,6 +3167,37 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         });
 
         it.each([
+            ['an empty numbered item', '<ol><li><br></li></ol>', ['OL']],
+            ['a blank paragraph', '<p><br></p>', ['P', 'P']],
+            ['an empty code block', '<pre><code></code></pre>', ['P', 'PRE']],
+        ])('outdenting the last item of a sub-list carries %s after it, which is a line though it shows nothing', (_name, trailing, children) => {
+            // Taken for nothing, the empty line stayed in the parent, above the item.
+            component.writeValue(`<ul><li><p>G</p><ul><li>X</li></ul>${trailing}</li></ul>`);
+            fixture.detectChanges();
+            caretIn(editor.querySelector('li li')!.firstChild as Text, 1);
+
+            component.onFormatCommand('outdent');
+
+            const items = Array.from(editor.querySelector('ul')!.children);
+            expect(Array.from(items[0].children, (child) => child.nodeName)).toEqual(['P']);
+            expect(Array.from(items[1].children, (child) => child.nodeName)).toEqual(children);
+        });
+
+        it('outdenting an item that holds blocks gives the loose text it carries a paragraph', () => {
+            // Only what was carried was checked for a block, so text carried in
+            // beside the item's own blocks stayed loose, belonging to no line.
+            component.writeValue('<ul><li><p>G</p><ul><li><p>X</p><pre><code>c</code></pre></li></ul>tail</li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('li li p')!.firstChild as Text, 1);
+
+            component.onFormatCommand('outdent');
+
+            const moved = editor.querySelector('ul')!.children[1];
+            expect(Array.from(moved.children, (child) => child.nodeName)).toEqual(['P', 'PRE', 'P']);
+            expect(moved.lastElementChild?.textContent).toBe('tail');
+        });
+
+        it.each([
             ['a list', '<ul><li>Z</li></ul>', 'XZ', null],
             ['a list, then a paragraph', '<ul><li>Z</li></ul><p>t</p>', 'XZ', 't'],
         ])('outdenting a task row keeps %s after its list under the row, with no empty item', (_name, trailing, rowText, itemText) => {

@@ -540,6 +540,11 @@ describe('rich text line model — the task rows a list item makes', () => {
         ['an empty span after a sub-list', '<li>a<ul><li>b</li></ul><span></span></li>', [['a,SPAN', 1]]],
         ['a placeholder after a sub-list', '<li>a<ul><li>b</li></ul>\u200B</li>', [['a', 1]]],
         ['an image after a sub-list', '<li>a<ul><li>b</li></ul><img src="x.png" alt=""></li>', [['a', 1], ['IMG', 0]]],
+        // What a row's text would lose -- a rule, an empty block -- starts no row: it was an empty row.
+        ['a rule after a sub-list', '<li>a<ul><li>b</li></ul><hr></li>', [['a,HR', 1]]],
+        ['an empty table after a sub-list', '<li>a<ul><li>b</li></ul><table><tbody><tr><td></td></tr></tbody></table></li>', [['a,TABLE', 1]]],
+        ['an empty code block after a sub-list', '<li>a<ul><li>b</li></ul><pre><code></code></pre></li>', [['a,PRE', 1]]],
+        ['a table with text after a sub-list', '<li>a<ul><li>b</li></ul><table><tbody><tr><td>c</td></tr></tbody></table></li>', [['a', 1], ['TABLE', 0]]],
     ])('makes %s into rows split at the content after each nested list', (_name, html, rows) => {
         expect(rowsOf(itemOf(html))).toEqual(rows);
     });

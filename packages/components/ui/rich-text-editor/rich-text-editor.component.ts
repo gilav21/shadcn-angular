@@ -5381,7 +5381,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             return li;
         }
         li.append(...trailing);
-        return this.giveLooseTextLines(li, trailing) ?? li;
+        return this.giveLooseTextLines(li) ?? li;
     }
 
     /**
@@ -5400,16 +5400,18 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const item = this.document.createElement('li');
         item.append(...trailing.slice(at));
         row.after(item);
-        this.giveLooseTextLines(item, trailing.slice(at));
+        this.giveLooseTextLines(item);
     }
 
     /**
-     * When `added` brought a block into `item`, give each run of the item's loose
-     * text a paragraph: text beside a block belongs to no line. Returns the
-     * paragraph for the text before the first block, if the item got one.
+     * When `item` holds a block, give each run of its loose text a paragraph: text
+     * beside a block belongs to no line. Checked on the item as it now is, not on
+     * what was added: text carried in beside blocks the item already held stayed
+     * loose. Returns the paragraph for the text before the first block, if the
+     * item got one.
      */
-    private giveLooseTextLines(item: HTMLElement, added: readonly ChildNode[]): HTMLElement | null {
-        if (added.every((node) => isPhrasing(node) || isNestedList(node))) return null;
+    private giveLooseTextLines(item: HTMLElement): HTMLElement | null {
+        if (Array.from(item.childNodes).every((node) => isPhrasing(node) || isNestedList(node))) return null;
         return this.wrapLooseRuns(item);
     }
 
