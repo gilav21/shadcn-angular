@@ -3260,6 +3260,96 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
             expect(editor.querySelector('ul:not([data-task-list]) > li[data-task], ul[data-task-list] > li:not([data-task])')).toBeNull();
         });
 
+        it('Tab on two rows under a task row holding a plain sub-list keeps them in order, each in its kind', () => {
+            // The first matching sub-list was taken, so once the list had split by
+            // kind the second row went into the plain list, ahead of the first.
+            component.writeValue('<ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>a</span><ul><li>sub</li></ul></li>'
+                + '<li data-task data-checked="false"><input type="checkbox"><span>b</span></li>'
+                + '<li data-task data-checked="true"><input type="checkbox"><span>c</span></li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelectorAll('li[data-task] > span')[1].firstChild as Text, 1);
+            component.onFormatCommand('indent');
+            caretIn(editor.querySelectorAll('li[data-task] > span')[2].firstChild as Text, 1);
+            component.onFormatCommand('indent');
+
+            const top = editor.querySelectorAll(':scope > ul > li');
+            expect(top).toHaveLength(1);
+            expect(Array.from(top[0].querySelectorAll('li')).map((li) => li.textContent)).toEqual(['sub', 'b', 'c']);
+            expect(editor.querySelector('ul:not([data-task-list]) > li[data-task], ul[data-task-list] > li:not([data-task])')).toBeNull();
+            expect((editor.querySelectorAll('li[data-task]')[2] as HTMLElement).dataset['checked']).toBe('true');
+        });
+
+        it('Tab joins the sub-list that ends the previous item, past blank text after it', () => {
+            // Pasted markup leaves a line ending after the sub-list; taken as the
+            // item's last node, it put the row in a second sub-list of its own.
+            component.writeValue('<ul><li>a<ul><li>sub</li></ul>\n</li><li>b</li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelectorAll(':scope > ul > li')[1].firstChild as Text, 1);
+
+            component.onFormatCommand('indent');
+
+            const top = editor.querySelector(':scope > ul > li')!;
+            expect(top.querySelectorAll(':scope > ul')).toHaveLength(1);
+            expect(Array.from(top.querySelectorAll('li')).map((li) => li.textContent)).toEqual(['sub', 'b']);
+        });
+
+        it('Tab on a numbered item under an item holding a numbered and a task sub-list puts it last', () => {
+            component.writeValue('<ol><li>a<ol><li>n</li></ol><ul data-task-list><li data-task data-checked="false"><input type="checkbox">'
+                + '<span>t</span></li></ul></li><li>b</li></ol>');
+            fixture.detectChanges();
+            caretIn(editor.querySelectorAll(':scope > ol > li')[1].firstChild as Text, 1);
+
+            component.onFormatCommand('indent');
+
+            expect(Array.from(editor.querySelector(':scope > ol > li')!.querySelectorAll('li')).map((li) => li.textContent)).toEqual(['n', 't', 'b']);
+        });
+
+        it.each([
+            ['holding a task sub-list', '<ul><li>P<ul><li>x<ul data-task-list><li data-task data-checked="false"><input type="checkbox">'
+                + '<span>t</span></li></ul></li><li>y</li></ul></li></ul>', 'Pxty'],
+            ['holding a plain and a task sub-list', '<ul><li>P<ul><li>x<ul><li>s</li></ul><ul data-task-list><li data-task data-checked="false">'
+                + '<input type="checkbox"><span>t</span></li></ul></li><li>y</li></ul></li></ul>', 'Pxsty'],
+        ])('Shift+Tab on an item %s carries the plain item after it in order, in a plain list', (_name, html, text) => {
+            component.writeValue(html);
+            fixture.detectChanges();
+            caretIn(editor.querySelector('ul ul > li')!.firstChild as Text, 1);
+
+            component.onFormatCommand('outdent');
+
+            expect(editor.textContent).toBe(text);
+            expect(editor.querySelector('ul:not([data-task-list]) > li[data-task], ul[data-task-list] > li:not([data-task])')).toBeNull();
+        });
+
+        it.each(['bulletList', 'orderedList', 'taskList', 'blockquote'])(
+            '%s from the slash menu on an item holding a sub-list acts on the item line, as the toolbar does',
+            (command) => {
+                // The caret was put at the end of the anchor, which is the end of
+                // its sub-list, so the command acted on the sub-list's last item.
+                const html = '<ul><li>parent<ul><li>child</li></ul></li><li>next</li></ul>';
+                component.writeValue(html);
+                fixture.detectChanges();
+                caretIn(editor.querySelector('li')!.firstChild as Text, 3);
+                component.onFormatCommand(command);
+                const byToolbar = editor.innerHTML.replaceAll('\u200B', '');
+
+                component.writeValue(html);
+                fixture.detectChanges();
+                component.executeToolbarCommandOnBlock(command, editor.querySelector('li'));
+
+                expect(editor.innerHTML.replaceAll('\u200B', '')).toBe(byToolbar);
+            },
+        );
+
+        it('inline code from the slash menu on an item holding a sub-list goes into the item line', () => {
+            component.writeValue('<ul><li>parent<ul><li>child</li></ul></li></ul>');
+            fixture.detectChanges();
+
+            component.executeToolbarCommandOnBlock('code', editor.querySelector('li'));
+
+            expect(editor.querySelector('code')?.closest('li')).toBe(editor.querySelector(':scope > ul > li'));
+            expect(editor.querySelector('li li code')).toBeNull();
+        });
+
         it('a numbered list from the slash menu on a task row drops the task markers, as the toolbar does', () => {
             component.writeValue('<ul data-task-list><li data-task data-checked="true"><input type="checkbox"><span>done</span></li></ul>');
             fixture.detectChanges();

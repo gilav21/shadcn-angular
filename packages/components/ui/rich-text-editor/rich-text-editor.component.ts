@@ -59,6 +59,7 @@ import {
     placeCaretIn,
     positionAfterLine,
     rangeShowsNothing,
+    lastOwnInlineNode,
     separateListKinds,
     structureAround,
 } from './rich-text-lines';
@@ -5262,17 +5263,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
         const parentList = li.parentElement;
         const listType = parentList?.tagName === 'OL' ? 'ol' : 'ul';
-        let nestedList = prevLi.querySelector(`:scope > ${listType}`);
-        if (!nestedList) {
-            nestedList = this.document.createElement(listType);
-            if (parentList?.dataset['taskList'] !== undefined) {
-                (nestedList as HTMLElement).dataset['taskList'] = '';
-            }
-            prevLi.appendChild(nestedList);
-        }
+        const nestedList = this.listToAppendUnder(prevLi, listType, parentList?.dataset['taskList'] !== undefined);
         const caret = this.caretOffsetInLine(li);
         nestedList.appendChild(li);
-        separateListKinds(nestedList as HTMLElement);
+        separateListKinds(nestedList);
         this.restoreCaretInLine(li, caret);
 
         this.applyMutation({ focus: true, updateActiveFormats: true });
@@ -5388,15 +5382,28 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (following.length === 0) return;
 
         const listType = parentList.tagName === 'OL' ? 'ol' : 'ul';
-        let nested = li.querySelector(`:scope > ${listType}`);
-        if (!nested) {
-            nested = this.document.createElement(listType);
-            if (parentList.dataset['taskList'] !== undefined) {
-                (nested as HTMLElement).dataset['taskList'] = '';
-            }
-            li.appendChild(nested);
-        }
+        const nested = this.listToAppendUnder(li, listType, parentList.dataset['taskList'] !== undefined);
         for (const item of following) nested.appendChild(item);
+        // The carried items keep their own kind, in the live document too.
+        separateListKinds(nested);
+    }
+
+    /**
+     * The list a line moved under `item` goes into: the list that ends the item
+     * when it has `tag`, or a new one appended after everything the item holds.
+     *
+     * The first matching sub-list was taken. Once a list had split by kind an
+     * item could hold a plain and a task sub-list, and a row indented or carried
+     * under it went into the earlier one, ahead of rows already after it.
+     */
+    private listToAppendUnder(item: Element, tag: 'ul' | 'ol', taskList: boolean): HTMLElement {
+        let last: ChildNode | null = item.lastChild;
+        while (last?.nodeType === Node.TEXT_NODE && (last.textContent ?? '').trim() === '') last = last.previousSibling;
+        if (last?.nodeName === tag.toUpperCase()) return last as HTMLElement;
+        const made = this.document.createElement(tag);
+        if (taskList) made.dataset['taskList'] = '';
+        item.appendChild(made);
+        return made;
     }
 
     private insertToggleBlock(): void {
@@ -6833,7 +6840,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             return;
         }
 
-        const target = this.getDeepestLastNode(block);
+        // Its own line, not a sub-list, table or code block nested at its end.
+        const target = lastOwnInlineNode(block) ?? this.getDeepestLastNode(block);
         this.setSelectionAtNodeEnd(selection, target);
     }
 
@@ -6935,7 +6943,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.pushHistory();
     }
 
-    /** Quote one block, for the input rule and the slash command that each hand over exactly one. */
+    /** Quote one block, for the input rule, which hands over exactly one. */
     private quoteBlock(block: HTMLElement): HTMLElement {
         const editor = this.editorDiv?.nativeElement;
         const line = editor ? lineOf(block, editor) : null;

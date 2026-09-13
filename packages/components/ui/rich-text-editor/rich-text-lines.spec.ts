@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     buildLineIndex,
+    lastOwnInlineNode,
     caretPosition,
     holdsNothing,
     isLineOwner,
@@ -119,6 +120,17 @@ function actualLines(html: string): ExpectedLine[] {
 }
 
 describe('rich text line model — the shape table', () => {
+    it.each([
+        ['its own text before a sub-list', '<li>parent<ul><li>child</li></ul></li>', 'parent'],
+        ['its own formatting before a table and blank text', '<li>a <b>bold</b><table><tbody><tr><td>c</td></tr></tbody></table>\n</li>', 'bold'],
+        ['nothing of its own, only a list', '<li><ul><li>x</li></ul></li>', null],
+    ])('finds the last node of a block holding %s', (_name, html, text) => {
+        const root = document.createElement('ul');
+        root.innerHTML = html;
+
+        expect(lastOwnInlineNode(root.firstElementChild!)?.textContent ?? null).toBe(text);
+    });
+
     it.each([
         ['a break between two runs', '<p>one<br>two</p>', 'one\ntwo'],
         ['a break inside emphasis', '<p><em>one<br>two</em> three</p>', 'one\ntwo three'],

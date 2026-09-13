@@ -456,6 +456,24 @@ export function lineIsTextOnly(line: Line): boolean {
 }
 
 /**
+ * The deepest last node of a block's own inline content, or null when it has
+ * none. Blocks nested at its end, and blank text after them, are not its line:
+ * a slash command on an item holding a sub-list put the caret at the end of the
+ * sub-list and acted on the wrong line.
+ */
+export function lastOwnInlineNode(block: Element): Node | null {
+    for (let node: ChildNode | null = block.lastChild; node; node = node.previousSibling) {
+        const text = node.nodeType === Node.TEXT_NODE;
+        if ((!text && node.nodeType !== Node.ELEMENT_NODE) || !isPhrasing(node)) continue;
+        if (text && (node.textContent ?? '').trim() === '') continue;
+        let deepest: Node = node;
+        while (deepest.lastChild) deepest = deepest.lastChild;
+        return deepest;
+    }
+    return null;
+}
+
+/**
  * A line's text as the author sees it, placeholders included.
  *
  * A `<br>` inside the line is a newline: read as text alone, "one<br>two" was

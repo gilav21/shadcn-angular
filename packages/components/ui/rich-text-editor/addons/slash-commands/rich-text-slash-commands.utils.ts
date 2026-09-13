@@ -1,3 +1,5 @@
+import { lastOwnInlineNode } from '../../rich-text-lines';
+
 /**
  * Pure DOM helpers for the slash-commands addon: trigger detection against the
  * live caret, resolving the anchor block, consuming the typed `/query` text,
@@ -316,7 +318,8 @@ export function placeCaretAtEndOfBlock(doc: Document, block: HTMLElement): void 
         setSelectionAtTextEnd(doc, selection, ensureZeroWidthTextNode(doc, block));
         return;
     }
-    setSelectionAtNodeEnd(doc, selection, getDeepestLastNode(block));
+    // The line the slash was typed in, not a block nested at the anchor's end.
+    setSelectionAtNodeEnd(doc, selection, lastOwnInlineNode(block) ?? getDeepestLastNode(block));
 }
 
 function isEmptyBlock(block: HTMLElement): boolean {

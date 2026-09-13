@@ -457,6 +457,21 @@ describe('rich-text-slash-commands.utils', () => {
         });
     });
 
+    describe('placeCaretAtEndOfBlock on an item holding blocks', () => {
+        it.each([
+            ['a sub-list', '<ul><li>parent<ul><li>child</li></ul></li></ul>', 'parent'],
+            ['a table', '<ul><li>text<table><tbody><tr><td>cell</td></tr></tbody></table></li></ul>', 'text'],
+            ['a code block and blank text', '<ul><li>line<pre><code>x</code></pre>\n</li></ul>', 'line'],
+        ])('places the caret at the end of the item own text, not in %s nested at its end', (_name, html, text) => {
+            const root = makeRoot(html);
+            placeCaretAtEndOfBlock(document, root.querySelector('li')!);
+
+            const selection = document.getSelection()!;
+            expect(selection.anchorNode?.textContent).toBe(text);
+            expect(selection.anchorOffset).toBe(text.length);
+        });
+    });
+
     describe('removeCaretSentinelAtSelection', () => {
         it('does nothing without a selection', () => {
             vi.spyOn(document, 'getSelection').mockReturnValue(null);
