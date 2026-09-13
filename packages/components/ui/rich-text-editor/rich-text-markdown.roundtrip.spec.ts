@@ -538,6 +538,182 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         expect(saved(once)).toBe(once);
     });
 
+    it.each([
+        ['a heading', '<h2>One\nTwo</h2>', 'h2', 'One Two'],
+        ['a pretty-printed heading', '<h2>\n  Title\n</h2>', 'h2', 'Title'],
+        ['a task row', '<ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>a\nb</span></li></ul>', 'li[data-task] > span', 'a b'],
+        ['bold in a quote beside a list', '<blockquote><p><strong>a\nb</strong></p><ul><li>x</li></ul></blockquote>', 'blockquote strong', 'a b'],
+    ])('reads a newline inside the text of %s as the space it shows, and settles', (_name, html, selector, text) => {
+        const once = saved(html);
+        const out = read(once);
+
+        expect(out.querySelector(selector)?.textContent?.trim()).toBe(text);
+        expect(out.textContent).not.toMatch(/[*~]/);
+        expect(saved(once)).toBe(once);
+    });
+
+    it.each([
+        ['a link split by bold', '<p>[see <b>this</b>](https://example.com)</p>', '[see this](https://example.com)'],
+        ['a task marker split by a span', '<ul><li>[<span>x</span>] done</li></ul>', '[x] done'],
+        ['a number split by a span', '<p>2024<span>.</span> x</p>', '2024. x'],
+        ['a number split by a span in a list item', '<ul><li>2024<span>.</span> x</li></ul>', '2024. x'],
+        ['nested brackets', '<p>see [note [1]](http://x)</p>', 'see [note [1]](http://x)'],
+        ['a table written as text', '<p>| a | b |<br>|---|---|</p>', '| a | b ||---|---|'],
+        ['a bare table written as text', '<p>a|b<br>-|-</p>', 'a|b-|-'],
+        ['a separator split by a span', '<p>| a |<br>|<span>---</span>|</p>', '| a ||---|'],
+        ['entity-shaped text', '<p>Use &amp;lt; and &amp;copy; and &amp;#169;</p>', 'Use &lt; and &copy; and &#169;'],
+    ])('keeps %s as text through a save, and settles', (_name, html, text) => {
+        // Each is syntax the reader recognises only across element boundaries,
+        // or a shape no single-node escape covered.
+        const once = saved(html);
+        const out = read(once);
+
+        expect(out.textContent).toBe(text);
+        expect(out.querySelector('a, ol, ul ul, table, input')).toBeNull();
+        expect(saved(once)).toBe(once);
+    });
+
+    it('keeps the paragraph after a table in a list item inside a quote a paragraph, and settles', () => {
+        const once = saved('<blockquote><ul><li><table><tbody><tr><td>a</td></tr></tbody></table><p>x | y</p></li></ul></blockquote>');
+        const out = read(once);
+
+        expect(out.querySelectorAll('td, th')).toHaveLength(1);
+        expect(out.textContent).toContain('x | y');
+        expect(saved(once)).toBe(once);
+    });
+
+    it.each([
+        ['inline code holding a backtick run', '<blockquote><p><code>a``b</code></p><p>c</p></blockquote>'],
+        ['strikethrough that starts with a tilde', '<blockquote><p><del>~x</del></p><p>c</p></blockquote>'],
+    ])('keeps a quote holding %s to its two lines, and settles', (_name, html) => {
+        // Taken for a fence, the quote kept its blank lines and grew on every save.
+        const once = saved(html);
+        const out = read(once);
+
+        expect(out.querySelectorAll('blockquote > p')).toHaveLength(2);
+        expect(saved(once)).toBe(once);
+    });
+
+    it('saves strikethrough inside strikethrough as one run, with no stray tildes', () => {
+        const once = saved('<p><s>a <del>b</del></s></p>');
+        const out = read(once);
+
+        expect(out.querySelector('del, s')?.textContent).toBe('a b');
+        expect(out.textContent).toBe('a b');
+        expect(saved(once)).toBe(once);
+    });
+
+    it.each([
+        ['at the top', '<blockquote><table><tbody><tr><td>a</td></tr></tbody></table><p>x</p></blockquote>'],
+        ['in a list item', '<ul><li><p>a</p><blockquote><table><tbody><tr><td>a</td></tr></tbody></table><p>x</p></blockquote></li></ul>'],
+        ['in a details block', '<details><summary>s</summary><blockquote><table><tbody><tr><td>a</td></tr></tbody></table><p>x</p></blockquote></details>'],
+    ])('leaves no empty paragraph after a quoted table followed by text, %s, and settles', (_name, html) => {
+        // The quote returned its loose text bare, and the paragraph pass split
+        // the quote's markup at the blank line that ends the table.
+        const once = saved(html);
+        const out = read(once);
+
+        expect(out.querySelector('blockquote > p')?.textContent).toBe('x');
+        expect(out.querySelector('p:empty')).toBeNull();
+        expect(saved(once)).toBe(once);
+    });
+
+    it('gives loose text after a blank line in a nested quote a paragraph inside the quote', () => {
+        const out = read(service.toHtml('> > a\n>\n> x'));
+
+        expect(out.querySelector(':scope > blockquote > p')?.textContent).toBe('x');
+        expect(out.querySelector('p:empty, :scope > p')).toBeNull();
+    });
+
+    it.each([
+        ['emphasis inside a word', '<p>un<em>a<br><br>b</em>c</p>', 'em'],
+        ['bold inside a word', '<p>a<strong>b<br><br>c</strong>d</p>', 'strong'],
+        ['an underline', '<p>a <u>b<br><br>c</u> d</p>', 'u'],
+        ['a styled span', '<p>a <span style="color: red">b<br><br>c</span> d</p>', 'span[style]'],
+    ])('keeps two line breaks inside %s written as tags, and settles', (_name, html, selector) => {
+        // A blank line between the breaks put the two tags in different blocks,
+        // so neither counted as paired and both came back as text.
+        const once = saved(html);
+        const out = read(once);
+
+        expect(out.querySelectorAll(`${selector} br`)).toHaveLength(2);
+        expect(out.textContent).not.toContain('<');
+        expect(saved(once)).toBe(once);
+    });
+
+    it('keeps an unclosed details opener in a list item to that item, and the rest of the document outside it', () => {
+        const out = read(service.toHtml('- a\n  :::details T\n  body\n\n# H\n\npara\n\n- next'));
+
+        expect(out.querySelector(':scope > h1')?.textContent).toBe('H');
+        expect(Array.from(out.querySelectorAll(':scope > p')).map((p) => p.textContent)).toContain('para');
+        expect(out.querySelector('li h1, li li, details')).toBeNull();
+    });
+
+    it.each([
+        ['a heading', '<h2>one<br><br>two</h2>', 'h2'],
+        ['a task row', '<ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>one<br><br>two</span></li></ul>', 'li[data-task] > span'],
+    ])('keeps two line breaks in a row inside %s, and settles', (_name, html, selector) => {
+        // The blanks after the first break were taken with it, so the second was
+        // written as a newline that ended the line.
+        const once = saved(html);
+        const out = read(once);
+
+        expect(out.querySelectorAll(`${selector} br`)).toHaveLength(2);
+        expect(out.querySelector(selector)?.textContent).toBe('onetwo');
+        expect(saved(once)).toBe(once);
+    });
+
+    it('writes a newline between two inline runs of a list item as a space, keeping both on the item line', () => {
+        // Kept, it put the second run at the start of a line of its own, where it
+        // read back as a paragraph after the list.
+        const once = saved('<ul><li><b>x</b>\n<i>y</i></li><li>z</li></ul>');
+        const out = read(once);
+
+        expect(out.querySelector('ul > li > strong')?.textContent).toBe('x');
+        expect(out.querySelector('ul > li > em')?.textContent).toBe('y');
+        expect(out.querySelector('li p, :scope > p')).toBeNull();
+        expect(saved(once)).toBe(once);
+    });
+
+    it('keeps a list item holding two paragraphs with blank text between them whole, and settles', () => {
+        const once = saved('<ul><li><p>a</p>\n<p>b</p></li><li>c</li></ul>');
+        const out = read(once);
+
+        expect(out.querySelectorAll(':scope > ul > li')).toHaveLength(2);
+        expect(out.querySelector(':scope > ul > li')?.textContent?.replaceAll(/\s/g, '')).toBe('ab');
+        expect(saved(once)).toBe(once);
+    });
+
+    it('keeps a details block with only a summary without a body, and settles', () => {
+        // The empty body read back as an empty paragraph the author never wrote.
+        const once = saved('<details><summary>s</summary></details><p>after</p>');
+        const out = read(once);
+
+        expect(out.querySelector('details > summary')?.textContent).toBe('s');
+        expect(out.querySelector('p:empty')).toBeNull();
+        expect(saved(once)).toBe(once);
+    });
+
+    it('writes blanks before a newline in paragraph text as nothing, not as a break the page never showed', () => {
+        const once = saved('<p>a  \nb</p>');
+        const out = read(once);
+
+        expect(out.querySelector('br')).toBeNull();
+        expect(saved(once)).toBe(once);
+    });
+
+    it.each([
+        ['an empty span', '<p><em>x</em><span></span>y</p>'],
+        ['an empty underline', '<p><em>x</em><u></u>y</p>'],
+    ])('keeps emphasis that touches a word past %s as emphasis, and settles', (_name, html) => {
+        const once = saved(html);
+        const out = read(once);
+
+        expect(out.querySelector('em')?.textContent).toBe('x');
+        expect(out.textContent).toBe('xy');
+        expect(saved(once)).toBe(once);
+    });
+
     it('keeps emphasis inside a word as emphasis, with no stray asterisks', () => {
         const once = saved('<p>un<em>believ</em>able</p>');
         const out = read(once);

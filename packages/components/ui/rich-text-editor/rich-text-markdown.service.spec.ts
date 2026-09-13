@@ -1216,6 +1216,17 @@ describe('RichTextMarkdownService', () => {
             expect(html).toContain('x');
         });
 
+        it('does not take the square of the nesting on deeply nested details blocks', () => {
+            // Each level re-sliced and re-paired its whole body: 17ms, 53ms and
+            // 161ms for 250, 500 and 1000 levels. Past the cap the rest is text.
+            const md = ':::details\n'.repeat(3000) + ':::\n'.repeat(3000);
+            const started = performance.now();
+            const html = service.toHtml(md);
+
+            expect(performance.now() - started).toBeLessThan(1500);
+            expect((html.match(/<details/g) ?? []).length).toBeLessThanOrEqual(32);
+        });
+
         it('does not hang on a deeply nested TIGHT blockquote', () => {
             // The spaced form above was bounded, but the tight form never
             // reached the recursion at all -- the escaping defect turned every
