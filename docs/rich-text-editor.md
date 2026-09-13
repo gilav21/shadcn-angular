@@ -190,7 +190,9 @@ is complete. This is on by default — no import, no addon, no configuration.
 
 **Nested quotes, and where the shortcut stops.** Nesting is fully supported:
 `>>` and `> > >` parse into nested blockquotes up to 32 levels deep, and they
-round-trip through a save.
+round-trip through a save. The 32 counts every details block, quote and list
+item a block sits in; deeper markdown stays text when loaded, and a deeper
+details block or quote is unwrapped when saved, its words kept in order.
 
 The *typing shortcut* is the one-level part. Each rule matches a single marker,
 so `>` starts a quote while typing `>>` matches nothing and stays literal text.
@@ -310,7 +312,8 @@ checkboxes. Every item of a task list is read as a task row.
 
 **What Markdown cannot hold.** A task row is one line of text: a quote,
 paragraphs or a table pasted inside one are flattened into it, with a space at
-each boundary, and a rule pasted inside a row is dropped. A pipe-table cell is
+each boundary, and a rule pasted inside a row is dropped. Content after a row's
+nested list becomes the next row, so its words stay after the list's. A pipe-table cell is
 one line too, so in `mode="markdown"` a rule inside a cell is saved as a line
 break. HTML mode keeps the rule.
 

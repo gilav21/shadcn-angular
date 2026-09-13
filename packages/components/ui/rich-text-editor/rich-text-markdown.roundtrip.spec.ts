@@ -299,6 +299,51 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         expect(saved(once)).toBe(once);
     });
 
+    it.each([
+        ['a paragraph', '<ul><li><p>a</p><ul><li>b</li></ul><p>c</p></li></ul>', 'b', 'abc'],
+        ['text', '<ul><li>a<ul><li>b</li></ul>c</li></ul>', 'b', 'abc'],
+        ['a code block', '<ul><li>a<ul><li>b</li></ul><pre><code>c</code></pre></li></ul>', 'b', 'abc'],
+        ['a quote, in a numbered item', '<ol><li>a<ol><li>b</li></ol><blockquote><p>c</p></blockquote></li><li>d</li></ol>', 'b', 'abcd'],
+        ['a paragraph and a second sub-list', '<ul><li>a<ul><li>b</li></ul><p>c</p><ol><li>d</li></ol></li></ul>', 'b', 'abcd'],
+        ['a paragraph, a level down', '<ul><li>a<ul><li>b<ul><li>c</li></ul><p>d</p></li></ul><p>e</p></li></ul>', 'bcd', 'abcde'],
+    ])('keeps %s that follows a sub-list after it, in the item holding the sub-list', (_name, html, subItem, words) => {
+        // Sub-lists were written after all of an item's content, and a line after
+        // one was read as the sub-list's last item's, so the content moved ahead
+        // of the sub-list or into it.
+        const once = saved(html);
+        const out = read(once);
+
+        expect(out.querySelector('li li')?.textContent).toBe(subItem);
+        expect(out.textContent).toBe(words);
+        expect(saved(once)).toBe(once);
+    });
+
+    it.each([
+        ['after a task list', '<ol><li><blockquote><ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span><code>a</code></span></li></ul><pre><code>b</code></pre></blockquote></li></ol>', 1],
+        ['after a code block and a task list', '<ol><li><blockquote><pre><code>x</code></pre><ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>a</span></li></ul><pre><code>b\n\nc</code></pre></blockquote></li></ol>', 2],
+        ['after a bullet list', '<ul><li><blockquote><ul><li>a</li></ul><pre><code>b</code></pre></blockquote></li></ul>', 1],
+    ])('keeps a code block in a quote in a list item a block of the quote %s, and settles', (_name, html, blocks) => {
+        // The code block took the list item's indent although the quote held it,
+        // so inside the quote its fence read as the quoted list item's
+        // continuation: code in a task row became inline code in the row's text.
+        const once = saved(html);
+        const out = read(once);
+
+        expect(out.querySelectorAll('blockquote > pre')).toHaveLength(blocks);
+        expect(out.querySelector('blockquote li')?.textContent).toBe('a');
+        expect(saved(once)).toBe(once);
+    });
+
+    it('keeps a paragraph after a task row nested list after it, as the next row', () => {
+        const once = saved('<ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>a</span>'
+            + '<ul data-task-list><li data-task data-checked="true"><input type="checkbox"><span>b</span></li></ul><p>c</p></li></ul>');
+        const out = read(once);
+
+        expect(out.textContent).toBe('abc');
+        expect(Array.from(out.querySelectorAll(':scope > ul > li[data-task] > span'), (span) => span.textContent)).toEqual(['a', 'c']);
+        expect(saved(once)).toBe(once);
+    });
+
     it('keeps a code block with a blank row inside a details block inside a list item', () => {
         const once = saved('<ul><li><details><summary>s</summary><pre><code>x\n\ny</code></pre></details></li></ul>');
         const out = read(once);
@@ -863,6 +908,94 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         const once = saved(holder.outerHTML);
 
         expect(read(once).querySelector('img')?.getAttribute('alt')).toBe(alt);
+        expect(saved(once)).toBe(once);
+    });
+
+    it.each([
+        ['alone in the quote', '<blockquote><p><span style="background-color: yellow">one<br>two</span></p></blockquote>'],
+        ['beside a list', '<blockquote><ul><li>x</li></ul><p>a <span style="color: red">b<br>c</span> d</p></blockquote>'],
+    ])('keeps a styled span holding a line break in a quote %s one span, and settles', (_name, html) => {
+        // Taken for unformatted text, the span had the break end the quote
+        // paragraph inside its tag pair, and the second line lost its style.
+        const once = saved(html);
+        const out = read(once);
+
+        expect(out.querySelectorAll('span[style]')).toHaveLength(1);
+        expect(out.querySelector('span[style] br')).not.toBeNull();
+        expect(saved(once)).toBe(once);
+    });
+
+    it('settles a line break in a paragraph wrapped in a div inside a quote', () => {
+        const once = saved('<blockquote><div><p>a<br>b</p></div></blockquote>');
+
+        expect(read(once).textContent?.replaceAll(/\s/g, '')).toBe('ab');
+        expect(saved(once)).toBe(once);
+    });
+
+    it.each([
+        ['after a paragraph', '<blockquote><p>a</p><pre><code>if (x) {\n    y();\n}</code></pre></blockquote>', 'if (x) {\n    y();\n}'],
+        ['alone', '<blockquote><pre><code>  x</code></pre></blockquote>', '  x'],
+    ])('keeps the indentation of a quoted code block %s', (_name, html, code) => {
+        // The space after ">" was stripped twice, one of the code's own spaces
+        // lost on every save.
+        const once = saved(html);
+
+        expect(read(once).querySelector('blockquote pre code')?.textContent).toBe(code);
+        expect(saved(once)).toBe(once);
+    });
+
+    it.each([
+        ['an entity', '<p>&amp;<span dir="rtl">lt;</span></p>', '&lt;'],
+        ['a tilde run', '<p>~<span dir="rtl">~~</span></p>', '~~~'],
+    ])('keeps %s split across a span carrying only dir as text, and settles', (_name, html, text) => {
+        // The span is written as its text, but only spans with no attributes at
+        // all were unwrapped before escaping.
+        const once = saved(html);
+
+        expect(read(once).textContent).toBe(text);
+        expect(saved(once)).toBe(once);
+    });
+
+    it.each([
+        ['an escaped underscore beside other code', '<p><code>x\\_y</code><code>z</code></p>', 'x\\_y'],
+        ['asterisks across a newline', '<p><code>a *b* c\nd</code></p>', 'a *b* c\nd'],
+        ['backticks across a newline', '<p><code>`a`\nb</code></p>', '`a`\nb'],
+    ])('keeps code written as a tag holding %s as written, and settles', (_name, html, code) => {
+        // The tags are raw markup, so their content went through the emphasis,
+        // link and inline-code passes.
+        const once = saved(html);
+        const out = read(once);
+
+        expect(out.querySelector('code')?.textContent).toBe(code);
+        expect(out.querySelector('code em, code code')).toBeNull();
+        expect(saved(once)).toBe(once);
+    });
+
+    it.each([
+        ['a blank line', 'a\n\nb', 'p', 'a b'],
+        ['a newline inside a heading', 'a\nb', 'h1', 'a b'],
+        ['backticks and asterisks', 'x `y` *z*', 'p', 'x `y` *z*'],
+    ])('keeps an image whose alt text holds %s one image, and settles', (_name, alt, wrap, kept) => {
+        const holder = document.createElement(wrap);
+        const image = document.createElement('img');
+        image.setAttribute('alt', alt);
+        image.setAttribute('src', 'https://x.test/a.png');
+        holder.appendChild(image);
+        const once = saved(holder.outerHTML);
+        const out = read(once);
+
+        expect(out.querySelectorAll('img')).toHaveLength(1);
+        expect(out.querySelector('img')?.getAttribute('alt')).toBe(kept);
+        expect(out.querySelector('p:empty')).toBeNull();
+        expect(saved(once)).toBe(once);
+    });
+
+    it('keeps an empty link an empty link, not the text of its markdown', () => {
+        const once = saved('<p>a <a href="https://x.com"></a> b</p>');
+        const out = read(once);
+
+        expect(out.querySelector('a[href="https://x.com"]')).not.toBeNull();
+        expect(out.textContent).toBe('a b');
         expect(saved(once)).toBe(once);
     });
 

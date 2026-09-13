@@ -1223,21 +1223,47 @@ describe('RichTextMarkdownService', () => {
         });
 
         it.each([
-            ['list items', (inner: string, level: number) => `<details><summary>s${level}</summary><ul><li>a${level}${inner}</li></ul></details>`],
-            ['quotes', (inner: string, level: number) => `<blockquote><details><summary>s${level}</summary>${inner}</details></blockquote>`],
+            ['list items', (lines: string[], level: number) => [`:::details s${level}`, `- a${level}`, ...lines.map((line) => `  ${line}`), ':::']],
+            ['quotes', (lines: string[], level: number) => [`> :::details s${level}`, ...lines.map((line) => `> ${line}`), '> :::']],
             // The inner quote sits in a list item, so its lines are indented and it
             // is read as a quote holding no nested quote marker of its own.
-            ['quotes inside list items', (inner: string, level: number) =>
-                `<blockquote><details><summary>s${level}</summary><ul><li>a${level}${inner}</li></ul></details></blockquote>`],
+            ['quotes inside list items', (lines: string[], level: number) =>
+                [`> :::details s${level}`, `> - a${level}`, ...lines.map((line) => `>   ${line}`), '> :::']],
         ])('caps details blocks nested through %s at the same depth as directly nested ones', (_name, wrap) => {
             // Counted apart, the depth started again inside a list item or a quote,
-            // so 64 levels built 64 details blocks.
-            let html = '<p>x</p>';
-            for (let level = 0; level < 64; level++) html = wrap(html, level);
-            const out = service.toHtml(service.toMarkdown(html));
+            // so 64 levels built 64 details blocks. Written as markdown: a save
+            // unwraps what lies past the cap before the reader ever sees it.
+            let lines = ['x'];
+            for (let level = 0; level < 64; level++) lines = wrap(lines, level);
+            const out = service.toHtml(lines.join('\n'));
 
+            expect((out.match(/<details/g) ?? []).length).toBeGreaterThan(8);
             expect((out.match(/<details/g) ?? []).length).toBeLessThanOrEqual(32);
         });
+
+        const PAST_THE_CAP: [string, (inner: string, level: number) => string][] = [
+            ['list items', (inner, level) => `<details><summary>s${level}</summary><ul><li>a${level}${inner}</li></ul></details>`],
+            ['quotes', (inner, level) => `<blockquote><details><summary>s${level}</summary>${inner}</details></blockquote>`],
+            ['details blocks', (inner, level) => `<details><summary>s${level}</summary>${inner}</details>`],
+            ['quotes holding paragraphs', (inner, level) => `<blockquote><p>q${level}</p>${inner}</blockquote>`],
+        ];
+
+        it.each(PAST_THE_CAP.flatMap(([name, wrap]) => [17, 40, 64].map((levels) => [name, levels, wrap] as const)))(
+            'saves %s nested %i deep so the second save equals the first, every word kept in order',
+            (_name, levels, wrap) => {
+                // Written whole, the markers past the reader's cap came back as text,
+                // were escaped on the next save, and a quote's inner markers showed.
+                const words = (html: string): string =>
+                    (new DOMParser().parseFromString(html, 'text/html').body.textContent ?? '').replaceAll(/\s+/g, '');
+                let html = '<p>x y</p>';
+                for (let level = 0; level < levels; level++) html = wrap(html, level);
+                const first = service.toMarkdown(html);
+                const loaded = service.toHtml(first);
+
+                expect(service.toMarkdown(loaded)).toBe(first);
+                expect(words(loaded)).toBe(words(html));
+            },
+        );
 
         it('does not take the square of the nesting on deeply nested details blocks', () => {
             // Each level re-sliced and re-paired its whole body: 17ms, 53ms and
@@ -1248,6 +1274,18 @@ describe('RichTextMarkdownService', () => {
 
             expect(performance.now() - started).toBeLessThan(1500);
             expect((html.match(/<details/g) ?? []).length).toBeLessThanOrEqual(32);
+        });
+
+        it('reads an item holding thousands of details openers whose closers lie past it once', () => {
+            // Each opener scanned ahead to its closer, stopping at the next item,
+            // so the same lines were read once per opener: 1.5s for 4000.
+            const md = '- a\n' + '  :::details x\n'.repeat(8000) + '- b\n' + '  :::\n'.repeat(8000);
+            const started = performance.now();
+            const holder = document.createElement('div');
+            holder.innerHTML = service.toHtml(md);
+
+            expect(performance.now() - started).toBeLessThan(1000);
+            expect(holder.querySelectorAll('li')).toHaveLength(2);
         });
 
         it('does not hang on a deeply nested TIGHT blockquote', () => {
@@ -2309,6 +2347,49 @@ describe('RichTextMarkdownService', () => {
         });
     });
 
+
+    describe('list item continuations (round-3 audit)', () => {
+        const readMarkdown = (markdown: string): HTMLElement => {
+            const holder = document.createElement('div');
+            holder.innerHTML = service.toHtml(markdown);
+            return holder;
+        };
+
+        it.each([
+            ['a details block', '1. a\n   :::details X\n   body\n   :::\n2. b', 'ol > li details > summary', 'X'],
+            ['a details block holding a list', '1. a\n   :::details X\n   - c\n   :::\n2. b', 'ol > li details li', 'c'],
+            // A paragraph first: a continuation of one line is trimmed, which hid
+            // the indent a wrong dedent leaves in front of the quote.
+            ['a quote under a two-digit number', '10. a\n    p\n\n    > q\n11. b', 'ol > li > blockquote', 'q'],
+            ['a quote under a bullet with three spaces after it', '-   a\n    p\n\n    > q\n-   b', 'ul > li > blockquote', 'q'],
+        ])('reads %s indented to its item\'s content as the item\'s block', (_name, markdown, selector, text) => {
+            // A continuation lost two spaces whatever the marker, so under "1. "
+            // one space was left and neither a details block nor a quote opened.
+            const out = readMarkdown(markdown);
+
+            expect(out.querySelector(selector)?.textContent).toBe(text);
+            expect(out.querySelectorAll(':scope > ol > li, :scope > ul > li')).toHaveLength(2);
+            expect(out.textContent).not.toContain(':::');
+        });
+
+        it('gives a line after a blank, indented short of a sub-list\'s items, to the item holding the sub-list', () => {
+            const out = readMarkdown('- a\n  - b\n\n  c');
+
+            expect(out.querySelector('li li')?.textContent).toBe('b');
+            expect(out.querySelector(':scope > ul > li > ul + p')?.textContent).toBe('c');
+        });
+
+        it('keeps a line with no blank before it in the sub-list\'s item', () => {
+            expect(readMarkdown('- a\n  - b\n  c').querySelector('li li')?.textContent).toContain('c');
+        });
+
+        it('keeps a paragraph after a list with a sub-list outside the list', () => {
+            const out = readMarkdown('- a\n  - b\n\nc');
+
+            expect(out.querySelector(':scope > p')?.textContent).toBe('c');
+            expect(out.querySelector(':scope > ul')?.textContent).toBe('ab');
+        });
+    });
 });
 
 describe('RichTextMarkdownService - attribute values cannot break out of their attribute (fine-comb review)', () => {

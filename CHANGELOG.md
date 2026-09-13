@@ -328,7 +328,9 @@ means no policy and today's behaviour exactly.
 - **The slash menu acts on the line it was typed in.** On an item holding a
   sub-list, a table or a code block, the caret was put at the end of the
   nested block, so a list, quote or inline-code command acted on the sub-list's
-  last item or did nothing, also when the item's own line was blank.
+  last item or did nothing, also when the item's own line was blank. A slash
+  typed in a summary, a table cell or an h4-h6 heading acts there too; it acted
+  on the details body, the table's last cell or the block around the heading.
 - **A list holds one kind of item.** A save writes an item by its list's kind,
   so a task row outdented into a plain list, pasted into one or promoted there
   by a join saved as a plain bullet and lost its checkbox, and a plain item in a
@@ -370,6 +372,30 @@ means no policy and today's behaviour exactly.
     tags into visible text.
   - Emphasis next to an empty span keeps its formatting.
   - A details block with only a summary no longer gains an empty paragraph.
+  - A coloured or highlighted span holding a line break inside a quote stays
+    one span; a quote's paragraph wrapped in a div settles; and a quoted code
+    block keeps its indentation instead of losing a space on every save.
+  - Code written as a tag keeps asterisks, backticks and backslashes as written,
+    image alt text holding a newline, backticks or asterisks stays one image, and
+    an empty link stays a link instead of its markdown appearing as text.
+  - Content after a sub-list in a list item stays after it, in that item; it came
+    back ahead of the sub-list or inside its last item.
+  - A details block or quote indented under a numbered item, or under a bullet
+    with extra spaces, reads back as a block of the item instead of text.
+  - Details blocks and quotes nested deeper than markdown is read back are
+    unwrapped when saved, keeping their words in order, so saves agree instead of
+    turning the markers into visible text.
+  - A list item holding thousands of details openers whose closers lie past it
+    loads in milliseconds instead of seconds.
+  - Turning a list into a task list, or loading a task row, keeps the content
+    after a nested list after it, as the next row; it moved ahead of the list.
+  - Loose text beside a block keeps the spaces between its words when it gets a
+    paragraph of its own.
+  - Outdenting the last item of a sub-list takes along what its parent item held
+    after the sub-list, instead of leaving that above the item; for a task row it
+    becomes an item of its own after the row.
+  - A code block in a quote inside a list item stays a code block of the quote;
+    after a list in that quote it joined the list item's text on save.
   - Italic runs side by side stay italic; code written inside a heading or with
     a blank line keeps its spaces and newlines; a code block whose language is
     "c++" or "c#" stays a code block; an image whose alt text holds "]" stays an
