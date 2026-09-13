@@ -319,6 +319,15 @@ means no policy and today's behaviour exactly.
   not after its first text run.
 - **Code block keeps a line break inside a line** as a new line of code. It
   joined the text on either side of the break into one word.
+- **Tab and Shift+Tab keep rows in order under an item holding two sub-lists.**
+  A row indented under an item, or carried under it by an outdent, went into
+  the item's first sub-list of that tag, ahead of rows already in a later one,
+  and an outdent could leave a plain item inside a task list until reload. It
+  now goes after everything the item holds, in a list of its own kind.
+- **The slash menu acts on the line it was typed in.** On an item holding a
+  sub-list, a table or a code block, the caret was put at the end of the
+  nested block, so a list, quote or inline-code command acted on the sub-list's
+  last item or did nothing.
 - **A list holds one kind of item.** A save writes an item by its list's kind,
   so a task row outdented into a plain list, pasted into one or promoted there
   by a join saved as a plain bullet and lost its checkbox, and a plain item in a
@@ -343,6 +352,29 @@ means no policy and today's behaviour exactly.
     a word is kept as its tag instead of turning into literal asterisks.
   - Bold ending in italic next to bold starting with italic no longer reads
     back as one scrambled run.
+  - A newline inside text, as pasted or pretty-printed HTML has, is saved as the
+    space it shows wherever markdown writes the text on one line: in a heading,
+    a task row, a table cell, a summary or bold and italic. It ended the heading
+    or the row, or left asterisks around quoted bold. Two line breaks in a row
+    inside a heading or a task row are both kept.
+  - Syntax split across inline elements stays text: `[see <b>this</b>](u)`,
+    `[<span>x</span>] done` and `2024<span>.</span> x` came back as a link, a
+    task row and a numbered list. Nested brackets, table-shaped lines such as
+    `|---|---|`, and entity-shaped text such as `&lt;` are kept too.
+  - Strikethrough inside strikethrough is saved as one run, not stray tildes.
+  - A quoted table followed by text no longer leaves an empty paragraph after
+    the quote, at the top level, in a list item or in a details block.
+  - Two line breaks inside emphasis written as tags, or inside an underline,
+    highlight or another tag markdown has no syntax for, no longer turn the
+    tags into visible text.
+  - Emphasis next to an empty span keeps its formatting.
+  - A details block with only a summary no longer gains an empty paragraph.
+  - An unclosed `:::details` in a list item stays text in that item instead of
+    pulling the rest of the document into it, and details blocks nested past
+    32 levels stay text, so deeply nested input no longer stalls the page.
+  - A quote holding inline code with a backtick run, or strikethrough starting
+    with a tilde, no longer gains an empty line on every save; the paragraph
+    after a table in a list item inside a quote is no longer read as its row.
   - A line break inside bold or italic in a quote is kept. In a quote that also
     held a block, the emphasis came back as literal asterisks.
   - A line break inside a heading, a summary, a task row or a list item's own
