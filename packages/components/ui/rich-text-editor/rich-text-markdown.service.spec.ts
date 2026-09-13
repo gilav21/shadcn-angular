@@ -1222,6 +1222,23 @@ describe('RichTextMarkdownService', () => {
             expect(html).toContain('x');
         });
 
+        it.each([
+            ['list items', (inner: string, level: number) => `<details><summary>s${level}</summary><ul><li>a${level}${inner}</li></ul></details>`],
+            ['quotes', (inner: string, level: number) => `<blockquote><details><summary>s${level}</summary>${inner}</details></blockquote>`],
+            // The inner quote sits in a list item, so its lines are indented and it
+            // is read as a quote holding no nested quote marker of its own.
+            ['quotes inside list items', (inner: string, level: number) =>
+                `<blockquote><details><summary>s${level}</summary><ul><li>a${level}${inner}</li></ul></details></blockquote>`],
+        ])('caps details blocks nested through %s at the same depth as directly nested ones', (_name, wrap) => {
+            // Counted apart, the depth started again inside a list item or a quote,
+            // so 64 levels built 64 details blocks.
+            let html = '<p>x</p>';
+            for (let level = 0; level < 64; level++) html = wrap(html, level);
+            const out = service.toHtml(service.toMarkdown(html));
+
+            expect((out.match(/<details/g) ?? []).length).toBeLessThanOrEqual(32);
+        });
+
         it('does not take the square of the nesting on deeply nested details blocks', () => {
             // Each level re-sliced and re-paired its whole body: 17ms, 53ms and
             // 161ms for 250, 500 and 1000 levels. Past the cap the rest is text.

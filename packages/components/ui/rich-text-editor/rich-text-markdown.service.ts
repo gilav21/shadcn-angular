@@ -90,6 +90,37 @@ function parseListLine(line: string): ParsedListLine | null {
     return null;
 }
 
+/**
+ * Whether the lines after an item's details opener, up to its closer, all belong
+ * to that item.
+ *
+ * A list marker at the item's indent or shallower starts a sibling or leaves the
+ * list, and after a blank line an unindented line is no longer the item's. The
+ * pairing runs over every line, so a closer found past either one belongs to
+ * other content: held to it, a sibling item became a list inside the block and
+ * a top-level paragraph moved into it.
+ */
+function closesWithinItem(lines: readonly string[], opener: number, closer: number, itemIndent: number): boolean {
+    let blankBefore = false;
+    for (let at = opener + 1; at <= closer; at++) {
+        const line = lines[at];
+        if (line.trim() === '') {
+            blankBefore = true;
+            continue;
+        }
+        const marker = parseListLine(line);
+        if (marker && marker.indent <= itemIndent) return false;
+        if (blankBefore && line.length - line.trimStart().length < itemIndent + 2) return false;
+        blankBefore = false;
+    }
+    return true;
+}
+
+/** The closer an item's continuation holds a details block up to, when it closes within the item. */
+function heldCloser(lines: readonly string[], opener: number, closer: number | undefined, item: ListContext | undefined): number | undefined {
+    return closer !== undefined && item && closesWithinItem(lines, opener, closer, item.indent) ? closer : undefined;
+}
+
 /** Hold a line of a details block that an item's continuation has opened. */
 function holdLine(line: string, continuation: string[], pendingBlank: string[]): void {
     continuation.push(...pendingBlank, line);
@@ -401,10 +432,20 @@ function emphasisFor(element: Element, inner: string, tag: string, mark: string)
     return touchesWord(element) ? `<${tag}>${breaksAsTags(inner)}</${tag}>` : delimit(inner, mark);
 }
 
-/** Whether an inline element sits against a letter or digit on either side. */
+/**
+ * Whether an inline element sits against a letter or digit, or against other
+ * formatting, on either side. Beside formatting the delimiters run into the
+ * neighbour's: `_**x.**_*.y*` read the second italic's asterisks as text,
+ * because the underscore before them is a word character.
+ */
 function touchesWord(element: Element): boolean {
-    return /[\p{L}\p{N}]$/u.test(textBeside(element, 'previousSibling'))
-        || /^[\p{L}\p{N}]/u.test(textBeside(element, 'nextSibling'));
+    return touches(nodeBeside(element, 'previousSibling'), /[\p{L}\p{N}]$/u)
+        || touches(nodeBeside(element, 'nextSibling'), /^[\p{L}\p{N}]/u);
+}
+
+function touches(node: Node | null, letter: RegExp): boolean {
+    if (node?.nodeType === Node.ELEMENT_NODE) return (node.textContent ?? '') !== '';
+    return node?.nodeType === Node.TEXT_NODE && letter.test(node.textContent ?? '');
 }
 
 /**
@@ -414,13 +455,12 @@ function touchesWord(element: Element): boolean {
  * y is against the emphasis. Asking the emphasis's own siblings alone wrote
  * `*x*y`, which reads back as literal asterisks.
  */
-function textBeside(node: Node, side: 'previousSibling' | 'nextSibling'): string {
+function nodeBeside(node: Node, side: 'previousSibling' | 'nextSibling'): Node | null {
     // Past anything that shows nothing, such as an empty span: stopping at it
     // wrote `*x*` against the letter after it, which read back as asterisks.
     let beside = besideOnLine(node, side);
     while (beside && showsNothing(beside)) beside = besideOnLine(beside, side);
-    if (beside?.nodeType !== Node.TEXT_NODE && beside?.nodeType !== Node.ELEMENT_NODE) return '';
-    return beside.textContent ?? '';
+    return beside;
 }
 
 /** The node beside `node` in reading order on its line, climbing out of inline wrappers. */
@@ -507,7 +547,7 @@ function quoteBodyLines(inner: string): string[] {
         // requires: "```a``b```" (inline code) or "~~~x~~" (strikethrough) is text,
         // and taken for a fence here the quote kept its blank lines and grew one
         // on every save.
-        const marker = /^\s*(`{3,}|~{3,})\w*$/.exec(raw.trimEnd())?.[1] ?? null;
+        const marker = /^\s*(`{3,}|~{3,})[\w+#.-]*$/.exec(raw.trimEnd())?.[1] ?? null;
         if (fence) {
             lines.push(raw);
             if (marker?.startsWith(fence) && raw.trim() === marker) fence = null;
@@ -1270,11 +1310,14 @@ export class RichTextMarkdownService {
      * details block. Tables run before rules because a separator row is all
      * dashes.
      */
-    private parseNestedBlocks(source: string, depth = 0, detailsDepth = 0): string {
-        let html = this.parseToggleBlocks(source, detailsDepth);
+    private parseNestedBlocks(source: string, depth = 0): string {
+        // One depth for every kind of nesting. Counted apart, a details block in
+        // a list item or in a quote started again at zero, and the caps that stop
+        // deep input from stalling the page never applied.
+        let html = this.parseToggleBlocks(source, depth);
         html = this.parseBlockquotes(html, depth);
         html = this.parseHeadings(html);
-        html = this.parseLists(html);
+        html = this.parseLists(html, depth);
         html = this.parseTables(html);
         return this.parseHorizontalRules(html);
     }
@@ -1290,7 +1333,7 @@ export class RichTextMarkdownService {
         // left text beside a block bare inside the details element, where the
         // document-level paragraph pass split it apart: a stray line break in
         // a paragraph and one more empty paragraph on each save.
-        return this.blocksWithParagraphs(this.parseNestedBlocks(content, 0, depth));
+        return this.blocksWithParagraphs(this.parseNestedBlocks(content, depth));
     }
 
     /** Parsed blocks with each chunk of loose text between blank lines given a paragraph of its own. */
@@ -1409,7 +1452,7 @@ export class RichTextMarkdownService {
     /**
      * Parse unordered and ordered lists.
      */
-    private parseLists(html: string): string {
+    private parseLists(html: string, depth = 0): string {
         const lines = html.split('\n');
         const result: string[] = [];
 
@@ -1442,7 +1485,7 @@ export class RichTextMarkdownService {
             continuationOwner = undefined;
             holdUntil = -1;
             if (block && openList?.items.length) {
-                openList.items[openList.items.length - 1] += this.parseListContinuation(block, openList.indent);
+                openList.items[openList.items.length - 1] += this.parseListContinuation(block, openList.indent, depth);
             }
             return orphanBlanks;
         };
@@ -1461,7 +1504,7 @@ export class RichTextMarkdownService {
                 const openList = stack.at(-1);
                 if (absorbNonListLine(line, openList, continuation, pendingBlank)) {
                     continuationOwner ??= openList;
-                    holdUntil = toggleClosers.get(at) ?? holdUntil;
+                    holdUntil = heldCloser(lines, at, toggleClosers.get(at), openList) ?? holdUntil;
                     continue;
                 }
                 const orphans = flushContinuation();
@@ -1490,7 +1533,7 @@ export class RichTextMarkdownService {
      * block passes here, on the dedented lines, is the same recursion
      * buildBlockquote uses for a nested quote.
      */
-    private parseListContinuation(block: string, baseIndent = 0): string {
+    private parseListContinuation(block: string, baseIndent = 0, depth = 0): string {
         const dedented = block
             .split('\n')
             .map((line) => line.slice(Math.min(baseIndent + 2, line.length - line.trimStart().length)))
@@ -1503,7 +1546,7 @@ export class RichTextMarkdownService {
         // into one word; and wrapped whole only when it did not start with a tag,
         // text after a block kept its blank line inside the item, where the
         // document-level paragraph pass split the list apart.
-        return this.blocksWithParagraphs(this.parseNestedBlocks(dedented));
+        return this.blocksWithParagraphs(this.parseNestedBlocks(dedented, depth + 1));
     }
 
     /**
@@ -2006,7 +2049,10 @@ export class RichTextMarkdownService {
 
         if (content === '' || content.includes('\n')
             || abutsCode(element.previousSibling) || abutsCode(element.nextSibling)) {
-            return content === '' ? '' : `<code>${this.escapeHtml(content)}</code>`;
+            // Its newlines as character references: a raw one ended a heading
+            // or a task row the tag sat in, a blank line split the tag pair, and
+            // the break rewrite changed the code's own spaces.
+            return content === '' ? '' : `<code>${this.escapeHtml(content).replaceAll('\n', '&#10;')}</code>`;
         }
 
         const longestRun = Math.max(
@@ -2044,7 +2090,10 @@ export class RichTextMarkdownService {
         const src = element.getAttribute('src')
             ?? element.dataset['blockedSrc']
             ?? '';
-        return `![${alt}](${src})`;
+        // The alt text is link text: an unescaped "]" ended it and the image
+        // came back as its markdown source.
+        const text = alt.replaceAll('\\', String.raw`\\`).replaceAll(/[[\]]/g, String.raw`\$&`);
+        return `![${text}](${src})`;
     }
 
     private spanToMarkdown(element: HTMLElement, inner: string): string {
@@ -2124,7 +2173,11 @@ export class RichTextMarkdownService {
      * markdown, so the content changed on every save.
      */
     private handlePreTag(element: HTMLElement, inListItem = false): string {
-        const lang = element.querySelector('code')?.dataset['language'] ?? '';
+        // A language the fence can carry: "c++" and "c#" read back; one with any
+        // other character is dropped, keeping the code, since it stopped the fence
+        // from opening and the code came back as paragraphs.
+        const language = element.querySelector('code')?.dataset['language'] ?? '';
+        const lang = /^[\w+#.-]+$/.test(language) ? language : '';
         const codeContent = element.textContent ?? '';
         const indent = inListItem ? '  ' : '';
         const body = codeContent
@@ -2603,7 +2656,11 @@ const MAX_TABLE_COLUMNS = 1000;
 /** How deep nested blockquotes may nest before the rest is left as text. */
 const MAX_BLOCKQUOTE_DEPTH = 32;
 
-/** How deep details blocks nest before the rest stays text; see parseToggleBlocks. */
+/**
+ * How deep details blocks nest before the rest stays text; see parseToggleBlocks.
+ * The depth counts every block between them -- quotes and list items too -- so a
+ * details block nested through a list or a quote meets the same cap.
+ */
 const MAX_DETAILS_DEPTH = 32;
 
 /** HTML's own limit for a column span. */
@@ -2712,7 +2769,7 @@ function pairedTagOffsets(block: string): ReadonlySet<number> {
 // before the marker -- was never taken as a fence and its code came back as
 // text. Each marker owns the spaces after it, so the prefix cannot be split two
 // ways and the pattern stays linear.
-const FENCE_PATTERN = /^([ \t]*(?:>[ \t]*)*)(`{3,}|~{3,})(\w*)\n([\s\S]*?)^\1?\2/gm;
+const FENCE_PATTERN = /^([ \t]*(?:>[ \t]*)*)(`{3,}|~{3,})([\w+#.-]*)\n([\s\S]*?)^\1?\2/gm;
 
 /** Remove `prefix` (and any looser quote/indent form of it) from each line. */
 function stripBlockPrefix(code: string, prefix: string): string {

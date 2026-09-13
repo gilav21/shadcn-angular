@@ -793,6 +793,79 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         expect(saved(once)).toBe(once);
     });
 
+    it.each([
+        ['a sibling item', '- a\n  :::details T\n  body\n\n- b\n  :::', ':scope > ul > li', 2],
+        ['a sibling item with no blank line before it', '- a\n  :::details T\n  body\n- b\n  :::', ':scope > ul > li', 2],
+        ['a paragraph after a blank line', '- a\n  :::details T\n  body\n\npara\n\n:::', ':scope > p', 2],
+    ])('keeps an unclosed details opener in a list item as text when a closer follows %s', (_name, markdown, selector, count) => {
+        // Paired across the item's end, the block took in a sibling item or a
+        // top-level paragraph.
+        const out = read(service.toHtml(markdown));
+
+        expect(out.querySelector('details')).toBeNull();
+        expect(out.querySelectorAll(selector)).toHaveLength(count);
+        expect(out.textContent).toContain(':::details T');
+    });
+
+    it('still closes a details block in a list item with a closer at the margin right after its body', () => {
+        const out = read(service.toHtml('- item\n  :::details s\n  body\n:::'));
+
+        expect(out.querySelector('li details > summary')?.textContent).toBe('s');
+    });
+
+    it.each([
+        ['after a period', '<p><i><b>x.</b></i><i>.y</i></p>', 'x..y'],
+        ['after an exclamation mark', '<p><i><b>x!</b></i><i>(y)</i></p>', 'x!(y)'],
+    ])('keeps two italic runs side by side %s as italic, with no stray asterisks', (_name, html, text) => {
+        const once = saved(html);
+        const out = read(once);
+
+        expect(out.querySelectorAll('em, i')).toHaveLength(2);
+        expect(out.textContent).toBe(text);
+        expect(saved(once)).toBe(once);
+    });
+
+    it.each([
+        ['a heading', '<h2><code>a  \nb</code></h2>', 'h2 code'],
+        ['a paragraph, across a blank line', '<p>x <code>a\n\nb</code> y</p>', 'p code'],
+    ])('keeps the spaces and newlines of code written as a tag inside %s, and settles', (_name, html, selector) => {
+        const source = read(html).querySelector('code')!.textContent;
+        const once = saved(html);
+        const out = read(once);
+
+        expect(out.querySelector(selector)?.textContent).toBe(source);
+        expect(saved(once)).toBe(once);
+    });
+
+    it.each([
+        ['c++', 'c++'],
+        ['c#', 'c#'],
+        ['objective-c', 'objective-c'],
+        ['c sharp', null],
+    ])('keeps a code block whose language is %j, blank row and all, and settles', (language, kept) => {
+        const once = saved(`<pre><code data-language="${language}">a\n\nb</code></pre>`);
+        const out = read(once);
+
+        expect(out.querySelector('pre code')?.textContent).toBe('a\n\nb');
+        expect(out.querySelector('pre code')?.getAttribute('data-language') ?? null).toBe(kept);
+        expect(saved(once)).toBe(once);
+    });
+
+    it.each([
+        ['a closing bracket', 'a]b'],
+        ['brackets and a backslash', 'x\\y [z]'],
+    ])('keeps an image whose alt text holds %s', (_name, alt) => {
+        const holder = document.createElement('p');
+        const image = document.createElement('img');
+        image.setAttribute('alt', alt);
+        image.setAttribute('src', 'https://x.test/a.png');
+        holder.appendChild(image);
+        const once = saved(holder.outerHTML);
+
+        expect(read(once).querySelector('img')?.getAttribute('alt')).toBe(alt);
+        expect(saved(once)).toBe(once);
+    });
+
     it('keeps emphasis inside a word as emphasis, with no stray asterisks', () => {
         const once = saved('<p>un<em>believ</em>able</p>');
         const out = read(once);
