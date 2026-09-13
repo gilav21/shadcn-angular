@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
-import { isNestedList } from './rich-text-lines';
+import { flattenIntoRowText, isInlineHoldingBlock, isNestedList, isPhrasing } from './rich-text-lines';
 import { isValidImageMagicBytes } from '../../lib/parsers/image-validator';
 import { sanitizeSvg } from '../../lib/parsers/svg-sanitizer';
 
@@ -123,30 +123,8 @@ const UNSAFE_STYLE_TOKENS = ['expression(', 'javascript:', 'vbscript:', 'data:']
  * Only tags this sanitizer actually keeps: a selector for a tag it strips
  * would never match, and reading like a rule it does not enforce.
  */
-const STRAY_LINE_HOSTS = 'li, td, th, blockquote, div, summary';
+const STRAY_LINE_HOSTS = 'li, td, th, blockquote, div, summary, details';
 
-/** Elements that end the run of inline content around them inside a {@link STRAY_LINE_HOSTS}. */
-const STRAY_LINE_BLOCKS = new Set([
-    'P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'TABLE', 'BLOCKQUOTE', 'PRE', 'DETAILS',
-]);
-
-/**
- * Block containers a task row's inline content is flattened out of.
- *
- * Wider than {@link STRAY_LINE_BLOCKS}: a list or a table inside a row has to
- * lose its items and cells too, or an `<li>` or a `<td>` ends up inside the
- * row's span. `HR` is deliberately absent: it holds no children, so unwrapping
- * it would delete the rule rather than flatten it.
- */
-const ROW_UNWRAP_BLOCKS = new Set([
-    ...STRAY_LINE_BLOCKS,
-    'LI', 'DT', 'DD', 'THEAD', 'TBODY', 'TFOOT', 'TR', 'TD', 'TH', 'SUMMARY', 'FIGCAPTION', 'FIGURE', 'DL',
-]);
-
-/** Elements that are a line of a quote on their own; anything else is grouped into `<p>` lines. */
-const QUOTE_LINE_BLOCK_TAGS = new Set([
-    'P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'PRE', 'TABLE', 'HR', 'BLOCKQUOTE', 'DETAILS', 'FIGURE',
-]);
 
 /** Why a resource was allowed or refused, as a flat decision. */
 function resourceReason(noPolicy: boolean, allowed: boolean): ResourcePolicyDecision['reason'] {
@@ -402,11 +380,127 @@ export class RichTextSanitizerService {
 
         this.processNodes(doc.body, cleanContainer);
         this.dropOrphanCompanionAttributes(cleanContainer);
+        this.pushInlineWrappersIntoBlocks(cleanContainer);
+        this.liftBlocksOutOfLines(cleanContainer);
+        this.adoptStrayItems(cleanContainer);
         this.normalizeQuoteLines(cleanContainer);
         this.normalizeTaskRows(cleanContainer);
         this.normalizeStrayLines(cleanContainer);
 
         return this.normalizeStyleQuotes(cleanContainer.innerHTML);
+    }
+
+    /**
+     * An inline element never wraps a block.
+     *
+     * The parser keeps `<span><p>…</p></span>`, but nothing downstream can: the
+     * line passes read the span as inline and wrapped it in a paragraph, which
+     * the next read took apart, so the document gained an empty paragraph on
+     * every pass. The wrapper moves inside instead, around each inline run, so
+     * its formatting survives: `<b><p>x</p></b>` becomes `<p><b>x</b></p>`.
+     */
+    private pushInlineWrappersIntoBlocks(root: HTMLElement): void {
+        for (const el of Array.from(root.querySelectorAll('*'))) {
+            // `root` is detached, so `isConnected` is false for everything in
+            // it; containment is what says an earlier move has not taken `el` out.
+            if (!root.contains(el) || !isInlineHoldingBlock(el)) continue;
+            for (const child of Array.from(el.childNodes)) this.wrapInlineRuns(child, el);
+            el.replaceWith(...Array.from(el.childNodes));
+        }
+    }
+
+    /** Wrap each inline piece of `node` in a copy of `wrapper`, descending through blocks. */
+    private wrapInlineRuns(node: Node, wrapper: Element): void {
+        // Blank formatting text and a row's checkbox are not content to format:
+        // wrapping the checkbox would take it out of its row.
+        if (node.nodeName === 'INPUT') return;
+        if (node.nodeType === Node.TEXT_NODE && (node.textContent ?? '').trim() === '') return;
+        if (isPhrasing(node)) {
+            const copy = wrapper.cloneNode(false);
+            node.parentNode?.insertBefore(copy, node);
+            copy.appendChild(node);
+            return;
+        }
+        for (const child of Array.from(node.childNodes)) this.wrapInlineRuns(child, wrapper);
+    }
+
+    /**
+     * A heading holds inline content only.
+     *
+     * The parser closes an open `<p>` at any block, but not a heading:
+     * `<h2>title<div>body</div></h2>` survives parsing, and a markdown heading
+     * is one line, so the block had nowhere to go on save. Each block moves out
+     * in place, and the inline runs around it keep the heading's tag.
+     * Paragraphs need no such pass: the parser already guarantees them.
+     */
+    private liftBlocksOutOfLines(root: HTMLElement): void {
+        for (const line of Array.from(root.querySelectorAll('h1, h2, h3, h4, h5, h6'))) {
+            if (Array.from(line.childNodes).every(isPhrasing)) continue;
+            line.replaceWith(...this.splitAroundBlocks(line));
+        }
+    }
+
+    /** The line's inline runs, each in a copy of the line, with its blocks between them. */
+    private splitAroundBlocks(line: Element): Node[] {
+        const pieces: Node[] = [];
+        let run: Element | null = null;
+        for (const child of Array.from(line.childNodes)) {
+            if (isPhrasing(child)) {
+                run ??= line.cloneNode(false) as Element;
+                run.appendChild(child);
+                continue;
+            }
+            if (run && !this.showsNothing(run)) pieces.push(run);
+            run = null;
+            pieces.push(child);
+        }
+        if (run && !this.showsNothing(run)) pieces.push(run);
+        return pieces;
+    }
+
+    /** Whether a piece of a split line is only the whitespace that sat between blocks. */
+    private showsNothing(run: Element): boolean {
+        return (run.textContent ?? '').trim() === '' && !run.querySelector('img, br, input');
+    }
+
+    /**
+     * An item lives in a list, and a summary in a details block.
+     *
+     * `<blockquote><li>x</li></blockquote>` arrives from pasted HTML. The quote
+     * pass wrapped the stray item in a paragraph, which the next read took
+     * apart, adding an empty paragraph per pass. Adjacent stray items share one
+     * new list; a stray summary becomes a paragraph.
+     */
+    private adoptStrayItems(root: HTMLElement): void {
+        const adopted = new Set<Element>();
+        for (const item of Array.from(root.querySelectorAll('li'))) {
+            const parent = item.parentElement;
+            if (!parent || isNestedList(parent)) continue;
+            const before = this.previousContentSibling(item);
+            let list = before && adopted.has(before) ? before : null;
+            if (!list) {
+                list = this.document.createElement('ul');
+                if (item.dataset['task'] !== undefined) (list as HTMLElement).dataset['taskList'] = '';
+                item.before(list);
+                adopted.add(list);
+            }
+            list.appendChild(item);
+        }
+        for (const summary of Array.from(root.querySelectorAll('summary'))) {
+            if (summary.parentElement?.nodeName === 'DETAILS') continue;
+            const paragraph = this.document.createElement('p');
+            paragraph.append(...Array.from(summary.childNodes));
+            summary.replaceWith(paragraph);
+        }
+    }
+
+    /** The previous sibling element, stepping over the blank text formatting leaves between elements. */
+    private previousContentSibling(node: Node): Element | null {
+        let current = node.previousSibling;
+        while (current?.nodeType === Node.TEXT_NODE && (current.textContent ?? '').trim() === '') {
+            current = current.previousSibling;
+        }
+        return current?.nodeType === Node.ELEMENT_NODE ? current as Element : null;
     }
 
     /**
@@ -425,31 +519,19 @@ export class RichTextSanitizerService {
             const checkbox: ChildNode | null = row.querySelector(':scope > input[type="checkbox"]');
             const content = Array.from(row.childNodes)
                 .filter((node) => node !== checkbox && !isNestedList(node));
+            // A span holding a paragraph -- what a loose markdown task item
+            // parses to -- no longer reaches here: the inline-wrapper pass has
+            // already moved the paragraph out of it, so a lone span is inline.
             if (content.length === 1 && content[0].nodeName === 'SPAN') continue;
             const span = this.document.createElement('span');
-            // A row's text is inline. A block among its content is unwrapped
-            // rather than nested, or the row would own a line and the block
-            // would own one too, and the same text would belong to both.
-            for (const node of content) this.appendRowContent(node, span);
+            // A row's text is inline. A block among its content is flattened
+            // into it rather than nested, or the row would own a line and the
+            // block would own one too, and the same text would belong to both.
+            flattenIntoRowText(content, span);
             // The row's own nested list renders under its text, so the span
             // goes before it.
             row.insertBefore(span, Array.from(row.childNodes).find((node) => isNestedList(node)) ?? null);
         }
-    }
-
-    /** Move one node into a task row's span, unwrapping a block child. */
-    private appendRowContent(node: Node, span: HTMLElement): void {
-        if (ROW_UNWRAP_BLOCKS.has(node.nodeName)) {
-            // A snapshot, and the emptied block removed. Draining with
-            // `while (node.firstChild)` looped forever on a block holding a
-            // block: the inner one was emptied but stayed in place, so the
-            // outer loop kept finding it. A quote holds a <p> by the time this
-            // runs, so quoting a task row hung the page.
-            for (const child of Array.from(node.childNodes)) this.appendRowContent(child, span);
-            (node as ChildNode).remove();
-            return;
-        }
-        span.appendChild(node);
     }
 
     /**
@@ -484,7 +566,7 @@ export class RichTextSanitizerService {
         const runs: ChildNode[][] = [];
         let run: ChildNode[] = [];
         for (const node of Array.from(el.childNodes)) {
-            if (STRAY_LINE_BLOCKS.has(node.nodeName)) {
+            if (!isPhrasing(node)) {
                 if (run.length > 0) runs.push(run);
                 run = [];
                 continue;
@@ -507,7 +589,7 @@ export class RichTextSanitizerService {
      * conflating the two moved a sub-list into a paragraph.
      */
     private needsItsOwnLine(node: Node, within: Element): boolean {
-        if (!STRAY_LINE_BLOCKS.has(node.nodeName)) return false;
+        if (isPhrasing(node)) return false;
         return !(within.nodeName === 'LI' && isNestedList(node));
     }
 
@@ -576,7 +658,7 @@ export class RichTextSanitizerService {
     }
 
     private isQuoteLineBlock(node: Node): boolean {
-        return node.nodeType === Node.ELEMENT_NODE && QUOTE_LINE_BLOCK_TAGS.has((node as Element).tagName);
+        return node.nodeType === Node.ELEMENT_NODE && !isPhrasing(node);
     }
 
     /**

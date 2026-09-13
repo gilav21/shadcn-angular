@@ -95,6 +95,74 @@ export function isNestedList(node: Node): boolean {
     return node.nodeName === 'UL' || node.nodeName === 'OL';
 }
 
+/**
+ * Elements the HTML parser keeps inside a paragraph: the inline content a line
+ * holds. Any other element closes an open `<p>` when the markup is read back.
+ */
+const PHRASING_TAGS = new Set([
+    'A', 'ABBR', 'B', 'BDI', 'BDO', 'BR', 'CITE', 'CODE', 'DATA', 'DEL', 'DFN', 'EM', 'I', 'IMG', 'INPUT',
+    'INS', 'KBD', 'MARK', 'Q', 'S', 'SAMP', 'SMALL', 'SPAN', 'STRONG', 'SUB', 'SUP', 'TIME', 'U', 'VAR', 'WBR',
+]);
+
+/**
+ * Whether a node is inline content all the way down.
+ *
+ * A tag list alone is not enough: the parser keeps a `<span>` holding a `<p>`,
+ * but that span is not inline. Passes that trusted the tag wrapped it in a
+ * paragraph, the next read took the paragraph apart, and the document gained an
+ * empty paragraph on every pass.
+ */
+export function isPhrasing(node: Node): boolean {
+    if (node.nodeType !== Node.ELEMENT_NODE) return true;
+    return PHRASING_TAGS.has(node.nodeName) && Array.from(node.childNodes).every(isPhrasing);
+}
+
+/** An inline element that wraps a block: a shape the parser keeps and nothing downstream can hold. */
+export function isInlineHoldingBlock(node: Node): boolean {
+    return node.nodeType === Node.ELEMENT_NODE && PHRASING_TAGS.has(node.nodeName) && !isPhrasing(node);
+}
+
+/**
+ * Move `nodes` into a task row's text, flattening every block among them.
+ *
+ * A row is one line, so its span holds inline content only. Each block boundary
+ * becomes one space: moving children across with nothing between them fused two
+ * paragraphs, or two cells, into one word. A code block's line breaks become
+ * spaces for the same reason. A rule cannot be part of a line of text, so it is
+ * dropped.
+ */
+export function flattenIntoRowText(nodes: readonly Node[], span: HTMLElement): void {
+    const state = { pendingBreak: false };
+    for (const node of nodes) flattenNode(node, span, state);
+}
+
+function flattenNode(node: Node, span: HTMLElement, state: { pendingBreak: boolean }): void {
+    if (isPhrasing(node)) {
+        const blank = node.nodeType === Node.TEXT_NODE && (node.textContent ?? '').trim() === '';
+        if (blank && state.pendingBreak) {
+            (node as ChildNode).remove();
+            return;
+        }
+        if (state.pendingBreak && span.hasChildNodes() && !/\s$/.test(span.textContent ?? '')) span.append(' ');
+        state.pendingBreak = false;
+        span.appendChild(node);
+        return;
+    }
+    state.pendingBreak = true;
+    if (node.nodeName === 'PRE') joinCodeLines(node);
+    for (const child of Array.from(node.childNodes)) flattenNode(child, span, state);
+    state.pendingBreak = true;
+    (node as ChildNode).remove();
+}
+
+/** A code block's rows as one run of text, each break a single space. */
+function joinCodeLines(pre: Node): void {
+    const walker = (pre.ownerDocument ?? document).createTreeWalker(pre, NodeFilter.SHOW_TEXT);
+    for (let text = walker.nextNode(); text; text = walker.nextNode()) {
+        (text as Text).data = (text as Text).data.replaceAll(/\n+/g, ' ');
+    }
+}
+
 /** A task row, which keeps its text in a span after its checkbox. */
 function isTaskRow(el: Element): boolean {
     return el.nodeName === 'LI' && (el as HTMLElement).dataset['task'] !== undefined;

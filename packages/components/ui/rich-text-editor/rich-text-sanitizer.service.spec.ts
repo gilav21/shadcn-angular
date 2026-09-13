@@ -114,11 +114,14 @@ describe('RichTextSanitizerService — an element holds a line or holds blocks',
     });
 
     it.each([
-        ['a quote holding a paragraph', '<blockquote><p>quoted</p></blockquote>', 'introquoted'],
-        ['a quote holding bare text, which the quote pass turns into a paragraph', '<blockquote>quoted</blockquote>', 'introquoted'],
-        ['a quote holding two paragraphs', '<blockquote><p>one</p><p>two</p></blockquote>', 'introonetwo'],
-        ['a div holding a list', '<div><ul><li>item</li></ul></div>', 'introitem'],
-        ['a table', '<table><tbody><tr><td>cell</td><td>next</td></tr></tbody></table>', 'introcellnext'],
+        // Each block boundary becomes one space. These expected glued words
+        // ("introonetwo") before: two paragraphs or two cells fused into one
+        // word, which no reader would call keeping the text.
+        ['a quote holding a paragraph', '<blockquote><p>quoted</p></blockquote>', 'intro quoted'],
+        ['a quote holding bare text, which the quote pass turns into a paragraph', '<blockquote>quoted</blockquote>', 'intro quoted'],
+        ['a quote holding two paragraphs', '<blockquote><p>one</p><p>two</p></blockquote>', 'intro one two'],
+        ['a div holding a list', '<div><ul><li>item</li></ul></div>', 'intro item'],
+        ['a table', '<table><tbody><tr><td>cell</td><td>next</td></tr></tbody></table>', 'intro cell next'],
     ])('finishes unwrapping %s inside a task row', (_name, block, text) => {
         // Draining a block that held a block looped forever: the emptied inner
         // block stayed in place and the outer loop kept finding it. The single
@@ -139,7 +142,7 @@ describe('RichTextSanitizerService — an element holds a line or holds blocks',
         const span = out.querySelector('li[data-task] > span')!;
 
         expect(span.querySelector('blockquote, p, h1, div')).toBeNull();
-        expect(span.textContent).toBe('introquoted');
+        expect(span.textContent).toBe('intro quoted');
         expect(Array.from(out.querySelector('li[data-task]')!.children).map((el) => el.tagName))
             .toEqual(['INPUT', 'SPAN']);
     });
@@ -187,6 +190,114 @@ describe('RichTextSanitizerService — an element holds a line or holds blocks',
         const row = out.querySelector('li[data-task]')!;
 
         expect(Array.from(row.children).map((el) => el.tagName)).toEqual(['INPUT', 'SPAN']);
+    });
+});
+
+describe('RichTextSanitizerService — output the HTML parser reads back unchanged', () => {
+    let service: RichTextSanitizerService;
+
+    beforeEach(() => {
+        TestBed.configureTestingModule({ providers: [RichTextSanitizerService] });
+        service = TestBed.inject(RichTextSanitizerService);
+    });
+
+    /** Sanitize, then read the result back the way the editor and the view both do. */
+    const readBack = (html: string): { out: string; holder: HTMLElement } => {
+        const out = service.sanitize(html);
+        const holder = document.createElement('div');
+        holder.innerHTML = out;
+        return { out, holder };
+    };
+
+    it.each([
+        ['a rule between the lines of a quote', '<blockquote><p>above</p><hr><p>below</p></blockquote>'],
+        ['a rule beside text in a div', '<div><p>a</p>b<hr>c</div>'],
+        ['a rule beside text in an item', '<ul><li>a<hr>b</li></ul>'],
+        ['a rule beside text in a cell', '<table><tbody><tr><td>a<hr>b</td></tr></tbody></table>'],
+        ['an item loose in a quote', '<blockquote><li>x</li></blockquote>'],
+        ['a summary outside a details block', '<blockquote><summary>x</summary></blockquote>'],
+        ['a span holding a paragraph', '<div><p>a</p><span><p>b</p></span></div>'],
+        ['bold holding a list', '<b><ul><li>x</li></ul></b>'],
+        ['a heading holding a block', '<h2>title<div>body</div></h2>'],
+        ['a task row whose span holds a paragraph', '<ul data-task-list><li data-task><input type="checkbox"><span>a<p>b</p></span></li></ul>'],
+    ])('reads %s back unchanged, and a second pass changes nothing', (_name, html) => {
+        // Each shape was wrapped in a paragraph the parser will not keep, so
+        // every pass added empty paragraphs around it, without end.
+        const { out, holder } = readBack(html);
+
+        expect(holder.innerHTML).toBe(out);
+        expect(service.sanitize(out)).toBe(out);
+        expect(holder.querySelector('p:empty')).toBeNull();
+        expect(holder.querySelector('p hr, p li, p ul, p summary, p table, span p, span ul')).toBeNull();
+    });
+
+    it('keeps a quote\'s rule between its two lines', () => {
+        const { holder } = readBack('<blockquote><p>above</p><hr><p>below</p></blockquote>');
+
+        expect(Array.from(holder.querySelector('blockquote')!.children).map((el) => `${el.tagName}:${el.textContent}`))
+            .toEqual(['P:above', 'HR:', 'P:below']);
+    });
+
+    it('gives the text beside a rule in an item lines of their own, keeping the rule', () => {
+        const { holder } = readBack('<ul><li>a<hr>b</li></ul>');
+
+        expect(Array.from(holder.querySelector('li')!.children).map((el) => `${el.tagName}:${el.textContent}`))
+            .toEqual(['P:a', 'HR:', 'P:b']);
+    });
+
+    it('moves a block out of a heading, keeping the heading and the block in order', () => {
+        // The parser closes a paragraph at a block but not a heading, so this
+        // shape survives parsing, and a heading is one line in markdown.
+        const { holder } = readBack('<h2>title<div>body</div></h2>');
+
+        expect(Array.from(holder.children).map((el) => `${el.tagName}:${el.textContent}`)).toEqual(['H2:title', 'DIV:body']);
+    });
+
+    it('gives adjacent items loose in a quote one list, keeping their text', () => {
+        const { holder } = readBack('<blockquote><li>x</li><li>y</li></blockquote>');
+
+        expect(Array.from(holder.querySelectorAll('blockquote > ul > li')).map((li) => li.textContent)).toEqual(['x', 'y']);
+    });
+
+    it('turns a summary outside a details block into a paragraph with its text', () => {
+        const { holder } = readBack('<blockquote><summary>label <b>bold</b></summary></blockquote>');
+
+        expect(holder.querySelector('blockquote > p')?.innerHTML).toBe('label <b>bold</b>');
+    });
+
+    it('moves an inline wrapper inside the block it held, so the formatting survives', () => {
+        const { holder } = readBack('<p>a</p><b><p>bold</p></b>');
+
+        expect(holder.querySelector('p > b')?.textContent).toBe('bold');
+        expect(holder.querySelector('b p')).toBeNull();
+    });
+
+    it('keeps a row\'s checkbox in the row when bold wraps the whole list', () => {
+        const { holder } = readBack('<b><ul data-task-list><li data-task data-checked="true"><input type="checkbox"><span>x</span></li></ul></b>');
+        const row = holder.querySelector('li[data-task]')!;
+
+        expect(row.querySelector(':scope > input[type="checkbox"]')).not.toBeNull();
+        expect(row.querySelector(':scope > span b')?.textContent).toBe('x');
+    });
+
+    it('flattens a paragraph inside a row\'s span into its text, one space at the boundary', () => {
+        const { holder } = readBack('<ul data-task-list><li data-task><input type="checkbox"><span>a<p>b</p></span></li></ul>');
+
+        expect(holder.querySelector('li[data-task] > span')?.textContent).toBe('a b');
+        expect(holder.querySelector('li[data-task] span p')).toBeNull();
+    });
+
+    it('joins a code block\'s lines with spaces when it is flattened into a row', () => {
+        const { holder } = readBack('<ul data-task-list><li data-task><input type="checkbox">intro<pre><code>x\ny</code></pre></li></ul>');
+
+        expect(holder.querySelector('li[data-task] > span')?.textContent).toBe('intro x y');
+    });
+
+    it('drops a rule pasted inside a task row, which is one line of text, and keeps the words around it', () => {
+        const { holder } = readBack('<ul data-task-list><li data-task><input type="checkbox"><p>a</p><hr><p>b</p></li></ul>');
+
+        expect(holder.querySelector('li[data-task] hr')).toBeNull();
+        expect(holder.querySelector('li[data-task] > span')?.textContent).toBe('a b');
     });
 });
 
