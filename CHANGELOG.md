@@ -238,14 +238,20 @@ means no policy and today's behaviour exactly.
   - *Quote* and *Code block* on a top-level list item take that item out: the
     list splits around the new block, the item's sub-list follows it, and a
     numbered list's second half keeps counting. On a nested item, an item
-    holding several lines, a table cell, a summary or a code block they do
-    nothing.
+    holding several lines, a table cell or a summary they do nothing. In a code
+    block, Code block unwraps it and Quote wraps it.
   - *Horizontal rule* and inserted tables split a list the same way (an empty
     item the caret sat in is replaced), go after the table from inside a cell,
     and go to the start of the details body from a summary.
   - The list toggles do nothing in a table cell, a summary or a code block.
     Turning a sub-list off moves its items after their top-level item; two or
-    more levels down it does nothing, since the text would change order.
+    more levels down it does nothing, since the text would change order. *Task
+    list* does nothing on a list whose items hold a rule, which a task row, one
+    line of text, cannot keep.
+  - The slash menu runs the toolbar's own commands. It rebuilt blocks itself
+    and disagreed with the toolbar: bullets on a bullet item did nothing, and a
+    numbered list over task rows kept their checkboxes inside an `<ol>`, where
+    a save dropped them.
   - A selection reaching from a paragraph into a list stops at the list's edge
     instead of pulling items out of it.
 - **Headings and Normal text are applied by the editor, not the browser.**
@@ -311,6 +317,46 @@ means no policy and today's behaviour exactly.
   beside the checkbox.
 - **A caret pushed out of a checkbox's spot lands at the end of the row's text,**
   not after its first text run.
+- **Code block keeps a line break inside a line** as a new line of code. It
+  joined the text on either side of the break into one word.
+- **A list holds one kind of item.** A save writes an item by its list's kind,
+  so a task row outdented into a plain list, pasted into one or promoted there
+  by a join saved as a plain bullet and lost its checkbox, and a plain item in a
+  task list gained one. The editor and the sanitizer now split a list where its
+  items change kind, keeping each item's kind and an ordered list's count; an
+  item of a task list that arrives without `data-task` is a task row, as the
+  markdown writer always read it.
+- **Sanitizing parses in standards mode.** With no doctype the parser ran in
+  quirks mode, where a table does not close an open paragraph, so a pasted
+  `<p>a<table>` came apart only when the page read it back. A stray summary
+  holding a paragraph no longer becomes a paragraph inside a paragraph, and a
+  details block's summary is moved to the front, where a browser shows it.
+- **Text that looks like markdown stays text.** "2024." or "-" alone on a line,
+  ">50%", "---", "~~a~~", "~~~", ":::details", "[t](u)" and "[x] done" were
+  read back as a list, a quote, a rule, strikethrough, a code block, a details
+  block, a link or a task row. List item text was not escaped at all.
+- **More markdown round-trip fixes:**
+  - Emphasis inside a word (`un<em>believ</em>able`) is kept as the tag instead
+    of turning into literal asterisks.
+  - An empty heading no longer takes the paragraph after it as its text.
+  - Bold or italic inside another inline element, such as a span, that touches
+    a word is kept as its tag instead of turning into literal asterisks.
+  - Bold ending in italic next to bold starting with italic no longer reads
+    back as one scrambled run.
+  - A line break inside bold or italic in a quote is kept. In a quote that also
+    held a block, the emphasis came back as literal asterisks.
+  - A line break inside a heading, a summary, a task row or a list item's own
+    line is kept, rather than ending the heading, scattering asterisks, or
+    splitting the row or the item into paragraphs that changed on every save.
+  - A details block inside a list item keeps its headings, quotes and lists; a
+    details block with an empty summary survives inside a quote; a details block
+    takes its own summary, not a nested one's; and one with no summary is saved
+    without the invented title "Toggle".
+  - A list item holding text and blocks no longer leaves an empty paragraph
+    inside or after the list.
+  - A paragraph after a quoted table is no longer read as a table row.
+  - A numbered list keeps a start of 0 to 999999999; a start markdown cannot
+    write back is dropped.
 - **The caret in a task row stays in the row's text.** The browser let it
   stop before or on the checkbox (ArrowUp from the row below landed there,
   sometimes needing a second press), so text typed there sat before the box

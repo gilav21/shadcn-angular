@@ -289,8 +289,8 @@ the public `insertBlockAtCaret` all follow the same rules.
 | --- | --- | --- | --- | --- |
 | A paragraph or heading | Re-tags the line | Wraps the line | Goes after the line, or replaces it when empty | Wraps the line |
 | A top-level list item | Nothing | Takes the item out; the list splits around the block | Splits the list after the item | Toggles or re-kinds that list |
-| A nested list item, or an item holding several lines | Nothing | Nothing | Splits the list after the top-level item | Toggles or re-kinds that sub-list |
-| A table cell | Nothing | Nothing | Goes after the table | Nothing |
+| A nested list item, or an item holding several lines | Nothing | Nothing | Splits the list after the top-level item | Toggles or re-kinds its own list |
+| A table cell | Nothing | Nothing | Goes after the table, or splits the list when the table is in a list item | Nothing |
 | A disclosure's summary | Nothing | Nothing | Goes to the start of the details body | Nothing |
 | A code block | Nothing | Quote wraps it; Code block unwraps it | Goes after it | Nothing |
 
@@ -300,7 +300,13 @@ task list -- and a numbered list's second half continues the count with a
 
 Turning a sub-list off moves its items after their top-level item when the
 sub-list ends that item; deeper than that the command does nothing, because
-the text would change order.
+the text would change order. *Task list* does nothing on a list whose items
+hold a rule: a task row is one line of text and cannot keep it.
+
+A list holds one kind of item. Outdenting a task row into a plain list, or a
+join that promotes plain items into a task list, splits the list so every item
+keeps its kind; a save writes an item by its list's kind, so a mixed list lost
+checkboxes. Every item of a task list is read as a task row.
 
 **What Markdown cannot hold.** A task row is one line of text: a quote,
 paragraphs or a table pasted inside one are flattened into it, with a space at
