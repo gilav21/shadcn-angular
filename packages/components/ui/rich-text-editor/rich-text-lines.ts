@@ -177,6 +177,64 @@ function taskCheckboxOf(el: Element): HTMLInputElement | null {
     return el.querySelector<HTMLInputElement>(':scope > input[type="checkbox"]');
 }
 
+/** A task list: the only list a task row may sit in. */
+function isTaskListElement(el: Element): boolean {
+    return el.nodeName === 'UL' && (el as HTMLElement).dataset['taskList'] !== undefined;
+}
+
+/**
+ * Split a list wherever its items change kind, so a list holds only task rows
+ * or only plain items, each run in a list of its own kind. Returns whether the
+ * list changed.
+ *
+ * A save writes an item by its list's kind, not its own. A task row moved into
+ * a plain list -- outdented there, or pasted that way -- saved as a plain bullet
+ * and lost its checkbox, and a plain item in a task list gained one. An
+ * ordered list's plain runs keep counting across the task rows between them.
+ */
+export function separateListKinds(list: HTMLElement): boolean {
+    const children = Array.from(list.children) as HTMLElement[];
+    const taskList = isTaskListElement(list);
+    if (children.every((child) => child.nodeName !== 'LI' || isTaskRow(child) === taskList)) return false;
+    const first = Number.parseInt(list.getAttribute('start') ?? '', 10);
+    let next = Number.isInteger(first) ? first : 1;
+    const runs: HTMLElement[] = [];
+    let run: HTMLElement | null = null;
+    for (const child of children) {
+        // Anything that is not an item stays with the run it sits in. Taking
+        // items alone dropped a stray list nested directly in the list, and
+        // every word in it.
+        const task: boolean = child.nodeName === 'LI' ? isTaskRow(child) : run !== null && isTaskListElement(run);
+        if (run === null || isTaskListElement(run) !== task) {
+            run = task ? taskListFor(list) : plainListLike(list, next);
+            runs.push(run);
+        }
+        run.appendChild(child);
+        if (child.nodeName === 'LI' && !task) next++;
+    }
+    list.replaceWith(...runs);
+    return true;
+}
+
+function taskListFor(list: HTMLElement): HTMLElement {
+    const made = list.ownerDocument.createElement('ul');
+    made.dataset['taskList'] = '';
+    return made;
+}
+
+/** A plain list of `list`'s own tag and attributes, counting from `start` when ordered. */
+function plainListLike(list: HTMLElement, start: number): HTMLElement {
+    const made = list.cloneNode(false) as HTMLElement;
+    delete made.dataset['taskList'];
+    if (made.tagName !== 'OL') return made;
+    if (start === 1) {
+        made.removeAttribute('start');
+    } else {
+        made.setAttribute('start', String(start));
+    }
+    return made;
+}
+
 /** Whether an element is block-level, so it would own a line of its own. */
 function isBlockLevel(el: Element): boolean {
     return ALWAYS_LINE.has(el.nodeName) || LINE_OR_CONTAINER.has(el.nodeName) || CONTAINER_ONLY.has(el.nodeName);
@@ -270,22 +328,6 @@ export function positionAfterLine(line: Line): { parent: Node; before: Node | nu
     return { parent, before: owner.nextSibling };
 }
 
-/**
- * Where a block goes to take the place of `line`.
- *
- * The mirror of {@link positionAfterLine}: next to the line when its parent
- * accepts a block, and otherwise inside the line, since a `<pre>` cannot be a
- * child of a `<ul>` or a `<tr>` any more than a `<p>` can.
- */
-export function positionOfLine(line: Line): { parent: Node; before: Node | null } {
-    const owner = line.owner;
-    const parent = owner.parentNode;
-    if (!parent || REJECTS_BLOCK_CHILD.has(parent.nodeName)) {
-        return { parent: owner, before: owner.firstChild };
-    }
-    return { parent, before: owner };
-}
-
 /** Elements whose blocks a save keeps as blocks; the root is one too. */
 const BLOCK_HOSTS = new Set(['BLOCKQUOTE', 'DETAILS']);
 
@@ -324,7 +366,7 @@ export function lineTagIsFixed(line: Line): boolean {
     return FIXED_TAGS.has(line.owner.nodeName);
 }
 
-/** Whether a block put in place of `line` has to go inside it (rule of {@link positionOfLine}). */
+/** Whether a block after `line` has to go inside it: the rule of {@link positionAfterLine}. */
 export function lineKeepsItsElement(line: Line): boolean {
     const parent = line.owner.parentNode;
     return !parent || REJECTS_BLOCK_CHILD.has(parent.nodeName);
@@ -413,9 +455,30 @@ export function lineIsTextOnly(line: Line): boolean {
     return !lineOwnNodes(line).some((node) => holdsReplacedContent(node));
 }
 
-/** A line's text as the author sees it, placeholders included. */
+/**
+ * A line's text as the author sees it, placeholders included.
+ *
+ * A `<br>` inside the line is a newline: read as text alone, "one<br>two" was
+ * "onetwo", and a code block built from it joined the two halves into one word.
+ * A `<br>` that ends the line shows nothing, since the browser needs it only to
+ * give an empty last line height, so it adds nothing.
+ */
 export function lineText(line: Line): string {
-    return lineOwnNodes(line).map((node) => node.textContent ?? '').join('');
+    const nodes = lineOwnNodes(line);
+    const text = nodes.map(textWithBreaks).join('');
+    return endsWithBreak(nodes) ? text.slice(0, -1) : text;
+}
+
+function textWithBreaks(node: Node): string {
+    if (node.nodeName === 'BR') return '\n';
+    if (node.nodeType === Node.TEXT_NODE) return node.textContent ?? '';
+    return Array.from(node.childNodes).map(textWithBreaks).join('');
+}
+
+function endsWithBreak(nodes: readonly Node[]): boolean {
+    let last: Node | null | undefined = nodes.at(-1);
+    while (last?.lastChild) last = last.lastChild;
+    return last?.nodeName === 'BR';
 }
 
 /**

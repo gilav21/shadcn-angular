@@ -2876,6 +2876,18 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         expect(Array.from(editor.querySelectorAll('p')).map((p) => p.textContent)).toEqual(['one', 'two']);
     });
 
+    it('the code block toggle keeps a break inside a line as a new line of code', () => {
+        // The block was built from the line's text alone, so the two halves
+        // around the break joined into one word.
+        component.writeValue('<p><em>one<br>two</em> three</p>');
+        fixture.detectChanges();
+        setCaretAt(editor.querySelector('em')!.firstChild!, 1);
+
+        component.onFormatCommand('codeBlock');
+
+        expect(editor.querySelector('pre > code')?.textContent).toBe('one\ntwo three');
+    });
+
     it("the code block toggle takes the caret's list item out, splitting the list around it", () => {
         // It acted on the item by building the code block INSIDE it, a shape a
         // markdown save cannot carry. The list now splits and the block sits
@@ -2970,7 +2982,21 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
             component.onFormatCommand('horizontalRule');
 
             expect(editor.querySelectorAll('ul[data-task-list]')).toHaveLength(2);
+            expect(editor.querySelector(':scope > hr')).not.toBeNull();
             expect(editor.querySelector('li hr, span hr')).toBeNull();
+        });
+
+        it('a rule from a cell of a table inside a list item splits the list after that item', () => {
+            // The table is inside the item, so after the table is still inside the
+            // item, where a save cannot carry a rule.
+            component.writeValue('<ul><li>a<table><tbody><tr><td>cell</td></tr></tbody></table></li><li>b</li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('td')!.firstChild as Text, 2);
+
+            component.onFormatCommand('horizontalRule');
+
+            expect(tags(editor)).toEqual(['UL:acell', 'HR:', 'P:', 'UL:b']);
+            expect(editor.querySelector('li hr, td hr')).toBeNull();
         });
 
         it('a rule on a nested row goes after its top-level item, and no text moves', () => {
@@ -3192,6 +3218,98 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
             const selection = document.getSelection()!;
             expect(selection.anchorNode).toBe(editor.querySelector('li[data-task] > span')!.firstChild);
             expect(selection.anchorOffset).toBe(0);
+        });
+
+        it('Shift+Tab on a task row under a plain item keeps it a task row, in a task list of its own', () => {
+            // A task row in a plain list saved as a plain bullet: its checkbox
+            // and its checked state were gone on reload.
+            component.writeValue('<ul><li>plain<ul data-task-list><li data-task data-checked="true"><input type="checkbox">'
+                + '<span>done</span></li></ul></li><li>next</li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 2);
+
+            component.onFormatCommand('outdent');
+
+            expect(tags(editor)).toEqual(['UL:plain', 'UL:done', 'UL:next']);
+            const row = editor.querySelector('li[data-task]') as HTMLElement;
+            expect(row.parentElement?.dataset['taskList']).toBe('');
+            expect(row.dataset['checked']).toBe('true');
+        });
+
+        it('Enter on an empty task row under a plain item steps it out into a task list of its own', () => {
+            component.writeValue('<ul><li>plain<ul data-task-list><li data-task data-checked="false"><input type="checkbox">'
+                + '<span>&nbsp;</span></li></ul></li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 0);
+
+            component.onKeydown(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+
+            expect(editor.querySelector(':scope > ul[data-task-list] > li[data-task]')).not.toBeNull();
+            expect(editor.querySelector('ul:not([data-task-list]) > li[data-task], ul[data-task-list] > li:not([data-task])')).toBeNull();
+        });
+
+        it('Tab puts a plain item under a row that holds a task sub-list into a plain list of its own', () => {
+            component.writeValue('<ul><li>a<ul data-task-list><li data-task data-checked="false"><input type="checkbox">'
+                + '<span>t</span></li></ul></li><li>b</li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelectorAll(':scope > ul > li')[1].firstChild as Text, 1);
+
+            component.onFormatCommand('indent');
+
+            expect(editor.querySelector('li > ul:not([data-task-list]) > li')?.textContent).toBe('b');
+            expect(editor.querySelector('ul:not([data-task-list]) > li[data-task], ul[data-task-list] > li:not([data-task])')).toBeNull();
+        });
+
+        it('a numbered list from the slash menu on a task row drops the task markers, as the toolbar does', () => {
+            component.writeValue('<ul data-task-list><li data-task data-checked="true"><input type="checkbox"><span>done</span></li></ul>');
+            fixture.detectChanges();
+
+            component.executeToolbarCommandOnBlock('orderedList', editor.querySelector('li'));
+
+            expect(editor.querySelector('ol > li')?.textContent).toBe('done');
+            expect(editor.querySelector('li[data-task], input')).toBeNull();
+        });
+
+        it('a task list leaves an item holding a rule inside a quote as it is, rather than delete the rule', () => {
+            component.writeValue('<ul><li><p>A</p><blockquote><ul><li><p>a</p><hr><p>b</p></li></ul></blockquote></li></ul>');
+            fixture.detectChanges();
+            const before = editor.innerHTML;
+            caretIn(editor.querySelector('li > p')!.firstChild as Text, 1);
+
+            component.onFormatCommand('taskList');
+
+            expect(editor.innerHTML).toBe(before);
+            expect(editor.querySelector('hr')).not.toBeNull();
+        });
+
+        it('Backspace joining a task row keeps the plain items of its sub-list in a plain list', () => {
+            // Joining promotes the row's sub-list into the list above, which put
+            // plain items into a task list, where a save gave them checkboxes.
+            component.writeValue('<ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>a</span></li>'
+                + '<li data-task data-checked="false"><input type="checkbox"><span>b</span><ul><li>plain</li></ul></li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelectorAll('li[data-task] > span')[1].firstChild as Text, 0);
+
+            component.onKeydown(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }));
+
+            expect(editor.textContent).toContain('ab');
+            expect(editor.textContent).toContain('plain');
+            expect(editor.querySelector('ul:not([data-task-list]) > li[data-task], ul[data-task-list] > li:not([data-task])')).toBeNull();
+        });
+
+        it('Enter on an empty nested task row with an empty span still puts the caret in the row', () => {
+            component.writeValue('<ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>parent</span>'
+                + '<ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span></span></li></ul></li></ul>');
+            fixture.detectChanges();
+            const empty = editor.querySelectorAll('li[data-task] > span')[1];
+            caretIn(empty, 0);
+
+            component.onKeydown(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+
+            const rows = editor.querySelectorAll(':scope > ul > li[data-task]');
+            expect(rows).toHaveLength(2);
+            const span = rows[1].querySelector(':scope > span')!;
+            expect(span.contains(document.getSelection()?.anchorNode ?? null)).toBe(true);
         });
 
         it('a keypress puts a caret left after a row at the end of its text, not after its first word', () => {
@@ -5424,8 +5542,10 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         // between an item and its next sibling. The earlier rule skipped the
         // sub-list and joined the item at the same level, which is the one
         // behaviour this round deliberately changed.
-        component.writeValue('<ul data-task-list=""><li>plain<ul><li>sub</li></ul></li>'
-            + row(false, '<span>task</span>') + '</ul>');
+        // Two lists: every item of a task list is a task row, so a plain item
+        // with a sub-list sits in a plain list above the task list.
+        component.writeValue('<ul><li>plain<ul><li>sub</li></ul></li></ul>'
+            + '<ul data-task-list="">' + row(false, '<span>task</span>') + '</ul>');
         fixture.detectChanges();
         caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 0);
 
@@ -8338,11 +8458,15 @@ describe('RichTextEditorComponent — addon-host seams & edge coverage', () => {
         expect(editor.querySelector('ol')).toBeTruthy();
     });
 
-    it('executeToolbarCommandOnBlock wraps an already-empty block into a list item with a <br>', () => {
+    it('executeToolbarCommandOnBlock wraps an already-empty block into a list item holding only caret padding', () => {
         editor.innerHTML = '<p></p>';
         const block = editor.querySelector('p')!;
         host.executeToolbarCommandOnBlock('bulletList', block);
-        expect(editor.querySelector('ul li')?.innerHTML).toContain('br');
+        // The toolbar's command now, which leaves a zero-width anchor for the
+        // caret rather than a <br>; either is padding, not content.
+        const item = editor.querySelector('ul li');
+        expect(item).not.toBeNull();
+        expect((item?.textContent ?? '').replaceAll('\u200B', '')).toBe('');
     });
 
     it('executeToolbarCommandOnBlock re-tags a bullet list item to an ordered list item in place', () => {
@@ -8353,7 +8477,7 @@ describe('RichTextEditorComponent — addon-host seams & edge coverage', () => {
         expect(editor.querySelector('ul')).toBeNull();
     });
 
-    it('transformBlockForSlashCommand is a no-op re-tag when the block is already the target tag', () => {
+    it('executeToolbarCommandOnBlock leaves a block already of the target tag as it is', () => {
         editor.innerHTML = '<h1>already h1</h1>';
         const block = editor.querySelector('h1')!;
         host.executeToolbarCommandOnBlock('heading1', block);
@@ -9475,11 +9599,14 @@ describe('RichTextEditorComponent — targeted branch coverage top-up', () => {
         expect(editor.querySelector('ol')).toBeTruthy();
     });
 
-    it('wrapping an LI already in the target list type leaves it unchanged', () => {
+    it('the slash menu turns a list off when its own kind is picked again, as the toolbar does', () => {
+        // It used to leave the list as it was, the one command where the slash
+        // menu and the toolbar disagreed.
         component.writeValue('<ul><li>a</li></ul>');
         fixture.detectChanges();
         priv().executeToolbarCommandOnBlock('bulletList', editor.querySelector('li'));
-        expect(editor.querySelector('ul')).toBeTruthy();
+        expect(editor.querySelector('ul')).toBeNull();
+        expect(editor.querySelector('p')?.textContent).toBe('a');
     });
 
     it('computeDelta picks the nearer match when both directions match', () => {

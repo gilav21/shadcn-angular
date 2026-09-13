@@ -33,8 +33,7 @@ const NESTED_TASK_ROWS =
     + '</ul>';
 
 /**
- * The DOM shapes every line rule has to answer for, shared by the line-model
- * spec and the component spec so neither can drift from the other.
+ * The DOM shapes every line rule has to answer for.
  *
  * Each row is `[name, html]`. The name is what a failing case is called, so it
  * says which shape broke rather than which index.
@@ -120,6 +119,19 @@ function actualLines(html: string): ExpectedLine[] {
 }
 
 describe('rich text line model — the shape table', () => {
+    it.each([
+        ['a break between two runs', '<p>one<br>two</p>', 'one\ntwo'],
+        ['a break inside emphasis', '<p><em>one<br>two</em> three</p>', 'one\ntwo three'],
+        ['a padding break at the end', '<p>one<br></p>', 'one'],
+        ['a break then a padding break', '<p>one<br><br></p>', 'one\n'],
+        ['a padding break at the end of emphasis', '<p><em>one<br></em></p>', 'one'],
+    ])('reads %s as the author sees the line', (_name, html, text) => {
+        const root = document.createElement('div');
+        root.innerHTML = html;
+
+        expect(lineText(buildLineIndex(root).lines[0])).toBe(text);
+    });
+
     it('has an expectation for every shape, so a new shape cannot slip through untested', () => {
         const named = LINE_SHAPE_FIXTURES.map(([name]) => name);
         expect(named.filter((name) => EXPECTED[name] === undefined)).toEqual([]);

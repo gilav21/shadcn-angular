@@ -59,6 +59,7 @@ import {
     placeCaretIn,
     positionAfterLine,
     rangeShowsNothing,
+    separateListKinds,
     structureAround,
 } from './rich-text-lines';
 import { ShortcutBindingService, ShortcutComponentHandle, ShortcutRegistration } from '../../lib/shortcut-binding.service';
@@ -1863,6 +1864,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.placeCaretInJoinedParagraph(paragraph);
         caret.row.remove();
         if (list.children.length === 0) list.remove();
+        if (list.isConnected) this.separateListKindsKeepingCaret(list);
         return true;
     }
 
@@ -1876,6 +1878,21 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.promoteNestedRows(owner, list);
         owner.remove();
         if (list && isNestedList(list) && list.children.length === 0) list.remove();
+        if (list?.isConnected && isNestedList(list)) this.separateListKindsKeepingCaret(list);
+    }
+
+    /**
+     * {@link separateListKinds}, keeping the caret on the character it was on:
+     * moving the items into new lists detaches the nodes the selection points at.
+     */
+    private separateListKindsKeepingCaret(list: Element): void {
+        const editor = this.editorDiv?.nativeElement;
+        const selection = this.document.getSelection();
+        const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+        const caret = editor && range ? caretPosition(buildLineIndex(editor), range) : null;
+        if (!separateListKinds(list as HTMLElement) || !caret || !selection) return;
+        selection.removeAllRanges();
+        selection.addRange(placeCaretIn(caret.line, caret.offset));
     }
 
     /** Move the lists nested under `row` into `list`, in `row`'s place. */
@@ -2150,10 +2167,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         // does. Leaving the list from there built a paragraph inside the parent
         // row, which the next keypress moved into that row's text.
         if (this.moveItemOutOneLevel(taskLi)) {
-            // Inside the row's seed, before it, as a new row puts it: placed
-            // after the seed, the author's text followed a leading space.
-            const anchor = taskLi.querySelector<HTMLElement>(':scope > span')?.firstChild;
-            if (anchor) this.setSelectionRange(selection, anchor, 0);
+            // At the start of the row's text, however the row is padded: before a
+            // non-breaking-space seed, after a zero-width anchor, and in a new
+            // anchor when the span is empty.
+            const span = taskLi.querySelector<HTMLElement>(':scope > span');
+            if (span) this.placeCaretAtStartOfBlock(span);
             return;
         }
         const parentList = taskLi.parentElement;
@@ -5254,6 +5272,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
         const caret = this.caretOffsetInLine(li);
         nestedList.appendChild(li);
+        separateListKinds(nestedList as HTMLElement);
         this.restoreCaretInLine(li, caret);
 
         this.applyMutation({ focus: true, updateActiveFormats: true });
@@ -5342,6 +5361,9 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.reparentFollowingSiblings(li, parentList);
         grandparentList.insertBefore(li, grandparentLi.nextSibling);
         if (parentList.children.length === 0) parentList.remove();
+        // A task row stepping into a plain list, or a plain item into a task
+        // list, keeps its own kind in a list of its own.
+        separateListKinds(grandparentList as HTMLElement);
         return true;
     }
 
@@ -6875,52 +6897,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             return;
         }
 
-        const transformed = anchorBlock ? this.transformBlockForSlashCommand(anchorBlock, command) : null;
-        if (transformed) {
-            this.placeCaretAtEndOfBlock(transformed);
-            this.applyMutation({ updateActiveFormats: true });
-            return;
-        }
-
+        // The toolbar's own command, run at the anchor. The slash menu rebuilt
+        // blocks itself and diverged from the toolbar: bullets on a bullet item
+        // did nothing, and a numbered list over task rows kept their checkboxes
+        // inside an <ol>, where a save dropped them.
         if (anchorBlock) {
             this.placeCaretAtEndOfBlock(anchorBlock);
         }
         this.onFormatCommand(command);
-    }
-
-    private transformBlockForSlashCommand(anchorBlock: HTMLElement, command: string): HTMLElement | null {
-        const editor = this.getEditorElement();
-        if (!editor || !editor.contains(anchorBlock) || anchorBlock === editor) {
-            return null;
-        }
-
-        // The same rules the toolbar follows. A list cannot go in a cell or a
-        // summary, and a heading only goes on a line of its own; the slash menu
-        // re-tagged its anchor directly, so a heading picked in a list item put
-        // an <h1> straight inside the <ul>.
-        const line = lineOf(anchorBlock, editor);
-        const structure = line ? structureAround(line, editor) : [];
-        if (command === 'bulletList' || command === 'orderedList') {
-            if (structure[0] && structure[0].nodeName !== 'LI') return anchorBlock;
-            return this.wrapBlockInList(anchorBlock, command === 'bulletList' ? 'ul' : 'ol');
-        }
-
-        if (command === 'blockquote') {
-            return this.quoteBlock(anchorBlock);
-        }
-
-        const tagMap: Record<string, string> = {
-            paragraph: 'p',
-            heading1: 'h1',
-            heading2: 'h2',
-            heading3: 'h3',
-        };
-        const nextTag = tagMap[command];
-        if (!nextTag) {
-            return null;
-        }
-        if (!line || lineTagIsFixed(line) || structure.length > 0) return anchorBlock;
-        return this.replaceBlockTag(anchorBlock, nextTag);
     }
 
     private insertInlineCodeFromSlash(anchorBlock: HTMLElement | null): void {
@@ -6951,24 +6935,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.pushHistory();
     }
 
-    /**
-     * Wraps sibling blocks in one `<blockquote>` and returns them as its lines.
-     *
-     * The invariant every quote path shares: a blockquote's direct children
-     * are line blocks, never bare text. `handleEnterInBlockquote` only exits
-     * from a blank LINE, so a quote built as `<blockquote>text</blockquote>`
-     * had no line for it to find and Enter fell to the browser, which opened a
-     * sibling blockquote on every keypress -- the quote could not be left at
-     * all. A `<div>` becomes a `<p>` on the way in, matching every other block
-     * this component builds.
-     */
-    /**
-     * Wrap lines in a quote, in place.
-     *
-     * A line whose element cannot move into the quote — a list item, a table
-     * cell — keeps its element and gives the quote a paragraph carrying its
-     * text instead, so the list or the table survives the quoting.
-     */
     /** Quote one block, for the input rule and the slash command that each hand over exactly one. */
     private quoteBlock(block: HTMLElement): HTMLElement {
         const editor = this.editorDiv?.nativeElement;
@@ -6977,6 +6943,18 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return quoted[0] ?? block;
     }
 
+    /**
+     * Wrap lines in one `<blockquote>` and return them as its lines.
+     *
+     * The invariant every quote path shares: a blockquote's direct children
+     * are line blocks, never bare text. `handleEnterInBlockquote` only exits
+     * from a blank LINE, so a quote built as `<blockquote>text</blockquote>`
+     * had no line for it to find and Enter fell to the browser, which opened a
+     * sibling blockquote on every keypress -- the quote could not be left at
+     * all. A `<div>` becomes a `<p>` on the way in. Top-level list items are
+     * taken out of their list, and anywhere {@link replacementFor} refuses the
+     * command does nothing.
+     */
     private quoteLines(lines: readonly Line[]): HTMLElement[] {
         const replacement = this.replacementFor(lines);
         if (replacement === null) return [];
@@ -7134,7 +7112,9 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             this.stripTaskMarkers(list);
             this.replaceBlockTag(list, tag);
         } else {
-            fallback = this.wrapLinesInList(lines, tag);
+            // Its first item, never the list: placing a caret at the start of a
+            // list holding one empty item cleared the item along with its padding.
+            fallback = this.wrapLinesInList(lines, tag)?.querySelector('li') ?? null;
         }
         this.restoreToggleCaret(ctx, fallback);
     }
@@ -7276,10 +7256,16 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return kept;
     }
 
-    /** Whether any item of `list` holds a rule of its own, outside the item's sub-lists. */
+    /**
+     * Whether any item of `list` holds a rule that flattening it into a row would
+     * drop: anywhere in the item but its own sub-lists, which stay lists. Asking
+     * the rule's nearest item missed a rule in a list inside a quote in the item,
+     * which is flattened along with the quote.
+     */
     private itemsHoldARule(list: HTMLElement): boolean {
         return Array.from(list.children).some((item) =>
-            Array.from(item.querySelectorAll('hr')).some((rule) => rule.closest('li') === item));
+            Array.from(item.querySelectorAll('hr')).some((rule) =>
+                !Array.from(item.children).some((child) => isNestedList(child) && child.contains(rule))));
     }
 
     private addTaskMarkers(list: HTMLElement): void {
