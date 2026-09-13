@@ -1792,8 +1792,11 @@ export class RichTextMarkdownService {
 
     private elementToMarkdown(element: HTMLElement): string {
         const tagName = element.tagName.toLowerCase();
-        // These three ignore their subtree's markdown: <table> walks its own
-        // cells in tableToMarkdown, <img> and <input> render from attributes.
+        // These ignore their subtree's markdown: <table> walks its own cells in
+        // tableToMarkdown, <pre> reads its text, <ul>, <ol> and <details> walk
+        // their own children, and <img> and <input> render from attributes.
+        // Details holding lists were converted twice per level too, 4x per
+        // nesting level: nine levels took 7s, ten took 29s.
         // Computing `inner` eagerly converted every table's subtree TWICE --
         // once here, discarded, and once in tableToMarkdown -- so nested
         // tables doubled per level: 5, 9, 15, 27, 54ms at depths 9-13, and a
@@ -2536,7 +2539,7 @@ function clampSpan(span: number): number {
  * Converting their subtree before the switch was pure waste, and quadratic
  * for nested tables.
  */
-const SUBTREE_INDEPENDENT_TAGS = new Set(['table', 'img', 'input']);
+const SUBTREE_INDEPENDENT_TAGS = new Set(['table', 'img', 'input', 'pre', 'ul', 'ol', 'details']);
 
 const MAX_TABLE_ROWSPAN = 1000;
 

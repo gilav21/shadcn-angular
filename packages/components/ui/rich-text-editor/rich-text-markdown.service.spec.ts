@@ -1320,6 +1320,21 @@ describe('RichTextMarkdownService', () => {
             expect(elapsed).toBeLessThan(5000);
         });
 
+        it('converts nested details blocks and lists once, not once per level', () => {
+            // <details>, <ul> and <ol> walk their own children, but each subtree
+            // was converted first and thrown away: 4x per level, 7s at nine.
+            let html = '<p>x</p>';
+            for (let level = 0; level < 9; level++) {
+                html = `<details><summary>s${level}</summary><ul><li>a${level}${html}</li></ul></details>`;
+            }
+            const started = performance.now();
+            const md = service.toMarkdown(html);
+
+            expect(performance.now() - started).toBeLessThan(1000);
+            expect(md).toContain('s8');
+            expect(md).toContain('x');
+        });
+
         it('converts a nested table subtree once, not once per level', () => {
             // elementToMarkdown computed `inner` for EVERY element before the
             // switch chose a renderer -- but <table> discards it and re-walks
