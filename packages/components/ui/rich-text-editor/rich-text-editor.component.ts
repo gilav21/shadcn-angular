@@ -5404,7 +5404,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (taskList) made.dataset['taskList'] = '';
         // Past a list of another kind, a numbered list keeps counting from the
         // item's last one, as a list split by kind does; it restarted at 1.
-        const previous = tag === 'ol' ? Array.from(item.children).filter((child) => child.nodeName === 'OL').at(-1) : undefined;
+        const previous = tag === 'ol' ? lastChildTagged(item, 'OL') : null;
         if (previous) {
             const start = this.listStartOf(previous) + previous.querySelectorAll(':scope > li').length;
             if (start !== 1) made.setAttribute('start', String(start));
@@ -8587,6 +8587,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 }
 
 /** How many zero-width anchors sit before `offset` in `text`. */
+/** The last child element of `parent` whose tag is `tagName`, or null. */
+function lastChildTagged(parent: Element, tagName: string): Element | null {
+    for (let child = parent.lastElementChild; child; child = child.previousElementSibling) {
+        if (child.nodeName === tagName) return child;
+    }
+    return null;
+}
+
 function countZeroWidthBefore(text: string, offset: number): number {
     let count = 0;
     for (let i = 0; i < offset && i < text.length; i++) {
