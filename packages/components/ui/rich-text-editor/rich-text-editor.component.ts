@@ -5363,7 +5363,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (parentList.children.length === 0) parentList.remove();
         // A task row stepping into a plain list, or a plain item into a task
         // list, keeps its own kind in a list of its own.
-        separateListKinds(grandparentList as HTMLElement);
+        separateListKinds(grandparentList);
         return true;
     }
 
