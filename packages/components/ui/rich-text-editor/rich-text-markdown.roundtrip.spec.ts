@@ -288,6 +288,16 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         expect(saved(once)).toBe(once);
     });
 
+    it('keeps every sub-list of an item that holds two, in order', () => {
+        const once = saved('<ul><li>a<ul><li>b</li></ul><ol><li>c</li></ol></li><li>d</li></ul>');
+        const out = read(once);
+
+        expect(out.querySelector('ul > li > ul > li')?.textContent).toBe('b');
+        expect(out.querySelector('ul > li > ol > li')?.textContent).toBe('c');
+        expect(out.textContent).toBe('abcd');
+        expect(saved(once)).toBe(once);
+    });
+
     it('writes no start attribute for a list that counts from one', () => {
         expect(read(service.toHtml('1. one\n2. two')).querySelector('ol')?.hasAttribute('start')).toBe(false);
     });

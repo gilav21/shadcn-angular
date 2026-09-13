@@ -4586,12 +4586,12 @@
       "lines": 301
     },
     "rich-text-editor/rich-text-editor.component.spec.ts": {
-      "bytes": 525727,
-      "lines": 12030
+      "bytes": 539519,
+      "lines": 12304
     },
     "rich-text-editor/rich-text-editor.component.ts": {
-      "bytes": 357703,
-      "lines": 8427
+      "bytes": 365853,
+      "lines": 8597
     },
     "rich-text-editor/rich-text-editor.fixtures.ts": {
       "bytes": 818,
@@ -4602,8 +4602,8 @@
       "lines": 437
     },
     "rich-text-editor/rich-text-editor.properties.spec.ts": {
-      "bytes": 10719,
-      "lines": 221
+      "bytes": 30932,
+      "lines": 669
     },
     "rich-text-editor/rich-text-editor.stories.ts": {
       "bytes": 23531,
@@ -4638,24 +4638,24 @@
       "lines": 494
     },
     "rich-text-editor/rich-text-lines.ts": {
-      "bytes": 20699,
-      "lines": 478
+      "bytes": 24795,
+      "lines": 570
     },
     "rich-text-editor/rich-text-locales.ts": {
       "bytes": 34824,
       "lines": 888
     },
     "rich-text-editor/rich-text-markdown.roundtrip.spec.ts": {
-      "bytes": 5954,
-      "lines": 111
+      "bytes": 15249,
+      "lines": 304
     },
     "rich-text-editor/rich-text-markdown.service.spec.ts": {
       "bytes": 115534,
       "lines": 2293
     },
     "rich-text-editor/rich-text-markdown.service.ts": {
-      "bytes": 96074,
-      "lines": 2190
+      "bytes": 107497,
+      "lines": 2439
     },
     "rich-text-editor/rich-text-paste-normalizer.service.spec.ts": {
       "bytes": 106418,
@@ -4678,12 +4678,12 @@
       "lines": 374
     },
     "rich-text-editor/rich-text-sanitizer.service.spec.ts": {
-      "bytes": 81916,
-      "lines": 1711
+      "bytes": 87867,
+      "lines": 1822
     },
     "rich-text-editor/rich-text-sanitizer.service.ts": {
-      "bytes": 60242,
-      "lines": 1406
+      "bytes": 64156,
+      "lines": 1489
     },
     "rich-text-editor/sub/rich-text-toolbar.component.css": {
       "bytes": 1932,

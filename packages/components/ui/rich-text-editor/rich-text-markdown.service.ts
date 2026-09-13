@@ -16,7 +16,12 @@ interface ListContext {
     type: ListType;
     items: string[];
     indent: number;
-    children: (ListContext | undefined)[];
+    /**
+     * The sub-lists under each item, in order. One slot per item held a single
+     * list, so a second sub-list under the same item -- bullets after numbers --
+     * replaced the first on reload and its words were gone.
+     */
+    children: ListContext[][];
     /** The number an ordered list counts from. */
     start: number;
 }
@@ -103,11 +108,13 @@ function pushListItem(
     if (!parent) return;
     if (indent > parent.indent) {
         const child: ListContext = { type, items: [content], indent, children: [], start };
-        parent.children[parent.items.length - 1] = child;
+        const slot = parent.items.length - 1;
+        parent.children[slot] ??= [];
+        parent.children[slot].push(child);
         stack.push(child);
     } else {
         parent.items.push(content);
-        parent.children.push(undefined);
+        parent.children.push([]);
     }
 }
 
@@ -362,8 +369,7 @@ function buildListContextHtml(ctx: ListContext): string {
     const taskAttr = ctx.type === 'task' ? ' data-task-list' : '';
     const startAttr = ctx.type === 'ol' && ctx.start !== 1 ? ` start="${ctx.start}"` : '';
     const items = ctx.items.map((item, i) => {
-        const child = ctx.children[i];
-        const childHtml = child ? buildListContextHtml(child) : '';
+        const childHtml = (ctx.children[i] ?? []).map(buildListContextHtml).join('');
         if (ctx.type === 'task') {
             const checked = item.startsWith('[x] ') || item.startsWith('[X] ');
             const text = item.replace(/^\[[ xX]\]\s*/, '');
@@ -1993,24 +1999,27 @@ export class RichTextMarkdownService {
         const items = Array.from(listEl.children);
         const first = type === 'ol' ? listStartOf(listEl) : 1;
         items.forEach((li, index) => {
-            const { content, nestedList } = this.extractListItemContent(li, indent);
+            const { content, nestedLists } = this.extractListItemContent(li, indent);
             result.push(this.formatListItem(type, li as HTMLElement, content, indent, first + index));
 
-            if (nestedList) {
-                const nestedType = this.detectNestedListType(nestedList);
-                this.listToMarkdown(nestedList, nestedType, indent + '  ', result);
+            // Every sub-list, in order. Only the last one was kept, so an item
+            // holding two -- bullets under numbers, which indenting beside an
+            // existing sub-list of the other kind produces -- lost every word of
+            // the first on save.
+            for (const nestedList of nestedLists) {
+                this.listToMarkdown(nestedList, this.detectNestedListType(nestedList), indent + '  ', result);
             }
         });
     }
 
-    private extractListItemContent(li: Element, indent = ''): { content: string; nestedList: HTMLElement | null } {
+    private extractListItemContent(li: Element, indent = ''): { content: string; nestedLists: HTMLElement[] } {
         const childParts: string[] = [];
-        let nestedList: HTMLElement | null = null;
+        const nestedLists: HTMLElement[] = [];
         for (const ch of Array.from(li.childNodes)) {
             if (ch.nodeType === Node.ELEMENT_NODE) {
                 const tag = (ch as Element).tagName.toLowerCase();
                 if (tag === 'ul' || tag === 'ol') {
-                    nestedList = ch as HTMLElement;
+                    nestedLists.push(ch as HTMLElement);
                     continue;
                 }
                 if (tag === 'input') continue;
@@ -2027,7 +2036,7 @@ export class RichTextMarkdownService {
         }
         const joined = childParts.join('');
         const content = opensWithBlock(li) ? leadingBlockContinuation(joined, indent) : indentContinuation(joined, indent);
-        return { content, nestedList };
+        return { content, nestedLists };
     }
 
     private formatListItem(type: ListType, li: HTMLElement, content: string, indent: string, ordinal: number): string {
