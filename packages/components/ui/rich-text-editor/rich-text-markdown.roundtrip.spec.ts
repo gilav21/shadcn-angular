@@ -109,3 +109,151 @@ describe('RichTextMarkdownService - shapes the round-trip used to corrupt (fine-
         expect(parse('- - -').querySelector('hr')).not.toBeNull();
     });
 });
+
+describe('RichTextMarkdownService - a nested block keeps what it holds through a save', () => {
+    let service: RichTextMarkdownService;
+
+    beforeEach(() => {
+        TestBed.configureTestingModule({ providers: [RichTextMarkdownService, RichTextSanitizerService] });
+        service = TestBed.inject(RichTextMarkdownService);
+    });
+
+    const saved = (html: string): string => service.toHtml(service.toMarkdown(html));
+    const read = (html: string): HTMLElement => {
+        const holder = document.createElement('div');
+        holder.innerHTML = html;
+        return holder;
+    };
+
+    it('keeps a rule inside a list item a rule, not the text "---"', () => {
+        const out = read(saved('<ul><li><p>a</p><hr><p>b</p></li></ul>'));
+
+        expect(out.querySelector('li hr')).not.toBeNull();
+        expect(out.textContent).not.toContain('---');
+        expect(Array.from(out.querySelector('li')!.children).map((el) => `${el.tagName}:${el.textContent}`))
+            .toEqual(['P:a', 'HR:', 'P:b']);
+    });
+
+    it('turns a rule inside a table cell into a line break, never the text "---"', () => {
+        const out = read(saved('<table><tbody><tr><td><p>a</p><hr><p>b</p></td></tr></tbody></table>'));
+        const cell = out.querySelector('td, th')!;
+
+        expect(cell.textContent).toBe('ab');
+        expect(cell.querySelector('br')).not.toBeNull();
+    });
+
+    it('keeps a details block inside a quote at one quote level through two saves', () => {
+        const once = saved('<blockquote><details><summary>s</summary><p>b</p></details></blockquote>');
+
+        expect(saved(once)).toBe(once);
+        expect(read(once).querySelectorAll('blockquote')).toHaveLength(1);
+        expect(read(once).querySelector('blockquote > details > summary')?.textContent).toBe('s');
+    });
+
+    it('never pairs a quoted details opener with a closer outside the quote', () => {
+        // An unquoted ":::" later in the document closed a block opened inside
+        // the quote, so the quote's lines became a details body.
+        const out = read(service.toHtml('> :::details s\n> body\n\nafter\n\n:::'));
+
+        // Taken across the quote, the block swallowed the paragraph after it.
+        expect(out.querySelector('details')).toBeNull();
+        expect(Array.from(out.querySelectorAll('p')).some((p) => p.textContent === 'after' && !p.closest('blockquote, details'))).toBe(true);
+    });
+
+    it('keeps the blank row and trailing spaces inside a quoted code block', () => {
+        const out = read(saved('<blockquote><pre><code>x  \n\ny</code></pre></blockquote>'));
+
+        expect(out.querySelector('blockquote pre code')?.textContent).toBe('x  \n\ny');
+    });
+
+    it('saves bold inside bold as bold, with no stray asterisks', () => {
+        const out = read(saved('<p><b><b>x</b> y</b></p>'));
+
+        expect(out.textContent).toBe('x y');
+        expect(out.querySelector('strong, b')?.textContent).toBe('x y');
+    });
+
+    it('saves italic inside italic as italic, with no stray asterisks', () => {
+        const out = read(saved('<p><i>a <em>b</em></i></p>'));
+
+        expect(out.textContent).toBe('a b');
+        expect(out.querySelector('em, i')?.textContent).toBe('a b');
+    });
+
+    it('keeps the formatting and the image in a details summary', () => {
+        const out = read(saved('<details><summary>see <b>this</b> <img src="https://example.com/a.png" alt="pic"></summary><p>body</p></details>'));
+        const summary = out.querySelector('summary')!;
+
+        expect(summary.querySelector('strong, b')?.textContent).toBe('this');
+        expect(summary.querySelector('img')?.getAttribute('alt')).toBe('pic');
+    });
+
+    it('keeps a numbered list starting number through a save', () => {
+        const markdown = service.toMarkdown('<ol start="4"><li>four</li><li>five</li></ol>');
+
+        expect(markdown.trim()).toBe('4. four\n5. five');
+        expect(read(service.toHtml(markdown)).querySelector('ol')?.getAttribute('start')).toBe('4');
+    });
+
+    it.each([
+        ['a heading', '<ul><li><h2>title</h2></li></ul>', 'li > h2'],
+        ['a code block', '<ul><li><pre><code>x = 1</code></pre></li></ul>', 'li > pre'],
+        ['a table', '<ol><li><table><tbody><tr><td>a</td><td>b</td></tr></tbody></table></li></ol>', 'li table'],
+        ['a rule', '<ul><li><hr></li><li>next</li></ul>', 'li > hr'],
+        ['a quote', '<ul><li><blockquote><p>q</p></blockquote></li></ul>', 'li > blockquote'],
+    ])('keeps an item that opens with %s inside its list', (_name, html, selector) => {
+        // Written on the marker line, none of these read back: the heading,
+        // fence and table became literal characters and a rule left the list.
+        const once = saved(html);
+        const out = read(once);
+
+        expect(out.querySelector(selector)).not.toBeNull();
+        expect(out.textContent).not.toMatch(/##|```|\||---/);
+        expect(saved(once)).toBe(once);
+    });
+
+    it('keeps a details block inside another, each with its own body', () => {
+        const once = saved('<details><summary>outer</summary><details><summary>inner</summary><p>deep</p></details><p>after</p></details>');
+        const out = read(once);
+
+        expect(out.querySelector('details > details > summary')?.textContent).toBe('inner');
+        expect(out.querySelector('details > details > p')?.textContent).toBe('deep');
+        expect(out.textContent).not.toContain(':::');
+        expect(saved(once)).toBe(once);
+    });
+
+    it('reads bold around two italics as bold holding two italics', () => {
+        const out = read(saved('<p><b><i>x</i> <i>y</i></b></p>'));
+
+        expect(out.textContent).toBe('x y');
+        expect(Array.from(out.querySelectorAll('strong em, b i, b em, strong i')).map((el) => el.textContent)).toEqual(['x', 'y']);
+    });
+
+    it('still reads a single bold-italic run', () => {
+        expect(read(service.toHtml('***both***')).querySelector('strong > em')?.textContent).toBe('both');
+    });
+
+    it('keeps a quote holding code inside a list item', () => {
+        const once = saved('<ul><li><blockquote><pre><code>x = 1</code></pre></blockquote></li></ul>');
+        const out = read(once);
+
+        expect(out.querySelector('li > blockquote > pre > code')?.textContent).toBe('x = 1');
+        expect(out.textContent).not.toContain('```');
+        expect(saved(once)).toBe(once);
+    });
+
+    it('gives loose text in a details body paragraphs, beside a rule, and settles', () => {
+        const once = saved('<details><summary>s</summary><div><p>a</p><p>b</p><hr><p>c</p></div></details>');
+        const out = read(once);
+        const details = out.querySelector('details')!;
+
+        expect(Array.from(details.children).slice(1).map((el) => `${el.tagName}:${el.textContent}`))
+            .toEqual(['P:a', 'P:b', 'HR:', 'P:c']);
+        expect(out.querySelector('p:empty')).toBeNull();
+        expect(saved(once)).toBe(once);
+    });
+
+    it('writes no start attribute for a list that counts from one', () => {
+        expect(read(service.toHtml('1. one\n2. two')).querySelector('ol')?.hasAttribute('start')).toBe(false);
+    });
+});

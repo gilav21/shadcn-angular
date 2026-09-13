@@ -17,12 +17,16 @@ interface ListContext {
     items: string[];
     indent: number;
     children: (ListContext | undefined)[];
+    /** The number an ordered list counts from. */
+    start: number;
 }
 
 interface ParsedListLine {
     indent: number;
     type: ListType;
     content: string;
+    /** An ordered item's own number, which sets its list's start. */
+    number?: number;
 }
 
 /**
@@ -67,9 +71,14 @@ function parseListLine(line: string): ParsedListLine | null {
         return { indent: ulMatch[1].length, type: 'ul', content: listItemContent(ulMatch[2]) };
     }
 
-    const olMatch = new RegExp(/^([ \t]*)\d+\.([ \t].*)?$/).exec(line);
+    const olMatch = new RegExp(/^([ \t]*)(\d{1,9})\.([ \t].*)?$/).exec(line);
     if (olMatch) {
-        return { indent: olMatch[1].length, type: 'ol', content: listItemContent(olMatch[2]) };
+        return {
+            indent: olMatch[1].length,
+            type: 'ol',
+            content: listItemContent(olMatch[3]),
+            number: Number.parseInt(olMatch[2], 10),
+        };
     }
 
     return null;
@@ -81,9 +90,10 @@ function pushListItem(
     type: ListType,
     content: string,
     indent: number,
+    start: number,
 ): void {
     if (stack.length === 0) {
-        const ctx: ListContext = { type, items: [content], indent, children: [] };
+        const ctx: ListContext = { type, items: [content], indent, children: [], start };
         rootLists.push(ctx);
         stack.push(ctx);
         return;
@@ -92,7 +102,7 @@ function pushListItem(
     const parent = stack.at(-1);
     if (!parent) return;
     if (indent > parent.indent) {
-        const child: ListContext = { type, items: [content], indent, children: [] };
+        const child: ListContext = { type, items: [content], indent, children: [], start };
         parent.children[parent.items.length - 1] = child;
         stack.push(child);
     } else {
@@ -198,9 +208,123 @@ function flushListStack(
     return [];
 }
 
+/**
+ * The number an ordered list starts counting from: its `start`, or 1.
+ *
+ * Items were always written 1, 2, 3, so a list that continued another -- the
+ * second half of a numbered list split around a block -- restarted at 1 on
+ * every save.
+ */
+function listStartOf(list: Element): number {
+    const start = Number.parseInt(list.getAttribute('start') ?? '', 10);
+    return Number.isInteger(start) && start >= 0 ? start : 1;
+}
+
+/** Markdown written on one line: each line trimmed, blank ones dropped, the rest joined by a space. */
+function oneLine(text: string): string {
+    return text.split('\n').map((part) => part.trim()).filter(Boolean).join(' ');
+}
+
+/**
+ * Blocks that cannot share a list marker's line.
+ *
+ * An item whose first child was one of these was written on the marker line --
+ * `- ## title`, `- ```` , `- | a |`, `- ---` -- and none of those read back:
+ * the heading, fence and table came back as literal characters, and a lone rule
+ * left the list altogether. Paragraphs and divs are plain text on that line and
+ * already round-trip.
+ */
+const LEADING_BLOCK_TAGS = new Set(['PRE', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'TABLE', 'HR', 'BLOCKQUOTE', 'DETAILS']);
+
+/** Whether an item's first content is a block that must start on a line of its own. */
+function opensWithBlock(li: Element): boolean {
+    const first = Array.from(li.childNodes).find((node) =>
+        node.nodeName !== 'INPUT' && !(node.nodeType === Node.TEXT_NODE && (node.textContent ?? '').trim() === ''));
+    return first !== undefined && LEADING_BLOCK_TAGS.has(first.nodeName);
+}
+
+/**
+ * An item's content with its marker line left empty and every line indented as
+ * continuation, which parseListContinuation reads back as the item's blocks.
+ */
+function leadingBlockContinuation(content: string, indent = ''): string {
+    const pad = indent + '  ';
+    const lines = content.split('\n');
+    // Blank lines at either end go, but not the first line's own indent: a code
+    // block already carries its item indent, and trimming it off the opening
+    // fence alone left the fence and its closer at different columns, so the
+    // fence never closed and came back as text.
+    while (lines.length > 0 && lines[0].trim() === '') lines.shift();
+    while (lines.length > 0 && (lines.at(-1) ?? '').trim() === '') lines.pop();
+    return '\n' + lines.map((line) => (line.trim() ? pad + line : line)).join('\n');
+}
+
+/**
+ * The prefix and title of a line that opens a details block, or null.
+ *
+ * The prefix may not hold a quote marker: this pass runs before quotes are
+ * stripped, so a details block inside a quote was taken here with its "> "
+ * markers still in its body, which parsed as a quote of its own and gained a
+ * level on every save. A quoted block is parsed inside its quote instead.
+ * At least one space or tab separates the keyword from the title, which may be
+ * empty.
+ */
+function toggleOpener(line: string): { prefix: string; title: string } | null {
+    const at = line.indexOf(':::details');
+    if (at < 0) return null;
+    const prefix = line.slice(0, at);
+    const rest = line.slice(at + ':::details'.length);
+    if (prefix.includes('>') || !/^[ \t]/.test(rest)) return null;
+    return { prefix, title: rest.trimStart() };
+}
+
+/** The index of the line closing the details block whose body starts at `from`, or -1. */
+function toggleCloserFor(lines: readonly string[], from: number): number {
+    let depth = 0;
+    for (let at = from; at < lines.length; at++) {
+        if (toggleOpener(lines[at])) {
+            depth++;
+        } else if (lines[at].trim() === ':::') {
+            if (depth === 0) return at;
+            depth--;
+        }
+    }
+    return -1;
+}
+
+/** Tags that apply the same emphasis, so one nested in another adds nothing. */
+const BOLD_TAGS: readonly string[] = ['strong', 'b'];
+const ITALIC_TAGS: readonly string[] = ['em', 'i'];
+
+/** Inline elements an emphasis can sit inside without leaving its line. */
+const INLINE_ANCESTORS = new Set(['a', 'span', 'strong', 'b', 'em', 'i', 'u', 's', 'del', 'ins', 'mark', 'sub', 'sup', 'small']);
+
+/**
+ * A quote's lines without its blank ones -- except inside a fenced code block,
+ * where a blank row and trailing spaces are content. Filtering every line
+ * deleted the blank rows of each quoted code block on the first save.
+ */
+function quoteBodyLines(inner: string): string[] {
+    const lines: string[] = [];
+    let fence: string | null = null;
+    for (const raw of inner.split('\n')) {
+        const marker = /^\s*(`{3,}|~{3,})/.exec(raw)?.[1] ?? null;
+        if (fence) {
+            lines.push(raw);
+            if (marker?.startsWith(fence) && raw.trim() === marker) fence = null;
+            continue;
+        }
+        if (marker) fence = marker;
+        const line = raw.trimEnd();
+        if (line) lines.push(line);
+    }
+    return lines;
+}
+
 function buildListContextHtml(ctx: ListContext): string {
     const tag = ctx.type === 'task' ? 'ul' : ctx.type;
     const taskAttr = ctx.type === 'task' ? ' data-task-list' : '';
+    const startAttr = ctx.type === 'ol' && ctx.start !== 1 ? ` start="${ctx.start}"` : '';
     const items = ctx.items.map((item, i) => {
         const child = ctx.children[i];
         const childHtml = child ? buildListContextHtml(child) : '';
@@ -213,7 +337,7 @@ function buildListContextHtml(ctx: ListContext): string {
         }
         return `<li>${item}${childHtml}</li>`;
     });
-    return `<${tag}${taskAttr}>${items.join('')}</${tag}>`;
+    return `<${tag}${taskAttr}${startAttr}>${items.join('')}</${tag}>`;
 }
 
 /**
@@ -748,28 +872,63 @@ export class RichTextMarkdownService {
      * Parse blockquotes (> text).
      */
     private parseToggleBlocks(html: string): string {
-        return html.replaceAll(/:::details[^\S\n]{1,4096}([^\n]{0,4096})\n([\s\S]{0,100000}?):::/g, (_match, title: string, content: string) => {
-            // The body gets the block passes, not a blind <p> wrap. This pass
-            // runs BEFORE them, so a list, heading, quote or table inside a
-            // toggle was frozen as literal text -- and a table swallowed the
-            // whole <details> element into a header cell, destroying the block
-            // and corrupting the document around it.
-            const parsedContent = this.parseDetailsBody(content.trim());
-            return `<details open><summary>${title}</summary>${parsedContent}</details>`;
-        });
+        // A line scan that pairs each opener with its own closer. The regex it
+        // replaces closed a block at the first ":::" after it, which belongs to
+        // a nested block, so a details block inside another lost its body and
+        // left ":::" as text. The body gets the block passes, not a blind <p>
+        // wrap, so a list, heading, quote or table inside a toggle is real
+        // content.
+        const lines = html.split('\n');
+        const out: string[] = [];
+        let at = 0;
+        while (at < lines.length) {
+            const open = toggleOpener(lines[at]);
+            const close = open ? toggleCloserFor(lines, at + 1) : -1;
+            if (!open || close < 0) {
+                out.push(lines[at]);
+                at++;
+                continue;
+            }
+            const body = this.parseDetailsBody(lines.slice(at + 1, close).join('\n').trim());
+            out.push(`${open.prefix}<details open><summary>${open.title}</summary>${body}</details>`);
+            at = close + 1;
+        }
+        return out.join('\n');
+    }
+
+    /**
+     * The block passes for markdown nested inside another block: a details
+     * body, a quote's lines, a list item's continuation.
+     *
+     * Each of those kept its own list, and the lists disagreed: a list item's
+     * continuation had no rule pass, so "---" under an item came back as those
+     * three characters, and neither a quote nor a details body looked for a
+     * details block. Tables run before rules because a separator row is all
+     * dashes.
+     */
+    private parseNestedBlocks(source: string, depth = 0): string {
+        let html = this.parseToggleBlocks(source);
+        html = this.parseBlockquotes(html, depth);
+        html = this.parseHeadings(html);
+        html = this.parseLists(html);
+        html = this.parseTables(html);
+        return this.parseHorizontalRules(html);
     }
 
     /** Parse a toggle block's body: real blocks if it holds any, else a paragraph. */
     private parseDetailsBody(content: string): string {
         if (!content) return '<p></p>';
 
-        let parsed = this.parseBlockquotes(content);
-        parsed = this.parseHeadings(parsed);
-        parsed = this.parseLists(parsed);
-        parsed = this.parseTables(parsed);
-        parsed = this.parseHorizontalRules(parsed);
-
-        return parsed === content ? `<p>${content}</p>` : parsed;
+        // Every chunk between blank lines is either blocks or loose text, and
+        // loose text gets a paragraph. Returning the passes' output as it was
+        // left text beside a block bare inside the details element, where the
+        // document-level paragraph pass split it apart: a stray line break in
+        // a paragraph and one more empty paragraph on each save.
+        return this.parseNestedBlocks(content)
+            .split(/\n{2,}/)
+            .map((chunk) => this.wrapLooseLines(chunk.trim()))
+            .filter(Boolean)
+            .join('');
     }
 
     /**
@@ -801,7 +960,7 @@ export class RichTextMarkdownService {
         // line is was the whole defect.
         const nested = lines.some((line) => line.startsWith('>'));
         if (nested && depth < MAX_BLOCKQUOTE_DEPTH) {
-            return `<blockquote>${this.parseBlockquotes(lines.join('\n'), depth + 1)}</blockquote>`;
+            return `<blockquote>${this.parseNestedBlocks(lines.join('\n'), depth + 1)}</blockquote>`;
         }
         if (nested) {
             return `<blockquote>${this.escapeHtml(lines.join('\n'))}</blockquote>`;
@@ -814,10 +973,7 @@ export class RichTextMarkdownService {
         // recovered. Same recursion parseListContinuation uses for an item's
         // continuation block.
         const source = lines.join('\n');
-        let parsed = this.parseLists(source);
-        parsed = this.parseHeadings(parsed);
-        parsed = this.parseTables(parsed);
-        parsed = this.parseHorizontalRules(parsed);
+        const parsed = this.parseNestedBlocks(source, depth);
 
         const body = parsed === source ? lines.join('<br>') : parsed;
         return `<blockquote>${body}</blockquote>`;
@@ -935,7 +1091,7 @@ export class RichTextMarkdownService {
             }
 
             flushContinuation();
-            pushListItem(stack, rootLists, type, content, indent);
+            pushListItem(stack, rootLists, type, content, indent, parsed.number ?? 1);
         }
 
         flushContinuation();
@@ -960,10 +1116,7 @@ export class RichTextMarkdownService {
             .trim();
         if (!dedented) return '';
 
-        let html = this.parseBlockquotes(dedented);
-        html = this.parseHeadings(html);
-        html = this.parseLists(html);
-        html = this.parseTables(html);
+        let html = this.parseNestedBlocks(dedented);
         html = html.trim();
         if (!html) return '';
 
@@ -1235,7 +1388,11 @@ export class RichTextMarkdownService {
      * 3. Italic — `*text*` / `_text_`, ignoring mid-word underscores
      */
     private parseBoldItalic(html: string): string {
-        html = html.replaceAll(/(\*\*\*|___)(.+?)\1/g, '<strong><em>$2</em></strong>');
+        // Bold-italic is one span with no delimiter inside it. Allowing any
+        // character read "***x* *y***" -- bold around two italics -- as a single
+        // bold-italic run and left the inner "* *" as text.
+        html = html.replaceAll(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>');
+        html = html.replaceAll(/___([^_]+)___/g, '<strong><em>$1</em></strong>');
 
         html = html.replaceAll(/(\*\*|__)(.+?)\1/g, '<strong>$2</strong>');
 
@@ -1379,13 +1536,9 @@ export class RichTextMarkdownService {
             const attr = style ? ` style="${this.escapeHtml(style)}"` : '';
             return `<${tagName}${attr}>${inner}</${tagName}>`;
         }
+        const emphasis = this.emphasisToMarkdown(tagName, inner, element);
+        if (emphasis !== null) return emphasis;
         switch (tagName) {
-            case 'strong':
-            case 'b':
-                return `**${inner}**`;
-            case 'em':
-            case 'i':
-                return `*${inner}*`;
             case 'del':
             case 's':
                 return `~~${inner}~~`;
@@ -1405,6 +1558,28 @@ export class RichTextMarkdownService {
             default:
                 return null;
         }
+    }
+
+    /** Bold or italic delimiters around `inner`, or null for any other tag. */
+    private emphasisToMarkdown(tagName: string, inner: string, element: HTMLElement): string | null {
+        if (BOLD_TAGS.includes(tagName)) return this.insideEmphasis(element, BOLD_TAGS) ? inner : `**${inner}**`;
+        if (ITALIC_TAGS.includes(tagName)) return this.insideEmphasis(element, ITALIC_TAGS) ? inner : `*${inner}*`;
+        return null;
+    }
+
+    /**
+     * Whether an enclosing element on the same line already applies this emphasis.
+     *
+     * `<b><b>x</b> y</b>` was written `****x** y**`, which reads back as stray
+     * asterisks around plain text: bold inside bold is still just bold.
+     */
+    private insideEmphasis(element: HTMLElement, tags: readonly string[]): boolean {
+        for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+            const tag = parent.tagName.toLowerCase();
+            if (tags.includes(tag)) return true;
+            if (!INLINE_ANCESTORS.has(tag)) return false;
+        }
+        return false;
     }
 
     /**
@@ -1598,17 +1773,19 @@ export class RichTextMarkdownService {
         // join to stop conflating them, which is a change to that pass; between
         // losing a rare deliberate break and corrupting every ordinary quote on
         // every save, this is the better default.
-        const quoteLines = inner.split('\n').map((line) => line.trimEnd()).filter(Boolean);
+        const quoteLines = quoteBodyLines(inner);
         // "> " with a space, so a nested quote emits "> > x" rather than
         // ">> x". parseBlockquotes strips one "> " per level and reads both,
         // but only the spaced form survives its own round trip -- the tight
         // form left the inner marker as literal text on re-import.
-        return '\n' + quoteLines.map((line) => `> ${line}`).join('\n') + '\n';
+        return '\n' + quoteLines.map((line) => (line === '' ? '>' : `> ${line}`)).join('\n') + '\n';
     }
 
     private detailsToMarkdown(element: HTMLElement): string {
         const summaryEl = element.querySelector('summary');
-        const summaryText = summaryEl?.textContent?.trim() ?? 'Toggle';
+        // The summary's own markdown on one line: its text alone dropped every
+        // image, link and emphasis in it on the first save.
+        const summaryText = summaryEl ? oneLine(this.nodeToMarkdown(summaryEl)) : 'Toggle';
         const contentParts: string[] = [];
         for (const ch of Array.from(element.childNodes)) {
             if (ch.nodeType === Node.ELEMENT_NODE && (ch as Element).tagName === 'SUMMARY') continue;
@@ -1621,7 +1798,10 @@ export class RichTextMarkdownService {
                     : this.elementToMarkdown(ch as HTMLElement),
             );
         }
-        return `\n:::details ${summaryText}\n${contentParts.map(part => part.trim()).filter(Boolean).join('\n')}\n:::\n`;
+        // Blocks in the body are separated by a blank line, as they are at document
+        // level. A single newline let two paragraphs, or a paragraph and the line
+        // after a rule, read back as one paragraph on the next save.
+        return `\n:::details ${summaryText}\n${contentParts.map(part => part.trim()).filter(Boolean).join('\n\n')}\n:::\n`;
     }
 
     /**
@@ -1721,7 +1901,7 @@ export class RichTextMarkdownService {
             // Newlines inside a cell would split the row -- a one-row table came
             // back as two on reload -- so a <br> becomes the GFM in-cell break.
             const cellContents = cells.map(cell =>
-                this.nodeToMarkdown(cell)
+                this.nodeToMarkdown(this.withRulesAsBreaks(cell))
                     .trim()
                     .replaceAll('|', String.raw`\|`)
                     .split('\n')
@@ -1757,11 +1937,28 @@ export class RichTextMarkdownService {
         return lines.join('\n');
     }
 
+    /**
+     * A cell's content with each rule turned into a line break.
+     *
+     * A pipe-table cell is one line and GFM has no rule inside one: the rule was
+     * written "---" and read back as those three characters of text. A break is
+     * the nearest thing a cell can hold.
+     */
+    private withRulesAsBreaks(cell: Element): Element {
+        if (!cell.querySelector('hr')) return cell;
+        const copy = cell.cloneNode(true) as Element;
+        for (const rule of Array.from(copy.querySelectorAll('hr'))) {
+            rule.replaceWith(copy.ownerDocument.createElement('br'));
+        }
+        return copy;
+    }
+
     private listToMarkdown(listEl: HTMLElement, type: ListType, indent: string, result: string[]): void {
         const items = Array.from(listEl.children);
+        const first = type === 'ol' ? listStartOf(listEl) : 1;
         items.forEach((li, index) => {
             const { content, nestedList } = this.extractListItemContent(li, indent);
-            result.push(this.formatListItem(type, li as HTMLElement, content, indent, index));
+            result.push(this.formatListItem(type, li as HTMLElement, content, indent, first + index));
 
             if (nestedList) {
                 const nestedType = this.detectNestedListType(nestedList);
@@ -1792,16 +1989,18 @@ export class RichTextMarkdownService {
                     : this.elementToMarkdown(ch as HTMLElement),
             );
         }
-        return { content: indentContinuation(childParts.join(''), indent), nestedList };
+        const joined = childParts.join('');
+        const content = opensWithBlock(li) ? leadingBlockContinuation(joined, indent) : indentContinuation(joined, indent);
+        return { content, nestedList };
     }
 
-    private formatListItem(type: ListType, li: HTMLElement, content: string, indent: string, index: number): string {
+    private formatListItem(type: ListType, li: HTMLElement, content: string, indent: string, ordinal: number): string {
         if (type === 'task') {
             const checked = li.dataset['checked'] === 'true';
             return `${indent}- [${checked ? 'x' : ' '}] ${content}\n`;
         }
         if (type === 'ol') {
-            return `${indent}${index + 1}. ${content}\n`;
+            return `${indent}${ordinal}. ${content}\n`;
         }
         return `${indent}- ${content}\n`;
     }
@@ -2108,7 +2307,12 @@ function pairedTagOffsets(block: string): ReadonlySet<number> {
  * ordinary markdown, so the round trip never reached a fixed point -- the
  * document gained newlines over the first few saves before settling.
  */
-const FENCE_PATTERN = /^((?:>[ \t]?)*[ \t]*)(`{3,}|~{3,})(\w*)\n([\s\S]*?)^\1?\2/gm;
+// The prefix is an indent, then quote markers each with their own spacing.
+// Quote markers had to come first, so a quote inside a list item -- indent
+// before the marker -- was never taken as a fence and its code came back as
+// text. Each marker owns the spaces after it, so the prefix cannot be split two
+// ways and the pattern stays linear.
+const FENCE_PATTERN = /^([ \t]*(?:>[ \t]*)*)(`{3,}|~{3,})(\w*)\n([\s\S]*?)^\1?\2/gm;
 
 /** Remove `prefix` (and any looser quote/indent form of it) from each line. */
 function stripBlockPrefix(code: string, prefix: string): string {

@@ -203,6 +203,7 @@ export class RichTextSanitizerService {
         'code': new Set(['data-language', 'class']),
         'input': new Set(['type', 'checked', 'disabled']),
         'ul': new Set(['data-task-list']),
+        'ol': new Set(['start']),
         'li': new Set(['data-task', 'data-checked']),
         'details': new Set(['open']),
         'col': new Set(['span', 'width']),
