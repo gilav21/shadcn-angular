@@ -74,6 +74,15 @@ describe('RichTextSanitizerService — task row shape', () => {
         expect(service.sanitize(holder.innerHTML)).toBe(holder.innerHTML);
     });
 
+    it('keeps a break after a row nested list in the row, adding no empty row, and settles', () => {
+        const holder = document.createElement('div');
+        holder.innerHTML = service.sanitize('<ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>a</span>'
+            + '<ul data-task-list><li data-task><input type="checkbox"><span>b</span></li></ul><br></li></ul>');
+
+        expect(holder.querySelectorAll(':scope > ul > li[data-task]')).toHaveLength(1);
+        expect(service.sanitize(holder.innerHTML)).toBe(holder.innerHTML);
+    });
+
     it('gives a row with no text a span to hold the caret', () => {
         const row = rowOf('<ul data-task-list><li data-task><input type="checkbox"></li></ul>');
 

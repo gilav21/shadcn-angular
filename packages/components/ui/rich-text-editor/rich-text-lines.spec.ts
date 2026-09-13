@@ -535,6 +535,11 @@ describe('rich text line model — the task rows a list item makes', () => {
         ['two sub-lists with blank text between', '<li>a<ul><li>b</li></ul> <ol><li>c</li></ol></li>', [['a', 2]]],
         ['a paragraph after a sub-list', '<li>a<ul><li>b</li></ul><p>c</p></li>', [['a', 1], ['P', 0]]],
         ['a sub-list first, then text and another', '<li><ul><li>b</li></ul>c<ol><li>d</li></ol></li>', [['', 1], ['c', 1]]],
+        // Content that shows nothing after a list is no row of its own: it was an empty row.
+        ['a break after a sub-list', '<li>a<ul><li>b</li></ul><br></li>', [['a,BR', 1]]],
+        ['an empty span after a sub-list', '<li>a<ul><li>b</li></ul><span></span></li>', [['a,SPAN', 1]]],
+        ['a placeholder after a sub-list', '<li>a<ul><li>b</li></ul>\u200B</li>', [['a', 1]]],
+        ['an image after a sub-list', '<li>a<ul><li>b</li></ul><img src="x.png" alt=""></li>', [['a', 1], ['IMG', 0]]],
     ])('makes %s into rows split at the content after each nested list', (_name, html, rows) => {
         expect(rowsOf(itemOf(html))).toEqual(rows);
     });

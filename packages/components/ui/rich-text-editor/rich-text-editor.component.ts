@@ -60,6 +60,7 @@ import {
     positionAfterLine,
     rangeShowsNothing,
     rowRunsOf,
+    nodeShowsNothing,
     lastOwnInlineNode,
     separateListKinds,
     structureAround,
@@ -5370,20 +5371,46 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     /**
      * Put what the parent item held after the moved item's list -- more text, a
      * block, another sub-list -- at the end of the moved item: it shows below
-     * that item, and left in the parent it moved above it. A task row is one line,
-     * so for a row it becomes an item of its own after the row. Returns the
-     * element holding the moved item's own line.
+     * that item, and left in the parent it moved above it. Returns the element
+     * holding the moved item's own line.
      */
     private carryTrailingContent(li: HTMLElement, trailing: readonly ChildNode[]): HTMLElement {
-        if (trailing.every((node) => node.nodeType === Node.TEXT_NODE && (node.textContent ?? '').trim() === '')) return li;
-        const holder = li.dataset['task'] === undefined ? li : this.document.createElement('li');
-        if (holder !== li) li.after(holder);
-        holder.append(...trailing);
-        if (trailing.every((node) => isPhrasing(node) || isNestedList(node))) return li;
-        // A block among it makes the item a container: text beside a block
-        // belongs to no line, so each run of the item's loose text gets a paragraph.
-        const lead = this.wrapLooseRuns(holder);
-        return holder === li && lead ? lead : li;
+        if (trailing.every((node) => nodeShowsNothing(node))) return li;
+        if (li.dataset['task'] !== undefined) {
+            this.carryAfterTaskRow(li, trailing);
+            return li;
+        }
+        li.append(...trailing);
+        return this.giveLooseTextLines(li, trailing) ?? li;
+    }
+
+    /**
+     * What a task row carries: the nested lists leading it stay under the row, as
+     * a row's sub-lists do, and the rest, from the first content that shows
+     * something, becomes an item after the row, which is one line. Sent there
+     * whole, a leading list gave the new item no line of its own, an empty bullet
+     * nobody typed. An element before that content that shows nothing stays
+     * where it was.
+     */
+    private carryAfterTaskRow(row: HTMLElement, trailing: readonly ChildNode[]): void {
+        const at = trailing.findIndex((node) => !isNestedList(node) && !nodeShowsNothing(node));
+        const leading = at < 0 ? trailing : trailing.slice(0, at);
+        row.append(...leading.filter((node) => isNestedList(node)));
+        if (at < 0) return;
+        const item = this.document.createElement('li');
+        item.append(...trailing.slice(at));
+        row.after(item);
+        this.giveLooseTextLines(item, trailing.slice(at));
+    }
+
+    /**
+     * When `added` brought a block into `item`, give each run of the item's loose
+     * text a paragraph: text beside a block belongs to no line. Returns the
+     * paragraph for the text before the first block, if the item got one.
+     */
+    private giveLooseTextLines(item: HTMLElement, added: readonly ChildNode[]): HTMLElement | null {
+        if (added.every((node) => isPhrasing(node) || isNestedList(node))) return null;
+        return this.wrapLooseRuns(item);
     }
 
     /**

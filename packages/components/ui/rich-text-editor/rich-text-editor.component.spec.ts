@@ -3166,6 +3166,26 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
             expect(Array.from(items[2].children, (child) => child.nodeName)).toEqual(['P']);
         });
 
+        it.each([
+            ['a list', '<ul><li>Z</li></ul>', 'XZ', null],
+            ['a list, then a paragraph', '<ul><li>Z</li></ul><p>t</p>', 'XZ', 't'],
+        ])('outdenting a task row keeps %s after its list under the row, with no empty item', (_name, trailing, rowText, itemText) => {
+            // All of it went into a new item after the row, so a leading list gave
+            // that item no line of its own: an empty bullet nobody typed.
+            component.writeValue('<ul><li><p>G</p><ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>X</span></li></ul>'
+                + `${trailing}</li></ul>`);
+            fixture.detectChanges();
+            caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 1);
+
+            component.onFormatCommand('outdent');
+
+            const row = editor.querySelector('li[data-task]')!;
+            expect(row.textContent).toBe(rowText);
+            expect(row.querySelector(':scope > ul > li')?.textContent).toBe('Z');
+            expect(Array.from(editor.querySelectorAll('li')).filter((li) => li.firstElementChild?.matches('ul, ol'))).toHaveLength(0);
+            expect(Array.from(editor.querySelectorAll(':scope > ul > li'), (li) => li.textContent)).toEqual(['G', rowText, ...(itemText ? [itemText] : [])]);
+        });
+
         it('a task list starts the next row with the content after an item sub-list, keeping the words in order', () => {
             component.writeValue('<ul><li><p>a</p><ul><li>b</li></ul><p>c</p></li><li>z</li></ul>');
             fixture.detectChanges();

@@ -130,10 +130,12 @@ export interface RowRun {
 
 /**
  * A list item's children as task rows, in order: each row's content, then the
- * nested lists under it. Content after a nested list starts the next row: a
- * row's text shows above its nested lists, so gathered into one row the words
- * after a list moved ahead of the list's own. `skip`, a row's own checkbox, is
- * left where it is, and so is blank text after a list.
+ * nested lists under it. Content after a nested list that shows something starts
+ * the next row: a row's text shows above its nested lists, so gathered into one
+ * row the words after a list moved ahead of the list's own. An element after a
+ * list that shows nothing, a trailing `<br>` or an empty span, stays in the row's
+ * text, where it still shows nothing; as a row of its own it was an empty row.
+ * `skip`, a row's own checkbox, is left where it is, and so is blank text after a list.
  */
 export function rowRunsOf(item: Element, skip: Node | null = null): RowRun[] {
     let run: RowRun = { content: [], lists: [] };
@@ -144,9 +146,11 @@ export function rowRunsOf(item: Element, skip: Node | null = null): RowRun[] {
             run.lists.push(node);
         } else if (run.lists.length === 0) {
             run.content.push(node);
-        } else if (node.nodeType !== Node.TEXT_NODE || (node.textContent ?? '').trim() !== '') {
+        } else if (!nodeShowsNothing(node)) {
             run = { content: [node], lists: [] };
             runs.push(run);
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+            run.content.push(node);
         }
     }
     return runs;
@@ -569,6 +573,12 @@ export function lineIsEmpty(line: Line): boolean {
 export function holdsNothing(el: Element): boolean {
     if (holdsReplacedContent(el)) return false;
     return (el.textContent ?? '').replaceAll(PLACEHOLDERS, '').trim() === '';
+}
+
+/** Whether a node shows the author nothing: blank text, or an element that holds nothing (see holdsNothing). */
+export function nodeShowsNothing(node: Node): boolean {
+    if (node.nodeType === Node.ELEMENT_NODE) return holdsNothing(node as Element);
+    return (node.textContent ?? '').replaceAll(PLACEHOLDERS, '').trim() === '';
 }
 
 /**
