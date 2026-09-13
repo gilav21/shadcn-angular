@@ -229,25 +229,40 @@ means no policy and today's behaviour exactly.
   same level. Up and down are now exact mirrors of each other, which is how
   word processors behave. A join also never crosses into a table cell or a code
   block: prose joins to prose.
-- **Breaking: Quote, Code block and the list toggles act on the caret's own
-  line.** With the caret inside a list item or a table cell they used to walk
-  up to the whole list or table, so Code block turned every item of a list into
-  one block; now only the line you are on changes. A selection reaching from a
-  paragraph into a list also stops at the list's edge instead of pulling items
-  out of it.
+- **Breaking: block commands act on the caret's own line, and only where a
+  save keeps the result.** With the caret inside a list item or a table cell
+  they used to walk up to the whole list or table, so Code block turned every
+  item of a list into one block. A later version built the block inside the
+  item or the cell instead, which markdown cannot carry, and in a task row the
+  next keypress moved it into the row's text. Now:
+  - *Quote* and *Code block* on a top-level list item take that item out: the
+    list splits around the new block, the item's sub-list follows it, and a
+    numbered list's second half keeps counting. On a nested item, an item
+    holding several lines, a table cell, a summary or a code block they do
+    nothing.
+  - *Horizontal rule* and inserted tables split a list the same way (an empty
+    item the caret sat in is replaced), go after the table from inside a cell,
+    and go to the start of the details body from a summary.
+  - The list toggles do nothing in a table cell, a summary or a code block.
+    Turning a sub-list off moves its items after their top-level item; two or
+    more levels down it does nothing, since the text would change order.
+  - A selection reaching from a paragraph into a list stops at the list's edge
+    instead of pulling items out of it.
 - **Headings and Normal text are applied by the editor, not the browser.**
   `formatBlock` applied the tag to whichever ancestor it chose, so a heading set
   inside a list item wrapped the entire list in the heading. Headings now change
   paragraphs and headings only: on a list item, a table cell, a disclosure's
-  summary or a code block the command leaves the line as it is. A heading inside
-  an item was tried first and could not survive a save, since markdown writes it
-  as `- # Title` and reads it back as literal text.
+  summary or a code block -- or a paragraph inside any of them -- the command
+  leaves the line as it is, and so does the slash menu. A heading inside an item
+  was tried first and could not survive a save, since markdown writes it as
+  `- # Title` and reads it back as literal text.
 - **Code block leaves a line with an image alone.** A code block holds text, so
   the command used to drop the image, and toggling back could not restore it.
 - **Quote on a task row no longer freezes the page.** Content sync flattens a
   block inside a task row into the row's text, and flattening a block that held
-  another block looped forever, so the tab hung. Rows holding a quote, a list or
-  a table from pasted or imported HTML hit the same loop on load.
+  another block looped forever, so the tab hung. Pasted or imported rows holding
+  such a block -- a quote holding paragraphs, a div around a list -- hit the
+  same loop on load.
 - **Turning bullets off keeps each sub-list under its own item.** Each sub-list
   was moved out ahead of the paragraph built from its parent, so the children
   appeared above the item they belonged to.
@@ -259,6 +274,43 @@ means no policy and today's behaviour exactly.
   given such an item reached out to the whole list and destroyed every line in
   it. The sanitizer gives that content a line of its own, and the editor no
   longer creates the shape.
+- **Sanitized content reads back unchanged.** The sanitizer wrapped a rule, a
+  stray list item, a summary or a span holding a paragraph in a `<p>`; the
+  browser closed that paragraph early when reading the result back, so every
+  pass -- each HTML-mode write, each `ui-rich-text-view` render -- added empty
+  paragraphs, without end. An inline wrapper around a block now moves inside
+  it, keeping its formatting; a stray item gets a list of its own and a stray
+  summary becomes a paragraph.
+- **Blocks flattened into a task row keep their words apart.** A row is one line
+  of text, so pasted or imported blocks inside it are flattened, and two
+  paragraphs or two cells used to fuse into one word. Each boundary is now a
+  space, a code block's line breaks become spaces, and a rule pasted inside a
+  row is dropped. The task list toggle flattens an item's quote or table the
+  same way instead of putting the block inside the row.
+- **A markdown save keeps what nested blocks hold.**
+  - A rule under a list item was written back as the text `---`; a rule in a
+    table cell now becomes a line break, the nearest thing a cell holds.
+  - A details block inside a quote gained a quote level on every save, and a
+    details block inside another lost its body.
+  - A list item that opens with a code block, heading, table, rule or quote
+    came back as literal markup, and a quote holding code inside a list item
+    lost its code block.
+  - Blank rows and trailing spaces in a quoted code block were deleted, and a
+    details body's paragraphs merged into one on the second save.
+  - A summary kept only its text, dropping links, images and emphasis.
+  - Bold inside bold, italic inside italic, italic around bold at its edge and
+    emphasis starting or ending with a space all saved with stray asterisks.
+  - A numbered list that does not start at 1 restarted at 1.
+- **Turning a list off keeps an item's code block or quote a block** instead of
+  wrapping it in a paragraph the browser takes apart.
+- **Enter on an empty nested task row steps it out one level,** as it does in a
+  plain list. It used to leave the list from inside the parent row, building a
+  paragraph there that the next keypress moved into the row's text.
+- **Clear formatting inside a task row keeps the row's text in its row.** The
+  row's text span was cleared as if it were formatting, leaving the text bare
+  beside the checkbox.
+- **A caret pushed out of a checkbox's spot lands at the end of the row's text,**
+  not after its first text run.
 - **The caret in a task row stays in the row's text.** The browser let it
   stop before or on the checkbox (ArrowUp from the row below landed there,
   sometimes needing a second press), so text typed there sat before the box

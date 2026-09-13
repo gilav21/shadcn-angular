@@ -236,9 +236,10 @@ actually contains, never a marker the editor is about to rewrite.
 The default toolbar's block-type group is one `'textStyle'` select — Normal
 text / Heading 1 / 2 / 3 — rather than four buttons. It both reflects the
 caret's block and sets it. It changes paragraphs and headings only: with the
-caret in a list item, a table cell, a disclosure's summary or a code block the
-line is left as it is, because a heading inside any of those does not survive a
-Markdown save.
+caret in a list item, a table cell, a disclosure's summary or a code block --
+or in a paragraph inside any of them -- the line is left as it is, because a
+heading inside any of those does not survive a Markdown save. See
+[Block commands inside lists, tables and summaries](#block-commands-inside-lists-tables-and-summaries).
 
 ```html
 <!-- default: the select -->
@@ -277,6 +278,35 @@ readonly blockLabel = computed(() => {
 nested two or more levels deep. The `indent` and `outdent` buttons never
 render pressed, though — they are momentary actions, and WAI-ARIA reserves
 `aria-pressed` for toggles, so those buttons omit the attribute entirely.
+
+## Block commands inside lists, tables and summaries
+
+A block command only builds a shape the saved Markdown can carry, so what it
+does depends on where the caret's line sits. The toolbar, the slash menu and
+the public `insertBlockAtCaret` all follow the same rules.
+
+| Caret in | Heading / Normal text | Quote, Code block | Horizontal rule, table | Bullet, numbered, task list |
+| --- | --- | --- | --- | --- |
+| A paragraph or heading | Re-tags the line | Wraps the line | Goes after the line, or replaces it when empty | Wraps the line |
+| A top-level list item | Nothing | Takes the item out; the list splits around the block | Splits the list after the item | Toggles or re-kinds that list |
+| A nested list item, or an item holding several lines | Nothing | Nothing | Splits the list after the top-level item | Toggles or re-kinds that sub-list |
+| A table cell | Nothing | Nothing | Goes after the table | Nothing |
+| A disclosure's summary | Nothing | Nothing | Goes to the start of the details body | Nothing |
+| A code block | Nothing | Quote wraps it; Code block unwraps it | Goes after it | Nothing |
+
+When a list splits, both halves keep the list's kind -- a task list stays a
+task list -- and a numbered list's second half continues the count with a
+`start` attribute, which the sanitizer keeps and Markdown round-trips.
+
+Turning a sub-list off moves its items after their top-level item when the
+sub-list ends that item; deeper than that the command does nothing, because
+the text would change order.
+
+**What Markdown cannot hold.** A task row is one line of text: a quote,
+paragraphs or a table pasted inside one are flattened into it, with a space at
+each boundary, and a rule pasted inside a row is dropped. A pipe-table cell is
+one line too, so in `mode="markdown"` a rule inside a cell is saved as a line
+break. HTML mode keeps the rule.
 
 ## Imperative API
 
