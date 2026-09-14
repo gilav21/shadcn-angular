@@ -3184,6 +3184,26 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         });
 
         it.each([
+            ['a second paragraph', 'indent', '<ul><li>A</li><li><p>W</p><p>Xray</p></li></ul>', 'p'],
+            ['a code block', 'indent', '<ul><li>A</li><li><p>W</p><pre><code>Xray</code></pre></li></ul>', 'code'],
+            ['a table cell', 'indent', '<ul><li>A</li><li><p>W</p><table><tbody><tr><td>Xray</td></tr></tbody></table></li></ul>', 'td'],
+            ['a second paragraph, outdenting', 'outdent', '<ul><li>A<ul><li><p>W</p><p>Xray</p></li></ul></li></ul>', 'p'],
+        ])('keeps the caret in a later line of the moved item: %s', (_name, command, html, tag) => {
+            // A fix that put the caret back in the item's first line would pass every
+            // case whose caret starts in that line.
+            component.writeValue(html);
+            fixture.detectChanges();
+            const target = Array.from(editor.querySelectorAll(tag)).find((el) => el.textContent === 'Xray')!;
+            caretIn(target.firstChild as Text, 2);
+
+            component.onFormatCommand(command);
+
+            const selection = document.getSelection()!;
+            expect(selection.anchorNode?.textContent).toBe('Xray');
+            expect(selection.anchorOffset).toBe(2);
+        });
+
+        it.each([
             ['indenting an item holding a code block', 'indent', '<ul><li>A</li><li><p>X</p><pre><code>c</code></pre></li></ul>'],
             ['indenting an item of a loose list', 'indent', '<ul><li><p>A</p></li><li><p>X</p></li></ul>'],
             ['outdenting an item holding a code block', 'outdent', '<ul><li>A<ul><li><p>G</p><ul><li><p>X</p><pre><code>c</code></pre></li></ul></li></ul></li></ul>'],
