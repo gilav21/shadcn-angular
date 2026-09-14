@@ -2437,6 +2437,8 @@ describe('RichTextMarkdownService', () => {
             ['a "<" in a link target', '[a](https://e.com/?q=<b>)', 'a', '?q=%3Cb%3E'],
             ['a tag inside a link target', '[a](https://e.com/a<b>c)', 'a', '/a%3Cb%3Ec'],
             ['a "<" in an image target', '![p](https://a.test/<b>.png)', 'img', '/%3Cb%3E.png'],
+            ['a named reference in a link target', '[a](https://e.com/?x=1&amp;y=2)', 'a', '?x=1&y=2'],
+            ['a numeric reference in an image target', '![p](https://a.test/a&#38;b.png)', 'img', '/a&b.png'],
         ])('reads %s as the characters typed, and settles', (_name, markdown, element, ending) => {
             // CommonMark reads a target from its characters. A parked code span made
             // it text, and an escaped "<" was escaped again into "&lt;" in the address.

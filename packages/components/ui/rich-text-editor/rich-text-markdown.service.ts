@@ -705,6 +705,15 @@ function holdsParkedToken(target: string): boolean {
     return target.includes(RAW_TAG_OPEN) || target.includes(INLINE_CODE_OPEN);
 }
 
+/** A named, decimal or hexadecimal character reference with its semicolon, as CommonMark reads one. */
+const CHARACTER_REFERENCE = /&(?:#\d{1,7}|#[xX][\dA-Fa-f]{1,6}|[A-Za-z][A-Za-z\d]{1,31});/g;
+
+/** `text` with every character reference decoded; an unknown name stays as written. */
+function decodeCharacterReferences(text: string): string {
+    return text.replaceAll(CHARACTER_REFERENCE, (reference) =>
+        new DOMParser().parseFromString(reference, 'text/html').body.textContent ?? reference);
+}
+
 /** Tags that apply the same emphasis, so one nested in another adds nothing. */
 const BOLD_TAGS: readonly string[] = ['strong', 'b'];
 const ITALIC_TAGS: readonly string[] = ['em', 'i'];
@@ -1091,8 +1100,10 @@ function pushElementTokens(element: Element, out: LineToken[]): void {
     }
     const inline = isPhrasing(element);
     // An inline element that shows nothing, such as emptied code, is not on the
-    // line at all: counted as content, the spaces on both its sides stayed.
-    if (inline && showsNothing(element)) return;
+    // line at all: counted as content, the spaces on both its sides stayed. Nor is
+    // an input, which a save writes as nothing: "a <input> b" saved as "a  b", and
+    // the next save as "a b".
+    if (inline && (showsNothing(element) || element.nodeName === 'INPUT')) return;
     if (VERBATIM_TEXT_TAGS.has(element.nodeName) || SHOWS_WITHOUT_TEXT.has(element.nodeName)) {
         out.push(inline ? 'content' : 'break');
         return;
@@ -2046,14 +2057,16 @@ export class RichTextMarkdownService {
      * stray "<" or ">" was escaped. Taken as they were, a parked token was restored
      * inside the attribute, breaking it, and an escaped "<" was escaped again, so
      * the address held "&lt;". CommonMark reads a target from its characters,
-     * backticks and "<" included. A target with a space is no target; only one that
+     * backticks and "<" included, with its character references decoded -- the
+     * escape pass's "&lt;" is one; kept, an author's "&amp;" was escaped again and
+     * the query string broke. A target with a space is no target; only one that
      * held a code span or a tag is checked for it, since a plain target with a
      * space has always been read as a link.
      */
     private targetSource(target: string, inlineSources: readonly string[], tagStore: readonly string[]): string | null {
-        const typed = restoreParked(restoreParked(target, INLINE_CODE_OPEN, INLINE_CODE_CLOSE, inlineSources), RAW_TAG_OPEN, RAW_TAG_CLOSE, tagStore)
-            .replaceAll('&lt;', '<')
-            .replaceAll('&gt;', '>');
+        const typed = decodeCharacterReferences(
+            restoreParked(restoreParked(target, INLINE_CODE_OPEN, INLINE_CODE_CLOSE, inlineSources), RAW_TAG_OPEN, RAW_TAG_CLOSE, tagStore),
+        );
         return holdsParkedToken(target) && /\s/.test(typed) ? null : typed;
     }
 

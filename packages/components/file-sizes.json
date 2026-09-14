@@ -4586,8 +4586,8 @@
       "lines": 301
     },
     "rich-text-editor/rich-text-editor.component.spec.ts": {
-      "bytes": 562963,
-      "lines": 12692
+      "bytes": 564179,
+      "lines": 12712
     },
     "rich-text-editor/rich-text-editor.component.ts": {
       "bytes": 371991,
@@ -4646,16 +4646,16 @@
       "lines": 888
     },
     "rich-text-editor/rich-text-markdown.roundtrip.spec.ts": {
-      "bytes": 63179,
-      "lines": 1216
+      "bytes": 63255,
+      "lines": 1217
     },
     "rich-text-editor/rich-text-markdown.service.spec.ts": {
-      "bytes": 130178,
-      "lines": 2533
+      "bytes": 130393,
+      "lines": 2535
     },
     "rich-text-editor/rich-text-markdown.service.ts": {
-      "bytes": 146315,
-      "lines": 3213
+      "bytes": 147114,
+      "lines": 3226
     },
     "rich-text-editor/rich-text-paste-normalizer.service.spec.ts": {
       "bytes": 106418,

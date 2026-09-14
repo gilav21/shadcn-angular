@@ -413,8 +413,8 @@ means no policy and today's behaviour exactly.
     keep the caret in the line it was in; it landed in another item or was lost.
   - A hand-written quote, heading or details block indented past a list item's
     content column stays whole; a link or image address holding
-    backticks, "<" or a raw tag is read as the characters typed instead of breaking
-    the attribute or gaining "&lt;"; inline code next
+    backticks, "<", a raw tag or a character reference is read as typed instead of
+    breaking the attribute or gaining "&lt;" or "&amp;"; inline code next
     to an empty code element settles; and an image with no address is left out of
     a markdown save instead of coming back as "![alt]()" text. A line's trailing
     space and loose text after a rule no longer make the second save differ.

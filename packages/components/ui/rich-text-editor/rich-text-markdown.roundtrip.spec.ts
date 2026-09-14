@@ -429,6 +429,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         ['a quoted paragraph ending in a newline', '<blockquote><p>a\n</p></blockquote><p>z</p>'],
         ['a heading ending in a newline', '<h2>t\n</h2><p>z</p>'],
         ['loose text after a rule', '<pre><code>x</code></pre>\n<hr>\ntext'],
+        ['a checkbox between words', '<p>a <input type="checkbox"> b</p>'],
     ])('writes %s so the second save equals the first', (_name, html) => {
         // A space ending a line shows nothing but was written, and the next save
         // dropped it; loose text after a rule went on the rule's next line, and the
