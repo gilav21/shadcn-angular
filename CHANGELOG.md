@@ -409,6 +409,13 @@ means no policy and today's behaviour exactly.
   - An image inside inline code is kept; a hand-written list item keeps its
     quotes and details blocks when a later line is indented less than they are;
     and a raw tag written in image alt text stays alt text.
+  - Tab and Shift+Tab on a list item holding a paragraph, a code block or a table
+    keep the caret in the line it was in; it landed in another item or was lost.
+  - A hand-written quote, heading or details block indented past a list item's
+    content column stays whole; a link or image whose address holds a code span or
+    a raw tag reads as text instead of breaking the attribute; inline code next
+    to an empty code element settles; and an image with no address is left out of
+    a markdown save instead of coming back as "![alt]()" text.
   - Italic runs side by side stay italic; code written inside a heading or with
     a blank line keeps its spaces and newlines; a code block whose language is
     "c++" or "c#" stays a code block; an image whose alt text holds "]" stays an

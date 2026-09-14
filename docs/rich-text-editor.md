@@ -317,7 +317,10 @@ paragraphs or a table pasted inside one are flattened into it, with a space at
 each boundary, and a rule pasted inside a row is dropped. Content after a row's
 nested list becomes the next row, so its words stay after the list's; what would
 show nothing in a row there, such as a rule or an empty block, joins the row
-above instead. A pipe-table cell is
+above instead. A checkbox pasted there starts a row of its own, and since
+Markdown has no syntax for an input, `mode="markdown"` saves that row empty.
+An image with no address has nothing for Markdown to point at, and a markdown
+save leaves it out. A pipe-table cell is
 one line too, so in `mode="markdown"` a rule inside a cell is saved as a line
 break. HTML mode keeps the rule.
 

@@ -394,6 +394,35 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         expect(saved(once)).toBe(once);
     });
 
+    it.each([
+        ['an empty code element before', '<p>a <code></code><code>x</code> b</p>', 'x'],
+        ['an empty code element after', '<p>a <code>x</code><code></code> b</p>', 'x'],
+        ['an empty code element between two', '<p>a <code>x</code><code></code><code>y</code> b</p>', 'xy'],
+    ])('settles inline code with %s', (_name, html, codeText) => {
+        // An empty code element, written as nothing, counted as touching the code
+        // beside it, so the first save wrote the tag form and the second a span.
+        // Both read back as the same HTML, so the markdown itself is compared.
+        const first = service.toMarkdown(html);
+
+        expect(Array.from(read(service.toHtml(first)).querySelectorAll('code'), (code) => code.textContent).join('')).toBe(codeText);
+        expect(service.toMarkdown(service.toHtml(first))).toBe(first);
+    });
+
+    it.each([
+        ['alone in inline code', '<p>x <code><img alt="q"></code> y</p>', 'x y'],
+        ['between words in inline code', '<p><code>a<img alt="q">b</code></p>', 'ab'],
+        ['in a paragraph', '<p>a <img alt="q"> b</p>', 'a b'],
+        ['opening a paragraph', '<p><img alt="q"> t</p>', 't'],
+    ])('leaves an image with no address out of the save %s, and settles', (_name, html, text) => {
+        // Written as "![alt]()", it came back as that text; written as nothing in
+        // place, the spaces around it stayed and the next save collapsed them.
+        const once = saved(html);
+        const out = read(once);
+
+        expect(out.textContent).toBe(text);
+        expect(saved(once)).toBe(once);
+    });
+
     it('keeps a break inside inline code, and settles', () => {
         // The code span was written from its text, which a break does not have.
         const once = saved('<p>x <code>a<br>b</code> y</p>');

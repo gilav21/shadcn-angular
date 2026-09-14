@@ -2414,6 +2414,39 @@ describe('RichTextMarkdownService', () => {
             expect(out.querySelector('li')?.textContent).toContain(last);
         });
 
+        it.each([
+            ['a quote', '- a\n\n    > q\n    > r', 'li > blockquote', 'qr', 1],
+            ['a quote under a number', '1. a\n\n     > q\n     > r', 'li > blockquote', 'qr', 1],
+            ['two headings', '- a\n\n    ## h\n    ## g', 'li > h2', 'h', 2],
+            ['a details block', '- a\n\n    :::details X\n    body\n    :::', 'li > details > summary', 'X', 1],
+        ])('reads %s indented past the item\'s content column as blocks of the item', (_name, markdown, selector, text, count) => {
+            // Capped at the column, the dedent left extra spaces the trim took off
+            // the first line only, so later quote lines, headings and closers were text.
+            const out = readMarkdown(markdown);
+
+            expect(out.querySelector(selector)?.textContent).toBe(text);
+            expect(out.querySelectorAll(selector)).toHaveLength(count);
+            expect(out.textContent).not.toContain('>');
+            expect(out.textContent).not.toContain(':::');
+            expect(out.textContent).not.toContain('#');
+        });
+
+        it.each([
+            ['a raw tag in a link target', '[x](https://a.test/<span title="q">y</span>)', 'a'],
+            ['inline code in a link target', '[x](https://a.test/`b`c)', 'a'],
+            ['inline code in an image target', '![p](https://a.test/`b`.png)', 'img'],
+            ['a raw tag in an image target', '![p](https://a.test/<span title="q">y</span>.png)', 'img'],
+        ])('reads %s as text, not a link or image, and settles', (_name, markdown, element) => {
+            // Taken as a target, the parked token was restored inside the attribute,
+            // breaking it, or percent-encoded into the address.
+            const out = readMarkdown(markdown);
+            const once = service.toMarkdown(out.innerHTML);
+
+            expect(out.querySelector(element)).toBeNull();
+            expect(out.textContent).not.toContain('noopener');
+            expect(service.toMarkdown(service.toHtml(once))).toBe(once);
+        });
+
         it('keeps a raw tag written in image alt text as the alt text', () => {
             // The parked tag was restored after the attribute was written, so its
             // quotes ended the attribute and the rest of the tag showed on the page.

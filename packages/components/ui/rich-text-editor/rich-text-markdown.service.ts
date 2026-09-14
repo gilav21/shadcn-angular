@@ -646,6 +646,44 @@ function heldByListItem(element: Element): boolean {
     return element.parentElement?.closest('li, blockquote')?.nodeName === 'LI';
 }
 
+/** The address an image is saved with: its src, or the original address of a blocked one (see handleImageTag). */
+function imageTarget(image: Element): string {
+    return image.getAttribute('src') ?? (image as HTMLElement).dataset['blockedSrc'] ?? '';
+}
+
+/**
+ * Leave out every image with no address. Markdown has nothing to point it at:
+ * written as "![alt]()" it came back as that text, and the next save escaped it.
+ * Removed before whitespace is collapsed, so the spaces around it collapse as the
+ * page shows them; written as nothing in place, "x <img> y" saved as "x  y" and
+ * the next save as "x y".
+ */
+function removeUnaddressedImages(root: HTMLElement): void {
+    for (const image of Array.from(root.querySelectorAll('img'))) {
+        if (imageTarget(image) === '') image.remove();
+    }
+}
+
+/** Whether code shows something a save writes without text: a break or an image (see removeUnaddressedImages). */
+function codeShowsWithoutText(code: Element): boolean {
+    return code.querySelector('br, img') !== null;
+}
+
+/** Whether a node is code a save writes as nothing: no text, and nothing shown without it. */
+function isCodeWrittenAsNothing(node: Node): boolean {
+    return node.nodeName === 'CODE' && node.textContent === '' && !codeShowsWithoutText(node as Element);
+}
+
+/**
+ * Whether a link or image target holds a parked code span or raw tag. CommonMark
+ * gives both precedence over a link, so such a target is text: taken as a target,
+ * the token was restored inside the attribute, which broke it and put invented
+ * text on the page, or it was percent-encoded into the address.
+ */
+function holdsParkedToken(target: string): boolean {
+    return target.includes(RAW_TAG_OPEN) || target.includes(INLINE_CODE_OPEN);
+}
+
 /** Tags that apply the same emphasis, so one nested in another adds nothing. */
 const BOLD_TAGS: readonly string[] = ['strong', 'b'];
 const ITALIC_TAGS: readonly string[] = ['em', 'i'];
@@ -958,6 +996,7 @@ function escapeMarkdownText(text: string): string {
  */
 function prepareForMarkdown(root: HTMLElement): void {
     unnestPastTheCap(root);
+    removeUnaddressedImages(root);
     root.normalize();
     collapseRenderedWhitespace(root);
 }
@@ -1704,17 +1743,20 @@ export class RichTextMarkdownService {
      * buildBlockquote uses for a nested quote.
      */
     private parseListContinuation(block: string, list: ListContext, depth: number): string {
-        // The block's own indent is its first line's, up to the last item's content
-        // column, and every line loses that width, or less when it is indented
-        // less. Two past the item's indent left a numbered item's block one space
-        // in, where neither a details block nor a quote opens. Sliced each by its
-        // own width, the writer's lines at two and four spaces under a wide marker
-        // lost different amounts and a nested list moved a level. Taken from the
-        // least indented line, one later line at two spaces pulled a hand-written
-        // block short, and its quotes and details blocks came back as text.
+        // The block's own indent is its first line's, up to three past the last
+        // item's content column, as CommonMark allows before a block marker; every
+        // line loses that width, or less when it is indented less. Two past the
+        // item's indent left a numbered item's block one space in, where neither a
+        // details block nor a quote opens. Sliced each by its own width, the
+        // writer's lines at two and four spaces under a wide marker lost different
+        // amounts and a nested list moved a level. Taken from the least indented
+        // line, one later line at two spaces pulled a hand-written block short; and
+        // capped at the column, a block written at four spaces under "- " kept two,
+        // which the trim took off its first line only, so its second quote line,
+        // heading or details closer came back as text.
         const lines = block.split('\n');
         const opening = lines.find((line) => line.trim() !== '') ?? '';
-        const width = Math.min(list.items.at(-1)?.column ?? list.indent + 2, indentOf(opening));
+        const width = Math.min((list.items.at(-1)?.column ?? list.indent + 2) + 3, indentOf(opening));
         const dedented = lines
             .map((line) => line.slice(Math.min(width, indentOf(line))))
             .join('\n')
@@ -1968,7 +2010,8 @@ export class RichTextMarkdownService {
     }
 
     private parseImages(html: string, inlineStore: readonly string[], tagStore: readonly string[]): string {
-        return html.replaceAll(MEDIA_TARGET_PATTERN.image, (_, alt, src) => {
+        return html.replaceAll(MEDIA_TARGET_PATTERN.image, (match, alt, src) => {
+            if (holdsParkedToken(src)) return match;
             const safeSrc = this.sanitizer.sanitizeImageSrc(src);
             if (!safeSrc) {
                 // A POLICY-blocked image keeps its element and alt, so the
@@ -1993,7 +2036,8 @@ export class RichTextMarkdownService {
      * Parse links [text](url).
      */
     private parseLinks(html: string): string {
-        return html.replaceAll(MEDIA_TARGET_PATTERN.link, (_, text, url) => {
+        return html.replaceAll(MEDIA_TARGET_PATTERN.link, (match, text, url) => {
+            if (holdsParkedToken(url)) return match;
             const safeUrl = this.sanitizer.sanitizeUrl(url);
             if (!safeUrl) return text;
             return `<a href="${this.attr(safeUrl)}" rel="noopener noreferrer">${text}</a>`;
@@ -2243,17 +2287,21 @@ export class RichTextMarkdownService {
         // two elements merge and four characters the author never typed appear
         // in the content. The delimiters are only unambiguous with a gap, and
         // inventing a space would change the text.
-        const abutsCode = (sibling: ChildNode | null): boolean =>
-            sibling?.nodeType === Node.ELEMENT_NODE
-            && (sibling as Element).tagName.toLowerCase() === 'code';
+        // Past code written as nothing: counted, an empty code element beside this
+        // one sent it to the tag form, and the next save, which no longer had the
+        // empty element, wrote a span.
+        const abutsCode = (side: 'previousSibling' | 'nextSibling'): boolean => {
+            let sibling = element[side];
+            while (sibling && isCodeWrittenAsNothing(sibling)) sibling = sibling[side];
+            return sibling?.nodeName === 'CODE';
+        };
 
         // A break or an image has no text, so a code span written from the text
         // alone lost it -- a break fused the words around it, and code holding
         // only an image was dropped whole; the tag form keeps each.
-        const showsWithoutText = element.querySelector('br, img') !== null;
+        const showsWithoutText = codeShowsWithoutText(element);
         if (content === '' && !showsWithoutText) return '';
-        if (showsWithoutText || content.includes('\n')
-            || abutsCode(element.previousSibling) || abutsCode(element.nextSibling)) {
+        if (showsWithoutText || content.includes('\n') || abutsCode('previousSibling') || abutsCode('nextSibling')) {
             return `<code>${this.codeTagContent(element)}</code>`;
         }
 
@@ -2309,9 +2357,7 @@ export class RichTextMarkdownService {
         // allowing the host later must bring the image back, and it cannot if
         // the address was thrown away. Re-reading it just re-applies the policy,
         // so a still-blocked image simply blocks again.
-        const src = element.getAttribute('src')
-            ?? element.dataset['blockedSrc']
-            ?? '';
+        const src = imageTarget(element);
         // The alt text is text on one line, escaped as text is: an unescaped "]"
         // ended it and the image came back as its markdown source, a newline split
         // the paragraph inside the attribute, backticks or asterisks were read as
