@@ -545,6 +545,10 @@ describe('rich text line model — the task rows a list item makes', () => {
         ['an empty table after a sub-list', '<li>a<ul><li>b</li></ul><table><tbody><tr><td></td></tr></tbody></table></li>', [['a,TABLE', 1]]],
         ['an empty code block after a sub-list', '<li>a<ul><li>b</li></ul><pre><code></code></pre></li>', [['a,PRE', 1]]],
         ['a table with text after a sub-list', '<li>a<ul><li>b</li></ul><table><tbody><tr><td>c</td></tr></tbody></table></li>', [['a', 1], ['TABLE', 0]]],
+        // A checkbox stays in a row's text when flattened, a nested row's own too.
+        ['an empty nested task row in a quote after a sub-list',
+            '<li>a<ul><li>b</li></ul><blockquote><ul data-task-list><li data-task><input type="checkbox"><span></span></li></ul></blockquote></li>',
+            [['a', 1], ['BLOCKQUOTE', 0]]],
     ])('makes %s into rows split at the content after each nested list', (_name, html, rows) => {
         expect(rowsOf(itemOf(html))).toEqual(rows);
     });

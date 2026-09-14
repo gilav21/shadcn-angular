@@ -5266,39 +5266,44 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const parentList = li.parentElement;
         const listType = parentList?.tagName === 'OL' ? 'ol' : 'ul';
         const nestedList = this.listToAppendUnder(prevLi, listType, parentList?.dataset['taskList'] !== undefined);
-        const caret = this.caretOffsetInLine(li);
+        const caret = this.caretInLine(li);
         nestedList.appendChild(li);
         separateListKinds(nestedList);
-        this.restoreCaretInLine(li, caret);
+        if (caret) this.restoreCaretInLine(caret.owner, caret.offset);
 
         this.applyMutation({ focus: true, updateActiveFormats: true });
     }
 
     /**
-     * The caret's character offset within a line's own text, or null when the
-     * caret is elsewhere.
+     * The caret's line inside `li`, as the element that owns the line and the
+     * character offset within the line's own text; null when the caret is
+     * elsewhere.
      *
      * Moving a list item re-parents the node the selection points at, which
-     * silently drops the caret onto the editor container. Capturing an offset
-     * before the move and reapplying it after keeps the caret where the user
-     * left it, so a second `Tab` still finds a list item to indent instead of
-     * falling through and inserting a literal tab.
+     * silently drops the caret onto the editor container. Capturing the caret
+     * before the move and reapplying it after keeps it where the user left it, so
+     * a second `Tab` still finds a list item to indent instead of falling through
+     * and inserting a literal tab. The line is kept as its owner rather than
+     * looked up from the item again: an item holding a paragraph, a code block or
+     * a table is no line, so the lookup climbed to an ancestor's line and the
+     * caret landed in another item, or nowhere.
      */
-    private caretOffsetInLine(li: HTMLElement): number | null {
+    private caretInLine(li: HTMLElement): { owner: HTMLElement; offset: number } | null {
         const editor = this.editorDiv?.nativeElement;
         const selection = this.document.getSelection();
         if (!editor || !selection || selection.rangeCount === 0) return null;
         const range = selection.getRangeAt(0);
         if (!li.contains(range.startContainer)) return null;
-        return caretPosition(buildLineIndex(editor), range)?.offset ?? null;
+        const position = caretPosition(buildLineIndex(editor), range);
+        return position ? { owner: position.line.owner, offset: position.offset } : null;
     }
 
-    /** Put the caret back at a character offset into a line's own text. */
-    private restoreCaretInLine(li: HTMLElement, offset: number | null): void {
+    /** Put the caret back at a character offset into the text of the line `owner` owns. */
+    private restoreCaretInLine(owner: HTMLElement, offset: number): void {
         const editor = this.editorDiv?.nativeElement;
         const selection = this.document.getSelection();
-        if (offset === null || !editor || !selection) return;
-        const line = lineOf(li, editor);
+        if (!editor || !selection) return;
+        const line = lineOf(owner, editor);
         if (!line) return;
         const range = lineOwnNodes(line).length > 0
             ? placeCaretIn(line, offset)
@@ -5332,10 +5337,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private outdentListItem(): void {
         const li = this.getParentListItem();
         if (!li) return;
-        const caret = this.caretOffsetInLine(li);
+        const caret = this.caretInLine(li);
         const line = this.moveItemOutOneLevel(li);
         if (!line) return;
-        this.restoreCaretInLine(line, caret);
+        // The item's own line may now be a paragraph, when a block came along
+        // with it (see carryTrailingContent).
+        if (caret) this.restoreCaretInLine(caret.owner === li ? line : caret.owner, caret.offset);
 
         this.applyMutation({ focus: true, updateActiveFormats: true });
     }

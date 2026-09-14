@@ -3183,6 +3183,27 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
             expect(Array.from(items[1].children, (child) => child.nodeName)).toEqual(children);
         });
 
+        it.each([
+            ['indenting an item holding a code block', 'indent', '<ul><li>A</li><li><p>X</p><pre><code>c</code></pre></li></ul>'],
+            ['indenting an item of a loose list', 'indent', '<ul><li><p>A</p></li><li><p>X</p></li></ul>'],
+            ['outdenting an item holding a code block', 'outdent', '<ul><li>A<ul><li><p>G</p><ul><li><p>X</p><pre><code>c</code></pre></li></ul></li></ul></li></ul>'],
+            ['outdenting an item holding blocks that carries loose text', 'outdent', '<ul><li><p>G</p><ul><li><p>X</p><pre><code>c</code></pre></li></ul>tail</li></ul>'],
+        ])('%s keeps the caret in the line it was in', (_name, command, html) => {
+            // The caret went back to the line found from the item, and an item
+            // holding blocks is no line: the lookup climbed to an ancestor's line,
+            // so the caret landed in another item, or was lost.
+            component.writeValue(html);
+            fixture.detectChanges();
+            const x = Array.from(editor.querySelectorAll('p')).find((p) => p.textContent === 'X')!;
+            caretIn(x.firstChild as Text, 1);
+
+            component.onFormatCommand(command);
+
+            const selection = document.getSelection()!;
+            expect(selection.anchorNode?.textContent).toBe('X');
+            expect(selection.anchorOffset).toBe(1);
+        });
+
         it('outdenting an item that holds blocks gives the loose text it carries a paragraph', () => {
             // Only what was carried was checked for a block, so text carried in
             // beside the item's own blocks stayed loose, belonging to no line.

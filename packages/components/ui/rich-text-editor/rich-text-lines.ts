@@ -591,16 +591,18 @@ export function nodeShowsNothing(node: Node): boolean {
 
 /**
  * Whether a node shows something once flattened into a task row's text (see
- * flattenIntoRowText): text other than placeholders, or an inline element such as
- * an image that the flattening keeps. A rule is dropped and a block keeps only its
- * text, so a rule, an empty block or an empty table shows nothing there.
+ * flattenIntoRowText): text other than placeholders, or an inline element the
+ * flattening keeps, such as an image or any checkbox -- a nested row's own too,
+ * which is not an author's input where it sits but lands in the row's text all the
+ * same. A rule is dropped and a block keeps only its text, so a rule, an empty
+ * block or an empty table shows nothing there.
  */
 function showsInRowText(node: Node): boolean {
     if ((node.textContent ?? '').replaceAll(PLACEHOLDERS, '').trim() !== '') return true;
     if (node.nodeType !== Node.ELEMENT_NODE) return false;
     const el = node as Element;
     return [el, ...Array.from(el.querySelectorAll('*'))]
-        .some((inner) => (REPLACED_TAGS.has(inner.nodeName) || isAuthorInput(inner)) && isPhrasing(inner));
+        .some((inner) => (REPLACED_TAGS.has(inner.nodeName) || inner.nodeName === 'INPUT') && isPhrasing(inner));
 }
 
 /**
