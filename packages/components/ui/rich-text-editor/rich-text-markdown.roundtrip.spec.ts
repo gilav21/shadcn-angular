@@ -430,6 +430,10 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         ['a heading ending in a newline', '<h2>t\n</h2><p>z</p>'],
         ['loose text after a rule', '<pre><code>x</code></pre>\n<hr>\ntext'],
         ['a checkbox between words', '<p>a <input type="checkbox"> b</p>'],
+        ['an empty loose element between blocks', '<p>a</p><i></i><p>b</p>'],
+        ['a blank loose element between blocks', '<p>a</p><b> </b><p>b</p>'],
+        ['a loose checkbox between blocks', '<p>a</p><input type="checkbox"><p>b</p>'],
+        ['a loose image between blocks', '<p>a</p><img src="https://x.test/i.png" alt="pic"><p>b</p>'],
     ])('writes %s so the second save equals the first', (_name, html) => {
         // A space ending a line shows nothing but was written, and the next save
         // dropped it; loose text after a rule went on the rule's next line, and the

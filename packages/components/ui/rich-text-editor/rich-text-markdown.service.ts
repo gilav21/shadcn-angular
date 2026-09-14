@@ -668,14 +668,16 @@ function removeUnaddressedImages(root: HTMLElement): void {
  * Give each run of loose inline content at the top of the document a paragraph,
  * as the page renders it. Written bare, text after a rule went on the rule's next
  * line, and the next save, which read it as a paragraph, added a blank line.
- * A run of only blank text or line breaks gets none.
+ * A run a save writes nothing for gets none (see flush).
  */
 function wrapLooseTopLevelText(root: HTMLElement): void {
     let run: ChildNode[] = [];
     const flush = (): void => {
-        const shows = run.some((node) => (node.nodeType === Node.TEXT_NODE
-            ? (node.textContent ?? '').trim() !== ''
-            : node.nodeType === Node.ELEMENT_NODE && node.nodeName !== 'BR'));
+        // Only a run a save writes something for: text, or an image. A paragraph
+        // around an empty or blank element, a break or an input wrote nothing, and
+        // the blank lines around it made the next save differ.
+        const shows = run.some((node) => (node.textContent ?? '').trim() !== ''
+            || (node.nodeType === Node.ELEMENT_NODE && (node.nodeName === 'IMG' || (node as Element).querySelector('img') !== null)));
         if (shows) {
             const paragraph = root.ownerDocument.createElement('p');
             run[0].before(paragraph);
