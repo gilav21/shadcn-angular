@@ -4646,16 +4646,16 @@
       "lines": 888
     },
     "rich-text-editor/rich-text-markdown.roundtrip.spec.ts": {
-      "bytes": 61672,
-      "lines": 1191
+      "bytes": 63179,
+      "lines": 1216
     },
     "rich-text-editor/rich-text-markdown.service.spec.ts": {
-      "bytes": 128993,
-      "lines": 2515
+      "bytes": 130178,
+      "lines": 2533
     },
     "rich-text-editor/rich-text-markdown.service.ts": {
-      "bytes": 143357,
-      "lines": 3153
+      "bytes": 146315,
+      "lines": 3213
     },
     "rich-text-editor/rich-text-paste-normalizer.service.spec.ts": {
       "bytes": 106418,

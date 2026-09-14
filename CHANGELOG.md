@@ -412,10 +412,12 @@ means no policy and today's behaviour exactly.
   - Tab and Shift+Tab on a list item holding a paragraph, a code block or a table
     keep the caret in the line it was in; it landed in another item or was lost.
   - A hand-written quote, heading or details block indented past a list item's
-    content column stays whole; a link or image whose address holds a code span or
-    a raw tag reads as text instead of breaking the attribute; inline code next
+    content column stays whole; a link or image address holding
+    backticks, "<" or a raw tag is read as the characters typed instead of breaking
+    the attribute or gaining "&lt;"; inline code next
     to an empty code element settles; and an image with no address is left out of
-    a markdown save instead of coming back as "![alt]()" text.
+    a markdown save instead of coming back as "![alt]()" text. A line's trailing
+    space and loose text after a rule no longer make the second save differ.
   - Italic runs side by side stay italic; code written inside a heading or with
     a blank line keeps its spaces and newlines; a code block whose language is
     "c++" or "c#" stays a code block; an image whose alt text holds "]" stays an

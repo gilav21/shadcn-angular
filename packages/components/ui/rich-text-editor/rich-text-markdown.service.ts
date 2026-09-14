@@ -664,6 +664,32 @@ function removeUnaddressedImages(root: HTMLElement): void {
     }
 }
 
+/**
+ * Give each run of loose inline content at the top of the document a paragraph,
+ * as the page renders it. Written bare, text after a rule went on the rule's next
+ * line, and the next save, which read it as a paragraph, added a blank line.
+ * A run of only blank text or line breaks gets none.
+ */
+function wrapLooseTopLevelText(root: HTMLElement): void {
+    let run: ChildNode[] = [];
+    const flush = (): void => {
+        const shows = run.some((node) => (node.nodeType === Node.TEXT_NODE
+            ? (node.textContent ?? '').trim() !== ''
+            : node.nodeType === Node.ELEMENT_NODE && node.nodeName !== 'BR'));
+        if (shows) {
+            const paragraph = root.ownerDocument.createElement('p');
+            run[0].before(paragraph);
+            paragraph.append(...run);
+        }
+        run = [];
+    };
+    for (const node of Array.from(root.childNodes)) {
+        if (isPhrasing(node)) run.push(node);
+        else flush();
+    }
+    flush();
+}
+
 /** Whether code shows something a save writes without text: a break or an image (see removeUnaddressedImages). */
 function codeShowsWithoutText(code: Element): boolean {
     return code.querySelector('br, img') !== null;
@@ -674,12 +700,7 @@ function isCodeWrittenAsNothing(node: Node): boolean {
     return node.nodeName === 'CODE' && node.textContent === '' && !codeShowsWithoutText(node as Element);
 }
 
-/**
- * Whether a link or image target holds a parked code span or raw tag. CommonMark
- * gives both precedence over a link, so such a target is text: taken as a target,
- * the token was restored inside the attribute, which broke it and put invented
- * text on the page, or it was percent-encoded into the address.
- */
+/** Whether a link or image target holds a parked code span or raw tag (see targetSource). */
 function holdsParkedToken(target: string): boolean {
     return target.includes(RAW_TAG_OPEN) || target.includes(INLINE_CODE_OPEN);
 }
@@ -997,6 +1018,7 @@ function escapeMarkdownText(text: string): string {
 function prepareForMarkdown(root: HTMLElement): void {
     unnestPastTheCap(root);
     removeUnaddressedImages(root);
+    wrapLooseTopLevelText(root);
     root.normalize();
     collapseRenderedWhitespace(root);
 }
@@ -1082,8 +1104,9 @@ function pushElementTokens(element: Element, out: LineToken[]): void {
 
 /**
  * Collapse whitespace as the browser renders it: a run of blanks is one space,
- * and a space is dropped after another space and at the start of a line, after
- * a line break too, wherever the elements around it split the text.
+ * and a space is dropped after another space, at the start of a line, after a
+ * line break too, and at the end of a line, wherever the elements around it
+ * split the text.
  */
 function collapseRenderedWhitespace(root: HTMLElement): void {
     const tokens = lineTokens(root, []);
@@ -1092,16 +1115,30 @@ function collapseRenderedWhitespace(root: HTMLElement): void {
 
 function collapseAlongLines(tokens: readonly LineToken[]): void {
     let afterSpace = true;
+    // The text that ends the line so far. Its trailing space shows nothing either:
+    // written, "word\n" before a heading saved as "word " and the next save dropped it.
+    let lineEnd: Text | null = null;
     for (const token of tokens) {
         if (typeof token === 'string') {
+            if (token === 'break') trimLineEnd(lineEnd);
+            lineEnd = null;
             afterSpace = token === 'break';
             continue;
         }
         let text = token.data.replaceAll(/[ \t\n\r\f]+/g, ' ');
         if (afterSpace && text.startsWith(' ')) text = text.slice(1);
-        if (text !== '') afterSpace = text.endsWith(' ');
+        if (text !== '') {
+            afterSpace = text.endsWith(' ');
+            lineEnd = token;
+        }
         token.data = text;
     }
+    trimLineEnd(lineEnd);
+}
+
+/** Drop the space a line's last text ends with. */
+function trimLineEnd(text: Text | null): void {
+    if (text?.data.endsWith(' ')) text.data = text.data.slice(0, -1);
 }
 
 /** A text node as markdown text; its whitespace is already as rendered (see prepareForMarkdown). */
@@ -1193,7 +1230,8 @@ export class RichTextMarkdownService {
         const protectedEscapes: string[] = [];
         html = this.protectEscapes(html, protectedEscapes);
 
-        html = this.protectInlineCode(html, protectedInline);
+        const inlineSources: string[] = [];
+        html = this.protectInlineCode(html, protectedInline, inlineSources);
 
 
         const protectedTags: string[] = [];
@@ -1217,8 +1255,8 @@ export class RichTextMarkdownService {
         html = this.parseLineBreaks(html);
         html = this.parseParagraphs(html, protectedTags);
 
-        html = this.parseImages(html, protectedInline, protectedTags);
-        html = this.parseLinks(html);
+        html = this.parseImages(html, protectedInline, inlineSources, protectedTags);
+        html = this.parseLinks(html, inlineSources, protectedTags);
         html = this.parseBoldItalic(html);
         html = this.parseStrikethrough(html);
 
@@ -1386,7 +1424,7 @@ export class RichTextMarkdownService {
      * content. Running `parseInlineCode` at the end instead meant the emphasis
      * and line-break passes had already been through the span's body.
      */
-    private protectInlineCode(markdown: string, store: string[]): string {
+    private protectInlineCode(markdown: string, store: string[], sources: string[]): string {
         // Strip our own delimiters from the input first, exactly as the fence
         // and raw-tag stores do. Without it a document carrying U+E112/U+E113
         // could forge a token, and restoreInlineCode would expand it -- so a
@@ -1423,6 +1461,8 @@ export class RichTextMarkdownService {
             const code = stripCodeSpanPadding(source.slice(i, closeIndex));
             out.push(`${INLINE_CODE_OPEN}${store.length}${INLINE_CODE_CLOSE}`);
             store.push(`<code>${this.escapeHtml(code)}</code>`);
+            // The span as written, backticks included, for a link target it sits in.
+            sources.push(source.slice(openStart, closeIndex + runLength));
             i = closeIndex + runLength;
         }
 
@@ -2000,6 +2040,24 @@ export class RichTextMarkdownService {
     }
 
     /**
+     * A link or image target as the author typed it, or null when it is no target.
+     *
+     * Earlier passes had rewritten it: a code span and a raw tag were parked, and a
+     * stray "<" or ">" was escaped. Taken as they were, a parked token was restored
+     * inside the attribute, breaking it, and an escaped "<" was escaped again, so
+     * the address held "&lt;". CommonMark reads a target from its characters,
+     * backticks and "<" included. A target with a space is no target; only one that
+     * held a code span or a tag is checked for it, since a plain target with a
+     * space has always been read as a link.
+     */
+    private targetSource(target: string, inlineSources: readonly string[], tagStore: readonly string[]): string | null {
+        const typed = restoreParked(restoreParked(target, INLINE_CODE_OPEN, INLINE_CODE_CLOSE, inlineSources), RAW_TAG_OPEN, RAW_TAG_CLOSE, tagStore)
+            .replaceAll('&lt;', '<')
+            .replaceAll('&gt;', '>');
+        return holdsParkedToken(target) && /\s/.test(typed) ? null : typed;
+    }
+
+    /**
      * An image's alt text as attribute text: a parked code span becomes the text it
      * holds, and a parked raw tag the escaped characters of that tag. Restored only
      * after the attribute was written, a tag's quotes ended the attribute and the
@@ -2009,9 +2067,10 @@ export class RichTextMarkdownService {
         return restoreParked(resolveInlineCodeText(alt, inlineStore), RAW_TAG_OPEN, RAW_TAG_CLOSE, tagStore, (tag) => this.escapeHtml(tag));
     }
 
-    private parseImages(html: string, inlineStore: readonly string[], tagStore: readonly string[]): string {
-        return html.replaceAll(MEDIA_TARGET_PATTERN.image, (match, alt, src) => {
-            if (holdsParkedToken(src)) return match;
+    private parseImages(html: string, inlineStore: readonly string[], inlineSources: readonly string[], tagStore: readonly string[]): string {
+        return html.replaceAll(MEDIA_TARGET_PATTERN.image, (match, alt, target) => {
+            const src = this.targetSource(target, inlineSources, tagStore);
+            if (src === null) return match;
             const safeSrc = this.sanitizer.sanitizeImageSrc(src);
             if (!safeSrc) {
                 // A POLICY-blocked image keeps its element and alt, so the
@@ -2035,9 +2094,10 @@ export class RichTextMarkdownService {
     /**
      * Parse links [text](url).
      */
-    private parseLinks(html: string): string {
-        return html.replaceAll(MEDIA_TARGET_PATTERN.link, (match, text, url) => {
-            if (holdsParkedToken(url)) return match;
+    private parseLinks(html: string, inlineSources: readonly string[], tagStore: readonly string[]): string {
+        return html.replaceAll(MEDIA_TARGET_PATTERN.link, (match, text, target) => {
+            const url = this.targetSource(target, inlineSources, tagStore);
+            if (url === null) return match;
             const safeUrl = this.sanitizer.sanitizeUrl(url);
             if (!safeUrl) return text;
             return `<a href="${this.attr(safeUrl)}" rel="noopener noreferrer">${text}</a>`;

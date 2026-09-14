@@ -423,6 +423,31 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         expect(saved(once)).toBe(once);
     });
 
+    it.each([
+        ['a paragraph ending in a newline before a heading', '<p>word\n</p><h1>h</h1>'],
+        ['a paragraph ending in a newline before a paragraph', '<p>word\n</p><p>next</p>'],
+        ['a quoted paragraph ending in a newline', '<blockquote><p>a\n</p></blockquote><p>z</p>'],
+        ['a heading ending in a newline', '<h2>t\n</h2><p>z</p>'],
+        ['loose text after a rule', '<pre><code>x</code></pre>\n<hr>\ntext'],
+    ])('writes %s so the second save equals the first', (_name, html) => {
+        // A space ending a line shows nothing but was written, and the next save
+        // dropped it; loose text after a rule went on the rule's next line, and the
+        // next save, reading it as a paragraph, added a blank line.
+        const first = service.toMarkdown(html);
+
+        expect(service.toMarkdown(service.toHtml(first))).toBe(first);
+        expect(read(service.toHtml(first)).textContent?.replaceAll(/\s+/g, '')).toBe(read(html).textContent?.replaceAll(/\s+/g, ''));
+    });
+
+    it.each([
+        ['text directly before a heading', 'word\n# h'],
+        ['text directly after a rule', '```\nx\n```\n---\ntext'],
+    ])('settles hand-written markdown with %s from its first save', (_name, markdown) => {
+        const first = service.toMarkdown(service.toHtml(markdown));
+
+        expect(service.toMarkdown(service.toHtml(first))).toBe(first);
+    });
+
     it('keeps a break inside inline code, and settles', () => {
         // The code span was written from its text, which a break does not have.
         const once = saved('<p>x <code>a<br>b</code> y</p>');

@@ -2432,13 +2432,31 @@ describe('RichTextMarkdownService', () => {
         });
 
         it.each([
+            ['backticks in a link target', '[x](https://a.test/`b`c)', 'a', '/%60b%60c'],
+            ['backticks in an image target', '![p](https://a.test/`b`.png)', 'img', '/%60b%60.png'],
+            ['a "<" in a link target', '[a](https://e.com/?q=<b>)', 'a', '?q=%3Cb%3E'],
+            ['a tag inside a link target', '[a](https://e.com/a<b>c)', 'a', '/a%3Cb%3Ec'],
+            ['a "<" in an image target', '![p](https://a.test/<b>.png)', 'img', '/%3Cb%3E.png'],
+        ])('reads %s as the characters typed, and settles', (_name, markdown, element, ending) => {
+            // CommonMark reads a target from its characters. A parked code span made
+            // it text, and an escaped "<" was escaped again into "&lt;" in the address.
+            const out = readMarkdown(markdown);
+            const node = out.querySelector(element) as (HTMLAnchorElement & HTMLImageElement) | null;
+            const address = element === 'a' ? node?.href : node?.src;
+            const once = service.toMarkdown(out.innerHTML);
+
+            expect(address?.slice(-ending.length)).toBe(ending);
+            expect(out.textContent).not.toContain('`');
+            expect(service.toMarkdown(service.toHtml(once))).toBe(once);
+        });
+
+        it.each([
             ['a raw tag in a link target', '[x](https://a.test/<span title="q">y</span>)', 'a'],
-            ['inline code in a link target', '[x](https://a.test/`b`c)', 'a'],
-            ['inline code in an image target', '![p](https://a.test/`b`.png)', 'img'],
             ['a raw tag in an image target', '![p](https://a.test/<span title="q">y</span>.png)', 'img'],
-        ])('reads %s as text, not a link or image, and settles', (_name, markdown, element) => {
-            // Taken as a target, the parked token was restored inside the attribute,
-            // breaking it, or percent-encoded into the address.
+            ['a code span with a space in a link target', '[x](https://a.test/`b c`)', 'a'],
+        ])('reads %s holding a space as text, not a link or image, and settles', (_name, markdown, element) => {
+            // A target with a space is no target. Taken as one, the parked token was
+            // restored inside the attribute, breaking it.
             const out = readMarkdown(markdown);
             const once = service.toMarkdown(out.innerHTML);
 
