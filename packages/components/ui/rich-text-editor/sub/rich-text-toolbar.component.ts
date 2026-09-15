@@ -282,6 +282,13 @@ export class RichTextToolbarComponent implements AfterViewInit {
   readonly readonly = input<boolean>(false);
 
   /**
+   * Whether the Text style select can change the caret's line. The editor sets
+   * it false where a heading is refused, and the select is disabled there
+   * rather than accepting a pick nothing would honour.
+   */
+  readonly textStyleAvailable = input<boolean>(true);
+
+  /**
    * Locale supplying the button tooltips and the toolbar's `aria-label`. Its
    * `rtl` flag also mirrors the alignment/indent icons and tooltips, so
    * `'alignLeft'` shows the right-aligned glyph in an RTL locale.
@@ -343,6 +350,9 @@ export class RichTextToolbarComponent implements AfterViewInit {
   }
 
   readonly interactionDisabled = computed(() => this.disabled() || this.readonly());
+
+  /** The Text style select's disabled state: whatever disables the toolbar, plus a line no text style can change. */
+  readonly textStyleDisabled = computed(() => this.interactionDisabled() || !this.textStyleAvailable());
 
   readonly containerClasses = computed(() =>
     cn(
@@ -502,10 +512,20 @@ export class RichTextToolbarComponent implements AfterViewInit {
    * forwarded, so a tampered-with `<option>` cannot inject a command.
    */
   onTextStyleChange(event: Event): void {
-    if (this.interactionDisabled()) return;
-    const value = (event.target as HTMLSelectElement).value as TextStyleOption;
-    if (!TEXT_STYLE_OPTIONS.includes(value)) return;
-    this.formatCommand.emit(value);
+    const select = event.target as HTMLSelectElement;
+    const value = select.value as TextStyleOption;
+    // The browser has already moved the select, and no binding moves it back:
+    // each option's `selected` follows `textStyleValue()`, which changes only
+    // when the editor's block does. A pick the editor refused left the select
+    // showing a heading over normal text, on that line and every line after,
+    // and picking the same heading again on a real paragraph fired no change
+    // event at all. So the select goes back to the caret's actual block here,
+    // and a pick that did apply moves it forward on the next change detection.
+    const actual = this.textStyleValue();
+    if (!this.textStyleDisabled() && TEXT_STYLE_OPTIONS.includes(value)) {
+      this.formatCommand.emit(value);
+    }
+    select.value = actual;
   }
 
   /**

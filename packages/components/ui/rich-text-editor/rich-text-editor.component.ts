@@ -682,6 +682,15 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     } | null = null;
     private readonly htmlContent = signal<string>('');
     readonly activeFormats = signal<Set<string>>(new Set());
+    /**
+     * Whether the Text style select can change the caret's line.
+     *
+     * False where a heading is refused -- a list item, a table cell, a summary,
+     * a code block, or a paragraph inside any of them -- so the toolbar disables
+     * the select there instead of accepting a pick the editor then ignores.
+     * Worked out by the same rule the command uses, so the two cannot disagree.
+     */
+    readonly textStyleAvailable = signal(true);
     readonly currentFontSize = signal<string>('');
     readonly currentFontFamily = signal<string>('');
     readonly currentFontColor = signal<string>('');
@@ -6613,6 +6622,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         // A task list is a <ul> to the browser; only its own button reads pressed.
         if (formats.has('taskList')) formats.delete('bulletList');
         this.activeFormats.set(formats);
+        this.textStyleAvailable.set(this.caretTakesTextStyle());
         this.detectCurrentFontSize();
         this.detectCurrentFontFamily();
         this.detectCurrentColors();
@@ -7179,14 +7189,52 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (!ctx || lines.length === 0) return;
         let last: HTMLElement | null = null;
         for (const line of lines) {
-            // A code block is not prose, and a line inside an item, a cell or a
-            // summary -- even a paragraph within one -- has no heading form in
-            // markdown: a save turned it into a literal "# ". Asking the line's
-            // own tag missed the paragraph inside an item.
-            if (lineTagIsFixed(line) || this.structureOf(line).length > 0) continue;
+            if (!this.lineTakesTextStyle(line)) continue;
             last = this.replaceBlockTag(line.owner, tag);
         }
         this.restoreToggleCaret(ctx, last);
+    }
+
+    /**
+     * Whether a heading or Normal text may re-tag a line.
+     *
+     * A code block is not prose, and a line inside an item, a cell or a summary
+     * -- even a paragraph within one -- has no heading form in markdown: a save
+     * turned it into a literal "# ". Asking the line's own tag missed the
+     * paragraph inside an item. The toolbar's enabled state reads this same rule.
+     */
+    private lineTakesTextStyle(line: Line): boolean {
+        return !lineTagIsFixed(line) && this.structureOf(line).length === 0;
+    }
+
+    /**
+     * Whether a text style command would change anything at the caret, worked
+     * out without touching the document.
+     *
+     * `commandLines` wraps loose text in a paragraph while it resolves a range,
+     * which is right for a command and wrong for a check that runs on every
+     * caret move, so the lines are read here instead. Loose text has no line
+     * yet, and a command would give it one it can re-tag, so it counts as
+     * available. A selection counts the lines a command would act on: those in
+     * the first line's container, of which one taking a text style is enough.
+     */
+    private caretTakesTextStyle(): boolean {
+        const editor = this.editorDiv?.nativeElement;
+        const selection = this.document.getSelection();
+        if (!editor || !selection || selection.rangeCount === 0) return true;
+        const range = selection.getRangeAt(0);
+        if (!editor.contains(range.startContainer)) return true;
+        const from = this.boundaryNodeOf(range.startContainer, range.startOffset, editor);
+        const to = this.boundaryNodeOf(range.endContainer, range.endOffset, editor);
+        if (!from || !to) return true;
+        if (range.collapsed) {
+            const line = lineOf(from, editor);
+            return line ? this.lineTakesTextStyle(line) : true;
+        }
+        const touched = linesBetween(buildLineIndex(editor), from, to);
+        if (touched.length === 0) return true;
+        const container = touched[0].owner.parentNode;
+        return touched.some((line) => line.owner.parentNode === container && this.lineTakesTextStyle(line));
     }
 
     /**

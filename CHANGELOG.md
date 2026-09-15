@@ -254,6 +254,11 @@ means no policy and today's behaviour exactly.
     a save dropped them.
   - A selection reaching from a paragraph into a list stops at the list's edge
     instead of pulling items out of it.
+- **The Text style select is disabled where a heading cannot apply, and
+  never shows a style the caret's line does not have.** Picking a heading in a
+  list item did nothing, but the select kept showing that heading on that line
+  and every line after it, and picking the same heading on a real paragraph then
+  did nothing either.
 - **Headings and Normal text are applied by the editor, not the browser.**
   `formatBlock` applied the tag to whichever ancestor it chose, so a heading set
   inside a list item wrapped the entire list in the heading. Headings now change

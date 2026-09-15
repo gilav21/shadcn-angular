@@ -629,6 +629,49 @@ describe('RichTextToolbarComponent', () => {
             expect(emitted).toEqual(['heading2']);
         });
 
+        it('is disabled, and emits nothing, where the caret line takes no text style', () => {
+            fixture.componentRef.setInput('items', ['textStyle']);
+            fixture.componentRef.setInput('textStyleAvailable', false);
+            fixture.detectChanges();
+            const select = selectEl();
+            expect(select.disabled).toBe(true);
+
+            const emitted: string[] = [];
+            component.formatCommand.subscribe((command: string) => emitted.push(command));
+            select.value = 'heading1';
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            fixture.detectChanges();
+
+            expect(emitted).toEqual([]);
+            expect(select.value).toBe('paragraph');
+        });
+
+        it('goes back to the caret block when the editor does not apply the pick', async () => {
+            // The browser moves the select before anything else runs, and no
+            // binding moves it back while the caret's block is unchanged, so a
+            // refused pick left a heading showing over normal text.
+            const select = showSelect(['paragraph']);
+            select.value = 'heading1';
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            fixture.detectChanges();
+            await Promise.resolve();
+
+            expect(select.value).toBe('paragraph');
+        });
+
+        it('moves forward to the block a pick applied', async () => {
+            // A fix that puts the select back later than the pick, from a value
+            // read before it, would undo a heading the editor did apply.
+            const select = showSelect(['paragraph']);
+            select.value = 'heading2';
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            fixture.componentRef.setInput('activeFormats', new Set(['heading2']));
+            fixture.detectChanges();
+            await Promise.resolve();
+
+            expect(select.value).toBe('heading2');
+        });
+
         it('is disabled and silent while the toolbar is disabled', () => {
             fixture.componentRef.setInput('items', ['textStyle']);
             fixture.componentRef.setInput('disabled', true);

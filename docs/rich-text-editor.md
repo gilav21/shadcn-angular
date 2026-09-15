@@ -242,7 +242,9 @@ text / Heading 1 / 2 / 3 — rather than four buttons. It both reflects the
 caret's block and sets it. It changes paragraphs and headings only: with the
 caret in a list item, a table cell, a disclosure's summary or a code block --
 or in a paragraph inside any of them -- the line is left as it is, because a
-heading inside any of those does not survive a Markdown save. See
+heading inside any of those does not survive a Markdown save. The select is
+disabled while the caret is in one of those lines, and it always shows the
+caret's actual block. See
 [Block commands inside lists, tables and summaries](#block-commands-inside-lists-tables-and-summaries).
 
 ```html

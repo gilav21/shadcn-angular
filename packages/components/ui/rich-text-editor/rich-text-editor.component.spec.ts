@@ -6001,6 +6001,110 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         expect(row.querySelector(':scope > span')?.textContent).toBe('todo');
     });
 
+    const textStyleSelect = (): HTMLSelectElement =>
+        (fixture.nativeElement as HTMLElement).querySelector<HTMLSelectElement>('[data-slot="rich-text-toolbar-text-style"]')!;
+
+    /** Put the caret in `selector`'s text, or select from it to the end of `endSelector`'s. */
+    const placeForTextStyle = (selector: string, endSelector?: string): void => {
+        const start = editor.querySelector(selector)!.firstChild!;
+        if (!endSelector) {
+            caretIn(start, 1);
+        } else {
+            const end = editor.querySelector(endSelector)!.firstChild!;
+            const range = document.createRange();
+            range.setStart(start, 0);
+            range.setEnd(end, (end.textContent ?? '').length);
+            const selection = document.getSelection()!;
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+        component.onSelectionChange();
+        fixture.detectChanges();
+    };
+
+    // The select used to accept a pick the editor then ignored, and kept
+    // showing that heading over normal text. It is disabled wherever the
+    // command would change nothing, by the command's own rule.
+    it.each([
+        ['a paragraph', '<p>text</p>', 'p', true],
+        ['a heading', '<h2>text</h2>', 'h2', true],
+        ['a task row', '<ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox"><span>text</span></li></ul>', 'li[data-task] > span', false],
+        ['a list item', '<ul><li>text</li></ul>', 'li', false],
+        ['a paragraph inside a list item', '<ul><li><p>text</p></li></ul>', 'li > p', false],
+        ['a table cell', '<table><tbody><tr><td>text</td></tr></tbody></table>', 'td', false],
+        ['a summary', '<details><summary>text</summary><p>body</p></details>', 'summary', false],
+        ['a code block', '<pre><code>text</code></pre>', 'code', false],
+    ] as const)('the text style select is enabled in %s exactly when a heading applies there', (_name, html, selector, applies) => {
+        component.writeValue(html);
+        fixture.detectChanges();
+        placeForTextStyle(selector);
+        const available = component.textStyleAvailable();
+        const disabled = textStyleSelect().disabled;
+        const before = editor.innerHTML;
+
+        component.onFormatCommand('heading1');
+
+        expect(available).toBe(applies);
+        expect(disabled).toBe(!applies);
+        expect(editor.innerHTML !== before).toBe(applies);
+    });
+
+    // Not a list of answers: whatever the command does in each of these, the
+    // select must say the same, so the indicator cannot drift from the rule.
+    it.each([
+        ['a quoted paragraph', '<blockquote><p>text</p></blockquote>', 'blockquote p', undefined],
+        ['a nested list item', '<ul><li>top<ul><li>text</li></ul></li></ul>', 'li li', undefined],
+        ['a heading inside a cell', '<table><tbody><tr><td><h2>text</h2></td></tr></tbody></table>', 'td h2', undefined],
+        ['a paragraph in a details body', '<details><summary>head</summary><p>text</p></details>', 'details > p', undefined],
+        ['a selection from a paragraph into a list', '<p>text</p><ul><li>item</li></ul>', 'p', 'li'],
+        ['a selection from a list into a paragraph', '<ul><li>text</li></ul><p>after</p>', 'li', 'p'],
+    ] as const)('the text style select agrees with the heading command in %s', (_name, html, selector, endSelector) => {
+        component.writeValue(html);
+        fixture.detectChanges();
+        placeForTextStyle(selector, endSelector);
+        const available = component.textStyleAvailable();
+        const before = editor.innerHTML;
+
+        component.onFormatCommand('heading1');
+
+        expect(available).toBe(editor.innerHTML !== before);
+    });
+
+    it('the text style select shows the heading a pick applied', () => {
+        component.writeValue('<p>text</p>');
+        fixture.detectChanges();
+        placeForTextStyle('p');
+        const select = textStyleSelect();
+
+        select.value = 'heading1';
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        fixture.detectChanges();
+
+        expect(editor.querySelector('h1')?.textContent).toBe('text');
+        expect(select.value).toBe('heading1');
+    });
+
+    it('after a task row the select is back on normal text, and a heading on the next paragraph applies', () => {
+        // The reported sequence: the select stuck on a heading after a task
+        // row, and picking that heading on a real paragraph then did nothing.
+        component.writeValue('<ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox">'
+            + '<span>todo</span></li></ul><p>text</p>');
+        fixture.detectChanges();
+        placeForTextStyle('li[data-task] > span');
+        const select = textStyleSelect();
+        expect(select.disabled).toBe(true);
+        expect(select.value).toBe('paragraph');
+
+        placeForTextStyle('p');
+        expect(select.disabled).toBe(false);
+        expect(select.value).toBe('paragraph');
+
+        select.value = 'heading1';
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        fixture.detectChanges();
+        expect(editor.querySelector('h1')?.textContent).toBe('text');
+    });
+
     it('Delete into a line that has a sub-list puts the text above that list', () => {
         // With a task row the holder is the span and the sub-list is outside
         // it, so the insertion point never mattered. With a plain item the

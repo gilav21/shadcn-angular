@@ -21,7 +21,7 @@
                  bg-[right_0.25rem_center] bg-no-repeat rtl:bg-[left_0.25rem_center]"
           [attr.aria-label]="getTooltip('textStyle')"
           [title]="getTooltip('textStyle')"
-          [disabled]="interactionDisabled()"
+          [disabled]="textStyleDisabled()"
           (change)="onTextStyleChange($event)"
           (mousedown)="$event.stopPropagation()"
         >
