@@ -1,9 +1,11 @@
 import fs from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
-import { DEV_SERVER_PORT, FIXTURE_APP, WORKERS_ROOT } from './paths.js';
+import { DEV_SERVER_PORT, FIXTURE_APP, REPO_ROOT, WORKERS_ROOT } from './paths.js';
 import { resetFixtureApp } from './reset-app.js';
 import { npmInstall } from './run-cli.js';
+import { ensureSnapshot } from './snapshot.js';
+import { capture } from './spawn.js';
 
 /**
  * Directories inside a fixture that must SURVIVE a reset. `node_modules` is
@@ -115,17 +117,20 @@ function cloneTree(src: string, dest: string): void {
  * when it is by definition identical to HEAD. That avoids piping `git archive`
  * through `tar`, which is not portable — Windows resolves `tar` to a build that
  * rejects the invocation outright.
+ *
+ * It is keyed on the fixture's committed tree, so a commit that changes the
+ * fixture reaches the clones on the next run instead of only on worker 0.
  */
 async function ensurePristine(): Promise<void> {
-    const dir = pristineDir();
-    if (fs.existsSync(dir)) return;
-
-    await resetFixtureApp();
-    fs.mkdirSync(dir, { recursive: true });
-    for (const entry of fs.readdirSync(FIXTURE_APP)) {
-        if (PRESERVED.has(entry)) continue;
-        fs.cpSync(path.join(FIXTURE_APP, entry), path.join(dir, entry), { recursive: true });
-    }
+    const tree = (await capture('git', ['rev-parse', 'HEAD:e2e/fixture-app'], { cwd: REPO_ROOT })).trim();
+    await ensureSnapshot(pristineDir(), tree, async (dir) => {
+        await resetFixtureApp();
+        fs.mkdirSync(dir, { recursive: true });
+        for (const entry of fs.readdirSync(FIXTURE_APP)) {
+            if (PRESERVED.has(entry)) continue;
+            fs.cpSync(path.join(FIXTURE_APP, entry), path.join(dir, entry), { recursive: true });
+        }
+    });
 }
 
 /** Deletes everything a test could have written, keeping the caches. */
