@@ -34,8 +34,7 @@ import { RichTextEditorComponent } from '../..';
     imports: [RichTextEditorComponent, RichTextHistoryDirective],
     template: `<ui-rich-text-editor
         mode="html"
-        uiRteHistory
-        [uiRteHistoryButton]="button()"
+        [uiRteHistory]="{ toolbar: button() }"
         [uiRteHistoryLocale]="locale()"
         (historyRestore)="restored.set($event)"
     ></ui-rich-text-editor>`,
@@ -102,7 +101,7 @@ describe('RichTextHistoryDirective', () => {
     }
 
     function historyLength(h: Harness): number {
-        return (h.editorCmp as unknown as { history: unknown[] }).history.length;
+        return (h.editorCmp as unknown as { snapshots: unknown[] }).snapshots.length;
     }
 
     /** Call a protected panel method by name. */

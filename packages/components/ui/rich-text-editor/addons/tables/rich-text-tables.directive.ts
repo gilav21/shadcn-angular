@@ -7,7 +7,7 @@ import {
     input,
     output,
 } from '@angular/core';
-import { RichTextEditorAddonHost } from '../..';
+import { addonSetting, type RichTextAddonSetting, type RichTextAddonState, RichTextEditorAddonHost} from '../..';
 import { createLocaleBindings, type LocaleInput } from '../../../../lib/i18n';
 import { RichTextTablesButtonComponent } from './rich-text-tables-button.component';
 import {
@@ -49,10 +49,14 @@ export class RichTextTablesDirective {
 
     /** Locale for the addon UI: a registry key (`'en'`/`'he'`/…) or a full dictionary. */
     readonly uiRteTablesLocale = input<LocaleInput<RichTextTablesLocale>>();
-    /** Enable the tables addon (the bare `uiRteTables` attribute). Flip to `false` to remove the button live. */
-    readonly uiRteTables = input(true, { transform: coerceEnabled });
-    /** Sort order of the table button among addon toolbar slots; lower first. */
-    readonly uiRteTablesOrder = input(330);
+    /**
+     * Enable the addon (the bare `uiRteTables` attribute), or tune it: `[uiRteTables]="{ toolbar: false }"` keeps the feature without its button, `{ order: 100 }` moves the button.
+     * See {@link RichTextAddonOptions}.
+     */
+    readonly uiRteTables = input<RichTextAddonState, RichTextAddonSetting>(addonSetting(330)(true), { transform: addonSetting(330) });
+
+    /** Read this, not the whole setting, where only on/off matters: an options change must not remount the feature. */
+    private readonly enabled = computed(() => this.uiRteTables().enabled);
 
     /** Emits the inserted table's dimensions after it lands in the content. */
     readonly tableInsert = output<{ rows: number; cols: number }>();
@@ -70,10 +74,10 @@ export class RichTextTablesDirective {
             parent: this.injector,
         });
         effect((onCleanup) => {
-            if (!this.uiRteTables()) return;
+            if (!this.enabled()) return;
             onCleanup(this.host.toolbarSlots.register({
                 id: TABLE_SLOT_ID,
-                order: this.uiRteTablesOrder(),
+                order: this.uiRteTables().order,
                 component: RichTextTablesButtonComponent,
                 injector: slotInjector,
             }));
@@ -81,17 +85,13 @@ export class RichTextTablesDirective {
     }
 
     private insertTable(rows: number, cols: number): void {
-        if (this.host.disabled() || this.host.readonly()) return;
+        if (this.host.isDisabled() || this.host.readonly()) return;
         this.host.restoreSelection();
-        this.host.insertHtmlAtCaret(tableHtml(rows, cols));
+        this.host.insertBlockAtCaret(tableHtml(rows, cols));
         this.tableInsert.emit({ rows, cols });
     }
 }
 
-/** Coerce the bare `uiRteTables` attribute (empty string) to `true`. */
-function coerceEnabled(value: boolean | string | undefined): boolean {
-    return value === '' || value === true || value === undefined;
-}
 
 /** Build the empty-table markup the former built-in inserted, verbatim. */
 function tableHtml(rows: number, cols: number): string {

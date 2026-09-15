@@ -2,15 +2,27 @@ import { Directive, DestroyRef, effect, ElementRef, inject, input } from '@angul
 import {
     bindRichTextActions, type BindRichTextActionsOptions, type RichTextActionHandler,
 } from './actions-runtime';
+import { RICH_TEXT_ACTIONS_SANITIZER_RULES } from './rich-text-actions.serializer';
+import { RichTextSanitizerService } from '../..';
 
 /**
  * Binds {@link bindRichTextActions} to a host element and keeps it re-bound
  * across `[innerHTML]` swaps (a `MutationObserver` re-binds once per coalesced
  * mutation batch). Delivers typed action events to the handler map.
  *
+ * It also registers {@link RICH_TEXT_ACTIONS_SANITIZER_RULES} for its own
+ * lifetime, which is what makes actions work on a page with **no editor**:
+ * without it the sanitizer strips every `data-action-*` attribute, because
+ * those rules are otherwise only alive while an editor carrying `uiRteActions`
+ * is. The rules are registered in the constructor, before any child renders,
+ * so **placement matters** — put the directive on the rendering element or an
+ * ancestor of it in the same template. A directive attached dynamically, after
+ * the content has already been sanitized once, is too late.
+ *
  * @example
  * ```html
  * <article [innerHTML]="trustedHtml" [uiRichTextActions]="handlers"></article>
+ * <ui-rich-text-view mode="html" [value]="post" [uiRichTextActions]="handlers" />
  * ```
  */
 @Directive({ selector: '[uiRichTextActions]', standalone: true })
@@ -56,9 +68,13 @@ export class RichTextActionsBindDirective {
             this.ensureObserver();
         });
 
+        const unregisterRules = inject(RichTextSanitizerService)
+            .registerAttributeRules(RICH_TEXT_ACTIONS_SANITIZER_RULES);
+
         inject(DestroyRef).onDestroy(() => {
             this.unbind?.();
             this.observer?.disconnect();
+            unregisterRules();
         });
     }
 

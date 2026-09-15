@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseRegistryEntries, diffRegistryEntries, blockForFile } from './impact';
+import { parseRegistryEntries, diffRegistryEntries, blockForFile, addFileImpact, computeImpact } from './impact';
 import { registry, getComponentNames } from '../../packages/cli/src/registry/index.js';
 import { ALL_COMPONENTS, specLabel } from './specs.js';
 
@@ -131,6 +131,117 @@ describe('block impact analysis', () => {
             const scheduled = ALL_COMPONENTS.some(s => s.names.includes(name));
             expect(scheduled, `no e2e spec installs block "${name}"`).toBe(true);
             expect(labels.has(name), `no spec labelled "${name}"`).toBe(true);
+        }
+    });
+});
+
+/**
+ * T-27 / T-28 — the base editor's own harness. Before this, `e2e/harness/` held
+ * 14 `rte-*` folders and nothing installing the base alone, so a refactor of
+ * the 4.6k-line editor was covered only incidentally by whichever addon spec
+ * happened to touch the same path.
+ */
+describe('rich-text-editor base harness', () => {
+    const base = ALL_COMPONENTS.filter(s => specLabel(s) === 'rich-text-editor');
+
+    it('is auto-discovered exactly once, installing only the base', () => {
+        expect(base).toHaveLength(1);
+        expect(base[0].names).toEqual(['rich-text-editor']);
+    });
+
+    it('is not claimed by an EXPLICIT_SPECS entry (no label, no initArgs override)', () => {
+        // An auto-discovered spec carries neither — that is what distinguishes
+        // it from the hand-registered multi-component entries.
+        expect(base[0].label).toBeUndefined();
+        expect(base[0].initArgs).toBeUndefined();
+        expect(base[0].harnessFolder).toBeUndefined();
+    });
+
+    it('schedules the base label and every rte-* label for an editor source change', () => {
+        // Drive the real analyzer, not a reimplementation of its filter — a
+        // broken addFileImpact must fail this test.
+        const impacted = new Set<string>();
+        const full = addFileImpact(
+            ['packages/components/ui/rich-text-editor/rich-text-editor.component.ts'],
+            impacted,
+        );
+        expect(full).toBe(true);
+        expect(impacted.has('rich-text-editor')).toBe(true);
+        expect([...impacted].filter(l => l.startsWith('rte-')).length).toBeGreaterThanOrEqual(14);
+    });
+
+    it('scopes a change inside the base harness folder to just that label', () => {
+        const impacted = new Set<string>();
+        expect(addFileImpact(
+            ['e2e/harness/rich-text-editor/rich-text-editor-demo.component.ts'],
+            impacted,
+        )).toBe(true);
+        expect([...impacted]).toEqual(['rich-text-editor']);
+    });
+});
+
+
+// ── T-18 — package impact rules ────────────────────────────────────────────
+//
+// The pkg-* legs are the slowest in the suite (tarball build + prod build +
+// serve, ~2 min each), so scheduling them on an unrelated component change
+// would be a real cost. These assertions pin both directions: the closure
+// schedules them, and `accordion` does not.
+describe('package spec impact (T-18)', () => {
+    function subsetFor(file: string): readonly string[] {
+        const result = computeImpact('HEAD', [file]);
+        expect(result.kind, `${file} -> ${result.kind}`).toBe('subset');
+        return result.specs;
+    }
+
+    it('an RTE addon file schedules the rte package legs on both majors', () => {
+        const specs = subsetFor(
+            'packages/components/ui/rich-text-editor/addons/emoji/rich-text-emoji.directive.ts',
+        );
+        expect(specs).toEqual(expect.arrayContaining(['pkg-rte', 'pkg-rte-ng21', 'pkg-mixed']));
+        expect(specs).not.toContain('pkg-data-table');
+        expect(specs).not.toContain('pkg-data-table-ng21');
+    });
+
+    it('the data-table component schedules the data-table legs only', () => {
+        const specs = subsetFor('packages/components/ui/data-table/data-table.component.ts');
+        expect(specs).toEqual(expect.arrayContaining(['pkg-data-table', 'pkg-data-table-ng21']));
+        expect(specs).not.toContain('pkg-rte');
+    });
+
+    it('a package folder file schedules that package’s own specs on both majors', () => {
+        const rte = subsetFor('packages/rte-package/README.md');
+        expect(rte).toEqual(expect.arrayContaining(['pkg-rte', 'pkg-rte-ng21', 'pkg-mixed']));
+        expect(rte).not.toContain('pkg-data-table');
+
+        const dt = subsetFor('packages/data-table-package/ng-package.json');
+        expect(dt).toEqual(expect.arrayContaining(['pkg-data-table', 'pkg-data-table-ng21']));
+        expect(dt).not.toContain('pkg-rte');
+    });
+
+    it('the stage script is under the packages/cli tripwire, so it runs everything', () => {
+        expect(computeImpact('HEAD', ['packages/cli/scripts/stage-package-lib.ts']).kind).toBe('all');
+    });
+
+    // `lib/utils.ts` is a BASELINE lib file: no registry entry declares it, yet
+    // it is staged into BOTH packages and every component's `cn()` depends on
+    // it. Without an explicit rule the registry lookup finds no owner and it
+    // would schedule nothing — a change to the one file every component imports
+    // would skip the package legs entirely.
+    it('the baseline lib/utils.ts runs the whole suite', () => {
+        // No registry entry declares this file (the CLI writes it for every
+        // project), so the registry lookup finds no owner and the analyzer
+        // returned 'none' before the rule existed — a false all-clear on the
+        // single most widely depended-on file in the repo. Every component's
+        // `cn()` imports it and it is staged into both packages, so the only
+        // honest answer is a full run.
+        expect(computeImpact('HEAD', ['packages/components/lib/utils.ts']).kind).toBe('all');
+    });
+
+    it('an unrelated component schedules no package spec', () => {
+        const specs = subsetFor('packages/components/ui/accordion/accordion.component.ts');
+        for (const label of ['pkg-rte', 'pkg-rte-ng21', 'pkg-data-table', 'pkg-data-table-ng21', 'pkg-mixed']) {
+            expect(specs, label).not.toContain(label);
         }
     });
 });

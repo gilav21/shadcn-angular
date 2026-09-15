@@ -103,7 +103,7 @@
         <div class="space-y-4 pr-3">
           <div class="rounded-md border bg-muted/20">
             <div class="px-3 py-2 border-b text-xs font-medium text-muted-foreground">{{ locale().renderedPreview }}</div>
-            <div class="p-3 prose prose-sm dark:prose-invert max-w-none [&_*]:break-words" [innerHTML]="selected.html"></div>
+            <div class="p-3 prose prose-sm dark:prose-invert max-w-none [&_*]:break-words" [innerHTML]="previewHtml(selected.html)"></div>
           </div>
 
           <div class="rounded-md border">

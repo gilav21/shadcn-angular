@@ -117,6 +117,48 @@ describe('RichTextSlashCommandsDirective', () => {
         }
     });
 
+
+    // T-24 — the two features share the typing path. The slash menu must still
+    // open on "/h1", and a Markdown block rule must leave it closed: the
+    // transform runs BEFORE the input observers, so the trigger text the addon
+    // sees is the post-transform text, which carries no "/".
+    it('still opens the menu on "/h1" while markdown shortcuts are on', () => {
+        const { fixture, editor, editorCmp } = create();
+        expect(editorCmp.markdownShortcuts()).toBe(true);
+
+        typeSlash(editor, editorCmp, '/h1');
+        fixture.detectChanges();
+
+        expect(menu()).toBeTruthy();
+    });
+
+    it('leaves the menu closed after a "# " block transform', () => {
+        const { fixture, editor, editorCmp } = create();
+
+        typeSlash(editor, editorCmp, '# ');
+        fixture.detectChanges();
+
+        expect(editor.querySelector('h1')).toBeTruthy();
+        expect(menu()).toBeFalsy();
+    });
+
+    // The observer is registered BEFORE the transforming keystroke, so what it
+    // records is the text as of that very input event. Running the transform
+    // after `notifyInputObservers` would hand the addon "# " — the marker the
+    // author no longer has — and this assertion is what catches that.
+    it('hands input observers the post-transform text for the transforming keystroke', () => {
+        const { fixture, editor, editorCmp } = create();
+
+        const observed: string[] = [];
+        editorCmp.registerInputObserver((text: string) => observed.push(text));
+
+        typeSlash(editor, editorCmp, '# ');
+        fixture.detectChanges();
+
+        expect(editor.querySelector('h1')).toBeTruthy();
+        expect(observed.at(-1)).not.toContain('#');
+    });
+
     it('closes and stops opening the menu when uiRteSlashCommands is false, reopening when re-enabled', () => {
         const fixture = TestBed.createComponent(ToggleHostCmp);
         openFixtures.push(fixture);
@@ -232,6 +274,22 @@ describe('RichTextSlashCommandsDirective', () => {
         editorCmp.onKeydown(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
         fixture.detectChanges();
         expect(menu()).toBeNull();
+    });
+
+    it('runs the highlighted command on Tab, as Enter does', () => {
+        // Tab used to dismiss, so it neither accepted nor moved focus — the one
+        // outcome a user pressing Tab never expects. It accepts now, matching
+        // the mentions popover and every editor with a slash menu.
+        const { fixture, editor, editorCmp } = create();
+        typeSlash(editor, editorCmp, '/');
+        fixture.detectChanges();
+        expect(menu()).not.toBeNull();
+
+        editorCmp.onKeydown(new KeyboardEvent('keydown', { key: 'Tab', cancelable: true }));
+        fixture.detectChanges();
+
+        expect(menu()).toBeNull();
+        expect(editor.textContent).not.toContain('/');
     });
 
     it('stays open when scrolling inside the menu but closes when the page scrolls', () => {

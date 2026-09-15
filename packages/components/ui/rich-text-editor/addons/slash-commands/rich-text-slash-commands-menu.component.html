@@ -10,6 +10,7 @@
         [class.text-accent-foreground]="i === selectedIndex()"
         [attr.aria-selected]="i === selectedIndex()"
         [attr.data-slash-index]="i"
+        [id]="optionId(i)"
         role="option"
         (mousedown)="onPointerDown($event)"
         (mouseenter)="hoverIndex.emit(i)"

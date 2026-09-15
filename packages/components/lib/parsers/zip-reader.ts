@@ -248,7 +248,11 @@ function extractEntryData(data: Uint8Array, entry: ZipEntry, maxFileSize: number
     if (entry.compressionMethod === 0) {
         result = compressedData.slice();
     } else if (entry.compressionMethod === 8) {
-        result = inflate(compressedData);
+        // Bound the ACTUAL output, not the size the archive claims: an entry's
+        // `uncompressedSize` is attacker-written metadata, so a crafted zip can
+        // under-declare a bomb and slip past the checks above. CRC only catches
+        // the lie after the stream has already inflated in memory.
+        result = inflate(compressedData, { maxOutputBytes: maxFileSize });
     } else {
         throw new Error(`Unsupported compression method ${entry.compressionMethod} for ${entry.path}`);
     }

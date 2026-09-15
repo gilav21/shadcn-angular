@@ -365,20 +365,22 @@ describe('RichTextImageResizerComponent', () => {
             expect(img.style.height).toBe('35px');
         });
 
-        it('does not resize below the 20px minimum', () => {
-            // Drag SW far enough that newWidth would drop to/under 20.
+        it('stops AT the 20px minimum rather than freezing', () => {
+            // This asserted that an undersized drag writes NOTHING -- which is
+            // the frozen-drag symptom, enshrined as the contract. With the ratio
+            // locked the gate in onPointerMove cannot be satisfied by shrinking
+            // further, so the image simply stopped responding. Clamping to the
+            // bound is what the resize was always documented to do.
             dragHandle('sw', 90);
-            // newWidth = 100 - 90 = 10 (< 20) -> no style applied
-            expect(img.style.width).toBe('');
-            expect(img.style.height).toBe('');
+            expect(Number.parseFloat(img.style.width)).toBeGreaterThanOrEqual(20);
+            expect(Number.parseFloat(img.style.height)).toBeGreaterThanOrEqual(20);
         });
 
         it('respects a custom minWidth floor', () => {
             fixture.componentRef.setInput('minWidth', 80);
             fixture.detectChanges();
-            // newWidth = 100 - 40 = 60 (< 80) -> rejected
             dragHandle('sw', 40);
-            expect(img.style.width).toBe('');
+            expect(Number.parseFloat(img.style.width)).toBeGreaterThanOrEqual(80);
         });
 
         it('clamps width to maxWidth when growing past the ceiling', () => {
@@ -570,13 +572,15 @@ describe('RichTextImageResizerComponent', () => {
 
         it('renders alignment buttons plus delete by default', () => {
             setTarget();
-            expect(query('button')).toHaveLength(5);
+            // Scoped to the toolbar: the resize handles are buttons too now, so
+            // a bare 'button' count no longer means "toolbar buttons".
+            expect(query('button[title]')).toHaveLength(5);
         });
 
         it('keeps only the delete button when showAlignment is false', () => {
             fixture.componentRef.setInput('showAlignment', false);
             setTarget();
-            const buttons = query('button');
+            const buttons = query('button[title]');
             expect(buttons).toHaveLength(1);
             expect(buttons[0].getAttribute('title')).toBe(LABELS_EN.deleteImage);
         });
@@ -687,4 +691,362 @@ describe('RichTextImageResizerComponent', () => {
             expect(() => fixture.destroy()).not.toThrow();
         });
     });
+
+    describe('keyboard activation of the overlay buttons (round-15 audit)', () => {
+        function mountWithImage(): HTMLImageElement {
+            const img = document.createElement('img');
+            img.src =
+                'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+            document.body.appendChild(img);
+            fixture.componentRef.setInput('target', img);
+            fixture.detectChanges();
+            return img;
+        }
+
+        function overlayButtons(): HTMLButtonElement[] {
+            return Array.from(
+                (fixture.nativeElement as HTMLElement).querySelectorAll('button'),
+            );
+        }
+
+        it('applies an alignment on a keyboard-generated click', () => {
+            // The buttons bound (mousedown) only, so a focused button pressed
+            // with Enter did nothing at all -- focusable and inert. A keyboard
+            // click carries detail === 0, which is what this dispatches.
+            const img = mountWithImage();
+            const emitted: string[] = [];
+            component.alignmentChange.subscribe((a) => emitted.push(a));
+
+            const right = overlayButtons().find(
+                (b) => b.getAttribute('aria-label') === component.resolvedAlignmentLabels()['right'],
+            );
+            expect(right).toBeTruthy();
+            right!.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 0 }));
+
+            expect(emitted).toEqual(['right']);
+            expect(img.dataset['align']).toBe('right');
+            img.remove();
+        });
+
+        it('emits a removal once for a keyboard click', () => {
+            const img = mountWithImage();
+            const removed: HTMLElement[] = [];
+            component.imageRemove.subscribe((t) => removed.push(t));
+
+            const del = overlayButtons().find(
+                (b) => b.getAttribute('aria-label') === component.labels().deleteImage,
+            );
+            del!.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 0 }));
+
+            expect(removed).toEqual([img]);
+            img.remove();
+        });
+
+        it('does not act twice when a mouse press fires mousedown then click', () => {
+            const img = mountWithImage();
+            const removed: HTMLElement[] = [];
+            component.imageRemove.subscribe((t) => removed.push(t));
+
+            const del = overlayButtons().find(
+                (b) => b.getAttribute('aria-label') === component.labels().deleteImage,
+            );
+            del!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, detail: 1 }));
+            del!.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+
+            expect(removed).toHaveLength(1);
+            img.remove();
+        });
+
+        it('names every overlay button for assistive tech', () => {
+            mountWithImage();
+            for (const b of overlayButtons()) {
+                expect(b.getAttribute('aria-label')?.length).toBeGreaterThan(0);
+            }
+        });
+    });
+
+    describe('keyboard resizing', () => {
+        function mountWithImage(): HTMLImageElement {
+            const img = document.createElement('img');
+            img.src =
+                'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+            Object.defineProperty(img, 'getBoundingClientRect', {
+                value: () => ({ width: 200, height: 100, top: 0, left: 0, right: 200, bottom: 100 }),
+            });
+            document.body.appendChild(img);
+            fixture.componentRef.setInput('target', img);
+            fixture.componentRef.setInput('lockAspectRatio', false);
+            fixture.detectChanges();
+            return img;
+        }
+
+        function handle(name: string): HTMLButtonElement {
+            const label = component.handleLabel(name as never);
+            return (fixture.nativeElement as HTMLElement).querySelector(
+                `button[aria-label="${label}"]`,
+            ) as HTMLButtonElement;
+        }
+
+        function press(el: HTMLButtonElement, key: string, shift = false): void {
+            el.dispatchEvent(new KeyboardEvent('keydown', { key, shiftKey: shift, bubbles: true }));
+        }
+
+        it('exposes the drag handles as named, focusable buttons', () => {
+            mountWithImage();
+            const buttons = Array.from(
+                (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
+                    'button[aria-label^="Resize from"]',
+                ),
+            );
+            expect(buttons.length).toBeGreaterThan(0);
+            for (const b of buttons) {
+                expect(b.tagName).toBe('BUTTON');
+            }
+        });
+
+        it('honours the handle: the east edge grows on ArrowRight', () => {
+            const img = mountWithImage();
+            press(handle('e'), 'ArrowRight');
+            expect(img.style.width).toBe('210px');
+        });
+
+        it('honours the handle: the west edge SHRINKS on ArrowRight', () => {
+            // Every handle used to grow the image on ArrowRight. Dragging the
+            // west edge rightwards makes the image narrower, and WIDTH_SIGN.w
+            // has said so all along -- the keyboard path just ignored it.
+            const img = mountWithImage();
+            press(handle('w'), 'ArrowRight');
+            expect(img.style.width).toBe('190px');
+        });
+
+        it('does not resize width from a handle that only moves vertically', () => {
+            // WIDTH_SIGN.n is 0, so the north edge must not change the width.
+            const img = mountWithImage();
+            press(handle('n'), 'ArrowRight');
+            expect(img.style.width).toBe('');
+        });
+
+        it('resizes height from the south edge on ArrowDown', () => {
+            const img = mountWithImage();
+            press(handle('s'), 'ArrowDown');
+            expect(img.style.height).toBe('110px');
+        });
+
+        it('takes a larger step with Shift held', () => {
+            const img = mountWithImage();
+            press(handle('e'), 'ArrowRight', true);
+            expect(img.style.width).toBe('250px');
+        });
+
+        it('folds a run of keypresses into ONE history entry', () => {
+            // A whole mouse drag records one entry; the keyboard path emitted
+            // per press, so undoing a keyboard resize took N undos.
+            vi.useFakeTimers();
+            try {
+                mountWithImage();
+                let ends = 0;
+                component.resizeEnd.subscribe(() => ends++);
+
+                const e = handle('e');
+                for (let i = 0; i < 5; i++) press(e, 'ArrowRight');
+                expect(ends).toBe(0);
+
+                vi.advanceTimersByTime(500);
+                expect(ends).toBe(1);
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+
+        it('leaves a vertical arrow on a corner to the page when aspect is locked', () => {
+            // With the ratio locked the height follows the width, so Up/Down on
+            // a corner cannot do anything -- but the handler consumed the event
+            // anyway, so the user pressed Up, nothing happened, and their page
+            // scroll was eaten too.
+            fixture.componentRef.setInput('lockAspectRatio', true);
+            const img = mountWithImage();
+            fixture.componentRef.setInput('lockAspectRatio', true);
+            fixture.detectChanges();
+
+            const corner = handle('se');
+            const event = new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true });
+            corner.dispatchEvent(event);
+
+            expect(event.defaultPrevented).toBe(false);
+            expect(img.style.width).toBe('');
+        });
+
+        it('clamps height at the minimum instead of freezing the drag', () => {
+            const cmp = component as unknown as {
+                freeSize(s: { startWidth: number; startHeight: number; handle: string }, dx: number, dy: number): { width: number; height: number };
+                minWidth(): number;
+            };
+            fixture.componentRef.setInput('lockAspectRatio', false);
+            fixture.detectChanges();
+
+            const shrunk = cmp.freeSize({ startWidth: 200, startHeight: 100, handle: 'n' }, 0, 400);
+            expect(shrunk.height).toBeGreaterThanOrEqual(cmp.minWidth());
+        });
+
+
+        it('does not apply the WIDTH ceiling to height', () => {
+            // maxWidth is a width ceiling. Using it for height silently squashed
+            // every portrait image, and the previous version of this test
+            // asserted that squashing as the contract.
+            fixture.componentRef.setInput('lockAspectRatio', false);
+            fixture.componentRef.setInput('maxWidth', 120);
+            const img = mountWithImage();
+            fixture.componentRef.setInput('lockAspectRatio', false);
+            fixture.componentRef.setInput('maxWidth', 120);
+            fixture.detectChanges();
+
+            press(handle('s'), 'ArrowDown', true);
+            expect(Number.parseFloat(img.style.height)).toBeGreaterThan(120);
+            // The width ceiling still applies to width.
+            press(handle('e'), 'ArrowRight', true);
+            expect(Number.parseFloat(img.style.width)).toBeLessThanOrEqual(120);
+        });
+
+
+        it('bounds height at an absolute maximum', () => {
+            // Removing the width ceiling was right; leaving height with NO upper
+            // bound reintroduced the 100,000px drag the freeSize comment says was
+            // fixed. onPointerMove then refuses the write, which reads as a
+            // frozen drag rather than a clamp.
+            const cmp = component as unknown as {
+                freeSize(
+                    s: { startWidth: number; startHeight: number; handle: string },
+                    dx: number,
+                    dy: number,
+                ): { width: number; height: number };
+            };
+            const huge = cmp.freeSize({ startWidth: 200, startHeight: 100, handle: 'se' }, 100, 100000);
+            expect(huge.height).toBeLessThanOrEqual(10000);
+        });
+
+
+        it('bounds WIDTH at both ends, like height', () => {
+            // The height fix covered one of two mirror-image axes. The guarding
+            // test dragged 100,000px on the axis that was fixed and 100px on the
+            // one that was broken -- a degenerate input for this bug.
+            const cmp = component as unknown as {
+                freeSize(
+                    s: { startWidth: number; startHeight: number; handle: string },
+                    dx: number,
+                    dy: number,
+                ): { width: number; height: number };
+                minWidth(): number;
+            };
+            const state = { startWidth: 200, startHeight: 100, handle: 'e' };
+
+            expect(cmp.freeSize(state, 100000, 0).width).toBeLessThanOrEqual(10000);
+            expect(cmp.freeSize(state, -5000, 0).width).toBeGreaterThanOrEqual(cmp.minWidth());
+        });
+
+
+        it('bounds height on the LOCKED-aspect path, which is the default', () => {
+            // The round-21 fix bounded clampWidth and clampHeight, and both
+            // guarding tests called freeSize -- the lockAspectRatio:false
+            // function. lockedSize derives height by division and never clamps
+            // it, and lockAspectRatio defaults to TRUE, so the uncovered path is
+            // the one most users are on. A tall narrow image reaches 5,000,000px.
+            const cmp = component as unknown as {
+                lockedSize(
+                    s: { startWidth: number; startHeight: number; handle: string },
+                    dx: number,
+                ): { width: number; height: number };
+            };
+            const tall = cmp.lockedSize({ startWidth: 20, startHeight: 10000, handle: 'e' }, 100000);
+            expect(tall.height).toBeLessThanOrEqual(10000);
+            expect(tall.width).toBeLessThanOrEqual(10000);
+        });
+
+        it('keeps the aspect ratio when the locked path clamps', () => {
+            const cmp = component as unknown as {
+                lockedSize(
+                    s: { startWidth: number; startHeight: number; handle: string },
+                    dx: number,
+                ): { width: number; height: number };
+            };
+            // 2:1 image grown past the bound stays 2:1.
+            const wide = cmp.lockedSize({ startWidth: 200, startHeight: 100, handle: 'e' }, 100000);
+            expect(wide.width / wide.height).toBeCloseTo(2, 5);
+        });
+
+
+        it('bounds height on the KEYBOARD path with the ratio locked', () => {
+            // Round 22 bounded lockedSize -- the DRAG path. The keyboard path 55
+            // lines above derives height by the same unclamped division, and this
+            // whole describe block's mountWithImage sets lockAspectRatio:false,
+            // so every keyboard test ran the ratio-unlocked branch. Third
+            // instance of testing the mirror function.
+            const img = document.createElement('img');
+            img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+            Object.defineProperty(img, 'getBoundingClientRect', {
+                value: () => ({ width: 20, height: 10000, top: 0, left: 0, right: 20, bottom: 10000 }),
+            });
+            document.body.appendChild(img);
+            fixture.componentRef.setInput('target', img);
+            fixture.componentRef.setInput('lockAspectRatio', true);
+            fixture.detectChanges();
+
+            // The SE corner: rendered while the ratio is locked (the edge
+            // handles are not), and WIDTH_SIGN is +1 there so ArrowRight grows.
+            const handle = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+                `button[aria-label="${component.handleLabel('se' as never)}"]`,
+            );
+            handle?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+            expect(Number.parseFloat(img.style.height)).toBeLessThanOrEqual(10000);
+            img.remove();
+        });
+
+
+        it('honours the requested width while the ratio allows it', () => {
+            // The previous version asserted only that both axes cleared the
+            // floor, so 1600, 100000 or Infinity all passed -- it could not see
+            // the floor being back-projected onto the axis being dragged.
+            //
+            // With a 50:1 ratio and a 20px floor, ANY width under 1000px forces
+            // the height under the floor, so clamping to one minimum size there
+            // is correct geometry, not a freeze. What must hold is that the
+            // width tracks the request until that bound, and never exceeds it.
+            const cmp = component as unknown as {
+                lockedSize(
+                    s: { startWidth: number; startHeight: number; handle: string },
+                    dx: number,
+                ): { width: number; height: number };
+                minWidth(): number;
+            };
+            const banner = { startWidth: 2000, startHeight: 40, handle: 'e' };
+            const min = cmp.minWidth();
+
+            expect(cmp.lockedSize(banner, -500).width).toBeCloseTo(1500, 0);
+            expect(cmp.lockedSize(banner, -1000).width).toBeCloseTo(1000, 0);
+
+            // Past the bound both axes sit exactly on the floor, never under it,
+            // and never inflated above the request.
+            const clamped = cmp.lockedSize(banner, -1900);
+            expect(clamped.height).toBeCloseTo(min, 5);
+            expect(clamped.width).toBeLessThanOrEqual(1000);
+        });
+
+        it('never returns a dimension under the floor it enforces', () => {
+            const cmp = component as unknown as {
+                ratioBoundedSize(width: number, aspect: number): { width: number; height: number };
+                minWidth(): number;
+            };
+            const min = cmp.minWidth();
+            const r = cmp.ratioBoundedSize(9000, 0.001);
+            expect(r.width).toBeGreaterThanOrEqual(min);
+            expect(r.height).toBeGreaterThanOrEqual(min);
+        });
+
+        it('ignores keys that are not arrows', () => {
+            const img = mountWithImage();
+            press(handle('e'), 'a');
+            expect(img.style.width).toBe('');
+        });
+    });
+
 });

@@ -19,6 +19,9 @@ export const LIB_BASELINES: Readonly<Record<string, readonly string[]>> = {
   "calendar-locales.ts": [
     "430395c6eeaaee0e6897bb66438df418f73ea9e35fd5d75b744d16dcb5f8fa40"
   ],
+  "caret-context.ts": [
+    "5ac6d15ef0f8b6d0eadbf9c59c60b593237c05b9403ee3836b11d0626734aa89"
+  ],
   "chart-interaction.ts": [
     "3f9881a4e6801e2df2ad6d4dd3c2275a9f13f2c0990564cc6671675a339fd788",
     "a8938d174250649f84867a6ef2af2134d52e1c9643d5e4d13fafe26a15b24550"
@@ -92,6 +95,10 @@ export const LIB_BASELINES: Readonly<Record<string, readonly string[]>> = {
   "flip.ts": [
     "bda4c745ef335ed34def2724b8c52b2965bd3ff38f6579d4ca516c2d4fe2a09d"
   ],
+  "grapheme.ts": [
+    "7ab1394a2c40cb6c7bfe03058a4103bc643dc924a5179ab9f700f48ad98eb72d",
+    "c8b7528cdb0aaf0dedbcf11ffd959b231fcc451445ec9138632056ea49a9d258"
+  ],
   "i18n/calendar.locales.ts": [
     "6870c845bd9a4411d0a6a40a014a924de893762c93187d4d90f50b7dc019d78e",
     "fa6a7c6a8f97747ab6087dfe11cf321255b427178ead16e19e8fc898054f8b81"
@@ -105,7 +112,9 @@ export const LIB_BASELINES: Readonly<Record<string, readonly string[]>> = {
   ],
   "i18n/i18n.token.ts": [
     "089c841156795a28c790034be2b3919297ba41531778a5b76691cff75589a5af",
-    "d7e522e02b0bf46db9a06e181c363971cf7aeb121ac31a06636b43ab68a5df4d"
+    "bff866c0d0ce20bd7ae9d6690c381e00bd1af977be3a4c0475a2448425e9419d",
+    "d7e522e02b0bf46db9a06e181c363971cf7aeb121ac31a06636b43ab68a5df4d",
+    "fb13bc084f23393d7149cb5ee3189bc294d227cb7f3f53975c28b85831259d36"
   ],
   "i18n/i18n.types.ts": [
     "b138e3023b939be97524c54b260fd66e8a35763820fc8af128eef458e0684101"
@@ -114,9 +123,11 @@ export const LIB_BASELINES: Readonly<Record<string, readonly string[]>> = {
     "49db2a14f329ef46d2bd223af00f99bfdbf2a8a489af22fd4a6d5fe00e16f471",
     "5e2abd11b8a06b74446716b59587a3a4b14659f8bb0010341e4d9041d191c0b9",
     "844ef7d7f45e972afe4d5149951b664b8bd1c3052ff9df217b5a632f8f1fb6d8",
+    "855d40ae59d510b98ae733d1d08b84cd335860ca79df7c4c89663c0694cee2a6",
     "e75e5a75b9011bef80c962569fa2382d57c47db02fa3633b1b679b9c1570160d"
   ],
   "i18n/index.ts": [
+    "50223182c7afea6912d1deba0dfd7eb7968d4efe026095e4d6011a335cf77245",
     "72b54fd8727c80374a3231bd33907c4f1a36169abd2abef70d805d7730de469a",
     "732b5bad87e6a25f78b264d8c2da5e0886c5c84c7a6350ea47705445485787a9",
     "991055db0c22ddb7f0e83c9d6b42457f0dc62dbad99001bf7f8ca12826ded077",
@@ -136,10 +147,16 @@ export const LIB_BASELINES: Readonly<Record<string, readonly string[]>> = {
   "ole2-reader.ts": [
     "3deb926aeb83ebf68b864d9584f5940dfc60d18bbd7871ec4ba375587bc0b0f4"
   ],
+  "overlay-stack.service.ts": [
+    "15f1f8f282f9ff2c47a4f5d63ebf2e0ab6f64472eccf29fb0b3b922750751f2b"
+  ],
   "page-builder.types.ts": [
     "252c7404b5c695c40e25010a41fe3e163ea971ec65de705b1c5ee535844258b2",
     "355b514aaf5a0679e26aeb9962781f6be6e5c7c26ed100dd0d126a20a9a3bf5d",
     "a00da2170113bb78f9c3892bbaf890be75f944f8ac10af6988a1b29bcbd413bf"
+  ],
+  "parsers/byte-sink.ts": [
+    "cd26b6acd264bbe031570307cf6e8abb343dae9755853804abc8dcb96be3eea2"
   ],
   "parsers/doc-enhanced-parser.ts": [
     "0ab8a3149580352f489da482846634e9744c1aa4310bb6c3faccba42e1969650",
@@ -159,6 +176,7 @@ export const LIB_BASELINES: Readonly<Record<string, readonly string[]>> = {
   "parsers/docx-parser.ts": [
     "13e28fb7712fca347de764d96346ebdddb1503a38f73ccab46bf7b8f8a7b7e03",
     "33edae58b46565d7c94b41ba52f0398cd96e8f65efb54fc3211f87c480ed6750",
+    "6600c9d4760b0c0fa0fd9f50e51941e846f370c467b2bd86b74de6a4e2b57f0e",
     "7d31ec5f61e9a1fb586b1ea774bfbcefc94278a818b22181f9d9e4c76e88c069",
     "a784bc06f2dc3ac98966a483bdd477281dd9d27a32114d3f51e5d204b640f34b"
   ],
@@ -178,21 +196,27 @@ export const LIB_BASELINES: Readonly<Record<string, readonly string[]>> = {
     "e1a5ad585bcc6883a4e11a751c20e733402012e602dbd9d3090ceb4edb4a2e36"
   ],
   "parsers/inflate.ts": [
+    "0177354e99b6323e44075fdd9d982ee63ade38fb83ae8a3ee89e32d4cdc8f502",
     "4345fc85aa0b013f86d200ecd535c98c993a5e542c09762c9f95377ad5e58f79",
-    "cc1028ac94ce38a314161d18c29edde5bb81805565c0f4d452f0710ad65a27e6"
+    "cc1028ac94ce38a314161d18c29edde5bb81805565c0f4d452f0710ad65a27e6",
+    "e4b07cf035a717e040e90a0e04f0efc4e3e993d181e6db4c85df827c887e7dea"
   ],
   "parsers/ole2-reader.ts": [
     "3deb926aeb83ebf68b864d9584f5940dfc60d18bbd7871ec4ba375587bc0b0f4"
   ],
   "parsers/pdf-parser.ts": [
+    "3cf589cef2d8e6acd3b1533099da4eb36034fa3da767e0ea89a733f575ead8c2",
+    "4434be002fd12f79e0cdadd9b5cdcf4ef41e8a56ae0c42b2c2a4f5852eb3d86f",
     "60cf15fa48ce3707cb2224f47a833f49ecedd12dbaedabfaf427b9402ac0ccb6",
     "647169128c5c500792ffa0db6d03e56078f19e7e77fa00599b3c0216354a0549",
     "6674ce448ad119824b6b159729ff8385ca9b285a9fceeb1e6b8401ab3093b6a9",
     "696c08d7eab7df4fe57b380ee6a963e150faf1abb0b63e21e189005159530f56",
     "6d2bb66e9f8be2ee9a4913422e545c4425cca65ae1234c9bc01f3eee864e130b",
+    "7523d99041e8b9cf691af0a2086492ab35bbfa2d28b9ce6994e5e664d54b893c",
     "7ac30c1875bdf1a558d4332e20684cc08794fe4d80aef5adaf07d77fbf989593",
     "7e74b446d9d197137d2e085dd4962f265e91120cc01fb37d94e8977a2725967c",
     "862b3302d17a1c393be6483df7146465ff361af80137d3b9004d19cc8ee01c2d",
+    "9105ca4292a7d8bc01a8f809f5adc3fcf9858764c28c64160d54162af12842e1",
     "93b583e94a97e14bfe5a28e980dfe2fb64cacaa2d6e67f5e3195bca1d7219cfd",
     "973df4b72dc4f1efa209b145b30baa59e9f4a100f0b6b2077365a41858ee6dc7",
     "b962398f29184bc9bf70fc6aad59b13538ed38ab79d84580dc935d9b2d156cc9",
@@ -409,6 +433,7 @@ export const LIB_BASELINES: Readonly<Record<string, readonly string[]>> = {
   ],
   "parsers/zip-reader.ts": [
     "114f02b3a4d0a8e931f4621e7454405de72e7669e6519296958144d259ba436b",
+    "36e4b21f5b31baac0a0240b5b165f97f3a4cbbf3be91611dfa554f5c64417c32",
     "e52c17bf956ffad8e5bd5afa338b5e65956d553417d91c6536e2128d8e2b147d"
   ],
   "pdf-parser.ts": [
@@ -444,6 +469,7 @@ export const LIB_BASELINES: Readonly<Record<string, readonly string[]>> = {
     "eb6d265cce5e9f181bb4ab0a845e30a29fb79ad405689aad5d3469239174a5f9"
   ],
   "sortable-aria-live.ts": [
+    "48e8e38f16238338447f665bf0637e4f8f3ec9fe5a81604413011da0485b7ae4",
     "6cfbe6dc6de71dec2fdfe4c648146cc5609b93c8bd43f63205511774572f8889",
     "afa3114945a50505db37bbab6ae61a856bd9cf493c384b6dd733ca5a78034aa9"
   ],
@@ -468,7 +494,11 @@ export const LIB_BASELINES: Readonly<Record<string, readonly string[]>> = {
   ],
   "touch.ts": [
     "1cb8553e1ad068edcca7997784d568628437897f9f288c0565825e809fd55b20",
-    "3178531493a544a4f58c2db12dc3fecd2fc76c4c684cd41f70c5487e4bd82bd4"
+    "3178531493a544a4f58c2db12dc3fecd2fc76c4c684cd41f70c5487e4bd82bd4",
+    "63b0c7837c5e1d3e5d482c4b15e8ee17d435d6f92b1004fd41470df334bd862e",
+    "94335ab2f3b1414fc5086b309370384d124c4ab18d6f289f233817b13fa08661",
+    "d8ec77092a39836022880c91249bd4ce201590b4e1c57899d0df7b2c75b0afdb",
+    "db02a36b08bc31f343994fb148c877b8a784e7e94995273b8beffac18f51716e"
   ],
   "ttf-builder.ts": [
     "e29ca6cca00eea66b0bfb36b3e4ff55539a3d0cab3091314b648942cccac4ede"

@@ -25,9 +25,17 @@
       [value]="url()"
       [placeholder]="locale().urlPlaceholder"
       class="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+      [attr.aria-invalid]="errorMessage() ? 'true' : null"
+      [attr.aria-describedby]="errorMessage() ? 'rte-link-url-error' : null"
       (keydown.enter)="onSubmit(linkText.value, linkUrl.value)"
     />
   </label>
+
+  @if (errorMessage()) {
+    <p id="rte-link-url-error" role="alert" class="text-destructive m-0 text-xs">
+      {{ errorMessage() }}
+    </p>
+  }
 
   <div class="flex flex-wrap justify-end gap-2 pt-1">
     @if (showRemove()) {

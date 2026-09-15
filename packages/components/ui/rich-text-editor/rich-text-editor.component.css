@@ -1,0 +1,77 @@
+/*
+ * Printing an editor should print the DOCUMENT, not the window onto it.
+ *
+ * The editable area is a fixed-height scroll box (`maxHeight`, default 400px,
+ * with `overflow: auto`), which is right on screen and wrong on paper: measured
+ * with 40 paragraphs, 59% of the content sat outside the box and simply would
+ * not appear on the printed page — silently, with nothing to tell the author
+ * their draft was truncated.
+ *
+ * On paper the box constraint is lifted so the content flows and paginates, and
+ * the chrome around it — toolbar, floating bar, overlay panels, the history
+ * badge — is dropped, since none of it means anything once printed.
+ */
+@media print {
+  :host {
+    display: block;
+    overflow: visible;
+  }
+
+  :host [data-slot='rich-text-editor'] {
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+    border: none;
+  }
+
+  :host [role='toolbar'],
+  :host [data-slot='rich-text-floating-toolbar'],
+  :host [data-slot='rich-text-find-overlay'],
+  :host [data-slot='rich-text-outline-panel'],
+  :host [data-slot='rich-text-history-badge'] {
+    display: none !important;
+  }
+
+  /* Keep table rows and headings with the content they belong to. */
+  :host tr,
+  :host img {
+    break-inside: avoid;
+  }
+
+  :host h1,
+  :host h2,
+  :host h3 {
+    break-after: avoid;
+  }
+}
+
+/*
+ * A remote image the host policy refused.
+ *
+ * The element and its alt survive so the document keeps its structure and the
+ * reader can see something was withheld; `src` is never set, so nothing is
+ * fetched. The caption text comes from `data-blocked-label`, which the editor
+ * fills from its locale (or the developer's override) -- CSS cannot translate.
+ */
+:host img[data-blocked-src] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 8rem;
+  min-height: 4.5rem;
+  padding: calc(0.75rem * var(--_d));
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background-color: color-mix(in oklab, var(--muted) 60%, transparent);
+  backdrop-filter: blur(2px);
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  text-align: center;
+  /* Suppress the broken-image glyph: there is no src to fail. */
+  font-style: italic;
+}
+
+:host img[data-blocked-src]::after {
+  content: attr(data-blocked-label);
+}

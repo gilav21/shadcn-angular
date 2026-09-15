@@ -7,30 +7,55 @@
   @for (item of items(); track $index) {
     @if (item === 'separator') {
       <ui-separator orientation="vertical" class="mx-1 h-6" />
+    } @else if (item === 'textStyle') {
+      <label [class]="textStyleClasses()" data-slot="rich-text-toolbar-text-style-wrap">
+        <span class="hidden sm:inline-flex" [innerHTML]="getIcon('textStyle')" aria-hidden="true"></span>
+        <select
+          data-slot="rich-text-toolbar-text-style"
+          class="h-8 cursor-pointer appearance-none truncate rounded-md border-0 bg-transparent pe-5 ps-1 text-sm
+                 [color-scheme:light] dark:[color-scheme:dark]
+                 max-w-[7rem] sm:max-w-[9rem]
+                 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring
+                 disabled:cursor-not-allowed
+                 bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22currentColor%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22m6 9 6 6 6-6%22/%3E%3C/svg%3E')]
+                 bg-[right_0.25rem_center] bg-no-repeat rtl:bg-[left_0.25rem_center]"
+          [attr.aria-label]="getTooltip('textStyle')"
+          [title]="getTooltip('textStyle')"
+          [disabled]="textStyleDisabled()"
+          (change)="onTextStyleChange($event)"
+          (mousedown)="$event.stopPropagation()"
+        >
+          @for (option of textStyleOptions; track option) {
+            <!-- The popup list is painted by the OS, which ignores the select's
+                 own `bg-transparent` and defaults to white-on-white under a
+                 dark theme. Naming both colours on the option is what makes it
+                 legible; `color-scheme` on the select tells the OS which
+                 scrollbar and highlight to draw. -->
+            <option
+              class="bg-popover text-popover-foreground"
+              [value]="option"
+              [selected]="option === textStyleValue()"
+            >
+              {{ locale().toolbar[option] }}
+            </option>
+          }
+        </select>
+      </label>
     } @else {
       <button
         type="button"
+        [attr.data-toolbar-item]="item"
         [class]="buttonClasses(item)"
         [title]="getTooltip(item)"
-        [attr.aria-pressed]="isActive(item)"
+        [attr.aria-label]="getTooltip(item)"
+        [attr.aria-pressed]="isPressable(item) ? isActive(item) : null"
         [attr.data-state]="isActive(item) ? 'on' : 'off'"
         [disabled]="interactionDisabled()"
         (click)="onFormatClick(item)"
       >
-        <span [innerHTML]="getIcon(item)"></span>
+        <span [innerHTML]="getIcon(item)" aria-hidden="true"></span>
       </button>
     }
-  }
-  @for (custom of customItems(); track custom.id) {
-    <button
-      type="button"
-      [class]="customButtonClasses(custom)"
-      [title]="custom.tooltip"
-      [disabled]="interactionDisabled()"
-      (click)="onCustomItemClick(custom.id)"
-    >
-      <span [innerHTML]="getSafeIcon(custom.icon)"></span>
-    </button>
   }
   @for (slot of orderedAddonSlots(); track slot.id) {
     @if (slot.component; as slotComponent) {
@@ -43,10 +68,12 @@
         [attr.data-addon-slot]="slot.id"
         [class]="addonButtonClasses(slot)"
         [title]="slot.tooltip"
+        [attr.aria-label]="slot.tooltip"
+        [attr.aria-pressed]="slot.isActive ? addonSlotActive(slot) : null"
         [disabled]="interactionDisabled() || !addonSlotEnabled(slot)"
         (click)="addonSlotClick.emit({ slot, event: $event })"
       >
-        <span [innerHTML]="getSafeIcon(slot.icon)"></span>
+        <span [innerHTML]="getSafeIcon(slot.icon)" aria-hidden="true"></span>
       </button>
     }
   }

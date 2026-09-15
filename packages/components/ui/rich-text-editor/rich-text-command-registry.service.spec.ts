@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { RichTextCommandRegistry, RichTextSlashCommand } from './rich-text-command-registry.service';
+import { RichTextCommandRegistry, RichTextSlashCommand } from './index';
 
 const makeCommand = (id: string, overrides: Partial<RichTextSlashCommand> = {}): RichTextSlashCommand => ({
     id,

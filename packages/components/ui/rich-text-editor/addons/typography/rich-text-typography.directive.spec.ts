@@ -217,6 +217,25 @@ describe('RichTextTypographyDirective', () => {
         expect(family.querySelector('button[title="Font Family"]')).toBeTruthy();
     });
 
+    // `execCommand` replaces the styled run with NEW nodes, so a range saved
+    // before it points at detached ones. The first pick worked and every later
+    // pick from the same open picker silently did nothing — unlike the colour
+    // picker, which lets you keep changing until you close it.
+    it('restyles the same text on a second pick from the still-open picker', () => {
+        const fixture = createFixture();
+        const { el } = selectContent(fixture, '<p>Resize me</p>');
+
+        pick(fixture, 'size', '24px');
+        pick(fixture, 'size', '32px');
+
+        const sizes = Array.from(el.querySelectorAll('span'))
+            .map((s) => (s as HTMLElement).style.fontSize)
+            .filter(Boolean);
+        expect(sizes).toContain('32px');
+        expect(sizes).not.toContain('24px');
+        expect(el.textContent).toContain('Resize me');
+    });
+
     it('applies a font size to the selection as a styled span and emits fontSizeSelect', () => {
         const fixture = createFixture();
         const { el } = selectContent(fixture, '<p>Resize me</p>');

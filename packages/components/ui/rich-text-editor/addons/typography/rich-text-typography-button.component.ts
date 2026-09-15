@@ -3,6 +3,7 @@ import {
     ChangeDetectionStrategy,
     computed,
     inject,
+    DestroyRef,
     signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -56,6 +57,12 @@ export class RichTextTypographyButtonComponent {
     protected readonly context = inject(RICH_TEXT_TYPOGRAPHY_BUTTON_CONTEXT);
 
     protected readonly open = signal(false);
+    /** Membership in the toolbar's single-open-panel group. */
+    private readonly exclusive = this.host.registerExclusivePopover(() => this.open.set(false));
+
+    constructor() {
+        inject(DestroyRef).onDestroy(() => this.exclusive.release());
+    }
 
     protected readonly icon: SafeHtml = this.domSanitizer.bypassSecurityTrustHtml(
         this.context.kind === 'size' ? SIZE_ICON : FAMILY_ICON,
@@ -64,7 +71,7 @@ export class RichTextTypographyButtonComponent {
     protected readonly panelClasses = this.context.kind === 'size' ? 'w-48' : 'w-56';
 
     protected readonly interactionDisabled = computed(
-        () => this.host.disabled() || this.host.readonly(),
+        () => this.host.isDisabled() || this.host.readonly(),
     );
 
     protected readonly buttonClasses = computed(() => cn(
@@ -72,11 +79,16 @@ export class RichTextTypographyButtonComponent {
         'hover:bg-accent hover:text-accent-foreground',
         'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
         'disabled:pointer-events-none disabled:opacity-50',
+        // The global (pointer: coarse) floor targets `button:not([data-slot])`,
+        // and these addon buttons carry a data-slot for testing — so they must
+        // state the 44px touch minimum themselves rather than inherit it.
+        'pointer-coarse:min-h-11 pointer-coarse:min-w-11',
         this.toolbarView?.compact() ? 'p-1' : 'p-1.5',
     ));
 
     protected onOpenChange(next: boolean): void {
         if (next) {
+            this.exclusive.notifyOpened();
             this.context.onOpen();
         }
         this.open.set(next);

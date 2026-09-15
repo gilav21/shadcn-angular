@@ -115,10 +115,14 @@ export const RELEASE_PATHS = ['packages/cli/package.json', 'packages/cli/CHANGEL
  * NOT swept into the release and pushed. The dry-run preview renders from these
  * same arrays, so the rehearsal cannot drift from the real run.
  */
-export function releaseCommitArgv(tag: string): { add: string[]; commit: string[] } {
+export function releaseCommitArgv(
+    tag: string,
+    paths: readonly string[] = RELEASE_PATHS,
+    scope = 'cli',
+): { add: string[]; commit: string[] } {
     return {
-        add: ['add', '--', ...RELEASE_PATHS],
-        commit: ['commit', '-m', `chore(cli): release ${tag}`, '--', ...RELEASE_PATHS],
+        add: ['add', '--', ...paths],
+        commit: ['commit', '-m', `chore(${scope}): release ${tag}`, '--', ...paths],
     };
 }
 
@@ -327,16 +331,130 @@ const CHANGELOG_HEADER = [
     '',
 ].join('\n');
 
-/** Prepends a release block below the changelog header, creating the file body if absent. */
-export function prependRelease(existing: string | null, block: string): string {
+/**
+ * Prepends a release block below the changelog header, creating the file body
+ * if absent.
+ *
+ * `header` is parameterised for the compiled npm packages, which keep their own
+ * CHANGELOGs; it defaults to the CLI's header so every existing caller — and
+ * `release-cli.spec.ts` — is unaffected.
+ */
+export function prependRelease(
+    existing: string | null,
+    block: string,
+    header: string = CHANGELOG_HEADER,
+): string {
     if (!existing?.trimStart().startsWith('# Changelog')) {
-        return `${CHANGELOG_HEADER}\n${block.trimEnd()}\n`;
+        return `${header}\n${block.trimEnd()}\n`;
     }
     const headerEnd = existing.indexOf('\n## ');
     if (headerEnd === -1) {
         return `${existing.trimEnd()}\n\n${block.trimEnd()}\n`;
     }
-    const header = existing.slice(0, headerEnd);
+    const existingHeader = existing.slice(0, headerEnd);
     const rest = existing.slice(headerEnd + 1);
-    return `${header}\n\n${block.trimEnd()}\n\n${rest.trimEnd()}\n`;
+    return `${existingHeader}\n\n${block.trimEnd()}\n\n${rest.trimEnd()}\n`;
+}
+
+// ── Git-shaped helpers shared by the CLI and package release trains ─────────
+//
+// Both trains used to carry their own copies of these — the same argv, the
+// same fallbacks, the same refusal strings — so a fix to base-ref resolution
+// (the annotated-tag lesson) would have landed in one and not the other.
+
+/**
+ * The git probes a release flow needs, as injected functions.
+ *
+ * `run` throws on a non-zero exit; `probe` returns `null` instead, because for
+ * these queries a non-zero exit is an expected ANSWER ("no such tag"), not an
+ * error. Passing them in is what lets a whole flow be driven from a literal
+ * git transcript in tests, with no repo and no subprocess.
+ */
+export interface GitProbe {
+    readonly run: (...args: string[]) => string;
+    readonly probe: (...args: string[]) => string | null;
+}
+
+export interface BaseRef {
+    readonly ref: string;
+    /** Human-readable provenance, printed so the maintainer can sanity-check it. */
+    readonly how: string;
+}
+
+/** What identifies one release train's previous release point. */
+export interface ReleasePoint {
+    /** The `git describe --match` glob of its tags, e.g. `cli-v*` or `rte-v*`. */
+    readonly tagPattern: string;
+    /** Its package.json, repo-relative; the last commit touching it is the pre-tag fallback. */
+    readonly versionFile: string;
+}
+
+/**
+ * The previous release point of one train.
+ *
+ * Three fallbacks, most-specific first: the newest matching tag; before the
+ * first tagged release, the last commit touching the train's `package.json`;
+ * and in a repo with neither, the root commit. Without the middle rung a
+ * train's FIRST release would diff against the root commit and report every
+ * file in the repo as a reason.
+ */
+export function resolveBaseRefFor(point: ReleasePoint, git: GitProbe): BaseRef {
+    const tag = git.probe('describe', '--tags', '--abbrev=0', '--match', point.tagPattern);
+    if (tag) return { ref: tag, how: `latest ${point.tagPattern} tag (${tag})` };
+
+    const versionCommit = git.probe('log', '-1', '--format=%H', '--', point.versionFile);
+    if (versionCommit) {
+        return {
+            ref: versionCommit,
+            how: `no ${point.tagPattern} tag yet — using the last commit touching ${point.versionFile} (${versionCommit.slice(0, 8)})`,
+        };
+    }
+    return {
+        ref: git.run('rev-list', '--max-parents=0', 'HEAD'),
+        how: 'no tag and no history — using the root commit',
+    };
+}
+
+export function changedFilesSince(baseRef: string, git: GitProbe): string[] {
+    const out = git.probe('diff', '--name-only', `${baseRef}..HEAD`);
+    return out ? out.split('\n').filter(Boolean) : [];
+}
+
+/** Parses `git log --format=%H%x09%s` output into commits. */
+export function parseCommitLog(out: string | null): Commit[] {
+    if (!out) return [];
+    return out.split('\n').filter(Boolean).map((line) => {
+        const [hash, ...rest] = line.split('\t');
+        return { hash, subject: rest.join('\t') };
+    });
+}
+
+export const RELEASE_BRANCH = 'master';
+
+/** A refusal the entry must print before exiting 1, or `null` to proceed. */
+export type Refusal = readonly string[] | null;
+
+/**
+ * Refuses a dirty working tree unless `--allow-dirty`.
+ *
+ * A release commit is pathspec-scoped, so unrelated staged work would not be
+ * swept into it — but it WOULD be pushed on the same branch, unreviewed, under
+ * a release tag. Refusing by default keeps that accident impossible.
+ */
+export function dirtyTreeRefusal(status: string, args: { readonly allowDirty: boolean }): Refusal {
+    if (status.length === 0 || args.allowDirty) return null;
+    return [
+        'Working tree is dirty — commit or stash first:\n',
+        status,
+        '\n(override with --allow-dirty)',
+    ];
+}
+
+/** Refuses a release cut from any branch but `master` unless `--allow-branch`. */
+export function branchRefusal(branch: string, args: { readonly allowBranch: boolean }): Refusal {
+    if (branch === RELEASE_BRANCH || args.allowBranch) return null;
+    return [
+        `On branch "${branch}" — releases are cut from "${RELEASE_BRANCH}".`,
+        '(override with --allow-branch)',
+    ];
 }

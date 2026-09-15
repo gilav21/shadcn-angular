@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal, DestroyRef } from '@angular/core';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { cn } from '../../../../lib/utils';
 import { RichTextEditorAddonHost, RichTextToolbarViewContext } from '../..';
@@ -43,6 +43,12 @@ export class RichTextImagesButtonComponent {
     protected readonly context = inject(RICH_TEXT_IMAGES_BUTTON_CONTEXT);
 
     protected readonly open = signal(false);
+    /** Membership in the toolbar's single-open-panel group. */
+    private readonly exclusive = this.host.registerExclusivePopover(() => this.open.set(false));
+
+    constructor() {
+        inject(DestroyRef).onDestroy(() => this.exclusive.release());
+    }
     protected readonly icon: SafeHtml = this.domSanitizer.bypassSecurityTrustHtml(IMAGE_ICON);
 
     protected readonly locale = computed(() => this.context.locale());
@@ -50,7 +56,7 @@ export class RichTextImagesButtonComponent {
     protected readonly showUpload = computed(() => this.context.sources() !== 'url');
 
     protected readonly interactionDisabled = computed(
-        () => this.host.disabled() || this.host.readonly(),
+        () => this.host.isDisabled() || this.host.readonly(),
     );
 
     protected readonly buttonClasses = computed(() => cn(
@@ -58,19 +64,35 @@ export class RichTextImagesButtonComponent {
         'hover:bg-accent hover:text-accent-foreground',
         'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
         'disabled:pointer-events-none disabled:opacity-50',
+        // The global (pointer: coarse) floor targets `button:not([data-slot])`,
+        // and these addon buttons carry a data-slot for testing — so they must
+        // state the 44px touch minimum themselves rather than inherit it.
+        'pointer-coarse:min-h-11 pointer-coarse:min-w-11',
         this.toolbarView?.compact() ? 'p-1' : 'p-1.5',
     ));
 
     protected onOpenChange(next: boolean): void {
         if (next) {
+            this.exclusive.notifyOpened();
             this.context.onOpen();
         }
         this.open.set(next);
     }
 
-    protected onInsertUrl(src: string, alt: string): void {
-        if (this.interactionDisabled() || !src) return;
-        this.context.onInsertUrl(src, alt);
+    /**
+     * Insert the typed image, then empty the fields.
+     *
+     * They are uncontrolled inputs and the popover's content is not destroyed
+     * when it closes, so anything left behind survives to the next open — where
+     * the caret resumes at its old offset and new typing splices INTO the stale
+     * value, producing a mangled URL and a broken image. Takes the elements
+     * rather than their values so it can clear them.
+     */
+    protected onInsertUrl(src: HTMLInputElement, alt: HTMLInputElement): void {
+        if (this.interactionDisabled() || !src.value) return;
+        this.context.onInsertUrl(src.value, alt.value);
+        src.value = '';
+        alt.value = '';
         this.open.set(false);
     }
 

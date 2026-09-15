@@ -20,6 +20,8 @@ export interface RichTextFileImportLocale extends LocaleMeta {
     importFailed: string;
     /** Shown when the file is not a valid PDF, DOCX or supported image. */
     importInvalidFile: string;
+    /** Shown when the chosen file is larger than the addon will read into memory. */
+    importTooLarge: string;
 }
 
 /** Built-in locales for the file-import addon. */
@@ -30,6 +32,7 @@ export const RICH_TEXT_FILE_IMPORT_LOCALES: Record<string, RichTextFileImportLoc
         importing: 'Importing file...',
         importFailed: 'Failed to import file. The file may be unsupported or corrupted.',
         importInvalidFile: 'The selected file is not a supported document or image.',
+        importTooLarge: 'That file is too large to import.',
     },
     he: {
         code: 'he',
@@ -38,6 +41,7 @@ export const RICH_TEXT_FILE_IMPORT_LOCALES: Record<string, RichTextFileImportLoc
         importing: '...מייבא קובץ',
         importFailed: 'ייבוא הקובץ נכשל. הקובץ עשוי להיות לא נתמך או פגום.',
         importInvalidFile: 'הקובץ שנבחר אינו מסמך או תמונה נתמכים.',
+        importTooLarge: 'הקובץ גדול מדי לייבוא.',
     },
     ar: {
         code: 'ar',
@@ -46,6 +50,7 @@ export const RICH_TEXT_FILE_IMPORT_LOCALES: Record<string, RichTextFileImportLoc
         importing: '...جارٍ استيراد الملف',
         importFailed: 'فشل استيراد الملف. قد يكون الملف غير مدعوم أو تالفاً.',
         importInvalidFile: 'الملف المحدد ليس مستنداً أو صورة مدعومة.',
+        importTooLarge: 'هذا الملف كبير جدًا للاستيراد.',
     },
     de: {
         code: 'de',
@@ -53,6 +58,7 @@ export const RICH_TEXT_FILE_IMPORT_LOCALES: Record<string, RichTextFileImportLoc
         importing: 'Datei wird importiert...',
         importFailed: 'Datei-Import fehlgeschlagen. Die Datei wird möglicherweise nicht unterstützt oder ist beschädigt.',
         importInvalidFile: 'Die ausgewählte Datei ist kein unterstütztes Dokument oder Bild.',
+        importTooLarge: 'Diese Datei ist zu groß für den Import.',
     },
     fr: {
         code: 'fr',
@@ -60,6 +66,7 @@ export const RICH_TEXT_FILE_IMPORT_LOCALES: Record<string, RichTextFileImportLoc
         importing: 'Importation du fichier...',
         importFailed: 'Échec de l\'importation du fichier. Le fichier est peut-être non pris en charge ou corrompu.',
         importInvalidFile: 'Le fichier sélectionné n\'est pas un document ou une image pris en charge.',
+        importTooLarge: 'Ce fichier est trop volumineux pour être importé.',
     },
     es: {
         code: 'es',
@@ -67,6 +74,7 @@ export const RICH_TEXT_FILE_IMPORT_LOCALES: Record<string, RichTextFileImportLoc
         importing: 'Importando archivo...',
         importFailed: 'Error al importar archivo. El archivo puede no ser compatible o estar dañado.',
         importInvalidFile: 'El archivo seleccionado no es un documento o imagen compatible.',
+        importTooLarge: 'Ese archivo es demasiado grande para importar.',
     },
     ja: {
         code: 'ja',
@@ -74,6 +82,7 @@ export const RICH_TEXT_FILE_IMPORT_LOCALES: Record<string, RichTextFileImportLoc
         importing: 'ファイルをインポート中...',
         importFailed: 'ファイルのインポートに失敗しました。ファイルがサポートされていないか破損している可能性があります。',
         importInvalidFile: '選択されたファイルはサポートされている文書または画像ではありません。',
+        importTooLarge: 'このファイルはインポートするには大きすぎます。',
     },
     zh: {
         code: 'zh',
@@ -81,6 +90,7 @@ export const RICH_TEXT_FILE_IMPORT_LOCALES: Record<string, RichTextFileImportLoc
         importing: '正在导入文件...',
         importFailed: '文件导入失败。文件可能不受支持或已损坏。',
         importInvalidFile: '所选文件不是受支持的文档或图片。',
+        importTooLarge: '该文件太大，无法导入。',
     },
     ru: {
         code: 'ru',
@@ -88,6 +98,7 @@ export const RICH_TEXT_FILE_IMPORT_LOCALES: Record<string, RichTextFileImportLoc
         importing: 'Импорт файла...',
         importFailed: 'Не удалось импортировать файл. Файл может быть неподдерживаемым или повреждённым.',
         importInvalidFile: 'Выбранный файл не является поддерживаемым документом или изображением.',
+        importTooLarge: 'Этот файл слишком велик для импорта.',
     },
     pt: {
         code: 'pt',
@@ -95,5 +106,6 @@ export const RICH_TEXT_FILE_IMPORT_LOCALES: Record<string, RichTextFileImportLoc
         importing: 'Importando arquivo...',
         importFailed: 'Falha ao importar arquivo. O arquivo pode não ser suportado ou estar corrompido.',
         importInvalidFile: 'O arquivo selecionado não é um documento ou imagem compatível.',
+        importTooLarge: 'Esse arquivo é grande demais para importar.',
     },
 };

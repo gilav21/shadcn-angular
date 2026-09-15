@@ -1,13 +1,14 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
-import { RichTextEditorComponent } from './rich-text-editor.component';
+import { RichTextEditorComponent, type RichTextCustomToolbarItem, type RichTextEditorRef } from './rich-text-editor.component';
 import { RichTextHistoryDirective } from './addons/history';
 import { RichTextToolbarComponent } from './sub/rich-text-toolbar.component';
 import { RichTextMentionsDirective, type MentionItem, type TagItem } from './addons/mentions';
+import { RichTextViewComponent } from '../rich-text-view';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 import { RichTextMarkdownService } from './rich-text-markdown.service';
 import { RICH_TEXT_LOCALES } from './rich-text-locales';
 import { FormsModule, ReactiveFormsModule, FormControl, FormGroup } from '@angular/forms';
-import { Component } from '@angular/core';
+import { AfterViewInit, Component, Input, ViewChild } from '@angular/core';
 import { JsonPipe } from '@angular/common';
 
 const sampleMentions: MentionItem[] = [
@@ -93,25 +94,27 @@ const meta: Meta<RichTextEditorComponent> = {
             description:
                 'Ordered list of toolbar item ids to render (e.g. bold, italic, heading1, separator…). Defaults to the built-in toolbar set.',
         },
-        customToolbarItems: {
-            control: false,
-            description: 'App-provided custom toolbar buttons/dropdowns rendered alongside the built-ins; emits (customToolbarAction) on click.',
-        },
         locale: {
             control: 'select',
             options: Object.keys(RICH_TEXT_LOCALES),
             description: 'Locale for UI strings and automatic RTL',
         },
-        historyDebounceMs: {
-            control: { type: 'number', min: 0, max: 2000, step: 50 },
-            description: 'Debounce duration (ms) before a typing snapshot is persisted',
+        history: {
+            control: 'object',
+            description: 'Undo history tuning: { limit, debounceMs, recordExternalWrites }',
         },
         disabled: { control: 'boolean', description: 'Disables the editor' },
         readonly: { control: 'boolean', description: 'Renders content read-only (no editing)' },
-        showCount: { control: 'boolean', description: 'Show the character counter' },
-        showWordCount: { control: 'boolean', description: 'Show the word counter' },
+        counter: {
+            control: 'select',
+            options: [undefined, 'characters', 'words', 'both'],
+            description: 'Which counter to show below the editor',
+        },
         maxLength: { control: 'number', description: 'Maximum character count (undefined = unlimited)' },
-        historyLimit: { control: 'number', description: 'Maximum number of undo/redo snapshots retained' },
+        customToolbarItems: {
+            control: false,
+            description: 'Your own toolbar buttons as data: { id, icon, tooltip, order?, isActive?, onClick? }',
+        },
     },
 };
 
@@ -133,10 +136,8 @@ export const Playground: Story = {
         maxHeight: '400px',
         disabled: false,
         readonly: false,
-        showCount: true,
-        showWordCount: true,
-        historyDebounceMs: 450,
-        historyLimit: 100,
+        counter: 'both',
+        history: { limit: 100, debounceMs: 450 },
     },
 };
 
@@ -209,6 +210,8 @@ export const FullToolbar: Story = {
             'code', 'codeBlock',
             'separator',
             'undo', 'redo', 'clear',
+            'separator',
+            'find',
         ],
         placeholder: 'Full featured editor...',
         minHeight: '200px',
@@ -219,8 +222,7 @@ export const WithCharacterCount: Story = {
     args: {
         mode: 'markdown',
         toolbar: 'top',
-        showCount: true,
-        showWordCount: true,
+        counter: 'both',
         placeholder: 'Type something to see character count...',
         minHeight: '150px',
     },
@@ -230,11 +232,9 @@ export const AdvancedEditorConfig: Story = {
     args: {
         mode: 'markdown',
         toolbar: 'top',
-        showCount: true,
-        showWordCount: true,
+        counter: 'both',
         maxLength: 240,
-        historyLimit: 150,
-        historyDebounceMs: 500,
+        history: { limit: 150, debounceMs: 500 },
         placeholder: 'Try @john-doe, #angular.ui, paste content, then undo/redo.',
         minHeight: '180px',
     },
@@ -252,8 +252,7 @@ export const HebrewRTL: Story = {
         mode: 'markdown',
         toolbar: 'top',
         locale: 'he',
-        showCount: true,
-        showWordCount: true,
+        counter: 'both',
         minHeight: '180px',
     },
     parameters: {
@@ -270,8 +269,7 @@ export const ArabicRTL: Story = {
         mode: 'markdown',
         toolbar: 'top',
         locale: 'ar',
-        showCount: true,
-        showWordCount: true,
+        counter: 'both',
         minHeight: '180px',
     },
     parameters: {
@@ -288,8 +286,7 @@ export const FrenchLocale: Story = {
         mode: 'markdown',
         toolbar: 'top',
         locale: 'fr',
-        showCount: true,
-        showWordCount: true,
+        counter: 'both',
         minHeight: '180px',
     },
     parameters: {
@@ -306,8 +303,7 @@ export const JapaneseLocale: Story = {
         mode: 'markdown',
         toolbar: 'top',
         locale: 'ja',
-        showCount: true,
-        showWordCount: true,
+        counter: 'both',
         minHeight: '180px',
     },
     parameters: {
@@ -366,7 +362,7 @@ export const GhostVariant: Story = {
 @Component({
     selector: 'rich-text-demo',
     standalone: true,
-    imports: [RichTextEditorComponent, RichTextMentionsDirective, FormsModule],
+    imports: [RichTextEditorComponent, RichTextViewComponent, RichTextMentionsDirective, FormsModule],
     template: `
     <div class="space-y-4">
       <div>
@@ -397,10 +393,7 @@ export const GhostVariant: Story = {
       
       <div>
         <p class="text-sm font-medium mb-2 block">HTML Preview</p>
-        <div 
-          class="p-4 border rounded-md prose prose-sm dark:prose-invert max-w-none"
-          [innerHTML]="html"
-        ></div>
+        <ui-rich-text-view class="p-4 border rounded-md" mode="html" [value]="html" />
       </div>
     </div>
   `,
@@ -429,11 +422,9 @@ class RichTextDemoComponent {
         [uiRteMentionsSearch]="mentionSearch"
         [uiRteTags]="true"
         [uiRteTagsSearch]="tagSearch"
-        [showCount]="true"
-        [showWordCount]="true"
+        counter="both"
         [maxLength]="220"
-        [historyLimit]="200"
-        [historyDebounceMs]="500"
+        [history]="{ limit: 200, debounceMs: 500 }"
         placeholder="Type content, paste text, and use undo/redo to validate history behavior..."
         minHeight="180px"
         [(ngModel)]="content"
@@ -554,4 +545,209 @@ export const CustomToolbar: Story = {
             },
         },
     },
+};
+
+export const MarkdownShortcuts: Story = {
+    args: {
+        mode: 'html',
+        toolbar: 'top',
+        placeholder: 'Try typing "# ", "- ", "1. ", "> ", "[] ", "---", "**bold**"…',
+        minHeight: '260px',
+    },
+    parameters: {
+        docs: {
+            description: {
+                story:
+                    'Markdown markers become real formatting as you type — on by default, no addon needed. '
+                    + '`# `/`## `/`### ` make headings, `- ` or `* ` a bullet list, `1. ` a numbered list, '
+                    + '`> ` a blockquote, `[] `/`[x] ` a task item, `---` a horizontal rule, and ``` '
+                    + '(optionally with a language, then Space or Enter) a code block. Inline, `**bold**`, '
+                    + '`*italic*` and `` `code` `` wrap as you close them. '
+                    + 'Each transform is one undo step, and pressing Backspace immediately afterwards puts '
+                    + 'the literal characters back — so a marker can still be typed as text.',
+            },
+        },
+    },
+};
+
+export const MarkdownShortcutsOff: Story = {
+    args: {
+        mode: 'html',
+        toolbar: 'top',
+        markdownShortcuts: false,
+        placeholder: 'Markdown markers stay literal here…',
+        minHeight: '200px',
+    },
+    parameters: {
+        docs: {
+            description: {
+                story:
+                    '`[markdownShortcuts]="false"` turns the whole feature off. Reach for it when your '
+                    + 'authors type Markdown markers they expect to stay literal — a tool whose content '
+                    + '*is* Markdown source, say.',
+            },
+        },
+    },
+};
+
+export const TextStyleSelect: Story = {
+    args: {
+        mode: 'html',
+        toolbar: 'top',
+        placeholder: 'The block-type group is one select…',
+        minHeight: '200px',
+    },
+    parameters: {
+        viewport: { defaultViewport: 'mobile2' },
+        docs: {
+            description: {
+                story:
+                    'The default toolbar at 375px. Block type is a single Text style select rather than '
+                    + 'four buttons, which is what keeps the toolbar from overflowing into a horizontal '
+                    + 'scroll on a phone. It is a native `<select>`, so mobile gets the OS picker.',
+            },
+        },
+    },
+};
+
+export const ClassicHeadingButtons: Story = {
+    args: {
+        mode: 'html',
+        toolbar: 'top',
+        toolbarItems: ['bold', 'italic', 'separator', 'paragraph', 'heading1', 'heading2', 'heading3'],
+        placeholder: 'The four block buttons, listed explicitly…',
+        minHeight: '200px',
+    },
+    parameters: {
+        docs: {
+            description: {
+                story:
+                    'The four block buttons are still valid `[toolbarItems]` entries for consumers who '
+                    + 'prefer them to the select. They now render pressed when the caret is in the '
+                    + 'matching block, which they never did before.',
+            },
+        },
+    },
+};
+
+export const TextStyleRTL: Story = {
+    args: {
+        mode: 'html',
+        toolbar: 'top',
+        locale: 'he',
+        placeholder: 'כתוב כאן…',
+        minHeight: '200px',
+    },
+    parameters: {
+        docs: {
+            description: {
+                story:
+                    'Under an RTL locale the select mirrors: its chevron and padding move to the left '
+                    + 'edge. Alignment pressed-state mirrors too — a `text-align: right` block presses '
+                    + 'the button whose glyph already points right.',
+            },
+        },
+    },
+};
+
+@Component({
+    selector: 'rich-text-find-demo',
+    standalone: true,
+    imports: [RichTextEditorComponent, FormsModule],
+    template: `
+    <ui-rich-text-editor
+      #editor
+      mode="html"
+      toolbar="top"
+      [locale]="locale"
+      [toolbarItems]="['bold', 'italic', 'separator', 'find']"
+      [findDebounceMs]="0"
+      [ngModel]="content"
+      minHeight="180px"
+    />
+  `,
+})
+class RichTextFindDemoComponent implements AfterViewInit {
+    @ViewChild('editor') editor!: RichTextEditorComponent;
+    @Input() locale?: string;
+    @Input() content = '<p>The cat sat on the mat. Another cat walked past the cat flap.</p>';
+
+    ngAfterViewInit(): void {
+        this.editor.openFindReplace(true);
+        this.editor.onFindQueryChange('cat');
+    }
+}
+
+export const FindReplace: Story = {
+    render: () => ({
+        moduleMetadata: {
+            imports: [RichTextFindDemoComponent],
+        },
+        template: '<rich-text-find-demo />',
+    }),
+    parameters: {
+        docs: {
+            description: {
+                story:
+                    'Find and replace with the panel open on a live query. Highlights are drawn on an '
+                    + 'overlay layer, so they never enter the document, the form value or the undo history. '
+                    + "The `'find'` toolbar item is the touch-friendly way in; `Ctrl/Cmd+F` and `Ctrl/Cmd+H` "
+                    + 'are the keyboard ones.',
+            },
+        },
+    },
+};
+
+export const FindReplaceRTL: Story = {
+    render: () => ({
+        moduleMetadata: {
+            imports: [RichTextFindDemoComponent],
+        },
+        template: '<rich-text-find-demo locale="he" />',
+    }),
+    parameters: {
+        docs: {
+            description: {
+                story:
+                    'The same panel in Hebrew: it anchors at the logical inline-end, the controls run '
+                    + 'right-to-left, and the counter reads the localized "{current} מתוך {total}".',
+            },
+        },
+    },
+};
+
+/**
+ * A toolbar button is one object in an array. `onClick` receives a
+ * `RichTextEditorRef` whose inserts go through the editor, so undo works.
+ */
+export const CustomToolbarButtons: Story = {
+    render: () => ({
+        props: {
+            items: [
+                {
+                    id: 'stamp',
+                    icon: '📅',
+                    tooltip: "Insert today's date",
+                    onClick: (ref: RichTextEditorRef) => ref.insertText(new Date().toLocaleDateString()),
+                },
+                {
+                    id: 'sign',
+                    icon: '✍️',
+                    tooltip: 'Insert signature',
+                    onClick: (ref: RichTextEditorRef) => ref.insertHtml('<p><i>— Dana</i></p>'),
+                },
+            ] satisfies RichTextCustomToolbarItem[],
+            clicked: [] as string[],
+        },
+        template: `
+            <ui-rich-text-editor
+                mode="html"
+                [customToolbarItems]="items"
+                (customToolbarAction)="clicked.push($event.id)"
+                placeholder="Click 📅 or ✍️ in the toolbar, then undo."
+                minHeight="160px"
+            />
+            <p class="mt-2 text-sm text-muted-foreground">Clicked: {{ clicked.join(', ') || 'nothing yet' }}</p>
+        `,
+    }),
 };

@@ -151,7 +151,7 @@ function pdfBytesWithStream(stream: string): Uint8Array {
     standalone: true,
     imports: [RichTextEditorComponent, RichTextFileImportDirective],
     template: `<ui-rich-text-editor mode="html" [disabled]="disabled()" [readonly]="readonly()"
-        [uiRteFileImport]="enabled()" [uiRteFileImportToolbar]="toolbar()" [uiRteFileImportLocale]="locale()"
+        [uiRteFileImport]="enabled() && { toolbar: toolbar() }" [uiRteFileImportLocale]="locale()"
         [uiRteFileImportAccept]="accept()"
         (fileImportStart)="starts.push($event)"
         (fileImportComplete)="completes.push($event)"
@@ -409,6 +409,28 @@ describe('RichTextFileImportDirective', () => {
 
         expect(el.textContent).toContain('PDF body copy');
         expect(fixture.componentInstance.completes).toHaveLength(1);
+    });
+
+    it('caps how many imported-font stylesheets accumulate', () => {
+        // They are deliberately never torn down -- the imported text outlives
+        // the directive and would lose its fonts -- so the bound is a cap, not
+        // a teardown. Without it a session importing many PDFs grows the head
+        // without limit.
+        const fixture = createFixture();
+        const probe = directiveOf(fixture) as unknown as { injectFontCss(css: string): void };
+        try {
+            for (let i = 0; i < 20; i++) {
+                probe.injectFontCss(`@font-face{font-family:'pdfX-f${i}';src:url('data:font/ttf;base64,AAAA');}`);
+            }
+            const styles = document.head.querySelectorAll('style[data-ui-rte-pdf-fonts]');
+            expect(styles.length).toBeLessThanOrEqual(12);
+            // The most recent import must still have its fonts.
+            expect(styles[styles.length - 1].textContent).toContain('pdfX-f19');
+        } finally {
+            for (const s of Array.from(document.head.querySelectorAll('style[data-ui-rte-pdf-fonts]'))) {
+                s.remove();
+            }
+        }
     });
 
     it('injects embedded-font CSS into the document head exactly once per content', () => {

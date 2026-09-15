@@ -126,6 +126,36 @@
           "builder": "@analogjs/vitest-angular:test"
         }
       }
+    },
+    "rte-package": {
+      "projectType": "library",
+      "root": "packages/rte-package",
+      "sourceRoot": "packages/rte-package/src",
+      "prefix": "ui",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:ng-packagr",
+          "options": {
+            "project": "packages/rte-package/ng-package.json",
+            "tsConfig": "packages/rte-package/tsconfig.lib.json"
+          }
+        }
+      }
+    },
+    "data-table-package": {
+      "projectType": "library",
+      "root": "packages/data-table-package",
+      "sourceRoot": "packages/data-table-package/src",
+      "prefix": "ui",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:ng-packagr",
+          "options": {
+            "project": "packages/data-table-package/ng-package.json",
+            "tsConfig": "packages/data-table-package/tsconfig.lib.json"
+          }
+        }
+      }
     }
   }
 }

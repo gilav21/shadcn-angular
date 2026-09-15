@@ -8,23 +8,37 @@ import {
   SwitchComponent,
   InputComponent,
   SelectComponent,
+  ButtonComponent,
   ToolbarItem,
+  type RichTextHistoryState,
 } from '../../../../../packages/components/ui';
+// One import line for everything, exactly as a consumer who ran
+// `add rich-text-editor/full` writes it. RTE_FULL is every addon directive;
+// the individual classes are named re-exports of the same generated barrel.
+// One import statement for everything, exactly as a consumer who ran
+// `add rich-text-editor/full` writes it: `RTE_FULL` is the whole set, and the
+// named classes beside it are re-exports of the same generated barrel. This
+// page names the twelve it previews rather than spreading RTE_FULL, so each
+// one's API docs resolve to this route.
 import {
+  RichTextAiDirective,
+  RichTextColorsDirective,
+  RichTextEmojiDirective,
+  RichTextHistoryDirective,
+  RichTextImagesDirective,
+  RichTextLinksDirective,
   RichTextMentionsDirective,
-  type MentionItem,
-  type TagItem,
+  RichTextOutlineDirective,
+  RichTextSlashCommandsDirective,
+  RichTextTablesDirective,
+  RichTextTypographyDirective,
+} from '../../../../../packages/components/ui/rich-text-editor/addons/full';
+// Types come from the owning addon's barrel — the full barrel re-exports
+// directive CLASSES only, by design (the NG3004 fix).
+import type {
+  MentionItem,
+  TagItem,
 } from '../../../../../packages/components/ui/rich-text-editor/addons/mentions';
-import { RichTextEmojiDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/emoji';
-import { RichTextSlashCommandsDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/slash-commands';
-import { RichTextHistoryDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/history';
-import { RichTextColorsDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/colors';
-import { RichTextTypographyDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/typography';
-import { RichTextLinksDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/links';
-import { RichTextTablesDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/tables';
-import { RichTextImagesDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/images';
-import { RichTextAiDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/ai';
-import { RichTextOutlineDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/outline';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { RICH_TEXT_EDITOR_DEMO_LOCALES } from './rich-text-editor-demo.locales';
 
@@ -33,7 +47,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
 @Component({
   selector: 'app-rich-text-editor-demo',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DocsForComponent, FormsModule, RichTextEditorComponent, RichTextEmojiDirective, RichTextSlashCommandsDirective, RichTextHistoryDirective, RichTextColorsDirective, RichTextTypographyDirective, RichTextLinksDirective, RichTextTablesDirective, RichTextImagesDirective, RichTextMentionsDirective, RichTextAiDirective, RichTextOutlineDirective, SwitchComponent, InputComponent, SelectComponent],
+  imports: [DocsForComponent, FormsModule, RichTextEditorComponent, RichTextEmojiDirective, RichTextSlashCommandsDirective, RichTextHistoryDirective, RichTextColorsDirective, RichTextTypographyDirective, RichTextLinksDirective, RichTextTablesDirective, RichTextImagesDirective, RichTextMentionsDirective, RichTextAiDirective, RichTextOutlineDirective, SwitchComponent, InputComponent, SelectComponent, ButtonComponent],
   template: `
     <section class="space-y-6">
       <h2 id="rich-text-editor" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
@@ -105,10 +119,71 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
       </div>
 
       <div class="space-y-2">
+        <h3 class="text-lg font-medium">{{ t().markdownHeading }}</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[22rem] text-sm">
+            <thead>
+              <tr class="border-b text-left">
+                <th class="py-1 pe-4 font-medium">Type</th>
+                <th class="py-1 font-medium">Get</th>
+              </tr>
+            </thead>
+            <tbody class="text-muted-foreground">
+              @for (rule of markdownRules; track rule.marker) {
+                <tr class="border-b last:border-0">
+                  <td class="py-1 pe-4"><code class="bg-muted px-1 rounded">{{ rule.marker }}</code></td>
+                  <td class="py-1">{{ rule.result }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <ui-rich-text-editor mode="html" toolbar="top"
+          [placeholder]="t().markdownPlaceholder" minHeight="160px" />
+        <p class="text-muted-foreground text-sm">{{ t().markdownRevertNote }}</p>
+        <div>
+          <p class="mb-1 font-medium">Opt out</p>
+          <pre class="overflow-auto rounded-md bg-muted p-3 text-xs leading-relaxed">{{ markdownOptOutCode }}</pre>
+        </div>
+        <div>
+          <p class="mb-1 font-medium">Classic heading buttons instead of the select</p>
+          <pre class="overflow-auto rounded-md bg-muted p-3 text-xs leading-relaxed">{{ classicToolbarCode }}</pre>
+        </div>
+      </div>
+
+      <div class="space-y-2">
         <h3 class="text-lg font-medium">{{ t().minimalHeading }}</h3>
         <ui-rich-text-editor mode="markdown" toolbar="top" uiRteEmoji uiRteLinks
           [toolbarItems]="['bold', 'italic', 'separator']"
           [placeholder]="t().minimalPlaceholder" minHeight="100px" />
+      </div>
+
+      <div class="space-y-2">
+        <h3 class="text-lg font-medium">{{ t().findUndoHeading }}</h3>
+        <p class="text-sm text-muted-foreground">{{ t().findUndoDescription }}</p>
+        <ui-rich-text-editor #findEditor mode="html"
+          toolbar="top"
+          [toolbarItems]="findToolbarItems"
+          [history]="{ recordExternalWrites: true }"
+          [findDebounceMs]="150"
+          [(ngModel)]="findUndoContent"
+          (historyChange)="findUndoHistory.set($event)"
+          minHeight="140px" />
+        <div class="flex flex-wrap items-center gap-2">
+          <ui-button size="sm" variant="outline" (click)="loadFindUndoDraft(findEditor)">
+            {{ t().findUndoLoadDraft }}
+          </ui-button>
+          <ui-button size="sm" variant="outline" [disabled]="!findEditor.isDirty()"
+            (click)="findEditor.markClean()">
+            {{ t().findUndoSaved }}
+          </ui-button>
+          <span class="text-sm text-muted-foreground">
+            {{ findEditor.isDirty() ? t().findUndoDirty : t().findUndoClean }}
+          </span>
+          <span class="text-sm text-muted-foreground">
+            canUndo: {{ findUndoHistory().canUndo }} · canRedo: {{ findUndoHistory().canRedo }}
+          </span>
+        </div>
       </div>
 
       <div class="space-y-2">
@@ -122,7 +197,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
 
       <div class="space-y-2">
         <h3 class="text-lg font-medium">{{ t().countHeading }}</h3>
-        <ui-rich-text-editor mode="markdown" toolbar="top" [showCount]="true" [showWordCount]="true"
+        <ui-rich-text-editor mode="markdown" toolbar="top" counter="both"
           [maxLength]="120" [placeholder]="t().countPlaceholder"
           minHeight="100px" />
       </div>
@@ -138,10 +213,10 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
         @if (!richTextShowHistoryButton()) {
         <p class="text-xs text-muted-foreground">{{ t().historyHiddenNote }}</p>
         }
-        <ui-rich-text-editor mode="markdown" toolbar="top" uiRteHistory uiRteMentions [uiRteMentionsSearch]="searchMentions"
+        <ui-rich-text-editor mode="markdown" toolbar="top" [uiRteHistory]="{ toolbar: richTextShowHistoryButton() }" uiRteMentions [uiRteMentionsSearch]="searchMentions"
           [uiRteMentionsRender]="mentionLinkRender" [uiRteTags]="true" [uiRteTagsSearch]="searchTags" [uiRteTagsRender]="tagLinkRender"
-          [showCount]="true" [showWordCount]="true" [maxLength]="220" [historyLimit]="180"
-          [uiRteHistoryButton]="richTextShowHistoryButton()" [historyDebounceMs]="500"
+          counter="both" [maxLength]="220"
+          [history]="{ limit: 180, debounceMs: 500 }"
           [placeholder]="t().advancedPlaceholder" minHeight="160px" />
         <app-docs-for name="rich-text-editor/history" />
       </div>
@@ -157,7 +232,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
           </label>
         </div>
         <ui-rich-text-editor mode="html" toolbar="top"
-          uiRteOutline [uiRteOutlineButton]="richTextOutlineShowToolbarItem()"
+          [uiRteOutline]="{ toolbar: richTextOutlineShowToolbarItem() }"
           [toolbarItems]="outlineToolbarBase"
           [(ngModel)]="richTextOutlineContent"
           minHeight="320px" />
@@ -180,8 +255,8 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
       <div class="space-y-2">
         <h3 class="text-lg font-medium">{{ t().hebrewHeading }}</h3>
         <p class="text-sm text-muted-foreground">{{ t().hebrewDescription }}</p>
-        <ui-rich-text-editor mode="markdown" toolbar="top" locale="he" [showCount]="true" [showWordCount]="true"
-          uiRteSlashCommands uiRteSlashCommandsLocale="he" minHeight="150px" />
+        <ui-rich-text-editor mode="markdown" toolbar="top" locale="he" counter="both"
+          uiRteFull minHeight="150px" />
       </div>
 
       <div class="space-y-2">
@@ -207,7 +282,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
       <div class="space-y-2">
         <h3 class="text-lg font-medium">{{ t().imageUploadHeading }}</h3>
         <p class="text-sm text-muted-foreground">{{ t().imageUploadDescription }}</p>
-        <ui-rich-text-editor mode="html" toolbar="top" uiRteImages [uiRteImagesAutoUpload]="true" [uiRteImagesUploader]="fakeImageUploader"
+        <ui-rich-text-editor mode="html" toolbar="top" uiRteImages [uiRteImagesUpload]="{ uploader: fakeImageUploader, auto: true }"
           (autoImageUploadComplete)="lastAutoUploadUrl = $event"
           (autoImageUploadError)="lastAutoUploadError = $event"
           [placeholder]="t().imageUploadPlaceholder" minHeight="160px" />
@@ -272,14 +347,16 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
         </div>
 
         <ui-rich-text-editor mode="html" toolbar="top" uiRteImages
-          [uiRteImagesResize]="imgResize()"
-          [uiRteImagesAlignment]="imgAlignmentButtons()"
-          [uiRteImagesDefaultWidth]="imgDefaultWidth()"
-          [uiRteImagesDefaultHeight]="imgDefaultHeight()"
-          [uiRteImagesDefaultAlignment]="imgDefaultAlignment()"
-          [uiRteImagesMinWidth]="imgMinWidth()"
-          [uiRteImagesMaxWidth]="imgMaxWidth()"
-          [uiRteImagesLockAspectRatio]="imgLockAspect()"
+          [uiRteImagesLayout]="{
+            resize: imgResize(),
+            alignment: imgAlignmentButtons(),
+            defaultWidth: imgDefaultWidth(),
+            defaultHeight: imgDefaultHeight(),
+            defaultAlignment: imgDefaultAlignment(),
+            minWidth: imgMinWidth(),
+            maxWidth: imgMaxWidth(),
+            lockAspectRatio: imgLockAspect()
+          }"
           [placeholder]="t().imageControlsPlaceholder" minHeight="200px" />
       </div>
     </section>
@@ -291,6 +368,17 @@ export class RichTextEditorDemoComponent {
 
   richTextContent = '';
   richTextHtml = '';
+
+  /** Toolbar for the find/undo section: the 'find' item is the touch entry point. */
+  protected readonly findToolbarItems: ToolbarItem[] = ['bold', 'italic', 'separator', 'undo', 'redo', 'separator', 'find'];
+  protected findUndoContent = '<p>The cat sat on the mat. Another cat walked past the cat flap.</p>';
+  protected readonly findUndoHistory = signal<RichTextHistoryState>({ canUndo: false, canRedo: false });
+
+  /** Load a draft as a recorded edit, so Ctrl+Z takes the user back. */
+  protected loadFindUndoDraft(editor: RichTextEditorComponent): void {
+    editor.setContent('<p>Draft loaded from the server. The cat is still here.</p>');
+  }
+
   readonly richTextShowHistoryButton = signal(true);
   readonly richTextOutlineShowToolbarItem = signal(true);
   lastAutoUploadUrl = '';
@@ -454,6 +542,33 @@ export class RichTextEditorDemoComponent {
     }
     return `Improved: ${input}`;
   }
+
+  /** The Markdown markers the editor recognises, for the demo's rule table. */
+  readonly markdownRules = [
+    { marker: '# / ## / ###', result: 'Heading 1 / 2 / 3' },
+    { marker: '- or *', result: 'Bullet list' },
+    { marker: '1.', result: 'Numbered list' },
+    { marker: '>', result: 'Blockquote' },
+    { marker: '[] / [x]', result: 'Task item, unchecked / checked' },
+    { marker: '---', result: 'Horizontal rule' },
+    { marker: '``` then Space or Enter', result: 'Code block (```ts sets the language)' },
+    { marker: '**bold**', result: 'Bold' },
+    { marker: '*italic*', result: 'Italic' },
+    { marker: '`code`', result: 'Inline code' },
+  ];
+
+  // Copy-paste snippets for the markdown-shortcuts section (plain text).
+  readonly markdownOptOutCode = [
+    '<!-- Keep Markdown markers literal -->',
+    '<ui-rich-text-editor [markdownShortcuts]="false" />',
+  ].join('\n');
+
+  readonly classicToolbarCode = [
+    '<!-- The four block buttons instead of the Text style select -->',
+    '<ui-rich-text-editor',
+    "  [toolbarItems]=\"['bold', 'italic', 'separator',",
+    "                   'paragraph', 'heading1', 'heading2', 'heading3']\" />",
+  ].join('\n');
 
   // Copy-paste guidance for wiring a real AI backend (rendered as plain text).
   readonly aiFrontendCode = [

@@ -18,6 +18,13 @@ import { getConfig, getDefaultConfig, type Config } from '../utils/config.js';
 import { performInstall } from '../core/install.js';
 import type { InstallResult } from '../core/install.js';
 import { emptyMergeReport } from '../core/merge.js';
+import chalk from 'chalk';
+
+// The summary assertions match plain text such as "badge (4 files)", but chalk
+// colours the count whenever the terminal running the suite supports colour.
+// The same run passed in one shell and failed in another, so colour is pinned
+// off here: the output these tests read must not depend on who runs them.
+chalk.level = 0;
 
 // ---------------------------------------------------------------------------
 // Module-level mocks
@@ -634,6 +641,10 @@ describe('promptOptionalDependencies', () => {
 });
 
 describe('promptAddons', () => {
+  // Without this, `prompts` call counts leak between cases and the
+  // "does not prompt" assertions below see earlier tests' calls.
+  beforeEach(() => vi.mocked(prompts).mockClear());
+
   it('returns [] when no resolved component declares addons', async () => {
     const resolved = new Set<ComponentName>(['button', 'badge']);
     expect(await promptAddons(resolved, { branch: 'master' })).toEqual([]);
@@ -705,6 +716,108 @@ describe('promptAddons', () => {
 
     expect(await promptAddons(new Set<ComponentName>(['data-table']), { branch: 'master' })).toEqual([]);
   });
+
+  // -------------------------------------------------------------------------
+  // Preset pre-selection (UC-8 … UC-11)
+  // -------------------------------------------------------------------------
+
+  it('--yes returns the preselected addons without prompting (T-15)', async () => {
+    const resolved = new Set<ComponentName>(['data-table']);
+
+    const result = await promptAddons(
+      resolved, { yes: true, preset: 'reporting', branch: 'master' },
+      ['data-table/export', 'data-table/pivot'] as ComponentName[],
+    );
+
+    expect(result).toEqual(['data-table/export', 'data-table/pivot']);
+    expect(prompts).not.toHaveBeenCalled();
+  });
+
+  it('--yes drops a preselected key the live manifest does not offer, with a warning (T-15)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const resolved = new Set<ComponentName>(['data-table']);
+
+    const result = await promptAddons(
+      resolved, { yes: true, preset: 'reporting', branch: 'master' },
+      ['data-table/export', 'data-table/not-in-this-registry'] as ComponentName[],
+    );
+
+    expect(result).toEqual(['data-table/export']);
+    // The §D.3 wording, pinned: it names the preset, the missing key, and that
+    // the run continues.
+    expect(String(warn.mock.calls.at(-1)![0])).toContain(
+      'Preset "reporting" lists data-table/not-in-this-registry, which this registry does not offer — skipping.',
+    );
+  });
+
+  it('pre-selects the preset in the interactive multiselect and returns the picks (T-16)', async () => {
+    vi.mocked(prompts).mockResolvedValueOnce({ selected: ['data-table/export', 'data-table/pivot'] });
+
+    const result = await promptAddons(
+      new Set<ComponentName>(['data-table']), { preset: 'reporting', branch: 'master' },
+      ['data-table/export'] as ComponentName[],
+    );
+
+    const question = vi.mocked(prompts).mock.calls.at(-1)![0] as {
+      message: string; choices: { value: string; selected?: boolean }[];
+    };
+    const selected = question.choices.filter(c => c.selected).map(c => c.value);
+    expect(selected).toEqual(['data-table/export']);
+    expect(question.message).toContain('reporting');
+    // The developer's final answer wins, not the preset.
+    expect(result).toEqual(['data-table/export', 'data-table/pivot']);
+  });
+
+  it('--preset core with --yes returns [] and does not prompt (T-17)', async () => {
+    const result = await promptAddons(
+      new Set<ComponentName>(['data-table']), { yes: true, preset: 'core', branch: 'master' }, [],
+    );
+
+    expect(result).toEqual([]);
+    expect(prompts).not.toHaveBeenCalled();
+  });
+
+  it('unions --preset with --with (T-18)', async () => {
+    const result = await promptAddons(
+      new Set<ComponentName>(['data-table']),
+      { with: 'data-table/context-menu', preset: 'reporting', branch: 'master' },
+      ['data-table/export'] as ComponentName[],
+    );
+
+    expect(result).toContain('data-table/export');
+    expect(result).toContain('data-table/context-menu');
+    expect(result).toHaveLength(2);
+  });
+
+  it('--all wins over --preset and takes every addon (T-18)', async () => {
+    const result = await promptAddons(
+      new Set<ComponentName>(['data-table']), { all: true, preset: 'reporting', branch: 'master' },
+      ['data-table/export'] as ComponentName[],
+    );
+
+    expect(result).toEqual(['data-table/context-menu', 'data-table/export', 'data-table/pivot']);
+    expect(prompts).not.toHaveBeenCalled();
+  });
+
+  it('--yes is decided before --all, so --all --yes stays lean (T-18)', async () => {
+    // Guards the decision ORDER, not just the individual flags: with --all
+    // checked first, this would return every addon instead of the preset's.
+    const result = await promptAddons(
+      new Set<ComponentName>(['data-table']),
+      { all: true, yes: true, preset: 'reporting', branch: 'master' },
+      ['data-table/export'] as ComponentName[],
+    );
+
+    expect(result).toEqual(['data-table/export']);
+  });
+
+  it('--all --yes without a preset installs no addons, as it always has (T-18)', async () => {
+    const result = await promptAddons(
+      new Set<ComponentName>(['data-table']), { all: true, yes: true, branch: 'master' }, [],
+    );
+
+    expect(result).toEqual([]);
+  });
 });
 
 describe('collectAvailableAddons (post-install discoverability)', () => {
@@ -729,6 +842,86 @@ describe('collectAvailableAddons (post-install discoverability)', () => {
 // ---------------------------------------------------------------------------
 // Registry data integrity
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Registry presets integrity (UC-16)
+// ---------------------------------------------------------------------------
+
+describe('registry presets', () => {
+  it('rich-text-editor declares the five demo presets with exact lists (T-26)', () => {
+    const presets = registry['rich-text-editor'].presets;
+
+    expect(presets).toBeDefined();
+    expect(Object.keys(presets!)).toEqual(['core', 'writing', 'media', 'styling', 'everything']);
+    expect(presets!['core']).toEqual([]);
+    expect(presets!['writing']).toEqual([
+      'rich-text-editor/slash-commands',
+      'rich-text-editor/links',
+      'rich-text-editor/history',
+      'rich-text-editor/outline',
+    ]);
+    expect(presets!['media']).toEqual([
+      'rich-text-editor/images',
+      'rich-text-editor/tables',
+      'rich-text-editor/file-import',
+    ]);
+    expect(presets!['styling']).toEqual([
+      'rich-text-editor/colors',
+      'rich-text-editor/typography',
+      'rich-text-editor/emoji',
+    ]);
+    // The 13 feature addons plus the `full` composite, so a consumer copying
+    // the demo's `uiRteFull` template actually has the marker it needs.
+    expect(presets!['everything']).toHaveLength(14);
+    expect(presets!['everything']).toContain('rich-text-editor/full');
+  });
+
+  it('data-table declares core/menus/reporting/everything (T-27)', () => {
+    const presets = registry['data-table'].presets;
+
+    expect(presets).toBeDefined();
+    expect(Object.keys(presets!)).toEqual(['core', 'menus', 'reporting', 'everything']);
+    expect(presets!['core']).toEqual([]);
+    expect(presets!['menus']).toEqual(['data-table/context-menu']);
+    expect(presets!['reporting']).toEqual(['data-table/export', 'data-table/pivot']);
+    expect(presets!['everything']).toEqual([
+      'data-table/context-menu', 'data-table/export', 'data-table/pivot',
+    ]);
+  });
+
+  it('every preset addon key is in its parent\'s addons list (T-28)', () => {
+    for (const [name, def] of Object.entries(registry)) {
+      if (!def.presets) continue;
+      const declared = new Set(def.addons ?? []);
+      for (const [preset, keys] of Object.entries(def.presets)) {
+        for (const key of keys) {
+          expect(declared.has(key), `${name} preset "${preset}" names ${key}, which is not in its addons[]`)
+            .toBe(true);
+        }
+      }
+    }
+  });
+
+  it('every parent that declares presets has a core preset meaning "no addons" (T-28)', () => {
+    const withPresets = Object.entries(registry).filter(([, d]) => d.presets);
+    expect(withPresets.length).toBeGreaterThan(0);
+
+    for (const [name, def] of withPresets) {
+      expect(def.presets!['core'], `${name} must declare a core preset`).toEqual([]);
+    }
+  });
+
+  it('every preset addon key resolves to a real registry entry (T-28)', () => {
+    for (const [name, def] of Object.entries(registry)) {
+      if (!def.presets) continue;
+      for (const keys of Object.values(def.presets)) {
+        for (const key of keys) {
+          expect(registry[key as ComponentName], `${name} names unknown addon ${key}`).toBeDefined();
+        }
+      }
+    }
+  });
+});
 
 describe('registry optional dependencies', () => {
   it('data-table exposes context-menu as an opt-in addon (not an optional dependency)', () => {
@@ -858,6 +1051,7 @@ const asMock = (fn: unknown): Mock => fn as Mock;
 
 interface InstallCall {
   readonly components: ComponentName[];
+  readonly optionalDeps?: ComponentName[];
   readonly overwrite?: ComponentName[];
   readonly forceOverwrite?: boolean;
   readonly path?: string;
@@ -1089,6 +1283,218 @@ describe('add()', () => {
     expect(output()).toContain('data-table/context-menu');
     expect(output()).toContain('apply data-table/context-menu');
   });
+
+  // -------------------------------------------------------------------------
+  // Grouped install summary (UC-1 … UC-6)
+  // -------------------------------------------------------------------------
+
+  it('--dry-run prints Requested / Shared groups with counts, the total and the why hint (T-6)', async () => {
+    await add(['badge'], { branch: 'master', remote: true, dryRun: true, yes: true });
+
+    const text = output();
+    // Existing headlines must survive verbatim (V2).
+    expect(text).toContain('[Dry Run] No changes will be made.');
+    expect(text).toContain('Would install');
+    // New grouped block.
+    expect(text).toContain('Requested');
+    expect(text).toContain(`badge (${registry['badge'].files.length} files)`);
+    expect(text).toContain('Shared UI components');
+    expect(text).toContain(`skeleton (${registry['skeleton'].files.length} files)`);
+    expect(text).toContain('Why is a component here?');
+    expect(text).toContain('npx @gilav21/shadcn-angular why <name>');
+  });
+
+  it('prints the grouped block after Success! built from result.installed (T-7)', async () => {
+    asMock(performInstall).mockResolvedValue(installResult({ installed: ['badge', 'skeleton'] }));
+
+    await add(['badge'], { branch: 'master', remote: true, yes: true });
+
+    expect(spinnerText(spinner.succeed)).toContain('Success! Added 2 component(s)');
+    const text = output();
+    expect(text).toContain('Requested');
+    expect(text).toContain(`badge (${registry['badge'].files.length} files)`);
+    expect(text).toContain('Shared UI components');
+    expect(text).toContain(`skeleton (${registry['skeleton'].files.length} files)`);
+    expect(text).toContain('Why is a component here?');
+  });
+
+  it('builds the grouped block from what was written, not from the plan (T-7)', async () => {
+    // The plan covers badge + skeleton, but skeleton was already present and
+    // skipped — only badge was actually written. The written groups must not
+    // count it, and the total must be badge's files alone.
+    asMock(performInstall).mockResolvedValue(
+      installResult({ installed: ['badge'], skipped: ['skeleton'] }),
+    );
+
+    await add(['badge'], { branch: 'master', remote: true, yes: true });
+
+    const text = output();
+    expect(text).toContain(`Components added — ${registry['badge'].files.length} files:`);
+    expect(text).toContain(`badge (${registry['badge'].files.length} files)`);
+    // skeleton belongs to the skipped group, never to Shared.
+    expect(text).not.toContain('Shared UI components');
+    expect(text).toContain('Already in your project');
+  });
+
+  it('omits empty groups and keeps the "skipped (up to date)" line (T-8)', async () => {
+    asMock(performInstall).mockResolvedValue(
+      installResult({ installed: ['badge'], skipped: ['skeleton'] }),
+    );
+
+    await add(['badge'], { branch: 'master', remote: true, yes: true });
+
+    const text = output();
+    expect(text).toContain('Components skipped (up to date):');
+    expect(text).toContain('Already in your project');
+    // badge was written, so nothing is in the addons group → no heading.
+    expect(text).not.toContain('Addons chosen');
+    expect(text).not.toMatch(/\(0 components?, 0 files\)/);
+  });
+
+  it('pluralises file counts, so a one-file component reads "1 file" not "1 files" (T-6)', async () => {
+    // `component-outlet` ships exactly one file — the singular boundary.
+    expect(registry['component-outlet'].files).toHaveLength(1);
+
+    await add(['component-outlet'], { branch: 'master', remote: true, dryRun: true, yes: true });
+
+    const text = output();
+    expect(text).toContain('component-outlet (1 file)');
+    expect(text).not.toContain('(1 files)');
+    expect(text).toContain('1 component, 1 file)');
+  });
+
+  it('names each component once — the grouped block replaces the flat list (T-6)', async () => {
+    await add(['badge'], { branch: 'master', remote: true, dryRun: true, yes: true });
+
+    const occurrences = output().split('\n').filter(l => l.includes('badge')).length;
+    expect(occurrences).toBe(1);
+  });
+
+  // -------------------------------------------------------------------------
+  // "What now?" maintenance messaging (UC-20)
+  // -------------------------------------------------------------------------
+
+  it('prints the What now? block after a successful install (T-37)', async () => {
+    asMock(performInstall).mockResolvedValue(installResult({ installed: ['badge'] }));
+
+    await add(['badge'], { branch: 'master', remote: true, yes: true });
+
+    const text = output();
+    expect(text).toContain('What now?');
+    // Bullet 1 names the install directory, so "yours to edit" is actionable.
+    expect(text).toContain('These files are yours');
+    expect(text).toContain('src/components/ui');
+  });
+
+  it('prints the same What now? block on an interactive run (T-37)', async () => {
+    asMock(performInstall).mockResolvedValue(installResult({ installed: ['badge'] }));
+    asMock(prompts).mockResolvedValue({ selected: [] });
+
+    await add(['badge'], { branch: 'master', remote: true });
+
+    expect(output()).toContain('What now?');
+  });
+
+  it('does not print What now? on --dry-run (T-38)', async () => {
+    await add(['badge'], { branch: 'master', remote: true, dryRun: true, yes: true });
+
+    expect(output()).not.toContain('What now?');
+  });
+
+  it('does not print What now? when nothing was installed (T-38)', async () => {
+    asMock(performInstall).mockResolvedValue(installResult({ installed: [], skipped: ['badge'] }));
+
+    await add(['badge'], { branch: 'master', remote: true, yes: true });
+
+    expect(output()).not.toContain('What now?');
+  });
+
+  it('names update (3-way merge, markers, --overwrite) and doctor / status (T-39)', async () => {
+    asMock(performInstall).mockResolvedValue(installResult({ installed: ['badge'] }));
+
+    await add(['badge'], { branch: 'master', remote: true, yes: true });
+
+    const text = output();
+    // The truthful `update` description: merge is the default, --overwrite is
+    // the whole-file escape hatch, and a no-baseline file is kept, not merged.
+    expect(text).toContain('update');
+    expect(text).toContain('3-way merge');
+    expect(text).toContain('<<<<<<<');
+    expect(text).toContain('--overwrite');
+    expect(text).toContain('doctor');
+    expect(text).toContain('status');
+  });
+
+  it('uses the --path override as the "your files live here" directory (T-37)', async () => {
+    asMock(performInstall).mockResolvedValue(installResult({ installed: ['badge'] }));
+
+    await add(['badge'], { branch: 'master', remote: true, yes: true, path: 'src/ui' });
+
+    expect(output()).toContain('src/ui');
+  });
+
+  // -------------------------------------------------------------------------
+  // --preset (UC-8 … UC-13)
+  // -------------------------------------------------------------------------
+
+  it('--preset installs the bundle non-interactively under --yes (T-15/UC-8)', async () => {
+    await add(['rich-text-editor'], { branch: 'master', remote: true, yes: true, preset: 'writing' });
+
+    expect(prompts).not.toHaveBeenCalled();
+    const optional = lastInstallCall().optionalDeps ?? [];
+    expect(optional).toContain('rich-text-editor/slash-commands');
+    expect(optional).toContain('rich-text-editor/links');
+    expect(optional).toContain('rich-text-editor/history');
+    expect(optional).toContain('rich-text-editor/outline');
+  });
+
+  it('--preset core installs the base and no addons (T-17/UC-10)', async () => {
+    await add(['rich-text-editor'], { branch: 'master', remote: true, yes: true, preset: 'core' });
+
+    expect(prompts).not.toHaveBeenCalled();
+    expect(lastInstallCall().optionalDeps ?? []).toEqual([]);
+  });
+
+  it('exits 1 on --preset with --no-addons (T-19/UC-12)', async () => {
+    await expect(
+      add(['rich-text-editor'], { branch: 'master', remote: true, yes: true, preset: 'writing', addons: false }),
+    ).rejects.toMatchObject({ code: 1 });
+
+    expect(output()).toContain('--preset and --no-addons contradict each other');
+    expect(performInstall).not.toHaveBeenCalled();
+  });
+
+  it('exits 1 on an unknown preset and lists the available names (T-20/UC-13)', async () => {
+    await expect(
+      add(['rich-text-editor'], { branch: 'master', remote: true, yes: true, preset: 'wrting' }),
+    ).rejects.toMatchObject({ code: 1 });
+
+    expect(output()).toContain(
+      'Unknown preset "wrting" for rich-text-editor. Available: core, writing, media, styling, everything',
+    );
+    expect(performInstall).not.toHaveBeenCalled();
+  });
+
+  it('exits 1 when the requested base declares no presets (T-21/UC-13)', async () => {
+    await expect(
+      add(['button'], { branch: 'master', remote: true, yes: true, preset: 'writing' }),
+    ).rejects.toMatchObject({ code: 1 });
+
+    expect(output()).toContain('button declares no presets');
+    expect(output()).toContain('npx @gilav21/shadcn-angular why button');
+    expect(performInstall).not.toHaveBeenCalled();
+  });
+
+  it('keeps the "kept local changes" line and prints no grouped block when nothing was written (T-8)', async () => {
+    filesPresentAndChanged();
+    asMock(prompts).mockResolvedValue({ selected: [] });
+
+    await add(['badge'], { branch: 'master', remote: true });
+
+    const text = output();
+    expect(text).toContain('kept local changes');
+    expect(text).not.toContain('Why is a component here?');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -1163,6 +1569,7 @@ describe('add() block destination', () => {
     expect(call.path).toBe('src/ui');
     expect(call.blocksPath).toBeUndefined();
   });
+
 });
 
 // ---------------------------------------------------------------------------

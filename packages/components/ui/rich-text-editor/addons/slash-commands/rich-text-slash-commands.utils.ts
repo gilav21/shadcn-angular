@@ -1,3 +1,5 @@
+import { lastOwnInlineNode, lineOf } from '../../rich-text-lines';
+
 /**
  * Pure DOM helpers for the slash-commands addon: trigger detection against the
  * live caret, resolving the anchor block, consuming the typed `/query` text,
@@ -10,8 +12,12 @@
 /** Matches a `/` slash trigger at the end of the given text. */
 const SLASH_TRIGGER_PATTERN = /(?:^|[\s([{\u200B])\/([-\p{L}\p{N}_.]*)$/u;
 
-/** The editor block tags the caret is considered to sit "inside" of. */
-const EDITABLE_BLOCK_TAGS = new Set(['P', 'DIV', 'H1', 'H2', 'H3', 'LI', 'BLOCKQUOTE', 'PRE']);
+/**
+ * Block tags a caret outside any line falls back to: loose text in a list item
+ * that also holds a table belongs to no line, and anchoring it to the whole list
+ * would move the command off the item.
+ */
+const EDITABLE_BLOCK_TAGS = new Set(['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI', 'TD', 'TH', 'SUMMARY', 'BLOCKQUOTE', 'PRE']);
 
 /** Match a slash trigger in the trigger-aware text up to the caret offset. */
 export function matchSlashTriggerInText(text: string, cursorPosition: number): RegExpExecArray | null {
@@ -149,7 +155,18 @@ export function findClosestEditableBlockFromRange(doc: Document, root: HTMLEleme
     return findClosestEditableBlock(doc, root, node);
 }
 
+/**
+ * The block a slash command anchors to: the line the caret sits in, as the editor
+ * reads lines.
+ *
+ * The addon kept its own list of block tags, with no summary, table cell or
+ * h4-h6. A slash typed in a summary anchored to the whole details block and one
+ * typed in a cell to the whole table, so the caret went to the end of the body
+ * or the last cell and the command acted there.
+ */
 export function findClosestEditableBlock(doc: Document, root: HTMLElement, node: Node): HTMLElement | null {
+    const line = lineOf(node, root);
+    if (line) return line.owner;
     let current: Node | null = node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
     while (current && current !== root) {
         if (current.nodeType === Node.ELEMENT_NODE) {
@@ -210,7 +227,13 @@ export function removeSlashTriggerText(
 }
 
 function removeFromRange(doc: Document, root: HTMLElement, query: string, range: Range | null): HTMLElement | null {
-    if (range?.startContainer.nodeType !== Node.TEXT_NODE) {
+    // Liveness, not just node type: undo/redo/writeValue/setContent reassign the
+    // editable's innerHTML while the menu is open, and a detached text node
+    // still reports TEXT_NODE. The chain below already recovers because
+    // findClosestEditableBlock cannot resolve a block outside the root, but
+    // checking here avoids editing the orphaned node and moving the user's
+    // selection into it on the way to that recovery.
+    if (range?.startContainer.nodeType !== Node.TEXT_NODE || !root.contains(range.startContainer)) {
         return null;
     }
     const selection = doc.getSelection();
@@ -310,7 +333,8 @@ export function placeCaretAtEndOfBlock(doc: Document, block: HTMLElement): void 
         setSelectionAtTextEnd(doc, selection, ensureZeroWidthTextNode(doc, block));
         return;
     }
-    setSelectionAtNodeEnd(doc, selection, getDeepestLastNode(block));
+    // The line the slash was typed in, not a block nested at the anchor's end.
+    setSelectionAtNodeEnd(doc, selection, lastOwnInlineNode(block) ?? getDeepestLastNode(block));
 }
 
 function isEmptyBlock(block: HTMLElement): boolean {

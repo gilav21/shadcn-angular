@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { cva, type VariantProps } from 'class-variance-authority';
+import { OverlayStackService } from '../../lib/overlay-stack.service';
 
 export const sheetVariants = cva(
     'fixed z-50 gap-4 bg-background p-4 sm:p-6 shadow-lg transition ease-in-out overflow-y-auto',
@@ -62,14 +63,20 @@ export class SheetComponent implements OnDestroy {
         effect(() => {
             if (this.open()) {
                 this.lockScroll();
+                this.layers.push(this);
             } else {
                 this.unlockScroll();
+                this.layers.remove(this);
             }
         });
     }
 
+    /** Registers this sheet as an overlay layer while open, so Escape reaches only the innermost one. */
+    private readonly layers = inject(OverlayStackService);
+
     ngOnDestroy(): void {
         this.unlockScroll();
+        this.layers.remove(this);
     }
 
     private lockScroll(): void {

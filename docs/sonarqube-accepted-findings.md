@@ -71,6 +71,8 @@ interactive role (it contains its own nested controls):
 | --- | --- |
 | `drawer` `role="dialog"` | The drawer is a signal-driven modal rendered/removed via `@if`. Switching to a native `<dialog>` would require imperative `showModal()/close()` and change focus-trap, top-layer and `::backdrop` behaviour — a behavioural change. `role="dialog"` + `aria-modal` on a managed div is the same approach the Angular CDK and Radix use. |
 
+| `rich-text-editor` AI panel `role="dialog"` | A **non-modal**, caret-anchored panel positioned with `left`/`top` and rendered/removed via `@if`. A native `<dialog>` is `display:none` until `.show()`/`.showModal()` is called imperatively, so adopting it means adding lifecycle management and changing focus behaviour on a working component — and the non-modal, position-anchored case is the one `<dialog>` fits least. Same reasoning as the drawer above; `role="dialog"` + an accessible name is the CDK/Radix approach. |
+
 (The drawer's backdrop-click dismissal — previously a `MouseEventWithoutKeyboardEquivalentCheck` finding — was fixed by making the overlay a native `<button aria-label="Close">`, which has built-in keyboard activation.)
 
 ## `Web:MouseEventWithoutKeyboardEquivalentCheck` — `<ui-button (click)>`
@@ -128,6 +130,7 @@ re-scans.
 | `rich-text-editor/addons/emoji/rich-text-emoji-button.component.ts` | The trusted static `EMOJI_ICON` SVG constant defined in the file. Never user input. |
 | `rich-text-editor/addons/colors/rich-text-colors-button.component.ts` | The trusted static `FOREGROUND_ICON`/`BACKGROUND_ICON` SVG constants defined in the file. Never user input. |
 | `rich-text-editor/addons/typography/rich-text-typography-button.component.ts` | The trusted static `SIZE_ICON`/`FAMILY_ICON` SVG constants defined in the file. Never user input. |
+| `rich-text-editor/addons/history/rich-text-history-panel.component.ts` | **The only entry here that is not a static icon, so it earns a longer note.** The revision preview renders document content, which IS user input — but only after `RichTextSanitizerService.sanitize()`, the same allowlist that governs the live editor. Two sanitizers are in play and exactly one should run: Angular's default pass strips every `style` attribute, so a revision containing coloured or highlighted text previewed as plain black and the panel showed the user something the revision never was. Nothing can render in the preview that could not already be sitting in the editor behind it. Locked by a test that asserts a `<script>` is still dropped. |
 | `rich-text-editor/addons/links/rich-text-links-button.component.ts` | The trusted static `LINK_ICON` SVG constant defined in the file. Never user input. |
 | `rich-text-editor/addons/tables/rich-text-tables-button.component.ts` | The trusted static `TABLE_ICON` SVG constant defined in the file. Never user input. |
 | `rich-text-editor/addons/file-import/rich-text-file-import-button.component.ts` | The trusted static `IMPORT_ICON` SVG constant defined in the file. Never user input. |
@@ -193,9 +196,28 @@ are marked **Reviewed / Safe** (via `scripts/sonar-hotspots-safe.mjs`):
 | Rule | Count | Why safe |
 | --- | --- | --- |
 | `S2245` (insecure randomness) | 29 | `Math.random()` drives **visual animations** only (confetti, particles, meteors, …) — never a security/cryptographic context. |
-| `S4036` (OS command from PATH) | 5 | The **dev CLI** and the maintainer tooling (`check-completeness`, `new-component`, `release-cli`, `migrate-core`) intentionally invoke `git`/`npm`/`npx` from `PATH`; every command is a fixed literal and no argument is attacker-controlled. Resolving these to absolute paths is not possible across the platforms the CLI supports. |
+| `S4036` (OS command from PATH) | 8 | The **dev CLI** and the maintainer tooling (`check-completeness`, `new-component`, `release-cli`, `release-package`, `package-build`, `migrate-core`, `check-fixture-pristine`) intentionally invoke `git`/`npm`/`npx` from `PATH`; every command is a fixed literal and no argument is attacker-controlled. Resolving these to absolute paths is not possible across the platforms the CLI supports. |
 
 Result: Security Hotspots reviewed = 100%, 0 to-review.
+
+### Re-running the marking after new tooling lands
+
+`scripts/sonar-hotspots-safe.mjs` needs a SonarQube **user token** with
+*Administer Security Hotspots*. The `sqa_…` **analysis** token in `.env` uploads
+scans but is refused by every `/api/hotspots/*` endpoint, so the script cannot
+run with it — and a refusal reads as an empty result unless the caller checks
+for the `errors` field.
+
+Any change that adds a `git`/`npm`/`npx` invocation raises new `S4036` hotspots
+and drops *new-code* hotspots-reviewed below 100%, failing the quality gate even
+though `new_violations` stays 0. Generate a user token
+(**Account → Security → Generate Token**) and run:
+
+```bash
+SONAR_TOKEN=<user-token> node scripts/sonar-hotspots-safe.mjs
+```
+
+Then update the count in the table above.
 
 ## Notes
 

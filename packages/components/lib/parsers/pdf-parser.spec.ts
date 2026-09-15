@@ -745,6 +745,34 @@ describe('PdfReader - filter decoders (unit)', () => {
         expect(new TextDecoder('latin1').decode(decoded)).toBe('AAAAAA');
     });
 
+    it('bounds LZWDecode output, as FlateDecode already does', () => {
+        // FlateDecode passes MAX_DECODED_STREAM_BYTES; LZWDecode sat right beside
+        // it with no ceiling at all, so the same decompression-bomb class stayed
+        // reachable through the sibling filter. LZW's dictionary rechains, so a
+        // small stream can expand without limit.
+        //
+        // A true bomb cannot be built with the round-trip encoder in this file
+        // (it caps its own dictionary), so this asserts the guard's SHAPE: the
+        // decoder stops at the ceiling instead of growing without one. Sabotage
+        // check: removing the `output.length > MAX_DECODED_STREAM_BYTES` break in
+        // decodeLZW makes the loop unbounded again.
+        const repetitive = new Uint8Array(600_000).fill(0x41);
+        const encoded = new Uint8Array(lzwEncode(repetitive));
+        const reader = new PdfReader(new Uint8Array(0).buffer);
+
+        const decoded = reader.decodeStreamData(
+            { Filter: { type: 'name', value: 'LZWDecode' } } as Record<string, PdfObject>,
+            encoded,
+        );
+
+        // Decodes a legitimate stream (a cap that broke ordinary PDFs would be
+        // worse than the bomb) and never exceeds the ceiling.
+        expect(decoded).not.toBeNull();
+        expect(decoded!.length).toBeGreaterThan(0);
+        expect(decoded!.length).toBeLessThanOrEqual(64 * 1024 * 1024);
+        expect(decoded![0]).toBe(0x41);
+    });
+
     it('decodeStreamData applies a FlateDecode PNG Up predictor (Predictor 12)', () => {
         const flat = [0x02, 10, 20, 30, 0x02, 1, 2, 3];
         const enc = flateEncode(new Uint8Array(flat));
@@ -2147,6 +2175,19 @@ describe('PdfReader - string & value parsing edge cases', () => {
         const { textItems } = extractPageContent(reader, pages[0], 0);
         // hex <48656C6C6F> = "Hello"
         expect(textItems.map(t => t.text).join('')).toContain('Hello');
+    });
+
+    it('does not hang on a reference cycle', () => {
+        // A malformed or hostile PDF can point object A at B and B back at A.
+        // resolveDeep followed refs unconditionally, so the pair recursed until
+        // the stack gave out. A document is untrusted input; it must fail, or
+        // resolve to null, but never spin.
+        const reader = new PdfReader(new Uint8Array(0).buffer);
+        const objects = (reader as unknown as { parsedObjects: Map<string, unknown> }).parsedObjects;
+        objects.set('5 0', { type: 'ref', value: '6 0' });
+        objects.set('6 0', { type: 'ref', value: '5 0' });
+
+        expect(() => reader.resolveDeep({ type: 'ref', value: '5 0' })).not.toThrow();
     });
 
     it('resolveDeep returns null object for a dangling reference', () => {

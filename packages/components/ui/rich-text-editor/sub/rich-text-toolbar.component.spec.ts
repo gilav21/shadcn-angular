@@ -1,16 +1,35 @@
 import { Component, inject } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { RichTextToolbarComponent } from './rich-text-toolbar.component';
+import {
+    RichTextToolbarComponent,
+    TEXT_STYLE_OPTIONS,
+    TOOLBAR_BUTTONS,
+    type ToolbarButton,
+    type ToolbarButtonItem,
+    type ToolbarItem,
+} from './rich-text-toolbar.component';
 import { RichTextToolbarViewContext } from '../rich-text-editor.host';
 import { RICH_TEXT_LOCALES } from '../rich-text-locales';
-import type { RichTextCustomToolbarItem } from '../rich-text-editor.component';
 
 @Component({
     standalone: true,
     template: `<span data-testid="slot-probe">probe</span>`,
 })
 class SlotProbeComponent {}
+
+/** An addon button with an open panel, shaped like ui-popover renders one. */
+@Component({
+    standalone: true,
+    template: `
+        <button type="button" data-testid="panel-trigger">Link</button>
+        <div data-slot="popover-content">
+            <input data-testid="panel-input" />
+            <button type="button" data-testid="panel-ok">Update</button>
+        </div>
+    `,
+})
+class PanelProbeComponent {}
 
 @Component({
     standalone: true,
@@ -32,6 +51,176 @@ describe('RichTextToolbarComponent', () => {
         fixture = TestBed.createComponent(RichTextToolbarComponent);
         component = fixture.componentInstance;
         fixture.detectChanges();
+    });
+
+    describe('keyboard navigation (WAI-ARIA toolbar pattern)', () => {
+        const buttonsOf = () =>
+            Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLButtonElement[];
+
+        // A real arrow press comes FROM the focused control, so the handler can
+        // read `event.target`. Dispatching on the container instead would test a
+        // path the user never takes.
+        const pressOnToolbar = (key: string) => {
+            const toolbar = fixture.nativeElement.querySelector('[role="toolbar"]') as HTMLElement;
+            const focused = Array.from(
+                toolbar.querySelectorAll<HTMLElement>('button, select'),
+            ).find(el => el.tabIndex === 0) ?? toolbar;
+            focused.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+            fixture.detectChanges();
+        };
+
+        beforeEach(() => {
+            fixture.componentRef.setInput('items', ['bold', 'italic', 'separator', 'underline']);
+            fixture.detectChanges();
+        });
+
+        it('gives the text-style select and addon buttons a roving tabindex too', async () => {
+            // A roving toolbar has ONE tab stop. Managing only the built-in
+            // buttons left the select, every addon button and the file input as
+            // extra tab stops, so Tab jumped into the middle of the toolbar and
+            // the arrows — which index over every button — moved somewhere else
+            // again.
+            fixture.componentRef.setInput('items', ['bold', 'textStyle', 'italic']);
+            fixture.detectChanges();
+            // Stops added by a re-render are managed from a MutationObserver,
+            // which the browser delivers one microtask later.
+            await Promise.resolve();
+            const toolbar = fixture.nativeElement.querySelector('[role="toolbar"]') as HTMLElement;
+            const focusables = Array.from(
+                toolbar.querySelectorAll<HTMLElement>('button, select, input, [tabindex]'),
+            );
+            const stops = focusables.filter(el => el.tabIndex === 0);
+            expect(focusables.length).toBeGreaterThan(1);
+            expect(stops).toHaveLength(1);
+        });
+
+        it('walks the select as one stop in the arrow order', () => {
+            fixture.componentRef.setInput('items', ['bold', 'textStyle', 'italic']);
+            fixture.detectChanges();
+            const toolbar = fixture.nativeElement.querySelector('[role="toolbar"]') as HTMLElement;
+            const stops = () => Array.from(
+                toolbar.querySelectorAll<HTMLElement>('button, select, input, [tabindex]'),
+            );
+            const focused = () => stops().findIndex(el => el.tabIndex === 0);
+
+            expect(focused()).toBe(0);
+            pressOnToolbar('ArrowRight');
+            expect(stops()[focused()].tagName.toLowerCase()).toBe('select');
+        });
+
+        it('leaves the arrows to a field inside an addon panel instead of moving the tab stop', async () => {
+            // The link panel's URL field lives in the toolbar's DOM, so its
+            // arrow presses bubbled to the roving handler, which read them as
+            // the first stop's and pulled the focus back onto the toolbar.
+            fixture.componentRef.setInput('addonSlots', [
+                { id: 'links.insert', component: PanelProbeComponent },
+            ]);
+            fixture.detectChanges();
+            await Promise.resolve();
+            const input = fixture.nativeElement.querySelector('[data-testid="panel-input"]') as HTMLInputElement;
+            input.focus();
+            const press = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true });
+            input.dispatchEvent(press);
+            fixture.detectChanges();
+
+            expect(press.defaultPrevented).toBe(false);
+            expect(document.activeElement).toBe(input);
+            expect(buttonsOf()[0].tabIndex).toBe(0);
+        });
+
+        it('leaves the emoji picker\'s panel out of the roving order too', async () => {
+            // Its panel is not a ui-popover, so its buttons were roving stops:
+            // every emoji became a tab stop and the arrows fought the grid.
+            @Component({
+                standalone: true,
+                template: `
+                    <button type="button" data-testid="emoji-trigger">Emoji</button>
+                    <div data-slot="emoji-picker-content">
+                        <button type="button" data-testid="emoji-a">A</button>
+                    </div>
+                `,
+            })
+            class EmojiPanelProbeComponent {}
+
+            fixture.componentRef.setInput('addonSlots', [
+                { id: 'emoji.insert', component: EmojiPanelProbeComponent },
+            ]);
+            fixture.detectChanges();
+            await Promise.resolve();
+            const emoji = fixture.nativeElement.querySelector('[data-testid="emoji-a"]') as HTMLButtonElement;
+            const trigger = fixture.nativeElement.querySelector('[data-testid="emoji-trigger"]') as HTMLButtonElement;
+
+            expect(emoji.tabIndex).toBe(0);
+            expect(trigger.tabIndex).toBe(-1);
+
+            const press = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true });
+            emoji.dispatchEvent(press);
+            expect(press.defaultPrevented).toBe(false);
+        });
+
+        it('keeps an addon panel\'s own buttons out of the roving order and in the Tab order', async () => {
+            fixture.componentRef.setInput('addonSlots', [
+                { id: 'links.insert', component: PanelProbeComponent },
+            ]);
+            fixture.detectChanges();
+            await Promise.resolve();
+            const ok = fixture.nativeElement.querySelector('[data-testid="panel-ok"]') as HTMLButtonElement;
+            const trigger = fixture.nativeElement.querySelector('[data-testid="panel-trigger"]') as HTMLButtonElement;
+            expect(ok.tabIndex).toBe(0);
+            expect(trigger.tabIndex).toBe(-1);
+
+            pressOnToolbar('End');
+            expect(trigger.tabIndex).toBe(0);
+            expect(ok.tabIndex).toBe(0);
+        });
+
+        it('does not trap the tab stop on the text-style select', () => {
+            // Skipping the select in the key handler let the arrows move INTO it
+            // and never out — a keyboard trap, which is worse than the extra
+            // tab stops it was meant to avoid.
+            fixture.componentRef.setInput('items', ['bold', 'textStyle', 'italic']);
+            fixture.detectChanges();
+            const toolbar = fixture.nativeElement.querySelector('[role="toolbar"]') as HTMLElement;
+            const stopsOf = () => Array.from(
+                toolbar.querySelectorAll<HTMLElement>('button, select'),
+            );
+            const activeIndex = () => stopsOf().findIndex(el => el.tabIndex === 0);
+
+            pressOnToolbar('ArrowRight');
+            expect(stopsOf()[activeIndex()].tagName.toLowerCase()).toBe('select');
+
+            pressOnToolbar('ArrowRight');
+            expect(stopsOf()[activeIndex()].tagName.toLowerCase()).toBe('button');
+        });
+
+        it('exposes exactly one tab stop, not one per button', () => {
+            const tabbable = buttonsOf().filter(b => b.tabIndex === 0);
+            expect(buttonsOf()).toHaveLength(3);
+            expect(tabbable).toHaveLength(1);
+            expect(tabbable[0]).toBe(buttonsOf()[0]);
+        });
+
+        it('moves the tab stop with ArrowRight and wraps at the end', () => {
+            pressOnToolbar('ArrowRight');
+            expect(buttonsOf()[1].tabIndex).toBe(0);
+            expect(buttonsOf()[0].tabIndex).toBe(-1);
+
+            pressOnToolbar('ArrowRight');
+            pressOnToolbar('ArrowRight');
+            expect(buttonsOf()[0].tabIndex).toBe(0);
+        });
+
+        it('moves the tab stop with ArrowLeft and wraps at the start', () => {
+            pressOnToolbar('ArrowLeft');
+            expect(buttonsOf()[2].tabIndex).toBe(0);
+        });
+
+        it('jumps to the first and last button with Home and End', () => {
+            pressOnToolbar('End');
+            expect(buttonsOf()[2].tabIndex).toBe(0);
+            pressOnToolbar('Home');
+            expect(buttonsOf()[0].tabIndex).toBe(0);
+        });
     });
 
     describe('rendering', () => {
@@ -117,10 +306,20 @@ describe('RichTextToolbarComponent', () => {
             expect(component.isActive('italic')).toBe(false);
         });
 
-        it('returns false for non-formattable items', () => {
+        it('maps block items to active formats too', () => {
             fixture.componentRef.setInput('activeFormats', new Set(['heading1']));
             fixture.detectChanges();
-            expect(component.isActive('heading1')).toBe(false);
+            expect(component.isActive('heading1')).toBe(true);
+            expect(component.isActive('heading2')).toBe(false);
+        });
+
+        // A momentary action can appear in `activeFormats` as data — `indent`
+        // carries list-nesting depth — without ever rendering pressed.
+        it('returns false for a momentary action even when activeFormats names it', () => {
+            fixture.componentRef.setInput('activeFormats', new Set(['indent', 'undo']));
+            fixture.detectChanges();
+            expect(component.isActive('indent')).toBe(false);
+            expect(component.isActive('undo')).toBe(false);
         });
     });
 
@@ -133,8 +332,15 @@ describe('RichTextToolbarComponent', () => {
             expect(component.getTooltip('strikethrough')).toBe('Strikethrough');
         });
 
-        it('falls back to the item id for an unknown button', () => {
-            expect(component.getTooltip('nonexistent' as never)).toBe('nonexistent');
+        // `toolbarItems` is consumer input: a name outside the union reaches
+        // these lookups at runtime even though tsc rejects it. Before the typed
+        // TOOLBAR_BUTTONS record this returned the raw name; afterwards it threw
+        // "Cannot read properties of undefined (reading 'localeKey')", which
+        // took out the whole toolbar render.
+        it('falls back to the raw name for an item outside the union', () => {
+            const unknown = 'link' as ToolbarItem;
+            expect(component.getTooltip(unknown)).toBe('link');
+            expect(() => component.getIcon(unknown)).not.toThrow();
         });
 
         it('swaps align tooltips in RTL locale', () => {
@@ -157,6 +363,23 @@ describe('RichTextToolbarComponent', () => {
         it('returns sanitized svg for a known item', () => {
             const icon = component.getIcon('bold');
             expect(icon).toBeTruthy();
+        });
+
+        it('returns the same SafeHtml object for the same glyph, so change detection keeps the SVG nodes', () => {
+            // A fresh wrapper per call re-rendered every glyph on every change
+            // detection; the SVG under the pointer was replaced between
+            // mousedown and mouseup and Chrome dropped the click, so every
+            // button needed two clicks from inside the editor.
+            expect(component.getIcon('bold')).toBe(component.getIcon('bold'));
+            expect(component.getSafeIcon('<svg data-x="1"></svg>')).toBe(component.getSafeIcon('<svg data-x="1"></svg>'));
+
+            const svgBefore = (fixture.nativeElement as HTMLElement).querySelector('button[data-toolbar-item="bold"] svg');
+            fixture.componentRef.setInput('activeFormats', new Set(['bold']));
+            fixture.detectChanges();
+            fixture.detectChanges();
+            const svgAfter = (fixture.nativeElement as HTMLElement).querySelector('button[data-toolbar-item="bold"] svg');
+            expect(svgBefore).not.toBeNull();
+            expect(svgAfter).toBe(svgBefore);
         });
 
         it('swaps alignLeft/alignRight icons in RTL', () => {
@@ -191,53 +414,26 @@ describe('RichTextToolbarComponent', () => {
         });
     });
 
-    describe('custom items', () => {
-        const customItem: RichTextCustomToolbarItem = {
-            id: 'custom1',
-            icon: '<svg></svg>',
-            tooltip: 'Custom',
-            isActive: (formats) => formats.has('bold'),
-        };
+    // T-9 — the dead third extension path is gone. `customToolbarItems` /
+    // `customItems` looked like the simplest way to add a toolbar button but
+    // recorded no undo entry; addon toolbar slots are now the only path.
+    describe('removed custom-items API', () => {
+        it('exposes no customItems input, so a binding logs NG0303 instead of rendering', () => {
+            // Angular reports an unknown input through the console rather than
+            // by throwing, so the property surface is the assertable evidence.
+            const surface = component as unknown as Record<string, unknown>;
+            expect('customItems' in surface).toBe(false);
 
-        it('renders custom item buttons', () => {
             fixture.componentRef.setInput('items', []);
-            fixture.componentRef.setInput('customItems', [customItem]);
             fixture.detectChanges();
-            const buttons = fixture.nativeElement.querySelectorAll('button');
-            expect(buttons).toHaveLength(1);
-            expect(buttons[0].getAttribute('title')).toBe('Custom');
+            expect(fixture.nativeElement.querySelectorAll('button')).toHaveLength(0);
         });
 
-        it('emits customItemClick with the item id', () => {
-            let id: string | undefined;
-            component.customItemClick.subscribe((v) => (id = v));
-            component.onCustomItemClick('custom1');
-            expect(id).toBe('custom1');
-        });
-
-        it('does not emit customItemClick when disabled', () => {
-            fixture.componentRef.setInput('disabled', true);
-            fixture.detectChanges();
-            let emitted = false;
-            component.customItemClick.subscribe(() => (emitted = true));
-            component.onCustomItemClick('custom1');
-            expect(emitted).toBe(false);
-        });
-
-        it('marks a custom button active when its isActive returns true', () => {
-            fixture.componentRef.setInput('activeFormats', new Set(['bold']));
-            fixture.detectChanges();
-            const cls = component.customButtonClasses(customItem);
-            expect(cls).toContain('bg-accent text-accent-foreground');
-        });
-
-        it('does not mark a custom button active when isActive is undefined', () => {
-            const cls = component.customButtonClasses({ id: 'c', icon: '', tooltip: '' });
-            expect(cls).not.toContain('bg-accent text-accent-foreground');
-        });
-
-        it('returns a SafeHtml for a custom icon', () => {
-            expect(component.getSafeIcon('<svg></svg>')).toBeTruthy();
+        it('exposes no customItemClick output and no custom-item helpers', () => {
+            const surface = component as unknown as Record<string, unknown>;
+            expect('customItemClick' in surface).toBe(false);
+            expect('onCustomItemClick' in surface).toBe(false);
+            expect('customButtonClasses' in surface).toBe(false);
         });
     });
 
@@ -311,4 +507,389 @@ describe('RichTextToolbarComponent', () => {
             expect(component.buttonClasses('italic')).not.toContain('bg-accent text-accent-foreground');
         });
     });
+
+    // T-5 — one table, keyed by the button union. A new `ToolbarItem` member
+    // without its row is a `tsc` error (the `Record` below), not a button that
+    // renders blank with its raw id as the tooltip.
+
+    // T-29 — the pressed-state vocabulary. Every block, list and alignment item
+    // reflects `activeFormats`; the momentary actions never announce themselves
+    // as toggles, because `aria-pressed` on a non-toggle is an a11y defect.
+    describe('pressed state', () => {
+        const pressable = [
+            'bold', 'italic', 'underline', 'strikethrough', 'code', 'taskList',
+            'bulletList', 'orderedList', 'paragraph', 'heading1', 'heading2', 'heading3',
+            'blockquote', 'codeBlock', 'alignLeft', 'alignCenter', 'alignRight',
+        ] as const;
+
+        it.each(pressable)('renders %s pressed when activeFormats reports it', (item) => {
+            fixture.componentRef.setInput('items', [item]);
+            fixture.componentRef.setInput('activeFormats', new Set([item]));
+            fixture.detectChanges();
+
+            const button = fixture.nativeElement.querySelector('button');
+            expect(button.getAttribute('aria-pressed')).toBe('true');
+            expect(button.getAttribute('data-state')).toBe('on');
+        });
+
+        it.each(pressable)('renders %s unpressed when activeFormats omits it', (item) => {
+            fixture.componentRef.setInput('items', [item]);
+            fixture.componentRef.setInput('activeFormats', new Set<string>());
+            fixture.detectChanges();
+
+            const button = fixture.nativeElement.querySelector('button');
+            expect(button.getAttribute('aria-pressed')).toBe('false');
+            expect(button.getAttribute('data-state')).toBe('off');
+        });
+
+        // A momentary action is not a toggle: WAI-ARIA's button pattern puts
+        // `aria-pressed` only on toggle buttons, so these must OMIT the
+        // attribute rather than report false — a screen reader announcing
+        // "Undo, not pressed" is wrong, not merely noisy.
+        const momentary = ['undo', 'redo', 'clear', 'horizontalRule', 'indent', 'outdent'] as const;
+
+        it.each(momentary)('never puts aria-pressed on %s', (item) => {
+            fixture.componentRef.setInput('items', [item]);
+            fixture.componentRef.setInput('activeFormats', new Set([item]));
+            fixture.detectChanges();
+
+            const button = fixture.nativeElement.querySelector('button');
+            expect(button.hasAttribute('aria-pressed')).toBe(false);
+        });
+
+        it('leaves a momentary button out of the pressed styling even when named in activeFormats', () => {
+            fixture.componentRef.setInput('items', ['indent']);
+            fixture.componentRef.setInput('activeFormats', new Set(['indent']));
+            fixture.detectChanges();
+
+            const button = fixture.nativeElement.querySelector('button');
+            expect(button.getAttribute('data-state')).toBe('off');
+        });
+    });
+
+
+    // T-30…T-34, T-36 — the Text style select. It replaces the four block
+    // buttons in the default toolbar, reclaiming roughly three buttons of width
+    // on a phone, and both reflects and sets the caret's block type.
+    describe('text style select', () => {
+        const selectEl = (): HTMLSelectElement =>
+            fixture.nativeElement.querySelector('[data-slot="rich-text-toolbar-text-style"]');
+
+        const showSelect = (formats: string[] = []): HTMLSelectElement => {
+            fixture.componentRef.setInput('items', ['textStyle']);
+            fixture.componentRef.setInput('activeFormats', new Set(formats));
+            fixture.detectChanges();
+            return selectEl();
+        };
+
+        it('renders a select rather than a button', () => {
+            const select = showSelect();
+            expect(select).not.toBeNull();
+            expect(fixture.nativeElement.querySelector('button')).toBeNull();
+        });
+
+        it('offers exactly the four block types, localized', () => {
+            const options = Array.from(showSelect().options);
+            expect(options.map((o) => o.value)).toEqual([
+                'paragraph', 'heading1', 'heading2', 'heading3',
+            ]);
+            expect(options.map((o) => o.textContent?.trim())).toEqual([
+                'Normal Text', 'Heading 1', 'Heading 2', 'Heading 3',
+            ]);
+        });
+
+        it('tracks the caret block through activeFormats', () => {
+            expect(showSelect(['heading2']).value).toBe('heading2');
+            expect(showSelect(['heading1']).value).toBe('heading1');
+            expect(showSelect(['paragraph']).value).toBe('paragraph');
+        });
+
+        it('falls back to paragraph for a block with no text-style option', () => {
+            expect(showSelect(['blockquote']).value).toBe('paragraph');
+            expect(showSelect([]).value).toBe('paragraph');
+        });
+
+        // A heading wins over a stray `paragraph`. The host does not report both
+        // today, but `paragraph` is the fallback rather than a peer, so a set
+        // carrying both must still read as the heading rather than resolving by
+        // whichever happens to come first in the option list.
+        it('prefers a heading over paragraph when both are reported', () => {
+            expect(showSelect(['paragraph', 'heading3']).value).toBe('heading3');
+        });
+
+        it('emits formatCommand with the chosen option id', () => {
+            const select = showSelect(['paragraph']);
+            const emitted: string[] = [];
+            component.formatCommand.subscribe((command: string) => emitted.push(command));
+
+            select.value = 'heading2';
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            fixture.detectChanges();
+
+            expect(emitted).toEqual(['heading2']);
+        });
+
+        it('is disabled, and emits nothing, where the caret line takes no text style', () => {
+            fixture.componentRef.setInput('items', ['textStyle']);
+            fixture.componentRef.setInput('textStyleAvailable', false);
+            fixture.detectChanges();
+            const select = selectEl();
+            expect(select.disabled).toBe(true);
+
+            const emitted: string[] = [];
+            component.formatCommand.subscribe((command: string) => emitted.push(command));
+            select.value = 'heading1';
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            fixture.detectChanges();
+
+            expect(emitted).toEqual([]);
+            expect(select.value).toBe('paragraph');
+        });
+
+        it('goes back to the caret block when the editor does not apply the pick', async () => {
+            // The browser moves the select before anything else runs, and no
+            // binding moves it back while the caret's block is unchanged, so a
+            // refused pick left a heading showing over normal text.
+            const select = showSelect(['paragraph']);
+            select.value = 'heading1';
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            fixture.detectChanges();
+            await Promise.resolve();
+
+            expect(select.value).toBe('paragraph');
+        });
+
+        it('moves forward to the block a pick applied', async () => {
+            // A fix that puts the select back later than the pick, from a value
+            // read before it, would undo a heading the editor did apply.
+            const select = showSelect(['paragraph']);
+            select.value = 'heading2';
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            fixture.componentRef.setInput('activeFormats', new Set(['heading2']));
+            fixture.detectChanges();
+            await Promise.resolve();
+
+            expect(select.value).toBe('heading2');
+        });
+
+        it('is disabled and silent while the toolbar is disabled', () => {
+            fixture.componentRef.setInput('items', ['textStyle']);
+            fixture.componentRef.setInput('disabled', true);
+            fixture.detectChanges();
+
+            const select = selectEl();
+            expect(select.disabled).toBe(true);
+
+            const emitted: string[] = [];
+            component.formatCommand.subscribe((command: string) => emitted.push(command));
+            select.value = 'heading1';
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            fixture.detectChanges();
+
+            expect(emitted).toEqual([]);
+        });
+
+        it('is disabled while the toolbar is readonly', () => {
+            fixture.componentRef.setInput('items', ['textStyle']);
+            fixture.componentRef.setInput('readonly', true);
+            fixture.detectChanges();
+
+            expect(selectEl().disabled).toBe(true);
+        });
+
+        it('ignores a change carrying a value outside the option set', () => {
+            showSelect(['paragraph']);
+            const emitted: string[] = [];
+            component.formatCommand.subscribe((command: string) => emitted.push(command));
+
+            component.onTextStyleChange({ target: { value: 'heading9' } } as unknown as Event);
+            fixture.detectChanges();
+
+            expect(emitted).toEqual([]);
+        });
+
+        it('carries an accessible name from the locale', () => {
+            const select = showSelect();
+            expect(select.getAttribute('aria-label')).toBe(
+                RICH_TEXT_LOCALES['en'].toolbar.textStyle
+            );
+        });
+
+        it('is never announced as a pressed toggle', () => {
+            expect(showSelect(['heading1']).hasAttribute('aria-pressed')).toBe(false);
+            expect(component.isPressable('textStyle')).toBe(false);
+        });
+
+        // T-36 — a native control still has to meet the 44px touch target the
+        // library guarantees; the coarse-pointer rule covers `select` as well
+        // as `button`.
+        it('meets the 44px touch minimum under a coarse pointer', () => {
+            expect(showSelect()).not.toBeNull();
+
+            const rule = Array.from(document.styleSheets)
+                .flatMap((sheet) => {
+                    try {
+                        return Array.from(sheet.cssRules);
+                    } catch {
+                        return [];
+                    }
+                })
+                .filter((r): r is CSSMediaRule => r instanceof CSSMediaRule)
+                .filter((r) => r.conditionText.includes('pointer: coarse'))
+                .flatMap((r) => Array.from(r.cssRules))
+                .filter((r): r is CSSStyleRule => r instanceof CSSStyleRule)
+                .find((r) => r.selectorText.includes('select'));
+
+            // 44, not 40: WCAG 2.5.8 and the library's own touch rule.
+            expect(rule?.style.minHeight).toBe('44px');
+        });
+    });
+
+    // T-34 — the table and the locales stay complete.
+    describe('textStyle in the shared tables', () => {
+        it('has a TOOLBAR_BUTTONS row whose id matches its key', () => {
+            expect(TOOLBAR_BUTTONS.textStyle).toBeDefined();
+            expect(TOOLBAR_BUTTONS.textStyle.id).toBe('textStyle');
+            expect(TOOLBAR_BUTTONS.textStyle.localeKey).toBe('textStyle');
+        });
+
+        it('has a non-empty toolbar.textStyle in every locale', () => {
+            const locales = Object.keys(RICH_TEXT_LOCALES);
+            expect(locales.length).toBeGreaterThanOrEqual(10);
+            for (const code of locales) {
+                expect(RICH_TEXT_LOCALES[code].toolbar.textStyle.length).toBeGreaterThan(0);
+            }
+        });
+
+        it('lists the four options in TEXT_STYLE_OPTIONS', () => {
+            expect([...TEXT_STYLE_OPTIONS]).toEqual([
+                'paragraph', 'heading1', 'heading2', 'heading3',
+            ]);
+        });
+    });
+
+    describe('TOOLBAR_BUTTONS table', () => {
+        /**
+         * Type-level completeness: this annotation stops compiling the moment
+         * a `ToolbarItem` member has no row — the blank-button failure mode
+         * becomes a `tsc` error instead.
+         */
+        const complete: Record<ToolbarButtonItem, ToolbarButton> = TOOLBAR_BUTTONS;
+
+        /** Every non-separator item the toolbar can be asked to render. */
+        const buttonItems = Object.keys(complete) as ToolbarButtonItem[];
+
+        it('has no separator row and every row keyed by its own id', () => {
+            expect(buttonItems).not.toContain('separator');
+            for (const key of buttonItems) {
+                expect(TOOLBAR_BUTTONS[key].id).toBe(key);
+            }
+        });
+
+        it('gives every row a non-empty inline SVG icon and a locale key', () => {
+            for (const key of buttonItems) {
+                const row = TOOLBAR_BUTTONS[key];
+                expect(row.icon, `${key} icon`).toMatch(/^<svg/);
+                expect(row.localeKey, `${key} localeKey`).toBeTruthy();
+                expect(row.label, `${key} label`).toBeTruthy();
+            }
+        });
+
+        it('covers every item the default toolbar renders', () => {
+            const defaults = component.items().filter((i) => i !== 'separator');
+            for (const item of defaults) {
+                expect(buttonItems).toContain(item);
+            }
+        });
+    });
+
+    // T-6 — the table is the single source for both the glyph and the tooltip.
+    describe('table-driven icon and tooltip', () => {
+        const buttonItems = Object.keys(TOOLBAR_BUTTONS) as ToolbarButtonItem[];
+
+        it('renders the table icon for every button item', () => {
+            for (const item of buttonItems) {
+                expect(String(component.getIcon(item)), item).toContain(
+                    TOOLBAR_BUTTONS[item].icon,
+                );
+            }
+        });
+
+        it('renders the localized label (plus shortcut) for every button item', () => {
+            const locale = component.locale();
+            for (const item of buttonItems) {
+                const row = TOOLBAR_BUTTONS[item];
+                const label = locale.toolbar[row.localeKey];
+                const expected = row.shortcut ? `${label} (${row.shortcut})` : label;
+                expect(component.getTooltip(item), item).toBe(expected);
+            }
+        });
+
+        it('renders nothing for the separator item', () => {
+            expect(String(component.getIcon('separator'))).not.toContain('<svg');
+            expect(component.getTooltip('separator')).toBe('');
+        });
+    });
+
+    // T-7 — RTL contract: alignment mirrors icon AND label; indent/outdent
+    // mirror the icon only, because the label already names the direction the
+    // text moves rather than a side of the page.
+    describe('RTL mirroring', () => {
+        beforeEach(() => {
+            fixture.componentRef.setInput('locale', RICH_TEXT_LOCALES['he']);
+            fixture.detectChanges();
+        });
+
+        it('mirrors both the icon and the tooltip for the alignment items', () => {
+            const he = RICH_TEXT_LOCALES['he'];
+            expect(String(component.getIcon('alignLeft'))).toContain(
+                TOOLBAR_BUTTONS.alignRight.icon,
+            );
+            expect(String(component.getIcon('alignRight'))).toContain(
+                TOOLBAR_BUTTONS.alignLeft.icon,
+            );
+            expect(component.getTooltip('alignLeft')).toBe(he.toolbar.alignRight);
+            expect(component.getTooltip('alignRight')).toBe(he.toolbar.alignLeft);
+        });
+
+        it('mirrors the icon but NOT the tooltip for indent/outdent', () => {
+            const he = RICH_TEXT_LOCALES['he'];
+            expect(String(component.getIcon('indent'))).toContain(TOOLBAR_BUTTONS.outdent.icon);
+            expect(String(component.getIcon('outdent'))).toContain(TOOLBAR_BUTTONS.indent.icon);
+            expect(component.getTooltip('indent')).toBe(he.toolbar.indent);
+            expect(component.getTooltip('outdent')).toBe(he.toolbar.outdent);
+        });
+
+        it('leaves a non-directional item untouched', () => {
+            expect(String(component.getIcon('bold'))).toContain(TOOLBAR_BUTTONS.bold.icon);
+            expect(component.getTooltip('bold')).toContain(RICH_TEXT_LOCALES['he'].toolbar.bold);
+        });
+    });
+
+    // T-8 — built-in and addon buttons must look identical; only the source of
+    // the "active" flag differs.
+    describe('shared button classes', () => {
+        const slot = { id: 'a.b', icon: '<svg></svg>', tooltip: 'A', onClick: () => void 0 };
+
+        it('gives an inactive built-in and an inactive addon slot the same classes', () => {
+            expect(component.addonButtonClasses(slot)).toBe(component.buttonClasses('heading1'));
+        });
+
+        it('adds the same active classes to both', () => {
+            fixture.componentRef.setInput('activeFormats', new Set(['bold']));
+            fixture.detectChanges();
+            const activeBuiltIn = component.buttonClasses('bold');
+            const activeAddon = component.addonButtonClasses({ ...slot, isActive: () => true });
+            expect(activeBuiltIn).toContain('bg-accent text-accent-foreground');
+            expect(activeAddon).toBe(activeBuiltIn);
+        });
+
+        it('applies the compact padding to both', () => {
+            fixture.componentRef.setInput('compact', true);
+            fixture.detectChanges();
+            expect(component.buttonClasses('heading1')).toContain('p-1');
+            expect(component.addonButtonClasses(slot)).toBe(component.buttonClasses('heading1'));
+        });
+    });
+
 });

@@ -5,6 +5,7 @@ import {
   SwitchComponent,
 } from '../../../../../packages/components/ui';
 import { RTE_FULL } from '../../../../../packages/components/ui/rich-text-editor/addons/full';
+import { RichTextInsertDateDirective } from './rich-text-insert-date.directive';
 import type { RichTextActionDefinition } from '../../../../../packages/components/ui/rich-text-editor/addons/actions';
 import type { MentionItem, TagItem } from '../../../../../packages/components/ui/rich-text-editor/addons/mentions';
 import type { AiRequest } from '../../../../../packages/components/lib/ai';
@@ -66,6 +67,20 @@ const PRESETS: Record<PresetKey, AddonKey[]> = {
   everything: ADDON_KEYS,
 };
 
+/**
+ * The preset whose addon set is exactly `enabled`, or null when the selection
+ * matches none. `core` matches the empty set, so "nothing enabled" emits
+ * `--preset core` rather than an empty `--with`.
+ */
+function presetFor(enabled: readonly AddonKey[]): PresetKey | null {
+  for (const [name, keys] of Object.entries(PRESETS) as [PresetKey, AddonKey[]][]) {
+    if (keys.length !== enabled.length) continue;
+    const wanted = new Set<AddonKey>(keys);
+    if (enabled.every((k) => wanted.has(k))) return name;
+  }
+  return null;
+}
+
 interface AddonGroup {
   readonly labelKey: keyof RichTextEditorAddonsDemoLocale;
   readonly keys: AddonKey[];
@@ -79,10 +94,43 @@ function allOn(): Record<AddonKey, boolean> {
   return state;
 }
 
+/**
+ * The worked example from `docs/rich-text-editor.md`, kept here as a string so
+ * the page can show the whole addon without a build-time file read. It is the
+ * same directive the editor below actually runs.
+ */
+const INSERT_DATE_SOURCE = `import { Directive, effect, inject, input } from '@angular/core';
+import { RichTextEditorAddonHost } from '@/components/ui/rich-text-editor';
+
+const ICON = \`<svg …calendar glyph… />\`;
+
+@Directive({ selector: 'ui-rich-text-editor[uiRteInsertDate]' })
+export class RichTextInsertDateDirective {
+  private readonly host = inject(RichTextEditorAddonHost);
+
+  readonly uiRteInsertDateLocale = input<string>();
+  readonly uiRteInsertDateOrder = input(900);
+
+  constructor() {
+    effect((onCleanup) => {
+      onCleanup(this.host.toolbarSlots.register({
+        id: 'insert-date',
+        icon: ICON,
+        tooltip: "Insert today's date",
+        order: this.uiRteInsertDateOrder(),
+        isEnabled: () => !this.host.readonly() && !this.host.isDisabled(),
+        onClick: () => this.host.insertTextAtCaret(
+          new Intl.DateTimeFormat(this.uiRteInsertDateLocale()).format(new Date()),
+        ),
+      }));
+    });
+  }
+}`;
+
 @Component({
   selector: 'app-rich-text-editor-addons-demo',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RichTextEditorComponent, ...RTE_FULL, ButtonComponent, SwitchComponent],
+  imports: [RichTextEditorComponent, ...RTE_FULL, ButtonComponent, SwitchComponent, RichTextInsertDateDirective],
   template: `
     <section class="space-y-6">
       <h2 id="rich-text-editor-addons" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
@@ -155,6 +203,21 @@ function allOn(): Record<AddonKey, boolean> {
         </div>
       </div>
 
+      <div data-testid="write-your-own-addon" class="space-y-3 rounded-md border p-4">
+        <h3 class="text-lg font-semibold">{{ t().writeOwnHeading }}</h3>
+        <p class="text-sm text-muted-foreground">{{ t().writeOwnDescription }}</p>
+        <ui-rich-text-editor
+          uiRteInsertDate
+          mode="html"
+          minHeight="120px"
+          [placeholder]="t().writeOwnEditorPlaceholder"
+        />
+        <div class="space-y-1.5">
+          <p class="text-sm font-medium">{{ t().writeOwnCodeLabel }}</p>
+          <pre class="overflow-x-auto rounded-md bg-muted p-3 text-xs leading-relaxed">{{ insertDateSource }}</pre>
+        </div>
+      </div>
+
       <details class="rounded-md border bg-muted/30 p-3">
         <summary class="cursor-pointer text-sm font-medium">{{ t().codePanelSummary }}</summary>
         <div class="mt-3 space-y-4">
@@ -177,6 +240,9 @@ function allOn(): Record<AddonKey, boolean> {
   `,
 })
 export class RichTextEditorAddonsDemoComponent {
+  /** Source of the worked-example addon, shown verbatim on the page. */
+  protected readonly insertDateSource = INSERT_DATE_SOURCE;
+
   /** Fictional example documents shipped with the demo under /examples. */
   readonly examplePdfs = ['invoice.pdf', 'newsletter.pdf', 'quarterly-report.pdf', 'hebrew-receipt.pdf', 'registration-form.pdf'];
 
@@ -225,11 +291,11 @@ export class RichTextEditorAddonsDemoComponent {
 
   protected readonly installCommands = computed(() => {
     const enabled = this.enabledKeys();
-    const lines = ['npx @gilav21/shadcn-angular add rich-text-editor'];
-    for (const key of enabled) {
-      lines.push(`npx @gilav21/shadcn-angular apply rich-text-editor/${ADDON_META[key].registry}`);
-    }
-    return `${this.t().commandsBaseNote}\n${lines.join('\n')}`;
+    const base = 'npx @gilav21/shadcn-angular add rich-text-editor';
+    const preset = presetFor(enabled);
+    const keys = enabled.map((k) => 'rich-text-editor/' + ADDON_META[k].registry).join(',');
+    const command = preset ? `${base} --preset ${preset}` : `${base} --with ${keys}`;
+    return `${this.t().commandsBaseNote}\n${command}`;
   });
 
   protected setAddon(key: AddonKey, enabled: boolean): void {

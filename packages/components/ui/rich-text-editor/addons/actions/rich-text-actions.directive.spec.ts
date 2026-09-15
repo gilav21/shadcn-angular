@@ -6,6 +6,20 @@ import { RichTextActionsDirective } from './rich-text-actions.directive';
 import type { ActionParams, RichTextActionDefinition, RichTextActionTrigger } from './rich-text-actions.types';
 import { RichTextEditorComponent, RichTextSanitizerService } from '../..';
 
+/**
+ * The sanitizer the EDITOR uses.
+ *
+ * The editor provides its own instance so the remote-host policy can differ per
+ * editor, which means TestBed.inject() returns a different, untouched object.
+ * Asserting against that one made the "registers nothing" cases pass for the
+ * wrong reason and the "registers rules" case fail outright.
+ */
+function editorSanitizer(fixture: ComponentFixture<unknown>): RichTextSanitizerService {
+    const editor = fixture.debugElement.query(By.directive(RichTextEditorComponent));
+    return editor.injector.get(RichTextSanitizerService);
+}
+
+
 interface ApplyTargetLike {
     kind: 'text' | 'image';
     existing: HTMLElement | null;
@@ -83,7 +97,7 @@ describe('RichTextActionsDirective', () => {
     it('registers a toolbar slot + sanitizer rules when defs are present', () => {
         const fixture = createFixture();
         fixture.detectChanges();
-        const sanitizer = TestBed.inject(RichTextSanitizerService);
+        const sanitizer = editorSanitizer(fixture);
         expect(sanitizer.sanitize('<span data-action-click="open-dialog">x</span>'))
             .toBe('<span data-action-click="open-dialog">x</span>');
         const slotBtn = fixture.nativeElement.querySelector('[data-addon-slot="actions.attach"]');
@@ -94,7 +108,7 @@ describe('RichTextActionsDirective', () => {
         const fixture = createFixture();
         fixture.componentInstance.defs = [];
         fixture.detectChanges();
-        const sanitizer = TestBed.inject(RichTextSanitizerService);
+        const sanitizer = editorSanitizer(fixture);
         expect(sanitizer.sanitize('<span data-action-click="a">x</span>')).toBe('<span>x</span>');
         expect(fixture.nativeElement.querySelector('[data-addon-slot="actions.attach"]')).toBeFalsy();
     });
@@ -102,8 +116,13 @@ describe('RichTextActionsDirective', () => {
     it('tears down registrations on destroy', () => {
         const fixture = createFixture();
         fixture.detectChanges();
+        // Captured BEFORE destroy: the editor cannot be queried once it is gone,
+        // and this asserts the teardown ran on the instance that held the rules.
+        const sanitizer = editorSanitizer(fixture);
+        expect(sanitizer.sanitize('<span data-action-click="open-dialog">x</span>'))
+            .toBe('<span data-action-click="open-dialog">x</span>');
+
         fixture.destroy();
-        const sanitizer = TestBed.inject(RichTextSanitizerService);
         expect(sanitizer.sanitize('<span data-action-click="open-dialog">x</span>'))
             .toBe('<span>x</span>');
     });
@@ -146,7 +165,7 @@ describe('RichTextActionsDirective', () => {
         const editor = fixture.nativeElement.querySelector('[data-slot="rich-text-editor"]') as HTMLElement;
         editor.innerHTML = '<p><img src="https://example.com/a.png" alt="a"></p>';
         const img = editor.querySelector('img') as HTMLImageElement;
-        editorCmp.selectedImage.set(img);
+        editorCmp.setSelectedImage(img);
         const range = document.createRange();
         range.selectNode(img);
         const sel = window.getSelection()!; sel.removeAllRanges(); sel.addRange(range);
@@ -158,7 +177,7 @@ describe('RichTextActionsDirective', () => {
         fixture.detectChanges();
         // The dialog collapses the live selection; the fix captures the image up front.
         sel.removeAllRanges();
-        editorCmp.selectedImage.set(null);
+        editorCmp.setSelectedImage(null);
 
         (document.querySelector('[data-action-option="open-dialog"]') as HTMLButtonElement).click();
         fixture.detectChanges();
@@ -293,6 +312,33 @@ describe('RichTextActionsDirective', () => {
         expect(popover).toBeTruthy();
         expect(popover!.textContent).toContain('Open dialog');
         expect(popover!.querySelector('[data-testid="rta-edit"]')).toBeTruthy();
+    });
+
+    it('does not keep a popover pointing at content that was replaced', () => {
+        // The popover only re-evaluated on mouseup/keyup, so a programmatic
+        // content swap — a save/reload, a collaborative overwrite, an "insert
+        // template" button — left it floating over content that no longer
+        // exists, still offering Edit and Remove for a deleted span.
+        //
+        // Asserted through the directive's own guard rather than the rendered
+        // DOM: this harness does not flush the history effect that closes it in
+        // a real browser (verified there separately), but the guard is the same
+        // one that effect calls.
+        const fixture = createFixture();
+        caretInside(fixture, '<p><span data-action-click="open-dialog" data-action-click-params=\'{"dialogId":"x"}\'>t</span></p>');
+        const directive = fixture.debugElement
+            .query(By.directive(RichTextActionsDirective))
+            .injector.get(RichTextActionsDirective) as unknown as {
+                popoverTarget: HTMLElement | null;
+                dropPopoverIfDetached(): void;
+            };
+        expect(directive.popoverTarget).not.toBeNull();
+
+        (fixture.debugElement.children[0].componentInstance as RichTextEditorComponent).setContent('<p>replaced entirely</p>');
+        directive.dropPopoverIfDetached();
+
+        expect(directive.popoverTarget).toBeNull();
+        expect(document.querySelector('[data-slot="rich-text-actions-popover"]')).toBeNull();
     });
 
     it('renders the popover in the native top layer when showPopover is available', () => {
@@ -705,7 +751,7 @@ describe('RichTextActionsDirective', () => {
             const editor = fixture.nativeElement.querySelector('[data-slot="rich-text-editor"]') as HTMLElement;
             editor.innerHTML = '<p><img src="https://example.com/a.png" alt="a"></p>';
             const img = editor.querySelector('img') as HTMLImageElement;
-            editorCmp.selectedImage.set(img);
+            editorCmp.setSelectedImage(img);
             const range = document.createRange();
             range.selectNode(img);
             const sel = window.getSelection()!; sel.removeAllRanges(); sel.addRange(range);
@@ -716,7 +762,7 @@ describe('RichTextActionsDirective', () => {
             slot.click();
             fixture.detectChanges();
             sel.removeAllRanges();
-            editorCmp.selectedImage.set(null);
+            editorCmp.setSelectedImage(null);
 
             (document.querySelector('[data-action-option="open-dialog"]') as HTMLButtonElement).click();
             fixture.detectChanges();

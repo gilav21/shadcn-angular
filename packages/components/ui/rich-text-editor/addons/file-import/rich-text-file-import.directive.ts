@@ -12,7 +12,7 @@ import {
     signal,
     type ComponentRef,
 } from '@angular/core';
-import { RichTextEditorAddonHost } from '../..';
+import { addonSetting, type RichTextAddonSetting, type RichTextAddonState, RichTextEditorAddonHost} from '../..';
 import { createLocaleBindings, type LocaleInput } from '../../../../lib/i18n';
 import {
     RICH_TEXT_FILE_IMPORT_LOCALES,
@@ -66,6 +66,19 @@ const ERROR_DISMISS_MS = 4000;
  * <ui-rich-text-editor uiRteFileImport />
  * ```
  */
+/**
+ * Largest file the addon will read into memory. Generous on purpose: real
+ * documents with embedded images run to tens of megabytes, so this exists to
+ * stop the pathological case, not to police ordinary files.
+ */
+const MAX_IMPORT_BYTES = 100 * 1024 * 1024;
+
+/** Signals a file rejected on size, whose message is already user-facing. */
+class ImportTooLargeError extends Error {}
+
+/** How many imported-PDF font stylesheets may accumulate in the document. */
+const MAX_PDF_FONT_STYLES = 12;
+
 @Directive({
     selector: 'ui-rich-text-editor[uiRteFileImport], ui-rich-text-editor[uiRteFull]',
     standalone: true,
@@ -77,12 +90,14 @@ export class RichTextFileImportDirective {
 
     /** Locale for the addon UI: a registry key (`'en'`/`'he'`/…) or a full dictionary. */
     readonly uiRteFileImportLocale = input<LocaleInput<RichTextFileImportLocale>>();
-    /** Master toggle for the whole import feature (default true). */
-    readonly uiRteFileImport = input(true, { transform: coerceEnabled });
-    /** Sort order of the import button among addon toolbar slots; lower first. */
-    readonly uiRteFileImportOrder = input(340);
-    /** Contribute the toolbar button (default true). */
-    readonly uiRteFileImportToolbar = input(true);
+    /**
+     * Enable the addon (the bare `uiRteFileImport` attribute), or tune it: `[uiRteFileImport]="{ toolbar: false }"` keeps the feature without its button, `{ order: 100 }` moves the button.
+     * See {@link RichTextAddonOptions}.
+     */
+    readonly uiRteFileImport = input<RichTextAddonState, RichTextAddonSetting>(addonSetting(340)(true), { transform: addonSetting(340) });
+
+    /** Read this, not the whole setting, where only on/off matters: an options change must not remount the feature. */
+    private readonly enabled = computed(() => this.uiRteFileImport().enabled);
     /**
      * `accept` attribute for the toolbar file picker. Leave unset to accept the
      * document formats plus, when an addon owns image files, the image formats
@@ -136,10 +151,10 @@ export class RichTextFileImportDirective {
             parent: this.injector,
         });
         effect((onCleanup) => {
-            if (!this.uiRteFileImport() || !this.uiRteFileImportToolbar()) return;
+            if (!this.enabled() || !this.uiRteFileImport().toolbar) return;
             onCleanup(this.host.toolbarSlots.register({
                 id: FILE_IMPORT_SLOT_ID,
-                order: this.uiRteFileImportOrder(),
+                order: this.uiRteFileImport().order,
                 component: RichTextFileImportButtonComponent,
                 injector: slotInjector,
             }));
@@ -157,7 +172,7 @@ export class RichTextFileImportDirective {
     }
 
     private onDrop(event: DragEvent): boolean {
-        if (!this.uiRteFileImport()) return false;
+        if (!this.enabled()) return false;
         const file = Array.from(event.dataTransfer?.files ?? []).find(isSupportedDocumentFile);
         if (!file) return false;
         event.preventDefault();
@@ -166,12 +181,12 @@ export class RichTextFileImportDirective {
     }
 
     private canAcceptDrag(event: DragEvent): boolean {
-        return this.uiRteFileImport() && dragHasSupportedDocument(event.dataTransfer);
+        return this.enabled() && dragHasSupportedDocument(event.dataTransfer);
     }
 
 
     private async importFile(file: File): Promise<void> {
-        if (!this.uiRteFileImport() || this.host.readonly() || this.host.disabled()) return;
+        if (!this.enabled() || this.host.readonly() || this.host.isDisabled()) return;
         this.host.flushPendingHistoryPush();
 
         const header = new Uint8Array(await file.slice(0, HEADER_BYTES).arrayBuffer());
@@ -209,14 +224,38 @@ export class RichTextFileImportDirective {
                 await this.importPdf(file);
             }
         } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : this.i18n.t().importFailed;
-            this.reportError(message);
+            // Parser exceptions read like "Cannot find end of central directory"
+            // — accurate for a developer, meaningless to the person who just
+            // picked a file, and untranslated in every locale. Show the localized
+            // message and keep the technical one for the console.
+            if (error instanceof ImportTooLargeError) {
+                this.reportError(error.message);
+            } else {
+                if (error instanceof Error) console.error('[rich-text-editor] file import failed', error);
+                this.reportError(this.i18n.t().importFailed);
+            }
         } finally {
             this.importing.set(false);
         }
     }
 
+    /**
+     * Refuse a file too large to read into memory.
+     *
+     * The parsers bound their own DECOMPRESSED output, but nothing bounded the
+     * input: `file.arrayBuffer()` buffers the whole thing first, so a multi-GB
+     * pick could exhaust memory before any of those ceilings applied. The limit
+     * is deliberately generous — real documents with embedded media are large —
+     * it exists to stop the pathological case, not to police normal files.
+     */
+    private assertImportableSize(file: File): void {
+        if (file.size > MAX_IMPORT_BYTES) {
+            throw new ImportTooLargeError(this.i18n.t().importTooLarge);
+        }
+    }
+
     private async importDocx(file: File): Promise<void> {
+        this.assertImportableSize(file);
         const bytes = new Uint8Array(await file.arrayBuffer());
         const { parseDocx } = await import('../../../../lib/parsers/docx-parser');
         const { renderDocxForEditor } = await import('../../../../lib/parsers/docx-to-editor-html');
@@ -225,6 +264,7 @@ export class RichTextFileImportDirective {
     }
 
     private async importPdf(file: File): Promise<void> {
+        this.assertImportableSize(file);
         const buffer = await file.arrayBuffer();
         const { parsePdfReadable } = await import('../../../../lib/parsers/pdf-readable/pdf-readable');
         const result = await parsePdfReadable(buffer);
@@ -248,8 +288,13 @@ export class RichTextFileImportDirective {
      * Embedded PDF fonts arrive as `@font-face` CSS that cannot travel inside
      * the sanitized editor HTML (`<style>` tags are stripped), so it is
      * injected into `document.head` instead. Deduped by content hash and
-     * intentionally never removed on destroy — the inserted content outlives
-     * this directive.
+     * intentionally never removed on destroy — the imported text outlives this
+     * directive and would lose its fonts, so tearing these down with the
+     * component would break already-imported documents.
+     *
+     * They are capped instead: a session importing many PDFs would otherwise
+     * accumulate style elements without bound. The oldest are dropped first,
+     * which at worst falls back to a default face on the least recent import.
      */
     private injectFontCss(css: string): void {
         const hash = `${css.length.toString(36)}-${simpleHash(css)}`;
@@ -259,6 +304,11 @@ export class RichTextFileImportDirective {
         style.dataset['uiRtePdfFonts'] = hash;
         style.textContent = css;
         doc.head.appendChild(style);
+
+        const injected = doc.head.querySelectorAll('style[data-ui-rte-pdf-fonts]');
+        for (let i = 0; i < injected.length - MAX_PDF_FONT_STYLES; i++) {
+            injected[i].remove();
+        }
     }
 
     private insertImported(html: string): void {
@@ -310,7 +360,3 @@ export class RichTextFileImportDirective {
     }
 }
 
-/** Coerce the bare `uiRteFileImport` attribute (empty string) to `true`. */
-function coerceEnabled(value: boolean | string | undefined): boolean {
-    return value === '' || value === true || value === undefined;
-}

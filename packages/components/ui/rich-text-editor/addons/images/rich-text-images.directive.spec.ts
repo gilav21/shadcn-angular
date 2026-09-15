@@ -41,12 +41,9 @@ const TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAE
     standalone: true,
     imports: [RichTextEditorComponent, RichTextImagesDirective],
     template: `<ui-rich-text-editor mode="html" [disabled]="disabled()" [readonly]="readonly()"
-        [uiRteImages]="enabled()" [uiRteImagesToolbar]="toolbar()" [uiRteImagesLocale]="locale()"
-        [uiRteImagesSources]="sources()"
-        [uiRteImagesAutoUpload]="autoUpload()"
-        [uiRteImagesUploader]="uploader()"
-        [uiRteImagesDefaultWidth]="defaultWidth()"
-        [uiRteImagesDefaultAlignment]="defaultAlignment()"
+        [uiRteImages]="enabled() && { toolbar: toolbar() }" [uiRteImagesLocale]="locale()"
+        [uiRteImagesUpload]="{ sources: sources(), auto: autoUpload(), uploader: uploader() }"
+        [uiRteImagesLayout]="{ defaultWidth: defaultWidth(), defaultAlignment: defaultAlignment() }"
         (imageUploadComplete)="uploadComplete.push($event)"
         (imageUploadError)="uploadError.push($event)"
         (autoImageUploadComplete)="autoComplete.push($event)"
@@ -256,6 +253,34 @@ describe('RichTextImagesDirective', () => {
         expect(fixture.componentInstance.uploadComplete).toContain('https://cdn.example.com/clip.png');
     });
 
+    it('drops a manual upload that resolves after the editor is destroyed', async () => {
+        // An upload is a network round-trip the user can outlive by routing
+        // away, closing a dialog or toggling a tab. The auto-upload path already
+        // unsubscribes on destroy; this one awaited its promise with nothing
+        // watching, then committed into a dead editor and emitted outputs whose
+        // owning directive no longer existed (Angular logs NG0953).
+        const fixture = createFixture();
+        const upload$ = new Subject<string>();
+        fixture.componentInstance.sources.set('upload');
+        fixture.componentInstance.uploader.set(() => upload$);
+        fixture.detectChanges();
+        const { el, cmp } = setContent(fixture, '<p>x</p>');
+        caretAtEnd(el.querySelector('p')!);
+
+        cmp.insertImageFile(new File(['img'], 'late.png', { type: 'image/png' }));
+        await wait();
+
+        fixture.destroy();
+        const completedBefore = [...fixture.componentInstance.uploadComplete];
+
+        upload$.next('https://cdn.example.com/late.png');
+        upload$.complete();
+        await wait();
+
+        expect(el.innerHTML).not.toContain('late.png');
+        expect(fixture.componentInstance.uploadComplete).toEqual(completedBefore);
+    });
+
     it('claims image files for the editor, so other addons route through the uploader', async () => {
         const fixture = createFixture();
         fixture.componentInstance.sources.set('upload');
@@ -367,6 +392,36 @@ describe('RichTextImagesDirective', () => {
         expect(img.getAttribute('src')).toBe('https://cdn.example.com/uploaded.png');
         expect('autoUploadId' in img.dataset).toBe(false);
         expect(fixture.componentInstance.autoComplete).toContain('https://cdn.example.com/uploaded.png');
+    });
+
+    it('drops an auto-upload result whose image was detached mid-flight', async () => {
+        // An upload is a network round-trip; undo/redo/setContent replace the
+        // editable's innerHTML wholesale in that window. Writing the returned
+        // URL to the detached node changes nothing on screen, so reporting
+        // success would tell the consumer a swap happened that did not.
+        const fixture = createFixture();
+        const upload$ = new Subject<string>();
+        fixture.componentInstance.autoUpload.set(true);
+        fixture.componentInstance.uploader.set(() => upload$);
+        fixture.detectChanges();
+        const { el } = editorOf(fixture);
+
+        const img = document.createElement('img');
+        img.setAttribute('src', TINY_BASE64);
+        el.appendChild(img);
+        await wait();
+        expect(img.dataset['autoUploadStatus']).toBe('uploading');
+
+        el.innerHTML = '<p>replaced while the upload was in flight</p>';
+        expect(img.isConnected).toBe(false);
+
+        upload$.next('https://cdn.example.com/uploaded.png');
+        upload$.complete();
+        await wait();
+
+        expect(img.getAttribute('src')).not.toBe('https://cdn.example.com/uploaded.png');
+        expect(fixture.componentInstance.autoComplete).not.toContain('https://cdn.example.com/uploaded.png');
+        expect(el.innerHTML).toContain('replaced while the upload was in flight');
     });
 
     it('surfaces an auto-upload failure as an error overlay entry', async () => {
@@ -806,5 +861,38 @@ describe('RichTextImagesDirective', () => {
         const ctx = buttonContext(fixture);
         expect(ctx.locale().tooltip).toBe('הוספת תמונה');
         expect(ctx.locale().rtl).toBe(true);
+    });
+
+    describe('shared upload styles (round-15 audit)', () => {
+        const styleTag = (): HTMLElement | null =>
+            document.getElementById('ui-rte-auto-upload-styles');
+
+        it('removes the global style tag when the last editor using it goes', () => {
+            // The tag was appended once and never removed, so it outlived every
+            // editor and kept styling img[data-auto-upload-status] app-wide.
+            const fixture = createFixture();
+            fixture.componentInstance.autoUpload.set(true);
+            fixture.detectChanges();
+            expect(styleTag()).toBeTruthy();
+
+            fixture.destroy();
+            expect(styleTag()).toBeNull();
+        });
+
+        it('keeps the tag while another editor still needs it', () => {
+            const a = createFixture();
+            a.componentInstance.autoUpload.set(true);
+            a.detectChanges();
+            const b = createFixture();
+            b.componentInstance.autoUpload.set(true);
+            b.detectChanges();
+            expect(styleTag()).toBeTruthy();
+
+            a.destroy();
+            expect(styleTag()).toBeTruthy();
+
+            b.destroy();
+            expect(styleTag()).toBeNull();
+        });
     });
 });

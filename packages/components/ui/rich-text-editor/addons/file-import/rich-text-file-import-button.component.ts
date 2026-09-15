@@ -34,7 +34,7 @@ export class RichTextFileImportButtonComponent {
     protected readonly icon: SafeHtml = this.domSanitizer.bypassSecurityTrustHtml(IMPORT_ICON);
 
     protected readonly interactionDisabled = computed(
-        () => this.host.disabled() || this.host.readonly(),
+        () => this.host.isDisabled() || this.host.readonly(),
     );
 
     protected readonly buttonClasses = computed(() => cn(
@@ -42,6 +42,10 @@ export class RichTextFileImportButtonComponent {
         'hover:bg-accent hover:text-accent-foreground',
         'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
         'disabled:pointer-events-none disabled:opacity-50',
+        // The global (pointer: coarse) floor targets `button:not([data-slot])`,
+        // and these addon buttons carry a data-slot for testing — so they must
+        // state the 44px touch minimum themselves rather than inherit it.
+        'pointer-coarse:min-h-11 pointer-coarse:min-w-11',
         this.toolbarView?.compact() ? 'p-1' : 'p-1.5',
     ));
 

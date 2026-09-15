@@ -27,6 +27,13 @@ export default tseslint.config(
       'coverage*/**',
       '.storybook/**',
       'e2e/fixture-app/**',
+      // The Angular 21 fixture the compiled-package e2e legs install into —
+      // a second pristine consumer app, not source (same reason as above).
+      'e2e/fixture-app-21/**',
+      // Generated verbatim copies of a registry closure, produced by
+      // `stage:package` and compiled by ng-packagr. Linting them would report
+      // every component's findings a second time, in files nobody edits.
+      'packages/*-package/src/**',
       // The parallel e2e runner clones that same fixture per worker into
       // `e2e/.workers/w<N>/fixture-app/`, which `.gitignore` already covers
       // (`e2e/.workers/`). Listing only `e2e/fixture-app/**` above matched the
@@ -63,6 +70,14 @@ export default tseslint.config(
       },
     },
     rules: {
+      // Control characters have no business in a regex. A literal  backspace
+      // reached four separate regexes in this repo -- an editing tool had
+      // interpreted "" -- and in one case it silently made a regex
+      // alternation never match, which cost a long debugging detour because the
+      // running behaviour could not be explained by reading the file. Zero-width
+      // characters in ordinary strings stay allowed -- the editor legitimately
+      // uses them as caret anchors.
+      'no-control-regex': 'error',
       '@typescript-eslint/no-unused-vars': [
         'error',
         {
@@ -186,6 +201,12 @@ export default tseslint.config(
       'packages/components/ui/rich-text-editor/addons/images/rich-text-images-resizer.component.ts',
       'packages/components/ui/rich-text-editor/addons/file-import/rich-text-file-import-button.component.ts',
       'packages/components/ui/rich-text-editor/sub/rich-text-toolbar.component.ts',
+      // Renders REVISION CONTENT, not a static icon — so unlike its neighbours
+      // here the input really is user data. It is put through the editor's own
+      // sanitizer first (the same allowlist as the live document); the bypass
+      // only stops Angular's second pass from stripping the style attributes
+      // that make the preview faithful. See docs/sonarqube-accepted-findings.md.
+      'packages/components/ui/rich-text-editor/addons/history/rich-text-history-panel.component.ts',
       'demo/src/app/demos/data-display/pdf-readable-compare-demo.component.ts',
       // Demo-only. Unlike every other entry here this one frames USER input,
       // and is documented separately in docs/sonarqube-accepted-findings.md.

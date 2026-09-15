@@ -101,6 +101,13 @@ export interface ComponentDefinition {
    */
   readonly addons?: readonly string[];
   /**
+   * For addon-capable bases: named addon bundles `add --preset <name>`
+   * pre-selects. Keys are preset names; values are `parent/addon` keys that
+   * MUST also appear in `addons`. `core` (an empty list) means "no addons,
+   * don't ask". Optional and additive — CLIs that predate it ignore the key.
+   */
+  readonly presets?: Readonly<Record<string, readonly string[]>>;
+  /**
    * Machine-readable breaking-change log surfaced by `get_install_plan` /
    * `update`, so a public-API break (a renamed selector/output, a hardened
    * input type) is announced before files are written instead of only showing
@@ -136,6 +143,16 @@ export interface ComponentDefinition {
 
 export type BreakingKind = 'selector' | 'input' | 'output' | 'type' | 'removal';
 
+export type BreakingCodemod =
+  | 'selector'
+  | 'input-rename'
+  | 'output-rename'
+  | 'input-merge'
+  | 'input-drop'
+  | 'identifier-rename'
+  | 'rte-counter'
+  | 'none';
+
 export interface BreakingChange {
   /** The kind of public-API surface that changed. */
   readonly kind: BreakingKind;
@@ -145,13 +162,32 @@ export interface BreakingChange {
   readonly to?: string;
   /** One-line migration note shown to the consumer. */
   readonly note: string;
-  /** Which automated assist applies, if any. */
-  readonly codemod?: 'selector' | 'output-rename' | 'none';
+  /**
+   * Which automated assist applies, if any. `update --fix` performs the
+   * `*-rename`, `input-merge`, `input-drop` and `rte-counter` rewrites on the
+   * consumer's own templates; `update` alone reports them.
+   */
+  readonly codemod?: BreakingCodemod;
+  /** `input-rename` / `output-rename` / `identifier-rename`: old name → new name. */
+  readonly rename?: Readonly<Record<string, string>>;
+  /** `input-merge`: the old inputs (keys) that become fields of one object bound to `into`. */
+  readonly merge?: { readonly into: string; readonly keys: Readonly<Record<string, string>> };
+  /** `input-drop`: inputs removed outright; the binding is deleted and the note printed. */
+  readonly drop?: readonly string[];
   /** Addon key (`apply <suggestedAddon>`) that resolves this breaking change, if any. */
   readonly suggestedAddon?: string;
 }
 
-function defineRegistry<T extends Record<string, ComponentDefinition>>(reg: T): { readonly [K in keyof T]: ComponentDefinition } {
+/**
+ * Keys come from inference on the bare `T`; values are checked through the
+ * intersection. With the constraint on `T` instead, TypeScript checked the
+ * whole inferred literal against `Record<string, ComponentDefinition>`, and
+ * past a certain size that check gave up SILENTLY and fell back to the
+ * constraint -- `ComponentName` became `string`, every `as ComponentName`
+ * read as unnecessary, and nothing failed to compile. `registry-meta.spec.ts`
+ * guards the key type at the type level.
+ */
+function defineRegistry<T>(reg: T & { readonly [K in keyof T]: ComponentDefinition }): { readonly [K in keyof T]: ComponentDefinition } {
     return reg;
 }
 
@@ -421,6 +457,12 @@ export const registry = defineRegistry({
     testFiles: ['data-table/data-table-advanced-filter.spec.ts', 'data-table/data-table-ai.spec.ts', 'data-table/data-table-autofit.spec.ts', 'data-table/data-table-column-builder.spec.ts', 'data-table/data-table-fill.spec.ts', 'data-table/data-table-grid-semantics.spec.ts', 'data-table/data-table-paste.spec.ts', 'data-table/data-table-query.spec.ts', 'data-table/data-table-view-state.spec.ts', 'data-table/data-table-virtual-scroll.spec.ts', 'data-table/data-table.component.spec.ts', 'data-table/data-table.coverage.spec.ts', 'data-table/data-table.host.spec.ts', 'data-table/sub/data-table-column-header.component.spec.ts', 'data-table/sub/data-table-date-filter.component.spec.ts', 'data-table/sub/data-table-multiselect-filter.component.spec.ts', 'data-table/sub/data-table-pagination.component.spec.ts'],
     libFiles: ['addon-slots.ts', 'ai.ts', 'component-pool.service.ts', 'i18n/calendar.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'touch.ts'],
     addons: ['data-table/context-menu', 'data-table/export', 'data-table/pivot'],
+    presets: {
+      core: [],
+      menus: ['data-table/context-menu'],
+      reporting: ['data-table/export', 'data-table/pivot'],
+      everything: ['data-table/context-menu', 'data-table/export', 'data-table/pivot'],
+    },
     breaking: [
       { kind: 'input', from: '[rowActions] / [showRowActionsColumn] / [showRowActionsContextMenu] on <ui-data-table>', to: 'the uiDtContextMenu directive', note: 'Right-click / row-action menus moved to the opt-in context-menu addon. Run `npx @gilav21/shadcn-angular apply data-table/context-menu`, add `uiDtContextMenu` to the <ui-data-table> tag, and move [rowActions] onto it. [showRowActionsColumn] has no replacement — the dedicated actions column is gone, remove that binding.', codemod: 'none', suggestedAddon: 'data-table/context-menu' },
       { kind: 'input', from: '[enableColumnMenu] on <ui-data-table>', to: 'the uiDtContextMenu directive', note: 'The per-column sort/pin/hide header menu moved to the context-menu addon. Add `uiDtContextMenu` and move [enableColumnMenu] onto it.', codemod: 'none', suggestedAddon: 'data-table/context-menu' },
@@ -484,7 +526,7 @@ export const registry = defineRegistry({
     description: 'Modal dialog overlay with header, content, and footer for focused tasks.',
     tags: ['dialog', 'modal', 'popup', 'overlay', 'window'],
     files: ['dialog/dialog.component.ts', 'dialog/index.ts', 'dialog/sub/dialog-content.component.css', 'dialog/sub/dialog-content.component.html', 'dialog/sub/dialog-content.component.ts', 'dialog/sub/dialog-description.component.ts', 'dialog/sub/dialog-footer.component.css', 'dialog/sub/dialog-footer.component.ts', 'dialog/sub/dialog-header.component.css', 'dialog/sub/dialog-header.component.ts', 'dialog/sub/dialog-title.component.ts', 'dialog/sub/dialog-trigger.component.ts'],
-    libFiles: ['a11y.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    libFiles: ['a11y.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'overlay-stack.service.ts'],
     testFiles: ['dialog/dialog.component.spec.ts'],
   },
   dock: {
@@ -539,7 +581,7 @@ export const registry = defineRegistry({
     description: 'Bottom-anchored sliding panel with drag-to-dismiss, ideal for mobile.',
     tags: ['drawer', 'sheet', 'bottom-sheet', 'panel', 'slide'],
     files: ['drawer/drawer.component.ts', 'drawer/index.ts', 'drawer/sub/drawer-close.component.ts', 'drawer/sub/drawer-content.component.html', 'drawer/sub/drawer-content.component.ts', 'drawer/sub/drawer-description.component.ts', 'drawer/sub/drawer-footer.component.ts', 'drawer/sub/drawer-header.component.ts', 'drawer/sub/drawer-title.component.ts', 'drawer/sub/drawer-trigger.component.ts'],
-    libFiles: ['a11y.ts'],
+    libFiles: ['a11y.ts', 'overlay-stack.service.ts'],
     testFiles: ['drawer/drawer.component.spec.ts', 'drawer/drawer.coverage.spec.ts'],
   },
   'dropdown-menu': {
@@ -567,6 +609,7 @@ export const registry = defineRegistry({
     files: ['field/field.component.ts', 'field/field.locales.ts', 'field/field.utils.ts', 'field/index.ts', 'field/sub/field-auto-errors.component.ts', 'field/sub/field-description.component.ts', 'field/sub/field-error.component.ts', 'field/sub/field-group.component.ts', 'field/sub/field-label.component.ts', 'field/sub/field-legend.component.ts', 'field/sub/field-separator.component.ts', 'field/sub/field-set.component.ts'],
     libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts'],
     testFiles: ['field/field.component.spec.ts'],
+    testDependencies: ['rich-text-editor'],
   },
   icon: {
     name: 'icon',
@@ -595,7 +638,7 @@ export const registry = defineRegistry({
     files: ['file-viewer/file-viewer.component.css', 'file-viewer/file-viewer.component.html', 'file-viewer/file-viewer.component.ts', 'file-viewer/index.ts'],
     dependencies: ['spinner'],
     testFiles: ['file-viewer/file-viewer.component.spec.ts'],
-    libFiles: ['parsers/doc-enhanced-parser.ts', 'parsers/docx-parser.ts', 'parsers/file-type-detector.ts', 'parsers/image-validator.ts', 'parsers/inflate.ts', 'parsers/ole2-reader.ts', 'parsers/pdf-parser.ts', 'parsers/pdf-pixel-perfect.ts', 'parsers/ppt-parser.ts', 'parsers/pptx-parser.ts', 'parsers/svg-sanitizer.ts', 'parsers/ttf-builder.ts', 'parsers/ttf-parser.ts', 'parsers/xlsx-reader.ts', 'parsers/zip-reader.ts'],
+    libFiles: ['parsers/byte-sink.ts', 'parsers/doc-enhanced-parser.ts', 'parsers/docx-parser.ts', 'parsers/file-type-detector.ts', 'parsers/image-validator.ts', 'parsers/inflate.ts', 'parsers/ole2-reader.ts', 'parsers/pdf-parser.ts', 'parsers/pdf-pixel-perfect.ts', 'parsers/ppt-parser.ts', 'parsers/pptx-parser.ts', 'parsers/svg-sanitizer.ts', 'parsers/ttf-builder.ts', 'parsers/ttf-parser.ts', 'parsers/xlsx-reader.ts', 'parsers/zip-reader.ts'],
     breaking: [
       { kind: 'output', from: 'error', to: 'loadError', note: 'The `error` output was renamed `loadError`. Update `(error)=...` bindings to `(loadError)=...`.', codemod: 'output-rename' },
     ],
@@ -722,8 +765,9 @@ export const registry = defineRegistry({
     description: 'Floating panel anchored to a trigger for showing rich, non-modal content.',
     tags: ['popover', 'popup', 'floating', 'overlay', 'flyout'],
     files: ['popover/index.ts', 'popover/popover.component.ts', 'popover/sub/popover-close.component.ts', 'popover/sub/popover-content.component.css', 'popover/sub/popover-content.component.ts', 'popover/sub/popover-trigger.component.ts'],
-    libFiles: ['a11y.ts'],
+    libFiles: ['a11y.ts', 'overlay-stack.service.ts'],
     testFiles: ['popover/popover.component.spec.ts', 'popover/popover.coverage.spec.ts'],
+    testDependencies: ['dialog'],
   },
   progress: {
     name: 'progress',
@@ -792,7 +836,7 @@ export const registry = defineRegistry({
     description: 'Panel that slides in from a screen edge for secondary content or forms.',
     tags: ['sheet', 'panel', 'slide-over', 'drawer', 'side-panel'],
     files: ['sheet/index.ts', 'sheet/sheet.component.ts', 'sheet/sub/sheet-close.component.ts', 'sheet/sub/sheet-content.component.ts', 'sheet/sub/sheet-description.component.ts', 'sheet/sub/sheet-footer.component.ts', 'sheet/sub/sheet-header.component.ts', 'sheet/sub/sheet-title.component.ts', 'sheet/sub/sheet-trigger.component.ts'],
-    libFiles: ['a11y.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    libFiles: ['a11y.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'overlay-stack.service.ts'],
     testFiles: ['sheet/sheet.component.spec.ts'],
   },
   sidebar: {
@@ -962,23 +1006,42 @@ export const registry = defineRegistry({
     description: 'WYSIWYG editor with toolbar, formatting, mentions, images, and markdown.',
     tags: ['rich-text-editor', 'wysiwyg', 'editor', 'text', 'formatting'],
     addons: ['rich-text-editor/actions', 'rich-text-editor/emoji', 'rich-text-editor/slash-commands', 'rich-text-editor/history', 'rich-text-editor/colors', 'rich-text-editor/typography', 'rich-text-editor/links', 'rich-text-editor/tables', 'rich-text-editor/images', 'rich-text-editor/mentions', 'rich-text-editor/file-import', 'rich-text-editor/ai', 'rich-text-editor/outline', 'rich-text-editor/full'],
-    files: ['rich-text-editor/index.ts', 'rich-text-editor/rich-text-command-registry.service.ts', 'rich-text-editor/rich-text-editor.component.html', 'rich-text-editor/rich-text-editor.component.ts', 'rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-locales.ts', 'rich-text-editor/rich-text-markdown.service.ts', 'rich-text-editor/rich-text-paste-normalizer.service.ts', 'rich-text-editor/rich-text-sanitizer.service.ts', 'rich-text-editor/sub/rich-text-toolbar.component.css', 'rich-text-editor/sub/rich-text-toolbar.component.html', 'rich-text-editor/sub/rich-text-toolbar.component.ts'],
+    presets: {
+      core: [],
+      writing: ['rich-text-editor/slash-commands', 'rich-text-editor/links', 'rich-text-editor/history', 'rich-text-editor/outline'],
+      media: ['rich-text-editor/images', 'rich-text-editor/tables', 'rich-text-editor/file-import'],
+      styling: ['rich-text-editor/colors', 'rich-text-editor/typography', 'rich-text-editor/emoji'],
+      everything: [
+        'rich-text-editor/actions', 'rich-text-editor/ai', 'rich-text-editor/colors', 'rich-text-editor/emoji',
+        'rich-text-editor/file-import', 'rich-text-editor/history', 'rich-text-editor/images', 'rich-text-editor/links',
+        'rich-text-editor/mentions', 'rich-text-editor/outline', 'rich-text-editor/slash-commands',
+        'rich-text-editor/tables', 'rich-text-editor/typography', 'rich-text-editor/full',
+      ],
+    },
+    files: ['rich-text-editor/index.ts', 'rich-text-editor/rich-text-allow.directive.ts', 'rich-text-editor/rich-text-command-registry.service.ts', 'rich-text-editor/rich-text-editor.api.ts', 'rich-text-editor/rich-text-editor.component.css', 'rich-text-editor/rich-text-editor.component.html', 'rich-text-editor/rich-text-editor.component.ts', 'rich-text-editor/rich-text-editor.fixtures.ts', 'rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-editor.validators.ts', 'rich-text-editor/rich-text-find.utils.ts', 'rich-text-editor/rich-text-input-rules.ts', 'rich-text-editor/rich-text-lines.ts', 'rich-text-editor/rich-text-locales.ts', 'rich-text-editor/rich-text-markdown.service.ts', 'rich-text-editor/rich-text-paste-normalizer.service.ts', 'rich-text-editor/rich-text-prose.ts', 'rich-text-editor/rich-text-resource-policy.ts', 'rich-text-editor/rich-text-sanitizer.service.ts', 'rich-text-editor/sub/rich-text-toolbar.component.css', 'rich-text-editor/sub/rich-text-toolbar.component.html', 'rich-text-editor/sub/rich-text-toolbar.component.ts'],
     dependencies: ['separator'],
-    testFiles: ['rich-text-editor/rich-text-command-registry.service.spec.ts', 'rich-text-editor/rich-text-editor.component.spec.ts', 'rich-text-editor/rich-text-markdown.service.spec.ts', 'rich-text-editor/rich-text-paste-normalizer.service.spec.ts', 'rich-text-editor/rich-text-sanitizer.service.spec.ts', 'rich-text-editor/sub/rich-text-toolbar.component.spec.ts'],
-    libFiles: ['addon-slots.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'parsers/image-validator.ts', 'parsers/svg-sanitizer.ts', 'shortcut-binding.service.ts'],
+    testFiles: ['rich-text-editor/barrel.spec.ts', 'rich-text-editor/rich-text-command-registry.service.spec.ts', 'rich-text-editor/rich-text-editor.component.spec.ts', 'rich-text-editor/rich-text-editor.properties.spec.ts', 'rich-text-editor/rich-text-editor.validators.spec.ts', 'rich-text-editor/rich-text-find.utils.spec.ts', 'rich-text-editor/rich-text-input-rules.spec.ts', 'rich-text-editor/rich-text-lines.spec.ts', 'rich-text-editor/rich-text-markdown.roundtrip.spec.ts', 'rich-text-editor/rich-text-markdown.service.spec.ts', 'rich-text-editor/rich-text-paste-normalizer.service.spec.ts', 'rich-text-editor/rich-text-resource-policy.spec.ts', 'rich-text-editor/rich-text-sanitizer.service.spec.ts', 'rich-text-editor/sub/rich-text-toolbar.component.spec.ts'],
+    libFiles: ['addon-slots.ts', 'grapheme.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'parsers/image-validator.ts', 'parsers/svg-sanitizer.ts', 'shortcut-binding.service.ts'],
     breaking: [
       { kind: 'removal', from: "the 'emoji' toolbar item + [emojiPicker] input on <ui-rich-text-editor>", to: 'the uiRteEmoji directive', note: "The emoji picker moved to the opt-in emoji addon. Run `npx @gilav21/shadcn-angular apply rich-text-editor/emoji`, add `uiRteEmoji` to the editor element, and remove 'emoji' from any custom [toolbarItems] arrays (the button now renders after the built-in items).", codemod: 'none', suggestedAddon: 'rich-text-editor/emoji' },
-      { kind: 'removal', from: "the 'fontColor' + 'backgroundColor' toolbar items on <ui-rich-text-editor>", to: 'the uiRteColors directive', note: "The text-colour and highlight-colour pickers moved to the opt-in colours addon, dropping the 'color-picker' dependency from the base. Run `npx @gilav21/shadcn-angular apply rich-text-editor/colors`, add `uiRteColors` to the editor element, and remove 'fontColor'/'backgroundColor' from any custom [toolbarItems] arrays (the buttons now render after the built-in items). Existing coloured content keeps rendering with the base alone; only the picker UI is opt-in. Colour strings resolve from [uiRteColorsLocale] (or the global UI_LOCALE_ID), not the editor's [locale].", codemod: 'none', suggestedAddon: 'rich-text-editor/colors' },
+      { kind: 'removal', from: "the 'fontColor' + 'backgroundColor' toolbar items on <ui-rich-text-editor>", to: 'the uiRteColors directive', note: "The text-colour and highlight-colour pickers moved to the opt-in colours addon, dropping the 'color-picker' dependency from the base. Run `npx @gilav21/shadcn-angular apply rich-text-editor/colors`, add `uiRteColors` to the editor element, and remove 'fontColor'/'backgroundColor' from any custom [toolbarItems] arrays (the buttons now render after the built-in items). Existing coloured content keeps rendering with the base alone; only the picker UI is opt-in. Colour strings resolve from [uiRteColorsLocale] (or the global UI_LOCALE_ID), and otherwise inherit the editor's [locale].", codemod: 'none', suggestedAddon: 'rich-text-editor/colors' },
       { kind: 'removal', from: "[enableSlashCommands] + [slashCommands] inputs and the buildDefaultSlashCommands export on <ui-rich-text-editor>", to: 'the uiRteSlashCommands directive', note: "The slash-command ('/') menu moved to the opt-in slash-commands addon. Run `npx @gilav21/shadcn-angular apply rich-text-editor/slash-commands`, add `uiRteSlashCommands` to the editor element, and move any custom commands from [slashCommands]=\"cmds\" to [uiRteSlashCommands]=\"cmds\". The base still owns the /outline (and, with an aiProvider, /ai) commands.", codemod: 'none', suggestedAddon: 'rich-text-editor/slash-commands' },
-      { kind: 'removal', from: "[showHistoryPanel] + [showHistoryButton] inputs and the revision history UI on <ui-rich-text-editor>", to: 'the uiRteHistory directive', note: "The revision-history UI (Revisions button + panel, preview dialog, browser dialog) moved to the opt-in history addon, dropping the 'dialog' dependency from the base. Run `npx @gilav21/shadcn-angular apply rich-text-editor/history`, add `uiRteHistory` to the editor element, and map [showHistoryButton]=\"x\" to [uiRteHistoryButton]=\"x\" ([showHistoryPanel] is replaced by simply adding the directive). The base keeps the undo/redo stack and the Ctrl/Cmd+Shift+H shortcut definition; the addon supplies its action. History strings now resolve from [uiRteHistoryLocale] (or the global UI_LOCALE_ID), not the editor's [locale].", codemod: 'none', suggestedAddon: 'rich-text-editor/history' },
-      { kind: 'removal', from: "the 'fontSize' + 'fontFamily' toolbar items, the [fontFamilies]/[fontFamiliesStrategy] inputs, and the DEFAULT_FONT_FAMILIES/FontFamilyStrategy exports on <ui-rich-text-editor>", to: 'the uiRteTypography directive', note: "The font-size and font-family dropdowns moved to the opt-in typography addon, dropping the 'autocomplete' dependency from the base. Run `npx @gilav21/shadcn-angular apply rich-text-editor/typography`, add `uiRteTypography` to the editor element, and remove 'fontSize'/'fontFamily' from any custom [toolbarItems] arrays (the buttons now render after the built-in items). Map [fontFamilies]=\"fonts\" to [uiRteTypographyFamilies]=\"fonts\" and [fontFamiliesStrategy]=\"x\" to [uiRteTypographyFamiliesStrategy]=\"x\"; DEFAULT_FONT_FAMILIES and FontFamilyStrategy now export from the typography addon barrel. Font strings resolve from [uiRteTypographyLocale] (or the global UI_LOCALE_ID), not the editor's [locale].", codemod: 'none', suggestedAddon: 'rich-text-editor/typography' },
-      { kind: 'removal', from: "the 'link' toolbar item, its insert popover, the click-to-edit link popover, the Ctrl/Cmd+K shortcut action, and the /link slash command on <ui-rich-text-editor>", to: 'the uiRteLinks directive', note: "The link insert/edit UI moved to the opt-in links addon. Run `npx @gilav21/shadcn-angular apply rich-text-editor/links`, add `uiRteLinks` to the editor element, and remove 'link' from any custom [toolbarItems] arrays (the button now renders after the built-in items). The base keeps the showLinkDialog host method and the Ctrl/Cmd+K shortcut definition as a delegation seam; both are inert without the addon. Existing link content keeps rendering with the base alone; only the editing UI is opt-in. The base RichTextLocale no longer carries a `link` section or `toolbar.insertLink`; link strings resolve from [uiRteLinksLocale] (or the global UI_LOCALE_ID). The /link slash command now appears only when both the slash-commands and links addons are present.", codemod: 'none', suggestedAddon: 'rich-text-editor/links' },
-      { kind: 'removal', from: "the 'table' toolbar item + its 8x8 grid-picker popover on <ui-rich-text-editor>", to: 'the uiRteTables directive', note: "The table-insert UI (toolbar button + grid picker) moved to the opt-in tables addon. Run `npx @gilav21/shadcn-angular apply rich-text-editor/tables`, add `uiRteTables` to the editor element, and remove 'table' from any custom [toolbarItems] arrays (the button now renders after the built-in items). Only the INSERT UI is opt-in — editing an existing table (add/delete rows and columns, merge cells, borders, cell colour) stays in the base, so table content keeps rendering and editing with the base alone. Table-insert strings resolve from [uiRteTablesLocale] (or the global UI_LOCALE_ID), not the editor's [locale].", codemod: 'none', suggestedAddon: 'rich-text-editor/tables' },
-      { kind: 'removal', from: "the 'image' toolbar item + its insert popover, image paste/drag-drop, the [images]/[imageUploader]/[autoImageUpload]/[imageSources]/[imageResize]/[imageAlignment]/[defaultImageWidth]/[defaultImageHeight]/[defaultImageAlignment]/[minImageWidth]/[maxImageWidth]/[lockImageAspectRatio] inputs, the (imageUploadStart)/(imageUploadComplete)/(imageUploadError)/(autoImageUploadComplete)/(autoImageUploadError) outputs, and the resize/align overlay on <ui-rich-text-editor>", to: 'the uiRteImages directive', note: "The whole image feature moved to the opt-in images addon, dropping the image UI (toolbar button, insert popover, paste/drop insertion, upload + auto-upload pipeline, and the resize/align overlay) from the base. Run `npx @gilav21/shadcn-angular apply rich-text-editor/images`, add `uiRteImages` to the editor element, and remap the inputs/outputs to the uiRteImages* prefix: [images]->[uiRteImages], [imageUploader]->[uiRteImagesUploader], [autoImageUpload]->[uiRteImagesAutoUpload], [imageSources]->[uiRteImagesSources], [imageResize]->[uiRteImagesResize], [imageAlignment]->[uiRteImagesAlignment], [defaultImageWidth]->[uiRteImagesDefaultWidth], [defaultImageHeight]->[uiRteImagesDefaultHeight], [defaultImageAlignment]->[uiRteImagesDefaultAlignment], [minImageWidth]->[uiRteImagesMinWidth], [maxImageWidth]->[uiRteImagesMaxWidth], [lockImageAspectRatio]->[uiRteImagesLockAspectRatio]. The upload outputs (imageUploadStart/Complete/Error, autoImageUploadComplete/Error) move onto the directive with the same names. Remove 'image' from any custom [toolbarItems] arrays (the button now renders after the built-in items). Content-level image support stays in the base — the sanitizer keeps allowing <img> and markdown still serializes images — so existing image content keeps rendering with the base alone; only the editing UI is opt-in. The base RichTextLocale no longer carries the `image` or `imageResizer` sections, `toolbar.insertImage`, or the `editor.uploadingImage`/`autoUpload*` keys; image strings resolve from [uiRteImagesLocale] (or the global UI_LOCALE_ID), not the editor's [locale]. This extraction also removes `popover` from the base's dependencies (the image button was its last consumer).", codemod: 'none', suggestedAddon: 'rich-text-editor/images' },
-      { kind: 'removal', from: "the [mentions]/[mentionSearch]/[mentionRender]/[tags]/[tagSearch]/[tagRender] inputs, the (mentionInsert)/(tagInsert) outputs, the @/# trigger popover, and the MentionItem/TagItem/RichTextEntity* type exports on <ui-rich-text-editor>", to: 'the uiRteMentions directive', note: "The whole @mention / #tag authoring feature (trigger detection, async search popover, keyboard nav, and entity insertion) moved to the opt-in mentions addon. Run `npx @gilav21/shadcn-angular apply rich-text-editor/mentions`, add `uiRteMentions` to the editor element, and remap the inputs/outputs to the uiRteMentions*/uiRteTags* prefix: [mentions] is replaced by adding the directive; [mentionSearch]->[uiRteMentionsSearch], [mentionRender]->[uiRteMentionsRender], [tags]->[uiRteTags], [tagSearch]->[uiRteTagsSearch], [tagRender]->[uiRteTagsRender]. The (mentionInsert)/(tagInsert) outputs move onto the directive with the same names. Import MentionItem, TagItem, RichTextEntityRenderOptions, RichTextEntityInsertEvent (and the other RichTextEntity* types) from the addon barrel (`.../addons/mentions`) instead of the base package. Content-level rendering stays in the base — the sanitizer keeps allowing `data-mention`/`data-tag` chips and the colour/typography addons still style them — so existing mention/tag content keeps rendering with the base alone; only the authoring UI is opt-in. The base RichTextLocale no longer carries the `mentions` section; popover strings resolve from [uiRteMentionsLocale] (or the global UI_LOCALE_ID), not the editor's [locale].", codemod: 'none', suggestedAddon: 'rich-text-editor/mentions' },
-      { kind: 'removal', from: "the 'importFile' toolbar item, its hidden .pdf/.docx picker, document drag-and-drop import, and the (fileImportStart)/(fileImportComplete)/(fileImportError) outputs on <ui-rich-text-editor>", to: 'the uiRteFileImport directive', note: "The DOCX/PDF import feature (toolbar import button, document drag-and-drop, the lazy-loaded docx/pdf parsers, and the busy/error overlay) moved to the opt-in file-import addon, removing the `docx-parser`, `docx-to-editor-html`, `zip-reader`, `inflate`, and `pdf-parser` lib files from the base install. Run `npx @gilav21/shadcn-angular apply rich-text-editor/file-import`, add `uiRteFileImport` to the editor element, and remove 'importFile' from any custom [toolbarItems] arrays (the button now renders after the built-in items). The (fileImportStart)/(fileImportComplete)/(fileImportError) outputs move onto the directive with the same names. No component dependency changes. Import strings resolve from [uiRteFileImportLocale] (or the global UI_LOCALE_ID), not the editor's [locale]; the base RichTextLocale no longer carries `toolbar.importFile` or the `editor.importingFile`/`importFailed`/`importInvalidFile` keys.", codemod: 'none', suggestedAddon: 'rich-text-editor/file-import' },
-      { kind: 'removal', from: "the [aiProvider] input, the (aiRequest)/(aiResult)/(aiError) outputs, the ✨ Ask-AI selection chip + task panel, and the /ai slash command on <ui-rich-text-editor>", to: 'the uiRteAi directive', note: "The AI-assist feature (selection chip, task menu + custom-prompt panel, streaming draft with Accept/Discard/Try-again, and the /ai slash command) moved to the opt-in ai addon, removing the `ai.ts` lib file from the base install. Run `npx @gilav21/shadcn-angular apply rich-text-editor/ai`, then bind the provider with `[uiRteAi]=\"provider\"` in place of `[aiProvider]=\"provider\"` — the presence of a provider is what turns the feature on. The (aiRequest)/(aiResult)/(aiError) outputs move onto the directive with the same names. No component dependency changes. The provider contract is unchanged (a callback returning string/Promise/Observable that emits the full text so far). AI strings resolve from [uiRteAiLocale] (or the global UI_LOCALE_ID), not the editor's [locale]; the base RichTextLocale no longer carries the `ai` section. The /ai slash command now appears only when both the slash-commands and ai addons are present.", codemod: 'none', suggestedAddon: 'rich-text-editor/ai' },
-      { kind: 'removal', from: "the 'outline' toolbar item and the /outline slash command on <ui-rich-text-editor> (the docked document-outline panel)", to: 'the uiRteOutline directive', note: "The document-outline feature (toolbar button, /outline slash command, and the docked live table-of-contents panel with click/keyboard scroll-to-heading) moved to the opt-in outline addon, removing the `scroll-area` dependency — and the last `button` usage — from the base install. Run `npx @gilav21/shadcn-angular apply rich-text-editor/outline`, add `uiRteOutline` to the editor element, and remove 'outline' from any custom [toolbarItems] arrays (the button now renders after the built-in items; pass `[uiRteOutlineButton]=\"false\"` to hide it). The panel is read-only and refreshes from a MutationObserver while open. Outline strings resolve from [uiRteOutlineLocale] (or the global UI_LOCALE_ID), not the editor's [locale]; the base RichTextLocale no longer carries the `outline` or `slashCommands` sections or `toolbar.outline`. The /outline command appears only when both the slash-commands and outline addons are present.", codemod: 'none', suggestedAddon: 'rich-text-editor/outline' },
+      { kind: 'removal', from: "[showHistoryPanel] + [showHistoryButton] inputs and the revision history UI on <ui-rich-text-editor>", to: 'the uiRteHistory directive', note: "The revision-history UI (Revisions button + panel, preview dialog, browser dialog) moved to the opt-in history addon, dropping the 'dialog' dependency from the base. Run `npx @gilav21/shadcn-angular apply rich-text-editor/history`, add `uiRteHistory` to the editor element, and map [showHistoryButton]=\"x\" to [uiRteHistoryButton]=\"x\" ([showHistoryPanel] is replaced by simply adding the directive). The base keeps the undo/redo stack and the Ctrl/Cmd+Shift+H shortcut definition; the addon supplies its action. History strings now resolve from [uiRteHistoryLocale] (or the global UI_LOCALE_ID), and otherwise inherit the editor's [locale].", codemod: 'none', suggestedAddon: 'rich-text-editor/history' },
+      { kind: 'removal', from: "the 'fontSize' + 'fontFamily' toolbar items, the [fontFamilies]/[fontFamiliesStrategy] inputs, and the DEFAULT_FONT_FAMILIES/FontFamilyStrategy exports on <ui-rich-text-editor>", to: 'the uiRteTypography directive', note: "The font-size and font-family dropdowns moved to the opt-in typography addon, dropping the 'autocomplete' dependency from the base. Run `npx @gilav21/shadcn-angular apply rich-text-editor/typography`, add `uiRteTypography` to the editor element, and remove 'fontSize'/'fontFamily' from any custom [toolbarItems] arrays (the buttons now render after the built-in items). Map [fontFamilies]=\"fonts\" to [uiRteTypographyFamilies]=\"fonts\" and [fontFamiliesStrategy]=\"x\" to [uiRteTypographyFamiliesStrategy]=\"x\"; DEFAULT_FONT_FAMILIES and FontFamilyStrategy now export from the typography addon barrel. Font strings resolve from [uiRteTypographyLocale] (or the global UI_LOCALE_ID), and otherwise inherit the editor's [locale].", codemod: 'none', suggestedAddon: 'rich-text-editor/typography' },
+      { kind: 'removal', from: "the 'link' toolbar item, its insert popover, the click-to-edit link popover, the Ctrl/Cmd+K shortcut action, and the /link slash command on <ui-rich-text-editor>", to: 'the uiRteLinks directive', note: "The link insert/edit UI moved to the opt-in links addon. Run `npx @gilav21/shadcn-angular apply rich-text-editor/links`, add `uiRteLinks` to the editor element, and remove 'link' from any custom [toolbarItems] arrays (the button now renders after the built-in items). The base keeps the showLinkDialog host method and the Ctrl/Cmd+K shortcut definition as a delegation seam; both are inert without the addon. Existing link content keeps rendering with the base alone; only the editing UI is opt-in. The base RichTextLocale no longer carries a `link` section or `toolbar.insertLink`; link strings resolve from [uiRteLinksLocale] (or the global UI_LOCALE_ID), and otherwise inherit the editor's [locale]. The /link slash command now appears only when both the slash-commands and links addons are present.", codemod: 'none', suggestedAddon: 'rich-text-editor/links' },
+      { kind: 'removal', from: "the 'table' toolbar item + its 8x8 grid-picker popover on <ui-rich-text-editor>", to: 'the uiRteTables directive', note: "The table-insert UI (toolbar button + grid picker) moved to the opt-in tables addon. Run `npx @gilav21/shadcn-angular apply rich-text-editor/tables`, add `uiRteTables` to the editor element, and remove 'table' from any custom [toolbarItems] arrays (the button now renders after the built-in items). Only the INSERT UI is opt-in — editing an existing table (add/delete rows and columns, merge cells, borders, cell colour) stays in the base, so table content keeps rendering and editing with the base alone. Table-insert strings resolve from [uiRteTablesLocale] (or the global UI_LOCALE_ID), and otherwise inherit the editor's [locale].", codemod: 'none', suggestedAddon: 'rich-text-editor/tables' },
+      { kind: 'removal', from: "the 'image' toolbar item + its insert popover, image paste/drag-drop, the [images]/[imageUploader]/[autoImageUpload]/[imageSources]/[imageResize]/[imageAlignment]/[defaultImageWidth]/[defaultImageHeight]/[defaultImageAlignment]/[minImageWidth]/[maxImageWidth]/[lockImageAspectRatio] inputs, the (imageUploadStart)/(imageUploadComplete)/(imageUploadError)/(autoImageUploadComplete)/(autoImageUploadError) outputs, and the resize/align overlay on <ui-rich-text-editor>", to: 'the uiRteImages directive', note: "The whole image feature moved to the opt-in images addon, dropping the image UI (toolbar button, insert popover, paste/drop insertion, upload + auto-upload pipeline, and the resize/align overlay) from the base. Run `npx @gilav21/shadcn-angular apply rich-text-editor/images`, add `uiRteImages` to the editor element, and remap the inputs: [images]->[uiRteImages]; [imageUploader]/[autoImageUpload]/[imageSources] onto [uiRteImagesUpload]='{ uploader, auto, sources }'; [imageResize]/[imageAlignment]/[defaultImageWidth]/[defaultImageHeight]/[defaultImageAlignment]/[minImageWidth]/[maxImageWidth]/[lockImageAspectRatio] onto [uiRteImagesLayout]='{ resize, alignment, defaultWidth, defaultHeight, defaultAlignment, minWidth, maxWidth, lockAspectRatio }'. The upload outputs (imageUploadStart/Complete/Error, autoImageUploadComplete/Error) move onto the directive with the same names. Remove 'image' from any custom [toolbarItems] arrays (the button now renders after the built-in items). Content-level image support stays in the base — the sanitizer keeps allowing <img> and markdown still serializes images — so existing image content keeps rendering with the base alone; only the editing UI is opt-in. The base RichTextLocale no longer carries the `image` or `imageResizer` sections, `toolbar.insertImage`, or the `editor.uploadingImage`/`autoUpload*` keys; image strings resolve from [uiRteImagesLocale] (or the global UI_LOCALE_ID), and otherwise inherit the editor's [locale]. This extraction also removes `popover` from the base's dependencies (the image button was its last consumer).", codemod: 'none', suggestedAddon: 'rich-text-editor/images' },
+      { kind: 'input', from: '[allowedResourceHosts] on <ui-rich-text-editor>', to: '[allowedImageHosts]', note: 'Renamed so the pair says what it governs: allowedImageHosts for images and CSS backgrounds, allowedLinkSchemes for links. Same values, same matching.', codemod: 'input-rename', rename: { allowedResourceHosts: 'allowedImageHosts' } },
+      { kind: 'input', from: '[inheritResourcePolicy] on <ui-rich-text-editor>', note: 'Removed. An editor or view under a [uiRichTextAllow] wrapper takes the wrapper policy by default now, and its own [allowedImageHosts] wins whole when set. Review any element that had it set to false: it inherits now unless you give it a list of its own.', codemod: 'input-drop', drop: ['inheritResourcePolicy'] },
+      { kind: 'input', from: '[uiRichTextResourcePolicy]="hosts" on a wrapper element', to: '[uiRichTextAllow]="{ imageHosts: hosts, linkSchemes: [...] }"', note: 'The wrapper carries image hosts AND link schemes as one RichTextAllow object, and every editor and view beneath it inherits without opting in.', codemod: 'input-merge', merge: { into: 'uiRichTextAllow', keys: { uiRichTextResourcePolicy: 'imageHosts' } } },
+      { kind: 'type', from: 'RichTextResourcePolicyDirective / RichTextResourcePolicyHost', to: 'RichTextAllowDirective / RichTextAllowHost', note: 'Import names follow the wrapper rename; the file is rich-text-allow.directive.ts.', codemod: 'identifier-rename', rename: { RichTextResourcePolicyDirective: 'RichTextAllowDirective', RichTextResourcePolicyHost: 'RichTextAllowHost' } },
+      { kind: 'output', from: '(remoteResource) on <ui-rich-text-editor>', to: '(imageBlocked)', note: 'Emits only for a remote image or background the policy BLOCKED; allowed and no-policy decisions no longer fire. A handler that filtered on `allowed` can drop the filter.', codemod: 'output-rename', rename: { remoteResource: 'imageBlocked' } },
+      { kind: 'input', from: '[showCount] + [showWordCount] on <ui-rich-text-editor>', to: 'counter="characters" | "words" | "both"', note: 'One input for the counter row (CounterMode). Two literal booleans become the matching value; bound expressions become a ternary you may want to simplify.', codemod: 'rte-counter' },
+      { kind: 'input', from: '[historyLimit] + [historyDebounceMs] + [recordExternalWrites] on <ui-rich-text-editor>', to: '[history]="{ limit, debounceMs, recordExternalWrites }"', note: 'One RichTextHistoryOptions object; unset fields keep the defaults (100, 450, false).', codemod: 'input-merge', merge: { into: 'history', keys: { historyLimit: 'limit', historyDebounceMs: 'debounceMs', recordExternalWrites: 'recordExternalWrites' } } },
+      { kind: 'removal', from: "the [mentions]/[mentionSearch]/[mentionRender]/[tags]/[tagSearch]/[tagRender] inputs, the (mentionInsert)/(tagInsert) outputs, the @/# trigger popover, and the MentionItem/TagItem/RichTextEntity* type exports on <ui-rich-text-editor>", to: 'the uiRteMentions directive', note: "The whole @mention / #tag authoring feature (trigger detection, async search popover, keyboard nav, and entity insertion) moved to the opt-in mentions addon. Run `npx @gilav21/shadcn-angular apply rich-text-editor/mentions`, add `uiRteMentions` to the editor element, and remap the inputs/outputs to the uiRteMentions*/uiRteTags* prefix: [mentions] is replaced by adding the directive; [mentionSearch]->[uiRteMentionsSearch], [mentionRender]->[uiRteMentionsRender], [tags]->[uiRteTags], [tagSearch]->[uiRteTagsSearch], [tagRender]->[uiRteTagsRender]. The (mentionInsert)/(tagInsert) outputs move onto the directive with the same names. Import MentionItem, TagItem, RichTextEntityRenderOptions, RichTextEntityInsertEvent (and the other RichTextEntity* types) from the addon barrel (`.../addons/mentions`) instead of the base package. Content-level rendering stays in the base — the sanitizer keeps allowing `data-mention`/`data-tag` chips and the colour/typography addons still style them — so existing mention/tag content keeps rendering with the base alone; only the authoring UI is opt-in. The base RichTextLocale no longer carries the `mentions` section; popover strings resolve from [uiRteMentionsLocale] (or the global UI_LOCALE_ID), and otherwise inherit the editor's [locale].", codemod: 'none', suggestedAddon: 'rich-text-editor/mentions' },
+      { kind: 'removal', from: "the 'importFile' toolbar item, its hidden .pdf/.docx picker, document drag-and-drop import, and the (fileImportStart)/(fileImportComplete)/(fileImportError) outputs on <ui-rich-text-editor>", to: 'the uiRteFileImport directive', note: "The DOCX/PDF import feature (toolbar import button, document drag-and-drop, the lazy-loaded docx/pdf parsers, and the busy/error overlay) moved to the opt-in file-import addon, removing the `docx-parser`, `docx-to-editor-html`, `zip-reader`, `inflate`, and `pdf-parser` lib files from the base install. Run `npx @gilav21/shadcn-angular apply rich-text-editor/file-import`, add `uiRteFileImport` to the editor element, and remove 'importFile' from any custom [toolbarItems] arrays (the button now renders after the built-in items). The (fileImportStart)/(fileImportComplete)/(fileImportError) outputs move onto the directive with the same names. No component dependency changes. Import strings resolve from [uiRteFileImportLocale] (or the global UI_LOCALE_ID), and otherwise inherit the editor's [locale]; the base RichTextLocale no longer carries `toolbar.importFile` or the `editor.importingFile`/`importFailed`/`importInvalidFile` keys.", codemod: 'none', suggestedAddon: 'rich-text-editor/file-import' },
+      { kind: 'removal', from: "the [aiProvider] input, the (aiRequest)/(aiResult)/(aiError) outputs, the ✨ Ask-AI selection chip + task panel, and the /ai slash command on <ui-rich-text-editor>", to: 'the uiRteAi directive', note: "The AI-assist feature (selection chip, task menu + custom-prompt panel, streaming draft with Accept/Discard/Try-again, and the /ai slash command) moved to the opt-in ai addon, removing the `ai.ts` lib file from the base install. Run `npx @gilav21/shadcn-angular apply rich-text-editor/ai`, then bind the provider with `[uiRteAi]=\"provider\"` in place of `[aiProvider]=\"provider\"` — the presence of a provider is what turns the feature on. The (aiRequest)/(aiResult)/(aiError) outputs move onto the directive with the same names. No component dependency changes. The provider contract is unchanged (a callback returning string/Promise/Observable that emits the full text so far). AI strings resolve from [uiRteAiLocale] (or the global UI_LOCALE_ID), and otherwise inherit the editor's [locale]; the base RichTextLocale no longer carries the `ai` section. The /ai slash command now appears only when both the slash-commands and ai addons are present.", codemod: 'none', suggestedAddon: 'rich-text-editor/ai' },
+      { kind: 'removal', from: "the 'outline' toolbar item and the /outline slash command on <ui-rich-text-editor> (the docked document-outline panel)", to: 'the uiRteOutline directive', note: "The document-outline feature (toolbar button, /outline slash command, and the docked live table-of-contents panel with click/keyboard scroll-to-heading) moved to the opt-in outline addon, removing the `scroll-area` dependency — and the last `button` usage — from the base install. Run `npx @gilav21/shadcn-angular apply rich-text-editor/outline`, add `uiRteOutline` to the editor element, and remove 'outline' from any custom [toolbarItems] arrays (the button now renders after the built-in items; pass `[uiRteOutlineButton]=\"false\"` to hide it). The panel is read-only and refreshes from a MutationObserver while open. Outline strings resolve from [uiRteOutlineLocale] (or the global UI_LOCALE_ID), and otherwise inherit the editor's [locale]; the base RichTextLocale no longer carries the `outline` or `slashCommands` sections or `toolbar.outline`. The /outline command appears only when both the slash-commands and outline addons are present.", codemod: 'none', suggestedAddon: 'rich-text-editor/outline' },
     ],
     shortcutDefinitions: [
       {
@@ -986,6 +1049,22 @@ export const registry = defineRegistry({
         componentName: 'rich-text-editor',
         sourceFile: 'rich-text-editor/rich-text-editor.component.ts',
       },
+    ],
+  },
+  'rich-text-view': {
+    name: 'rich-text-view',
+    category: 'editor',
+    description: 'Read-only renderer for rich-text-editor output (HTML or markdown) with the editor typography and sanitizer.',
+    tags: ['rich-text-view', 'rich-text', 'markdown', 'render', 'read-only'],
+    files: ['rich-text-view/index.ts', 'rich-text-view/rich-text-view.component.css', 'rich-text-view/rich-text-view.component.html', 'rich-text-view/rich-text-view.component.ts'],
+    libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    dependencies: ['rich-text-editor'],
+    testFiles: ['rich-text-view/rich-text-view.component.spec.ts'],
+    testDependencies: ['rich-text-editor/actions'],
+    breaking: [
+      { kind: 'input', from: '[allowedResourceHosts] on <ui-rich-text-view>', to: '[allowedImageHosts]', note: 'Renamed so the pair says what it governs: allowedImageHosts for images and CSS backgrounds, allowedLinkSchemes for links.', codemod: 'input-rename', rename: { allowedResourceHosts: 'allowedImageHosts' } },
+      { kind: 'input', from: '[inheritResourcePolicy] on <ui-rich-text-view>', note: 'Removed. A view under a [uiRichTextAllow] wrapper takes the wrapper policy by default now, and its own [allowedImageHosts] wins whole when set. Review any view that had it set to false: it inherits now unless you give it a list of its own.', codemod: 'input-drop', drop: ['inheritResourcePolicy'] },
+      { kind: 'output', from: '(remoteResource) on <ui-rich-text-view>', to: '(imageBlocked)', note: 'Emits only for a remote image or background the policy BLOCKED.', codemod: 'output-rename', rename: { remoteResource: 'imageBlocked' } },
     ],
   },
   // Chart Components
@@ -1664,6 +1743,9 @@ export const registry = defineRegistry({
     dependencies: ['emoji-picker', 'rich-text-editor'],
     testFiles: ['rich-text-editor/addons/emoji/rich-text-emoji-button.component.spec.ts', 'rich-text-editor/addons/emoji/rich-text-emoji.context.spec.ts', 'rich-text-editor/addons/emoji/rich-text-emoji.directive.spec.ts'],
     requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts'],
+    breaking: [
+      { kind: 'input', from: '[uiRteEmojiOrder] on <ui-rich-text-editor uiRteEmoji>', to: '[uiRteEmoji]="{ order }"', note: 'The enable attribute now also tunes the addon (RichTextAddonOptions): a bare `uiRteEmoji` keeps the defaults, `[uiRteEmoji]="false"` turns it off, `[uiRteEmoji]="{ order }"` overrides the fields you name.', codemod: 'input-merge', merge: { into: 'uiRteEmoji', keys: { uiRteEmojiOrder: 'order' } } },
+    ],
     attach: {
       import: "RichTextEmojiDirective from './ui/rich-text-editor/addons/emoji'",
       selector: 'uiRteEmoji',
@@ -1676,10 +1758,10 @@ export const registry = defineRegistry({
     category: 'editor',
     description: 'Slash-command ("/") menu for the rich text editor; type / to open a filterable command palette at the caret.',
     tags: ['rich-text', 'slash', 'commands', 'menu', 'addon'],
-    files: ['rich-text-editor/addons/slash-commands/index.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands-menu.component.html', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands-menu.component.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.defaults.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.directive.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.locales.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.utils.ts'],
-    libFiles: ['addon-slots.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    files: ['rich-text-editor/addons/slash-commands/index.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands-menu.component.html', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands-menu.component.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.defaults.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.directive.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.locales.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.utils.ts', 'rich-text-editor/rich-text-lines.ts'],
+    libFiles: ['addon-slots.ts', 'caret-context.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['rich-text-editor'],
-    testFiles: ['rich-text-editor/addons/slash-commands/rich-text-slash-commands-menu.component.spec.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.defaults.spec.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.directive.spec.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.utils.spec.ts'],
+    testFiles: ['rich-text-editor/addons/slash-commands/rich-text-slash-commands-menu.component.spec.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.defaults.spec.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.directive.spec.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.utils.spec.ts', 'rich-text-editor/barrel.spec.ts', 'rich-text-editor/rich-text-command-registry.service.spec.ts', 'rich-text-editor/rich-text-editor.component.spec.ts', 'rich-text-editor/rich-text-editor.properties.spec.ts', 'rich-text-editor/rich-text-editor.validators.spec.ts', 'rich-text-editor/rich-text-find.utils.spec.ts', 'rich-text-editor/rich-text-input-rules.spec.ts', 'rich-text-editor/rich-text-lines.spec.ts', 'rich-text-editor/rich-text-markdown.roundtrip.spec.ts', 'rich-text-editor/rich-text-markdown.service.spec.ts', 'rich-text-editor/rich-text-paste-normalizer.service.spec.ts', 'rich-text-editor/rich-text-resource-policy.spec.ts', 'rich-text-editor/rich-text-sanitizer.service.spec.ts'],
     requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-command-registry.service.ts'],
     attach: {
       import: "RichTextSlashCommandsDirective from './ui/rich-text-editor/addons/slash-commands'",
@@ -1693,11 +1775,14 @@ export const registry = defineRegistry({
     category: 'editor',
     description: 'Revision-history UI for the rich text editor: a Revisions button, panel, preview dialog, and browser dialog to jump between snapshots.',
     tags: ['rich-text', 'history', 'revisions', 'undo', 'addon'],
-    files: ['rich-text-editor/addons/history/index.ts', 'rich-text-editor/addons/history/rich-text-history-panel.component.html', 'rich-text-editor/addons/history/rich-text-history-panel.component.ts', 'rich-text-editor/addons/history/rich-text-history.directive.ts', 'rich-text-editor/addons/history/rich-text-history.locales.ts'],
-    libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    files: ['rich-text-editor/addons/history/index.ts', 'rich-text-editor/addons/history/rich-text-history-panel.component.html', 'rich-text-editor/addons/history/rich-text-history-panel.component.ts', 'rich-text-editor/addons/history/rich-text-history.directive.ts', 'rich-text-editor/addons/history/rich-text-history.locales.ts', 'rich-text-editor/rich-text-lines.ts', 'rich-text-editor/rich-text-resource-policy.ts', 'rich-text-editor/rich-text-sanitizer.service.ts'],
+    libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'parsers/image-validator.ts', 'parsers/svg-sanitizer.ts'],
     dependencies: ['button', 'dialog', 'popover', 'rich-text-editor', 'scroll-area'],
-    testFiles: ['rich-text-editor/addons/history/rich-text-history-panel.component.spec.ts', 'rich-text-editor/addons/history/rich-text-history.directive.spec.ts'],
+    testFiles: ['rich-text-editor/addons/history/rich-text-history-panel.component.spec.ts', 'rich-text-editor/addons/history/rich-text-history.directive.spec.ts', 'rich-text-editor/barrel.spec.ts', 'rich-text-editor/rich-text-command-registry.service.spec.ts', 'rich-text-editor/rich-text-editor.component.spec.ts', 'rich-text-editor/rich-text-editor.properties.spec.ts', 'rich-text-editor/rich-text-editor.validators.spec.ts', 'rich-text-editor/rich-text-find.utils.spec.ts', 'rich-text-editor/rich-text-input-rules.spec.ts', 'rich-text-editor/rich-text-lines.spec.ts', 'rich-text-editor/rich-text-markdown.roundtrip.spec.ts', 'rich-text-editor/rich-text-markdown.service.spec.ts', 'rich-text-editor/rich-text-paste-normalizer.service.spec.ts', 'rich-text-editor/rich-text-resource-policy.spec.ts', 'rich-text-editor/rich-text-sanitizer.service.spec.ts'],
     requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts'],
+    breaking: [
+      { kind: 'input', from: '[uiRteHistoryButton] on <ui-rich-text-editor uiRteHistory>', to: '[uiRteHistory]="{ toolbar }"', note: 'The enable attribute now also tunes the addon (RichTextAddonOptions): a bare `uiRteHistory` keeps the defaults, `[uiRteHistory]="false"` turns it off, `[uiRteHistory]="{ toolbar }"` overrides the fields you name.', codemod: 'input-merge', merge: { into: 'uiRteHistory', keys: { uiRteHistoryButton: 'toolbar' } } },
+    ],
     attach: {
       import: "RichTextHistoryDirective from './ui/rich-text-editor/addons/history'",
       selector: 'uiRteHistory',
@@ -1715,6 +1800,9 @@ export const registry = defineRegistry({
     dependencies: ['color-picker', 'popover', 'rich-text-editor'],
     testFiles: ['rich-text-editor/addons/colors/rich-text-colors-button.component.spec.ts', 'rich-text-editor/addons/colors/rich-text-colors.context.spec.ts', 'rich-text-editor/addons/colors/rich-text-colors.directive.spec.ts'],
     requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts'],
+    breaking: [
+      { kind: 'input', from: '[uiRteColorsOrder] on <ui-rich-text-editor uiRteColors>', to: '[uiRteColors]="{ order }"', note: 'The enable attribute now also tunes the addon (RichTextAddonOptions): a bare `uiRteColors` keeps the defaults, `[uiRteColors]="false"` turns it off, `[uiRteColors]="{ order }"` overrides the fields you name.', codemod: 'input-merge', merge: { into: 'uiRteColors', keys: { uiRteColorsOrder: 'order' } } },
+    ],
     attach: {
       import: "RichTextColorsDirective from './ui/rich-text-editor/addons/colors'",
       selector: 'uiRteColors',
@@ -1732,6 +1820,9 @@ export const registry = defineRegistry({
     dependencies: ['autocomplete', 'popover', 'rich-text-editor'],
     testFiles: ['rich-text-editor/addons/typography/rich-text-typography.context.spec.ts', 'rich-text-editor/addons/typography/rich-text-typography.directive.spec.ts'],
     requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts'],
+    breaking: [
+      { kind: 'input', from: '[uiRteTypographyOrder] on <ui-rich-text-editor uiRteTypography>', to: '[uiRteTypography]="{ order }"', note: 'The enable attribute now also tunes the addon (RichTextAddonOptions): a bare `uiRteTypography` keeps the defaults, `[uiRteTypography]="false"` turns it off, `[uiRteTypography]="{ order }"` overrides the fields you name.', codemod: 'input-merge', merge: { into: 'uiRteTypography', keys: { uiRteTypographyOrder: 'order' } } },
+    ],
     attach: {
       import: "RichTextTypographyDirective from './ui/rich-text-editor/addons/typography'",
       selector: 'uiRteTypography',
@@ -1749,6 +1840,9 @@ export const registry = defineRegistry({
     dependencies: ['button', 'popover', 'rich-text-editor'],
     testFiles: ['rich-text-editor/addons/links/rich-text-links-button.component.spec.ts', 'rich-text-editor/addons/links/rich-text-links-form.component.spec.ts', 'rich-text-editor/addons/links/rich-text-links.context.spec.ts', 'rich-text-editor/addons/links/rich-text-links.directive.spec.ts'],
     requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-sanitizer.service.ts'],
+    breaking: [
+      { kind: 'input', from: '[uiRteLinksOrder] + [uiRteLinksToolbar] + [uiRteLinksSlashCommand] on <ui-rich-text-editor uiRteLinks>', to: '[uiRteLinks]="{ order, slashCommand, toolbar }"', note: 'The enable attribute now also tunes the addon (RichTextAddonOptions): a bare `uiRteLinks` keeps the defaults, `[uiRteLinks]="false"` turns it off, `[uiRteLinks]="{ order, slashCommand, toolbar }"` overrides the fields you name.', codemod: 'input-merge', merge: { into: 'uiRteLinks', keys: { uiRteLinksOrder: 'order', uiRteLinksToolbar: 'toolbar', uiRteLinksSlashCommand: 'slashCommand' } } },
+    ],
     attach: {
       import: "RichTextLinksDirective from './ui/rich-text-editor/addons/links'",
       selector: 'uiRteLinks',
@@ -1766,6 +1860,9 @@ export const registry = defineRegistry({
     dependencies: ['popover', 'rich-text-editor'],
     testFiles: ['rich-text-editor/addons/tables/rich-text-tables-button.component.spec.ts', 'rich-text-editor/addons/tables/rich-text-tables.context.spec.ts', 'rich-text-editor/addons/tables/rich-text-tables.directive.spec.ts'],
     requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts'],
+    breaking: [
+      { kind: 'input', from: '[uiRteTablesOrder] on <ui-rich-text-editor uiRteTables>', to: '[uiRteTables]="{ order }"', note: 'The enable attribute now also tunes the addon (RichTextAddonOptions): a bare `uiRteTables` keeps the defaults, `[uiRteTables]="false"` turns it off, `[uiRteTables]="{ order }"` overrides the fields you name.', codemod: 'input-merge', merge: { into: 'uiRteTables', keys: { uiRteTablesOrder: 'order' } } },
+    ],
     attach: {
       import: "RichTextTablesDirective from './ui/rich-text-editor/addons/tables'",
       selector: 'uiRteTables',
@@ -1783,6 +1880,11 @@ export const registry = defineRegistry({
     dependencies: ['button', 'popover', 'rich-text-editor'],
     testFiles: ['rich-text-editor/addons/images/rich-text-images-button.component.spec.ts', 'rich-text-editor/addons/images/rich-text-images-overlay.component.spec.ts', 'rich-text-editor/addons/images/rich-text-images-resizer.component.spec.ts', 'rich-text-editor/addons/images/rich-text-images.context.spec.ts', 'rich-text-editor/addons/images/rich-text-images.directive.spec.ts', 'rich-text-editor/addons/images/rich-text-images.utils.spec.ts'],
     requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-sanitizer.service.ts', 'rich-text-editor/rich-text-paste-normalizer.service.ts'],
+    breaking: [
+      { kind: 'input', from: '[uiRteImagesUploader] + [uiRteImagesAutoUpload] + [uiRteImagesSources] on <ui-rich-text-editor uiRteImages>', to: '[uiRteImagesUpload]="{ uploader, auto, sources }"', note: 'One RichTextImagesUploadOptions object; unset fields keep the defaults (no uploader, auto false, sources all).', codemod: 'input-merge', merge: { into: 'uiRteImagesUpload', keys: { uiRteImagesUploader: 'uploader', uiRteImagesAutoUpload: 'auto', uiRteImagesSources: 'sources' } } },
+      { kind: 'input', from: '[uiRteImagesResize] + [uiRteImagesAlignment] + [uiRteImagesDefaultWidth] + [uiRteImagesDefaultHeight] + [uiRteImagesDefaultAlignment] + [uiRteImagesMinWidth] + [uiRteImagesMaxWidth] + [uiRteImagesLockAspectRatio] on <ui-rich-text-editor uiRteImages>', to: '[uiRteImagesLayout]="{ resize, alignment, defaultWidth, defaultHeight, defaultAlignment, minWidth, maxWidth, lockAspectRatio }"', note: 'One RichTextImagesLayoutOptions object; unset fields keep the defaults (resize and alignment on, inline, minWidth 20, aspect ratio locked).', codemod: 'input-merge', merge: { into: 'uiRteImagesLayout', keys: { uiRteImagesResize: 'resize', uiRteImagesAlignment: 'alignment', uiRteImagesDefaultWidth: 'defaultWidth', uiRteImagesDefaultHeight: 'defaultHeight', uiRteImagesDefaultAlignment: 'defaultAlignment', uiRteImagesMinWidth: 'minWidth', uiRteImagesMaxWidth: 'maxWidth', uiRteImagesLockAspectRatio: 'lockAspectRatio' } } },
+      { kind: 'input', from: '[uiRteImagesOrder] + [uiRteImagesToolbar] on <ui-rich-text-editor uiRteImages>', to: '[uiRteImages]="{ order, toolbar }"', note: 'The enable attribute now also tunes the addon (RichTextAddonOptions): a bare `uiRteImages` keeps the defaults, `[uiRteImages]="false"` turns it off, `[uiRteImages]="{ order, toolbar }"` overrides the fields you name.', codemod: 'input-merge', merge: { into: 'uiRteImages', keys: { uiRteImagesOrder: 'order', uiRteImagesToolbar: 'toolbar' } } },
+    ],
     attach: {
       import: "RichTextImagesDirective from './ui/rich-text-editor/addons/images'",
       selector: 'uiRteImages',
@@ -1796,7 +1898,7 @@ export const registry = defineRegistry({
     description: 'Mentions/tags for the rich text editor: @/# trigger, async search popover, keyboard nav, and inserting styled entity chips or links.',
     tags: ['rich-text', 'mention', 'tag', 'autocomplete', 'addon'],
     files: ['rich-text-editor/addons/mentions/index.ts', 'rich-text-editor/addons/mentions/rich-text-mention-popover.component.html', 'rich-text-editor/addons/mentions/rich-text-mention-popover.component.ts', 'rich-text-editor/addons/mentions/rich-text-mentions.directive.ts', 'rich-text-editor/addons/mentions/rich-text-mentions.locales.ts', 'rich-text-editor/addons/mentions/rich-text-mentions.types.ts', 'rich-text-editor/addons/mentions/rich-text-mentions.utils.ts'],
-    libFiles: ['addon-slots.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    libFiles: ['addon-slots.ts', 'caret-context.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['rich-text-editor', 'scroll-area'],
     testFiles: ['rich-text-editor/addons/mentions/rich-text-mention-popover.component.spec.ts', 'rich-text-editor/addons/mentions/rich-text-mentions.directive.spec.ts', 'rich-text-editor/addons/mentions/rich-text-mentions.utils.spec.ts'],
     requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-sanitizer.service.ts'],
@@ -1813,10 +1915,13 @@ export const registry = defineRegistry({
     description: 'DOCX/PDF import for the rich text editor: toolbar picker (images route to the images addon), document drag-and-drop, and lazy parsers.',
     tags: ['rich-text', 'import', 'docx', 'pdf', 'image', 'toolbar', 'addon'],
     files: ['rich-text-editor/addons/file-import/index.ts', 'rich-text-editor/addons/file-import/rich-text-file-import-button.component.html', 'rich-text-editor/addons/file-import/rich-text-file-import-button.component.ts', 'rich-text-editor/addons/file-import/rich-text-file-import-overlay.component.html', 'rich-text-editor/addons/file-import/rich-text-file-import-overlay.component.ts', 'rich-text-editor/addons/file-import/rich-text-file-import.context.ts', 'rich-text-editor/addons/file-import/rich-text-file-import.directive.ts', 'rich-text-editor/addons/file-import/rich-text-file-import.locales.ts', 'rich-text-editor/addons/file-import/rich-text-file-import.utils.ts'],
-    libFiles: ['addon-slots.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'parsers/docx-parser.ts', 'parsers/docx-to-editor-html.ts', 'parsers/image-validator.ts', 'parsers/inflate.ts', 'parsers/pdf-parser.ts', 'parsers/pdf-pixel-perfect.ts', 'parsers/pdf-readable/pdf-readable.ts', 'parsers/pdf-readable/readable-blocks.ts', 'parsers/pdf-readable/readable-classify.ts', 'parsers/pdf-readable/readable-emit.ts', 'parsers/pdf-readable/readable-extract.ts', 'parsers/pdf-readable/readable-lines.ts', 'parsers/pdf-readable/readable-repeats.ts', 'parsers/pdf-readable/readable-styles.ts', 'parsers/pdf-readable/readable-tables.ts', 'parsers/pdf-readable/readable-types.ts', 'parsers/pdf-readable/readable-words.ts', 'parsers/ttf-builder.ts', 'parsers/ttf-parser.ts', 'parsers/zip-reader.ts'],
+    libFiles: ['addon-slots.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'parsers/byte-sink.ts', 'parsers/docx-parser.ts', 'parsers/docx-to-editor-html.ts', 'parsers/image-validator.ts', 'parsers/inflate.ts', 'parsers/pdf-parser.ts', 'parsers/pdf-pixel-perfect.ts', 'parsers/pdf-readable/pdf-readable.ts', 'parsers/pdf-readable/readable-blocks.ts', 'parsers/pdf-readable/readable-classify.ts', 'parsers/pdf-readable/readable-emit.ts', 'parsers/pdf-readable/readable-extract.ts', 'parsers/pdf-readable/readable-lines.ts', 'parsers/pdf-readable/readable-repeats.ts', 'parsers/pdf-readable/readable-styles.ts', 'parsers/pdf-readable/readable-tables.ts', 'parsers/pdf-readable/readable-types.ts', 'parsers/pdf-readable/readable-words.ts', 'parsers/ttf-builder.ts', 'parsers/ttf-parser.ts', 'parsers/zip-reader.ts'],
     dependencies: ['rich-text-editor'],
     testFiles: ['rich-text-editor/addons/file-import/rich-text-file-import-button.component.spec.ts', 'rich-text-editor/addons/file-import/rich-text-file-import-overlay.component.spec.ts', 'rich-text-editor/addons/file-import/rich-text-file-import.context.spec.ts', 'rich-text-editor/addons/file-import/rich-text-file-import.directive.spec.ts', 'rich-text-editor/addons/file-import/rich-text-file-import.utils.spec.ts'],
     requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-sanitizer.service.ts'],
+    breaking: [
+      { kind: 'input', from: '[uiRteFileImportOrder] + [uiRteFileImportToolbar] on <ui-rich-text-editor uiRteFileImport>', to: '[uiRteFileImport]="{ order, toolbar }"', note: 'The enable attribute now also tunes the addon (RichTextAddonOptions): a bare `uiRteFileImport` keeps the defaults, `[uiRteFileImport]="false"` turns it off, `[uiRteFileImport]="{ order, toolbar }"` overrides the fields you name.', codemod: 'input-merge', merge: { into: 'uiRteFileImport', keys: { uiRteFileImportOrder: 'order', uiRteFileImportToolbar: 'toolbar' } } },
+    ],
     attach: {
       import: "RichTextFileImportDirective from './ui/rich-text-editor/addons/file-import'",
       selector: 'uiRteFileImport',
@@ -1830,7 +1935,7 @@ export const registry = defineRegistry({
     description: 'AI assist for the rich text editor: an Ask-AI selection chip, a streaming task/custom-prompt panel, and the /ai slash command.',
     tags: ['rich-text', 'ai', 'assistant', 'streaming', 'addon'],
     files: ['rich-text-editor/addons/ai/index.ts', 'rich-text-editor/addons/ai/rich-text-ai-chip.component.html', 'rich-text-editor/addons/ai/rich-text-ai-chip.component.ts', 'rich-text-editor/addons/ai/rich-text-ai-panel.component.html', 'rich-text-editor/addons/ai/rich-text-ai-panel.component.ts', 'rich-text-editor/addons/ai/rich-text-ai.context.ts', 'rich-text-editor/addons/ai/rich-text-ai.directive.ts', 'rich-text-editor/addons/ai/rich-text-ai.locales.ts'],
-    libFiles: ['addon-slots.ts', 'ai.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    libFiles: ['addon-slots.ts', 'ai.ts', 'grapheme.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['button', 'rich-text-editor'],
     testFiles: ['rich-text-editor/addons/ai/rich-text-ai-chip.component.spec.ts', 'rich-text-editor/addons/ai/rich-text-ai-panel.component.spec.ts', 'rich-text-editor/addons/ai/rich-text-ai.context.spec.ts', 'rich-text-editor/addons/ai/rich-text-ai.directive.spec.ts'],
     requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-sanitizer.service.ts'],
@@ -1851,6 +1956,9 @@ export const registry = defineRegistry({
     dependencies: ['button', 'rich-text-editor', 'scroll-area'],
     testFiles: ['rich-text-editor/addons/outline/rich-text-outline-panel.component.spec.ts', 'rich-text-editor/addons/outline/rich-text-outline.context.spec.ts', 'rich-text-editor/addons/outline/rich-text-outline.directive.spec.ts'],
     requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts'],
+    breaking: [
+      { kind: 'input', from: '[uiRteOutlineButton] + [uiRteOutlineOrder] + [uiRteOutlineSlashCommand] on <ui-rich-text-editor uiRteOutline>', to: '[uiRteOutline]="{ order, slashCommand, toolbar }"', note: 'The enable attribute now also tunes the addon (RichTextAddonOptions): a bare `uiRteOutline` keeps the defaults, `[uiRteOutline]="false"` turns it off, `[uiRteOutline]="{ order, slashCommand, toolbar }"` overrides the fields you name.', codemod: 'input-merge', merge: { into: 'uiRteOutline', keys: { uiRteOutlineButton: 'toolbar', uiRteOutlineOrder: 'order', uiRteOutlineSlashCommand: 'slashCommand' } } },
+    ],
     attach: {
       import: "RichTextOutlineDirective from './ui/rich-text-editor/addons/outline'",
       selector: 'uiRteOutline',
@@ -1865,7 +1973,7 @@ export const registry = defineRegistry({
     tags: ['rich-text', 'bundle', 'composition', 'everything', 'addon'],
     files: ['rich-text-editor/addons/full/index.ts'],
     dependencies: ['rich-text-editor/actions', 'rich-text-editor/ai', 'rich-text-editor/colors', 'rich-text-editor/emoji', 'rich-text-editor/file-import', 'rich-text-editor/history', 'rich-text-editor/images', 'rich-text-editor/links', 'rich-text-editor/mentions', 'rich-text-editor/outline', 'rich-text-editor/slash-commands', 'rich-text-editor/tables', 'rich-text-editor/typography'],
-    testFiles: ['rich-text-editor/addons/full/rich-text-full.spec.ts'],
+    testFiles: ['rich-text-editor/addons/full/full-barrel.spec.ts', 'rich-text-editor/addons/full/rich-text-full.spec.ts'],
     requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts'],
     attach: {
       import: "RTE_FULL from './ui/rich-text-editor/addons/full'",

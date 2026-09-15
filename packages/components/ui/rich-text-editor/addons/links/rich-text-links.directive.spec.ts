@@ -252,6 +252,9 @@ describe('RichTextLinksDirective', () => {
 
         expect(el.querySelector('a')).toBeNull();
         expect(fixture.componentInstance.inserted).toEqual([]);
+        // Rejecting the URL must SAY so: closing silently discarded the user's
+        // input and was indistinguishable from a successful insert.
+        expect(probe.context.urlError()).not.toBe('');
     });
 
     it('seeds the form text from the current selection when the popover opens', () => {
@@ -264,6 +267,168 @@ describe('RichTextLinksDirective', () => {
         fixture.detectChanges();
 
         expect(probe.context.seededText()).toBe('anchor me');
+    });
+
+    it('edits the link under the caret from the toolbar button instead of nesting a second one', () => {
+        // The popover seeded an empty text field for a caret inside a link and,
+        // on submit, inserted a SECOND anchor inside the first.
+        const fixture = createFixture();
+        const { el } = setContent(fixture, '<p>see <a href="https://old.example/">the docs</a> now</p>');
+        caretInside(el.querySelector('a')!.firstChild!, 2);
+
+        const probe = buttonProbe(fixture);
+        probe.context.onOpen();
+        fixture.detectChanges();
+
+        expect(probe.context.editing()).toBe(true);
+        expect(probe.context.seededText()).toBe('the docs');
+        expect(probe.context.seededUrl()).toBe('https://old.example/');
+
+        probe.context.onSubmit({ text: 'new docs', url: 'https://new.example/' });
+        fixture.detectChanges();
+
+        const links = el.querySelectorAll('a');
+        expect(links).toHaveLength(1);
+        expect(links[0].getAttribute('href')).toBe('https://new.example/');
+        expect(el.textContent).toBe('see new docs now');
+    });
+
+    it('seeds the toolbar popover from the click-to-edit overlay\'s link and closes that overlay', async () => {
+        // The overlay's field holds focus once it opens, so the live selection
+        // is outside the editor when the toolbar button is pressed.
+        const fixture = createFixture();
+        const { el, cmp } = setContent(fixture, '<p><a href="https://old.test">old</a></p>');
+        await fixture.whenStable();
+        caretInside(el.querySelector('a')!.firstChild!, 1);
+        cmp.contentRoot.dispatchEvent(new Event('mouseup', { bubbles: true }));
+        fixture.detectChanges();
+        expect(overlayForms(fixture)).toHaveLength(1);
+        // The editor blurs into the overlay's field and saves its caret; the
+        // toolbar button's mousedown then closes the overlay as an outside click
+        // and leaves no live selection at all.
+        cmp.onBlur();
+        document.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        fixture.detectChanges();
+        expect(overlayForms(fixture)).toHaveLength(0);
+        document.getSelection()?.removeAllRanges();
+
+        const probe = buttonProbe(fixture);
+        probe.context.onOpen();
+        fixture.detectChanges();
+
+        expect(overlayForms(fixture)).toHaveLength(0);
+        expect(probe.context.editing()).toBe(true);
+        expect(probe.context.seededText()).toBe('old');
+        expect(probe.context.seededUrl()).toBe('https://old.test');
+
+        probe.context.onSubmit({ text: 'new', url: 'https://new.test/' });
+        fixture.detectChanges();
+        expect(el.querySelectorAll('a')).toHaveLength(1);
+        expect(el.querySelector('a')?.getAttribute('href')).toBe('https://new.test/');
+        expect(el.textContent).toBe('new');
+    });
+
+    it('treats a selection running past a link as new link text, not an edit of that link', () => {
+        // Seeding from the anchor dropped the part of the selection outside it,
+        // and submitting left that part behind: "see docs now" became
+        // "see docs now now".
+        const fixture = createFixture();
+        const { el } = setContent(fixture, '<p>see <a href="https://old.example/">docs</a> now</p>');
+        const anchorText = el.querySelector('a')!.firstChild!;
+        const tail = el.querySelector('p')!.lastChild!;
+        const range = document.createRange();
+        range.setStart(anchorText, 0);
+        range.setEnd(tail, 4);
+        const selection = document.getSelection()!;
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        const probe = buttonProbe(fixture);
+        probe.context.onOpen();
+        fixture.detectChanges();
+
+        expect(probe.context.editing()).toBe(false);
+        expect(probe.context.seededText()).toBe('docs now');
+
+        probe.context.onSubmit({ text: 'docs now', url: 'https://new.example/' });
+        fixture.detectChanges();
+        expect(el.textContent).toBe('see docs now');
+        expect(el.querySelectorAll('a')).toHaveLength(1);
+    });
+
+    it('keeps the link on the part of it the selection did not cover', () => {
+        // Unwrapping the whole anchor threw away the author's URL on text they
+        // never selected; a partly covered link has to be split, not unwrapped.
+        const fixture = createFixture();
+        const { el } = setContent(fixture, '<p><a href="https://old.example/">docs here</a> now</p>');
+        const linkText = el.querySelector('a')!.firstChild!;
+        const tail = el.querySelector('p')!.lastChild!;
+        const range = document.createRange();
+        range.setStart(linkText, 'docs '.length);
+        range.setEnd(tail, 4);
+        const selection = document.getSelection()!;
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        const probe = buttonProbe(fixture);
+        probe.context.onOpen();
+        probe.context.onSubmit({ text: 'here now', url: 'https://new.example/' });
+        fixture.detectChanges();
+
+        expect(el.querySelector('a[href="https://old.example/"]')?.textContent).toBe('docs ');
+        expect(el.querySelector('a[href="https://new.example/"]')?.textContent).toBe('here now');
+        expect(el.textContent).toBe('docs here now');
+    });
+
+    it('replaces a selection whose boundary is an element, not a text node', () => {
+        // Re-anchoring the range by hand collapsed it when a boundary node was
+        // the very anchor being unwrapped, so nothing was replaced.
+        const fixture = createFixture();
+        const { el } = setContent(
+            fixture,
+            '<p><a href="https://a.example/">one</a> mid <a href="https://b.example/">two</a></p>',
+        );
+        const second = el.querySelectorAll('a')[1];
+        const range = document.createRange();
+        range.setStart(el.querySelector('a')!, 0);
+        range.setEnd(second.firstChild!, 2);
+        const selection = document.getSelection()!;
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        const probe = buttonProbe(fixture);
+        probe.context.onOpen();
+        probe.context.onSubmit({ text: 'ALL', url: 'https://new.example/' });
+        fixture.detectChanges();
+
+        expect(el.textContent).toBe('ALLo');
+        expect(el.querySelector('a[href="https://new.example/"]')?.textContent).toBe('ALL');
+    });
+
+    it('removes the link under the caret from the toolbar popover, keeping its text', () => {
+        const fixture = createFixture();
+        const { el } = setContent(fixture, '<p>see <a href="https://old.example/">the docs</a> now</p>');
+        caretInside(el.querySelector('a')!.firstChild!, 2);
+
+        const probe = buttonProbe(fixture);
+        probe.context.onOpen();
+        probe.context.onRemove();
+        fixture.detectChanges();
+
+        expect(el.querySelector('a')).toBeNull();
+        expect(el.textContent).toBe('see the docs now');
+        expect(probe.context.editing()).toBe(false);
+    });
+
+    it('seeds an empty url and inserts when the caret is not inside a link', () => {
+        const fixture = createFixture();
+        const { el } = setContent(fixture, '<p>plain</p>');
+        caretInside(el.querySelector('p')!.firstChild!, 2);
+
+        const probe = buttonProbe(fixture);
+        probe.context.onOpen();
+        expect(probe.context.editing()).toBe(false);
+        expect(probe.context.seededUrl()).toBe('');
     });
 
     it('opens the caret overlay when the base delegates showLinkDialog (Ctrl+K / slash)', () => {
@@ -310,6 +475,59 @@ describe('RichTextLinksDirective', () => {
         const fixture = createFixture();
         const { cmp } = editorOf(fixture);
         expect(cmp.commands.listCommands().some((c) => c.id === 'insert.link')).toBe(true);
+    });
+
+    it('does not open the edit overlay for a click in the blank space below the link', async () => {
+        // Chrome parks the caret at the nearest text when the click lands in
+        // the editor's padding, so the caret is inside the link although the
+        // pointer never touched it.
+        const fixture = createFixture();
+        const { el, cmp } = setContent(fixture, '<p><a href="https://old.test">old link</a> text</p>');
+        await fixture.whenStable();
+        const anchor = el.querySelector('a')!;
+        caretInside(anchor.firstChild!, 1);
+        const rect = anchor.getBoundingClientRect();
+        cmp.contentRoot.dispatchEvent(new MouseEvent('mouseup', {
+            bubbles: true, clientX: rect.left + rect.width / 2, clientY: rect.bottom + 40,
+        }));
+        fixture.detectChanges();
+
+        expect(overlayForms(fixture)).toHaveLength(0);
+    });
+
+    it('opens the edit overlay for a click within a few pixels of the link\'s box', async () => {
+        const fixture = createFixture();
+        const { el, cmp } = setContent(fixture, '<p><a href="https://old.test">old link</a> text</p>');
+        await fixture.whenStable();
+        const anchor = el.querySelector('a')!;
+        caretInside(anchor.firstChild!, 1);
+        const rect = anchor.getBoundingClientRect();
+        cmp.contentRoot.dispatchEvent(new MouseEvent('mouseup', {
+            bubbles: true, clientX: rect.left + rect.width / 2, clientY: rect.bottom + 2,
+        }));
+        fixture.detectChanges();
+
+        expect(overlayForms(fixture)).toHaveLength(1);
+    });
+
+    it('closes an open edit overlay when the next click misses the link', async () => {
+        const fixture = createFixture();
+        const { el, cmp } = setContent(fixture, '<p><a href="https://old.test">old link</a> text</p>');
+        await fixture.whenStable();
+        const anchor = el.querySelector('a')!;
+        caretInside(anchor.firstChild!, 1);
+        const rect = anchor.getBoundingClientRect();
+        cmp.contentRoot.dispatchEvent(new MouseEvent('mouseup', {
+            bubbles: true, clientX: rect.left + 2, clientY: rect.top + rect.height / 2,
+        }));
+        fixture.detectChanges();
+        expect(overlayForms(fixture)).toHaveLength(1);
+
+        cmp.contentRoot.dispatchEvent(new MouseEvent('mouseup', {
+            bubbles: true, clientX: rect.left + 2, clientY: rect.bottom + 40,
+        }));
+        fixture.detectChanges();
+        expect(overlayForms(fixture)).toHaveLength(0);
     });
 
     it('opens an edit overlay with remove when the caret enters an existing link', async () => {
@@ -445,7 +663,9 @@ describe('RichTextLinksDirective', () => {
         fixture.detectChanges();
 
         expect(el.querySelector('a')?.getAttribute('href')).toBe('https://old.test');
-        expect(overlayForms(fixture)).toHaveLength(0);
+        // The overlay STAYS open carrying the error, so the typed URL is not lost.
+        expect(overlayForms(fixture)).toHaveLength(1);
+        expect(overlayForms(fixture)[0].errorMessage()).not.toBe('');
     });
 
     it('closes the edit overlay when the caret leaves the link', async () => {

@@ -10,7 +10,7 @@ import {
     signal,
     type Signal,
 } from '@angular/core';
-import { RichTextEditorAddonHost } from '../..';
+import { addonSetting, type RichTextAddonSetting, type RichTextAddonState, RichTextEditorAddonHost} from '../..';
 import { createLocaleBindings, type LocaleInput } from '../../../../lib/i18n';
 import { parseColor, formatHex } from '../../../../lib/color';
 import { RichTextColorsButtonComponent } from './rich-text-colors-button.component';
@@ -69,10 +69,14 @@ export class RichTextColorsDirective {
 
     /** Locale for the addon UI: a registry key (`'en'`/`'he'`/…) or a full dictionary. */
     readonly uiRteColorsLocale = input<LocaleInput<RichTextColorsLocale>>();
-    /** Enable the colours addon (the bare `uiRteColors` attribute). Flip to `false` to remove both buttons live. */
-    readonly uiRteColors = input(true, { transform: coerceEnabled });
-    /** Base sort order of the colour buttons among addon toolbar slots; the highlight button follows the text button. */
-    readonly uiRteColorsOrder = input(300);
+    /**
+     * Enable the addon (the bare `uiRteColors` attribute), or tune it: `[uiRteColors]="{ toolbar: false }"` keeps the feature without its button, `{ order: 100 }` moves the button.
+     * See {@link RichTextAddonOptions}.
+     */
+    readonly uiRteColors = input<RichTextAddonState, RichTextAddonSetting>(addonSetting(300)(true), { transform: addonSetting(300) });
+
+    /** Read this, not the whole setting, where only on/off matters: an options change must not remount the feature. */
+    private readonly enabled = computed(() => this.uiRteColors().enabled);
     /** Preset swatches for the text-colour picker. */
     readonly uiRteColorsPalette = input<string[]>(DEFAULT_COLOR_PALETTE);
     /** Preset swatches for the highlight-colour picker. */
@@ -121,7 +125,7 @@ export class RichTextColorsDirective {
             showRecent: this.uiRteColorsRecent,
             seededColor: this.seededForeground,
             activeColor: this.currentForeground,
-            order: () => this.uiRteColorsOrder(),
+            order: () => this.uiRteColors().order,
         });
         this.registerSlot({
             kind: 'background',
@@ -133,7 +137,7 @@ export class RichTextColorsDirective {
             showRecent: this.uiRteColorsRecent,
             seededColor: this.seededBackground,
             activeColor: this.currentBackground,
-            order: () => this.uiRteColorsOrder() + 1,
+            order: () => this.uiRteColors().order + 1,
         });
     }
 
@@ -168,7 +172,7 @@ export class RichTextColorsDirective {
             parent: this.injector,
         });
         effect((onCleanup) => {
-            if (!this.uiRteColors()) return;
+            if (!this.enabled()) return;
             onCleanup(this.host.toolbarSlots.register({
                 id,
                 order: order(),
@@ -274,10 +278,6 @@ export class RichTextColorsDirective {
     }
 }
 
-/** Coerce the bare `uiRteColors` attribute (empty string) to `true`. */
-function coerceEnabled(value: boolean | string | undefined): boolean {
-    return value === '' || value === true || value === undefined;
-}
 
 /** Coerce an opt-in attribute: bare (empty string) or `true` enables it. */
 function coerceBoolean(value: boolean | string | undefined): boolean {

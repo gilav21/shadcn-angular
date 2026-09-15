@@ -301,6 +301,37 @@ describe('RichTextMentionsDirective', () => {
         expect(el.querySelector('[data-mention]')).toBeTruthy();
     });
 
+    it('handles Enter and Tab without throwing', async () => {
+        // Both keys destroy the popover synchronously — Enter by accepting an
+        // item, Tab by dismissing — so anything the interceptor touches on the
+        // ref AFTER handing the key over runs against a destroyed component.
+        // The existing Enter test passes either way, because a listener that
+        // throws inside dispatchEvent does not fail the dispatch, so the error
+        // has to be asserted explicitly.
+        //
+        // Tab ACCEPTS, like Enter — the behaviour every editor users know has.
+        for (const [key, expectChip] of [['Enter', true], ['Tab', true]] as const) {
+            const fixture = createFixture();
+            const { el } = type(fixture, '@j');
+            await wait();
+            fixture.detectChanges();
+
+            const errors: unknown[] = [];
+            const onError = (e: ErrorEvent) => errors.push(e.error ?? e.message);
+            globalThis.addEventListener('error', onError);
+            try {
+                el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+                fixture.detectChanges();
+            } finally {
+                globalThis.removeEventListener('error', onError);
+            }
+
+            expect(errors).toEqual([]);
+            expect(!!el.querySelector('[data-mention]')).toBe(expectChip);
+            fixture.destroy();
+        }
+    });
+
     it('does not open when the editor is readonly', () => {
         const fixture = createFixture();
         fixture.componentInstance.readonly.set(true);

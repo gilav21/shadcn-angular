@@ -39,6 +39,13 @@ npm run e2e -- button dialog popover
 npm run e2e
 ```
 
+A name that is a **base component with registry `addons[]`** expands to every
+spec installing that base or one of its addons, so `npm run e2e --
+rich-text-editor` runs the base harness *and* all 14 `rte-*` addon specs (the
+runner prints the expanded list). Pass the exact label — `npm run e2e --
+rte-tables` — to run just one. Names with no `addons[]` are never expanded, so
+`npm run e2e -- button` still means exactly one spec.
+
 The orchestrator builds the CLI lazily — `npm run e2e:build-cli` is only
 needed if you want to force a rebuild.
 
@@ -123,6 +130,12 @@ For each component `<name>`:
    (`git checkout HEAD -- e2e/fixture-app && git clean -fd e2e/fixture-app/`).
    `node_modules` and `.angular/cache` are gitignored and survive reset
    so subsequent components reuse the cache.
+   **Never commit what a run leaves in the fixture** (a harness route in
+   `app.routes.ts`, `init`'s edits to `styles.scss` / `tsconfig.json` /
+   `package.json`, anything under `src/components/`): the pre-commit and
+   pre-push hooks run `npm run check:fixture` and refuse it, because a
+   committed run breaks every pristine build in CI and leaves `init` nothing
+   to change. `npm run e2e:reset` restores the scaffold.
 2. **Init**: `node packages/cli/dist/index.js init --yes` inside the fixture.
 3. **Add**: `node packages/cli/dist/index.js add <name> --yes`.
 4. **Install**: `npm install` (cached after the first cold run).
@@ -226,6 +239,57 @@ const EXPLICIT_SPECS: readonly ComponentSpec[] = [
 The `names` list is read by both the runner (for `add a b c --yes`)
 and the impact analyzer (so changes to any of those components
 schedule the spec). No separate dependency map.
+
+### Package specs (`pkg-*`)
+
+The compiled npm packages (`@gilav21/shadcn-angular-rte`,
+`@gilav21/shadcn-angular-data-table`) are proven by installing a real
+`npm pack` tarball into a pristine app — no CLI involvement at all.
+Two extra `ComponentSpec` fields drive that:
+
+```ts
+{ names: [], packages: ['rte'], fixture: 'ng20', label: 'pkg-rte' },
+{ names: [], packages: ['rte'], fixture: 'ng21', label: 'pkg-rte-ng21',
+  harnessFolder: 'pkg-rte' },
+// mixed mode: a CLI-copied component AND the package in one app
+{ names: ['button'], packages: ['rte'], fixture: 'ng20', label: 'pkg-mixed' },
+```
+
+- **`packages`** — tarballs to build and install. `names` may be empty
+  *only* when this is set (a spec that installs nothing would serve an
+  empty app and "pass"), and such a spec must carry an explicit `label`.
+- **`fixture`** — `'ng20'` (default, `e2e/fixture-app`) or `'ng21'`
+  (`e2e/fixture-app-21`). The packages declare a peer range spanning both
+  Angular majors, so each is run on **both** — that pair is the evidence
+  behind the README's compatibility claim, and a test asserts no package
+  is proven on only one.
+
+These are `EXPLICIT_SPECS` entries by necessity: auto-discovery would turn
+`e2e/harness/pkg-rte/` into `{ names: ['pkg-rte'] }`, and validation would
+then abort the whole orchestrator on an unknown component name. The ng20 and
+ng21 specs deliberately share a harness folder — same demo page, different
+Angular version underneath.
+
+What a package leg does: build the tarball (once per run, memoised), install
+it, wire up Tailwind by hand from the README's own snippet, run a
+**production** `ng build` (`ng serve` skips budgets and the full optimizer, so
+an AOT or tree-shaking regression would otherwise stay hidden), then serve and
+run Playwright.
+
+ng21 specs run on one dedicated worker *after* the ng20 pool, since that
+fixture is a separate checkout with its own `node_modules`. `npm run
+e2e:reset` resets both fixtures.
+
+**Budget note — this affects the whole Angular-20 suite.** The RTE closure
+bundles to ~1.11 MB initial, which failed the ng20 fixture's original
+production budget (500 kB warn / 1 MB error), so **both** fixtures now use
+2 MB / 4 MB. That is a deliberate trade with a real cost: the CLI specs that
+also run production builds there — `add-all-smoke`, `prod-build`,
+`migrate-build` — had their only size guard raised along with it, so a
+copy-model size regression under 4 MB no longer trips them. Scoping the
+budget per spec would need a second Angular configuration in the fixture;
+that is deliberately out of scope (spec §B.4 excludes bundle-size budgets),
+but it is a knowing gap, not an oversight.
 
 ### Inspecting the registry
 

@@ -2659,7 +2659,7 @@ export class DataTableComponent<T>
    * skip the rest.
    */
   private stampGridSemantics(): void {
-    const grid = this._el.nativeElement.querySelector('[data-slot="table"]');
+    const grid: Element | null = this._el.nativeElement.querySelector('[data-slot="table"]');
     if (!grid) return;
 
     /*
@@ -2670,7 +2670,7 @@ export class DataTableComponent<T>
     const isDecorative = (el: Element): boolean =>
       el.getAttribute('aria-hidden') === 'true' || el.getAttribute('role') === 'presentation';
 
-    const rows = [...grid.querySelectorAll('[data-slot="table-row"]')].filter(
+    const rows = Array.from(grid.querySelectorAll('[data-slot="table-row"]')).filter(
       row => !isDecorative(row),
     );
     const isHeaderRow = (row: Element): boolean =>
@@ -2702,7 +2702,7 @@ export class DataTableComponent<T>
       row.setAttribute('aria-rowindex', String(index));
 
       if (columnsWindowed) continue;
-      const cells = [...row.children].filter(cell => !isDecorative(cell));
+      const cells = Array.from(row.children).filter(cell => !isDecorative(cell));
       for (const [column, cell] of cells.entries()) {
         cell.setAttribute('aria-colindex', String(column + 1));
       }

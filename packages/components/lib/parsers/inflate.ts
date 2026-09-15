@@ -1,3 +1,5 @@
+import { ByteSink } from './byte-sink';
+
 const LENGTH_EXTRA_BITS = [
     0,0,0,0,0,0,0,0, 1,1,1,1, 2,2,2,2, 3,3,3,3, 4,4,4,4, 5,5,5,5, 0
 ];
@@ -115,7 +117,23 @@ function buildFixedDistTable(): HuffmanTable {
 const FIXED_LIT_TABLE = buildFixedLitTable();
 const FIXED_DIST_TABLE = buildFixedDistTable();
 
-function inflateStoredBlock(reader: BitReader, output: number[]): void {
+/** Options accepted by {@link inflate} and {@link zlibInflate}. */
+export interface InflateOptions {
+    /**
+     * Maximum number of bytes the stream may decompress to. Omit for no limit.
+     *
+     * A DEFLATE stream's expansion ratio is unbounded, and a container's
+     * declared uncompressed size is attacker-controlled metadata that says
+     * nothing about what the stream actually produces — so callers handling
+     * untrusted archives must bound the OUTPUT here rather than trust a header.
+     * The ceiling is checked as the output grows, not afterwards, so a
+     * decompression bomb is stopped while it inflates instead of after it has
+     * already exhausted memory.
+     */
+    readonly maxOutputBytes?: number;
+}
+
+function inflateStoredBlock(reader: BitReader, output: ByteSink): void {
     reader.alignByte();
     const len = reader.readU16LE();
     reader.readU16LE();
@@ -169,7 +187,12 @@ function buildDynamicTables(reader: BitReader): { litTable: HuffmanTable; distTa
     };
 }
 
-function inflateCompressedBlock(reader: BitReader, output: number[], litTable: HuffmanTable, distTable: HuffmanTable): void {
+function inflateCompressedBlock(
+    reader: BitReader,
+    output: ByteSink,
+    litTable: HuffmanTable,
+    distTable: HuffmanTable,
+): void {
     for (;;) {
         const sym = decodeSymbol(reader, litTable);
         if (sym === 256) break;
@@ -181,16 +204,16 @@ function inflateCompressedBlock(reader: BitReader, output: number[], litTable: H
         const length = LENGTH_BASE[lengthIdx] + reader.bits(LENGTH_EXTRA_BITS[lengthIdx]);
         const distSym = decodeSymbol(reader, distTable);
         const distance = DIST_BASE[distSym] + reader.bits(DIST_EXTRA_BITS[distSym]);
-        const start = output.length - distance;
-        for (let j = 0; j < length; j++) {
-            output.push(output[start + j]);
-        }
+        output.copyBack(distance, length);
     }
 }
 
-export function inflate(compressed: Uint8Array): Uint8Array {
+export function inflate(compressed: Uint8Array, options?: InflateOptions): Uint8Array {
     const reader = new BitReader(compressed);
-    const output: number[] = [];
+    // A typed sink, not a number[]: at 4-8 bytes per element a "256 MB" ceiling
+    // let a bomb take over a gigabyte before it tripped. The sink refuses the
+    // write that would cross the ceiling before allocating for it.
+    const output = new ByteSink(options?.maxOutputBytes);
     let finalBlock = false;
 
     while (!finalBlock) {
@@ -209,13 +232,13 @@ export function inflate(compressed: Uint8Array): Uint8Array {
         }
     }
 
-    return new Uint8Array(output);
+    return output.toUint8Array();
 }
 
-export function zlibInflate(data: Uint8Array): Uint8Array {
+export function zlibInflate(data: Uint8Array, options?: InflateOptions): Uint8Array {
     if (data.length < 2) return data;
     const cmf = data[0];
     const cm = cmf & 0x0f;
-    if (cm !== 8) return inflate(data);
-    return inflate(data.subarray(2));
+    if (cm !== 8) return inflate(data, options);
+    return inflate(data.subarray(2), options);
 }

@@ -2,31 +2,52 @@
   <ui-rich-text-toolbar
     [items]="toolbarItems()"
     [activeFormats]="activeFormats()"
-    [disabled]="disabled()"
+    [textStyleAvailable]="textStyleAvailable()"
+    [disabled]="isDisabled()"
     [readonly]="readonly()"
     [locale]="resolvedLocale()"
     (formatCommand)="onFormatCommand($event)"
-    [customItems]="customToolbarItems()"
-    (customItemClick)="onCustomToolbarAction($event)"
     [addonSlots]="toolbarSlots.slots()"
     (addonSlotClick)="onAddonSlotClick($event)"
   />
 }
 
-<div #editorContainer [class]="editorContainerClasses()" [dir]="dir()">
+<div #editorContainer [class]="editorContainerClasses()" [dir]="resolvedDir()">
+  <!--
+    Three of the attributes below exist for assistive tech specifically:
+
+    The tab index drops to -1 when disabled. A native disabled control leaves the
+    tab order entirely; a static 0 left a keyboard user stopping on an editor
+    that takes focus and then does nothing.
+
+    The readonly state is announced explicitly, because contenteditable false is
+    a browser editing hint rather than a state screen readers reliably report on
+    a textbox — without it a reader discovers the field is read-only by typing
+    and seeing nothing happen.
+
+    The placeholder is announced explicitly too, because the visible one is CSS
+    generated content. Chromium exposes that as a plain text child, so a reader
+    announces the hint as though it were the document's own text.
+  -->
   <div
     #editorDiv
-    tabindex="0"
-    [attr.contenteditable]="!disabled() && !readonly()"
+    [attr.tabindex]="isDisabled() ? -1 : 0"
+    [attr.contenteditable]="!isDisabled() && !readonly()"
+    [attr.aria-disabled]="isDisabled()"
+    [attr.aria-readonly]="readonly() ? 'true' : null"
     [class]="editableClasses()"
     [attr.placeholder]="placeholder() || resolvedLocale().editor.placeholder"
+    [attr.aria-placeholder]="placeholder() || resolvedLocale().editor.placeholder"
     [attr.aria-label]="ariaLabel() || resolvedLocale().editor.ariaLabel"
-    [attr.aria-describedby]="ariaDescribedBy()"
+    [attr.aria-describedby]="describedBy()"
     [attr.data-slot]="'rich-text-editor'"
     [style.min-height]="minHeight()"
     [style.max-height]="maxHeight()"
     role="textbox"
     aria-multiline="true"
+    [attr.aria-expanded]="activeSuggestionPopup() ? 'true' : null"
+    [attr.aria-controls]="activeSuggestionPopup()?.controlsId ?? null"
+    [attr.aria-activedescendant]="activeSuggestionPopup()?.activeOptionId ?? null"
     (input)="onInput($event)"
     (beforeinput)="onBeforeInput($event)"
     (keydown)="onKeydown($event)"
@@ -46,46 +67,82 @@
   ></div>
 
   @if (findReplaceVisible()) {
-    <div class="absolute top-2 right-2 z-50 bg-popover border rounded-lg shadow-lg p-3 w-80 max-sm:w-[calc(100%-1rem)] max-sm:left-2 animate-in slide-in-from-top-2 fade-in-0"
+    <div data-slot="rich-text-find-panel"
+         class="absolute top-2 end-2 z-50 bg-popover border rounded-lg shadow-lg p-3 w-80 max-w-[calc(100vw-2rem)] max-sm:w-[calc(100%-1rem)] max-sm:start-2 animate-in slide-in-from-top-2 fade-in-0"
          tabindex="-1"
          (keydown.escape)="closeFindReplace()"
          (keydown)="onFindReplaceKeydown($event)">
-      <div class="flex items-center gap-1.5 mb-2">
+      <div class="flex flex-wrap items-center gap-1.5 mb-2">
         <input
           #findInput
+          data-slot="rich-text-find-query"
           type="text"
           [placeholder]="resolvedLocale().findReplace.findPlaceholder"
+          [attr.aria-label]="resolvedLocale().findReplace.find"
+          [attr.aria-invalid]="findRegexError() ? 'true' : null"
           [value]="findQuery()"
           (input)="onFindQueryChange($any($event.target).value)"
-          class="flex h-7 w-full rounded-md border border-input bg-transparent px-2 py-1 text-xs shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          class="flex h-7 min-w-0 flex-1 rounded-md border border-input bg-transparent px-2 py-1 text-xs shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         />
         <button type="button"
-                class="inline-flex items-center justify-center rounded-md p-1 text-xs font-medium transition-colors hover:bg-accent"
+                class="inline-flex min-h-7 min-w-7 items-center justify-center rounded-md p-1 text-xs font-medium transition-colors hover:bg-accent"
                 [class.bg-accent]="findCaseSensitive()"
+                [attr.aria-pressed]="findCaseSensitive()"
+                [attr.aria-label]="resolvedLocale().findReplace.caseSensitive"
                 [title]="resolvedLocale().findReplace.caseSensitive"
                 (click)="toggleFindCaseSensitive()">Aa</button>
+        <button type="button"
+                class="inline-flex min-h-7 min-w-7 items-center justify-center rounded-md p-1 text-xs font-medium transition-colors hover:bg-accent"
+                [class.bg-accent]="findWholeWord()"
+                [attr.aria-pressed]="findWholeWord()"
+                [attr.aria-label]="resolvedLocale().findReplace.wholeWord"
+                [title]="resolvedLocale().findReplace.wholeWord"
+                (click)="toggleFindWholeWord()">ab</button>
+        <button type="button"
+                class="inline-flex min-h-7 min-w-7 items-center justify-center rounded-md p-1 text-xs font-medium transition-colors hover:bg-accent"
+                [class.bg-accent]="findUseRegex()"
+                [attr.aria-pressed]="findUseRegex()"
+                [attr.aria-label]="resolvedLocale().findReplace.useRegex"
+                [title]="resolvedLocale().findReplace.useRegex"
+                (click)="toggleFindUseRegex()">.*</button>
       </div>
-      <div class="flex items-center justify-between mb-2">
-        <span class="text-xs text-muted-foreground">
-          {{ findMatches().length > 0 ? (findCurrentIndex() + 1) + '/' + findMatches().length : '0/0' }}
-        </span>
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+        <span data-slot="rich-text-find-counter"
+              aria-live="polite"
+              class="text-xs text-muted-foreground">{{ findCounterText() }}</span>
         <div class="flex gap-1">
-          <button type="button" class="inline-flex items-center justify-center rounded-md p-1 text-xs hover:bg-accent disabled:opacity-50" [disabled]="findMatches().length === 0" (click)="findPrevious()">&#x25B2;</button>
-          <button type="button" class="inline-flex items-center justify-center rounded-md p-1 text-xs hover:bg-accent disabled:opacity-50" [disabled]="findMatches().length === 0" (click)="findNext()">&#x25BC;</button>
-          <button type="button" class="inline-flex items-center justify-center rounded-md p-1 text-xs hover:bg-accent" (click)="closeFindReplace()">&#x2715;</button>
+          <button type="button"
+                  class="inline-flex min-h-7 min-w-7 items-center justify-center rounded-md p-1 text-xs hover:bg-accent disabled:opacity-50"
+                  [attr.aria-label]="resolvedLocale().findReplace.previous"
+                  [title]="resolvedLocale().findReplace.previous"
+                  [disabled]="findMatchCount() === 0"
+                  (click)="findPrevious()">&#x25B2;</button>
+          <button type="button"
+                  class="inline-flex min-h-7 min-w-7 items-center justify-center rounded-md p-1 text-xs hover:bg-accent disabled:opacity-50"
+                  [attr.aria-label]="resolvedLocale().findReplace.next"
+                  [title]="resolvedLocale().findReplace.next"
+                  [disabled]="findMatchCount() === 0"
+                  (click)="findNext()">&#x25BC;</button>
+          <button type="button"
+                  class="inline-flex min-h-7 min-w-7 items-center justify-center rounded-md p-1 text-xs hover:bg-accent"
+                  [attr.aria-label]="resolvedLocale().findReplace.close"
+                  [title]="resolvedLocale().findReplace.close"
+                  (click)="closeFindReplace()">&#x2715;</button>
         </div>
       </div>
-      @if (findShowReplace()) {
-        <div class="flex items-center gap-1.5">
+      @if (showReplaceRow()) {
+        <div class="flex flex-wrap items-center gap-1.5">
           <input
+            data-slot="rich-text-find-replace"
             type="text"
             [placeholder]="resolvedLocale().findReplace.replacePlaceholder"
+            [attr.aria-label]="resolvedLocale().findReplace.replace"
             [value]="replaceText()"
             (input)="replaceText.set($any($event.target).value)"
-            class="flex h-7 w-full rounded-md border border-input bg-transparent px-2 py-1 text-xs shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            class="flex h-7 min-w-0 flex-1 rounded-md border border-input bg-transparent px-2 py-1 text-xs shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
-          <button type="button" class="inline-flex items-center justify-center rounded-md px-2 py-1 text-xs hover:bg-accent whitespace-nowrap disabled:opacity-50" [disabled]="findMatches().length === 0" (click)="replaceSingle()">{{ resolvedLocale().findReplace.replace }}</button>
-          <button type="button" class="inline-flex items-center justify-center rounded-md px-2 py-1 text-xs hover:bg-accent whitespace-nowrap disabled:opacity-50" [disabled]="findMatches().length === 0" (click)="replaceAll()">{{ resolvedLocale().findReplace.replaceAll }}</button>
+          <button type="button" class="inline-flex min-h-7 items-center justify-center rounded-md px-2 py-1 text-xs hover:bg-accent whitespace-nowrap disabled:opacity-50" [disabled]="findMatchCount() === 0" (click)="replaceSingle()">{{ resolvedLocale().findReplace.replace }}</button>
+          <button type="button" class="inline-flex min-h-7 items-center justify-center rounded-md px-2 py-1 text-xs hover:bg-accent whitespace-nowrap disabled:opacity-50" [disabled]="findMatchCount() === 0" (click)="replaceAll()">{{ resolvedLocale().findReplace.replaceAll }}</button>
         </div>
       }
     </div>
@@ -105,7 +162,7 @@
         [items]="['bold', 'italic', 'underline', 'separator', 'clear']"
         [activeFormats]="emptyFormats"
         [compact]="true"
-        [disabled]="disabled()"
+        [disabled]="isDisabled()"
         [readonly]="readonly()"
         [locale]="resolvedLocale()"
         (formatCommand)="onFloatingFormatCommand($event)"
@@ -218,12 +275,28 @@
 </div>
 
 @if (showCount() || showWordCount()) {
-  <div class="flex justify-end text-xs text-muted-foreground mt-1 px-1">
+  <!--
+    A polite status region, so a screen reader hears the count change, and the
+    limit is shown once one is set: enforcement used to be entirely silent,
+    so hitting maxLength read as a dead keyboard with the counter still showing
+    a bare number and no indication a limit existed at all. The colour change
+    at the limit gives sighted users the same signal.
+  -->
+  <output [attr.id]="counterId" class="flex justify-end text-xs text-muted-foreground mt-1 px-1" aria-live="polite">
     @if (showCount()) {
-      <span>{{ interpolateLocale(resolvedLocale().editor.characters, { count: characterCount() }) }}</span>
+      <!--
+        The localized phrase keeps its own {count}, and the limit follows as a
+        separate parenthetical. Interpolating "0 / 120" INTO the slot produced
+        "0 / 120 characters", which is wrong in English and cannot be localized
+        at all -- a locale ordering it differently had no way to express it,
+        because the separator was hardcoded in the template expression.
+      -->
+      <span [class.text-destructive]="atCharacterLimit()" [class.font-medium]="atCharacterLimit()">
+        {{ interpolateLocale(resolvedLocale().editor.characters, { count: characterCount() }) }}@if (maxLength()) {<span class="ms-1">({{ maxLength() }} max)</span>}
+      </span>
     }
     @if (showWordCount()) {
       <span [class.ms-3]="showCount()">{{ interpolateLocale(resolvedLocale().editor.words, { count: wordCount() }) }}</span>
     }
-  </div>
+  </output>
 }

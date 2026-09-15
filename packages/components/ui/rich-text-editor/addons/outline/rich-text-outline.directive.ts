@@ -11,7 +11,7 @@ import {
     signal,
     type ComponentRef,
 } from '@angular/core';
-import { RichTextEditorAddonHost } from '../..';
+import { addonSetting, type RichTextAddonSetting, type RichTextAddonState, RichTextEditorAddonHost} from '../..';
 import { createLocaleBindings, type LocaleInput } from '../../../../lib/i18n';
 import { RichTextOutlinePanelComponent } from './rich-text-outline-panel.component';
 import {
@@ -41,10 +41,6 @@ const OUTLINE_INSET_CLASSES = [
 const OUTLINE_ICON =
     '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 6H3"/><path d="M15 12H3"/><path d="M17 18H3"/><path d="M21 12h.01"/><path d="M21 18h.01"/></svg>';
 
-/** Coerce the bare `uiRteOutline` attribute (empty string) to `true`. */
-function coerceEnabled(value: boolean | string | undefined): boolean {
-    return value === '' || value === true || value === undefined;
-}
 
 /** Maps a heading element to an {@link OutlineHeading} entry. */
 function toOutlineHeading(element: Element, index: number): OutlineHeading {
@@ -89,14 +85,14 @@ export class RichTextOutlineDirective {
 
     /** Locale for the addon UI: a registry key (`'en'`/`'he'`/…) or a full dictionary. */
     readonly uiRteOutlineLocale = input<LocaleInput<RichTextOutlineLocale>>();
-    /** Enable the outline addon (the bare `uiRteOutline` attribute). Flip to `false` to remove the button, command, and panel live. */
-    readonly uiRteOutline = input(true, { transform: coerceEnabled });
-    /** Show the outline toolbar button (default true). Toggles the docked panel. */
-    readonly uiRteOutlineButton = input(true);
-    /** Sort order of the outline button among addon toolbar slots; lower first. */
-    readonly uiRteOutlineOrder = input(900);
-    /** Contribute the `/outline` slash command (default true). */
-    readonly uiRteOutlineSlashCommand = input(true);
+    /**
+     * Enable the addon (the bare `uiRteOutline` attribute), or tune it: `[uiRteOutline]="{ toolbar: false }"` keeps the feature without its button, `{ order: 100 }` moves the button.
+     * See {@link RichTextAddonOptions}.
+     */
+    readonly uiRteOutline = input<RichTextAddonState, RichTextAddonSetting>(addonSetting(900)(true), { transform: addonSetting(900) });
+
+    /** Read this, not the whole setting, where only on/off matters: an options change must not remount the feature. */
+    private readonly enabled = computed(() => this.uiRteOutline().enabled);
 
     private readonly i18n = createLocaleBindings(this.uiRteOutlineLocale, RICH_TEXT_OUTLINE_LOCALES);
     private readonly viewReady = signal(false);
@@ -129,11 +125,11 @@ export class RichTextOutlineDirective {
 
     private registerToolbarButton(): void {
         effect((onCleanup) => {
-            if (!this.uiRteOutline() || !this.uiRteOutlineButton()) return;
+            if (!this.enabled() || !this.uiRteOutline().toolbar) return;
             const tooltip = this.i18n.t().toolbar;
             onCleanup(this.host.toolbarSlots.register({
                 id: OUTLINE_SLOT_ID,
-                order: this.uiRteOutlineOrder(),
+                order: this.uiRteOutline().order,
                 icon: OUTLINE_ICON,
                 tooltip,
                 isActive: () => this.panelOpen(),
@@ -145,7 +141,7 @@ export class RichTextOutlineDirective {
 
     private registerSlashCommand(): void {
         effect((onCleanup) => {
-            if (!this.uiRteOutline() || !this.uiRteOutlineSlashCommand()) return;
+            if (!this.enabled() || !this.uiRteOutline().slashCommand) return;
             const l = this.i18n.t();
             onCleanup(this.host.commands.registerCommand({
                 id: OUTLINE_COMMAND_ID,
@@ -191,7 +187,7 @@ export class RichTextOutlineDirective {
 
     private trackContentWhileOpen(): void {
         effect((onCleanup) => {
-            if (!this.viewReady() || !this.uiRteOutline() || !this.panelOpen()) return;
+            if (!this.viewReady() || !this.enabled() || !this.panelOpen()) return;
             const root = this.host.contentRoot;
             if (!root) return;
             this.refreshTick.update((tick) => tick + 1);
@@ -211,7 +207,7 @@ export class RichTextOutlineDirective {
             if (!this.viewReady()) return;
             const root = this.host.contentRoot;
             if (!root) return;
-            const open = this.uiRteOutline() && this.panelOpen();
+            const open = this.enabled() && this.panelOpen();
             for (const cls of OUTLINE_INSET_CLASSES) {
                 root.classList.toggle(cls, open);
             }
@@ -221,7 +217,7 @@ export class RichTextOutlineDirective {
 
     private mountPanel(): void {
         effect((onCleanup) => {
-            if (!this.viewReady() || !this.uiRteOutline() || this.panelRef) return;
+            if (!this.viewReady() || !this.enabled() || this.panelRef) return;
             const contextInjector = Injector.create({
                 providers: [{ provide: RICH_TEXT_OUTLINE_CONTEXT, useValue: this.buildContext() }],
                 parent: this.injector,

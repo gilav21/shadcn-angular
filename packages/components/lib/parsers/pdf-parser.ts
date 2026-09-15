@@ -1,4 +1,16 @@
+import { ByteSink } from './byte-sink';
 import { zlibInflate } from './inflate';
+
+/**
+ * Ceiling for a single decoded PDF stream. A stream's filter chain can expand
+ * without bound, and a malformed or hostile document can exploit that to
+ * exhaust memory, so the decoder bounds what it will materialise. 64 MB is
+ * still far above any legitimate single stream in a real document, and -- now
+ * that every decoder accumulates into a one-byte-per-byte {@link ByteSink} --
+ * it is also what the guard actually costs, where the earlier 256 MB on a
+ * `number[]` let a bomb take over a gigabyte before it tripped.
+ */
+export const MAX_DECODED_STREAM_BYTES = 64 * 1024 * 1024;
 
 // ── Stream filter decoders ──────────────────────────────────────────────
 
@@ -52,7 +64,7 @@ function ascii85DecodeGroup(group: number[]): number[] {
 
 function decodeASCII85(data: Uint8Array): Uint8Array {
     const text = new TextDecoder('latin1').decode(data);
-    const output: number[] = [];
+    const output = new ByteSink(MAX_DECODED_STREAM_BYTES);
     let i = 0;
 
     while (i < text.length) {
@@ -60,7 +72,7 @@ function decodeASCII85(data: Uint8Array): Uint8Array {
         if (' \t\r\n\0\f'.includes(text[i])) { i++; continue; }
 
         if (text[i] === 'z') {
-            output.push(0, 0, 0, 0);
+            output.pushSlice([0, 0, 0, 0]);
             i++;
             continue;
         }
@@ -69,10 +81,10 @@ function decodeASCII85(data: Uint8Array): Uint8Array {
         i = nextIndex;
 
         if (group.length < 2) break;
-        for (const byte of ascii85DecodeGroup(group)) output.push(byte);
+        output.pushSlice(ascii85DecodeGroup(group));
     }
 
-    return new Uint8Array(output);
+    return output.toUint8Array();
 }
 
 interface LZWState {
@@ -115,8 +127,33 @@ function lzwResolveEntry(code: number, state: LZWState, prevEntry: Uint8Array | 
     return null;
 }
 
+/**
+ * Append the next dictionary entry — the previous run plus the first byte of the
+ * current one — and widen the code size when the table fills.
+ */
+function lzwExtendTable(state: LZWState, prevEntry: Uint8Array, nextByte: number, earlyChange: number): void {
+    const newEntry = new Uint8Array(prevEntry.length + 1);
+    newEntry.set(prevEntry);
+    newEntry[prevEntry.length] = nextByte;
+    state.table[state.nextCode] = newEntry;
+    state.nextCode++;
+    if (state.nextCode >= (1 << state.codeSize) - earlyChange && state.codeSize < 12) {
+        state.codeSize++;
+    }
+}
+
+/**
+ * LZWDecode, bounded by {@link MAX_DECODED_STREAM_BYTES}.
+ *
+ * LZW's dictionary rechains, so each successive code can emit a longer run than
+ * the last and a small stream can expand without limit — the same
+ * decompression-bomb shape the Flate path already guards against. The sink
+ * THROWS at the ceiling, exactly as Flate does, so the stream is refused
+ * through `decodeStreamData`'s catch rather than silently truncated and handed
+ * on as if it were complete.
+ */
 function decodeLZW(data: Uint8Array, earlyChange: number): Uint8Array {
-    const output: number[] = [];
+    const output = new ByteSink(MAX_DECODED_STREAM_BYTES);
     const state: LZWState = { bitPos: 0, codeSize: 9, nextCode: 258, table: [] };
     lzwInitTable(state);
     let prevEntry: Uint8Array | null = null;
@@ -134,25 +171,16 @@ function decodeLZW(data: Uint8Array, earlyChange: number): Uint8Array {
         const entry = lzwResolveEntry(code, state, prevEntry);
         if (!entry) break;
 
-        for (const byte of entry) output.push(byte);
+        output.pushSlice(entry);
 
-        if (prevEntry) {
-            const newEntry = new Uint8Array(prevEntry.length + 1);
-            newEntry.set(prevEntry);
-            newEntry[prevEntry.length] = entry[0];
-            state.table[state.nextCode] = newEntry;
-            state.nextCode++;
-            if (state.nextCode >= (1 << state.codeSize) - earlyChange && state.codeSize < 12) {
-                state.codeSize++;
-            }
-        }
+        if (prevEntry) lzwExtendTable(state, prevEntry, entry[0], earlyChange);
         prevEntry = entry;
     }
 
-    return new Uint8Array(output);
+    return output.toUint8Array();
 }
 
-function rleCopyLiteral(data: Uint8Array, output: number[], start: number, count: number): number {
+function rleCopyLiteral(data: Uint8Array, output: ByteSink, start: number, count: number): number {
     let i = start;
     for (let j = 0; j <= count && i < data.length; j++) {
         output.push(data[i++]);
@@ -160,7 +188,7 @@ function rleCopyLiteral(data: Uint8Array, output: number[], start: number, count
     return i;
 }
 
-function rleRepeatByte(data: Uint8Array, output: number[], pos: number, len: number): number {
+function rleRepeatByte(data: Uint8Array, output: ByteSink, pos: number, len: number): number {
     if (pos >= data.length) return pos;
     const byte = data[pos];
     const repeatCount = 257 - len;
@@ -169,7 +197,7 @@ function rleRepeatByte(data: Uint8Array, output: number[], pos: number, len: num
 }
 
 function decodeRunLength(data: Uint8Array): Uint8Array {
-    const output: number[] = [];
+    const output = new ByteSink(MAX_DECODED_STREAM_BYTES);
     let i = 0;
     while (i < data.length) {
         const len = data[i];
@@ -181,7 +209,7 @@ function decodeRunLength(data: Uint8Array): Uint8Array {
             i = rleRepeatByte(data, output, i, len);
         }
     }
-    return new Uint8Array(output);
+    return output.toUint8Array();
 }
 
 // ── CCITT Fax decoder (Group 3 1D / Group 4 2D) ────────────────────────
@@ -1242,9 +1270,24 @@ export class PdfReader {
         return result.obj;
     }
 
+    /**
+     * Follow a chain of indirect references to the object it ends at.
+     *
+     * A document is untrusted input, and a malformed or hostile one can point
+     * object A at B and B back at A. Following blindly recursed until the stack
+     * gave out, so each reference is visited at most once and a cycle resolves
+     * to null rather than spinning.
+     */
     resolveDeep(obj: PdfObject): PdfObject {
-        if (obj.type === 'ref') return this.resolveDeep(this.resolveRef(obj));
-        return obj;
+        let current = obj;
+        const seen = new Set<string>();
+        while (current.type === 'ref') {
+            const key = current.value as string;
+            if (seen.has(key)) return { type: 'null', value: null };
+            seen.add(key);
+            current = this.resolveRef(current);
+        }
+        return current;
     }
 
     getDict(obj: PdfObject): Record<string, PdfObject> {
@@ -1321,7 +1364,10 @@ export class PdfReader {
 
     private applyFilter(data: Uint8Array, filter: string, parms: Record<string, PdfObject>): Uint8Array | null {
         if (filter === 'FlateDecode' || filter === 'Fl') {
-            return this.applyFlatePredictor(zlibInflate(data), parms);
+            return this.applyFlatePredictor(
+                zlibInflate(data, { maxOutputBytes: MAX_DECODED_STREAM_BYTES }),
+                parms,
+            );
         }
         if (filter === 'ASCIIHexDecode' || filter === 'AHx') return decodeASCIIHex(data);
         if (filter === 'ASCII85Decode' || filter === 'A85') return decodeASCII85(data);

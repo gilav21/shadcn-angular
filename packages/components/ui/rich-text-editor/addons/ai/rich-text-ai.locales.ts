@@ -35,6 +35,10 @@ export interface RichTextAiLocale extends LocaleMeta {
     go: string;
     /** Shown while the provider streams output. */
     generating: string;
+    /** Accessible name for the AI panel dialog. */
+    panelLabel: string;
+    /** Shown when the generated text would exceed the editor's maxLength. */
+    tooLong: string;
     /** Keep-the-result button. */
     accept: string;
     /** Drop-the-result button. */
@@ -61,6 +65,8 @@ export const RICH_TEXT_AI_LOCALES: Record<string, RichTextAiLocale> = {
         promptPlaceholder: 'Ask AI to…',
         go: 'Go',
         generating: 'Generating…',
+        panelLabel: 'AI assistant',
+        tooLong: 'Generated text is too long for this field',
         accept: 'Accept',
         discard: 'Discard',
         retry: 'Try again',
@@ -81,6 +87,8 @@ export const RICH_TEXT_AI_LOCALES: Record<string, RichTextAiLocale> = {
         promptPlaceholder: '…בקש מ-AI',
         go: 'בצע',
         generating: '…מייצר',
+        panelLabel: 'עוזר AI',
+        tooLong: 'הטקסט שנוצר ארוך מדי לשדה הזה',
         accept: 'אשר',
         discard: 'בטל',
         retry: 'נסה שוב',
@@ -101,6 +109,8 @@ export const RICH_TEXT_AI_LOCALES: Record<string, RichTextAiLocale> = {
         promptPlaceholder: '…اطلب من الذكاء الاصطناعي',
         go: 'تنفيذ',
         generating: '…جارٍ التوليد',
+        panelLabel: 'مساعد الذكاء الاصطناعي',
+        tooLong: 'النص المُنشأ طويل جدًا لهذا الحقل',
         accept: 'قبول',
         discard: 'تجاهل',
         retry: 'إعادة المحاولة',
@@ -120,6 +130,8 @@ export const RICH_TEXT_AI_LOCALES: Record<string, RichTextAiLocale> = {
         promptPlaceholder: 'KI bitten,…',
         go: 'Los',
         generating: 'Wird generiert…',
+        panelLabel: 'KI-Assistent',
+        tooLong: 'Der generierte Text ist zu lang für dieses Feld',
         accept: 'Übernehmen',
         discard: 'Verwerfen',
         retry: 'Erneut versuchen',
@@ -139,6 +151,8 @@ export const RICH_TEXT_AI_LOCALES: Record<string, RichTextAiLocale> = {
         promptPlaceholder: 'Demander à l\'IA de…',
         go: 'OK',
         generating: 'Génération…',
+        panelLabel: 'Assistant IA',
+        tooLong: 'Le texte généré est trop long pour ce champ',
         accept: 'Accepter',
         discard: 'Ignorer',
         retry: 'Réessayer',
@@ -158,6 +172,8 @@ export const RICH_TEXT_AI_LOCALES: Record<string, RichTextAiLocale> = {
         promptPlaceholder: 'Pide a la IA que…',
         go: 'Ir',
         generating: 'Generando…',
+        panelLabel: 'Asistente de IA',
+        tooLong: 'El texto generado es demasiado largo para este campo',
         accept: 'Aceptar',
         discard: 'Descartar',
         retry: 'Reintentar',
@@ -177,6 +193,8 @@ export const RICH_TEXT_AI_LOCALES: Record<string, RichTextAiLocale> = {
         promptPlaceholder: 'AIへの指示を入力…',
         go: '実行',
         generating: '生成中…',
+        panelLabel: 'AI アシスタント',
+        tooLong: '生成されたテキストはこのフィールドには長すぎます',
         accept: '適用',
         discard: '破棄',
         retry: '再試行',
@@ -196,6 +214,8 @@ export const RICH_TEXT_AI_LOCALES: Record<string, RichTextAiLocale> = {
         promptPlaceholder: '让 AI…',
         go: '执行',
         generating: '生成中…',
+        panelLabel: 'AI 助手',
+        tooLong: '生成的文本对此字段来说太长',
         accept: '接受',
         discard: '放弃',
         retry: '重试',
@@ -215,6 +235,8 @@ export const RICH_TEXT_AI_LOCALES: Record<string, RichTextAiLocale> = {
         promptPlaceholder: 'Попросить ИИ…',
         go: 'Выполнить',
         generating: 'Генерация…',
+        panelLabel: 'AI-ассистент',
+        tooLong: 'Сгенерированный текст слишком длинный для этого поля',
         accept: 'Принять',
         discard: 'Отменить',
         retry: 'Повторить',
@@ -234,6 +256,8 @@ export const RICH_TEXT_AI_LOCALES: Record<string, RichTextAiLocale> = {
         promptPlaceholder: 'Peça à IA para…',
         go: 'Ir',
         generating: 'Gerando…',
+        panelLabel: 'Assistente de IA',
+        tooLong: 'O texto gerado é longo demais para este campo',
         accept: 'Aceitar',
         discard: 'Descartar',
         retry: 'Tentar novamente',

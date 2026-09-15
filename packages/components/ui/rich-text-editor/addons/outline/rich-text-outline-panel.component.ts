@@ -3,6 +3,8 @@ import { ButtonComponent } from '../../../button';
 import { ScrollAreaComponent } from '../../../scroll-area';
 import { RICH_TEXT_OUTLINE_CONTEXT } from './rich-text-outline.context';
 
+let outlinePanelInstances = 0;
+
 /**
  * The document-outline addon's docked side panel: a scrollable table of
  * contents anchored to the editor's start edge (left in LTR, right in RTL). It
@@ -22,4 +24,11 @@ import { RICH_TEXT_OUTLINE_CONTEXT } from './rich-text-outline.context';
 })
 export class RichTextOutlinePanelComponent {
     protected readonly ctx = inject(RICH_TEXT_OUTLINE_CONTEXT);
+    /**
+     * Id wiring the panel's `aria-labelledby` to its visible heading. Counted
+     * per instance so two editors on one page do not both claim the same id,
+     * which would make the second panel's accessible name resolve to the
+     * first panel's heading.
+     */
+    protected readonly titleId = `rte-outline-title-${++outlinePanelInstances}`;
 }

@@ -7,7 +7,7 @@ import {
     input,
     output,
 } from '@angular/core';
-import { RichTextEditorAddonHost } from '../..';
+import { addonSetting, type RichTextAddonSetting, type RichTextAddonState, RichTextEditorAddonHost} from '../..';
 import { createLocaleBindings, type LocaleInput } from '../../../../lib/i18n';
 import { RichTextEmojiButtonComponent } from './rich-text-emoji-button.component';
 import {
@@ -34,7 +34,7 @@ const EMOJI_SLOT_ID = 'emoji.insert';
  * floating/bubble toolbar (compact-sized via `RichTextToolbarViewContext`).
  * The tooltip locale resolves from `[uiRteEmojiLocale]` or the app-wide
  * `UI_LOCALE_ID` token — it does not track the editor's own `[locale]`
- * input. Changing `[uiRteEmojiOrder]` re-registers the slot, which remounts
+ * input. Changing `[uiRteEmoji]="{ order }"` re-registers the slot, which remounts
  * the button (an open picker closes) — set it once, not reactively.
  *
  * ```html
@@ -51,10 +51,14 @@ export class RichTextEmojiDirective {
 
     /** Locale for the addon UI: a registry key (`'en'`/`'he'`/…) or a full dictionary. */
     readonly uiRteEmojiLocale = input<LocaleInput<RichTextEmojiLocale>>();
-    /** Enable the emoji addon (the bare `uiRteEmoji` attribute). Flip to `false` to remove the button live. */
-    readonly uiRteEmoji = input(true, { transform: coerceEnabled });
-    /** Sort order of the emoji button among addon toolbar slots; lower first. */
-    readonly uiRteEmojiOrder = input(400);
+    /**
+     * Enable the addon (the bare `uiRteEmoji` attribute), or tune it: `[uiRteEmoji]="{ toolbar: false }"` keeps the feature without its button, `{ order: 100 }` moves the button.
+     * See {@link RichTextAddonOptions}.
+     */
+    readonly uiRteEmoji = input<RichTextAddonState, RichTextAddonSetting>(addonSetting(400)(true), { transform: addonSetting(400) });
+
+    /** Read this, not the whole setting, where only on/off matters: an options change must not remount the feature. */
+    private readonly enabled = computed(() => this.uiRteEmoji().enabled);
 
     /** Emits the picked emoji after it has been inserted into the content. */
     readonly emojiInsert = output<string>();
@@ -74,10 +78,10 @@ export class RichTextEmojiDirective {
             parent: this.injector,
         });
         effect((onCleanup) => {
-            if (!this.uiRteEmoji()) return;
+            if (!this.enabled()) return;
             onCleanup(this.host.toolbarSlots.register({
                 id: EMOJI_SLOT_ID,
-                order: this.uiRteEmojiOrder(),
+                order: this.uiRteEmoji().order,
                 component: RichTextEmojiButtonComponent,
                 injector: slotInjector,
             }));
@@ -85,7 +89,3 @@ export class RichTextEmojiDirective {
     }
 }
 
-/** Coerce the bare `uiRteEmoji` attribute (empty string) to `true`. */
-function coerceEnabled(value: boolean | string | undefined): boolean {
-    return value === '' || value === true || value === undefined;
-}

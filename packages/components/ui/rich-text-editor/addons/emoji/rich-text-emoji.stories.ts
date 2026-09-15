@@ -42,8 +42,7 @@ export const CustomOrderAndLocale: Story = {
         template: `
             <ui-rich-text-editor
                 mode="html"
-                uiRteEmoji
-                [uiRteEmojiOrder]="100"
+                [uiRteEmoji]="{ order: 100 }"
                 uiRteEmojiLocale="he"
                 locale="he"
                 minHeight="150px"
@@ -58,7 +57,7 @@ export const MinimalToolbarWithEmoji: Story = {
             <ui-rich-text-editor
                 mode="html"
                 uiRteEmoji
-                [toolbarItems]="['bold', 'italic', 'separator', 'link']"
+                [toolbarItems]="['bold', 'italic', 'separator']"
                 placeholder="Addon buttons render after the built-in items…"
                 minHeight="150px"
             />

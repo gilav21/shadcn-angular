@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import { run } from './spawn.js';
-import { assertFixtureClean } from './reset-app.js';
+import { assertFixtureClean, resetFixtureApp } from './reset-app.js';
 import {
     captureCli,
     ensureCliBuilt,
@@ -9,19 +9,23 @@ import {
 } from './run-cli.js';
 import { installHarness } from './install-harness.js';
 import { serve } from './serve.js';
-import { REPO_ROOT, WORKERS_ROOT, harnessDir } from './paths.js';
-import { createWorkers, type Worker } from './worker.js';
+import { DEV_SERVER_PORT, FIXTURE_APP_21, REPO_ROOT, WORKERS_ROOT, harnessDir } from './paths.js';
+import { createWorkers, findFreePort, type Worker } from './worker.js';
 import { parseRawArgs } from './parse-args.js';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { CliSpec } from '../cli-specs/_types.js';
+import { buildPackageTarball } from '../../packages/cli/scripts/package-build.js';
+import { PACKAGE_NAMES, consumerCssSnippet } from '../../packages/cli/scripts/stage-package-lib.js';
 import {
     ALL_COMPONENTS,
     CLI_SPECS,
+    specFixture,
     specHarness,
     specLabel,
     type ComponentSpec,
 } from './specs.js';
+import { expandRequestedNames } from './expand-names.js';
 
 // Force the Angular CLI non-interactive for every `ng` the suite spawns
 // (`ng build`/`ng serve` in the scaffolded consumer apps). Without this the
@@ -70,6 +74,99 @@ function remoteCliArgs(flags: CliFlags): string[] {
     return [];
 }
 
+/**
+ * Installs a spec's compiled package tarballs into the fixture and wires up
+ * Tailwind the way a consumer would.
+ *
+ * When the spec installs no CLI components there is no `init` to lean on, so
+ * this replicates ONLY the Tailwind/PostCSS part of it, by hand, from the
+ * README's own snippet (`consumerCssSnippet`) — that is the point of the leg:
+ * it proves the documented three-line contract actually works, and because the
+ * README and the fixture render from the same function they cannot drift.
+ */
+/**
+ * Re-enables Tailwind scanning of the directories the repo's `.gitignore`
+ * excludes.
+ *
+ * Tailwind v4 honours ignore files when it expands a glob, and the repo ignores
+ * everything the CLI writes into the fixture — `src/components/`,
+ * `src/app/test-pages/`, `src/tailwind.css` — so that install output is never
+ * committed. The consequence is that `@source "../src/**"` matches the app
+ * scaffold and nothing else: the installed components and the harness page are
+ * both invisible to it.
+ *
+ * The result is not a build error. Tailwind emits a valid stylesheet with only
+ * the handful of utilities it could see (9.29 kB -> 6.36 kB for the accordion
+ * spec), the page renders unstyled, and every assertion that waits for a styled
+ * element times out somewhere unrelated to the component under test.
+ *
+ * An explicit `@source` on a directory is scanned regardless of ignore rules,
+ * which is exactly the escape hatch this needs. It belongs here rather than in
+ * the shipped template: a real consumer COMMITS their components, so their
+ * `../src/**` glob already covers them, and shipping these lines would put
+ * fixture-specific paths in every consumer's stylesheet.
+ */
+function unignoreInstalledSources(fixtureApp: string): void {
+    appendTailwindSources(fixtureApp, ['../src/components', '../src/app/test-pages']);
+}
+
+/** Append an `@source` line per directory to the fixture's tailwind.css, skipping ones already present. */
+function appendTailwindSources(fixtureApp: string, dirs: readonly string[]): void {
+    const tailwindCss = path.join(fixtureApp, 'src/tailwind.css');
+    if (!fs.existsSync(tailwindCss)) return;
+
+    const existing = fs.readFileSync(tailwindCss, 'utf-8');
+    const sources = dirs
+        .map((dir) => `@source "${dir}";`)
+        .filter((line) => !existing.includes(line));
+    if (sources.length === 0) return;
+
+    fs.writeFileSync(tailwindCss, `${existing.trimEnd()}\n${sources.join('\n')}\n`);
+}
+
+async function installPackages(spec: ComponentSpec, fixtureApp: string): Promise<void> {
+    const ids = spec.packages ?? [];
+
+    if (spec.names.length > 0) {
+        // MIXED mode: `init` already wrote a tailwind.css, but its `@source`
+        // globs only cover `../src/**` — the consumer's own tree. Without an
+        // extra `@source` for the package, Tailwind never scans node_modules
+        // and the package's components render unstyled in exactly the app that
+        // most needs to look right. Appending is what a real mixed consumer
+        // does, and it keeps this leg able to catch a styling regression.
+        appendTailwindSources(fixtureApp, ids.map((id) => `../node_modules/${PACKAGE_NAMES[id]}`));
+    }
+
+    if (spec.names.length === 0) {
+        await run('npm', [
+            'install', '-D', 'tailwindcss', '@tailwindcss/postcss', 'postcss',
+            '--no-audit', '--no-fund',
+        ], { cwd: fixtureApp });
+
+        fs.writeFileSync(
+            path.join(fixtureApp, '.postcssrc.json'),
+            `${JSON.stringify({ plugins: { '@tailwindcss/postcss': {} } }, null, 2)}\n`,
+        );
+        fs.writeFileSync(
+            path.join(fixtureApp, 'src/tailwind.css'),
+            `${consumerCssSnippet(ids)}\n`,
+        );
+        const styles = path.join(fixtureApp, 'src/styles.scss');
+        const existing = fs.existsSync(styles) ? fs.readFileSync(styles, 'utf-8') : '';
+        if (!existing.includes('./tailwind.css')) {
+            fs.writeFileSync(styles, `@import "./tailwind.css";\n${existing}`);
+        }
+    }
+
+    for (const id of ids) {
+        // A stale extraction of the same version would be reused otherwise, so
+        // the leg could pass against a tarball it did not just build.
+        fs.rmSync(path.join(fixtureApp, 'node_modules/@gilav21'), { recursive: true, force: true });
+        const tarball = await buildPackageTarball(id);
+        await run('npm', ['install', tarball, '--no-audit', '--no-fund'], { cwd: fixtureApp });
+    }
+}
+
 async function runOne(spec: ComponentSpec, flags: CliFlags, worker: Worker): Promise<RunResult> {
     const label = specLabel(spec);
     const started = Date.now();
@@ -82,11 +179,27 @@ async function runOne(spec: ComponentSpec, flags: CliFlags, worker: Worker): Pro
         if (worker.index === 0) await assertFixtureClean('after reset');
 
         const remoteArgs = remoteCliArgs(flags);
-        await runCli([...(spec.initArgs ?? ['init', '--yes']), ...remoteArgs], worker.fixtureApp);
-        await runCli(['add', ...spec.names, '--yes', ...remoteArgs], worker.fixtureApp);
+        if (spec.names.length > 0) {
+            await runCli([...(spec.initArgs ?? ['init', '--yes']), ...remoteArgs], worker.fixtureApp);
+            await runCli(['add', ...spec.names, ...(spec.addArgs ?? []), '--yes', ...remoteArgs], worker.fixtureApp);
+            unignoreInstalledSources(worker.fixtureApp);
+        }
         await npmInstall(worker.fixtureApp);
 
+        // Packages install AFTER the CLI step: `add` runs its own dependency
+        // install, which would otherwise prune a tarball it does not know about.
+        if (spec.packages?.length) {
+            await installPackages(spec, worker.fixtureApp);
+        }
+
         installHarness(specHarness(spec), worker.fixtureApp);
+
+        // T-22: a production build is the real proof for a compiled package —
+        // `ng serve` skips budgets and does not run the full optimizer, so an
+        // AOT or tree-shaking regression would only surface here.
+        if (spec.packages?.length) {
+            await run('npx', ['ng', 'build', '--configuration', 'production'], { cwd: worker.fixtureApp });
+        }
 
         server = await serve(worker.fixtureApp, worker.port);
         await runPlaywrightSpec(specHarness(spec), flags, worker);
@@ -172,14 +285,22 @@ function parseArgs(): ParsedArgs {
         return { components: ALL_COMPONENTS, cliSpecs, flags };
     }
 
-    const requested = new Set(names);
+    // A base component with registry addons[] means "everything about this
+    // component": `e2e -- rich-text-editor` runs the base harness AND every
+    // rte-* addon spec. Exact labels and addon-less names are untouched.
+    const expanded = expandRequestedNames(names, ALL_COMPONENTS);
+    if (expanded.length !== names.length) {
+        console.log(`[e2e] ${names.join(', ')} expands to ${expanded.length} spec(s): ${expanded.join(', ')}`);
+    }
+
+    const requested = new Set(expanded);
     const components = ALL_COMPONENTS.filter(c => requested.has(specLabel(c)));
     const cliSpecs = CLI_SPECS.filter(s => requested.has(s.label));
     const allLabels = [
         ...ALL_COMPONENTS.map(specLabel),
         ...CLI_SPECS.map(s => s.label),
     ];
-    const unknown = names.filter(r => !allLabels.includes(r));
+    const unknown = expanded.filter(r => !allLabels.includes(r));
     if (unknown.length > 0) {
         console.error(`[e2e] Unknown name(s): ${unknown.join(', ')}`);
         console.error('[e2e] Available: ' + allLabels.join(', '));
@@ -212,6 +333,38 @@ async function runPool<T>(
     return results;
 }
 
+/**
+ * Runs the Angular 21 specs on one dedicated worker over `e2e/fixture-app-21`.
+ * Created lazily: a run that requests no ng21 label must not pay for resolving
+ * a port or touching that fixture at all.
+ */
+async function runNg21Specs(specs: readonly ComponentSpec[], flags: CliFlags): Promise<RunResult[]> {
+    if (specs.length === 0) return [];
+
+    if (!fs.existsSync(FIXTURE_APP_21)) {
+        return specs.map((spec) => ({
+            label: specLabel(spec),
+            passed: false,
+            durationMs: 0,
+            error: `The Angular 21 fixture is missing (${FIXTURE_APP_21}).`,
+        }));
+    }
+
+    const port = await findFreePort(DEV_SERVER_PORT + 100);
+    const worker: Worker = {
+        index: 'ng21',
+        fixtureApp: FIXTURE_APP_21,
+        port,
+        baseUrl: `http://localhost:${port}`,
+        reset: () => resetFixtureApp(FIXTURE_APP_21),
+    };
+    console.log(`\n[e2e] ${specs.length} Angular 21 spec(s) on port ${port}`);
+
+    const results: RunResult[] = [];
+    for (const spec of specs) results.push(await runOne(spec, flags, worker));
+    return results;
+}
+
 async function main(): Promise<void> {
     const { components, cliSpecs, flags } = parseArgs();
     const mode = describeMode(flags);
@@ -223,7 +376,15 @@ async function main(): Promise<void> {
 
     await ensureCliBuilt();
 
-    const workerCount = Math.max(1, Math.min(flags.workers, labels.length));
+    // The ng20 pool is the fixture every copy-model spec shares. The Angular 21
+    // fixture is a separate checkout with its own node_modules, so its specs run
+    // on one dedicated worker AFTER the pool — there are only a handful, and
+    // cloning a second 500-package install per worker would cost far more than
+    // running them in sequence.
+    const ng20Specs = components.filter((spec) => specFixture(spec) === 'ng20');
+    const ng21Specs = components.filter((spec) => specFixture(spec) === 'ng21');
+
+    const workerCount = Math.max(1, Math.min(flags.workers, ng20Specs.length + cliSpecs.length || 1));
     const workers = await createWorkers(workerCount);
     if (workerCount > 1) {
         console.log(`[e2e] ${workerCount} workers, ports ${workers[0].port}-${workers[workerCount - 1].port}`);
@@ -231,7 +392,8 @@ async function main(): Promise<void> {
 
     const started = Date.now();
     const results = [
-        ...await runPool(components, workers, (spec, w) => runOne(spec, flags, w)),
+        ...await runPool(ng20Specs, workers, (spec, w) => runOne(spec, flags, w)),
+        ...await runNg21Specs(ng21Specs, flags),
         // The CLI specs assert on a pristine fixture's git state, so they stay
         // on worker 0 — the only fixture git actually tracks.
         ...await runPool(cliSpecs, [workers[0]], (spec, w) => runCliSpec(spec.label, spec.module, w)),

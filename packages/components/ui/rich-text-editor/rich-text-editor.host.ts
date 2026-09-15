@@ -106,6 +106,17 @@ export interface RichTextSelectionSnapshot {
 }
 
 /**
+ * Membership handle in the toolbar's mutually-exclusive popover group,
+ * returned by {@link RichTextEditorAddonHost.registerExclusivePopover}.
+ */
+export interface RichTextExclusivePopover {
+    /** Announce that this panel just opened, closing every other member. */
+    readonly notifyOpened: () => void;
+    /** Leave the group. Call on teardown. */
+    readonly release: () => void;
+}
+
+/**
  * The stable extension surface a rich-text-editor addon reaches through DI
  * (`inject(RichTextEditorAddonHost)`). `RichTextEditorComponent` provides
  * itself as this token; the base never imports any addon. This is the one
@@ -114,6 +125,31 @@ export interface RichTextSelectionSnapshot {
 export abstract class RichTextEditorAddonHost {
     /** Toolbar slot registry the base renders after built-in items. */
     abstract readonly toolbarSlots: AddonSlotRegistry<RichTextToolbarSlot>;
+    /**
+     * Join the toolbar's mutually-exclusive popover group. **Every addon that
+     * contributes a toolbar panel MUST register here**: only one toolbar panel
+     * is ever open at a time, so opening one closes all the others.
+     *
+     * Pass a callback that closes YOUR panel — however your panel stores that
+     * state (a local `signal(false)`, or a two-way `open` model on a picker
+     * component you delegate to). Call `notifyOpened()` when your panel opens;
+     * the base then invokes every OTHER member's close callback, never your
+     * own. Call `release()` on teardown to leave the group.
+     *
+     * Scope is the toolbar only: persistent surfaces such as the find bar and
+     * the slash-command menu are deliberately not part of this group.
+     *
+     * ```ts
+     * private readonly exclusive = inject(RichTextEditorAddonHost)
+     *     .registerExclusivePopover(() => this.open.set(false));
+     *
+     * protected onOpenChange(next: boolean): void {
+     *     if (next) this.exclusive.notifyOpened();
+     *     this.open.set(next);
+     * }
+     * ```
+     */
+    abstract registerExclusivePopover(close: () => void): RichTextExclusivePopover;
     /**
      * THIS editor instance's slash-command registry. Addons register here, so
      * a command appears only in the editor whose element carries the addon
@@ -149,12 +185,50 @@ export abstract class RichTextEditorAddonHost {
      * keyboard flashing while focus returns from the overlay.
      */
     abstract insertTextFromOverlay(text: string): void;
-    /** Whether the editor is disabled. */
+    /**
+     * The editor's `[disabled]` input alone. Addons guarding an interaction want
+     * {@link isDisabled}, which also accounts for a reactive form having
+     * disabled the control.
+     */
     abstract readonly disabled: Signal<boolean>;
+    /**
+     * Whether the editor is effectively disabled — the `[disabled]` input OR a
+     * reactive form's own disabled state (`control.disable()`). Every addon
+     * interaction guard reads this.
+     */
+    abstract readonly isDisabled: Signal<boolean>;
     /** Whether the editor is read-only. */
     abstract readonly readonly: Signal<boolean>;
     /** The contenteditable content root (for popover anchoring + scoped styles). */
     abstract readonly contentRoot: HTMLElement;
+    /**
+     * How many more user-perceived characters the document can take, or
+     * `Infinity` when no `maxLength` is set. NEGATIVE when the document is
+     * already over the limit -- which is how an addon whose content is already
+     * in the document (a streamed AI draft, say) asks whether committing it
+     * would leave the document too long. A clamped zero could not tell "exactly
+     * full" from "over".
+     *
+     * The base enforces `maxLength` on typing, paste and its own insert seams,
+     * but an addon that mutates content directly through
+     * {@link RichTextEditorAddonHost.mutateContent} bypasses all of those — so
+     * anything inserting a meaningful amount of text must ask first. Counted in
+     * grapheme clusters, the same unit the character counter shows the user, so
+     * an emoji costs one rather than two.
+     */
+    abstract remainingLength(): number;
+    /**
+     * Announce an open suggestion popup on the editable, per the WAI-ARIA
+     * combobox pattern.
+     *
+     * Focus deliberately stays in the editable while a mention or slash-command
+     * menu is open, so keystrokes keep reaching the document — which means the
+     * popup is invisible to a screen reader unless the editable itself says it
+     * exists and which option is active. Pass `null` to clear.
+     */
+    abstract setActiveSuggestionPopup(
+        popup: { readonly controlsId: string; readonly activeOptionId: string | null } | null,
+    ): void;
 
 
     /**
@@ -249,6 +323,14 @@ export abstract class RichTextEditorAddonHost {
     /** Insert sanitized HTML at the live caret as one history entry. */
     abstract insertHtmlAtCaret(html: string): void;
     /**
+     * Insert sanitized block markup (a table, a rule, a details block) at the
+     * caret's line as one history entry: after the block the caret is in, or in
+     * its place when that block is empty. `insertHtmlAtCaret` splits the block
+     * at the caret, which suits pasted prose and cuts a word in two for a
+     * command. The caret lands in the first cell or paragraph inserted.
+     */
+    abstract insertBlockAtCaret(html: string): void;
+    /**
      * Open the link editor. A delegation seam: the base keeps this method (so the
      * `Ctrl/Cmd+K` shortcut and the `/link` slash command have a stable entry
      * point) but ships no link UI — it forwards to the editor registered via
@@ -310,4 +392,46 @@ export abstract class RichTextEditorAddonHost {
      * teardown; the shortcut is inert while no action is registered.
      */
     abstract registerShortcutAction(actionId: string, run: () => void, when?: () => boolean): () => void;
+}
+
+/**
+ * The switches every toolbar-contributing addon accepts on its `uiRte<Addon>`
+ * input, so one attribute both enables the addon and tunes where it shows:
+ *
+ * ```html
+ * <ui-rich-text-editor uiRteImages />                            <!-- on -->
+ * <ui-rich-text-editor [uiRteImages]="false" />                  <!-- off -->
+ * <ui-rich-text-editor [uiRteImages]="{ toolbar: false }" />     <!-- paste and drop only -->
+ * <ui-rich-text-editor [uiRteLinks]="{ order: 100, slashCommand: false }" />
+ * ```
+ */
+export interface RichTextAddonOptions {
+    /** Contribute the addon's toolbar button (or corner button). Default `true`. */
+    readonly toolbar?: boolean;
+    /** Register the addon's slash command, where it has one. Default `true`. */
+    readonly slashCommand?: boolean;
+    /** Sort order among addon toolbar buttons; lower first. Each addon has its own default. */
+    readonly order?: number;
+}
+
+/** What a `uiRte<Addon>` attribute accepts: bare (`''`), a boolean, or the options. */
+export type RichTextAddonSetting = boolean | '' | RichTextAddonOptions;
+
+/** The resolved form the addon reads: every option filled in, plus `enabled`. */
+export interface RichTextAddonState extends Required<RichTextAddonOptions> {
+    readonly enabled: boolean;
+}
+
+/**
+ * The input transform behind every `uiRte<Addon>` attribute. A bare attribute
+ * or `true` enables with the defaults; `false` disables; an object enables and
+ * overrides the fields it names.
+ */
+export function addonSetting(defaultOrder: number): (value: RichTextAddonSetting) => RichTextAddonState {
+    const defaults: RichTextAddonState = { enabled: true, toolbar: true, slashCommand: true, order: defaultOrder };
+    return (value) => {
+        if (value === '' || value === true) return defaults;
+        if (value === false) return { ...defaults, enabled: false };
+        return { ...defaults, ...value };
+    };
 }

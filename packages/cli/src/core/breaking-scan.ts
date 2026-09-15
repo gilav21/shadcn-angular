@@ -10,6 +10,7 @@ import fs from 'fs-extra';
 import chalk from 'chalk';
 import { type BreakingChange, type ComponentName } from '../registry/index.js';
 import { collectBreakingChanges } from './plan.js';
+import { ruleTokens } from './binding-codemod.js';
 import { collectComponentFiles, toTarget, readTemplate } from './apply-core.js';
 
 /** A single template-binding use of a removed/renamed token in the consumer's code. */
@@ -33,7 +34,7 @@ const IDENTIFIER = /^[a-zA-Z_$][\w$-]*$/;
  * nothing — there is no reliable single token to grep for.
  */
 export function extractBreakingTokens(change: BreakingChange): string[] {
-    const tokens = new Set<string>();
+    const tokens = new Set<string>(ruleTokens(change));
     for (const m of change.from.matchAll(BRACKETED)) tokens.add(m[1]);
     if (tokens.size === 0 && change.kind === 'selector') {
         const raw = change.from.trim();

@@ -31,7 +31,7 @@ describe('RichTextFileImportButtonComponent', () => {
         await TestBed.configureTestingModule({
             imports: [RichTextFileImportButtonComponent],
             providers: [
-                { provide: RichTextEditorAddonHost, useValue: { disabled, readonly } },
+                { provide: RichTextEditorAddonHost, useValue: { disabled, isDisabled: disabled, readonly, registerExclusivePopover: () => ({ notifyOpened: () => {}, release: () => {} }) } },
                 { provide: RICH_TEXT_FILE_IMPORT_BUTTON_CONTEXT, useValue: context },
                 ...(withToolbarView ? [{ provide: RichTextToolbarViewContext, useValue: { compact } }] : []),
             ],

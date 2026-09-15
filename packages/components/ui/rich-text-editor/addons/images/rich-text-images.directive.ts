@@ -14,11 +14,11 @@ import {
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { firstValueFrom, from, type Observable, type Subscription } from 'rxjs';
-import {
+import { addonSetting, type RichTextAddonSetting, type RichTextAddonState,
     RichTextEditorAddonHost,
     RichTextSanitizerService,
     RichTextPasteNormalizerService,
-} from '../..';
+ } from '../..';
 import { isValidImageDataUrl } from '../../../../lib/parsers/image-validator';
 import { createLocaleBindings, type LocaleInput } from '../../../../lib/i18n';
 import {
@@ -66,6 +66,9 @@ const AUTO_UPLOAD_STYLES = `
     }
 `;
 
+/** How many live directives currently need the shared upload styles. */
+let autoUploadStyleUsers = 0;
+
 interface AutoUploadPending {
     readonly subscription: Subscription;
     readonly dataUrl: string;
@@ -75,7 +78,7 @@ interface AutoUploadPending {
  * Opt-in images addon for `<ui-rich-text-editor>`. Attaches via DI to the
  * `RichTextEditorAddonHost` the base provides and owns the whole image feature:
  * the toolbar image button + insert popover, image paste and drag-and-drop, the
- * upload pipeline (`uiRteImagesUploader` + `uiRteImagesAutoUpload`), and the
+ * upload pipeline (`uiRteImagesUpload`), and the
  * resize/align overlay on a selected image. The base editor keeps only
  * content-level image support (sanitizer + markdown); every image control is
  * opt-in through this directive.
@@ -89,9 +92,54 @@ interface AutoUploadPending {
  * `[locale]` input.
  *
  * ```html
- * <ui-rich-text-editor uiRteImages [uiRteImagesUploader]="upload" />
+ * <ui-rich-text-editor uiRteImages [uiRteImagesUpload]="{ uploader: upload }" />
  * ```
  */
+/**
+ * How images reach their final URL. Every field optional; unset fields keep
+ * the defaults shown.
+ */
+export interface RichTextImagesUploadOptions {
+    /** Turns a picked, dropped or pasted `File` into the URL stored in the document. Without it, files are refused. */
+    readonly uploader?: (file: File) => Observable<string>;
+    /** Also send base64 images that were pasted or typed through `uploader`. Default `false`. */
+    readonly auto?: boolean;
+    /** Which sources the insert popover offers. Default `'all'`. */
+    readonly sources?: RichTextImageSources;
+}
+
+/**
+ * How inserted images are sized and placed. Every field optional; unset
+ * fields keep the defaults shown.
+ */
+export interface RichTextImagesLayoutOptions {
+    /** Drag handles on a selected image. Default `true`. */
+    readonly resize?: boolean;
+    /** Alignment buttons on a selected image. Default `true`. */
+    readonly alignment?: boolean;
+    /** Width applied to every inserted image (px or any CSS length). */
+    readonly defaultWidth?: number | string;
+    /** Height applied to every inserted image (px or any CSS length). */
+    readonly defaultHeight?: number | string;
+    /** Alignment applied to every inserted image. Default `'inline'`. */
+    readonly defaultAlignment?: ImageAlignment;
+    /** Lower clamp for drag-resizing, in px. Default `20`. */
+    readonly minWidth?: number;
+    /** Upper clamp for drag-resizing, in px. No ceiling when unset. */
+    readonly maxWidth?: number;
+    /** Keep the aspect ratio while resizing. Default `true`. */
+    readonly lockAspectRatio?: boolean;
+}
+
+const DEFAULT_UPLOAD: Required<Pick<RichTextImagesUploadOptions, 'auto' | 'sources'>> = { auto: false, sources: 'all' };
+const DEFAULT_LAYOUT: Required<Pick<RichTextImagesLayoutOptions, 'resize' | 'alignment' | 'defaultAlignment' | 'minWidth' | 'lockAspectRatio'>> = {
+    resize: true,
+    alignment: true,
+    defaultAlignment: 'inline',
+    minWidth: 20,
+    lockAspectRatio: true,
+};
+
 @Directive({
     selector: 'ui-rich-text-editor[uiRteImages], ui-rich-text-editor[uiRteFull]',
     standalone: true,
@@ -106,34 +154,28 @@ export class RichTextImagesDirective {
 
     /** Locale for the addon UI: a registry key (`'en'`/`'he'`/…) or a full dictionary. */
     readonly uiRteImagesLocale = input<LocaleInput<RichTextImagesLocale>>();
-    /** Master toggle for the whole image feature (default true). */
-    readonly uiRteImages = input(true, { transform: coerceEnabled });
-    /** Sort order of the image button among addon toolbar slots. */
-    readonly uiRteImagesOrder = input(325);
-    /** Contribute the toolbar button (default true). */
-    readonly uiRteImagesToolbar = input(true);
-    /** Custom upload handler; returns an `Observable<string>` of the final URL. */
-    readonly uiRteImagesUploader = input<((file: File) => Observable<string>) | undefined>(undefined);
-    /** Auto-upload base64 images pasted/typed into the editor. */
-    readonly uiRteImagesAutoUpload = input(false);
-    /** Which sources the insert popover offers. */
-    readonly uiRteImagesSources = input<RichTextImageSources>('all');
-    /** Allow drag-resizing inserted images. */
-    readonly uiRteImagesResize = input(true);
-    /** Show the alignment buttons on a selected image. */
-    readonly uiRteImagesAlignment = input(true);
-    /** Default width applied to every inserted image. */
-    readonly uiRteImagesDefaultWidth = input<number | string>();
-    /** Default height applied to every inserted image. */
-    readonly uiRteImagesDefaultHeight = input<number | string>();
-    /** Alignment applied to every inserted image. */
-    readonly uiRteImagesDefaultAlignment = input<ImageAlignment>('inline');
-    /** Lower clamp (px) for drag-resizing. */
-    readonly uiRteImagesMinWidth = input(20);
-    /** Upper clamp (px) for drag-resizing. No ceiling when unset. */
-    readonly uiRteImagesMaxWidth = input<number>();
-    /** Keep aspect ratio locked while resizing. */
-    readonly uiRteImagesLockAspectRatio = input(true);
+    /**
+     * Enable the addon (the bare `uiRteImages` attribute), or tune it: `[uiRteImages]="{ toolbar: false }"` keeps the feature without its button, `{ order: 100 }` moves the button.
+     * See {@link RichTextAddonOptions}.
+     */
+    readonly uiRteImages = input<RichTextAddonState, RichTextAddonSetting>(addonSetting(325)(true), { transform: addonSetting(325) });
+
+    /** Read this, not the whole setting, where only on/off matters: an options change must not remount the feature. */
+    private readonly enabled = computed(() => this.uiRteImages().enabled);
+    /**
+     * How images get uploaded — see {@link RichTextImagesUploadOptions}. Set
+     * only the fields you change: `{ uploader, auto: true }`.
+     */
+    readonly uiRteImagesUpload = input<RichTextImagesUploadOptions>({});
+    /**
+     * How inserted images are sized and placed — see
+     * {@link RichTextImagesLayoutOptions}. Set only the fields you change:
+     * `{ defaultWidth: 240, maxWidth: 480 }`.
+     */
+    readonly uiRteImagesLayout = input<RichTextImagesLayoutOptions>({});
+
+    private readonly upload = computed(() => ({ ...DEFAULT_UPLOAD, ...this.uiRteImagesUpload() }));
+    private readonly layout = computed(() => ({ ...DEFAULT_LAYOUT, ...this.uiRteImagesLayout() }));
 
     /** Emits the `File` when an image upload begins. */
     readonly imageUploadStart = output<File>();
@@ -160,6 +202,16 @@ export class RichTextImagesDirective {
     private autoUploadObserver: MutationObserver | null = null;
 
     private overlayRef?: ComponentRef<RichTextImagesOverlayComponent>;
+    /**
+     * Whether this directive has been torn down.
+     *
+     * An upload is a network round-trip the user can easily outlive — routing
+     * away, closing a dialog, toggling a tab. The auto-upload path already
+     * unsubscribes on destroy, but the manual insert/drop/paste path awaited its
+     * promise with nothing watching, then committed into a dead editor and
+     * emitted outputs whose owning directive no longer exists (NG0953).
+     */
+    private destroyed = false;
 
     private readonly resizerLabels = computed<RichTextImageResizerLabels>(() => {
         const l = this.i18n.t();
@@ -208,20 +260,20 @@ export class RichTextImagesDirective {
 
 
     private canUseUpload(): boolean {
-        const s = this.uiRteImagesSources();
+        const s = this.upload().sources;
         return s === 'all' || s === 'upload';
     }
 
     private canUseUrl(): boolean {
-        const s = this.uiRteImagesSources();
+        const s = this.upload().sources;
         return s === 'all' || s === 'url';
     }
 
     private insertDefaults(): ImageInsertDefaults {
         return {
-            width: this.uiRteImagesDefaultWidth(),
-            height: this.uiRteImagesDefaultHeight(),
-            alignment: this.uiRteImagesDefaultAlignment(),
+            width: this.layout().defaultWidth,
+            height: this.layout().defaultHeight,
+            alignment: this.layout().defaultAlignment,
         };
     }
 
@@ -229,7 +281,7 @@ export class RichTextImagesDirective {
     private registerToolbarSlot(): void {
         const context: RichTextImagesButtonContext = {
             locale: computed(() => this.i18n.t()),
-            sources: computed(() => this.uiRteImagesSources()),
+            sources: computed(() => this.upload().sources),
             onOpen: () => this.host.saveSelection(),
             onInsertUrl: (url, alt) => this.insertFromUrl(url, alt),
             onUploadFile: (file) => void this.insertImageFile(file),
@@ -239,10 +291,10 @@ export class RichTextImagesDirective {
             parent: this.injector,
         });
         effect((onCleanup) => {
-            if (!this.uiRteImages() || !this.uiRteImagesToolbar()) return;
+            if (!this.enabled() || !this.uiRteImages().toolbar) return;
             onCleanup(this.host.toolbarSlots.register({
                 id: IMAGE_SLOT_ID,
-                order: this.uiRteImagesOrder(),
+                order: this.uiRteImages().order,
                 component: RichTextImagesButtonComponent,
                 injector: slotInjector,
             }));
@@ -272,13 +324,13 @@ export class RichTextImagesDirective {
      */
     private registerImageFileSeam(): void {
         effect((onCleanup) => {
-            if (!this.uiRteImages() || !this.canUseUpload()) return;
+            if (!this.enabled() || !this.canUseUpload()) return;
             onCleanup(this.host.registerImageFileHandler((file) => void this.insertImageFile(file)));
         });
     }
 
     private onPaste(event: ClipboardEvent): boolean {
-        if (!this.uiRteImages()) return false;
+        if (!this.enabled()) return false;
         const imageFile = Array.from(event.clipboardData?.files ?? [])
             .find((f) => f.type.startsWith('image/'));
         if (!imageFile) return false;
@@ -300,7 +352,7 @@ export class RichTextImagesDirective {
     }
 
     private canAcceptDrag(): boolean {
-        return this.uiRteImages() && (this.canUseUpload() || this.canUseUrl());
+        return this.enabled() && (this.canUseUpload() || this.canUseUrl());
     }
 
 
@@ -323,7 +375,7 @@ export class RichTextImagesDirective {
     }
 
     private async insertImageFile(file: File): Promise<void> {
-        const uploader = this.uiRteImagesUploader();
+        const uploader = this.upload().uploader;
         if (this.canUseUpload() && uploader) {
             await this.uploadImageFile(file, uploader);
             return;
@@ -340,6 +392,7 @@ export class RichTextImagesDirective {
     private async insertImageAsDataUrl(file: File): Promise<void> {
         try {
             const dataUrl = await readFileAsDataUrl(file);
+            if (this.destroyed) return;
             if (!dataUrl.toLowerCase().startsWith('data:image/')) {
                 this.imageUploadError.emit('Pasted image is not allowed by sanitizer policy.');
                 return;
@@ -347,7 +400,7 @@ export class RichTextImagesDirective {
             this.doInsert(dataUrl, file.name);
             this.imageUploadComplete.emit(dataUrl);
         } catch {
-            this.imageUploadError.emit('Could not read image file.');
+            if (!this.destroyed) this.imageUploadError.emit('Could not read image file.');
         }
     }
 
@@ -356,6 +409,7 @@ export class RichTextImagesDirective {
         this.imageUploadStart.emit(file);
         try {
             const uploadedUrl = await firstValueFrom(uploader(file));
+            if (this.destroyed) return;
             const safeSrc = this.sanitizer.sanitizeImageSrc(uploadedUrl);
             if (!safeSrc) {
                 this.imageUploadError.emit('Uploaded image URL is not allowed by sanitizer policy.');
@@ -364,6 +418,7 @@ export class RichTextImagesDirective {
             this.doInsert(safeSrc, file.name);
             this.imageUploadComplete.emit(safeSrc);
         } catch (error: unknown) {
+            if (this.destroyed) return;
             const message = error instanceof Error ? error.message : undefined;
             this.imageUploadError.emit(message ?? 'Image upload failed.');
         } finally {
@@ -382,7 +437,7 @@ export class RichTextImagesDirective {
     }
 
     private onContentClick(event: Event): void {
-        if (!this.uiRteImages()) {
+        if (!this.enabled()) {
             this.selectedImage.set(null);
             return;
         }
@@ -407,9 +462,10 @@ export class RichTextImagesDirective {
     private registerAutoUpload(): void {
         effect((onCleanup) => {
             if (!this.viewReady()) return;
-            const enabled = this.uiRteImages() && this.uiRteImagesAutoUpload();
+            const enabled = this.enabled() && this.upload().auto;
             if (!enabled) return;
             this.injectAutoUploadStyles();
+            onCleanup(() => this.releaseAutoUploadStyles());
             const editor = this.host.contentRoot;
             const observer = new MutationObserver(() => {
                 if (this.autoUploadMutating) return;
@@ -430,7 +486,18 @@ export class RichTextImagesDirective {
         });
     }
 
+    /**
+     * Add the upload-progress styles to `document.head`, refcounted.
+     *
+     * These rules style images *inside* an editor, so they cannot live in the
+     * component's own scoped stylesheet -- the shimmer keyframes are global by
+     * nature. They were previously appended once and never removed, so they
+     * outlived every editor and stayed applied app-wide, which the project's own
+     * rule against leaking component styles forbids. The refcount lets several
+     * editors share one tag while still removing it when the last one goes.
+     */
     private injectAutoUploadStyles(): void {
+        autoUploadStyleUsers++;
         if (this.document.getElementById(AUTO_UPLOAD_STYLE_ID)) return;
         const style = this.document.createElement('style');
         style.id = AUTO_UPLOAD_STYLE_ID;
@@ -438,8 +505,14 @@ export class RichTextImagesDirective {
         this.document.head.appendChild(style);
     }
 
+    private releaseAutoUploadStyles(): void {
+        autoUploadStyleUsers = Math.max(0, autoUploadStyleUsers - 1);
+        if (autoUploadStyleUsers > 0) return;
+        this.document.getElementById(AUTO_UPLOAD_STYLE_ID)?.remove();
+    }
+
     private scanForBase64Images(): void {
-        if (!this.uiRteImagesUploader() || this.host.disabled() || this.host.readonly()) return;
+        if (!this.upload().uploader || this.host.isDisabled() || this.host.readonly()) return;
         const editor = this.host.contentRoot;
         if (!editor) return;
         for (const img of Array.from(editor.querySelectorAll('img'))) {
@@ -451,7 +524,7 @@ export class RichTextImagesDirective {
     }
 
     private processAutoUploadImage(img: HTMLImageElement): void {
-        const uploader = this.uiRteImagesUploader();
+        const uploader = this.upload().uploader;
         if (!uploader) return;
         const uploadId = `auto-upload-${++this.autoUploadCounter}`;
         const dataUrl = img.getAttribute('src') ?? '';
@@ -505,6 +578,14 @@ export class RichTextImagesDirective {
     }
 
     private onAutoUploadSuccess(img: HTMLImageElement, uploadId: string, dataUrl: string, uploadedUrl: string): void {
+        // An upload is a network round-trip, and undo/redo/setContent replace the
+        // editable's innerHTML wholesale — so by the time this resolves the image
+        // it started for may be detached. Writing to it would change nothing on
+        // screen while still reporting success, so drop the result instead.
+        if (!img.isConnected) {
+            this.autoUploadMap.delete(uploadId);
+            return;
+        }
         const safeSrc = this.sanitizer.sanitizeImageSrc(uploadedUrl);
         if (!safeSrc) {
             this.handleAutoUploadError(uploadId, img, dataUrl, 'Uploaded image URL is not allowed by sanitizer policy.');
@@ -521,6 +602,13 @@ export class RichTextImagesDirective {
     }
 
     private handleAutoUploadError(uploadId: string, img: HTMLImageElement, dataUrl: string, message: string): void {
+        // Same race as the success path: a detached image has no badge to show
+        // and no retry target, and its entry would sit in the error map forever.
+        if (!img.isConnected) {
+            this.autoUploadMap.delete(uploadId);
+            this.autoImageUploadError.emit(message);
+            return;
+        }
         this.autoUploadMutating = true;
         img.dataset['autoUploadStatus'] = 'error';
         this.autoUploadMutating = false;
@@ -590,18 +678,19 @@ export class RichTextImagesDirective {
         ref.setInput('locale', this.i18n.t());
         ref.setInput('resizerLabels', this.resizerLabels());
         ref.setInput('container', this.host.contentRoot);
-        ref.setInput('target', this.uiRteImages() ? this.selectedImage() : null);
-        ref.setInput('resizable', this.uiRteImagesResize());
-        ref.setInput('showAlignment', this.uiRteImagesAlignment());
-        ref.setInput('minWidth', this.uiRteImagesMinWidth());
-        ref.setInput('maxWidth', this.uiRteImagesMaxWidth());
-        ref.setInput('lockAspectRatio', this.uiRteImagesLockAspectRatio());
+        ref.setInput('target', this.enabled() ? this.selectedImage() : null);
+        ref.setInput('resizable', this.layout().resize);
+        ref.setInput('showAlignment', this.layout().alignment);
+        ref.setInput('minWidth', this.layout().minWidth);
+        ref.setInput('maxWidth', this.layout().maxWidth);
+        ref.setInput('lockAspectRatio', this.layout().lockAspectRatio);
         ref.setInput('uploading', this.uploading());
         ref.setInput('errorEntries', this.errorEntries());
         ref.changeDetectorRef.markForCheck();
     }
 
     private teardown(): void {
+        this.destroyed = true;
         this.autoUploadObserver?.disconnect();
         this.autoUploadObserver = null;
         this.autoUploadMap.forEach((entry) => entry.subscription.unsubscribe());
@@ -611,7 +700,3 @@ export class RichTextImagesDirective {
     }
 }
 
-/** Coerce the bare `uiRteImages` attribute (empty string) to `true`. */
-function coerceEnabled(value: boolean | string | undefined): boolean {
-    return value === '' || value === true || value === undefined;
-}

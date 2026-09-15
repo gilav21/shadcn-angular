@@ -2,8 +2,14 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormControl, ReactiveFormsModule, Validators, type ValidatorFn } from '@angular/forms';
 import { provideUiLocale } from '../../lib/i18n/i18n.token';
+import { FIELD_ERROR_LOCALES } from './field.locales';
+import {
+    richTextMaxLength,
+    richTextMinWords,
+    richTextRequired,
+} from '../rich-text-editor';
 import {
     FieldComponent,
     FieldGroupComponent,
@@ -287,5 +293,57 @@ describe('FieldAutoErrorsComponent with global UI_LOCALE_ID', () => {
         await fixture.whenStable();
         fixture.detectChanges();
         expect(errorText(fixture)).toBe('שדה חובה');
+    });
+});
+
+@Component({
+    template: `<ui-field-auto-errors [control]="ctrl" />`,
+    imports: [FieldAutoErrorsComponent],
+})
+class RichTextErrorsHostComponent {
+    ctrl = new FormControl('');
+}
+
+// T-19
+describe('FieldAutoErrorsComponent — rich-text validators', () => {
+    /** Build the host with the given validators and value, then touch it. */
+    async function renderWith(validators: ValidatorFn[], value: string): Promise<ComponentFixture<RichTextErrorsHostComponent>> {
+        await TestBed.configureTestingModule({
+            imports: [RichTextErrorsHostComponent],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(RichTextErrorsHostComponent);
+        fixture.componentInstance.ctrl = new FormControl(value, validators);
+        fixture.detectChanges();
+        fixture.componentInstance.ctrl.markAsTouched();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        return fixture;
+    }
+
+    it('renders the required message for richTextRequired with no messages input', async () => {
+        const fixture = await renderWith([richTextRequired()], '<p><br></p>');
+
+        expect(errorText(fixture)).toBe('This field is required');
+    });
+
+    it('renders the maxlength message with the interpolated limit', async () => {
+        const fixture = await renderWith([richTextMaxLength(10)], '<p><b>hello</b> world</p>');
+
+        expect(errorText(fixture)).toBe('Maximum 10 characters');
+    });
+
+    it('renders the minWords message with the interpolated requirement', async () => {
+        const fixture = await renderWith([richTextMinWords(3)], '<p>two words</p>');
+
+        expect(errorText(fixture)).toBe('Minimum 3 words');
+    });
+
+    it('every FIELD_ERROR_LOCALES dictionary carries a non-empty minWords string', () => {
+        const entries = Object.entries(FIELD_ERROR_LOCALES);
+        expect(entries.length).toBeGreaterThan(0);
+        for (const [code, locale] of entries) {
+            expect(locale.minWords, code).toBeTruthy();
+            expect(locale.minWords, code).toContain('{requiredWords}');
+        }
     });
 });

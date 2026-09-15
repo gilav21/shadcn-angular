@@ -349,3 +349,38 @@ describe('zip-reader — local header validation', () => {
         expect(() => extractZipEntry(corrupt, 'a.txt')).toThrow(/Invalid local header/);
     });
 });
+
+describe('zip-reader — decompression bomb defence', () => {
+    it('rejects an entry whose stream expands far beyond its declared uncompressedSize', async () => {
+        // The size gates read `uncompressedSize` out of the archive's own
+        // headers, which an attacker writes. Declare a tiny entry but ship a
+        // stream that really inflates to megabytes: nothing may trust the
+        // declared number, so the guard has to bound the actual output.
+        const real = new Uint8Array(4 * 1024 * 1024).fill(0x41);
+        const cs = new CompressionStream('deflate-raw');
+        const writer = cs.writable.getWriter();
+        void writer.write(real as BufferSource);
+        void writer.close();
+        const chunks: Uint8Array[] = [];
+        const reader = cs.readable.getReader();
+        for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            if (value) chunks.push(value);
+        }
+        const deflated = new Uint8Array(chunks.reduce((n, c) => n + c.length, 0));
+        let at = 0;
+        for (const c of chunks) { deflated.set(c, at); at += c.length; }
+
+        const zip = buildZip([{
+            name: 'bomb.bin',
+            content: new Uint8Array(16),   // the LIE: declared uncompressedSize
+            method: 8,
+            stored: deflated,              // the truth: 4 MB of real output
+        }]);
+
+        expect(() => readZip(zip, { maxFileSize: 1024 * 1024 })).toThrow(
+            /exceeds the maximum allowed size|too large/i,
+        );
+    });
+});

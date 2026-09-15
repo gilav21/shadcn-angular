@@ -48,6 +48,33 @@ describe('rich-text-mentions.utils', () => {
             sel.addRange(range);
         }
 
+        function caretInside(html: string, selector: string): void {
+            host.innerHTML = html;
+            const target = host.querySelector(selector)!;
+            const node = target.firstChild as Text;
+            const range = document.createRange();
+            range.setStart(node, node.data.length);
+            range.collapse(true);
+            const sel = document.getSelection()!;
+            sel.removeAllRanges();
+            sel.addRange(range);
+        }
+
+        it('does not trigger inside a code block or inline code', () => {
+            // Writing about code is a normal thing to do in a rich text editor:
+            // "@Component" or "#include" or a shell "/usr/bin" inside a snippet
+            // must stay literal text, not open a picker.
+            caretInside('<pre><code>@Component</code></pre>', 'code');
+            expect(detectTrigger(document, true, true)).toBeNull();
+
+            caretInside('<p><code>#define</code></p>', 'code');
+            expect(detectTrigger(document, true, true)).toBeNull();
+
+            // ...while ordinary prose in the same document still triggers.
+            caretInside('<p>hello @ja</p>', 'p');
+            expect(detectTrigger(document, true, true)).toEqual({ type: 'mention', query: 'ja' });
+        });
+
         it('returns null when there is no collapsed selection', () => {
             document.getSelection()?.removeAllRanges();
             expect(detectTrigger(document, true, true)).toBeNull();

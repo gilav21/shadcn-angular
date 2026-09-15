@@ -119,4 +119,30 @@ describe('RichTextOutlinePanelComponent', () => {
         closeBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
         expect(close).toHaveBeenCalled();
     });
+
+    it('exposes the panel as a named navigation landmark with a real heading', () => {
+        const nav = panel();
+        expect(nav?.tagName.toLowerCase()).toBe('nav');
+        const labelledBy = nav?.getAttribute('aria-labelledby');
+        expect(labelledBy).toBeTruthy();
+        const heading = nav?.querySelector(`h2#${labelledBy}`);
+        expect(heading).toBeTruthy();
+        expect(heading?.textContent?.trim()).toBe(RICH_TEXT_OUTLINE_LOCALES['en'].title);
+    });
+
+    it('marks the entries up as an ordered list so position and count are announced', () => {
+        headings.set([
+            { level: 1, text: 'Intro', index: 0 },
+            { level: 2, text: 'Setup', index: 1 },
+        ]);
+        fixture.detectChanges();
+
+        const list = panel()!.querySelector('ol[data-slot="rich-text-outline-list"]');
+        expect(list).toBeTruthy();
+        const items = Array.from(list!.querySelectorAll(':scope > li'));
+        expect(items).toHaveLength(2);
+        for (const li of items) {
+            expect(li.querySelector('button[data-outline-entry]')).toBeTruthy();
+        }
+    });
 });

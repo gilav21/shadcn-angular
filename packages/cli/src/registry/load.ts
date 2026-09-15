@@ -35,11 +35,21 @@ function isStringArray(value: unknown): boolean {
     return Array.isArray(value) && value.every((item) => typeof item === 'string');
 }
 
+/**
+ * A `presets` map: preset name → the addon keys it bundles. An array is not a
+ * map, and every value must be a list of strings.
+ */
+function isPresetMap(value: unknown): boolean {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+    return Object.values(value).every(isStringArray);
+}
+
 function isValidRegistryEntry(entry: unknown): boolean {
     if (typeof entry !== 'object' || entry === null) return false;
     const e = entry as Record<string, unknown>;
     if (typeof e['name'] !== 'string' || !Array.isArray(e['files'])) return false;
     if (e['addons'] !== undefined && !isStringArray(e['addons'])) return false;
+    if (e['presets'] !== undefined && !isPresetMap(e['presets'])) return false;
     if (e['testFiles'] !== undefined && !isStringArray(e['testFiles'])) return false;
     if (e['testDependencies'] !== undefined && !isStringArray(e['testDependencies'])) return false;
     if (e['type'] === 'addon') return isValidAddonEntry(e);

@@ -1,12 +1,22 @@
-import { Component } from '@angular/core';
+import { Component, Directive, input, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { FormsModule } from '@angular/forms';
+import { By } from '@angular/platform-browser';
+import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { RichTextEditorComponent } from './rich-text-editor.component';
-import { RichTextEditorAddonHost } from './rich-text-editor.host';
+import { DEFAULT_TOOLBAR_ITEMS, FIND_MAX_PAINTED_RECTS, RICH_TEXT_PROSE_CLASSES, RichTextEditorComponent, type RichTextHistoryState } from './index';
+import type { RichTextEditorApi, RichTextEditorRef } from './index';
+import { isRichTextEmpty } from './index';
+import { EMPTINESS_FIXTURES } from './index';
+import { RichTextEditorAddonHost } from './index';
 import { ShortcutBindingService } from '../../lib/shortcut-binding.service';
-import { RichTextCommandRegistry } from './rich-text-command-registry.service';
-import { RICH_TEXT_LOCALES, RichTextLocale } from './rich-text-locales';
+import { provideUiLocale } from '../../lib/i18n/i18n.token';
+import { createLocaleBindings } from '../../lib/i18n/i18n.utils';
+import type { LocaleInput, LocaleMeta } from '../../lib/i18n/i18n.types';
+import { RichTextCommandRegistry } from './index';
+import { RICH_TEXT_LOCALES, RichTextLocale } from './index';
+import { RichTextSanitizerService } from './index';
+import { RichTextAllowDirective } from './index';
+import type { ResourcePolicyDecision } from './index';
 
 /** Collapse the selection to a caret at the given node/offset. */
 const setCaretAt = (node: Node, offset: number) => {
@@ -17,6 +27,38 @@ const setCaretAt = (node: Node, offset: number) => {
     selection?.removeAllRanges();
     selection?.addRange(range);
 };
+
+/** Select `[start, end)` within one node, as a user's drag would. */
+const selectRangeIn = (node: Node, start: number, end: number) => {
+    const selection = document.getSelection();
+    const range = document.createRange();
+    range.setStart(node, start);
+    range.setEnd(node, end);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+};
+
+/** Number of entries currently on the editor's private undo stack. */
+const historyLength = (component: RichTextEditorComponent): number =>
+    (component as unknown as { snapshots: unknown[] }).snapshots.length;
+
+/** A `Ctrl+Z` keydown event, as the editable area receives it. */
+const undoKey = (): KeyboardEvent =>
+    new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true, cancelable: true });
+
+/** A `Ctrl+Shift+Z` keydown event, as the editable area receives it. */
+const redoKey = (): KeyboardEvent =>
+    new KeyboardEvent('keydown', {
+        key: 'z', ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true,
+    });
+
+/** Every painted highlight rectangle in the find overlay. */
+const findRects = (fixture: ComponentFixture<RichTextEditorComponent>): HTMLElement[] =>
+    Array.from(
+        (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(
+            '[data-slot="rich-text-find-overlay"] [data-find-rect]',
+        ),
+    );
 
 /** Select the full contents of the given node. */
 const selectAllOf = (node: Node) => {
@@ -229,6 +271,8 @@ interface StubbableGlobal {
     CSS?: { escape: (value: string) => string };
 }
 
+let originalRangeGetRect: (() => DOMRect) | undefined;
+let originalRangeGetRects: (() => DOMRectList) | undefined;
 let originalElementGetRect: (() => DOMRect) | undefined;
 let cssWasAbsent = false;
 
@@ -267,17 +311,26 @@ const installBrowserStubs = (): void => {
         return originalElementGetRect ? originalElementGetRect.call(this) : makeRect(0, 0, 0, 0);
     };
 
+    // Only stand in for Range geometry where there is none. In the Chromium leg
+    // the real implementation is kept: the find overlay is positioned from these
+    // rects, so a blanket stub would make every geometry assertion vacuous.
     const rangeProto = Range.prototype as StubbableRange;
-    rangeProto.getBoundingClientRect = () => makeRect(0, 0, 10, 10);
-    rangeProto.getClientRects = () =>
-        ({
-            length: 1,
-            item: (index: number) => (index === 0 ? makeRect(0, 0, 10, 10) : null),
-            0: makeRect(0, 0, 10, 10),
-            [Symbol.iterator]() {
-                return [makeRect(0, 0, 10, 10)][Symbol.iterator]();
-            },
-        }) as unknown as DOMRectList;
+    originalRangeGetRect = rangeProto.getBoundingClientRect;
+    originalRangeGetRects = rangeProto.getClientRects;
+    if (!originalRangeGetRect) {
+        rangeProto.getBoundingClientRect = () => makeRect(0, 0, 10, 10);
+    }
+    if (!originalRangeGetRects) {
+        rangeProto.getClientRects = () =>
+            ({
+                length: 1,
+                item: (index: number) => (index === 0 ? makeRect(0, 0, 10, 10) : null),
+                0: makeRect(0, 0, 10, 10),
+                [Symbol.iterator]() {
+                    return [makeRect(0, 0, 10, 10)][Symbol.iterator]();
+                },
+            }) as unknown as DOMRectList;
+    }
 
     const scope = globalThis as StubbableGlobal;
     cssWasAbsent = scope.CSS === undefined;
@@ -302,8 +355,18 @@ const restoreBrowserStubs = (): void => {
     originalElementGetRect = undefined;
 
     const rangeProto = Range.prototype as StubbableRange;
-    delete rangeProto.getBoundingClientRect;
-    delete rangeProto.getClientRects;
+    if (originalRangeGetRect) {
+        rangeProto.getBoundingClientRect = originalRangeGetRect;
+    } else {
+        delete rangeProto.getBoundingClientRect;
+    }
+    if (originalRangeGetRects) {
+        rangeProto.getClientRects = originalRangeGetRects;
+    } else {
+        delete rangeProto.getClientRects;
+    }
+    originalRangeGetRect = undefined;
+    originalRangeGetRects = undefined;
 
     if (cssWasAbsent) {
         delete (globalThis as StubbableGlobal).CSS;
@@ -336,6 +399,681 @@ describe('RichTextEditorComponent', () => {
         editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
         shortcutBindings.clearShortcutOverride('rich-text.history');
         commandRegistry.clear();
+    });
+
+    describe('zero-width caret anchors (round-15 audit)', () => {
+        it('drops the anchor once its text node holds real text', () => {
+            // The anchor gives an empty block something to put the caret in, but
+            // nothing removed it afterwards, so it stayed in the live DOM for
+            // good -- invisible, stripped from output, and one extra step for
+            // every caret moving over it.
+            editor.innerHTML = '<p>\u200Balpha</p>';
+            editor.dispatchEvent(
+                new InputEvent('input', { bubbles: true, inputType: 'insertText', data: 'a' }),
+            );
+            fixture.detectChanges();
+
+            expect(editor.querySelector('p')?.textContent).toBe('alpha');
+            expect(editor.textContent).not.toContain('\u200B');
+        });
+
+        it('keeps the anchor while it is still the only thing in the block', () => {
+            editor.innerHTML = '<p>\u200B</p>';
+            editor.dispatchEvent(
+                new InputEvent('input', { bubbles: true, inputType: 'insertText', data: '' }),
+            );
+            fixture.detectChanges();
+
+            expect(editor.querySelector('p')?.textContent).toBe('\u200B');
+        });
+
+
+        it('does not collapse a real selection while sweeping', () => {
+            // The sweep runs on every input and re-anchored unconditionally, so
+            // a user with text selected would have lost the selection mid-edit.
+            editor.innerHTML = '<p>\u200Balpha beta</p>';
+            const text = editor.querySelector('p')?.firstChild as Text;
+            const range = document.createRange();
+            range.setStart(text, 1);
+            range.setEnd(text, 6);
+            const selection = document.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+            expect(selection?.isCollapsed).toBe(false);
+
+            editor.dispatchEvent(
+                new InputEvent('input', { bubbles: true, inputType: 'insertText', data: 'a' }),
+            );
+            fixture.detectChanges();
+
+            const after = document.getSelection();
+            expect(after?.isCollapsed).toBe(false);
+            // Offsets 1..6 of "\u200Balpha beta" span "alpha"; after the anchor
+            // is removed they must still span "alpha", not slide by one.
+            expect(after?.toString()).toBe('alpha');
+            expect(editor.textContent).toBe('alpha beta');
+        });
+
+        it('counts maxLength on the same basis as the character counter', () => {
+            // Enforcement read raw textContent while the counter read the
+            // stripped value, so input was refused one character early per
+            // anchor while the counter still showed room.
+            fixture.componentRef.setInput('maxLength', 5);
+            fixture.detectChanges();
+
+            // The anchor sits in a SEPARATE empty block, where it is still doing
+            // its job and the sweep correctly leaves it alone -- so this measures
+            // the counting basis, not the sweep.
+            editor.innerHTML = '<p>abcd</p><p>​</p>';
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+
+            const range = document.createRange();
+            const first = editor.querySelector('p') as HTMLElement;
+            range.selectNodeContents(first);
+            range.collapse(false);
+            const selection = document.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+
+            const beforeInput = new InputEvent('beforeinput', {
+                bubbles: true,
+                cancelable: true,
+                data: 'e',
+                inputType: 'insertText',
+            });
+            editor.dispatchEvent(beforeInput);
+
+            // "abcd" + "e" is exactly 5, so the anchor must not count.
+            expect(beforeInput.defaultPrevented).toBe(false);
+        });
+    });
+
+
+    describe('leaving a list on Enter (round-15 audit)', () => {
+        function pressEnterIn(node: Node, offset = 0): KeyboardEvent {
+            const range = document.createRange();
+            range.setStart(node, offset);
+            range.collapse(true);
+            const selection = document.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+            const event = new KeyboardEvent('keydown', {
+                key: 'Enter',
+                bubbles: true,
+                cancelable: true,
+            });
+            editor.dispatchEvent(event);
+            return event;
+        }
+
+        it('exits an empty top-level item into a <p>, not a <div>', () => {
+            // The keypress used to fall through to the browser, whose default
+            // separator is <div> -- so this one path produced a block shape no
+            // other path in the component produces.
+            editor.innerHTML = '<ul><li>one</li><li></li></ul>';
+            const empty = editor.querySelectorAll('li')[1];
+            const event = pressEnterIn(empty, 0);
+
+            expect(event.defaultPrevented).toBe(true);
+            expect(editor.querySelector('p')).toBeTruthy();
+            expect(editor.querySelector('div')).toBeNull();
+            expect(editor.querySelectorAll('li')).toHaveLength(1);
+        });
+
+        it('removes the list entirely when its only item was the empty one', () => {
+            editor.innerHTML = '<ul><li></li></ul>';
+            pressEnterIn(editor.querySelector('li') as HTMLElement, 0);
+
+            expect(editor.querySelector('ul')).toBeNull();
+            expect(editor.querySelector('p')).toBeTruthy();
+        });
+
+        it('leaves an item with text alone', () => {
+            editor.innerHTML = '<ul><li>text</li></ul>';
+            const li = editor.querySelector('li') as HTMLElement;
+            const event = pressEnterIn(li.firstChild as Node, 2);
+
+            expect(event.defaultPrevented).toBe(false);
+            expect(editor.querySelector('ul')).toBeTruthy();
+        });
+
+        it('leaves a nested item to the outdent path', () => {
+            editor.innerHTML = '<ul><li>a<ul><li></li></ul></li></ul>';
+            const nested = editor.querySelectorAll('li')[1];
+            const event = pressEnterIn(nested, 0);
+
+            expect(event.defaultPrevented).toBe(false);
+        });
+    });
+
+
+    describe('stale image selection (round-16 audit)', () => {
+        function selectFirstImage(): HTMLImageElement {
+            const img = editor.querySelector('img') as HTMLImageElement;
+            img.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            fixture.detectChanges();
+            return img;
+        }
+
+        it('stops reporting an image once undo detaches it', () => {
+            // undo/redo/writeValue replace innerHTML wholesale, detaching every
+            // node. Nothing cleared the selection, so the resize overlay stayed
+            // up and its align/delete buttons wrote to the detached copy while
+            // the visible image went untouched -- a control that looks live and
+            // silently does nothing.
+            component.writeValue('<p><img src="https://example.com/a.png" alt="a"></p>');
+            fixture.detectChanges();
+            const img = selectFirstImage();
+            expect(component.selectedImage()).toBe(img);
+
+            editor.innerHTML = '<p>replaced</p>';
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+            component.undo();
+            fixture.detectChanges();
+
+            expect(document.contains(img)).toBe(false);
+            expect(component.selectedImage()).toBeNull();
+        });
+
+        it('stops reporting an image once writeValue replaces the content', () => {
+            component.writeValue('<p><img src="https://example.com/a.png" alt="a"></p>');
+            fixture.detectChanges();
+            selectFirstImage();
+            expect(component.selectedImage()).not.toBeNull();
+
+            component.writeValue('<p>something else</p>');
+            fixture.detectChanges();
+            expect(component.selectedImage()).toBeNull();
+        });
+    });
+
+
+    describe('maxLength feedback (round-16 audit)', () => {
+        function counter(): HTMLElement | null {
+            return (fixture.nativeElement as HTMLElement).querySelector('output');
+        }
+
+        it('announces the count through a live region', () => {
+            // There was no live region anywhere in the component, so a screen
+            // reader user got no signal at all when input stopped.
+            fixture.componentRef.setInput('counter', 'characters');
+            fixture.detectChanges();
+            expect(counter()?.getAttribute('aria-live')).toBe('polite');
+        });
+
+        it('shows the limit alongside the count', () => {
+            fixture.componentRef.setInput('counter', 'characters');
+            fixture.componentRef.setInput('maxLength', 120);
+            fixture.detectChanges();
+            // "0 characters (120 max)" -- the localized phrase intact, the limit
+            // as a separate parenthetical rather than jammed into {count}.
+            expect(counter()?.textContent).toContain('0 characters');
+            expect(counter()?.textContent).toContain('120 max');
+        });
+
+        it('shows no limit when none is set', () => {
+            fixture.componentRef.setInput('counter', 'characters');
+            fixture.componentRef.setInput('maxLength', undefined);
+            fixture.detectChanges();
+            expect(counter()?.textContent).not.toContain('max');
+        });
+
+        it('marks the counter when the limit is reached', () => {
+            fixture.componentRef.setInput('counter', 'characters');
+            fixture.componentRef.setInput('maxLength', 3);
+            fixture.detectChanges();
+            expect(component.atCharacterLimit()).toBe(false);
+
+            editor.innerHTML = '<p>abc</p>';
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+
+            expect(component.atCharacterLimit()).toBe(true);
+            expect(counter()?.querySelector('.text-destructive')).toBeTruthy();
+        });
+    });
+
+
+    describe('multi-paragraph paste (round-16 audit)', () => {
+        it('does not nest the pasted paragraphs inside the current one', () => {
+            // Pasting "<p>one</p><p>two</p>" at the end of "<p>hello</p>" put
+            // both inside the existing <p>, which is invalid nesting -- and the
+            // sanitized model then disagreed with the live DOM, so what the user
+            // saw and what got saved had different structure.
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+            component.writeValue('<p>hello</p>');
+            fixture.detectChanges();
+
+            const p = editor.querySelector('p') as HTMLElement;
+            const range = document.createRange();
+            range.selectNodeContents(p);
+            range.collapse(false);
+            const selection = document.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+
+            const data = new DataTransfer();
+            data.setData('text/html', '<p>one</p><p>two</p>');
+            editor.dispatchEvent(
+                new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: data }),
+            );
+            fixture.detectChanges();
+
+            expect(editor.querySelector('p p')).toBeNull();
+            expect(editor.textContent).toContain('one');
+            expect(editor.textContent).toContain('two');
+        });
+    });
+
+
+    describe('stale table state after content replacement (round-17 audit)', () => {
+        it('clears selected cells so a later command does not throw', () => {
+            // replaceEditorHtml cleared only the image reference. The cell
+            // selection kept DETACHED nodes, so applyCommandToSelectedCells saw
+            // a non-empty array, claimed it had handled the command, selected
+            // contents of nodes no longer in the document -- which empties the
+            // selection -- and then collapseToStart() threw. The user's Bold was
+            // lost and an exception escaped to the console.
+            component.writeValue(
+                '<table><tbody><tr><td>a</td><td>b</td></tr></tbody></table>',
+            );
+            fixture.detectChanges();
+
+            const cells = Array.from(editor.querySelectorAll('td')) as HTMLTableCellElement[];
+            component.tableCellSelected.set(cells);
+            expect(component.tableCellSelected()).toHaveLength(2);
+
+            component.writeValue('<p>replaced</p>');
+            fixture.detectChanges();
+
+            expect(component.tableCellSelected()).toHaveLength(0);
+            expect(() => component.onFormatCommand('bold')).not.toThrow();
+        });
+    });
+
+
+    describe('Enter inside a blockquote (round-17 audit)', () => {
+        function pressEnterAt(node: Node, offset: number): KeyboardEvent {
+            const range = document.createRange();
+            range.setStart(node, offset);
+            range.collapse(true);
+            const selection = document.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+            const event = new KeyboardEvent('keydown', {
+                key: 'Enter',
+                bubbles: true,
+                cancelable: true,
+            });
+            editor.dispatchEvent(event);
+            fixture.detectChanges();
+            return event;
+        }
+
+        it('leaves the quote on Enter from any plain quoted line, text kept whole', () => {
+            // Enter exits, Shift+Enter adds a row -- the same contract as a
+            // code block. Round 17 had made Enter split the paragraph instead,
+            // which left no one-key way out of a quote.
+            component.writeValue('<blockquote><p>hello world</p></blockquote>');
+            fixture.detectChanges();
+            const text = editor.querySelector('blockquote p')?.firstChild as Text;
+            const event = pressEnterAt(text, 5);
+
+            expect(event.defaultPrevented).toBe(true);
+            expect(editor.querySelector('blockquote')?.textContent).toBe('hello world');
+            const next = editor.querySelector('blockquote + p');
+            expect(next).not.toBeNull();
+            expect(next?.contains(document.getSelection()?.anchorNode ?? null)).toBe(true);
+        });
+
+        it('leaves Shift+Enter to the browser, which adds a row inside the quote', () => {
+            component.writeValue('<blockquote><p>hello</p></blockquote>');
+            fixture.detectChanges();
+            setCaretAt(editor.querySelector('blockquote p')?.firstChild as Text, 5);
+            const event = new KeyboardEvent('keydown', { key: 'Enter', shiftKey: true, bubbles: true, cancelable: true });
+            editor.dispatchEvent(event);
+
+            expect(event.defaultPrevented).toBe(false);
+            expect(editor.querySelector('blockquote + p')).toBeNull();
+        });
+
+        it('leaves a quote that arrived as bare text too', () => {
+            const quote = document.createElement('blockquote');
+            quote.textContent = 'bare';
+            editor.replaceChildren(quote);
+            const event = pressEnterAt(quote.firstChild as Text, 4);
+
+            expect(event.defaultPrevented).toBe(true);
+            expect(editor.querySelector('blockquote + p')).not.toBeNull();
+        });
+
+        it('leaves a quoted list item to the list handler', () => {
+            component.writeValue('<blockquote><ul><li>alpha</li></ul></blockquote>');
+            fixture.detectChanges();
+            const li = editor.querySelector('li') as HTMLElement;
+            const event = pressEnterAt(li.firstChild as Node, 5);
+
+            // Not consumed by the blockquote handler, so the list keeps its own
+            // Enter behaviour rather than the caret leaving the quote entirely.
+            expect(event.defaultPrevented).toBe(false);
+            expect(editor.querySelector('blockquote ul')).toBeTruthy();
+        });
+
+        it('leaves a quoted table cell alone', () => {
+            component.writeValue(
+                '<blockquote><table><tbody><tr><td>a</td></tr></tbody></table></blockquote>',
+            );
+            fixture.detectChanges();
+            const cell = editor.querySelector('td') as HTMLElement;
+            pressEnterAt(cell.firstChild as Node, 1);
+
+            expect(editor.querySelector('blockquote table')).toBeTruthy();
+        });
+
+
+        it('exits from a blank line in the MIDDLE of a quote, dropping only that line', () => {
+            component.writeValue(
+                '<blockquote><p>first</p><p><br></p><p>third</p></blockquote>',
+            );
+            fixture.detectChanges();
+            const blank = editor.querySelectorAll('blockquote p')[1] as HTMLElement;
+            const event = pressEnterAt(blank, 0);
+
+            expect(event.defaultPrevented).toBe(true);
+            expect(Array.from(editor.querySelectorAll('blockquote p')).map((p) => p.textContent)).toEqual(['first', 'third']);
+            expect(editor.querySelector('blockquote + p')).not.toBeNull();
+        });
+
+        it('removes the spent blank line when exiting from the end', () => {
+            component.writeValue('<blockquote><p>first</p><p><br></p></blockquote>');
+            fixture.detectChanges();
+            const blank = editor.querySelectorAll('blockquote p')[1] as HTMLElement;
+            const event = pressEnterAt(blank, 0);
+
+            expect(event.defaultPrevented).toBe(true);
+            // The quote keeps its real content and loses only the blank line.
+            expect(editor.querySelector('blockquote')?.textContent).toBe('first');
+            expect(editor.querySelectorAll('blockquote p')).toHaveLength(1);
+        });
+
+        it('still exits the quote on a blank quoted line', () => {
+            component.writeValue('<blockquote><p></p></blockquote>');
+            fixture.detectChanges();
+            const p = editor.querySelector('blockquote p') as HTMLElement;
+            const event = pressEnterAt(p, 0);
+
+            expect(event.defaultPrevented).toBe(true);
+            expect(editor.querySelector('blockquote')).toBeNull();
+            expect(editor.querySelector('p')).toBeTruthy();
+        });
+    });
+
+
+    describe('pasting a block into a cell or list item (round-17 audit)', () => {
+        function pasteHtmlAt(node: Node, offset: number, html: string): void {
+            const range = document.createRange();
+            range.setStart(node, offset);
+            range.collapse(true);
+            const selection = document.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+            const data = new DataTransfer();
+            data.setData('text/html', html);
+            editor.dispatchEvent(
+                new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: data }),
+            );
+            fixture.detectChanges();
+        }
+
+        it('does not split the table when pasting into a cell', () => {
+            // BLOCK_TAGS held TABLE but not TD, so the ancestor walk from inside
+            // a cell found the whole table and split it: one table became two,
+            // with a ragged row left behind. Text survived; the table did not.
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+            component.writeValue(
+                '<table><tbody><tr><td>A1</td><td>B1</td></tr><tr><td>A2</td><td>B2</td></tr></tbody></table>',
+            );
+            fixture.detectChanges();
+
+            const cell = editor.querySelector('td') as HTMLElement;
+            pasteHtmlAt(cell.firstChild as Node, 2, '<p>X</p>');
+
+            expect(editor.querySelectorAll('table')).toHaveLength(1);
+            expect(editor.querySelectorAll('td')).toHaveLength(4);
+            expect(editor.textContent).toContain('X');
+        });
+
+        it('does not put a paragraph directly inside a list', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+            component.writeValue('<ul><li>alpha</li><li>beta</li></ul>');
+            fixture.detectChanges();
+
+            const li = editor.querySelector('li') as HTMLElement;
+            pasteHtmlAt(li.firstChild as Node, 5, '<p>one</p><p>two</p>');
+
+            expect(editor.querySelector('ul > p')).toBeNull();
+            expect(editor.textContent).toContain('one');
+        });
+    });
+
+    describe('counter association (round-18 audit)', () => {
+        it('points the textbox at the counter so the limit is discoverable', () => {
+            // The counter was a sibling status region with nothing referring to
+            // it, so a screen-reader user tabbing in was never told a limit
+            // existed -- only a change firing while focused would announce it.
+            fixture.componentRef.setInput('counter', 'characters');
+            fixture.componentRef.setInput('maxLength', 120);
+            fixture.detectChanges();
+
+            const counter = (fixture.nativeElement as HTMLElement).querySelector('output');
+            const describedBy = editor.getAttribute('aria-describedby');
+            expect(counter?.id).toBeTruthy();
+            expect(describedBy?.split(' ')).toContain(counter?.id);
+        });
+
+        it('keeps a consumer-supplied aria-describedby alongside the counter', () => {
+            fixture.componentRef.setInput('counter', 'characters');
+            fixture.componentRef.setInput('ariaDescribedBy', 'consumer-hint');
+            fixture.detectChanges();
+
+            const ids = editor.getAttribute('aria-describedby')?.split(' ') ?? [];
+            expect(ids).toContain('consumer-hint');
+            expect(ids).toHaveLength(2);
+        });
+    });
+
+
+    describe('wrapBareTextInParagraph', () => {
+        function wrap(html: string, caretIndex: number): HTMLElement {
+            editor.innerHTML = html;
+            const range = document.createRange();
+            range.setStart(editor, caretIndex);
+            range.collapse(true);
+            const selection = document.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+            (component as unknown as {
+                wrapBareTextInParagraph(el: HTMLElement): HTMLElement | null;
+            }).wrapBareTextInParagraph(editor);
+            return editor;
+        }
+
+        it('does not move text across a block boundary', () => {
+            // The round-20 fix collected EVERY bare node in the document, so
+            // separated runs were fused and reordered. The tests guarding it were
+            // vacuous: one used only blocks (bare.length === 0, so the function
+            // early-returned and neither assertion executed any logic), the other
+            // used a lone text node (no blocks, so ordering could not be wrong).
+            editor.innerHTML = '';
+            editor.append(
+                document.createTextNode('alpha'),
+                (() => { const p = document.createElement('p'); p.textContent = 'BLOCK'; return p; })(),
+                document.createTextNode('beta'),
+            );
+            const range = document.createRange();
+            range.setStart(editor.firstChild as Node, 2);
+            range.collapse(true);
+            const selection = document.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+            (component as unknown as {
+                wrapBareTextInParagraph(el: HTMLElement): HTMLElement | null;
+            }).wrapBareTextInParagraph(editor);
+
+            expect(editor.textContent).toBe('alphaBLOCKbeta');
+            expect(editor.querySelector('p p')).toBeNull();
+        });
+
+        it('does not fuse two separated inline runs', () => {
+            const el = wrap('<p>a</p><b>bold</b><p>c</p><i>it</i>', 1);
+            expect(el.textContent).toBe('aboldcit');
+            expect(el.querySelector('p p')).toBeNull();
+        });
+
+        it('leaves a document of blocks alone', () => {
+            const el = wrap('<p>alpha</p><ul><li>bravo</li></ul>', 1);
+            expect(el.querySelector('p p')).toBeNull();
+            expect(el.querySelector(':scope > ul')).toBeTruthy();
+        });
+
+
+        it('does not wrap a run the caret is nowhere near', () => {
+            // When the caret is a container-offset range ON the editor -- the
+            // "between two blocks" case -- no child contains it, and the
+            // fallback grabbed the first bare node in the DOCUMENT. That wrapped
+            // text at the far end and returned its new <p> as the caret's block,
+            // so an input rule ("# ", "> ", "- ") rewrote the wrong paragraph.
+            editor.innerHTML = '';
+            editor.append(
+                document.createTextNode('alpha'),
+                (() => { const p = document.createElement('p'); p.textContent = 'BLOCK1'; return p; })(),
+                (() => { const p = document.createElement('p'); p.textContent = 'BLOCK2'; return p; })(),
+            );
+            const range = document.createRange();
+            range.setStart(editor, 2); // between BLOCK1 and BLOCK2
+            range.collapse(true);
+            const selection = document.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+
+            const wrapped = (component as unknown as {
+                wrapBareTextInParagraph(el: HTMLElement): HTMLElement | null;
+            }).wrapBareTextInParagraph(editor);
+
+            expect(wrapped).toBeNull();
+            expect(editor.firstChild?.nodeType).toBe(Node.TEXT_NODE);
+        });
+
+
+        it('treats a blockquote as a run boundary, not as bare content', () => {
+            // BLOCK_TAGS was narrowed for blockToSplit's benefit -- LI,
+            // BLOCKQUOTE, DETAILS, FIGURE are dead there because
+            // BLOCK_CONTAINER_TAGS is tested first. bareRunAround uses the same
+            // set to decide where a run ENDS, where they are anything but dead:
+            // dropping them made a blockquote bare content, so it was swallowed
+            // into a <p>. Every existing test used <p>/<ul> as the interposed
+            // block, which still bounded correctly.
+            editor.innerHTML = '';
+            editor.append(
+                document.createTextNode('a'),
+                (() => { const q = document.createElement('blockquote'); q.textContent = 'QUOTED'; return q; })(),
+                document.createTextNode('b'),
+            );
+            const range = document.createRange();
+            range.setStart(editor.firstChild as Node, 1);
+            range.collapse(true);
+            const selection = document.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+
+            (component as unknown as {
+                wrapBareTextInParagraph(el: HTMLElement): HTMLElement | null;
+            }).wrapBareTextInParagraph(editor);
+
+            expect(editor.querySelector('p blockquote')).toBeNull();
+            expect(editor.querySelector(':scope > blockquote')).toBeTruthy();
+        });
+
+
+        it('restores a caret that was a child index into the editor', () => {
+            // With startContainer === editor, startOffset is a CHILD INDEX. The
+            // wrap removes N children and inserts 1, so the saved offset is out
+            // of range and setStart throws IndexSizeError -- escaping the
+            // Angular listener and aborting the transform mid-flight. The
+            // fallback branch that reaches this case was added one round before
+            // the restore was migrated to match.
+            editor.innerHTML = '';
+            editor.append(
+                document.createTextNode('# '),
+                document.createTextNode('b'),
+                document.createTextNode('c'),
+            );
+            const range = document.createRange();
+            range.setStart(editor, 2);
+            range.collapse(true);
+            const selection = document.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+
+            expect(() => (component as unknown as {
+                wrapBareTextInParagraph(el: HTMLElement): HTMLElement | null;
+            }).wrapBareTextInParagraph(editor)).not.toThrow();
+        });
+
+
+        it('keeps the caret where it was when the run does not start at index 0', () => {
+            // startOffset is an index into the EDITOR's children; it was reused
+            // as an index into the new paragraph. When the run starts at editor
+            // index N > 0 the paragraph offset is startOffset - N, so the caret
+            // landed N positions too far right -- at the end of the paragraph
+            // rather than where the user was typing. The Math.min clamp only
+            // turned the out-of-range case into a silently wrong one.
+            editor.innerHTML = '';
+            const block = document.createElement('p');
+            block.textContent = 'BLOCK';
+            editor.append(
+                block,
+                document.createTextNode('a'),
+                document.createTextNode('b'),
+                document.createTextNode('c'),
+            );
+            const range = document.createRange();
+            range.setStart(editor, 3); // between "b" and "c"
+            range.collapse(true);
+            const selection = document.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+
+            (component as unknown as {
+                wrapBareTextInParagraph(el: HTMLElement): HTMLElement | null;
+            }).wrapBareTextInParagraph(editor);
+
+            const restored = document.getSelection()?.getRangeAt(0);
+            // The run is ["a","b","c"]; editor offset 3 is paragraph offset 2.
+            expect(restored?.startOffset).toBe(2);
+        });
+
+        it('still wraps a genuinely bare text node', () => {
+            editor.innerHTML = '';
+            editor.appendChild(document.createTextNode('bare'));
+            const range = document.createRange();
+            range.setStart(editor.firstChild as Node, 2);
+            range.collapse(true);
+            const selection = document.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+            const p = (component as unknown as {
+                wrapBareTextInParagraph(el: HTMLElement): HTMLElement | null;
+            }).wrapBareTextInParagraph(editor);
+
+            expect(p?.tagName).toBe('P');
+            expect(editor.querySelector('p')?.textContent).toBe('bare');
+        });
     });
 
     it('prevents replacements that would exceed maxLength', () => {
@@ -591,7 +1329,7 @@ describe('RichTextEditorComponent', () => {
 
     it('debounces history snapshots for rapid typing', () => {
         vi.useFakeTimers();
-        fixture.componentRef.setInput('historyDebounceMs', 200);
+        fixture.componentRef.setInput('history', { debounceMs: 200 });
         fixture.detectChanges();
 
         editor.textContent = 'a';
@@ -601,14 +1339,14 @@ describe('RichTextEditorComponent', () => {
         editor.textContent = 'abc';
         editor.dispatchEvent(new Event('input', { bubbles: true }));
 
-        expect((component as any).history).toHaveLength(1);
+        expect((component as any).snapshots).toHaveLength(1);
 
         vi.advanceTimersByTime(199);
-        expect((component as any).history).toHaveLength(1);
+        expect((component as any).snapshots).toHaveLength(1);
 
         vi.advanceTimersByTime(1);
-        expect((component as any).history).toHaveLength(2);
-        expect((component as any).history.at(-1).preview).toContain('abc');
+        expect((component as any).snapshots).toHaveLength(2);
+        expect((component as any).snapshots.at(-1).preview).toContain('abc');
 
         vi.useRealTimers();
     });
@@ -626,14 +1364,14 @@ describe('RichTextEditorComponent', () => {
         fixture.detectChanges();
         (component as any).pushHistory();
 
-        const baselineLength = (component as any).history.length;
+        const baselineLength = (component as any).snapshots.length;
         expect(baselineLength).toBeGreaterThanOrEqual(4);
 
         component.restoreHistoryEntry(1);
 
         expect(editor.textContent).toContain('one');
         expect((component as any).historyIndex).toBe(1);
-        expect((component as any).history).toHaveLength(baselineLength);
+        expect((component as any).snapshots).toHaveLength(baselineLength);
     });
 
     it('stores multiline-friendly preview lines in history entries', () => {
@@ -641,7 +1379,7 @@ describe('RichTextEditorComponent', () => {
         fixture.detectChanges();
         (component as any).pushHistory();
 
-        const latest = (component as any).history.at(-1);
+        const latest = (component as any).snapshots.at(-1);
         expect(latest.lineCount).toBe(4);
         expect(latest.previewLines).toEqual(['Line one', 'Line two', 'Line three']);
     });
@@ -651,7 +1389,7 @@ describe('RichTextEditorComponent', () => {
         fixture.detectChanges();
         (component as any).pushHistory();
 
-        const latest = (component as any).history.at(-1);
+        const latest = (component as any).snapshots.at(-1);
         expect(latest.previewLines).toEqual(['• First item', '• Second item']);
     });
 
@@ -1845,7 +2583,211 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         expect(editor.textContent).toBe('hello world');
     });
 
-    it('converts the current block to a heading via formatBlock', () => {
+    it('unwraps inline code on a second apply instead of nesting it', () => {
+        component.writeValue('<p>hello world</p>');
+        fixture.detectChanges();
+        const text = editor.querySelector('p')!.firstChild as Text;
+        selectRangeIn(text, 0, 5);
+        component.onFormatCommand('code');
+        const code = editor.querySelector('code')!;
+        expect(code.textContent).toBe('hello');
+
+        // The wrapped text stays selected, so the toolbar reads pressed and the
+        // second click -- with no re-selection -- unwraps rather than wrapping
+        // an empty <code> beside it.
+        expect(document.getSelection()?.toString()).toBe('hello');
+        expect(component.activeFormats().has('code')).toBe(true);
+        component.onFormatCommand('code');
+
+        expect(editor.querySelectorAll('code')).toHaveLength(0);
+        expect(editor.querySelectorAll('code code')).toHaveLength(0);
+        expect(editor.querySelectorAll('code')).toHaveLength(0);
+        expect(editor.textContent).toBe('hello world');
+    });
+
+    it('counts an emoji as one character, not its UTF-16 code units', () => {
+        // `.length` counts UTF-16 code units, so an astral emoji scored 2 and a
+        // ZWJ sequence like the family emoji scored 11 — and the editor ships an
+        // emoji picker, so this is trivially reachable. maxLength budgets off the
+        // same arithmetic, which makes a wrong count a wrong limit.
+        component.writeValue('<p>\u{1F600}</p>');
+        fixture.detectChanges();
+        expect(component.characterCount()).toBe(1);
+
+        component.writeValue('<p>\u{1F468}\u200D\u{1F469}\u200D\u{1F467}\u200D\u{1F466}</p>');
+        fixture.detectChanges();
+        expect(component.characterCount()).toBe(1);
+
+        component.writeValue('<p>abc</p>');
+        fixture.detectChanges();
+        expect(component.characterCount()).toBe(3);
+    });
+
+    it('truncates an over-long paste without splitting a character in half', () => {
+        // substring() cuts by UTF-16 code unit, so a cut landing between an
+        // emoji's two halves leaves a lone surrogate — a replacement glyph on
+        // screen, and a value some JSON/DB layers reject outright.
+        fixture.componentRef.setInput('maxLength', 3);
+        component.writeValue('<p></p>');
+        fixture.detectChanges();
+        const p = editor.querySelector('p')!;
+        setCaretAt(p, 0);
+
+        const data = new DataTransfer();
+        data.setData('text/plain', '\u{1F600}\u{1F601}\u{1F602}\u{1F603}\u{1F604}');
+        editor.dispatchEvent(new ClipboardEvent('paste', {
+            bubbles: true, cancelable: true, clipboardData: data,
+        }));
+        fixture.detectChanges();
+
+        const text = editor.textContent ?? '';
+        expect([...text]).toHaveLength(3);
+        for (const unit of text) {
+            const code = unit.codePointAt(0) ?? 0;
+            const isLoneSurrogate = code >= 0xd800 && code <= 0xdfff;
+            expect(isLoneSurrogate).toBe(false);
+        }
+    });
+
+    it('does not let redo resurrect a branch the user typed over', async () => {
+        // The commonest editing sequence there is: type, undo, type something
+        // different, then hit redo out of habit. Redo must be dead at that
+        // point — the forward branch was abandoned the moment new input landed.
+        fixture.componentRef.setInput('history', { debounceMs: 10 });
+        component.writeValue('');
+        fixture.detectChanges();
+
+        const type = async (text: string) => {
+            editor.textContent = (editor.textContent ?? '') + text;
+            component.onInput({ target: editor } as unknown as Event);
+            await new Promise(r => setTimeout(r, 40));
+        };
+
+        await type('A');
+        await type('B');
+        expect(editor.textContent).toBe('AB');
+
+        component.undo();
+        expect(editor.textContent).toBe('A');
+
+        await type('C');
+        expect(editor.textContent).toBe('AC');
+
+        component.redo();
+        expect(editor.textContent).toBe('AC');
+    });
+
+    it('does not pull a following paragraph into a table cell on delete', () => {
+        // Selecting out of a table into the paragraph after it and pressing
+        // Delete let the browser merge the paragraph's remainder INTO the last
+        // cell, destroying the paragraph. That paragraph is what lets an author
+        // click below a table at all, so losing it traps the cursor.
+        component.writeValue(
+            '<table><tbody><tr><td>Cell A</td><td>Cell B</td></tr></tbody></table><p>Trailing paragraph.</p>',
+        );
+        fixture.detectChanges();
+
+        const cellB = editor.querySelectorAll('td')[1].firstChild as Text;
+        const para = editor.querySelector('p')!.firstChild as Text;
+        const selection = document.getSelection()!;
+        const range = document.createRange();
+        range.setStart(cellB, 2);
+        range.setEnd(para, 8);
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }));
+        fixture.detectChanges();
+
+        // Both structures survive: the cell keeps only its own surviving text and
+        // the paragraph stays a sibling of the table.
+        expect(editor.querySelector('table + p')).not.toBeNull();
+        expect(editor.querySelectorAll('td')[1].textContent).toBe('Ce');
+        expect(editor.querySelector('table + p')!.textContent).toBe(' paragraph.');
+    });
+
+    it('names every table-drag listener in its teardown', () => {
+        // Starting a cell drag or a column resize arms listeners on `document`.
+        // Torn down before the pointer is released — a nav click, a closing
+        // dialog, a tab switch — an unremoved one holds a .bind(this) reference
+        // and pins the whole component alive. The touch pair is worse than a
+        // leak: onTableResizeTouchMove calls preventDefault unconditionally and
+        // is registered non-passive, so one leaked copy stops scrolling working
+        // anywhere in the app.
+        //
+        // Asserted against the source rather than by counting live listeners:
+        // in this harness the handlers self-remove during teardown, which masks
+        // the leak entirely — a counting test passed just as happily with the
+        // fix reverted, so it would have been a test that proved nothing. The
+        // original bug was a NAME mismatch (the resize touch listeners were
+        // removed using the cell-touch references, matching nothing and failing
+        // silently), and that is exactly what this catches.
+        const teardown = String(
+            (component as unknown as { releaseTableDragListeners(): void }).releaseTableDragListeners,
+        );
+
+        for (const bound of [
+            'onTableResizeMoveBound', 'onTableResizeUpBound', 'onTableResizeTouchMoveBound',
+            'onTableCellSelectMoveBound', 'onTableCellSelectUpBound',
+            'onTableCellTouchMoveBound', 'onTableCellTouchEndBound',
+        ]) {
+            expect(teardown).toContain(bound);
+        }
+    });
+
+    it('states its editing state the way assistive tech reads it', () => {
+        // Three gaps, all on role="textbox":
+        //  - the placeholder is CSS generated content only, so a screen reader
+        //    announces it as if it were the document's real text;
+        //  - tabindex was a static 0, so a DISABLED editor still took focus,
+        //    unlike a native disabled control, stranding a keyboard user;
+        //  - readonly set contenteditable=false but never aria-readonly, so a
+        //    reader had no way to know the field could not be edited.
+        expect(editor.getAttribute('aria-placeholder')).toBe(
+            component.placeholder() || component.resolvedLocale().editor.placeholder,
+        );
+        expect(editor.getAttribute('tabindex')).toBe('0');
+        expect(editor.getAttribute('aria-readonly')).toBeNull();
+
+        fixture.componentRef.setInput('readonly', true);
+        fixture.detectChanges();
+        expect(editor.getAttribute('aria-readonly')).toBe('true');
+        expect(editor.getAttribute('tabindex')).toBe('0');
+
+        fixture.componentRef.setInput('readonly', false);
+        component.setDisabledState(true);
+        fixture.detectChanges();
+        expect(editor.getAttribute('tabindex')).toBe('-1');
+        expect(editor.getAttribute('aria-disabled')).toBe('true');
+
+        component.setDisabledState(false);
+        fixture.detectChanges();
+        expect(editor.getAttribute('tabindex')).toBe('0');
+    });
+
+    it('refuses addon inserts once maxLength is exhausted', () => {
+        // maxLength was enforced only for typing and pasting, so every addon
+        // insert path (emoji, links, images, tables) could push content past a
+        // limit the user had set. They all funnel through these three seams.
+        fixture.componentRef.setInput('maxLength', 10);
+        component.writeValue('<p>0123456789</p>');
+        fixture.detectChanges();
+        const text = editor.querySelector('p')!.firstChild as Text;
+        const selection = document.getSelection();
+        const range = document.createRange();
+        range.setStart(text, 10);
+        range.collapse(true);
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+
+        component.insertTextAtCaret('OVERFLOW');
+        component.insertHtmlAtCaret('<strong>OVERFLOW</strong>');
+        component.insertTextFromOverlay('OVERFLOW');
+
+        expect(editor.textContent).toBe('0123456789');
+    });
+
+    it('converts the current block to a heading', () => {
         component.writeValue('<p>title text</p>');
         fixture.detectChanges();
         selectAll();
@@ -1863,20 +2805,839 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
 
         component.onFormatCommand('blockquote');
 
-        expect(editor.querySelector('blockquote')).toBeTruthy();
+        expect(editor.querySelector('blockquote > p')?.textContent).toBe('quote me');
     });
 
-    it('inserts a code block with insertCodeBlock', () => {
-        component.writeValue('<p>snippet body</p>');
+    it('lifts the caret\'s quote back out on a second blockquote click', () => {
+        component.writeValue('<p>before</p><blockquote><p>quoted</p></blockquote><p>after</p>');
         fixture.detectChanges();
-        selectContents(editor.querySelector('p')!);
+        setCaretAt(editor.querySelector('blockquote p')!.firstChild!, 2);
+
+        component.onFormatCommand('blockquote');
+
+        expect(editor.querySelector('blockquote')).toBeNull();
+        expect(Array.from(editor.children).map((el) => el.textContent)).toEqual(['before', 'quoted', 'after']);
+        const selection = document.getSelection();
+        expect(editor.children[1].contains(selection?.anchorNode ?? null)).toBe(true);
+    });
+
+    it('quotes every top-level block the selection spans, wrapping bare text in a paragraph', () => {
+        component.writeValue('<p>one</p><div>two</div>');
+        fixture.detectChanges();
+        editor.append(document.createTextNode('three'));
+        const range = document.createRange();
+        range.setStart(editor.querySelector('p')!.firstChild!, 1);
+        range.setEnd(editor.lastChild!, 2);
+        const selection = document.getSelection()!;
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        component.onFormatCommand('blockquote');
+
+        expect(editor.querySelectorAll('blockquote')).toHaveLength(1);
+        expect(Array.from(editor.querySelectorAll('blockquote > *')).map((el) => `${el.tagName}:${el.textContent}`))
+            .toEqual(['P:one', 'P:two', 'P:three']);
+    });
+
+    it("turns the caret's paragraph into a code block, and back into paragraphs", () => {
+        component.writeValue('<p>before</p><p>snippet body</p><p>after</p>');
+        fixture.detectChanges();
+        // A caret, not a selection: the whole line becomes the block. It used to
+        // wrap only the selected characters in a <pre> INSIDE the paragraph.
+        setCaretAt(editor.querySelectorAll('p')[1].firstChild!, 3);
 
         component.onFormatCommand('codeBlock');
 
-        const pre = editor.querySelector('pre');
-        expect(pre).toBeTruthy();
-        expect(pre?.querySelector('code')).toBeTruthy();
-        expect(pre?.textContent).toContain('snippet body');
+        expect(Array.from(editor.children).map((el) => el.tagName)).toEqual(['P', 'PRE', 'P']);
+        expect(editor.querySelector('pre > code')?.textContent).toBe('snippet body');
+        expect(editor.querySelector('pre')?.contains(document.getSelection()?.anchorNode ?? null)).toBe(true);
+
+        component.onFormatCommand('codeBlock');
+
+        expect(editor.querySelector('pre')).toBeNull();
+        expect(Array.from(editor.children).map((el) => el.textContent)).toEqual(['before', 'snippet body', 'after']);
+    });
+
+    it('joins several selected lines into one code block and splits it back per line', () => {
+        component.writeValue('<p>one</p><p>two</p>');
+        fixture.detectChanges();
+        const range = document.createRange();
+        range.setStart(editor.querySelectorAll('p')[0].firstChild!, 1);
+        range.setEnd(editor.querySelectorAll('p')[1].firstChild!, 1);
+        const selection = document.getSelection()!;
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        component.onFormatCommand('codeBlock');
+        expect(editor.querySelectorAll('pre')).toHaveLength(1);
+        expect(editor.querySelector('pre > code')?.textContent).toBe('one\ntwo');
+
+        component.onFormatCommand('codeBlock');
+        expect(Array.from(editor.querySelectorAll('p')).map((p) => p.textContent)).toEqual(['one', 'two']);
+    });
+
+    it('the code block toggle keeps a break inside a line as a new line of code', () => {
+        // The block was built from the line's text alone, so the two halves
+        // around the break joined into one word.
+        component.writeValue('<p><em>one<br>two</em> three</p>');
+        fixture.detectChanges();
+        setCaretAt(editor.querySelector('em')!.firstChild!, 1);
+
+        component.onFormatCommand('codeBlock');
+
+        expect(editor.querySelector('pre > code')?.textContent).toBe('one\ntwo three');
+    });
+
+    it("the code block toggle takes the caret's list item out, splitting the list around it", () => {
+        // It acted on the item by building the code block INSIDE it, a shape a
+        // markdown save cannot carry. The list now splits and the block sits
+        // between the halves, with every other item where it was.
+        component.writeValue('<ul><li>one</li><li>two</li><li>three</li></ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelectorAll('li')[1].firstChild as Text, 1);
+
+        component.onFormatCommand('codeBlock');
+
+        expect(Array.from(editor.children).map((el) => `${el.tagName}:${el.textContent}`))
+            .toEqual(['UL:one', 'PRE:two', 'UL:three']);
+        expect(editor.querySelector('li pre')).toBeNull();
+    });
+
+    it("a code block taken from an item keeps the item's sub-list, as a list after the block", () => {
+        component.writeValue('<ul><li>text<ul><li>sub</li></ul></li></ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li')!.firstChild as Text, 2);
+
+        component.onFormatCommand('codeBlock');
+
+        expect(Array.from(editor.children).map((el) => `${el.tagName}:${el.textContent}`)).toEqual(['PRE:text', 'UL:sub']);
+    });
+
+    it.each([
+        ['bulletList', '<ul><li><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="x"></li></ul>'],
+        ['orderedList', '<ol><li><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="x"></li></ol>'],
+        ['taskList', '<ul data-task-list><li data-task data-checked="false"><input type="checkbox">'
+            + '<span><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="x"></span></li></ul>'],
+    ])('turning %s off keeps an item that holds only an image', (command, html) => {
+        // Found by the property matrix: placing the caret in the new paragraph
+        // cleared any block without a text node, image included.
+        component.writeValue(html);
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li')!, 0);
+
+        component.onFormatCommand(command);
+        fixture.detectChanges();
+
+        expect(editor.querySelector('ul, ol')).toBeNull();
+        expect(editor.querySelector('p > img')?.getAttribute('alt')).toBe('x');
+    });
+
+    it('turning bullets off keeps each sub-list below the item it belonged to', () => {
+        // Found by the property matrix: each sub-list was moved out as it was
+        // met, ahead of the paragraph built from its own item.
+        component.writeValue('<ul><li>parent<ul><li>child</li></ul></li><li>next</li></ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li')!.firstChild as Text, 2);
+
+        component.onFormatCommand('bulletList');
+
+        expect(Array.from(editor.children).map(el => el.tagName + ':' + el.textContent))
+            .toEqual(['P:parent', 'UL:child', 'P:next']);
+    });
+
+    describe('block commands where a save can keep the block', () => {
+        // Caret padding is not text: the paragraph after an inserted block holds
+        // a zero-width anchor so a caret can sit in it.
+        const tags = (root: Element): string[] => Array.from(root.children)
+            .map((el) => `${el.tagName}:${(el.textContent ?? '').replaceAll('\u200B', '')}`);
+
+        it('a rule on a list item splits the list and sits between the halves', () => {
+            component.writeValue('<ul><li>a</li><li>b</li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('li')!.firstChild as Text, 1);
+
+            component.onFormatCommand('horizontalRule');
+
+            expect(tags(editor)).toEqual(['UL:a', 'HR:', 'P:', 'UL:b']);
+        });
+
+        it('a numbered list split by a rule keeps counting in its second half', () => {
+            component.writeValue('<ol><li>a</li><li>b</li><li>c</li></ol>');
+            fixture.detectChanges();
+            caretIn(editor.querySelectorAll('li')[1].firstChild as Text, 1);
+
+            component.onFormatCommand('horizontalRule');
+
+            const lists = editor.querySelectorAll('ol');
+            expect(Array.from(lists).map((ol) => ol.textContent)).toEqual(['ab', 'c']);
+            expect(lists[1].getAttribute('start')).toBe('3');
+        });
+
+        it('a rule on a task row keeps both halves task lists', () => {
+            component.writeValue('<ul data-task-list><li data-task data-checked="true"><input type="checkbox"><span>a</span></li>'
+                + '<li data-task data-checked="false"><input type="checkbox"><span>b</span></li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 1);
+
+            component.onFormatCommand('horizontalRule');
+
+            expect(editor.querySelectorAll('ul[data-task-list]')).toHaveLength(2);
+            expect(editor.querySelector(':scope > hr')).not.toBeNull();
+            expect(editor.querySelector('li hr, span hr')).toBeNull();
+        });
+
+        it('a rule from a cell of a table inside a list item splits the list after that item', () => {
+            // The table is inside the item, so after the table is still inside the
+            // item, where a save cannot carry a rule.
+            component.writeValue('<ul><li>a<table><tbody><tr><td>cell</td></tr></tbody></table></li><li>b</li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('td')!.firstChild as Text, 2);
+
+            component.onFormatCommand('horizontalRule');
+
+            expect(tags(editor)).toEqual(['UL:acell', 'HR:', 'P:', 'UL:b']);
+            expect(editor.querySelector('li hr, td hr')).toBeNull();
+        });
+
+        it('a rule on a nested row goes after its top-level item, and no text moves', () => {
+            component.writeValue('<ul><li>parent<ul><li>child</li><li>second</li></ul></li><li>next</li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelectorAll('li')[1].firstChild as Text, 2);
+
+            component.onFormatCommand('horizontalRule');
+
+            expect(tags(editor)).toEqual(['UL:parentchildsecond', 'HR:', 'P:', 'UL:next']);
+        });
+
+        it('a rule on an empty item takes that item\'s place', () => {
+            component.writeValue('<ul><li>a</li><li><br></li><li>b</li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelectorAll('li')[1], 0);
+
+            component.onFormatCommand('horizontalRule');
+
+            expect(tags(editor)).toEqual(['UL:a', 'HR:', 'P:', 'UL:b']);
+            // An empty item adds no text, so only a count shows it was replaced.
+            expect(editor.querySelectorAll('li')).toHaveLength(2);
+        });
+
+        it('a rule in a summary goes to the start of the details body', () => {
+            component.writeValue('<details><summary>head</summary><p>body</p></details>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('summary')!.firstChild as Text, 2);
+
+            component.onFormatCommand('horizontalRule');
+
+            expect(tags(editor.querySelector('details')!)).toEqual(['SUMMARY:head', 'HR:', 'P:', 'P:body']);
+        });
+
+        it('a quote on a numbered item splits the list, and the second half counts on', () => {
+            component.writeValue('<ol><li>a</li><li>b</li><li>c</li></ol>');
+            fixture.detectChanges();
+            caretIn(editor.querySelectorAll('li')[1].firstChild as Text, 1);
+
+            component.onFormatCommand('blockquote');
+
+            expect(tags(editor)).toEqual(['OL:a', 'BLOCKQUOTE:b', 'OL:c']);
+            expect(editor.querySelectorAll('ol')[1].getAttribute('start')).toBe('2');
+        });
+
+        it('a quote on a nested row leaves the document as it was', () => {
+            // Taking the row out would put its text below the rows after it.
+            component.writeValue('<ul><li>parent<ul><li>child</li><li>second</li></ul></li></ul>');
+            fixture.detectChanges();
+            const before = editor.innerHTML;
+            caretIn(editor.querySelectorAll('li')[1].firstChild as Text, 2);
+
+            component.onFormatCommand('blockquote');
+
+            expect(editor.innerHTML).toBe(before);
+        });
+
+        it('a heading leaves a paragraph inside a list item as it is', () => {
+            component.writeValue('<ul><li><p>a</p><p>b</p></li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('li > p')!.firstChild as Text, 1);
+
+            component.onFormatCommand('heading1');
+
+            expect(editor.querySelector('h1')).toBeNull();
+            expect(Array.from(editor.querySelectorAll('li > p')).map((p) => p.textContent)).toEqual(['a', 'b']);
+        });
+
+        it.each(['bulletList', 'orderedList', 'taskList'])('%s leaves a table cell as it is', (command) => {
+            component.writeValue('<table><tbody><tr><td>a</td><td>b</td></tr></tbody></table>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('td')!.firstChild as Text, 1);
+
+            component.onFormatCommand(command);
+
+            expect(editor.querySelector('ul, ol')).toBeNull();
+            expect(Array.from(editor.querySelectorAll('td')).map((td) => td.textContent)).toEqual(['a', 'b']);
+        });
+
+        it('bullets leave a list around a table cell alone, rather than un-bulleting the outer list', () => {
+            component.writeValue('<ul><li><table><tbody><tr><td>cell</td></tr></tbody></table></li><li>next</li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('td')!.firstChild as Text, 2);
+
+            component.onFormatCommand('bulletList');
+
+            expect(editor.querySelectorAll('ul > li')).toHaveLength(2);
+            expect(editor.querySelector('li table td')?.textContent).toBe('cell');
+        });
+
+        it('a task list leaves a summary as it is', () => {
+            component.writeValue('<details><summary>head</summary><p>body</p></details>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('summary')!.firstChild as Text, 1);
+
+            component.onFormatCommand('taskList');
+
+            expect(editor.querySelector('ul')).toBeNull();
+            expect(editor.querySelector('details > summary')?.textContent).toBe('head');
+        });
+
+        it('turning bullets off moves an item\'s code block out as a block, never into a paragraph', () => {
+            component.writeValue('<ul><li><pre><code>x = 1</code></pre></li><li>y</li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelectorAll('li')[1].firstChild as Text, 1);
+
+            component.onFormatCommand('bulletList');
+
+            expect(tags(editor)).toEqual(['PRE:x = 1', 'P:y']);
+            expect(editor.querySelector('p pre')).toBeNull();
+        });
+
+        it('a task list leaves a list whose item holds a rule as it is, rather than delete the rule', () => {
+            component.writeValue('<ul><li><p>a</p><hr><p>b</p></li></ul>');
+            fixture.detectChanges();
+            const before = editor.innerHTML;
+            caretIn(editor.querySelector('li > p')!.firstChild as Text, 1);
+
+            component.onFormatCommand('taskList');
+
+            expect(editor.innerHTML).toBe(before);
+            expect(editor.querySelector('li hr')).not.toBeNull();
+        });
+
+        it('a task list flattens an item\'s quote into the row, one space between its lines', () => {
+            component.writeValue('<ul><li><blockquote><p>one</p><p>two</p></blockquote></li><li>z</li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelectorAll('li')[1].firstChild as Text, 1);
+
+            component.onFormatCommand('taskList');
+
+            const span = editor.querySelector('li[data-task] > span')!;
+            expect(span.textContent).toBe('one two');
+            expect(span.querySelector('blockquote, p')).toBeNull();
+        });
+
+        it('outdenting the last item of a sub-list carries what its parent holds after the sub-list, keeping the words in order', () => {
+            // The item moved to just after its parent, and the heading and second
+            // sub-list after the sub-list stayed in the parent, above the item.
+            component.writeValue('<ul><li><p>a</p><ul><li>b</li><li>c</li></ul><h2>d</h2><ol><li>e</li></ol></li><li>f</li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelectorAll('li li')[1].firstChild as Text, 1);
+
+            component.onFormatCommand('outdent');
+
+            const items = Array.from(editor.querySelector('ul')!.children);
+            expect(editor.textContent).toBe('abcdef');
+            expect(items.map((item) => item.textContent)).toEqual(['ab', 'cde', 'f']);
+            // The item now holds blocks, so its own text is a paragraph, with the caret still in it.
+            expect(Array.from(items[1].children, (child) => child.nodeName)).toEqual(['P', 'H2', 'OL']);
+            expect(items[1].querySelector(':scope > p')!.contains(document.getSelection()!.anchorNode)).toBe(true);
+        });
+
+        it('outdenting a task row out of a plain item puts what followed its list in an item after the row', () => {
+            component.writeValue('<ul><li><p>a</p><ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>b</span></li></ul>'
+                + '<p>c</p></li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 1);
+
+            component.onFormatCommand('outdent');
+
+            expect(editor.textContent).toBe('abc');
+            const items = Array.from(editor.querySelectorAll(':scope > ul > li'));
+            expect(items.map((item) => item.textContent)).toEqual(['a', 'b', 'c']);
+            expect(Array.from(items[1].children, (child) => child.nodeName)).toEqual(['INPUT', 'SPAN']);
+            expect(items[2].matches('li:not([data-task])')).toBe(true);
+            expect(Array.from(items[2].children, (child) => child.nodeName)).toEqual(['P']);
+        });
+
+        it.each([
+            ['an empty numbered item', '<ol><li><br></li></ol>', ['OL']],
+            ['a blank paragraph', '<p><br></p>', ['P', 'P']],
+            ['an empty code block', '<pre><code></code></pre>', ['P', 'PRE']],
+        ])('outdenting the last item of a sub-list carries %s after it, which is a line though it shows nothing', (_name, trailing, children) => {
+            // Taken for nothing, the empty line stayed in the parent, above the item.
+            component.writeValue(`<ul><li><p>G</p><ul><li>X</li></ul>${trailing}</li></ul>`);
+            fixture.detectChanges();
+            caretIn(editor.querySelector('li li')!.firstChild as Text, 1);
+
+            component.onFormatCommand('outdent');
+
+            const items = Array.from(editor.querySelector('ul')!.children);
+            expect(Array.from(items[0].children, (child) => child.nodeName)).toEqual(['P']);
+            expect(Array.from(items[1].children, (child) => child.nodeName)).toEqual(children);
+        });
+
+        it.each([
+            ['a second paragraph', 'indent', '<ul><li>A</li><li><p>W</p><p>Xray</p></li></ul>', 'p'],
+            ['a code block', 'indent', '<ul><li>A</li><li><p>W</p><pre><code>Xray</code></pre></li></ul>', 'code'],
+            ['a table cell', 'indent', '<ul><li>A</li><li><p>W</p><table><tbody><tr><td>Xray</td></tr></tbody></table></li></ul>', 'td'],
+            ['a second paragraph, outdenting', 'outdent', '<ul><li>A<ul><li><p>W</p><p>Xray</p></li></ul></li></ul>', 'p'],
+        ])('keeps the caret in a later line of the moved item: %s', (_name, command, html, tag) => {
+            // A fix that put the caret back in the item's first line would pass every
+            // case whose caret starts in that line.
+            component.writeValue(html);
+            fixture.detectChanges();
+            const target = Array.from(editor.querySelectorAll(tag)).find((el) => el.textContent === 'Xray')!;
+            caretIn(target.firstChild as Text, 2);
+
+            component.onFormatCommand(command);
+
+            const selection = document.getSelection()!;
+            expect(selection.anchorNode?.textContent).toBe('Xray');
+            expect(selection.anchorOffset).toBe(2);
+        });
+
+        it.each([
+            ['indenting an item holding a code block', 'indent', '<ul><li>A</li><li><p>X</p><pre><code>c</code></pre></li></ul>'],
+            ['indenting an item of a loose list', 'indent', '<ul><li><p>A</p></li><li><p>X</p></li></ul>'],
+            ['outdenting an item holding a code block', 'outdent', '<ul><li>A<ul><li><p>G</p><ul><li><p>X</p><pre><code>c</code></pre></li></ul></li></ul></li></ul>'],
+            ['outdenting an item holding blocks that carries loose text', 'outdent', '<ul><li><p>G</p><ul><li><p>X</p><pre><code>c</code></pre></li></ul>tail</li></ul>'],
+        ])('%s keeps the caret in the line it was in', (_name, command, html) => {
+            // The caret went back to the line found from the item, and an item
+            // holding blocks is no line: the lookup climbed to an ancestor's line,
+            // so the caret landed in another item, or was lost.
+            component.writeValue(html);
+            fixture.detectChanges();
+            const x = Array.from(editor.querySelectorAll('p')).find((p) => p.textContent === 'X')!;
+            caretIn(x.firstChild as Text, 1);
+
+            component.onFormatCommand(command);
+
+            const selection = document.getSelection()!;
+            expect(selection.anchorNode?.textContent).toBe('X');
+            expect(selection.anchorOffset).toBe(1);
+        });
+
+        it('outdenting an item that holds blocks gives the loose text it carries a paragraph', () => {
+            // Only what was carried was checked for a block, so text carried in
+            // beside the item's own blocks stayed loose, belonging to no line.
+            component.writeValue('<ul><li><p>G</p><ul><li><p>X</p><pre><code>c</code></pre></li></ul>tail</li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('li li p')!.firstChild as Text, 1);
+
+            component.onFormatCommand('outdent');
+
+            const moved = editor.querySelector('ul')!.children[1];
+            expect(Array.from(moved.children, (child) => child.nodeName)).toEqual(['P', 'PRE', 'P']);
+            expect(moved.lastElementChild?.textContent).toBe('tail');
+        });
+
+        it.each([
+            ['a list', '<ul><li>Z</li></ul>', 'XZ', null],
+            ['a list, then a paragraph', '<ul><li>Z</li></ul><p>t</p>', 'XZ', 't'],
+        ])('outdenting a task row keeps %s after its list under the row, with no empty item', (_name, trailing, rowText, itemText) => {
+            // All of it went into a new item after the row, so a leading list gave
+            // that item no line of its own: an empty bullet nobody typed.
+            component.writeValue('<ul><li><p>G</p><ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>X</span></li></ul>'
+                + `${trailing}</li></ul>`);
+            fixture.detectChanges();
+            caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 1);
+
+            component.onFormatCommand('outdent');
+
+            const row = editor.querySelector('li[data-task]')!;
+            expect(row.textContent).toBe(rowText);
+            expect(row.querySelector(':scope > ul > li')?.textContent).toBe('Z');
+            expect(Array.from(editor.querySelectorAll('li')).filter((li) => li.firstElementChild?.matches('ul, ol'))).toHaveLength(0);
+            expect(Array.from(editor.querySelectorAll(':scope > ul > li'), (li) => li.textContent)).toEqual(['G', rowText, ...(itemText ? [itemText] : [])]);
+        });
+
+        it('a task list starts the next row with the content after an item sub-list, keeping the words in order', () => {
+            component.writeValue('<ul><li><p>a</p><ul><li>b</li></ul><p>c</p></li><li>z</li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('ul')!.children[1].firstChild as Text, 1);
+
+            component.onFormatCommand('taskList');
+
+            const rows = Array.from(editor.querySelector('ul[data-task-list]')!.children);
+            expect(rows.map((row) => row.querySelector(':scope > span')?.textContent)).toEqual(['a', 'c', 'z']);
+            expect(rows[0].querySelector(':scope > ul > li')?.textContent).toBe('b');
+            expect(editor.textContent).toBe('abcz');
+        });
+
+        it('a heading picked from the slash menu on a list item leaves the item as it is', () => {
+            component.writeValue('<ul><li>one</li></ul>');
+            fixture.detectChanges();
+
+            component.executeToolbarCommandOnBlock('heading1', editor.querySelector('li'));
+
+            expect(editor.querySelector('h1')).toBeNull();
+            expect(editor.querySelector('ul > li')?.textContent).toBe('one');
+        });
+
+        it('clear formatting inside a task row keeps the row\'s text in its span', () => {
+            component.writeValue('<ul data-task-list><li data-task data-checked="true"><input type="checkbox">'
+                + '<span>plain <b>bold</b></span></li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('li[data-task] b')!.firstChild as Text, 2);
+
+            component.onFormatCommand('clear');
+
+            const row = editor.querySelector('li[data-task]')!;
+            expect(Array.from(row.children).map((el) => el.tagName)).toEqual(['INPUT', 'SPAN']);
+            expect(row.querySelector(':scope > span')?.textContent).toBe('plain bold');
+            expect(row.querySelector('b')).toBeNull();
+        });
+
+        it('clear formatting on a task row\'s plain text leaves the row as it is', () => {
+            component.writeValue('<ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>todo</span></li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 2);
+
+            component.onFormatCommand('clear');
+
+            expect(editor.querySelector('li[data-task] > span')?.textContent).toBe('todo');
+        });
+
+        it.each([
+            ['bulletList', '<ul><li>parent<ul><li>child</li></ul></li><li>next</li></ul>', 'li li'],
+            ['taskList', '<ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>parent</span>'
+                + '<ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>child</span></li></ul></li>'
+                + '<li data-task data-checked="false"><input type="checkbox"><span>next</span></li></ul>', 'li li span'],
+        ])('%s off on a sub-list puts its items after the top-level item, splitting the list', (command, html, childSelector) => {
+            component.writeValue(html);
+            fixture.detectChanges();
+            caretIn(editor.querySelector(childSelector)!.firstChild as Text, 2);
+
+            component.onFormatCommand(command);
+
+            expect(tags(editor)).toEqual(['UL:parent', 'P:child', 'UL:next']);
+            expect(editor.querySelector('li p')).toBeNull();
+        });
+
+        it('bullets off on a sub-list two levels down leave the document as it was', () => {
+            // Its paragraphs would have to go after the top-level item, below
+            // items that come after them in the document.
+            component.writeValue('<ul><li>a<ul><li>b<ul><li>c</li></ul></li><li>d</li></ul></li></ul>');
+            fixture.detectChanges();
+            const before = editor.innerHTML;
+            caretIn(editor.querySelector('li li li')!.firstChild as Text, 1);
+
+            component.onFormatCommand('bulletList');
+
+            expect(editor.innerHTML).toBe(before);
+        });
+
+        it.each(['bulletList', 'orderedList', 'taskList'])('%s leaves a code block as it is', (command) => {
+            component.writeValue('<pre><code>a\nb</code></pre>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('code')!.firstChild as Text, 1);
+
+            component.onFormatCommand(command);
+
+            expect(editor.querySelector('ul, ol')).toBeNull();
+            expect(editor.querySelector('pre > code')?.textContent).toBe('a\nb');
+        });
+
+        it('a keypress puts a caret left beside an empty row checkbox before the row seed, not after it', () => {
+            // After the seed, whatever the author typed began with a space.
+            component.writeValue('<ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>&nbsp;</span></li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('li[data-task]')!, 0);
+
+            component.onKeydown(new KeyboardEvent('keydown', { key: 'Shift' }));
+
+            const selection = document.getSelection()!;
+            expect(selection.anchorNode).toBe(editor.querySelector('li[data-task] > span')!.firstChild);
+            expect(selection.anchorOffset).toBe(0);
+        });
+
+        it('Shift+Tab on a task row under a plain item keeps it a task row, in a task list of its own', () => {
+            // A task row in a plain list saved as a plain bullet: its checkbox
+            // and its checked state were gone on reload.
+            component.writeValue('<ul><li>plain<ul data-task-list><li data-task data-checked="true"><input type="checkbox">'
+                + '<span>done</span></li></ul></li><li>next</li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 2);
+
+            component.onFormatCommand('outdent');
+
+            expect(tags(editor)).toEqual(['UL:plain', 'UL:done', 'UL:next']);
+            const row = editor.querySelector('li[data-task]') as HTMLElement;
+            expect(row.parentElement?.dataset['taskList']).toBe('');
+            expect(row.dataset['checked']).toBe('true');
+        });
+
+        it('Enter on an empty task row under a plain item steps it out into a task list of its own', () => {
+            component.writeValue('<ul><li>plain<ul data-task-list><li data-task data-checked="false"><input type="checkbox">'
+                + '<span>&nbsp;</span></li></ul></li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 0);
+
+            component.onKeydown(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+
+            expect(editor.querySelector(':scope > ul[data-task-list] > li[data-task]')).not.toBeNull();
+            expect(editor.querySelector('ul:not([data-task-list]) > li[data-task], ul[data-task-list] > li:not([data-task])')).toBeNull();
+        });
+
+        it('Tab puts a plain item under a row that holds a task sub-list into a plain list of its own', () => {
+            component.writeValue('<ul><li>a<ul data-task-list><li data-task data-checked="false"><input type="checkbox">'
+                + '<span>t</span></li></ul></li><li>b</li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelectorAll(':scope > ul > li')[1].firstChild as Text, 1);
+
+            component.onFormatCommand('indent');
+
+            expect(editor.querySelector('li > ul:not([data-task-list]) > li')?.textContent).toBe('b');
+            expect(editor.querySelector('ul:not([data-task-list]) > li[data-task], ul[data-task-list] > li:not([data-task])')).toBeNull();
+        });
+
+        it('Tab on two rows under a task row holding a plain sub-list keeps them in order, each in its kind', () => {
+            // The first matching sub-list was taken, so once the list had split by
+            // kind the second row went into the plain list, ahead of the first.
+            component.writeValue('<ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>a</span><ul><li>sub</li></ul></li>'
+                + '<li data-task data-checked="false"><input type="checkbox"><span>b</span></li>'
+                + '<li data-task data-checked="true"><input type="checkbox"><span>c</span></li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelectorAll('li[data-task] > span')[1].firstChild as Text, 1);
+            component.onFormatCommand('indent');
+            caretIn(editor.querySelectorAll('li[data-task] > span')[2].firstChild as Text, 1);
+            component.onFormatCommand('indent');
+
+            const top = editor.querySelectorAll(':scope > ul > li');
+            expect(top).toHaveLength(1);
+            expect(Array.from(top[0].querySelectorAll('li')).map((li) => li.textContent)).toEqual(['sub', 'b', 'c']);
+            expect(editor.querySelector('ul:not([data-task-list]) > li[data-task], ul[data-task-list] > li:not([data-task])')).toBeNull();
+            expect((editor.querySelectorAll('li[data-task]')[2] as HTMLElement).dataset['checked']).toBe('true');
+        });
+
+        it('Tab joins the sub-list that ends the previous item, past blank text after it', () => {
+            // Pasted markup leaves a line ending after the sub-list; taken as the
+            // item's last node, it put the row in a second sub-list of its own.
+            component.writeValue('<ul><li>a<ul><li>sub</li></ul>\n</li><li>b</li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelectorAll(':scope > ul > li')[1].firstChild as Text, 1);
+
+            component.onFormatCommand('indent');
+
+            const top = editor.querySelector(':scope > ul > li')!;
+            expect(top.querySelectorAll(':scope > ul')).toHaveLength(1);
+            expect(Array.from(top.querySelectorAll('li')).map((li) => li.textContent)).toEqual(['sub', 'b']);
+        });
+
+        it('Tab on a numbered item under an item holding a numbered and a task sub-list puts it last', () => {
+            component.writeValue('<ol><li>a<ol><li>n</li></ol><ul data-task-list><li data-task data-checked="false"><input type="checkbox">'
+                + '<span>t</span></li></ul></li><li>b</li></ol>');
+            fixture.detectChanges();
+            caretIn(editor.querySelectorAll(':scope > ol > li')[1].firstChild as Text, 1);
+
+            component.onFormatCommand('indent');
+
+            expect(Array.from(editor.querySelector(':scope > ol > li')!.querySelectorAll('li')).map((li) => li.textContent)).toEqual(['n', 't', 'b']);
+            // It keeps counting past the task list, as a list split by kind does.
+            expect(editor.querySelector(':scope > ol > li > ol:last-of-type')?.getAttribute('start')).toBe('2');
+        });
+
+        it.each([
+            ['holding a task sub-list', '<ul><li>P<ul><li>x<ul data-task-list><li data-task data-checked="false"><input type="checkbox">'
+                + '<span>t</span></li></ul></li><li>y</li></ul></li></ul>', 'Pxty'],
+            ['holding a plain and a task sub-list', '<ul><li>P<ul><li>x<ul><li>s</li></ul><ul data-task-list><li data-task data-checked="false">'
+                + '<input type="checkbox"><span>t</span></li></ul></li><li>y</li></ul></li></ul>', 'Pxsty'],
+        ])('Shift+Tab on an item %s carries the plain item after it in order, in a plain list', (_name, html, text) => {
+            component.writeValue(html);
+            fixture.detectChanges();
+            caretIn(editor.querySelector('ul ul > li')!.firstChild as Text, 1);
+
+            component.onFormatCommand('outdent');
+
+            expect(editor.textContent).toBe(text);
+            expect(editor.querySelector('ul:not([data-task-list]) > li[data-task], ul[data-task-list] > li:not([data-task])')).toBeNull();
+        });
+
+        it.each(['bulletList', 'orderedList', 'taskList', 'blockquote'])(
+            '%s from the slash menu on an item holding a sub-list acts on the item line, as the toolbar does',
+            (command) => {
+                // The caret was put at the end of the anchor, which is the end of
+                // its sub-list, so the command acted on the sub-list's last item.
+                const html = '<ul><li>parent<ul><li>child</li></ul></li><li>next</li></ul>';
+                component.writeValue(html);
+                fixture.detectChanges();
+                caretIn(editor.querySelector('li')!.firstChild as Text, 3);
+                component.onFormatCommand(command);
+                const byToolbar = editor.innerHTML.replaceAll('\u200B', '');
+
+                component.writeValue(html);
+                fixture.detectChanges();
+                component.executeToolbarCommandOnBlock(command, editor.querySelector('li'));
+
+                expect(editor.innerHTML.replaceAll('\u200B', '')).toBe(byToolbar);
+            },
+        );
+
+        it('Shift+Tab carrying a numbered item past a task sub-list keeps its number counting', () => {
+            component.writeValue('<ol><li>P<ol><li>x<ol><li>s</li></ol><ul data-task-list><li data-task data-checked="false">'
+                + '<input type="checkbox"><span>t</span></li></ul></li><li>y</li></ol></li></ol>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('ol ol > li')!.firstChild as Text, 1);
+
+            component.onFormatCommand('outdent');
+
+            expect(editor.textContent).toBe('Pxsty');
+            const carried = Array.from(editor.querySelectorAll('ol')).find((ol) => ol.textContent === 'y');
+            expect(carried?.getAttribute('start')).toBe('2');
+        });
+
+        it.each(['bulletList', 'orderedList', 'blockquote'])(
+            '%s from the slash menu on an item whose own line is blank acts on that line, as the toolbar does',
+            (command) => {
+                // With nothing but the seed of its own, the caret went into the
+                // sub-list and the command acted on the child line.
+                const html = '<ul><li>&nbsp;<ul><li>child</li></ul></li><li>next</li></ul>';
+                component.writeValue(html);
+                fixture.detectChanges();
+                caretIn(editor.querySelector('li')!.firstChild as Text, 1);
+                component.onFormatCommand(command);
+                const byToolbar = editor.innerHTML.replaceAll('\u200B', '');
+
+                component.writeValue(html);
+                fixture.detectChanges();
+                component.executeToolbarCommandOnBlock(command, editor.querySelector('li'));
+
+                expect(editor.innerHTML.replaceAll('\u200B', '')).toBe(byToolbar);
+            },
+        );
+
+        it('inline code from the slash menu on an item holding a sub-list goes into the item line', () => {
+            component.writeValue('<ul><li>parent<ul><li>child</li></ul></li></ul>');
+            fixture.detectChanges();
+
+            component.executeToolbarCommandOnBlock('code', editor.querySelector('li'));
+
+            expect(editor.querySelector('code')?.closest('li')).toBe(editor.querySelector(':scope > ul > li'));
+            expect(editor.querySelector('li li code')).toBeNull();
+        });
+
+        it('a numbered list from the slash menu on a task row drops the task markers, as the toolbar does', () => {
+            component.writeValue('<ul data-task-list><li data-task data-checked="true"><input type="checkbox"><span>done</span></li></ul>');
+            fixture.detectChanges();
+
+            component.executeToolbarCommandOnBlock('orderedList', editor.querySelector('li'));
+
+            expect(editor.querySelector('ol > li')?.textContent).toBe('done');
+            expect(editor.querySelector('li[data-task], input')).toBeNull();
+        });
+
+        it('a task list leaves an item holding a rule inside a quote as it is, rather than delete the rule', () => {
+            component.writeValue('<ul><li><p>A</p><blockquote><ul><li><p>a</p><hr><p>b</p></li></ul></blockquote></li></ul>');
+            fixture.detectChanges();
+            const before = editor.innerHTML;
+            caretIn(editor.querySelector('li > p')!.firstChild as Text, 1);
+
+            component.onFormatCommand('taskList');
+
+            expect(editor.innerHTML).toBe(before);
+            expect(editor.querySelector('hr')).not.toBeNull();
+        });
+
+        it('Backspace joining a task row keeps the plain items of its sub-list in a plain list', () => {
+            // Joining promotes the row's sub-list into the list above, which put
+            // plain items into a task list, where a save gave them checkboxes.
+            component.writeValue('<ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>a</span></li>'
+                + '<li data-task data-checked="false"><input type="checkbox"><span>b</span><ul><li>plain</li></ul></li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelectorAll('li[data-task] > span')[1].firstChild as Text, 0);
+
+            component.onKeydown(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }));
+
+            expect(editor.textContent).toContain('ab');
+            expect(editor.textContent).toContain('plain');
+            expect(editor.querySelector('ul:not([data-task-list]) > li[data-task], ul[data-task-list] > li:not([data-task])')).toBeNull();
+        });
+
+        it('Enter on an empty nested task row with an empty span still puts the caret in the row', () => {
+            component.writeValue('<ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>parent</span>'
+                + '<ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span></span></li></ul></li></ul>');
+            fixture.detectChanges();
+            const empty = editor.querySelectorAll('li[data-task] > span')[1];
+            caretIn(empty, 0);
+
+            component.onKeydown(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+
+            const rows = editor.querySelectorAll(':scope > ul > li[data-task]');
+            expect(rows).toHaveLength(2);
+            const span = rows[1].querySelector(':scope > span')!;
+            expect(span.contains(document.getSelection()?.anchorNode ?? null)).toBe(true);
+        });
+
+        it('a keypress puts a caret left after a row at the end of its text, not after its first word', () => {
+            component.writeValue('<ul data-task-list><li data-task data-checked="false"><input type="checkbox">'
+                + '<span>hello <b>world</b></span></li></ul>');
+            fixture.detectChanges();
+            const row = editor.querySelector('li[data-task]')!;
+            caretIn(row, row.childNodes.length);
+
+            component.onKeydown(new KeyboardEvent('keydown', { key: 'Shift' }));
+
+            const selection = document.getSelection()!;
+            expect(selection.anchorNode?.textContent).toBe('world');
+            expect(selection.anchorOffset).toBe('world'.length);
+        });
+    });
+
+    it('the code block toggle leaves a table cell as it is, since a pipe table cannot hold one', () => {
+        // It used to build the code block inside the cell; a markdown save wrote
+        // the fence into the row and the table came back broken.
+        component.writeValue('<table><tbody><tr><td>a</td><td>b</td></tr></tbody></table>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('td')!.firstChild as Text, 1);
+
+        component.onFormatCommand('codeBlock');
+
+        expect(editor.querySelector('pre')).toBeNull();
+        expect(Array.from(editor.querySelectorAll('td')).map((td) => td.textContent)).toEqual(['a', 'b']);
+    });
+
+    it('a block command stops at a container boundary instead of gutting a list', () => {
+        // A selection reaching from a paragraph into a list item must not pull
+        // the item out of its list: that put an <li> straight inside the quote.
+        component.writeValue('<p>one</p><ul><li>item</li></ul>');
+        fixture.detectChanges();
+        const range = document.createRange();
+        range.setStart(editor.querySelector('p')!.firstChild!, 0);
+        range.setEnd(editor.querySelector('li')!.firstChild!, 2);
+        const selection = document.getSelection()!;
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        component.onFormatCommand('blockquote');
+
+        expect(editor.querySelector('blockquote > p')?.textContent).toBe('one');
+        expect(editor.querySelector('blockquote > li')).toBeNull();
+        expect(editor.querySelector('blockquote li')).toBeNull();
+        expect(editor.querySelector('ul > li')?.textContent).toBe('item');
+    });
+
+    it('the code block toggle still joins a run of selected paragraphs', () => {
+        component.writeValue('<p>one</p><p>two</p><p>three</p>');
+        fixture.detectChanges();
+        const paragraphs = editor.querySelectorAll('p');
+        const range = document.createRange();
+        range.setStart(paragraphs[0].firstChild!, 0);
+        range.setEnd(paragraphs[2].firstChild!, 5);
+        const selection = document.getSelection()!;
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        component.onFormatCommand('codeBlock');
+
+        expect(editor.querySelectorAll('p')).toHaveLength(0);
+        expect(editor.querySelector('pre code')?.textContent).toBe('one\ntwo\nthree');
     });
 
     it('inserts a horizontal rule', () => {
@@ -1889,6 +3650,69 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         expect(editor.querySelector('hr')).toBeTruthy();
     });
 
+    it('inserts the rule after the caret\'s line, whole, with the caret in the paragraph that follows', () => {
+        // The fragment inserter splits the block at the caret, which is right
+        // for pasted prose and cut a word in two for the toolbar command.
+        component.writeValue('<p>hello world</p><p>after</p>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('p')!.firstChild as Text, 2);
+
+        component.onFormatCommand('horizontalRule');
+
+        expect(Array.from(editor.children).map((el) => el.tagName + ':' + el.textContent?.replaceAll('​', ''))).toEqual([
+            'P:hello world', 'HR:', 'P:', 'P:after',
+        ]);
+        expect(editor.children[2].contains(document.getSelection()?.anchorNode ?? null)).toBe(true);
+    });
+
+    it('puts the rule in the place of an empty line', () => {
+        component.writeValue('<p>hello</p><p><br></p>');
+        fixture.detectChanges();
+        caretIn(editor.querySelectorAll('p')[1], 0);
+
+        component.onFormatCommand('horizontalRule');
+
+        expect(Array.from(editor.children).map((el) => el.tagName)).toEqual(['P', 'HR', 'P']);
+    });
+
+    it('keeps an empty table when a block is inserted from inside it', () => {
+        // `holdsNoContent` searched DESCENDANTS for a table, and a table is not
+        // its own descendant, so an all-empty table read as an empty line and
+        // the inserter replaced it — the author's table vanished.
+        component.writeValue('<table><tbody><tr><td><br></td><td><br></td></tr></tbody></table>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('td')!, 0);
+
+        component.insertBlockAtCaret('<table><tbody><tr><td><br></td></tr></tbody></table><p><br></p>');
+
+        expect(editor.querySelectorAll('table')).toHaveLength(2);
+        // After the table, never inside its cell: a table in a cell has no
+        // markdown form.
+        expect(Array.from(editor.children).map((el) => el.tagName)).toEqual(['TABLE', 'TABLE', 'P']);
+    });
+
+    it('keeps an empty table when the horizontal rule is inserted from inside it', () => {
+        component.writeValue('<table><tbody><tr><td><br></td></tr></tbody></table>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('td')!, 0);
+
+        component.onFormatCommand('horizontalRule');
+
+        expect(Array.from(editor.children).map((el) => el.tagName)).toEqual(['TABLE', 'HR', 'P']);
+    });
+
+    it('insertBlockAtCaret lands the caret in the first cell of an inserted table', () => {
+        component.writeValue('<p>intro text</p>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('p')!.firstChild as Text, 5);
+
+        component.insertBlockAtCaret('<table><tbody><tr><td><br></td><td><br></td></tr></tbody></table><p><br></p>');
+
+        expect(editor.querySelector('p')?.textContent).toBe('intro text');
+        expect(Array.from(editor.children).map((el) => el.tagName)).toEqual(['P', 'TABLE', 'P']);
+        expect(editor.querySelector('td')?.contains(document.getSelection()?.anchorNode ?? null)).toBe(true);
+    });
+
     it('toggles an unordered list', () => {
         component.writeValue('<p>item one</p>');
         fixture.detectChanges();
@@ -1898,6 +3722,33 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
 
         expect(editor.querySelector('ul')).toBeTruthy();
         expect(editor.querySelector('ul li')?.textContent).toContain('item one');
+    });
+
+    it("builds the list at the paragraph's level and toggles it back to paragraphs", () => {
+        // execCommand('insertUnorderedList') in Chrome builds the list INSIDE
+        // the paragraph -- <p><ul><li>…</li></ul></p> -- which is not valid HTML.
+        component.writeValue('<p>first</p><p>second</p><p>third</p>');
+        fixture.detectChanges();
+        const range = document.createRange();
+        range.setStart(editor.querySelectorAll('p')[0].firstChild!, 0);
+        range.setEnd(editor.querySelectorAll('p')[1].firstChild!, 3);
+        const selection = document.getSelection()!;
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        component.onFormatCommand('bulletList');
+
+        expect(editor.querySelector('p ul')).toBeNull();
+        expect(Array.from(editor.children).map((el) => el.tagName)).toEqual(['UL', 'P']);
+        expect(Array.from(editor.querySelectorAll('ul > li')).map((li) => li.textContent)).toEqual(['first', 'second']);
+        expect(editor.querySelector('ul')?.contains(document.getSelection()?.anchorNode ?? null)).toBe(true);
+
+        component.onFormatCommand('orderedList');
+        expect(Array.from(editor.children).map((el) => el.tagName)).toEqual(['OL', 'P']);
+
+        component.onFormatCommand('orderedList');
+        expect(Array.from(editor.children).map((el) => el.tagName)).toEqual(['P', 'P', 'P']);
+        expect(editor.children[0].textContent).toBe('first');
     });
 
     it('toggles an ordered list', () => {
@@ -1922,6 +3773,40 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         const li = ul?.querySelector('li[data-task]');
         expect(li?.getAttribute('data-checked')).toBe('false');
         expect(li?.querySelector('input[type="checkbox"]')).toBeTruthy();
+        // The paragraph's text is the item's text; the old command inserted an
+        // empty item at the caret and deleted whatever was selected.
+        expect(li?.querySelector('span')?.textContent).toBe('start');
+        expect(editor.querySelector('p')).toBeNull();
+    });
+
+    it('keeps selected text when making a task list, and toggles back to a plain paragraph', () => {
+        component.writeValue('<p>hello world</p>');
+        fixture.detectChanges();
+        selectRangeIn(editor.querySelector('p')!.firstChild!, 0, 5);
+
+        component.onFormatCommand('taskList');
+        expect(editor.querySelector('li[data-task] > span')?.textContent).toBe('hello world');
+        expect(editor.textContent).toBe('hello world');
+
+        component.onFormatCommand('taskList');
+        expect(editor.querySelector('ul')).toBeNull();
+        expect(editor.querySelector('input')).toBeNull();
+        expect(editor.querySelector('p')?.textContent).toBe('hello world');
+    });
+
+    it('converts a task list to a numbered list without its checkboxes, and a bullet list to tasks', () => {
+        component.writeValue('<p>a</p>');
+        fixture.detectChanges();
+        setCaretAt(editor.querySelector('p')!.firstChild!, 1);
+        component.onFormatCommand('taskList');
+
+        component.onFormatCommand('orderedList');
+        expect(editor.querySelector('ol > li')?.textContent).toBe('a');
+        expect(editor.querySelector('input, [data-task-list], [data-task]')).toBeNull();
+
+        component.onFormatCommand('taskList');
+        expect(editor.querySelector('ul[data-task-list] > li[data-task] > input[type="checkbox"]')).not.toBeNull();
+        expect(editor.querySelector('li[data-task] > span')?.textContent).toBe('a');
     });
 
     it('inserts a collapsible toggle block', () => {
@@ -1934,6 +3819,42 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         const details = editor.querySelector('details');
         expect(details).toBeTruthy();
         expect(details?.querySelector('summary')).toBeTruthy();
+    });
+
+    // Pressing Tab twice in a row is the user-visible contract, and nothing
+    // covered it: the existing test re-seeds the caret with `caretIn` between
+    // indent and outdent, which papered over the moved item leaving the caret
+    // on the editor container. A second Tab then found no list item and
+    // inserted a literal tab into the list instead of indenting.
+    it('keeps the caret inside the item so a second indent still works', () => {
+        // Four items so the twice-indented one still has a previous sibling to
+        // nest under on the second pass; with three, "third" becomes the only
+        // child of the new list and correctly declines to indent further.
+        component.writeValue('<ul><li>a</li><li>b</li><li>c</li><li>d</li></ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelectorAll('li')[3].firstChild as Text, 1);
+
+        // No caretIn() between the two calls — that re-seeding is exactly what
+        // hid the bug in the existing test. The second indent must find the
+        // list item purely from the caret the first one left behind.
+        component.onFormatCommand('indent');
+        component.onFormatCommand('indent');
+
+        const selection = document.getSelection()!;
+        expect(selection.anchorNode?.parentElement?.closest('li')?.textContent).toContain('d');
+        expect(editor.innerHTML).not.toContain('\t');
+    });
+
+    it('keeps the caret inside the item when outdenting', () => {
+        component.writeValue('<ul><li>first<ul><li>nested</li></ul></li></ul>');
+        fixture.detectChanges();
+        const nested = editor.querySelector('li > ul > li')!;
+        caretIn(nested.firstChild as Text, 3);
+
+        component.onFormatCommand('outdent');
+
+        const selection = document.getSelection()!;
+        expect(selection.anchorNode?.parentElement?.closest('li')?.textContent).toContain('nested');
     });
 
     it('indents a list item under the previous sibling, then outdents it back', () => {
@@ -2103,6 +4024,46 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         expect(editor.querySelector('b')).toBeNull();
         expect(editor.textContent).toBe('bold text');
     });
+
+    it('clears the formatted run around a collapsed caret, keeping the caret in place', () => {
+        // removeFormat with nothing selected is a no-op, so from inside bold
+        // text the button did nothing however often it was clicked.
+        component.writeValue('<p>plain <i><b>bold text</b></i> tail</p>');
+        fixture.detectChanges();
+        setCaretAt(editor.querySelector('b')!.firstChild!, 4);
+
+        component.onFormatCommand('clear');
+
+        expect(editor.querySelector('b, i')).toBeNull();
+        expect(editor.textContent).toBe('plain bold text tail');
+        const selection = document.getSelection()!;
+        expect(selection.isCollapsed).toBe(true);
+        const before = document.createRange();
+        before.setStart(editor.querySelector('p')!, 0);
+        before.setEnd(selection.anchorNode!, selection.anchorOffset);
+        expect(before.toString()).toBe('plain bold');
+    });
+
+    it('keeps a link when clearing the formatting around a caret inside it', () => {
+        component.writeValue('<p><b><a href="https://x.test/">link <u>text</u></a></b></p>');
+        fixture.detectChanges();
+        setCaretAt(editor.querySelector('u')!.firstChild!, 1);
+
+        component.onFormatCommand('clear');
+
+        expect(editor.querySelector('b, u')).toBeNull();
+        expect(editor.querySelector('a')?.textContent).toBe('link text');
+    });
+
+    it('leaves plain text alone when the caret is not in a formatted run', () => {
+        component.writeValue('<p>plain <b>bold</b></p>');
+        fixture.detectChanges();
+        setCaretAt(editor.querySelector('p')!.firstChild!, 2);
+
+        component.onFormatCommand('clear');
+
+        expect(editor.querySelector('b')?.textContent).toBe('bold');
+    });
 });
 
 describe('RichTextEditorComponent — toolbar actions (link, image, color, font)', () => {
@@ -2147,6 +4108,26 @@ describe('RichTextEditorComponent — toolbar actions (link, image, color, font)
         component.applyInlineStyle({ color: '#ff0000' });
 
         expect(editor.innerHTML.toLowerCase()).toMatch(/color|ff0000|rgb\(255/);
+    });
+
+    // `savedRange` is captured on blur, so after clicking away and back it holds
+    // a COLLAPSED caret. A keyboard shortcut runs while the editor still holds a
+    // real selection; preferring the stale range there replaced that selection
+    // with an empty one, so `execCommand` no-opped, the caret jumped to the old
+    // click point, and only the toolbar toggle (computed separately) flipped.
+    it('formats the live selection, not a stale savedRange from the last blur', () => {
+        component.writeValue('<p>make me bold</p>');
+        fixture.detectChanges();
+        const p = editor.querySelector('p')!;
+
+        caretIn(p.firstChild as Text, 4);
+        component.onBlur();
+
+        selectContents(p);
+        component.onFormatCommand('bold');
+
+        expect(editor.querySelector('b, strong')?.textContent).toBe('make me bold');
+        expect(document.getSelection()?.toString()).toBe('make me bold');
     });
 
     it('applies a color using a savedRange when the live selection is collapsed elsewhere', () => {
@@ -2238,33 +4219,178 @@ describe('RichTextEditorComponent — toolbar actions (link, image, color, font)
         expect(span).toBeTruthy();
     });
 
-    it('emits a customToolbarAction with a working editor ref', () => {
-        component.writeValue('<p>ref</p>');
+    // Was pinned as spec correction C-15 (the CVA had no setDisabledState, so a
+    // reactive form's control.disable() never reached the editor). Fixed: the
+    // form's disabled state now lands in a private signal that is OR-ed with the
+    // public [disabled] input, so both paths work and neither overrides the
+    // other. These tests now assert the CORRECT behaviour.
+    it('honours a reactive form disabling the control through setDisabledState', () => {
+        const surface = component as unknown as Record<string, unknown>;
+        expect(typeof surface['setDisabledState']).toBe('function');
+
+        component.setDisabledState(true);
         fixture.detectChanges();
-        caretIn(editor.querySelector('p')!.firstChild as Text, 3);
 
-        let captured: {
-            id: string;
-            ref: {
-                insertText: (t: string) => void;
-                insertHtml: (h: string) => void;
-                focus: () => void;
-                getSelectedText: () => string;
-                getHtmlContent: () => string;
-            };
-        } | null = null;
-        component.customToolbarAction.subscribe(e => { captured = e as typeof captured; });
+        expect(component.isDisabled()).toBe(true);
+        expect(editor.getAttribute('contenteditable')).toBe('false');
+        expect(editor.getAttribute('aria-disabled')).toBe('true');
+    });
 
-        component.onCustomToolbarAction('my-action');
+    it('re-enables the editor when the form control is enabled again', () => {
+        component.setDisabledState(true);
+        fixture.detectChanges();
+        expect(editor.getAttribute('contenteditable')).toBe('false');
 
-        expect(captured).toBeTruthy();
-        expect(captured!.id).toBe('my-action');
-        captured!.ref.insertText('INJECTED');
-        expect(editor.textContent).toContain('INJECTED');
-        expect(captured!.ref.getHtmlContent()).toContain('ref');
-        expect(() => captured!.ref.insertHtml('<b>bold</b>')).not.toThrow();
-        expect(() => captured!.ref.focus()).not.toThrow();
-        expect(typeof captured!.ref.getSelectedText()).toBe('string');
+        component.setDisabledState(false);
+        fixture.detectChanges();
+
+        expect(component.isDisabled()).toBe(false);
+        expect(editor.getAttribute('contenteditable')).toBe('true');
+        expect(editor.getAttribute('aria-disabled')).toBe('false');
+    });
+
+    it('locks the editor through the [disabled] input, independently of the form', () => {
+        fixture.componentRef.setInput('disabled', true);
+        fixture.detectChanges();
+        expect(component.disabled()).toBe(true);
+        expect(component.isDisabled()).toBe(true);
+        expect(editor.getAttribute('contenteditable')).toBe('false');
+    });
+
+    it('keeps the [disabled] input and the form state independent — neither overrides the other', () => {
+        // Both true.
+        fixture.componentRef.setInput('disabled', true);
+        component.setDisabledState(true);
+        fixture.detectChanges();
+        expect(component.isDisabled()).toBe(true);
+
+        // Form enables, but the input still says disabled.
+        component.setDisabledState(false);
+        fixture.detectChanges();
+        expect(component.isDisabled()).toBe(true);
+        expect(editor.getAttribute('contenteditable')).toBe('false');
+
+        // Input enables, but the form still says disabled.
+        fixture.componentRef.setInput('disabled', false);
+        component.setDisabledState(true);
+        fixture.detectChanges();
+        expect(component.isDisabled()).toBe(true);
+        expect(editor.getAttribute('contenteditable')).toBe('false');
+
+        // Both false — only now is it editable. The public input echoes only
+        // itself, never the form's state.
+        component.setDisabledState(false);
+        fixture.detectChanges();
+        expect(component.disabled()).toBe(false);
+        expect(component.isDisabled()).toBe(false);
+        expect(editor.getAttribute('contenteditable')).toBe('true');
+    });
+
+    it('blocks toolbar commands while the form has disabled the control', () => {
+        component.writeValue('<p>plain</p>');
+        fixture.detectChanges();
+        selectContents(editor.querySelector('p')!);
+
+        component.setDisabledState(true);
+        fixture.detectChanges();
+
+        component.onFormatCommand('bold');
+        expect(editor.querySelector('strong')).toBeNull();
+        expect(editor.querySelector('b')).toBeNull();
+
+        component.onFloatingFormatCommand('italic');
+        expect(editor.querySelector('em')).toBeNull();
+        expect(editor.querySelector('i')).toBeNull();
+    });
+
+    it('swallows paste and drop while the form has disabled the control', async () => {
+        const pasteSeen = vi.fn().mockReturnValue(true);
+        const dropSeen = vi.fn().mockReturnValue(true);
+        component.registerPasteInterceptor(pasteSeen);
+        component.registerDropInterceptor(dropSeen);
+
+        const paste = new Event('paste') as ClipboardEvent;
+        Object.defineProperty(paste, 'clipboardData', {
+            value: { getData: () => 'pasted', types: ['text/plain'], files: [] },
+        });
+        const drop = new Event('drop') as DragEvent;
+        Object.defineProperty(drop, 'dataTransfer', {
+            value: { getData: () => 'dropped', types: ['text/plain'], files: [] },
+        });
+
+        component.onPaste(paste);
+        await component.onEditorDrop(drop);
+        expect(pasteSeen).toHaveBeenCalledTimes(1);
+        expect(dropSeen).toHaveBeenCalledTimes(1);
+
+        component.setDisabledState(true);
+        fixture.detectChanges();
+
+        component.onPaste(paste);
+        await component.onEditorDrop(drop);
+
+        expect(pasteSeen).toHaveBeenCalledTimes(1);
+        expect(dropSeen).toHaveBeenCalledTimes(1);
+    });
+
+    describe('customToolbarItems — a toolbar button from data', () => {
+        const slotButton = (id: string): HTMLButtonElement | null =>
+            fixture.nativeElement.querySelector(`button[data-addon-slot="${id}"]`);
+
+        it('renders each item as a toolbar button and tears it down when the array changes', () => {
+            fixture.componentRef.setInput('customToolbarItems', [
+                { id: 'stamp', icon: '📅', tooltip: 'Insert date' },
+                { id: 'sign', icon: '<svg></svg>', tooltip: 'Sign', order: 1 },
+            ]);
+            fixture.detectChanges();
+            expect(slotButton('stamp')).not.toBeNull();
+            expect(slotButton('sign')?.getAttribute('title') ?? slotButton('sign')?.getAttribute('aria-label')).toContain('Sign');
+
+            fixture.componentRef.setInput('customToolbarItems', []);
+            fixture.detectChanges();
+            expect(slotButton('stamp')).toBeNull();
+            expect(component.toolbarSlots.slots()).toHaveLength(0);
+        });
+
+        it('runs the item onClick with a ref whose insert records a history entry, and emits the action', () => {
+            component.writeValue('<p>ref</p>');
+            fixture.detectChanges();
+            setCaretAt(editor.querySelector('p')!.firstChild as Text, 3);
+            const seen: { id: string; ref: RichTextEditorRef }[] = [];
+            component.customToolbarAction.subscribe((e) => seen.push(e));
+            const clicks: string[] = [];
+            fixture.componentRef.setInput('customToolbarItems', [{
+                id: 'stamp', icon: '📅', tooltip: 'Insert date',
+                onClick: (ref: RichTextEditorRef) => { clicks.push(ref.getSelectedText()); ref.insertText('INJECTED'); },
+            }]);
+            fixture.detectChanges();
+
+            slotButton('stamp')!.click();
+            fixture.detectChanges();
+
+            expect(clicks).toEqual(['']);
+            expect(editor.textContent).toContain('INJECTED');
+            expect(seen).toHaveLength(1);
+            expect(seen[0].id).toBe('stamp');
+            expect(seen[0].ref.getHtmlContent()).toContain('INJECTED');
+
+            // The insert went through the editor, so undo steps back over it.
+            component.undo();
+            fixture.detectChanges();
+            expect(editor.textContent).not.toContain('INJECTED');
+        });
+
+        it('reflects isActive from the formats at the caret', () => {
+            component.writeValue('<p><b>bold</b></p>');
+            fixture.detectChanges();
+            fixture.componentRef.setInput('customToolbarItems', [{
+                id: 'shout', icon: 'S', tooltip: 'Shout', isActive: (formats: Set<string>) => formats.has('bold'),
+            }]);
+            fixture.detectChanges();
+            component.activeFormats.set(new Set(['bold']));
+            fixture.detectChanges();
+            expect(slotButton('shout')?.getAttribute('aria-pressed')).toBe('true');
+        });
     });
 });
 
@@ -2273,14 +4399,7 @@ describe('RichTextEditorComponent — floating toolbar', () => {
     let component: RichTextEditorComponent;
     let editor: HTMLDivElement;
 
-    const selectRange = (node: Node, start: number, end: number) => {
-        const selection = document.getSelection();
-        const range = document.createRange();
-        range.setStart(node, start);
-        range.setEnd(node, end);
-        selection?.removeAllRanges();
-        selection?.addRange(range);
-    };
+    const selectRange = (node: Node, start: number, end: number) => selectRangeIn(node, start, end);
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
@@ -2491,6 +4610,47 @@ describe('RichTextEditorComponent — tables', () => {
         editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
     });
 
+    it('ignores a menu action whose target was detached by an undo', () => {
+        // The menu stays open across Ctrl+Z (its own mousedown handler keeps the
+        // editor focused), and undo replaces innerHTML wholesale — so the stored
+        // target is a node that is no longer in the document. Acting on it
+        // mutates dead DOM and silently does nothing.
+        const table = seedTable();
+        const merged = table.querySelector<HTMLTableCellElement>('tbody td')!;
+        merged.colSpan = 2;
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        targetCell(merged);
+
+        editor.innerHTML = '<p>replaced</p>';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+
+        expect(merged.isConnected).toBe(false);
+        // The real defect: the stored target still reports as actionable and the
+        // action still mutates it, even though it is no longer in the document.
+        expect(component.canSplitCell()).toBe(false);
+        component.splitCell();
+        expect(merged.getAttribute('colspan')).toBe('2');
+    });
+
+    it('drops a multi-cell selection whose cells a header retag replaced', () => {
+        // Retagging td<->th REPLACES each cell element. The context-menu target
+        // is re-pointed to its replacement, but the multi-cell selection was
+        // left holding the old nodes, so the next cell action silently no-ops.
+        const table = seedTable();
+        // The toggle retags the table's FIRST row, so select the cells in it.
+        const headerCells = Array.from(table.querySelectorAll<HTMLTableCellElement>('tr:first-child th'));
+        component.tableCellSelected.set(headerCells);
+        targetCell(headerCells[0]);
+
+        component.toggleTableHeaderRow();
+
+        expect(table.querySelectorAll('th')).toHaveLength(0);
+
+        for (const cell of component.tableCellSelected()) {
+            expect(cell.isConnected).toBe(true);
+        }
+    });
+
     it('adds a row above the targeted cell', () => {
         const table = seedTable();
         const a1 = table.querySelector<HTMLTableCellElement>('tbody td')!;
@@ -2571,6 +4731,85 @@ describe('RichTextEditorComponent — tables', () => {
         component.deleteTable();
 
         expect(editor.querySelector('table')).toBeNull();
+    });
+
+    // The two tests below each call targetCell() first, so they never exercise
+    // a SECOND toggle against the target the first one left behind. Toggling
+    // replaces every cell in the row, detaching the element the context-menu
+    // target pointed at; the next call then found no `closest('table')`, bailed
+    // out silently, and the header could be turned on but never off again.
+    // Spreadsheet-style cell picking. Dragging selects cells AS TEXT, which
+    // wraps across row ends (a blue band spilling over the row above) and left
+    // it ambiguous what a following command would hit.
+    const cellMouseDown = (cell: HTMLTableCellElement, init: MouseEventInit) => {
+        cell.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0, ...init }));
+    };
+
+    it('Ctrl+click toggles individual cells and collapses the text selection', () => {
+        const table = seedTable();
+        const cells = Array.from(table.querySelectorAll('td'));
+
+        cellMouseDown(cells[0], { ctrlKey: true });
+        cellMouseDown(cells[3], { ctrlKey: true });
+
+        expect(component.tableCellSelected().map(c => c.textContent)).toEqual(['A1', 'B2']);
+        expect(document.getSelection()?.isCollapsed).toBe(true);
+
+        cellMouseDown(cells[0], { ctrlKey: true });
+        expect(component.tableCellSelected().map(c => c.textContent)).toEqual(['B2']);
+    });
+
+    it('Shift+click selects the rectangle from the anchor cell', () => {
+        const table = seedTable();
+        const cells = Array.from(table.querySelectorAll('td'));
+
+        cellMouseDown(cells[0], { ctrlKey: true });
+        cellMouseDown(cells[3], { shiftKey: true });
+
+        expect(component.tableCellSelected().map(c => c.textContent ?? '').sort((a, b) => a.localeCompare(b)))
+            .toEqual(['A1', 'A2', 'B1', 'B2']);
+    });
+
+    // The marker used to be `bg-primary/15`; a cell carrying its own inline
+    // background painted straight over it, so a coloured cell showed no sign of
+    // being selected at all.
+    it('marks a cell that has its own background colour', () => {
+        const table = seedTable();
+        const cell = table.querySelector('td')!;
+        cell.style.backgroundColor = '#fde68a';
+
+        cellMouseDown(cell, { ctrlKey: true });
+
+        expect(cell.classList.contains('rte-cell-selected')).toBe(true);
+        expect(cell.style.backgroundColor).toBe('rgb(253, 230, 138)');
+    });
+
+    it('applies an inline format to the selected cells only', () => {
+        const table = seedTable();
+        const cells = Array.from(table.querySelectorAll('td'));
+        cellMouseDown(cells[0], { ctrlKey: true });
+        cellMouseDown(cells[1], { ctrlKey: true });
+
+        component.onFormatCommand('bold');
+
+        expect(cells[0].querySelector('b, strong')).toBeTruthy();
+        expect(cells[1].querySelector('b, strong')).toBeTruthy();
+        expect(cells[2].querySelector('b, strong')).toBeNull();
+        expect(cells[3].querySelector('b, strong')).toBeNull();
+    });
+
+    it('toggles the header row off again without re-targeting the cell', () => {
+        editor.innerHTML = '<table><tbody><tr><td>c1</td><td>c2</td></tr><tr><td>d1</td><td>d2</td></tr></tbody></table>';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        const table = editor.querySelector('table')!;
+        targetCell(table.querySelector<HTMLTableCellElement>('td')!);
+
+        component.toggleTableHeaderRow();
+        expect(table.querySelectorAll('th')).toHaveLength(2);
+
+        component.toggleTableHeaderRow();
+        expect(table.querySelector('thead')).toBeNull();
+        expect(table.querySelectorAll('th')).toHaveLength(0);
     });
 
     it('toggles a header row off (thead cells become tbody td)', () => {
@@ -2697,6 +4936,7 @@ describe('RichTextEditorComponent — find and replace', () => {
         fixture = TestBed.createComponent(RichTextEditorComponent);
         component = fixture.componentInstance;
         fixture.componentRef.setInput('mode', 'html');
+        fixture.componentRef.setInput('findDebounceMs', 0);
         fixture.detectChanges();
         editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
         component.writeValue('<p>the cat sat on the cat mat</p>');
@@ -2714,7 +4954,8 @@ describe('RichTextEditorComponent — find and replace', () => {
 
         expect(component.findMatches()).toHaveLength(2);
         expect(component.findCurrentIndex()).toBe(0);
-        expect(editor.querySelectorAll('mark[data-find-match]')).toHaveLength(2);
+        expect(editor.querySelectorAll('mark[data-find-match]')).toHaveLength(0);
+        expect(component.findMatchCount()).toBe(2);
     });
 
     it('clears matches when the query is emptied', () => {
@@ -2723,7 +4964,7 @@ describe('RichTextEditorComponent — find and replace', () => {
 
         expect(component.findMatches()).toHaveLength(0);
         expect(component.findCurrentIndex()).toBe(-1);
-        expect(editor.querySelectorAll('mark[data-find-match]')).toHaveLength(0);
+        expect(component.findMatchCount()).toBe(0);
     });
 
     it('navigates matches with findNext (wrapping) and findPrevious', () => {
@@ -2809,6 +5050,485 @@ describe('RichTextEditorComponent — find and replace', () => {
         expect(component.findQuery()).toBe('');
         expect(component.findMatches()).toHaveLength(0);
         expect(editor.querySelectorAll('mark[data-find-match]')).toHaveLength(0);
+        expect(findRects(fixture)).toHaveLength(0);
+    });
+
+    // ── T-1…T-28: find & replace v2 ─────────────────────────────────────
+
+    /** Load `html` into the editor and settle the view. */
+    const load = (html: string) => {
+        component.writeValue(html);
+        fixture.detectChanges();
+    };
+
+    it('T-1 matches a phrase split by inline markup and counts it', () => {
+        load('<p>the <b>cat</b> sat on the <i>c</i>at mat</p>');
+
+        component.onFindQueryChange('cat');
+
+        expect(component.findMatchCount()).toBe(2);
+        expect(component.findMatches().map(r => r.toString())).toEqual(['cat', 'cat']);
+    });
+
+    it('T-2 does not match across block boundaries', () => {
+        load('<p>cat</p><p>alog</p>');
+
+        component.onFindQueryChange('catalog');
+
+        expect(component.findMatchCount()).toBe(0);
+    });
+
+    it('T-3 debounces the query and searches once after the last keystroke', () => {
+        vi.useFakeTimers();
+        try {
+            fixture.componentRef.setInput('findDebounceMs', 100);
+            fixture.detectChanges();
+
+            component.onFindQueryChange('c');
+            component.onFindQueryChange('ca');
+            component.onFindQueryChange('cat');
+            expect(component.findMatchCount()).toBe(0);
+
+            vi.advanceTimersByTime(100);
+            expect(component.findMatchCount()).toBe(2);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('T-4 findDebounceMs=0 searches synchronously', () => {
+        component.onFindQueryChange('cat');
+
+        expect(component.findMatchCount()).toBe(2);
+    });
+
+    it('T-5 counter renders "{current} of {total}", "No results", and empty', () => {
+        const counter = () =>
+            (fixture.nativeElement as HTMLElement)
+                .querySelector('[data-slot="rich-text-find-counter"]')
+                ?.textContent?.trim() ?? '';
+        component.openFindReplace(false);
+        fixture.detectChanges();
+        expect(counter()).toBe('');
+
+        component.onFindQueryChange('cat');
+        fixture.detectChanges();
+        expect(counter()).toBe('1 of 2');
+
+        component.onFindQueryChange('zebra');
+        fixture.detectChanges();
+        expect(counter()).toBe(component.resolvedLocale().findReplace.noResults);
+    });
+
+    it('T-6 counter is an aria-live polite region', () => {
+        component.openFindReplace(false);
+        fixture.detectChanges();
+
+        const counter = (fixture.nativeElement as HTMLElement)
+            .querySelector('[data-slot="rich-text-find-counter"]');
+
+        expect(counter?.getAttribute('aria-live')).toBe('polite');
+    });
+
+    it('T-7 highlights never enter the editor DOM, the form value or history', () => {
+        const seen: string[] = [];
+        component.registerOnChange(v => seen.push(v));
+        component.openFindReplace(false);
+        const before = component.historyVersion();
+
+        component.onFindQueryChange('cat');
+        fixture.detectChanges();
+
+        expect(editor.querySelectorAll('mark')).toHaveLength(0);
+        expect(editor.innerHTML).not.toContain('<mark');
+        expect(component.htmlOutput()).not.toContain('<mark');
+        expect(seen.some(v => v.includes('<mark'))).toBe(false);
+        expect(component.historyVersion()).toBe(before);
+    });
+
+    it('T-8 typing with the panel open keeps the form value mark-free and refreshes matches', () => {
+        const seen: string[] = [];
+        component.registerOnChange(v => seen.push(v));
+        component.openFindReplace(false);
+        component.onFindQueryChange('cat');
+        expect(component.findMatchCount()).toBe(2);
+
+        const p = editor.querySelector('p') as HTMLParagraphElement;
+        p.textContent = 'the cat sat on the cat mat and the cat ran';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        fixture.detectChanges();
+
+        expect(seen.at(-1)).not.toContain('<mark');
+        expect(component.findMatchCount()).toBe(3);
+    });
+
+    it('T-9 whole-word toggle limits matches to whole words (ASCII)', () => {
+        load('<p>cat category concat</p>');
+        component.onFindQueryChange('cat');
+        expect(component.findMatchCount()).toBe(3);
+
+        component.toggleFindWholeWord();
+
+        expect(component.findWholeWord()).toBe(true);
+        expect(component.findMatchCount()).toBe(1);
+    });
+
+    it('T-10 whole-word is Unicode-aware (Hebrew)', () => {
+        load('<p>שלום עולם</p>');
+        component.toggleFindWholeWord();
+
+        component.onFindQueryChange('שלום');
+
+        expect(component.findMatchCount()).toBe(1);
+    });
+
+    it('T-11 regex toggle matches patterns', () => {
+        load('<p>cat cot cart</p>');
+        component.toggleFindUseRegex();
+
+        component.onFindQueryChange('c.t');
+
+        expect(component.findUseRegex()).toBe(true);
+        expect(component.findMatchCount()).toBe(2);
+        expect(component.findMatches().map(r => r.toString())).toEqual(['cat', 'cot']);
+    });
+
+    it('T-12 invalid regex sets findRegexError, aria-invalid, no highlights, no throw', () => {
+        component.openFindReplace(false);
+        component.toggleFindUseRegex();
+
+        expect(() => component.onFindQueryChange('(')).not.toThrow();
+        fixture.detectChanges();
+
+        expect(component.findRegexError()).toBe(true);
+        expect(component.findMatchCount()).toBe(0);
+        expect(findRects(fixture)).toHaveLength(0);
+        const input = (fixture.nativeElement as HTMLElement)
+            .querySelector('[data-slot="rich-text-find-query"]');
+        expect(input?.getAttribute('aria-invalid')).toBe('true');
+        const counter = (fixture.nativeElement as HTMLElement)
+            .querySelector('[data-slot="rich-text-find-counter"]');
+        expect(counter?.textContent?.trim()).toBe(component.resolvedLocale().findReplace.invalidRegex);
+    });
+
+    it('T-13 zero-length regex matches are skipped and the search terminates', () => {
+        load('<p>aaa b</p>');
+        component.toggleFindUseRegex();
+
+        component.onFindQueryChange('a*');
+
+        expect(component.findMatchCount()).toBe(1);
+        expect(component.findMatches()[0].toString()).toBe('aaa');
+    });
+
+    // Bounded: advancing by a single UTF-16 unit lands mid-surrogate and the
+    // u-flag regex never terminates, so a regression here hangs rather than
+    // asserting. The timeout turns that into a fast failure.
+    it('T-13b zero-length regex matches advance by whole code points (astral text)', { timeout: 5000 }, () => {
+        load('<p>😀😁 ok</p>');
+        component.toggleFindUseRegex();
+
+        expect(() => component.onFindQueryChange('x*')).not.toThrow();
+
+        expect(component.findMatchCount()).toBe(0);
+    });
+
+    it('T-14 regex replace expands capture groups', () => {
+        load('<p>jane@acme</p>');
+        component.toggleFindUseRegex();
+        component.onFindQueryChange('(\\w+)@(\\w+)');
+        component.replaceText.set('$2 at $1');
+
+        component.replaceSingle();
+
+        expect(editor.textContent).toBe('acme at jane');
+    });
+
+    it('T-15 replace keeps surrounding inline formatting', () => {
+        load('<p>the <b>cat</b> sat</p>');
+        component.onFindQueryChange('cat');
+        component.replaceText.set('dog');
+
+        component.replaceSingle();
+
+        expect(editor.querySelector('b')?.textContent).toBe('dog');
+        expect(editor.textContent).toBe('the dog sat');
+    });
+
+    it('T-16 replace across a markup boundary lands at the match start and drops the emptied element', () => {
+        load('<p>the <b>ca</b>t sat</p>');
+        component.onFindQueryChange('cat');
+        component.replaceText.set('dog');
+
+        component.replaceSingle();
+
+        expect(editor.textContent).toBe('the dog sat');
+        expect(editor.querySelectorAll('b')).toHaveLength(0);
+    });
+
+    it('T-17 replaceAll flushes pending typing then records exactly one entry; one undo restores all', () => {
+        load('<p>cat cat cat cat cat</p>');
+        const p = editor.querySelector('p') as HTMLParagraphElement;
+        p.textContent = 'cat cat cat cat cat!';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        const beforeReplace = editor.textContent;
+
+        const entriesBefore = historyLength(component);
+        component.onFindQueryChange('cat');
+        component.replaceText.set('dog');
+        component.replaceAll();
+
+        expect(historyLength(component) - entriesBefore).toBe(2);
+        expect((editor.textContent ?? '').includes('cat')).toBe(false);
+
+        component.onKeydown(undoKey());
+
+        expect(editor.textContent).toBe(beforeReplace);
+    });
+
+    it('T-18 replaceSingle records one entry and advances to the next remaining match', () => {
+        load('<p>cat cat cat</p>');
+        component.onFindQueryChange('cat');
+        component.replaceText.set('dog');
+        const entriesBefore = historyLength(component);
+
+        component.replaceSingle();
+
+        expect(historyLength(component) - entriesBefore).toBe(1);
+        expect(component.findMatchCount()).toBe(2);
+        expect(component.findCurrentIndex()).toBe(0);
+        expect(editor.textContent).toBe('dog cat cat');
+    });
+
+    it('T-19 findNext/findPrevious wrap and scroll the editor to the current match', () => {
+        load('<p>cat</p>' + '<p>filler</p>'.repeat(40) + '<p>cat</p>');
+        editor.style.maxHeight = '60px';
+        editor.style.overflowY = 'auto';
+        component.onFindQueryChange('cat');
+        const before = editor.scrollTop;
+
+        component.findNext();
+
+        expect(component.findCurrentIndex()).toBe(1);
+        expect(editor.scrollTop).not.toBe(before);
+
+        component.findNext();
+        expect(component.findCurrentIndex()).toBe(0);
+    });
+
+    it('T-20 Enter in the replace input replaces; Mod+Alt+Enter replaces all; Escape closes', () => {
+        load('<p>cat cat</p>');
+        component.openFindReplace(true);
+        fixture.detectChanges();
+        component.onFindQueryChange('cat');
+        component.replaceText.set('dog');
+
+        const replaceInput = (fixture.nativeElement as HTMLElement)
+            .querySelector('[data-slot="rich-text-find-replace"]') as HTMLInputElement;
+        const enterOn = (target: EventTarget) => {
+            const ev = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+            Object.defineProperty(ev, 'target', { value: target });
+            return ev;
+        };
+        component.onFindReplaceKeydown(enterOn(replaceInput));
+        expect(editor.textContent).toBe('dog cat');
+
+        const all = new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, altKey: true, cancelable: true });
+        component.onFindReplaceKeydown(all);
+        expect((editor.textContent ?? '').includes('cat')).toBe(false);
+    });
+
+    it('T-21 openFindReplace seeds the query from a non-empty selection and leaves it alone when collapsed', () => {
+        load('<p>the cat sat</p>');
+        const textNode = (editor.querySelector('p') as HTMLElement).firstChild as Text;
+        const range = document.createRange();
+        range.setStart(textNode, 4);
+        range.setEnd(textNode, 7);
+        const selection = document.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        component.onSelectionChange();
+
+        component.openFindReplace(false);
+
+        expect(component.findQuery()).toBe('cat');
+        expect(component.findMatchCount()).toBe(1);
+
+        component.closeFindReplace();
+        component.onFindQueryChange('sat');
+        setCaretAt(textNode, 2);
+        component.onSelectionChange();
+        component.openFindReplace(false);
+
+        expect(component.findQuery()).toBe('sat');
+    });
+
+    it('T-22 closeFindReplace selects the current match and focuses the editor', () => {
+        component.onFindQueryChange('cat');
+        component.findNext();
+        expect(component.findCurrentIndex()).toBe(1);
+
+        component.closeFindReplace();
+
+        const selection = document.getSelection();
+        expect(selection?.rangeCount).toBe(1);
+        const selected = selection?.getRangeAt(0) as Range;
+        expect(selected.collapsed).toBe(false);
+        expect(selected.cloneContents().textContent).toBe('cat');
+        expect(document.activeElement).toBe(editor);
+    });
+
+    it("T-23 'find' toolbar item opens the panel (replace row when editable) and is absent from DEFAULT_TOOLBAR_ITEMS", () => {
+        expect(DEFAULT_TOOLBAR_ITEMS).not.toContain('find');
+
+        fixture.componentRef.setInput('toolbarItems', ['bold', 'find']);
+        fixture.detectChanges();
+
+        const button = (fixture.nativeElement as HTMLElement)
+            .querySelector<HTMLButtonElement>('[data-toolbar-item="find"]');
+        expect(button).not.toBeNull();
+
+        button?.click();
+        fixture.detectChanges();
+
+        expect(component.findReplaceVisible()).toBe(true);
+        expect(component.showReplaceRow()).toBe(true);
+    });
+
+    it('T-24 RTL: panel anchors at inline-end and uses the Hebrew counter string', () => {
+        fixture.componentRef.setInput('locale', 'he');
+        fixture.detectChanges();
+        component.openFindReplace(false);
+        component.onFindQueryChange('cat');
+        fixture.detectChanges();
+
+        const panel = (fixture.nativeElement as HTMLElement)
+            .querySelector('[data-slot="rich-text-find-panel"]') as HTMLElement;
+        expect(component.editorContainer?.nativeElement.getAttribute('dir')).toBe('rtl');
+
+        // Resolved logical positioning needs a cascade; jsdom has none, so the
+        // geometry half of this case is the Chromium leg's to prove.
+        if (!navigator.userAgent.includes('jsdom')) {
+            const style = getComputedStyle(panel);
+            expect(style.direction).toBe('rtl');
+            expect(style.insetInlineEnd).toBe(style.left);
+            expect(Number.parseFloat(style.insetInlineEnd)).toBeGreaterThan(0);
+        }
+
+        const counter = (fixture.nativeElement as HTMLElement)
+            .querySelector('[data-slot="rich-text-find-counter"]');
+        const expected = RICH_TEXT_LOCALES['he'].findReplace.matchCounter
+            .replace('{current}', '1')
+            .replace('{total}', '2');
+        expect(counter?.textContent?.trim()).toBe(expected);
+    });
+
+    it('T-25 readonly hides the replace row and ignores replace calls', () => {
+        fixture.componentRef.setInput('readonly', true);
+        fixture.detectChanges();
+
+        component.openFindReplace(true);
+        fixture.detectChanges();
+
+        expect(component.showReplaceRow()).toBe(false);
+        expect(
+            (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-find-replace"]'),
+        ).toBeNull();
+
+        component.onFindQueryChange('cat');
+        component.replaceText.set('dog');
+        component.replaceSingle();
+        component.replaceAll();
+
+        expect(editor.textContent).toBe('the cat sat on the cat mat');
+    });
+
+    it('T-26 toggle and nav buttons carry locale aria-labels and aria-pressed', () => {
+        component.openFindReplace(false);
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        const loc = component.resolvedLocale().findReplace;
+
+        const byLabel = (label: string) => root.querySelector<HTMLElement>(`[aria-label="${label}"]`);
+
+        expect(byLabel(loc.previous)).not.toBeNull();
+        expect(byLabel(loc.next)).not.toBeNull();
+        expect(byLabel(loc.close)).not.toBeNull();
+
+        for (const [label, toggle] of [
+            [loc.caseSensitive, () => component.toggleFindCaseSensitive()],
+            [loc.wholeWord, () => component.toggleFindWholeWord()],
+            [loc.useRegex, () => component.toggleFindUseRegex()],
+        ] as const) {
+            const el = byLabel(label);
+            expect(el?.getAttribute('aria-pressed')).toBe('false');
+            toggle();
+            fixture.detectChanges();
+            expect(byLabel(label)?.getAttribute('aria-pressed')).toBe('true');
+        }
+    });
+
+    it('T-27 matches inside mention/tag chips are neither counted nor replaced', () => {
+        load('<p>cat <span data-mention="1">cat</span> <span data-tag="x">cat</span></p>');
+
+        component.onFindQueryChange('cat');
+        expect(component.findMatchCount()).toBe(1);
+
+        component.replaceText.set('dog');
+        component.replaceAll();
+
+        expect(editor.querySelector('[data-mention]')?.textContent).toBe('cat');
+        expect(editor.querySelector('[data-tag]')?.textContent).toBe('cat');
+        expect(editor.textContent?.startsWith('dog')).toBe(true);
+    });
+
+    it('every locale supplies the new find & replace strings', () => {
+        const added = [
+            'wholeWord', 'useRegex', 'invalidRegex', 'matchCounter', 'previous', 'next',
+        ] as const;
+        const locales = Object.entries(RICH_TEXT_LOCALES);
+        expect(locales.length).toBeGreaterThanOrEqual(10);
+
+        for (const [name, locale] of locales) {
+            for (const key of added) {
+                expect(locale.findReplace[key], `${name}.findReplace.${key}`).toBeTruthy();
+                expect(locale.findReplace[key].trim(), `${name}.findReplace.${key}`).not.toBe('');
+            }
+            expect(locale.toolbar.find, `${name}.toolbar.find`).toBeTruthy();
+            expect(locale.findReplace.matchCounter, `${name}.matchCounter`).toContain('{current}');
+            expect(locale.findReplace.matchCounter, `${name}.matchCounter`).toContain('{total}');
+        }
+    });
+
+    it('T-28 a 2,000-match 500 KB document searches in < 500 ms and paints a capped number of rects', () => {
+        if (navigator.userAgent.includes('jsdom')) return;
+
+        const paragraph = `<p>${'cat '.repeat(20)}${'x'.repeat(230)}</p>`;
+        load(paragraph.repeat(100));
+
+        // Settle layout for the freshly written document first: the browser's
+        // one-time reflow of 500 KB of new content is the cost of loading it,
+        // not of searching it, and would otherwise be charged to the search.
+        component.openFindReplace(false);
+        expect(editor.scrollHeight).toBeGreaterThan(0);
+
+        // Best of three: the budget guards the algorithm, so a single sample
+        // that overruns it is machine contention, not a regression. A real
+        // regression (the pre-v2 quadratic search took seconds here) fails every
+        // sample. Measured 2026-09-11: ~125 ms alone, ~130 ms under coverage,
+        // 200-230 ms while the CLI coverage leg runs in parallel -- hence 500.
+        let best = Number.POSITIVE_INFINITY;
+        for (let run = 0; run < 3; run++) {
+            const started = performance.now();
+            component.onFindQueryChange(run % 2 === 0 ? 'cat' : 'cat ');
+            best = Math.min(best, performance.now() - started);
+        }
+        component.onFindQueryChange('cat');
+
+        expect(component.findMatchCount()).toBe(2000);
+        expect(best).toBeLessThan(500);
+        fixture.detectChanges();
+        expect(findRects(fixture).length).toBeLessThanOrEqual(FIND_MAX_PAINTED_RECTS);
     });
 });
 
@@ -2849,6 +5569,26 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         expect(editor.querySelector('li > ul')).toBeNull();
     });
 
+    it("Tab keeps the caret where the author left it in a task row", () => {
+        // Indent re-parents the item, which drops the caret onto the editor
+        // container unless it is carried across. Measured and restored through
+        // the line, so the row's structure is never part of the offset.
+        component.writeValue('<ul data-task-list="">'
+            + '<li data-task="" data-checked="false"><input type="checkbox"><span>first</span></li>'
+            + '<li data-task="" data-checked="false"><input type="checkbox"><span>second</span></li>'
+            + '</ul>');
+        fixture.detectChanges();
+        const rows = editor.querySelectorAll('li[data-task] > span');
+        caretIn(rows[1].firstChild as Text, 3);
+
+        component.onKeydown(tabKey());
+
+        const nested = editor.querySelector('li > ul > li[data-task] > span')!;
+        expect(nested.textContent).toBe('second');
+        expect(nested.contains(document.getSelection()?.anchorNode ?? null)).toBe(true);
+        expect(document.getSelection()?.anchorOffset).toBe(3);
+    });
+
     it('Tab outside a list inserts a tab character', () => {
         component.writeValue('<p>indent</p>');
         fixture.detectChanges();
@@ -2872,6 +5612,923 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         expect(editor.querySelectorAll('li[data-task]')).toHaveLength(2);
     });
 
+    const twoTasks = () => component.writeValue(
+        '<ul data-task-list=""><li data-task="" data-checked="true"><input type="checkbox"><span>first</span></li>'
+        + '<li data-task="" data-checked="false"><input type="checkbox"><span>second</span></li></ul>');
+    const taskSpans = () => Array.from(editor.querySelectorAll<HTMLElement>('li[data-task] > span'));
+    const caretNode = () => document.getSelection()?.anchorNode ?? null;
+
+    it('moves a caret that landed before a task checkbox into the row\'s text on selection change', () => {
+        // ArrowUp from the row below stops before the checkbox; anything typed
+        // there sat before the box, and Backspace there deleted the box.
+        twoTasks();
+        fixture.detectChanges();
+        const li = editor.querySelectorAll('li[data-task]')[1];
+        caretIn(li, 0);
+
+        component.onSelectionChange();
+
+        const span = taskSpans()[1];
+        expect(span.contains(caretNode())).toBe(true);
+        expect(document.getSelection()?.anchorOffset).toBe(0);
+    });
+
+    it('moves a caret between the checkbox and the text into the text before a key is handled', () => {
+        twoTasks();
+        fixture.detectChanges();
+        const li = editor.querySelectorAll('li[data-task]')[0];
+        caretIn(li, 1);
+
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'a', bubbles: true, cancelable: true }));
+
+        expect(taskSpans()[0].contains(caretNode())).toBe(true);
+    });
+
+    it('moves a caret after the text span to the end of the text', () => {
+        twoTasks();
+        fixture.detectChanges();
+        const li = editor.querySelectorAll('li[data-task]')[0];
+        caretIn(li, li.childNodes.length);
+
+        component.onSelectionChange();
+
+        expect(taskSpans()[0].contains(caretNode())).toBe(true);
+        expect(document.getSelection()?.anchorOffset).toBe('first'.length);
+    });
+
+    it('ArrowUp from the start of a task row reaches the row above in one press', () => {
+        // The position before the checkbox counted as a line of its own, so
+        // one press stopped there and a second was needed.
+        twoTasks();
+        fixture.detectChanges();
+        editor.focus();
+        caretIn(taskSpans()[1].firstChild as Text, 0);
+
+        const ev = new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true });
+        component.onKeydown(ev);
+
+        expect(ev.defaultPrevented).toBe(true);
+        expect(taskSpans()[0].contains(caretNode())).toBe(true);
+    });
+
+    it('ArrowDown from a task row lands in the text of the row below', () => {
+        twoTasks();
+        fixture.detectChanges();
+        editor.focus();
+        caretIn(taskSpans()[0].firstChild as Text, 0);
+
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+
+        expect(taskSpans()[1].contains(caretNode())).toBe(true);
+    });
+
+    it('ArrowUp from the first task row leaves the list for the block above', () => {
+        component.writeValue(
+            '<p>above</p><ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox"><span>only</span></li></ul>');
+        fixture.detectChanges();
+        editor.focus();
+        caretIn(taskSpans()[0].firstChild as Text, 0);
+
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));
+
+        expect(editor.querySelector('p')!.contains(caretNode())).toBe(true);
+    });
+
+    const backspace = () => new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true });
+    const del = () => new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true });
+    const row = (checked: boolean, inner: string) =>
+        `<li data-task="" data-checked="${checked}"><input type="checkbox">${inner}</li>`;
+
+    it('Backspace after an image at the start of a task row deletes the image, not the row', () => {
+        // Range.toString() renders <img> as '', so the caret after one read as
+        // "at the start of the row" and the rows were joined instead.
+        component.writeValue('<ul data-task-list="">'
+            + row(false, '<span>first</span>')
+            + row(false, '<span><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=">text</span>')
+            + '</ul>');
+        fixture.detectChanges();
+        const text = editor.querySelectorAll('li[data-task] > span')[1].lastChild as Text;
+        caretIn(text, 0);
+
+        const ev = backspace();
+        component.onKeydown(ev);
+
+        expect(ev.defaultPrevented).toBe(false);
+        expect(editor.querySelectorAll('li[data-task]')).toHaveLength(2);
+    });
+
+    it('Backspace after a line break in a task row is left to the browser', () => {
+        component.writeValue('<ul data-task-list="">'
+            + row(false, '<span>first</span>')
+            + row(false, '<span><br>two</span>')
+            + '</ul>');
+        fixture.detectChanges();
+        const text = editor.querySelectorAll('li[data-task] > span')[1].lastChild as Text;
+        caretIn(text, 0);
+
+        const ev = backspace();
+        component.onKeydown(ev);
+
+        expect(ev.defaultPrevented).toBe(false);
+        expect(editor.querySelectorAll('li[data-task]')).toHaveLength(2);
+    });
+
+    it('Delete at the end of a row pulls up its own nested row, not the row after the list', () => {
+        // The nested list renders between the row and its next sibling, so the
+        // sibling used to jump the queue and the document order changed.
+        component.writeValue('<ul data-task-list="">'
+            + row(false, '<span>parent</span><ul data-task-list="">' + row(false, '<span>child</span>') + '</ul>')
+            + row(false, '<span>after</span>')
+            + '</ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 'parent'.length);
+
+        component.onKeydown(del());
+
+        expect(Array.from(editor.querySelectorAll<HTMLElement>('li[data-task] > span')).map(s => s.textContent))
+            .toEqual(['parentchild', 'after']);
+        expect(editor.querySelector('li[data-task] ul')).toBeNull();
+    });
+
+    it('Delete at the end of a row pulls up a plain nested item, not the row after the list', () => {
+        // The row below is a child-position question, not an li[data-task]
+        // search: a plain nested item was skipped and the sibling jumped up.
+        component.writeValue('<ul data-task-list="">'
+            + row(false, '<span>parent</span><ul><li>plain</li></ul>')
+            + row(false, '<span>after</span>')
+            + '</ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 'parent'.length);
+
+        component.onKeydown(del());
+
+        expect(editor.querySelector('li[data-task] > span')?.textContent).toBe('parentplain');
+        expect(editor.querySelectorAll('li[data-task] > span')[1]?.textContent).toBe('after');
+        expect(editor.querySelector('li[data-task] ul')).toBeNull();
+    });
+
+    it('Delete never reaches past the item below it to a later task row', () => {
+        // querySelector returns the first matching DESCENDANT, so a nested list
+        // whose first item was plain handed back a row two positions down.
+        component.writeValue('<ul data-task-list="">'
+            + row(false, '<span>parent</span><ul data-task-list=""><li>plain</li>'
+                + row(false, '<span>second</span>') + '</ul>')
+            + '</ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 'parent'.length);
+
+        component.onKeydown(del());
+
+        expect(editor.querySelector('li[data-task] > span')?.textContent).toBe('parentplain');
+        expect(editor.textContent).toContain('second');
+    });
+
+    it("Delete pulls up only the line below it, leaving that line's own sublist a list", () => {
+        // A nested list is not part of a line's text; moving it into the span
+        // would bury a whole sub-tree inside one row's text.
+        component.writeValue('<ul data-task-list="">'
+            + row(false, '<span>parent</span><ul><li>plain<ul><li>deep</li></ul></li></ul>')
+            + '</ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 'parent'.length);
+
+        component.onKeydown(del());
+
+        const span = editor.querySelector('li[data-task] > span')!;
+        expect(span.textContent).toBe('parentplain');
+        expect(span.querySelector('ul, li')).toBeNull();
+        expect(editor.querySelector('li[data-task] > ul > li')?.textContent).toBe('deep');
+    });
+
+    it('Backspace joins the line visually above, the deepest item of a sublist included', () => {
+        // The line above "task" is "sub", not "plain": a sub-list renders
+        // between an item and its next sibling. The earlier rule skipped the
+        // sub-list and joined the item at the same level, which is the one
+        // behaviour this round deliberately changed.
+        // Two lists: every item of a task list is a task row, so a plain item
+        // with a sub-list sits in a plain list above the task list.
+        component.writeValue('<ul><li>plain<ul><li>sub</li></ul></li></ul>'
+            + '<ul data-task-list="">' + row(false, '<span>task</span>') + '</ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 0);
+
+        component.onKeydown(backspace());
+
+        const items = Array.from(editor.querySelectorAll('li'));
+        expect(items).toHaveLength(2);
+        expect(items[0].firstChild?.textContent).toBe('plain');
+        expect(items[1].textContent).toBe('subtask');
+        expect(editor.querySelector('li[data-task]')).toBeNull();
+    });
+
+    it('Backspace at the start of the first row of a nested list joins the row it is nested under', () => {
+        // It used to take the "first row" path and drop a <p> inside the <li>.
+        component.writeValue('<ul data-task-list="">'
+            + row(false, '<span>parent</span><ul data-task-list="">'
+                + row(false, '<span>child</span>') + row(false, '<span>sibling</span>') + '</ul>')
+            + '</ul>');
+        fixture.detectChanges();
+        const childSpan = editor.querySelectorAll('li[data-task] > span')[1];
+        caretIn(childSpan.firstChild as Text, 0);
+
+        component.onKeydown(backspace());
+
+        expect(editor.querySelector('li p')).toBeNull();
+        expect(Array.from(editor.querySelectorAll<HTMLElement>('li[data-task] > span')).map(s => s.textContent))
+            .toEqual(['parentchild', 'sibling']);
+    });
+
+    it('Backspace never joins a list item into the cell or the code block above it', () => {
+        // Document order made the cell above the list the item's neighbour, so
+        // the join ate the whole list into the cell. Prose joins to prose only.
+        for (const before of [
+            '<table><tbody><tr><td>cell</td></tr></tbody></table>',
+            '<pre><code>x</code></pre>',
+        ]) {
+            component.writeValue(before + '<ul><li>item</li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('li')!.firstChild as Text, 0);
+
+            const ev = backspace();
+            component.onKeydown(ev);
+
+            expect(ev.defaultPrevented, before).toBe(false);
+            expect(editor.querySelector('li')?.textContent, before).toBe('item');
+            expect(editor.querySelector('td, pre'), before).not.toBeNull();
+        }
+    });
+
+    it('Delete never pulls a cell or a code block into the list item above it', () => {
+        for (const after of [
+            '<table><tbody><tr><td>cell</td></tr></tbody></table>',
+            '<pre><code>x</code></pre>',
+        ]) {
+            component.writeValue('<ul><li>item</li></ul>' + after);
+            fixture.detectChanges();
+            caretIn(editor.querySelector('li')!.firstChild as Text, 4);
+
+            const ev = del();
+            component.onKeydown(ev);
+
+            expect(ev.defaultPrevented, after).toBe(false);
+            expect(editor.querySelector('li')?.textContent, after).toBe('item');
+            expect(editor.querySelector('td, pre'), after).not.toBeNull();
+            expect(editor.querySelector('li code'), after).toBeNull();
+        }
+    });
+
+    it('a join keeps an image on the line it joins onto', () => {
+        // moveLineText tested the target's TEXT to decide whether it held only
+        // padding, and a line holding an image has no text, so every node was
+        // cleared and the image went. That is what lineIsEmpty is for.
+        component.writeValue('<ul data-task-list="">'
+            + '<li data-task="" data-checked="false"><input type="checkbox"><span>'
+            + '<img src="data:image/gif;base64,R0lGODlhAQABAAAAACw="></span></li>'
+            + row(false, '<span>text</span>')
+            + '</ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelectorAll('li[data-task] > span')[1].firstChild as Text, 0);
+
+        component.onKeydown(backspace());
+
+        expect(editor.querySelectorAll('img')).toHaveLength(1);
+        expect(editor.querySelector('li[data-task] > span')?.textContent).toBe('text');
+    });
+
+    it('a join onto a plain paragraph keeps its image too', () => {
+        component.writeValue('<p><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw="></p><ul><li>text</li></ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li')!.firstChild as Text, 0);
+
+        component.onKeydown(backspace());
+
+        expect(editor.querySelectorAll('img')).toHaveLength(1);
+        expect(editor.querySelector('p')?.textContent).toBe('text');
+    });
+
+    it('the code block toggle stands down rather than drop what is not text', () => {
+        // It built the block from the line's text, so an image on that line was
+        // dropped and toggling back could not bring it back.
+        component.writeValue('<p>before<img src="data:image/gif;base64,R0lGODlhAQABAAAAACw="></p>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('p')!.firstChild as Text, 3);
+
+        component.onFormatCommand('codeBlock');
+
+        expect(editor.querySelector('pre')).toBeNull();
+        expect(editor.querySelectorAll('img')).toHaveLength(1);
+        expect(editor.querySelector('p')?.textContent).toBe('before');
+    });
+
+    it('the task list toggle never nests a block inside a row span', () => {
+        // A row keeps its text in an inline span that every line rule relies
+        // on; a block in there made the row a line and the block a line, so the
+        // same text belonged to two lines at once.
+        component.writeValue('<ul><li><h1>Title</h1></li></ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('h1')!.firstChild as Text, 1);
+
+        component.onFormatCommand('taskList');
+
+        const span = editor.querySelector('li[data-task] > span')!;
+        expect(span.querySelector('h1, p, div, blockquote')).toBeNull();
+        expect(span.textContent).toBe('Title');
+    });
+
+    it('Quote on a task row takes the row out into a quote holding its text', () => {
+        // Found by the property matrix as a hang: quoting built the quote inside
+        // the row, and the sanitizer looped on it. After that fix the quote still
+        // sat before the checkbox and was gone on reload, so the row now leaves
+        // its list as a quote, which a save keeps.
+        component.writeValue('<ul data-task-list=""><li data-task="" data-checked="false">'
+            + '<input type="checkbox"><span>first</span></li></ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 1);
+
+        component.onFormatCommand('blockquote');
+        fixture.detectChanges();
+
+        expect(editor.querySelector('li[data-task], ul')).toBeNull();
+        expect(editor.querySelector('blockquote > p')?.textContent).toBe('first');
+    });
+
+    it('a heading on a details summary keeps the summary', () => {
+        // Re-tagging the element destroyed the disclosure's label and turned
+        // its text into hidden body content.
+        component.writeValue('<details><summary>head</summary><p>body</p></details>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('summary')!.firstChild as Text, 2);
+
+        component.onFormatCommand('heading1');
+
+        expect(editor.querySelector('details > summary')).not.toBeNull();
+        expect(editor.querySelector('details > summary')?.textContent).toBe('head');
+        expect(editor.querySelector('details > h1')).toBeNull();
+    });
+
+    it('a heading leaves a list item as it is, rather than building a block markdown cannot carry', () => {
+        // Chrome's formatBlock wrapped the whole <ul> in the heading, so this
+        // became editor-owned. Putting the heading INSIDE the item was the
+        // first attempt, and a heading in a list item survives no save: the
+        // markdown writer emits "- # Title" and the reader brings it back as
+        // literal text. The item keeps its own tag instead.
+        component.writeValue('<ul><li>one</li><li>two</li></ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li')!.firstChild as Text, 1);
+
+        component.onFormatCommand('heading1');
+
+        expect(editor.querySelectorAll('li')).toHaveLength(2);
+        expect(editor.querySelector('h1')).toBeNull();
+        expect(editor.querySelector('li')?.textContent).toBe('one');
+        expect(editor.querySelector('ul')).not.toBeNull();
+    });
+
+    it('a heading leaves a task row alone rather than burying a block in its span', () => {
+        // Forcing one in produced a row with no heading and a paragraph inside
+        // the span the rest of the editor relies on.
+        component.writeValue('<ul data-task-list=""><li data-task="" data-checked="false">'
+            + '<input type="checkbox"><span>todo</span></li></ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 2);
+
+        component.onFormatCommand('heading1');
+
+        const row = editor.querySelector('li[data-task]')!;
+        expect(Array.from(row.children).map(el => el.tagName)).toEqual(['INPUT', 'SPAN']);
+        expect(row.querySelector('span > p')).toBeNull();
+        expect(row.querySelector('h1')).toBeNull();
+        expect(row.querySelector(':scope > span')?.textContent).toBe('todo');
+    });
+
+    const textStyleSelect = (): HTMLSelectElement =>
+        (fixture.nativeElement as HTMLElement).querySelector<HTMLSelectElement>('[data-slot="rich-text-toolbar-text-style"]')!;
+
+    /** Put the caret in `selector`'s text, or select from it to the end of `endSelector`'s. */
+    const placeForTextStyle = (selector: string, endSelector?: string): void => {
+        const start = editor.querySelector(selector)!.firstChild!;
+        if (!endSelector) {
+            caretIn(start, 1);
+        } else {
+            const end = editor.querySelector(endSelector)!.firstChild!;
+            const range = document.createRange();
+            range.setStart(start, 0);
+            range.setEnd(end, (end.textContent ?? '').length);
+            const selection = document.getSelection()!;
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+        component.onSelectionChange();
+        fixture.detectChanges();
+    };
+
+    // The select used to accept a pick the editor then ignored, and kept
+    // showing that heading over normal text. It is disabled wherever the
+    // command would change nothing, by the command's own rule.
+    it.each([
+        ['a paragraph', '<p>text</p>', 'p', true],
+        ['a heading', '<h2>text</h2>', 'h2', true],
+        ['a task row', '<ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox"><span>text</span></li></ul>', 'li[data-task] > span', false],
+        ['a list item', '<ul><li>text</li></ul>', 'li', false],
+        ['a paragraph inside a list item', '<ul><li><p>text</p></li></ul>', 'li > p', false],
+        ['a table cell', '<table><tbody><tr><td>text</td></tr></tbody></table>', 'td', false],
+        ['a summary', '<details><summary>text</summary><p>body</p></details>', 'summary', false],
+        ['a code block', '<pre><code>text</code></pre>', 'code', false],
+    ] as const)('the text style select is enabled in %s exactly when a heading applies there', (_name, html, selector, applies) => {
+        component.writeValue(html);
+        fixture.detectChanges();
+        placeForTextStyle(selector);
+        const available = component.textStyleAvailable();
+        const disabled = textStyleSelect().disabled;
+        const before = editor.innerHTML;
+
+        component.onFormatCommand('heading1');
+
+        expect(available).toBe(applies);
+        expect(disabled).toBe(!applies);
+        expect(editor.innerHTML !== before).toBe(applies);
+    });
+
+    // Not a list of answers: whatever the command does in each of these, the
+    // select must say the same, so the indicator cannot drift from the rule.
+    it.each([
+        ['a quoted paragraph', '<blockquote><p>text</p></blockquote>', 'blockquote p', undefined],
+        ['a nested list item', '<ul><li>top<ul><li>text</li></ul></li></ul>', 'li li', undefined],
+        ['a heading inside a cell', '<table><tbody><tr><td><h2>text</h2></td></tr></tbody></table>', 'td h2', undefined],
+        ['a paragraph in a details body', '<details><summary>head</summary><p>text</p></details>', 'details > p', undefined],
+        ['a selection from a paragraph into a list', '<p>text</p><ul><li>item</li></ul>', 'p', 'li'],
+        ['a selection from a list into a paragraph', '<ul><li>text</li></ul><p>after</p>', 'li', 'p'],
+    ] as const)('the text style select agrees with the heading command in %s', (_name, html, selector, endSelector) => {
+        component.writeValue(html);
+        fixture.detectChanges();
+        placeForTextStyle(selector, endSelector);
+        const available = component.textStyleAvailable();
+        const before = editor.innerHTML;
+
+        component.onFormatCommand('heading1');
+
+        expect(available).toBe(editor.innerHTML !== before);
+    });
+
+    it('the text style select shows the heading a pick applied', () => {
+        component.writeValue('<p>text</p>');
+        fixture.detectChanges();
+        placeForTextStyle('p');
+        const select = textStyleSelect();
+
+        select.value = 'heading1';
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        fixture.detectChanges();
+
+        expect(editor.querySelector('h1')?.textContent).toBe('text');
+        expect(select.value).toBe('heading1');
+    });
+
+    it('after a task row the select is back on normal text, and a heading on the next paragraph applies', () => {
+        // The reported sequence: the select stuck on a heading after a task
+        // row, and picking that heading on a real paragraph then did nothing.
+        component.writeValue('<ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox">'
+            + '<span>todo</span></li></ul><p>text</p>');
+        fixture.detectChanges();
+        placeForTextStyle('li[data-task] > span');
+        const select = textStyleSelect();
+        expect(select.disabled).toBe(true);
+        expect(select.value).toBe('paragraph');
+
+        placeForTextStyle('p');
+        expect(select.disabled).toBe(false);
+        expect(select.value).toBe('paragraph');
+
+        select.value = 'heading1';
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        fixture.detectChanges();
+        expect(editor.querySelector('h1')?.textContent).toBe('text');
+    });
+
+    it('Delete into a line that has a sub-list puts the text above that list', () => {
+        // With a task row the holder is the span and the sub-list is outside
+        // it, so the insertion point never mattered. With a plain item the
+        // holder IS the item, and appending put the joined text below the list.
+        // Two nested items, so the sub-list SURVIVES the join. With one item
+        // the list is removed as empty and the insertion point cannot matter,
+        // which is what made the first version of this test pass either way.
+        component.writeValue('<ul><li>parent<ul><li>child</li><li>second</li></ul></li></ul>');
+        fixture.detectChanges();
+        const parent = editor.querySelector('li')!;
+        caretIn(parent.firstChild as Text, 'parent'.length);
+
+        component.onKeydown(del());
+
+        const item = editor.querySelector('li')!;
+        expect(Array.from(item.childNodes).map(n => n.nodeName + ':' + n.textContent))
+            .toEqual(['#text:parent', '#text:child', 'UL:second']);
+        expect(item.querySelector('ul > li')?.textContent).toBe('second');
+    });
+
+    it('a block command on stray text inside a list item gives that text a line and leaves the item whole', () => {
+        // Reachable by editing rather than by writeValue, which sanitizes: the
+        // shape is what the browser leaves behind when it splits a block inside
+        // an item. Wrapping the editor's own child instead moved the whole list
+        // into the new block.
+        component.writeValue('<ul><li>placeholder</li></ul>');
+        fixture.detectChanges();
+        const item = editor.querySelector('li')!;
+        item.innerHTML = 'stray<p>para</p>';
+        caretIn(item.firstChild as Text, 2);
+
+        component.onFormatCommand('codeBlock');
+
+        // The item holds two lines now, so a code block has no single item to
+        // take out; the command stands down rather than burying one in it.
+        expect(editor.querySelector('p > ul')).toBeNull();
+        expect(editor.querySelector('pre')).toBeNull();
+        expect(Array.from(editor.querySelectorAll('li > p')).map((p) => p.textContent)).toEqual(['stray', 'para']);
+    });
+
+    it('a block command on stray text in a div never wraps the div', () => {
+        // Resolving the second boundary AFTER wrapping the first found no line
+        // for the div, because the wrap had moved the boundary onto it.
+        component.writeValue('<div>stray<p>para</p></div>');
+        fixture.detectChanges();
+        const stray = editor.querySelector('div > p')!;
+        caretIn(stray.firstChild as Text, 2);
+
+        component.onFormatCommand('codeBlock');
+
+        expect(editor.querySelector('p > div')).toBeNull();
+        expect(editor.querySelector('div > pre code')?.textContent).toBe('stray');
+        expect(editor.textContent).toContain('para');
+    });
+
+    it('a block command on an item that also holds a block keeps every line in it', () => {
+        // The item is a container, so its own text had no line; the command
+        // walked out to the editor's child and wrapped the whole list. The item
+        // holds two lines, so a code block has no single item to take out and
+        // the command now stands down, leaving both lines where they were.
+        component.writeValue('<ul><li>outer<blockquote><p>deep</p></blockquote></li></ul>');
+        fixture.detectChanges();
+        // The sanitizer gives the item's own text a line on the way in.
+        const outer = editor.querySelector('li > p')!;
+        caretIn(outer.firstChild as Text, 2);
+
+        component.onFormatCommand('codeBlock');
+
+        expect(editor.querySelector('pre')).toBeNull();
+        expect(editor.querySelector('li > p')?.textContent).toBe('outer');
+        expect(editor.querySelector('li > blockquote p')?.textContent).toBe('deep');
+        expect(editor.querySelectorAll('li')).toHaveLength(1);
+    });
+
+    it('Heading on an item that also holds a block never wraps the list in the heading', () => {
+        component.writeValue('<ul><li>outer<blockquote><p>deep</p></blockquote></li></ul>');
+        fixture.detectChanges();
+        const outer = editor.querySelector('li > p')!;
+        caretIn(outer.firstChild as Text, 2);
+
+        component.onFormatCommand('heading1');
+
+        expect(editor.querySelector('h1 ul')).toBeNull();
+        expect(editor.querySelector('h1 li')).toBeNull();
+        expect(editor.textContent).toContain('deep');
+    });
+
+    it('a checkbox inside the line text is not dropped by a join', () => {
+        // Excluding every INPUT by tag deleted a checkbox the author had put in
+        // the text; only the row's own direct-child box is structural.
+        component.writeValue('<ul data-task-list="">'
+            + row(false, '<span>first</span>')
+            + row(false, '<span>mid<input type="checkbox">end</span>')
+            + '</ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelectorAll('li[data-task] > span')[1].firstChild as Text, 0);
+
+        component.onKeydown(backspace());
+
+        const joined = editor.querySelector('li[data-task] > span')!;
+        expect(joined.textContent).toBe('firstmidend');
+        expect(joined.querySelectorAll('input')).toHaveLength(1);
+    });
+
+    it('Delete on the last row of a nested list pulls up the row after that list', () => {
+        // rowBelow looked only at the row's own sublist and its next sibling,
+        // so a row last in its list had no line below even though one shows.
+        component.writeValue('<ul data-task-list="">'
+            + row(false, '<span>parent</span><ul data-task-list="">' + row(false, '<span>child</span>') + '</ul>')
+            + row(false, '<span>after</span>')
+            + '</ul>');
+        fixture.detectChanges();
+        const child = editor.querySelectorAll('li[data-task] > span')[1];
+        caretIn(child.firstChild as Text, 'child'.length);
+
+        const ev = del();
+        component.onKeydown(ev);
+
+        expect(ev.defaultPrevented).toBe(true);
+        expect(Array.from(editor.querySelectorAll<HTMLElement>('li[data-task] > span')).map(s => s.textContent))
+            .toEqual(['parent', 'childafter']);
+    });
+
+    it('Backspace never puts text directly inside a list', () => {
+        // previousElementSibling was taken without checking it was an item, so
+        // a list that was a sibling of the row became the join target.
+        component.writeValue('<ul data-task-list=""><li>plain</li><ul><li>sub</li></ul>'
+            + row(false, '<span>task</span>') + '</ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 0);
+
+        component.onKeydown(backspace());
+
+        for (const list of Array.from(editor.querySelectorAll('ul, ol'))) {
+            const strayText = Array.from(list.childNodes)
+                .filter(node => node.nodeType === Node.TEXT_NODE && (node.textContent ?? '').trim() !== '');
+            expect(strayText).toHaveLength(0);
+        }
+        expect(editor.textContent).toContain('subtask');
+    });
+
+    it('Backspace in the only, empty task row leaves an empty paragraph', () => {
+        component.writeValue('<ul data-task-list="">' + row(false, '<span>​</span>') + '</ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 1);
+
+        component.onKeydown(backspace());
+
+        expect(editor.querySelector('ul')).toBeNull();
+        expect(editor.querySelector('p')?.innerHTML).toBe('<br>');
+        expect(editor.textContent).toBe('');
+    });
+
+    it('ArrowDown inside a wrapped task row moves one visual line, not two', () => {
+        // The repeat was keyed on "still in the same row", which is exactly
+        // where a row wrapping over several lines legitimately stays.
+        editor.style.width = '150px';
+        component.writeValue('<ul data-task-list="">'
+            + row(false, '<span>alpha bravo charlie delta echo foxtrot golf hotel india juliet</span>') + '</ul>');
+        fixture.detectChanges();
+        editor.focus();
+        const text = editor.querySelector('li[data-task] > span')!.firstChild as Text;
+        const topAt = (offset: number) => {
+            const probe = document.createRange();
+            probe.setStart(text, offset);
+            probe.setEnd(text, Math.min(offset + 1, text.data.length));
+            return Math.round(probe.getBoundingClientRect().top);
+        };
+        const lines = [...new Set(Array.from({ length: text.data.length }, (_, i) => topAt(i)))].sort((a, b) => a - b);
+        expect(lines.length).toBeGreaterThan(2);
+        caretIn(text, 0);
+
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+
+        const sel = document.getSelection()!;
+        expect(sel.anchorNode).toBe(text);
+        expect(topAt(sel.anchorOffset)).toBe(lines[1]);
+    });
+
+    it('leaves a caret in a list nested under a task row alone', () => {
+        component.writeValue(
+            '<ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox"><span>parent</span>'
+            + '<ul><li>child</li></ul></li></ul>');
+        fixture.detectChanges();
+        const child = editor.querySelector('li li')!.firstChild as Text;
+        caretIn(child, 2);
+
+        component.onSelectionChange();
+
+        expect(caretNode()).toBe(child);
+        expect(document.getSelection()?.anchorOffset).toBe(2);
+    });
+
+    it('Backspace at the start of a task row joins its text onto the row above instead of dropping it', () => {
+        twoTasks();
+        fixture.detectChanges();
+        caretIn(taskSpans()[1].firstChild as Text, 0);
+
+        const ev = new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true });
+        component.onKeydown(ev);
+
+        expect(ev.defaultPrevented).toBe(true);
+        expect(editor.querySelectorAll('li[data-task]')).toHaveLength(1);
+        expect(taskSpans()[0].textContent).toBe('firstsecond');
+        expect(editor.querySelector('[style]')).toBeNull();
+        const sel = document.getSelection()!;
+        expect(sel.anchorNode).toBe(taskSpans()[0]);
+        expect(sel.anchorOffset).toBe(1);
+    });
+
+    it('Backspace at the start of the first task row makes it a paragraph and keeps the rows after it', () => {
+        twoTasks();
+        fixture.detectChanges();
+        caretIn(taskSpans()[0].firstChild as Text, 0);
+
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }));
+
+        expect(Array.from(editor.children).map(el => el.tagName)).toEqual(['P', 'UL']);
+        expect(editor.querySelector('p')?.textContent).toBe('first');
+        expect(editor.querySelector('p')?.querySelector('input')).toBeNull();
+        expect(taskSpans().map(s => s.textContent)).toEqual(['second']);
+        expect(editor.querySelector('p')!.contains(caretNode())).toBe(true);
+    });
+
+    it('Delete at the end of a task row pulls the next row\'s text onto it', () => {
+        twoTasks();
+        fixture.detectChanges();
+        caretIn(taskSpans()[0].firstChild as Text, 'first'.length);
+
+        const ev = new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true });
+        component.onKeydown(ev);
+
+        expect(ev.defaultPrevented).toBe(true);
+        expect(editor.querySelectorAll('li[data-task]')).toHaveLength(1);
+        expect(editor.querySelectorAll('input')).toHaveLength(1);
+        expect(taskSpans()[0].textContent).toBe('firstsecond');
+        expect(document.getSelection()?.anchorOffset).toBe('first'.length);
+    });
+
+    it('Delete before the end of a task row is left to the browser', () => {
+        twoTasks();
+        fixture.detectChanges();
+        caretIn(taskSpans()[0].firstChild as Text, 2);
+
+        const ev = new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true });
+        component.onKeydown(ev);
+
+        expect(ev.defaultPrevented).toBe(false);
+        expect(editor.querySelectorAll('li[data-task]')).toHaveLength(2);
+    });
+
+    it('Enter in a task row holding only an image keeps the row and the image', () => {
+        // The handler tested the row's text alone, so a row holding only an
+        // image read as blank, Enter took the "leave the list" branch and the
+        // image went with the row. Found by inventory, not by a report.
+        component.writeValue('<ul data-task-list=""><li data-task="" data-checked="false">'
+            + '<input type="checkbox"><span><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw="></span></li></ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li[data-task] > span')!, 1);
+
+        component.onKeydown(enterKey());
+
+        expect(editor.querySelector('img')).not.toBeNull();
+        expect(editor.querySelectorAll('li[data-task]')).toHaveLength(2);
+    });
+
+    it('an empty span does not make a blank line look full', () => {
+        // One of the two old predicates counted any child element as content.
+        component.writeValue('<p>text</p><p><span></span></p>');
+        fixture.detectChanges();
+
+        const blank = editor.querySelectorAll('p')[1];
+        expect((component as unknown as { isEmptyBlock(el: HTMLElement): boolean }).isEmptyBlock(blank)).toBe(true);
+    });
+
+    it('Enter at the end of a bold run in a details block does not leave the block', () => {
+        // A line with content is never the line the block is left from,
+        // however close to its end the caret is.
+        component.writeValue('<details><summary>head</summary><p><b>bold</b> more</p></details>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('b')!.firstChild as Text, 4);
+
+        const ev = enterKey();
+        component.onKeydown(ev);
+
+        expect(ev.defaultPrevented).toBe(false);
+        expect(editor.querySelector('details')).not.toBeNull();
+        expect(editor.querySelector('details p')).not.toBeNull();
+    });
+
+    it('Enter on the empty last line of a details block still leaves it', () => {
+        component.writeValue('<details><summary>head</summary><p><br></p></details>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('details p')!, 0);
+
+        const ev = enterKey();
+        component.onKeydown(ev);
+
+        expect(ev.defaultPrevented).toBe(true);
+        expect(editor.querySelector('details p')).toBeNull();
+        expect(Array.from(editor.children).map(el => el.tagName)).toEqual(['DETAILS', 'P']);
+    });
+
+    it('Enter in inline code inside a table cell leaves the code span', () => {
+        // The walker this replaced had no TD in its tag set, so it walked past
+        // the cell to the editor, returned null, and the key did nothing.
+        component.writeValue('<table><tbody><tr><td><code>fn()</code></td></tr></tbody></table>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('code')!.firstChild as Text, 4);
+
+        const ev = enterKey();
+        component.onKeydown(ev);
+
+        expect(ev.defaultPrevented).toBe(true);
+        const cell = editor.querySelector('td')!;
+        // The cell's own text gets a line of its own, then the new empty line
+        // follows it: nothing is left in the cell outside a line.
+        const lines = Array.from(cell.querySelectorAll(':scope > p'));
+        expect(lines).toHaveLength(2);
+        expect(lines[0].querySelector('code')?.textContent).toBe('fn()');
+        expect(lines[1].querySelector('code')).toBeNull();
+        expect(Array.from(cell.childNodes).every(n => n.nodeName === 'P')).toBe(true);
+    });
+
+    it('the indent buttons move the caret line, so they work inside a cell', () => {
+        component.writeValue('<table><tbody><tr><td><p>text</p></td></tr></tbody></table>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('p')!.firstChild as Text, 2);
+
+        component.onFormatCommand('indent');
+
+        expect(editor.querySelector('p')?.style.marginLeft).not.toBe('');
+    });
+
+    it('Enter builds the next row exactly as every other row is built', () => {
+        // Enter had its own builder with a different placeholder and no
+        // checked property, so a row's behaviour depended on which builder
+        // happened to make it.
+        component.writeValue('<ul data-task-list=""><li data-task="" data-checked="false">'
+            + '<input type="checkbox"><span>todo</span></li></ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 4);
+
+        component.onKeydown(enterKey());
+
+        const rows = Array.from(editor.querySelectorAll<HTMLElement>('li[data-task]'));
+        expect(rows).toHaveLength(2);
+        const added = rows[1];
+        expect(added.dataset['checked']).toBe('false');
+        expect(added.querySelector<HTMLInputElement>(':scope > input')?.checked).toBe(false);
+        expect(added.querySelector(':scope > span')).not.toBeNull();
+        // The new row is empty by the editor's own rule, so Enter leaves the list from it.
+        caretIn(added.querySelector(':scope > span')!.firstChild as Text, 1);
+        component.onKeydown(enterKey());
+        expect(editor.querySelectorAll('li[data-task]')).toHaveLength(1);
+    });
+
+    it('Enter adds another row after text typed into a row Enter created', () => {
+        // The row Enter builds seeded its span with a PLAIN space and parked
+        // the caret at the span's boundary. A plain space is collapsible
+        // whitespace, so Chrome normalised that caret to the position BEFORE
+        // the span and the first thing typed landed beside it:
+        //   <li data-task><input>typed<span> </span></li>
+        // The span then held only padding, the row read as empty, and the next
+        // Enter left the list instead of adding a row.
+        component.writeValue('<ul data-task-list=""><li data-task="" data-checked="false">'
+            + '<input type="checkbox"><span>first</span></li></ul>');
+        fixture.detectChanges();
+        const span = editor.querySelector('li[data-task] > span')!;
+        caretIn(span.firstChild as Text, 5);
+        component.onKeydown(enterKey());
+
+        const added = editor.querySelectorAll('li[data-task]')[1];
+        const anchorNode = document.getSelection()?.anchorNode;
+        expect(added.querySelector(':scope > span')?.contains(anchorNode ?? null)).toBe(true);
+        expect(anchorNode?.nodeType).toBe(Node.TEXT_NODE);
+
+        // Type where the caret actually is, as the browser would.
+        const target = anchorNode as Text;
+        target.data = target.data + 'second';
+        caretIn(target, target.data.length);
+        component.onKeydown(enterKey());
+
+        expect(editor.querySelectorAll('li[data-task]')).toHaveLength(3);
+        expect(editor.querySelector('p')).toBeNull();
+    });
+
+    it('text the browser leaves beside a row span is gathered back into it', () => {
+        // Contenteditable can still put a keystroke outside the span; the row
+        // then renders unstruck when checked and reads as empty to every rule.
+        component.writeValue('<ul data-task-list=""><li data-task="" data-checked="false">'
+            + '<input type="checkbox"><span>\u200B</span></li></ul>');
+        fixture.detectChanges();
+        const row = editor.querySelector('li[data-task]')!;
+        row.appendChild(document.createTextNode('typed'));
+        caretIn(row.lastChild as Text, 5);
+
+        component.onSelectionChange();
+
+        expect(row.querySelector(':scope > span')?.textContent).toContain('typed');
+        expect(Array.from(row.childNodes).map(n => n.nodeName)).toEqual(['INPUT', 'SPAN']);
+
+        component.onKeydown(enterKey());
+        expect(editor.querySelectorAll('li[data-task]')).toHaveLength(2);
+    });
+
+    it('Enter exits an empty task row however the row was seeded', () => {
+        // The old test stripped only whitespace and NBSP, and a zero-width
+        // space is not \s, so a row seeded by the toolbar toggle or by a "[]"
+        // marker could not be exited with Enter while one made by pressing
+        // Enter could. Two row builders, two seeds, two behaviours.
+        for (const seed of ['\u200B', '\u00A0', ' ']) {
+            component.writeValue('<ul data-task-list=""><li data-task="" data-checked="false">'
+                + '<input type="checkbox"><span>' + seed + '</span></li></ul>');
+            fixture.detectChanges();
+            caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 1);
+
+            component.onKeydown(enterKey());
+
+            expect(editor.querySelector('li[data-task]'), seed.codePointAt(0)?.toString(16)).toBeNull();
+            expect(editor.querySelector('p')).not.toBeNull();
+        }
+    });
+
     it('Enter in an empty task list item exits the task list into a paragraph', () => {
         component.writeValue('<ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox"><span> </span></li></ul>');
         fixture.detectChanges();
@@ -2882,6 +6539,26 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
 
         expect(editor.querySelector('li[data-task]')).toBeNull();
         expect(editor.querySelector('p')).toBeTruthy();
+    });
+
+    it('Enter on an empty nested task row steps it out one level instead of leaving the list', () => {
+        // Leaving the list from a nested row built a paragraph inside the parent
+        // row, and the next keypress moved that paragraph into the row's text.
+        component.writeValue('<ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox"><span>parent</span>'
+            + '<ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox"><span>&nbsp;</span></li></ul></li></ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li[data-task] li[data-task] > span')!.firstChild as Text, 0);
+
+        component.onKeydown(enterKey());
+
+        expect(editor.querySelectorAll(':scope > ul > li[data-task]')).toHaveLength(2);
+        expect(editor.querySelector('li[data-task] li[data-task], li p')).toBeNull();
+        expect(editor.querySelector('li[data-task] > span')?.textContent).toBe('parent');
+        // Typing starts before the row's seed, so the text gains no leading space.
+        const selection = document.getSelection()!;
+        const moved = editor.querySelectorAll(':scope > ul > li[data-task]')[1].querySelector(':scope > span')!;
+        expect(selection.anchorNode).toBe(moved.firstChild);
+        expect(selection.anchorOffset).toBe(0);
     });
 
     it('Enter is a no-op when there is no active selection', () => {
@@ -2973,7 +6650,12 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         expect(editor.querySelector('details > p')?.textContent).toBe('not at end');
     });
 
-    it('Enter in a code block inserts a newline rather than a new paragraph', () => {
+    // Enter leaves a code block and Shift+Enter adds a line inside it — one key,
+    // one meaning. The old two-step (Enter opens a blank line, a second Enter
+    // steps out) forced the exit to detect and unpick that blank line, and that
+    // unpicking reassigned `textContent`, flattening a multi-line block into one
+    // line. Enter no longer inserts anything, so there is nothing to unpick.
+    it('Enter in a code block exits it, leaving the content untouched', () => {
         component.writeValue('<pre><code>line1</code></pre>');
         fixture.detectChanges();
         const codeText = editor.querySelector('code')!.firstChild as Text;
@@ -2983,7 +6665,8 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         component.onKeydown(ev);
 
         expect(ev.defaultPrevented).toBe(true);
-        expect(editor.querySelector('code')?.textContent).toContain('\n');
+        expect(editor.querySelector('code')?.textContent).toBe('line1');
+        expect(editor.querySelector('pre + p')).toBeTruthy();
     });
 
     it('Enter at the end of a code block whose content ends with a newline exits the block', () => {
@@ -3176,7 +6859,7 @@ describe('RichTextEditorComponent — history delta, undo/redo & destroy', () =>
     let editor: HTMLDivElement;
 
     const push = () => (component as unknown as { pushHistory: () => void }).pushHistory();
-    const getHistory = () => (component as unknown as { history: unknown[] }).history;
+    const getHistory = () => (component as unknown as { snapshots: unknown[] }).snapshots;
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
@@ -3213,7 +6896,7 @@ describe('RichTextEditorComponent — history delta, undo/redo & destroy', () =>
     });
 
     it('trims history to the configured limit, promoting a new keyframe', () => {
-        fixture.componentRef.setInput('historyLimit', 10);
+        fixture.componentRef.setInput('history', { limit: 10 });
         fixture.detectChanges();
         for (let i = 0; i < 30; i++) {
             component.writeValue(`<p>entry ${i}</p>`);
@@ -3232,8 +6915,8 @@ describe('RichTextEditorComponent — history delta, undo/redo & destroy', () =>
         push();
 
         type Entry = { html: string; delta: string | null; keyframe: boolean; selection: unknown; timestamp: number; preview: string; previewLines: string[]; lineCount: number };
-        const base = (component as unknown as { history: Entry[] }).history[0];
-        (component as unknown as { history: Entry[] }).history = [
+        const base = (component as unknown as { snapshots: Entry[] }).snapshots[0];
+        (component as unknown as { snapshots: Entry[] }).snapshots = [
             { ...base, html: '<p>a</p>', delta: null, keyframe: true },
             { ...base, html: '<p>b</p>', delta: null, keyframe: true },
             { ...base, html: '<p>c</p>', delta: null, keyframe: false },
@@ -3260,7 +6943,7 @@ describe('RichTextEditorComponent — history delta, undo/redo & destroy', () =>
         push();
 
         type Entry = { html: string; delta: string | null; keyframe: boolean; selection: unknown; timestamp: number; preview: string; previewLines: string[]; lineCount: number };
-        const base = (component as unknown as { history: Entry[] }).history[0];
+        const base = (component as unknown as { snapshots: Entry[] }).snapshots[0];
         const flakyKeyframeEntry: Entry = { ...base, html: '<p>flaky</p>', delta: null, keyframe: false };
         let reads = 0;
         Object.defineProperty(flakyKeyframeEntry, 'keyframe', {
@@ -3272,7 +6955,7 @@ describe('RichTextEditorComponent — history delta, undo/redo & destroy', () =>
             configurable: true,
         });
 
-        (component as unknown as { history: Entry[] }).history = [
+        (component as unknown as { snapshots: Entry[] }).snapshots = [
             { ...base, html: '<p>a</p>', delta: null, keyframe: true },
             flakyKeyframeEntry,
         ];
@@ -3379,6 +7062,32 @@ describe('RichTextEditorComponent — table mouse, resize & cell selection', () 
         expect(table.style.width).toContain('px');
     });
 
+    it('starts a column resize from a touch on the resize border', () => {
+        // Column resize was mouse-only: onEditorTouchStart handled cell SELECTION
+        // and never checked the resize hotspot, so a table column could not be
+        // resized at all on a phone or tablet.
+        const table = seedTable();
+        const a1 = table.querySelectorAll('td')[0] as HTMLTableCellElement;
+        const rect = a1.getBoundingClientRect();
+        const touchAt = (x: number, y: number) => ({
+            target: a1,
+            touches: [{ clientX: x, clientY: y }],
+            changedTouches: [{ clientX: x, clientY: y }],
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
+        }) as unknown as TouchEvent;
+
+        component.onEditorTouchStart(touchAt(rect.right - 1, rect.top + 5));
+
+        expect(table.style.tableLayout).toBe('fixed');
+        const startWidth = table.getBoundingClientRect().width;
+
+        document.dispatchEvent(new TouchEvent('touchmove', { bubbles: true, cancelable: true }));
+        component.onEditorTouchStart(touchAt(rect.right - 1, rect.top + 5));
+        expect(table.style.width).toContain('px');
+        expect(startWidth).toBeGreaterThan(0);
+    });
+
     it('right-click on an unselected cell clears the existing cell selection', () => {
         const table = seedTable();
         const a1 = table.querySelectorAll('td')[0] as HTMLTableCellElement;
@@ -3429,8 +7138,8 @@ describe('RichTextEditorComponent — table mouse, resize & cell selection', () 
         try {
             (component as unknown as { tableResizeCursor: { (): boolean; set(v: boolean): void } }).tableResizeCursor.set(true);
             const result = (component as unknown as {
-                startTableResize: (e: MouseEvent, c: HTMLTableCellElement | null) => boolean;
-            }).startTableResize({ clientX: 0, preventDefault: vi.fn(), stopPropagation: vi.fn() } as unknown as MouseEvent, detachedCell);
+                startTableResize: (e: { preventDefault(): void; stopPropagation(): void }, c: HTMLTableCellElement | null, x: number, onBorder: boolean) => boolean;
+            }).startTableResize({ preventDefault: vi.fn(), stopPropagation: vi.fn() }, detachedCell, 0, true);
             expect(result).toBe(false);
         } finally {
             detachedCell.remove();
@@ -3445,8 +7154,8 @@ describe('RichTextEditorComponent — table mouse, resize & cell selection', () 
         try {
             (component as unknown as { tableResizeCursor: { (): boolean; set(v: boolean): void } }).tableResizeCursor.set(true);
             const result = (component as unknown as {
-                startTableResize: (e: MouseEvent, c: HTMLTableCellElement | null) => boolean;
-            }).startTableResize({ clientX: 0, preventDefault: vi.fn(), stopPropagation: vi.fn() } as unknown as MouseEvent, cell);
+                startTableResize: (e: { preventDefault(): void; stopPropagation(): void }, c: HTMLTableCellElement | null, x: number, onBorder: boolean) => boolean;
+            }).startTableResize({ preventDefault: vi.fn(), stopPropagation: vi.fn() }, cell, 0, true);
             expect(result).toBe(true);
         } finally {
             (component as unknown as { tableResizeCursor: { (): boolean; set(v: boolean): void } }).tableResizeCursor.set(false);
@@ -3689,6 +7398,42 @@ describe('RichTextEditorComponent — task checkbox & image element handlers', (
 
         component.onEditorClick({ target: checkbox, preventDefault: vi.fn() } as unknown as MouseEvent);
         expect(li.getAttribute('data-checked')).toBe('false');
+    });
+
+    const nestedTasks = () => component.writeValue(
+        '<ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox"><span>parent</span>'
+        + '<ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox"><span>child a</span>'
+        + '<ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox"><span>grandchild</span></li></ul></li>'
+        + '<li data-task="" data-checked="true"><input type="checkbox"><span>child b</span></li></ul></li></ul>');
+    const checkedStates = () => Array.from(editor.querySelectorAll<HTMLElement>('li[data-task]'))
+        .map(li => `${li.querySelector('span')?.textContent}:${li.dataset['checked']}:${li.querySelector<HTMLInputElement>(':scope > input')?.checked}`);
+    const clickBox = (rowText: string) => {
+        const li = Array.from(editor.querySelectorAll<HTMLElement>('li[data-task]'))
+            .find(el => el.querySelector(':scope > span')?.textContent === rowText)!;
+        const checkbox = li.querySelector<HTMLInputElement>(':scope > input')!;
+        component.onEditorClick({ target: checkbox, preventDefault: vi.fn() } as unknown as MouseEvent);
+    };
+
+    it('toggling a task row leaves the rows nested under it and above it alone', () => {
+        // Rows are independent, as in Obsidian.
+        nestedTasks();
+        fixture.detectChanges();
+
+        clickBox('parent');
+        expect(checkedStates()).toEqual([
+            'parent:true:true', 'child a:false:false', 'grandchild:false:false', 'child b:true:true',
+        ]);
+
+        clickBox('child b');
+        expect(checkedStates()).toEqual([
+            'parent:true:true', 'child a:false:false', 'grandchild:false:false', 'child b:false:false',
+        ]);
+    });
+
+    it('strikes only a checked row\'s own text, not the rows nested under it', () => {
+        const rule = RICH_TEXT_PROSE_CLASSES.find(c => c.includes('data-checked=true'))!;
+        expect(rule).toContain('[&_li[data-task][data-checked=true]>span]:line-through');
+        expect(rule).not.toMatch(/\[&_li\[data-task]\[data-checked=true]]:/);
     });
 
     it('clicking a checkbox with no data-task ancestor <li> is a no-op', () => {
@@ -4719,6 +8464,18 @@ describe('RichTextEditorComponent - addon host', () => {
         expect(editor.querySelector('h1')?.textContent).toBe('hello');
     });
 
+    it('executeToolbarCommandOnBlock keeps the block as the line of the quote it opens', () => {
+        // A slash-command quote re-tagged the paragraph into a bare
+        // blockquote, the same shape the Enter exit rule cannot leave.
+        const host = fixture.debugElement.injector.get(RichTextEditorAddonHost);
+        editor.innerHTML = '<p>quoted</p>';
+        const block = editor.querySelector('p')!;
+        caretIn(block.firstChild!, 6);
+        host.executeToolbarCommandOnBlock('blockquote', block);
+        expect(editor.querySelector('blockquote > p')?.textContent).toBe('quoted');
+        expect(editor.querySelector('blockquote > p')?.contains(document.getSelection()?.anchorNode ?? null)).toBe(true);
+    });
+
     it('executeToolbarCommandOnBlock wraps a block in a bullet list', () => {
         const host = fixture.debugElement.injector.get(RichTextEditorAddonHost);
         editor.innerHTML = '<p>item</p>';
@@ -4803,6 +8560,29 @@ describe('RichTextEditorComponent - addon host', () => {
         } finally {
             noAnchorSpy.mockRestore();
         }
+    });
+
+    it('registerExclusivePopover closes every other registered panel when one opens', () => {
+        const host = fixture.debugElement.injector.get(RichTextEditorAddonHost);
+        const closed: string[] = [];
+        const a = host.registerExclusivePopover(() => closed.push('a'));
+        const b = host.registerExclusivePopover(() => closed.push('b'));
+        const c = host.registerExclusivePopover(() => closed.push('c'));
+
+        b.notifyOpened();
+        expect(closed).toEqual(['a', 'c']);
+
+        closed.length = 0;
+        a.notifyOpened();
+        expect(closed).toEqual(['b', 'c']);
+
+        closed.length = 0;
+        b.release();
+        a.notifyOpened();
+        expect(closed).toEqual(['c']);
+
+        a.release();
+        c.release();
     });
 
     it('registerInputObserver receives the trigger-aware text on input', () => {
@@ -5045,11 +8825,15 @@ describe('RichTextEditorComponent — addon-host seams & edge coverage', () => {
         expect(editor.querySelector('ol')).toBeTruthy();
     });
 
-    it('executeToolbarCommandOnBlock wraps an already-empty block into a list item with a <br>', () => {
+    it('executeToolbarCommandOnBlock wraps an already-empty block into a list item holding only caret padding', () => {
         editor.innerHTML = '<p></p>';
         const block = editor.querySelector('p')!;
         host.executeToolbarCommandOnBlock('bulletList', block);
-        expect(editor.querySelector('ul li')?.innerHTML).toContain('br');
+        // The toolbar's command now, which leaves a zero-width anchor for the
+        // caret rather than a <br>; either is padding, not content.
+        const item = editor.querySelector('ul li');
+        expect(item).not.toBeNull();
+        expect((item?.textContent ?? '').replaceAll('\u200B', '')).toBe('');
     });
 
     it('executeToolbarCommandOnBlock re-tags a bullet list item to an ordered list item in place', () => {
@@ -5060,7 +8844,7 @@ describe('RichTextEditorComponent — addon-host seams & edge coverage', () => {
         expect(editor.querySelector('ul')).toBeNull();
     });
 
-    it('transformBlockForSlashCommand is a no-op re-tag when the block is already the target tag', () => {
+    it('executeToolbarCommandOnBlock leaves a block already of the target tag as it is', () => {
         editor.innerHTML = '<h1>already h1</h1>';
         const block = editor.querySelector('h1')!;
         host.executeToolbarCommandOnBlock('heading1', block);
@@ -5672,13 +9456,26 @@ describe('RichTextEditorComponent — targeted branch coverage top-up', () => {
         expect(() => component.ngAfterViewInit()).not.toThrow();
     });
 
-    it('onInput skips history scheduling during an undo/redo replay', () => {
-        const spy = vi.spyOn(priv(), 'scheduleDebouncedHistoryPush');
-        priv().isUndoRedo = true;
-        editor.innerHTML = 'x';
-        editor.dispatchEvent(new Event('input', { bubbles: true }));
-        expect(spy).not.toHaveBeenCalled();
-        expect(priv().isUndoRedo).toBe(false);
+    it('typing after an undo is recorded as a new edit, not swallowed by the replay', () => {
+        // Rewriting innerHTML fires no `input` event, so no replay flag exists
+        // any more; the observable guarantee is that the first keystroke after
+        // an undo becomes its own history entry rather than being skipped.
+        component.writeValue('<p>seed</p>');
+        fixture.detectChanges();
+        editor.innerHTML = '<p>seed edited</p>';
+        component.onInput({ target: editor } as unknown as Event);
+        priv().flushPendingHistoryPush();
+
+        component.undo();
+        expect(editor.textContent).not.toContain('edited');
+
+        editor.innerHTML = '<p>seed again</p>';
+        component.onInput({ target: editor } as unknown as Event);
+        priv().flushPendingHistoryPush();
+
+        expect(component.htmlOutput()).toContain('seed again');
+        component.undo();
+        expect(editor.textContent).not.toContain('again');
     });
 
     it('Enter in an empty trailing task item exits while keeping earlier items', () => {
@@ -5694,13 +9491,14 @@ describe('RichTextEditorComponent — targeted branch coverage top-up', () => {
         expect(editor.querySelector('p')).toBeTruthy();
     });
 
-    it('Enter in a code block without a <code> child inserts a newline into the pre', () => {
+    it('Enter in a code block without a <code> child exits the pre', () => {
         component.writeValue('<pre>abc</pre>');
         fixture.detectChanges();
         const pre = editor.querySelector('pre')!;
         caretIn(pre.firstChild!, 3);
         component.onKeydown(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
-        expect(editor.querySelector('pre')!.textContent).toContain('\n');
+        expect(editor.querySelector('pre')!.textContent).toBe('abc');
+        expect(editor.querySelector('pre + p')).toBeTruthy();
     });
 
     it('onBeforeInput treats a missing editor as empty text', () => {
@@ -5879,17 +9677,18 @@ describe('RichTextEditorComponent — targeted branch coverage top-up', () => {
         expect(() => priv().wrapSelectionWithTag('code')).not.toThrow();
     });
 
-    it('insertCodeBlock is a no-op without a selection', () => {
+    it('toggleCodeBlock is a no-op without a selection', () => {
         document.getSelection()?.removeAllRanges();
-        expect(() => priv().insertCodeBlock()).not.toThrow();
+        expect(() => priv().toggleCodeBlock()).not.toThrow();
     });
 
-    it('insertCodeBlock seeds an empty code element with a newline', () => {
-        component.writeValue('<p>x</p>');
+    it("toggleCodeBlock seeds an empty block's code element with a newline", () => {
+        component.writeValue('<p><br></p>');
         fixture.detectChanges();
-        caretIn(editor.querySelector('p')!.firstChild!, 1);
-        priv().insertCodeBlock();
+        caretIn(editor.querySelector('p')!, 0);
+        priv().toggleCodeBlock();
         expect(editor.querySelector('pre code')!.textContent).toBe('\n');
+        expect(editor.querySelector('p')).toBeNull();
     });
 
     it('registerLinkEditor disposer is inert once a newer editor replaced it', () => {
@@ -6167,11 +9966,14 @@ describe('RichTextEditorComponent — targeted branch coverage top-up', () => {
         expect(editor.querySelector('ol')).toBeTruthy();
     });
 
-    it('wrapping an LI already in the target list type leaves it unchanged', () => {
+    it('the slash menu turns a list off when its own kind is picked again, as the toolbar does', () => {
+        // It used to leave the list as it was, the one command where the slash
+        // menu and the toolbar disagreed.
         component.writeValue('<ul><li>a</li></ul>');
         fixture.detectChanges();
         priv().executeToolbarCommandOnBlock('bulletList', editor.querySelector('li'));
-        expect(editor.querySelector('ul')).toBeTruthy();
+        expect(editor.querySelector('ul')).toBeNull();
+        expect(editor.querySelector('p')?.textContent).toBe('a');
     });
 
     it('computeDelta picks the nearer match when both directions match', () => {
@@ -6296,5 +10098,2719 @@ describe('RichTextEditorComponent — targeted branch coverage top-up', () => {
         const li = editor.querySelector('li')!;
         expect(priv().wrapBlockInList(li, 'ul')).toBe(li);
         expect(editor.querySelector('ul')).toBeTruthy();
+    });
+});
+
+describe('RichTextEditorComponent — reactive forms disabled state', () => {
+    @Component({
+        standalone: true,
+        imports: [ReactiveFormsModule, RichTextEditorComponent],
+        template: `<ui-rich-text-editor [formControl]="control" [disabled]="inputDisabled()" [locale]="locale()" />`,
+    })
+    class FormHostComponent {
+        control = new FormControl('<p>form</p>', { nonNullable: true });
+        readonly inputDisabled = signal(false);
+        readonly locale = signal('en');
+    }
+
+    let fixture: ComponentFixture<FormHostComponent>;
+    let host: FormHostComponent;
+    let rte: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    const wire = () => {
+        fixture.detectChanges();
+        const el = fixture.nativeElement as HTMLElement;
+        rte = fixture.debugElement.children[0].componentInstance as RichTextEditorComponent;
+        editor = el.querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+    };
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [FormHostComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(FormHostComponent);
+        host = fixture.componentInstance;
+    });
+
+    it('control.disable() reaches the editor and locks the editable area', () => {
+        wire();
+        expect(editor.getAttribute('contenteditable')).toBe('true');
+
+        host.control.disable();
+        fixture.detectChanges();
+
+        expect(rte.isDisabled()).toBe(true);
+        expect(editor.getAttribute('contenteditable')).toBe('false');
+        expect(editor.getAttribute('aria-disabled')).toBe('true');
+    });
+
+    it('control.enable() restores editing', () => {
+        wire();
+        host.control.disable();
+        fixture.detectChanges();
+        expect(editor.getAttribute('contenteditable')).toBe('false');
+
+        host.control.enable();
+        fixture.detectChanges();
+
+        expect(rte.isDisabled()).toBe(false);
+        expect(editor.getAttribute('contenteditable')).toBe('true');
+    });
+
+    it('a FormControl constructed with disabled:true starts the editor locked', () => {
+        host.control = new FormControl({ value: '<p>form</p>', disabled: true }, { nonNullable: true });
+        wire();
+
+        expect(rte.isDisabled()).toBe(true);
+        expect(editor.getAttribute('contenteditable')).toBe('false');
+    });
+
+    it('control.disable() blocks typing — the model does not change', () => {
+        wire();
+        host.control.disable();
+        fixture.detectChanges();
+
+        const before = host.control.value;
+        editor.innerHTML = '<p>form typed</p>';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        fixture.detectChanges();
+
+        expect(host.control.value).toBe(before);
+    });
+
+    it('control.disable() blocks toolbar format commands', () => {
+        wire();
+        rte.writeValue('<p>plain</p>');
+        fixture.detectChanges();
+        const p = editor.querySelector('p')!;
+        const selection = document.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(p);
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+
+        host.control.disable();
+        fixture.detectChanges();
+
+        rte.onFormatCommand('bold');
+
+        expect(editor.querySelector('strong')).toBeNull();
+        expect(editor.querySelector('b')).toBeNull();
+    });
+
+    // The paste/drop guards return before the addon interceptor chain is
+    // dispatched, so a registered interceptor is the observable proof that the
+    // guard fired — the base itself inserts nothing for a plain-text drop, and
+    // a caret-less paste is a no-op regardless of the guard.
+    it('control.disable() swallows paste before any interceptor sees it', () => {
+        wire();
+        const seen = vi.fn().mockReturnValue(true);
+        rte.registerPasteInterceptor(seen);
+
+        const paste = new Event('paste') as ClipboardEvent;
+        Object.defineProperty(paste, 'clipboardData', {
+            value: { getData: () => 'pasted', types: ['text/plain'], files: [] },
+        });
+
+        rte.onPaste(paste);
+        expect(seen).toHaveBeenCalledTimes(1);
+
+        host.control.disable();
+        fixture.detectChanges();
+
+        rte.onPaste(paste);
+        expect(seen).toHaveBeenCalledTimes(1);
+    });
+
+    it('control.disable() swallows drop before any interceptor sees it', async () => {
+        wire();
+        const seen = vi.fn().mockReturnValue(true);
+        rte.registerDropInterceptor(seen);
+
+        const drop = new Event('drop') as DragEvent;
+        Object.defineProperty(drop, 'dataTransfer', {
+            value: { getData: () => 'dropped', types: ['text/plain'], files: [] },
+        });
+
+        await rte.onEditorDrop(drop);
+        expect(seen).toHaveBeenCalledTimes(1);
+
+        host.control.disable();
+        fixture.detectChanges();
+
+        await rte.onEditorDrop(drop);
+        expect(seen).toHaveBeenCalledTimes(1);
+    });
+
+    it('control.disable() disables every docked toolbar button', () => {
+        wire();
+        const enabled = Array.from(
+            (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('[role="toolbar"] button'),
+        );
+        expect(enabled.length).toBeGreaterThan(0);
+        expect(enabled.every(b => b.disabled)).toBe(false);
+
+        host.control.disable();
+        fixture.detectChanges();
+
+        const buttons = Array.from(
+            (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('[role="toolbar"] button'),
+        );
+        expect(buttons.length).toBeGreaterThan(0);
+        expect(buttons.every(b => b.disabled)).toBe(true);
+    });
+
+    it('the [disabled] input keeps working while the form control is enabled', () => {
+        wire();
+        host.inputDisabled.set(true);
+        fixture.detectChanges();
+
+        expect(host.control.disabled).toBe(false);
+        expect(rte.isDisabled()).toBe(true);
+        expect(editor.getAttribute('contenteditable')).toBe('false');
+    });
+
+    it('the form state does not leak into the public [disabled] input', () => {
+        wire();
+        host.control.disable();
+        fixture.detectChanges();
+
+        expect(rte.disabled()).toBe(false);
+        expect(rte.isDisabled()).toBe(true);
+    });
+
+    // RTL is driven by the `locale` input through the i18n service (`dir` is a
+    // computed, not an input), so the editor is only really in RTL once a
+    // Hebrew locale is bound — asserted here before the disable, or the case
+    // would be vacuous.
+    it('locks the same way in RTL', () => {
+        host.locale.set('he');
+        wire();
+        expect(rte.isRtl()).toBe(true);
+        expect((fixture.nativeElement as HTMLElement).querySelector('[dir="rtl"]')).toBeTruthy();
+
+        host.control.disable();
+        fixture.detectChanges();
+
+        expect(rte.isDisabled()).toBe(true);
+        expect(editor.getAttribute('contenteditable')).toBe('false');
+        expect(editor.getAttribute('aria-disabled')).toBe('true');
+        // Still RTL after locking — the two are independent.
+        expect(rte.isRtl()).toBe(true);
+
+        const buttons = Array.from(
+            (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('[role="toolbar"] button'),
+        );
+        expect(buttons.length).toBeGreaterThan(0);
+        expect(buttons.every(b => b.disabled)).toBe(true);
+    });
+
+    // Touch table-cell selection is gated on the same guard. Its observable
+    // effect is the private tableCellSelecting flag, which a form-disabled
+    // editor must never set.
+    it('touch table-cell selection is a no-op while the form has disabled the control', () => {
+        wire();
+        rte.writeValue('<table><tbody><tr><td>a</td><td>b</td></tr></tbody></table>');
+        fixture.detectChanges();
+        const cell = editor.querySelector('td')!;
+        const selecting = () => (rte as unknown as { tableCellSelecting: boolean }).tableCellSelecting;
+
+        const fire = () => {
+            const touch = new Event('touchstart', { bubbles: true }) as TouchEvent;
+            Object.defineProperty(touch, 'target', { value: cell });
+            rte.onEditorTouchStart(touch);
+        };
+
+        fire();
+        expect(selecting()).toBe(true);
+        (rte as unknown as { tableCellSelecting: boolean }).tableCellSelecting = false;
+
+        host.control.disable();
+        fixture.detectChanges();
+
+        fire();
+        expect(selecting()).toBe(false);
+        expect(rte.isDisabled()).toBe(true);
+    });
+});
+
+// ── Markdown input rules ──────────────────────────────────────────────────
+// The editor turns a completed Markdown marker into real formatting as the
+// author types. These drive the real typing path: mutate the editable DOM the
+// way a keystroke would, place the caret, then dispatch the `input` event the
+// browser would have raised.
+describe('RichTextEditorComponent markdown input rules', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector(
+            '[data-slot="rich-text-editor"]'
+        ) as HTMLDivElement;
+    });
+
+    /**
+     * Simulate typing `text` at the end of the given block: append the
+     * characters to its leading text node, put the caret after them, and raise
+     * the `input` event the browser raises once the character has landed.
+     */
+    const typeInto = (block: HTMLElement, text: string, inputType = 'insertText'): void => {
+        const existing = block.firstChild;
+        const textNode =
+            existing && existing.nodeType === Node.TEXT_NODE
+                ? (existing as Text)
+                : (block.insertBefore(document.createTextNode(''), block.firstChild) as Text);
+        textNode.data += text;
+        setCaretAt(textNode, textNode.data.length);
+        editor.dispatchEvent(
+            new InputEvent('input', {
+                bubbles: true,
+                inputType,
+                data: text.at(-1) ?? '',
+            })
+        );
+        fixture.detectChanges();
+    };
+
+    /** Replace the editor content with `html` and return its first element child. */
+    const seed = (html: string): HTMLElement => {
+        editor.innerHTML = html;
+        return editor.firstElementChild as HTMLElement;
+    };
+
+    /** The element the collapsed caret currently sits in. */
+    const caretElement = (): HTMLElement | null => {
+        const selection = document.getSelection();
+        if (!selection || selection.rangeCount === 0) return null;
+        const node = selection.getRangeAt(0).startContainer;
+        return node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as HTMLElement);
+    };
+
+    /** Type a marker that sits before existing text, with the caret after it. */
+    const typeMarkerBefore = (block: HTMLElement, full: string, caretOffset: number): void => {
+        const textNode = block.firstChild as Text;
+        textNode.data = full;
+        setCaretAt(textNode, caretOffset);
+        editor.dispatchEvent(
+            new InputEvent('input', { bubbles: true, inputType: 'insertText', data: ' ' })
+        );
+        fixture.detectChanges();
+    };
+
+    // T-9 — the headline rule, on an empty paragraph.
+    it('turns "# " in an empty paragraph into an h1 holding the caret, with no marker text', () => {
+        const block = seed('<p><br></p>');
+        typeInto(block, '# ');
+
+        const heading = editor.querySelector('h1');
+        expect(heading).not.toBeNull();
+        expect(editor.querySelector('p')).toBeNull();
+        expect(heading?.textContent?.replaceAll('\u200B', '').trim()).toBe('');
+        expect(heading?.contains(caretElement())).toBe(true);
+    });
+
+    it('turns "## " into an h2 and "### " into an h3', () => {
+        typeInto(seed('<p><br></p>'), '## ');
+        expect(editor.querySelector('h2')).not.toBeNull();
+
+        seed('<p><br></p>');
+        typeInto(editor.firstElementChild as HTMLElement, '### ');
+        expect(editor.querySelector('h3')).not.toBeNull();
+    });
+
+    it('does not fire on "#### " — h4 is not a rule', () => {
+        typeInto(seed('<p><br></p>'), '#### ');
+        expect(editor.querySelector('h4')).toBeNull();
+        expect(editor.textContent).toContain('#');
+    });
+
+    // T-10 — the marker is stripped but the text after it survives.
+    it('keeps text that already followed the caret: "# " before "Title" yields <h1>Title</h1>', () => {
+        typeMarkerBefore(seed('<p>Title</p>'), '# Title', 2);
+
+        const heading = editor.querySelector('h1');
+        expect(heading).not.toBeNull();
+        expect(heading?.textContent).toBe('Title');
+    });
+
+    // T-11 — list rules.
+    it('wraps the paragraph in ul > li for "- " and puts the caret in the item', () => {
+        typeInto(seed('<p><br></p>'), '- ');
+
+        const item = editor.querySelector('ul > li');
+        expect(item).not.toBeNull();
+        expect(item?.contains(caretElement())).toBe(true);
+    });
+
+    it('wraps the paragraph in ul > li for "* "', () => {
+        typeInto(seed('<p><br></p>'), '* ');
+        expect(editor.querySelector('ul > li')).not.toBeNull();
+    });
+
+    it('wraps the paragraph in ol > li for "1. "', () => {
+        typeInto(seed('<p><br></p>'), '1. ');
+
+        const item = editor.querySelector('ol > li');
+        expect(item).not.toBeNull();
+        expect(item?.contains(caretElement())).toBe(true);
+    });
+
+    // T-12 — blockquote.
+    it('wraps the paragraph in a blockquote for "> ", keeping it as the quote\'s line', () => {
+        typeInto(seed('<p><br></p>'), '> ');
+
+        // The paragraph stays as the quote's line. Re-tagging it INTO the
+        // blockquote left bare text with no line block, so the Enter exit
+        // rule (which leaves from a blank line) never fired and every Enter
+        // opened a sibling quote instead -- the quote could not be escaped.
+        const line = editor.querySelector('blockquote > p');
+        expect(line).not.toBeNull();
+        expect(editor.querySelectorAll('blockquote')).toHaveLength(1);
+        expect(line?.contains(caretElement())).toBe(true);
+    });
+
+    it('escapes a "> " quote with one Enter, as the user types it', () => {
+        typeInto(seed('<p><br></p>'), '> ');
+        const line = editor.querySelector('blockquote > p') as HTMLElement;
+        line.textContent = 'asdasd';
+        setCaretAt(line.firstChild as Text, 6);
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+
+        expect(editor.querySelectorAll('blockquote')).toHaveLength(1);
+        expect(editor.querySelector('blockquote > p')?.textContent).toBe('asdasd');
+        expect(editor.querySelector('blockquote + p')).not.toBeNull();
+        expect(editor.querySelector('blockquote + p')?.contains(caretElement())).toBe(true);
+    });
+
+    // T-13 — task items, checked and unchecked, with trailing text.
+    it('creates an unchecked task item for "[] "', () => {
+        typeInto(seed('<p><br></p>'), '[] ');
+
+        const item = editor.querySelector('ul[data-task-list] > li[data-task]') as HTMLElement;
+        expect(item).not.toBeNull();
+        expect(item.dataset['checked']).toBe('false');
+        expect(item.querySelector('input[type="checkbox"]')).not.toBeNull();
+    });
+
+    it('creates a checked task item with a checked box for "[x] "', () => {
+        typeInto(seed('<p><br></p>'), '[x] ');
+
+        const item = editor.querySelector('ul[data-task-list] > li[data-task]') as HTMLElement;
+        expect(item).not.toBeNull();
+        expect(item.dataset['checked']).toBe('true');
+        expect((item.querySelector('input[type="checkbox"]') as HTMLInputElement).checked).toBe(true);
+    });
+
+    it('keeps trailing text as the task item text', () => {
+        typeMarkerBefore(seed('<p>buy milk</p>'), '[] buy milk', 3);
+
+        const item = editor.querySelector('ul[data-task-list] > li[data-task]');
+        expect(item?.textContent?.replaceAll('\u00A0', '').trim()).toBe('buy milk');
+    });
+
+    // T-14 — the horizontal rule, the one marker with no terminator.
+    it('replaces the paragraph with an hr plus an empty paragraph holding the caret for "---"', () => {
+        typeInto(seed('<p><br></p>'), '---');
+
+        expect(editor.querySelector('hr')).not.toBeNull();
+        const paragraph = editor.querySelector('hr + p');
+        expect(paragraph).not.toBeNull();
+        expect(paragraph?.contains(caretElement())).toBe(true);
+        expect(editor.textContent?.replaceAll('\u200B', '')).not.toContain('-');
+    });
+
+    // T-15 — the code fence, on both terminators.
+    it('turns "```ts" plus a space into a pre > code carrying the language', () => {
+        typeInto(seed('<p><br></p>'), '```ts ');
+
+        const code = editor.querySelector('pre > code') as HTMLElement;
+        expect(code).not.toBeNull();
+        expect(code.dataset['language']).toBe('ts');
+        expect(code.className).toContain('language-ts');
+    });
+
+    it('turns "```" plus Enter into a plain pre > code and prevents the Enter', () => {
+        const block = seed('<p><br></p>');
+        const textNode = block.insertBefore(document.createTextNode('```'), block.firstChild) as Text;
+        setCaretAt(textNode, 3);
+
+        const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+        component.onKeydown(enter);
+        fixture.detectChanges();
+
+        expect(enter.defaultPrevented).toBe(true);
+        const code = editor.querySelector('pre > code') as HTMLElement;
+        expect(code).not.toBeNull();
+        expect(code.dataset['language']).toBeUndefined();
+    });
+
+    // T-22 — every guard that must stop a rule from firing.
+    describe('guards', () => {
+        // Typing on into a long paragraph must stay inert: no transform, no
+        // history entry, no model churn. The length cap of §D.2 is what makes
+        // this cheap, but the cap itself has no DOM-visible effect — a prefix
+        // that long cannot match a marker either way — so this asserts the
+        // observable half only.
+        it('stays inert while the author types on in a long paragraph', () => {
+            const block = seed('<p><br></p>');
+            const long = 'x'.repeat(40);
+            const textNode = block.insertBefore(document.createTextNode(long), block.firstChild) as Text;
+            setCaretAt(textNode, long.length);
+
+            const before = component.historyEntries().length;
+            const applied = (
+                component as unknown as { applyInputRules(event: Event): boolean }
+            ).applyInputRules(new InputEvent('input', { inputType: 'insertText', data: 'x' }));
+
+            expect(applied).toBe(false);
+            expect(component.historyEntries()).toHaveLength(before);
+        });
+
+        it('does not fire when the marker is not the whole prefix ("foo - ")', () => {
+            typeInto(seed('<p>foo </p>'), '- ');
+
+            expect(editor.querySelector('ul')).toBeNull();
+            expect(editor.textContent).toContain('foo -');
+        });
+
+        // Each of these seeds an EMPTY structure, so the marker really is the
+        // whole text before the caret. Only the structural guard can stop the
+        // transform — with the guard removed, every one of them fires.
+        it('does not fire inside a list item', () => {
+            const item = seed('<ul><li><br></li></ul>').querySelector('li') as HTMLElement;
+            typeInto(item, '# ');
+
+            expect(editor.querySelector('h1')).toBeNull();
+            expect(editor.querySelector('li')?.textContent).toContain('#');
+        });
+
+        it('does not fire inside a table cell', () => {
+            const cell = seed('<table><tbody><tr><td><br></td></tr></tbody></table>')
+                .querySelector('td') as HTMLElement;
+            typeInto(cell, '# ');
+
+            expect(editor.querySelector('h1')).toBeNull();
+            expect(editor.querySelector('td')?.textContent).toContain('#');
+        });
+
+        it('does not fire inside a pre', () => {
+            const code = seed('<pre><code></code></pre>').querySelector('code') as HTMLElement;
+            typeInto(code, '# ');
+
+            expect(editor.querySelector('h1')).toBeNull();
+            expect(editor.querySelector('pre')?.textContent).toContain('#');
+        });
+
+        it('does not fire inside a summary', () => {
+            const summary = seed('<details><summary><br></summary><p>b</p></details>')
+                .querySelector('summary') as HTMLElement;
+            typeInto(summary, '# ');
+
+            expect(editor.querySelector('h1')).toBeNull();
+            expect(editor.querySelector('summary')?.textContent).toContain('#');
+        });
+
+        it('does not fire inside an existing heading', () => {
+            typeInto(seed('<h2><br></h2>'), '# ');
+
+            expect(editor.querySelector('h1')).toBeNull();
+            expect(editor.querySelector('h2')?.textContent).toContain('#');
+        });
+
+        it('does not fire in a paragraph nested inside a list item', () => {
+            const paragraph = seed('<ul><li><p><br></p></li></ul>').querySelector('p') as HTMLElement;
+            typeInto(paragraph, '# ');
+
+            expect(editor.querySelector('h1')).toBeNull();
+            expect(editor.querySelector('li')?.textContent).toContain('#');
+        });
+
+        it('does not fire when [markdownShortcuts] is false', () => {
+            fixture.componentRef.setInput('markdownShortcuts', false);
+            fixture.detectChanges();
+
+            typeInto(seed('<p><br></p>'), '# ');
+
+            expect(editor.querySelector('h1')).toBeNull();
+            expect(editor.textContent).toContain('#');
+        });
+
+        // `onInput` already returns early while readonly, so this drives the
+        // rule engine directly: the guard has to live inside it too, or a
+        // programmatic DOM mutation would still reformat a locked editor.
+        it('does not fire while readonly, even reached directly', () => {
+            fixture.componentRef.setInput('readonly', true);
+            fixture.detectChanges();
+
+            const block = seed('<p><br></p>');
+            const textNode = block.insertBefore(document.createTextNode('# '), block.firstChild) as Text;
+            setCaretAt(textNode, 2);
+            const applied = (
+                component as unknown as { applyInputRules(event: Event): boolean }
+            ).applyInputRules(new InputEvent('input', { inputType: 'insertText', data: ' ' }));
+
+            expect(applied).toBe(false);
+            expect(editor.querySelector('h1')).toBeNull();
+        });
+
+        it('does not fire while the form has disabled the editor, even reached directly', () => {
+            component.setDisabledState(true);
+            fixture.detectChanges();
+
+            const block = seed('<p><br></p>');
+            const textNode = block.insertBefore(document.createTextNode('# '), block.firstChild) as Text;
+            setCaretAt(textNode, 2);
+            const applied = (
+                component as unknown as { applyInputRules(event: Event): boolean }
+            ).applyInputRules(new InputEvent('input', { inputType: 'insertText', data: ' ' }));
+
+            expect(applied).toBe(false);
+            expect(editor.querySelector('h1')).toBeNull();
+        });
+
+        // The terminating space has to have been TYPED. Dropping or pasting
+        // "- " lands the same characters without the author asking for a list.
+        it('does not fire when the space arrived by a drop rather than a keystroke', () => {
+            typeInto(seed('<p><br></p>'), '- ', 'insertFromDrop');
+
+            expect(editor.querySelector('ul')).toBeNull();
+            expect(editor.textContent).toContain('-');
+        });
+
+        it('does not fire when insertText carried data other than a space', () => {
+            const block = seed('<p><br></p>');
+            const textNode = block.insertBefore(document.createTextNode('- '), block.firstChild) as Text;
+            setCaretAt(textNode, 2);
+            editor.dispatchEvent(
+                new InputEvent('input', { bubbles: true, inputType: 'insertText', data: 'x' })
+            );
+            fixture.detectChanges();
+
+            expect(editor.querySelector('ul')).toBeNull();
+        });
+
+        // A contenteditable materialises the space that completes a marker as a
+        // non-breaking one, so the real browser path depends on this branch:
+        // narrow the terminator test to a plain space and "# " stops firing
+        // everywhere it matters.
+        it('accepts a non-breaking space as the terminating space', () => {
+            const block = seed('<p><br></p>');
+            const textNode = block.insertBefore(
+                document.createTextNode('# '),
+                block.firstChild
+            ) as Text;
+            setCaretAt(textNode, 2);
+            editor.dispatchEvent(
+                new InputEvent('input', { bubbles: true, inputType: 'insertText', data: ' ' })
+            );
+            fixture.detectChanges();
+
+            expect(editor.querySelector('h1')).not.toBeNull();
+        });
+
+        // §D.4.3 step 1: a rule needs a collapsed caret. With a range selected
+        // the author is replacing text, not completing a marker, and the
+        // block-prefix read would not describe where the caret ends up.
+        it('does not fire while a range is selected rather than a caret', () => {
+            const block = seed('<p>abc</p>');
+            const textNode = block.firstChild as Text;
+            textNode.data = '# abc';
+
+            const selection = document.getSelection();
+            const range = document.createRange();
+            range.setStart(textNode, 2);
+            range.setEnd(textNode, 4);
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+
+            const applied = (
+                component as unknown as { applyInputRules(event: Event): boolean }
+            ).applyInputRules(new InputEvent('input', { inputType: 'insertText', data: ' ' }));
+
+            expect(applied).toBe(false);
+            expect(editor.querySelector('h1')).toBeNull();
+        });
+
+        // Deletions, history replays and formatting commands are not the author
+        // completing a marker, even when the text they leave behind looks like
+        // one — backspacing into "# " must not suddenly produce a heading.
+        it.each(['deleteContentBackward', 'historyUndo', 'formatBold'])(
+            'does not fire for inputType %s',
+            (inputType) => {
+                typeInto(seed('<p><br></p>'), '# ', inputType);
+
+                expect(editor.querySelector('h1')).toBeNull();
+                expect(editor.textContent).toContain('#');
+            }
+        );
+
+        it('does not fire mid-composition (insertCompositionText)', () => {
+            typeInto(seed('<p><br></p>'), '# ', 'insertCompositionText');
+
+            expect(editor.querySelector('h1')).toBeNull();
+            expect(editor.textContent).toContain('#');
+        });
+
+        it('fires for a plain Event with no inputType (the test-only path)', () => {
+            const block = seed('<p><br></p>');
+            const textNode = block.insertBefore(document.createTextNode('# '), block.firstChild) as Text;
+            setCaretAt(textNode, 2);
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+
+            expect(editor.querySelector('h1')).not.toBeNull();
+        });
+
+        // A block whose only content is an element — an image, say — is not
+        // "empty" (so it keeps its children) yet has no text node for the caret
+        // to land in. The transform must still place a caret rather than
+        // throwing, which is the one branch the element fallback covers.
+        it('transforms a block whose only content is an element', () => {
+            const block = seed('<p><img alt=""></p>');
+            const textNode = block.insertBefore(
+                document.createTextNode('# '),
+                block.firstChild
+            ) as Text;
+            setCaretAt(textNode, 2);
+            editor.dispatchEvent(
+                new InputEvent('input', { bubbles: true, inputType: 'insertText', data: ' ' })
+            );
+            fixture.detectChanges();
+
+            const heading = editor.querySelector('h1');
+            expect(heading).not.toBeNull();
+            expect(heading?.querySelector('img')).not.toBeNull();
+            expect(document.getSelection()?.rangeCount).toBe(1);
+        });
+
+        it('wraps a bare top-level text node in a paragraph before transforming it', () => {
+            editor.innerHTML = '';
+            const textNode = editor.appendChild(document.createTextNode('# ')) as Text;
+            setCaretAt(textNode, 2);
+            editor.dispatchEvent(
+                new InputEvent('input', { bubbles: true, inputType: 'insertText', data: ' ' })
+            );
+            fixture.detectChanges();
+
+            expect(editor.querySelector('h1')).not.toBeNull();
+        });
+    });
+
+    // T-23 — observers must see the world after the transform, not before.
+    it('notifies input observers with the post-transform text', () => {
+        const observed: string[] = [];
+        component.registerInputObserver((text: string) => observed.push(text));
+
+        typeInto(seed('<p><br></p>'), '# ');
+
+        expect(observed.length).toBeGreaterThan(0);
+        expect(observed.at(-1)).not.toContain('#');
+    });
+
+    // T-25 — the outputs a consumer binds to.
+    it('emits htmlChange once per transform, carrying the transformed html', () => {
+        const emissions: string[] = [];
+        component.htmlChange.subscribe((html: string) => emissions.push(html));
+
+        typeInto(seed('<p><br></p>'), '# ');
+
+        expect(emissions).toHaveLength(1);
+        expect(emissions[0]).toContain('<h1');
+    });
+
+    // UC-14: one edit, one value. The pre-transform snapshot the history needs
+    // must not reach the form, or a reactive form sees the markers flash past.
+    it('notifies the form exactly once per transform, with the transformed value', () => {
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.detectChanges();
+
+        const emissions: string[] = [];
+        component.registerOnChange((value: string) => emissions.push(value));
+
+        typeInto(seed('<p><br></p>'), '# ');
+
+        expect(emissions).toHaveLength(1);
+        expect(emissions[0]).toContain('<h1');
+    });
+
+    it('emits the transformed markdown in markdown mode', () => {
+        fixture.componentRef.setInput('mode', 'markdown');
+        fixture.detectChanges();
+
+        const emissions: string[] = [];
+        component.registerOnChange((value: string) => emissions.push(value));
+
+        typeMarkerBefore(seed('<p>Title</p>'), '# Title', 2);
+
+        expect(emissions.at(-1)?.trim()).toBe('# Title');
+    });
+
+    // T-19/T-20/T-21 — the transform is one undo step, and Backspace right
+    // after it puts the literal characters back. These are the mechanism the
+    // spec's "exactly one undo step" promise rests on.
+
+    // The Enter path removes one character FEWER than the space path: the
+    // newline that completed the marker was never typed into the DOM, so
+    // `markerLength` over-counts by exactly one here. With trailing text after
+    // the fence, an off-by-one eats the text's first character.
+    it('removes only the fence characters when Enter completes it, keeping the text after', () => {
+        const block = seed('<p><br></p>');
+        const textNode = block.insertBefore(document.createTextNode('```code'), block.firstChild) as Text;
+        setCaretAt(textNode, 3);
+
+        const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+        component.onKeydown(enter);
+        fixture.detectChanges();
+
+        expect(editor.querySelector('pre > code')?.textContent).toBe('code');
+    });
+
+    // The empty fence has to keep the newline `insertCodeBlock` also seeds, or
+    // `handleEnterInCodeBlock` can never see "the text already ends with \n"
+    // and Enter appends forever instead of leaving the block.
+    it('seeds an empty rule-created code block with the newline the exit rule needs', () => {
+        typeInto(seed('<p><br></p>'), '``` ');
+
+        const code = editor.querySelector('pre > code') as HTMLElement;
+        expect(code).not.toBeNull();
+        expect(code.textContent).toBe('\n');
+    });
+
+    it('leaves a code block created by the rule on the second Enter, as insertCodeBlock does', () => {
+        typeInto(seed('<p><br></p>'), '``` ');
+        const code = editor.querySelector('pre > code') as HTMLElement;
+        setCaretAt(code.firstChild as Text, (code.firstChild as Text).data.length);
+
+        const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+        component.onKeydown(enter);
+        fixture.detectChanges();
+
+        expect(editor.querySelector('pre > code')?.textContent).not.toContain('\n\n');
+    });
+
+    // §D.4.3 lists `onInput` among the hooks that close the revert window. An
+    // input that arrives without a preceding keydown — an IME commit, an
+    // autocomplete, `insertReplacementText` — must still end it, or Backspace
+    // undoes the whole transform instead of deleting one character.
+    it('closes the revert window on a later input that no keydown preceded', () => {
+        const block = seed('<p><br></p>');
+        typeInto(block, '# ');
+        const heading = editor.querySelector('h1') as HTMLElement;
+        expect(heading).not.toBeNull();
+
+        typeInto(heading, 'abc');
+
+        const backspace = new KeyboardEvent('keydown', {
+            key: 'Backspace',
+            bubbles: true,
+            cancelable: true,
+        });
+        component.onKeydown(backspace);
+        fixture.detectChanges();
+
+        expect(backspace.defaultPrevented).toBe(false);
+        expect(editor.querySelector('h1')).not.toBeNull();
+    });
+
+
+    // ── Inline rules ──────────────────────────────────────────────────────
+    // A completed wrapper becomes the element it names, its markers dropped,
+    // and the caret parks in a zero-width node AFTER the new element so the
+    // browser does not keep typing inside it.
+    describe('inline rules', () => {
+        // T-16
+        it('turns "**bold**" into a strong carrying just the body', () => {
+            typeInto(seed('<p><br></p>'), '**bold**');
+
+            const strong = editor.querySelector('strong');
+            expect(strong).not.toBeNull();
+            expect(strong?.textContent).toBe('bold');
+            expect(editor.textContent).not.toContain('*');
+        });
+
+        it('lands text typed after the transform outside the strong', () => {
+            const block = seed('<p><br></p>');
+            typeInto(block, '**bold**');
+            const strong = editor.querySelector('strong') as HTMLElement;
+
+            const selection = document.getSelection();
+            const caret = selection?.getRangeAt(0);
+            const parked = caret?.startContainer as Text;
+            parked.insertData(parked.data.length, 'x');
+            setCaretAt(parked, parked.data.length);
+            editor.dispatchEvent(
+                new InputEvent('input', { bubbles: true, inputType: 'insertText', data: 'x' })
+            );
+            fixture.detectChanges();
+
+            expect(strong.textContent).toBe('bold');
+            expect(editor.textContent?.replaceAll('\u200B', '')).toBe('boldx');
+        });
+
+        // T-17
+        it('turns "*it*" into an em', () => {
+            typeInto(seed('<p><br></p>'), '*it*');
+
+            const em = editor.querySelector('em');
+            expect(em).not.toBeNull();
+            expect(em?.textContent).toBe('it');
+        });
+
+        it('does not fire on the inner star of an unfinished "**bo*"', () => {
+            typeInto(seed('<p><br></p>'), '**bo*');
+
+            expect(editor.querySelector('em')).toBeNull();
+            expect(editor.querySelector('strong')).toBeNull();
+            expect(editor.textContent).toContain('**bo*');
+        });
+
+        // T-18
+        it('turns "`c`" into a code element', () => {
+            typeInto(seed('<p><br></p>'), '`c`');
+
+            const code = editor.querySelector('code');
+            expect(code).not.toBeNull();
+            expect(code?.textContent).toBe('c');
+        });
+
+        it('changes nothing when the same keystrokes land inside a pre', () => {
+            const code = seed('<pre><code>x</code></pre>').querySelector('code') as HTMLElement;
+            typeInto(code, '**b**');
+
+            expect(editor.querySelector('strong')).toBeNull();
+            expect(editor.querySelector('pre')?.textContent).toContain('**b**');
+        });
+
+        it('changes nothing when the same keystrokes land inside an inline code element', () => {
+            const code = seed('<p><code>x</code></p>').querySelector('code') as HTMLElement;
+            typeInto(code, '**b**');
+
+            expect(editor.querySelector('strong')).toBeNull();
+            expect(code.textContent).toContain('**b**');
+        });
+
+        // Every chip another feature owns vetoes an inline rule. Each selector
+        // in the forbidden list gets its own case: with only one exercised, the
+        // others can be deleted from the selector with the suite still green.
+        it.each([
+            ['data-mention', '<p><span data-mention="u1">@ann</span></p>'],
+            ['data-tag', '<p><span data-tag="t1">#rel</span></p>'],
+            ['data-action-click', '<p><span data-action-click="run">act</span></p>'],
+            ['data-action-hover', '<p><span data-action-hover="peek">act</span></p>'],
+        ])('does not fire inside a [%s] chip', (attribute, html) => {
+            const chip = seed(html).querySelector(`[${attribute}]`) as HTMLElement;
+            typeInto(chip, '**b**');
+
+            expect(editor.querySelector('strong')).toBeNull();
+            expect(chip.textContent).toContain('**b**');
+        });
+
+        // The `pre` entry is load-bearing on its own: a bare <pre> with no
+        // <code> inside would otherwise fall through to the inline rules.
+        it('does not fire inside a pre that holds no code element', () => {
+            const pre = seed('<pre>x</pre>');
+            typeInto(pre, '**b**');
+
+            expect(editor.querySelector('strong')).toBeNull();
+            expect(pre.textContent).toContain('**b**');
+        });
+
+        it('does not fire inside a link', () => {
+            const link = seed('<p><a href="https://example.com">site</a></p>')
+                .querySelector('a') as HTMLElement;
+            typeInto(link, '**b**');
+
+            expect(editor.querySelector('strong')).toBeNull();
+        });
+
+        it('fires inside a plain inline formatting element', () => {
+            const em = seed('<p><em>x</em></p>').querySelector('em') as HTMLElement;
+            typeInto(em, '`c`');
+
+            expect(em.querySelector('code')).not.toBeNull();
+        });
+
+        it('is one undo step, restoring the literal markers', () => {
+            typeInto(seed('<p><br></p>'), '**bold**');
+            expect(editor.querySelector('strong')).not.toBeNull();
+
+            (component as unknown as { undo(): void }).undo();
+            fixture.detectChanges();
+
+            expect(editor.querySelector('strong')).toBeNull();
+            expect(editor.textContent).toContain('**bold**');
+        });
+
+        it('reverts on an immediate Backspace', () => {
+            typeInto(seed('<p><br></p>'), '`c`');
+            expect(editor.querySelector('code')).not.toBeNull();
+
+            const event = new KeyboardEvent('keydown', {
+                key: 'Backspace',
+                bubbles: true,
+                cancelable: true,
+            });
+            component.onKeydown(event);
+            fixture.detectChanges();
+
+            expect(event.defaultPrevented).toBe(true);
+            expect(editor.querySelector('code')).toBeNull();
+            expect(editor.textContent).toContain('`c`');
+        });
+
+        it('does not fire when [markdownShortcuts] is false', () => {
+            fixture.componentRef.setInput('markdownShortcuts', false);
+            fixture.detectChanges();
+
+            typeInto(seed('<p><br></p>'), '**bold**');
+
+            expect(editor.querySelector('strong')).toBeNull();
+            expect(editor.textContent).toContain('**bold**');
+        });
+    });
+
+    describe('one undo step and the Backspace revert', () => {
+        /** Press a key through the component's real keydown path. */
+        const press = (key: string): KeyboardEvent => {
+            const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+            component.onKeydown(event);
+            fixture.detectChanges();
+            return event;
+        };
+
+        it('captures the marker state as its own history entry, so undo restores the literal text', () => {
+            fixture.componentRef.setInput('history', { debounceMs: 0 });
+            fixture.detectChanges();
+
+            typeInto(seed('<p><br></p>'), '# ');
+            expect(editor.querySelector('h1')).not.toBeNull();
+
+            component.onFormatCommand('undo');
+            fixture.detectChanges();
+
+            expect(editor.querySelector('h1')).toBeNull();
+            expect(editor.textContent).toContain('#');
+        });
+
+        // Undo goes through the private method rather than
+        // `onFormatCommand('undo')`, whose trailing `applyMutation` pushes a
+        // fresh entry and truncates the redo branch — pre-existing behaviour of
+        // the command path, unrelated to input rules.
+        it('re-applies the heading on redo', () => {
+            typeInto(seed('<p><br></p>'), '# ');
+            (component as unknown as { undo(): void }).undo();
+            fixture.detectChanges();
+            expect(editor.querySelector('h1')).toBeNull();
+
+            component.onFormatCommand('redo');
+            fixture.detectChanges();
+
+            expect(editor.querySelector('h1')).not.toBeNull();
+        });
+
+        it('grows the history by exactly two entries — the markers, then the transform', () => {
+            const before = component.historyEntries().length;
+
+            typeInto(seed('<p><br></p>'), '# ');
+
+            expect(component.historyEntries().length - before).toBe(2);
+        });
+
+        it('leaves earlier text untouched when the transform is undone', () => {
+            const block = seed('<p>hello</p>');
+            const second = editor.appendChild(document.createElement('p'));
+            second.innerHTML = '<br>';
+            typeInto(second, '# ');
+            expect(editor.querySelector('h1')).not.toBeNull();
+
+            component.onFormatCommand('undo');
+            fixture.detectChanges();
+
+            expect(editor.textContent).toContain('hello');
+            expect(block.textContent).toBe('hello');
+        });
+
+        it('reverts the transform on Backspace and prevents the default delete', () => {
+            typeInto(seed('<p><br></p>'), '# ');
+            expect(editor.querySelector('h1')).not.toBeNull();
+
+            const event = press('Backspace');
+
+            expect(event.defaultPrevented).toBe(true);
+            expect(editor.querySelector('h1')).toBeNull();
+            expect(editor.textContent).toContain('#');
+        });
+
+        it('does not revert when another key came between the transform and the Backspace', () => {
+            typeInto(seed('<p><br></p>'), '# ');
+            press('a');
+
+            const event = press('Backspace');
+
+            expect(event.defaultPrevented).toBe(false);
+            expect(editor.querySelector('h1')).not.toBeNull();
+        });
+
+        it('does not revert after the editor has blurred', () => {
+            typeInto(seed('<p><br></p>'), '# ');
+            component.onBlur();
+            fixture.detectChanges();
+
+            const event = press('Backspace');
+
+            expect(event.defaultPrevented).toBe(false);
+            expect(editor.querySelector('h1')).not.toBeNull();
+        });
+
+        it('does not revert after a mousedown in the editor', () => {
+            typeInto(seed('<p><br></p>'), '# ');
+            const mousedown = new MouseEvent('mousedown', { bubbles: true });
+            Object.defineProperty(mousedown, 'target', { value: editor });
+            component.onEditorMouseDown(mousedown);
+            fixture.detectChanges();
+
+            const event = press('Backspace');
+
+            expect(event.defaultPrevented).toBe(false);
+            expect(editor.querySelector('h1')).not.toBeNull();
+        });
+
+        // Asserts the recorded rule is DROPPED, not merely that the revert
+        // declines: `revertLastInputRule` re-checks containment anyway, so a
+        // Backspace-only assertion would pass with the hook removed and prove
+        // nothing about the selection path releasing the reference.
+        it('forgets the recorded rule once the caret leaves the block it produced', () => {
+            const block = seed('<p><br></p>');
+            const outside = editor.appendChild(document.createElement('p'));
+            outside.appendChild(document.createTextNode('elsewhere'));
+            typeInto(block, '# ');
+
+            const recorded = () =>
+                (component as unknown as { lastInputRule: unknown }).lastInputRule;
+            expect(recorded()).not.toBeNull();
+
+            setCaretAt(outside.firstChild as Text, 3);
+            component.onSelectionChange();
+            fixture.detectChanges();
+
+            expect(recorded()).toBeNull();
+
+            const event = press('Backspace');
+            expect(event.defaultPrevented).toBe(false);
+            expect(editor.querySelector('h1')).not.toBeNull();
+        });
+    });
+
+});
+
+// ── Block-state activeFormats ─────────────────────────────────────────────
+// `activeFormats()` reports the block the caret is in, so the toolbar's block,
+// list and alignment buttons can render pressed.
+describe('RichTextEditorComponent block-state activeFormats', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector(
+            '[data-slot="rich-text-editor"]'
+        ) as HTMLDivElement;
+    });
+
+    /** Put the caret inside `selector`'s text and re-detect the active formats. */
+    const caretIn = (html: string, selector: string): Set<string> => {
+        editor.innerHTML = html;
+        const target = editor.querySelector(selector) as HTMLElement;
+        const walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT);
+        const textNode = walker.nextNode() as Text | null;
+        if (textNode) {
+            setCaretAt(textNode, textNode.data.length);
+        } else {
+            setCaretAt(target, 0);
+        }
+        component.onSelectionChange();
+        fixture.detectChanges();
+        return component.activeFormats();
+    };
+
+    // T-26 — block type.
+    it('reports heading1/2/3 for the caret\'s heading level', () => {
+        expect(caretIn('<h1>a</h1>', 'h1')).toContain('heading1');
+        expect(caretIn('<h2>a</h2>', 'h2')).toContain('heading2');
+        expect(caretIn('<h3>a</h3>', 'h3')).toContain('heading3');
+    });
+
+    it('reports paragraph in a plain block, and not alongside a heading', () => {
+        expect(caretIn('<p>a</p>', 'p')).toContain('paragraph');
+
+        const inHeading = caretIn('<h1>a</h1>', 'h1');
+        expect(inHeading).not.toContain('paragraph');
+    });
+
+    it('adds nothing for h4-h6, which have no toolbar button', () => {
+        const formats = caretIn('<h4>a</h4>', 'h4');
+        expect(formats).not.toContain('heading1');
+        expect(formats).not.toContain('heading2');
+        expect(formats).not.toContain('heading3');
+        expect(formats).not.toContain('paragraph');
+    });
+
+    it('reports blockquote, codeBlock and inline code', () => {
+        expect(caretIn('<blockquote>a</blockquote>', 'blockquote')).toContain('blockquote');
+        expect(caretIn('<pre><code>a</code></pre>', 'code')).toContain('codeBlock');
+        expect(caretIn('<p><code>a</code></p>', 'code')).toContain('code');
+    });
+
+    it('does not report inline code for a code element inside a pre', () => {
+        const formats = caretIn('<pre><code>a</code></pre>', 'code');
+        expect(formats).toContain('codeBlock');
+        expect(formats).not.toContain('code');
+    });
+
+    it('reports bulletList, orderedList and taskList', () => {
+        expect(caretIn('<ul><li>a</li></ul>', 'li')).toContain('bulletList');
+        expect(caretIn('<ol><li>a</li></ol>', 'li')).toContain('orderedList');
+        const task = caretIn(
+            '<ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>a</span></li></ul>',
+            'span'
+        );
+        expect(task).toContain('taskList');
+        // A task list is a <ul> to the browser; only its own button reads pressed.
+        expect(task).not.toContain('bulletList');
+    });
+
+    it('tells the weight a heading inherits apart from bold formatting', () => {
+        // queryCommandState('bold') reads the computed weight, so every heading
+        // lit the Bold button with nothing for it to turn off. The browser only
+        // answers that query for a focused document, which the harness is not,
+        // so the guard that filters its answer is exercised directly.
+        const guard = component as unknown as { boldOnlyFromHeading(): boolean };
+        const inheritedOnly = (html: string, selector: string): boolean => {
+            editor.innerHTML = html;
+            setCaretAt(editor.querySelector(selector)!.firstChild!, 1);
+            return guard.boldOnlyFromHeading();
+        };
+        expect(inheritedOnly('<h2>title</h2>', 'h2')).toBe(true);
+        expect(inheritedOnly('<h2>a <b>bb</b></h2>', 'b')).toBe(false);
+        expect(inheritedOnly('<h3><span style="font-weight:700">xx</span></h3>', 'span')).toBe(false);
+        expect(inheritedOnly('<p><strong>xx</strong></p>', 'strong')).toBe(false);
+        expect(inheritedOnly('<p>plain</p>', 'p')).toBe(false);
+    });
+
+    it('does not report paragraph inside a list item', () => {
+        expect(caretIn('<ul><li>a</li></ul>', 'li')).not.toContain('paragraph');
+    });
+
+    // `taskList` is keyed on the marker attribute, not on the tag: a plain
+    // bullet list must not press the task-list button.
+    it('does not report taskList for a plain ul', () => {
+        expect(caretIn('<ul><li>a</li></ul>', 'li')).not.toContain('taskList');
+    });
+
+    // T-27 — alignment, and its RTL mirroring.
+    it('reports alignCenter for a centred block', () => {
+        expect(caretIn('<p style="text-align: center">a</p>', 'p')).toContain('alignCenter');
+    });
+
+    it('maps physical left/right to alignLeft/alignRight in an LTR locale', () => {
+        expect(caretIn('<p style="text-align: left">a</p>', 'p')).toContain('alignLeft');
+        expect(caretIn('<p style="text-align: right">a</p>', 'p')).toContain('alignRight');
+    });
+
+    it('mirrors physical left/right under an RTL locale', () => {
+        fixture.componentRef.setInput('locale', 'he');
+        fixture.detectChanges();
+
+        expect(caretIn('<p style="text-align: right">a</p>', 'p')).toContain('alignLeft');
+        expect(caretIn('<p style="text-align: left">a</p>', 'p')).toContain('alignRight');
+    });
+
+    // `start`/`end` are already direction-relative, so they press the same
+    // button in both locales: the "start" side of the text, whichever physical
+    // side that is. Only the physical `left`/`right` values need mirroring.
+    it('resolves logical start/end to the same button in either direction', () => {
+        expect(caretIn('<p style="text-align: start">a</p>', 'p')).toContain('alignLeft');
+        expect(caretIn('<p style="text-align: end">a</p>', 'p')).toContain('alignRight');
+
+        fixture.componentRef.setInput('locale', 'he');
+        fixture.detectChanges();
+
+        expect(caretIn('<p style="text-align: start">a</p>', 'p')).toContain('alignLeft');
+        expect(caretIn('<p style="text-align: end">a</p>', 'p')).toContain('alignRight');
+    });
+
+    it('reports no alignment for justify', () => {
+        const formats = caretIn('<p style="text-align: justify">a</p>', 'p');
+        expect(formats).not.toContain('alignLeft');
+        expect(formats).not.toContain('alignCenter');
+        expect(formats).not.toContain('alignRight');
+    });
+
+    it('reads the align attribute when no inline style is present', () => {
+        expect(caretIn('<p align="center">a</p>', 'p')).toContain('alignCenter');
+    });
+
+    // T-28 — nesting depth, exposed as data only.
+    it('reports indent for a nested list item and not for a top-level one', () => {
+        expect(caretIn('<ul><li>a</li></ul>', 'li')).not.toContain('indent');
+
+        const nested = caretIn(
+            '<ul><li>a<ul><li id="deep">b</li></ul></li></ul>',
+            '#deep'
+        );
+        expect(nested).toContain('indent');
+    });
+});
+
+// ── Text style select, from the editor's side ─────────────────────────────
+describe('RichTextEditorComponent text style select', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector(
+            '[data-slot="rich-text-editor"]'
+        ) as HTMLDivElement;
+    });
+
+    // T-33 — the default layout change, and the escape hatch for it.
+    it('puts textStyle in the default toolbar in place of the four block buttons', () => {
+        expect(DEFAULT_TOOLBAR_ITEMS).toContain('textStyle');
+        for (const item of ['paragraph', 'heading1', 'heading2', 'heading3']) {
+            expect(DEFAULT_TOOLBAR_ITEMS).not.toContain(item);
+        }
+    });
+
+    it('renders the select by default and no block buttons', () => {
+        expect(
+            fixture.nativeElement.querySelector('[data-slot="rich-text-toolbar-text-style"]')
+        ).not.toBeNull();
+    });
+
+    it('still renders four working buttons when a consumer lists them explicitly', () => {
+        fixture.componentRef.setInput('toolbarItems', [
+            'paragraph', 'heading1', 'heading2', 'heading3',
+        ]);
+        fixture.detectChanges();
+
+        const buttons = fixture.nativeElement.querySelectorAll(
+            '[data-slot="rich-text-toolbar"] button, [role="toolbar"] button'
+        );
+        expect(buttons).toHaveLength(4);
+        expect(
+            fixture.nativeElement.querySelector('[data-slot="rich-text-toolbar-text-style"]')
+        ).toBeNull();
+    });
+
+    it('presses the explicit heading button matching the caret block', () => {
+        fixture.componentRef.setInput('toolbarItems', [
+            'paragraph', 'heading1', 'heading2', 'heading3',
+        ]);
+        fixture.detectChanges();
+
+        editor.innerHTML = '<h2>a</h2>';
+        const textNode = editor.querySelector('h2')!.firstChild as Text;
+        setCaretAt(textNode, 1);
+        component.onSelectionChange();
+        fixture.detectChanges();
+
+        const pressed = Array.from(
+            fixture.nativeElement.querySelectorAll('button[aria-pressed="true"]')
+        ) as HTMLElement[];
+        expect(pressed).toHaveLength(1);
+        expect(pressed[0].getAttribute('title')).toContain('Heading 2');
+    });
+
+    // T-35, corrected. Measured, not class-asserted.
+    //
+    // The spec predicted the default toolbar would be "at least 3 button
+    // widths narrower". It is not: the select is capped at max-w-[7rem] plus
+    // its icon (~114px) and four 28px buttons are ~112px, so at default sizing
+    // they are within a couple of pixels. What the select actually buys is a
+    // control that TRUNCATES — it holds that cap whatever the locale's labels
+    // are, while four buttons cannot shrink — plus four fewer focus stops.
+    //
+    // So this asserts the property that holds and matters: the default layout
+    // is never wider, and it replaces four rendered items with one.
+    it('is no wider than the four-button layout and renders four fewer items', () => {
+        const toolbarEl = () =>
+            fixture.nativeElement.querySelector('[role="toolbar"]') as HTMLElement;
+        const itemsWidth = () =>
+            Array.from(toolbarEl().children as HTMLCollectionOf<HTMLElement>)
+                .reduce((total, child) => total + child.offsetWidth, 0);
+
+        const classic = [
+            ...DEFAULT_TOOLBAR_ITEMS.filter((item) => item !== 'textStyle'),
+            'paragraph', 'heading1', 'heading2', 'heading3',
+        ];
+        fixture.componentRef.setInput('toolbarItems', classic);
+        fixture.detectChanges();
+        const classicWidth = itemsWidth();
+        const classicCount = toolbarEl().children.length;
+        expect(classicWidth).toBeGreaterThan(0);
+
+        fixture.componentRef.setInput('toolbarItems', DEFAULT_TOOLBAR_ITEMS);
+        fixture.detectChanges();
+
+        expect(itemsWidth()).toBeLessThanOrEqual(classicWidth);
+        expect(classicCount - toolbarEl().children.length).toBe(3);
+    });
+
+    // T-32 — choosing an option converts the block the editor had saved when
+    // focus moved to the select, and costs one history entry.
+    it('converts the saved block when a style is chosen after the editor blurs', () => {
+        editor.innerHTML = '<p>hello</p>';
+        const textNode = editor.querySelector('p')!.firstChild as Text;
+        setCaretAt(textNode, 5);
+        component.onBlur();
+        fixture.detectChanges();
+
+        const before = component.historyEntries().length;
+        const select = fixture.nativeElement.querySelector(
+            '[data-slot="rich-text-toolbar-text-style"]'
+        ) as HTMLSelectElement;
+        select.value = 'heading2';
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        fixture.detectChanges();
+
+        expect(editor.querySelector('h2')).not.toBeNull();
+        expect(editor.textContent).toContain('hello');
+        expect(component.historyEntries()).toHaveLength(before + 1);
+    });
+
+    it('shows the caret block in the select and converts back to normal text', () => {
+        editor.innerHTML = '<h1>title</h1>';
+        const textNode = editor.querySelector('h1')!.firstChild as Text;
+        setCaretAt(textNode, 2);
+        component.onSelectionChange();
+        fixture.detectChanges();
+
+        const select = fixture.nativeElement.querySelector(
+            '[data-slot="rich-text-toolbar-text-style"]'
+        ) as HTMLSelectElement;
+        expect(select.value).toBe('heading1');
+
+        select.value = 'paragraph';
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        fixture.detectChanges();
+
+        expect(editor.querySelector('h1')).toBeNull();
+        expect(editor.textContent).toContain('title');
+    });
+});
+
+describe('RichTextEditorComponent — undo consistency', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+        component.writeValue('<p>one</p>');
+        fixture.detectChanges();
+        // `ngOnInit` records the empty document and `writeValue` deliberately
+        // records nothing (UC-28), so without this the loaded content is not on
+        // the stack and undo would jump past it to the empty state.
+        component.setContent('<p>one</p>');
+        component.markClean();
+    });
+
+    /** Type `text` into the editable and let the input path run. */
+    const type = (text: string) => {
+        const p = editor.querySelector('p') as HTMLParagraphElement;
+        p.textContent = text;
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    it('T-31b setContent flushes an in-flight typing burst as its own entry', () => {
+        type('one typed');
+
+        component.setContent('<p>loaded</p>');
+
+        expect(editor.textContent).toBe('loaded');
+        component.onKeydown(undoKey());
+        expect(editor.textContent).toBe('one typed');
+    });
+
+    it('T-31 setContent records one entry by default, calls onChange, undo/redo round-trips', () => {
+        const seen: string[] = [];
+        component.registerOnChange(v => seen.push(v));
+        const before = historyLength(component);
+
+        component.setContent('<p>two</p>');
+
+        expect(historyLength(component) - before).toBe(1);
+        expect(seen.at(-1)).toContain('two');
+        expect(component.canUndo()).toBe(true);
+        expect(editor.textContent).toBe('two');
+
+        component.onKeydown(undoKey());
+        expect(editor.textContent).toBe('one');
+
+        component.onKeydown(redoKey());
+        expect(editor.textContent).toBe('two');
+    });
+
+    it('T-31c setContent leaves a collapsed caret at the end of the new content', () => {
+        component.setContent('<p>alpha</p><p>omega</p>');
+
+        const selection = document.getSelection() as Selection;
+        expect(selection.rangeCount).toBe(1);
+        const range = selection.getRangeAt(0);
+        expect(range.collapsed).toBe(true);
+        const after = document.createRange();
+        after.selectNodeContents(editor);
+        after.setStart(range.endContainer, range.endOffset);
+        expect(after.cloneContents().textContent).toBe('');
+        expect(editor.contains(range.startContainer)).toBe(true);
+    });
+
+    it('T-34b recordExternalWrites flushes an in-flight typing burst before the write', () => {
+        fixture.componentRef.setInput('history', { recordExternalWrites: true });
+        fixture.detectChanges();
+        type('one typed');
+
+        component.writeValue('<p>loaded</p>');
+
+        expect(editor.textContent).toBe('loaded');
+        component.onKeydown(undoKey());
+        expect(editor.textContent).toBe('one typed');
+    });
+
+    it('T-32 setContent with recordHistory:false calls onChange and leaves the stack length unchanged', () => {
+        const seen: string[] = [];
+        component.registerOnChange(v => seen.push(v));
+        const before = historyLength(component);
+
+        component.setContent('<p>two</p>', { recordHistory: false });
+
+        expect(historyLength(component)).toBe(before);
+        expect(seen.at(-1)).toContain('two');
+        expect(editor.textContent).toBe('two');
+    });
+
+    it('T-33 writeValue default never calls onChange and does not change the stack length', () => {
+        const seen: string[] = [];
+        component.registerOnChange(v => seen.push(v));
+        const before = historyLength(component);
+
+        component.writeValue('<p>three</p>');
+
+        expect(historyLength(component)).toBe(before);
+        expect(seen).toHaveLength(0);
+        expect(editor.textContent).toBe('three');
+    });
+
+    it('T-34 recordExternalWrites=true makes writeValue push one entry; undo restores the previous content', () => {
+        fixture.componentRef.setInput('history', { recordExternalWrites: true });
+        fixture.detectChanges();
+        const before = historyLength(component);
+
+        component.writeValue('<p>draft</p>');
+
+        expect(historyLength(component) - before).toBe(1);
+        expect(editor.textContent).toBe('draft');
+
+        component.onKeydown(undoKey());
+        expect(editor.textContent).toBe('one');
+    });
+
+    it('T-35 insertTextFromOverlay records its own entry (one undo removes only the inserted text)', () => {
+        type('hi');
+        component.flushPendingHistoryPush();
+        const afterTyping = editor.textContent;
+        const before = historyLength(component);
+
+        const para = editor.querySelector('p') as HTMLElement;
+        setCaretAt(para, para.childNodes.length);
+        component.saveSelection();
+        component.insertTextFromOverlay('!');
+
+        expect(historyLength(component) - before).toBe(1);
+        expect(editor.textContent).toBe('hi!');
+
+        component.onKeydown(undoKey());
+        expect(editor.textContent).toBe(afterTyping);
+    });
+
+    it('T-36 historyChange emits {canUndo,canRedo} on push, undo, redo and restoreHistoryEntry', () => {
+        const seen: RichTextHistoryState[] = [];
+        component.historyChange.subscribe(s => seen.push(s));
+
+        component.setContent('<p>two</p>');
+        expect(seen.at(-1)).toEqual({ canUndo: true, canRedo: false });
+
+        component.onKeydown(undoKey());
+        expect(seen.at(-1)?.canRedo).toBe(true);
+
+        component.onKeydown(redoKey());
+        expect(seen.at(-1)).toEqual({ canUndo: true, canRedo: false });
+
+        const count = seen.length;
+        component.restoreHistoryEntry(0);
+        expect(seen.length).toBeGreaterThan(count);
+        expect(seen.at(-1)).toEqual({ canUndo: false, canRedo: true });
+    });
+
+    it('T-36b history trim still emits historyChange', () => {
+        fixture.componentRef.setInput('history', { limit: 10 });
+        fixture.detectChanges();
+        const seen: RichTextHistoryState[] = [];
+        component.historyChange.subscribe(s => seen.push(s));
+
+        for (let i = 0; i < 15; i++) {
+            component.setContent(`<p>v${i}</p>`);
+        }
+
+        expect(seen).toHaveLength(15);
+        expect(historyLength(component)).toBeLessThanOrEqual(11);
+        expect(seen.at(-1)).toEqual({ canUndo: true, canRedo: false });
+    });
+
+    it('T-37 canUndo/canRedo signals mirror the output', () => {
+        const seen: RichTextHistoryState[] = [];
+        component.historyChange.subscribe(s => seen.push(s));
+
+        component.setContent('<p>two</p>');
+        expect({ canUndo: component.canUndo(), canRedo: component.canRedo() }).toEqual(seen.at(-1));
+
+        component.onKeydown(undoKey());
+        expect({ canUndo: component.canUndo(), canRedo: component.canRedo() }).toEqual(seen.at(-1));
+
+        component.onKeydown(redoKey());
+        expect({ canUndo: component.canUndo(), canRedo: component.canRedo() }).toEqual(seen.at(-1));
+    });
+
+    it('T-38 isDirty is false after writeValue and after a no-op input event', () => {
+        expect(component.isDirty()).toBe(false);
+
+        // Caret inside the paragraph: with no selection at all the editor's
+        // bare-text normalisation wraps the content in a fresh block, which is
+        // a real edit, not a no-op.
+        setCaretAt((editor.querySelector('p') as HTMLElement).firstChild as Text, 1);
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+
+        expect(editor.innerHTML).toBe('<p>one</p>');
+        expect(component.isDirty()).toBe(false);
+    });
+
+    it('T-38b markClean baselines against the DOM, not the model signal', () => {
+        // §D.4 Option II: the baseline is what the editable currently holds,
+        // read back through the sanitizer — so content the browser normalised
+        // after the model was written still reads clean. Option I (baseline =
+        // the model string) would report a document nobody edited as dirty.
+        component.writeValue('<p>one</p>');
+        fixture.detectChanges();
+
+        const para = editor.querySelector('p') as HTMLElement;
+        para.appendChild(document.createTextNode(' two'));
+        expect(component.isDirty()).toBe(false);
+
+        component.markClean();
+
+        expect(component.htmlOutput()).toContain('one two');
+        expect(component.isDirty()).toBe(false);
+
+        setCaretAt(para.firstChild as Text, 1);
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+
+        expect(component.isDirty()).toBe(false);
+    });
+
+    it('writeValue emits the content outputs but not the form callback', () => {
+        const html: string[] = [];
+        const changes: string[] = [];
+        component.htmlChange.subscribe(v => html.push(v));
+        component.registerOnChange(v => changes.push(v));
+
+        component.writeValue('<p>fresh</p>');
+        fixture.detectChanges();
+
+        expect(html.at(-1)).toContain('fresh');
+        expect(changes).toHaveLength(0);
+    });
+
+    it('T-39 isDirty is true after typing and false after undoing back to the loaded content', () => {
+        type('one changed');
+        component.flushPendingHistoryPush();
+
+        expect(component.isDirty()).toBe(true);
+
+        component.onKeydown(undoKey());
+
+        expect(editor.textContent).toBe('one');
+        expect(component.isDirty()).toBe(false);
+    });
+
+    it('T-40 markClean resets isDirty', () => {
+        type('edited');
+        component.flushPendingHistoryPush();
+        expect(component.isDirty()).toBe(true);
+
+        component.markClean();
+
+        expect(component.isDirty()).toBe(false);
+    });
+
+    it('T-41 setContent does not reset isDirty; writeValue does', () => {
+        type('edited');
+        component.flushPendingHistoryPush();
+        expect(component.isDirty()).toBe(true);
+
+        component.setContent('<p>programmatic</p>');
+        expect(component.isDirty()).toBe(true);
+
+        component.writeValue('<p>loaded</p>');
+        expect(component.isDirty()).toBe(false);
+    });
+
+    it('T-42 markdown mode: setContent parses markdown and onChange receives markdown', () => {
+        fixture.componentRef.setInput('mode', 'markdown');
+        fixture.detectChanges();
+        const seen: string[] = [];
+        component.registerOnChange(v => seen.push(v));
+
+        component.setContent('# Title');
+
+        expect(editor.querySelector('h1')?.textContent).toBe('Title');
+        expect(seen.at(-1)).toContain('# Title');
+    });
+
+    it('setContent coerces null and undefined to the empty string', () => {
+        component.setContent(null as unknown as string);
+
+        expect(editor.textContent).toBe('');
+    });
+});
+
+describe('RichTextEditorComponent — imperative API', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+        component.writeValue('<p>Hello</p>');
+        fixture.detectChanges();
+        component.setContent('<p>Hello</p>');
+        component.markClean();
+    });
+
+    /** Put the caret at the end of the first paragraph and save it as the blurred caret. */
+    const caretAfterHello = () => {
+        const p = editor.querySelector('p') as HTMLParagraphElement;
+        const textNode = p.firstChild as Text;
+        setCaretAt(textNode, textNode.length);
+        component.saveSelection();
+    };
+
+    it('T-1 satisfies RichTextEditorApi and exposes every member of the contract', () => {
+        const api: RichTextEditorApi = component;
+        expect(api).toBe(component);
+
+        const methods: ReadonlyArray<keyof RichTextEditorApi> = [
+            'focus', 'insertText', 'insertHtml', 'format', 'selection',
+            'isEmpty', 'undo', 'redo', 'setContent', 'markClean',
+        ];
+        for (const name of methods) {
+            expect(typeof (component as unknown as Record<string, unknown>)[name]).toBe('function');
+        }
+
+        const signals: ReadonlyArray<keyof RichTextEditorApi> = [
+            'canUndo', 'canRedo', 'isDirty', 'htmlOutput', 'markdownOutput',
+        ];
+        for (const name of signals) {
+            expect(typeof (component as unknown as Record<string, unknown>)[name]).toBe('function');
+        }
+    });
+
+    it('T-2 focus() focuses the editable and restores the saved caret', () => {
+        caretAfterHello();
+        (document.activeElement as HTMLElement | null)?.blur();
+        document.getSelection()?.removeAllRanges();
+
+        component.focus();
+
+        expect(document.activeElement).toBe(editor);
+        const range = document.getSelection()?.getRangeAt(0) as Range;
+        expect(editor.contains(range.startContainer)).toBe(true);
+        expect(range.startOffset).toBe('Hello'.length);
+    });
+
+    it('T-2b focus() lands a collapsed caret inside the editor when there is none to restore', () => {
+        // No saved caret: `restoreSelection` falls through to the live
+        // selection, and failing that collapses to the end of the content.
+        // Either way the caret must end up inside the editable — which is what
+        // makes the next `insertText` land in the document rather than nowhere.
+        (component as unknown as { savedRange: Range | null }).savedRange = null;
+        document.getSelection()?.removeAllRanges();
+
+        component.focus();
+
+        expect(document.activeElement).toBe(editor);
+        const range = document.getSelection()?.getRangeAt(0) as Range;
+        expect(range.collapsed).toBe(true);
+        expect(editor.contains(range.startContainer)).toBe(true);
+    });
+
+    it('T-2b2 restoreSelection collapses to the end when the caret is parked outside the editor', () => {
+        // The collapse-to-end fallback is only observable through
+        // `restoreSelection` directly. Reached through `focus()`, the explicit
+        // `focusEditor()` that §F requires first has already put a browser
+        // caret inside the editable, so the live-selection branch always wins —
+        // verified in real Chromium, not only jsdom (spec correction §G.14).
+        component.setContent('<p>alpha</p><p>omega</p>');
+        (component as unknown as { savedRange: Range | null }).savedRange = null;
+        const outside = document.createElement('p');
+        outside.textContent = 'outside';
+        document.body.append(outside);
+        setCaretAt(outside.firstChild as Text, 0);
+
+        component.restoreSelection();
+        outside.remove();
+
+        const range = document.getSelection()?.getRangeAt(0) as Range;
+        const after = document.createRange();
+        after.selectNodeContents(editor);
+        after.setStart(range.endContainer, range.endOffset);
+        expect(after.cloneContents().textContent).toBe('');
+    });
+
+    it('T-2c focus() is a no-op while disabled', () => {
+        fixture.componentRef.setInput('disabled', true);
+        fixture.detectChanges();
+        (document.activeElement as HTMLElement | null)?.blur();
+
+        component.focus();
+
+        expect(document.activeElement).not.toBe(editor);
+    });
+
+    it('T-2d focus() is a no-op while the form has disabled the control', () => {
+        component.setDisabledState(true);
+        fixture.detectChanges();
+        (document.activeElement as HTMLElement | null)?.blur();
+
+        component.focus();
+
+        expect(document.activeElement).not.toBe(editor);
+    });
+
+    it('T-3 insertText from a blurred editor inserts at the saved caret, calls onChange once, pushes one entry and focuses', () => {
+        caretAfterHello();
+        (document.activeElement as HTMLElement | null)?.blur();
+        const seen: string[] = [];
+        component.registerOnChange(v => seen.push(v));
+        const before = historyLength(component);
+
+        component.insertText(' world');
+
+        expect(editor.textContent).toBe('Hello world');
+        expect(seen).toHaveLength(1);
+        expect(historyLength(component) - before).toBe(1);
+        expect(component.canUndo()).toBe(true);
+        expect(document.activeElement).toBe(editor);
+
+        component.undo();
+        expect(editor.textContent).toBe('Hello');
+    });
+
+    it("T-3b insertText('') is a no-op", () => {
+        caretAfterHello();
+        const seen: string[] = [];
+        component.registerOnChange(v => seen.push(v));
+        const before = historyLength(component);
+
+        component.insertText('');
+
+        expect(editor.textContent).toBe('Hello');
+        expect(seen).toHaveLength(0);
+        expect(historyLength(component)).toBe(before);
+    });
+
+    it('T-4 insertText and insertHtml are no-ops while readonly', () => {
+        fixture.componentRef.setInput('readonly', true);
+        fixture.detectChanges();
+        caretAfterHello();
+        const seen: string[] = [];
+        component.registerOnChange(v => seen.push(v));
+        const before = historyLength(component);
+
+        component.insertText(' world');
+        component.insertHtml('<b>x</b>');
+
+        expect(editor.textContent).toBe('Hello');
+        expect(seen).toHaveLength(0);
+        expect(historyLength(component)).toBe(before);
+    });
+
+    it('T-4b insertText and insertHtml are no-ops while disabled', () => {
+        fixture.componentRef.setInput('disabled', true);
+        fixture.detectChanges();
+        caretAfterHello();
+        const before = historyLength(component);
+
+        component.insertText(' world');
+        component.insertHtml('<b>x</b>');
+
+        expect(editor.textContent).toBe('Hello');
+        expect(historyLength(component)).toBe(before);
+    });
+
+    it('T-4c insertText and insertHtml are no-ops while the form has disabled the control', () => {
+        component.setDisabledState(true);
+        fixture.detectChanges();
+        caretAfterHello();
+        const before = historyLength(component);
+
+        component.insertText(' world');
+        component.insertHtml('<b>x</b>');
+
+        expect(editor.textContent).toBe('Hello');
+        expect(historyLength(component)).toBe(before);
+    });
+
+    it('T-4d insertText and insertHtml do not throw before the view exists', () => {
+        // §C.3: a consumer calling the API from a constructor or an early
+        // lifecycle hook must get nothing, not an exception.
+        const fresh = TestBed.createComponent(RichTextEditorComponent).componentInstance;
+
+        expect(() => fresh.insertText('x')).not.toThrow();
+        expect(() => fresh.insertHtml('<b>x</b>')).not.toThrow();
+    });
+
+    it('T-5 insertHtml sanitizes, pushes one entry and calls onChange once', () => {
+        caretAfterHello();
+        (document.activeElement as HTMLElement | null)?.blur();
+        const seen: string[] = [];
+        component.registerOnChange(v => seen.push(v));
+        const before = historyLength(component);
+
+        component.insertHtml('<b>bold</b><script>alert(1)</script>');
+
+        expect(editor.querySelector('b')?.textContent).toBe('bold');
+        expect(editor.querySelector('script')).toBeNull();
+        expect(editor.innerHTML).not.toContain('alert');
+        expect(seen).toHaveLength(1);
+        expect(historyLength(component) - before).toBe(1);
+    });
+
+    it('T-5b insertHtml is a no-op when nothing survives sanitization', () => {
+        caretAfterHello();
+        const seen: string[] = [];
+        component.registerOnChange(v => seen.push(v));
+        const before = historyLength(component);
+
+        component.insertHtml('<script>alert(1)</script>');
+
+        expect(editor.textContent).toBe('Hello');
+        expect(seen).toHaveLength(0);
+        expect(historyLength(component)).toBe(before);
+    });
+
+    it('T-6 format(command) delegates to onFormatCommand', () => {
+        const spy = vi.spyOn(component, 'onFormatCommand');
+
+        component.format('bold');
+
+        expect(spy).toHaveBeenCalledWith('bold');
+    });
+
+    it('T-6b format("bold") bolds the selection, records one entry, updates activeFormats and focuses', () => {
+        const p = editor.querySelector('p') as HTMLParagraphElement;
+        selectAllOf(p);
+        component.saveSelection();
+        (document.activeElement as HTMLElement | null)?.blur();
+        const before = historyLength(component);
+
+        component.format('bold');
+
+        expect(editor.querySelector('b, strong')).not.toBeNull();
+        expect(historyLength(component) - before).toBe(1);
+        expect(component.activeFormats().has('bold')).toBe(true);
+        expect(document.activeElement).toBe(editor);
+    });
+
+    it('T-6c format() on a collapsed caret still runs the command', () => {
+        caretAfterHello();
+        const spy = vi.spyOn(component, 'onFormatCommand');
+
+        component.format('italic');
+
+        expect(spy).toHaveBeenCalledWith('italic');
+        expect(component.activeFormats().has('italic')).toBe(true);
+    });
+
+    it('T-7 format rejects textStyle, find, undo, redo and unknown ids at the type level', () => {
+        // @ts-expect-error — 'textStyle' is a select, not a format command.
+        const a = () => component.format('textStyle');
+        // @ts-expect-error — 'find' opens a panel, not a format.
+        const b = () => component.format('find');
+        // @ts-expect-error — undo has its own method.
+        const c = () => component.format('undo');
+        // @ts-expect-error — redo has its own method.
+        const d = () => component.format('redo');
+        // @ts-expect-error — not a toolbar command at all.
+        const e = () => component.format('nope');
+
+        expect([a, b, c, d, e]).toHaveLength(5);
+    });
+
+    it('T-8 undo() and redo() are public and mirror the shortcut path', () => {
+        const p = editor.querySelector('p') as HTMLParagraphElement;
+        p.textContent = 'Hello there';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+
+        component.undo();
+        expect(editor.textContent).toBe('Hello');
+
+        component.redo();
+        expect(editor.textContent).toBe('Hello there');
+    });
+
+    it('T-8c undo() and redo() are no-ops at the ends of the stack', () => {
+        const seen: RichTextHistoryState[] = [];
+        component.historyChange.subscribe(s => seen.push(s));
+
+        component.redo();
+        expect(editor.textContent).toBe('Hello');
+        expect(seen).toHaveLength(0);
+
+        while (component.canUndo()) component.undo();
+        const atStart = editor.innerHTML;
+        seen.length = 0;
+
+        component.undo();
+        expect(editor.innerHTML).toBe(atStart);
+        expect(seen).toHaveLength(0);
+    });
+
+    it('T-8d historyChange emits on each effective undo and redo', () => {
+        const p = editor.querySelector('p') as HTMLParagraphElement;
+        p.textContent = 'Hello there';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        component.flushPendingHistoryPush();
+        const seen: RichTextHistoryState[] = [];
+        component.historyChange.subscribe(s => seen.push(s));
+
+        component.undo();
+        expect(seen).toHaveLength(1);
+        expect(seen.at(-1)?.canRedo).toBe(true);
+
+        component.redo();
+        expect(seen).toHaveLength(2);
+        expect(seen.at(-1)?.canRedo).toBe(false);
+    });
+
+    it.each(EMPTINESS_FIXTURES)('T-9 isEmpty() is %s for %j', (value, expected) => {
+        component.setContent(value);
+
+        expect(component.isEmpty()).toBe(expected);
+    });
+
+    it('T-9b isEmpty() tracks typing', () => {
+        component.setContent('');
+        expect(component.isEmpty()).toBe(true);
+
+        editor.innerHTML = '<p>typed</p>';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+
+        expect(component.isEmpty()).toBe(false);
+    });
+
+    it('T-10 has no getSelectionSnapshot member; selection() is the snapshot', () => {
+        expect('getSelectionSnapshot' in component).toBe(false);
+        expect(typeof component.selection).toBe('function');
+        expect(component.selection()).toMatchObject({ kind: expect.any(String), text: expect.any(String) });
+    });
+
+    it.each(EMPTINESS_FIXTURES)('T-18 isEmpty() and isRichTextEmpty agree on %j', (value, expected) => {
+        component.setContent(value);
+
+        expect(component.isEmpty()).toBe(isRichTextEmpty(value));
+        expect(component.isEmpty()).toBe(expected);
+    });
+});
+
+/** A locale dictionary for the fake addon used by the cascade tests. */
+interface FakeAddonLocale extends LocaleMeta {
+    hello: string;
+}
+
+const FAKE_ADDON_LOCALES: Record<string, FakeAddonLocale> = {
+    en: { code: 'en', hello: 'Hello' },
+    he: { code: 'he', rtl: true, hello: 'שלום' },
+};
+
+const FAKE_ADDON_LOCALES_WITH_FR: Record<string, FakeAddonLocale> = {
+    ...FAKE_ADDON_LOCALES,
+    fr: { code: 'fr', hello: 'Bonjour' },
+};
+
+@Directive({ selector: 'ui-rich-text-editor[fakeLocaleAddon]' })
+class FakeLocaleAddonDirective {
+    readonly fakeLocale = input<LocaleInput<FakeAddonLocale>>();
+    readonly t = createLocaleBindings(this.fakeLocale, FAKE_ADDON_LOCALES).t;
+}
+
+@Directive({ selector: 'ui-rich-text-editor[fakeLocaleAddonFr]' })
+class FakeLocaleAddonFrDirective {
+    readonly fakeLocale = input<LocaleInput<FakeAddonLocale>>();
+    readonly t = createLocaleBindings(this.fakeLocale, FAKE_ADDON_LOCALES_WITH_FR).t;
+}
+
+@Component({
+    imports: [RichTextEditorComponent, FakeLocaleAddonDirective, FakeLocaleAddonFrDirective],
+    template: `
+        @if (variant() === 'fr-token') {
+            <ui-rich-text-editor fakeLocaleAddonFr />
+        } @else if (variant() === 'en-fallback') {
+            <ui-rich-text-editor fakeLocaleAddon />
+        } @else if (variant() === 'he-static') {
+            <ui-rich-text-editor locale="he" fakeLocaleAddon />
+        } @else if (variant() === 'he-overridden') {
+            <ui-rich-text-editor locale="he" fakeLocaleAddon fakeLocale="en" />
+        } @else if (variant() === 'bound-fr') {
+            <ui-rich-text-editor [locale]="locale()" fakeLocaleAddonFr />
+        } @else {
+            <ui-rich-text-editor [locale]="locale()" fakeLocaleAddon />
+        }
+    `,
+})
+class LocaleCascadeHost {
+    readonly variant = signal<string>('bound');
+    readonly locale = signal<string | RichTextLocale | undefined>(undefined);
+}
+
+describe('RichTextEditorComponent — locale cascade', () => {
+    /** Create the cascade host with the given variant and optional app-wide locale. */
+    const setup = async (variant: string, appLocale?: string) => {
+        await TestBed.configureTestingModule({
+            imports: [LocaleCascadeHost],
+            providers: appLocale ? [provideUiLocale(appLocale)] : [],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(LocaleCascadeHost);
+        fixture.componentInstance.variant.set(variant);
+        fixture.detectChanges();
+        return fixture;
+    };
+
+    /** Read the `hello` string the fake addon currently resolves. */
+    const hello = (
+        fixture: ComponentFixture<LocaleCascadeHost>,
+        type: typeof FakeLocaleAddonDirective | typeof FakeLocaleAddonFrDirective = FakeLocaleAddonDirective,
+    ): string =>
+        (fixture.debugElement.query(By.directive(type)).injector.get(type) as { t: () => FakeAddonLocale })
+            .t().hello;
+
+    afterEach(() => TestBed.resetTestingModule());
+
+    it('T-37 with no editor locale the addon follows the app-wide token when the registry has it', async () => {
+        const fixture = await setup('fr-token', 'fr');
+
+        expect(hello(fixture, FakeLocaleAddonFrDirective)).toBe('Bonjour');
+    });
+
+    it('T-37b falls back to en when the addon registry lacks the app-wide key', async () => {
+        const fixture = await setup('en-fallback', 'ja');
+
+        expect(hello(fixture)).toBe('Hello');
+    });
+
+    it('T-37c the editor locale cascades into an addon that did not bind its own', async () => {
+        const fixture = await setup('he-static');
+
+        expect(hello(fixture)).toBe('שלום');
+    });
+
+    it('T-37d the addon input wins over the editor locale', async () => {
+        const fixture = await setup('he-overridden');
+
+        expect(hello(fixture)).toBe('Hello');
+    });
+
+    it('T-38 a locale object with code "he" cascades as he', async () => {
+        const fixture = await setup('bound');
+        fixture.componentInstance.locale.set(RICH_TEXT_LOCALES['he']);
+        fixture.detectChanges();
+
+        expect(hello(fixture)).toBe('שלום');
+    });
+
+    it('T-38b an empty locale string falls through to the app-wide token', async () => {
+        const fixture = await setup('bound-fr', 'fr');
+        fixture.componentInstance.locale.set('');
+        fixture.detectChanges();
+
+        expect(hello(fixture, FakeLocaleAddonFrDirective)).toBe('Bonjour');
+    });
+
+    it('T-39 switching locale en → he at runtime re-localizes the addon', async () => {
+        const fixture = await setup('bound');
+        fixture.componentInstance.locale.set('en');
+        fixture.detectChanges();
+        expect(hello(fixture)).toBe('Hello');
+
+        fixture.componentInstance.locale.set('he');
+        fixture.detectChanges();
+
+        expect(hello(fixture)).toBe('שלום');
+    });
+
+});
+
+
+describe('RichTextEditorComponent - remote resource policy', () => {
+    @Component({
+        standalone: true,
+        imports: [RichTextEditorComponent],
+        template: `
+            <ui-rich-text-editor
+                [allowedImageHosts]="hosts()"
+                [blockedImageMessage]="message()"
+                (imageBlocked)="seen.push($event)"
+                (markdownChange)="saved = $event" />
+        `,
+    })
+    class PolicyHostComponent {
+        // A signal, not a plain field: the template binding must actually
+        // re-evaluate for the editor's effect to see a policy change.
+        readonly hosts = signal<readonly string[]>([]);
+        readonly message = signal<string | undefined>(undefined);
+        seen: ResourcePolicyDecision[] = [];
+        saved = '';
+    }
+
+    @Component({
+        standalone: true,
+        imports: [RichTextEditorComponent],
+        template: `
+            <ui-rich-text-editor [allowedImageHosts]="['cdn.trusted.com']" />
+            <ui-rich-text-editor [allowedImageHosts]="['other.example']" />
+        `,
+    })
+    class TwoEditorsComponent {}
+
+    const editorAt = (fixture: ComponentFixture<unknown>, index: number): RichTextEditorComponent =>
+        fixture.debugElement.queryAll(By.directive(RichTextEditorComponent))[index]
+            .componentInstance as RichTextEditorComponent;
+
+    const sanitizerAt = (fixture: ComponentFixture<unknown>, index: number): RichTextSanitizerService =>
+        fixture.debugElement.queryAll(By.directive(RichTextEditorComponent))[index]
+            .injector.get(RichTextSanitizerService);
+
+    it('reports nothing when no policy is set, because nothing is blocked', () => {
+        const fixture = TestBed.createComponent(PolicyHostComponent);
+        fixture.detectChanges();
+
+        editorAt(fixture, 0).writeValue('<p><img src="https://tracker.example/p.png" alt="x"></p>');
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.seen).toEqual([]);
+        expect((fixture.nativeElement as HTMLElement).querySelector('img')?.getAttribute('src'))
+            .toBe('https://tracker.example/p.png');
+    });
+
+    it('blocks and reports a host that is not allowed', () => {
+        const fixture = TestBed.createComponent(PolicyHostComponent);
+        fixture.componentInstance.hosts.set(['cdn.trusted.com']);
+        fixture.detectChanges();
+
+        editorAt(fixture, 0).writeValue('<p><img src="https://tracker.example/p.png" alt="x"></p>');
+        fixture.detectChanges();
+
+        const blocked = fixture.componentInstance.seen.filter((d) => !d.allowed);
+        expect(blocked.length).toBeGreaterThan(0);
+        expect(blocked[0].host).toBe('tracker.example');
+        expect(blocked[0].reason).toBe('blocked');
+        expect(blocked[0].kind).toBe('image');
+    });
+
+    it('keeps two editors on one page independent', () => {
+        // The whole reason the sanitizer moved out of root scope. On the shared
+        // singleton the second editor's allowlist would overwrite the first's.
+        const fixture = TestBed.createComponent(TwoEditorsComponent);
+        fixture.detectChanges();
+
+        expect(sanitizerAt(fixture, 0)).not.toBe(sanitizerAt(fixture, 1));
+        expect(sanitizerAt(fixture, 0).sanitizeImageSrc('https://cdn.trusted.com/a.png'))
+            .toBe('https://cdn.trusted.com/a.png');
+        expect(sanitizerAt(fixture, 1).sanitizeImageSrc('https://cdn.trusted.com/a.png'))
+            .toBeNull();
+    });
+
+    it('keeps a blocked image as a labelled placeholder, not a hole', () => {
+        // A stripped image used to leave a bare <img>: the reader saw nothing
+        // and could not tell anything had been there. The element, its alt and
+        // its position survive; src is never set, so nothing is fetched; and the
+        // original URL is retained so the block is reversible if the host is
+        // later allowed.
+        const fixture = TestBed.createComponent(PolicyHostComponent);
+        fixture.componentInstance.hosts.set(['cdn.trusted.com']);
+        fixture.detectChanges();
+
+        editorAt(fixture, 0).writeValue('<p><img src="https://tracker.example/p.png" alt="chart"></p>');
+        fixture.detectChanges();
+
+        const img = fixture.nativeElement.querySelector('img') as HTMLImageElement;
+        expect(img).toBeTruthy();
+        expect(img.hasAttribute('src')).toBe(false);
+        expect(img.getAttribute('data-blocked-src')).toBe('https://tracker.example/p.png');
+        expect(img.getAttribute('alt')).toBe('chart');
+        expect(img.getAttribute('data-blocked-label')).toBe('Image blocked by security policy');
+        // Announced rather than skipped: the alt alone would not say the image
+        // was withheld.
+        expect(img.getAttribute('role')).toBe('img');
+        expect(img.getAttribute('aria-label')).toContain('chart');
+        expect(img.getAttribute('aria-label')).toContain('blocked');
+    });
+
+    it('keeps a blocked image in MARKDOWN mode too', () => {
+        // mode defaults to 'markdown', so this is the path most documents take.
+        // parseImages dropped a refused image outright -- correct for an unsafe
+        // source, but it deleted policy-blocked ones instead of showing the
+        // placeholder the HTML path produces.
+        const fixture = TestBed.createComponent(PolicyHostComponent);
+        fixture.componentInstance.hosts.set(['cdn.trusted.com']);
+        fixture.detectChanges();
+
+        editorAt(fixture, 0).writeValue('![chart](https://tracker.example/p.png)');
+        fixture.detectChanges();
+
+        const img = fixture.nativeElement.querySelector('img') as HTMLImageElement;
+        expect(img).toBeTruthy();
+        expect(img.hasAttribute('src')).toBe(false);
+        expect(img.getAttribute('data-blocked-src')).toBe('https://tracker.example/p.png');
+        expect(img.getAttribute('alt')).toBe('chart');
+        expect(img.getAttribute('data-blocked-label')).toBe('Image blocked by security policy');
+    });
+
+    it('still drops an UNSAFE source in markdown mode', () => {
+        const fixture = TestBed.createComponent(PolicyHostComponent);
+        fixture.detectChanges();
+        editorAt(fixture, 0).writeValue('![bad](javascript:alert(1))');
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('img')).toBeNull();
+    });
+
+    it('does not mark an UNSAFE source as a placeholder', () => {
+        // A javascript: source is not content the author should be invited to
+        // restore, so it is dropped outright with no marker and no caption.
+        const fixture = TestBed.createComponent(PolicyHostComponent);
+        fixture.componentInstance.hosts.set(['cdn.trusted.com']);
+        fixture.detectChanges();
+
+        editorAt(fixture, 0).writeValue('<p><img src="javascript:alert(1)" alt="bad"></p>');
+        fixture.detectChanges();
+
+        const img = fixture.nativeElement.querySelector('img') as HTMLImageElement | null;
+        expect(img?.hasAttribute('src')).toBeFalsy();
+        expect(img?.hasAttribute('data-blocked-src')).toBeFalsy();
+    });
+
+    it('shows a developer override as text, never as markup', () => {
+        const fixture = TestBed.createComponent(PolicyHostComponent);
+        fixture.componentInstance.hosts.set(['cdn.trusted.com']);
+        fixture.componentInstance.message.set('Ask #it-help to allow this CDN');
+        fixture.detectChanges();
+
+        editorAt(fixture, 0).writeValue('<p><img src="https://tracker.example/p.png" alt="c"></p>');
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('img').getAttribute('data-blocked-label'))
+            .toBe('Ask #it-help to allow this CDN');
+
+        // A message rendered into a document is not a place to accept markup.
+        fixture.componentInstance.message.set('<script>alert(1)</script>');
+        fixture.detectChanges();
+        editorAt(fixture, 0).writeValue('<p><img src="https://tracker.example/p.png" alt="c"></p>');
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('img').getAttribute('data-blocked-label'))
+            .toBe('<script>alert(1)</script>');
+        expect(fixture.nativeElement.querySelectorAll('script')).toHaveLength(0);
+    });
+
+    it('restores a blocked image once its host is allowed', () => {
+        // data-blocked-src is what makes the block reversible rather than lossy.
+        //
+        // The input is MARKDOWN and the assertion runs on what the editor
+        // actually SAVED. An earlier version of this test wrote HTML into an
+        // editor whose mode defaults to 'markdown', so it exercised only the
+        // HTML branch -- the one branch where the marker survives -- and passed
+        // while the default path serialized "![c]()" and destroyed the URL on
+        // the first save.
+        const fixture = TestBed.createComponent(PolicyHostComponent);
+        fixture.componentInstance.hosts.set(['cdn.trusted.com']);
+        fixture.detectChanges();
+
+        editorAt(fixture, 0).writeValue('![c](https://tracker.example/p.png)');
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('img').hasAttribute('src')).toBe(false);
+
+        // Round trip through the SAVED markdown, not the original input.
+        const saved = fixture.componentInstance.saved;
+        expect(saved).toContain('https://tracker.example/p.png');
+
+        fixture.componentInstance.hosts.set(['cdn.trusted.com', 'tracker.example']);
+        fixture.detectChanges();
+        editorAt(fixture, 0).writeValue(saved);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('img').getAttribute('src'))
+            .toBe('https://tracker.example/p.png');
+    });
+
+    it('survives repeated saves while still blocked', () => {
+        // Three cycles through the saved markdown: the URL must not erode, and
+        // the placeholder must not decay into literal text.
+        const fixture = TestBed.createComponent(PolicyHostComponent);
+        fixture.componentInstance.hosts.set(['cdn.trusted.com']);
+        fixture.detectChanges();
+
+        let doc = '![c](https://tracker.example/p.png)';
+        for (let cycle = 0; cycle < 3; cycle++) {
+            editorAt(fixture, 0).writeValue(doc);
+            fixture.detectChanges();
+            const img = fixture.nativeElement.querySelector('img') as HTMLImageElement;
+            expect(img).toBeTruthy();
+            expect(img.getAttribute('data-blocked-src')).toBe('https://tracker.example/p.png');
+            expect(img.getAttribute('alt')).toBe('c');
+            doc = fixture.componentInstance.saved;
+        }
+    });
+
+    it('applies a policy change without recreating the editor', () => {
+        const fixture = TestBed.createComponent(PolicyHostComponent);
+        fixture.detectChanges();
+        const sanitizer = sanitizerAt(fixture, 0);
+        expect(sanitizer.sanitizeImageSrc('https://tracker.example/p.png')).not.toBeNull();
+
+        // Through the signal, so the binding re-evaluates and the editor's
+        // effect actually sees the change -- mutating a plain field would leave
+        // the policy stale and the test would pass for the wrong reason.
+        fixture.componentInstance.hosts.set(['cdn.trusted.com']);
+        fixture.detectChanges();
+        expect(sanitizer.sanitizeImageSrc('https://tracker.example/p.png')).toBeNull();
+    });
+});
+
+describe('RichTextEditorComponent - remote resource policy on the FIRST render (fine-comb review)', () => {
+    const TRACKER = 'https://tracker.example/p.png';
+
+    // The shape every earlier policy test avoided: the value arrives through a
+    // reactive form, whose directive calls writeValue from ngOnChanges -- before
+    // any of the editor's effects has run. With the policy pushed from an
+    // effect, that first sanitize ran with no policy and the tracker image was
+    // rendered with a real src, once per load.
+    @Component({
+        standalone: true,
+        imports: [ReactiveFormsModule, RichTextEditorComponent],
+        template: `
+            <ui-rich-text-editor
+                mode="html"
+                [formControl]="control"
+                [allowedImageHosts]="hosts()"
+                (imageBlocked)="seen.push($event)" />
+        `,
+    })
+    class FormPolicyHostComponent {
+        readonly control = new FormControl(
+            `<p><img src="${TRACKER}" alt="chart"></p>`,
+            { nonNullable: true },
+        );
+        readonly hosts = signal<readonly string[]>(['cdn.trusted.com']);
+        seen: ResourcePolicyDecision[] = [];
+    }
+
+    const img = (fixture: ComponentFixture<unknown>): HTMLImageElement | null =>
+        (fixture.nativeElement as HTMLElement).querySelector('img');
+
+    it('a reactive-form initial value is judged under the policy on the very first render', () => {
+        const fixture = TestBed.createComponent(FormPolicyHostComponent);
+        fixture.detectChanges();
+
+        const rendered = img(fixture);
+        expect(rendered).toBeTruthy();
+        expect(rendered?.hasAttribute('src')).toBe(false);
+        expect(rendered?.getAttribute('data-blocked-src')).toBe(TRACKER);
+        expect(rendered?.getAttribute('data-blocked-label')).toBe('Image blocked by security policy');
+
+        // And it was never reported as allowed: the decisions from that first
+        // pass are the ones a developer auditing exposure would act on.
+        const tracker = fixture.componentInstance.seen.filter((d) => d.host === 'tracker.example');
+        expect(tracker.length).toBeGreaterThan(0);
+        expect(tracker.every((d) => !d.allowed && d.reason === 'blocked')).toBe(true);
+    });
+
+    it('a policy change re-judges the rendered document in place, in HTML mode', () => {
+        // No second writeValue: the consumer only changes the list. Allowing the
+        // host restores the image; removing it again blocks it, with its caption.
+        const fixture = TestBed.createComponent(FormPolicyHostComponent);
+        fixture.detectChanges();
+        expect(img(fixture)?.hasAttribute('src')).toBe(false);
+
+        fixture.componentInstance.hosts.set(['cdn.trusted.com', 'tracker.example']);
+        fixture.detectChanges();
+        expect(img(fixture)?.getAttribute('src')).toBe(TRACKER);
+        expect(img(fixture)?.hasAttribute('data-blocked-src')).toBe(false);
+
+        fixture.componentInstance.hosts.set(['cdn.trusted.com']);
+        fixture.detectChanges();
+        expect(img(fixture)?.hasAttribute('src')).toBe(false);
+        expect(img(fixture)?.getAttribute('data-blocked-src')).toBe(TRACKER);
+        expect(img(fixture)?.getAttribute('data-blocked-label')).toBe('Image blocked by security policy');
+    });
+
+    it('an image blocked on insert is captioned immediately, not on the next reload', () => {
+        const fixture = TestBed.createComponent(FormPolicyHostComponent);
+        fixture.componentInstance.control.setValue('<p>text</p>');
+        fixture.detectChanges();
+        const editor = fixture.debugElement.query(By.directive(RichTextEditorComponent))
+            .componentInstance as RichTextEditorComponent;
+
+        editor.insertHtml(`<p><img src="${TRACKER}" alt="pasted"></p>`);
+
+        const rendered = img(fixture);
+        expect(rendered?.getAttribute('data-blocked-src')).toBe(TRACKER);
+        expect(rendered?.getAttribute('data-blocked-label')).toBe('Image blocked by security policy');
+        expect(rendered?.getAttribute('aria-label')).toContain('pasted');
+    });
+});
+
+describe('RichTextEditorComponent - replace keeps everything but the matched text (fine-comb review)', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLElement;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [RichTextEditorComponent] }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        fixture.componentRef.setInput('mode', 'html');
+        // Synchronous search, so replaceAll sees the matches without a timer.
+        fixture.componentRef.setInput('findDebounceMs', 0);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLElement;
+    });
+
+    const load = (html: string): void => {
+        component.writeValue(html);
+        fixture.detectChanges();
+    };
+
+    const replaceAllWith = (query: string, replacement: string): void => {
+        component.openFindReplace(true);
+        component.onFindQueryChange(query);
+        component.replaceText.set(replacement);
+        component.replaceAll();
+    };
+
+    /** Tag names of every element in the editor, in document order. */
+    const tagsIn = (): string[] => Array.from(editor.querySelectorAll('*')).map((el) => el.tagName);
+
+    it('keeps an image that sits beside the match', () => {
+        // An <img> has empty textContent and no descendants, so the old
+        // "remove whatever emptied" sweep removed the picture next to the word.
+        load('<p>the cat <img src="/x.png" alt="x"> sat</p>');
+        replaceAllWith('cat', 'dog');
+        expect(editor.querySelector('img')).not.toBeNull();
+        expect(editor.textContent).toBe('the dog  sat');
+    });
+
+    it('keeps a line break inside the paragraph', () => {
+        load('<p>line one<br>line cat</p>');
+        replaceAllWith('cat', 'dog');
+        expect(editor.querySelector('br')).not.toBeNull();
+        expect(editor.querySelector('p')?.innerHTML).toBe('line one<br>line dog');
+    });
+
+    it('keeps a table cell whose only text was the match, on an empty replacement', () => {
+        load('<table><tbody><tr><td>TBD</td><td>keep</td></tr></tbody></table>');
+        replaceAllWith('TBD', '');
+        expect(editor.querySelectorAll('td')).toHaveLength(2);
+        expect(editor.querySelector('table')).not.toBeNull();
+        expect(editor.querySelectorAll('td')[0].textContent).toBe('');
+    });
+
+    it('keeps a task item and its checkbox when its text is replaced with nothing', () => {
+        load('<ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>cat</span></li></ul>');
+        replaceAllWith('cat', '');
+        expect(editor.querySelector('li[data-task]')).not.toBeNull();
+        expect(editor.querySelector('input[type="checkbox"]')).not.toBeNull();
+        expect(editor.querySelector('li[data-task] > span')).not.toBeNull();
+    });
+
+    it('keeps a heading emptied by the replacement', () => {
+        load('<h1>cat</h1><p>body</p>');
+        replaceAllWith('cat', '');
+        expect(editor.querySelector('h1')).not.toBeNull();
+    });
+
+    it('still drops an inline wrapper the deletion emptied', () => {
+        // The one removal that IS wanted, so the fix does not overshoot.
+        load('<p>the <b>cat</b> sat</p>');
+        replaceAllWith('cat', '');
+        expect(editor.querySelector('b')).toBeNull();
+        expect(editor.textContent).toBe('the  sat');
+    });
+
+    it('property: a same-length replacement changes text nodes only', () => {
+        // Whatever the document, replacing text with text must leave the element
+        // tree untouched. This is the rule the four shapes above are samples of.
+        const corpus = [
+            '<p>cat <img src="/a.png" alt="a"> cat<br>cat</p>',
+            '<ul><li>cat</li><li><b>cat</b> <i>cat</i></li></ul>',
+            '<table><tbody><tr><td>cat</td><td><code>cat</code></td></tr></tbody></table>',
+            '<blockquote><p>cat</p><hr><p>x cat y</p></blockquote>',
+            '<h2>cat</h2><ul data-task-list><li data-task data-checked="true"><input type="checkbox"><span>cat</span></li></ul>',
+            '<p><a href="https://example.com/">cat</a> <mark>cat</mark> <span style="color: red">cat</span></p>',
+        ];
+        for (const html of corpus) {
+            load(html);
+            const before = tagsIn();
+            replaceAllWith('cat', 'dog');
+            expect(tagsIn(), html).toEqual(before);
+            expect(editor.textContent, html).not.toContain('cat');
+        }
+    });
+});
+
+describe('RichTextEditorComponent - wrapper policy and Enter on image-only blocks (fine-comb review)', () => {
+    const TRACKER = 'https://tracker.example/p.png';
+
+    @Component({
+        standalone: true,
+        imports: [ReactiveFormsModule, RichTextEditorComponent, RichTextAllowDirective],
+        template: `
+            <div [uiRichTextAllow]="{ imageHosts: ['cdn.trusted.com'], linkSchemes: ['acme-crm'] }">
+                <ui-rich-text-editor mode="html" [formControl]="control" [allowedImageHosts]="own()" />
+            </div>
+        `,
+    })
+    class WrappedEditorComponent {
+        readonly control = new FormControl(
+            `<p><img src="${TRACKER}" alt="chart"> <a href="acme-crm://contact/42">crm</a></p>`,
+            { nonNullable: true },
+        );
+        readonly own = signal<readonly string[]>([]);
+    }
+
+    it('an editor under [uiRichTextAllow] takes the wrapper hosts and link schemes', () => {
+        // The wrapper's contract named "every editor and view beneath", but
+        // only the view honoured it: an editor read its own empty list.
+        const fixture = TestBed.createComponent(WrappedEditorComponent);
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        const img = root.querySelector('img');
+        expect(img?.hasAttribute('src')).toBe(false);
+        expect(img?.getAttribute('data-blocked-src')).toBe(TRACKER);
+        expect(root.querySelector('a')?.getAttribute('href')).toBe('acme-crm://contact/42');
+    });
+
+    it('and its own list wins whole over the wrapper, never merged', () => {
+        const fixture = TestBed.createComponent(WrappedEditorComponent);
+        fixture.componentInstance.own.set(['tracker.example']);
+        fixture.detectChanges();
+        expect((fixture.nativeElement as HTMLElement).querySelector('img')?.getAttribute('src')).toBe(TRACKER);
+    });
+
+    describe('Enter on a block holding only an image', () => {
+        let fixture: ComponentFixture<RichTextEditorComponent>;
+        let component: RichTextEditorComponent;
+        let editor: HTMLElement;
+
+        beforeEach(async () => {
+            await TestBed.configureTestingModule({ imports: [RichTextEditorComponent] }).compileComponents();
+            fixture = TestBed.createComponent(RichTextEditorComponent);
+            fixture.componentRef.setInput('mode', 'html');
+            component = fixture.componentInstance;
+            fixture.detectChanges();
+            editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLElement;
+        });
+
+        const enterAfter = (el: Element): void => {
+            setCaretAt(el, el.childNodes.length);
+            component.onKeydown(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+        };
+
+        it('keeps the image in a last list item', () => {
+            component.writeValue('<ul><li>a</li><li><img src="/x.png" alt="pic"></li></ul>');
+            fixture.detectChanges();
+            enterAfter(editor.querySelectorAll('li')[1]);
+            expect(editor.querySelector('img')).not.toBeNull();
+            expect(editor.querySelectorAll('li')).toHaveLength(2);
+        });
+
+        it('keeps the image in the last quoted line', () => {
+            component.writeValue('<blockquote><p>q</p><p><img src="/x.png" alt="pic"></p></blockquote>');
+            fixture.detectChanges();
+            enterAfter(editor.querySelectorAll('blockquote p')[1]);
+            expect(editor.querySelector('blockquote img')).not.toBeNull();
+        });
+    });
+});
+
+describe('RichTextEditorComponent - allowedLinkSchemes on the editor (follow-up F6)', () => {
+    @Component({
+        standalone: true,
+        imports: [RichTextEditorComponent],
+        template: `<ui-rich-text-editor mode="html" [allowedLinkSchemes]="schemes()" />`,
+    })
+    class SchemesHostComponent {
+        readonly schemes = signal<readonly string[]>([]);
+    }
+
+    it('keeps a custom scheme once listed, and re-judges the document when the list changes', () => {
+        const fixture = TestBed.createComponent(SchemesHostComponent);
+        fixture.detectChanges();
+        const editor = fixture.debugElement.query(By.directive(RichTextEditorComponent))
+            .componentInstance as RichTextEditorComponent;
+        editor.writeValue('<p><a href="acme-crm://contact/42">crm</a> <a href="slack://channel?id=1">slack</a></p>');
+        fixture.detectChanges();
+        const anchors = (): string[] => Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('a[href]'))
+            .map((a) => a.getAttribute('href') ?? '');
+        expect(anchors()).toEqual(['slack://channel?id=1']);
+
+        fixture.componentInstance.schemes.set(['acme-crm']);
+        fixture.detectChanges();
+        editor.writeValue('<p><a href="acme-crm://contact/42">crm</a></p>');
+        fixture.detectChanges();
+        expect(anchors()).toEqual(['acme-crm://contact/42']);
     });
 });

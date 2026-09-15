@@ -4,15 +4,19 @@
   "description": "Angular port of shadcn/ui - beautifully designed components",
   "private": true,
   "workspaces": [
-    "packages/*",
+    "packages/cli",
     "demo"
   ],
   "scripts": {
     "prepare": "simple-git-hooks",
     "build:cli": "cd packages/cli && npm run build",
     "release:cli": "tsx packages/cli/scripts/release-cli.ts",
+    "stage:package": "tsx packages/cli/scripts/stage-package.ts",
+    "build:package": "tsx packages/cli/scripts/build-package.ts",
+    "release:package": "tsx packages/cli/scripts/release-package.ts",
     "preflight": "node scripts/preflight.mjs",
     "check:completeness": "tsx packages/cli/scripts/check-completeness.ts",
+    "check:fixture": "tsx packages/cli/scripts/check-fixture-pristine.ts",
     "check:registry": "tsx packages/cli/scripts/sync-registry.ts",
     "hook:pre-commit": "lint-staged",
     "hook:pre-push": "node scripts/pre-push.mjs",
@@ -25,6 +29,7 @@
     "typecheck:templates": "ngc -p tsconfig.json --noEmit",
     "check:all": "npm run lint && npm run typecheck && npm run typecheck:templates",
     "coverage": "node scripts/coverage.mjs",
+    "coverage:map": "node scripts/coverage-map.mjs",
     "coverage:cli": "vitest --config vitest.config.cli.ts --run --coverage",
     "sonar": "node scripts/sonar.mjs",
     "sonar:gate": "node scripts/sonar.mjs --gate",
@@ -68,7 +73,8 @@
     "pre-push": "npm run hook:pre-push"
   },
   "lint-staged": {
-    "*.{ts,mjs,js,html}": "eslint --fix --no-warn-ignored"
+    "*.{ts,mjs,js,html}": "eslint --fix --no-warn-ignored",
+    "e2e/fixture-app*/**": "tsx packages/cli/scripts/check-fixture-pristine.ts --staged"
   },
   "keywords": [
     "angular",
@@ -108,6 +114,7 @@
     "jsdom": "^27.4.0",
     "lint-staged": "^17.0.8",
     "lmdb": "^3.5.4",
+    "ng-packagr": "^21.2.7",
     "playwright": "^1.57.0",
     "postcss": "^8.5.10",
     "rollup": "^4.60.1",

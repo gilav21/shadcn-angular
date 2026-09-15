@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal, DestroyRef } from '@angular/core';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { cn } from '../../../../lib/utils';
 import { RichTextEditorAddonHost, RichTextToolbarViewContext } from '../..';
@@ -42,11 +42,17 @@ export class RichTextLinksButtonComponent {
     protected readonly context = inject(RICH_TEXT_LINKS_BUTTON_CONTEXT);
 
     protected readonly open = signal(false);
+    /** Membership in the toolbar's single-open-panel group. */
+    private readonly exclusive = this.host.registerExclusivePopover(() => this.open.set(false));
+
+    constructor() {
+        inject(DestroyRef).onDestroy(() => this.exclusive.release());
+    }
 
     protected readonly icon: SafeHtml = this.domSanitizer.bypassSecurityTrustHtml(LINK_ICON);
 
     protected readonly interactionDisabled = computed(
-        () => this.host.disabled() || this.host.readonly(),
+        () => this.host.isDisabled() || this.host.readonly(),
     );
 
     protected readonly buttonClasses = computed(() => cn(
@@ -54,18 +60,32 @@ export class RichTextLinksButtonComponent {
         'hover:bg-accent hover:text-accent-foreground',
         'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
         'disabled:pointer-events-none disabled:opacity-50',
+        // The global (pointer: coarse) floor targets `button:not([data-slot])`,
+        // and these addon buttons carry a data-slot for testing — so they must
+        // state the 44px touch minimum themselves rather than inherit it.
+        'pointer-coarse:min-h-11 pointer-coarse:min-w-11',
         this.toolbarView?.compact() ? 'p-1' : 'p-1.5',
     ));
 
     protected onOpenChange(next: boolean): void {
         if (next) {
+            this.exclusive.notifyOpened();
             this.context.onOpen();
         }
         this.open.set(next);
     }
 
+    protected onRemove(): void {
+        this.context.onRemove();
+        this.open.set(false);
+    }
+
     protected onSubmit(payload: RichTextLinkSubmit): void {
         this.context.onSubmit(payload);
-        this.open.set(false);
+        // Only close if the URL was accepted. Closing regardless discarded what
+        // the user typed and looked exactly like a successful insert — the
+        // Ctrl+K overlay already stays open on a rejection, and the two entry
+        // points to the same feature must not disagree.
+        if (!this.context.urlError()) this.open.set(false);
     }
 }

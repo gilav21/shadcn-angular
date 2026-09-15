@@ -43,10 +43,19 @@
         "node_modules",
         "e2e/harness",
         "e2e/fixture-app",
+        // The Angular 21 fixture — a second pristine consumer app with its own
+        // node_modules, compiled by its own CLI, not part of this program.
+        "e2e/fixture-app-21",
         "e2e/jest-fixture",
         // Recipe sources are written against the CONSUMER alias
         // (@/components/ui/...) and are compiled in the fixture app by the
         // `recipes` e2e spec, not by this program.
-        "e2e/recipes"
+        "e2e/recipes",
+        // Generated snapshot of a registry closure, copied verbatim by
+        // `stage:package` and compiled by ng-packagr against its OWN
+        // tsconfig.lib.json. Type-checking it here would compile every one of
+        // those ~450 files a second time and report each issue twice.
+        "packages/*-package/src/**",
+        "packages/*-package/theme.css"
     ]
 }

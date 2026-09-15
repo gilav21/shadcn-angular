@@ -35,6 +35,7 @@ const STAGES = [
   { id: 'lint', label: 'ESLint + tsc + Angular template typecheck', command: 'npm run check:all' },
   { id: 'registry', label: 'Registry drift (sync-registry, report mode)', command: 'npm run check:registry' },
   { id: 'completeness', label: 'Story / demo-route / e2e completeness gate', command: 'npm run check:completeness' },
+  { id: 'fixture', label: 'Pristine e2e fixture apps (no committed install output)', command: 'npm run check:fixture' },
   // Both test stages run WITH coverage on purpose: the ratchets in vitest.config.ts /
   // vitest.config.cli.ts only evaluate under `--coverage`, and nothing else invokes
   // them (there is no CI). Without this, a contributor could delete half the tests
@@ -125,6 +126,7 @@ function impactedStages(base) {
     { id: 'typecheck', label: 'tsc + Angular template typecheck', command: 'npm run typecheck && npm run typecheck:templates' },
     { id: 'registry', label: 'Registry drift (sync-registry, report mode)', command: 'npm run check:registry' },
     { id: 'completeness', label: 'Story / demo-route / e2e completeness gate', command: 'npm run check:completeness' },
+  { id: 'fixture', label: 'Pristine e2e fixture apps (no committed install output)', command: 'npm run check:fixture' },
     // Never scoped away: this suite holds the generated-docs drift detectors
     // (gen-llms / gen-component-docs / gen-readme compare the committed
     // artifacts byte-for-byte against a fresh build). A component that grows a

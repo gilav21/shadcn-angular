@@ -14,6 +14,7 @@ import {
 import { performInstall, previewComponentMerges, type InstallResult, type MergePreview } from '../core/install.js';
 import { resolveTestInstall } from '../utils/test-runner.js';
 import { printBreakingUsages } from '../core/breaking-scan.js';
+import { printBindingCodemodReport, rewriteBreakingBindings } from '../core/binding-codemod.js';
 import { scanLayouts } from '../core/layout.js';
 import { readManifest, fileStatus, getComponentRef, type Manifest } from '../core/manifest.js';
 import { reportMergeSummary } from './merge-report.js';
@@ -291,6 +292,25 @@ async function applyUpdates(
     return result;
 }
 
+/**
+ * The breaking-change notes, the consumer's own call sites, and the template
+ * rewrites: scanned before the files change hands so the report names the
+ * consumer's templates; written only on an explicit `--fix`, never on `--dry-run`.
+ */
+async function reportBreaking(
+    touched: ComponentName[], cwd: string, config: Config, options: AddOptions,
+): Promise<void> {
+    printBreakingChanges(touched);
+    const managed = [config.aliases.ui, config.aliases.blocks]
+        .filter((a): a is string => Boolean(a))
+        .map(a => resolveProjectPath(cwd, aliasToProjectPath(a)));
+    await printBreakingUsages(touched, cwd, managed);
+    const codemods = await rewriteBreakingBindings(touched, cwd, managed, {
+        write: Boolean(options.fix) && !options.dryRun,
+    });
+    printBindingCodemodReport(codemods, cwd, { fix: Boolean(options.fix), dryRun: Boolean(options.dryRun) });
+}
+
 export async function update(names: string[], options: AddOptions): Promise<void> {
     const cwd = process.cwd();
     const config = await getConfig(cwd);
@@ -326,11 +346,7 @@ export async function update(names: string[], options: AddOptions): Promise<void
     const touched = [...conflicts.conflicting, ...conflicts.toInstall];
     printUpdatePlan(conflicts.conflicting, conflicts.toInstall);
     await warnCustomized(conflicts.conflicting, cwd, targetDir, options);
-    printBreakingChanges(touched);
-    const managed = [config.aliases.ui, config.aliases.blocks]
-        .filter((a): a is string => Boolean(a))
-        .map(a => resolveProjectPath(cwd, aliasToProjectPath(a)));
-    await printBreakingUsages(touched, cwd, managed);
+    await reportBreaking(touched, cwd, config, options);
 
     if (options.dryRun) {
         printMergePreview(await previewComponentMerges(

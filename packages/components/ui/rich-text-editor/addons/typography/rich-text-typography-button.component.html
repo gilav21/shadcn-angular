@@ -4,6 +4,7 @@
       type="button"
       [class]="buttonClasses()"
       [title]="context.tooltip()"
+      [attr.aria-label]="context.tooltip()"
       [disabled]="interactionDisabled()"
     >
       <span [innerHTML]="icon"></span>

@@ -15,10 +15,14 @@ import {
 import { resolveDependencies } from '../core/resolve.js';
 import {
     detectConflicts,
+    buildInstallSummary,
     type AddOptions,
     type ConflictCheckResult,
+    type InstallSummary,
+    type InstallSummaryGroup,
 } from '../core/plan.js';
 import { performInstall, expandForTests } from '../core/install.js';
+import { resolvePreset, PresetError } from '../core/presets.js';
 import { resolveTestInstall } from '../utils/test-runner.js';
 
 export { fetchAndTransform } from '../core/fetch.js';
@@ -159,14 +163,63 @@ function selectAddonsByFlag(withValue: string, choices: AddonChoice[]): Componen
 }
 
 /**
+ * Keep only preselected keys this registry actually offers. A stale live
+ * manifest can name an addon that no longer exists; warn and continue rather
+ * than failing the whole install over it.
+ */
+function offeredPreselection(
+    preselected: readonly ComponentName[], choices: AddonChoice[], preset: string | undefined,
+): ComponentName[] {
+    const offered = new Set(choices.map(c => c.name));
+    const kept: ComponentName[] = [];
+    for (const key of preselected) {
+        if (offered.has(key)) kept.push(key);
+        else {
+            console.warn(chalk.yellow(
+                `Preset "${preset ?? ''}" lists ${key}, which this registry does not offer — skipping.`,
+            ));
+        }
+    }
+    return kept;
+}
+
+/** Union two addon lists, preserving first-seen order. */
+function unionAddons(a: readonly ComponentName[], b: readonly ComponentName[]): ComponentName[] {
+    return [...new Set([...a, ...b])];
+}
+
+/**
+ * The non-interactive decision table for which addons to install. Returns
+ * `null` when the developer must be asked (the interactive path).
+ *
+ * Clause order is load-bearing: `--yes` is tested before `--all`, matching
+ * {@link promptOptionalDependencies}. `--yes` alone stays lean, taking only
+ * what `--preset` pre-selected, which keeps `--all --yes` at its existing
+ * meaning instead of suddenly pulling every addon.
+ */
+function selectAddons(
+    options: AddOptions, choices: AddonChoice[], preselected: readonly ComponentName[],
+): ComponentName[] | null {
+    if (options.addons === false) return [];
+    if (options.with !== undefined) {
+        return unionAddons(preselected, selectAddonsByFlag(options.with, choices));
+    }
+    if (options.yes) return [...preselected];
+    if (options.all) return choices.map(c => c.name as ComponentName);
+    return null;
+}
+
+/**
  * Offer the addons declared by the resolved base components. Addons are opt-in
- * (lean by default): `--no-addons`/`--yes` install none, `--with <list|all>`
- * selects non-interactively, `--all` includes every available addon, and
- * otherwise an interactive multiselect is shown (nothing selected by default).
+ * (lean by default): `--no-addons` installs none, `--with <list|all>` selects
+ * non-interactively, `--all` includes every available addon, `--yes` takes
+ * `preselected` (empty unless `--preset` named a bundle), and otherwise an
+ * interactive multiselect opens with `preselected` ticked.
  */
 export async function promptAddons(
     resolved: Set<ComponentName>,
     options: AddOptions,
+    preselected: readonly ComponentName[] = [],
 ): Promise<ComponentName[]> {
     const seen = new Set<string>();
     const choices: AddonChoice[] = [];
@@ -183,18 +236,22 @@ export async function promptAddons(
     }
 
     if (choices.length === 0) return [];
-    if (options.addons === false) return [];
-    if (options.with !== undefined) return selectAddonsByFlag(options.with, choices);
-    if (options.yes) return [];
-    if (options.all) return choices.map(c => c.name as ComponentName);
 
+    const offered = offeredPreselection(preselected, choices, options.preset);
+    const decided = selectAddons(options, choices, offered);
+    if (decided) return decided;
+
+    const preselectedSet = new Set<string>(offered);
     const { selected } = await prompts({
         type: 'multiselect',
         name: 'selected',
-        message: 'Optional addons available:',
+        message: options.preset
+            ? `Optional addons available (preset "${options.preset}" pre-selected):`
+            : 'Optional addons available:',
         choices: choices.map(c => ({
             title: c.name + ' ' + chalk.dim('- ' + c.description + ' (for ' + c.parent + ')'),
             value: c.name,
+            selected: preselectedSet.has(c.name),
         })),
         hint: '- Space to select, Enter to confirm (or press Enter to skip)',
     }, { onCancel });
@@ -316,21 +373,85 @@ function printNothingToInstall(toSkip: string[], declined: ComponentName[]): voi
     }
 }
 
+/** `1 file` / `7 files` — a count with its noun correctly pluralised. */
+function plural(count: number, noun: string): string {
+    return `${count} ${noun}${count === 1 ? '' : 's'}`;
+}
+
+/** `2 components, 7 files` — the parenthetical after a group heading. */
+function groupCaption(group: InstallSummaryGroup): string {
+    return `${plural(group.components.length, 'component')}, ${plural(group.files, 'file')}`;
+}
+
+/** One heading + one line per component. Empty groups print nothing (UC-6). */
+function printSummaryGroup(heading: string, group: InstallSummaryGroup): void {
+    if (group.components.length === 0) return;
+    console.log('  ' + chalk.bold(`${heading} (${groupCaption(group)})`));
+    for (const c of group.components) {
+        console.log(chalk.dim('    + ') + chalk.cyan(c.name) + chalk.dim(` (${plural(c.files, 'file')})`));
+    }
+}
+
+/**
+ * The grouped block: what you asked for, what you chose, and the shared
+ * primitives that came along — each with counts, then the `why` pointer.
+ */
+function printGroupedSummary(summary: InstallSummary): void {
+    if (summary.totalFiles === 0 && summary.skipped.components.length === 0) return;
+    printSummaryGroup('Requested', summary.requested);
+    printSummaryGroup(
+        summary.hasCompanions ? 'Addons & companions chosen' : 'Addons chosen',
+        summary.addons,
+    );
+    printSummaryGroup(
+        'Shared UI components other components reuse — not yet in your project',
+        summary.shared,
+    );
+    printSummaryGroup('Already in your project — skipped', summary.skipped);
+    if (summary.libFiles > 0) {
+        console.log(chalk.dim(`  + ${summary.libFiles} shared lib files (utils, i18n, …)`));
+    }
+    console.log('\n  ' + chalk.dim('Why is a component here?  ')
+        + chalk.cyan('npx @gilav21/shadcn-angular why <name>'));
+}
+
+/** The whole `--dry-run` report: plan headlines, grouped block, addon hints. */
+function reportDryRun(input: {
+    readonly toInstall: ComponentName[];
+    readonly toOverwrite: ComponentName[];
+    readonly toSkip: string[];
+    readonly declined: ComponentName[];
+    readonly grouping: { readonly requested: readonly string[]; readonly chosen: readonly string[] };
+    readonly addonHints: AddonHint[];
+}): void {
+    const summary = buildInstallSummary({
+        ...input.grouping,
+        written: [...input.toInstall, ...input.toOverwrite],
+        skipped: input.toSkip,
+        declined: input.declined,
+    });
+    printDryRunSummary(input.toInstall, input.toOverwrite, input.toSkip, input.declined, summary);
+    printAvailableAddons(input.addonHints);
+}
+
 function printDryRunSummary(
     toInstall: ComponentName[],
     toOverwrite: ComponentName[],
     toSkip: string[],
     declined: ComponentName[],
+    summary: InstallSummary,
 ): void {
     console.log(chalk.bold('\n[Dry Run] No changes will be made.\n'));
     if (toInstall.length > 0) {
-        console.log(chalk.green(`  Would install ${toInstall.length} component(s):`));
-        for (const name of toInstall) console.log(chalk.dim('    + ') + chalk.cyan(name));
+        console.log(chalk.green(`  Would install ${toInstall.length} component(s) — ${summary.totalFiles} files:`));
+        console.log('');
     }
     if (toOverwrite.length > 0) {
         console.log(chalk.yellow(`  Would overwrite ${toOverwrite.length} component(s):`));
         for (const name of toOverwrite) console.log(chalk.dim('    ~ ') + chalk.yellow(name));
+        console.log('');
     }
+    printGroupedSummary(summary);
     printSkipSummary(toSkip, declined);
     console.log('');
 }
@@ -371,11 +492,46 @@ async function resolveBlockDestination(
 // Main entry point
 // ---------------------------------------------------------------------------
 
-function printInstallResult(result: { installed: ComponentName[]; warnings: string[]; skipped: string[]; declined: ComponentName[]; pruned: string[] }, spinner: Ora): void {
+/**
+ * What owning the code actually means, at the moment it lands: the files are
+ * the developer's to edit, `update` merges rather than clobbers, and
+ * `doctor`/`status` distinguish their edits from upstream drift. Wording is
+ * the truthful version — `--overwrite` and the no-baseline fallback are named
+ * rather than glossed over.
+ *
+ * `uiPath` is normalized to posix separators because it is printed for the
+ * developer to read, not passed to a shell, and a Windows backslash form
+ * would read as an escape sequence.
+ */
+function printWhatNow(uiPath: string): void {
+    const cli = 'npx @gilav21/shadcn-angular';
+    const shown = uiPath.replaceAll('\\', '/');
+    console.log(chalk.bold('What now?'));
+    console.log(chalk.dim('  • ') + `These files are yours — edit them freely. They live under ${chalk.cyan(shown)}.`);
+    console.log(chalk.dim('  • ') + `${chalk.cyan(cli + ' update')} 3-way merges upstream changes into your edits; `
+        + 'conflicts are written as <<<<<<< markers, never silently dropped. '
+        + `${chalk.cyan('--overwrite')} replaces a file whole; a file you edited before it had a recorded baseline is kept and flagged.`);
+    console.log(chalk.dim('  • ') + `${chalk.cyan(cli + ' doctor')} and ${chalk.cyan('status')} show what you edited vs. what has an update available.`);
+    console.log('');
+}
+
+function printInstallResult(
+    result: { installed: ComponentName[]; warnings: string[]; skipped: string[]; declined: ComponentName[]; pruned: string[] },
+    spinner: Ora,
+    grouping: { readonly requested: readonly string[]; readonly chosen: readonly string[] },
+    uiPath: string,
+): void {
     if (result.installed.length > 0) {
+        const summary = buildInstallSummary({
+            requested: grouping.requested,
+            chosen: grouping.chosen,
+            written: result.installed,
+            skipped: result.skipped,
+            declined: result.declined,
+        });
         spinner.succeed(chalk.green(`Success! Added ${result.installed.length} component(s)`));
-        console.log('\n' + chalk.dim('Components added:'));
-        for (const name of result.installed) console.log(chalk.dim('  - ') + chalk.cyan(name));
+        console.log('\n' + chalk.dim(`Components added — ${summary.totalFiles} files:`));
+        printGroupedSummary(summary);
     } else {
         spinner.info('No new components installed.');
     }
@@ -386,14 +542,38 @@ function printInstallResult(result: { installed: ComponentName[]; warnings: stri
     for (const w of result.warnings) console.log(chalk.yellow('  ' + w));
     printSkipSummary(result.skipped, result.declined);
     console.log('');
+    if (result.installed.length > 0) printWhatNow(uiPath);
+}
+
+/**
+ * Resolve `--preset <name>` to the addon keys it pre-selects, or exit 1 with
+ * the reason. Returns `[]` when no preset was named. `--no-addons` contradicts
+ * `--preset`, so that combination is rejected before any prompt is shown.
+ */
+function resolvePresetOrExit(
+    componentsToAdd: ComponentName[], options: AddOptions,
+): ComponentName[] {
+    if (options.preset === undefined) return [];
+    if (options.addons === false) {
+        console.log(chalk.red('--preset and --no-addons contradict each other — drop one.'));
+        process.exit(1);
+    }
+    try {
+        return resolvePreset(componentsToAdd, options.preset).addons;
+    } catch (error) {
+        if (!(error instanceof PresetError)) throw error;
+        console.log(chalk.red(error.message));
+        process.exit(1);
+    }
 }
 
 async function resolveComponentsAndConflicts(
     componentsToAdd: ComponentName[], options: AddOptions, config: Config, cwd: string, includeTests: boolean,
+    preselectedAddons: readonly ComponentName[] = [],
 ): Promise<{ allComponents: Set<ComponentName>; extraDeps: ComponentName[]; componentPath: string | undefined; blocksPath: string | undefined; conflicts: ConflictCheckResult }> {
     const resolvedComponents = resolveDependencies(componentsToAdd);
     const optionalChoices = await promptOptionalDependencies(resolvedComponents, options);
-    const addonChoices = await promptAddons(resolvedComponents, options);
+    const addonChoices = await promptAddons(resolvedComponents, options, preselectedAddons);
     const extras = [...optionalChoices, ...addonChoices];
     const closure = extras.length > 0
         ? resolveDependencies([...resolvedComponents, ...extras])
@@ -435,34 +615,69 @@ export async function add(components: string[], options: AddOptions): Promise<vo
 
     validateComponents(componentsToAdd);
 
+    const preselectedAddons = resolvePresetOrExit(componentsToAdd, options);
+
     const { includeTests, runner } = await resolveTestInstall(config, options, cwd);
 
     const { allComponents, extraDeps, componentPath, blocksPath, conflicts } =
-        await resolveComponentsAndConflicts(componentsToAdd, options, config, cwd, includeTests);
+        await resolveComponentsAndConflicts(
+            componentsToAdd, options, config, cwd, includeTests, preselectedAddons,
+        );
     const { toInstall, toSkip, conflicting, contentCache } = conflicts;
 
+    const uiPath = componentPath ?? aliasToProjectPath(config.aliases.ui || 'src/components/ui');
     const toOverwrite = await promptOverwrite(conflicting, options,
-        resolveProjectPath(cwd, componentPath ?? aliasToProjectPath(config.aliases.ui || 'src/components/ui')),  
-        contentCache);
+        resolveProjectPath(cwd, uiPath), contentCache);
     const declined = conflicting.filter(c => !toOverwrite.includes(c));
 
     const addonHints = collectAvailableAddons(allComponents);
-    if (options.dryRun) { printDryRunSummary(toInstall, toOverwrite, toSkip, declined); printAvailableAddons(addonHints); return; }
+    const grouping = { requested: componentsToAdd, chosen: extraDeps };
+    if (options.dryRun) {
+        reportDryRun({ toInstall, toOverwrite, toSkip, declined, grouping, addonHints });
+        return;
+    }
     if (toInstall.length === 0 && toOverwrite.length === 0) { printNothingToInstall(toSkip, declined); printAvailableAddons(addonHints); return; }
 
+    await runInstall({
+        componentsToAdd, extraDeps, toOverwrite, cwd, config, options,
+        componentPath, blocksPath, conflicts, includeTests, runner,
+        grouping, addonHints, uiPath,
+    });
+}
+
+/** Execute the planned install and report it. Exits 1 on failure. */
+async function runInstall(input: {
+    readonly componentsToAdd: ComponentName[];
+    readonly extraDeps: ComponentName[];
+    readonly toOverwrite: ComponentName[];
+    readonly cwd: string;
+    readonly config: Config;
+    readonly options: AddOptions;
+    readonly componentPath: string | undefined;
+    readonly blocksPath: string | undefined;
+    readonly conflicts: ConflictCheckResult;
+    readonly includeTests: boolean;
+    readonly runner: 'vitest' | 'jest';
+    readonly grouping: { readonly requested: readonly string[]; readonly chosen: readonly string[] };
+    readonly addonHints: AddonHint[];
+    /** Where the components landed — named in the "what now?" block. */
+    readonly uiPath: string;
+}): Promise<void> {
     const spinner = ora('Installing components...').start();
     try {
         const result = await performInstall({
-            components: componentsToAdd, optionalDeps: extraDeps,
+            components: input.componentsToAdd, optionalDeps: input.extraDeps,
             // The overwrite set came from an explicit choice (the --overwrite flag
             // or the interactive overwrite prompt), so it's a whole-file clobber,
             // not a 3-way merge.
-            overwrite: toOverwrite, forceOverwrite: true, cwd, config, options,
-            path: componentPath, blocksPath, precomputedConflicts: conflicts,
-            includeTests, testRunner: runner,
+            overwrite: input.toOverwrite, forceOverwrite: true,
+            cwd: input.cwd, config: input.config, options: input.options,
+            path: input.componentPath, blocksPath: input.blocksPath,
+            precomputedConflicts: input.conflicts,
+            includeTests: input.includeTests, testRunner: input.runner,
         });
-        printInstallResult(result, spinner);
-        printAvailableAddons(addonHints);
+        printInstallResult(result, spinner, input.grouping, input.uiPath);
+        printAvailableAddons(input.addonHints);
     } catch (error) {
         spinner.fail('Failed to add components');
         console.error(error);

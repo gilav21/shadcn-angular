@@ -1,0 +1,52 @@
+name: CodeQL
+
+# Replaces GitHub's default setup, which cannot read a config file. The
+# languages and weekly schedule below mirror what default setup was running, so
+# this changes coverage in exactly one way: `.github/codeql/codeql-config.yml`
+# now applies.
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  schedule:
+    # Weekly, matching the cadence default setup used.
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: codeql-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    permissions:
+      # Writing the results is the whole point of the job.
+      security-events: write
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # `javascript-typescript` covers both languages in one analysis;
+        # `actions` scans the workflow files themselves.
+        language: [actions, javascript-typescript]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          config-file: ./.github/codeql/codeql-config.yml
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"

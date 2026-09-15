@@ -1,0 +1,30 @@
+# Line-ending policy.
+#
+# Every text file is stored LF in git and checked out LF on every platform.
+# Without this, a Windows checkout produced CRLF working files while git held
+# LF, so byte-size manifests (packages/components/file-sizes.json) measured
+# differently in the main checkout, in a `git worktree`, and after a merge —
+# and whole-file merge conflicts appeared where only two lines had changed.
+#
+# `eol=lf` (not just `text=auto`) is deliberate: it pins the working-tree
+# ending too, so core.autocrlf on a contributor's machine cannot reintroduce
+# the drift.
+
+* text=auto eol=lf
+
+# Binary — never touch the bytes.
+*.pdf   binary
+*.ico   binary
+*.ttf   binary
+*.woff  binary
+*.woff2 binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.webp  binary
+*.avif  binary
+*.mp4   binary
+*.webm  binary
+*.zip   binary
+*.docx  binary

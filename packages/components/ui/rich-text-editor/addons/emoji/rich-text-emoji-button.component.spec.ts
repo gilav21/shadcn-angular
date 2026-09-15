@@ -9,7 +9,9 @@ import { RichTextEditorAddonHost, RichTextToolbarViewContext } from '../..';
 
 interface MockHost {
     disabled: WritableSignal<boolean>;
+    isDisabled: WritableSignal<boolean>;
     readonly: WritableSignal<boolean>;
+    registerExclusivePopover: (close: () => void) => { notifyOpened: () => void; release: () => void };
 }
 
 interface ButtonProbe {
@@ -29,7 +31,13 @@ describe('RichTextEmojiButtonComponent', () => {
     let ctx: ReturnType<typeof buildContext>;
 
     function render(compact?: boolean): HTMLElement {
-        host = { disabled: signal(false), readonly: signal(false) };
+        const disabledSignal = signal(false);
+        host = {
+            disabled: disabledSignal,
+            isDisabled: disabledSignal,
+            readonly: signal(false),
+            registerExclusivePopover: () => ({ notifyOpened: () => {}, release: () => {} }),
+        };
         ctx = buildContext();
         const providers: Provider[] = [
             { provide: RichTextEditorAddonHost, useValue: host },

@@ -65,6 +65,36 @@ function pointFromEvent(event: MouseEvent | TouchEvent): { clientX: number; clie
 
 const DELETE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>`;
 
+/** Spoken names for the eight drag handles. */
+const RESIZE_HANDLE_LABELS: Readonly<Record<string, string>> = {
+    nw: 'Resize from top left',
+    ne: 'Resize from top right',
+    sw: 'Resize from bottom left',
+    se: 'Resize from bottom right',
+    n: 'Resize from top',
+    s: 'Resize from bottom',
+    w: 'Resize from left',
+    e: 'Resize from right',
+};
+
+/** Pixels one arrow-key press changes the image by, and with Shift held. */
+const KEYBOARD_RESIZE_STEP = 10;
+const KEYBOARD_RESIZE_STEP_LARGE = 50;
+
+/** Which way each arrow key pushes, per axis. */
+const KEYBOARD_RESIZE_DELTA: Readonly<Record<string, { x: number; y: number } | undefined>> = {
+    ArrowRight: { x: 1, y: 0 },
+    ArrowLeft: { x: -1, y: 0 },
+    ArrowDown: { x: 0, y: 1 },
+    ArrowUp: { x: 0, y: -1 },
+};
+
+/** How long a run of keypresses is folded into one history entry. */
+const KEYBOARD_RESIZE_COALESCE_MS = 400;
+
+/** Absolute pixel bound for a resized image on either axis. */
+const MAX_IMAGE_DIMENSION = 10000;
+
 @Component({
     selector: 'ui-rich-text-image-resizer',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -96,7 +126,7 @@ export class RichTextImageResizerComponent implements OnDestroy {
     readonly resizable = input<boolean>(true);
     /** Show the alignment buttons in the overlay toolbar. */
     readonly showAlignment = input<boolean>(true);
-    /** Lower clamp (px) for the dragged image width/height. */
+    /** Lower clamp (px) for the dragged image, on both axes. */
     readonly minWidth = input<number>(20);
     /** Upper clamp (px) for the dragged image width. No ceiling when unset. */
     readonly maxWidth = input<number>();
@@ -148,6 +178,7 @@ export class RichTextImageResizerComponent implements OnDestroy {
     private readonly onContainerScrollBound = (): void => this.scheduleUpdate();
     private readonly onWindowResizeBound = (): void => this.scheduleUpdate();
     private resizeState: ResizeState | null = null;
+    private keyboardResizeTimer: ReturnType<typeof setTimeout> | null = null;
 
     private readonly onMoveBound = this.onPointerMove.bind(this);
     private readonly onUpBound = this.onPointerUp.bind(this);
@@ -178,12 +209,14 @@ export class RichTextImageResizerComponent implements OnDestroy {
     /**
      * Applies `align` to the target immediately (styles + `data-align`), then
      * emits {@link alignmentChange} and re-measures the overlay, since floating
-     * the image moves it. Bound to `mousedown` rather than `click` and swallows
-     * the event so the editor's selection survives the press.
+     * the image moves it. Bound to both `mousedown` (so a pointer press does not
+     * collapse the editor selection) and `click` (so keyboard activation works
+     * at all); {@link consumedByMouse} keeps a mouse press from running twice.
      */
     onAlignClick(event: MouseEvent, align: ImageAlignment): void {
         event.preventDefault();
         event.stopPropagation();
+        if (this.consumedByMouse(event)) return;
         const t = this.target();
         if (!t) return;
 
@@ -195,15 +228,35 @@ export class RichTextImageResizerComponent implements OnDestroy {
 
     /**
      * Emits {@link imageRemove} with the current target and leaves the DOM
-     * untouched — removal is the owner's job. Also `mousedown`-bound and
-     * event-swallowing so the press doesn't collapse the editor selection.
+     * untouched — removal is the owner's job. Bound to `mousedown` and `click`
+     * for the same reason as {@link onAlignClick}, and swallows the event so the
+     * press doesn't collapse the editor selection.
      */
     onDeleteClick(event: MouseEvent): void {
         event.preventDefault();
         event.stopPropagation();
+        if (this.consumedByMouse(event)) return;
         const t = this.target();
         if (!t) return;
         this.imageRemove.emit(t);
+    }
+
+    /**
+     * True when this `click` merely follows a `mousedown` that already did the
+     * work.
+     *
+     * The overlay buttons bind BOTH events on purpose. `mousedown` is what keeps
+     * a pointer press from collapsing the editor selection, but it never fires
+     * for a keyboard activation, so binding it alone left align and delete
+     * completely dead for anyone pressing Enter -- the buttons were focusable
+     * and inert. Binding `click` as well restores the keyboard; this guard stops
+     * a pointer press, which fires both, from running the action twice.
+     *
+     * A keyboard-generated click reports `detail === 0`, which is how the two
+     * are told apart.
+     */
+    private consumedByMouse(event: MouseEvent): boolean {
+        return event.type === 'click' && event.detail > 0;
     }
 
     private startTracking(): void {
@@ -298,10 +351,10 @@ export class RichTextImageResizerComponent implements OnDestroy {
             handle
         };
 
-        document.addEventListener('mousemove', this.onMoveBound);
-        document.addEventListener('mouseup', this.onUpBound);
-        document.addEventListener('touchmove', this.onMoveBound, { passive: false });
-        document.addEventListener('touchend', this.onUpBound);
+        this.document.addEventListener('mousemove', this.onMoveBound);
+        this.document.addEventListener('mouseup', this.onUpBound);
+        this.document.addEventListener('touchmove', this.onMoveBound, { passive: false });
+        this.document.addEventListener('touchend', this.onUpBound);
     }
 
     private onPointerMove(event: MouseEvent | TouchEvent): void {
@@ -327,21 +380,175 @@ export class RichTextImageResizerComponent implements OnDestroy {
         }
     }
 
+    /**
+     * Resize the image from the keyboard.
+     *
+     * The eight drag handles are pointer-only by nature -- a drag has no
+     * keyboard equivalent -- and they were bare divs with no tabindex, role or
+     * key handling, so image resizing could not be done without a pointer at
+     * all. This gives the overlay one focusable control that grows and shrinks
+     * the image with the arrow keys, holding the aspect ratio when
+     * {@link lockAspectRatio} asks for it. Shift moves in larger steps.
+     */
+    /**
+     * Accessible name for one resize handle.
+     *
+     * The handles were bare divs -- no tabindex, no role, no name -- so image
+     * resizing was strictly pointer-only. They are buttons now, and each says
+     * which corner or edge it drags. The compass point is spelled out rather
+     * than left as "nw" so it is pronounceable.
+     */
+    handleLabel(handle: ResizeHandle): string {
+        return RESIZE_HANDLE_LABELS[handle];
+    }
+
+    onResizeKeydown(event: KeyboardEvent, handle: ResizeHandle): void {
+        const arrow = KEYBOARD_RESIZE_DELTA[event.key];
+        if (!arrow) return;
+
+        const t = this.target();
+        if (!t) return;
+
+        const step = event.shiftKey ? KEYBOARD_RESIZE_STEP_LARGE : KEYBOARD_RESIZE_STEP;
+
+        // Same sign tables the drag path uses, so a handle means the same thing
+        // whichever way it is driven. Every handle used to grow the image on
+        // ArrowRight -- the top-left corner grew it, which is backwards from
+        // dragging that corner, and the n/s handles resized width despite
+        // WIDTH_SIGN saying they do not touch it.
+        const dx = arrow.x * step * WIDTH_SIGN[handle];
+        const dy = arrow.y * step * HEIGHT_SIGN[handle];
+
+        // Decide BEFORE consuming the event. A key this handle cannot act on --
+        // including a vertical arrow on a corner while the aspect ratio is
+        // locked, where the height just follows the width -- must stay with the
+        // page, or the user presses Up on a focused handle, nothing happens, and
+        // their scroll is silently eaten too.
+        if (dx === 0 && (dy === 0 || this.lockAspectRatio())) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        const rect = t.getBoundingClientRect();
+        const aspect = rect.height === 0 ? 1 : rect.width / rect.height;
+
+        // Both branches go through the same bounding as the drag path. The
+        // locked branch used to derive height by an unclamped division -- the
+        // identical defect that was fixed in lockedSize, 55 lines below, and
+        // missed here because this block's own fixture sets lockAspectRatio to
+        // false so every keyboard test ran the unlocked branch.
+        const requested = this.clampWidth(Math.max(this.minWidth(), rect.width + dx));
+        const { width, height } = this.lockAspectRatio()
+            ? this.ratioBoundedSize(requested, aspect)
+            : { width: requested, height: this.clampHeight(rect.height + dy) };
+
+        t.style.width = `${width}px`;
+        t.style.height = `${height}px`;
+        this.scheduleUpdate();
+        this.endKeyboardResizeSoon();
+    }
+
+    /**
+     * Emit one {@link resizeEnd} for a run of keypresses.
+     *
+     * A whole mouse drag records one undo entry; the keyboard path emitted per
+     * press, so undoing a keyboard resize took as many undos as the user made
+     * presses. This coalesces a burst the way the drag does, and the pending
+     * timer is cancelled on teardown so a destroyed overlay cannot emit.
+     */
+    private endKeyboardResizeSoon(): void {
+        if (this.keyboardResizeTimer !== null) {
+            clearTimeout(this.keyboardResizeTimer);
+        }
+        this.keyboardResizeTimer = setTimeout(() => {
+            this.keyboardResizeTimer = null;
+            this.resizeEnd.emit();
+        }, KEYBOARD_RESIZE_COALESCE_MS);
+    }
+
+    /**
+     * Clamp a width, symmetrically with {@link clampHeight}.
+     *
+     * The height fix was applied to only one of two mirror-image axes: width had
+     * no lower bound (a fast leftward drag computed a negative width, which
+     * onPointerMove then refused to write -- the "frozen drag" that fix claims
+     * to have removed) and no ceiling at all when maxWidth is unset, which is
+     * the default.
+     */
     private clampWidth(width: number): number {
-        const max = this.maxWidth();
-        return max === undefined ? width : Math.min(width, max);
+        const max = this.maxWidth() ?? MAX_IMAGE_DIMENSION;
+        return Math.min(Math.min(max, MAX_IMAGE_DIMENSION), Math.max(this.minWidth(), width));
+    }
+
+    /**
+     * Size with the aspect ratio held. BOTH axes are bounded here.
+     *
+     * Clamping width and then deriving height by division skipped the height
+     * bound entirely: a 20x10000 image dragged out reached 5,000,000px. And
+     * because `lockAspectRatio` defaults to true, that is the path most users
+     * are on -- the earlier bounds fix, and both of its tests, only exercised
+     * `freeSize`, the ratio-unlocked function.
+     *
+     * The ratio is preserved while clamping, so the image stays the shape it
+     * was. Only the ceiling is enforced here; the floor belongs to
+     * onPointerMove, which rejects an undersized drag rather than snapping it.
+     */
+    /**
+     * Fit a ratio-locked size inside the bounds, scaling rather than overriding.
+     *
+     * The earlier version enforced the floor on the DERIVED axis and then
+     * back-projected it onto the axis the user was dragging, which pinned the
+     * width: a 2000x40 banner returned 1000px for a 500px request and for a
+     * 100px request alike, so the drag was unresponsive below 1000px -- the
+     * frozen drag relocated, not removed. It could also return a dimension under
+     * the very floor it exists to enforce.
+     *
+     * Scaling both axes by one factor keeps the ratio, keeps the drag
+     * responsive, and cannot produce a dimension outside the bounds.
+     */
+    private ratioBoundedSize(width: number, aspect: number): { width: number; height: number } {
+        const min = this.minWidth();
+        const height = width / aspect;
+
+        // Shrink if either axis is over the ceiling, grow if either is under the
+        // floor; the tighter constraint wins.
+        const overBy = Math.max(width / MAX_IMAGE_DIMENSION, height / MAX_IMAGE_DIMENSION, 1);
+        const scaled = { width: width / overBy, height: height / overBy };
+        const underBy = Math.max(min / scaled.width, min / scaled.height, 1);
+
+        return { width: scaled.width * underBy, height: scaled.height * underBy };
     }
 
     private lockedSize(state: ResizeState, deltaX: number): { width: number; height: number } {
         const aspect = state.startWidth / state.startHeight;
         const width = this.clampWidth(state.startWidth + WIDTH_SIGN[state.handle] * deltaX);
-        return { width, height: width / aspect };
+        return this.ratioBoundedSize(width, aspect);
     }
 
     private freeSize(state: ResizeState, deltaX: number, deltaY: number): { width: number; height: number } {
         const width = this.clampWidth(state.startWidth + WIDTH_SIGN[state.handle] * deltaX);
-        const height = state.startHeight + HEIGHT_SIGN[state.handle] * deltaY;
+        // Height was clamped at neither end, so a fast drag could compute a
+        // 100,000px height or a negative one. onPointerMove's `>= min` gate then
+        // refused the write, which reads as the drag freezing rather than
+        // stopping at the bound.
+        const height = this.clampHeight(state.startHeight + HEIGHT_SIGN[state.handle] * deltaY);
         return { width, height };
+    }
+
+    /**
+     * Clamp a height. {@link minWidth} is a shared lower bound for both axes --
+     * an image thinner or shorter than that is not usable either way -- but
+     * {@link maxWidth} is deliberately NOT applied here: it is a width ceiling,
+     * and using it for height silently squashed every portrait image and
+     * contradicted the input's own documentation. Height has no ceiling until
+     * there is an input that means one.
+     */
+    private clampHeight(height: number): number {
+        // A ceiling is still needed, just not the WIDTH one: a fast drag could
+        // compute a 100,000px height, which onPointerMove then refused to write
+        // -- reading as a frozen drag rather than a bound. The cap is generous
+        // enough never to bite a real image.
+        return Math.min(MAX_IMAGE_DIMENSION, Math.max(this.minWidth(), height));
     }
 
     private onPointerUp(): void {
@@ -351,14 +558,18 @@ export class RichTextImageResizerComponent implements OnDestroy {
     }
 
     private removePointerListeners(): void {
-        document.removeEventListener('mousemove', this.onMoveBound);
-        document.removeEventListener('mouseup', this.onUpBound);
-        document.removeEventListener('touchmove', this.onMoveBound);
-        document.removeEventListener('touchend', this.onUpBound);
+        this.document.removeEventListener('mousemove', this.onMoveBound);
+        this.document.removeEventListener('mouseup', this.onUpBound);
+        this.document.removeEventListener('touchmove', this.onMoveBound);
+        this.document.removeEventListener('touchend', this.onUpBound);
     }
 
     ngOnDestroy(): void {
         this.stopTracking();
         this.removePointerListeners();
+        if (this.keyboardResizeTimer !== null) {
+            clearTimeout(this.keyboardResizeTimer);
+            this.keyboardResizeTimer = null;
+        }
     }
 }

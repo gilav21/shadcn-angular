@@ -186,3 +186,45 @@ npm run release:cli -- minor             # for real
 Flags: `--dry-run`, `--force` (publish anyway despite a "not required"
 verdict), `--allow-dirty`, `--allow-branch` (release off a non-`master`
 branch), `--skip-preflight` (you own the consequences).
+
+## `npm run release:package -- <rte|data-table> <patch|minor|major>`
+
+The release flow for the two **compiled** npm packages —
+`@gilav21/shadcn-angular-rte` and `@gilav21/shadcn-angular-data-table` — which
+ship a frozen snapshot of one registry closure to consumers who want an
+`npm install` instead of copied sources.
+
+> These version **independently of the CLI**. A component fix reaches CLI users
+> the moment it lands on `master` (the CLI fetches source live), but reaches
+> package users only in the next *package* release. That asymmetry is the whole
+> reason this script exists.
+
+The verdict is closure-driven: a release is required when anything that ends up
+**inside the tarball** changed since the last `<id>-v*` tag — any file of the
+closure, the package's own config, `templates/styles.ts` (from which
+`theme.css` is generated), or the stage/build scripts. If nothing did it
+**aborts**; pass `--force` to override.
+
+Flow: clean-tree + branch guard → release verdict → version bump +
+`CHANGELOG.md` → package preflight (`build:package` → the `pkg-*` e2e legs) →
+release commit → annotated `git tag <id>-v<version>` → `git push --follow-tags`
+→ **STOP**.
+
+It **never runs `npm publish`** — that needs 2FA, so the script prints the
+command and a human finishes:
+
+```bash
+npm run release:package -- rte patch --dry-run   # full rehearsal, changes nothing
+npm run release:package -- rte patch             # …then prints the publish command
+cd dist/rte-package && npm publish --access public
+```
+
+The bump happens **before** the build, unlike `release:cli`: ng-packagr copies
+the version out of the source `package.json`, so building first would pack the
+old one. If the preflight then fails, the two bumped files are reverted.
+
+Flags: as `release:cli`, plus `--no-push` (tag locally without pushing).
+
+Related: `npm run stage:package -- <id>` regenerates the package's generated
+`src/` tree from the registry, and `npm run build:package -- <id>` stages,
+compiles and packs it into `e2e/.workers/_packs/`.

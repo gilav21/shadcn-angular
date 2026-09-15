@@ -4,6 +4,7 @@
       type="button"
       [class]="buttonClasses()"
       [title]="context.locale().tooltip"
+      [attr.aria-label]="context.locale().tooltip"
       [disabled]="interactionDisabled()"
     >
       <span [innerHTML]="icon"></span>

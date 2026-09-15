@@ -17,7 +17,7 @@ const meta: Meta = {
                     '`uiRteHistory` to the editor element. Renders the "Revisions" corner button + panel, ' +
                     'the preview dialog, and the browser dialog (Ctrl/Cmd + Shift + H). The base editor keeps ' +
                     'the undo/redo stack but ships no revision-history UI and no `dialog` dependency. Set ' +
-                    '`[uiRteHistoryButton]="false"` for a shortcut-only (browser-dialog) experience.',
+                    '`[uiRteHistory]="{ toolbar: false }"` for a shortcut-only (browser-dialog) experience.',
             },
         },
     },
@@ -33,7 +33,7 @@ export const Default: Story = {
                 mode="html"
                 toolbar="top"
                 uiRteHistory
-                [historyDebounceMs]="400"
+                [history]="{ debounceMs: 400 }"
                 placeholder="Type, pause, then open Revisions (top-right) to jump between snapshots…"
                 minHeight="200px"
             />
@@ -47,8 +47,7 @@ export const ShortcutOnly: Story = {
             <ui-rich-text-editor
                 mode="html"
                 toolbar="top"
-                uiRteHistory
-                [uiRteHistoryButton]="false"
+                [uiRteHistory]="{ toolbar: false }"
                 placeholder="No corner button — press Ctrl/Cmd + Shift + H to open the history browser…"
                 minHeight="200px"
             />

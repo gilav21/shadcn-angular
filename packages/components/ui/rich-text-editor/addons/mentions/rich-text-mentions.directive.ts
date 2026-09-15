@@ -145,7 +145,7 @@ export class RichTextMentionsDirective {
 
 
     private onInput(): void {
-        if (this.host.disabled() || this.host.readonly()) {
+        if (this.host.isDisabled() || this.host.readonly()) {
             this.close();
             return;
         }
@@ -169,6 +169,11 @@ export class RichTextMentionsDirective {
         }
         event.preventDefault();
         this.popoverRef.instance.onKeydown(event);
+        // Re-read the ref: Enter and Tab ACCEPT an item, which closes the
+        // popover and destroys the component synchronously inside that call, so
+        // the captured ref is already gone by the time we get here. Only a key
+        // that merely moved the highlight leaves one to re-announce.
+        if (this.popoverRef) this.announcePopup(this.popoverRef);
         return true;
     }
 
@@ -235,6 +240,23 @@ export class RichTextMentionsDirective {
         ref.setInput('position', this.position());
         ref.setInput('locale', this.i18n.t());
         ref.changeDetectorRef.markForCheck();
+        this.announcePopup(ref);
+    }
+
+    /**
+     * Point the editable's combobox attributes at the popover.
+     *
+     * Focus stays in the editable so keystrokes keep reaching the document,
+     * which means the list is announced only if the editable itself says it is
+     * there and which option is active.
+     */
+    private announcePopup(ref: ComponentRef<RichTextMentionPopoverComponent>): void {
+        const instance = ref.instance;
+        const index = instance.selectedIndex();
+        this.host.setActiveSuggestionPopup({
+            controlsId: instance.listboxId,
+            activeOptionId: this.items().length > 0 ? instance.optionId(index) : null,
+        });
     }
 
     private createPopover(): ComponentRef<RichTextMentionPopoverComponent> {
@@ -265,6 +287,7 @@ export class RichTextMentionsDirective {
         this.loadedItems.set([]);
         this.popoverRef?.destroy();
         this.popoverRef = undefined;
+        this.host.setActiveSuggestionPopup(null);
     }
 
     private focusEditor(): void {

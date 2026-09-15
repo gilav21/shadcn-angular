@@ -6,6 +6,7 @@ import { PopoverCloseComponent } from './sub/popover-close.component';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { DialogComponent, DialogContentComponent } from '../dialog';
 
 // Test host for integration
 @Component({
@@ -76,6 +77,29 @@ describe('PopoverComponent', () => {
     it('should show when show() is called', () => {
         component.show();
         expect(component.open()).toBe(true);
+    });
+
+    it('closes on Escape', () => {
+        // The component's own doc comment promised this ("closed internally on
+        // an outside click, on Escape, and by ui-popover-close") but no handler
+        // ever implemented it, so every popover in the library — colour picker,
+        // font pickers, link, image, table — trapped the user until they
+        // clicked elsewhere.
+        component.show();
+        fixture.detectChanges();
+        expect(component.open()).toBe(true);
+
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        fixture.detectChanges();
+
+        expect(component.open()).toBe(false);
+    });
+
+    it('ignores Escape while already closed', () => {
+        expect(component.open()).toBe(false);
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        fixture.detectChanges();
+        expect(component.open()).toBe(false);
     });
 
     it('should hide when hide() is called', () => {
@@ -571,5 +595,99 @@ describe('Popover RTL Support', () => {
 
         const content = fixture.debugElement.query(By.css('[data-slot="popover-content"]'));
         expect(content).toBeTruthy();
+    });
+});
+
+describe('PopoverComponent - Escape inside a dialog (fine-comb review)', () => {
+    @Component({
+        template: `
+            <ui-dialog [(open)]="dialogOpen">
+                <ui-dialog-content>
+                    <ui-popover>
+                        <ui-popover-trigger>Open</ui-popover-trigger>
+                        <ui-popover-content><button id="inner" type="button">inside</button></ui-popover-content>
+                    </ui-popover>
+                </ui-dialog-content>
+            </ui-dialog>
+        `,
+        imports: [DialogComponent, DialogContentComponent, PopoverComponent, PopoverTriggerComponent, PopoverContentComponent],
+    })
+    class DialogHostComponent {
+        dialogOpen = true;
+    }
+
+    afterEach(() => TestBed.resetTestingModule());
+
+    it('closes only the popover; the dialog behind it stays open', () => {
+        // The dialog panel closes on Escape from its own keydown handler and
+        // the popover listened on the document. Without consuming the key in
+        // capture, one press closed both layers.
+        const fixture = TestBed.createComponent(DialogHostComponent);
+        fixture.detectChanges();
+        const popover = fixture.debugElement.query(By.directive(PopoverComponent)).componentInstance as PopoverComponent;
+        popover.show();
+        fixture.detectChanges();
+
+        const inner = (fixture.nativeElement as HTMLElement).querySelector('#inner') as HTMLElement;
+        expect(inner).toBeTruthy();
+        inner.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+        fixture.detectChanges();
+
+        expect(popover.open()).toBe(false);
+        expect(fixture.componentInstance.dialogOpen).toBe(true);
+        expect((fixture.nativeElement as HTMLElement).querySelector('[data-slot="dialog-content"]')).toBeTruthy();
+    });
+
+    it('with the popover closed, Escape still reaches the dialog', () => {
+        const fixture = TestBed.createComponent(DialogHostComponent);
+        fixture.detectChanges();
+        const panel = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="dialog-content"]') as HTMLElement;
+        panel.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+        fixture.detectChanges();
+        expect(fixture.componentInstance.dialogOpen).toBe(false);
+    });
+});
+
+describe('PopoverComponent - overlay layers (follow-up F2)', () => {
+    @Component({
+        template: `
+            <ui-popover #outer>
+                <ui-popover-trigger>Outer</ui-popover-trigger>
+                <ui-popover-content>
+                    <ui-popover #inner>
+                        <ui-popover-trigger>Inner</ui-popover-trigger>
+                        <ui-popover-content><button id="deep" type="button">deep</button></ui-popover-content>
+                    </ui-popover>
+                </ui-popover-content>
+            </ui-popover>
+        `,
+        imports: [PopoverComponent, PopoverTriggerComponent, PopoverContentComponent],
+    })
+    class NestedHostComponent {}
+
+    afterEach(() => TestBed.resetTestingModule());
+
+    it('closes only the innermost of two open popovers per Escape', () => {
+        const fixture = TestBed.createComponent(NestedHostComponent);
+        fixture.detectChanges();
+        const popovers = (): PopoverComponent[] => fixture.debugElement
+            .queryAll(By.directive(PopoverComponent))
+            .map((d) => d.componentInstance as PopoverComponent);
+        const outer = popovers()[0];
+        outer.show();
+        fixture.detectChanges();
+        // The inner popover lives in the outer's content, so it exists only now.
+        const inner = popovers()[1];
+        inner.show();
+        fixture.detectChanges();
+
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        fixture.detectChanges();
+        expect(inner.open()).toBe(false);
+        expect(outer.open()).toBe(true);
+
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        fixture.detectChanges();
+        expect(outer.open()).toBe(false);
     });
 });

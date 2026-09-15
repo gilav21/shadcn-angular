@@ -25,7 +25,7 @@ const meta: Meta = {
                     'the editor. It contributes a toolbar button and a `/outline` slash command that open a docked, ' +
                     'read-only table-of-contents panel listing every heading in document order. Click a heading (or ' +
                     'press Enter/Space) to scroll the editor to it. The panel refreshes as you type. Pass ' +
-                    '`[uiRteOutlineButton]="false"` to hide the toolbar button and drive it from the slash command ' +
+                    '`[uiRteOutline]="{ toolbar: false }"` to hide the toolbar button and drive it from the slash command ' +
                     'only. The base editor ships no outline UI and no scroll-area dependency.',
             },
         },
@@ -55,9 +55,8 @@ export const SlashCommandOnly: Story = {
         template: `
             <ui-rich-text-editor
                 mode="html"
-                uiRteOutline
+                [uiRteOutline]="{ toolbar: false }"
                 uiRteSlashCommands
-                [uiRteOutlineButton]="false"
                 [ngModel]="content"
                 minHeight="320px"
             />

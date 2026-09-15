@@ -15,6 +15,7 @@ import {
     type RichTextSlashCommandContext,
 } from '../..';
 import { createLocaleBindings, type LocaleInput } from '../../../../lib/i18n';
+import { caretIsInCode } from '../../../../lib/caret-context';
 import { RichTextSlashCommandsMenuComponent } from './rich-text-slash-commands-menu.component';
 import { buildDefaultSlashCommands } from './rich-text-slash-commands.defaults';
 import {
@@ -144,7 +145,10 @@ export class RichTextSlashCommandsDirective {
 
 
     private onInputObserved(text: string, caret: number): void {
-        if (!this.slashEnabled() || this.host.disabled() || this.host.readonly()) {
+        // A '/' inside code is content — a path, a regex, a comment — not a
+        // command, so the menu must stay shut while the author writes a snippet.
+        if (!this.slashEnabled() || this.host.isDisabled() || this.host.readonly()
+            || caretIsInCode(this.doc)) {
             this.close();
             return;
         }
@@ -169,7 +173,7 @@ export class RichTextSlashCommandsDirective {
     private computeFilteredCommands(): RichTextSlashCommand[] {
         const availability: RichTextSlashCommandAvailabilityContext = {
             query: this.query,
-            disabled: this.host.disabled(),
+            disabled: this.host.isDisabled(),
             readonly: this.host.readonly(),
             hasSelection: this.host.selection().text.length > 0,
         };
@@ -223,10 +227,13 @@ export class RichTextSlashCommandsDirective {
             this.setSelectedIndex(Math.max(this.selectedIndex - 1, 0));
             return;
         }
-        if (event.key === 'Escape' || event.key === 'Tab') {
+        if (event.key === 'Escape') {
             this.close();
             return;
         }
+        // Tab falls through to accept, as Enter does — matching the mentions
+        // popover and every editor users have muscle memory for. With no
+        // commands to accept (above) it still dismisses.
         void this.select(commands[this.selectedIndex]);
     }
 
@@ -242,7 +249,7 @@ export class RichTextSlashCommandsDirective {
      * command's own mutation lands as a separate, independently undoable step.
      */
     private async select(command: RichTextSlashCommand | undefined): Promise<void> {
-        if (!command || this.host.disabled() || this.host.readonly()) {
+        if (!command || this.host.isDisabled() || this.host.readonly()) {
             return;
         }
         const root = this.host.contentRoot;
@@ -295,10 +302,20 @@ export class RichTextSlashCommandsDirective {
         menu.setInput('noResultsLabel', locale.noResults);
         menu.setInput('menuAriaLabel', locale.menuAriaLabel);
         this.positionMenu(menu);
+        // Focus stays in the editable so keystrokes keep reaching the document,
+        // so the editable is what has to announce the list and the active option.
+        this.host.setActiveSuggestionPopup({
+            controlsId: menu.instance.listboxId,
+            activeOptionId: commands.length > 0 ? menu.instance.optionId(this.selectedIndex) : null,
+        });
     }
 
     private createMenu(): ComponentRef<RichTextSlashCommandsMenuComponent> {
         const ref = this.vcr.createComponent(RichTextSlashCommandsMenuComponent);
+        // Set here rather than as a host binding on the component: the id never
+        // changes, and a host binding costs a change-detection pass per cycle
+        // that re-fires the menu's scroll-into-view effect.
+        (ref.location.nativeElement as HTMLElement).id = ref.instance.listboxId;
         ref.instance.commandSelect.subscribe((command) => void this.select(command));
         ref.instance.hoverIndex.subscribe((index) => this.setSelectedIndex(index));
         this.doc.addEventListener('mousedown', this.outsidePointerBound, true);
@@ -397,6 +414,9 @@ export class RichTextSlashCommandsDirective {
         this.selectedIndex = 0;
         this.anchorBlock = null;
         this.triggerRange = null;
+        // Cleared before the early return below: the editable must stop claiming
+        // a popup exists even when there was no menu component to destroy.
+        this.host.setActiveSuggestionPopup(null);
         if (!this.menuRef) {
             return;
         }

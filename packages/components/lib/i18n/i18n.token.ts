@@ -45,14 +45,25 @@ export function provideUiLocale(locale: Signal<string> | string): Provider {
 
 /**
  * Make a compound component re-broadcast its `locale` input as the
- * `UI_LOCALE_ID` for descendants in its template. Add to the component's
- * **`viewProviders`** (not `providers` — `providers` would make the parent
- * recursively inject itself, causing a cyclic-DI error).
+ * `UI_LOCALE_ID` for everything resolving beneath it.
+ *
+ * Put it in **`providers`**, which is what every component in the library
+ * does (`breadcrumb`, `data-table`, `kanban`, `pagination`,
+ * `rich-text-editor`). That reaches both the template's children and any
+ * directive sitting on the component's own element — the second of which is
+ * what lets `<ui-rich-text-editor locale="he" uiRteFull>` localize fourteen
+ * addon directives from one binding.
+ *
+ * `viewProviders` also works, and scopes the re-broadcast to the template
+ * only, but nothing in the library needs that narrower reach today.
+ *
+ * Neither placement cycles: the component lookup happens lazily inside the
+ * `computed` below, not while the parent is still constructing.
  *
  * ```ts
  * @Component({
  *   selector: 'ui-pagination',
- *   viewProviders: [provideComponentLocale(() => PaginationComponent)],
+ *   providers: [provideComponentLocale(() => PaginationComponent)],
  * })
  * export class PaginationComponent {
  *   readonly locale = input<LocaleInput<PaginationLocale>>();

@@ -11,17 +11,60 @@ import {
     OnInit,
     forwardRef,
     effect,
+    untracked,
     AfterViewInit,
     OnDestroy,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { DOCUMENT } from '@angular/common';
 import { cn } from '../../lib/utils';
+import { graphemeLength, truncateToGraphemes } from '../../lib/grapheme';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
+import {
+    labelBlockedImages,
+    reportResourceDecisions,
+    RichTextAllowHost,
+    type ResourcePolicyDecision,
+} from './rich-text-resource-policy';
 import { RichTextMarkdownService } from './rich-text-markdown.service';
 import { RichTextPasteNormalizerService } from './rich-text-paste-normalizer.service';
 import { RichTextToolbarComponent, ToolbarItem } from './sub/rich-text-toolbar.component';
+import {
+    buildFindIndex,
+    compileFindRegex,
+    offsetToPosition,
+    type FindIndex,
+} from './rich-text-find.utils';
+import {
+    buildLineIndex,
+    caretPosition,
+    flattenIntoRowText,
+    holdsNothing,
+    isLineOwner,
+    isNestedList,
+    isPhrasing,
+    type Line,
+    lineAbove,
+    lineBelow,
+    lineIsEmpty,
+    lineIsTextOnly,
+    lineOf,
+    lineKeepsItsElement,
+    lineTagIsFixed,
+    linesBetween,
+    linesMayJoin,
+    lineOwnNodes,
+    lineText,
+    placeCaretIn,
+    positionAfterLine,
+    rangeShowsNothing,
+    rowRunsOf,
+    nodeShowsNothing,
+    lastOwnInlineNode,
+    separateListKinds,
+    structureAround,
+} from './rich-text-lines';
 import { ShortcutBindingService, ShortcutComponentHandle, ShortcutRegistration } from '../../lib/shortcut-binding.service';
 import {
     RichTextCommandRegistry,
@@ -31,14 +74,22 @@ import { AddonSlotRegistry } from '../../lib/addon-slots';
 import {
     RichTextEditorAddonHost,
     type RichTextToolbarSlot,
+    type RichTextExclusivePopover,
     type RichTextSelectionSnapshot,
     type RichTextSelectionInlineStyle,
     type RichTextInlineStyle,
     type RichTextHistoryEntrySnapshot,
 } from './rich-text-editor.host';
 import { RichTextLocale, RICH_TEXT_LOCALES } from './rich-text-locales';
-import { createLocaleBindings, interpolate } from '../../lib/i18n/i18n.utils';
-import type { LocaleInput } from '../../lib/i18n/i18n.types';
+import {
+    matchBlockInputRule,
+    matchInlineInputRule,
+    type BlockInputRuleMatch,
+} from './rich-text-input-rules';
+import type { RichTextEditorApi, RichTextFormatCommand } from './rich-text-editor.api';
+import { isRichTextEmpty } from './rich-text-editor.validators';
+import { RICH_TEXT_PROSE_CLASSES } from './rich-text-prose';
+import { createLocaleBindings, interpolate, provideComponentLocale, type LocaleInput } from '../../lib/i18n';
 
 const editorVariants = cva(
     'relative w-full rounded-lg border bg-background text-base ring-offset-background transition-colors',
@@ -77,7 +128,56 @@ export type EditorVariant = VariantProps<typeof editorVariants>['variant'];
  * - `'lg'` — Larger text (`text-lg`), good for article editing.
  */
 export type EditorSize = VariantProps<typeof editorVariants>['size'];
+/** Which counter renders below the editor. */
+export type CounterMode = 'characters' | 'words' | 'both';
+/** Text direction override; unset follows the locale. */
+export type TextDirection = 'ltr' | 'rtl' | 'auto';
 
+/** Undo-history tuning; every field optional, see {@link RichTextEditorComponent.history}. */
+export interface RichTextHistoryOptions {
+    /** Snapshots retained; oldest dropped past it. Default 100, floor 10. */
+    readonly limit?: number;
+    /** Quiet time after typing before a snapshot is taken. Default 450. */
+    readonly debounceMs?: number;
+    /** Record each form `setValue` / `patchValue` as an undoable entry. Default off. */
+    readonly recordExternalWrites?: boolean;
+}
+
+const DEFAULT_HISTORY_LIMIT = 100;
+const DEFAULT_HISTORY_DEBOUNCE_MS = 450;
+
+/**
+ * A toolbar button you add from data, no directive required — see
+ * {@link RichTextEditorComponent.customToolbarItems}.
+ */
+export interface RichTextCustomToolbarItem {
+    /** Stable id; the button renders with `data-addon-slot="<id>"`. */
+    readonly id: string;
+    /** Inline SVG markup, or a short text glyph such as an emoji. */
+    readonly icon: string;
+    readonly tooltip: string;
+    /** Sort order among added buttons; lower first. Default 500. */
+    readonly order?: number;
+    /** Pressed state, judged from the formats active at the caret. */
+    readonly isActive?: (formats: Set<string>) => boolean;
+    /** Handle the click here; `(customToolbarAction)` fires as well. */
+    readonly onClick?: (ref: RichTextEditorRef) => void;
+}
+
+/**
+ * The editor as a custom toolbar button sees it. Every write goes through
+ * the editor, so it lands in the model, emits the outputs and records a
+ * history entry like any built-in button.
+ */
+export interface RichTextEditorRef {
+    insertText(text: string): void;
+    insertHtml(html: string): void;
+    focus(): void;
+    getSelectedText(): string;
+    getHtmlContent(): string;
+}
+
+const CUSTOM_TOOLBAR_ITEM_ORDER = 500;
 /**
  * Determines the output format and internal handling of content.
  *
@@ -100,22 +200,6 @@ export type EditorMode = 'markdown' | 'html';
  */
 export type ToolbarPosition = 'top' | 'floating' | 'none';
 
-export interface RichTextCustomToolbarItem {
-    id: string;
-    icon: string;
-    tooltip: string;
-    order?: number;
-    isActive?: (formats: Set<string>) => boolean;
-}
-
-export interface RichTextEditorRef {
-    insertText(text: string): void;
-    insertHtml(html: string): void;
-    focus(): void;
-    getSelectedText(): string;
-    getHtmlContent(): string;
-}
-
 interface HistoryEntry {
     html: string;
     delta: string | null;
@@ -135,13 +219,45 @@ interface SerializedSelection {
 }
 
 /**
+ * Upper bound on the highlight rectangles the find overlay paints at once.
+ * Every match is still counted and navigable; beyond this many, only the
+ * current match's rectangles are guaranteed to be drawn, which keeps a
+ * thousands-of-matches query from spending its whole budget in layout.
+ */
+export const FIND_MAX_PAINTED_RECTS = 500;
+
+/**
+ * Upper bound on the matches one search collects. A query matching more than
+ * this in a single document is a runaway pattern rather than a search anyone is
+ * reading, and the cap keeps the pass bounded.
+ */
+const FIND_MAX_MATCHES = 10_000;
+
+/** Options accepted by {@link RichTextEditorComponent.setContent}. */
+export interface RichTextSetContentOptions {
+    /** Push one history entry so the write can be undone. Default `true`. */
+    recordHistory?: boolean;
+}
+
+/** The undo-stack state carried by {@link RichTextEditorComponent.historyChange}. */
+export interface RichTextHistoryState {
+    canUndo: boolean;
+    canRedo: boolean;
+}
+
+/**
  * The default toolbar layout used when `[toolbarItems]` is not provided.
  * Groups: formatting | block type | lists | alignment | colors/size | insert | code | clear.
+ *
+ * Block type is one `'textStyle'` select rather than four buttons: on a 320px
+ * phone the toolbar scrolls horizontally, and those four were its biggest fixed
+ * cost. A consumer who prefers the buttons can still list
+ * `'paragraph', 'heading1', 'heading2', 'heading3'` explicitly.
  */
 export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     'bold', 'italic', 'underline',
     'separator',
-    'paragraph', 'heading1', 'heading2', 'heading3',
+    'textStyle',
     'separator',
     'bulletList', 'orderedList', 'taskList',
     'separator',
@@ -169,6 +285,71 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
     { actionId: 'rich-text.find-replace', description: 'Find and replace', defaultShortcut: 'Mod+H', category: 'Navigation' },
 ];
 
+/** Structures inside a quote that own their own Enter handling. */
+/** The placeholders an empty task row's text span is seeded with. */
+/** A run of nothing but the padding a blank line carries to hold a caret. */
+const PLACEHOLDER_ONLY = /^[\u00A0\u200B]*$/;
+
+/** A collapsed caret inside a line's own text, with the line it belongs to. */
+interface TaskRowCaret {
+    /** The line the caret is in. */
+    line: Line;
+    /** The list row that owns the line, when the line is one. */
+    row: HTMLElement;
+    /** Where the line's text lives: a task row's span, else the line's element. */
+    span: HTMLElement;
+    range: Range;
+}
+
+/** What a block toggle starts from: the live selection and the nodes it can put the selection back on. */
+interface BlockToggleContext {
+    readonly selection: Selection;
+    readonly editor: HTMLElement;
+    readonly range: Range;
+    readonly anchor: Node;
+    readonly offset: number;
+    readonly focus: Node;
+    readonly focusOffset: number;
+}
+
+/** Elements that legitimately contain block children, so a paste inside one needs no split. */
+const BLOCK_CONTAINER_TAGS = new Set(['TD', 'TH', 'LI', 'BLOCKQUOTE', 'DETAILS', 'FIGURE']);
+
+/**
+ * Blocks that a paste of block content must escape by splitting.
+ *
+ * Deliberately disjoint from {@link BLOCK_CONTAINER_TAGS}: blockToSplit tests
+ * the container set first and returns, so LI/BLOCKQUOTE/DETAILS/FIGURE listed
+ * here as well were unreachable dead weight that read as if they were handled.
+ */
+const BLOCK_TAGS = new Set(['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'PRE', 'TABLE', 'HR']);
+
+/**
+ * Everything that owns a line, including the container tags. `BLOCK_TAGS` above
+ * is deliberately narrowed for {@link blockToSplit}, which tests
+ * {@link BLOCK_CONTAINER_TAGS} first and so can never see them -- but
+ * {@link bareRunAround} uses a set to decide where a bare run ENDS, and there
+ * they are exactly the boundary. Sharing the narrowed set made a blockquote read
+ * as bare content and swallowed it into a paragraph, reintroducing the
+ * document-swallowing bug through an edit made for the other consumer.
+ */
+const LINE_OWNING_TAGS = new Set([...BLOCK_TAGS, ...BLOCK_CONTAINER_TAGS]);
+
+/**
+ * Inline elements that exist to wrap text. A find-and-replace may remove one of
+ * these once the deletion has emptied it; nothing else -- not a block, not a
+ * void element -- is ever removed by a replacement.
+ */
+const INLINE_WRAPPER_TAGS = new Set([
+    'B', 'STRONG', 'I', 'EM', 'U', 'S', 'DEL', 'INS', 'CODE', 'SPAN', 'MARK', 'SUB', 'SUP', 'SMALL', 'A',
+]);
+const INLINE_WRAPPER_SELECTOR = [...INLINE_WRAPPER_TAGS].join(',').toLowerCase();
+
+/** Elements that are content on their own with no text: a wrapper holding one is not empty. */
+const VOID_CONTENT_SELECTOR = 'img, br, hr, input';
+
+let richTextEditorInstances = 0;
+
 @Component({
     selector: 'ui-rich-text-editor',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -186,13 +367,25 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
             useExisting: forwardRef(() => RichTextEditorComponent),
         },
         RichTextCommandRegistry,
+        // Scoped to the editor, not the app: the remote-host policy is
+        // per-instance configuration, and on the root singleton two editors on
+        // one page would overwrite each other's allowlist.
+        //
+        // The markdown service comes along because it injects the sanitizer and
+        // does its own sanitizeImageSrc call. Left in root scope it would hold
+        // the root sanitizer, so in markdown mode -- the DEFAULT -- every image
+        // would bypass the policy entirely.
+        RichTextSanitizerService,
+        RichTextMarkdownService,
+        provideComponentLocale(() => RichTextEditorComponent),
     ],
     templateUrl: './rich-text-editor.component.html',
+    styleUrl: './rich-text-editor.component.css',
     host: {
         class: 'block',
     },
 })
-export class RichTextEditorComponent extends RichTextEditorAddonHost implements ControlValueAccessor, OnInit, AfterViewInit, OnDestroy {
+export class RichTextEditorComponent extends RichTextEditorAddonHost implements RichTextEditorApi, ControlValueAccessor, OnInit, AfterViewInit, OnDestroy {
     private readonly sanitizer = inject(RichTextSanitizerService);
     private readonly markdownService = inject(RichTextMarkdownService);
     private readonly pasteNormalizer = inject(RichTextPasteNormalizerService);
@@ -208,18 +401,18 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
 
     /** Output format: `'markdown'` converts to/from Markdown; `'html'` works with raw HTML. */
-    mode = input<EditorMode>('markdown');
+    readonly mode = input<EditorMode>('markdown');
 
 
     /** Visual border/focus style. See {@link EditorVariant}. */
-    variant = input<EditorVariant>('default');
+    readonly variant = input<EditorVariant>('default');
 
     /** Text size preset for the editor content. See {@link EditorSize}. */
-    size = input<EditorSize>('default');
+    readonly size = input<EditorSize>('default');
 
 
     /** Where to render the formatting toolbar. See {@link ToolbarPosition}. */
-    toolbar = input<ToolbarPosition>('top');
+    readonly toolbar = input<ToolbarPosition>('top');
 
     /**
      * Which toolbar buttons to show and in what order.
@@ -227,92 +420,208 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * @see {@link ToolbarItem} for the full list of available items.
      * @see {@link DEFAULT_TOOLBAR_ITEMS} for the default set.
      */
-    toolbarItems = input<ToolbarItem[]>(DEFAULT_TOOLBAR_ITEMS);
+    readonly toolbarItems = input<ToolbarItem[]>(DEFAULT_TOOLBAR_ITEMS);
 
     /**
-     * Extra consumer-owned toolbar buttons, rendered in array order after the
-     * built-in {@link toolbarItems} and before any addon slot. Each entry's
-     * `isActive(formats)` is re-evaluated against the editor's detected active
-     * formats, so the button can light up like a built-in one. Clicking one does
-     * NOT format anything — it emits {@link customToolbarAction}, and the handler
-     * decides. Only the `'top'` toolbar renders these; the floating toolbar and
-     * `toolbar="none"` ignore them. Addons should contribute a
-     * {@link RichTextToolbarSlot} through the host instead.
+     * Your own toolbar buttons, as data. Each renders after the built-in items
+     * with the built-in styling; a click runs the item's `onClick` with a
+     * {@link RichTextEditorRef} and emits {@link customToolbarAction}.
+     *
+     * ```html
+     * <ui-rich-text-editor [customToolbarItems]="[
+     *   { id: 'stamp', icon: '📅', tooltip: 'Insert date', onClick: stamp }
+     * ]" />
+     * ```
      */
-    customToolbarItems = input<RichTextCustomToolbarItem[]>([]);
+    readonly customToolbarItems = input<readonly RichTextCustomToolbarItem[]>([]);
 
     /**
-     * Emits when a {@link customToolbarItems} button is clicked, with that item's
-     * `id` and a {@link RichTextEditorRef} scoped to this editor. The ref is the
-     * whole public surface a custom button gets: insert text/HTML at the caret,
-     * focus, and read the selected text / current HTML. Note the ref's inserts
-     * update the model and emit the change outputs but record NO history entry of
-     * their own, so undo will not step over them cleanly.
+     * Emits when a {@link customToolbarItems} button is clicked, with the
+     * item's `id` and a {@link RichTextEditorRef} for this editor. Use it when
+     * you would rather handle every custom button in one place than give each
+     * item an `onClick`.
      */
-    customToolbarAction = output<{ id: string; ref: RichTextEditorRef }>();
+    readonly customToolbarAction = output<{ id: string; ref: RichTextEditorRef }>();
 
 
     /** Placeholder text shown when the editor is empty. Falls back to the locale default. */
-    placeholder = input<string>('');
+    readonly placeholder = input<string>('');
 
     /** CSS `min-height` for the editable area. Accepts any CSS length value. */
-    minHeight = input<string>('120px');
+    readonly minHeight = input<string>('120px');
 
     /** CSS `max-height` for the editable area (scrolls beyond this). Accepts any CSS length value. */
-    maxHeight = input<string>('400px');
+    readonly maxHeight = input<string>('400px');
 
-    /** Disables the editor entirely — no input, no toolbar, no interactions. */
-    disabled = input<boolean>(false);
+    /**
+     * Disables the editor entirely — no input, no toolbar, no interactions.
+     * OR-ed with the form's own disabled state; see {@link isDisabled}.
+     */
+    readonly disabled = input<boolean>(false);
 
     /** Makes the editor non-editable but still selectable/copyable. Hides the toolbar. */
     readonly = input<boolean>(false);
 
+    /**
+     * Whether a completed Markdown marker typed into the editor turns into real
+     * formatting: `# ` / `## ` / `### ` into headings, `- ` / `* ` and `1. `
+     * into lists, `> ` into a blockquote, `[] ` / `[x] ` into a task item,
+     * `---` into a horizontal rule, ``` (optionally with a language, then Space
+     * or Enter) into a code block, and `**bold**`, `*italic*`, `` `code` ``
+     * into their inline elements.
+     *
+     * Each transform is exactly one undo step, and pressing Backspace
+     * immediately afterwards puts the literal characters back — so a marker can
+     * still be typed as text when that is what was meant.
+     *
+     * Set it to `false` for an editor whose authors type Markdown markers they
+     * expect to stay literal.
+     */
+    readonly markdownShortcuts = input<boolean>(true);
 
-    /** Show a character count below the editor. */
-    showCount = input<boolean>(false);
+    /**
+     * Which counter to show below the editor: `'characters'`, `'words'` or
+     * `'both'`. Unset shows none. {@link maxLength} is reported on the
+     * character counter.
+     */
+    readonly counter = input<CounterMode | undefined>();
 
-    /** Show a word count below the editor. */
-    showWordCount = input<boolean>(false);
+    protected readonly showCount = computed(() => this.counter() === 'characters' || this.counter() === 'both');
+    protected readonly showWordCount = computed(() => this.counter() === 'words' || this.counter() === 'both');
 
     /**
      * Maximum character limit. When set, the character counter turns red
      * and the editor emits warnings when approaching/exceeding the limit.
      * Does **not** prevent typing — it's advisory only.
      */
-    maxLength = input<number | undefined>(undefined);
+    readonly maxLength = input<number | undefined>(undefined);
 
-
-    /** Maximum number of history snapshots to retain. Oldest entries are dropped when exceeded. */
-    historyLimit = input<number>(100);
 
     /**
-     * Debounce interval in milliseconds for capturing history snapshots.
-     * A snapshot is saved after the user stops typing for this duration.
+     * Undo history tuning: `limit` caps retained snapshots (default 100),
+     * `debounceMs` is the quiet time after typing before a snapshot is taken
+     * (default 450), and `recordExternalWrites` makes a form's `setValue` /
+     * `patchValue` undoable (off by default: a programmatic write is not an
+     * edit). Set only the fields you change.
      */
-    historyDebounceMs = input<number>(450);
+    readonly history = input<RichTextHistoryOptions>({});
+
+    /**
+     * Milliseconds of quiet before a changed find query is searched, so a burst
+     * of keystrokes costs one pass over the document. `0` searches synchronously
+     * on every keystroke.
+     */
+    readonly findDebounceMs = input<number>(150);
+
+
+    /**
+     * Hosts whose remote images and CSS backgrounds may load. Empty (the
+     * default) means no policy: any `https://` source is permitted, which is how
+     * every comparable editor behaves.
+     *
+     * Worth knowing before leaving it empty: a remote image is a silent outbound
+     * request that every viewer's browser makes on render. Any host named in a
+     * pasted document therefore learns who opened it and when, with nothing to
+     * click and nothing visible to delete -- a 1x1 transparent pixel is the
+     * standard shape. Start with the hosts you serve images from;
+     * {@link imageBlocked} tells you what else your content tried to load.
+     *
+     * An allowlist narrows that exposure to parties you have named; it does not
+     * remove it, because a trusted host can still identify the reader through
+     * the URL itself (`https://cdn.example.com/logo.png?viewer=bob`).
+     *
+     * Entries are matched against the parsed hostname, exactly and
+     * case-insensitively. A `*.` prefix matches subdomains by label
+     * (`*.assets.example` covers `img.assets.example`, never
+     * `img.assets.example.evil.com`); list the apex separately if you want it.
+     *
+     * `data:` and relative sources are always permitted -- they cannot contact
+     * anyone, and `data:` is how a Word paste carries its images.
+     */
+    readonly allowedImageHosts = input<readonly string[]>([]);
+
+    /**
+     * Link schemes allowed in addition to the built-in list
+     * (`DEFAULT_LINK_SCHEMES`: the web's own plus well-known application
+     * schemes such as `slack`, `msteams`, `zoommtg`, `geo`). An intranet with
+     * its own handler lists it here: `['acme-crm']`. Schemes that run script
+     * or reach the machine (`javascript`, `data`, `file`, …) are refused even
+     * if listed.
+     */
+    readonly allowedLinkSchemes = input<readonly string[]>([]);
+
+    /** The nearest enclosing `[uiRichTextAllow]` wrapper, if any. */
+    private readonly parentAllow = inject(RichTextAllowHost, { optional: true });
+
+    /**
+     * Own list when set, else the wrapper's, never merged: a strict editor
+     * must not widen to a looser ancestor.
+     */
+    private readonly effectiveHosts = computed<readonly string[]>(() =>
+        this.allowedImageHosts().length > 0 ? this.allowedImageHosts() : (this.parentAllow?.allow().imageHosts ?? []));
+
+    private readonly effectiveLinkSchemes = computed<readonly string[]>(() =>
+        this.allowedLinkSchemes().length > 0 ? this.allowedLinkSchemes() : (this.parentAllow?.allow().linkSchemes ?? []));
+
+    /**
+     * Caption shown on an image {@link allowedImageHosts} refused.
+     *
+     * Unset uses the translated default. Override it to say something only you
+     * know -- who to ask for a host to be allowed, or why it is not. Inserted as
+     * text, never as markup.
+     */
+    readonly blockedImageMessage = input<string>();
 
 
     /**
      * Language/locale for all editor UI strings. Pass a locale key (e.g. `'en'`)
      * to use a built-in locale, or pass a full {@link RichTextLocale} object for
      * custom translations.
+     *
+     * Addon directives inherit it. The component re-broadcasts this input as
+     * `UI_LOCALE_ID` through `provideComponentLocale` in `providers` — element
+     * level, because addon directives sit on the editor's own element — so
+     * `<ui-rich-text-editor locale="he" uiRteFull>` localizes all fourteen
+     * addons from this one binding. An addon's own `[uiRte<Name>Locale]` still
+     * wins where it is set, and with this input unset everything falls through
+     * to the app-wide `UI_LOCALE_ID` as before.
      */
-    locale = input<LocaleInput<RichTextLocale>>();
+    readonly locale = input<LocaleInput<RichTextLocale>>();
 
 
     /** Additional CSS classes merged onto the editor's root container. */
-    class = input<string>('');
+    readonly class = input<string>('');
 
     /** Custom `aria-label` for the editable content area. Falls back to the locale default. */
-    ariaLabel = input<string | undefined>(undefined);
+    readonly ariaLabel = input<string | undefined>(undefined);
 
     /** ID of an element that describes the editor, set as `aria-describedby`. */
-    ariaDescribedBy = input<string | undefined>(undefined);
+    readonly ariaDescribedBy = input<string | undefined>(undefined);
+
+    /** Id of the character/word counter, so the textbox can point at it. */
+    protected readonly counterId = `rte-counter-${++richTextEditorInstances}`;
+
+    /**
+     * What the textbox is described by: whatever the consumer passed, plus the
+     * counter when one is shown.
+     *
+     * The counter was a sibling status region with nothing pointing at it, so a
+     * screen-reader user tabbing into the editor was never told a limit existed
+     * -- they heard it only if a change happened to fire while they were
+     * focused. The consumer's own value is kept, not replaced.
+     */
+    protected readonly describedBy = computed(() => {
+        const own = this.ariaDescribedBy();
+        const showsCounter = this.showCount() || this.showWordCount();
+        return [own, showsCounter ? this.counterId : undefined].filter(Boolean).join(' ') || null;
+    });
 
     private readonly i18n = createLocaleBindings(this.locale, RICH_TEXT_LOCALES);
     readonly resolvedLocale = this.i18n.t;
-    readonly isRtl = this.i18n.isRtl;
-    readonly dir = this.i18n.dir;
+    /** Text direction of the content. Unset follows the locale. */
+    readonly dir = input<TextDirection | undefined>();
+    protected readonly resolvedDir = computed<TextDirection | null>(() => this.dir() ?? this.i18n.dir());
+    readonly isRtl = computed(() => this.resolvedDir() === 'rtl');
 
     /**
      * Base-owned slash commands surfaced to the slash-commands addon through the
@@ -325,23 +634,37 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
 
     /** Emits the current content as an HTML string after every change. */
-    htmlChange = output<string>();
+    readonly htmlChange = output<string>();
 
     /**
      * Emits the current content as a Markdown string after every change.
      * Only meaningful when `mode` is `'markdown'` — in `'html'` mode,
      * the Markdown is reverse-converted from HTML and may not round-trip perfectly.
      */
-    markdownChange = output<string>();
+    readonly markdownChange = output<string>();
 
-    /** Emits the current word count after every content change. Pair with `[showWordCount]`. */
-    wordCountChange = output<number>();
+    /** Emits the current word count after every content change. Pair with `counter="words"`. */
+    readonly wordCountChange = output<number>();
+
+    /**
+     * Emits the undo stack's state on every change to it — a push, undo, redo,
+     * history restore or trim. Drive your own undo/redo buttons from it, or read
+     * {@link canUndo} / {@link canRedo} directly.
+     */
+    readonly historyChange = output<RichTextHistoryState>();
+
+    /**
+     * Emits once per remote image or CSS background {@link allowedImageHosts}
+     * refused, with its URL, host and kind. Nothing fires without a policy.
+     * In dev mode each block is also logged to the console.
+     */
+    readonly imageBlocked = output<ResourcePolicyDecision>();
 
     /** Emits when the editor gains focus. */
-    focused = output<void>();
+    readonly focused = output<void>();
 
     /** Emits when the editor loses focus. */
-    blurred = output<void>();
+    readonly blurred = output<void>();
 
     /**
      * Where a colour was last applied to a collapsed caret, while it is still
@@ -358,9 +681,18 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         backgroundColor?: string;
     } | null = null;
     private readonly htmlContent = signal<string>('');
-    activeFormats = signal<Set<string>>(new Set());
-    currentFontSize = signal<string>('');
-    currentFontFamily = signal<string>('');
+    readonly activeFormats = signal<Set<string>>(new Set());
+    /**
+     * Whether the Text style select can change the caret's line.
+     *
+     * False where a heading is refused -- a list item, a table cell, a summary,
+     * a code block, or a paragraph inside any of them -- so the toolbar disables
+     * the select there instead of accepting a pick the editor then ignores.
+     * Worked out by the same rule the command uses, so the two cannot disagree.
+     */
+    readonly textStyleAvailable = signal(true);
+    readonly currentFontSize = signal<string>('');
+    readonly currentFontFamily = signal<string>('');
     readonly currentFontColor = signal<string>('');
     readonly currentBackgroundColor = signal<string>('');
     /** Inline style at the caret, exposed to the colors/typography addons as raw browser values. */
@@ -370,14 +702,67 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         fontSize: this.currentFontSize(),
         fontFamily: this.currentFontFamily(),
     }));
-    showFloatingToolbar = signal<boolean>(false);
-    floatingToolbarPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
+    readonly showFloatingToolbar = signal<boolean>(false);
+    readonly floatingToolbarPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
     readonly emptyFormats = new Set<string>();
-    selectedImage = signal<HTMLImageElement | null>(null);
-    selectedText = signal<string>('');
-    dragOver = signal<boolean>(false);
-    tableContextMenuOpen = signal(false);
-    tableContextMenuPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
+    private readonly selectedImageNode = signal<HTMLImageElement | null>(null);
+    /**
+     * The image the user has selected.
+     *
+     * undo(), redo(), writeValue() and setContent() all replace the editable's
+     * innerHTML wholesale, which detaches every node in it. Nothing cleared this
+     * signal on that path, so it kept handing out a node that was no longer in
+     * the document: the resize overlay stayed up, and its align and delete
+     * buttons wrote to the detached copy while the image the user could see went
+     * untouched -- a control that looks live and silently does nothing.
+     * {@link replaceEditorHtml} is the one seam every replacement goes through,
+     * and it clears this.
+     */
+    readonly selectedImage = this.selectedImageNode.asReadonly();
+
+    /**
+     * Replace the editable's content, dropping references that the replacement
+     * invalidates. Every wholesale innerHTML write goes through here, so no
+     * detached node survives as "the selected image" or "the selected cells".
+     *
+     * The cell references mattered as much as the image one: with a stale
+     * selection, applyCommandToSelectedCells saw a non-empty array, claimed it
+     * had handled the command, selected the contents of nodes no longer in the
+     * document -- which empties the selection -- and then collapseToStart()
+     * threw a DOMException. The user's formatting was silently dropped and the
+     * exception escaped to the console.
+     */
+    private replaceEditorHtml(html: string): void {
+        if (!this.editorDiv) return;
+        this.editorDiv.nativeElement.innerHTML = html;
+        this.labelBlockedImages();
+        this.selectedImageNode.set(null);
+        this.tableCellSelected.set([]);
+        this.tableCellSelectAnchor = null;
+        this.tableContextMenuTarget = null;
+    }
+
+
+    /**
+     * Caption every image the resource policy refused, through the helper the
+     * read-only view shares. Runs after every wholesale replace AND after every
+     * sanitized insert (paste, drop, `insertHtml`), because an image blocked on
+     * paste used to sit uncaptioned until the next reload.
+     */
+    private labelBlockedImages(): void {
+        const root = this.editorDiv?.nativeElement;
+        if (!root) return;
+        labelBlockedImages(root, this.blockedImageMessage() ?? this.resolvedLocale().editor.blockedImage);
+    }
+
+    /** Select `image`, or clear the selection with `null`. */
+    setSelectedImage(image: HTMLImageElement | null): void {
+        this.selectedImageNode.set(image);
+    }
+    readonly selectedText = signal<string>('');
+    readonly dragOver = signal<boolean>(false);
+    readonly tableContextMenuOpen = signal(false);
+    readonly tableContextMenuPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
     private tableContextMenuTarget: HTMLTableCellElement | null = null;
     private tableContextMenuCloseHandler: (() => void) | null = null;
     private tableResizeState: {
@@ -397,10 +782,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     private tableCellSelecting = false;
     private tableCellSelectAnchor: HTMLTableCellElement | null = null;
-    tableCellSelected = signal<HTMLTableCellElement[]>([]);
+    readonly tableCellSelected = signal<HTMLTableCellElement[]>([]);
     private readonly onTableCellSelectMoveBound = this.onTableCellSelectMove.bind(this);
     private readonly onTableCellSelectUpBound = this.onTableCellSelectUp.bind(this);
     private readonly onTableCellTouchMoveBound = this.onTableCellTouchMove.bind(this);
+    private readonly onTableResizeTouchMoveBound = this.onTableResizeTouchMove.bind(this);
     private readonly onTableCellTouchEndBound = this.onTableCellTouchEnd.bind(this);
 
 
@@ -408,21 +794,84 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     /** Bumps on every history-stack change; read by the history addon (addon host surface). */
     readonly historyVersion = this._historyVersion.asReadonly();
 
-    findReplaceVisible = signal(false);
-    findQuery = signal('');
-    replaceText = signal('');
-    findCaseSensitive = signal(false);
-    findMatches = signal<Range[]>([]);
-    findCurrentIndex = signal(-1);
-    findShowReplace = signal(false);
-    private findHighlightElements: HTMLElement[] = [];
+    /** Whether an undo step is available — mirrors {@link historyChange}'s `canUndo`. */
+    readonly canUndo = computed(() => {
+        this.historyVersion();
+        return this.historyIndex > 0;
+    });
+    /** Whether a redo step is available — mirrors {@link historyChange}'s `canRedo`. */
+    readonly canRedo = computed(() => {
+        this.historyVersion();
+        return this.historyIndex < this.snapshots.length - 1;
+    });
 
-    private history: HistoryEntry[] = [];
+    /**
+     * The content as of the last {@link writeValue} or {@link markClean}, in the
+     * shape {@link readContentFromEditor} produces — a DOM round-trip, so an
+     * input event that changes nothing compares equal.
+     */
+    private readonly cleanHtml = signal('');
+    /**
+     * Whether the document differs from what was last loaded or marked clean.
+     * Use it for unsaved-changes prompts; {@link markClean} resets it.
+     */
+    readonly isDirty = computed(() => this.htmlContent() !== this.cleanHtml());
+
+    readonly findReplaceVisible = signal(false);
+    readonly findQuery = signal('');
+    readonly replaceText = signal('');
+    readonly findCaseSensitive = signal(false);
+    /**
+     * Every match of the current query, in document order. Since the search runs
+     * over the flattened document, a range may start and end in different text
+     * nodes — a phrase broken by inline markup is one match, not none.
+     */
+    readonly findMatches = signal<Range[]>([]);
+    readonly findCurrentIndex = signal(-1);
+    readonly findShowReplace = signal(false);
+    /** Restrict matches to whole words, Unicode-aware. UI state, like {@link findCaseSensitive}. */
+    readonly findWholeWord = signal(false);
+    /** Treat the query as a regular expression. UI state, like {@link findCaseSensitive}. */
+    readonly findUseRegex = signal(false);
+    private readonly _findRegexError = signal(false);
+    /** True while the current query cannot be compiled — an invalid pattern, or one over the length cap. */
+    readonly findRegexError = this._findRegexError.asReadonly();
+    /** How many matches the current query has; `findMatches().length`, as a signal. */
+    readonly findMatchCount = computed(() => this.findMatches().length);
+    /**
+     * Whether the replace row is available: it is hidden whenever the editor
+     * cannot be edited, so find still works in a readonly or disabled editor but
+     * replace is never offered.
+     */
+    readonly showReplaceRow = computed(
+        () => this.findShowReplace() && !this.readonly() && !this.isDisabled(),
+    );
+    /**
+     * The localized match counter: `{current} of {total}`, the no-results string,
+     * the invalid-expression string, or empty when there is no query.
+     */
+    readonly findCounterText = computed(() => {
+        const locale = this.resolvedLocale().findReplace;
+        if (!this.findQuery()) return '';
+        if (this.findRegexError()) return locale.invalidRegex;
+        const total = this.findMatchCount();
+        if (total === 0) return locale.noResults;
+        return locale.matchCounter
+            .replace('{current}', String(this.findCurrentIndex() + 1))
+            .replace('{total}', String(total));
+    });
+    private findDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+    private findOverlay: HTMLElement | null = null;
+    private findRepaintHandle: number | null = null;
+    private findResizeObserver: ResizeObserver | null = null;
+    private findScrollHandler: (() => void) | null = null;
+
+    private snapshots: HistoryEntry[] = [];
     private historyIndex = -1;
-    private isUndoRedo = false;
     private historyDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     private shortcutHandle: ShortcutComponentHandle | null = null;
     private readonly keydownInterceptors = new Set<(event: KeyboardEvent) => boolean>();
+    private readonly exclusivePopovers = new Set<() => void>();
     private readonly inputObservers = new Set<(text: string, caretOffset: number) => void>();
     private readonly pasteInterceptors = new Set<(event: ClipboardEvent) => boolean>();
     private readonly dropInterceptors = new Set<(event: DragEvent) => boolean>();
@@ -435,68 +884,74 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private onChange: (value: string) => void = () => { };
     private onTouched: () => void = () => { };
 
-    editorContainerClasses = computed(() =>
+    /**
+     * The form's disabled state, written only by {@link setDisabledState}. Kept
+     * separate from the {@link disabled} input so neither path overrides the
+     * other — the effective state is {@link isDisabled}.
+     */
+    private readonly formDisabled = signal(false);
+
+    /**
+     * The effective disabled state: the {@link disabled} input OR the form's
+     * own state. Every behavioural guard reads this, not the raw input.
+     */
+    readonly isDisabled = computed(() => this.disabled() || this.formDisabled());
+
+    readonly editorContainerClasses = computed(() =>
         cn(
             editorVariants({ variant: this.variant(), size: this.size() }),
-            this.disabled() && 'opacity-50 cursor-not-allowed',
+            this.isDisabled() && 'opacity-50 cursor-not-allowed',
             this.readonly() && 'bg-muted',
             this.class()
         )
     );
 
-    editableClasses = computed(() =>
+    readonly editableClasses = computed(() =>
         cn(
             'w-full h-full overflow-auto p-3 outline-none',
             '[&:empty]:before:content-[attr(placeholder)] [&:empty]:before:text-muted-foreground [&:empty]:before:pointer-events-none',
-            'prose prose-sm dark:prose-invert max-w-none',
             '[&_*]:outline-none',
-            '[&_h1]:text-3xl [&_h1]:font-bold [&_h1]:mt-4 [&_h1]:mb-2',
-            '[&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-2',
-            '[&_h3]:text-xl [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1',
-            '[&_ul]:list-disc [&_ul]:ps-6 [&_ul]:my-2',
-            '[&_ol]:list-decimal [&_ol]:ps-6 [&_ol]:my-2',
-            '[&_li]:my-1',
-            '[&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 [&_a]:cursor-pointer [&_a]:font-medium hover:[&_a]:text-primary/80',
-            '[&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-sm [&_code]:font-mono',
-            '[&_pre]:bg-muted [&_pre]:p-3 [&_pre]:rounded-lg [&_pre]:overflow-x-auto',
-            '[&_pre_code]:bg-transparent [&_pre_code]:p-0',
-            '[&_img]:inline [&_img]:max-w-full [&_img]:h-auto [&_img]:my-0 [&_img]:mx-0 [&_img]:cursor-pointer',
-            '[&_table]:border-collapse [&_table]:w-full [&_table]:my-2',
-            '[&_td]:border [&_td]:border-border [&_td]:p-2 [&_td]:min-w-[60px]',
-            '[&_th]:border [&_th]:border-border [&_th]:p-2 [&_th]:bg-muted [&_th]:font-semibold [&_th]:text-left',
-            '[&_td.rte-cell-selected]:bg-primary/15 [&_th.rte-cell-selected]:bg-primary/25',
-            // Nested list margin reset
-            '[&_ul_ul]:my-0 [&_ol_ol]:my-0 [&_ul_ol]:my-0 [&_ol_ul]:my-0',
-            // Task list styles
-            '[&_ul[data-task-list]]:list-none [&_ul[data-task-list]]:ps-0 [&_ul[data-task-list]]:my-2',
-            '[&_li_ul[data-task-list]]:ps-6 [&_li_ul[data-task-list]]:my-0',
-            '[&_li[data-task]]:flex [&_li[data-task]]:flex-wrap [&_li[data-task]]:items-start [&_li[data-task]]:gap-2 [&_li[data-task]]:my-1',
-            '[&_li[data-task]>ul]:w-full',
-            '[&_li[data-task]_input[type=checkbox]]:mt-1 [&_li[data-task]_input[type=checkbox]]:h-4 [&_li[data-task]_input[type=checkbox]]:w-4 [&_li[data-task]_input[type=checkbox]]:cursor-pointer [&_li[data-task]_input[type=checkbox]]:accent-primary',
-            '[&_li[data-task]_input[type=checkbox]]:shrink-0',
-            '[&_li[data-task][data-checked=true]]:line-through [&_li[data-task][data-checked=true]]:text-muted-foreground',
-            // Toggle/collapsible blocks
-            '[&_details]:border [&_details]:border-border [&_details]:rounded-md [&_details]:my-2 [&_details]:overflow-hidden',
-            '[&_summary]:bg-muted/40 [&_summary]:px-3 [&_summary]:py-2 [&_summary]:cursor-pointer [&_summary]:font-medium [&_summary]:outline-none',
-            '[&_details>:not(summary)]:px-3 [&_details>:not(summary)]:py-2',
-            '[&_hr]:border-t [&_hr]:border-border [&_hr]:my-4',
+            RICH_TEXT_PROSE_CLASSES,
+            '[&_img]:cursor-pointer',
+            // A tint painted as an ::after overlay, not a background: a cell
+            // carrying its own inline background colour paints straight over
+            // `bg-*`, so a coloured cell showed no marking at all. An overlay
+            // layers above whatever the author set, and unlike an inset ring it
+            // reads as one continuous wash across the range rather than a boxed
+            // outline around every cell.
+            '[&_td.rte-cell-selected]:relative [&_th.rte-cell-selected]:relative',
+            '[&_.rte-cell-selected]:after:absolute [&_.rte-cell-selected]:after:inset-0',
+            '[&_.rte-cell-selected]:after:bg-primary/20 [&_.rte-cell-selected]:after:pointer-events-none',
+            '[&_.rte-cell-selected]:after:content-[""]',
+            '[&_summary]:outline-none',
             'disabled:cursor-not-allowed',
         )
     );
 
-    htmlOutput = computed(() => {
+    readonly htmlOutput = computed(() => {
         return this.sanitizer.sanitize(this.htmlContent());
     });
 
-    markdownOutput = computed(() => {
+    readonly markdownOutput = computed(() => {
         return this.markdownService.toMarkdown(this.htmlContent());
     });
 
-    characterCount = computed(() => {
-        return this.sanitizer.stripTags(this.htmlContent()).length;
+    /**
+     * Whether the document has reached {@link maxLength}. Drives the counter's
+     * destructive styling: without it, hitting the limit was completely silent
+     * -- keystrokes simply stopped working, with no announcement and no visual
+     * change.
+     */
+    readonly atCharacterLimit = computed(() => {
+        const max = this.maxLength();
+        return !!max && this.characterCount() >= max;
     });
 
-    wordCount = computed(() => {
+    readonly characterCount = computed(() => {
+        return graphemeLength(this.sanitizer.stripTags(this.htmlContent()));
+    });
+
+    readonly wordCount = computed(() => {
         const text = this.sanitizer.stripTags(this.htmlContent()).trim();
         if (!text) return 0;
         return text.split(/\s+/).length;
@@ -525,29 +980,39 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     onEditorClick(event: MouseEvent): void {
         const target = event.target as HTMLElement;
-        this.selectedImage.set(target.tagName === 'IMG' ? target as HTMLImageElement : null);
+        this.selectedImageNode.set(target.tagName === 'IMG' ? target as HTMLImageElement : null);
 
         if (target.tagName === 'INPUT' && (target as HTMLInputElement).type === 'checkbox') {
             this.handleTaskCheckboxClick(event, target as HTMLInputElement);
         }
     }
 
+    /**
+     * Toggle one task row. Rows are independent, as in Obsidian: a parent's
+     * state says nothing about the rows nested under it, and theirs nothing
+     * about it.
+     */
     private handleTaskCheckboxClick(event: MouseEvent, cb: HTMLInputElement): void {
         const li = cb.closest<HTMLElement>('li[data-task]');
         if (!li) return;
 
         event.preventDefault();
         const newChecked = li.dataset['checked'] !== 'true';
-        li.dataset['checked'] = String(newChecked);
-        if (newChecked) {
-            cb.setAttribute('checked', '');
-        } else {
-            cb.removeAttribute('checked');
-        }
+        this.applyTaskChecked(li, newChecked);
+        // The prevented click reverts the clicked box's own `checked` after
+        // this handler returns, so it is written again once that has happened.
         setTimeout(() => { cb.checked = newChecked; });
         this.placeCaretAfterTaskCheckbox(li);
         this.syncContentFromEditor();
         this.pushHistory();
+    }
+
+    private applyTaskChecked(li: HTMLElement, checked: boolean): void {
+        li.dataset['checked'] = String(checked);
+        const cb = li.querySelector<HTMLInputElement>(':scope > input[type="checkbox"]');
+        if (!cb) return;
+        cb.toggleAttribute('checked', checked);
+        cb.checked = checked;
     }
 
     private placeCaretAfterTaskCheckbox(li: HTMLElement): void {
@@ -564,13 +1029,90 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     constructor() {
         super();
+        // The policy is handed over as the INPUT SIGNAL itself, not as a value
+        // pushed from an effect. A reactive form writes its initial value from
+        // `ngOnChanges`, before any effect has run, so a pushed copy was still
+        // empty for the first sanitize of every form-bound document: the
+        // tracker image got a real `src`, was rendered, and fired once per
+        // load. A reader is read at the moment each pass runs and cannot be
+        // stale. Inputs are bound before the hooks that write content, and the
+        // input has a default, so reading it here is always safe.
+        this.sanitizer.setRemoteHostPolicy(this.effectiveHosts);
+        this.sanitizer.setLinkSchemePolicy(this.effectiveLinkSchemes);
         this.setupOutputEffects();
         this.setupFloatingToolbarEffect();
+        this.setupFindRefreshEffect();
+        this.setupCustomToolbarItems();
+    }
+
+    /**
+     * Registers each {@link customToolbarItems} entry as a toolbar slot, so the
+     * data-driven path and the addon path render and behave identically. The
+     * previous registration is torn down first whenever the array changes.
+     */
+    private setupCustomToolbarItems(): void {
+        effect((onCleanup) => {
+            const ref = this.editorRef();
+            for (const item of this.customToolbarItems()) {
+                onCleanup(this.toolbarSlots.register({
+                    id: item.id,
+                    icon: item.icon,
+                    tooltip: item.tooltip,
+                    order: item.order ?? CUSTOM_TOOLBAR_ITEM_ORDER,
+                    isEnabled: () => !this.readonly() && !this.isDisabled(),
+                    isActive: item.isActive ? () => item.isActive?.(this.activeFormats()) ?? false : undefined,
+                    onClick: () => {
+                        item.onClick?.(ref);
+                        this.customToolbarAction.emit({ id: item.id, ref });
+                    },
+                }));
+            }
+        });
+    }
+
+    /** The editor as a custom button sees it; every write goes through the history-recording seams. */
+    private editorRef(): RichTextEditorRef {
+        return {
+            insertText: (text) => this.insertTextAtCaret(text),
+            insertHtml: (html) => this.insertHtmlAtCaret(html),
+            focus: () => this.focus(),
+            getSelectedText: () => this.selection().text,
+            getHtmlContent: () => this.htmlOutput(),
+        };
+    }
+
+    /**
+     * Re-run the open search whenever the document changes underneath it, so the
+     * counter and highlights stay true while the user types. Driven by the model
+     * signal rather than hooks in each mutation path, so no future mutation can
+     * forget to refresh.
+     */
+    private setupFindRefreshEffect(): void {
+        effect(() => {
+            this.htmlContent();
+            if (this.findReplaceVisible() && this.findQuery()) {
+                this.scheduleFind({ preserveIndex: true });
+            }
+        });
     }
 
     private setupOutputEffects(): void {
+        // A policy change after first render re-judges the document in place.
+        // The sanitizer already reads the live list, so this exists only to
+        // re-run it over content that was judged under the previous list: an
+        // image blocked under the old policy must appear once its host is
+        // allowed, and one allowed under it must become a placeholder once its
+        // host is dropped -- without the consumer having to write the value
+        // again. The first run is a no-op: nothing is rendered yet, and the
+        // initial write is judged under the live list as it happens.
+        effect(() => {
+            this.effectiveHosts();
+            this.effectiveLinkSchemes();
+            untracked(() => this.rejudgeRenderedContent());
+        });
         effect(() => {
             const html = this.htmlOutput();
+            this.drainResourceDecisions();
             this.htmlChange.emit(html);
         });
         effect(() => {
@@ -580,6 +1122,36 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         effect(() => {
             this.wordCountChange.emit(this.wordCount());
         });
+    }
+
+
+    /**
+     * Re-run the sanitizer over the rendered document under the current policy
+     * and replace the editable's content with the result. Only once something
+     * is rendered; the initial write needs no second pass.
+     */
+    private rejudgeRenderedContent(): void {
+        if (!this.editorDiv?.nativeElement) return;
+        const html = this.sanitizer.sanitize(this.htmlContent());
+        this.htmlContent.set(html);
+        this.replaceEditorHtml(html);
+        this.enableTaskCheckboxes(this.editorDiv.nativeElement);
+    }
+
+    /**
+     * Report every remote resource the last sanitize pass judged.
+     *
+     * The sanitizer cannot emit component outputs, so it buffers its decisions
+     * and the editor drains them here. Blocked resources also warn in dev mode:
+     * the reader lost content they can see is missing, and the developer is the
+     * only one who can allow the host.
+     */
+    private drainResourceDecisions(): void {
+        reportResourceDecisions(
+            this.sanitizer.drainResourceDecisions(),
+            (decision) => this.imageBlocked.emit(decision),
+            'rich-text-editor',
+        );
     }
 
     private setupFloatingToolbarEffect(): void {
@@ -608,6 +1180,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     ngOnInit(): void {
         this.shortcutHandle = this.shortcutBindings.registerComponent('rich-text-editor', this.buildShortcutBindings());
         this.pushHistory();
+        // The initial value is sanitized while inputs are bound, which is before
+        // any effect runs -- so those decisions are still buffered here, and this
+        // is the first point at which an output has a subscriber to receive
+        // them. Later passes are drained by the htmlChange effect.
+        this.drainResourceDecisions();
     }
 
     private buildInlineEditShortcuts(canEdit: () => boolean): ShortcutRegistration[] {
@@ -712,7 +1289,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     private buildShortcutBindings(): ShortcutRegistration[] {
-        const canEdit = (): boolean => !this.disabled() && !this.readonly();
+        const canEdit = (): boolean => !this.isDisabled() && !this.readonly();
         return [
             ...this.buildFormattingShortcuts(canEdit),
             ...this.buildNavigationShortcuts(canEdit),
@@ -721,7 +1298,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     ngAfterViewInit(): void {
         if (this.editorDiv?.nativeElement) {
-            this.editorDiv.nativeElement.innerHTML = this.htmlContent();
+            this.replaceEditorHtml(this.htmlContent());
             this.enableTaskCheckboxes(this.editorDiv.nativeElement);
         }
     }
@@ -733,13 +1310,39 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * user was editing; task checkboxes in the incoming value are re-enabled and
      * their `checked` state re-read from the owning `<li data-checked>`.
      *
-     * Deliberately silent: it does NOT call back into the form
-     * ({@link registerOnChange}), does NOT emit {@link htmlChange} /
-     * {@link markdownChange}, and does NOT record a history entry — so a
-     * programmatic `setValue` cannot be undone, and undo will jump back to the
-     * state before it. `null`/`undefined` are treated as the empty string.
+     * It does NOT call back into the form ({@link registerOnChange}) — the form
+     * already knows the value it just wrote, and echoing it would loop. It does
+     * however emit {@link htmlChange} / {@link markdownChange}, which are
+     * effects over the content signal this sets and therefore fire for every
+     * content change whatever its origin. `null`/`undefined` are treated as the
+     * empty string.
+     *
+     * By default it records no history entry either, so a programmatic
+     * `setValue` cannot be undone and undo jumps back to the state before it.
+     * Set {@link recordExternalWrites} to make each form write undoable, or use
+     * {@link setContent} for an edit your own code is making.
+     *
+     * Either way it resets the dirty baseline: the value the form just supplied
+     * is by definition the saved one, so {@link isDirty} reads false after it.
      */
     writeValue(value: string): void {
+        if (this.history().recordExternalWrites) {
+            this.flushPendingHistoryPush();
+        }
+        this.applyExternalHtml(value);
+        if (this.history().recordExternalWrites) {
+            this.pushHistory();
+        }
+        this.markClean();
+    }
+
+    /**
+     * Parse `value` per {@link mode}, write it to the model and straight through
+     * to the contenteditable DOM, and re-enable its task checkboxes. Shared by
+     * {@link writeValue} and {@link setContent}, which differ only in what they
+     * do afterwards — the form callback, history and dirty baseline.
+     */
+    private applyExternalHtml(value: string): void {
         value ??= '';
 
         if (this.mode() === 'markdown' && value) {
@@ -749,9 +1352,151 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
 
         if (this.editorDiv?.nativeElement) {
-            this.editorDiv.nativeElement.innerHTML = this.htmlContent();
+            this.replaceEditorHtml(this.htmlContent());
             this.enableTaskCheckboxes(this.editorDiv.nativeElement);
         }
+    }
+
+    /**
+     * Replace the editor's content programmatically, as an edit the code is
+     * making — the counterpart to {@link writeValue}, which is the *form*
+     * telling the editor what its value is.
+     *
+     * Unlike `writeValue` it calls back into the form, emits the content
+     * outputs, and records one history entry so `Ctrl+Z` restores what the user
+     * was looking at. Pass `{ recordHistory: false }` for a write that should
+     * not be undoable — restoring a version, say. The caret is left collapsed at
+     * the end of the new content. `null`/`undefined` become the empty string.
+     *
+     * Any in-flight typing burst is flushed as its own entry *before* the new
+     * content lands, so a `setContent` arriving mid-sentence cannot swallow
+     * what the user had just typed. (§D.5.12 of the spec lists the flush after
+     * the write; that order loses the burst — see the spec's corrections.)
+     *
+     * It deliberately does NOT reset the dirty baseline: content the code
+     * inserted is still an unsaved change. Use {@link markClean} after a save.
+     *
+     * @publicApi
+     */
+    setContent(value: string, options?: RichTextSetContentOptions): void {
+        this.flushPendingHistoryPush();
+        this.applyExternalHtml(value);
+        this.placeCaretAtEnd();
+        this.syncContentFromEditor();
+        if (options?.recordHistory !== false) {
+            this.pushHistory();
+        }
+    }
+
+    /** Collapse the caret to the end of the editable's content. */
+    private placeCaretAtEnd(): void {
+        const editor = this.editorDiv?.nativeElement;
+        if (!editor) return;
+        const range = this.document.createRange();
+        range.selectNodeContents(editor);
+        range.collapse(false);
+        const selection = this.document.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+    }
+
+    /**
+     * Treat the current content as saved: {@link isDirty} reads false again
+     * until the next change. Call it after persisting the value.
+     *
+     * The baseline is read back out of the editable rather than taken from the
+     * model, so content the browser normalised after the model was written
+     * still compares equal. That read also refreshes the model from the DOM —
+     * the two are being reconciled, which is the point of marking clean.
+     *
+     * @publicApi
+     */
+    markClean(): void {
+        this.cleanHtml.set(this.readContentFromEditor() ?? this.htmlContent());
+    }
+
+    /**
+     * Focus the editable and restore the caret the user last had inside it.
+     *
+     * `restoreSelection` alone returns early without focusing when the live
+     * selection is already in the editor, so the focus call comes first and the
+     * restore second — a page button that stole focus still lands the caret
+     * back where the user left it.
+     *
+     * @publicApi
+     */
+    focus(): void {
+        if (this.isDisabled()) return;
+        this.focusEditor();
+        // Deliberately the saved caret, not the live one: focusing an editable
+        // makes the browser drop a default caret at its start, which would
+        // otherwise be preferred and silently discard where the user was.
+        this.restoreSelection({ preferLive: false });
+    }
+
+    /**
+     * Insert plain text at the restored caret as one history entry, then focus
+     * the editor — the method a page button next to the editor calls.
+     *
+     * No-op while readonly or disabled, and for the empty string (an empty
+     * insert would otherwise record a history entry that undoes nothing).
+     *
+     * @publicApi
+     */
+    insertText(text: string): void {
+        if (text === '' || !this.canEditContent()) return;
+        this.insertAtRestoredCaret(() => this.insertTextNode(text));
+    }
+
+    /**
+     * Insert HTML at the restored caret as one history entry, then focus the
+     * editor. The markup goes through the editor's allow-list sanitizer, so a
+     * `<script>` is dropped rather than inserted.
+     *
+     * No-op while readonly or disabled, and when nothing survives sanitization.
+     * The single sanitize pass both answers that question and supplies the
+     * markup that is inserted — deciding and inserting must not disagree.
+     *
+     * @publicApi
+     */
+    insertHtml(html: string): void {
+        if (!this.canEditContent()) return;
+        const sanitized = this.sanitizer.sanitize(html);
+        if (sanitized === '') return;
+        this.insertAtRestoredCaret(() => this.insertSanitizedHtml(sanitized));
+    }
+
+    /**
+     * Run a toolbar command exactly as a toolbar click would. The narrow
+     * {@link RichTextFormatCommand} type is the whole guard — there is no
+     * runtime allow-list, because the union is the contract.
+     *
+     * @publicApi
+     */
+    format(command: RichTextFormatCommand): void {
+        this.onFormatCommand(command);
+    }
+
+    /**
+     * Whether the content may be edited right now — the guard the public
+     * inserts share with the toolbar's own command path.
+     */
+    private canEditContent(): boolean {
+        return !this.readonly() && !this.isDisabled();
+    }
+
+    /**
+     * `true` when the document has no visible text and no image, rule or table.
+     * Shares one rule with `richTextRequired()`, so a form's validity and a
+     * "Send" button's disabled state can never disagree.
+     *
+     * Parses the document on each call, like `characterCount`. Bind it through
+     * a `computed` over `htmlOutput()` rather than calling it in a template.
+     *
+     * @publicApi
+     */
+    isEmpty(): boolean {
+        return isRichTextEmpty(this.htmlContent());
     }
 
     /**
@@ -774,6 +1519,17 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     /**
+     * `ControlValueAccessor` — adopt the form's disabled state, so a reactive
+     * form's `control.disable()` / `enable()` (and `new FormControl({ value,
+     * disabled: true })`) locks and unlocks the editor. Stored apart from the
+     * {@link disabled} input so neither path overrides the other; the editor is
+     * locked while either says so — see {@link isDisabled}.
+     */
+    setDisabledState(isDisabled: boolean): void {
+        this.formDisabled.set(isDisabled);
+    }
+
+    /**
      * Template-bound `input` handler on the editable area — the typing path.
      * Sanitizes the DOM into the model (stripping the zero-width joiners the
      * floating toolbar leaves behind), publishes the trigger-aware text and caret
@@ -782,9 +1538,18 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * calls the form's `onChange`, and schedules the debounced history push —
      * skipped for the one input event replaying an undo/redo, which must not
      * become a new entry.
+     *
+     * Swallowed while disabled or readonly: `contenteditable="false"` stops a
+     * real keystroke, but a programmatic DOM mutation still raises `input`, and
+     * a locked editor must never write that back into the form.
      */
     onInput(event: Event): void {
+        if (this.isDisabled() || this.readonly()) return;
+
         const div = event.target as HTMLDivElement;
+        this.lastInputRule = null;
+        const transformed = this.applyInputRules(event);
+        this.sweepSpentCaretAnchors(div);
         const html = this.sanitizer.sanitize(div.innerHTML).replaceAll('\u200B', '');
 
         const triggerTextContent = this.buildTriggerAwareText(div.innerHTML);
@@ -803,10 +1568,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             : html;
         this.onChange(outputValue);
 
-        if (!this.isUndoRedo) {
+        if (transformed) {
+            this.pushHistory();
+        } else {
             this.scheduleDebouncedHistoryPush();
         }
-        this.isUndoRedo = false;
     }
 
     /**
@@ -834,6 +1600,19 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (this.dispatchKeydownInterceptors(event)) return;
         if (this.shortcutHandle?.dispatch(event)) return;
 
+        if (event.key === 'Backspace' && this.revertLastInputRule()) {
+            event.preventDefault();
+            return;
+        }
+        this.lastInputRule = null;
+        this.confineCaretToTaskText();
+
+        if (this.handleTaskRowJoin(event)) return;
+        if (this.handleVerticalArrowInTaskRow(event)) return;
+
+        if ((event.key === 'Delete' || event.key === 'Backspace')
+            && this.handleDeleteAcrossTableBoundary(event)) return;
+
         if (event.key === 'Escape') {
             this.showFloatingToolbar.set(false);
         }
@@ -851,7 +1630,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         event.preventDefault();
         const listItem = this.getParentListItem();
         if (!listItem) {
-            this.insertText('\t');
+            this.insertTextNode('\t');
             return;
         }
         if (event.shiftKey) {
@@ -867,10 +1646,494 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
         const range = selection.getRangeAt(0);
 
+        if (this.handleEnterOnCodeFence(event)) return;
         if (this.handleEnterInTaskList(event, selection)) return;
         if (this.handleEnterInSummary(event, range, selection)) return;
         if (this.handleEnterAtDetailsEnd(event, range, selection)) return;
+        if (this.handleEnterInBlockquote(event, range, selection)) return;
+        if (this.handleEnterLeavingList(event, range, selection)) return;
+        if (this.handleEnterInInlineCode(event, range, selection)) return;
         this.handleEnterInCodeBlock(event, range, selection);
+    }
+
+    /**
+     * Break out of an inline `<code>` span on Enter, into a plain paragraph.
+     *
+     * The browser splits the enclosing paragraph on Enter and clones the inline
+     * formatting into the new one, so pressing Enter inside inline code landed
+     * the caret in a SECOND empty `<code>` — the span propagated forward and
+     * there was no way to type unformatted text again. Blocks already exit on
+     * Enter; inline code now matches, and `Shift+Enter` still gives a line
+     * break that keeps the formatting.
+     */
+    private handleEnterInInlineCode(event: KeyboardEvent, range: Range, selection: Selection): boolean {
+        const code = this.findAncestorByTag(range.startContainer, 'CODE');
+        if (!code || this.findAncestorByTag(range.startContainer, 'PRE')) return false;
+
+        // The fourth line walker this replaced had no TD or TH in its tag set,
+        // so inside a table cell it walked past the cell to the editor and
+        // returned null: Enter in inline code in a cell did nothing at all.
+        const editor = this.editorDiv?.nativeElement;
+        const line = editor ? lineOf(code, editor) : null;
+        if (!line) return false;
+
+        event.preventDefault();
+
+        const p = this.document.createElement('p');
+        p.innerHTML = '<br>';
+        // Not simply after the line: after an `<li>` or a `<td>` that would put
+        // a paragraph inside a list or a table row. When the block has to go
+        // INSIDE the line, the line's own text gets a paragraph first, or it
+        // would be left in an element that is now a container and belong to no
+        // line at all.
+        if (lineKeepsItsElement(line)) this.giveLineItsOwnBlock(line);
+        const at = positionAfterLine(line);
+        at.parent.insertBefore(p, at.before);
+        this.setSelectionRange(selection, p, 0);
+
+        this.syncContentFromEditor();
+        this.pushHistory();
+        return true;
+    }
+
+    /**
+     * Opens a code block when Enter completes a ``` fence. Keydown-driven, so
+     * no `input` event follows to push the history entry — this path syncs and
+     * pushes for itself, the way every other command does.
+     */
+    private handleEnterOnCodeFence(event: KeyboardEvent): boolean {
+        if (!this.markdownShortcuts() || this.isDisabled() || this.readonly()) return false;
+
+        const context = this.inputRuleContext();
+        if (!context) return false;
+        if (context.blockPrefix.length > RichTextEditorComponent.MAX_BLOCK_MARKER_LENGTH) return false;
+
+        const block = this.blockRuleTarget(context.block);
+        if (!block) return false;
+
+        const match = matchBlockInputRule(context.blockPrefix, '\n');
+        if (!match) return false;
+
+        event.preventDefault();
+        this.snapshotBeforeTransform();
+        this.removeLeadingCharacters(block, match.markerLength - 1);
+        this.lastInputRule = { block: this.buildBlockForRule(block, match) };
+        this.syncContentFromEditor();
+        this.pushHistory();
+        this.updateActiveFormats();
+        return true;
+    }
+
+    /**
+     * Backspace at the start of a task-list item removes that item, or unwraps
+     * the list when it is the only one left.
+     *
+     * The browser cannot do this itself: an item is
+     * `<li><input type="checkbox"><span>…</span></li>`, so the caret at offset 0
+     * of the span has a non-editable `<input>` before it and the default
+     * Backspace has nothing it is willing to delete — the key appeared dead.
+     * Pressing ArrowLeft first moved the caret onto the checkbox, where the
+     * default then deleted the whole row, which is the "buggy" behaviour that
+     * made the key look intermittent.
+     */
+    /**
+     * Delete a selection that starts or ends inside a table without letting the
+     * browser reparent content across the table's edge.
+     *
+     * Left to itself, contenteditable merges the surviving tail of a following
+     * paragraph INTO the last cell and drops the paragraph — so the block that
+     * lets an author click below a table disappears, and unrelated text ends up
+     * living in table markup. Each side of the boundary is cleared in place
+     * instead, which keeps both structures and leaves the caret where the user
+     * was working.
+     */
+    private handleDeleteAcrossTableBoundary(event: KeyboardEvent): boolean {
+        const selection = this.document.getSelection();
+        if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return false;
+
+        const range = selection.getRangeAt(0);
+        const startTable = this.tableAncestorOf(range.startContainer);
+        const endTable = this.tableAncestorOf(range.endContainer);
+        if (startTable === endTable) return false;
+
+        event.preventDefault();
+        this.deleteWithinEachBlock(range);
+        this.applyMutation({ focus: true });
+        return true;
+    }
+
+    /** The table an editor node sits in, or null when it sits outside every table. */
+    private tableAncestorOf(node: Node): HTMLTableElement | null {
+        const editor = this.editorDiv?.nativeElement;
+        if (!editor?.contains(node)) return null;
+        const element = node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement;
+        return element?.closest('table') ?? null;
+    }
+
+    /**
+     * Clear a range block by block, so nothing is carried from one block into
+     * another. Walks the text nodes the range touches and trims each in place.
+     */
+    private deleteWithinEachBlock(range: Range): void {
+        const editor = this.editorDiv?.nativeElement;
+        if (!editor) return;
+
+        const walker = this.document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+        const touched: Text[] = [];
+        let node = walker.nextNode() as Text | null;
+        while (node) {
+            if (range.intersectsNode(node)) touched.push(node);
+            node = walker.nextNode() as Text | null;
+        }
+
+        for (const text of touched) {
+            const from = text === range.startContainer ? range.startOffset : 0;
+            const to = text === range.endContainer ? range.endOffset : text.data.length;
+            text.deleteData(from, Math.max(0, to - from));
+        }
+
+        const collapsed = this.document.createRange();
+        collapsed.setStart(range.startContainer, range.startOffset);
+        collapsed.collapse(true);
+        const selection = this.document.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(collapsed);
+    }
+
+    /**
+     * Backspace at the start of a line, or Delete at its end, joins it to the
+     * line next to it, the way the browser joins two paragraphs.
+     *
+     * The browser cannot do this itself inside a task list: a row is
+     * `<li><input type="checkbox"><span>...</span></li>`, so what its own
+     * Backspace or Delete finds next is the checkbox, and deleting that merges
+     * the rows with the row's struck, muted rendering baked into inline styles
+     * on the surviving text.
+     *
+     * Which line is next to it is {@link lineAbove}/{@link lineBelow}, in
+     * document order, so a sub-list, a plain item among task rows and the last
+     * row of a nested list are one case instead of three rules that each
+     * missed a different one.
+     */
+    private handleTaskRowJoin(event: KeyboardEvent): boolean {
+        if (event.key !== 'Backspace' && event.key !== 'Delete') return false;
+        const caret = this.taskRowCaret();
+        if (!caret) return false;
+        const joined = event.key === 'Backspace'
+            ? this.joinLineUpwards(caret)
+            : this.joinLineFromBelow(caret);
+        if (!joined) return false;
+        event.preventDefault();
+        this.syncContentFromEditor();
+        this.pushHistory();
+        return true;
+    }
+
+    /** Backspace at a line's start: its text moves onto the line above it. */
+    private joinLineUpwards(caret: TaskRowCaret): boolean {
+        if (!this.atLineTextStart(caret)) return false;
+        const editor = this.editorDiv?.nativeElement;
+        if (!editor) return false;
+        const above = lineAbove(buildLineIndex(editor), caret.line);
+        if (!above) return this.firstLineLeavesItsList(caret);
+        // A neighbour in document order is not automatically a neighbour to
+        // join with: merging a row into the cell or the code block above it
+        // destroyed them both.
+        if (!linesMayJoin(caret.line, above)) return false;
+        this.moveLineText(caret.line, above);
+        this.removeJoinedLine(caret.line);
+        return true;
+    }
+
+    /** Delete at a line's end: the text of the line below moves onto it. */
+    private joinLineFromBelow(caret: TaskRowCaret): boolean {
+        if (!this.atLineTextEnd(caret)) return false;
+        const editor = this.editorDiv?.nativeElement;
+        if (!editor) return false;
+        const below = lineBelow(buildLineIndex(editor), caret.line);
+        if (!below || !linesMayJoin(caret.line, below)) return false;
+        this.moveLineText(below, caret.line, { keepCaret: true });
+        this.removeJoinedLine(below);
+        return true;
+    }
+
+    /**
+     * The caret is on the document's very first line and that line is a list
+     * row: it leaves the list as a paragraph carrying its text, and the rows
+     * after it keep their list.
+     */
+    private firstLineLeavesItsList(caret: TaskRowCaret): boolean {
+        const list = caret.row.parentElement;
+        if (!list || !isNestedList(list)) return false;
+        const paragraph = this.document.createElement('p');
+        list.parentNode?.insertBefore(paragraph, list);
+        this.moveLineText(
+            caret.line,
+            { kind: 'block', owner: paragraph, holder: paragraph },
+            { placeholder: 'block' },
+        );
+        this.promoteNestedRows(caret.row, list);
+        this.placeCaretInJoinedParagraph(paragraph);
+        caret.row.remove();
+        if (list.children.length === 0) list.remove();
+        if (list.isConnected) this.separateListKindsKeepingCaret(list);
+        return true;
+    }
+
+    /**
+     * Take a line out once its text has gone, keeping the lines nested under it
+     * at the level it occupied and dropping a list left with no items.
+     */
+    private removeJoinedLine(line: Line): void {
+        const owner = line.owner;
+        const list = owner.parentElement;
+        this.promoteNestedRows(owner, list);
+        owner.remove();
+        if (list && isNestedList(list) && list.children.length === 0) list.remove();
+        if (list?.isConnected && isNestedList(list)) this.separateListKindsKeepingCaret(list);
+    }
+
+    /**
+     * {@link separateListKinds}, keeping the caret on the character it was on:
+     * moving the items into new lists detaches the nodes the selection points at.
+     */
+    private separateListKindsKeepingCaret(list: Element): void {
+        const editor = this.editorDiv?.nativeElement;
+        const selection = this.document.getSelection();
+        const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+        const caret = editor && range ? caretPosition(buildLineIndex(editor), range) : null;
+        if (!separateListKinds(list as HTMLElement) || !caret || !selection) return;
+        selection.removeAllRanges();
+        selection.addRange(placeCaretIn(caret.line, caret.offset));
+    }
+
+    /** Move the lists nested under `row` into `list`, in `row`'s place. */
+    private promoteNestedRows(row: HTMLElement, list: Element | null): void {
+        // Not `list?.insertBefore` inside the loop: with no list the child is
+        // never removed and the loop never ends. A hang, not a no-op.
+        if (!list) return;
+        for (const nested of Array.from(row.children)) {
+            if (!isNestedList(nested)) continue;
+            while (nested.firstChild) list.insertBefore(nested.firstChild, row);
+        }
+    }
+
+    /**
+     * Append one line's text to another. A line left empty keeps a space so it
+     * can still hold a caret; a `'block'` target is left truly empty for its
+     * own caller. Unless `keepCaret`, the caret lands on the join.
+     *
+     * The text goes BEFORE the target's own nested list, or it would render
+     * under that list instead of on the line it joined.
+     */
+    private moveLineText(
+        from: Line,
+        into: Line,
+        options: { keepCaret?: boolean; placeholder?: 'line' | 'block' } = {},
+    ): void {
+        const target = lineOwnNodes(into);
+        // The one emptiness rule, not a text test of its own: a target line
+        // holding an image carries no text, so testing text alone read it as
+        // padding and deleted the image before the incoming text landed.
+        if (lineIsEmpty(into)) {
+            for (const node of target) node.remove();
+        }
+        const moved = lineOwnNodes(from).filter((node) =>
+            !(node.nodeType === Node.TEXT_NODE && PLACEHOLDER_ONLY.test((node as Text).data)));
+        const holder = into.holder;
+        const stop = Array.from(holder.childNodes).find((node) => isNestedList(node)) ?? null;
+        const joinAt = stop ? Array.prototype.indexOf.call(holder.childNodes, stop) : holder.childNodes.length;
+        for (const node of moved) {
+            if (stop) stop.before(node);
+            else holder.appendChild(node);
+        }
+        if (lineOwnNodes(into).length === 0 && options.placeholder !== 'block') {
+            holder.appendChild(this.document.createTextNode('\u00A0'));
+        }
+        if (options.keepCaret) return;
+        const selection = this.document.getSelection();
+        if (!selection) return;
+        const caret = this.document.createRange();
+        caret.setStart(holder, Math.min(joinAt, holder.childNodes.length));
+        caret.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(caret);
+    }
+
+    /**
+     * Put the caret in the paragraph a joined-away first line left behind,
+     * keeping an emptied one a genuinely empty block (`<p><br></p>`) rather
+     * than a paragraph holding a space, which counts as a character and hides
+     * the placeholder.
+     */
+    private placeCaretInJoinedParagraph(paragraph: HTMLElement): void {
+        if (paragraph.hasChildNodes()) {
+            this.placeCaretAtStartOfBlock(paragraph);
+            return;
+        }
+        paragraph.innerHTML = '<br>';
+        const selection = this.document.getSelection();
+        if (selection) this.setSelectionRange(selection, paragraph, 0);
+    }
+
+    /**
+     * ArrowUp / ArrowDown from a task row's text, moved by the editor.
+     *
+     * The browser counts the caret position beside the row's checkbox as a line
+     * stop of its own, so one press went there and only a second reached the
+     * row above. The move is made here and repeated once when it landed on such
+     * a position. A row that WRAPS over several lines is not a reason to
+     * repeat: its own lines are real stops the author is stepping through.
+     */
+    private handleVerticalArrowInTaskRow(event: KeyboardEvent): boolean {
+        if ((event.key !== 'ArrowUp' && event.key !== 'ArrowDown')
+            || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return false;
+        const caret = this.taskRowCaret();
+        const selection = this.document.getSelection();
+        if (!caret || typeof selection?.modify !== 'function') return false;
+
+        event.preventDefault();
+        const direction = event.key === 'ArrowUp' ? 'backward' : 'forward';
+        selection.modify('move', direction, 'line');
+        if (this.caretBesideLineText()) selection.modify('move', direction, 'line');
+        this.confineCaretToTaskText();
+        return true;
+    }
+
+    /**
+     * Move text the browser left beside a row's span back into it.
+     *
+     * The span is the row's line, and every caret, strike and emptiness rule
+     * reads it. Contenteditable does not honour that on its own: text typed at
+     * the span's edge can land in the row instead, and the row then renders
+     * unstruck when checked and reads as empty, so Enter left the list rather
+     * than adding a row. Repaired as the caret moves, on the caret's row only.
+     */
+    private gatherStrayRowText(row: HTMLElement, span: HTMLElement): void {
+        const stray = Array.from(row.childNodes).filter((node) =>
+            node !== span && node.nodeName !== 'INPUT' && !isNestedList(node));
+        if (stray.length === 0) return;
+        const selection = this.document.getSelection();
+        const caret = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+        const anchor = caret ? { node: caret.startContainer, offset: caret.startOffset } : null;
+        for (const node of stray) span.appendChild(node);
+        if (selection && anchor?.node.isConnected) this.setSelectionRange(selection, anchor.node, anchor.offset);
+    }
+
+    /** Whether the caret sits in a line but outside its text — a checkbox's own stop. */
+    private caretBesideLineText(): boolean {
+        const selection = this.document.getSelection();
+        const editor = this.editorDiv?.nativeElement;
+        if (!selection?.isCollapsed || selection.rangeCount === 0 || !editor) return false;
+        const line = lineOf(selection.getRangeAt(0).startContainer, editor);
+        if (!line || line.holder === line.owner) return false;
+        return !line.holder.contains(selection.getRangeAt(0).startContainer);
+    }
+
+    /**
+     * A collapsed caret inside the text of a line that belongs to a list row.
+     *
+     * The join and arrow rules only run for list rows: a plain paragraph's
+     * Backspace and Delete are the browser's own job and always were.
+     */
+    private taskRowCaret(): TaskRowCaret | null {
+        const selection = this.document.getSelection();
+        const editor = this.editorDiv?.nativeElement;
+        if (!selection || selection.rangeCount === 0 || !editor) return null;
+        const range = selection.getRangeAt(0);
+        if (!range.collapsed) return null;
+        const line = lineOf(range.startContainer, editor);
+        if (line?.kind !== 'item') return null;
+        if (!line.holder.contains(range.startContainer)) return null;
+        return { line, row: line.owner, span: line.holder, range };
+    }
+
+    /** Whether the caret sits at the very start of its line's text, padding aside. */
+    private atLineTextStart({ line, range }: TaskRowCaret): boolean {
+        const before = this.document.createRange();
+        before.setStart(line.holder, 0);
+        before.setEnd(range.startContainer, range.startOffset);
+        return rangeShowsNothing(before);
+    }
+
+    /** Whether the caret sits at the very end of its line's text, padding aside. */
+    private atLineTextEnd({ line, range }: TaskRowCaret): boolean {
+        const nodes = lineOwnNodes(line);
+        const last = nodes.at(-1);
+        if (!last) return true;
+        const after = this.document.createRange();
+        after.setStart(range.startContainer, range.startOffset);
+        after.setEndAfter(last);
+        return rangeShowsNothing(after);
+    }
+
+    /**
+     * Confine a collapsed caret in a task item to the item's text span.
+     *
+     * `<li><input type="checkbox"><span>…</span></li>` has caret positions
+     * before and after the checkbox that the browser happily lands on: ArrowUp
+     * from the row below stops on them, and so does a click at the row's edge.
+     * Text typed there ends up before the checkbox, and Backspace there hands
+     * the browser the checkbox to delete, which merges the row into its
+     * neighbour and bakes the row's struck, muted rendering into inline styles
+     * on the surviving text. The span is the only place a caret belongs.
+     */
+    private confineCaretToTaskText(): void {
+        const selection = this.document.getSelection();
+        if (!selection?.isCollapsed || selection.rangeCount === 0) return;
+        const taskLi = this.getParentTaskListItem();
+        const span = taskLi?.querySelector<HTMLElement>(':scope > span');
+        if (!taskLi || !span) return;
+        this.gatherStrayRowText(taskLi, span);
+        const range = selection.getRangeAt(0);
+        const container = range.startContainer;
+        const element = container.nodeType === Node.ELEMENT_NODE ? (container as Element) : container.parentElement;
+        // A caret in a list nested under the row belongs to that list.
+        if (span.contains(container) || element?.closest('li, ul, ol, table') !== taskLi) return;
+
+        const spanStart = this.document.createRange();
+        spanStart.setStart(span, 0);
+        spanStart.collapse(true);
+        if (range.compareBoundaryPoints(Range.START_TO_START, spanStart) < 0) {
+            this.placeCaretAtStartOfBlock(span);
+        } else {
+            this.placeCaretAtEndOf(span);
+        }
+    }
+
+    /**
+     * Put the caret after the last character of `element`.
+     *
+     * It used the element's FIRST text node, so a row reading "hello <b>world</b>"
+     * put a caret meant for the end of the line after "hello", and typing landed
+     * in the middle.
+     */
+    private placeCaretAtEndOf(element: Element): void {
+        const selection = this.document.getSelection();
+        if (!selection) return;
+        const range = this.document.createRange();
+        const last = this.lastShownText(element);
+        if (last) {
+            range.setStart(last, last.data.length);
+        } else if (holdsNothing(element)) {
+            const target = this.emptyBlockCaretTarget(element as HTMLElement);
+            range.setStart(target, target.data.length);
+        } else {
+            range.setStart(element, element.childNodes.length);
+        }
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
+
+    /** The last text node in `element` that shows a character other than caret padding. */
+    private lastShownText(element: Element): Text | null {
+        const walker = this.document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+        let found: Text | null = null;
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+            if (!PLACEHOLDER_ONLY.test((node as Text).data)) found = node as Text;
+        }
+        return found;
     }
 
     private handleEnterInTaskList(event: KeyboardEvent, selection: Selection): boolean {
@@ -878,32 +2141,51 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (!taskLi) return false;
 
         event.preventDefault();
-        const textContent = taskLi.textContent?.replaceAll(/[\s\u00A0]/g, '') || '';
-        if (textContent) {
-            this.insertNewTaskListItem(taskLi, selection);
-        } else {
+        // Its own text-only test deleted a row holding only an image: the row
+        // read as blank, so Enter took the "leave the list" branch and took the
+        // image with it.
+        const editor = this.editorDiv?.nativeElement;
+        const line = editor ? lineOf(taskLi, editor) : null;
+        if (line && lineIsEmpty(line)) {
             this.exitTaskList(taskLi, selection);
+        } else {
+            this.insertNewTaskListItem(taskLi, selection);
         }
         this.syncContentFromEditor();
         this.pushHistory();
         return true;
     }
 
+    /**
+     * The row Enter adds below the caret's row, built by
+     * {@link createTaskListItem} like every other row.
+     *
+     * It used to build its own, with a different placeholder and without
+     * writing the checkbox's `checked` property, so a row's behaviour depended
+     * on which of the two builders happened to make it.
+     */
     private insertNewTaskListItem(taskLi: HTMLElement, selection: Selection): void {
-        const newLi = this.document.createElement('li');
-        newLi.dataset['task'] = '';
-        newLi.dataset['checked'] = 'false';
-        const checkbox = this.document.createElement('input');
-        checkbox.type = 'checkbox';
-        const textSpan = this.document.createElement('span');
-        textSpan.appendChild(this.document.createTextNode('\u00A0'));
-        newLi.appendChild(checkbox);
-        newLi.appendChild(textSpan);
+        const newLi = this.createTaskListItem(false);
         taskLi.parentNode?.insertBefore(newLi, taskLi.nextSibling);
-        this.setSelectionRange(selection, textSpan, 0);
+        // Inside the seeded text, not at the span's boundary: typing then lands
+        // in the span whatever the browser makes of the boundary, and before
+        // the seed so the row does not start with a space.
+        const anchor = newLi.querySelector<HTMLElement>(':scope > span')?.firstChild;
+        if (anchor) this.setSelectionRange(selection, anchor, 0);
     }
 
     private exitTaskList(taskLi: HTMLElement, selection: Selection): void {
+        // A row in a nested list steps out one level, as a plain nested item
+        // does. Leaving the list from there built a paragraph inside the parent
+        // row, which the next keypress moved into that row's text.
+        if (this.moveItemOutOneLevel(taskLi)) {
+            // At the start of the row's text, however the row is padded: before a
+            // non-breaking-space seed, after a zero-width anchor, and in a new
+            // anchor when the span is empty.
+            const span = taskLi.querySelector<HTMLElement>(':scope > span');
+            if (span) this.placeCaretAtStartOfBlock(span);
+            return;
+        }
         const parentList = taskLi.parentElement;
         const p = this.document.createElement('p');
         p.innerHTML = '<br>';
@@ -931,6 +2213,92 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return true;
     }
 
+    /**
+     * Leave a blockquote on Enter. `Shift+Enter` adds a line inside it and
+     * never reaches here, so the two keys mean exactly one thing each.
+     *
+     * Before this there was no way out at all: every following line stayed
+     * quoted and the only escape was deleting the quote. An empty-line
+     * two-step was tried first and rejected — the browser's own handling
+     * opened a SECOND sibling blockquote rather than a new line in the
+     * existing one, which renders as two bordered quotes with a gap.
+     */
+    private handleEnterInBlockquote(event: KeyboardEvent, range: Range, selection: Selection): boolean {
+        const quote = this.findAncestorByTag(range.startContainer, 'BLOCKQUOTE');
+        if (!quote) return false;
+
+        // A quoted list, table or code block owns its Enter; every other line
+        // of the quote is left on Enter, as a code block is. Round 17 narrowed
+        // this to a blank last line so a quoted paragraph could be split with
+        // Enter, which silently retired the one-key exit: with Shift+Enter
+        // already adding a row, Enter had no job left but leaving.
+        // A quoted list, table or code block owns its own Enter: its lines are
+        // not the quote's own, so the handler stands down. That used to be a
+        // bespoke walk with its own tag set; it is now just "is this line the
+        // quote's own child".
+        const editor = this.editorDiv?.nativeElement;
+        const quoted = editor ? lineOf(range.startContainer, editor) : null;
+        if (!quoted || (quoted.owner.parentElement !== quote && quoted.owner !== quote)) return false;
+        const line = quoted.owner;
+
+        event.preventDefault();
+
+        const p = this.document.createElement('p');
+        p.innerHTML = '<br>';
+        quote.parentNode?.insertBefore(p, quote.nextSibling);
+        this.setSelectionRange(selection, p, 0);
+
+        // A blank line has done its job; leaving it behind put an empty row at
+        // the end of the quote.
+        if (this.holdsNoContent(line)) line.remove();
+        if (this.holdsNoContent(quote)) {
+            quote.remove();
+        }
+
+        this.syncContentFromEditor();
+        this.pushHistory();
+        return true;
+    }
+
+    /**
+     * Enter on an empty top-level list item leaves the list into a `<p>`.
+     *
+     * Without this the keypress fell through to the browser, whose default
+     * block separator is `<div>` -- so exiting a list produced
+     * `<div><br></div>` while every other block-creation path in this component
+     * builds a `<p>`. The inconsistency reached the output HTML, where markdown
+     * conversion and any consumer styling that targets `p` silently missed
+     * those blocks.
+     *
+     * Nested items are left alone: there the right behaviour is to outdent one
+     * level, which {@link outdentListItem} already does.
+     */
+    private handleEnterLeavingList(event: KeyboardEvent, range: Range, selection: Selection): boolean {
+        const li = this.findAncestorByTag(range.startContainer, 'LI');
+        if (!li) return false;
+        if (!this.holdsNoContent(li)) return false;
+
+        const list = li.parentElement;
+        if (!list || (list.tagName !== 'UL' && list.tagName !== 'OL')) return false;
+        if (list.parentElement?.tagName === 'LI') return false;
+        if (li !== list.lastElementChild) return false;
+
+        event.preventDefault();
+
+        const p = this.document.createElement('p');
+        p.innerHTML = '<br>';
+        list.parentNode?.insertBefore(p, list.nextSibling);
+        li.remove();
+        if (list.children.length === 0) {
+            list.remove();
+        }
+        this.setSelectionRange(selection, p, 0);
+
+        this.syncContentFromEditor();
+        this.pushHistory();
+        return true;
+    }
+
     private handleEnterAtDetailsEnd(event: KeyboardEvent, range: Range, selection: Selection): boolean {
         const detailsEl = this.findAncestorByTag(range.startContainer, 'DETAILS');
         if (!detailsEl) return false;
@@ -938,14 +2306,20 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const lastChild = detailsEl.lastElementChild;
         if (!lastChild || lastChild.tagName === 'SUMMARY') return false;
 
-        const isAtEnd = range.startOffset >= (range.startContainer.textContent?.length ?? 0);
-        const isInLastChild = lastChild.contains(range.startContainer);
-        if (!isAtEnd || !isInLastChild || lastChild.textContent?.trim()) return false;
+        // The block is left from its last line, and only when that line is
+        // blank. The old at-end test compared the caret's offset with its own
+        // container's text length, which says nothing about the end of a line
+        // whose caret sits in a nested inline element — and it earned nothing
+        // either, because a line with any content is refused on the next test.
+        const editor = this.editorDiv?.nativeElement;
+        const line = editor ? lineOf(range.startContainer, editor) : null;
+        if (!line || !lastChild.contains(range.startContainer) || !lineIsEmpty(line)) return false;
 
         event.preventDefault();
         const p = this.document.createElement('p');
         p.innerHTML = '<br>';
-        detailsEl.parentNode?.insertBefore(p, detailsEl.nextSibling);
+        const at = positionAfterLine({ kind: 'block', owner: detailsEl, holder: detailsEl });
+        at.parent.insertBefore(p, at.before);
         lastChild.remove();
         this.setSelectionRange(selection, p, 0);
         this.syncContentFromEditor();
@@ -960,23 +2334,80 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         event.preventDefault();
         const codeElement = preElement.querySelector('code');
         const textNode = codeElement ?? preElement;
-        const textContent = textNode.textContent ?? '';
 
-        if (textContent.endsWith('\n')) {
-            this.exitCodeBlock(preElement, textNode, textContent, selection);
-        } else {
-            this.insertNewlineInCodeBlock(range, selection);
-        }
+        // Enter always leaves the block; Shift+Enter is how you add a line
+        // inside it, and it never reaches here. The old two-step (Enter opens a
+        // blank line, a second Enter steps out) meant the exit had to detect
+        // and then unpick that blank line, which is what flattened multi-line
+        // blocks. One key, one meaning.
+        this.exitCodeBlock(preElement, textNode, selection, this.trailingBreakIn(textNode));
         this.syncContentFromEditor();
         this.pushHistory();
     }
 
-    private exitCodeBlock(preElement: HTMLPreElement, textNode: Element | HTMLPreElement, textContent: string, selection: Selection): void {
-        textNode.textContent = textContent.slice(0, -1);
+    /**
+     * Leave a code block on the second Enter, dropping the trailing newline the
+     * first one added.
+     *
+     * Trims that newline from the LAST text node rather than reassigning
+     * Removes whichever blank line the first Enter left — a trailing `<br>`
+     * (what `Shift+Enter` actually inserts) or a trailing `"\n"` — instead of
+     * reassigning `textContent` on the whole block. That assignment replaced
+     * every child with one text node, so a multi-line block collapsed into a
+     * single line the moment the user pressed Enter twice to get out. Arrowing
+     * out never reached this path, which is why only double-Enter showed it.
+     */
+    private exitCodeBlock(
+        preElement: HTMLPreElement,
+        textNode: Element | HTMLPreElement,
+        selection: Selection,
+        trailingBreak: HTMLBRElement | null,
+    ): void {
+        // Only tidy a blank line the user left behind with Shift+Enter; never
+        // reassign `textContent` on the block, which replaces every child with
+        // one text node and flattens a block whose lines are <br> elements.
+        const last = this.lastTextNodeIn(textNode);
+        if (last?.data.endsWith('\n') && !last.data.trim()) {
+            last.remove();
+        } else if (trailingBreak) {
+            trailingBreak.remove();
+        }
+
         const p = this.document.createElement('p');
         p.innerHTML = '<br>';
         preElement.parentNode?.insertBefore(p, preElement.nextSibling);
         this.setSelectionRange(selection, p, 0);
+    }
+
+    /** The block's last text node, or `null` when it holds none. */
+    private lastTextNodeIn(root: Node): Text | null {
+        const walker = this.document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        let last: Text | null = null;
+        let node = walker.nextNode() as Text | null;
+        while (node) {
+            last = node;
+            node = walker.nextNode() as Text | null;
+        }
+        return last;
+    }
+
+    /**
+     * The `<br>` that ends the block, if the last meaningful child is one.
+     *
+     * `Shift+Enter` inserts a `<br>` rather than a `"\n"`, so a block built
+     * that way carries no newline in `textContent` at all — the exit check
+     * looked for one, never found it, and treated the second Enter as another
+     * newline. Reassigning `textContent` to trim it then flattened every child
+     * into a single text node, collapsing the block's lines into one.
+     */
+    private trailingBreakIn(root: Node): HTMLBRElement | null {
+        const children = Array.from(root.childNodes);
+        for (let i = children.length - 1; i >= 0; i--) {
+            const node = children[i];
+            if (node.nodeType === Node.TEXT_NODE && !(node as Text).data.trim()) continue;
+            return node.nodeName === 'BR' ? (node as HTMLBRElement) : null;
+        }
+        return null;
     }
 
     private insertNewlineInCodeBlock(range: Range, selection: Selection): void {
@@ -1023,16 +2454,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             return;
         }
 
-        const max = this.maxLength() as number;
-        const currentText = this.editorDiv?.nativeElement.textContent ?? '';
-        const selection = this.document.getSelection();
-        const selectedLength = selection && !selection.isCollapsed
-            ? selection.toString().length
-            : 0;
-        const insertedLength = inputEvent.data?.length ?? 0;
-        const nextLength = currentText.length - selectedLength + insertedLength;
-
-        if (nextLength > max) {
+        if (this.exceedsMaxLength(inputEvent.data ?? '')) {
             event.preventDefault();
         }
     }
@@ -1051,9 +2473,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     onPaste(event: ClipboardEvent): void {
         event.preventDefault();
+        this.lastInputRule = null;
         this.flushPendingHistoryPush();
 
-        if (this.disabled() || this.readonly()) {
+        if (this.isDisabled() || this.readonly()) {
             return;
         }
 
@@ -1071,7 +2494,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
 
         const normalized = this.pasteNormalizer.normalize(html ?? null, text);
-        this.insertHtml(normalized);
+        this.insertHtmlFragment(normalized);
         this.pushHistory();
     }
 
@@ -1081,22 +2504,158 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * value rather than parsing the untrusted HTML — the over-limit path inserts
      * plain text anyway, so the HTML length would be the wrong budget.
      */
+    /**
+     * The visible text an HTML fragment contributes, for budgeting against
+     * {@link maxLength}. Markup length would be the wrong unit — a small table
+     * or a link carries far more markup than the characters a reader sees.
+     */
+    private plainTextOf(html: string): string {
+        // The sanitizer's inert DOMParser, not a live element: the markup here
+        // is not yet sanitized, and assigning it to a live div starts image
+        // fetches and compiles inline handlers on the detached tree.
+        return this.sanitizer.stripTags(html);
+    }
+
+    /**
+     * The suggestion popup an addon has open, for the combobox ARIA on the
+     * editable. Held here because the attributes belong to the editable, which
+     * the base owns, while the popup belongs to the addon.
+     */
+    protected readonly activeSuggestionPopup = signal<
+        { readonly controlsId: string; readonly activeOptionId: string | null } | null
+    >(null);
+
+    /** Announce or clear an addon's suggestion popup (addon host surface). */
+    setActiveSuggestionPopup(
+        popup: { readonly controlsId: string; readonly activeOptionId: string | null } | null,
+    ): void {
+        this.activeSuggestionPopup.set(popup);
+    }
+
+    /**
+     * Remaining character budget for addons (addon host surface).
+     *
+     * Addons mutate through `mutateContent`, which cannot know what they intend
+     * to write, so the budget is published for them to check rather than
+     * enforced behind their backs.
+     */
+    remainingLength(): number {
+        const max = this.maxLength();
+        if (!max) return Number.POSITIVE_INFINITY;
+        const currentText = this.perceivedText();
+        // Signed, not clamped at zero: an addon whose text is already in the
+        // document needs to know whether it is OVER, and zero cannot say.
+        return max - (graphemeLength(currentText) - this.getSelectedTextLength());
+    }
+
+    /**
+     * Whether inserting `text` would take the document past {@link maxLength}.
+     *
+     * `maxLength` used to be enforced only while typing and pasting, so every
+     * programmatic insert — emoji, links, images, tables, and anything an addon
+     * adds later — could push content past a limit the consumer had set. These
+     * seams are the shared funnel for all of them, so the check belongs here
+     * rather than in each addon. Unlike a paste, an insert is not truncated: a
+     * half-inserted link or table is worse than none.
+     */
+    /**
+     * The document's text as the user perceives it.
+     *
+     * Empty blocks carry a `\u200B` caret anchor, which is invisible, is
+     * stripped from `getContent()`, and is not counted by `characterCount()` --
+     * but the raw `textContent` still contains it. Reading that raw value made
+     * `maxLength` enforcement disagree with the counter shown right next to it:
+     * measured live, the counter read 11 while enforcement worked from 12, so
+     * input was refused one character early for every anchor in the document,
+     * with the counter still showing room.
+     */
+    /**
+     * Drop `\u200B` caret anchors from text nodes that now hold real text.
+     *
+     * The anchor exists to give an empty block something to put the caret in.
+     * Once the user types, it has done its job -- but nothing removed it, so it
+     * stayed in the live DOM forever. It is invisible and stripped from output,
+     * which is why it went unnoticed, but the caret still had to step over it:
+     * with the caret at the start of `\u200Balpha`, one ArrowRight moved past
+     * the anchor rather than past `a`, so the next character landed BEFORE the
+     * first letter. One dead keypress per affected block, with no visible cause.
+     *
+     * Only anchors sharing a text node with real text are removed -- an anchor
+     * alone in an empty block is still doing its job. The caret is re-anchored
+     * when it sits in the node being edited, so the sweep is invisible to the
+     * user typing.
+     */
+    private sweepSpentCaretAnchors(root: HTMLElement): void {
+        const walker = this.document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        const spent: Text[] = [];
+        while (walker.nextNode()) {
+            const node = walker.currentNode as Text;
+            if (node.data.includes('​') && node.data.replaceAll('​', '').length > 0) {
+                spent.push(node);
+            }
+        }
+        if (spent.length === 0) return;
+
+        const selection = this.document.getSelection();
+        const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+
+        // Both boundaries are captured, not just the caret. Writing to a text
+        // node's `data` collapses any selection inside it -- that is the DOM's
+        // doing, not ours -- so restoring only the start would silently destroy
+        // a user's selection on every keystroke that triggers a sweep.
+        const anchor = range
+            ? {
+                  startNode: range.startContainer,
+                  startOffset: range.startOffset,
+                  endNode: range.endContainer,
+                  endOffset: range.endOffset,
+              }
+            : null;
+
+        // Offsets are translated from the PRE-sweep text, so each boundary is
+        // moved back by however many anchors sat before it.
+        const before = new Map<Text, string>(spent.map((node) => [node, node.data]));
+        for (const node of spent) {
+            node.data = node.data.replaceAll('​', '');
+        }
+
+        if (!anchor || !selection) return;
+
+        const restored = this.document.createRange();
+        restored.setStart(anchor.startNode, offsetAfterSweep(anchor.startNode, anchor.startOffset, before));
+        restored.setEnd(anchor.endNode, offsetAfterSweep(anchor.endNode, anchor.endOffset, before));
+        selection.removeAllRanges();
+        selection.addRange(restored);
+    }
+
+    private perceivedText(): string {
+        return (this.editorDiv?.nativeElement.textContent ?? '').replaceAll('​', '');
+    }
+
+    private exceedsMaxLength(text: string): boolean {
+        const max = this.maxLength();
+        if (!max) return false;
+        // Graphemes never outnumber UTF-16 units, so when the raw lengths fit
+        // the insert cannot exceed the limit and the document need not be
+        // segmented at all -- which is the case on nearly every keystroke.
+        const selected = this.document.getSelection()?.toString().length ?? 0;
+        if (this.perceivedText().length - selected + text.length <= max) return false;
+        return graphemeLength(text) > this.remainingLength();
+    }
+
     private handlePasteMaxLength(text: string): boolean {
-        if (!this.maxLength()) {
+        const remaining = this.remainingLength();
+        if (!Number.isFinite(remaining)) {
             return false;
         }
-        const max = this.maxLength() as number;
-        const currentText = this.editorDiv?.nativeElement.textContent ?? '';
-        const selectedLength = this.getSelectedTextLength();
-        const remaining = max - (currentText.length - selectedLength);
 
         if (remaining <= 0) {
             return true;
         }
 
-        if (text.length > remaining) {
-            const truncated = text.substring(0, remaining);
-            this.insertText(truncated);
+        if (graphemeLength(text) > remaining) {
+            const truncated = truncateToGraphemes(text, remaining);
+            this.insertTextNode(truncated);
             this.pushHistory();
             return true;
         }
@@ -1110,7 +2669,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * drop) and raising {@link dragOver}, which drives the drop-zone highlight.
      */
     onEditorDragOver(event: DragEvent): void {
-        if (this.disabled() || this.readonly()) return;
+        if (this.isDisabled() || this.readonly()) return;
 
         const hasFiles = event.dataTransfer?.types?.includes('Files') ?? false;
         if (!hasFiles) return;
@@ -1159,7 +2718,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     async onEditorDrop(event: DragEvent): Promise<void> {
         this.dragOver.set(false);
-        if (this.disabled() || this.readonly()) return;
+        if (this.isDisabled() || this.readonly()) return;
 
         if (this.dispatchDropInterceptors(event)) {
             return;
@@ -1184,6 +2743,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * does not flicker it away.
      */
     onBlur(event?: FocusEvent): void {
+        this.lastInputRule = null;
         const selection = this.document.getSelection();
         if (selection && selection.rangeCount > 0) {
             this.savedRange = selection.getRangeAt(0).cloneRange();
@@ -1221,6 +2781,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * drag reports collapsed for an instant.
      */
     onSelectionChange(): void {
+        this.confineCaretToTaskText();
+        this.closeInputRuleRevertWindowIfMoved();
         this.updateActiveFormats();
         this.releaseCaretColor();
         const selection = this.document.getSelection();
@@ -1244,18 +2806,18 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * entry's content, restores its selection, and emits a change.
      */
     restoreHistoryEntry(entryIndex: number): void {
-        if (entryIndex < 0 || entryIndex >= this.history.length) {
+        if (entryIndex < 0 || entryIndex >= this.snapshots.length) {
             return;
         }
 
         this.flushPendingHistoryPush();
         this.historyIndex = entryIndex;
-        const entry = this.history[this.historyIndex];
+        const entry = this.snapshots[this.historyIndex];
         const html = this.reconstructHtmlCached(this.historyIndex);
 
         this.htmlContent.set(html);
         if (this.editorDiv?.nativeElement) {
-            this.editorDiv.nativeElement.innerHTML = html;
+            this.replaceEditorHtml(html);
         }
         this.restoreSerializedSelection(entry.selection);
 
@@ -1286,8 +2848,48 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * toolbar mode it finally collapses the selection past the new formatting
      * node so typing continues outside it.
      */
+    /**
+     * Run an inline format over every selected cell's contents.
+     *
+     * With cells picked as cells the text selection is collapsed, so
+     * `execCommand` has nothing to act on and Bold would silently do nothing.
+     * Each cell's contents are selected in turn and the command applied, so
+     * the visible selection is exactly what changes — no spill into the rows
+     * a text-range would have swept through.
+     *
+     * Returns `false` for anything that is not an inline mark (block types,
+     * lists, alignment) so those keep their normal caret-driven behaviour.
+     */
+    private applyCommandToSelectedCells(command: string): boolean {
+        const cells = this.tableCellSelected();
+        if (cells.length === 0) return false;
+        if (!RichTextEditorComponent.CELL_APPLICABLE_COMMANDS.has(command)) return false;
+
+        this.flushPendingHistoryPush();
+        const selection = this.document.getSelection();
+        if (!selection) return false;
+
+        for (const cell of cells) {
+            const range = this.document.createRange();
+            range.selectNodeContents(cell);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            this.executeFormatCommand(command, this.getMentionElementsInSelection());
+        }
+
+        selection.collapseToStart();
+        this.applyMutation({ updateActiveFormats: true });
+        return true;
+    }
+
     onFormatCommand(command: string): void {
-        if (this.readonly() || this.disabled()) return;
+        if (command === 'find') {
+            this.openFindReplace(!this.readonly() && !this.isDisabled());
+            return;
+        }
+        if (this.readonly() || this.isDisabled()) return;
+
+        if (this.applyCommandToSelectedCells(command)) return;
 
         this.restoreSelection();
         this.flushPendingHistoryPush();
@@ -1325,8 +2927,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
                 this.toggleMentionTextDecoration(mentionTargets, 'line-through');
                 return true;
             case 'clear':
-                this.execEditorCommand('removeFormat');
-                this.clearMentionStyles(mentionTargets);
+                this.clearFormatting(mentionTargets);
                 return true;
             case 'code':
                 this.wrapSelectionWithTag('code');
@@ -1338,12 +2939,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     private executeBlockFormatCommand(command: string): boolean {
         switch (command) {
-            case 'heading1': this.execEditorCommand('formatBlock', '<h1>'); return true;
-            case 'heading2': this.execEditorCommand('formatBlock', '<h2>'); return true;
-            case 'heading3': this.execEditorCommand('formatBlock', '<h3>'); return true;
-            case 'paragraph': this.execEditorCommand('formatBlock', '<p>'); return true;
-            case 'blockquote': this.execEditorCommand('formatBlock', '<blockquote>'); return true;
-            case 'codeBlock': this.insertCodeBlock(); return true;
+            case 'heading1': this.retagLines('h1'); return true;
+            case 'heading2': this.retagLines('h2'); return true;
+            case 'heading3': this.retagLines('h3'); return true;
+            case 'paragraph': this.retagLines('p'); return true;
+            case 'blockquote': this.toggleBlockquote(); return true;
+            case 'codeBlock': this.toggleCodeBlock(); return true;
             case 'horizontalRule': this.insertHorizontalRule(); return true;
             case 'undo': this.undo(); return true;
             case 'redo': this.redo(); return true;
@@ -1369,11 +2970,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     private executeListFormatCommand(command: string): boolean {
         switch (command) {
-            case 'bulletList': this.execEditorCommand('insertUnorderedList'); return true;
-            case 'orderedList': this.execEditorCommand('insertOrderedList'); return true;
-            case 'indent': this.indentListItem(); return true;
-            case 'outdent': this.outdentListItem(); return true;
-            case 'taskList': this.insertTaskList(); return true;
+            case 'bulletList': this.toggleList('ul'); return true;
+            case 'orderedList': this.toggleList('ol'); return true;
+            case 'indent': this.indentBlock(); return true;
+            case 'outdent': this.outdentBlock(); return true;
+            case 'taskList': this.toggleTaskList(); return true;
             case 'toggle': this.insertToggleBlock(); return true;
             default: return false;
         }
@@ -1430,7 +3031,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * recorded.
      */
     onFloatingFormatCommand(command: string): void {
-        if (this.readonly() || this.disabled()) return;
+        if (this.readonly() || this.isDisabled()) return;
         this.flushPendingHistoryPush();
 
         const selection = this.document.getSelection();
@@ -1486,18 +3087,17 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             return;
         }
         if (command === 'heading1' || command === 'heading2' || command === 'heading3') {
-            const level = command.replace('heading', '');
-            this.execEditorCommand('formatBlock', `<h${level}>`);
+            this.retagLines(`h${command.replace('heading', '')}`);
             selection.collapseToEnd();
             return;
         }
         if (command === 'bulletList') {
-            this.execEditorCommand('insertUnorderedList');
+            this.toggleList('ul');
             selection.collapseToEnd();
             return;
         }
         if (command === 'orderedList') {
-            this.execEditorCommand('insertOrderedList');
+            this.toggleList('ol');
             selection.collapseToEnd();
         }
     }
@@ -1509,10 +3109,29 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * restores the in-editor selection first, re-saves the caret afterwards so
      * consecutive picks append instead of stacking at the same spot, and pins
      * `inputMode = 'none'` for ~100ms while focus returns, which stops the mobile
-     * software keyboard from flashing open. Note it flushes pending history but
-     * records no entry of its own.
+     * software keyboard from flashing open. It flushes any pending typing burst
+     * as its own entry and then records one entry of its own, so a single undo
+     * removes the insert and nothing else.
      */
     insertTextFromOverlay(text: string): void {
+        if (this.exceedsMaxLength(text)) return;
+        this.insertAtRestoredCaret(() => this.insertTextNode(text));
+    }
+
+    /**
+     * Run `insert` at the caret the user last had inside the editor, as one
+     * history entry. Shared by {@link insertTextFromOverlay} and the public
+     * {@link insertText} / {@link insertHtml}, because both face the same
+     * problem: the click that triggered them already moved focus out of the
+     * editor.
+     *
+     * The sequence is load-bearing. Any pending typing burst is flushed as its
+     * own entry first, so the insert never merges into it. `inputMode` is
+     * pinned to `'none'` for ~100ms while focus returns, which stops the mobile
+     * software keyboard from flashing open. The caret is re-saved afterwards so
+     * consecutive inserts append instead of stacking at the same spot.
+     */
+    private insertAtRestoredCaret(insert: () => void): void {
         this.flushPendingHistoryPush();
         const editor = this.editorDiv?.nativeElement;
         const prevInputMode = editor?.inputMode;
@@ -1520,7 +3139,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             editor.inputMode = 'none';
         }
         this.restoreSelection();
-        this.insertText(text);
+        insert();
+        this.pushHistory();
         const selection = this.document.getSelection();
         if (selection && selection.rangeCount > 0) {
             this.savedRange = selection.getRangeAt(0).cloneRange();
@@ -1538,17 +3158,175 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     /** Insert plain text at the live caret as one history entry (addon host surface). */
     insertTextAtCaret(text: string): void {
-        this.insertText(text);
+        if (this.exceedsMaxLength(text)) return;
+        this.insertTextNode(text);
         this.pushHistory();
     }
 
     /** Insert sanitized HTML at the live caret as one history entry (addon host surface). */
     insertHtmlAtCaret(html: string): void {
-        this.insertHtml(html);
+        if (this.exceedsMaxLength(this.plainTextOf(html))) return;
+        this.insertHtmlFragment(html);
         this.pushHistory();
     }
 
+    /** Insert block markup at the caret's line (addon host surface). */
+    insertBlockAtCaret(html: string): void {
+        const sanitized = this.sanitizer.sanitize(html);
+        if (this.exceedsMaxLength(this.plainTextOf(sanitized))) return;
+        const editor = this.editorDiv?.nativeElement;
+        if (!editor) return;
+        const template = this.document.createElement('template');
+        template.innerHTML = sanitized;
+        const fragment = template.content;
+        const landing = fragment.querySelector<HTMLElement>('td, th, p, li, summary');
+
+        const ctx = this.blockToggleContext();
+        const line = ctx ? this.commandLines(ctx)[0] : null;
+        if (line) {
+            this.placeInsertedBlock(fragment, line);
+        } else {
+            editor.appendChild(fragment);
+        }
+        if (landing) this.placeCaretAtStartOfBlock(landing);
+        this.labelBlockedImages();
+        this.syncContentFromEditor();
+        this.pushHistory();
+    }
+
+    /**
+     * Put an inserted block at the caret's line, somewhere a save keeps it.
+     *
+     * Beside a line that stands on its own: in its place when the author cleared
+     * it, after it otherwise. A line inside a list splits the list after its
+     * top-level item and the block goes between the halves; inside a table or a
+     * summary the block goes after that element, which puts it after the table
+     * or at the start of the details body. Putting it inside the item or the
+     * cell built a rule or a table markdown cannot carry, and in a task row the
+     * next keypress moved it into the row's text.
+     */
+    private placeInsertedBlock(fragment: DocumentFragment, line: Line): void {
+        const outer = this.structureOf(line).at(-1);
+        if (!outer) {
+            const empty = lineIsEmpty(line);
+            line.owner.parentNode?.insertBefore(fragment, empty ? line.owner : line.owner.nextSibling);
+            if (empty) line.owner.remove();
+            return;
+        }
+        if (outer.nodeName !== 'LI') {
+            outer.after(fragment);
+            return;
+        }
+        const list = outer.parentElement;
+        if (!list) return;
+        const tail = this.splitListAfter(outer);
+        list.after(fragment);
+        // An empty item the caret sat in is the place the author cleared for it.
+        if (line.owner === outer && lineIsEmpty(line) && !outer.querySelector(':scope > ul, :scope > ol')) outer.remove();
+        this.settleSplitList(list, tail);
+    }
+
+    /** The list items, tables and summaries around a line, innermost first. */
+    private structureOf(line: Line): HTMLElement[] {
+        const editor = this.editorDiv?.nativeElement;
+        return editor ? structureAround(line, editor) : [];
+    }
+
+    /**
+     * Move the items after `item` into a new list of the same kind, placed
+     * right after its own, so a block can go between the two halves. Returns the
+     * new list, or null when `item` is the last.
+     */
+    private splitListAfter(item: HTMLElement): HTMLElement | null {
+        const list = item.parentElement;
+        if (!list || !item.nextElementSibling) return null;
+        const tail = list.cloneNode(false) as HTMLElement;
+        while (item.nextSibling) tail.appendChild(item.nextSibling);
+        list.after(tail);
+        return tail;
+    }
+
+    /**
+     * Finish a split: a numbered list's second half counts on from the items
+     * left in the first, and a first half left with no items goes.
+     */
+    private settleSplitList(head: HTMLElement, tail: HTMLElement | null): void {
+        const count = head.querySelectorAll(':scope > li').length;
+        if (tail?.tagName === 'OL') {
+            const start = this.listStartOf(head) + count;
+            if (start === 1) {
+                tail.removeAttribute('start');
+            } else {
+                tail.setAttribute('start', String(start));
+            }
+        }
+        if (count === 0) head.remove();
+    }
+
+    /** The number an ordered list counts from. */
+    private listStartOf(list: Element): number {
+        const start = Number.parseInt(list.getAttribute('start') ?? '', 10);
+        return Number.isInteger(start) ? start : 1;
+    }
+
+    /**
+     * How a block that takes the place of `lines` may be built, or null when it
+     * may not be.
+     *
+     * Beside lines that stand on their own. In place of top-level list items of
+     * one line each, by splitting the list around them, so the author's text
+     * keeps its order. Anywhere else -- a nested item, an item holding several
+     * lines, a cell, a summary -- the block has no form a save keeps without
+     * reordering or burying that text, so the command stands down.
+     */
+    private replacementFor(lines: readonly Line[]): 'lines' | 'items' | null {
+        const structures = lines.map((line) => this.structureOf(line));
+        if (structures.every((found) => found.length === 0)) return 'lines';
+        const topLevelItems = lines.every((line, i) =>
+            line.owner.nodeName === 'LI' && structures[i].length === 1 && structures[i][0] === line.owner);
+        if (!topLevelItems) return null;
+        const holdsSublist = lines.some((line) => line.owner.querySelector(':scope > ul, :scope > ol'));
+        return holdsSublist && lines.length > 1 ? null : 'items';
+    }
+
+    /**
+     * Put `built` in place of list items, splitting their list around it. A
+     * single item's sub-list follows the block as a list of its own.
+     */
+    private putBlockInPlaceOfItems(built: HTMLElement, lines: readonly Line[]): void {
+        const first = lines[0].owner;
+        const last = lines.at(-1)?.owner ?? first;
+        const list = first.parentElement;
+        if (!list) return;
+        const tail = this.splitListAfter(last);
+        const sublist = lines.length === 1 ? first.querySelector(':scope > ul, :scope > ol') : null;
+        list.after(built);
+        if (sublist) built.after(sublist);
+        for (const line of lines) line.owner.remove();
+        this.settleSplitList(list, tail);
+    }
+
     /** Register an addon keydown interceptor (addon host surface). */
+    /**
+     * Join the toolbar's mutually-exclusive popover group (addon host surface).
+     * Opening one member closes every other, restoring the single-open-panel
+     * rule the toolbar enforced structurally before the panels moved into
+     * addons.
+     */
+    registerExclusivePopover(close: () => void): RichTextExclusivePopover {
+        this.exclusivePopovers.add(close);
+        return {
+            notifyOpened: () => {
+                for (const other of this.exclusivePopovers) {
+                    if (other !== close) other();
+                }
+            },
+            release: () => {
+                this.exclusivePopovers.delete(close);
+            },
+        };
+    }
+
     registerKeydownInterceptor(interceptor: (event: KeyboardEvent) => boolean): () => void {
         this.keydownInterceptors.add(interceptor);
         return () => this.keydownInterceptors.delete(interceptor);
@@ -1776,6 +3554,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const mentionTargets = this.getMentionElementsInSelection();
 
         this.execEditorCommand('fontSize', '7');
+        const styled: HTMLElement[] = [];
         if (this.editorDiv?.nativeElement) {
             const fontElements = this.editorDiv.nativeElement.querySelectorAll('font[size="7"]');
 
@@ -1789,6 +3568,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
                     span.appendChild(el.firstChild);
                 }
                 el.parentNode?.replaceChild(span, el);
+                styled.push(span);
             });
         }
 
@@ -1796,7 +3576,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.setMentionStyle(mentionTargets, 'fontSize', sizeVal);
 
         this.syncContentFromEditor();
-        this.focusEditor();
+        this.reSaveLiveSelection(styled);
         this.pushHistory();
     }
 
@@ -1817,6 +3597,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
         this.execEditorCommand('fontName', family);
 
+        const styled: HTMLElement[] = [];
         if (this.editorDiv?.nativeElement) {
             const fontElements = this.editorDiv.nativeElement.querySelectorAll(`font[face="${CSS.escape(family)}"]`);
             for (const font of Array.from(fontElements)) {
@@ -1827,65 +3608,106 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
                     span.appendChild(el.firstChild);
                 }
                 el.parentNode?.replaceChild(span, el);
+                styled.push(span);
             }
         }
 
         this.setMentionStyle(mentionTargets, 'fontFamily', family);
         this.syncContentFromEditor();
-        this.focusEditor();
+        this.reSaveLiveSelection(styled);
         this.pushHistory();
     }
 
     private getCaretOffset(element: HTMLElement): number {
         const selection = this.document.getSelection();
-        if (!selection || selection.rangeCount === 0) return 0;
+        if (!selection?.anchorNode) return 0;
+        return this.textOffsetWithin(element, selection.anchorNode, selection.anchorOffset);
+    }
 
-        const range = selection.getRangeAt(0).cloneRange();
-        range.selectNodeContents(element);
-        if (!selection.anchorNode) return 0;
-        range.setEnd(selection.anchorNode, selection.anchorOffset);
+    /** Characters of `root`'s text before the point `(node, offset)`. */
+    private textOffsetWithin(root: HTMLElement, node: Node, offset: number): number {
+        const range = this.document.createRange();
+        range.selectNodeContents(root);
+        range.setEnd(node, offset);
         return range.toString().length;
     }
 
+    /**
+     * Wrap the selection in `tagName`, leaving the caret where the user can
+     * carry on typing.
+     *
+     * With text selected the caret goes after the new element, so typing
+     * continues outside it — wrapping is finished. With a collapsed caret the
+     * element is created EMPTY, and parking the caret after it made the block
+     * unreachable: clicks and arrow keys could not enter a zero-length inline
+     * element, so the toolbar's inline-code button produced a box nothing could
+     * be typed into. There the caret goes inside, on a zero-width anchor,
+     * because a browser will not place one in a truly empty element.
+     */
     private wrapSelectionWithTag(tagName: string): void {
         const selection = this.document.getSelection();
-        if (selection && selection.rangeCount > 0) {
-            const range = selection.getRangeAt(0);
-            const element = this.document.createElement(tagName);
-            const fragment = range.extractContents();
-            element.appendChild(fragment);
-            range.insertNode(element);
+        if (!selection || selection.rangeCount === 0) return;
 
-            const newRange = this.document.createRange();
-            newRange.setStartAfter(element);
-            newRange.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(newRange);
+        const range = selection.getRangeAt(0);
+        const existing = this.findAncestorByTag(range.startContainer, tagName.toUpperCase());
+        if (existing) {
+            this.unwrapElement(existing, selection);
+            return;
         }
+
+        const wasCollapsed = range.collapsed;
+        const element = this.document.createElement(tagName);
+        element.appendChild(range.extractContents());
+        range.insertNode(element);
+
+        const newRange = this.document.createRange();
+        if (wasCollapsed) {
+            const anchor = this.document.createTextNode('​');
+            element.appendChild(anchor);
+            newRange.setStart(anchor, anchor.data.length);
+            newRange.collapse(true);
+        } else {
+            // The text stays selected, as after bold or italic: the button then
+            // reads as pressed and a second click unwraps. Collapsing after the
+            // element left the caret outside it, so the second click wrapped an
+            // empty <code> beside the first instead.
+            newRange.selectNodeContents(element);
+        }
+        selection.removeAllRanges();
+        selection.addRange(newRange);
     }
 
-    private insertCodeBlock(): void {
-        const selection = this.document.getSelection();
-        if (selection && selection.rangeCount > 0) {
-            const range = selection.getRangeAt(0);
-            const pre = this.document.createElement('pre');
-            const code = this.document.createElement('code');
-            code.textContent = selection.toString() || '\n';
-            pre.appendChild(code);
-            range.deleteContents();
-            range.insertNode(pre);
+    /**
+     * Replace an element with its own children, keeping the text selected.
+     *
+     * This is what makes {@link wrapSelectionWithTag} a toggle. The toolbar
+     * already reports inline code as pressed when the caret sits inside a
+     * `<code>`, so a second click has to REMOVE the formatting the way bold and
+     * italic do; without this it wrapped the run again and produced nested
+     * `<code><code>…`, which reads as one unremovable code span to the user.
+     */
+    private unwrapElement(element: HTMLElement, selection: Selection): void {
+        const parent = element.parentNode;
+        if (!parent) return;
 
-            const newRange = this.document.createRange();
-            newRange.selectNodeContents(code);
-            newRange.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(newRange);
+        const first = element.firstChild;
+        const last = element.lastChild;
+        while (element.firstChild) {
+            parent.insertBefore(element.firstChild, element);
         }
+        element.remove();
+        parent.normalize();
+
+        if (!first || !last) return;
+        const restored = this.document.createRange();
+        restored.setStartBefore(first);
+        restored.setEndAfter(last);
+        selection.removeAllRanges();
+        selection.addRange(restored);
     }
 
     private insertHorizontalRule(): void {
-        this.insertHtml('<hr><p><br></p>');
-        this.pushHistory();
+        this.insertBlockAtCaret('<hr><p><br></p>');
     }
 
     /**
@@ -1912,7 +3734,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private getSelectedTextLength(): number {
         const selection = this.document.getSelection();
         if (selection && !selection.isCollapsed) {
-            return selection.toString().length;
+            // Graphemes, to match the unit the counter and the budget use — a
+            // mix would let a selection of emoji free up more budget than it
+            // actually occupies.
+            return graphemeLength(selection.toString());
         }
         return 0;
     }
@@ -2023,7 +3848,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * drag. Idle while a resize is already running, or when disabled/readonly.
      */
     onEditorMouseMove(event: MouseEvent): void {
-        if (this.tableResizeState || this.readonly() || this.disabled()) return;
+        if (this.tableResizeState || this.readonly() || this.isDisabled()) return;
         const target = event.target as HTMLElement;
         const cell = target.closest<HTMLTableCellElement>('td, th');
         const editorEl = this.editorDiv?.nativeElement;
@@ -2034,11 +3859,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             }
             return;
         }
-        const cellRect = cell.getBoundingClientRect();
-        const colIndex = Array.from((cell.parentElement as HTMLTableRowElement).cells).indexOf(cell);
-        const nearRightBorder = event.clientX >= cellRect.right - 4;
-        const nearLeftBorder = event.clientX <= cellRect.left + 4 && colIndex > 0;
-        if (nearRightBorder || nearLeftBorder) {
+        if (this.isNearResizeBorder(cell, event.clientX)) {
             this.tableResizeCursor.set(true);
             if (editorEl) editorEl.style.cursor = 'col-resize';
         } else if (this.tableResizeCursor()) {
@@ -2058,8 +3879,83 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * survives leaving the table. See {@link onEditorTouchStart} for the touch
      * equivalent.
      */
+    /**
+     * Spreadsheet-style cell picking: `Ctrl`/`Cmd`+click toggles one cell,
+     * `Shift`+click takes the rectangle from the anchor to the clicked cell.
+     *
+     * `Cmd` is honoured alongside `Ctrl` because on macOS `Ctrl`+click IS the
+     * context-menu gesture and would collide. Both paths collapse the text
+     * selection: a cell range highlighted as *text* wrapped across row ends
+     * (visible as a blue band spilling over the row above) and made it unclear
+     * what a following command would apply to. With the text selection gone,
+     * `tableCellSelected()` is the single source of truth for the commands
+     * that read it.
+     */
+    private handleModifiedCellClick(event: MouseEvent, cell: HTMLTableCellElement): boolean {
+        const toggling = event.ctrlKey || event.metaKey;
+        const ranging = event.shiftKey;
+        if (!toggling && !ranging) return false;
+
+        const table = cell.closest('table');
+        if (!table) return false;
+
+        event.preventDefault();
+
+        if (ranging && this.tableCellSelectAnchor?.closest('table') === table) {
+            this.selectCellRange(this.tableCellSelectAnchor, cell);
+        } else if (toggling) {
+            this.toggleCellInSelection(cell);
+            this.tableCellSelectAnchor = cell;
+        } else {
+            this.applyCellSelection([cell]);
+            this.tableCellSelectAnchor = cell;
+        }
+
+        this.collapseTextSelectionInEditor();
+        return true;
+    }
+
+    /** Add `cell` to the current cell selection, or remove it if already in. */
+    private toggleCellInSelection(cell: HTMLTableCellElement): void {
+        const current = this.tableCellSelected();
+        const next = current.includes(cell)
+            ? current.filter(c => c !== cell)
+            : [...current, cell];
+        this.applyCellSelection(next);
+    }
+
+    /** Replace the cell selection, keeping the marker class in step. */
+    private applyCellSelection(cells: readonly HTMLTableCellElement[]): void {
+        for (const cell of this.tableCellSelected()) {
+            cell.classList.remove('rte-cell-selected');
+        }
+        for (const cell of cells) {
+            cell.classList.add('rte-cell-selected');
+        }
+        this.tableCellSelected.set([...cells]);
+    }
+
+    /**
+     * Drop the browser's text selection to a caret inside the editable, so a
+     * cell selection is the only thing highlighted.
+     */
+    private collapseTextSelectionInEditor(): void {
+        const selection = this.document.getSelection();
+        if (!selection || selection.rangeCount === 0) return;
+
+        // `collapseToStart()` is not enough during a drag. The browser extends
+        // the selection from its ANCHOR, so collapsing to the range start
+        // leaves the caret at the anchor and the very next mousemove extends
+        // from there again — which is why dragging downwards kept painting a
+        // text highlight while dragging upwards (anchor below, start above)
+        // appeared to work. Dropping the range entirely leaves nothing to
+        // extend from.
+        selection.removeAllRanges();
+    }
+
     onEditorMouseDown(event: MouseEvent): void {
-        if (this.readonly() || this.disabled()) return;
+        this.lastInputRule = null;
+        if (this.readonly() || this.isDisabled()) return;
         const target = event.target as HTMLElement;
         const cell = target.closest<HTMLTableCellElement>('td, th');
         const isRightClick = event.button === 2;
@@ -2071,9 +3967,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             return;
         }
 
+        if (cell && this.handleModifiedCellClick(event, cell)) return;
+
         this.clearCellSelection();
 
-        if (this.startTableResize(event, cell)) {
+        if (this.startTableResize(event, cell, event.clientX, this.tableResizeCursor())) {
             return;
         }
 
@@ -2085,15 +3983,20 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
-    private startTableResize(event: MouseEvent, cell: HTMLTableCellElement | null): boolean {
-        if (!this.tableResizeCursor() || !cell) {
+    private startTableResize(
+        event: { preventDefault(): void; stopPropagation(): void },
+        cell: HTMLTableCellElement | null,
+        clientX: number,
+        onBorder: boolean,
+    ): boolean {
+        if (!onBorder || !cell) {
             return false;
         }
         const table = cell.closest<HTMLTableElement>('table');
         if (!table) {
             return false;
         }
-        const resizeColIndex = this.getResizeColumnIndex(cell, event.clientX);
+        const resizeColIndex = this.getResizeColumnIndex(cell, clientX);
         event.preventDefault();
         event.stopPropagation();
         const firstRow = table.rows[0];
@@ -2112,13 +4015,32 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.tableResizeState = {
             table,
             colIndex: resizeColIndex,
-            startX: event.clientX,
+            startX: clientX,
             startWidths: widths,
             tableWidth,
         };
         this.document.addEventListener('mousemove', this.onTableResizeMoveBound);
         this.document.addEventListener('mouseup', this.onTableResizeUpBound);
+        this.document.addEventListener('touchmove', this.onTableResizeTouchMoveBound, { passive: false });
+        this.document.addEventListener('touchend', this.onTableResizeUpBound);
         return true;
+    }
+
+    /**
+     * Whether a pointer at `clientX` is within the column-resize hotspot of a
+     * cell's left or right edge.
+     *
+     * Shared by the mouse and touch paths. The mouse path also uses it to set
+     * the `col-resize` cursor on hover; touch has no hover, so the touch path
+     * asks the same question at the moment of contact instead — without this
+     * being shared, a column simply could not be resized on a touch device.
+     */
+    private isNearResizeBorder(cell: HTMLTableCellElement, clientX: number): boolean {
+        const cellRect = cell.getBoundingClientRect();
+        const colIndex = Array.from((cell.parentElement as HTMLTableRowElement).cells).indexOf(cell);
+        const nearRightBorder = clientX >= cellRect.right - 4;
+        const nearLeftBorder = clientX <= cellRect.left + 4 && colIndex > 0;
+        return nearRightBorder || nearLeftBorder;
     }
 
     private getResizeColumnIndex(cell: HTMLTableCellElement, clientX: number): number {
@@ -2130,9 +4052,25 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     private onTableResizeMove(event: MouseEvent): void {
+        this.applyTableResizeDelta(event.clientX);
+    }
+
+    /**
+     * Touch equivalent of {@link onTableResizeMove}. Registered non-passive so
+     * it can `preventDefault` — without that the browser scrolls the page
+     * instead of resizing the column.
+     */
+    private onTableResizeTouchMove(event: TouchEvent): void {
+        const touch = event.touches[0];
+        if (!touch || !this.tableResizeState) return;
+        event.preventDefault();
+        this.applyTableResizeDelta(touch.clientX);
+    }
+
+    private applyTableResizeDelta(clientX: number): void {
         if (!this.tableResizeState) return;
         const { table, colIndex, startX, startWidths } = this.tableResizeState;
-        const delta = event.clientX - startX;
+        const delta = clientX - startX;
         const firstRow = table.rows[0];
         if (!firstRow) return;
 
@@ -2156,6 +4094,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
         this.document.removeEventListener('mousemove', this.onTableResizeMoveBound);
         this.document.removeEventListener('mouseup', this.onTableResizeUpBound);
+        this.document.removeEventListener('touchmove', this.onTableResizeTouchMoveBound);
+        this.document.removeEventListener('touchend', this.onTableResizeUpBound);
         this.applyMutation({ focus: false });
     }
 
@@ -2168,6 +4108,15 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const anchorTable = this.tableCellSelectAnchor.closest('table');
         if (!anchorTable || cell.closest('table') !== anchorTable) return;
         this.updateCellSelection(this.tableCellSelectAnchor, cell);
+
+        // Once the drag leaves its starting cell the gesture is a CELL range,
+        // so drop the browser's text selection running underneath it. Left in
+        // place it painted a second, ragged highlight that wrapped across row
+        // ends. Dragging inside one cell keeps its text selection, which is
+        // still the right way to select part of a cell's contents.
+        if (this.tableCellSelected().length > 1) {
+            this.collapseTextSelectionInEditor();
+        }
     }
 
     private onTableCellSelectUp(): void {
@@ -2185,9 +4134,18 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * touch path.
      */
     onEditorTouchStart(event: TouchEvent): void {
-        if (this.readonly() || this.disabled()) return;
+        if (this.readonly() || this.isDisabled()) return;
         const target = event.target as HTMLElement;
         const cell = target.closest<HTMLTableCellElement>('td, th');
+        const touch = event.touches?.[0] ?? event.changedTouches?.[0];
+
+        // Try a column resize first, as the mouse path does. There is no hover
+        // on touch to have primed `tableResizeCursor`, so the border test is
+        // made here from the touch's own position.
+        if (touch && cell && this.isNearResizeBorder(cell, touch.clientX)
+            && this.startTableResize(event, cell, touch.clientX, true)) {
+            return;
+        }
 
         if (cell && this.editorDiv?.nativeElement.contains(cell)) {
             this.clearCellSelection();
@@ -2339,14 +4297,17 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         });
         const cells = this.collectCellsInBounds(grid, bounds);
 
-        this.clearCellSelection();
         const selected = Array.from(cells.values());
-        if (selected.length > 1) {
-            for (const cell of selected) {
-                cell.classList.add('rte-cell-selected');
-            }
-            this.tableCellSelected.set(selected);
+        this.applyCellSelection(selected.length > 1 ? selected : []);
+    }
+
+    /** Select the rectangle spanning `anchor` to `target` (Shift+click). */
+    private selectCellRange(anchor: HTMLTableCellElement, target: HTMLTableCellElement): void {
+        if (anchor === target) {
+            this.applyCellSelection([anchor]);
+            return;
         }
+        this.updateCellSelection(anchor, target);
     }
 
     private expandSelectionBounds(
@@ -2500,7 +4461,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     canSplitCell(): boolean {
         const target = this.tableContextMenuTarget;
-        if (!target) return false;
+        if (!this.isLiveInEditor(target)) return false;
         return (target.colSpan > 1 || target.rowSpan > 1);
     }
 
@@ -2517,7 +4478,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     splitCell(): void {
         this.closeTableContextMenu();
         const target = this.tableContextMenuTarget;
-        if (!target) return;
+        if (!this.isLiveInEditor(target)) return;
         const rs = target.rowSpan || 1;
         const cs = target.colSpan || 1;
         if (rs <= 1 && cs <= 1) return;
@@ -2579,9 +4540,26 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return null;
     }
 
+    /**
+     * Whether an element the component stored earlier is still part of the live
+     * document.
+     *
+     * Anything that rewrites the editable's `innerHTML` — undo, redo,
+     * `writeValue`, `setContent` — detaches every node inside it, and those all
+     * stay reachable while a menu or overlay holds a reference (the table
+     * context menu keeps the editor focused, so Ctrl+Z works with it open).
+     * Acting on a detached node mutates a tree nothing renders: the change is
+     * invisible and the command appears to do nothing at all. Callers therefore
+     * check liveness rather than mere non-null.
+     */
+    private isLiveInEditor(node: Node | null | undefined): node is Node & { isConnected: true } {
+        const editor = this.editorDiv?.nativeElement;
+        return !!node && !!editor && editor.contains(node);
+    }
+
     private getTableCellInfo(target: HTMLTableCellElement | null): { cell: HTMLTableCellElement; row: HTMLTableRowElement; table: HTMLTableElement; colIndex: number; rowIndex: number } | null {
         const cell = target;
-        if (!cell) return null;
+        if (!this.isLiveInEditor(cell)) return null;
         const row = cell.closest<HTMLTableRowElement>('tr');
         const table = cell.closest<HTMLTableElement>('table');
         if (!row || !table) return null;
@@ -2996,6 +4974,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * cells are replaced, not renamed. No-op without a context-menu target or on
      * an empty table; one history entry.
      */
+    /**
+     * Turn the table's first row into a `<thead>` of `<th>`, or back again.
+     *
+     * Each cell is REPLACED rather than mutated, which detaches the element
+     * {@link tableContextMenuTarget} points at. Without re-pointing it, the
+     * next call found a cell with no `closest('table')`, bailed out, and the
+     * toggle appeared to work once and then stick — header on, never off.
+     */
     toggleTableHeaderRow(): void {
         this.closeTableContextMenu();
         const info = this.getTableCellInfo(this.tableContextMenuTarget);
@@ -3003,32 +4989,54 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const firstRow = info.table.querySelector('tr');
         if (!firstRow) return;
         const thead = info.table.querySelector('thead');
-        if (thead) {
-            const existingTbody = info.table.querySelector('tbody');
-            const tbody = existingTbody ?? this.document.createElement('tbody');
-            if (!existingTbody) {
-                info.table.appendChild(tbody);
-            }
-            const cells = Array.from(firstRow.cells);
-            for (const cell of cells) {
-                const td = this.document.createElement('td');
-                td.innerHTML = cell.innerHTML;
-                cell.replaceWith(td);
-            }
-            tbody.insertBefore(firstRow, tbody.firstChild);
-            if (thead.children.length === 0) thead.remove();
-        } else {
-            const newThead = this.document.createElement('thead');
-            const cells = Array.from(firstRow.cells);
-            for (const cell of cells) {
-                const th = this.document.createElement('th');
-                th.innerHTML = cell.innerHTML;
-                cell.replaceWith(th);
-            }
-            newThead.appendChild(firstRow);
-            info.table.insertBefore(newThead, info.table.firstChild);
-        }
+        if (thead) this.demoteHeaderRow(info.table, firstRow, thead);
+        else this.promoteHeaderRow(info.table, firstRow);
         this.applyMutation({ focus: true });
+    }
+
+    /** Move the header row back into the body, its `<th>` becoming `<td>`. */
+    private demoteHeaderRow(table: HTMLTableElement, firstRow: HTMLTableRowElement, thead: Element): void {
+        const existingTbody = table.querySelector('tbody');
+        const tbody = existingTbody ?? this.document.createElement('tbody');
+        if (!existingTbody) table.appendChild(tbody);
+
+        this.retagRowCells(firstRow, 'td');
+        tbody.insertBefore(firstRow, tbody.firstChild);
+        if (thead.children.length === 0) thead.remove();
+    }
+
+    /** Lift the first row into a new `<thead>`, its `<td>` becoming `<th>`. */
+    private promoteHeaderRow(table: HTMLTableElement, firstRow: HTMLTableRowElement): void {
+        const newThead = this.document.createElement('thead');
+        this.retagRowCells(firstRow, 'th');
+        newThead.appendChild(firstRow);
+        table.insertBefore(newThead, table.firstChild);
+    }
+
+    /**
+     * Rebuild every cell in `row` as `tagName`, carrying its markup over.
+     *
+     * Each cell is REPLACED, which detaches whatever
+     * {@link tableContextMenuTarget} pointed at — so the target is re-pointed
+     * at the new cell. Without that the next toggle found a cell with no
+     * `closest('table')` and silently did nothing.
+     */
+    private retagRowCells(row: HTMLTableRowElement, tagName: 'td' | 'th'): void {
+        const nextSelection = [...this.tableCellSelected()];
+        let selectionChanged = false;
+        for (const cell of Array.from(row.cells)) {
+            const replacement = this.document.createElement(tagName);
+            replacement.innerHTML = cell.innerHTML;
+            const wasTarget = cell === this.tableContextMenuTarget;
+            const selectedIndex = nextSelection.indexOf(cell);
+            if (selectedIndex !== -1) {
+                nextSelection[selectedIndex] = replacement;
+                selectionChanged = true;
+            }
+            cell.replaceWith(replacement);
+            if (wasTarget) this.tableContextMenuTarget = replacement;
+        }
+        if (selectionChanged) this.applyCellSelection(nextSelection);
     }
 
     /**
@@ -3050,15 +5058,23 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (!info) return;
 
         const table = info.table;
-        const cells = Array.from(table.querySelectorAll<HTMLElement>('td, th'));
+        const allCells = Array.from(table.querySelectorAll<HTMLElement>('td, th'));
         const rows = Array.from(table.querySelectorAll('tr'));
+
+        // With cells picked, 'all' and 'none' act on just those; the geometric
+        // styles ('outer', 'horizontal') are defined by the table's shape and
+        // stay table-wide, since an outer edge of a partial selection is not a
+        // meaningful thing to draw.
+        const selected = this.tableCellSelected().filter(c => table.contains(c)) as HTMLElement[];
+        const scoped = selected.length > 0 && (style === 'all' || style === 'none');
+        const cells = scoped ? selected : allCells;
 
         const borderColor = cells.length > 0
             ? getComputedStyle(cells[0]).borderTopColor
             : 'currentColor';
         const borderVal = `1px solid ${borderColor}`;
 
-        this.clearTableBorders(table, cells);
+        this.clearTableBorders(scoped ? null : table, cells);
 
         switch (style) {
             case 'all':
@@ -3077,8 +5093,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.applyMutation({ focus: true });
     }
 
-    private clearTableBorders(table: HTMLTableElement, cells: HTMLElement[]): void {
-        table.style.border = '';
+    /** `table` is null when only some cells are being restyled, so the table's
+     *  own outer border must be left alone. */
+    private clearTableBorders(table: HTMLTableElement | null, cells: HTMLElement[]): void {
+        if (table) table.style.border = '';
         for (const cell of cells) {
             cell.style.border = '';
             cell.style.borderTop = '';
@@ -3141,12 +5159,29 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * No-op without a menu target; one history entry.
      */
     setCellColor(color: string): void {
+        const targets = this.cellColorTargets();
         this.closeTableContextMenu();
-        if (this.tableContextMenuTarget) {
-            this.tableContextMenuTarget.style.backgroundColor = color === 'transparent' ? '' : color;
-            this.syncContentFromEditor();
-            this.pushHistory();
+        if (targets.length === 0) return;
+
+        for (const cell of targets) {
+            cell.style.backgroundColor = color === 'transparent' ? '' : color;
         }
+        this.syncContentFromEditor();
+        this.pushHistory();
+    }
+
+    /**
+     * The cells a colour applies to: every cell in an active multi-cell
+     * selection, or the single right-clicked cell when there is none.
+     *
+     * Colouring only {@link tableContextMenuTarget} meant that selecting a
+     * range and picking a colour filled just the one cell the menu opened on,
+     * silently discarding the rest of the selection.
+     */
+    private cellColorTargets(): HTMLTableCellElement[] {
+        const selected = this.tableCellSelected();
+        if (selected.length > 0) return [...selected];
+        return this.tableContextMenuTarget ? [this.tableContextMenuTarget] : [];
     }
 
     private getParentListItem(): HTMLElement | null {
@@ -3178,6 +5213,56 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         });
     }
 
+    /**
+     * Indent the caret's block: nest a list item, or step a plain block right.
+     *
+     * The toolbar's Increase/Decrease Indent buttons used to call the list-only
+     * path, so pressing them anywhere outside a list did nothing at all — no
+     * markup change and no visible movement. Blocks now shift by a margin the
+     * sanitizer already allows, capped so a document cannot be indented off the
+     * edge of the page.
+     */
+    private indentBlock(): void {
+        if (this.getParentListItem()) {
+            this.indentListItem();
+            return;
+        }
+        this.stepBlockIndent(RichTextEditorComponent.BLOCK_INDENT_STEP);
+    }
+
+    /** Outdent the caret's block — the inverse of {@link indentBlock}. */
+    private outdentBlock(): void {
+        if (this.getParentListItem()) {
+            this.outdentListItem();
+            return;
+        }
+        this.stepBlockIndent(-RichTextEditorComponent.BLOCK_INDENT_STEP);
+    }
+
+    /** Shift the caret's block by `deltaRem`, clamped to 0…MAX_BLOCK_INDENT_REM. */
+    private stepBlockIndent(deltaRem: number): void {
+        const selection = this.document.getSelection();
+        if (!selection || selection.rangeCount === 0) return;
+        const editor = this.editorDiv?.nativeElement;
+        const block = editor ? lineOf(selection.getRangeAt(0).startContainer, editor)?.owner : null;
+        if (!block) return;
+
+        const current = Number.parseFloat(block.style.marginLeft) || 0;
+        const next = Math.min(
+            RichTextEditorComponent.MAX_BLOCK_INDENT_REM,
+            Math.max(0, current + deltaRem),
+        );
+        if (next === current) return;
+
+        // `margin-left`, not the logical `margin-inline-start`: the sanitizer's
+        // allow-list carries the physical property, so the logical one would be
+        // stripped on the next sync and the indent would vanish.
+        if (next === 0) block.style.removeProperty('margin-left');
+        else block.style.marginLeft = `${next}rem`;
+
+        this.applyMutation({ focus: true, updateActiveFormats: true });
+    }
+
     private indentListItem(): void {
         const li = this.getParentListItem();
         if (!li) return;
@@ -3189,17 +5274,60 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
         const parentList = li.parentElement;
         const listType = parentList?.tagName === 'OL' ? 'ol' : 'ul';
-        let nestedList = prevLi.querySelector(`:scope > ${listType}`);
-        if (!nestedList) {
-            nestedList = this.document.createElement(listType);
-            if (parentList?.dataset['taskList'] !== undefined) {
-                (nestedList as HTMLElement).dataset['taskList'] = '';
-            }
-            prevLi.appendChild(nestedList);
-        }
+        const nestedList = this.listToAppendUnder(prevLi, listType, parentList?.dataset['taskList'] !== undefined);
+        const caret = this.caretInLine(li);
         nestedList.appendChild(li);
+        separateListKinds(nestedList);
+        if (caret) this.restoreCaretInLine(caret.owner, caret.offset);
 
         this.applyMutation({ focus: true, updateActiveFormats: true });
+    }
+
+    /**
+     * The caret's line inside `li`, as the element that owns the line and the
+     * character offset within the line's own text; null when the caret is
+     * elsewhere.
+     *
+     * Moving a list item re-parents the node the selection points at, which
+     * silently drops the caret onto the editor container. Capturing the caret
+     * before the move and reapplying it after keeps it where the user left it, so
+     * a second `Tab` still finds a list item to indent instead of falling through
+     * and inserting a literal tab. The line is kept as its owner rather than
+     * looked up from the item again: an item holding a paragraph, a code block or
+     * a table is no line, so the lookup climbed to an ancestor's line and the
+     * caret landed in another item, or nowhere.
+     */
+    private caretInLine(li: HTMLElement): { owner: HTMLElement; offset: number } | null {
+        const editor = this.editorDiv?.nativeElement;
+        const selection = this.document.getSelection();
+        if (!editor || !selection || selection.rangeCount === 0) return null;
+        const range = selection.getRangeAt(0);
+        if (!li.contains(range.startContainer)) return null;
+        const position = caretPosition(buildLineIndex(editor), range);
+        return position ? { owner: position.line.owner, offset: position.offset } : null;
+    }
+
+    /** Put the caret back at a character offset into the text of the line `owner` owns. */
+    private restoreCaretInLine(owner: HTMLElement, offset: number): void {
+        const editor = this.editorDiv?.nativeElement;
+        const selection = this.document.getSelection();
+        if (!editor || !selection) return;
+        const line = lineOf(owner, editor);
+        if (!line) return;
+        const range = lineOwnNodes(line).length > 0
+            ? placeCaretIn(line, offset)
+            : this.emptyLineCaretRange(line.holder);
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
+
+    /** A caret range in a line with no text of its own, seeding an anchor to hold it. */
+    private emptyLineCaretRange(holder: HTMLElement): Range {
+        const target = this.emptyBlockCaretTarget(holder);
+        const range = this.document.createRange();
+        range.setStart(target, target.data.length);
+        range.collapse(true);
+        return range;
     }
 
     private getListDepth(li: HTMLElement): number {
@@ -3218,70 +5346,169 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private outdentListItem(): void {
         const li = this.getParentListItem();
         if (!li) return;
-
-        const parentList = li.parentElement;
-        if (!parentList || (parentList.tagName !== 'UL' && parentList.tagName !== 'OL')) return;
-
-        const grandparentLi = parentList.parentElement;
-        if (grandparentLi?.tagName !== 'LI') return;
-
-        const grandparentList = grandparentLi.parentElement;
-        if (!grandparentList) return;
-
-        grandparentList.insertBefore(li, grandparentLi.nextSibling);
-
-        if (!parentList.hasChildNodes() || parentList.children.length === 0) {
-            parentList.remove();
-        }
+        const caret = this.caretInLine(li);
+        const line = this.moveItemOutOneLevel(li);
+        if (!line) return;
+        // The item's own line may now be a paragraph, when a block came along
+        // with it (see carryTrailingContent).
+        if (caret) this.restoreCaretInLine(caret.owner === li ? line : caret.owner, caret.offset);
 
         this.applyMutation({ focus: true, updateActiveFormats: true });
     }
 
-    private insertTaskList(): void {
-        const selection = this.document.getSelection();
-        if (!selection || selection.rangeCount === 0) return;
+    /**
+     * Move a nested item up one level, to just after its parent item, taking the
+     * items that followed it along as its own sub-list. Returns the element that
+     * holds the item's own line afterwards, or null when the item is not nested
+     * and nothing moves.
+     */
+    private moveItemOutOneLevel(li: HTMLElement): HTMLElement | null {
+        const parentList = li.parentElement;
+        if (!parentList || !isNestedList(parentList)) return null;
 
-        let node: Node | null = selection.getRangeAt(0).startContainer;
-        while (node && node !== this.editorDiv?.nativeElement) {
-            if (node.nodeType === Node.ELEMENT_NODE) {
-                const el = node as HTMLElement;
-                if (el.closest('ul[data-task-list]')) {
-                    this.execEditorCommand('insertUnorderedList');
-                    return;
-                }
-            }
-            node = node.parentNode;
+        const grandparentLi = parentList.parentElement;
+        if (grandparentLi?.tagName !== 'LI') return null;
+
+        const grandparentList = grandparentLi.parentElement;
+        if (!grandparentList) return null;
+
+        this.reparentFollowingSiblings(li, parentList);
+        const trailing: ChildNode[] = [];
+        for (let node = parentList.nextSibling; node; node = node.nextSibling) trailing.push(node);
+        grandparentList.insertBefore(li, grandparentLi.nextSibling);
+        if (parentList.children.length === 0) parentList.remove();
+        const line = this.carryTrailingContent(li, trailing);
+        // A task row stepping into a plain list, or a plain item into a task
+        // list, keeps its own kind in a list of its own.
+        separateListKinds(grandparentList);
+        return line;
+    }
+
+    /**
+     * Put what the parent item held after the moved item's list -- more text, a
+     * block, another sub-list -- at the end of the moved item: it shows below
+     * that item, and left in the parent it moved above it. Returns the element
+     * holding the moved item's own line.
+     */
+    private carryTrailingContent(li: HTMLElement, trailing: readonly ChildNode[]): HTMLElement {
+        if (trailing.every((node) => nodeShowsNothing(node))) return li;
+        if (li.dataset['task'] !== undefined) {
+            this.carryAfterTaskRow(li, trailing);
+            return li;
         }
+        li.append(...trailing);
+        return this.giveLooseTextLines(li) ?? li;
+    }
 
-        const ul = this.document.createElement('ul');
-        ul.dataset['taskList'] = '';
-        const li = this.document.createElement('li');
-        li.dataset['task'] = '';
-        li.dataset['checked'] = 'false';
-        const checkbox = this.document.createElement('input');
-        checkbox.type = 'checkbox';
-        const textSpan = this.document.createElement('span');
-        textSpan.appendChild(this.document.createTextNode('\u00A0'));
-        li.appendChild(checkbox);
-        li.appendChild(textSpan);
-        ul.appendChild(li);
+    /**
+     * What a task row carries: the nested lists leading it stay under the row, as
+     * a row's sub-lists do, and the rest, from the first content that shows
+     * something, becomes an item after the row, which is one line. Sent there
+     * whole, a leading list gave the new item no line of its own, an empty bullet
+     * nobody typed. An element before that content that shows nothing stays
+     * where it was.
+     */
+    private carryAfterTaskRow(row: HTMLElement, trailing: readonly ChildNode[]): void {
+        const at = trailing.findIndex((node) => !isNestedList(node) && !nodeShowsNothing(node));
+        const leading = at < 0 ? trailing : trailing.slice(0, at);
+        row.append(...leading.filter((node) => isNestedList(node)));
+        if (at < 0) return;
+        const item = this.document.createElement('li');
+        item.append(...trailing.slice(at));
+        row.after(item);
+        this.giveLooseTextLines(item);
+    }
 
-        const range = selection.getRangeAt(0);
-        range.deleteContents();
-        range.insertNode(ul);
+    /**
+     * When `item` holds a block, give each run of its loose text a paragraph: text
+     * beside a block belongs to no line. Checked on the item as it now is, not on
+     * what was added: text carried in beside blocks the item already held stayed
+     * loose. Returns the paragraph for the text before the first block, if the
+     * item got one.
+     */
+    private giveLooseTextLines(item: HTMLElement): HTMLElement | null {
+        if (Array.from(item.childNodes).every((node) => isPhrasing(node) || isNestedList(node))) return null;
+        return this.wrapLooseRuns(item);
+    }
 
-        const newRange = this.document.createRange();
-        newRange.setStart(textSpan, 0);
-        newRange.setEnd(textSpan, 0);
-        selection.removeAllRanges();
-        selection.addRange(newRange);
-        this.syncContentFromEditor();
-        this.pushHistory();
+    /**
+     * Wrap each run of loose inline content in `el` in a paragraph of its own;
+     * returns the paragraph for the content before the first block, if there is any.
+     */
+    private wrapLooseRuns(el: HTMLElement): HTMLElement | null {
+        const runs: ChildNode[][] = [[]];
+        for (const node of Array.from(el.childNodes)) {
+            if (isPhrasing(node) && node.nodeName !== 'INPUT') runs.at(-1)?.push(node);
+            else runs.push([]);
+        }
+        const paragraphs = runs.map((run) => this.paragraphAround(run));
+        return paragraphs[0];
+    }
+
+    /** A paragraph put where `run` was, holding it; null when the run shows nothing. */
+    private paragraphAround(run: readonly ChildNode[]): HTMLElement | null {
+        if (run.every((node) => node.nodeType === Node.TEXT_NODE && (node.textContent ?? '').trim() === '')) return null;
+        const paragraph = this.document.createElement('p');
+        run[0].before(paragraph);
+        paragraph.append(...run);
+        return paragraph;
+    }
+
+    /**
+     * Move the items after `li` into a nested list beneath it, so outdenting
+     * `li` carries them along instead of stranding them.
+     *
+     * Outdenting the FIRST of several siblings used to leave the rest in the
+     * old list. That list then sat under the promoted item's former parent, so
+     * on screen the *second* item appeared to be the one that moved — the row
+     * the user had not put the caret on. Every list editor treats the items
+     * below as children of the item being promoted; this does the same.
+     */
+    private reparentFollowingSiblings(li: HTMLElement, parentList: HTMLElement): void {
+        const following: HTMLElement[] = [];
+        let sibling = li.nextElementSibling;
+        while (sibling) {
+            const next = sibling.nextElementSibling;
+            if (sibling.tagName === 'LI') following.push(sibling as HTMLElement);
+            sibling = next;
+        }
+        if (following.length === 0) return;
+
+        const listType = parentList.tagName === 'OL' ? 'ol' : 'ul';
+        const nested = this.listToAppendUnder(li, listType, parentList.dataset['taskList'] !== undefined);
+        for (const item of following) nested.appendChild(item);
+        // The carried items keep their own kind, in the live document too.
+        separateListKinds(nested);
+    }
+
+    /**
+     * The list a line moved under `item` goes into: the list that ends the item
+     * when it has `tag`, or a new one appended after everything the item holds.
+     *
+     * The first matching sub-list was taken. Once a list had split by kind an
+     * item could hold a plain and a task sub-list, and a row indented or carried
+     * under it went into the earlier one, ahead of rows already after it.
+     */
+    private listToAppendUnder(item: Element, tag: 'ul' | 'ol', taskList: boolean): HTMLElement {
+        let last: ChildNode | null = item.lastChild;
+        while (last?.nodeType === Node.TEXT_NODE && (last.textContent ?? '').trim() === '') last = last.previousSibling;
+        if (last?.nodeName === tag.toUpperCase()) return last as HTMLElement;
+        const made = this.document.createElement(tag);
+        if (taskList) made.dataset['taskList'] = '';
+        // Past a list of another kind, a numbered list keeps counting from the
+        // item's last one, as a list split by kind does; it restarted at 1.
+        const previous = tag === 'ol' ? lastChildTagged(item, 'OL') : null;
+        if (previous) {
+            const start = this.listStartOf(previous) + previous.querySelectorAll(':scope > li').length;
+            if (start !== 1) made.setAttribute('start', String(start));
+        }
+        item.appendChild(made);
+        return made;
     }
 
     private insertToggleBlock(): void {
         const html = '<details open><summary>Toggle title</summary><p>Content here...</p></details>';
-        this.insertHtml(html);
+        this.insertHtmlFragment(html);
         this.pushHistory();
 
         const editor = this.editorDiv?.nativeElement;
@@ -3301,71 +5528,73 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     /**
-     * Bridges a {@link customToolbarItems} button click to the
-     * {@link customToolbarAction} output, building the {@link RichTextEditorRef}
-     * it carries. The ref's methods close over this instance and stay valid after
-     * the emit, so a consumer may hold it for an async flow (a dialog, a fetch)
-     * and insert later — the insertion goes to wherever the caret is at that
-     * point, since nothing here saves or restores the selection.
-     */
-    onCustomToolbarAction(id: string): void {
-        this.customToolbarAction.emit({
-            id,
-            ref: {
-                insertText: (text: string) => this.insertText(text),
-                insertHtml: (html: string) => this.insertHtml(html),
-                focus: () => this.editorDiv?.nativeElement?.focus(),
-                getSelectedText: () => this.selectedText(),
-                getHtmlContent: () => this.htmlContent(),
-            },
-        });
-    }
-
-    /**
-     * Open the find panel and focus its query field, with the replace row shown
-     * when `showReplace` is true. Bound to `Mod+F` (find) and `Mod+H` (find and
-     * replace) — `Mod+H` is gated on the editor being editable, `Mod+F` is not,
-     * so find works in a readonly editor. Calling it while the panel is already
-     * open just switches replace on or off and re-focuses; it does not re-run or
-     * clear the current search.
+     * Open the find panel and focus its query field, with the replace row
+     * requested when `showReplace` is true — it is still hidden unless the editor
+     * is editable ({@link showReplaceRow}). Bound to `Mod+F` (find) and `Mod+H`
+     * (find and replace) — `Mod+H` is gated on the editor being editable,
+     * `Mod+F` is not, so find works in a readonly editor.
+     *
+     * A non-empty, single-line selection seeds the query and is searched
+     * immediately, ignoring {@link findDebounceMs} for that one run; a collapsed
+     * selection leaves the previous query alone.
      */
     openFindReplace(showReplace: boolean): void {
         this.findShowReplace.set(showReplace);
         this.findReplaceVisible.set(true);
+        const seed = this.selectedText().trim();
+        if (seed && !seed.includes('\n')) {
+            this.findQuery.set(seed);
+            this.performFind({ preserveIndex: false });
+        }
         requestAnimationFrame(() => {
-            const el = (this.el.nativeElement as HTMLElement).querySelector<HTMLInputElement>('input[placeholder]');
+            const el = (this.el.nativeElement as HTMLElement)
+                .querySelector<HTMLInputElement>('[data-slot="rich-text-find-query"]');
             if (el) el.focus();
         });
     }
 
     /**
-     * Close the find panel, unwrapping the `<mark>` elements the search injected
-     * into the content (and normalizing the split text nodes back together) and
-     * resetting the query, replacement text and match list, then returning focus
-     * to the editable area. Bound to the panel's Escape key and its close button. The
-     * case-sensitivity toggle is deliberately NOT reset.
+     * Close the find panel, selecting the match the user was on so the caret
+     * lands where they were looking, then clearing the query, replacement text,
+     * matches and highlights and returning focus to the editable area. Bound to
+     * the panel's Escape key and its close button. The three search toggles are
+     * deliberately NOT reset.
      */
     closeFindReplace(): void {
-        this.clearFindHighlights();
+        const current = this.findMatches()[this.findCurrentIndex()]?.cloneRange();
+        this.cancelPendingFind();
+        this.teardownFindOverlay();
         this.findReplaceVisible.set(false);
         this.findQuery.set('');
         this.replaceText.set('');
         this.findMatches.set([]);
         this.findCurrentIndex.set(-1);
+        this._findRegexError.set(false);
         this.editorDiv?.nativeElement?.focus();
+        this.selectRange(current);
     }
 
     /**
-     * Update the search query and re-run the search immediately — bound to the
-     * query field's `input`, so it runs on every keystroke with no debounce, and
-     * each run re-walks all the editor's text nodes. Matches are plain
-     * case-folded substring matches within a single text node: a phrase broken by
-     * inline markup will not be found. Resets the current match to the first hit
-     * and scrolls it into view; an empty query just clears the highlights.
+     * Put the editor's selection on `range`, if there is one. Called after
+     * focusing the editable, never before: focusing a contenteditable collapses
+     * the selection to its start, which would discard the range.
+     */
+    private selectRange(range: Range | undefined): void {
+        if (!range) return;
+        const selection = this.document.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+    }
+
+    /**
+     * Update the search query and schedule the search. Runs after
+     * {@link findDebounceMs} of quiet so a burst of keystrokes searches once;
+     * with `findDebounceMs` at 0 it searches synchronously. Resets the current
+     * match to the first hit; an empty query just clears the highlights.
      */
     onFindQueryChange(query: string): void {
         this.findQuery.set(query);
-        this.performFind();
+        this.scheduleFind({ preserveIndex: false });
     }
 
     /**
@@ -3374,105 +5603,300 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * {@link closeFindReplace} for the lifetime of the component.
      */
     toggleFindCaseSensitive(): void {
-        this.findCaseSensitive.set(!this.findCaseSensitive());
-        this.performFind();
+        this.findCaseSensitive.update(v => !v);
+        this.performFind({ preserveIndex: false });
     }
 
-    private performFind(preserveIndex = false): void {
-        this.clearFindHighlights();
+    /**
+     * Flip whole-word matching (default off) and re-run the search. Word
+     * boundaries are Unicode-aware, so it works for any script — `שלום` is a
+     * whole word inside `שלום עולם`. Persists like {@link toggleFindCaseSensitive}.
+     */
+    toggleFindWholeWord(): void {
+        this.findWholeWord.update(v => !v);
+        this.performFind({ preserveIndex: false });
+    }
+
+    /**
+     * Flip regular-expression mode (default off) and re-run the search. In regex
+     * mode the query is a pattern rather than literal text, and `$1`-style group
+     * references in the replacement are expanded. An uncompilable pattern sets
+     * {@link findRegexError} instead of throwing. Persists like
+     * {@link toggleFindCaseSensitive}.
+     */
+    toggleFindUseRegex(): void {
+        this.findUseRegex.update(v => !v);
+        this.performFind({ preserveIndex: false });
+    }
+
+    /** Drop any queued debounced search. */
+    private cancelPendingFind(): void {
+        if (this.findDebounceTimer !== null) {
+            clearTimeout(this.findDebounceTimer);
+            this.findDebounceTimer = null;
+        }
+    }
+
+    /**
+     * Queue a search, coalescing bursts within {@link findDebounceMs}. A debounce
+     * of 0 runs it inline, which is what the unit suite and `findDebounceMs="0"`
+     * consumers rely on for a synchronous search.
+     */
+    private scheduleFind(options: { preserveIndex: boolean }): void {
+        this.cancelPendingFind();
+        const delay = this.findDebounceMs();
+        if (delay <= 0) {
+            this.performFind(options);
+            return;
+        }
+        this.findDebounceTimer = setTimeout(() => {
+            this.findDebounceTimer = null;
+            this.performFind(options);
+        }, delay);
+    }
+
+    /**
+     * Run the search: flatten the document, match the compiled query against it,
+     * turn every match into a DOM range, then repaint the overlay. Splitting the
+     * work across `buildFindIndex` / `collectMatches` / `updateFindState` keeps
+     * each piece independently testable and under the complexity budget.
+     */
+    private performFind(options: { preserveIndex: boolean }): void {
+        const editor = this.editorDiv?.nativeElement;
         const query = this.findQuery();
-        if (!query) {
-            this.findMatches.set([]);
-            this.findCurrentIndex.set(-1);
+        if (!editor || !query) {
+            this._findRegexError.set(false);
+            this.updateFindState([], options);
             return;
         }
 
-        const editor = this.editorDiv?.nativeElement;
-        if (!editor) return;
+        const regex = compileFindRegex(query, {
+            caseSensitive: this.findCaseSensitive(),
+            wholeWord: this.findWholeWord(),
+            useRegex: this.findUseRegex(),
+        });
+        if (!regex) {
+            this._findRegexError.set(true);
+            this.updateFindState([], options);
+            return;
+        }
 
-        const caseSensitive = this.findCaseSensitive();
-        const searchQuery = caseSensitive ? query : query.toLowerCase();
+        this._findRegexError.set(false);
+        this.updateFindState(this.collectMatches(buildFindIndex(editor), regex), options);
+    }
+
+    /**
+     * Walk `regex` over the flattened text, resolving each match to a live DOM
+     * range. Zero-length matches are skipped — and the cursor advanced by a whole
+     * code point — so a pattern like `a*` terminates instead of spinning.
+     */
+    private collectMatches(index: FindIndex, regex: RegExp): Range[] {
         const matches: Range[] = [];
-
-        const walker = this.document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
-        let textNode: Text | null;
-        while ((textNode = walker.nextNode() as Text | null)) {
-            const text = caseSensitive ? textNode.textContent ?? '' : (textNode.textContent ?? '').toLowerCase();
-            let startIndex = 0;
-            while (startIndex < text.length) {
-                const idx = text.indexOf(searchQuery, startIndex);
-                if (idx === -1) break;
-                const range = this.document.createRange();
-                range.setStart(textNode, idx);
-                range.setEnd(textNode, idx + query.length);
-                matches.push(range);
-                startIndex = idx + query.length;
+        regex.lastIndex = 0;
+        let match: RegExpExecArray | null;
+        while ((match = regex.exec(index.text)) !== null) {
+            if (match[0].length === 0) {
+                const codePoint = index.text.codePointAt(regex.lastIndex);
+                regex.lastIndex += codePoint !== undefined && codePoint > 0xffff ? 2 : 1;
+                continue;
             }
+            const range = this.rangeForMatch(index, match.index, match.index + match[0].length);
+            if (range) matches.push(range);
+            if (matches.length >= FIND_MAX_MATCHES) break;
         }
+        return matches;
+    }
 
+    /** Build the DOM range covering `[start, end)` of the flattened text, if both ends resolve. */
+    private rangeForMatch(index: FindIndex, start: number, end: number): Range | null {
+        const from = offsetToPosition(index.segments, start);
+        const to = offsetToPosition(index.segments, end, true);
+        if (!from || !to) return null;
+        const range = this.document.createRange();
+        range.setStart(from.node, from.offset);
+        range.setEnd(to.node, to.offset);
+        return range;
+    }
+
+    /** Publish the new match list, clamp or reset the current index, and repaint. */
+    private updateFindState(matches: Range[], options: { preserveIndex: boolean }): void {
         this.findMatches.set(matches);
-        if (matches.length > 0) {
-            if (!preserveIndex) {
-                this.findCurrentIndex.set(0);
-            }
-            this.highlightFindMatches();
-            this.scrollToCurrentMatch();
-        } else {
+        if (matches.length === 0) {
             this.findCurrentIndex.set(-1);
+        } else if (options.preserveIndex) {
+            this.findCurrentIndex.set(Math.min(Math.max(this.findCurrentIndex(), 0), matches.length - 1));
+        } else {
+            this.findCurrentIndex.set(0);
+        }
+        this.paintMatches();
+        if (matches.length > 0) this.scrollToCurrentMatch();
+    }
+
+    /** The overlay layer, created on first paint as a sibling of the editable. */
+    private ensureFindOverlay(): HTMLElement | null {
+        if (this.findOverlay?.isConnected) return this.findOverlay;
+        const container = this.editorContainer?.nativeElement;
+        if (!container) return null;
+        const overlay = this.document.createElement('div');
+        overlay.dataset['slot'] = 'rich-text-find-overlay';
+        overlay.setAttribute('aria-hidden', 'true');
+        overlay.className = 'absolute inset-0 pointer-events-none overflow-hidden z-40';
+        container.appendChild(overlay);
+        this.findOverlay = overlay;
+        this.attachFindRepositionListeners();
+        return overlay;
+    }
+
+    /**
+     * Keep the overlay pinned to the text as the editable scrolls or resizes.
+     * The rectangles are viewport-derived, so any layout shift invalidates them.
+     */
+    private attachFindRepositionListeners(): void {
+        const editor = this.editorDiv?.nativeElement;
+        if (!editor || this.findScrollHandler) return;
+        const handler = (): void => this.requestFindRepaint();
+        editor.addEventListener('scroll', handler, { passive: true });
+        this.findScrollHandler = () => editor.removeEventListener('scroll', handler);
+        if (typeof ResizeObserver !== 'undefined') {
+            this.findResizeObserver = new ResizeObserver(handler);
+            this.findResizeObserver.observe(editor);
         }
     }
 
-    private highlightFindMatches(): void {
-        this.clearFindHighlights();
+    /**
+     * Drop the overlay and everything that repainted it. Called when the panel
+     * closes, not only on destroy: left attached, the scroll listener and the
+     * ResizeObserver kept scheduling a repaint of an empty overlay on every
+     * scroll and resize for the rest of the editor's life.
+     */
+    private teardownFindOverlay(): void {
+        if (this.findRepaintHandle !== null) {
+            cancelAnimationFrame(this.findRepaintHandle);
+            this.findRepaintHandle = null;
+        }
+        this.findResizeObserver?.disconnect();
+        this.findResizeObserver = null;
+        this.findScrollHandler?.();
+        this.findScrollHandler = null;
+        this.findOverlay?.remove();
+        this.findOverlay = null;
+    }
+
+    /** Coalesce repaint requests onto one animation frame. */
+    private requestFindRepaint(): void {
+        if (this.findRepaintHandle !== null) return;
+        this.findRepaintHandle = requestAnimationFrame(() => {
+            this.findRepaintHandle = null;
+            this.paintMatches();
+        });
+    }
+
+    /**
+     * Draw one absolutely-positioned rectangle per client rect of every match.
+     * The overlay is a sibling of the editable, never a child of the content, so
+     * nothing here can reach `htmlContent`, the form value or the history — the
+     * defect that injected `<mark>` elements used to cause.
+     *
+     * Geometry is requested only for rectangles that will actually be drawn:
+     * `getClientRects()` forces layout, so asking for every match of a
+     * thousands-of-matches query is precisely the cost
+     * {@link FIND_MAX_PAINTED_RECTS} exists to avoid.
+     */
+    private paintMatches(): void {
         const matches = this.findMatches();
+        if (matches.length === 0) {
+            this.clearFindHighlights();
+            return;
+        }
+        const overlay = this.ensureFindOverlay();
+        const container = this.editorContainer?.nativeElement;
+        if (!overlay || !container) return;
+
+        const base = container.getBoundingClientRect();
         const currentIdx = this.findCurrentIndex();
-
-        for (let i = 0; i < matches.length; i++) {
-            try {
-                const range = matches[i];
-                const mark = this.document.createElement('mark');
-                mark.dataset['findMatch'] = '';
-                mark.style.backgroundColor = i === currentIdx ? 'rgba(250, 204, 21, 0.7)' : 'rgba(250, 204, 21, 0.3)';
-                mark.style.borderRadius = '2px';
-                if (i === currentIdx) mark.dataset['findCurrent'] = '';
-                range.surroundContents(mark);
-                this.findHighlightElements.push(mark);
-            } catch {
-                // Range may span multiple elements; skip
+        const painted: { rect: DOMRect; current: boolean }[] = [];
+        for (const [i, range] of matches.entries()) {
+            const isCurrent = i === currentIdx;
+            if (!isCurrent && painted.length >= FIND_MAX_PAINTED_RECTS) continue;
+            for (const rect of Array.from(range.getClientRects())) {
+                painted.push({ rect, current: isCurrent });
             }
+        }
+
+        this.renderFindRects(overlay, painted, base, container);
+    }
+
+    /** Reconcile the overlay's rectangle elements against `painted`, reusing nodes. */
+    private renderFindRects(
+        overlay: HTMLElement,
+        painted: readonly { rect: DOMRect; current: boolean }[],
+        base: DOMRect,
+        container: HTMLElement,
+    ): void {
+        const existing = Array.from(overlay.children) as HTMLElement[];
+        for (let i = existing.length; i < painted.length; i++) {
+            const el = this.document.createElement('div');
+            el.dataset['findRect'] = '';
+            el.className = 'absolute rounded-[2px]';
+            overlay.appendChild(el);
+        }
+        const children = Array.from(overlay.children) as HTMLElement[];
+        for (const [i, child] of children.entries()) {
+            const entry = painted[i];
+            if (!entry) {
+                child.hidden = true;
+                continue;
+            }
+            child.hidden = false;
+            if (entry.current) {
+                child.dataset['findCurrent'] = '';
+            } else {
+                delete child.dataset['findCurrent'];
+            }
+            child.style.backgroundColor = entry.current
+                ? 'rgba(250, 204, 21, 0.7)'
+                : 'rgba(250, 204, 21, 0.35)';
+            child.style.left = `${entry.rect.left - base.left + container.scrollLeft}px`;
+            child.style.top = `${entry.rect.top - base.top + container.scrollTop}px`;
+            child.style.width = `${entry.rect.width}px`;
+            child.style.height = `${entry.rect.height}px`;
         }
     }
 
+    /** Remove every painted rectangle, leaving the (empty) overlay in place. */
     private clearFindHighlights(): void {
-        for (const mark of this.findHighlightElements) {
-            const parent = mark.parentNode;
-            if (parent) {
-                while (mark.firstChild) {
-                    parent.insertBefore(mark.firstChild, mark);
-                }
-                mark.remove();
-                parent.normalize();
-            }
-        }
-        this.findHighlightElements = [];
+        if (this.findOverlay) this.findOverlay.replaceChildren();
     }
 
+    /**
+     * Bring the current match into the editable's visible area. Scrolls the
+     * editable itself rather than calling `scrollIntoView`, so a match below the
+     * fold never scrolls the whole page.
+     */
     private scrollToCurrentMatch(): void {
-        const current = (this.el.nativeElement as HTMLElement).querySelector<HTMLElement>('mark[data-find-current]');
-        if (current) current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const editor = this.editorDiv?.nativeElement;
+        const range = this.findMatches()[this.findCurrentIndex()];
+        if (!editor || !range) return;
+        const rect = range.getBoundingClientRect();
+        const view = editor.getBoundingClientRect();
+        if (rect.height === 0 && rect.width === 0) return;
+        if (rect.top < view.top) {
+            editor.scrollTop += rect.top - view.top;
+        } else if (rect.bottom > view.bottom) {
+            editor.scrollTop += rect.bottom - view.bottom;
+        }
     }
 
     /**
      * Advance to the next match, wrapping around at the end, and scroll it into
-     * view. Re-runs the search to rebuild the highlights but keeps the index, so
-     * it stays correct after the content changed underneath. No-op with no
-     * matches.
+     * view. No-op with no matches.
      */
     findNext(): void {
         const matches = this.findMatches();
         if (matches.length === 0) return;
         this.findCurrentIndex.set((this.findCurrentIndex() + 1) % matches.length);
-        this.performFind(true);
+        this.paintMatches();
+        this.scrollToCurrentMatch();
     }
 
     /**
@@ -3485,91 +5909,163 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (matches.length === 0) return;
         const idx = this.findCurrentIndex() - 1;
         this.findCurrentIndex.set(idx < 0 ? matches.length - 1 : idx);
-        this.performFind(true);
+        this.paintMatches();
+        this.scrollToCurrentMatch();
     }
 
     /**
-     * Replace the currently highlighted match with the replacement text, then
-     * re-run the search so the counter and highlights reflect the new content.
-     * The replacement is inserted as plain text and inherits the formatting
-     * around it. Because the search re-runs from the top, the current match falls
-     * back to the first hit — repeated calls walk forward only while the
-     * replacement itself does not match the query. No-op with no current match.
-     * Records one history entry.
+     * The text that replaces `matched`. In regex mode the pattern is re-applied
+     * to the matched text so `$1`-style group references expand; otherwise the
+     * replacement is inserted literally.
+     */
+    /**
+     * The function that turns one matched string into its replacement, built
+     * once per sweep: in regex mode the pattern is compiled a single time and
+     * capture groups expand through `String.replace`, in literal mode the
+     * replacement text is returned as is.
+     */
+    private replacerForQuery(): (matched: string) => string {
+        const replacement = this.replaceText();
+        if (!this.findUseRegex()) return () => replacement;
+        const regex = compileFindRegex(this.findQuery(), {
+            caseSensitive: this.findCaseSensitive(),
+            wholeWord: this.findWholeWord(),
+            useRegex: true,
+        });
+        if (!regex) return () => replacement;
+        const single = new RegExp(regex.source, regex.flags.replace('g', ''));
+        return (matched) => matched.replace(single, replacement);
+    }
+
+    /**
+     * Swap one range's contents for `text`, keeping the formatting around it.
+     * The replacement lands at the range's start, so a match spanning a markup
+     * boundary reappears where it began; inline ancestors the deletion emptied
+     * are then removed rather than left as invisible stubs.
+     */
+    private replaceRange(range: Range, text: string): void {
+        // Only INLINE WRAPPERS the range touches are candidates for removal, and
+        // only when the deletion itself emptied them. The previous version took
+        // every element under the nearest ancestor plus every ancestor up to
+        // the root and removed whatever had empty text -- which is every <img>,
+        // <br>, <hr> and <input> beside the match (empty text, no descendants),
+        // and, for an empty replacement, the <td>, <tr>, <table>, <li> or <h1>
+        // the match sat in. "Replace cat with dog" deleted the picture next to
+        // the word; "replace TBD with nothing" deleted the table cell.
+        const candidates = this.inlineWrappersTouchedBy(range);
+
+        range.deleteContents();
+        if (text) range.insertNode(this.document.createTextNode(text));
+
+        for (const el of candidates) {
+            if (el.isConnected && el.textContent === '' && !el.querySelector(VOID_CONTENT_SELECTOR)) {
+                el.remove();
+            }
+        }
+    }
+
+    /**
+     * The inline wrapper elements a range starts in, ends in, or overlaps --
+     * walked from each boundary up to the first block, never past it.
+     */
+    private inlineWrappersTouchedBy(range: Range): Set<Element> {
+        const editor = this.editorDiv?.nativeElement;
+        const candidates = new Set<Element>();
+        // A task item's text lives in a <span> the editor itself created as the
+        // caret target; emptying it must leave it in place, or the item loses
+        // the one node a caret can sit in.
+        const isStructural = (el: Element): boolean =>
+            el.tagName === 'SPAN' && el.parentElement?.matches('li[data-task]') === true;
+        const climb = (from: Node): void => {
+            for (let node: Node | null = from; node && node !== editor; node = node.parentNode) {
+                if (node.nodeType !== Node.ELEMENT_NODE) continue;
+                const el = node as Element;
+                if (!INLINE_WRAPPER_TAGS.has(el.tagName)) break;
+                if (!isStructural(el)) candidates.add(el);
+            }
+        };
+        climb(range.startContainer);
+        climb(range.endContainer);
+
+        const ancestor = range.commonAncestorContainer;
+        if (ancestor.nodeType === Node.ELEMENT_NODE) {
+            for (const el of Array.from((ancestor as Element).querySelectorAll(INLINE_WRAPPER_SELECTOR))) {
+                if (range.intersectsNode(el) && !isStructural(el)) candidates.add(el);
+            }
+        }
+        return candidates;
+    }
+
+    /**
+     * Replace the currently highlighted match, then re-run the search so the
+     * counter and highlights reflect the new content, keeping the index so the
+     * next call moves forward through the remaining matches. Records exactly one
+     * history entry, flushing any pending typing burst as its own entry first.
+     * No-op with no current match, or when the editor is not editable.
      */
     replaceSingle(): void {
-        const matches = this.findMatches();
-        const idx = this.findCurrentIndex();
-        if (matches.length === 0 || idx < 0) return;
+        if (this.readonly() || this.isDisabled()) return;
+        const range = this.findMatches()[this.findCurrentIndex()];
+        if (!range) return;
 
-        this.clearFindHighlights();
-        this.performFind();
-
-        const currentMark = (this.el.nativeElement as HTMLElement).querySelector<HTMLElement>('mark[data-find-current]');
-        if (currentMark) {
-            currentMark.textContent = this.replaceText();
-            const parent = currentMark.parentNode;
-            if (parent) {
-                while (currentMark.firstChild) parent.insertBefore(currentMark.firstChild, currentMark);
-                currentMark.remove();
-                parent.normalize();
-            }
-        }
-        this.findHighlightElements = this.findHighlightElements.filter(el => el !== currentMark);
-        this.clearFindHighlights();
+        this.flushPendingHistoryPush();
+        this.replaceRange(range, this.replacerForQuery()(range.toString()));
         this.syncContentFromEditor();
         this.pushHistory();
-        this.performFind();
+        this.performFind({ preserveIndex: true });
     }
 
     /**
-     * Replace every match of the current query in one pass, walking the
-     * highlights back to front so earlier replacements cannot invalidate the
-     * later positions. Replacements are plain text keeping each match's
-     * surrounding formatting. The whole sweep is a single history entry, so one
-     * undo restores the document. The search is re-run afterwards, which will
-     * find the replacements again if they contain the query.
+     * Replace every match of the current query in one pass, walking the matches
+     * back to front so earlier replacements cannot invalidate later positions.
+     * The whole sweep is a single history entry — one undo restores the document
+     * — and any pending typing burst is flushed as its own entry first. No-op
+     * when the editor is not editable.
      */
     replaceAll(): void {
-        this.clearFindHighlights();
-        this.performFind();
+        if (this.readonly() || this.isDisabled()) return;
+        const matches = this.findMatches();
+        if (matches.length === 0) return;
 
-        const marks = Array.from((this.el.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('mark[data-find-match]'));
-        marks.reverse();
-        for (const mark of marks) {
-            mark.textContent = this.replaceText();
-            const parent = mark.parentNode;
-            if (parent) {
-                while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
-                mark.remove();
-                parent.normalize();
-            }
+        this.flushPendingHistoryPush();
+        const replacer = this.replacerForQuery();
+        for (const range of [...matches].reverse()) {
+            this.replaceRange(range, replacer(range.toString()));
         }
-        this.findHighlightElements = [];
         this.syncContentFromEditor();
         this.pushHistory();
-        this.performFind();
+        this.performFind({ preserveIndex: true });
     }
 
     /**
-     * Keydown handler bound on the find panel container. Turns `Enter` into
-     * {@link findNext} and `Shift+Enter` into {@link findPrevious}, preventing the
-     * default so Enter in either text field never submits a surrounding form.
-     * Every other key falls through — Escape is closed separately by the
-     * template's `keydown.escape` binding.
+     * Keydown handler bound on the find panel container. `Mod+Alt+Enter` replaces
+     * all; `Enter` in the replace input replaces the current match; `Enter`
+     * elsewhere is {@link findNext} and `Shift+Enter` {@link findPrevious}. The
+     * default is prevented so Enter in either text field never submits a
+     * surrounding form. Escape is closed separately by the template's
+     * `keydown.escape` binding.
      */
     onFindReplaceKeydown(event: KeyboardEvent): void {
-        if (event.key === 'Enter') {
-            event.preventDefault();
-            if (event.shiftKey) {
-                this.findPrevious();
-            } else {
-                this.findNext();
-            }
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+
+        if (event.altKey && (event.ctrlKey || event.metaKey)) {
+            this.replaceAll();
+            return;
+        }
+        const target = event.target as HTMLElement | null;
+        if (target?.dataset?.['slot'] === 'rich-text-find-replace') {
+            this.replaceSingle();
+            return;
+        }
+        if (event.shiftKey) {
+            this.findPrevious();
+        } else {
+            this.findNext();
         }
     }
 
-    private insertText(text: string): void {
+    private insertTextNode(text: string): void {
         const selection = this.document.getSelection();
         if (!selection || selection.rangeCount === 0 || !this.editorDiv?.nativeElement) {
             this.editorDiv?.nativeElement?.appendChild(this.document.createTextNode(text));
@@ -3589,11 +6085,21 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.syncContentFromEditor();
     }
 
-    private insertHtml(html: string): void {
-        const sanitized = this.sanitizer.sanitize(html);
+    private insertHtmlFragment(html: string): void {
+        this.insertSanitizedHtml(this.sanitizer.sanitize(html));
+    }
+
+    /**
+     * Insert already-sanitized markup at the live caret. Split out so a caller
+     * that had to sanitize anyway — {@link insertHtml}, which sanitizes to
+     * decide whether anything survives — can insert the result it already has
+     * instead of paying for a second identical pass.
+     */
+    private insertSanitizedHtml(sanitized: string): void {
         const selection = this.document.getSelection();
         if (!selection || selection.rangeCount === 0 || !this.editorDiv?.nativeElement) {
             this.editorDiv?.nativeElement?.insertAdjacentHTML('beforeend', sanitized);
+            this.labelBlockedImages();
             this.syncContentFromEditor();
             return;
         }
@@ -3604,6 +6110,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         template.innerHTML = sanitized;
         const fragment = template.content.cloneNode(true) as DocumentFragment;
         const lastInserted = fragment.lastChild;
+        this.escapeEnclosingBlock(range, fragment);
         range.insertNode(fragment);
 
         const newRange = this.document.createRange();
@@ -3615,7 +6122,79 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         newRange.collapse(true);
         selection.removeAllRanges();
         selection.addRange(newRange);
+        this.labelBlockedImages();
         this.syncContentFromEditor();
+    }
+
+    /**
+     * Move `range` out of the block the caret sits in when `fragment` carries
+     * blocks of its own.
+     *
+     * `insertNode` drops the fragment wherever the caret is, so pasting
+     * "&lt;p&gt;one&lt;/p&gt;&lt;p&gt;two&lt;/p&gt;" at the end of a paragraph
+     * nested both inside it. That is invalid markup, and the sanitized model
+     * built from it did not match the live DOM -- what the user saw and what got
+     * saved had different structure. Splitting at the caret gives the incoming
+     * blocks the top level they need; an inline-only fragment is left alone, so
+     * pasting a word mid-sentence still lands mid-sentence.
+     */
+    /**
+     * The block that must be split to give an incoming block the top level, or
+     * null when nothing needs splitting.
+     *
+     * A cell or list item already HOLDS blocks, so a paste inside one belongs
+     * where it is. Walking past a cell found the whole `<table>` and split that
+     * instead: one table became two with a ragged row left behind, and a `<p>`
+     * could land as a direct child of `<ul>`.
+     */
+    private blockToSplit(start: Node, editor: HTMLElement): HTMLElement | null {
+        let node: Node | null = start;
+        while (node && node !== editor) {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+                const tag = (node as Element).tagName;
+                if (BLOCK_CONTAINER_TAGS.has(tag)) return null;
+                if (BLOCK_TAGS.has(tag)) return node as HTMLElement;
+            }
+            node = node.parentNode;
+        }
+        return null;
+    }
+
+    private escapeEnclosingBlock(range: Range, fragment: DocumentFragment): void {
+        const editor = this.editorDiv?.nativeElement;
+        if (!editor) return;
+
+        const carriesBlocks = Array.from(fragment.childNodes).some(
+            (node) => node.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has((node as Element).tagName),
+        );
+        if (!carriesBlocks) return;
+
+        const block = this.blockToSplit(range.startContainer, editor);
+        if (!block?.parentNode) return;
+
+        const tail = range.cloneRange();
+        tail.setEndAfter(block);
+        const remainder = tail.extractContents();
+        block.parentNode.insertBefore(remainder, block.nextSibling);
+
+        // An empty shell is left behind when the caret sat at the very start or
+        // end of the block; dropping it avoids a blank paragraph either side.
+        // Where to put the caret is decided BEFORE the shells are removed. Reading
+        // the node's position afterwards gave -1 when the block itself had just
+        // been removed, so setStart landed at the START of the parent -- the
+        // caret jumping to the top instead of following the pasted content.
+        const parent = block.parentNode;
+        const insertAt = Array.from(parent.childNodes).indexOf(block) + 1;
+
+        let removedBefore = 0;
+        for (const shell of [block, block.nextElementSibling]) {
+            if (shell instanceof HTMLElement && !shell.textContent?.trim() && !shell.querySelector('img, br, input')) {
+                if (shell === block) removedBefore++;
+                shell.remove();
+            }
+        }
+        range.setStart(parent, Math.max(0, insertAt - removedBefore));
+        range.collapse(true);
     }
 
     private getEditorElement(): HTMLDivElement | null {
@@ -3626,16 +6205,30 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     private syncContentFromEditor(): void {
-        const editorElement = this.getEditorElement();
-        if (editorElement) {
-            const html = this.sanitizer.sanitize(editorElement.innerHTML).replaceAll('\u200B', '');
-            this.htmlContent.set(html);
+        const html = this.readContentFromEditor();
+        if (html === null) return;
 
-            const outputValue = this.mode() === 'markdown'
-                ? this.markdownService.toMarkdown(html)
-                : html;
-            this.onChange(outputValue);
-        }
+        const outputValue = this.mode() === 'markdown'
+            ? this.markdownService.toMarkdown(html)
+            : html;
+        this.onChange(outputValue);
+    }
+
+    /**
+     * Re-reads the editable DOM into {@link htmlContent} and returns the
+     * sanitized html, WITHOUT notifying the form. Used where the model has to
+     * be current for a history snapshot but the value is about to change again
+     * \u2014 a Markdown input rule captures its pre-transform markers this way, and
+     * telling the form about that intermediate state would emit twice for one
+     * edit. Returns `null` when the editor element is not available.
+     */
+    private readContentFromEditor(): string | null {
+        const editorElement = this.getEditorElement();
+        if (!editorElement) return null;
+
+        const html = this.sanitizer.sanitize(editorElement.innerHTML).replaceAll('\u200B', '');
+        this.htmlContent.set(html);
+        return html;
     }
 
     private getMentionElementsInSelection(): HTMLElement[] {
@@ -3681,6 +6274,93 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
+    /**
+     * Clear formatting acts on the selection, or, with a collapsed caret, on
+     * the formatted run around it. `removeFormat` with nothing selected is a
+     * no-op, so from inside bold text the button did nothing however often it
+     * was clicked and the text typed next stayed bold. The caret goes back to
+     * the same character afterwards.
+     */
+    private clearFormatting(mentionTargets: HTMLElement[]): void {
+        const selection = this.document.getSelection();
+        const editor = this.editorDiv?.nativeElement;
+        if (!selection || selection.rangeCount === 0 || !editor) return;
+        const range = selection.getRangeAt(0);
+        if (!range.collapsed) {
+            this.execEditorCommand('removeFormat');
+            this.clearMentionStyles(mentionTargets);
+            return;
+        }
+        const caret = this.caretTextPosition(range, editor);
+        const run = this.formattedRunAround(range.startContainer, editor);
+        if (!caret || !run) return;
+        // Unwrapped by hand rather than through removeFormat over a widened
+        // range: Chrome's command is unreliable at element boundaries -- it
+        // stripped only the outer wrapper, or nothing, depending on how the
+        // range was expressed.
+        this.unwrapInlineFormatting(run);
+        this.clearMentionStyles(mentionTargets);
+        this.placeCaretAtTextPosition(selection, caret);
+    }
+
+    /** Lifts the text out of every formatting wrapper in the run; links and mention chips stay, minus their styles. */
+    private unwrapInlineFormatting(run: HTMLElement): void {
+        const wrappers = [run, ...Array.from(run.querySelectorAll<HTMLElement>(`${INLINE_WRAPPER_SELECTOR}, font`))];
+        wrappers.reverse();
+        for (const wrapper of wrappers) {
+            if (wrapper.tagName === 'A' || wrapper.dataset['mention'] !== undefined) {
+                wrapper.removeAttribute('style');
+                continue;
+            }
+            const parent = wrapper.parentNode;
+            if (!parent) continue;
+            while (wrapper.firstChild) parent.insertBefore(wrapper.firstChild, wrapper);
+            wrapper.remove();
+        }
+    }
+
+    /** The outermost inline wrapper between `node` and its line block, or null in plain text. */
+    private formattedRunAround(node: Node, editor: HTMLElement): HTMLElement | null {
+        let run: HTMLElement | null = null;
+        let current = node.nodeType === Node.ELEMENT_NODE ? (node as HTMLElement) : node.parentElement;
+        // A task row's span holds the row's text: it is the line, not formatting,
+        // and clearing it as a wrapper left the text bare beside the checkbox.
+        const holder = lineOf(node, editor)?.holder ?? null;
+        while (current && current !== editor && current !== holder && !LINE_OWNING_TAGS.has(current.tagName)) {
+            if (INLINE_WRAPPER_TAGS.has(current.tagName) || current.tagName === 'FONT') run = current;
+            current = current.parentElement;
+        }
+        return run;
+    }
+
+    /** The caret as a character offset inside its line block, which survives the block's inline nodes being rebuilt. */
+    private caretTextPosition(range: Range, editor: HTMLElement): { block: HTMLElement; offset: number } | null {
+        let block = range.startContainer.nodeType === Node.ELEMENT_NODE
+            ? (range.startContainer as HTMLElement)
+            : range.startContainer.parentElement;
+        while (block && block !== editor && !LINE_OWNING_TAGS.has(block.tagName)) block = block.parentElement;
+        if (!block || block === editor) return null;
+        const before = this.document.createRange();
+        before.setStart(block, 0);
+        before.setEnd(range.startContainer, range.startOffset);
+        return { block, offset: before.toString().length };
+    }
+
+    private placeCaretAtTextPosition(selection: Selection, caret: { block: HTMLElement; offset: number }): void {
+        const walker = this.document.createTreeWalker(caret.block, NodeFilter.SHOW_TEXT);
+        let remaining = caret.offset;
+        let text = walker.nextNode() as Text | null;
+        while (text && remaining > text.data.length) {
+            remaining -= text.data.length;
+            text = walker.nextNode() as Text | null;
+        }
+        if (text) {
+            this.setSelectionRange(selection, text, remaining);
+        } else {
+            this.setSelectionRange(selection, caret.block, caret.block.childNodes.length);
+        }
+    }
+
     private clearMentionStyles(elements: HTMLElement[]): void {
         for (const el of elements) {
             el.style.fontWeight = '';
@@ -3722,6 +6402,43 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     private focusEditor(): void {
         this.editorDiv?.nativeElement?.focus();
+    }
+
+    /**
+     * Re-capture the (still selected) range after a picker-driven mutation, so
+     * a second choice from the same open picker applies to the same text.
+     *
+     * The font handlers used to end with {@link focusEditor}, which collapses
+     * the selection: the first choice worked, then every later one in the same
+     * open picker silently did nothing because there was no longer anything
+     * selected to style. Colour picking already behaved correctly, which is why
+     * only the font controls showed the bug.
+     */
+    private reSaveLiveSelection(spans?: readonly HTMLElement[]): void {
+        const editor = this.editorDiv?.nativeElement;
+        const selection = this.document.getSelection();
+        if (!editor || !selection) return;
+
+        // `execCommand` replaces the styled run with NEW nodes, so the range
+        // that was live a moment ago points at detached ones. Re-select across
+        // the spans the command just produced, keeping the same visible text
+        // selected so a second pick from the still-open picker restyles it
+        // instead of silently doing nothing.
+        const lastSpan = spans?.at(-1);
+        if (spans && lastSpan) {
+            const range = this.document.createRange();
+            range.setStartBefore(spans[0]);
+            range.setEndAfter(lastSpan);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            this.savedRange = range.cloneRange();
+            return;
+        }
+
+        if (selection.rangeCount === 0) return;
+        const range = selection.getRangeAt(0);
+        if (!editor.contains(range.startContainer)) return;
+        this.savedRange = range.cloneRange();
     }
 
     /** Registry of addon-contributed toolbar buttons (addon host surface). */
@@ -3848,25 +6565,39 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     /**
      * Restore the in-editor selection, trying three sources in order:
      *
-     * 1. An explicitly saved range, if it still lives in the editor.
-     * 2. The current selection, if it is already inside the editor.
+     * 1. The live selection, if it is already inside the editor.
+     * 2. An explicitly saved range, if it still lives in the editor.
      * 3. Otherwise the end of the editor content — covering an editor that was
      *    never focused, or a caret sitting in the toolbar or overlay UI (an
      *    addon picker's search field, say), so insertions always land in the
      *    text rather than nowhere.
+     *
+     * The live selection wins because `savedRange` is captured on blur, so it
+     * holds a *collapsed* caret from the last time focus left. A keyboard
+     * shortcut (`Mod+B`) runs while the editor still has focus and a real
+     * selection: preferring the stale range there replaced the user's
+     * selection with an empty one, `execCommand` became a no-op, and the
+     * caret jumped to wherever they had last clicked away from — while the
+     * toolbar toggle, computed separately, still flipped to "on". Toolbar
+     * clicks are unaffected: the button blurs the editor first, so the live
+     * selection is no longer inside it and step 2 applies as before.
      */
-    restoreSelection(): void {
+    restoreSelection(options?: { preferLive?: boolean }): void {
         const editor = this.editorDiv?.nativeElement;
         if (!editor) return;
         const selection = this.document.getSelection();
         if (!selection) return;
+        if (
+            options?.preferLive !== false &&
+            selection.rangeCount > 0 &&
+            editor.contains(selection.getRangeAt(0).startContainer)
+        ) {
+            return;
+        }
         if (this.savedRange && editor.contains(this.savedRange.startContainer)) {
             this.focusEditor();
             selection.removeAllRanges();
             selection.addRange(this.savedRange);
-            return;
-        }
-        if (selection.rangeCount > 0 && editor.contains(selection.getRangeAt(0).startContainer)) {
             return;
         }
         this.focusEditor();
@@ -3880,32 +6611,167 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private updateActiveFormats(): void {
         const formats = new Set<string>();
 
-        if (this.queryEditorCommandState('bold')) formats.add('bold');
+        if (this.queryEditorCommandState('bold') && !this.boldOnlyFromHeading()) formats.add('bold');
         if (this.queryEditorCommandState('italic')) formats.add('italic');
         if (this.queryEditorCommandState('underline')) formats.add('underline');
         if (this.queryEditorCommandState('strikeThrough')) formats.add('strikethrough');
         if (this.queryEditorCommandState('insertUnorderedList')) formats.add('bulletList');
         if (this.queryEditorCommandState('insertOrderedList')) formats.add('orderedList');
 
-        this.detectTaskListFormat(formats);
+        this.detectBlockFormats(formats);
+        // A task list is a <ul> to the browser; only its own button reads pressed.
+        if (formats.has('taskList')) formats.delete('bulletList');
         this.activeFormats.set(formats);
+        this.textStyleAvailable.set(this.caretTakesTextStyle());
         this.detectCurrentFontSize();
         this.detectCurrentFontFamily();
         this.detectCurrentColors();
     }
 
-    private detectTaskListFormat(formats: Set<string>): void {
+    /**
+     * Whether the browser reports bold only because the caret sits in a
+     * heading. `queryCommandState('bold')` reads the computed weight, so every
+     * heading lit the Bold button although no bold formatting was applied and
+     * the button could not "turn it off".
+     */
+    private boldOnlyFromHeading(): boolean {
+        const editor = this.editorDiv?.nativeElement;
         const selection = this.document.getSelection();
-        if (!selection || selection.rangeCount === 0) {
-            return;
-        }
-        let el: Node | null = selection.getRangeAt(0).startContainer;
-        while (el && el !== this.editorDiv?.nativeElement) {
-            if (el.nodeType === Node.ELEMENT_NODE && (el as Element).closest('ul[data-task-list]')) {
-                formats.add('taskList');
-                break;
+        if (!editor || !selection || selection.rangeCount === 0) return false;
+        let current: Node | null = selection.getRangeAt(0).startContainer;
+        while (current && current !== editor) {
+            if (current.nodeType === Node.ELEMENT_NODE) {
+                const el = current as HTMLElement;
+                if (el.tagName === 'B' || el.tagName === 'STRONG' || /^(bold|[6-9]\d\d)$/.test(el.style.fontWeight)) return false;
+                if (/^H[1-6]$/.test(el.tagName)) return true;
             }
-            el = el.parentNode;
+            current = current.parentNode;
+        }
+        return false;
+    }
+
+    /**
+     * The tags that decide the caret's block type, and what each contributes.
+     * A `CODE` only counts as inline code when no `PRE` was seen on the way up,
+     * which is why the walk records what it has passed rather than matching the
+     * first interesting ancestor and stopping.
+     */
+    private static readonly BLOCK_FORMAT_TAGS: Record<string, string> = {
+        H1: 'heading1',
+        H2: 'heading2',
+        H3: 'heading3',
+        BLOCKQUOTE: 'blockquote',
+        PRE: 'codeBlock',
+    };
+
+    /**
+     * Blocks whose presence means the caret is not in a plain paragraph, even
+     * when a `P` or `DIV` wraps it — a paragraph inside a list item or a table
+     * cell belongs to that structure, and the `paragraph` button must not claim
+     * it.
+     */
+    private static readonly NON_PARAGRAPH_TAGS = new Set([
+        'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'PRE', 'LI', 'TD', 'TH', 'SUMMARY',
+    ]);
+
+    /**
+     * Adds every block-level format at the caret in ONE walk from the selection
+     * to the editor root — block type, inline code, task list, alignment and
+     * list nesting. It replaces the old task-list-only walk, so the detection is
+     * strictly cheaper than before despite reporting far more.
+     */
+    private detectBlockFormats(formats: Set<string>): void {
+        const editor = this.getEditorElement();
+        const selection = this.document.getSelection();
+        if (!editor || !selection || selection.rangeCount === 0) return;
+
+        const start = selection.getRangeAt(0).startContainer;
+        if (!editor.contains(start)) return;
+
+        const seen = this.walkBlockAncestors(start, editor, formats);
+
+        if (seen.code && !seen.pre) formats.add('code');
+        if (!seen.nonParagraph) formats.add('paragraph');
+        this.addAlignmentFormat(seen.block, formats);
+    }
+
+    /**
+     * Walks the caret's ancestors up to the editor root, adding each element's
+     * own formats and reporting what the chain contained — the nearest block
+     * (for alignment) and whether a `CODE`, a `PRE` or any non-paragraph
+     * structure was passed, all of which take the whole chain to decide.
+     */
+    private walkBlockAncestors(
+        start: Node,
+        editor: HTMLElement,
+        formats: Set<string>
+    ): { block: HTMLElement | null; code: boolean; pre: boolean; nonParagraph: boolean } {
+        let node: Node | null = start.nodeType === Node.TEXT_NODE ? start.parentNode : start;
+        const seen = { block: null as HTMLElement | null, code: false, pre: false, nonParagraph: false };
+
+        while (node && node !== editor) {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+                const element = node as HTMLElement;
+                seen.block ??= this.blockForAlignment(element);
+                seen.code ||= element.tagName === 'CODE';
+                seen.pre ||= element.tagName === 'PRE';
+                seen.nonParagraph ||= RichTextEditorComponent.NON_PARAGRAPH_TAGS.has(element.tagName);
+                this.addTagFormats(element, formats);
+            }
+            node = node.parentNode;
+        }
+        return seen;
+    }
+
+    /** The formats one ancestor element contributes on the way to the root. */
+    private addTagFormats(element: HTMLElement, formats: Set<string>): void {
+        const tagFormat = RichTextEditorComponent.BLOCK_FORMAT_TAGS[element.tagName];
+        if (tagFormat) formats.add(tagFormat);
+
+        if (element.tagName === 'UL' && element.dataset['taskList'] !== undefined) {
+            formats.add('taskList');
+        }
+        if (element.tagName === 'LI' && this.getListDepth(element) >= 2) {
+            formats.add('indent');
+        }
+    }
+
+    /** The nearest ancestor whose alignment applies to the caret, if any. */
+    private blockForAlignment(element: HTMLElement): HTMLElement | null {
+        const isBlock = RichTextEditorComponent.NON_PARAGRAPH_TAGS.has(element.tagName)
+            || element.tagName === 'P'
+            || element.tagName === 'DIV';
+        return isBlock ? element : null;
+    }
+
+    /** Adds the caret block's alignment, mapped through the locale direction. */
+    private addAlignmentFormat(block: HTMLElement | null, formats: Set<string>): void {
+        if (!block) return;
+        const textAlign = block.style.textAlign
+            || block.getAttribute('align')
+            || '';
+        const format = this.alignmentFormat(textAlign, this.isRtl());
+        if (format) formats.add(format);
+    }
+
+    /**
+     * The toolbar item a physical or logical `text-align` value presses.
+     *
+     * `left`/`right` name physical sides of the page, so under an RTL locale
+     * they press the opposite item — the one whose glyph and command the
+     * toolbar has already mirrored, which is what makes a right-aligned Hebrew
+     * paragraph light up the button that visually points right.
+     * `start`/`end` are already direction-relative and so map straight through.
+     * `justify` and an absent value press nothing.
+     */
+    private alignmentFormat(textAlign: string, rtl: boolean): string | null {
+        switch (textAlign) {
+            case 'center': return 'alignCenter';
+            case 'left': return rtl ? 'alignRight' : 'alignLeft';
+            case 'right': return rtl ? 'alignLeft' : 'alignRight';
+            case 'start': return 'alignLeft';
+            case 'end': return 'alignRight';
+            default: return null;
         }
     }
 
@@ -4075,7 +6941,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             return;
         }
 
-        const target = this.getDeepestLastNode(block);
+        // Its own line, not a sub-list, table or code block nested at its end.
+        const target = lastOwnInlineNode(block) ?? this.getDeepestLastNode(block);
         this.setSelectionAtNodeEnd(selection, target);
     }
 
@@ -4139,44 +7006,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             return;
         }
 
-        const transformed = anchorBlock ? this.transformBlockForSlashCommand(anchorBlock, command) : null;
-        if (transformed) {
-            this.placeCaretAtEndOfBlock(transformed);
-            this.applyMutation({ updateActiveFormats: true });
-            return;
-        }
-
+        // The toolbar's own command, run at the anchor. The slash menu rebuilt
+        // blocks itself and diverged from the toolbar: bullets on a bullet item
+        // did nothing, and a numbered list over task rows kept their checkboxes
+        // inside an <ol>, where a save dropped them.
         if (anchorBlock) {
             this.placeCaretAtEndOfBlock(anchorBlock);
         }
         this.onFormatCommand(command);
-    }
-
-    private transformBlockForSlashCommand(anchorBlock: HTMLElement, command: string): HTMLElement | null {
-        const editor = this.getEditorElement();
-        if (!editor || !editor.contains(anchorBlock) || anchorBlock === editor) {
-            return null;
-        }
-
-        if (command === 'bulletList') {
-            return this.wrapBlockInList(anchorBlock, 'ul');
-        }
-        if (command === 'orderedList') {
-            return this.wrapBlockInList(anchorBlock, 'ol');
-        }
-
-        const tagMap: Record<string, string> = {
-            paragraph: 'p',
-            heading1: 'h1',
-            heading2: 'h2',
-            heading3: 'h3',
-            blockquote: 'blockquote',
-        };
-        const nextTag = tagMap[command];
-        if (!nextTag) {
-            return null;
-        }
-        return this.replaceBlockTag(anchorBlock, nextTag);
     }
 
     private insertInlineCodeFromSlash(anchorBlock: HTMLElement | null): void {
@@ -4205,6 +7042,591 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.syncContentFromEditor();
         this.updateActiveFormats();
         this.pushHistory();
+    }
+
+    /** Quote one block, for the input rule, which hands over exactly one. */
+    private quoteBlock(block: HTMLElement): HTMLElement {
+        const editor = this.editorDiv?.nativeElement;
+        const line = editor ? lineOf(block, editor) : null;
+        const quoted = line ? this.quoteLines([line]) : [];
+        return quoted[0] ?? block;
+    }
+
+    /**
+     * Wrap lines in one `<blockquote>` and return them as its lines.
+     *
+     * The invariant every quote path shares: a blockquote's direct children
+     * are line blocks, never bare text. `handleEnterInBlockquote` only exits
+     * from a blank LINE, so a quote built as `<blockquote>text</blockquote>`
+     * had no line for it to find and Enter fell to the browser, which opened a
+     * sibling blockquote on every keypress -- the quote could not be left at
+     * all. A `<div>` becomes a `<p>` on the way in. Top-level list items are
+     * taken out of their list, and anywhere {@link replacementFor} refuses the
+     * command does nothing.
+     */
+    private quoteLines(lines: readonly Line[]): HTMLElement[] {
+        const replacement = this.replacementFor(lines);
+        if (replacement === null) return [];
+        const quote = this.document.createElement('blockquote');
+        if (replacement === 'items') {
+            // Each item's text becomes a line of the quote, and the list is
+            // split around it. Building the quote inside the item put a block
+            // before a task row's checkbox, and the quote was gone on reload.
+            const paragraphs = lines.map((line) => {
+                const paragraph = this.document.createElement('p');
+                for (const node of lineOwnNodes(line)) paragraph.appendChild(node);
+                if (holdsNothing(paragraph)) paragraph.innerHTML = '<br>';
+                quote.appendChild(paragraph);
+                return paragraph;
+            });
+            this.putBlockInPlaceOfItems(quote, lines);
+            return paragraphs;
+        }
+        const first = lines[0];
+        first.owner.parentNode?.insertBefore(quote, first.owner);
+        return lines.map(({ owner }) => {
+            const line = owner.tagName === 'DIV' ? this.replaceBlockTag(owner, 'p') : owner;
+            quote.appendChild(line);
+            return line;
+        });
+    }
+
+    /** Moves a quote's lines out in its place, so the caret's own nodes survive untouched. */
+    private unquoteBlocks(quote: HTMLElement): void {
+        const parent = quote.parentNode;
+        if (!parent) return;
+        while (quote.firstChild) parent.insertBefore(quote.firstChild, quote);
+        quote.remove();
+    }
+
+    /**
+     * Toolbar blockquote is a toggle: quote the selected top-level blocks, or
+     * lift the selection's quote back out.
+     *
+     * `execCommand('formatBlock', '<blockquote>')` was used before. Chrome
+     * re-tags the paragraph itself into the blockquote (bare text, no line
+     * block), so the Enter exit rule could not see a line to leave from, and
+     * a second click did nothing rather than unquoting.
+     */
+    private toggleBlockquote(): void {
+        const selection = this.document.getSelection();
+        const editor = this.editorDiv?.nativeElement;
+        if (!selection || selection.rangeCount === 0 || !editor) return;
+        const range = selection.getRangeAt(0);
+        const restore = { node: range.startContainer, offset: range.startOffset };
+
+        const quote = this.findAncestorByTag(range.startContainer, 'BLOCKQUOTE');
+        if (quote) {
+            this.unquoteBlocks(quote);
+        } else {
+            const ctx = this.blockToggleContext();
+            const lines = ctx ? this.commandLines(ctx) : [];
+            if (lines.length === 0) return;
+            this.quoteLines(lines);
+        }
+
+        // Re-anchoring after the moves: Chrome drops a selection whose
+        // container was re-parented, and the container itself is intact.
+        // Content sync, history and the active-format refresh are the
+        // caller's applyMutation, as for every other block command.
+        this.setSelectionRange(selection, restore.node, restore.offset);
+    }
+
+    /**
+     * The selection, editor and a caret anchor every block toggle needs, or
+     * null when there is nothing to act on. The anchor is a node that the
+     * toggles move but never destroy, so the caret can be put back on it after
+     * the DOM around it has been rebuilt.
+     */
+    private blockToggleContext(): BlockToggleContext | null {
+        const selection = this.document.getSelection();
+        const editor = this.editorDiv?.nativeElement;
+        if (!selection || selection.rangeCount === 0 || !editor) return null;
+        const range = selection.getRangeAt(0);
+        if (!editor.contains(range.startContainer)) return null;
+        return {
+            selection,
+            editor,
+            range,
+            anchor: range.startContainer,
+            offset: range.startOffset,
+            focus: range.endContainer,
+            focusOffset: range.endOffset,
+        };
+    }
+
+    /** The selection back on its anchors when they survived, else a caret at the start of `fallback`. */
+    private restoreToggleCaret(ctx: BlockToggleContext, fallback: HTMLElement | null): void {
+        const alive = (node: Node): boolean => node.isConnected && ctx.editor.contains(node);
+        if (!alive(ctx.anchor)) {
+            if (fallback) this.placeCaretAtStartOfBlock(fallback);
+            return;
+        }
+        const clamp = (node: Node, offset: number): number =>
+            Math.min(offset, node.nodeType === Node.TEXT_NODE ? (node as Text).length : node.childNodes.length);
+        const restored = this.document.createRange();
+        restored.setStart(ctx.anchor, clamp(ctx.anchor, ctx.offset));
+        if (alive(ctx.focus)) {
+            restored.setEnd(ctx.focus, clamp(ctx.focus, ctx.focusOffset));
+        } else {
+            restored.collapse(true);
+        }
+        ctx.selection.removeAllRanges();
+        ctx.selection.addRange(restored);
+    }
+
+    /**
+     * Headings and paragraphs re-tag the caret's own lines.
+     *
+     * `execCommand('formatBlock')` was used before, and Chrome applies it to
+     * whatever ancestor it likes: with the caret in a list item it wrapped the
+     * whole `<ul>` in the heading, which is neither valid nor what was asked.
+     * A line inside a list item, a table cell or a summary keeps its tag.
+     */
+    private retagLines(tag: string): void {
+        const ctx = this.blockToggleContext();
+        const lines = ctx ? this.commandLines(ctx) : [];
+        if (!ctx || lines.length === 0) return;
+        let last: HTMLElement | null = null;
+        for (const line of lines) {
+            if (!this.lineTakesTextStyle(line)) continue;
+            last = this.replaceBlockTag(line.owner, tag);
+        }
+        this.restoreToggleCaret(ctx, last);
+    }
+
+    /**
+     * Whether a heading or Normal text may re-tag a line.
+     *
+     * A code block is not prose, and a line inside an item, a cell or a summary
+     * -- even a paragraph within one -- has no heading form in markdown: a save
+     * turned it into a literal "# ". Asking the line's own tag missed the
+     * paragraph inside an item. The toolbar's enabled state reads this same rule.
+     */
+    private lineTakesTextStyle(line: Line): boolean {
+        return !lineTagIsFixed(line) && this.structureOf(line).length === 0;
+    }
+
+    /**
+     * Whether a text style command would change anything at the caret, worked
+     * out without touching the document.
+     *
+     * `commandLines` wraps loose text in a paragraph while it resolves a range,
+     * which is right for a command and wrong for a check that runs on every
+     * caret move, so the lines are read here instead. Loose text has no line
+     * yet, and a command would give it one it can re-tag, so it counts as
+     * available. A selection counts the lines a command would act on: those in
+     * the first line's container, of which one taking a text style is enough.
+     */
+    private caretTakesTextStyle(): boolean {
+        const editor = this.editorDiv?.nativeElement;
+        const selection = this.document.getSelection();
+        if (!editor || !selection || selection.rangeCount === 0) return true;
+        const range = selection.getRangeAt(0);
+        if (!editor.contains(range.startContainer)) return true;
+        const from = this.boundaryNodeOf(range.startContainer, range.startOffset, editor);
+        const to = this.boundaryNodeOf(range.endContainer, range.endOffset, editor);
+        if (!from || !to) return true;
+        if (range.collapsed) {
+            const line = lineOf(from, editor);
+            return line ? this.lineTakesTextStyle(line) : true;
+        }
+        const touched = linesBetween(buildLineIndex(editor), from, to);
+        if (touched.length === 0) return true;
+        const container = touched[0].owner.parentNode;
+        return touched.some((line) => line.owner.parentNode === container && this.lineTakesTextStyle(line));
+    }
+
+    /**
+     * Bullet and numbered lists are block toggles built by the editor itself.
+     *
+     * `execCommand('insertUnorderedList')` was used before, and Chrome builds
+     * the list INSIDE the paragraph (`<p><ul><li>…</li></ul></p>`), which is not
+     * valid HTML and which the sanitizer then has to take apart on every save.
+     * The list is now placed at the paragraph's level, one item per selected
+     * line block; the same kind of list toggles back to paragraphs, the other
+     * kind re-tags it, and a task list is stripped of its checkboxes on the way.
+     */
+    private toggleList(tag: 'ul' | 'ol'): void {
+        const ctx = this.blockToggleContext();
+        const target = ctx ? this.listToggleTarget(ctx) : null;
+        if (!ctx || !target) return;
+        const { list, lines } = target;
+        let fallback: HTMLElement | null = null;
+        if (list?.tagName === tag.toUpperCase() && list.dataset['taskList'] === undefined) {
+            fallback = this.unwrapList(list);
+        } else if (list) {
+            this.stripTaskMarkers(list);
+            this.replaceBlockTag(list, tag);
+        } else {
+            // Its first item, never the list: placing a caret at the start of a
+            // list holding one empty item cleared the item along with its padding.
+            fallback = this.wrapLinesInList(lines, tag)?.querySelector('li') ?? null;
+        }
+        this.restoreToggleCaret(ctx, fallback);
+    }
+
+    /**
+     * What a list toggle acts on: the list of the innermost item holding the
+     * caret's line, or no list. Null inside a table cell or a summary, where a
+     * list has no form a save keeps.
+     *
+     * The list used to be the nearest list ancestor of any kind, so a caret in
+     * a table inside a list item toggled the whole outer list.
+     */
+    private listToggleTarget(ctx: BlockToggleContext): { list: HTMLElement | null; lines: Line[] } | null {
+        const lines = this.commandLines(ctx);
+        // A code block's line breaks have no place in a list item: moved into
+        // one they became inline code, which a save wrote as literal markup.
+        if (lines.some((line) => line.kind === 'code')) return null;
+        const inner = lines[0] ? this.structureOf(lines[0])[0] : undefined;
+        if (inner && inner.nodeName !== 'LI') return null;
+        return { list: inner?.parentElement ?? null, lines };
+    }
+
+    /**
+     * Task list toggle: the selected line blocks become task items keeping
+     * their text, a plain list gains checkboxes, and a task list goes back to
+     * paragraphs. The old command inserted an empty item at the caret, which
+     * REPLACED the selected text and, on the way out, left the bare checkbox
+     * sitting in the paragraph.
+     */
+    private toggleTaskList(): void {
+        const ctx = this.blockToggleContext();
+        const target = ctx ? this.listToggleTarget(ctx) : null;
+        if (!ctx || !target) return;
+        const { list, lines } = target;
+        let fallback: HTMLElement | null = null;
+        if (list?.dataset['taskList'] !== undefined) {
+            fallback = this.unwrapList(list);
+        } else if (list) {
+            // A row is one line of text, so flattening an item that holds a rule
+            // would delete the rule. The command stands down rather than lose it.
+            if (this.itemsHoldARule(list)) return;
+            this.addTaskMarkers(list);
+        } else {
+            const created = this.wrapLinesInList(lines, 'ul');
+            if (!created) return;
+            this.addTaskMarkers(created);
+            fallback = created.querySelector('span');
+        }
+        this.restoreToggleCaret(ctx, fallback);
+    }
+
+    /**
+     * Turn lines that stand on their own into a list, one item per line, in
+     * place; returns the list, or null with nothing to wrap. A line in a cell
+     * or a summary never reaches here: the toggle stands down there.
+     */
+    private wrapLinesInList(lines: readonly Line[], tag: 'ul' | 'ol'): HTMLElement | null {
+        if (lines.length === 0) return null;
+        const list = this.document.createElement(tag);
+        lines[0].owner.before(list);
+        for (const line of lines) {
+            const item = this.document.createElement('li');
+            for (const node of lineOwnNodes(line)) item.appendChild(node);
+            if (holdsNothing(item)) item.innerHTML = '<br>';
+            list.appendChild(item);
+            line.owner.remove();
+        }
+        return list;
+    }
+
+    /** Every item back to a paragraph in the list's place; nested lists stay lists beside it. Returns the first paragraph. */
+    private unwrapList(list: HTMLElement): HTMLElement | null {
+        if (!list.parentNode) return null;
+        const parentItem = list.parentElement?.nodeName === 'LI' ? list.parentElement : null;
+        // A sub-list's items cannot become paragraphs inside its item: a task
+        // row cannot hold a block, and a plain item would hold a line and blocks
+        // at once. They go after the top-level item instead, which keeps the
+        // text in order only when the sub-list ends a top-level item.
+        if (parentItem && (this.outermostItemAround(list) !== parentItem || parentItem.lastElementChild !== list)) return null;
+        this.stripTaskMarkers(list);
+        const pieces = Array.from(list.children).flatMap((item) => this.itemAsBlocks(item));
+        if (parentItem?.parentElement) {
+            const head = parentItem.parentElement;
+            list.remove();
+            const tail = this.splitListAfter(parentItem);
+            let at: ChildNode = head;
+            for (const piece of pieces) {
+                at.after(piece);
+                at = piece as ChildNode;
+            }
+            this.settleSplitList(head, tail);
+        } else {
+            for (const piece of pieces) list.before(piece);
+            list.remove();
+        }
+        return (pieces.find((piece) => piece.nodeName === 'P') as HTMLElement | undefined) ?? null;
+    }
+
+    /** The top-level item a list sits in, below the nearest quote, details block or cell; null at top level. */
+    private outermostItemAround(list: HTMLElement): HTMLElement | null {
+        const editor = this.editorDiv?.nativeElement;
+        let item: HTMLElement | null = null;
+        for (let el = list.parentElement; el && el !== editor; el = el.parentElement) {
+            if (['BLOCKQUOTE', 'DETAILS', 'TD', 'TH', 'SUMMARY'].includes(el.nodeName)) break;
+            if (el.nodeName === 'LI') item = el;
+        }
+        return item;
+    }
+
+    /**
+     * An item's content as blocks, in its own order: each run of inline content
+     * becomes a paragraph, and a block -- a code block, a quote, a sub-list --
+     * moves out as it is.
+     *
+     * Putting every child into one paragraph built `<p><pre>…</pre></p>`, which
+     * the parser takes apart, and moving sub-lists out as they were met put them
+     * above the paragraph of their own item.
+     */
+    private itemAsBlocks(item: Element): Node[] {
+        const pieces: Node[] = [];
+        let run: HTMLElement | null = null;
+        for (const child of Array.from(item.childNodes)) {
+            if (isPhrasing(child)) {
+                run ??= this.document.createElement('p');
+                run.appendChild(child);
+                continue;
+            }
+            if (run) pieces.push(run);
+            run = null;
+            pieces.push(child);
+        }
+        if (run) pieces.push(run);
+        const kept = pieces.filter((piece) => piece.nodeName !== 'P' || !holdsNothing(piece as Element));
+        if (kept.every((piece) => isNestedList(piece))) {
+            const empty = this.document.createElement('p');
+            empty.innerHTML = '<br>';
+            kept.unshift(empty);
+        }
+        return kept;
+    }
+
+    /**
+     * Whether any item of `list` holds a rule that flattening it into a row would
+     * drop: anywhere in the item but its own sub-lists, which stay lists. Asking
+     * the rule's nearest item missed a rule in a list inside a quote in the item,
+     * which is flattened along with the quote.
+     */
+    private itemsHoldARule(list: HTMLElement): boolean {
+        return Array.from(list.children).some((item) =>
+            Array.from(item.querySelectorAll('hr')).some((rule) =>
+                !Array.from(item.children).some((child) => isNestedList(child) && child.contains(rule))));
+    }
+
+    private addTaskMarkers(list: HTMLElement): void {
+        const target = list.tagName === 'OL' ? this.replaceBlockTag(list, 'ul') : list;
+        target.dataset['taskList'] = '';
+        for (const item of Array.from(target.children) as HTMLElement[]) {
+            if (item.dataset['task'] !== undefined) continue;
+            // Content after a nested list starts the next row (see rowRunsOf).
+            const rows = rowRunsOf(item).map((run) => {
+                const built = this.createTaskListItem(false);
+                const span = built.querySelector('span') as HTMLElement;
+                span.textContent = '';
+                // A row is one line of text, so a block among the item's content is
+                // flattened into it: the rule the sanitizer applies to a pasted row.
+                // Appending a quote or a table whole put a block inside the span.
+                flattenIntoRowText(run.content, span);
+                if (this.holdsNoContent(span)) span.textContent = '​';
+                built.append(...run.lists);
+                return built;
+            });
+            item.replaceWith(...rows);
+        }
+        this.enableTaskCheckboxes(target);
+    }
+
+    private stripTaskMarkers(list: HTMLElement): void {
+        if (list.dataset['taskList'] === undefined) return;
+        delete list.dataset['taskList'];
+        for (const item of Array.from(list.children) as HTMLElement[]) {
+            delete item.dataset['task'];
+            delete item.dataset['checked'];
+            item.querySelector(':scope > input[type="checkbox"]')?.remove();
+            const span = item.querySelector(':scope > span');
+            if (span) {
+                while (span.firstChild) item.insertBefore(span.firstChild, span);
+                span.remove();
+            }
+        }
+    }
+
+    /**
+     * Code block toggle on the caret's line blocks: their text becomes one
+     * `<pre><code>` in their place, and a code block goes back to one
+     * paragraph per line. It used to wrap only the selected characters in a
+     * `<pre>` inside the paragraph and, clicked again, nest another one.
+     */
+    private toggleCodeBlock(): void {
+        const ctx = this.blockToggleContext();
+        if (!ctx) return;
+        const pre = this.findAncestorByTag(ctx.range.startContainer, 'PRE');
+        if (pre) {
+            const first = this.unwrapCodeBlock(pre);
+            if (first) this.placeCaretAtStartOfBlock(first);
+            return;
+        }
+        const lines = this.commandLines(ctx);
+        if (lines.length === 0) return;
+        // A code block holds text. Building one from a line that also holds an
+        // image dropped the image, and toggling back could not restore it, so
+        // the command stands down instead of destroying content.
+        if (!lines.every((line) => lineIsTextOnly(line))) return;
+        const replacement = this.replacementFor(lines);
+        if (replacement === null) return;
+        const text = lines.map((line) => lineText(line).replaceAll('​', '')).join('\n');
+        const built = this.document.createElement('pre');
+        const code = this.document.createElement('code');
+        // An empty block keeps the seeded newline the Enter-to-exit rule looks for.
+        code.textContent = text.trim() === '' ? '\n' : text;
+        built.appendChild(code);
+        if (replacement === 'items') {
+            this.putBlockInPlaceOfItems(built, lines);
+        } else {
+            this.putBlockInPlaceOfLines(built, lines);
+        }
+        this.setSelectionRange(ctx.selection, code.firstChild ?? code, 0);
+    }
+
+    /**
+     * The lines a block command acts on: the line the range starts in, the line
+     * it ends in, and the lines between them that share the first one's
+     * container, so a command never reaches across a list or a table boundary.
+     *
+     * The range's own boundaries need resolving first. A selection made with
+     * Select All has the editor itself as its container, and bare text directly
+     * under the editor is not a line at all until something wraps it — both
+     * shapes the old walkers normalised, and both of which would otherwise
+     * leave a command with no lines and nothing to do.
+     */
+    private commandLines(ctx: BlockToggleContext): Line[] {
+        // Both boundaries are resolved to NODES first: wrapping a stray run
+        // re-parents nodes, which moves a live range's other boundary onto the
+        // old parent, and the second lookup then wrapped a whole container.
+        const startNode = this.boundaryNodeOf(ctx.range.startContainer, ctx.range.startOffset, ctx.editor);
+        const endNode = this.boundaryNodeOf(ctx.range.endContainer, ctx.range.endOffset, ctx.editor);
+        if (!startNode || !endNode) return [];
+        const from = this.lineHostFor(startNode, ctx.editor);
+        const to = this.lineHostFor(endNode, ctx.editor);
+        if (!from || !to) return [];
+
+        const index = buildLineIndex(ctx.editor);
+        const touched = linesBetween(index, from, to);
+        if (touched.length === 0) return [];
+        const container = touched[0].owner.parentNode;
+        return touched.filter((line) => line.owner.parentNode === container);
+    }
+
+    /** The node a range boundary points at, resolving one anchored on the editor. */
+    private boundaryNodeOf(container: Node, offset: number, editor: HTMLElement): Node | null {
+        if (container !== editor) return container;
+        const children = Array.from(editor.childNodes);
+        if (children.length === 0) return null;
+        return children[Math.min(offset, children.length - 1)];
+    }
+
+    /**
+     * The element that holds the line at a range boundary, wrapping a stray run
+     * in a paragraph when it has none.
+     *
+     * Nodes are resolved and wrapped here rather than by normalising the range,
+     * because re-parenting a text node moves a live range's boundary onto the
+     * old parent instead of following it.
+     */
+    private lineHostFor(node: Node, editor: HTMLElement): Node | null {
+        if (lineOf(node, editor)) return node;
+        return this.wrapStrayRunAround(node, editor);
+    }
+
+    /**
+     * Give a run of inline content with no line of its own one, in place.
+     *
+     * Text can sit in an element that is a CONTAINER rather than a line — an
+     * `<li>` that also holds a block, which is the shape Enter inside inline
+     * code produces. Walking out to the editor's own child and wrapping THAT
+     * moved the whole list inside the new block, so a code-block toggle on such
+     * an item destroyed every line in it. Only the stray run is wrapped, and it
+     * is wrapped where it already lives.
+     */
+    private wrapStrayRunAround(node: Node, editor: HTMLElement): Node | null {
+        let stray: Node = node;
+        while (stray.parentNode && stray.parentNode !== editor && !lineOf(stray.parentNode, editor)
+            && !isLineOwner(stray.parentNode as Element, editor)) {
+            if (stray.parentNode.nodeType !== Node.ELEMENT_NODE) break;
+            if (this.holdsALine(stray.parentNode as Element, editor)) break;
+            stray = stray.parentNode;
+        }
+        const host = stray.parentNode;
+        if (!host) return null;
+        const siblings = Array.from(host.childNodes);
+        const at = siblings.indexOf(stray as ChildNode);
+        const run: ChildNode[] = [];
+        for (let i = at; i >= 0; i--) {
+            if (this.startsItsOwnLine(siblings[i], editor)) break;
+            run.unshift(siblings[i]);
+        }
+        for (let i = at + 1; i < siblings.length; i++) {
+            if (this.startsItsOwnLine(siblings[i], editor)) break;
+            run.push(siblings[i]);
+        }
+        if (run.length === 0) return null;
+        const paragraph = this.document.createElement('p');
+        run[0].before(paragraph);
+        for (const part of run) paragraph.appendChild(part);
+        return paragraph;
+    }
+
+    /**
+     * Wrap a line's own text in a paragraph, so its element can hold blocks
+     * without orphaning that text.
+     */
+    private giveLineItsOwnBlock(line: Line): void {
+        const own = lineOwnNodes(line);
+        if (own.length === 0) return;
+        const paragraph = this.document.createElement('p');
+        own[0].before(paragraph);
+        for (const node of own) paragraph.appendChild(node);
+    }
+
+    /** Whether an element has a line of its own among its children. */
+    private holdsALine(el: Element, editor: HTMLElement): boolean {
+        return Array.from(el.children).some((child) => isLineOwner(child, editor));
+    }
+
+    /** Whether a node is a line of its own, so a stray run stops at it. */
+    private startsItsOwnLine(node: Node, editor: HTMLElement): boolean {
+        return node.nodeType === Node.ELEMENT_NODE
+            && (isLineOwner(node as Element, editor) || isNestedList(node) || node.nodeName === 'TABLE');
+    }
+
+    /**
+     * Put `built` where lines that stand on their own were; their text is
+     * already in it. Lines in a list go through {@link putBlockInPlaceOfItems},
+     * and lines in a cell or a summary never get here.
+     */
+    private putBlockInPlaceOfLines(built: HTMLElement, lines: readonly Line[]): void {
+        lines[0].owner.before(built);
+        for (const line of lines) line.owner.remove();
+    }
+
+    private unwrapCodeBlock(pre: HTMLElement): HTMLElement | null {
+        if (!pre.parentNode) return null;
+        const lines = (pre.textContent ?? '').replace(/\n$/, '').split('\n');
+        let first: HTMLElement | null = null;
+        for (const line of lines) {
+            const p = this.document.createElement('p');
+            if (line === '') {
+                p.innerHTML = '<br>';
+            } else {
+                p.textContent = line;
+            }
+            pre.before(p);
+            first ??= p;
+        }
+        pre.remove();
+        return first;
     }
 
     private replaceBlockTag(block: HTMLElement, targetTagName: string): HTMLElement {
@@ -4247,13 +7669,592 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return item;
     }
 
-    private isEmptyBlock(block: HTMLElement): boolean {
-        const text = (block.textContent ?? '').replaceAll('\u200B', '').trim();
-        if (text.length > 0) {
+    /**
+     * The tag names a block rule may transform. Anything else — a list item, a
+     * table cell, a `<pre>`, a `<summary>`, an existing heading — is a block the
+     * author already chose, so a marker typed into it stays literal text.
+     */
+    private static readonly INPUT_RULE_BLOCK_TAGS = new Set(['P', 'DIV']);
+
+    /**
+     * Ancestors that veto a block rule even when the caret's own block is a
+     * plain paragraph, because the paragraph is nested inside a structure the
+     * rule would otherwise tear apart.
+     */
+    private static readonly INPUT_RULE_FORBIDDEN_ANCESTORS = 'pre, li, td, th, summary';
+
+    /**
+     * Inline ancestors that veto an inline rule: the marker either already sits
+     * in code (where Markdown is literal) or inside a chip another feature owns.
+     */
+    private static readonly INLINE_RULE_FORBIDDEN_ANCESTORS =
+        'code, pre, a, [data-mention], [data-tag], [data-action-click], [data-action-hover]';
+
+    /**
+     * The longest block marker plus its terminator (```` ``` ```` + a 16-char
+     * language + a space). A caret prefix longer than this cannot complete a
+     * block rule, which is what keeps the check off the block's full text on
+     * every keystroke of a long paragraph.
+     */
+    private static readonly MAX_BLOCK_MARKER_LENGTH = 24;
+
+    /**
+     * Commands that make sense applied to each selected table cell in turn.
+     * Inline marks only — block types, lists and alignment stay caret-driven.
+     */
+    private static readonly CELL_APPLICABLE_COMMANDS = new Set([
+        'bold', 'italic', 'underline', 'strikethrough', 'code', 'clear',
+    ]);
+
+    /** One press of Increase/Decrease Indent, in rem. */
+    private static readonly BLOCK_INDENT_STEP = 2;
+
+    /** Ceiling for block indentation, so a document cannot be pushed off-page. */
+    private static readonly MAX_BLOCK_INDENT_REM = 12;
+
+    /**
+     * `inputType` prefixes and values that never complete a Markdown marker:
+     * deletions and history replays are not authoring, formatting commands have
+     * already decided the block, and a composition is still open (the committed
+     * `insertText` that follows is the one that counts).
+     */
+    private static readonly INPUT_RULE_IGNORED_TYPES = ['delete', 'history', 'format'];
+
+    /**
+     * Where the caret has to still be for the last transform to be revertable.
+     * A block rule records the block it produced; an inline rule records that
+     * element's PARENT, because the caret parks in a zero-width node beside the
+     * new element rather than inside it. Backspace consults this to offer the
+     * one-keystroke revert; any other key, input, click or blur clears it, so
+     * the window is exactly the keystroke after the transform.
+     */
+    private lastInputRule: { block: HTMLElement } | null = null;
+
+    /**
+     * Applies a Markdown input rule to the caret's block or text, if the
+     * characters that just landed completed one. Called at the top of
+     * {@link onInput}, before the DOM is read for the model or handed to input
+     * observers, so a slash or mention addon sees the post-transform text.
+     *
+     * Returns whether a transform happened — the caller turns that into a single
+     * history entry instead of the usual debounced push.
+     */
+    private applyInputRules(event: Event): boolean {
+        if (!this.markdownShortcuts()) return false;
+        if (this.isDisabled() || this.readonly()) return false;
+
+        const inputType = (event as InputEvent).inputType ?? 'insertText';
+        if (this.isIgnoredInputType(inputType)) return false;
+
+        const context = this.inputRuleContext();
+        if (!context) return false;
+
+        const terminator = this.blockRuleTerminator(context.blockPrefix, event);
+        return this.tryBlockRule(context, terminator) || this.tryInlineRule(context);
+    }
+
+    /** Whether an `inputType` is one Markdown rules deliberately sit out. */
+    private isIgnoredInputType(inputType: string): boolean {
+        if (inputType === 'insertCompositionText') return true;
+        return RichTextEditorComponent.INPUT_RULE_IGNORED_TYPES.some((prefix) =>
+            inputType.startsWith(prefix)
+        );
+    }
+
+    /**
+     * The caret's position expressed the way the rules need it: the block it
+     * sits in, its text node and offset, and the block's text before it.
+     *
+     * `null` whenever there is no collapsed caret inside this editor — a
+     * selection replacement or a caret in another editor is never a rule.
+     */
+    private inputRuleContext(): {
+        block: HTMLElement;
+        textNode: Text | null;
+        offset: number;
+        blockPrefix: string;
+    } | null {
+        const editor = this.getEditorElement();
+        const selection = this.document.getSelection();
+        if (!editor || !selection || selection.rangeCount === 0 || !selection.isCollapsed) return null;
+
+        const range = selection.getRangeAt(0);
+        if (!editor.contains(range.startContainer)) return null;
+
+        const startNode = range.startContainer;
+        const textNode = startNode.nodeType === Node.TEXT_NODE ? (startNode as Text) : null;
+        const block = this.closestInputRuleBlock(startNode, editor);
+        if (!block) return null;
+
+        const prefixRange = this.document.createRange();
+        prefixRange.setStart(block, 0);
+        prefixRange.setEnd(range.startContainer, range.startOffset);
+        const blockPrefix = prefixRange.toString().replaceAll('\u200B', '');
+
+        return { block, textNode, offset: range.startOffset, blockPrefix };
+    }
+
+    /**
+     * The element a rule would transform: the caret's nearest block-level
+     * ancestor, or the editor root itself when the caret sits in a bare
+     * top-level text node that no block wraps yet.
+     */
+    private closestInputRuleBlock(startNode: Node, editor: HTMLElement): HTMLElement | null {
+        const start = startNode.nodeType === Node.TEXT_NODE ? startNode.parentElement : (startNode as HTMLElement);
+        if (!start) return null;
+        const block = start.closest<HTMLElement>('p, div, h1, h2, h3, h4, h5, h6, li, td, th, pre, blockquote, summary');
+        if (block && editor.contains(block) && block !== editor) return block;
+        return editor;
+    }
+
+    /**
+     * Applies a block rule when the caret's prefix is a complete marker and the
+     * block is one a rule may claim. The marker is removed before the block is
+     * rebuilt, so the transform leaves only the author's own text behind.
+     */
+    private tryBlockRule(
+        context: { block: HTMLElement; blockPrefix: string },
+        terminator: ' ' | ''
+    ): boolean {
+        if (context.blockPrefix.length > RichTextEditorComponent.MAX_BLOCK_MARKER_LENGTH) return false;
+
+        const block = this.blockRuleTarget(context.block);
+        if (!block) return false;
+
+        const markerText = terminator === '' ? context.blockPrefix : context.blockPrefix.slice(0, -1);
+        const match = matchBlockInputRule(markerText, terminator);
+        if (!match) return false;
+
+        this.snapshotBeforeTransform();
+        this.removeLeadingCharacters(block, match.markerLength);
+        const produced = this.buildBlockForRule(block, match);
+        this.lastInputRule = { block: produced };
+        return true;
+    }
+
+    /**
+     * The element a block rule may rewrite, or `null` when the caret's block is
+     * one the author already chose. A bare text node directly under the editor
+     * is wrapped in a paragraph first, so the rules behave the same whether or
+     * not the browser has created a block yet.
+     */
+    private blockRuleTarget(block: HTMLElement): HTMLElement | null {
+        const editor = this.getEditorElement();
+        if (editor && block === editor) return this.wrapBareTextInParagraph(editor);
+        if (!RichTextEditorComponent.INPUT_RULE_BLOCK_TAGS.has(block.tagName)) return null;
+        if (block.closest(RichTextEditorComponent.INPUT_RULE_FORBIDDEN_ANCESTORS)) return null;
+        return block;
+    }
+
+    /**
+     * Moves the editor's bare top-level nodes into a paragraph and restores the
+     * caret inside it, returning that paragraph. Only reached when the browser
+     * left typed characters unwrapped.
+     */
+    /**
+     * The unbroken run of non-block children that contains (or sits next to) the
+     * caret. Blocks bound the run on both sides, so a wrap can never move a node
+     * across one.
+     */
+    private bareRunAround(editor: HTMLElement, caretNode: Node, caretOffset: number): ChildNode[] {
+        const children = Array.from(editor.childNodes);
+        const isBlock = (node: ChildNode): boolean =>
+            node instanceof HTMLElement && LINE_OWNING_TAGS.has(node.tagName);
+
+        let anchorIndex = children.findIndex(
+            (node) => node === caretNode || node.contains(caretNode),
+        );
+        if (anchorIndex === -1 && caretNode === editor) {
+            // A container-offset range ON the editor -- the "caret between two
+            // blocks" case. The OFFSET says where it is; searching for the first
+            // bare node in the document instead wrapped text at the far end and
+            // handed its new <p> back as the caret's block, so an input rule
+            // rewrote a paragraph the user was nowhere near.
+            anchorIndex = caretOffset < children.length ? caretOffset : children.length - 1;
+        }
+        if (anchorIndex === -1 || anchorIndex < 0) return [];
+        if (isBlock(children[anchorIndex])) return [];
+
+        let start = anchorIndex;
+        while (start > 0 && !isBlock(children[start - 1])) start--;
+        let end = anchorIndex;
+        while (end + 1 < children.length && !isBlock(children[end + 1])) end++;
+
+        return children.slice(start, end + 1);
+    }
+
+    private wrapBareTextInParagraph(editor: HTMLElement): HTMLElement | null {
+        const selection = this.document.getSelection();
+        if (!selection || selection.rangeCount === 0) return null;
+        const { startContainer, startOffset } = selection.getRangeAt(0);
+
+        // Only BARE nodes are wrapped, as the name says. This used to move every
+        // top-level child unconditionally, guarded only by "the caret is on the
+        // editor" -- which holds whenever the caret sits between blocks. A
+        // document with real blocks in it got nested inside a new <p>: invalid
+        // markup, a list losing top level, and a DOM/model desync that compounded
+        // a nesting level and two empty paragraphs on every keystroke.
+        // Only the CONTIGUOUS run holding the caret. Collecting every bare node
+        // in the document fused separated runs and teleported them: given
+        // "alpha<p>BLOCK</p>beta" it produced "<p>alphabeta</p><p>BLOCK</p>",
+        // moving text from after a block to before it and merging it with
+        // unrelated text.
+        const bare = this.bareRunAround(editor, startContainer, startOffset);
+        if (bare.length === 0) return null;
+        const runStart = Array.from(editor.childNodes).indexOf(bare[0]);
+
+        const paragraph = this.document.createElement('p');
+        bare[0].before(paragraph);
+        for (const node of bare) {
+            paragraph.appendChild(node);
+        }
+
+        // A caret held as a CHILD INDEX into the editor cannot be restored
+        // verbatim: the wrap removed N children and inserted 1, so the saved
+        // offset is out of range and setStart throws IndexSizeError -- escaping
+        // the listener and leaving the transform half-applied with no history
+        // entry. The wrapped run is where the caret was, so it is re-pointed
+        // into the new paragraph instead.
+        const restored = this.document.createRange();
+        if (startContainer === editor) {
+            // Rebased, not merely clamped. startOffset indexes the EDITOR's
+            // children; the run begins at `runStart`, so inside the paragraph the
+            // same position is startOffset - runStart. Reusing the raw value put
+            // the caret runStart positions too far right -- at the end of the
+            // paragraph rather than where the user was typing -- and the clamp
+            // only turned an out-of-range index into a silently wrong one.
+            const rebased = startOffset - runStart;
+            restored.setStart(paragraph, Math.max(0, Math.min(rebased, paragraph.childNodes.length)));
+        } else {
+            restored.setStart(startContainer, startOffset);
+        }
+        restored.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(restored);
+        return paragraph;
+    }
+
+    /**
+     * Which character completed the marker: a space when the author just typed
+     * one, and otherwise nothing — the empty terminator only `---` accepts.
+     *
+     * The space must have been *typed*, not merely end the prefix, so that
+     * dropping or pasting `"- "` into a paragraph leaves it as literal text. An
+     * event carrying no `data` is the synthetic one the tests raise, and counts
+     * as a typed space when the prefix already ends in one.
+     */
+    private blockRuleTerminator(blockPrefix: string, event: Event): ' ' | '' {
+        if (!/[ \u00A0]$/.test(blockPrefix)) return '';
+
+        const input = event as InputEvent;
+        if (input.inputType && input.inputType !== 'insertText') return '';
+        return input.data == null || input.data === ' ' ? ' ' : '';
+    }
+
+    /** Deletes the first `count` characters of a block's text, marker included. */
+    private removeLeadingCharacters(block: HTMLElement, count: number): void {
+        let remaining = count;
+        const walker = this.document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+        while (remaining > 0 && walker.nextNode()) {
+            const textNode = walker.currentNode as Text;
+            const take = Math.min(remaining, textNode.data.length);
+            textNode.deleteData(0, take);
+            remaining -= take;
+        }
+    }
+
+    /**
+     * Rebuilds the block as the matched rule asks and leaves the caret where the
+     * author would continue typing, returning the element the rule produced.
+     */
+    private buildBlockForRule(block: HTMLElement, match: BlockInputRuleMatch): HTMLElement {
+        switch (match.kind) {
+            case 'heading1':
+            case 'heading2':
+            case 'heading3':
+                return this.finishBlockRule(this.replaceBlockTag(block, `h${match.kind.at(-1)}`));
+            case 'bulletList':
+                return this.finishBlockRule(this.wrapBlockInList(block, 'ul'));
+            case 'orderedList':
+                return this.finishBlockRule(this.wrapBlockInList(block, 'ol'));
+            case 'blockquote':
+                return this.finishBlockRule(this.quoteBlock(block));
+            case 'taskUnchecked':
+                return this.buildTaskBlock(block, false);
+            case 'taskChecked':
+                return this.buildTaskBlock(block, true);
+            case 'horizontalRule':
+                return this.buildHorizontalRuleBlock(block);
+            default:
+                return this.buildCodeBlockForRule(block, match.language ?? '');
+        }
+    }
+
+    /** Places the caret at the start of a rule's new block and returns it. */
+    private finishBlockRule(block: HTMLElement): HTMLElement {
+        this.placeCaretAtStartOfBlock(block);
+        return block;
+    }
+
+    /**
+     * The text node at the start of a block for the caret to sit in: the
+     * block's own first one when it has content — a code block's seeded newline
+     * counts, and must survive so the Enter-to-exit rule can see it — otherwise
+     * a zero-width anchor, because a real browser will not put a caret in a
+     * zero-length text node or in a block holding only a `<br>`.
+     */
+    private emptyBlockCaretTarget(block: HTMLElement): Text {
+        const walker = this.document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+        const existing = walker.nextNode() as Text | null;
+        if (existing?.data) return existing;
+
+        if (existing) {
+            existing.data = '\u200B';
+            return existing;
+        }
+
+        // Only a block that shows nothing is cleared for the anchor. A block
+        // holding just an image or a rule has no text node either, and
+        // clearing it to seed the anchor deleted the image whenever a command
+        // put the caret there.
+        if (holdsNothing(block)) block.replaceChildren();
+        return block.insertBefore(this.document.createTextNode('\u200B'), block.firstChild);
+    }
+
+    /**
+     * Collapses the caret to where the author continues typing in a block a
+     * rule just built — before the block's own text, or after the zero-width
+     * anchor when the block has none, since a real browser will not type into
+     * a zero-length text node.
+     */
+    private placeCaretAtStartOfBlock(block: HTMLElement): void {
+        const selection = this.document.getSelection();
+        if (!selection) return;
+
+        const target = this.emptyBlockCaretTarget(block);
+        // After an invisible zero-width anchor, which a browser will not type
+        // into from its start; before a row's non-breaking-space seed, which
+        // shows. After the seed, everything the author typed followed a space.
+        const afterAnchor = this.isEmptyBlock(block) && !target.data.includes('\u00A0');
+        const offset = afterAnchor ? target.data.length : 0;
+
+        const range = this.document.createRange();
+        range.setStart(target, offset);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
+
+    /**
+     * Replaces the block with a task-list item carrying its remaining text,
+     * built the same way {@link toggleTaskList} builds one so both paths produce
+     * the structure the sanitizer and the Enter rules already understand.
+     */
+    private buildTaskBlock(block: HTMLElement, checked: boolean): HTMLElement {
+        const list = this.document.createElement('ul');
+        list.dataset['taskList'] = '';
+        const item = this.createTaskListItem(checked);
+        const textSpan = item.querySelector('span') as HTMLElement;
+
+        if (this.isEmptyBlock(block)) {
+            textSpan.textContent = '\u200B';
+        } else {
+            textSpan.textContent = '';
+            while (block.firstChild) {
+                textSpan.appendChild(block.firstChild);
+            }
+        }
+
+        list.appendChild(item);
+        block.parentNode?.replaceChild(list, block);
+        this.placeCaretAtStartOfBlock(textSpan);
+        return item;
+    }
+
+    /**
+     * One task-list item: the checkbox the reader toggles plus the span holding
+     * its text, seeded with a non-breaking space so an empty item still has a
+     * caret position.
+     */
+    private createTaskListItem(checked: boolean): HTMLElement {
+        const item = this.document.createElement('li');
+        item.dataset['task'] = '';
+        item.dataset['checked'] = String(checked);
+        const checkbox = this.document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = checked;
+        const textSpan = this.document.createElement('span');
+        // A non-breaking space. Not a plain one: that is collapsible
+        // whitespace, so Chrome normalises a caret at the span's boundary to
+        // the position BEFORE the span, the first thing typed lands beside the
+        // span, and the row then reads as empty. Not a zero-width one either:
+        // the span gets no width, so the browser has nothing to draw the caret
+        // against and a new row looks like it has no cursor at all.
+        textSpan.appendChild(this.document.createTextNode('\u00A0'));
+        item.appendChild(checkbox);
+        item.appendChild(textSpan);
+        return item;
+    }
+
+    /**
+     * Replaces the block with a rule followed by the empty paragraph the author
+     * carries on typing in. Built here rather than through
+     * {@link insertHorizontalRule}, which inserts at the caret and pushes its
+     * own history entry.
+     */
+    private buildHorizontalRuleBlock(block: HTMLElement): HTMLElement {
+        const rule = this.document.createElement('hr');
+        const paragraph = this.document.createElement('p');
+        paragraph.innerHTML = '<br>';
+        block.parentNode?.replaceChild(paragraph, block);
+        paragraph.parentNode?.insertBefore(rule, paragraph);
+        this.placeCaretAtStartOfBlock(paragraph);
+        return paragraph;
+    }
+
+    /**
+     * Replaces the block with a fenced code block holding whatever text
+     * followed the fence, or a newline when it was empty — the same shape
+     * {@link toggleCodeBlock} produces, so the Enter-to-exit rule works in it.
+     */
+    private buildCodeBlockForRule(block: HTMLElement, language: string): HTMLElement {
+        const pre = this.document.createElement('pre');
+        const code = this.document.createElement('code');
+        if (language) {
+            code.dataset['language'] = language;
+            code.className = `language-${language}`;
+            pre.dataset['language'] = language;
+        }
+        code.textContent = block.textContent?.replaceAll('\u200B', '') || '\n';
+        pre.appendChild(code);
+        block.parentNode?.replaceChild(pre, block);
+        this.placeCaretAtStartOfBlock(code);
+        return code;
+    }
+
+    /**
+     * Captures the pre-transform DOM — markers and all — as its own history
+     * entry, so a single undo restores the literal characters the author typed
+     * and the transform costs exactly one step.
+     */
+    private snapshotBeforeTransform(): void {
+        this.flushPendingHistoryPush();
+        this.readContentFromEditor();
+        this.pushHistory();
+    }
+
+    /**
+     * Applies an inline rule when the text before the caret ends in a completed
+     * wrapper. The wrapper's markers are dropped, its body moves into the new
+     * element, and the caret is parked in a zero-width text node after it so the
+     * browser does not keep typing inside the new `<strong>`.
+     */
+    private tryInlineRule(context: { block: HTMLElement; textNode: Text | null; offset: number }): boolean {
+        const { textNode, offset, block } = context;
+        if (!textNode) return false;
+        if (textNode.parentElement?.closest(RichTextEditorComponent.INLINE_RULE_FORBIDDEN_ANCESTORS)) {
             return false;
         }
-        const nonEmptyElement = Array.from(block.children).find(child => child.tagName !== 'BR');
-        return !nonEmptyElement;
+
+        const match = matchInlineInputRule(textNode.data.slice(0, offset));
+        if (!match) return false;
+
+        this.snapshotBeforeTransform();
+
+        const tail = textNode.splitText(match.start);
+        tail.deleteData(0, match.end - match.start);
+
+        const element = this.document.createElement(
+            this.inlineRuleTagName(match.kind)
+        );
+        element.textContent = match.text;
+        tail.parentNode?.insertBefore(element, tail);
+
+        const caretNode = this.document.createTextNode('\u200B');
+        tail.parentNode?.insertBefore(caretNode, tail);
+        const selection = this.document.getSelection();
+        if (selection) {
+            const range = this.document.createRange();
+            range.setStart(caretNode, 1);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+
+        this.lastInputRule = { block: element.parentElement ?? block };
+        return true;
+    }
+
+    /** The element an inline rule builds for a matched wrapper. */
+    private inlineRuleTagName(kind: 'strong' | 'em' | 'code'): string {
+        if (kind === 'strong') return 'strong';
+        return kind === 'em' ? 'em' : 'code';
+    }
+
+    /**
+     * Restores the literal characters of the transform that just ran, when
+     * Backspace is the very next keystroke and the caret has not left the block
+     * the rule produced. Reuses {@link undo}, so the revert lands the caret
+     * where the author was and redo re-applies the transform.
+     */
+    private revertLastInputRule(): boolean {
+        if (!this.caretIsInLastInputRuleBlock()) return false;
+
+        this.undo();
+        this.lastInputRule = null;
+        return true;
+    }
+
+    /**
+     * Whether the caret is still collapsed inside the element the last rule
+     * produced — the condition that keeps the Backspace revert offered.
+     */
+    private caretIsInLastInputRuleBlock(): boolean {
+        const recorded = this.lastInputRule;
+        if (!recorded) return false;
+
+        const selection = this.document.getSelection();
+        return (
+            !!selection &&
+            selection.rangeCount > 0 &&
+            selection.isCollapsed &&
+            recorded.block.contains(selection.getRangeAt(0).startContainer)
+        );
+    }
+
+    /**
+     * Ends the Backspace-revert window once the caret has left the block the
+     * rule produced — clicking elsewhere or selecting a range means the author
+     * has moved on, and Backspace there must delete rather than undo.
+     */
+    private closeInputRuleRevertWindowIfMoved(): void {
+        if (this.lastInputRule && !this.caretIsInLastInputRuleBlock()) {
+            this.lastInputRule = null;
+        }
+    }
+
+    /**
+     * Whether a block is blank for the purpose of "Enter leaves the structure":
+     * no visible text AND nothing that is content on its own. A list item or
+     * quoted line holding only an image has empty textContent, and the exit
+     * rules used to remove it -- deleting the image on Enter.
+     */
+    /**
+     * Whether a block shows the author nothing.
+     *
+     * Both of the editor's own predicates are gone: one counted any child
+     * element as content, so a blank line holding an empty `<span>` looked
+     * full; the other searched descendants only, so an empty table, not being
+     * its own descendant, read as blank and was replaced. {@link holdsNothing}
+     * is the single rule, and it asks about the element itself as well.
+     */
+    private holdsNoContent(block: Element): boolean {
+        return holdsNothing(block);
+    }
+
+    /** Whether a block shows nothing. The same rule as {@link holdsNoContent}. */
+    private isEmptyBlock(block: HTMLElement): boolean {
+        return holdsNothing(block);
     }
 
     private buildTriggerAwareText(html: string): string {
@@ -4372,20 +8373,20 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     private reconstructHtml(index: number): string {
-        const entry = this.history[index];
+        const entry = this.snapshots[index];
         if (entry.keyframe) {
             return entry.html;
         }
         let keyframeIdx = index;
-        while (keyframeIdx >= 0 && !this.history[keyframeIdx].keyframe) {
+        while (keyframeIdx >= 0 && !this.snapshots[keyframeIdx].keyframe) {
             keyframeIdx--;
         }
         if (keyframeIdx < 0) {
             return entry.html;
         }
-        let html = this.history[keyframeIdx].html;
+        let html = this.snapshots[keyframeIdx].html;
         for (let i = keyframeIdx + 1; i <= index; i++) {
-            const e = this.history[i];
+            const e = this.snapshots[i];
             if (e.keyframe) {
                 html = e.html;
             } else if (e.delta) {
@@ -4412,18 +8413,18 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     private pushHistory(): void {
         const currentHtml = this.htmlContent();
-        const lastEntry = this.history.at(-1);
-        const lastHtml = lastEntry ? this.reconstructHtmlCached(this.history.length - 1) : '';
+        const lastEntry = this.snapshots.at(-1);
+        const lastHtml = lastEntry ? this.reconstructHtmlCached(this.snapshots.length - 1) : '';
         if (lastEntry && lastHtml === currentHtml) {
             return;
         }
         const previewData = this.buildHistoryPreview(currentHtml);
 
-        if (this.historyIndex < this.history.length - 1) {
-            this.history = this.history.slice(0, this.historyIndex + 1);
+        if (this.historyIndex < this.snapshots.length - 1) {
+            this.snapshots = this.snapshots.slice(0, this.historyIndex + 1);
         }
 
-        const isKeyframe = !lastEntry || this.history.length % 10 === 0;
+        const isKeyframe = !lastEntry || this.snapshots.length % 10 === 0;
         const delta = (!isKeyframe && lastEntry)
             ? this.computeDelta(lastHtml, currentHtml)
             : null;
@@ -4439,73 +8440,79 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             lineCount: previewData.lineCount,
         };
 
-        this.history.push(entry);
-        this.historyIndex = this.history.length - 1;
+        this.snapshots.push(entry);
+        this.historyIndex = this.snapshots.length - 1;
         this.lastReconstructedIndex = this.historyIndex;
         this.lastReconstructedHtml = currentHtml;
 
-        const maxEntries = Math.max(10, this.historyLimit());
-        if (this.history.length > maxEntries) {
-            if (!this.history[0].keyframe && this.history.length > 1) {
-                this.history[1].html = this.reconstructHtml(1);
-                this.history[1].keyframe = true;
-                this.history[1].delta = null;
+        const maxEntries = Math.max(10, this.history().limit ?? DEFAULT_HISTORY_LIMIT);
+        if (this.snapshots.length > maxEntries) {
+            if (!this.snapshots[0].keyframe && this.snapshots.length > 1) {
+                this.snapshots[1].html = this.reconstructHtml(1);
+                this.snapshots[1].keyframe = true;
+                this.snapshots[1].delta = null;
             }
-            this.history.shift();
+            this.snapshots.shift();
             this.historyIndex--;
             this.lastReconstructedIndex--;
         }
         this.bumpHistoryVersion();
     }
 
-    private undo(): void {
+    /**
+     * Undo one step — mirrors `Ctrl`/`Cmd`+`Z`. Flushes a pending typing burst
+     * first, so one call takes back the whole burst rather than half of it.
+     * No-op at the start of the stack.
+     *
+     * @publicApi
+     */
+    undo(): void {
         this.flushPendingHistoryPush();
-        if (this.historyIndex > 0) {
-            this.isUndoRedo = true;
-            this.historyIndex--;
-            const entry = this.history[this.historyIndex];
-            const html = this.reconstructHtmlCached(this.historyIndex);
-            this.htmlContent.set(html);
-
-            if (this.editorDiv?.nativeElement) {
-                this.editorDiv.nativeElement.innerHTML = html;
-                this.enableTaskCheckboxes(this.editorDiv.nativeElement);
-            }
-            this.restoreSerializedSelection(entry.selection);
-
-            const outputValue = this.mode() === 'markdown'
-                ? this.markdownService.toMarkdown(html)
-                : html;
-            this.onChange(outputValue);
-            this.bumpHistoryVersion();
-        }
+        if (this.historyIndex > 0) this.applyHistoryEntry(this.historyIndex - 1);
     }
 
-    private redo(): void {
-        this.flushPendingHistoryPush();
-        if (this.historyIndex < this.history.length - 1) {
-            this.isUndoRedo = true;
-            this.historyIndex++;
-            const entry = this.history[this.historyIndex];
-            const html = this.reconstructHtmlCached(this.historyIndex);
-            this.htmlContent.set(html);
+    /**
+     * Make `index` the current history entry: reconstruct it, write it to the
+     * editable, restore its selection and tell the form. Shared by undo and
+     * redo, which differ only in the direction they step.
+     *
+     * Rewriting innerHTML fires no `input` event, so no flag is needed to keep
+     * the replay from being recorded as typing; an earlier guard flag for that
+     * was set and cleared within this same synchronous call and could never be
+     * observed.
+     */
+    private applyHistoryEntry(index: number): void {
+        this.historyIndex = index;
+        const entry = this.snapshots[index];
+        const html = this.reconstructHtmlCached(index);
+        this.htmlContent.set(html);
 
-            if (this.editorDiv?.nativeElement) {
-                this.editorDiv.nativeElement.innerHTML = html;
-                this.enableTaskCheckboxes(this.editorDiv.nativeElement);
-            }
-            this.restoreSerializedSelection(entry.selection);
-
-            const outputValue = this.mode() === 'markdown'
-                ? this.markdownService.toMarkdown(html)
-                : html;
-            this.onChange(outputValue);
-            this.bumpHistoryVersion();
+        if (this.editorDiv?.nativeElement) {
+            this.replaceEditorHtml(html);
+            this.enableTaskCheckboxes(this.editorDiv.nativeElement);
         }
+        this.restoreSerializedSelection(entry.selection);
+
+        const outputValue = this.mode() === 'markdown'
+            ? this.markdownService.toMarkdown(html)
+            : html;
+        this.onChange(outputValue);
+        this.bumpHistoryVersion();
+    }
+
+    /**
+     * Redo one step — mirrors `Ctrl`+`Y` / `Ctrl`+`Shift`+`Z`. No-op at the end
+     * of the stack.
+     *
+     * @publicApi
+     */
+    redo(): void {
+        this.flushPendingHistoryPush();
+        if (this.historyIndex < this.snapshots.length - 1) this.applyHistoryEntry(this.historyIndex + 1);
     }
 
     private scheduleDebouncedHistoryPush(): void {
-        const delay = Math.max(0, this.historyDebounceMs());
+        const delay = Math.max(0, this.history().debounceMs ?? DEFAULT_HISTORY_DEBOUNCE_MS);
         if (this.historyDebounceTimer) {
             clearTimeout(this.historyDebounceTimer);
         }
@@ -4528,7 +8535,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     /** Read-only projection of the history stack, oldest first (addon host surface). */
     historyEntries(): readonly RichTextHistoryEntrySnapshot[] {
         this.historyVersion();
-        return this.history.map((entry, index) => ({
+        return this.snapshots.map((entry, index) => ({
             index,
             timestamp: entry.timestamp,
             preview: entry.preview,
@@ -4545,15 +8552,24 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     /** Reconstruct a history entry's HTML + Markdown (addon host surface). */
     reconstructHistoryEntry(index: number): { html: string; markdown: string } | null {
-        if (index < 0 || index >= this.history.length) {
+        if (index < 0 || index >= this.snapshots.length) {
             return null;
         }
         const html = this.reconstructHtmlCached(index);
         return { html, markdown: this.markdownService.toMarkdown(html) };
     }
 
+    /**
+     * The single choke point every history-stack change already passes through,
+     * so {@link historyChange} rides along with the version bump rather than
+     * needing its own call at each mutation site.
+     */
     private bumpHistoryVersion(): void {
         this._historyVersion.update(v => v + 1);
+        this.historyChange.emit({
+            canUndo: this.historyIndex > 0,
+            canRedo: this.historyIndex < this.snapshots.length - 1,
+        });
     }
 
     private buildHistoryPreview(html: string): { preview: string; previewLines: string[]; lineCount: number } {
@@ -4652,6 +8668,38 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return Math.max(0, Math.min(desiredOffset, node.childNodes.length));
     }
 
+    /**
+     * Release every `document` listener a table drag can arm.
+     *
+     * A drag left mid-flight — the editor torn down by a nav click, a closing
+     * dialog, a tab switch, before the pointer is released — otherwise leaves a
+     * `.bind(this)` listener on `document` pinning the whole component alive.
+     * The touch pair is worse than a leak: `onTableResizeTouchMove` calls
+     * `preventDefault` unconditionally and is registered non-passive, so one
+     * leaked copy stops scrolling working anywhere in the app.
+     *
+     * Each pair is listed once here and removed by the SAME bound reference it
+     * was added with; the previous version removed the cell-select pair not at
+     * all, and used the cell-touch references to try to remove the resize
+     * listeners, which silently matched nothing.
+     */
+    private releaseTableDragListeners(): void {
+        this.document.removeEventListener('mousemove', this.onTableResizeMoveBound);
+        this.document.removeEventListener('mouseup', this.onTableResizeUpBound);
+        this.document.removeEventListener('touchmove', this.onTableResizeTouchMoveBound);
+        this.document.removeEventListener('touchend', this.onTableResizeUpBound);
+        this.document.removeEventListener('mousemove', this.onTableCellSelectMoveBound);
+        this.document.removeEventListener('mouseup', this.onTableCellSelectUpBound);
+        this.document.removeEventListener('touchmove', this.onTableCellTouchMoveBound);
+        this.document.removeEventListener('touchend', this.onTableCellTouchEndBound);
+
+        // Cleared so a handler that fires between removal and teardown cannot
+        // act on a half-destroyed component.
+        this.tableResizeState = null;
+        this.tableCellSelecting = false;
+        this.tableCellSelectAnchor = null;
+    }
+
     ngOnDestroy(): void {
         this.shortcutHandle?.unregister();
         this.shortcutHandle = null;
@@ -4659,11 +8707,35 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             clearTimeout(this.historyDebounceTimer);
             this.historyDebounceTimer = null;
         }
-        this.document.removeEventListener('mousemove', this.onTableResizeMoveBound);
-        this.document.removeEventListener('mouseup', this.onTableResizeUpBound);
-        this.document.removeEventListener('touchmove', this.onTableCellTouchMoveBound);
-        this.document.removeEventListener('touchend', this.onTableCellTouchEndBound);
+        this.releaseTableDragListeners();
+        this.cancelPendingFind();
+        this.teardownFindOverlay();
         this.closeTableContextMenu();
         this.removeFloatingScrollListener();
     }
+}
+
+/** The last child element of `parent` whose tag is `tagName`, or null. */
+function lastChildTagged(parent: Element, tagName: string): Element | null {
+    for (let child = parent.lastElementChild; child; child = child.previousElementSibling) {
+        if (child.nodeName === tagName) return child;
+    }
+    return null;
+}
+
+/** How many zero-width anchors sit before `offset` in `text`. */
+function countZeroWidthBefore(text: string, offset: number): number {
+    let count = 0;
+    for (let i = 0; i < offset && i < text.length; i++) {
+        if (text[i] === '​') count++;
+    }
+    return count;
+}
+
+/** Where `offset` in `node` lands once that node's zero-width anchors are gone. */
+function offsetAfterSweep(node: Node, offset: number, before: ReadonlyMap<Text, string>): number {
+    const original = before.get(node as Text);
+    if (original === undefined) return offset;
+    const removed = countZeroWidthBefore(original, offset);
+    return Math.max(0, offset - removed);
 }

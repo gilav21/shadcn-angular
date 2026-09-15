@@ -12967,6 +12967,12 @@
           "description": "",
           "inputs": [
             {
+              "name": "allowedResourceHosts",
+              "type": "readonly string[]",
+              "description": "Hosts whose remote images and CSS backgrounds may load. Empty (the default) means no policy: any `https://` source is permitted, which is how every comparable editor behaves. Worth knowing before leaving it empty: a remote image is a silent outbound request that every viewer's browser makes on render. Any host named in a pasted document therefore learns who opened it and when, with nothing to click and nothing visible to delete -- a 1x1 transparent pixel is the standard shape. Wire up {@link remoteResource} to see which hosts your real content actually loads from before deciding. An allowlist narrows that exposure to parties you have named; it does not remove it, because a trusted host can still identify the reader through the URL itself (`https://cdn.example.com/logo.png?viewer=bob`). Entries are matched against the parsed hostname, exactly and case-insensitively. A `*.` prefix matches subdomains by label (`*.assets.example` covers `img.assets.example`, never `img.assets.example.evil.com`); list the apex separately if you want it. `data:` and relative sources are always permitted -- they cannot contact anyone, and `data:` is how a Word paste carries its images.",
+              "default": "[]"
+            },
+            {
               "name": "ariaDescribedBy",
               "type": "string | undefined",
               "description": "ID of an element that describes the editor, set as `aria-describedby`."
@@ -12977,22 +12983,27 @@
               "description": "Custom `aria-label` for the editable content area. Falls back to the locale default."
             },
             {
+              "name": "blockedImageMessage",
+              "type": "string",
+              "description": "Caption shown on an image {@link allowedResourceHosts} refused. Unset uses the translated default. Override it to say something only you know -- who to ask for a host to be allowed, or why it is not. Inserted as text, never as markup."
+            },
+            {
               "name": "class",
               "type": "string",
               "description": "Additional CSS classes merged onto the editor's root container.",
               "default": "''"
             },
             {
-              "name": "customToolbarItems",
-              "type": "RichTextCustomToolbarItem[]",
-              "description": "Extra consumer-owned toolbar buttons, rendered in array order after the built-in {@link toolbarItems} and before any addon slot. Each entry's `isActive(formats)` is re-evaluated against the editor's detected active formats, so the button can light up like a built-in one. Clicking one does NOT format anything — it emits {@link customToolbarAction}, and the handler decides. Only the `'top'` toolbar renders these; the floating toolbar and `toolbar=\"none\"` ignore them. Addons should contribute a {@link RichTextToolbarSlot} through the host instead.",
-              "default": "[]"
-            },
-            {
               "name": "disabled",
               "type": "boolean",
-              "description": "Disables the editor entirely — no input, no toolbar, no interactions.",
+              "description": "Disables the editor entirely — no input, no toolbar, no interactions. OR-ed with the form's own disabled state; see {@link isDisabled}.",
               "default": "false"
+            },
+            {
+              "name": "findDebounceMs",
+              "type": "number",
+              "description": "Milliseconds of quiet before a changed find query is searched, so a burst of keystrokes costs one pass over the document. `0` searches synchronously on every keystroke.",
+              "default": "150"
             },
             {
               "name": "historyDebounceMs",
@@ -13009,7 +13020,13 @@
             {
               "name": "locale",
               "type": "LocaleInput<RichTextLocale>",
-              "description": "Language/locale for all editor UI strings. Pass a locale key (e.g. `'en'`) to use a built-in locale, or pass a full {@link RichTextLocale} object for custom translations."
+              "description": "Language/locale for all editor UI strings. Pass a locale key (e.g. `'en'`) to use a built-in locale, or pass a full {@link RichTextLocale} object for custom translations. Addon directives inherit it. The component re-broadcasts this input as `UI_LOCALE_ID` through `provideComponentLocale` in `providers` — element level, because addon directives sit on the editor's own element — so `<ui-rich-text-editor locale=\"he\" uiRteFull>` localizes all fourteen addons from this one binding. An addon's own `[uiRte<Name>Locale]` still wins where it is set, and with this input unset everything falls through to the app-wide `UI_LOCALE_ID` as before."
+            },
+            {
+              "name": "markdownShortcuts",
+              "type": "boolean",
+              "description": "Whether a completed Markdown marker typed into the editor turns into real formatting: `# ` / `## ` / `### ` into headings, `- ` / `* ` and `1. ` into lists, `> ` into a blockquote, `[] ` / `[x] ` into a task item, `---` into a horizontal rule, ``` (optionally with a language, then Space or Enter) into a code block, and `**bold**`, `*italic*`, `` `code` `` into their inline elements. Each transform is exactly one undo step, and pressing Backspace immediately afterwards puts the literal characters back — so a marker can still be typed as text when that is what was meant. Set it to `false` for an editor whose authors type Markdown markers they expect to stay literal.",
+              "default": "true"
             },
             {
               "name": "maxHeight",
@@ -13044,6 +13061,12 @@
               "name": "readonly",
               "type": "boolean",
               "description": "Makes the editor non-editable but still selectable/copyable. Hides the toolbar.",
+              "default": "false"
+            },
+            {
+              "name": "recordExternalWrites",
+              "type": "boolean",
+              "description": "Record a history entry for each `ControlValueAccessor` write, so a form's `setValue` / `patchValue` can be undone. Off by default, matching the long-standing behaviour that a programmatic write is not an edit.",
               "default": "false"
             },
             {
@@ -13090,14 +13113,14 @@
               "description": "Emits when the editor loses focus."
             },
             {
-              "name": "customToolbarAction",
-              "type": "{ id: string; ref: RichTextEditorRef }",
-              "description": "Emits when a {@link customToolbarItems} button is clicked, with that item's `id` and a {@link RichTextEditorRef} scoped to this editor. The ref is the whole public surface a custom button gets: insert text/HTML at the caret, focus, and read the selected text / current HTML. Note the ref's inserts update the model and emit the change outputs but record NO history entry of their own, so undo will not step over them cleanly."
-            },
-            {
               "name": "focused",
               "type": "void",
               "description": "Emits when the editor gains focus."
+            },
+            {
+              "name": "historyChange",
+              "type": "RichTextHistoryState",
+              "description": "Emits the undo stack's state on every change to it — a push, undo, redo, history restore or trim. Drive your own undo/redo buttons from it, or read {@link canUndo} / {@link canRedo} directly."
             },
             {
               "name": "htmlChange",
@@ -13110,12 +13133,110 @@
               "description": "Emits the current content as a Markdown string after every change. Only meaningful when `mode` is `'markdown'` — in `'html'` mode, the Markdown is reverse-converted from HTML and may not round-trip perfectly."
             },
             {
+              "name": "remoteResource",
+              "type": "ResourcePolicyDecision",
+              "description": "Emits once per remote image or CSS background the content references, whether it was allowed or blocked. It fires even when {@link allowedResourceHosts} is empty, with `reason: 'no-policy'` -- that is the point. Log it to discover which hosts your documents really load from before you decide whether to restrict them."
+            },
+            {
               "name": "wordCountChange",
               "type": "number",
               "description": "Emits the current word count after every content change. Pair with `[showWordCount]`."
             }
           ],
-          "methods": []
+          "methods": [
+            {
+              "name": "focus",
+              "signature": "focus()",
+              "returns": "void",
+              "description": "Focus the editable and restore the caret the user last had inside it. `restoreSelection` alone returns early without focusing when the live selection is already in the editor, so the focus call comes first and the restore second — a page button that stole focus still lands the caret back where the user left it.",
+              "params": []
+            },
+            {
+              "name": "format",
+              "signature": "format(command: RichTextFormatCommand)",
+              "returns": "void",
+              "description": "Run a toolbar command exactly as a toolbar click would. The narrow {@link RichTextFormatCommand} type is the whole guard — there is no runtime allow-list, because the union is the contract.",
+              "params": [
+                {
+                  "name": "command",
+                  "type": "RichTextFormatCommand",
+                  "optional": false
+                }
+              ]
+            },
+            {
+              "name": "insertHtml",
+              "signature": "insertHtml(html: string)",
+              "returns": "void",
+              "description": "Insert HTML at the restored caret as one history entry, then focus the editor. The markup goes through the editor's allow-list sanitizer, so a `<script>` is dropped rather than inserted. No-op while readonly or disabled, and when nothing survives sanitization. The single sanitize pass both answers that question and supplies the markup that is inserted — deciding and inserting must not disagree.",
+              "params": [
+                {
+                  "name": "html",
+                  "type": "string",
+                  "optional": false
+                }
+              ]
+            },
+            {
+              "name": "insertText",
+              "signature": "insertText(text: string)",
+              "returns": "void",
+              "description": "Insert plain text at the restored caret as one history entry, then focus the editor — the method a page button next to the editor calls. No-op while readonly or disabled, and for the empty string (an empty insert would otherwise record a history entry that undoes nothing).",
+              "params": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "optional": false
+                }
+              ]
+            },
+            {
+              "name": "isEmpty",
+              "signature": "isEmpty()",
+              "returns": "boolean",
+              "description": "`true` when the document has no visible text and no image, rule or table. Shares one rule with `richTextRequired()`, so a form's validity and a \"Send\" button's disabled state can never disagree. Parses the document on each call, like `characterCount`. Bind it through a `computed` over `htmlOutput()` rather than calling it in a template.",
+              "params": []
+            },
+            {
+              "name": "markClean",
+              "signature": "markClean()",
+              "returns": "void",
+              "description": "Treat the current content as saved: {@link isDirty} reads false again until the next change. Call it after persisting the value. The baseline is read back out of the editable rather than taken from the model, so content the browser normalised after the model was written still compares equal. That read also refreshes the model from the DOM — the two are being reconciled, which is the point of marking clean.",
+              "params": []
+            },
+            {
+              "name": "redo",
+              "signature": "redo()",
+              "returns": "void",
+              "description": "Redo one step — mirrors `Ctrl`+`Y` / `Ctrl`+`Shift`+`Z`. No-op at the end of the stack.",
+              "params": []
+            },
+            {
+              "name": "setContent",
+              "signature": "setContent(value: string, options?: RichTextSetContentOptions)",
+              "returns": "void",
+              "description": "Replace the editor's content programmatically, as an edit the code is making — the counterpart to {@link writeValue}, which is the *form* telling the editor what its value is. Unlike `writeValue` it calls back into the form, emits the content outputs, and records one history entry so `Ctrl+Z` restores what the user was looking at. Pass `{ recordHistory: false }` for a write that should not be undoable — restoring a version, say. The caret is left collapsed at the end of the new content. `null`/`undefined` become the empty string. Any in-flight typing burst is flushed as its own entry *before* the new content lands, so a `setContent` arriving mid-sentence cannot swallow what the user had just typed. (§D.5.12 of the spec lists the flush after the write; that order loses the burst — see the spec's corrections.) It deliberately does NOT reset the dirty baseline: content the code inserted is still an unsaved change. Use {@link markClean} after a save.",
+              "params": [
+                {
+                  "name": "value",
+                  "type": "string",
+                  "optional": false
+                },
+                {
+                  "name": "options",
+                  "type": "RichTextSetContentOptions",
+                  "optional": true
+                }
+              ]
+            },
+            {
+              "name": "undo",
+              "signature": "undo()",
+              "returns": "void",
+              "description": "Undo one step — mirrors `Ctrl`/`Cmd`+`Z`. Flushes a pending typing burst first, so one call takes back the whole burst rather than half of it. No-op at the start of the stack.",
+              "params": []
+            }
+          ]
         },
         {
           "className": "RichTextToolbarComponent",
@@ -13127,7 +13248,7 @@
             {
               "name": "activeFormats",
               "type": "Set<string>",
-              "description": "Format names currently active at the caret (`'bold'`, `'italic'`, `'underline'`, `'strikethrough'`, `'code'`, `'taskList'`), used to render buttons pressed. Only those names are honoured — see {@link isActive}. Also passed to each custom item's `isActive` predicate.",
+              "description": "Format names currently active at the caret, used to render buttons pressed. A name is honoured when it matches a toggle item — every inline format, block type, list type and alignment; see {@link isActive}. Names the host reports for other purposes (`'indent'`, which carries list-nesting depth) are carried but never rendered as a pressed state.",
               "default": "new Set()"
             },
             {
@@ -13147,12 +13268,6 @@
               "type": "boolean",
               "description": "Compact rendering for the floating/bubble toolbar: tighter button padding, no border or background on the container. The editor sets this only on the floating instance. Also published to component slots through {@link RichTextToolbarViewContext} so they can size themselves to match.",
               "default": "false"
-            },
-            {
-              "name": "customItems",
-              "type": "RichTextCustomToolbarItem[]",
-              "description": "Consumer-defined buttons rendered after the built-in {@link items} and before the addon slots. Each supplies its own inline SVG `icon`, which is trusted as-is — see {@link getSafeIcon}.",
-              "default": "[]"
             },
             {
               "name": "disabled",
@@ -13184,11 +13299,6 @@
               "name": "addonSlotClick",
               "type": "{ slot: RichTextToolbarSlot; event: Event }",
               "description": "Emits when an addon *button* slot is clicked, with the slot and the raw DOM event (addons position popovers off the event target). Component slots handle their own clicks and never emit this."
-            },
-            {
-              "name": "customItemClick",
-              "type": "string",
-              "description": "Emits the `id` of the clicked {@link customItems} entry."
             },
             {
               "name": "formatCommand",
@@ -13309,7 +13419,7 @@
           "file": "packages/components/ui/rich-text-editor/addons/actions/rich-text-actions-bind.directive.ts",
           "kind": "directive",
           "selector": "[uiRichTextActions]",
-          "description": "Binds {@link bindRichTextActions} to a host element and keeps it re-bound across `[innerHTML]` swaps (a `MutationObserver` re-binds once per coalesced mutation batch). Delivers typed action events to the handler map. ```html <article [innerHTML]=\"trustedHtml\" [uiRichTextActions]=\"handlers\"></article> ```",
+          "description": "Binds {@link bindRichTextActions} to a host element and keeps it re-bound across `[innerHTML]` swaps (a `MutationObserver` re-binds once per coalesced mutation batch). Delivers typed action events to the handler map. It also registers {@link RICH_TEXT_ACTIONS_SANITIZER_RULES} for its own lifetime, which is what makes actions work on a page with **no editor**: without it the sanitizer strips every `data-action-*` attribute, because those rules are otherwise only alive while an editor carrying `uiRteActions` is. The rules are registered in the constructor, before any child renders, so **placement matters** — put the directive on the rendering element or an ancestor of it in the same template. A directive attached dynamically, after the content has already been sanitized once, is too late. ```html <article [innerHTML]=\"trustedHtml\" [uiRichTextActions]=\"handlers\"></article> <ui-rich-text-view mode=\"html\" [value]=\"post\" [uiRichTextActions]=\"handlers\" /> ```",
           "inputs": [
             {
               "name": "a11yAffordances",
@@ -13831,7 +13941,7 @@
           "file": "packages/components/ui/rich-text-editor/addons/file-import/rich-text-file-import.directive.ts",
           "kind": "directive",
           "selector": "ui-rich-text-editor[uiRteFileImport], ui-rich-text-editor[uiRteFull]",
-          "description": "Opt-in file-import addon for `<ui-rich-text-editor>`. Attaches via DI to the `RichTextEditorAddonHost` the base provides and owns the whole document import feature: the toolbar import button (a hidden picker), drag-and-drop of a document onto the editor, the lazy-loaded `docx`/`pdf` parsers, and the busy/error overlay. The base editor ships no import UI or parser code; every import control is opt-in through this directive. When an addon owns image files (the images addon), the picker additionally offers PNG/JPEG/GIF/WEBP and hands a picked image straight to that addon's pipeline through the host's `insertImageFile` — this addon never inserts an image itself, so an image picked here behaves exactly like one pasted or dropped. Without that addon the picker offers documents only. Image drag-and-drop and paste are likewise not handled here; see {@link IMAGE_IMPORT_ACCEPT} for why the drop path differs. Parsed HTML lands at the saved caret through the host's `insertHtmlAtCaret` (one history entry, re-sanitized) after `restoreSelection`, reproducing the former built-in exactly. The drop path diverts through the host's `registerDropInterceptor` / `registerDropZonePredicate` seams so the drag highlight and drop both come from the addon. Strings resolve from `[uiRteFileImportLocale]` (a registry key or a full dictionary) or the app-wide `UI_LOCALE_ID` token — NOT the editor's own `[locale]` input. ```html <ui-rich-text-editor uiRteFileImport /> ```",
+          "description": "",
           "inputs": [
             {
               "name": "uiRteFileImport",
@@ -14160,7 +14270,7 @@
             {
               "name": "minWidth",
               "type": "number",
-              "description": "Lower clamp (px) for the dragged image width/height.",
+              "description": "Lower clamp (px) for the dragged image, on both axes.",
               "default": "20"
             },
             {
@@ -14355,6 +14465,12 @@
           "selector": "ui-rich-text-links-form",
           "description": "The link insert/edit form: a link-text field, a URL field, and confirm / cancel / (edit-mode) remove actions. Presentational only — the links addon hosts it inside the toolbar popover and inside the caret/anchor overlay, and performs the actual insert/remove through the editor host. The URL is trimmed and required; the addon validates and sanitizes it before writing any anchor.",
           "inputs": [
+            {
+              "name": "errorMessage",
+              "type": "string",
+              "description": "Validation message to show under the URL field, or `''` for none. The addon owns URL validation (it holds the sanitizer), so it drives this rather than the form guessing. Without it a rejected URL closed the dialog and discarded the input silently, which looked exactly like success.",
+              "default": "''"
+            },
             {
               "name": "locale",
               "type": "RichTextLinksLocale",
@@ -14677,7 +14793,7 @@
           "file": "packages/components/ui/rich-text-editor/addons/slash-commands/rich-text-slash-commands-menu.component.ts",
           "kind": "component",
           "selector": "ui-rich-text-slash-commands-menu",
-          "description": "The slash-command menu overlay. Rendered by {@link RichTextSlashCommandsDirective} through a `ViewContainerRef` and positioned at the caret; owns only its markup, hover/select events, and keeping the active option scrolled into view. All filtering, keyboard navigation and execution live in the directive.",
+          "description": "",
           "inputs": [
             {
               "name": "commands",
@@ -14880,6 +14996,92 @@
               "name": "fontSizeSelect",
               "type": "string",
               "description": "Emits the applied font size (numeric px string, e.g. `'24'`)."
+            }
+          ],
+          "methods": []
+        }
+      ]
+    },
+    {
+      "name": "rich-text-view",
+      "description": "Read-only renderer for rich-text-editor output (HTML or markdown) with the editor typography and sanitizer.",
+      "category": "editor",
+      "install": "npx @gilav21/shadcn-angular@latest add rich-text-view",
+      "importStatement": "import { RichTextViewComponent } from '@/components/ui/rich-text-view';",
+      "selector": "ui-rich-text-view",
+      "dependencies": [
+        "rich-text-editor"
+      ],
+      "npmDependencies": [],
+      "snippet": "<ui-rich-text-view />",
+      "snippetSkipReason": "",
+      "demoRoute": "rich-text-view",
+      "demoFile": "demo/src/app/demos/inputs/rich-text-view-demo.component.ts",
+      "api": [
+        {
+          "className": "RichTextViewComponent",
+          "file": "packages/components/ui/rich-text-view/rich-text-view.component.ts",
+          "kind": "component",
+          "selector": "ui-rich-text-view",
+          "description": "Renders what `<ui-rich-text-editor>` produced, read-only — \"author here, render there\". The document goes through the same allow-list sanitizer and the same markdown parser the editor uses, and carries the editor's exact typography, so a published page looks like the editing surface did. It is a plain container, so `[uiRichTextActions]` from the actions addon works on it (or on any ancestor) with no editor anywhere on the page. ```html <ui-rich-text-view mode=\"html\" [value]=\"post.html\" size=\"lg\" /> <ui-rich-text-view [value]=\"readme\" /> ```",
+          "inputs": [
+            {
+              "name": "allowedResourceHosts",
+              "type": "readonly string[]",
+              "description": "Hosts whose remote images and CSS backgrounds may load. Empty (the default) means no policy, matching the editor and prior behaviour. This matters more here than in the editor. A remote image is a silent request every VIEWER's browser makes on render, so a tracking pixel in published content fires for each reader -- and this component is what readers see. A policy set on an editor governs what an author can insert; it does not travel with the document, so set the same list here. A blocked image keeps its element and alt and gains `data-blocked-src`, so nothing is fetched and allowing the host later restores it.",
+              "default": "[]"
+            },
+            {
+              "name": "blockedImageMessage",
+              "type": "string",
+              "description": "Caption shown on an image {@link allowedResourceHosts} refused. Inserted as text, never as markup. Unset uses the translated default from {@link locale}."
+            },
+            {
+              "name": "class",
+              "type": "string",
+              "description": "Extra classes merged onto the content element.",
+              "default": "''"
+            },
+            {
+              "name": "dir",
+              "type": "\"ltr\" | \"rtl\" | \"auto\"",
+              "description": "Text direction for the content; unset inherits from the page."
+            },
+            {
+              "name": "inheritResourcePolicy",
+              "type": "boolean",
+              "description": "Take the policy from the nearest enclosing view or editor when this one sets none. Off by default, so an empty {@link allowedResourceHosts} keeps exactly one meaning -- no policy -- and the effective rule is readable from the component itself. Turn it on for a page that renders many views under a single policy, where repeating the list on each would be the more likely mistake. Ignored when this view sets its own list.",
+              "default": "false"
+            },
+            {
+              "name": "locale",
+              "type": "LocaleInput<RichTextLocale>",
+              "description": "Locale for the strings this component renders itself -- today only the blocked-image caption. Same shape as the editor's `locale`; unset falls through to the app-wide `UI_LOCALE_ID`."
+            },
+            {
+              "name": "mode",
+              "type": "EditorMode",
+              "description": "How to interpret {@link value}. Defaults to `'markdown'`, matching the editor.",
+              "default": "'markdown'"
+            },
+            {
+              "name": "size",
+              "type": "EditorSize",
+              "description": "Text size preset — the editor's `size` values.",
+              "default": "'default'"
+            },
+            {
+              "name": "value",
+              "type": "string",
+              "description": "The document — HTML or markdown per {@link mode}; the string the editor emits.",
+              "default": "''"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "remoteResource",
+              "type": "ResourcePolicyDecision",
+              "description": "Emits once per remote image or CSS background the rendered content references, allowed or blocked -- with `reason: 'no-policy'` when no list is set. The view is what readers see, so this is where exposure is measured; the editor has the same output for what authors insert."
             }
           ],
           "methods": []

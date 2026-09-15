@@ -5,7 +5,7 @@ import {
 import { RichTextEditorAddonHost, RichTextSanitizerService, RichTextMarkdownService } from '../..';
 import {
     applyStarterStyle, assertFlatParams, computeSeedStyleString, isCombinedOnElement, readActions,
-    removeAction, stripStyleIfMatches, validateActionId, validateActionParams, writeAction, writeCombined,
+    removeAction, RICH_TEXT_ACTIONS_SANITIZER_RULES, stripStyleIfMatches, writeAction, writeCombined,
 } from './rich-text-actions.serializer';
 import {
     RichTextActionsDialogComponent, type ActionsDialogConfirm,
@@ -94,12 +94,7 @@ export class RichTextActionsDirective {
     private registerBaseHooks(): void {
         effect((onCleanup) => {
             if (this.uiRteActions().length === 0) return;
-            onCleanup(this.sanitizer.registerAttributeRules([
-                { tag: '*', attr: 'data-action-click', validate: validateActionId },
-                { tag: '*', attr: 'data-action-hover', validate: validateActionId },
-                { tag: '*', attr: 'data-action-click-params', requiresAttr: 'data-action-click', validate: validateActionParams },
-                { tag: '*', attr: 'data-action-hover-params', requiresAttr: 'data-action-hover', validate: validateActionParams },
-            ]));
+            onCleanup(this.sanitizer.registerAttributeRules(RICH_TEXT_ACTIONS_SANITIZER_RULES));
         });
 
         effect((onCleanup) => {
@@ -133,6 +128,17 @@ export class RichTextActionsDirective {
                 run: () => this.openAttachFlow(),
             }));
         });
+
+        // The popover only re-evaluated on mouseup/keyup, so a programmatic
+        // content swap — a save/reload, a collaborative overwrite, an "insert
+        // template" button — left it floating over content that no longer
+        // exists, still offering Edit and Remove for a deleted span. The history
+        // version bumps on every replacement path, so one effect catches them
+        // all; it reads the signal first so it stays subscribed either way.
+        effect(() => {
+            this.host.historyVersion();
+            this.dropPopoverIfDetached();
+        });
     }
 
     private registerViewHooks(): void {
@@ -158,7 +164,7 @@ export class RichTextActionsDirective {
     }
 
     private canAttach(): boolean {
-        if (this.host.disabled() || this.host.readonly()) return false;
+        if (this.host.isDisabled() || this.host.readonly()) return false;
         const sel = this.host.selection();
         return sel.kind !== 'none' || !!sel.closestWithAttrs(ACTION_ATTRS);
     }
@@ -265,7 +271,8 @@ export class RichTextActionsDirective {
     }
 
     private refreshPopover(): void {
-        if (this.host.disabled() || this.host.readonly()) {
+        this.dropPopoverIfDetached();
+        if (this.host.isDisabled() || this.host.readonly()) {
             this.hidePopover();
             return;
         }
@@ -326,6 +333,12 @@ export class RichTextActionsDirective {
         } else {
             host.style.zIndex = '9999';
         }
+    }
+
+    /** Close the popover when the element it points at has left the document. */
+    private dropPopoverIfDetached(): void {
+        const target = this.popoverTarget;
+        if (target && !target.isConnected) this.hidePopover();
     }
 
     private hidePopover(): void {

@@ -35,6 +35,7 @@ export { TreeSelectDemoComponent } from './inputs/tree-select-demo.component';
 export { FormDemoComponent } from './inputs/form-demo.component';
 export { EmojiPickerDemoComponent } from './inputs/emoji-picker-demo.component';
 export { RichTextEditorDemoComponent } from './inputs/rich-text-editor-demo.component';
+export { RichTextViewDemoComponent } from './inputs/rich-text-view-demo.component';
 export { RichTextEditorAddonsDemoComponent } from './inputs/rich-text-editor-addons-demo.component';
 export { RichTextActionsDemoComponent } from './inputs/rich-text-actions-demo.component';
 export { FileUploadDemoComponent } from './inputs/file-upload-demo.component';

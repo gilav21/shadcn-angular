@@ -260,6 +260,28 @@ describe('rich-text-slash-commands.utils', () => {
     });
 
     describe('findClosestEditableBlock', () => {
+        it.each([
+            ['a summary', '<details open><summary>Title</summary><p>Body</p></details>', 'summary', 'SUMMARY'],
+            ['a table cell', '<table><tbody><tr><td>first</td><td>second</td></tr><tr><td>last</td></tr></tbody></table>', 'td', 'TD'],
+            ['a cell of a table in a list item', '<ul><li>item<table><tbody><tr><td>cell</td></tr></tbody></table></li></ul>', 'td', 'TD'],
+            ['a level-five heading in a quote', '<blockquote><h5>deep</h5></blockquote>', 'h5', 'H5'],
+        ])('anchors to the line the caret sits in: %s', (_name, html, selector, tag) => {
+            // The addon's own tag list had none of these, so the anchor was the
+            // details block, the table or the quote around them.
+            const root = makeRoot(html);
+            const text = root.querySelector(selector)!.firstChild as Text;
+
+            expect(findClosestEditableBlock(document, root, text)!.tagName).toBe(tag);
+            expect(findClosestEditableBlock(document, root, text)).toBe(root.querySelector(selector));
+        });
+
+        it('anchors loose text in a list item that also holds a table to the item, not the list', () => {
+            const root = makeRoot('<ul><li>item<table><tbody><tr><td>cell</td></tr></tbody></table></li></ul>');
+            const text = root.querySelector('li')!.firstChild as Text;
+
+            expect(findClosestEditableBlock(document, root, text)).toBe(root.querySelector('li'));
+        });
+
         it('walks up to the nearest editable block tag', () => {
             const root = makeRoot('<blockquote><span>deep</span></blockquote>');
             const text = root.querySelector('span')!.firstChild as Text;
@@ -301,6 +323,20 @@ describe('rich-text-slash-commands.utils', () => {
     });
 
     describe('removeSlashTriggerText', () => {
+        it('returns the table cell a trigger was typed in, not the table', () => {
+            const root = makeRoot('<table><tbody><tr><td>first /go</td><td>second</td></tr><tr><td>last</td></tr></tbody></table>');
+            const text = root.querySelector('td')!.firstChild as Text;
+            const range = document.createRange();
+            range.setStart(text, text.data.length);
+            range.collapse(true);
+            setCaret(text, text.data.length);
+
+            const block = removeSlashTriggerText(document, root, 'go', range, null);
+
+            expect(block).toBe(root.querySelector('td'));
+            expect(root.querySelector('td')!.textContent).toBe('first ');
+        });
+
         it('removes the trigger through the captured range', () => {
             const root = makeRoot('<p>hi /go</p>');
             const text = root.querySelector('p')!.firstChild as Text;
@@ -311,6 +347,31 @@ describe('rich-text-slash-commands.utils', () => {
             const block = removeSlashTriggerText(document, root, 'go', range, null);
             expect(block).toBe(root.querySelector('p'));
             expect(root.textContent).toBe('hi ');
+        });
+
+        it('ignores a captured range whose node the editor no longer contains', () => {
+            // undo/redo/writeValue/setContent all reassign the editable's
+            // innerHTML, detaching every node while the menu stays open. A
+            // detached text node still reports nodeType TEXT_NODE, so a
+            // type-only check lets the removal mutate a tree nothing renders —
+            // and the live document silently keeps the trigger text.
+            const root = makeRoot('<p>hi /go</p>');
+            const text = root.querySelector('p')!.firstChild as Text;
+            const range = document.createRange();
+            range.setStart(text, text.data.length);
+            range.collapse(true);
+
+            root.innerHTML = '<p>replaced by an undo</p>';
+            expect(root.contains(text)).toBe(false);
+
+            const block = removeSlashTriggerText(document, root, 'go', range, null);
+
+            // The live document is untouched and no stale block is returned, so
+            // the fallback chain recovers. Guarding earlier also avoids mutating
+            // the orphaned node and stealing the selection on the way through.
+            expect(root.textContent).toBe('replaced by an undo');
+            expect(block).toBeNull();
+            expect(text.data).toBe('hi /go');
         });
 
         it('removes the trigger from the anchor block when the range does not match', () => {
@@ -430,6 +491,33 @@ describe('rich-text-slash-commands.utils', () => {
             expect(sel.anchorNode).toBe(block);
             expect(sel.anchorOffset).toBe(2);
         });
+    });
+
+    describe('placeCaretAtEndOfBlock on an item holding blocks', () => {
+        it.each([
+            ['a sub-list', '<ul><li>parent<ul><li>child</li></ul></li></ul>', 'parent'],
+            ['a table', '<ul><li>text<table><tbody><tr><td>cell</td></tr></tbody></table></li></ul>', 'text'],
+            ['a code block and blank text', '<ul><li>line<pre><code>x</code></pre>\n</li></ul>', 'line'],
+            ['a sub-list after a blank line of its own', '<ul><li>\u00a0<ul><li>child</li></ul></li></ul>', '\u00a0'],
+        ])('places the caret at the end of the item own text, not in %s nested at its end', (_name, html, text) => {
+            const root = makeRoot(html);
+            placeCaretAtEndOfBlock(document, root.querySelector('li')!);
+
+            const selection = document.getSelection()!;
+            expect(selection.anchorNode?.textContent).toBe(text);
+            expect(selection.anchorOffset).toBe(text.length);
+        });
+    });
+
+    it('places the caret in the empty text a removed trigger leaves, not in the item sub-list', () => {
+        const root = makeRoot('<ul><li><ul><li>child</li></ul></li></ul>');
+        const item = root.querySelector('li')!;
+        const blank = document.createTextNode('');
+        item.insertBefore(blank, item.firstChild);
+
+        placeCaretAtEndOfBlock(document, item);
+
+        expect(document.getSelection()!.anchorNode).toBe(blank);
     });
 
     describe('removeCaretSentinelAtSelection', () => {

@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
-import { registry, CATEGORIES } from './index.js';
+import { registry, CATEGORIES, type ComponentName } from './index.js';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
 
@@ -61,5 +61,111 @@ describe('directive discoverability', () => {
     for (const [name] of directiveEntries()) {
       expect(doc, `docs/directives.md is missing \`${name}\``).toContain(`\`${name}\``);
     }
+  });
+});
+
+/**
+ * `[customToolbarItems]` / `(customToolbarAction)` were removed and then
+ * restored inside one PR: adding a toolbar button from data is the DX the
+ * editor promises. No breaking entry may tell a consumer otherwise, or
+ * `update` would print a migration for an input that still works.
+ */
+describe('rich-text-editor custom toolbar API', () => {
+  it('carries no breaking entry claiming customToolbarItems was removed', () => {
+    const stale = (registry['rich-text-editor'].breaking ?? []).filter(c =>
+      c.from.includes('customToolbarItems') || c.from.includes('customToolbarAction'),
+    );
+    expect(stale).toEqual([]);
+  });
+});
+
+describe('committed registry.json presets', () => {
+  const manifest = JSON.parse(
+    fs.readFileSync(path.join(REPO_ROOT, 'packages/components/registry.json'), 'utf-8'),
+  ) as Record<string, { presets?: Record<string, string[]> }>;
+
+  it('carries presets for rich-text-editor after sync-registry --fix (T-31)', () => {
+    const presets = manifest['rich-text-editor']?.presets;
+    expect(presets, 'registry.json lost `presets` — re-run sync-registry --fix').toBeDefined();
+    expect(Object.keys(presets!)).toEqual(['core', 'writing', 'media', 'styling', 'everything']);
+    expect(presets!['writing']).toEqual([
+      'rich-text-editor/slash-commands',
+      'rich-text-editor/links',
+      'rich-text-editor/history',
+      'rich-text-editor/outline',
+    ]);
+  });
+
+  it('carries presets for data-table (T-31)', () => {
+    const presets = manifest['data-table']?.presets;
+    expect(presets).toBeDefined();
+    expect(presets!['reporting']).toEqual(['data-table/export', 'data-table/pivot']);
+  });
+
+  it('matches the CLI registry literal, which is the source of truth (T-31)', () => {
+    for (const [name, def] of Object.entries(registry)) {
+      if (!def.presets) continue;
+      expect(manifest[name]?.presets, `${name} presets drifted between the literal and registry.json`)
+        .toEqual(def.presets);
+    }
+  });
+});
+
+// T-31
+describe('rich-text-view registry entry', () => {
+  it('exists with the editor as its only dependency and no npm dependencies', () => {
+    const def = registry['rich-text-view'];
+    expect(def).toBeDefined();
+    expect(def.category).toBe('editor');
+    expect(def.description!.length).toBeLessThanOrEqual(140);
+    expect((def.tags ?? []).length).toBeGreaterThanOrEqual(3);
+    expect(def.dependencies).toEqual(['rich-text-editor']);
+    expect(def.npmDependencies ?? []).toEqual([]);
+  });
+
+  it('ships the view trio and records the actions addon as a test dependency', () => {
+    const def = registry['rich-text-view'];
+    expect(def.files).toContain('rich-text-view/rich-text-view.component.ts');
+    expect(def.files).toContain('rich-text-view/rich-text-view.component.html');
+    expect(def.files).toContain('rich-text-view/index.ts');
+    expect(def.testDependencies ?? []).toContain('rich-text-editor/actions');
+  });
+});
+
+// T-42
+describe('rich-text-editor breaking notes after the locale cascade', () => {
+  it('no note claims addon strings ignore the editor locale', () => {
+    const offenders = Object.entries(registry).flatMap(([name, def]) =>
+      (def.breaking ?? [])
+        .filter(c => c.note.includes("not the editor's [locale]"))
+        .map(() => name),
+    );
+    expect(offenders).toEqual([]);
+  });
+
+  it('every addon-locale note tells the reader the editor locale is inherited', () => {
+    const notes = (registry['rich-text-editor'].breaking ?? [])
+      .filter(c => c.note.includes('or the global UI_LOCALE_ID'));
+    expect(notes.length).toBeGreaterThanOrEqual(9);
+    for (const change of notes) {
+      expect(change.note, change.from).toContain("otherwise inherit the editor's [locale]");
+    }
+  });
+
+});
+
+/**
+ * `ComponentName` must stay the union of registry keys. When the literal grew
+ * past what TypeScript would check against `defineRegistry`'s constraint, the
+ * check fell back silently and the type widened to `string` -- no compile
+ * error anywhere, only 46 "unnecessary assertion" findings. The line below
+ * fails to type-check (TS2578, unused @ts-expect-error) the moment that
+ * happens again.
+ */
+describe('ComponentName stays a union of the registry keys', () => {
+  it('rejects a name the registry does not have, at compile time', () => {
+    // @ts-expect-error -- 'not-a-component' is not a registry key
+    const bad: ComponentName = 'not-a-component';
+    expect(Object.keys(registry)).not.toContain(bad);
   });
 });

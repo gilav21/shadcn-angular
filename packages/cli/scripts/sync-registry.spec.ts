@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseRegistrySource } from './sync-registry-lib';
+import { buildBoundaryMap, buildDirOwners, parseRegistrySource, walkTree } from './sync-registry-lib';
 import { copyScripts, createRepo, fixtureScript, removeRepo, runScript, write } from './repo-fixtures';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -181,5 +181,37 @@ describe('parseRegistrySource', () => {
 };`;
     const entries = parseRegistrySource(source);
     expect(entries.find((e) => e.name === 'login')!.isBlock).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// T-3 — the base/addon boundary, asserted against the REAL component tree.
+//
+// The rich-text-editor base barrel must never import or re-export anything
+// under its own `addons/`: doing so aborts `sync-registry` in both modes AND
+// folds every addon file into the base's 12-file install, which then does not
+// compile for a consumer who installed the base without those addons. The
+// generated `addons/full/index.ts` is the one-import affordance instead.
+// ---------------------------------------------------------------------------
+describe('rich-text-editor base/addon boundary (real tree)', () => {
+  const COMPONENTS_ROOT = path.resolve(SCRIPT_DIR, '../../components');
+
+  function realWalk() {
+    const entries = parseRegistrySource(readFileSync(REGISTRY_TS, 'utf-8'));
+    const entryFileToComponent = buildBoundaryMap(entries);
+    const ctx = { entryFileToComponent, dirOwners: buildDirOwners(entryFileToComponent) };
+    return walkTree('ui/rich-text-editor/index.ts', 'rich-text-editor', ctx, COMPONENTS_ROOT);
+  }
+
+  it('reaches no addon file from the base barrel', () => {
+    const { ownFiles, addonViolations } = realWalk();
+    expect(addonViolations).toEqual([]);
+    expect([...ownFiles].filter((f) => f.includes('/addons/'))).toEqual([]);
+  });
+
+  it('still reaches the toolbar sub-component, so the walk really ran', () => {
+    expect([...realWalk().ownFiles]).toContain(
+      'ui/rich-text-editor/sub/rich-text-toolbar.component.ts',
+    );
   });
 });
