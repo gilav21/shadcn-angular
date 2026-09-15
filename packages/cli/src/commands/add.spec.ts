@@ -18,6 +18,13 @@ import { getConfig, getDefaultConfig, type Config } from '../utils/config.js';
 import { performInstall } from '../core/install.js';
 import type { InstallResult } from '../core/install.js';
 import { emptyMergeReport } from '../core/merge.js';
+import chalk from 'chalk';
+
+// The summary assertions match plain text such as "badge (4 files)", but chalk
+// colours the count whenever the terminal running the suite supports colour.
+// The same run passed in one shell and failed in another, so colour is pinned
+// off here: the output these tests read must not depend on who runs them.
+chalk.level = 0;
 
 // ---------------------------------------------------------------------------
 // Module-level mocks
