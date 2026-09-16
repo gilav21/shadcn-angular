@@ -918,7 +918,7 @@ const MEDIA_TARGET_PATTERN = {
  * before any target is matched, so a plain address holding one would not
  * survive either.
  */
-const PLAIN_TARGET = new RegExp(String.raw`^(?:[^()\\]|\([^()\\]*\))*$`);
+const PLAIN_TARGET = /^(?:[^()\\]|\([^()\\]*\))*$/;
 
 /**
  * A link or image address as markdown source.
