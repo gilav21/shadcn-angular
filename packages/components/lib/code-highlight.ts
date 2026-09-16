@@ -255,9 +255,21 @@ function isTextOnlyCode(code: HTMLElement): boolean {
  * can skip the work when nothing moved.
  */
 export function highlightCodeElement(code: HTMLElement, language: string | null | undefined): boolean {
+    const painted = paintedFragment(code, language);
+    if (!painted) return false;
+    code.replaceChildren(painted);
+    return true;
+}
+
+/**
+ * The token markup for a block, built detached, or `null` when the block is not
+ * one to paint. Built apart from the element so a caller can compare it with
+ * what is already there BEFORE any node is replaced.
+ */
+function paintedFragment(code: HTMLElement, language: string | null | undefined): DocumentFragment | null {
     const patterns = languagePatternsFor(language);
     const source = code.textContent ?? '';
-    if (!patterns || source === '' || !isTextOnlyCode(code)) return false;
+    if (!patterns || source === '' || !isTextOnlyCode(code)) return null;
 
     const doc = code.ownerDocument;
     const painted = doc.createDocumentFragment();
@@ -281,8 +293,14 @@ export function highlightCodeElement(code: HTMLElement, language: string | null 
         }
     });
 
-    code.replaceChildren(painted);
-    return true;
+    return painted;
+}
+
+/** A fragment's markup, for comparing with an element's `innerHTML`. */
+function markupOf(fragment: DocumentFragment): string {
+    const holder = fragment.ownerDocument.createElement('div');
+    holder.appendChild(fragment.cloneNode(true));
+    return holder.innerHTML;
 }
 
 /** The language a rendered `<pre><code>` carries: `data-language`, else the `language-*` class. */
@@ -371,21 +389,24 @@ function rangeAtCharacterOffset(root: HTMLElement, offset: number): Range | null
  * itself does not change, so the offset always still means the same place.
  *
  * Does nothing when the block is already painted exactly as it would be, so a
- * keystroke that changes no token does not move the selection at all.
+ * keystroke that changes no token does not move the selection at all. That
+ * comparison is made on the DETACHED paint, before any node is replaced: made
+ * after, as it first was, the nodes were already swapped, the "nothing changed"
+ * exit skipped the restore, and the browser dropped the caret to the start of
+ * the block -- so every second keystroke in a word landed at the front.
  */
 export function highlightCodeElementKeepingCaret(
     code: HTMLElement,
     language: string | null | undefined,
     selection: Selection | null,
 ): boolean {
-    if (!languagePatternsFor(language)) return false;
+    const painted = paintedFragment(code, language);
+    if (!painted || markupOf(painted) === code.innerHTML) return false;
 
     const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
     const caret = range?.collapsed ? characterOffsetIn(code, range.startContainer, range.startOffset) : null;
 
-    const before = code.innerHTML;
-    if (!highlightCodeElement(code, language)) return false;
-    if (code.innerHTML === before) return false;
+    code.replaceChildren(painted);
 
     if (caret !== null && selection) {
         const restored = rangeAtCharacterOffset(code, caret);

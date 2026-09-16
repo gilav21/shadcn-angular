@@ -231,14 +231,35 @@ describe('highlightCodeElementKeepingCaret', () => {
         code.closest('div')?.remove();
     });
 
-    it('does not touch the selection when the paint would change nothing', () => {
-        const code = attached('<pre><code data-language="ts">const a = 1;</code></pre>');
-        highlightCodeElement(code, 'ts');
-        const selection = caretAt(code, 3);
-        const range = selection.getRangeAt(0);
+    it('leaves the caret and every node in place when the paint would change nothing', () => {
+        // The shape a second keystroke in a word produces: the text grew, but
+        // no token boundary moved. Asserting only that the Range OBJECT was the
+        // same passed while the caret sat at offset 0 -- getRangeAt hands back
+        // the same live object after the browser has collapsed it to the start.
+        const code = attached('<pre><code data-language="ts">xexport <span class="token token-keyword">function</span> f</code></pre>');
+        (code.firstChild as Text).data = 'xyexport ';
+        const typedInto = code.firstChild;
+        const selection = caretAt(code, 2);
 
         expect(highlightCodeElementKeepingCaret(code, 'ts', selection)).toBe(false);
-        expect(selection.getRangeAt(0)).toBe(range);
+        expect(caretOffset(code, selection)).toBe(2);
+        expect(code.firstChild).toBe(typedInto);
+        code.closest('div')?.remove();
+    });
+
+    it('keeps the caret across a run of keystrokes at the start of a block', () => {
+        const code = attached('<pre><code data-language="ts">export function f() {}</code></pre>');
+        highlightCodeElement(code, 'ts');
+        let selection = caretAt(code, 0);
+
+        for (const [index, ch] of Array.from('const ').entries()) {
+            const range = selection.getRangeAt(0);
+            (range.startContainer as Text).insertData(range.startOffset, ch);
+            selection = caretAt(code, index + 1);
+            highlightCodeElementKeepingCaret(code, 'ts', selection);
+            expect(caretOffset(code, selection)).toBe(index + 1);
+        }
+        expect(code.textContent).toBe('const export function f() {}');
         code.closest('div')?.remove();
     });
 
