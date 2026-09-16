@@ -227,19 +227,86 @@ export function tokenClassFor(type: string): string | null {
 }
 
 /**
- * Whether a block's TEXT is the whole of it.
+ * How a line break is written inside a code block: a newline character, or a
+ * `<br>` element. The editor's Shift+Enter inserts the element.
+ */
+type LineBreakKind = 'newline' | 'br';
+
+/** A code block's text, read as lines, with the kind of every break between them. */
+interface CodeLines {
+    /** The block's text with EVERY line break as `\n`, whichever form it took. */
+    text: string;
+    /** The form of each break, in order: one per `\n` in {@link text}. */
+    breaks: LineBreakKind[];
+    /**
+     * A `<br>` that ends the block. It shows no line of its own — a browser needs
+     * it only to give an empty last line somewhere to put the caret — so it is
+     * not text, but it has to be written back or that empty line disappears.
+     */
+    trailingBr: boolean;
+}
+
+/**
+ * A code block's text with its line breaks, whichever form each one takes.
  *
- * The paint is rebuilt from `textContent`, so it may only run where there is
- * nothing else in there to lose. A code block CAN hold more than text: the
- * markdown writer keeps an image in one by writing the block in its tag form,
- * and rebuilding such a block from its text deleted the image outright. Spans
- * this module painted are not content — they are exactly what the rebuild
- * replaces — so they do not count against it.
+ * The rule every reader of a code block has to follow: a line break is a line
+ * break, whether it is a `\n` character or a `<br>` element. `textContent`
+ * does not follow it — a `<br>` contributes nothing — and Shift+Enter, the
+ * editor's key for a new line inside a block, inserts `<br>`. So a function
+ * typed line by line was saved as one line, and the highlighter, which refused
+ * any block holding an element, stopped colouring from the first new line on.
+ */
+export function readCodeLines(node: Node): CodeLines {
+    const lines: CodeLines = { text: '', breaks: [], trailingBr: false };
+    collectCodeLines(node, lines);
+    if (lines.breaks.at(-1) === 'br' && lines.text.endsWith('\n') && endsWithBr(node)) {
+        lines.text = lines.text.slice(0, -1);
+        lines.breaks.pop();
+        lines.trailingBr = true;
+    }
+    return lines;
+}
+
+function collectCodeLines(node: Node, into: CodeLines): void {
+    for (const child of Array.from(node.childNodes)) {
+        if (child.nodeType === Node.TEXT_NODE) {
+            const data = (child as Text).data;
+            into.text += data;
+            into.breaks.push(...Array.from(data.matchAll(/\n/g), (): LineBreakKind => 'newline'));
+        } else if (child.nodeName === 'BR') {
+            into.text += '\n';
+            into.breaks.push('br');
+        } else if (child.nodeType === Node.ELEMENT_NODE) {
+            collectCodeLines(child, into);
+        }
+    }
+}
+
+/** Whether the last thing in `node`, looking into nested elements, is a `<br>`. */
+function endsWithBr(node: Node): boolean {
+    let last = node.lastChild;
+    while (last?.nodeType === Node.ELEMENT_NODE && last.nodeName !== 'BR') last = last.lastChild;
+    return last?.nodeName === 'BR';
+}
+
+/** A code block's text with every line break as `\n`; see {@link readCodeLines}. */
+export function codeTextOf(node: Node): string {
+    return readCodeLines(node).text;
+}
+
+/**
+ * Whether the paint can rebuild the block without losing anything.
+ *
+ * The paint is rebuilt from the block's lines, so it may only run where lines
+ * are all there is. A code block CAN hold more: the markdown writer keeps an
+ * image in one by writing the block in its tag form, and rebuilding that block
+ * deleted the image outright. A `<br>` is a line break and is rebuilt; a span
+ * this module painted is exactly what the rebuild replaces — including one a
+ * browser has typed a `<br>` into, which happens when Shift+Enter lands inside
+ * a coloured word.
  */
 function isTextOnlyCode(code: HTMLElement): boolean {
-    return Array.from(code.children).every(
-        (child) => child.matches('span.token') && child.children.length === 0,
-    );
+    return Array.from(code.querySelectorAll('*')).every((element) => element.matches('span.token, br'));
 }
 
 /**
@@ -268,18 +335,20 @@ export function highlightCodeElement(code: HTMLElement, language: string | null 
  */
 function paintedFragment(code: HTMLElement, language: string | null | undefined): DocumentFragment | null {
     const patterns = languagePatternsFor(language);
-    const source = code.textContent ?? '';
-    if (!patterns || source === '' || !isTextOnlyCode(code)) return null;
+    if (!patterns || !isTextOnlyCode(code)) return null;
+    const { text, breaks, trailingBr } = readCodeLines(code);
+    if (text === '') return null;
 
     const doc = code.ownerDocument;
     const painted = doc.createDocumentFragment();
-    const lines = source.split('\n');
+    const lines = text.split('\n');
 
     lines.forEach((line, index) => {
-        // The separator is written back as its own node, so the element's text
-        // is byte-for-byte what it was. Rebuilding it as `\n` inside the last
-        // token instead dropped a trailing blank line on every pass.
-        if (index > 0) painted.appendChild(doc.createTextNode('\n'));
+        // Every break is written back as its own node AND in the form it had.
+        // As `\n` inside the last token, a trailing blank line was dropped on
+        // every pass; converted from `<br>` to `\n`, the empty line a
+        // Shift+Enter had just opened collapsed and took the caret with it.
+        if (index > 0) painted.appendChild(breaks[index - 1] === 'br' ? doc.createElement('br') : doc.createTextNode('\n'));
         for (const token of tokenizeLine(line, patterns)) {
             const className = tokenClassFor(token.type);
             if (className === null) {
@@ -292,6 +361,7 @@ function paintedFragment(code: HTMLElement, language: string | null | undefined)
             painted.appendChild(span);
         }
     });
+    if (trailingBr) painted.appendChild(doc.createElement('br'));
 
     return painted;
 }
@@ -345,38 +415,67 @@ export function stripCodeHighlighting(root: ParentNode): void {
     }
 }
 
-/** How many characters of `root`'s text come before the boundary (`container`, `offset`). */
+/**
+ * How many characters come before the boundary (`container`, `offset`) in
+ * `root`, counting each `<br>` as one — the newline it stands for.
+ *
+ * `Range.toString()` counts a `<br>` as nothing, so on a line opened with
+ * Shift+Enter the caret was remembered one character early per break above it,
+ * and every repaint walked it back towards the top of the block.
+ */
 function characterOffsetIn(root: HTMLElement, container: Node, offset: number): number | null {
     if (!root.contains(container)) return null;
     const measure = root.ownerDocument.createRange();
     measure.setStart(root, 0);
     measure.setEnd(container, offset);
-    return measure.toString().length;
+    return rawLengthOf(measure.cloneContents());
 }
 
-/** A collapsed range `offset` characters into `root`'s text, or `null` when it has none. */
-function rangeAtCharacterOffset(root: HTMLElement, offset: number): Range | null {
-    const doc = root.ownerDocument;
-    const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-    let seen = 0;
-    let last: Text | null = null;
-    let node = walker.nextNode() as Text | null;
-    while (node) {
-        if (seen + node.data.length >= offset) {
-            const range = doc.createRange();
-            range.setStart(node, offset - seen);
-            range.collapse(true);
-            return range;
-        }
-        seen += node.data.length;
-        last = node;
-        node = walker.nextNode() as Text | null;
+/** Text length with every `<br>` counted as one character, the trailing one included. */
+function rawLengthOf(node: Node): number {
+    let length = 0;
+    for (const child of Array.from(node.childNodes)) {
+        if (child.nodeType === Node.TEXT_NODE) length += (child as Text).data.length;
+        else if (child.nodeName === 'BR') length += 1;
+        else length += rawLengthOf(child);
     }
-    if (!last) return null;
+    return length;
+}
+
+function collapsedRange(doc: Document, place: (range: Range) => void): Range {
     const range = doc.createRange();
-    range.setStart(last, last.data.length);
+    place(range);
     range.collapse(true);
     return range;
+}
+
+/**
+ * A collapsed range `offset` characters into `root`, counted as
+ * {@link characterOffsetIn} counts them, or `null` when the block is empty.
+ */
+function rangeAtCharacterOffset(root: HTMLElement, offset: number): Range | null {
+    const doc = root.ownerDocument;
+    const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+    let seen = 0;
+    let tail: Node | null = null;
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        if (node.nodeType === Node.TEXT_NODE) {
+            const text = node as Text;
+            if (seen + text.data.length >= offset) return collapsedRange(doc, (range) => range.setStart(text, offset - seen));
+            seen += text.data.length;
+            tail = text;
+        } else if (node.nodeName === 'BR') {
+            const br = node;
+            if (seen >= offset) return collapsedRange(doc, (range) => range.setStartBefore(br));
+            seen += 1;
+            tail = br;
+        }
+    }
+    const end = tail;
+    if (!end) return null;
+    // Past a break with nothing after it: the empty line a Shift+Enter opened.
+    if (end.nodeType === Node.TEXT_NODE) return collapsedRange(doc, (range) => range.setStart(end, (end as Text).data.length));
+    return collapsedRange(doc, (range) => range.setStartAfter(end));
 }
 
 /**

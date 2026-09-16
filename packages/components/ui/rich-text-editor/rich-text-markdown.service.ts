@@ -1,4 +1,5 @@
 import { Injectable, inject } from '@angular/core';
+import { codeTextOf } from '../../lib/code-highlight';
 import { MAX_NESTING_DEPTH, isPhrasing } from './rich-text-lines';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 
@@ -2717,7 +2718,10 @@ export class RichTextMarkdownService {
         // can carry it and reads back verbatim, which is the answer inline code
         // already gives for the same content.
         if (element.querySelector('img')) return this.preTagForm(element, lang, inListItem);
-        const codeContent = element.textContent ?? '';
+        // Every line break, including a <br>. textContent counts a <br> as
+        // nothing, and Shift+Enter -- how a line is added inside a block --
+        // inserts one, so a function typed line by line was saved on one line.
+        const codeContent = codeTextOf(element);
         const indent = inListItem ? '  ' : '';
         const body = codeContent
             .split('\n')

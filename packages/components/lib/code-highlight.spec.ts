@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
     LANGUAGE_PATTERNS,
+    codeTextOf,
+    readCodeLines,
     highlightCodeBlocks,
     highlightCodeElement,
     highlightCodeElementKeepingCaret,
@@ -177,6 +179,65 @@ describe('stripCodeHighlighting', () => {
     });
 });
 
+/**
+ * A code block's lines separated by `<br>` -- what Shift+Enter, the editor's key
+ * for a new line inside a block, inserts. `textContent` reads a `<br>` as
+ * nothing, so every reader built on it lost the rows.
+ */
+describe('line breaks written as <br>', () => {
+    const block = (inner: string): HTMLElement =>
+        root(`<pre><code data-language="ts">${inner}</code></pre>`).querySelector('code') as HTMLElement;
+
+    it('reads a <br> as a line break', () => {
+        expect(codeTextOf(block('a<br>b<br>c'))).toBe('a\nb\nc');
+    });
+
+    it('reads a mix of <br> and newline characters, in order', () => {
+        const lines = readCodeLines(block('a\nb<br>c\nd'));
+        expect(lines.text).toBe('a\nb\nc\nd');
+        expect(lines.breaks).toEqual(['newline', 'br', 'newline']);
+    });
+
+    it('reads a <br> a browser typed inside a coloured word', () => {
+        expect(codeTextOf(block('<span class="token token-keyword">con<br>st</span> x'))).toBe('con\nst x');
+    });
+
+    it('does not count the <br> that only holds an empty last line open', () => {
+        // Shift+Enter at the end leaves "a<br><br>": the second one renders no
+        // line, it gives the caret somewhere to sit.
+        const lines = readCodeLines(block('a<br><br>'));
+        expect(lines.text).toBe('a\n');
+        expect(lines.trailingBr).toBe(true);
+    });
+
+    it('colours a block whose lines are separated by <br>', () => {
+        const code = block('const a = 1;<br>let b = 2;');
+        expect(highlightCodeElement(code, 'ts')).toBe(true);
+        expect(types(code)).toEqual(['keyword', 'number', 'keyword', 'number']);
+    });
+
+    it('keeps each break in the form it had, so no line collapses', () => {
+        const code = block('const a = 1;<br>let b\n= 2;<br><br>');
+        highlightCodeElement(code, 'ts');
+        expect(code.querySelectorAll('br')).toHaveLength(3);
+        expect(codeTextOf(code)).toBe('const a = 1;\nlet b\n= 2;\n');
+    });
+
+    it('is idempotent on a block with <br> breaks', () => {
+        const code = block('const a = 1;<br>let b = 2;');
+        highlightCodeElement(code, 'ts');
+        const once = code.innerHTML;
+        highlightCodeElement(code, 'ts');
+        expect(code.innerHTML).toBe(once);
+    });
+
+    it('still refuses a block holding an image', () => {
+        const code = block('a<br><img src="https://e.com/x.png" alt="q">');
+        expect(highlightCodeElement(code, 'ts')).toBe(false);
+        expect(code.querySelector('img')).not.toBeNull();
+    });
+});
+
 describe('highlightCodeElementKeepingCaret', () => {
     /** Put a collapsed caret `offset` characters into `code`'s text and return the selection. */
     const caretAt = (code: HTMLElement, offset: number): Selection => {
@@ -219,6 +280,55 @@ describe('highlightCodeElementKeepingCaret', () => {
         expect(highlightCodeElementKeepingCaret(code, 'ts', selection)).toBe(true);
         expect(caretOffset(code, selection)).toBe(13);
         expect(code.contains(selection.getRangeAt(0).startContainer)).toBe(true);
+        code.closest('div')?.remove();
+    });
+
+    /** Characters before the caret with each <br> counted as the newline it is. */
+    const caretOffsetCountingBreaks = (code: HTMLElement, selection: Selection): number => {
+        const range = selection.getRangeAt(0);
+        const measure = document.createRange();
+        measure.setStart(code, 0);
+        measure.setEnd(range.startContainer, range.startOffset);
+        return codeTextOf(measure.cloneContents()).length + (measure.cloneContents().lastChild?.nodeName === 'BR' ? 1 : 0);
+    };
+
+    const select = (place: (range: Range) => void): Selection => {
+        const range = document.createRange();
+        place(range);
+        range.collapse(true);
+        const selection = document.getSelection() as Selection;
+        selection.removeAllRanges();
+        selection.addRange(range);
+        return selection;
+    };
+
+    it('keeps the caret on a line below a <br>', () => {
+        // Range.toString() counts a <br> as nothing, so the caret was remembered
+        // one character early per break above it and crept up the block.
+        const code = attached('<pre><code data-language="ts">const a = 1;<br>let b = 2;</code></pre>');
+        const secondLine = code.lastChild as Text;
+        const selection = select((range) => range.setStart(secondLine, 3));
+
+        expect(highlightCodeElementKeepingCaret(code, 'ts', selection)).toBe(true);
+        const measure = document.createRange();
+        measure.setStart(code, 0);
+        measure.setEnd(selection.getRangeAt(0).startContainer, selection.getRangeAt(0).startOffset);
+        expect(codeTextOf(measure.cloneContents())).toBe('const a = 1;\nlet');
+        code.closest('div')?.remove();
+    });
+
+    it('keeps the caret on the empty line a Shift+Enter just opened', () => {
+        const code = attached('<pre><code data-language="ts">const a = 1;<br><br></code></pre>');
+        const firstBreak = code.querySelector('br') as HTMLBRElement;
+        const selection = select((range) => range.setStartAfter(firstBreak));
+
+        expect(highlightCodeElementKeepingCaret(code, 'ts', selection)).toBe(true);
+        expect(caretOffsetCountingBreaks(code, selection)).toBe('const a = 1;\n'.length);
+        // Still in front of the placeholder, not after it, which would be a line
+        // the author never opened.
+        const range = selection.getRangeAt(0);
+        expect(range.startContainer).toBe(code);
+        expect(code.childNodes[range.startOffset]?.nodeName).toBe('BR');
         code.closest('div')?.remove();
     });
 

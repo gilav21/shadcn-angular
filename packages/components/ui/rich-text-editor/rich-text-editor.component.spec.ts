@@ -13002,6 +13002,27 @@ describe('RichTextEditorComponent - live code highlighting', () => {
         expect(editor.querySelectorAll('.token')).toHaveLength(0);
     });
 
+    it('colours and keeps the rows of lines added with Shift+Enter', () => {
+        // Shift+Enter is how a line is added inside a block, and it inserts a
+        // <br>. The highlighter refused any block holding an element, so nothing
+        // after the first new line was coloured; and the value was written from
+        // textContent, so the rows were saved on one line.
+        fixture.componentRef.setInput('mode', 'markdown');
+        component.writeValue('```ts\nconst a = 1;\n```');
+        fixture.detectChanges();
+
+        let emitted = '';
+        component.registerOnChange((value: string) => { emitted = value; });
+
+        const code = codeElement();
+        code.appendChild(document.createElement('br'));
+        code.appendChild(document.createTextNode('let b = 2;'));
+        typeAtEndOfCode('');
+
+        expect(Array.from(codeElement().querySelectorAll('.token-keyword'), (el) => el.textContent)).toEqual(['const', 'let']);
+        expect(emitted).toBe('```ts\nconst a = 1;\nlet b = 2;\n```');
+    });
+
     it('repaints only after the debounce when one is set', () => {
         fixture.componentRef.setInput('codeHighlightDebounceMs', 5000);
         component.writeValue('```ts\nconst a = 1;\n```');

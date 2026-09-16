@@ -1420,3 +1420,47 @@ describe('RichTextMarkdownService - reported markdown round-trip defects (#135-#
         });
     });
 });
+
+/**
+ * A code block whose lines are separated by `<br>` -- what Shift+Enter inserts
+ * inside a block in the editor. The fence was written from `textContent`, which
+ * reads a `<br>` as nothing, so a function typed line by line was saved, and
+ * shown everywhere it was published, on a single line.
+ */
+describe('RichTextMarkdownService - code block lines written as <br>', () => {
+    let service: RichTextMarkdownService;
+
+    beforeEach(() => {
+        TestBed.configureTestingModule({ providers: [RichTextMarkdownService, RichTextSanitizerService] });
+        service = TestBed.inject(RichTextMarkdownService);
+    });
+
+    const fenceBody = (html: string): string | undefined =>
+        new DOMParser().parseFromString(service.toHtml(service.toMarkdown(html)), 'text/html').body.querySelector('pre code')?.textContent ?? undefined;
+
+    it('saves each <br> as a line of the fence', () => {
+        const html = '<pre><code data-language="ts">function f() {<br>    return 1;<br>}</code></pre>';
+        expect(service.toMarkdown(html)).toBe('```ts\nfunction f() {\n    return 1;\n}\n```');
+    });
+
+    it('keeps the rows through a save and reload', () => {
+        expect(fenceBody('<pre><code data-language="ts">a<br>b<br>c</code></pre>')).toBe('a\nb\nc');
+    });
+
+    it('keeps rows made of <br> and newline characters together', () => {
+        expect(fenceBody('<pre><code data-language="ts">a\nb<br>c</code></pre>')).toBe('a\nb\nc');
+    });
+
+    it('keeps rows whose words the highlighter had coloured', () => {
+        const html = '<pre><code data-language="ts"><span class="token token-keyword">const</span> a = 1;<br><span class="token token-keyword">let</span> b = 2;</code></pre>';
+        expect(fenceBody(html)).toBe('const a = 1;\nlet b = 2;');
+    });
+
+    it('keeps a blank row between two functions', () => {
+        expect(fenceBody('<pre><code data-language="ts">}<br><br>function g() {</code></pre>')).toBe('}\n\nfunction g() {');
+    });
+
+    it('writes no extra row for the <br> that only holds an empty last line open', () => {
+        expect(service.toMarkdown('<pre><code data-language="ts">a<br><br></code></pre>')).toBe('```ts\na\n\n```');
+    });
+});
