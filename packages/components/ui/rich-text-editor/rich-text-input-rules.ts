@@ -39,6 +39,16 @@ export interface BlockInputRuleMatch {
     markerLength: number;
     /** The code fence's language word, `''` when the fence carried none. */
     language?: string;
+    /**
+     * How many levels of the construct the marker asks for — `>>` is two
+     * quotes. Only `blockquote` carries it, and only that rule nests.
+     *
+     * The number is what the author TYPED, not what will be built: the ceiling
+     * is the markdown reader's (`MAX_NESTING_DEPTH`) and is measured against the
+     * quotes the caret's block already sits in, which this module cannot see.
+     * The caller clamps.
+     */
+    depth?: number;
 }
 
 /** The inline element a completed wrapper asks for. */
@@ -77,7 +87,9 @@ const BLOCK_RULES: readonly BlockRuleDefinition[] = [
     { kind: 'heading3', pattern: /^#{3}$/, terminators: [' '] },
     { kind: 'bulletList', pattern: /^[-*]$/, terminators: [' '] },
     { kind: 'orderedList', pattern: /^\d{1,3}\.$/, terminators: [' '] },
-    { kind: 'blockquote', pattern: /^>$/, terminators: [' '] },
+    // A RUN of markers, one quote each. `/^>$/` matched exactly one, so a reader
+    // could load and round-trip a nested quote but an author could not type one.
+    { kind: 'blockquote', pattern: /^(>+)$/, terminators: [' '] },
     { kind: 'taskUnchecked', pattern: /^\[]$/, terminators: [' '] },
     { kind: 'taskChecked', pattern: /^\[[xX]]$/, terminators: [' '] },
     { kind: 'horizontalRule', pattern: /^-{3}$/, terminators: [''] },
@@ -108,9 +120,9 @@ export function matchBlockInputRule(
         const match = rule.pattern.exec(textBeforeCaret);
         if (!match) continue;
         const markerLength = textBeforeCaret.length + terminator.length;
-        return rule.kind === 'codeBlock'
-            ? { kind: rule.kind, markerLength, language: match[1] ?? '' }
-            : { kind: rule.kind, markerLength };
+        if (rule.kind === 'codeBlock') return { kind: rule.kind, markerLength, language: match[1] ?? '' };
+        if (rule.kind === 'blockquote') return { kind: rule.kind, markerLength, depth: match[1].length };
+        return { kind: rule.kind, markerLength };
     }
     return null;
 }

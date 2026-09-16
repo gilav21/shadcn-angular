@@ -14,6 +14,7 @@ import { createLocaleBindings } from '../../lib/i18n/i18n.utils';
 import type { LocaleInput, LocaleMeta } from '../../lib/i18n/i18n.types';
 import { RichTextCommandRegistry } from './index';
 import { RICH_TEXT_LOCALES, RichTextLocale } from './index';
+import { MAX_NESTING_DEPTH } from './index';
 import { RichTextSanitizerService } from './index';
 import { RichTextAllowDirective } from './index';
 import type { ResourcePolicyDecision } from './index';
@@ -10489,6 +10490,57 @@ describe('RichTextEditorComponent markdown input rules', () => {
         expect(editor.querySelector('blockquote > p')?.textContent).toBe('asdasd');
         expect(editor.querySelector('blockquote + p')).not.toBeNull();
         expect(editor.querySelector('blockquote + p')?.contains(caretElement())).toBe(true);
+    });
+
+
+    // T-12b — nested quotes, issue #134. The parser has always read ">>" and
+    // round-tripped it; the input rule matched exactly one ">", so an author
+    // could read a nested quote but never type one.
+    it('builds one quote per ">" in the run', () => {
+        typeInto(seed('<p><br></p>'), '>> ');
+        expect(editor.querySelectorAll('blockquote')).toHaveLength(2);
+        expect(editor.querySelector('blockquote > blockquote > p')).not.toBeNull();
+
+        typeInto(seed('<p><br></p>'), '>>> ');
+        expect(editor.querySelectorAll('blockquote')).toHaveLength(3);
+    });
+
+    it('leaves the caret usable in the innermost quote', () => {
+        typeInto(seed('<p><br></p>'), '>>> ');
+        const innermost = editor.querySelector('blockquote > blockquote > blockquote > p');
+        expect(innermost?.contains(caretElement())).toBe(true);
+    });
+
+    it('keeps the text that followed the markers', () => {
+        typeMarkerBefore(seed('<p>hello</p>'), '>> hello', 3);
+        expect(editor.querySelectorAll('blockquote')).toHaveLength(2);
+        expect(editor.querySelector('blockquote > blockquote > p')?.textContent).toBe('hello');
+    });
+
+    it('nests one level deeper when ">" is typed inside a quote', () => {
+        seed('<blockquote><p><br></p></blockquote>');
+        typeInto(editor.querySelector('p') as HTMLElement, '> ');
+        expect(editor.querySelectorAll('blockquote')).toHaveLength(2);
+    });
+
+    it('puts every marker back on an immediate Backspace, not just the last', () => {
+        typeInto(seed('<p><br></p>'), '>>> ');
+        editor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }));
+        fixture.detectChanges();
+
+        expect(editor.querySelector('blockquote')).toBeNull();
+        expect(editor.textContent).toBe('>>> ');
+    });
+
+    it('stops at the reader\'s nesting ceiling rather than building a level it would unwrap', () => {
+        // Thirty-one quotes already, so only ONE of the three typed markers has
+        // room. A rule that ignored the quotes it is already inside would build
+        // thirty-four, and the next load would throw three of them away.
+        seed('<blockquote>'.repeat(31) + '<p><br></p>' + '</blockquote>'.repeat(31));
+        typeInto(editor.querySelector('p') as HTMLElement, '>>> ');
+
+        expect(editor.querySelectorAll('blockquote')).toHaveLength(MAX_NESTING_DEPTH);
+        expect(editor.textContent?.replaceAll('\u200B', '')).toBe('');
     });
 
     // T-13 — task items, checked and unchecked, with trailing text.

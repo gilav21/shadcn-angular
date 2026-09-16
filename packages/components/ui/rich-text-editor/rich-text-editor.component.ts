@@ -37,6 +37,8 @@ import {
     type FindIndex,
 } from './rich-text-find.utils';
 import {
+    MAX_NESTING_DEPTH,
+    blockquoteDepthOf,
     buildLineIndex,
     caretPosition,
     flattenIntoRowText,
@@ -7053,6 +7055,29 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     /**
+     * Quote one block `levels` deep, or as deep as the markdown reader's
+     * ceiling still allows.
+     *
+     * The ceiling is the READER's ({@link MAX_NESTING_DEPTH}), not one this rule
+     * invents: a quote nested past it is unwrapped when the document is read
+     * back, so building one here types a structure the next load throws away.
+     * Quotes the block ALREADY sits in count towards it, which is also what
+     * makes typing ">" inside a quote nest one level deeper instead of doing
+     * nothing.
+     *
+     * Every level is built inside the one snapshot `tryBlockRule` took, so the
+     * whole transform is a single undo step and Backspace restores all of the
+     * markers the author typed, not just the last one.
+     */
+    private quoteBlockToDepth(block: HTMLElement, levels: number): HTMLElement {
+        const editor = this.editorDiv?.nativeElement;
+        const room = MAX_NESTING_DEPTH - (editor ? blockquoteDepthOf(block, editor) : 0);
+        let quoted = block;
+        for (let level = 0; level < Math.min(levels, room); level++) quoted = this.quoteBlock(quoted);
+        return quoted;
+    }
+
+    /**
      * Wrap lines in one `<blockquote>` and return them as its lines.
      *
      * The invariant every quote path shares: a blockquote's direct children
@@ -7978,7 +8003,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             case 'orderedList':
                 return this.finishBlockRule(this.wrapBlockInList(block, 'ol'));
             case 'blockquote':
-                return this.finishBlockRule(this.quoteBlock(block));
+                return this.finishBlockRule(this.quoteBlockToDepth(block, match.depth ?? 1));
             case 'taskUnchecked':
                 return this.buildTaskBlock(block, false);
             case 'taskChecked':

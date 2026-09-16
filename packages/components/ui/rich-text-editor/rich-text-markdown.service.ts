@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { isPhrasing } from './rich-text-lines';
+import { MAX_NESTING_DEPTH, isPhrasing } from './rich-text-lines';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 
 /**
@@ -3216,15 +3216,6 @@ const MAX_TABLE_ROWSPAN = 1000;
 /** Widest row a table may emit, bounding paste amplification. */
 const MAX_TABLE_COLUMNS = 1000;
 
-/**
- * How deep blocks nest before the reader leaves the rest as text; see
- * parseToggleBlocks and buildBlockquote. The reader counts a level for every
- * details body, quote holding a nested quote and list item's block, so a details
- * block nested through a list or a quote meets the same cap; a sub-list, read in
- * its parent's pass, adds none. The writer counts the same list items and every
- * quote (see nestingDepthOf), which is never less.
- */
-const MAX_NESTING_DEPTH = 32;
 
 /** HTML's own limit for a column span. */
 const MAX_COLSPAN = 1000;
