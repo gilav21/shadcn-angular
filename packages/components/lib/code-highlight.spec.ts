@@ -238,6 +238,54 @@ describe('line breaks written as <br>', () => {
     });
 });
 
+/**
+ * Styling a browser writes into the block by itself. Editing beside a coloured
+ * token, Chrome keeps the token's computed look as literal markup. The block
+ * below is the one a user reported, taken from the live editor: once it held
+ * any of that, the highlighter refused the whole block and it never recoloured.
+ */
+describe('styling the browser wrote into the block', () => {
+    const REPORTED = '<span class="token token-keyword">const</span> num = <span class="token token-number">3</span>;<br>const asd<br>'
+        + '<span class="token token-keyword">public<font color="#0c1400"><span style="font-weight: 400;"> asd</span></font></span>'
+        + '<font color="oklch(0.491 0.27 292.581)"><b>doMath (num1: number, num2: number): string {<br>} </b></font>';
+
+    const reported = (): HTMLElement =>
+        root(`<pre><code data-language="typescript">${REPORTED}</code></pre>`).querySelector('code') as HTMLElement;
+
+    it('recolours the reported block', () => {
+        const code = reported();
+        expect(highlightCodeElement(code, 'typescript')).toBe(true);
+        expect(Array.from(code.querySelectorAll('.token-keyword'), (el) => el.textContent)).toEqual(['const', 'const', 'public']);
+    });
+
+    it('drops the styling and keeps every character and row', () => {
+        const code = reported();
+        const text = codeTextOf(code);
+        highlightCodeElement(code, 'typescript');
+        expect(code.querySelectorAll('font, b, span[style]')).toHaveLength(0);
+        expect(codeTextOf(code)).toBe(text);
+        expect(text.split('\n')).toEqual([
+            'const num = 3;',
+            'const asd',
+            'public asddoMath (num1: number, num2: number): string {',
+            '} ',
+        ]);
+    });
+
+    it.each(['strong', 'em', 'i', 'u', 's', 'strike', 'del'])('reads through a <%s> the toolbar wrote', (tag) => {
+        const code = root(`<pre><code data-language="ts"><${tag}>const</${tag}> a = 1;</code></pre>`).querySelector('code') as HTMLElement;
+        expect(highlightCodeElement(code, 'ts')).toBe(true);
+        expect(code.querySelector(tag)).toBeNull();
+        expect(code.querySelector('.token-keyword')?.textContent).toBe('const');
+    });
+
+    it('still refuses a block holding a link, which is content', () => {
+        const code = root('<pre><code data-language="ts">const <a href="https://e.com">a</a> = 1;</code></pre>').querySelector('code') as HTMLElement;
+        expect(highlightCodeElement(code, 'ts')).toBe(false);
+        expect(code.querySelector('a')).not.toBeNull();
+    });
+});
+
 describe('highlightCodeElementKeepingCaret', () => {
     /** Put a collapsed caret `offset` characters into `code`'s text and return the selection. */
     const caretAt = (code: HTMLElement, offset: number): Selection => {

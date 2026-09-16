@@ -295,18 +295,35 @@ export function codeTextOf(node: Node): string {
 }
 
 /**
+ * Elements that only STYLE the code text around them, which the paint reads
+ * through and does not keep.
+ *
+ * A browser writes these into a contenteditable on its own. Editing next to a
+ * coloured token, Chrome preserves the token's computed look as literal markup:
+ * `<font color="…">` with the keyword colour, `<b>` for its weight,
+ * `<span style="font-weight: 400">` to undo it. The bold, italic, underline and
+ * strike buttons write the rest. None of it can survive a save — a fence is
+ * text — and the colour of code is the highlighter's to decide. Refusing a
+ * block that held any of it switched highlighting off for the whole block the
+ * first time the browser did this, and it never came back.
+ */
+const STYLE_ONLY_TAGS = new Set(['SPAN', 'FONT', 'B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'DEL']);
+
+/**
  * Whether the paint can rebuild the block without losing anything.
  *
  * The paint is rebuilt from the block's lines, so it may only run where lines
  * are all there is. A code block CAN hold more: the markdown writer keeps an
  * image in one by writing the block in its tag form, and rebuilding that block
- * deleted the image outright. A `<br>` is a line break and is rebuilt; a span
- * this module painted is exactly what the rebuild replaces — including one a
- * browser has typed a `<br>` into, which happens when Shift+Enter lands inside
- * a coloured word.
+ * deleted the image outright; a link is content too. A `<br>` is a line break
+ * and is rebuilt. Styling wrappers carry nothing but a look (see
+ * {@link STYLE_ONLY_TAGS}), and a span this module painted is exactly what the
+ * rebuild replaces.
  */
 function isTextOnlyCode(code: HTMLElement): boolean {
-    return Array.from(code.querySelectorAll('*')).every((element) => element.matches('span.token, br'));
+    return Array.from(code.querySelectorAll('*')).every(
+        (element) => element.nodeName === 'BR' || STYLE_ONLY_TAGS.has(element.nodeName),
+    );
 }
 
 /**
