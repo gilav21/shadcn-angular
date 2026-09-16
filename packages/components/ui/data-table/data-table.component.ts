@@ -23,6 +23,7 @@ import { CommonModule, DOCUMENT } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { cn, isRtl, stringifyValue } from "../../lib/utils";
 import { onPointerDrag, onLongPress } from "../../lib/touch";
+import type { ThemeName } from "../../lib/theme-presets";
 import { createLocaleBindings, interpolate, provideComponentLocale, type LocaleInput } from "../../lib/i18n";
 import { DATA_TABLE_LOCALES, type DataTableLocale } from "./data-table.locales";
 import {
@@ -193,8 +194,10 @@ function sameQuery(a: DataTableQuery, b: DataTableQuery): boolean {
   host: {
     class: "block h-full w-full",
     '[attr.dir]': 'dir()',
+    '[attr.data-ui-theme]': 'theme()',
   },
   templateUrl: './data-table.component.html',
+  styleUrl: './data-table.component.css',
 })
 export class DataTableComponent<T>
   implements AfterViewInit, OnDestroy, DataTableAddonHost<T>
@@ -222,6 +225,12 @@ export class DataTableComponent<T>
   readonly data = model.required<T[]>();
   /** @see columnHelper for a type-safe fluent builder API */
   readonly columns = input.required<ColumnDef<T>[]>();
+
+  /**
+   * Colour preset for this table and its overlays — the names `change-theme`
+   * accepts. Unset, the table follows the app's global tokens.
+   */
+  readonly theme = input<ThemeName>();
 
   /** Hides the whole toolbar row (global filter, advanced filter, columns menu) when false. */
   readonly showToolbar = input(true);

@@ -18,6 +18,7 @@ import {
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { DOCUMENT } from '@angular/common';
 import { cn } from '../../lib/utils';
+import type { ThemeName } from '../../lib/theme-presets';
 import {
     highlightCodeBlocks,
     highlightCodeElementKeepingCaret,
@@ -391,6 +392,7 @@ let richTextEditorInstances = 0;
     styleUrl: './rich-text-editor.component.css',
     host: {
         class: 'block',
+        '[attr.data-ui-theme]': 'theme()',
     },
 })
 export class RichTextEditorComponent extends RichTextEditorAddonHost implements RichTextEditorApi, ControlValueAccessor, OnInit, AfterViewInit, OnDestroy {
@@ -411,6 +413,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     /** Output format: `'markdown'` converts to/from Markdown; `'html'` works with raw HTML. */
     readonly mode = input<EditorMode>('markdown');
 
+
+    /**
+     * Colour preset for this editor and its overlays — the names `change-theme`
+     * accepts. Unset, the editor follows the app's global tokens.
+     */
+    readonly theme = input<ThemeName>();
 
     /** Visual border/focus style. See {@link EditorVariant}. */
     readonly variant = input<EditorVariant>('default');

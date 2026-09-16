@@ -13,6 +13,7 @@ import {
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { cn, getClippingRect } from '../../../lib/utils';
+import { inheritThemeTokens } from '../../../lib/theme-presets';
 import { POPOVER } from '../popover.component';
 
 type PopoverSide = 'top' | 'right' | 'bottom' | 'left';
@@ -41,6 +42,7 @@ type PopoverAlign = 'start' | 'center' | 'end';
 export class PopoverContentComponent implements AfterViewInit, OnDestroy {
     readonly popover = inject(POPOVER, { optional: true });
     private readonly document = inject(DOCUMENT);
+    private readonly hostEl = inject<ElementRef<HTMLElement>>(ElementRef);
 
     /** Extra classes merged onto the panel. Keep a width constraint viewport-aware (`max-w-[calc(100vw-2rem)]`), since the panel is positioned, not laid out by its parent. */
     class = input('');
@@ -249,6 +251,7 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
             this.portalHost.dataset['popoverPortal'] = 'true';
             this.portalHost.style.cssText = 'display:contents';
             this.document.body.appendChild(this.portalHost);
+            inheritThemeTokens(this.hostEl.nativeElement, this.portalHost);
             this.popover?.registerPortal(this.portalHost);
         }
         this.portalHost.appendChild(el);

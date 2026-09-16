@@ -8,6 +8,7 @@ import {
     Renderer2,
 } from '@angular/core';
 import { isTouchDevice } from '../../../lib/touch';
+import { inheritThemeTokens } from '../../../lib/theme-presets';
 import { TOUCH_AUTO_DISMISS_MS } from '../tooltip.component';
 
 @Directive({
@@ -157,6 +158,7 @@ export class TooltipDirective implements OnDestroy {
         );
 
         this.renderer.appendChild(document.body, tooltipEl);
+        inheritThemeTokens(this.el.nativeElement, tooltipEl);
         return tooltipEl;
     }
 

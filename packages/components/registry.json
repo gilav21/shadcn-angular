@@ -261,7 +261,8 @@
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
-      "i18n/index.ts"
+      "i18n/index.ts",
+      "theme-presets.ts"
     ],
     "dependencies": [
       "alert-dialog",
@@ -573,6 +574,7 @@
       "context-menu/sub/context-menu-trigger.directive.ts"
     ],
     "libFiles": [
+      "theme-presets.ts",
       "touch.ts"
     ],
     "testFiles": [
@@ -818,6 +820,7 @@
     ],
     "files": [
       "data-table/data-table-column-builder.ts",
+      "data-table/data-table.component.css",
       "data-table/data-table.component.html",
       "data-table/data-table.component.ts",
       "data-table/data-table.host.ts",
@@ -882,6 +885,7 @@
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts",
+      "theme-presets.ts",
       "touch.ts"
     ],
     "addons": [
@@ -1855,7 +1859,8 @@
     ],
     "libFiles": [
       "a11y.ts",
-      "overlay-stack.service.ts"
+      "overlay-stack.service.ts",
+      "theme-presets.ts"
     ],
     "testFiles": [
       "popover/popover.component.spec.ts",
@@ -2448,6 +2453,7 @@
       "tooltip/tooltip.component.ts"
     ],
     "libFiles": [
+      "theme-presets.ts",
       "touch.ts"
     ],
     "testFiles": [
@@ -2693,7 +2699,8 @@
       "i18n/index.ts",
       "parsers/image-validator.ts",
       "parsers/svg-sanitizer.ts",
-      "shortcut-binding.service.ts"
+      "shortcut-binding.service.ts",
+      "theme-presets.ts"
     ],
     "breaking": [
       {
@@ -4803,7 +4810,8 @@
       "i18n/i18n.utils.ts",
       "i18n/index.ts",
       "parsers/image-validator.ts",
-      "parsers/svg-sanitizer.ts"
+      "parsers/svg-sanitizer.ts",
+      "theme-presets.ts"
     ],
     "dependencies": [
       "button",

@@ -13034,3 +13034,48 @@ describe('RichTextEditorComponent - live code highlighting', () => {
             .toEqual(['const']);
     });
 });
+
+describe('RichTextEditorComponent - theme preset', () => {
+    const isJsdom = navigator.userAgent.includes('jsdom');
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [RichTextEditorComponent] }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+    });
+
+    afterEach(() => {
+        document.documentElement.classList.remove('dark');
+    });
+
+    const host = (): HTMLElement => fixture.nativeElement as HTMLElement;
+    const token = (el: Element, name: string): string => getComputedStyle(el).getPropertyValue(name).trim();
+
+    it('carries no preset attribute while the theme is unset', () => {
+        fixture.detectChanges();
+        expect(host().hasAttribute('data-ui-theme')).toBe(false);
+    });
+
+    it('drops the attribute again when the theme is cleared', () => {
+        fixture.componentRef.setInput('theme', 'rose');
+        fixture.detectChanges();
+        expect(host().dataset['uiTheme']).toBe('rose');
+
+        fixture.componentRef.setInput('theme', undefined);
+        fixture.detectChanges();
+        expect(host().hasAttribute('data-ui-theme')).toBe(false);
+    });
+
+    it('themes descendants through inheritance, light and dark', (ctx) => {
+        if (isJsdom) return ctx.skip();
+        fixture.componentRef.setInput('theme', 'slate');
+        fixture.detectChanges();
+        const editable = host().querySelector('[data-slot="rich-text-editor"]');
+        if (!editable) throw new Error('editable area not rendered');
+        expect(token(editable, '--ring')).toBe('oklch(0.704 0.04 256.788)');
+        expect(token(editable, '--primary')).toBe('oklch(0.208 0.042 265.755)');
+
+        document.documentElement.classList.add('dark');
+        expect(token(editable, '--primary')).toBe('oklch(0.929 0.013 255.508)');
+    });
+});
