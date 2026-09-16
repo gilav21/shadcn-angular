@@ -52,6 +52,12 @@ describe('RichTextMarkdownService - round-trip fixed point', () => {
         ['heading followed directly by prose', '# Title\nBody text on the next line'],
         ['quote followed directly by prose', '> quoted\nBody after the quote'],
         ['spaced thematic break', 'above\n\n* * *\n\nbelow'],
+        ['tab-indented list continuation', '- a\n\n\t> q'],
+        ['link and image address holding a stray ")"', '[x](https://e.com/a\\)b) and ![q](https://e.com/a\\)b.png)'],
+        ['link syntax inside image alt text', '![a [b](https://x.test/) c](https://y.test/i.png)'],
+        ['two ordered lists side by side', '1. a\n\n1) b'],
+        ['two bullet lists side by side', '- a\n\n* b'],
+        ['code block holding an image', '<pre><code>a<img src="https://e.com/x.png" alt="q">b</code></pre>'],
     ];
 
     it.each(corpus)('%s is stable after one normalising cycle', (_name, md) => {
@@ -1217,5 +1223,244 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
 
     it('writes no start attribute for a list that counts from one', () => {
         expect(read(service.toHtml('1. one\n2. two')).querySelector('ol')?.hasAttribute('start')).toBe(false);
+    });
+});
+
+/**
+ * The six markdown defects reported as issues #135-#140.
+ *
+ * Each was found by auditing generated documents, and each is a defect of the
+ * CLASS rather than of the shape it was reported with: the tests below cover
+ * the general input the fix claims to handle, not only the reported one.
+ */
+describe('RichTextMarkdownService - reported markdown round-trip defects (#135-#140)', () => {
+    let service: RichTextMarkdownService;
+
+    beforeEach(() => {
+        TestBed.configureTestingModule({ providers: [RichTextMarkdownService, RichTextSanitizerService] });
+        service = TestBed.inject(RichTextMarkdownService);
+    });
+
+    const parse = (md: string): HTMLElement => new DOMParser().parseFromString(service.toHtml(md), 'text/html').body;
+    const cycle = (html: string): string => service.toMarkdown(service.toHtml(service.toMarkdown(html)));
+
+    describe('#135 indentation is measured in columns, so a tab indents', () => {
+        it('keeps a tab-indented quote inside the bullet item above it', () => {
+            const item = parse('- a\n\n\t> q').querySelector('li');
+            expect(item?.querySelector('blockquote')?.textContent).toBe('q');
+        });
+
+        it('keeps a tab-indented quote inside an ordered item whose marker is also followed by a tab', () => {
+            const item = parse('1.\ta\n\n\t> q').querySelector('li');
+            expect(item?.querySelector('blockquote')?.textContent).toBe('q');
+        });
+
+        it('advances a tab to the tab stop rather than counting it as one space', () => {
+            // A tab in column 1 reaches column 4, so it clears the two-column
+            // continuation on its own. Counted as one character it would not,
+            // which is the whole defect.
+            expect(parse('- a\n\n\t## h').querySelector('li h2')?.textContent).toBe('h');
+            expect(parse('- a\n\n \t## h').querySelector('li h2')?.textContent).toBe('h');
+        });
+
+        it('leaves a tab inside a fenced block alone', () => {
+            expect(parse('```\n\tkeep\n```').querySelector('code')?.textContent).toBe('\tkeep');
+        });
+
+        it('leaves a tab in the middle of a line alone', () => {
+            expect(parse('a\tb').textContent).toBe('a\tb');
+        });
+    });
+
+    describe('#136 an address survives whatever parentheses it holds', () => {
+        const addresses = [
+            'https://e.com/a)b',
+            'https://e.com/a(b',
+            'https://e.com/a(b(c))d',
+            'https://e.com/)',
+            'https://e.com/a()b)c',
+        ];
+
+        it.each(addresses)('keeps %s in an href across two saves', (url) => {
+            const html = `<p><a href="${url}">x</a> y</p>`;
+            expect(parse(cycle(html)).querySelector('a')?.getAttribute('href')).toBe(url);
+            expect(parse(cycle(html)).textContent).toBe('x y');
+        });
+
+        it.each(addresses)('keeps %s in an image src across two saves', (url) => {
+            const html = `<p><img src="${url}" alt="q"></p>`;
+            expect(parse(cycle(html)).querySelector('img')?.getAttribute('src')).toBe(url);
+        });
+
+        it('leaves an address the reader already returns unchanged in its plain form', () => {
+            // Escaping unconditionally would churn every ordinary URL. Wikipedia's
+            // single level of balanced parens is the mainstream case the reader
+            // grammar was widened for, and it must stay plain.
+            const plain = 'https://en.wikipedia.org/wiki/X_(disambiguation)';
+            expect(service.toMarkdown(`<p><a href="${plain}">w</a></p>`)).toBe(`[w](${plain})`);
+        });
+
+        it('keeps a backslash in an address across two saves', () => {
+            const url = String.raw`https://e.com/a\b`;
+            const html = `<p><a href="${url}">s</a></p>`;
+            expect(parse(cycle(html)).querySelector('a')?.getAttribute('href')).toBe(url);
+        });
+    });
+
+    describe('#137 an image alt attribute is text, not markdown', () => {
+        it('keeps link syntax in alt text as the characters the author typed', () => {
+            const img = parse('![a [b](https://x.test/) c](https://y.test/i.png)').querySelector('img');
+            expect(img?.getAttribute('alt')).toBe('a [b](https://x.test/) c');
+            expect(img?.getAttribute('src')).toBe('https://y.test/i.png');
+        });
+
+        it('leaves nothing of the alt text outside the tag', () => {
+            // Asserting only "no <a> element" would pass over the defect: the
+            // broken output is `alt="a <a href="` followed by loose text, which
+            // parses to no anchor at all. What it DOES leave behind is page text
+            // beside the image, and an image with more than its two attributes.
+            const body = parse('![a [b](https://x.test/) c](https://y.test/i.png)');
+            expect(body.textContent).toBe('');
+            expect(body.querySelector('img')?.attributes).toHaveLength(2);
+        });
+
+        it('keeps emphasis and code syntax in alt text as characters', () => {
+            expect(parse('![a *b* _c_ ~d~](https://y.test/i.png)').querySelector('img')?.getAttribute('alt'))
+                .toBe('a *b* _c_ ~d~');
+        });
+
+        it('still reads an image inside a link', () => {
+            const anchor = parse('[![alt](https://x.test/i.png)](https://y.test/)').querySelector('a');
+            expect(anchor?.getAttribute('href')).toBe('https://y.test/');
+            expect(anchor?.querySelector('img')?.getAttribute('alt')).toBe('alt');
+        });
+    });
+
+    describe('#138 two lists side by side stay two lists', () => {
+        it('keeps two ordered lists apart, each counting from one', () => {
+            const lists = parse(service.toMarkdown('<ol><li>a</li></ol><ol><li>b</li></ol>')).querySelectorAll('ol');
+            expect(lists).toHaveLength(2);
+            expect(lists[1].hasAttribute('start')).toBe(false);
+            expect(lists[1].textContent).toBe('b');
+        });
+
+        it('keeps two bullet lists apart', () => {
+            expect(parse(service.toMarkdown('<ul><li>a</li></ul><ul><li>b</li></ul>')).querySelectorAll('ul')).toHaveLength(2);
+        });
+
+        it('keeps a run of three lists apart', () => {
+            const html = '<ol><li>a</li></ol><ol><li>b</li></ol><ol><li>c</li></ol>';
+            expect(parse(service.toMarkdown(html)).querySelectorAll('ol')).toHaveLength(3);
+        });
+
+        it('keeps two sub-lists under one item apart', () => {
+            const item = parse(service.toMarkdown('<ul><li>x<ul><li>a</li></ul><ul><li>b</li></ul></li></ul>')).querySelector('li');
+            expect(item?.querySelectorAll(':scope > ul')).toHaveLength(2);
+        });
+
+        it('leaves a list with no list beside it written with the usual marker', () => {
+            expect(service.toMarkdown('<ul><li>a</li><li>b</li></ul>')).toBe('- a\n- b');
+            expect(service.toMarkdown('<ol><li>a</li><li>b</li></ol>')).toBe('1. a\n2. b');
+        });
+
+        it('reads the ")" ordered delimiter', () => {
+            expect(parse('1) a\n2) b').querySelectorAll('ol li')).toHaveLength(2);
+        });
+
+        it('keeps a list start through the alternate marker', () => {
+            const html = '<ol><li>a</li></ol><ol start="5"><li>b</li></ol>';
+            const lists = parse(service.toMarkdown(html)).querySelectorAll('ol');
+            expect(lists[1].getAttribute('start')).toBe('5');
+        });
+    });
+
+    describe('#139 a code block keeps an image it holds', () => {
+        it('keeps an image in a code block across two saves', () => {
+            const html = '<pre><code data-language="ts">a<img src="https://e.com/x.png" alt="q">b</code></pre>';
+            const block = parse(cycle(html)).querySelector('pre code');
+            expect(block?.querySelector('img')?.getAttribute('src')).toBe('https://e.com/x.png');
+            expect(block?.textContent).toBe('ab');
+            expect(block?.getAttribute('data-language')).toBe('ts');
+        });
+
+        it('keeps the block\'s own line breaks when it is written as tags', () => {
+            // The image is asserted alongside the breaks on purpose: a block
+            // written from textContent alone keeps the breaks and loses the
+            // image, so breaks on their own would pass over the defect.
+            const html = '<pre><code>l1\nl2<img src="https://e.com/x.png" alt="q"></code></pre>';
+            const block = parse(cycle(html)).querySelector('pre code');
+            expect(block?.textContent).toBe('l1\nl2');
+            expect(block?.querySelector('img')).not.toBeNull();
+        });
+
+        it('still writes a block with no image as a fence', () => {
+            expect(service.toMarkdown('<pre><code data-language="ts">const a = 1;</code></pre>'))
+                .toBe('```ts\nconst a = 1;\n```');
+        });
+    });
+
+    describe('#140 emphasis keeps one form across saves', () => {
+        it('keeps bold in its delimiter form when the block beside it moves', () => {
+            const html = '<ul data-task-list=""><li data-checked="false"><span>w1 <b>w3</b>&nbsp;</span><ul><li>n1</li></ul></li></ul>';
+            const first = service.toMarkdown(html);
+            expect(first).toContain('**w3**');
+            expect(service.toMarkdown(service.toHtml(first))).toBe(first);
+        });
+
+        it('still writes the tag form when a letter really is against the emphasis', () => {
+            expect(service.toMarkdown('<p>un<em>believ</em>able</p>')).toBe('un<em>believ</em>able');
+            expect(service.toMarkdown('<p><em>a</em><strong>b</strong></p>')).toBe('<em>a</em><strong>b</strong>');
+        });
+
+        it('writes the delimiter form when the sibling after the emphasis is a block', () => {
+            // The nested list must be the emphasis's OWN sibling. Put it after a
+            // closing </p> instead and besideOnLine stops at the paragraph
+            // boundary, so the input would never reach the branch under test.
+            expect(service.toMarkdown('<ul><li>a <b>b</b><ol><li>n</li></ol></li></ul>')).toContain('**b**');
+        });
+    });
+});
+
+/**
+ * A code block whose lines are separated by `<br>` -- what Shift+Enter inserts
+ * inside a block in the editor. The fence was written from `textContent`, which
+ * reads a `<br>` as nothing, so a function typed line by line was saved, and
+ * shown everywhere it was published, on a single line.
+ */
+describe('RichTextMarkdownService - code block lines written as <br>', () => {
+    let service: RichTextMarkdownService;
+
+    beforeEach(() => {
+        TestBed.configureTestingModule({ providers: [RichTextMarkdownService, RichTextSanitizerService] });
+        service = TestBed.inject(RichTextMarkdownService);
+    });
+
+    const fenceBody = (html: string): string | undefined =>
+        new DOMParser().parseFromString(service.toHtml(service.toMarkdown(html)), 'text/html').body.querySelector('pre code')?.textContent ?? undefined;
+
+    it('saves each <br> as a line of the fence', () => {
+        const html = '<pre><code data-language="ts">function f() {<br>    return 1;<br>}</code></pre>';
+        expect(service.toMarkdown(html)).toBe('```ts\nfunction f() {\n    return 1;\n}\n```');
+    });
+
+    it('keeps the rows through a save and reload', () => {
+        expect(fenceBody('<pre><code data-language="ts">a<br>b<br>c</code></pre>')).toBe('a\nb\nc');
+    });
+
+    it('keeps rows made of <br> and newline characters together', () => {
+        expect(fenceBody('<pre><code data-language="ts">a\nb<br>c</code></pre>')).toBe('a\nb\nc');
+    });
+
+    it('keeps rows whose words the highlighter had coloured', () => {
+        const html = '<pre><code data-language="ts"><span class="token token-keyword">const</span> a = 1;<br><span class="token token-keyword">let</span> b = 2;</code></pre>';
+        expect(fenceBody(html)).toBe('const a = 1;\nlet b = 2;');
+    });
+
+    it('keeps a blank row between two functions', () => {
+        expect(fenceBody('<pre><code data-language="ts">}<br><br>function g() {</code></pre>')).toBe('}\n\nfunction g() {');
+    });
+
+    it('writes no extra row for the <br> that only holds an empty last line open', () => {
+        expect(service.toMarkdown('<pre><code data-language="ts">a<br><br></code></pre>')).toBe('```ts\na\n\n```');
     });
 });

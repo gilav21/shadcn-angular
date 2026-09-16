@@ -165,3 +165,37 @@ export const WithActions: Story = {
     decorators: [moduleMetadata({ imports: [ActionsDemoComponent] })],
     render: () => ({ template: '<rich-text-view-actions />' }),
 };
+
+const HIGHLIGHT_DOC = [
+    'A fence that names a language is coloured; one that does not is left alone.',
+    '',
+    '```ts',
+    'export function greet(name: string): string {',
+    '    // a comment',
+    '    return `hello ${name}`;',
+    '}',
+    '```',
+    '',
+    '```python',
+    '@cache',
+    'def fib(n):',
+    '    return n if n < 2 else fib(n - 1) + fib(n - 2)',
+    '```',
+    '',
+    '```css',
+    '.card { color: #fff; padding: 8px; }',
+    '```',
+    '',
+    '```',
+    'No language, so no colour: this is a note, not code.',
+    '```',
+].join('\n');
+
+/**
+ * Syntax highlighting. The language a fence carries has always round-tripped;
+ * this is the layer that draws it. An unknown language, or none, is deliberately
+ * left uncoloured — a document is mostly prose.
+ */
+export const SyntaxHighlighting: Story = {
+    args: { mode: 'markdown', value: HIGHLIGHT_DOC },
+};

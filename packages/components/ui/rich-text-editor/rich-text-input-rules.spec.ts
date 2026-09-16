@@ -46,8 +46,27 @@ describe('matchBlockInputRule', () => {
 
     // T-3 — blockquote and the two task-list markers.
     describe('blockquote and task items', () => {
-        it('maps ">" to a blockquote', () => {
-            expect(matchBlockInputRule('>', ' ')).toEqual({ kind: 'blockquote', markerLength: 2 });
+        it('maps ">" to a blockquote one level deep', () => {
+            expect(matchBlockInputRule('>', ' ')).toEqual({ kind: 'blockquote', markerLength: 2, depth: 1 });
+        });
+
+        it('maps a run of ">" to that many levels', () => {
+            expect(matchBlockInputRule('>>', ' ')).toEqual({ kind: 'blockquote', markerLength: 3, depth: 2 });
+            expect(matchBlockInputRule('>>>', ' ')).toEqual({ kind: 'blockquote', markerLength: 4, depth: 3 });
+            expect(matchBlockInputRule('>'.repeat(12), ' ')).toEqual({ kind: 'blockquote', markerLength: 13, depth: 12 });
+        });
+
+        it('reports the depth the author typed, not a clamped one', () => {
+            // The ceiling is the reader's and is measured against the quotes the
+            // caret already sits in, which this module cannot see. Clamping here
+            // would hide a level the caller still has room for.
+            expect(matchBlockInputRule('>'.repeat(40), ' ')?.depth).toBe(40);
+        });
+
+        it('does not match a run broken by anything else', () => {
+            expect(matchBlockInputRule('> >', ' ')).toBeNull();
+            expect(matchBlockInputRule('>a', ' ')).toBeNull();
+            expect(matchBlockInputRule('a>', ' ')).toBeNull();
         });
 
         it('maps "[]" to an unchecked task and "[x]"/"[X]" to a checked one', () => {

@@ -42,4 +42,23 @@ export const RICH_TEXT_PROSE_CLASSES: readonly string[] = [
     '[&_details>:not(summary)]:px-3 [&_details>:not(summary)]:py-2',
     '[&_hr]:border-t [&_hr]:border-border [&_hr]:my-4',
     '[&_blockquote]:border-s-4 [&_blockquote]:border-border [&_blockquote]:ps-4 [&_blockquote]:py-1 [&_blockquote]:my-2 [&_blockquote]:text-muted-foreground [&_blockquote]:italic',
+    // Syntax highlighting. The classes are the ones the sanitizer has always
+    // allowed (`token`, `token-*`), so a document highlighted here and one
+    // pasted in already highlighted colour by one set of rules — see
+    // `lib/code-highlight.ts`.
+    //
+    // A code block sits on `bg-muted`, which is light in the light theme and
+    // dark in the dark one, so every colour needs both. `ui-code-block`'s own
+    // palette is not reused: it is tuned for that component's fixed
+    // `bg-zinc-950` surface and is unreadable on a light page.
+    '[&_.token-keyword]:text-violet-700 dark:[&_.token-keyword]:text-violet-300 [&_.token-keyword]:font-semibold',
+    '[&_.token-string]:text-emerald-700 dark:[&_.token-string]:text-emerald-300',
+    '[&_.token-comment]:text-muted-foreground [&_.token-comment]:italic',
+    '[&_.token-number]:text-amber-700 dark:[&_.token-number]:text-amber-300',
+    '[&_.token-function]:text-blue-700 dark:[&_.token-function]:text-blue-300',
+    '[&_.token-decorator]:text-fuchsia-700 dark:[&_.token-decorator]:text-fuchsia-300',
+    '[&_.token-tag]:text-rose-700 dark:[&_.token-tag]:text-rose-300',
+    '[&_.token-selector]:text-rose-700 dark:[&_.token-selector]:text-rose-300 [&_.token-selector]:font-semibold',
+    '[&_.token-attr]:text-sky-700 dark:[&_.token-attr]:text-sky-300',
+    '[&_.token-property]:text-sky-700 dark:[&_.token-property]:text-sky-300',
 ] as const;

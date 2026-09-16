@@ -694,3 +694,68 @@ describe('RichTextViewComponent — blocked-image caption and exposure report (f
         expect(seen).toHaveLength(21);
     });
 });
+
+/**
+ * Syntax highlighting in the published document (issue #133).
+ *
+ * The language was stored, applied and round-tripped long before anything drew
+ * it: `rich-text-markdown.service.ts` writes `data-language` / `language-*` and
+ * the sanitizer has always allowed the `token-*` classes. This is the layer on
+ * top.
+ */
+describe('RichTextViewComponent - syntax highlighting', () => {
+    let fixture: ComponentFixture<RichTextViewComponent>;
+
+    const content = (): HTMLElement =>
+        (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-view"]') as HTMLElement;
+
+    const render = (value: string, mode: 'markdown' | 'html' = 'markdown'): HTMLElement => {
+        fixture.componentRef.setInput('mode', mode);
+        fixture.componentRef.setInput('value', value);
+        fixture.detectChanges();
+        return content();
+    };
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [RichTextViewComponent] }).compileComponents();
+        fixture = TestBed.createComponent(RichTextViewComponent);
+    });
+
+    it('colours a fenced block that names a language', () => {
+        const code = render('```ts\nconst a = 1;\n```').querySelector('pre > code') as HTMLElement;
+        expect(code.querySelector('.token-keyword')?.textContent).toBe('const');
+        expect(code.querySelector('.token-number')?.textContent).toBe('1');
+    });
+
+    it('shows exactly the code the author wrote', () => {
+        const code = render('```ts\nconst a = 1;\nlet b = 2;\n```').querySelector('pre > code') as HTMLElement;
+        expect(code.textContent).toBe('const a = 1;\nlet b = 2;');
+    });
+
+    it('leaves a fence with no language, or an unknown one, uncoloured', () => {
+        // Not a TypeScript fallback: a document is mostly prose, and notes in a
+        // bare fence would be given keywords they do not have.
+        expect(render('```\nconst a = 1;\n```').querySelectorAll('.token')).toHaveLength(0);
+        expect(render('```klingon\nconst a = 1;\n```').querySelectorAll('.token')).toHaveLength(0);
+    });
+
+    it('re-renders the colours when the document changes', () => {
+        render('```ts\nconst a = 1;\n```');
+        const code = render('```python\ndef f(): pass\n```').querySelector('pre > code') as HTMLElement;
+        expect(code.querySelector('.token-keyword')?.textContent).toBe('def');
+    });
+
+    it('colours an html-mode document the same way', () => {
+        const code = render('<pre><code class="language-python">def f(): pass</code></pre>', 'html')
+            .querySelector('pre > code') as HTMLElement;
+        expect(code.querySelector('.token-keyword')?.textContent).toBe('def');
+    });
+
+    it('keeps an image a code block holds', () => {
+        // The markdown writer keeps an image in a block by writing the block in
+        // its tag form. The highlighter rebuilds a block from its text, so it
+        // must refuse this one rather than delete what it cannot redraw.
+        const el = render('<pre><code data-language="ts">a<img src="https://e.com/x.png" alt="q">b</code></pre>', 'html');
+        expect(el.querySelector('pre img')).not.toBeNull();
+    });
+});

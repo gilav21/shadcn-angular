@@ -12001,9 +12001,9 @@
       "inputs": [
         {
           "name": "uiRteColors",
-          "type": "unknown",
-          "description": "Enable the colours addon (the bare `uiRteColors` attribute). Flip to `false` to remove both buttons live.",
-          "default": "true, { transform: coerceEnabled }"
+          "type": "RichTextAddonState, RichTextAddonSetting",
+          "description": "Enable the addon (the bare `uiRteColors` attribute), or tune it: `[uiRteColors]=\"{ toolbar: false }\"` keeps the feature without its button, `{ order: 100 }` moves the button. See {@link RichTextAddonOptions}.",
+          "default": "addonSetting(300)(true), { transform: addonSetting(300) }"
         },
         {
           "name": "uiRteColorsAlpha",
@@ -12021,12 +12021,6 @@
           "name": "uiRteColorsLocale",
           "type": "LocaleInput<RichTextColorsLocale>",
           "description": "Locale for the addon UI: a registry key (`'en'`/`'he'`/…) or a full dictionary."
-        },
-        {
-          "name": "uiRteColorsOrder",
-          "type": "number",
-          "description": "Base sort order of the colour buttons among addon toolbar slots; the highlight button follows the text button.",
-          "default": "300"
         },
         {
           "name": "uiRteColorsPalette",
@@ -12066,25 +12060,19 @@
       "file": "packages/components/ui/rich-text-editor/addons/emoji/rich-text-emoji.directive.ts",
       "kind": "directive",
       "selector": "ui-rich-text-editor[uiRteEmoji], ui-rich-text-editor[uiRteFull]",
-      "description": "Opt-in emoji addon for `<ui-rich-text-editor>`. Attaches via DI to the `RichTextEditorAddonHost` the base provides and contributes the emoji picker toolbar button as a component slot. The base editor ships no emoji code and no `emoji-picker` dependency. Unlike the former built-in `'emoji'` toolbar item, the picker manages its own open state (outside-click / scroll dismissal) instead of joining the toolbar's single-open-popover coordination, the button renders after the built-in items, and — like every addon slot — it also appears in the floating/bubble toolbar (compact-sized via `RichTextToolbarViewContext`). The tooltip locale resolves from `[uiRteEmojiLocale]` or the app-wide `UI_LOCALE_ID` token — it does not track the editor's own `[locale]` input. Changing `[uiRteEmojiOrder]` re-registers the slot, which remounts the button (an open picker closes) — set it once, not reactively. ```html <ui-rich-text-editor uiRteEmoji /> ```",
+      "description": "Opt-in emoji addon for `<ui-rich-text-editor>`. Attaches via DI to the `RichTextEditorAddonHost` the base provides and contributes the emoji picker toolbar button as a component slot. The base editor ships no emoji code and no `emoji-picker` dependency. Unlike the former built-in `'emoji'` toolbar item, the picker manages its own open state (outside-click / scroll dismissal) instead of joining the toolbar's single-open-popover coordination, the button renders after the built-in items, and — like every addon slot — it also appears in the floating/bubble toolbar (compact-sized via `RichTextToolbarViewContext`). The tooltip locale resolves from `[uiRteEmojiLocale]` or the app-wide `UI_LOCALE_ID` token — it does not track the editor's own `[locale]` input. Changing `[uiRteEmoji]=\"{ order }\"` re-registers the slot, which remounts the button (an open picker closes) — set it once, not reactively. ```html <ui-rich-text-editor uiRteEmoji /> ```",
       "projectsContent": false,
       "inputs": [
         {
           "name": "uiRteEmoji",
-          "type": "unknown",
-          "description": "Enable the emoji addon (the bare `uiRteEmoji` attribute). Flip to `false` to remove the button live.",
-          "default": "true, { transform: coerceEnabled }"
+          "type": "RichTextAddonState, RichTextAddonSetting",
+          "description": "Enable the addon (the bare `uiRteEmoji` attribute), or tune it: `[uiRteEmoji]=\"{ toolbar: false }\"` keeps the feature without its button, `{ order: 100 }` moves the button. See {@link RichTextAddonOptions}.",
+          "default": "addonSetting(400)(true), { transform: addonSetting(400) }"
         },
         {
           "name": "uiRteEmojiLocale",
           "type": "LocaleInput<RichTextEmojiLocale>",
           "description": "Locale for the addon UI: a registry key (`'en'`/`'he'`/…) or a full dictionary."
-        },
-        {
-          "name": "uiRteEmojiOrder",
-          "type": "number",
-          "description": "Sort order of the emoji button among addon toolbar slots; lower first.",
-          "default": "400"
         }
       ],
       "outputs": [
@@ -12147,9 +12135,9 @@
       "inputs": [
         {
           "name": "uiRteFileImport",
-          "type": "unknown",
-          "description": "Master toggle for the whole import feature (default true).",
-          "default": "true, { transform: coerceEnabled }"
+          "type": "RichTextAddonState, RichTextAddonSetting",
+          "description": "Enable the addon (the bare `uiRteFileImport` attribute), or tune it: `[uiRteFileImport]=\"{ toolbar: false }\"` keeps the feature without its button, `{ order: 100 }` moves the button. See {@link RichTextAddonOptions}.",
+          "default": "addonSetting(340)(true), { transform: addonSetting(340) }"
         },
         {
           "name": "uiRteFileImportAccept",
@@ -12160,18 +12148,6 @@
           "name": "uiRteFileImportLocale",
           "type": "LocaleInput<RichTextFileImportLocale>",
           "description": "Locale for the addon UI: a registry key (`'en'`/`'he'`/…) or a full dictionary."
-        },
-        {
-          "name": "uiRteFileImportOrder",
-          "type": "number",
-          "description": "Sort order of the import button among addon toolbar slots; lower first.",
-          "default": "340"
-        },
-        {
-          "name": "uiRteFileImportToolbar",
-          "type": "boolean",
-          "description": "Contribute the toolbar button (default true).",
-          "default": "true"
         }
       ],
       "outputs": [
@@ -12228,20 +12204,14 @@
       "file": "packages/components/ui/rich-text-editor/addons/history/rich-text-history.directive.ts",
       "kind": "directive",
       "selector": "ui-rich-text-editor[uiRteHistory], ui-rich-text-editor[uiRteFull]",
-      "description": "Opt-in revision-history addon for `<ui-rich-text-editor>`. Attaches via DI to the `RichTextEditorAddonHost` the base provides and renders the \"Revisions\" corner button + panel, the preview dialog, and the browser dialog. The base editor keeps the undo/redo stack but ships no revision-history UI and no `dialog` dependency. Replaces the former `[showHistoryPanel]` / `[showHistoryButton]` inputs: adding the directive enables the feature, and `[uiRteHistoryButton]` toggles the corner button (false = shortcut-only, opening the browser dialog). The panel's strings resolve from `[uiRteHistoryLocale]` (a registry key or a full dictionary) or the app-wide `UI_LOCALE_ID` token — NOT the editor's own `[locale]` input, which no longer carries the history strings. ```html <ui-rich-text-editor uiRteHistory /> <ui-rich-text-editor uiRteHistory [uiRteHistoryButton]=\"false\" /> ```",
+      "description": "Opt-in revision-history addon for `<ui-rich-text-editor>`. Attaches via DI to the `RichTextEditorAddonHost` the base provides and renders the \"Revisions\" corner button + panel, the preview dialog, and the browser dialog. The base editor keeps the undo/redo stack but ships no revision-history UI and no `dialog` dependency. Replaces the former `[showHistoryPanel]` / `[showHistoryButton]` inputs: adding the directive enables the feature, and `[uiRteHistory]=\"{ toolbar }\"` toggles the corner button (false = shortcut-only, opening the browser dialog). The panel's strings resolve from `[uiRteHistoryLocale]` (a registry key or a full dictionary) or the app-wide `UI_LOCALE_ID` token — NOT the editor's own `[locale]` input, which no longer carries the history strings. ```html <ui-rich-text-editor uiRteHistory /> <ui-rich-text-editor [uiRteHistory]=\"{ toolbar: false }\" /> ```",
       "projectsContent": false,
       "inputs": [
         {
           "name": "uiRteHistory",
-          "type": "unknown",
-          "description": "Enable the revision-history addon (the bare `uiRteHistory` attribute). Flip to `false` to remove the button + panel live.",
-          "default": "true, { transform: coerceEnabled }"
-        },
-        {
-          "name": "uiRteHistoryButton",
-          "type": "boolean",
-          "description": "Show the corner \"Revisions\" button. When `false`, the panel opens only via the keyboard shortcut.",
-          "default": "true"
+          "type": "RichTextAddonState, RichTextAddonSetting",
+          "description": "Enable the addon (the bare `uiRteHistory` attribute), or tune it: `[uiRteHistory]=\"{ toolbar: false }\"` keeps the panel and its shortcut without the corner button. See {@link RichTextAddonOptions}.",
+          "default": "addonSetting(0)(true), { transform: addonSetting(0) }"
         },
         {
           "name": "uiRteHistoryLocale",
@@ -12452,42 +12422,20 @@
       "file": "packages/components/ui/rich-text-editor/addons/images/rich-text-images.directive.ts",
       "kind": "directive",
       "selector": "ui-rich-text-editor[uiRteImages], ui-rich-text-editor[uiRteFull]",
-      "description": "Opt-in images addon for `<ui-rich-text-editor>`. Attaches via DI to the `RichTextEditorAddonHost` the base provides and owns the whole image feature: the toolbar image button + insert popover, image paste and drag-and-drop, the upload pipeline (`uiRteImagesUploader` + `uiRteImagesAutoUpload`), and the resize/align overlay on a selected image. The base editor keeps only content-level image support (sanitizer + markdown); every image control is opt-in through this directive. Inserts route through the host transaction (`mutateContent`) after the base sanitizer validates the source, so an unsafe URL is rejected exactly as the former built-in did. Paste/drop divert through the host's paste/drop interceptor seams; the resize overlay mounts in the host's positioned container. Strings resolve from `[uiRteImagesLocale]` (a registry key or a full dictionary) or the app-wide `UI_LOCALE_ID` token — NOT the editor's own `[locale]` input. ```html <ui-rich-text-editor uiRteImages [uiRteImagesUploader]=\"upload\" /> ```",
+      "description": "",
       "projectsContent": false,
       "inputs": [
         {
           "name": "uiRteImages",
-          "type": "unknown",
-          "description": "Master toggle for the whole image feature (default true).",
-          "default": "true, { transform: coerceEnabled }"
+          "type": "RichTextAddonState, RichTextAddonSetting",
+          "description": "Enable the addon (the bare `uiRteImages` attribute), or tune it: `[uiRteImages]=\"{ toolbar: false }\"` keeps the feature without its button, `{ order: 100 }` moves the button. See {@link RichTextAddonOptions}.",
+          "default": "addonSetting(325)(true), { transform: addonSetting(325) }"
         },
         {
-          "name": "uiRteImagesAlignment",
-          "type": "boolean",
-          "description": "Show the alignment buttons on a selected image.",
-          "default": "true"
-        },
-        {
-          "name": "uiRteImagesAutoUpload",
-          "type": "boolean",
-          "description": "Auto-upload base64 images pasted/typed into the editor.",
-          "default": "false"
-        },
-        {
-          "name": "uiRteImagesDefaultAlignment",
-          "type": "ImageAlignment",
-          "description": "Alignment applied to every inserted image.",
-          "default": "'inline'"
-        },
-        {
-          "name": "uiRteImagesDefaultHeight",
-          "type": "number | string",
-          "description": "Default height applied to every inserted image."
-        },
-        {
-          "name": "uiRteImagesDefaultWidth",
-          "type": "number | string",
-          "description": "Default width applied to every inserted image."
+          "name": "uiRteImagesLayout",
+          "type": "RichTextImagesLayoutOptions",
+          "description": "How inserted images are sized and placed — see {@link RichTextImagesLayoutOptions}. Set only the fields you change: `{ defaultWidth: 240, maxWidth: 480 }`.",
+          "default": "{}"
         },
         {
           "name": "uiRteImagesLocale",
@@ -12495,45 +12443,10 @@
           "description": "Locale for the addon UI: a registry key (`'en'`/`'he'`/…) or a full dictionary."
         },
         {
-          "name": "uiRteImagesLockAspectRatio",
-          "type": "boolean",
-          "description": "Keep aspect ratio locked while resizing.",
-          "default": "true"
-        },
-        {
-          "name": "uiRteImagesMaxWidth",
-          "type": "number",
-          "description": "Upper clamp (px) for drag-resizing. No ceiling when unset."
-        },
-        {
-          "name": "uiRteImagesMinWidth",
-          "type": "number",
-          "description": "Lower clamp (px) for drag-resizing.",
-          "default": "20"
-        },
-        {
-          "name": "uiRteImagesOrder",
-          "type": "number",
-          "description": "Sort order of the image button among addon toolbar slots.",
-          "default": "325"
-        },
-        {
-          "name": "uiRteImagesResize",
-          "type": "boolean",
-          "description": "Allow drag-resizing inserted images.",
-          "default": "true"
-        },
-        {
-          "name": "uiRteImagesSources",
-          "type": "RichTextImageSources",
-          "description": "Which sources the insert popover offers.",
-          "default": "'all'"
-        },
-        {
-          "name": "uiRteImagesToolbar",
-          "type": "boolean",
-          "description": "Contribute the toolbar button (default true).",
-          "default": "true"
+          "name": "uiRteImagesUpload",
+          "type": "RichTextImagesUploadOptions",
+          "description": "How images get uploaded — see {@link RichTextImagesUploadOptions}. Set only the fields you change: `{ uploader, auto: true }`.",
+          "default": "{}"
         }
       ],
       "outputs": [
@@ -12644,32 +12557,14 @@
       "inputs": [
         {
           "name": "uiRteLinks",
-          "type": "unknown",
-          "description": "Enable the links addon (the bare `uiRteLinks` attribute). Flip to `false` to remove the whole feature live.",
-          "default": "true, { transform: coerceEnabled }"
+          "type": "RichTextAddonState, RichTextAddonSetting",
+          "description": "Enable the addon (the bare `uiRteLinks` attribute), or tune it: `[uiRteLinks]=\"{ toolbar: false }\"` keeps the feature without its button, `{ order: 100 }` moves the button. See {@link RichTextAddonOptions}.",
+          "default": "addonSetting(320)(true), { transform: addonSetting(320) }"
         },
         {
           "name": "uiRteLinksLocale",
           "type": "LocaleInput<RichTextLinksLocale>",
           "description": "Locale for the addon UI: a registry key (`'en'`/`'he'`/…) or a full dictionary."
-        },
-        {
-          "name": "uiRteLinksOrder",
-          "type": "number",
-          "description": "Sort order of the link button among addon toolbar slots.",
-          "default": "320"
-        },
-        {
-          "name": "uiRteLinksSlashCommand",
-          "type": "boolean",
-          "description": "Contribute the `/link` slash command (default true).",
-          "default": "true"
-        },
-        {
-          "name": "uiRteLinksToolbar",
-          "type": "boolean",
-          "description": "Contribute the toolbar button (default true).",
-          "default": "true"
         }
       ],
       "outputs": [
@@ -12824,32 +12719,14 @@
       "inputs": [
         {
           "name": "uiRteOutline",
-          "type": "unknown",
-          "description": "Enable the outline addon (the bare `uiRteOutline` attribute). Flip to `false` to remove the button, command, and panel live.",
-          "default": "true, { transform: coerceEnabled }"
-        },
-        {
-          "name": "uiRteOutlineButton",
-          "type": "boolean",
-          "description": "Show the outline toolbar button (default true). Toggles the docked panel.",
-          "default": "true"
+          "type": "RichTextAddonState, RichTextAddonSetting",
+          "description": "Enable the addon (the bare `uiRteOutline` attribute), or tune it: `[uiRteOutline]=\"{ toolbar: false }\"` keeps the feature without its button, `{ order: 100 }` moves the button. See {@link RichTextAddonOptions}.",
+          "default": "addonSetting(900)(true), { transform: addonSetting(900) }"
         },
         {
           "name": "uiRteOutlineLocale",
           "type": "LocaleInput<RichTextOutlineLocale>",
           "description": "Locale for the addon UI: a registry key (`'en'`/`'he'`/…) or a full dictionary."
-        },
-        {
-          "name": "uiRteOutlineOrder",
-          "type": "number",
-          "description": "Sort order of the outline button among addon toolbar slots; lower first.",
-          "default": "900"
-        },
-        {
-          "name": "uiRteOutlineSlashCommand",
-          "type": "boolean",
-          "description": "Contribute the `/outline` slash command (default true).",
-          "default": "true"
         }
       ],
       "outputs": [],
@@ -12946,20 +12823,14 @@
       "inputs": [
         {
           "name": "uiRteTables",
-          "type": "unknown",
-          "description": "Enable the tables addon (the bare `uiRteTables` attribute). Flip to `false` to remove the button live.",
-          "default": "true, { transform: coerceEnabled }"
+          "type": "RichTextAddonState, RichTextAddonSetting",
+          "description": "Enable the addon (the bare `uiRteTables` attribute), or tune it: `[uiRteTables]=\"{ toolbar: false }\"` keeps the feature without its button, `{ order: 100 }` moves the button. See {@link RichTextAddonOptions}.",
+          "default": "addonSetting(330)(true), { transform: addonSetting(330) }"
         },
         {
           "name": "uiRteTablesLocale",
           "type": "LocaleInput<RichTextTablesLocale>",
           "description": "Locale for the addon UI: a registry key (`'en'`/`'he'`/…) or a full dictionary."
-        },
-        {
-          "name": "uiRteTablesOrder",
-          "type": "number",
-          "description": "Sort order of the table button among addon toolbar slots; lower first.",
-          "default": "330"
         }
       ],
       "outputs": [
@@ -12992,9 +12863,9 @@
       "inputs": [
         {
           "name": "uiRteTypography",
-          "type": "unknown",
-          "description": "Enable the typography addon (the bare `uiRteTypography` attribute). Flip to `false` to remove both buttons live.",
-          "default": "true, { transform: coerceEnabled }"
+          "type": "RichTextAddonState, RichTextAddonSetting",
+          "description": "Enable the addon (the bare `uiRteTypography` attribute), or tune it: `[uiRteTypography]=\"{ toolbar: false }\"` keeps the feature without its button, `{ order: 100 }` moves the button. See {@link RichTextAddonOptions}.",
+          "default": "addonSetting(310)(true), { transform: addonSetting(310) }"
         },
         {
           "name": "uiRteTypographyFamilies",
@@ -13012,12 +12883,6 @@
           "name": "uiRteTypographyLocale",
           "type": "LocaleInput<RichTextTypographyLocale>",
           "description": "Locale for the addon UI: a registry key (`'en'`/`'he'`/…) or a full dictionary."
-        },
-        {
-          "name": "uiRteTypographyOrder",
-          "type": "number",
-          "description": "Base sort order of the typography buttons among addon toolbar slots; the family button follows the size button.",
-          "default": "310"
         }
       ],
       "outputs": [
@@ -13035,6 +12900,24 @@
       "methods": []
     },
     {
+      "name": "RichTextAllowDirective",
+      "file": "packages/components/ui/rich-text-editor/rich-text-allow.directive.ts",
+      "kind": "directive",
+      "selector": "[uiRichTextAllow]",
+      "description": "Declares what every editor and view beneath this element may load and link to, so a page full of views states its policy once instead of on each: ```html <div [uiRichTextAllow]=\"{ imageHosts: ['cdn.acme.com', '*.assets.acme.com'], linkSchemes: ['acme-crm'] }\"> <ui-rich-text-view [value]=\"a\" /> <ui-rich-text-view [value]=\"b\" /> </div> ``` A component that sets its own `allowedImageHosts` or `linkSchemes` keeps that list whole; the wrapper's is never merged in, so a strict view cannot be widened by a looser ancestor. This is a DOM-ancestor relationship, not a content-projection one. Neither the editor nor the view projects content, so a wrapper element is what makes an enclosing policy reachable at all -- the same shape `[uiRichTextActions]` uses.",
+      "projectsContent": false,
+      "inputs": [
+        {
+          "name": "uiRichTextAllow",
+          "type": "RichTextAllow",
+          "description": "Hosts and link schemes for everything beneath this element.",
+          "default": "{}"
+        }
+      ],
+      "outputs": [],
+      "methods": []
+    },
+    {
       "name": "RichTextEditorComponent",
       "file": "packages/components/ui/rich-text-editor/rich-text-editor.component.ts",
       "kind": "component",
@@ -13043,9 +12926,15 @@
       "projectsContent": false,
       "inputs": [
         {
-          "name": "allowedResourceHosts",
+          "name": "allowedImageHosts",
           "type": "readonly string[]",
-          "description": "Hosts whose remote images and CSS backgrounds may load. Empty (the default) means no policy: any `https://` source is permitted, which is how every comparable editor behaves. Worth knowing before leaving it empty: a remote image is a silent outbound request that every viewer's browser makes on render. Any host named in a pasted document therefore learns who opened it and when, with nothing to click and nothing visible to delete -- a 1x1 transparent pixel is the standard shape. Wire up {@link remoteResource} to see which hosts your real content actually loads from before deciding. An allowlist narrows that exposure to parties you have named; it does not remove it, because a trusted host can still identify the reader through the URL itself (`https://cdn.example.com/logo.png?viewer=bob`). Entries are matched against the parsed hostname, exactly and case-insensitively. A `*.` prefix matches subdomains by label (`*.assets.example` covers `img.assets.example`, never `img.assets.example.evil.com`); list the apex separately if you want it. `data:` and relative sources are always permitted -- they cannot contact anyone, and `data:` is how a Word paste carries its images.",
+          "description": "Hosts whose remote images and CSS backgrounds may load. Empty (the default) means no policy: any `https://` source is permitted, which is how every comparable editor behaves. Worth knowing before leaving it empty: a remote image is a silent outbound request that every viewer's browser makes on render. Any host named in a pasted document therefore learns who opened it and when, with nothing to click and nothing visible to delete -- a 1x1 transparent pixel is the standard shape. Start with the hosts you serve images from; {@link imageBlocked} tells you what else your content tried to load. An allowlist narrows that exposure to parties you have named; it does not remove it, because a trusted host can still identify the reader through the URL itself (`https://cdn.example.com/logo.png?viewer=bob`). Entries are matched against the parsed hostname, exactly and case-insensitively. A `*.` prefix matches subdomains by label (`*.assets.example` covers `img.assets.example`, never `img.assets.example.evil.com`); list the apex separately if you want it. `data:` and relative sources are always permitted -- they cannot contact anyone, and `data:` is how a Word paste carries its images.",
+          "default": "[]"
+        },
+        {
+          "name": "allowedLinkSchemes",
+          "type": "readonly string[]",
+          "description": "Link schemes allowed in addition to the built-in list (`DEFAULT_LINK_SCHEMES`: the web's own plus well-known application schemes such as `slack`, `msteams`, `zoommtg`, `geo`). An intranet with its own handler lists it here: `['acme-crm']`. Schemes that run script or reach the machine (`javascript`, `data`, `file`, …) are refused even if listed.",
           "default": "[]"
         },
         {
@@ -13061,13 +12950,35 @@
         {
           "name": "blockedImageMessage",
           "type": "string",
-          "description": "Caption shown on an image {@link allowedResourceHosts} refused. Unset uses the translated default. Override it to say something only you know -- who to ask for a host to be allowed, or why it is not. Inserted as text, never as markup."
+          "description": "Caption shown on an image {@link allowedImageHosts} refused. Unset uses the translated default. Override it to say something only you know -- who to ask for a host to be allowed, or why it is not. Inserted as text, never as markup."
         },
         {
           "name": "class",
           "type": "string",
           "description": "Additional CSS classes merged onto the editor's root container.",
           "default": "''"
+        },
+        {
+          "name": "codeHighlightDebounceMs",
+          "type": "number",
+          "description": "Milliseconds of quiet before the caret's code block is re-highlighted, so a burst of keystrokes repaints once. `0` repaints synchronously on every keystroke, which is what the unit suite uses. Highlighting is presentational only: the spans it paints never reach the value (`readContentFromEditor` unwraps them) and never reach the history, so this knob changes when colour catches up with typing and nothing else. Set it to a large number, or highlight nothing, by giving your fences a language the highlighter does not know.",
+          "default": "150"
+        },
+        {
+          "name": "counter",
+          "type": "CounterMode | undefined",
+          "description": "Which counter to show below the editor: `'characters'`, `'words'` or `'both'`. Unset shows none. {@link maxLength} is reported on the character counter."
+        },
+        {
+          "name": "customToolbarItems",
+          "type": "readonly RichTextCustomToolbarItem[]",
+          "description": "Your own toolbar buttons, as data. Each renders after the built-in items with the built-in styling; a click runs the item's `onClick` with a {@link RichTextEditorRef} and emits {@link customToolbarAction}. ```html <ui-rich-text-editor [customToolbarItems]=\"[ { id: 'stamp', icon: '📅', tooltip: 'Insert date', onClick: stamp } ]\" /> ```",
+          "default": "[]"
+        },
+        {
+          "name": "dir",
+          "type": "TextDirection | undefined",
+          "description": "Text direction of the content. Unset follows the locale."
         },
         {
           "name": "disabled",
@@ -13082,16 +12993,10 @@
           "default": "150"
         },
         {
-          "name": "historyDebounceMs",
-          "type": "number",
-          "description": "Debounce interval in milliseconds for capturing history snapshots. A snapshot is saved after the user stops typing for this duration.",
-          "default": "450"
-        },
-        {
-          "name": "historyLimit",
-          "type": "number",
-          "description": "Maximum number of history snapshots to retain. Oldest entries are dropped when exceeded.",
-          "default": "100"
+          "name": "history",
+          "type": "RichTextHistoryOptions",
+          "description": "Undo history tuning: `limit` caps retained snapshots (default 100), `debounceMs` is the quiet time after typing before a snapshot is taken (default 450), and `recordExternalWrites` makes a form's `setValue` / `patchValue` undoable (off by default: a programmatic write is not an edit). Set only the fields you change.",
+          "default": "{}"
         },
         {
           "name": "locale",
@@ -13140,24 +13045,6 @@
           "default": "false"
         },
         {
-          "name": "recordExternalWrites",
-          "type": "boolean",
-          "description": "Record a history entry for each `ControlValueAccessor` write, so a form's `setValue` / `patchValue` can be undone. Off by default, matching the long-standing behaviour that a programmatic write is not an edit.",
-          "default": "false"
-        },
-        {
-          "name": "showCount",
-          "type": "boolean",
-          "description": "Show a character count below the editor.",
-          "default": "false"
-        },
-        {
-          "name": "showWordCount",
-          "type": "boolean",
-          "description": "Show a word count below the editor.",
-          "default": "false"
-        },
-        {
           "name": "size",
           "type": "EditorSize",
           "description": "Text size preset for the editor content. See {@link EditorSize}.",
@@ -13189,6 +13076,11 @@
           "description": "Emits when the editor loses focus."
         },
         {
+          "name": "customToolbarAction",
+          "type": "{ id: string; ref: RichTextEditorRef }",
+          "description": "Emits when a {@link customToolbarItems} button is clicked, with the item's `id` and a {@link RichTextEditorRef} for this editor. Use it when you would rather handle every custom button in one place than give each item an `onClick`."
+        },
+        {
           "name": "focused",
           "type": "void",
           "description": "Emits when the editor gains focus."
@@ -13204,19 +13096,19 @@
           "description": "Emits the current content as an HTML string after every change."
         },
         {
+          "name": "imageBlocked",
+          "type": "ResourcePolicyDecision",
+          "description": "Emits once per remote image or CSS background {@link allowedImageHosts} refused, with its URL, host and kind. Nothing fires without a policy. In dev mode each block is also logged to the console."
+        },
+        {
           "name": "markdownChange",
           "type": "string",
           "description": "Emits the current content as a Markdown string after every change. Only meaningful when `mode` is `'markdown'` — in `'html'` mode, the Markdown is reverse-converted from HTML and may not round-trip perfectly."
         },
         {
-          "name": "remoteResource",
-          "type": "ResourcePolicyDecision",
-          "description": "Emits once per remote image or CSS background the content references, whether it was allowed or blocked. It fires even when {@link allowedResourceHosts} is empty, with `reason: 'no-policy'` -- that is the point. Log it to discover which hosts your documents really load from before you decide whether to restrict them."
-        },
-        {
           "name": "wordCountChange",
           "type": "number",
-          "description": "Emits the current word count after every content change. Pair with `[showWordCount]`."
+          "description": "Emits the current word count after every content change. Pair with `counter=\"words\"`."
         }
       ],
       "methods": [
@@ -13371,24 +13263,6 @@
       "methods": []
     },
     {
-      "name": "RichTextResourcePolicyDirective",
-      "file": "packages/components/ui/rich-text-editor/rich-text-resource-policy.directive.ts",
-      "kind": "directive",
-      "selector": "[uiRichTextResourcePolicy]",
-      "description": "Declares a remote-host policy for every editor and view beneath this element. A page that renders many views under one policy would otherwise repeat the host list on each, and the more likely mistake is missing one. Put the list on a wrapper instead, and opt each view in with `inheritResourcePolicy`: ```html <div [uiRichTextResourcePolicy]=\"['cdn.acme.com', '*.assets.acme.com']\"> <ui-rich-text-view [value]=\"a\" [inheritResourcePolicy]=\"true\" /> <ui-rich-text-view [value]=\"b\" [inheritResourcePolicy]=\"true\" /> </div> ``` Inheritance is opt-in per view, so an empty `allowedResourceHosts` keeps exactly one meaning -- no policy -- rather than becoming ambiguous between \"none\" and \"whatever encloses me\". A view that sets its own list always wins, and the two lists are never merged: a strict view must not widen to a looser ancestor. This is a DOM-ancestor relationship, not a content-projection one. Neither the editor nor the view projects content, so a wrapper element is what makes an enclosing policy reachable at all -- the same shape `[uiRichTextActions]` uses.",
-      "projectsContent": false,
-      "inputs": [
-        {
-          "name": "uiRichTextResourcePolicy",
-          "type": "readonly string[]",
-          "description": "Hosts permitted beneath this element. Empty sets no policy.",
-          "default": "[]"
-        }
-      ],
-      "outputs": [],
-      "methods": []
-    },
-    {
       "name": "RichTextToolbarComponent",
       "file": "packages/components/ui/rich-text-editor/sub/rich-text-toolbar.component.ts",
       "kind": "component",
@@ -13443,6 +13317,12 @@
           "type": "boolean",
           "description": "Same effect as {@link disabled} on this component — buttons render disabled and no output fires. The editor normally hides the toolbar entirely in read-only mode, so this is the belt-and-braces guard for direct use.",
           "default": "false"
+        },
+        {
+          "name": "textStyleAvailable",
+          "type": "boolean",
+          "description": "Whether the Text style select can change the caret's line. The editor sets it false where a heading is refused, and the select is disabled there rather than accepting a pick nothing would honour.",
+          "default": "true"
         }
       ],
       "outputs": [
@@ -13468,15 +13348,21 @@
       "projectsContent": false,
       "inputs": [
         {
-          "name": "allowedResourceHosts",
+          "name": "allowedImageHosts",
           "type": "readonly string[]",
           "description": "Hosts whose remote images and CSS backgrounds may load. Empty (the default) means no policy, matching the editor and prior behaviour. This matters more here than in the editor. A remote image is a silent request every VIEWER's browser makes on render, so a tracking pixel in published content fires for each reader -- and this component is what readers see. A policy set on an editor governs what an author can insert; it does not travel with the document, so set the same list here. A blocked image keeps its element and alt and gains `data-blocked-src`, so nothing is fetched and allowing the host later restores it.",
           "default": "[]"
         },
         {
+          "name": "allowedLinkSchemes",
+          "type": "readonly string[]",
+          "description": "Link schemes allowed in addition to the built-in list, as on the editor. A link a document carries is only as useful as the page that renders it, so set the same list here.",
+          "default": "[]"
+        },
+        {
           "name": "blockedImageMessage",
           "type": "string",
-          "description": "Caption shown on an image {@link allowedResourceHosts} refused. Inserted as text, never as markup. Unset uses the translated default from {@link locale}."
+          "description": "Caption shown on an image {@link allowedImageHosts} refused. Inserted as text, never as markup. Unset uses the translated default from {@link locale}."
         },
         {
           "name": "class",
@@ -13486,14 +13372,8 @@
         },
         {
           "name": "dir",
-          "type": "\"ltr\" | \"rtl\" | \"auto\"",
+          "type": "TextDirection | undefined",
           "description": "Text direction for the content; unset inherits from the page."
-        },
-        {
-          "name": "inheritResourcePolicy",
-          "type": "boolean",
-          "description": "Take the policy from the nearest enclosing view or editor when this one sets none. Off by default, so an empty {@link allowedResourceHosts} keeps exactly one meaning -- no policy -- and the effective rule is readable from the component itself. Turn it on for a page that renders many views under a single policy, where repeating the list on each would be the more likely mistake. Ignored when this view sets its own list.",
-          "default": "false"
         },
         {
           "name": "locale",
@@ -13521,9 +13401,9 @@
       ],
       "outputs": [
         {
-          "name": "remoteResource",
+          "name": "imageBlocked",
           "type": "ResourcePolicyDecision",
-          "description": "Emits once per remote image or CSS background the rendered content references, allowed or blocked -- with `reason: 'no-policy'` when no list is set. The view is what readers see, so this is where exposure is measured; the editor has the same output for what authors insert."
+          "description": "Emits once per remote image or CSS background {@link allowedImageHosts} refused. The view is what readers see, so this is where a block matters most; the editor has the same output for what authors insert."
         }
       ],
       "methods": []

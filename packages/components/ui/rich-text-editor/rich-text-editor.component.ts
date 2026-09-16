@@ -18,6 +18,12 @@ import {
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { DOCUMENT } from '@angular/common';
 import { cn } from '../../lib/utils';
+import {
+    highlightCodeBlocks,
+    highlightCodeElementKeepingCaret,
+    languageOfCodeElement,
+    stripCodeHighlighting,
+} from '../../lib/code-highlight';
 import { graphemeLength, truncateToGraphemes } from '../../lib/grapheme';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
@@ -37,6 +43,8 @@ import {
     type FindIndex,
 } from './rich-text-find.utils';
 import {
+    MAX_NESTING_DEPTH,
+    blockquoteDepthOf,
     buildLineIndex,
     caretPosition,
     flattenIntoRowText,
@@ -513,6 +521,19 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     readonly findDebounceMs = input<number>(150);
 
+    /**
+     * Milliseconds of quiet before the caret's code block is re-highlighted, so
+     * a burst of keystrokes repaints once. `0` repaints synchronously on every
+     * keystroke, which is what the unit suite uses.
+     *
+     * Highlighting is presentational only: the spans it paints never reach the
+     * value (`readContentFromEditor` unwraps them) and never reach the history,
+     * so this knob changes when colour catches up with typing and nothing else.
+     * Set it to a large number, or highlight nothing, by giving your fences a
+     * language the highlighter does not know.
+     */
+    readonly codeHighlightDebounceMs = input<number>(150);
+
 
     /**
      * Hosts whose remote images and CSS backgrounds may load. Empty (the
@@ -735,6 +756,9 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private replaceEditorHtml(html: string): void {
         if (!this.editorDiv) return;
         this.editorDiv.nativeElement.innerHTML = html;
+        // Every block, because every block is new. This is the only path that
+        // repaints the whole document; typing repaints the caret's block alone.
+        highlightCodeBlocks(this.editorDiv.nativeElement);
         this.labelBlockedImages();
         this.selectedImageNode.set(null);
         this.tableCellSelected.set([]);
@@ -861,6 +885,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             .replace('{total}', String(total));
     });
     private findDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+    private codeHighlightTimer: ReturnType<typeof setTimeout> | null = null;
     private findOverlay: HTMLElement | null = null;
     private findRepaintHandle: number | null = null;
     private findResizeObserver: ResizeObserver | null = null;
@@ -1550,7 +1575,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.lastInputRule = null;
         const transformed = this.applyInputRules(event);
         this.sweepSpentCaretAnchors(div);
-        const html = this.sanitizer.sanitize(div.innerHTML).replaceAll('\u200B', '');
+        const html = this.sanitizer.sanitize(this.undecoratedMarkup(div)).replaceAll('\u200B', '');
 
         const triggerTextContent = this.buildTriggerAwareText(div.innerHTML);
         const selection = this.document.getSelection();
@@ -1573,6 +1598,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         } else {
             this.scheduleDebouncedHistoryPush();
         }
+
+        // LAST, and after the value has already been read: the repaint must
+        // never be what a reader of the document sees, only what the author
+        // does.
+        this.scheduleCodeHighlight();
     }
 
     /**
@@ -5563,6 +5593,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     closeFindReplace(): void {
         const current = this.findMatches()[this.findCurrentIndex()]?.cloneRange();
         this.cancelPendingFind();
+        this.cancelPendingCodeHighlight();
         this.teardownFindOverlay();
         this.findReplaceVisible.set(false);
         this.findQuery.set('');
@@ -6226,9 +6257,29 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const editorElement = this.getEditorElement();
         if (!editorElement) return null;
 
-        const html = this.sanitizer.sanitize(editorElement.innerHTML).replaceAll('\u200B', '');
+        const html = this.sanitizer.sanitize(this.undecoratedMarkup(editorElement)).replaceAll('\u200B', '');
         this.htmlContent.set(html);
         return html;
+    }
+
+    /**
+     * The editable's markup with the highlighter's spans unwrapped.
+     *
+     * Syntax colour is DECORATION: the author typed the code, not the spans
+     * around it, so they must not reach the value, the history or the markdown.
+     * Left in, every keystroke inside a fence emitted a different HTML string
+     * for the same code, and each undo step carried a repaint of its own.
+     *
+     * Read from a copy, so the live DOM \u2014 and with it the caret and the colour
+     * the author is looking at \u2014 is never touched. The copy is skipped entirely
+     * when the document carries no token span, which is every document with no
+     * code in it.
+     */
+    private undecoratedMarkup(editorElement: HTMLElement): string {
+        if (!editorElement.querySelector('pre > code span.token')) return editorElement.innerHTML;
+        const copy = editorElement.cloneNode(true) as HTMLElement;
+        stripCodeHighlighting(copy);
+        return copy.innerHTML;
     }
 
     private getMentionElementsInSelection(): HTMLElement[] {
@@ -7050,6 +7101,29 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const line = editor ? lineOf(block, editor) : null;
         const quoted = line ? this.quoteLines([line]) : [];
         return quoted[0] ?? block;
+    }
+
+    /**
+     * Quote one block `levels` deep, or as deep as the markdown reader's
+     * ceiling still allows.
+     *
+     * The ceiling is the READER's ({@link MAX_NESTING_DEPTH}), not one this rule
+     * invents: a quote nested past it is unwrapped when the document is read
+     * back, so building one here types a structure the next load throws away.
+     * Quotes the block ALREADY sits in count towards it, which is also what
+     * makes typing ">" inside a quote nest one level deeper instead of doing
+     * nothing.
+     *
+     * Every level is built inside the one snapshot `tryBlockRule` took, so the
+     * whole transform is a single undo step and Backspace restores all of the
+     * markers the author typed, not just the last one.
+     */
+    private quoteBlockToDepth(block: HTMLElement, levels: number): HTMLElement {
+        const editor = this.editorDiv?.nativeElement;
+        const room = MAX_NESTING_DEPTH - (editor ? blockquoteDepthOf(block, editor) : 0);
+        let quoted = block;
+        for (let level = 0; level < Math.min(levels, room); level++) quoted = this.quoteBlock(quoted);
+        return quoted;
     }
 
     /**
@@ -7978,7 +8052,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             case 'orderedList':
                 return this.finishBlockRule(this.wrapBlockInList(block, 'ol'));
             case 'blockquote':
-                return this.finishBlockRule(this.quoteBlock(block));
+                return this.finishBlockRule(this.quoteBlockToDepth(block, match.depth ?? 1));
             case 'taskUnchecked':
                 return this.buildTaskBlock(block, false);
             case 'taskChecked':
@@ -8698,6 +8772,57 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.tableResizeState = null;
         this.tableCellSelecting = false;
         this.tableCellSelectAnchor = null;
+    }
+
+    /**
+     * Repaint the caret's code block after {@link codeHighlightDebounceMs} of
+     * quiet. A debounce of 0 repaints inline.
+     */
+    private scheduleCodeHighlight(): void {
+        this.cancelPendingCodeHighlight();
+        const delay = this.codeHighlightDebounceMs();
+        if (delay <= 0) {
+            this.highlightCaretCodeBlock();
+            return;
+        }
+        this.codeHighlightTimer = setTimeout(() => {
+            this.codeHighlightTimer = null;
+            this.highlightCaretCodeBlock();
+        }, delay);
+    }
+
+    private cancelPendingCodeHighlight(): void {
+        if (this.codeHighlightTimer !== null) {
+            clearTimeout(this.codeHighlightTimer);
+            this.codeHighlightTimer = null;
+        }
+    }
+
+    /**
+     * Repaint the one code block the caret is in.
+     *
+     * The caret's block alone, not the document: a repaint replaces every node
+     * in the block, and doing that to a block the author is not in would detach
+     * whatever else held a reference to it for no visible gain. A wholesale
+     * load repaints everything, through {@link replaceEditorHtml}.
+     *
+     * Nothing here touches the history or the value. The spans are decoration:
+     * `readContentFromEditor` unwraps them before anything reads the document,
+     * so typing in a code block produces the same value it always did, and an
+     * undo step never has a repaint of its own to step through.
+     */
+    private highlightCaretCodeBlock(): void {
+        const editor = this.editorDiv?.nativeElement;
+        if (!editor || this.isDisabled() || this.readonly()) return;
+        const selection = this.document.getSelection();
+        if (!selection || selection.rangeCount === 0) return;
+
+        const start = selection.getRangeAt(0).startContainer;
+        const node = start.nodeType === Node.TEXT_NODE ? start.parentElement : (start as HTMLElement);
+        const code = node?.closest<HTMLElement>('pre > code');
+        if (!code || !editor.contains(code)) return;
+
+        highlightCodeElementKeepingCaret(code, languageOfCodeElement(code), selection);
     }
 
     ngOnDestroy(): void {

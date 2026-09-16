@@ -14,23 +14,29 @@ import {
     type ScopeDetector,
     type ScopeRange,
 } from '../../lib/code-scopes';
+import {
+    LANGUAGE_PATTERNS,
+    type CodeToken,
+    type LanguagePattern,
+    languagePatternsFor,
+    tokenizeLine,
+} from '../../lib/code-highlight';
 import { ButtonComponent } from '../button';
 
 export type { ScopeDetector, ScopeRange } from '../../lib/code-scopes';
 export { BUILTIN_SCOPE_DETECTORS } from '../../lib/code-scopes';
 
+export type { CodeToken, LanguagePattern } from '../../lib/code-highlight';
+
 export type CodeBlockTheme = Record<string, string>;
-export type LanguagePattern = { type: string; regex: RegExp }[];
 export type LanguageConfig = {
     patterns: LanguagePattern;
     scopes?: ScopeDetector;
 };
 
-type Token = { type: string; text: string };
-
 type RenderLine = {
     index: number;
-    tokens: Token[];
+    tokens: CodeToken[];
     foldStart?: number;
     isOpen?: boolean;
 };
@@ -81,20 +87,6 @@ export const CODE_BLOCK_THEMES: Record<string, CodeBlockTheme> = {
         property: 'text-cyan-400'
     }
 };
-
-/**
- * Build a word-boundary keyword matcher from a list. Constructed at runtime so
- * the (legitimately long) per-language keyword set is a maintainable array
- * rather than one giant, hard-to-read regex literal.
- */
-const keywordPattern = (words: readonly string[]): RegExp =>
-    new RegExp(String.raw`\b(${words.join('|')})\b`);
-
-const TS_KEYWORDS = ['const', 'let', 'var', 'function', 'class', 'import', 'from', 'return', 'if', 'else', 'for', 'while', 'export', 'interface', 'type', 'public', 'private', 'protected', 'implements', 'extends', 'new', 'this', 'true', 'false', 'null', 'undefined', 'void', 'async', 'await'];
-const JS_KEYWORDS = ['const', 'let', 'var', 'function', 'class', 'import', 'from', 'return', 'if', 'else', 'for', 'while', 'export', 'new', 'this', 'true', 'false', 'null', 'undefined', 'void', 'async', 'await'];
-const PYTHON_KEYWORDS = ['def', 'class', 'import', 'from', 'if', 'else', 'elif', 'for', 'while', 'return', 'try', 'except', 'finally', 'with', 'as', 'pass', 'break', 'continue', 'lambda', 'yield', 'async', 'await', 'True', 'False', 'None'];
-const JAVA_KEYWORDS = ['public', 'private', 'protected', 'class', 'interface', 'enum', 'extends', 'implements', 'new', 'this', 'super', 'return', 'if', 'else', 'for', 'while', 'do', 'switch', 'case', 'default', 'break', 'continue', 'try', 'catch', 'finally', 'throw', 'throws', 'import', 'package', 'void', 'int', 'boolean', 'char', 'byte', 'short', 'long', 'float', 'double', 'static', 'final', 'abstract', 'synchronized', 'volatile', 'transient', 'native', 'strictfp', 'instanceof', 'null', 'true', 'false'];
-const CSHARP_KEYWORDS = ['public', 'private', 'protected', 'internal', 'class', 'struct', 'record', 'interface', 'enum', 'delegate', 'event', 'void', 'int', 'string', 'bool', 'var', 'async', 'await', 'Task', 'return', 'if', 'else', 'for', 'foreach', 'while', 'do', 'switch', 'case', 'default', 'break', 'continue', 'try', 'catch', 'finally', 'throw', 'new', 'this', 'base', 'using', 'namespace', 'static', 'readonly', 'const', 'override', 'virtual', 'abstract', 'sealed', 'get', 'set', 'value'];
 
 @Component({
     selector: 'ui-code-block',
@@ -154,11 +146,11 @@ export class CodeBlockComponent {
 
     private readonly resolvedLanguage = computed(() => this.normalizeLanguage(this.language()));
 
-    private readonly lineTokens = computed<Token[][]>(() => {
+    private readonly lineTokens = computed<CodeToken[][]>(() => {
         const code = this.code();
         if (!code) { return []; }
         const patterns = this.resolvedLanguage().patterns;
-        return code.split('\n').map(line => this.highlight(line, patterns));
+        return code.split('\n').map(line => tokenizeLine(line, patterns));
     });
 
     private readonly scopes = computed<ScopeRange[]>(() => {
@@ -242,7 +234,7 @@ export class CodeBlockComponent {
     }
 
     /** Resolves a token to its colour classes, preferring the matching entry in {@link theme} and otherwise using the built-in palette. Unrecognised token types render as plain text. */
-    getTokenClass(token: Token): string {
+    getTokenClass(token: CodeToken): string {
         const theme = this.theme();
         if (theme?.[token.type]) { return theme[token.type]; }
 
@@ -261,88 +253,6 @@ export class CodeBlockComponent {
         }
     }
 
-    private readonly LANGUAGE_PATTERNS: Readonly<Record<string, LanguagePattern>> = {
-        typescript: [
-            { type: 'comment', regex: /\/\/.*/ },
-            { type: 'string', regex: /(["'])(?:(?=(\\?))\2.)*?\1/ },
-            { type: 'keyword', regex: keywordPattern(TS_KEYWORDS) },
-            { type: 'number', regex: /\b\d+\b/ },
-            { type: 'function', regex: /\b[a-zA-Z_$]\w*(?=\()/ },
-        ],
-        javascript: [
-            { type: 'comment', regex: /\/\/.*/ },
-            { type: 'string', regex: /(["'])(?:(?=(\\?))\2.)*?\1/ },
-            { type: 'keyword', regex: keywordPattern(JS_KEYWORDS) },
-            { type: 'number', regex: /\b\d+\b/ },
-            { type: 'function', regex: /\b[a-zA-Z_$]\w*(?=\()/ },
-        ],
-        python: [
-            { type: 'comment', regex: /#.*/ },
-            { type: 'string', regex: /(["'])(?:(?=(\\?))\2.)*?\1/ },
-            { type: 'decorator', regex: /@[\w.]+/ },
-            { type: 'keyword', regex: keywordPattern(PYTHON_KEYWORDS) },
-            { type: 'number', regex: /\b\d+\b/ },
-            { type: 'function', regex: /\b[a-zA-Z_]\w*(?=\()/ },
-        ],
-        java: [
-            { type: 'comment', regex: /\/\/.*/ },
-            { type: 'string', regex: /"(?:[^"\\]|\\.)*"/ },
-            { type: 'keyword', regex: keywordPattern(JAVA_KEYWORDS) },
-            { type: 'decorator', regex: /@\w+/ },
-            { type: 'number', regex: /\b\d+\b/ },
-            { type: 'function', regex: /\b[a-zA-Z_$]\w*(?=\()/ },
-        ],
-        html: [
-            { type: 'comment', regex: /<!--[\s\S]*?-->/ },
-            { type: 'tag', regex: /<\/?[a-z0-9-]+/i },
-            { type: 'attr', regex: /[a-z0-9-]{1,256}(?==)/i },
-            { type: 'string', regex: /"(?:[^"\\]|\\.)*"/ },
-        ],
-        xml: [
-            { type: 'comment', regex: /<!--[\s\S]*?-->/ },
-            { type: 'decorator', regex: /<\?xml[\s\S]*?\?>|<!\[CDATA\[[\s\S]*?\]\]>|<!DOCTYPE[^>]*>/i },
-            { type: 'string', regex: /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/ },
-            { type: 'tag', regex: /<\/?[a-zA-Z_][\w.\-:]{0,256}/ },
-            { type: 'attr', regex: /[a-zA-Z_][\w.\-:]{0,256}(?==)/ },
-            { type: 'keyword', regex: /&(?:[a-zA-Z]+|#\d+|#x[0-9a-fA-F]+);/ },
-            { type: 'number', regex: /\b\d+\b/ },
-        ],
-        css: [
-            { type: 'comment', regex: /\/\*[\s\S]*?\*\// },
-            { type: 'selector', regex: /[.#]?[a-zA-Z0-9_-]{1,256}(?=\{)/ },
-            { type: 'property', regex: /[a-z0-9-]{1,256}(?=:)/i },
-            { type: 'string', regex: /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/ },
-            { type: 'number', regex: /\b\d+(?:px|rem|em|%|vh|vw|s|ms|deg)?\b/ },
-        ],
-        json: [
-            { type: 'function', regex: /"[^"]+":/ },
-            { type: 'string', regex: /"(?:[^"\\]|\\.)*"/ },
-            { type: 'keyword', regex: /\b(true|false|null)\b/ },
-            { type: 'number', regex: /\b\d+\b/ },
-        ],
-        csharp: [
-            { type: 'comment', regex: /\/\/.*/ },
-            { type: 'string', regex: /"(?:[^"\\]|\\.)*"/ },
-            { type: 'decorator', regex: /\[[a-zA-Z]\w*\]/ },
-            { type: 'keyword', regex: keywordPattern(CSHARP_KEYWORDS) },
-            { type: 'number', regex: /\b\d+\b/ },
-            { type: 'function', regex: /\b[a-zA-Z_$]\w*(?=\()/ },
-        ],
-        yaml: [
-            { type: 'comment', regex: /#.*/ },
-            { type: 'string', regex: /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/ },
-            { type: 'attr', regex: /[a-zA-Z0-9_-]{1,256}(?=:)/ },
-            { type: 'keyword', regex: /\b(true|false|null|yes|no|on|off)\b/ },
-            { type: 'number', regex: /\b\d+(\.\d+)?\b/ },
-        ],
-        bash: [
-            { type: 'comment', regex: /#.*/ },
-            { type: 'string', regex: /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/ },
-            { type: 'keyword', regex: /\b(echo|ls|cd|pwd|mkdir|rm|cp|mv|touch|cat|grep|open|ssh|git|npm|node|ng|sudo|chmod|chown)\b/ },
-            { type: 'decorator', regex: /\$\w+/ },
-        ]
-    };
-
     private normalizeLanguage(lang: string): { patterns: LanguagePattern; scopes?: ScopeDetector } {
         const key = lang.toLowerCase();
         const customEntry = this.customLanguages()?.[key];
@@ -351,45 +261,10 @@ export class CodeBlockComponent {
             const fallbackScopes = config.scopes ?? BUILTIN_SCOPE_DETECTORS[key];
             return { patterns: config.patterns, scopes: fallbackScopes };
         }
-        const builtinPatterns = this.LANGUAGE_PATTERNS[key] ?? this.LANGUAGE_PATTERNS['typescript'];
+        // The documented fallback for a code VIEWER: an unknown key still gets
+        // colour rather than a wall of grey. A document does the opposite (see
+        // languagePatternsFor), because most of a document is prose.
+        const builtinPatterns = languagePatternsFor(key) ?? LANGUAGE_PATTERNS['typescript'];
         return { patterns: builtinPatterns, scopes: BUILTIN_SCOPE_DETECTORS[key] };
-    }
-
-    private highlight(line: string, patterns: LanguagePattern): Token[] {
-        if (!line) { return []; }
-        const tokens: Token[] = [];
-        let cursor = 0;
-
-        while (cursor < line.length) {
-            const remaining = line.slice(cursor);
-            const bestMatch = this.findBestMatch(remaining, patterns);
-
-            if (bestMatch?.index === 0) {
-                tokens.push({ type: bestMatch.type, text: bestMatch.text });
-                cursor += bestMatch.text.length;
-            } else if (bestMatch) {
-                tokens.push({ type: 'text', text: remaining.slice(0, bestMatch.index) });
-                cursor += bestMatch.index;
-            } else {
-                tokens.push({ type: 'text', text: remaining });
-                cursor += remaining.length;
-            }
-        }
-
-        return tokens;
-    }
-
-    private findBestMatch(
-        remaining: string,
-        patterns: LanguagePattern,
-    ): { type: string; text: string; index: number } | null {
-        let best: { type: string; text: string; index: number } | null = null;
-        for (const p of patterns) {
-            const match = p.regex.exec(remaining);
-            if (match && (best === null || match.index < best.index)) {
-                best = { type: p.type, text: match[0], index: match.index };
-            }
-        }
-        return best;
     }
 }

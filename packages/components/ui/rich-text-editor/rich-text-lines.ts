@@ -729,3 +729,30 @@ function firstTextNode(node: Node): Text | null {
     if (!doc) return null;
     return doc.createTreeWalker(node, NodeFilter.SHOW_TEXT).nextNode() as Text | null;
 }
+
+/**
+ * How deep blocks nest before the markdown reader leaves the rest as text; see
+ * parseToggleBlocks and buildBlockquote in rich-text-markdown.service.ts. The
+ * reader counts a level for every details body, quote holding a nested quote
+ * and list item's block, so a details block nested through a list or a quote
+ * meets the same cap; a sub-list, read in its parent's pass, adds none. The
+ * writer counts the same list items and every quote (see nestingDepthOf), which
+ * is never less.
+ *
+ * It lives here rather than beside the reader so the EDITOR can respect the
+ * same ceiling. A structure typed past it is unwrapped the next time the
+ * document is read back, so building one is building something that will not
+ * survive; the nested-blockquote input rule clamps to this for that reason.
+ */
+export const MAX_NESTING_DEPTH = 32;
+
+/** How many `<blockquote>` elements `node` sits inside, within `root`. */
+export function blockquoteDepthOf(node: Node, root: Element): number {
+    let depth = 0;
+    let at: Element | null = node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement;
+    while (at && at !== root && root.contains(at)) {
+        if (at.tagName === 'BLOCKQUOTE') depth++;
+        at = at.parentElement;
+    }
+    return depth;
+}

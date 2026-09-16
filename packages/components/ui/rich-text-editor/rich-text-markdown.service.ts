@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
-import { isPhrasing } from './rich-text-lines';
+import { codeTextOf } from '../../lib/code-highlight';
+import { MAX_NESTING_DEPTH, isPhrasing } from './rich-text-lines';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 
 /**
@@ -34,6 +35,8 @@ interface ListContext {
     indent: number;
     /** The number an ordered list counts from. */
     start: number;
+    /** The marker this list is written with; see {@link ParsedListLine.marker}. */
+    marker: string;
 }
 
 interface ParsedListLine {
@@ -44,6 +47,17 @@ interface ParsedListLine {
     column: number;
     /** An ordered item's own number, which sets its list's start. */
     number?: number;
+    /**
+     * The item's marker character: the bullet for a bullet or task item, the
+     * delimiter after the number for an ordered one.
+     *
+     * CommonMark ends a list at a marker CHANGE, not at a blank line. Without
+     * this the reader had no way to tell two sibling lists apart, so two `<ol>`s
+     * side by side came back as ONE and the second list's numbering continued
+     * the first's. The writer alternates it for exactly that reason; see
+     * {@link listMarkerFor}.
+     */
+    marker: string;
 }
 
 /**
@@ -66,14 +80,15 @@ function parseListLine(line: string): ParsedListLine | null {
     // "* * *" and "- - -" are rules, not bullets holding "* *". The rule pass
     // runs after this one, so the refusal has to live here.
     if (THEMATIC_BREAK.test(line)) return null;
-    const taskMatch = new RegExp(/^(\s*)[-*+]\s+\[([ xX])\]\s*(\S.*|)$/).exec(line);
+    const taskMatch = new RegExp(/^(\s*)([-*+])\s+\[([ xX])\]\s*(\S.*|)$/).exec(line);
     if (taskMatch) {
-        const checked = taskMatch[2] !== ' ';
+        const checked = taskMatch[3] !== ' ';
         return {
             indent: taskMatch[1].length,
             type: 'task',
-            content: `[${checked ? 'x' : ' '}] ${taskMatch[3]}`,
+            content: `[${checked ? 'x' : ' '}] ${taskMatch[4]}`,
             column: contentColumn(line, taskMatch[1].length + 1),
+            marker: taskMatch[2],
         };
     }
 
@@ -84,28 +99,59 @@ function parseListLine(line: string): ParsedListLine | null {
     // when a user opens a bullet and clicks away, so this hit an everyday
     // keystroke; for <ol> the second list also renumbered from 1.
     // A rule (--- / *** / ___) still does not match: it has no space.
-    const ulMatch = new RegExp(/^([ \t]*)[-*+]([ \t].*)?$/).exec(line);
+    const ulMatch = new RegExp(/^([ \t]*)([-*+])([ \t].*)?$/).exec(line);
     if (ulMatch) {
         return {
             indent: ulMatch[1].length,
             type: 'ul',
-            content: listItemContent(ulMatch[2]),
+            content: listItemContent(ulMatch[3]),
             column: contentColumn(line, ulMatch[1].length + 1),
+            marker: ulMatch[2],
         };
     }
 
-    const olMatch = new RegExp(/^([ \t]*)(\d{1,9})\.([ \t].*)?$/).exec(line);
+    // Both ordered delimiters, "." and ")". CommonMark has always allowed the
+    // second, and the writer needs it to end one ordered list before the next.
+    const olMatch = new RegExp(/^([ \t]*)(\d{1,9})([.)])([ \t].*)?$/).exec(line);
     if (olMatch) {
         return {
             indent: olMatch[1].length,
             type: 'ol',
-            content: listItemContent(olMatch[3]),
+            content: listItemContent(olMatch[4]),
             column: contentColumn(line, olMatch[1].length + olMatch[2].length + 1),
             number: Number.parseInt(olMatch[2], 10),
+            marker: olMatch[3],
         };
     }
 
     return null;
+}
+
+/** The two markers each kind of list alternates between; see {@link listMarkerFor}. */
+const UL_MARKERS = ['-', '*'] as const;
+const OL_MARKERS = ['.', ')'] as const;
+
+/** The previous sibling when it is a list of the same kind, so the two would merge. */
+function adjacentSiblingList(element: Element): Element | null {
+    const previous = element.previousElementSibling;
+    return previous?.tagName === element.tagName ? previous : null;
+}
+
+/**
+ * The marker a list is written with, alternating along a run of sibling lists.
+ *
+ * A blank line does not end a list -- CommonMark ends one at a marker CHANGE --
+ * so two `<ol>`s side by side were written `1. a` / `1. b` and read back as ONE
+ * list with b renumbered to 2. Alternating the bullet character (for an ordered
+ * list, the delimiter after the number) puts a boundary the reader honours
+ * between every adjacent pair, and leaves a list with no list beside it written
+ * exactly as before.
+ */
+function listMarkerFor(listEl: Element, type: ListType): string {
+    const markers: readonly string[] = type === 'ol' ? OL_MARKERS : UL_MARKERS;
+    let runs = 0;
+    for (let previous = adjacentSiblingList(listEl); previous; previous = adjacentSiblingList(previous)) runs++;
+    return markers[runs % markers.length];
 }
 
 /** How far a line is indented. */
@@ -200,7 +246,7 @@ function holdLine(line: string, continuation: string[], pendingBlank: string[]):
 }
 
 /** Close the list levels that a line at `indent` of kind `type` does not continue. */
-function closeLevelsFor(stack: ListContext[], indent: number, type: ListType): void {
+function closeLevelsFor(stack: ListContext[], indent: number, type: ListType, marker: string): void {
     // Pop only DEEPER levels. Popping the current one too (`>=`) threw away the
     // list a sibling belongs to, so every line started a fresh one — an ordered
     // list renumbered from 1 on every row, and a screen reader announced
@@ -209,8 +255,12 @@ function closeLevelsFor(stack: ListContext[], indent: number, type: ListType): v
         stack.pop();
     }
     // A same-indent line of a DIFFERENT kind (bullet after numbered) is its own
-    // list, so that one context is replaced rather than appended.
-    if (stack.at(-1)?.indent === indent && stack.at(-1)?.type !== type) {
+    // list, so that one context is replaced rather than appended. A different
+    // MARKER of the same kind ends it just as surely -- that is CommonMark's
+    // only way to put two sibling lists of one kind next to each other, and the
+    // writer relies on it (see listMarkerFor).
+    const open = stack.at(-1);
+    if (open?.indent === indent && (open.type !== type || open.marker !== marker)) {
         stack.pop();
     }
 }
@@ -222,7 +272,7 @@ function pushListItem(stack: ListContext[], rootLists: ListContext[], line: Pars
         parent.items.push(item);
         return;
     }
-    const list: ListContext = { type: line.type, items: [item], indent: line.indent, start: line.number ?? 1 };
+    const list: ListContext = { type: line.type, items: [item], indent: line.indent, start: line.number ?? 1, marker: line.marker };
     if (parent) parent.items.at(-1)?.parts.push(list);
     else rootLists.push(list);
     stack.push(list);
@@ -546,7 +596,11 @@ function touchesWord(element: Element): boolean {
 }
 
 function touches(node: Node | null, letter: RegExp): boolean {
-    if (node?.nodeType === Node.ELEMENT_NODE) return (node.textContent ?? '') !== '';
+    // A BLOCK sibling is not on this line and cannot run into the delimiters.
+    // Counted as touching, a task row's nested <ul> flipped the bold beside it
+    // to its tag form on the SECOND save -- the first save had moved the list
+    // next to it -- so the document kept changing after it had been saved once.
+    if (node?.nodeType === Node.ELEMENT_NODE) return isPhrasing(node) && (node.textContent ?? '') !== '';
     return node?.nodeType === Node.TEXT_NODE && letter.test(node.textContent ?? '');
 }
 
@@ -852,10 +906,36 @@ function buildListContextHtml(ctx: ListContext): string {
 // half already does for parentheses. A flat [^\\]]* meant "see [1]" or
 // "[Draft] spec" -- everyday link and alt text -- did not match at all, so the
 // anchor was destroyed on save and its markdown source shown as page text.
+const TARGET_BODY = String.raw`(?:[^()]|\([^()]*\))`;
+const LINK_TEXT_BODY = String.raw`(?:[^[\]]|\[[^[\]]*\])`;
 const MEDIA_TARGET_PATTERN = {
-    image: /!\[((?:[^[\]]|\[[^[\]]*\]){0,4096})\]\(((?:[^()]|\([^()]*\))+)\)/g,
-    link: /\[((?:[^[\]]|\[[^[\]]*\]){1,4096})\]\(((?:[^()]|\([^()]*\)){1,4096})\)/g,
+    image: new RegExp(String.raw`!\[(${LINK_TEXT_BODY}{0,4096})\]\((${TARGET_BODY}+)\)`, 'g'),
+    link: new RegExp(String.raw`\[(${LINK_TEXT_BODY}{1,4096})\]\((${TARGET_BODY}{1,4096})\)`, 'g'),
 } as const;
+
+/**
+ * The writer's half of {@link TARGET_BODY}: an address the reader hands back
+ * unchanged. It also refuses a backslash, which `protectEscapes` consumes
+ * before any target is matched, so a plain address holding one would not
+ * survive either.
+ */
+const PLAIN_TARGET = /^(?:[^()\\]|\([^()\\]*\))*$/;
+
+/**
+ * A link or image address as markdown source.
+ *
+ * The reader's grammar allows at most ONE level of balanced parentheses, so an
+ * address holding an odd or a nested ")" was cut at that character: the link
+ * pointed at the truncated prefix and the rest of the address landed on the
+ * page as visible text. CommonMark's answer is the backslash escape, and
+ * `protectEscapes` parks those before any target is matched, so no parenthesis
+ * is left for the grammar to trip on. An address the grammar already returns
+ * unchanged keeps its plain form, so ordinary URLs -- Wikipedia's
+ * "X_(disambiguation)" among them -- are written exactly as before.
+ */
+function markdownTarget(target: string): string {
+    return PLAIN_TARGET.test(target) ? target : target.replaceAll(/[\\()]/g, String.raw`\$&`);
+}
 
 /**
  * Marker standing in for a character with Markdown meaning while the emphasis
@@ -939,6 +1019,38 @@ const INDENTED_FENCE_TOKEN = /^\s+\d{1,9}\s*$/;
  * list item above it, whatever block it turns out to hold.
  */
 const CONTINUATION_LINE = /^ {2,}\S/;
+
+/** Columns a tab advances to, per CommonMark. */
+const TAB_STOP = 4;
+
+/**
+ * Every line's leading whitespace with its tabs advanced to the next
+ * four-column tab stop.
+ *
+ * CommonMark measures block indentation in COLUMNS (§2.2), while every
+ * indentation predicate here counts characters -- CONTINUATION_LINE, indentOf,
+ * contentColumn. A tab therefore read as one column, fell short of the item's
+ * continuation column, and the block escaped its list item: "- a" followed by a
+ * tab-indented quote came back as a list and a separate paragraph, and the next
+ * save wrote the quote marker as the literal characters "\> q". Expanding the
+ * tabs once, up front, lets all of those predicates stay character-based.
+ *
+ * Only the leading run is rewritten: a tab inside prose is content, not
+ * structure. Fenced and inline code are parked before this runs, so no tab
+ * inside code is ever seen.
+ */
+function expandLeadingTabs(text: string): string {
+    if (!text.includes('\t')) return text;
+    return text.split('\n').map(expandLineIndent).join('\n');
+}
+
+function expandLineIndent(line: string): string {
+    const indent = /^[ \t]*/.exec(line)?.[0] ?? '';
+    if (!indent.includes('\t')) return line;
+    let column = 0;
+    for (const ch of indent) column += ch === '\t' ? TAB_STOP - (column % TAB_STOP) : 1;
+    return ' '.repeat(column) + line.slice(indent.length);
+}
 
 /** Private-use delimiters parking a raw HTML tag during the inline passes. */
 const RAW_TAG_OPEN = '';
@@ -1231,6 +1343,10 @@ export class RichTextMarkdownService {
         // -- rendering "</div>" as visible "&lt;/div&gt;".
         const protectedCode: string[] = [];
         html = this.protectCodeFences(html, protectedCode);
+        // AFTER the fences are parked, so a tab inside code is never rewritten,
+        // and BEFORE every block pass, all of which measure indentation in
+        // characters. See expandLeadingTabs.
+        html = expandLeadingTabs(html);
         // Inline code is lifted out with the fences and for the same reason: a
         // code span is inert text. parseInlineCode ran LAST, after the emphasis
         // and line-break passes had already rewritten its contents, so
@@ -1268,8 +1384,8 @@ export class RichTextMarkdownService {
         html = this.parseLineBreaks(html);
         html = this.parseParagraphs(html, protectedTags);
 
-        html = this.parseImages(html, protectedInline, inlineSources, protectedTags);
-        html = this.parseLinks(html, inlineSources, protectedTags);
+        html = this.parseImages(html, protectedInline, inlineSources, protectedTags, protectedEscapes);
+        html = this.parseLinks(html, inlineSources, protectedTags, protectedEscapes);
         html = this.parseBoldItalic(html);
         html = this.parseStrikethrough(html);
 
@@ -1776,7 +1892,7 @@ export class RichTextMarkdownService {
                 continue;
             }
 
-            closeLevelsFor(stack, parsed.indent, parsed.type);
+            closeLevelsFor(stack, parsed.indent, parsed.type, parsed.marker);
             flushContinuation();
             pushListItem(stack, rootLists, parsed);
         }
@@ -2064,10 +2180,28 @@ export class RichTextMarkdownService {
      * the query string broke. A target with a space is no target; only one that
      * held a code span or a tag is checked for it, since a plain target with a
      * space has always been read as a link.
+     *
+     * A backslash escape is resolved LAST, after the character references: it is
+     * the author saying "this character, literally", so what it hands back must
+     * not be read as syntax again -- `\&amp;` means those five characters, not
+     * an ampersand. Resolving it here at all is what lets the writer escape a
+     * parenthesis the target grammar cannot carry (see markdownTarget): the real
+     * character reaches the sanitizer and the attribute, rather than the parked
+     * token, which sanitizeImageSrc percent-encoded into the address.
      */
-    private targetSource(target: string, inlineSources: readonly string[], tagStore: readonly string[]): string | null {
-        const typed = decodeCharacterReferences(
-            restoreParked(restoreParked(target, INLINE_CODE_OPEN, INLINE_CODE_CLOSE, inlineSources), RAW_TAG_OPEN, RAW_TAG_CLOSE, tagStore),
+    private targetSource(
+        target: string,
+        inlineSources: readonly string[],
+        tagStore: readonly string[],
+        escapes: readonly string[],
+    ): string | null {
+        const typed = restoreParked(
+            decodeCharacterReferences(
+                restoreParked(restoreParked(target, INLINE_CODE_OPEN, INLINE_CODE_CLOSE, inlineSources), RAW_TAG_OPEN, RAW_TAG_CLOSE, tagStore),
+            ),
+            ESCAPED_OPEN,
+            ESCAPED_CLOSE,
+            escapes,
         );
         return holdsParkedToken(target) && /\s/.test(typed) ? null : typed;
     }
@@ -2082,11 +2216,50 @@ export class RichTextMarkdownService {
         return restoreParked(resolveInlineCodeText(alt, inlineStore), RAW_TAG_OPEN, RAW_TAG_CLOSE, tagStore, (tag) => this.escapeHtml(tag));
     }
 
-    private parseImages(html: string, inlineStore: readonly string[], inlineSources: readonly string[], tagStore: readonly string[]): string {
+    /**
+     * Park a tag this pass wrote in the raw-tag store, so no later pass can see
+     * inside it.
+     *
+     * The tag is written UNSHIELDED because parking supersedes the shield:
+     * restoreRawTags runs after unshieldUrls, so a shielded character parked in
+     * here would never be given back.
+     */
+    private parkWrittenTag(tag: string, tagStore: string[]): string {
+        const token = `${RAW_TAG_OPEN}${tagStore.length}${RAW_TAG_CLOSE}`;
+        tagStore.push(tag);
+        return token;
+    }
+
+    /**
+     * An `<img>` this pass wrote, with its attributes escaped but not shielded.
+     *
+     * Its alt text is DOCUMENT TEXT, which escapeHtmlInContent has already
+     * escaped, so only the quote is escaped again here -- escaping it twice
+     * brought a "<" back as the characters "&lt;", one more layer per save.
+     */
+    private imageTag(attribute: 'src' | 'data-blocked-src', target: string, alt: string): string {
+        return `<img ${attribute}="${this.escapeHtml(target)}" alt="${alt.replaceAll('"', '&quot;')}">`;
+    }
+
+    /**
+     * Parse images ![alt](src).
+     *
+     * The tag is parked, not returned live. Left in the stream, its alt
+     * attribute was still document text as far as the passes that follow were
+     * concerned: parseLinks read `![a [b](u) c](i.png)` as a link INSIDE the
+     * attribute and wrote an `<a href="` into it, which ended the attribute and
+     * put the rest of the tag on the page. Shielding only hid `* _ \` ~`, so it
+     * could never have covered the bracket forms.
+     */
+    private parseImages(html: string, inlineStore: readonly string[], inlineSources: readonly string[], tagStore: string[], escapes: readonly string[]): string {
         return html.replaceAll(MEDIA_TARGET_PATTERN.image, (match, alt, target) => {
-            const src = this.targetSource(target, inlineSources, tagStore);
+            const src = this.targetSource(target, inlineSources, tagStore, escapes);
             if (src === null) return match;
             const safeSrc = this.sanitizer.sanitizeImageSrc(src);
+            // An alt attribute is plain text: a parked code span restored in
+            // there would land as the literal string "<code>x</code>". Resolve
+            // it back to the text the author typed instead.
+            const plainAlt = this.altText(alt, inlineStore, tagStore);
             if (!safeSrc) {
                 // A POLICY-blocked image keeps its element and alt, so the
                 // reader sees a labelled frame rather than nothing and the block
@@ -2095,23 +2268,18 @@ export class RichTextMarkdownService {
                 // DEFAULT -- silently deleted blocked images instead.
                 const blocked = this.sanitizer.takeBlockedByPolicy();
                 if (blocked === null) return '';
-                const blockedAlt = this.altText(alt, inlineStore, tagStore);
-                return `<img data-blocked-src="${this.attr(blocked)}" alt="${this.textAttr(blockedAlt)}">`;
+                return this.parkWrittenTag(this.imageTag('data-blocked-src', blocked, plainAlt), tagStore);
             }
-            // An alt attribute is plain text: a parked code span restored in
-            // there would land as the literal string "<code>x</code>". Resolve
-            // it back to the text the author typed instead.
-            const plainAlt = this.altText(alt, inlineStore, tagStore);
-            return `<img src="${this.attr(safeSrc)}" alt="${this.textAttr(plainAlt)}">`;
+            return this.parkWrittenTag(this.imageTag('src', safeSrc, plainAlt), tagStore);
         });
     }
 
     /**
      * Parse links [text](url).
      */
-    private parseLinks(html: string, inlineSources: readonly string[], tagStore: readonly string[]): string {
+    private parseLinks(html: string, inlineSources: readonly string[], tagStore: readonly string[], escapes: readonly string[]): string {
         return html.replaceAll(MEDIA_TARGET_PATTERN.link, (match, text, target) => {
-            const url = this.targetSource(target, inlineSources, tagStore);
+            const url = this.targetSource(target, inlineSources, tagStore, escapes);
             if (url === null) return match;
             const safeUrl = this.sanitizer.sanitizeUrl(url);
             if (!safeUrl) return text;
@@ -2420,7 +2588,7 @@ export class RichTextMarkdownService {
         // a break -- is written after the tag: dropped, the words on either side
         // of the link fused.
         if (inner.trim() === '') return `<a href="${this.escapeHtml(href)}"></a>${inner}`;
-        return `[${inner}](${href})`;
+        return `[${inner}](${markdownTarget(href)})`;
     }
 
     private handleImageTag(element: HTMLElement): string {
@@ -2438,7 +2606,7 @@ export class RichTextMarkdownService {
         // the paragraph inside the attribute, backticks or asterisks were read as
         // syntax, and "&copy;" or "<i>" came back as a character or a tag.
         const text = escapeMarkdownText(alt.replaceAll(/[ \t\n\r\f]+/g, ' '));
-        return `![${text}](${src})`;
+        return `![${text}](${markdownTarget(src)})`;
     }
 
     /**
@@ -2545,7 +2713,15 @@ export class RichTextMarkdownService {
         // from opening and the code came back as paragraphs.
         const language = element.querySelector('code')?.dataset['language'] ?? '';
         const lang = /^[\w+#.-]+$/.test(language) ? language : '';
-        const codeContent = element.textContent ?? '';
+        // A fence is TEXT: it cannot carry an image, and a block written from
+        // textContent alone deleted one outright on the first save. The tag form
+        // can carry it and reads back verbatim, which is the answer inline code
+        // already gives for the same content.
+        if (element.querySelector('img')) return this.preTagForm(element, lang, inListItem);
+        // Every line break, including a <br>. textContent counts a <br> as
+        // nothing, and Shift+Enter -- how a line is added inside a block --
+        // inserts one, so a function typed line by line was saved on one line.
+        const codeContent = codeTextOf(element);
         const indent = inListItem ? '  ' : '';
         const body = codeContent
             .split('\n')
@@ -2557,6 +2733,22 @@ export class RichTextMarkdownService {
         );
         const fence = '`'.repeat(Math.max(3, longestRun + 1));
         return `\n${indent}${fence}${lang}\n${body}\n${indent}${fence}\n`;
+    }
+
+    /**
+     * A code block as its tag pair, on one markdown line.
+     *
+     * One line, with every newline written as a character reference, because a
+     * raw newline inside the pair would let the block passes split it: the
+     * `<pre>` and `</pre>` are parked separately and the lines between them are
+     * read as markdown. The reference decodes to the newline when the sanitizer
+     * parses the restored tag, so the code keeps its own line breaks.
+     */
+    private preTagForm(element: HTMLElement, language: string, inListItem: boolean): string {
+        const code = element.querySelector('code') ?? element;
+        const lang = language ? ` data-language="${this.escapeHtml(language)}"` : '';
+        const indent = inListItem ? '  ' : '';
+        return `\n${indent}<pre><code${lang}>${this.codeTagContent(code)}</code></pre>\n`;
     }
 
     private handleUlTag(element: HTMLElement): string {
@@ -2766,10 +2958,11 @@ export class RichTextMarkdownService {
     private listToMarkdown(listEl: HTMLElement, type: ListType, indent: string, result: string[]): void {
         const items = Array.from(listEl.children);
         const first = type === 'ol' ? listStartOf(listEl) : 1;
+        const marker = listMarkerFor(listEl, type);
         items.forEach((li, index) => {
             const [lead, ...rest] = itemRuns(li);
             const ordinal = first + index <= MAX_LIST_NUMBER ? first + index : first;
-            result.push(this.formatListItem(type, li as HTMLElement, this.leadContent(li, lead, indent), indent, ordinal));
+            result.push(this.formatListItem(type, li as HTMLElement, this.leadContent(li, lead, indent), indent, ordinal, marker));
 
             // Every sub-list, in order, with the content after each where it
             // falls. Only the last sub-list was kept, so an item holding two --
@@ -2818,15 +3011,15 @@ export class RichTextMarkdownService {
         return node.nodeType === Node.TEXT_NODE ? textToMarkdown(node) : this.elementToMarkdown(node as HTMLElement);
     }
 
-    private formatListItem(type: ListType, li: HTMLElement, content: string, indent: string, ordinal: number): string {
+    private formatListItem(type: ListType, li: HTMLElement, content: string, indent: string, ordinal: number, marker: string): string {
         if (type === 'task') {
             const checked = li.dataset['checked'] === 'true';
-            return `${indent}- [${checked ? 'x' : ' '}] ${breaksAsTags(content)}\n`;
+            return `${indent}${marker} [${checked ? 'x' : ' '}] ${breaksAsTags(content)}\n`;
         }
         if (type === 'ol') {
-            return `${indent}${ordinal}. ${content}\n`;
+            return `${indent}${ordinal}${marker} ${content}\n`;
         }
-        return `${indent}- ${content}\n`;
+        return `${indent}${marker} ${content}\n`;
     }
 
     private detectNestedListType(nestedList: HTMLElement): ListType {
@@ -3027,15 +3220,6 @@ const MAX_TABLE_ROWSPAN = 1000;
 /** Widest row a table may emit, bounding paste amplification. */
 const MAX_TABLE_COLUMNS = 1000;
 
-/**
- * How deep blocks nest before the reader leaves the rest as text; see
- * parseToggleBlocks and buildBlockquote. The reader counts a level for every
- * details body, quote holding a nested quote and list item's block, so a details
- * block nested through a list or a quote meets the same cap; a sub-list, read in
- * its parent's pass, adds none. The writer counts the same list items and every
- * quote (see nestingDepthOf), which is never less.
- */
-const MAX_NESTING_DEPTH = 32;
 
 /** HTML's own limit for a column span. */
 const MAX_COLSPAN = 1000;

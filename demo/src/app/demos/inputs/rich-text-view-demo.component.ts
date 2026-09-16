@@ -24,6 +24,25 @@ const POLICY_SEED = '# Newsletter\n\n'
     + 'Thanks for reading.\n\n'
     + '![](https://pixel.tracker.example/open?id=42)';
 
+const HIGHLIGHT_SEED = [
+    '```ts',
+    'export function greet(name: string): string {',
+    '    // the language travels with the block',
+    '    return `hello ${name}`;',
+    '}',
+    '```',
+    '',
+    '```python',
+    '@cache',
+    'def fib(n):',
+    '    return n if n < 2 else fib(n - 1) + fib(n - 2)',
+    '```',
+    '',
+    '```',
+    'No language, so no colour: a bare fence is a note, not code.',
+    '```',
+].join('\n');
+
 const RTL_SEED = '# שחרור גרסה\n\nהוספנו **מציג לקריאה בלבד**.';
 
 @Component({
@@ -126,6 +145,28 @@ const RTL_SEED = '# שחרור גרסה\n\nהוספנו **מציג לקריאה 
       </section>
 
       <section class="space-y-3">
+        <h3 class="text-lg font-medium">{{ t().highlightHeading }}</h3>
+        <p class="text-sm text-muted-foreground max-w-3xl">{{ t().highlightDescription }}</p>
+        <div class="grid gap-4 md:grid-cols-2">
+          <div class="space-y-2">
+            <p class="text-xs font-medium text-muted-foreground">{{ t().editorLabel }}</p>
+            <ui-rich-text-editor
+              mode="markdown"
+              toolbar="none"
+              minHeight="260px"
+              [(ngModel)]="highlightDoc" />
+          </div>
+          <div class="space-y-2">
+            <p class="text-xs font-medium text-muted-foreground">{{ t().viewLabel }}</p>
+            <div class="rounded-md border p-3">
+              <ui-rich-text-view [value]="highlightDoc()" />
+            </div>
+          </div>
+        </div>
+        <p class="text-sm text-muted-foreground max-w-3xl">{{ t().highlightNote }}</p>
+      </section>
+
+      <section class="space-y-3">
         <h3 class="text-lg font-medium">{{ t().snippetsHeading }}</h3>
         <p class="text-sm text-muted-foreground">{{ t().snippetsDescription }}</p>
         <pre class="overflow-x-auto rounded-md border bg-muted p-3 text-xs"><code>{{ snippet }}</code></pre>
@@ -148,6 +189,9 @@ export class RichTextViewDemoComponent {
     protected readonly markdown = MARKDOWN_SEED;
     protected readonly rtl = RTL_SEED;
 
+    /** One model, bound to the editor and the view at once, so the two colourings can be compared. */
+    protected readonly highlightDoc = signal(HIGHLIGHT_SEED);
+
     /** The last action the published view delivered, or null. */
     protected readonly fired = signal<RichTextActionEvent | null>(null);
 
@@ -161,6 +205,10 @@ export class RichTextViewDemoComponent {
         '',
         '<!-- Markdown is the default -->',
         '<ui-rich-text-view [value]="readme" />',
+        '',
+        '<!-- A fence names its language; the editor and the view both colour it -->',
+        '<ui-rich-text-view [value]="readmeWithFencedCode" />',
+        '<ui-rich-text-editor [(ngModel)]="doc" [codeHighlightDebounceMs]="150" />',
         '',
         '<!-- Published content with actions, no editor on the page -->',
         '<ui-rich-text-view mode="html" [value]="post.html"',
