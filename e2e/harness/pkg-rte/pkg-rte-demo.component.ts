@@ -43,8 +43,8 @@ import {
             </section>
 
             <section>
-                <h2 class="mb-2 font-semibold">Control editor (no addons)</h2>
-                <ui-rich-text-editor data-testid="editor-plain" mode="html" />
+                <h2 data-testid="app-heading" class="mb-2 font-semibold">Control editor (no addons, violet theme)</h2>
+                <ui-rich-text-editor data-testid="editor-plain" mode="html" theme="violet" />
             </section>
         </main>
     `,

@@ -10,6 +10,7 @@ import { RICH_TEXT_LOCALES } from './rich-text-locales';
 import { FormsModule, ReactiveFormsModule, FormControl, FormGroup } from '@angular/forms';
 import { AfterViewInit, Component, Input, ViewChild } from '@angular/core';
 import { JsonPipe } from '@angular/common';
+import { THEME_NAMES } from '../../lib/theme-presets';
 
 const sampleMentions: MentionItem[] = [
     { id: '1', value: 'john-doe', label: 'John Doe', description: 'john.doe@example.com' },
@@ -54,6 +55,11 @@ const meta: Meta<RichTextEditorComponent> = {
     ],
     tags: ['autodocs'],
     argTypes: {
+        theme: {
+            control: 'select',
+            options: [undefined, ...THEME_NAMES],
+            description: 'Colour preset for this editor and its overlays (the change-theme names); unset follows the global tokens',
+        },
         mode: {
             control: 'radio',
             options: ['markdown', 'html'],

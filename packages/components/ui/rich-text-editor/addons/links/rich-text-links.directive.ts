@@ -14,6 +14,7 @@ import {
 } from '@angular/core';
 import { addonSetting, type RichTextAddonSetting, type RichTextAddonState, RichTextEditorAddonHost, RichTextSanitizerService, type RichTextSelectionSnapshot } from '../..';
 import { createLocaleBindings, type LocaleInput } from '../../../../lib/i18n';
+import { inheritThemeTokens } from '../../../../lib/theme-presets';
 import { RichTextLinksFormComponent, type RichTextLinkSubmit } from './rich-text-links-form.component';
 import { RichTextLinksButtonComponent } from './rich-text-links-button.component';
 import {
@@ -285,6 +286,7 @@ export class RichTextLinksDirective {
     ): ComponentRef<RichTextLinksFormComponent> {
         this.closeOverlay();
         const ref = this.vcr.createComponent(RichTextLinksFormComponent);
+        inheritThemeTokens(this.vcr.element.nativeElement, ref.location.nativeElement);
         ref.setInput('locale', this.i18n.t());
         ref.setInput('text', text);
         ref.setInput('url', url);

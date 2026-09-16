@@ -127,11 +127,22 @@ export interface PackJson {
 
 /**
  * UC-5 / UC-7: the tarball must carry the consumer contract with it. The README
- * is not decoration — it is the only place the three required CSS lines and the
- * "selectors are fixed / config is inputs-only" rules reach someone who installs
- * from npm and never sees this repo. ng-packagr copies it from the package root.
+ * is not decoration — it is the only place the "selectors are fixed / config is
+ * inputs-only" rules reach someone who installs from npm and never sees this
+ * repo. The compiled stylesheet and the `ng add` schematic are the whole setup:
+ * without either, a consumer is back to wiring Tailwind by hand.
  */
-const REQUIRED_ENTRIES = ['package.json', 'README.md', 'theme.css'];
+const REQUIRED_ENTRIES = [
+    'package.json',
+    'README.md',
+    'styles.css',
+    'schematics/collection.json',
+    'schematics/ng-add/index.cjs',
+    'schematics/ng-add/schema.json',
+];
+
+/** The packed manifest's `schematics` field, which `ng add` resolves. */
+const SCHEMATICS_ENTRY = './schematics/collection.json';
 const FORBIDDEN = /(\.spec\.|\.stories\.|__screenshots__|\.ts$)/;
 
 export function assertTarballContents(id: PackageId, packed: PackJson): void {
@@ -164,6 +175,7 @@ export interface PackedManifest {
     readonly name?: string;
     readonly sideEffects?: unknown;
     readonly exports?: Record<string, unknown>;
+    readonly schematics?: unknown;
     readonly peerDependencies?: Record<string, string>;
     readonly dependencies?: Record<string, string>;
 }
@@ -186,8 +198,11 @@ export function checkPackedManifest(id: PackageId, manifest: PackedManifest): vo
     if (manifest.sideEffects !== false) {
         throw new Error(`[package-build] ${id}: sideEffects must be false for tree-shaking.`);
     }
-    if (!manifest.exports?.['./theme.css']) {
-        throw new Error(`[package-build] ${id}: the theme.css export is missing — consumers could not import it.`);
+    if (!manifest.exports?.['./styles.css']) {
+        throw new Error(`[package-build] ${id}: the styles.css export is missing — consumers could not import it.`);
+    }
+    if (manifest.schematics !== SCHEMATICS_ENTRY) {
+        throw new Error(`[package-build] ${id}: "schematics" must be "${SCHEMATICS_ENTRY}", or ng add cannot configure the app.`);
     }
     if (manifest.peerDependencies?.['@angular/core'] !== ANGULAR_PEER_RANGE) {
         throw new Error(
@@ -279,6 +294,8 @@ export function packsDir(repoRoot: string): string {
  */
 export interface BuildEffects {
     readonly stage: (id: PackageId) => void;
+    /** Compiles `styles.css` from the staged sources; ng-packagr copies it as an asset. */
+    readonly compileStyles: (id: PackageId) => void;
     readonly ngBuild: (id: PackageId) => void;
     /** The built FESM bundles, for the T-6 lazy-chunk gate. */
     readonly readBundles: (id: PackageId) => BundleSources;
@@ -302,6 +319,7 @@ export interface BuildEffects {
  */
 export function buildPackage(id: PackageId, fx: BuildEffects): string {
     fx.stage(id);
+    fx.compileStyles(id);
     fx.ngBuild(id);
 
     checkLazyChunks(id, id === 'rte' ? fx.readBundles(id) : new Map(), fx.fesmLabel(id));
@@ -341,6 +359,7 @@ export function nodeBuildEffects(repoRoot: string, io: NodePrimitives): BuildEff
     const packs = packsDir(repoRoot);
     return {
         stage: io.stage,
+        compileStyles: (id) => { io.exec('npx', ['tsx', 'packages/cli/scripts/package-styles.ts', id], repoRoot); },
         ngBuild: (id) => { io.exec('npx', ['ng', 'build', `${id}-package`], repoRoot); },
         readBundles: (id) => new Map(
             io.readDir(fesmDir(repoRoot, id))

@@ -51,6 +51,32 @@ describe('inheritThemeTokens', () => {
         expect(target.dataset['uiTheme']).toBe('blue');
     });
 
+    it('leaves a real descendant to inherit live instead of freezing a copy', (ctx) => {
+        if (isJsdom) return ctx.skip();
+        const host = themedHost('rose', 'rose');
+        const inner = document.createElement('div');
+        host.appendChild(inner);
+
+        inheritThemeTokens(host, inner);
+
+        expect(inner.style.getPropertyValue('--primary')).toBe('');
+        expect(inner.hasAttribute('data-ui-theme')).toBe(false);
+    });
+
+    it('clears copies on a reused overlay once its origin is no longer themed', (ctx) => {
+        if (isJsdom) return ctx.skip();
+        const host = themedHost('amber', 'amber');
+        const reused = overlay();
+        inheritThemeTokens(host, reused);
+        expect(reused.style.getPropertyValue('--ring')).toBe('amber-ring');
+
+        delete host.dataset['uiTheme'];
+        inheritThemeTokens(host, reused);
+
+        for (const token of THEME_TOKENS) expect(reused.style.getPropertyValue(token)).toBe('');
+        expect(reused.hasAttribute('data-ui-theme')).toBe(false);
+    });
+
     it('lets an overlay opened from a themed overlay inherit in turn', (ctx) => {
         if (isJsdom) return ctx.skip();
         const host = themedHost('green', 'green');

@@ -15,6 +15,7 @@ import {
     type RichTextSlashCommandContext,
 } from '../..';
 import { createLocaleBindings, type LocaleInput } from '../../../../lib/i18n';
+import { inheritThemeTokens } from '../../../../lib/theme-presets';
 import { caretIsInCode } from '../../../../lib/caret-context';
 import { RichTextSlashCommandsMenuComponent } from './rich-text-slash-commands-menu.component';
 import { buildDefaultSlashCommands } from './rich-text-slash-commands.defaults';
@@ -312,6 +313,7 @@ export class RichTextSlashCommandsDirective {
 
     private createMenu(): ComponentRef<RichTextSlashCommandsMenuComponent> {
         const ref = this.vcr.createComponent(RichTextSlashCommandsMenuComponent);
+        inheritThemeTokens(this.vcr.element.nativeElement, ref.location.nativeElement);
         // Set here rather than as a host binding on the component: the id never
         // changes, and a host binding costs a change-detection pass per cycle
         // that re-fires the menu's scroll-into-view effect.

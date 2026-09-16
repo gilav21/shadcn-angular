@@ -12,39 +12,50 @@ fixes.
 - **Angular 20 or 21** (peer `>=20.0.0 <22.0.0`). Both majors are covered by
   the e2e suite, which installs this package's real tarball into a pristine
   Angular 20 app and a pristine Angular 21 app and builds both.
-- **Tailwind CSS v4**.
 - Works in zoneless apps.
+- **No Tailwind required.** The package ships its styles precompiled; your app
+  does not need Tailwind, PostCSS or any CSS setup of its own.
 
 ## Install
 
 ```bash
-npm install @gilav21/shadcn-angular-rte
-npm install -D tailwindcss @tailwindcss/postcss postcss
+ng add @gilav21/shadcn-angular-rte
 ```
 
-If you do not already have Tailwind wired up, add `.postcssrc.json`:
+That installs the package and registers its stylesheet in `angular.json`.
+Nothing else to configure.
+
+Can't run `ng add`? Install with npm and add the stylesheet to the `styles`
+array of your app's build target yourself:
 
 ```json
-{ "plugins": { "@tailwindcss/postcss": {} } }
+"styles": ["@gilav21/shadcn-angular-rte/styles.css", "src/styles.css"]
 ```
 
-## Styles
+### What the stylesheet does — and doesn't — touch
 
-Add these three lines to your global stylesheet:
+`styles.css` styles only the editor and its overlays. It does **not** restyle your app:
 
-```css
-@import "tailwindcss";
-@source "../node_modules/@gilav21/shadcn-angular-rte";
-@import "@gilav21/shadcn-angular-rte/theme.css";
+- Tailwind's reset is scoped to the package's own elements — your `body`,
+  headings and buttons keep their styles.
+- The design tokens (`--primary`, `--background`, …) are declared at zero
+  specificity, so tokens your app already defines — for example from
+  `npx shadcn-angular init` — win.
+- Apps that run their own Tailwind build are fine: the package's utilities
+  coexist with yours.
+
+## Themes
+
+`ui-rich-text-editor` takes a `theme` input with the same presets `npx shadcn-angular
+change-theme` offers: `zinc`, `slate`, `stone`, `gray`, `neutral`, `red`, `rose`, `orange`, `green`, `blue`, `yellow`, `violet`, `amber`.
+
+```html
+<ui-rich-text-editor theme="violet" … />
 ```
 
-- The `@source` line is **required**. Tailwind v4 does not scan `node_modules`
-  by default, so without it none of the editor's utility classes are generated
-  and the editor renders unstyled.
-- The `theme.css` import ships the design tokens (`:root` / `.dark` custom
-  properties, `@theme inline`, base layer). **Skip it if your app is already
-  CLI-initialised** (`npx shadcn-angular init` wrote the same tokens into your
-  own stylesheet, and importing both duplicates the `:root` block).
+The preset applies to that instance only, including its menus, popovers,
+tooltips and dialogs, and it follows `.dark` mode. Leave `theme` unset to
+use your app's tokens.
 
 ## Usage
 
@@ -120,9 +131,9 @@ download only when a user actually imports a file.
 ## Locale, RTL and density
 
 `[locale]` is set per editor instance (`locale="he"`), and RTL follows the
-document direction. Density is driven by the CSS custom properties in
-`theme.css`; override `--density` (or `--density-rich-text-editor`) in your own
-stylesheet to scale spacing.
+document direction. Density is driven by CSS custom properties; override
+`--density` (or `--density-rich-text-editor`) in your own stylesheet to scale
+spacing.
 
 ## Selectors are fixed
 
@@ -152,13 +163,14 @@ uses. In practice:
 
 ## Troubleshooting
 
-**Nothing is styled.** The `@source` line is missing or points at the wrong
-path. It must resolve, from the stylesheet's own location, to this package
-inside `node_modules`.
+**Nothing is styled.** The stylesheet is not registered. Re-run `ng add @gilav21/shadcn-angular-rte`,
+or check that `"@gilav21/shadcn-angular-rte/styles.css"` is in your build target's `styles` array.
 
-**Colours are missing / everything is transparent.** `theme.css` was not
-imported and your app has no shadcn token block of its own. Add the third CSS
-line.
+**A package element looks off in my app.** Global rules your app declares
+outside any `@layer` (say `button { padding: 1rem }`) beat the package's
+styles, which live in cascade layers. Scope such rules to your own markup, or
+put your global stylesheet in a layer. To restyle a package element on purpose,
+pass classes through its `class` input.
 
 **`npm install` fails with a peer error on `@angular/core`.** This package
 supports Angular 20 and 21. On Angular 19 or older, use the CLI copy model

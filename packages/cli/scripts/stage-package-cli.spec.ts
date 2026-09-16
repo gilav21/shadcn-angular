@@ -73,7 +73,7 @@ describe('stageOutcome', () => {
         expect(run.stderr).toEqual([]);
         expect(run.stdout).toEqual([
             '[stage-package] rte: staged 273 files (removed 271 stale).',
-            '[stage-package] rte: packages/rte-package/src + theme.css',
+            '[stage-package] rte: packages/rte-package/src + schematics/',
         ]);
     });
 

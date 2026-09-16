@@ -4,6 +4,18 @@
   "lib": {
     "entryFile": "src/public-api.ts"
   },
-  "assets": ["theme.css"],
-  "allowedNonPeerDependencies": ["class-variance-authority", "clsx", "tailwind-merge", "tslib"]
+  "assets": [
+    "styles.css",
+    {
+      "glob": "**/*",
+      "input": "schematics",
+      "output": "schematics"
+    }
+  ],
+  "allowedNonPeerDependencies": [
+    "class-variance-authority",
+    "clsx",
+    "tailwind-merge",
+    "tslib"
+  ]
 }

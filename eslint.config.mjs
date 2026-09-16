@@ -34,6 +34,7 @@ export default tseslint.config(
       // `stage:package` and compiled by ng-packagr. Linting them would report
       // every component's findings a second time, in files nobody edits.
       'packages/*-package/src/**',
+      'packages/*-package/schematics/**',
       // The parallel e2e runner clones that same fixture per worker into
       // `e2e/.workers/w<N>/fixture-app/`, which `.gitignore` already covers
       // (`e2e/.workers/`). Listing only `e2e/fixture-app/**` above matched the

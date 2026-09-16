@@ -19,7 +19,6 @@ import path from 'node:path';
 
 import { resolveDependencies } from '../src/core/resolve.js';
 import { registry, type ComponentName } from '../src/registry/index.js';
-import { getStylesTemplate } from '../src/templates/styles.js';
 import { readNamespace } from './gen-file-sizes.js';
 
 export const PACKAGE_IDS = ['rte', 'data-table'] as const;
@@ -181,13 +180,13 @@ export function renderPublicApi(id: PackageId): string {
 // ── Theme ──────────────────────────────────────────────────────────────────
 
 /**
- * Turns the CLI's `tailwind.css` template into a package theme asset.
+ * The token part of the CLI's `tailwind.css` template, as input to the package
+ * stylesheet compile (`package-styles-lib.ts`).
  *
  * The template is written for a consumer's own stylesheet: it imports Tailwind
- * and declares `@source "../src/**"` globs. Both are wrong inside a package —
- * the consumer already imports Tailwind, and the globs would resolve to
- * `node_modules/<pkg>/../src`. Everything else (the `:root` / `.dark` tokens,
- * `@theme inline`, `@layer base`) is exactly what the package must ship.
+ * and declares `@source "../src/**"` globs, both of which the package compile
+ * declares itself. Everything else (the `:root` / `.dark` tokens,
+ * `@theme inline`, `@layer base`) is kept.
  *
  * `templates/styles.ts` is deliberately NOT edited: it is bundled CLI code, and
  * changing it would force a CLI publish.
@@ -205,16 +204,18 @@ export function toPackageTheme(stylesTemplate: string): string {
     return `${kept.replace(/^\n+/, '').replaceAll(/\n{3,}/g, '\n\n').trimEnd()}\n`;
 }
 
+/** The one setup command a consumer runs. README and e2e leg both use it. */
+export function consumerInstallCommand(id: PackageId): string {
+    return `ng add ${PACKAGE_NAMES[id]}`;
+}
+
 /**
- * The CSS a consumer must add. This exact string is written into both package
- * READMEs and into the e2e fixture, so the documented contract and the tested
- * contract cannot drift.
+ * The stylesheet entry `ng add` registers — what a consumer adds by hand when
+ * they cannot run `ng add`. Asserted against the README and against the
+ * angular.json the e2e leg's `ng add` actually wrote.
  */
-export function consumerCssSnippet(ids: readonly PackageId[]): string {
-    const lines = ['@import "tailwindcss";'];
-    for (const id of ids) lines.push(`@source "../node_modules/${PACKAGE_NAMES[id]}";`);
-    for (const id of ids) lines.push(`@import "${PACKAGE_NAMES[id]}/theme.css";`);
-    return lines.join('\n');
+export function packageStylesheet(id: PackageId): string {
+    return `${PACKAGE_NAMES[id]}/styles.css`;
 }
 
 // ── Import exactness audit ─────────────────────────────────────────────────
@@ -269,8 +270,13 @@ function countFiles(dir: string): number {
     return readNamespace(dir).length;
 }
 
+/** The shared `ng add` schematic every package ships, relative to the repo root. */
+export const SCHEMATICS_SOURCE = 'packages/cli/scripts/package-schematics';
+
 /**
- * Regenerates `<pkgRoot>/src` and `<pkgRoot>/theme.css` from the registry.
+ * Regenerates `<pkgRoot>/src` from the registry and copies the `ng add`
+ * schematic to `<pkgRoot>/schematics`. The stylesheet is compiled afterwards,
+ * by the build (`package-styles.ts`), because it scans the staged sources.
  *
  * `src/` is wiped first rather than merged: a component that leaves the closure
  * must leave the package too, and a stale file would otherwise keep compiling
@@ -297,8 +303,9 @@ export function stagePackage(id: PackageId, repoRoot: string, pkgRoot?: string):
     }
 
     writeFileSync(path.join(srcRoot, 'public-api.ts'), renderPublicApi(id));
-    mkdirSync(root, { recursive: true });
-    writeFileSync(path.join(root, 'theme.css'), toPackageTheme(getStylesTemplate()));
+    const schematicsRoot = path.join(root, 'schematics');
+    rmSync(schematicsRoot, { recursive: true, force: true });
+    cpSync(path.join(repoRoot, SCHEMATICS_SOURCE), schematicsRoot, { recursive: true });
 
     return { written: files.length + 1, removed };
 }
@@ -407,7 +414,7 @@ export function stageOutcome(
         status: 0,
         stdout: [
             `[stage-package] ${id}: staged ${result.written} files (removed ${result.removed} stale).`,
-            `[stage-package] ${id}: ${srcRootLabel} + theme.css`,
+            `[stage-package] ${id}: ${srcRootLabel} + schematics/`,
         ],
         stderr: [],
     };

@@ -4,6 +4,7 @@ import { DataTableContextMenuDirective } from './addons/context-menu';
 import { DataTableExportDirective } from './addons/export';
 import { DataTablePivotDirective, computePivot } from './addons/pivot';
 import type { PivotConfig } from './addons/pivot';
+import { THEME_NAMES } from '../../lib/theme-presets';
 import {
     ColumnDef,
     PaginationState,
@@ -248,6 +249,11 @@ const meta: Meta<DataTableComponent<User>> = {
         layout: 'padded',
     },
     argTypes: {
+        theme: {
+            control: 'select',
+            options: [undefined, ...THEME_NAMES],
+            description: 'Colour preset for this table and its overlays (the change-theme names); unset follows the global tokens.',
+        },
         data: { control: 'object', description: 'Row data (two-way bound via [(data)]). Required.' },
         columns: { control: false, description: 'Column definitions (ColumnDef[]) — accessors, cells, editing, formatting. Required.' },
         showToolbar: { control: 'boolean', description: 'Shows the top toolbar (global filter, columns menu).' },
@@ -460,6 +466,7 @@ export const Playground: Story = {
         template: `
             <div class="h-[600px] w-full p-4">
                 <ui-data-table
+                    [theme]="theme"
                     [(data)]="data"
                     [columns]="columns"
                     [showToolbar]="showToolbar"

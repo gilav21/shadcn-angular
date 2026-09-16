@@ -952,6 +952,7 @@
       "data-table/addons/context-menu/index.ts"
     ],
     "libFiles": [
+      "theme-presets.ts",
       "touch.ts"
     ],
     "dependencies": [
@@ -4931,7 +4932,8 @@
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
-      "i18n/index.ts"
+      "i18n/index.ts",
+      "theme-presets.ts"
     ],
     "dependencies": [
       "rich-text-editor"
@@ -5192,7 +5194,8 @@
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
-      "i18n/index.ts"
+      "i18n/index.ts",
+      "theme-presets.ts"
     ],
     "dependencies": [
       "button",
