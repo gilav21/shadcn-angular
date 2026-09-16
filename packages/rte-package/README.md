@@ -43,6 +43,10 @@ array of your app's build target yourself:
   `npx shadcn-angular init` — win.
 - Apps that run their own Tailwind build are fine: the package's utilities
   coexist with yours.
+- Text uses **your app's font** — the package sets no `font-family` of its own,
+  so it matches your typography. An app with no font set shows the browser
+  default (usually a serif); set one on `body` (for example
+  `font-family: system-ui, sans-serif`) for the familiar shadcn look.
 
 ## Themes
 
