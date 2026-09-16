@@ -100,7 +100,7 @@ function ngAdd(options) {
     return (tree, context) => {
         // Resolved at run time from the installed package, so one file serves every package.
         const { name } = require('../../package.json');
-        runNgAdd(tree, context.logger, name, options && options.project);
+        runNgAdd(tree, context.logger, name, options?.project);
         return tree;
     };
 }
