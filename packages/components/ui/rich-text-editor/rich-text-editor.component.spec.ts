@@ -12866,3 +12866,150 @@ describe('RichTextEditorComponent - allowedLinkSchemes on the editor (follow-up 
         expect(anchors()).toEqual(['acme-crm://contact/42']);
     });
 });
+
+/**
+ * Live syntax highlighting while editing (issue #133).
+ *
+ * The colour is DECORATION. The three properties below are what that word has
+ * to mean, and each is the thing that would actually hurt if it broke: the
+ * value must not carry the spans, the history must not step through them, and
+ * the caret must not move when they are repainted.
+ */
+describe('RichTextEditorComponent - live code highlighting', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [RichTextEditorComponent] }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        // Repaint inline, so a test never has to wait on a timer.
+        fixture.componentRef.setInput('codeHighlightDebounceMs', 0);
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+    });
+
+    const codeElement = (): HTMLElement => editor.querySelector('pre > code') as HTMLElement;
+
+    /** Append `text` at the end of the code block and raise the input the browser would. */
+    const typeAtEndOfCode = (text: string): void => {
+        const code = codeElement();
+        const walker = document.createTreeWalker(code, NodeFilter.SHOW_TEXT);
+        let last: Text | null = null;
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) last = node as Text;
+        if (!last) throw new Error('the block has no text');
+        last.data += text;
+
+        const range = document.createRange();
+        range.setStart(last, last.data.length);
+        range.collapse(true);
+        const selection = document.getSelection() as Selection;
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        editor.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text.at(-1) ?? '' }));
+        fixture.detectChanges();
+    };
+
+    it('colours every code block a loaded document carries', () => {
+        component.writeValue('```ts\nconst a = 1;\n```\n\n```python\ndef f(): pass\n```');
+        fixture.detectChanges();
+
+        const blocks = editor.querySelectorAll('pre > code');
+        expect(blocks).toHaveLength(2);
+        expect(blocks[0].querySelector('.token-keyword')?.textContent).toBe('const');
+        expect(blocks[1].querySelector('.token-keyword')?.textContent).toBe('def');
+    });
+
+    it('recolours as the author types', () => {
+        component.writeValue('```ts\nconst a = 1;\n```');
+        fixture.detectChanges();
+        typeAtEndOfCode(' let b = 2;');
+
+        expect(Array.from(codeElement().querySelectorAll('.token-keyword'), (el) => el.textContent))
+            .toEqual(['const', 'let']);
+    });
+
+    it('keeps the spans out of the value, in markdown mode', () => {
+        component.writeValue('```ts\nconst a = 1;\n```');
+        fixture.detectChanges();
+
+        let emitted = '';
+        component.registerOnChange((value: string) => { emitted = value; });
+        typeAtEndOfCode(' let b = 2;');
+
+        expect(emitted).toBe('```ts\nconst a = 1; let b = 2;\n```');
+    });
+
+    it('keeps the spans out of the value, in html mode too', () => {
+        // Markdown writes a fence from the block's text, so it would drop the
+        // spans whatever this did. HTML does not: without the strip, every
+        // keystroke inside a fence emitted a different string for the same code.
+        fixture.componentRef.setInput('mode', 'html');
+        component.writeValue('<pre><code data-language="ts">const a = 1;</code></pre>');
+        fixture.detectChanges();
+
+        let emitted = '';
+        component.registerOnChange((value: string) => { emitted = value; });
+        typeAtEndOfCode(' let b = 2;');
+
+        expect(emitted).not.toContain('token');
+        expect(emitted).toContain('const a = 1; let b = 2;');
+    });
+
+    it('leaves the caret where the author left it', () => {
+        component.writeValue('```ts\nconst a = 1;\n```');
+        fixture.detectChanges();
+        typeAtEndOfCode(' let b = 2;');
+
+        const selection = document.getSelection() as Selection;
+        const range = selection.getRangeAt(0);
+        expect(codeElement().contains(range.startContainer)).toBe(true);
+
+        const measure = document.createRange();
+        measure.setStart(codeElement(), 0);
+        measure.setEnd(range.startContainer, range.startOffset);
+        expect(measure.toString()).toBe('const a = 1; let b = 2;');
+    });
+
+    it('adds no undo step of its own', () => {
+        // Snapshot on the keystroke rather than 450ms later, and record the
+        // programmatic load, so the stack under test is exactly "loaded" then
+        // "typed" and one undo has somewhere to go.
+        fixture.componentRef.setInput('history', { debounceMs: 0, recordExternalWrites: true });
+        component.writeValue('```ts\nconst a = 1;\n```');
+        fixture.detectChanges();
+        typeAtEndOfCode(' let b = 2;');
+
+        let emitted = '';
+        component.registerOnChange((value: string) => { emitted = value; });
+        component.undo();
+        fixture.detectChanges();
+
+        // ONE undo goes back past the typing. With a repaint of its own on the
+        // stack the first undo would only have taken the colour off.
+        expect(emitted).toBe('```ts\nconst a = 1;\n```');
+    });
+
+    it('leaves a fence with no language, or an unknown one, uncoloured', () => {
+        component.writeValue('```\nconst a = 1;\n```');
+        fixture.detectChanges();
+        expect(editor.querySelectorAll('.token')).toHaveLength(0);
+
+        component.writeValue('```klingon\nconst a = 1;\n```');
+        fixture.detectChanges();
+        expect(editor.querySelectorAll('.token')).toHaveLength(0);
+    });
+
+    it('repaints only after the debounce when one is set', () => {
+        fixture.componentRef.setInput('codeHighlightDebounceMs', 5000);
+        component.writeValue('```ts\nconst a = 1;\n```');
+        fixture.detectChanges();
+        typeAtEndOfCode(' let b = 2;');
+
+        // The load painted `const`; the typed `let` waits for the quiet.
+        expect(Array.from(codeElement().querySelectorAll('.token-keyword'), (el) => el.textContent))
+            .toEqual(['const']);
+    });
+});

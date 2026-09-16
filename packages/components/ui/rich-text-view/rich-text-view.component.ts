@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { cn } from '../../lib/utils';
 import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
+import { highlightCodeBlocks } from '../../lib/code-highlight';
 import {
     RICH_TEXT_LOCALES,
     RICH_TEXT_PROSE_CLASSES,
@@ -176,6 +177,12 @@ export class RichTextViewComponent {
             const el = this.content().nativeElement;
             el.innerHTML = this.renderedHtml();
             this.freezeTaskCheckboxes(el);
+            // After the markup lands, over the DOM, not over the string: the
+            // element's own text is the source of truth and the pass is
+            // idempotent, so a document that already carried token spans -- one
+            // highlighted elsewhere and pasted, which the sanitizer keeps --
+            // simply re-highlights rather than nesting a second layer.
+            highlightCodeBlocks(el);
             labelBlockedImages(el, this.blockedImageMessage() ?? this.i18n.t().editor.blockedImage);
             this.drainResourceDecisions();
         });

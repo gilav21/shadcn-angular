@@ -751,3 +751,45 @@ export const CustomToolbarButtons: Story = {
         `,
     }),
 };
+
+const LIVE_HIGHLIGHT_DOC = [
+    'Type inside a fence and the colour follows you.',
+    '',
+    '```ts',
+    'export function greet(name: string): string {',
+    '    // try adding a line here',
+    '    return `hello ${name}`;',
+    '}',
+    '```',
+    '',
+    '```python',
+    '@cache',
+    'def fib(n):',
+    '    return n if n < 2 else fib(n - 1) + fib(n - 2)',
+    '```',
+    '',
+    '```',
+    'No language, so no colour: a bare fence is a note, not code.',
+    '```',
+].join('\n');
+
+/**
+ * Live syntax highlighting. The colour is decoration only — it never reaches the
+ * value, the markdown or the undo stack — and it repaints after
+ * `codeHighlightDebounceMs` of quiet. A fence with no language, or one the
+ * highlighter does not know, is deliberately left alone.
+ */
+export const CodeHighlighting: Story = {
+    decorators: [moduleMetadata({ imports: [FormsModule] })],
+    render: () => ({
+        props: { doc: LIVE_HIGHLIGHT_DOC },
+        template: `
+      <ui-rich-text-editor
+        mode="markdown"
+        toolbar="top"
+        minHeight="260px"
+        maxHeight="480px"
+        [ngModel]="doc" />
+    `,
+    }),
+};

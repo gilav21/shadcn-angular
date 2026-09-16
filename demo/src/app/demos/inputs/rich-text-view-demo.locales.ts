@@ -24,6 +24,9 @@ export interface RichTextViewDemoLocale extends LocaleMeta {
     policyNoneLabel: string;
     policySetLabel: string;
     policyNote: string;
+    highlightHeading: string;
+    highlightDescription: string;
+    highlightNote: string;
 }
 
 export const RICH_TEXT_VIEW_DEMO_LOCALES: Record<string, RichTextViewDemoLocale> = {
@@ -58,6 +61,11 @@ export const RICH_TEXT_VIEW_DEMO_LOCALES: Record<string, RichTextViewDemoLocale>
         policySetLabel: 'Only cdn.trusted.com',
         policyNote:
             'The blocked image keeps its alt and its place, and retains the original URL, so allowing the host later restores it.',
+        highlightHeading: 'Syntax highlighting',
+        highlightDescription:
+            'A fenced block carries the language the author tagged it with, and the view colours it. The editor colours the same block while you type.',
+        highlightNote:
+            'A fence with no language, or one the highlighter does not know, is left uncoloured on purpose — a document is mostly prose, and a bare fence is usually a note rather than code.',
     },
     he: {
         code: 'he',
@@ -91,5 +99,10 @@ export const RICH_TEXT_VIEW_DEMO_LOCALES: Record<string, RichTextViewDemoLocale>
         policySetLabel: '\u05E8\u05E7 cdn.trusted.com',
         policyNote:
             '\u05D4\u05EA\u05DE\u05D5\u05E0\u05D4 \u05D4\u05D7\u05E1\u05D5\u05DE\u05D4 \u05E9\u05D5\u05DE\u05E8\u05EA \u05E2\u05DC \u05DE\u05E7\u05D5\u05DE\u05D4 \u05D5\u05E2\u05DC \u05D4\u05DB\u05EA\u05D5\u05D1\u05EA \u05D4\u05DE\u05E7\u05D5\u05E8\u05D9\u05EA, \u05DB\u05DA \u05E9\u05D0\u05D9\u05E9\u05D5\u05E8 \u05D4\u05DE\u05D0\u05E8\u05D7 \u05DE\u05D0\u05D5\u05D7\u05E8 \u05D9\u05E9\u05D7\u05D6\u05E8 \u05D0\u05D5\u05EA\u05D4.',
+        highlightHeading: 'הדגשת תחביר',
+        highlightDescription:
+            'בלוק קוד נושא את השפה שהמחבר סימן, והתצוגה צובעת אותו. העורך צובע את אותו בלוק תוך כדי הקלדה.',
+        highlightNote:
+            'בלוק ללא שפה, או עם שפה שאינה מוכרת, נשאר ללא צבע בכוונה.',
     },
 };
