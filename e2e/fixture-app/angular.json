@@ -52,7 +52,10 @@
             "development": {
               "optimization": false,
               "extractLicenses": false,
-              "sourceMap": true
+              "sourceMap": true,
+              "styles": [
+                "src/styles.scss"
+              ]
             }
           },
           "defaultConfiguration": "production"
