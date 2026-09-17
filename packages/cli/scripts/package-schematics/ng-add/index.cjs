@@ -55,6 +55,27 @@ function prependTo(options, stylesheet) {
 }
 
 /**
+ * Registers the stylesheet on one target: its `options`, plus every
+ * configuration that declares its OWN `styles`.
+ *
+ * @param {Record<string, any>} target one builder target (mutated)
+ * @param {string} stylesheet
+ * @param {string} label `<project>:<target>`
+ * @returns {string[]} labels that changed
+ */
+function registerOnTarget(target, stylesheet, label) {
+    const changed = [];
+    target.options ??= {};
+    target.options.styles ??= [];
+    if (prependTo(target.options, stylesheet)) changed.push(label);
+
+    for (const [configName, config] of Object.entries(target.configurations ?? {})) {
+        if (prependTo(config, stylesheet)) changed.push(`${label}:${configName}`);
+    }
+    return changed;
+}
+
+/**
  * Registers the stylesheet on each project's build and test targets, and on
  * every configuration that declares its OWN `styles`.
  *
@@ -79,15 +100,7 @@ function addStylesheet(workspace, packageName, project) {
         const targets = projects[name].architect ?? projects[name].targets ?? {};
         for (const targetName of STYLED_TARGETS) {
             const target = targets[targetName];
-            if (!target) continue;
-
-            target.options ??= {};
-            target.options.styles ??= [];
-            if (prependTo(target.options, stylesheet)) changed.push(`${name}:${targetName}`);
-
-            for (const [configName, config] of Object.entries(target.configurations ?? {})) {
-                if (prependTo(config, stylesheet)) changed.push(`${name}:${targetName}:${configName}`);
-            }
+            if (target) changed.push(...registerOnTarget(target, stylesheet, `${name}:${targetName}`));
         }
     }
     return changed;
