@@ -40,14 +40,35 @@ function targetProjects(projects, requested) {
 }
 
 /**
- * Prepends the stylesheet to the `styles` of each project's build and test
- * targets. First, so the app's own stylesheets load after it and win ties.
- * Idempotent: a target that already lists it is left alone.
+ * Prepends the stylesheet to one options block, unless it is already there.
+ * First in the list, so the app's own stylesheets load after it and win ties.
+ *
+ * @param {Record<string, any> | undefined} options a target's `options` or one configuration's
+ * @param {string} stylesheet
+ * @returns {boolean} whether anything changed
+ */
+function prependTo(options, stylesheet) {
+    if (!options || !Array.isArray(options.styles)) return false;
+    if (options.styles.some((entry) => entryPath(entry) === stylesheet)) return false;
+    options.styles = [stylesheet, ...options.styles];
+    return true;
+}
+
+/**
+ * Registers the stylesheet on each project's build and test targets, and on
+ * every configuration that declares its OWN `styles`.
+ *
+ * Angular does not merge a configuration's `styles` into the target's — it
+ * replaces the list. So a `production` configuration that sets `styles` would
+ * build without the package stylesheet, and the failure is silent: an unstyled
+ * component in a production bundle, with no error anywhere.
+ *
+ * Idempotent, and a target with no `styles` at all gets the list created.
  *
  * @param {Record<string, any>} workspace parsed angular.json (mutated)
  * @param {string} packageName
  * @param {string} [project]
- * @returns {string[]} `<project>:<target>` labels that changed
+ * @returns {string[]} `<project>:<target>` / `<project>:<target>:<configuration>` labels that changed
  */
 function addStylesheet(workspace, packageName, project) {
     const stylesheet = stylesheetFor(packageName);
@@ -59,14 +80,41 @@ function addStylesheet(workspace, packageName, project) {
         for (const targetName of STYLED_TARGETS) {
             const target = targets[targetName];
             if (!target) continue;
+
             target.options ??= {};
-            const styles = Array.isArray(target.options.styles) ? target.options.styles : [];
-            if (styles.some((entry) => entryPath(entry) === stylesheet)) continue;
-            target.options.styles = [stylesheet, ...styles];
-            changed.push(`${name}:${targetName}`);
+            target.options.styles ??= [];
+            if (prependTo(target.options, stylesheet)) changed.push(`${name}:${targetName}`);
+
+            for (const [configName, config] of Object.entries(target.configurations ?? {})) {
+                if (prependTo(config, stylesheet)) changed.push(`${name}:${targetName}:${configName}`);
+            }
         }
     }
     return changed;
+}
+
+/**
+ * Reads angular.json, or explains the one manual edit that replaces this
+ * schematic.
+ *
+ * The Angular CLI tolerates comments in angular.json; `JSON.parse` does not.
+ * Rather than re-implement JSON-with-comments — a parser with more edge cases
+ * (markers inside strings, escapes) than this whole schematic — an unparsable
+ * workspace fails with the exact edit to make by hand.
+ *
+ * @param {string} raw
+ * @param {string} stylesheet
+ */
+function parseWorkspace(raw, stylesheet) {
+    try {
+        return JSON.parse(raw);
+    } catch {
+        throw new Error(
+            `Could not read ${WORKSPACE_FILE} as JSON (comments are not supported here). ` +
+            `Add "${stylesheet}" to the "styles" array of your app's build and test targets by hand — ` +
+            'that is all this schematic does.',
+        );
+    }
 }
 
 /**
@@ -84,7 +132,7 @@ function runNgAdd(tree, logger, packageName, project) {
         throw new Error(`No ${WORKSPACE_FILE} found. Add "${stylesheet}" to your app's styles manually.`);
     }
 
-    const workspace = JSON.parse(String(tree.read(WORKSPACE_FILE)));
+    const workspace = parseWorkspace(String(tree.read(WORKSPACE_FILE)), stylesheet);
     const changed = addStylesheet(workspace, packageName, project);
     if (changed.length === 0) {
         logger.info(`${stylesheet} is already registered — nothing to do.`);

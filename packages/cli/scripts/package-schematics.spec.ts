@@ -28,12 +28,18 @@ const load = (dir: string): NgAddModule =>
 
 const ngAddModule = load(path.join(REPO_ROOT, SCHEMATICS_SOURCE));
 
-function app(styles?: unknown[]) {
+function app(styles?: unknown[], configurations?: Record<string, unknown>) {
     const options = styles ? { styles } : {};
+    const build = configurations ? { options: { ...options }, configurations } : { options: { ...options } };
     return {
         projectType: 'application',
-        architect: { build: { options: { ...options } }, test: { options: { ...options } }, serve: {} },
+        architect: { build, test: { options: { ...options } }, serve: {} },
     };
+}
+
+function buildConfig(workspace: Workspace, project: string, configuration: string): { styles?: unknown[] } {
+    const targets = workspace.projects[project]['architect'] as Record<string, { configurations: Record<string, { styles?: unknown[] }> }>;
+    return targets.build.configurations[configuration];
 }
 
 function styles(workspace: Workspace, project: string, target: string): unknown[] {
@@ -71,6 +77,35 @@ describe('addStylesheet', () => {
         expect(styles(workspace, 'web', 'build')).toEqual([SHEET, 'src/styles.scss']);
         expect(styles(workspace, 'admin', 'test')).toEqual([SHEET, 'src/admin.css']);
         expect(styles(workspace, 'ui', 'build')).toEqual([]);
+    });
+
+    // Angular REPLACES a target's `styles` with the configuration's own list
+    // rather than merging them, so a production configuration that sets
+    // `styles` would build without the package stylesheet — silently.
+    it('registers the stylesheet on every configuration that declares its own styles', () => {
+        const workspace: Workspace = {
+            projects: {
+                web: app(['src/styles.css'], {
+                    production: { styles: ['src/styles.prod.css'], budgets: [] },
+                    development: { optimization: false },
+                }),
+            },
+        };
+
+        const changed = ngAddModule.addStylesheet(workspace, PKG);
+
+        expect(changed).toEqual(['web:build', 'web:build:production', 'web:test']);
+        expect(buildConfig(workspace, 'web', 'production').styles).toEqual([SHEET, 'src/styles.prod.css']);
+        // Inherits the target's styles, which already carry the stylesheet.
+        expect(buildConfig(workspace, 'web', 'development').styles).toBeUndefined();
+    });
+
+    it('is idempotent for a configuration that already lists the stylesheet', () => {
+        const workspace: Workspace = {
+            projects: { web: app([SHEET], { production: { styles: [SHEET, 'src/styles.prod.css'] } }) },
+        };
+        expect(ngAddModule.addStylesheet(workspace, PKG)).toEqual([]);
+        expect(buildConfig(workspace, 'web', 'production').styles).toEqual([SHEET, 'src/styles.prod.css']);
     });
 
     it('is idempotent, recognising an existing entry in either the string or the object form', () => {
@@ -122,6 +157,18 @@ describe('runNgAdd', () => {
 
         expect(tree.files['angular.json']).toBe(original);
         expect(log.lines.join()).toMatch(/already registered/);
+    });
+
+    // The Angular CLI tolerates comments in angular.json; JSON.parse does not.
+    // Re-implementing JSON-with-comments would be a bigger parser than the whole
+    // schematic, so the failure has to tell the user exactly what to do instead.
+    it('fails with the manual edit when angular.json cannot be parsed', () => {
+        const withComment = `{\n  // our app\n  "projects": {}\n}`;
+        const tree = memoryTree({ 'angular.json': withComment });
+
+        expect(() => ngAddModule.runNgAdd(tree, logger(), PKG)).toThrow(SHEET);
+        expect(() => ngAddModule.runNgAdd(tree, logger(), PKG)).toThrow(/comments are not supported/);
+        expect(tree.files['angular.json']).toBe(withComment);
     });
 
     it('fails with the manual fallback when there is no angular.json', () => {
