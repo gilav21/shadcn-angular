@@ -44,7 +44,10 @@
                   "maximumError": "8kB"
                 }
               ],
-              "outputHashing": "all"
+              "outputHashing": "all",
+              "styles": [
+                "src/styles.scss"
+              ]
             },
             "development": {
               "optimization": false,
