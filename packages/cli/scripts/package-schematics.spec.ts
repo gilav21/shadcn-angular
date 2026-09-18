@@ -39,7 +39,7 @@ function app(styles?: unknown[], configurations?: Record<string, unknown>) {
 
 function buildConfig(workspace: Workspace, project: string, configuration: string): { styles?: unknown[] } {
     const targets = workspace.projects[project]['architect'] as Record<string, { configurations: Record<string, { styles?: unknown[] }> }>;
-    return targets.build.configurations[configuration];
+    return targets['build'].configurations[configuration];
 }
 
 function styles(workspace: Workspace, project: string, target: string): unknown[] {
