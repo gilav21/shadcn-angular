@@ -53,6 +53,7 @@ interface Row {
                 uiDtExport #exp="uiDtExport"
                 uiDtPivot  #pv="uiDtPivot"
                 data-testid="table"
+                theme="violet"
                 [data]="rows()"
                 [columns]="columns"
                 [rowActions]="rowActions"

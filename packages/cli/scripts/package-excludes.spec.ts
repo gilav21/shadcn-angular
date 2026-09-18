@@ -27,7 +27,8 @@ describe('generated package sources are excluded from every repo-wide gate (T-9)
     it('root tsconfig.json excludes the generated tree', () => {
         const raw = read('tsconfig.json');
         expect(raw).toContain(MARKER);
-        expect(raw).toContain('packages/*-package/theme.css');
+        expect(raw).toContain('packages/*-package/styles.css');
+        expect(raw).toContain('packages/*-package/schematics/**');
     });
 
     it('tsconfig.eslint.json excludes the generated tree', () => {
@@ -48,10 +49,11 @@ describe('generated package sources are excluded from every repo-wide gate (T-9)
         expect(block![1]).toContain('packages/*-package/src/**');
     });
 
-    it('.gitignore ignores the generated tree and theme.css', () => {
+    it('.gitignore ignores the generated tree, the compiled stylesheet and the staged schematic', () => {
         const raw = read('.gitignore');
         expect(raw).toContain(MARKER);
-        expect(raw).toContain('packages/*-package/theme.css');
+        expect(raw).toContain('packages/*-package/styles.css');
+        expect(raw).toContain('packages/*-package/schematics/');
     });
 
     // The packages are built with the workspace's Angular 21 toolchain but must

@@ -44,12 +44,18 @@
                   "maximumError": "8kB"
                 }
               ],
-              "outputHashing": "all"
+              "outputHashing": "all",
+              "styles": [
+                "src/styles.scss"
+              ]
             },
             "development": {
               "optimization": false,
               "extractLicenses": false,
-              "sourceMap": true
+              "sourceMap": true,
+              "styles": [
+                "src/styles.scss"
+              ]
             }
           },
           "defaultConfiguration": "production"

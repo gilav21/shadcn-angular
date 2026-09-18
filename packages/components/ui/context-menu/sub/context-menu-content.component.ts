@@ -15,6 +15,7 @@ import {
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { cn } from '../../../lib/utils';
+import { inheritThemeTokens } from '../../../lib/theme-presets';
 import { CONTEXT_MENU } from '../context-menu.component';
 
 @Component({
@@ -85,6 +86,7 @@ export class ContextMenuContentComponent implements OnDestroy {
         this.portalHost = this.document.createElement('div');
         this.portalHost.dataset['contextMenuPortal'] = 'true';
         this.document.body.appendChild(this.portalHost);
+        inheritThemeTokens(this.viewContainerRef.element.nativeElement, this.portalHost);
         this.embeddedViewRef = this.viewContainerRef.createEmbeddedView(this.contentTemplate);
         this.embeddedViewRef.detectChanges();
 

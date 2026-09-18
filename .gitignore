@@ -58,6 +58,7 @@ e2e/fixture-app/src/tailwind.css
 # Compiled-package sources, regenerated from the registry closure by
 # `npm run stage:package -- <id>`. The package CONFIG (package.json,
 # ng-package.json, tsconfig.lib.json, README.md, CHANGELOG.md) IS tracked —
-# only the generated snapshot and its theme asset are not.
+# only the generated snapshot, its compiled stylesheet and its staged schematic are not.
 packages/*-package/src/
-packages/*-package/theme.css
+packages/*-package/styles.css
+packages/*-package/schematics/

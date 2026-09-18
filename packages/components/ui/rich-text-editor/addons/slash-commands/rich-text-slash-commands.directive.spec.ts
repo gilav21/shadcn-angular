@@ -132,6 +132,24 @@ describe('RichTextSlashCommandsDirective', () => {
         expect(menu()).toBeTruthy();
     });
 
+    // The menu is created through the directive's ViewContainerRef — a sibling
+    // of the editor, outside the element that carries the preset.
+    it('shows the menu in the editor theme although it renders outside the editor', (ctx) => {
+        if (navigator.userAgent.includes('jsdom')) return ctx.skip();
+        const { fixture, editor, editorCmp } = create();
+        const editorHost = fixture.debugElement.query(By.directive(RichTextEditorComponent)).nativeElement as HTMLElement;
+        editorHost.dataset['uiTheme'] = 'green';
+        editorHost.style.setProperty('--primary', 'rgb(1, 99, 2)');
+
+        typeSlash(editor, editorCmp, '/h');
+        fixture.detectChanges();
+
+        const shown = menu();
+        expect(shown).toBeTruthy();
+        expect(editorHost.contains(shown)).toBe(false);
+        expect(getComputedStyle(shown as HTMLElement).getPropertyValue('--primary').trim()).toBe('rgb(1, 99, 2)');
+    });
+
     it('leaves the menu closed after a "# " block transform', () => {
         const { fixture, editor, editorCmp } = create();
 

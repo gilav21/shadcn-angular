@@ -43,7 +43,10 @@ function packed(paths: readonly string[]) {
 const HEALTHY_FILES = [
     'package.json',
     'README.md',
-    'theme.css',
+    'styles.css',
+    'schematics/collection.json',
+    'schematics/ng-add/index.cjs',
+    'schematics/ng-add/schema.json',
     'fesm2022/gilav21-shadcn-angular-rte.mjs',
     'fesm2022/gilav21-shadcn-angular-rte-pdf-readable-x5odr0qV.mjs',
     'types/gilav21-shadcn-angular-rte.d.ts',
@@ -55,8 +58,15 @@ describe('assertTarballContents (T-23)', () => {
     });
 
     // Each required entry is the consumer's only copy of something: the manifest,
-    // the install/usage contract, and the design tokens.
-    it.each(['package.json', 'README.md', 'theme.css'])('rejects a tarball missing %s', (missing) => {
+    // the usage contract, the compiled stylesheet, and the `ng add` schematic.
+    it.each([
+        'package.json',
+        'README.md',
+        'styles.css',
+        'schematics/collection.json',
+        'schematics/ng-add/index.cjs',
+        'schematics/ng-add/schema.json',
+    ])('rejects a tarball missing %s', (missing) => {
         const files = HEALTHY_FILES.filter((f) => f !== missing);
         expect(() => assertTarballContents('rte', packed(files))).toThrow(missing);
     });
@@ -96,7 +106,8 @@ describe('assertTarballContents (T-23)', () => {
 const HEALTHY_MANIFEST = {
     name: '@gilav21/shadcn-angular-rte',
     sideEffects: false,
-    exports: { './theme.css': './theme.css' },
+    exports: { './styles.css': './styles.css' },
+    schematics: './schematics/collection.json',
     peerDependencies: { '@angular/core': ANGULAR_PEER_RANGE },
     dependencies: {
         'class-variance-authority': '^0.7.1',
@@ -123,7 +134,8 @@ describe('checkPackedManifest (T-23)', () => {
     it.each([
         ['a wrong package name', { ...HEALTHY, name: '@gilav21/wrong' }, /packed name/],
         ['sideEffects not false', { ...HEALTHY, sideEffects: true }, /sideEffects/],
-        ['a missing theme.css export', { ...HEALTHY, exports: {} }, /theme\.css/],
+        ['a missing styles.css export', { ...HEALTHY, exports: {} }, /styles\.css/],
+        ['no schematics entry (ng add would find nothing)', { ...HEALTHY, schematics: undefined }, /schematics/],
         [
             'an Angular-21-only peer range',
             { ...HEALTHY, peerDependencies: { '@angular/core': '^21.0.0' } },
@@ -331,6 +343,7 @@ describe('buildPackage', () => {
         const record = <T>(name: string, value: T) => (): T => { calls.push(name); return value; };
         const fx: BuildEffects = {
             stage: record('stage', undefined),
+            compileStyles: record('compileStyles', undefined),
             ngBuild: record('ngBuild', undefined),
             readBundles: record('readBundles', healthyBundles() as BundleSources),
             fesmLabel: () => 'fesm2022',
@@ -354,6 +367,15 @@ describe('buildPackage', () => {
         const { calls, fx } = port();
         buildPackage('rte', fx);
         expect(calls.indexOf('stage')).toBeLessThan(calls.indexOf('ngBuild'));
+    });
+
+    // The compile scans the STAGED sources, and ng-packagr copies its output as
+    // an asset — compiled before staging it scans a stale tree, after ng build
+    // the tarball ships the previous stylesheet.
+    it('compiles the stylesheet after staging and before ng build', () => {
+        const { calls, fx } = port();
+        buildPackage('rte', fx);
+        expect(calls.slice(0, 3)).toEqual(['stage', 'compileStyles', 'ngBuild']);
     });
 
     // A tarball that fails a structural gate must never reach disk: once packed
@@ -410,6 +432,7 @@ describe('memoisedBuilder', () => {
         const builds: PackageId[] = [];
         const build = memoisedBuilder({
             stage: (id) => { builds.push(id); },
+            compileStyles: () => {},
             ngBuild: () => {},
             readBundles: () => healthyBundles(),
             fesmLabel: () => 'fesm2022',
@@ -490,6 +513,12 @@ describe('nodeBuildEffects', () => {
         };
         return { calls, fx: nodeBuildEffects('/repo', primitives) };
     }
+
+    it('compiles the stylesheet with the package-styles script, from the repo root', () => {
+        const { calls, fx } = io();
+        fx.compileStyles('data-table');
+        expect(calls).toEqual(['npx tsx packages/cli/scripts/package-styles.ts data-table @ /repo']);
+    });
 
     it('builds the ng project named after the package, from the repo root', () => {
         const { calls, fx } = io();

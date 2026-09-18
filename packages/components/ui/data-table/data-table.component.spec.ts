@@ -6852,3 +6852,43 @@ describe('DataTableComponent edit history (B3)', () => {
         expect(component.data()).toBe(before);
     });
 });
+
+describe('DataTableComponent - theme preset', () => {
+    const isJsdom = navigator.userAgent.includes('jsdom');
+    let fixture: ComponentFixture<DataTableComponent<TestData>>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
+        fixture = TestBed.createComponent(DataTableComponent<TestData>);
+        fixture.componentRef.setInput('data', TEST_DATA);
+        fixture.componentRef.setInput('columns', TEST_COLUMNS);
+    });
+
+    afterEach(() => {
+        document.documentElement.classList.remove('dark');
+    });
+
+    const primary = (): string =>
+        getComputedStyle(fixture.nativeElement as HTMLElement).getPropertyValue('--primary').trim();
+
+    it('carries no preset attribute while the theme is unset', () => {
+        fixture.detectChanges();
+        expect((fixture.nativeElement as HTMLElement).hasAttribute('data-ui-theme')).toBe(false);
+    });
+
+    it('reflects the theme name onto the host', () => {
+        fixture.componentRef.setInput('theme', 'violet');
+        fixture.detectChanges();
+        expect((fixture.nativeElement as HTMLElement).dataset['uiTheme']).toBe('violet');
+    });
+
+    it('resolves the preset tokens on the host, and the dark variant under a .dark ancestor', (ctx) => {
+        if (isJsdom) return ctx.skip();
+        fixture.componentRef.setInput('theme', 'slate');
+        fixture.detectChanges();
+        expect(primary()).toBe('oklch(0.208 0.042 265.755)');
+
+        document.documentElement.classList.add('dark');
+        expect(primary()).toBe('oklch(0.929 0.013 255.508)');
+    });
+});

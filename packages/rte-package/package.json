@@ -17,7 +17,11 @@
   ],
   "sideEffects": false,
   "exports": {
-    "./theme.css": "./theme.css"
+    "./styles.css": "./styles.css"
+  },
+  "schematics": "./schematics/collection.json",
+  "ng-add": {
+    "save": "dependencies"
   },
   "peerDependencies": {
     "@angular/common": ">=20.0.0 <22.0.0",

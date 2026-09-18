@@ -20,6 +20,7 @@ import {
 } from '../..';
 import { ContextMenuComponent, type ContextMenuItem } from '../../../context-menu';
 import { onLongPress } from '../../../../lib/touch';
+import { inheritThemeTokens } from '../../../../lib/theme-presets';
 
 /** Builds a consumer-provided row-action menu for a given row context. */
 export type RowActionsFn<T> = (context: RowActionContext<T>) => ContextMenuItem[];
@@ -153,6 +154,8 @@ export class DataTableContextMenuDirective<T = unknown> {
 
   private openRowMenu(x: number, y: number, context: RowActionContext<T>): void {
     this.rowMenu ??= this.vcr.createComponent(ContextMenuComponent);
+    // Reused across opens, so re-applied each time: the theme may have changed.
+    inheritThemeTokens(this.vcr.element.nativeElement, this.rowMenu.location.nativeElement);
     this.rowMenu.setInput('items', this.buildRowMenuItems(context));
     this.rowMenu.instance.show(x, y, context);
     this.rowMenuOpen.emit(context);
@@ -160,6 +163,7 @@ export class DataTableContextMenuDirective<T = unknown> {
 
   private openColumnMenu(x: number, y: number, column: ColumnDef<T>): void {
     this.columnMenu ??= this.vcr.createComponent(ContextMenuComponent);
+    inheritThemeTokens(this.vcr.element.nativeElement, this.columnMenu.location.nativeElement);
     this.columnMenu.setInput('items', this.buildColumnMenuItems(column));
     this.columnMenu.instance.show(x, y, { columnKey: String(column.accessorKey), column });
     this.columnMenuOpen.emit(column);

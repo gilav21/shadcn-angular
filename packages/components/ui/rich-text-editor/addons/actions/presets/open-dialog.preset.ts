@@ -3,6 +3,7 @@ import {
 } from '@angular/core';
 import { NgComponentOutlet } from '@angular/common';
 import { ButtonComponent } from '../../../../button';
+import { inheritThemeTokens } from '../../../../../lib/theme-presets';
 import { directionOf, mountTopLayer, type MountedOverlay } from './preset-overlay.utils';
 import type { ActionParams, RichTextActionDefinition, RichTextActionField } from '../rich-text-actions.types';
 import type { RichTextActionEvent, RichTextActionHandler } from '../actions-runtime';
@@ -127,6 +128,7 @@ export function openDialogHandlers(
             dir: directionOf(event.element),
         });
         overlay.host.style.inset = '0';
+        inheritThemeTokens(event.element, overlay.host);
         const onKeydown = (e: KeyboardEvent): void => { if (e.key === 'Escape') dismiss(); };
         const dismiss = (): void => {
             document.removeEventListener('keydown', onKeydown);

@@ -22,6 +22,7 @@ import {
 } from './rich-text-actions.types';
 import { RICH_TEXT_ACTIONS_LOCALES, type RichTextActionsLocale } from './rich-text-actions.locales';
 import { createLocaleBindings, type LocaleInput } from '../../../../lib/i18n';
+import { inheritThemeTokens } from '../../../../lib/theme-presets';
 
 const ATTACH_ID = 'actions.attach';
 const ATTACH_ICON =
@@ -182,6 +183,7 @@ export class RichTextActionsDirective {
         };
         const occupied = target.existing ? readActions(target.existing).map((a) => a.trigger) : [];
         const ref = this.vcr.createComponent(RichTextActionsDialogComponent);
+        inheritThemeTokens(this.vcr.element.nativeElement, ref.location.nativeElement);
         ref.setInput('definitions', this.uiRteActions());
         ref.setInput('locale', this.i18n.t());
         ref.setInput('context', {
@@ -290,6 +292,7 @@ export class RichTextActionsDirective {
         this.popoverTarget = el;
         const rows = this.buildPopoverRows(el);
         const ref = this.vcr.createComponent(RichTextActionsPopoverComponent);
+        inheritThemeTokens(this.vcr.element.nativeElement, ref.location.nativeElement);
         ref.setInput('actions', rows);
         ref.setInput('locale', this.i18n.t());
         ref.setInput('canAdd', rows.length < 2);
@@ -362,6 +365,7 @@ export class RichTextActionsDirective {
         this.hidePopover();
         const target: ApplyTarget = { kind: 'text', existing: el, image: null };
         const ref = this.vcr.createComponent(RichTextActionsDialogComponent);
+        inheritThemeTokens(this.vcr.element.nativeElement, ref.location.nativeElement);
         ref.setInput('definitions', this.uiRteActions());
         ref.setInput('locale', this.i18n.t());
         ref.setInput('context', {

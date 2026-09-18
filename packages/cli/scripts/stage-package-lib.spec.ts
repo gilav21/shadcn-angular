@@ -20,9 +20,10 @@ import {
     PACKAGE_ROOTS,
     auditStagedImports,
     computeClosure,
-    consumerCssSnippet,
+    consumerInstallCommand,
     isPackageExcluded,
     isPackageId,
+    packageStylesheet,
     renderPublicApi,
     stagePackage,
     stagedFiles,
@@ -92,16 +93,16 @@ describe('stagedFiles (T-2)', () => {
         return out;
     }
 
-    it('rte stages 287 files = union(files) ∪ union(libFiles) ∪ utils.ts', () => {
+    it('rte stages 288 files = union(files) ∪ union(libFiles) ∪ utils.ts', () => {
         const staged = stagedFiles('rte');
         expect(new Set(staged.map((f) => f.dest))).toEqual(expectedDests('rte'));
-        expect(staged).toHaveLength(287);
+        expect(staged).toHaveLength(288);
     });
 
-    it('data-table stages 177 files', () => {
+    it('data-table stages 179 files', () => {
         const staged = stagedFiles('data-table');
         expect(new Set(staged.map((f) => f.dest))).toEqual(expectedDests('data-table'));
-        expect(staged).toHaveLength(177);
+        expect(staged).toHaveLength(179);
     });
 
     it('never stages spec, stories or screenshot files', () => {
@@ -195,12 +196,17 @@ describe('stagePackage (T-3)', () => {
         });
     });
 
-    it('also writes the generated theme.css next to src/', () => {
+    it('copies the shared ng add schematic next to src/, replacing a stale copy', () => {
         withTempDir((dir) => {
+            const stale = path.join(dir, 'schematics', 'ng-add', 'old.cjs');
             stagePackage('data-table', REPO_ROOT, dir);
-            const theme = readFileSync(path.join(dir, 'theme.css'), 'utf-8');
-            expect(theme).toContain('@theme inline {');
-            expect(theme).not.toContain('@import "tailwindcss"');
+            writeFileSync(stale, '// from an older build\n');
+
+            stagePackage('data-table', REPO_ROOT, dir);
+            const collection = JSON.parse(readFileSync(path.join(dir, 'schematics', 'collection.json'), 'utf-8'));
+            expect(collection.schematics['ng-add'].factory).toBe('./ng-add/index.cjs#ngAdd');
+            expect(existsSync(path.join(dir, 'schematics', 'ng-add', 'index.cjs'))).toBe(true);
+            expect(existsSync(stale)).toBe(false);
         });
     });
 
@@ -363,31 +369,22 @@ describe('toPackageTheme (T-7)', () => {
 });
 
 // ── T-8 ────────────────────────────────────────────────────────────────────
-describe('consumerCssSnippet (T-8)', () => {
-    it('renders the three README lines for a single package', () => {
-        expect(consumerCssSnippet(['rte'])).toBe(
-            [
-                '@import "tailwindcss";',
-                '@source "../node_modules/@gilav21/shadcn-angular-rte";',
-                '@import "@gilav21/shadcn-angular-rte/theme.css";',
-            ].join('\n'),
-        );
+describe('consumer setup contract (T-8)', () => {
+    it('is one ng add command per package', () => {
+        expect(consumerInstallCommand('rte')).toBe('ng add @gilav21/shadcn-angular-rte');
+        expect(consumerInstallCommand('data-table')).toBe('ng add @gilav21/shadcn-angular-data-table');
     });
 
-    it('emits one @source and one theme import per package, Tailwind first', () => {
-        const snippet = consumerCssSnippet(['rte', 'data-table']);
-        expect(snippet.split('\n')[0]).toBe('@import "tailwindcss";');
-        expect(snippet.match(/@source /g)).toHaveLength(2);
-        expect(snippet).toContain(PACKAGE_NAMES['data-table']);
+    it('registers the stylesheet through the package export', () => {
+        expect(packageStylesheet('rte')).toBe('@gilav21/shadcn-angular-rte/styles.css');
     });
 
-    it('each package README embeds its own snippet verbatim (drift test)', () => {
+    it('each package README documents the command and the manual fallback, and no Tailwind setup (drift test)', () => {
         for (const id of PACKAGE_IDS) {
-            const readme = readFileSync(
-                path.join(REPO_ROOT, `packages/${id}-package/README.md`),
-                'utf-8',
-            );
-            expect(readme, id).toContain(consumerCssSnippet([id]));
+            const readme = readFileSync(path.join(REPO_ROOT, `packages/${id}-package/README.md`), 'utf-8');
+            expect(readme, id).toContain(consumerInstallCommand(id));
+            expect(readme, id).toContain(`"${packageStylesheet(id)}"`);
+            expect(readme, id).not.toMatch(/@source|tailwindcss\/postcss|\.postcssrc/);
             expect(readme, id).toContain(PACKAGE_NAMES[id]);
         }
     });

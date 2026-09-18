@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TooltipComponent, TooltipTriggerComponent, TooltipContentComponent, TooltipDirective } from './index';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 // Test host for integration
 @Component({
@@ -135,6 +135,41 @@ describe('TooltipDirective', () => {
     it('should create directive on element', () => {
         const button = fixture.debugElement.query(By.directive(TooltipDirective));
         expect(button).toBeTruthy();
+    });
+});
+
+@Component({
+    template: `
+        <div data-ui-theme="red" style="--primary: rgb(1, 2, 3); --primary-foreground: rgb(4, 5, 6)">
+            <button [uiTooltip]="'Themed tip'">Hover me</button>
+        </div>
+    `,
+    imports: [TooltipDirective]
+})
+class ThemedDirectiveHost { }
+
+describe('TooltipDirective inside a themed component', () => {
+    afterEach(() => {
+        vi.useRealTimers();
+        document.querySelectorAll('body > div').forEach(el => {
+            if (el.textContent === 'Themed tip') el.remove();
+        });
+    });
+
+    it('carries the theme tokens onto the bubble it appends to document.body', (ctx) => {
+        if (navigator.userAgent.includes('jsdom')) return ctx.skip();
+        vi.useFakeTimers();
+        const fixture = TestBed.createComponent(ThemedDirectiveHost);
+        fixture.detectChanges();
+        const directive = fixture.debugElement.query(By.directive(TooltipDirective)).injector.get(TooltipDirective);
+
+        directive.onMouseEnter();
+        vi.advanceTimersByTime(200);
+
+        const bubble = Array.from(document.body.children).find(el => el.textContent === 'Themed tip') as HTMLElement | undefined;
+        expect(bubble?.parentElement).toBe(document.body);
+        expect(bubble?.style.getPropertyValue('--primary')).toBe('rgb(1, 2, 3)');
+        expect(bubble?.style.getPropertyValue('--primary-foreground')).toBe('rgb(4, 5, 6)');
     });
 });
 

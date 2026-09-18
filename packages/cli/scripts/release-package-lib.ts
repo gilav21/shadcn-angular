@@ -148,7 +148,8 @@ export function packageChangelogHeader(id: PackageId): string {
  * - the package's committed config (`package.json`, `README.md`,
  *   `ng-package.json`, `tsconfig.lib.json`) — the README and theme are ASSETS
  *   in the tarball, not just docs;
- * - `templates/styles.ts`, from which `theme.css` is generated;
+ * - `templates/styles.ts` and the stylesheet compile that turns it into `styles.css`;
+ * - the shared `ng add` schematic;
  * - the stage / build scripts, which decide what gets copied and compiled.
  *
  * `CHANGELOG.md` is deliberately absent: it is the release's own output, so
@@ -164,6 +165,12 @@ export function closurePaths(id: PackageId): ReadonlySet<string> {
     paths.add('packages/cli/scripts/stage-package.ts');
     paths.add('packages/cli/scripts/stage-package-lib.ts');
     paths.add('packages/cli/scripts/package-build.ts');
+    paths.add('packages/cli/scripts/package-build-lib.ts');
+    paths.add('packages/cli/scripts/package-styles.ts');
+    paths.add('packages/cli/scripts/package-styles-lib.ts');
+    for (const file of ['collection.json', 'ng-add/index.cjs', 'ng-add/schema.json']) {
+        paths.add(`packages/cli/scripts/package-schematics/${file}`);
+    }
     return paths;
 }
 

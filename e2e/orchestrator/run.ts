@@ -16,7 +16,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { CliSpec } from '../cli-specs/_types.js';
 import { buildPackageTarball } from '../../packages/cli/scripts/package-build.js';
-import { PACKAGE_NAMES, consumerCssSnippet } from '../../packages/cli/scripts/stage-package-lib.js';
+import { PACKAGE_NAMES, packageStylesheet } from '../../packages/cli/scripts/stage-package-lib.js';
 import {
     ALL_COMPONENTS,
     CLI_SPECS,
@@ -75,16 +75,6 @@ function remoteCliArgs(flags: CliFlags): string[] {
 }
 
 /**
- * Installs a spec's compiled package tarballs into the fixture and wires up
- * Tailwind the way a consumer would.
- *
- * When the spec installs no CLI components there is no `init` to lean on, so
- * this replicates ONLY the Tailwind/PostCSS part of it, by hand, from the
- * README's own snippet (`consumerCssSnippet`) — that is the point of the leg:
- * it proves the documented three-line contract actually works, and because the
- * README and the fixture render from the same function they cannot drift.
- */
-/**
  * Re-enables Tailwind scanning of the directories the repo's `.gitignore`
  * excludes.
  *
@@ -124,46 +114,30 @@ function appendTailwindSources(fixtureApp: string, dirs: readonly string[]): voi
     fs.writeFileSync(tailwindCss, `${existing.trimEnd()}\n${sources.join('\n')}\n`);
 }
 
+/**
+ * Installs a spec's compiled package tarballs the way the README tells a
+ * consumer to: `ng add <package>`, and nothing else. No Tailwind, no PostCSS,
+ * no hand-written CSS — the package ships its compiled stylesheet and the
+ * schematic registers it. The angular.json the schematic wrote is checked
+ * directly, so a schematic that silently does nothing fails HERE rather than as
+ * an unstyled page three steps later.
+ *
+ * Mixed specs (CLI components + package) get the same treatment: the package
+ * stylesheet must coexist with the app's own Tailwind build.
+ */
 async function installPackages(spec: ComponentSpec, fixtureApp: string): Promise<void> {
-    const ids = spec.packages ?? [];
-
-    if (spec.names.length > 0) {
-        // MIXED mode: `init` already wrote a tailwind.css, but its `@source`
-        // globs only cover `../src/**` — the consumer's own tree. Without an
-        // extra `@source` for the package, Tailwind never scans node_modules
-        // and the package's components render unstyled in exactly the app that
-        // most needs to look right. Appending is what a real mixed consumer
-        // does, and it keeps this leg able to catch a styling regression.
-        appendTailwindSources(fixtureApp, ids.map((id) => `../node_modules/${PACKAGE_NAMES[id]}`));
-    }
-
-    if (spec.names.length === 0) {
-        await run('npm', [
-            'install', '-D', 'tailwindcss', '@tailwindcss/postcss', 'postcss',
-            '--no-audit', '--no-fund',
-        ], { cwd: fixtureApp });
-
-        fs.writeFileSync(
-            path.join(fixtureApp, '.postcssrc.json'),
-            `${JSON.stringify({ plugins: { '@tailwindcss/postcss': {} } }, null, 2)}\n`,
-        );
-        fs.writeFileSync(
-            path.join(fixtureApp, 'src/tailwind.css'),
-            `${consumerCssSnippet(ids)}\n`,
-        );
-        const styles = path.join(fixtureApp, 'src/styles.scss');
-        const existing = fs.existsSync(styles) ? fs.readFileSync(styles, 'utf-8') : '';
-        if (!existing.includes('./tailwind.css')) {
-            fs.writeFileSync(styles, `@import "./tailwind.css";\n${existing}`);
-        }
-    }
-
-    for (const id of ids) {
+    for (const id of spec.packages ?? []) {
         // A stale extraction of the same version would be reused otherwise, so
         // the leg could pass against a tarball it did not just build.
         fs.rmSync(path.join(fixtureApp, 'node_modules/@gilav21'), { recursive: true, force: true });
         const tarball = await buildPackageTarball(id);
         await run('npm', ['install', tarball, '--no-audit', '--no-fund'], { cwd: fixtureApp });
+        await run('npx', ['ng', 'add', PACKAGE_NAMES[id], '--skip-confirmation'], { cwd: fixtureApp });
+
+        const workspace = fs.readFileSync(path.join(fixtureApp, 'angular.json'), 'utf-8');
+        if (!workspace.includes(`"${packageStylesheet(id)}"`)) {
+            throw new Error(`[e2e] ng add ${PACKAGE_NAMES[id]} did not register ${packageStylesheet(id)} in angular.json.`);
+        }
     }
 }
 

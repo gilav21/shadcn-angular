@@ -5,6 +5,7 @@ import {
     output,
     inject,
     ApplicationRef,
+    ElementRef,
     EnvironmentInjector,
     Injector,
     createComponent,
@@ -12,6 +13,7 @@ import {
 } from '@angular/core';
 import { createLocaleSelector, type LocaleInput } from '../../lib/i18n';
 import { COMMON_LOCALES, type CommonLocale } from '../../lib/i18n/common.locales';
+import { inheritThemeTokens } from '../../lib/theme-presets';
 import { ConfirmDialogComponent } from './confirm-dialog.component';
 
 @Directive({
@@ -49,6 +51,7 @@ export class ConfirmDirective {
     private readonly appRef = inject(ApplicationRef);
     private readonly injector = inject(EnvironmentInjector);
     private readonly elementInjector = inject(Injector);
+    private readonly hostEl = inject<ElementRef<HTMLElement>>(ElementRef);
 
     /**
      * Intercept the host click and open the confirmation dialog instead.
@@ -71,6 +74,7 @@ export class ConfirmDirective {
 
         this.appRef.attachView(ref.hostView);
         document.body.appendChild(ref.location.nativeElement);
+        inheritThemeTokens(this.hostEl.nativeElement, ref.location.nativeElement);
 
         ref.instance.show();
 

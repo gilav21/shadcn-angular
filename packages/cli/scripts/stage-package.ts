@@ -1,7 +1,7 @@
 /**
  * `npm run stage:package -- <rte|data-table>`
  *
- * Regenerates one compiled package's `src/` tree and `theme.css` from the
+ * Regenerates one compiled package's `src/` tree and `schematics/` from the
  * registry closure. Nothing but WIRING: it resolves the repo root, and prints
  * and exits with what `runStage` decides — every decision, including the staged
  * paths, lives in `stage-package-lib.ts` and is unit-tested in process

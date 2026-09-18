@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, type Injector, input } from '@angular/core';
+import { inheritThemeTokens } from '../../../../../lib/theme-presets';
 import { anchorOverlay, directionOf, mountTopLayer, type MountedOverlay } from './preset-overlay.utils';
 import type { RichTextActionDefinition, RichTextActionField } from '../rich-text-actions.types';
 import type { RichTextActionEvent, RichTextActionHandler } from '../actions-runtime';
@@ -101,6 +102,7 @@ export function hoverCardHandlers(
             body: String(event.params['body'] ?? ''),
             dir: directionOf(event.element),
         });
+        inheritThemeTokens(event.element, open.host);
         anchorOverlay(open.host, event.element);
         // Grace area: keep the card open while the pointer is over it.
         open.host.addEventListener('mouseenter', cancelClose);

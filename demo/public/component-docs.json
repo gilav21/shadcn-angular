@@ -5390,6 +5390,11 @@
               "default": "false"
             },
             {
+              "name": "theme",
+              "type": "ThemeName",
+              "description": "Colour preset for this table and its overlays — the names `change-theme` accepts. Unset, the table follows the app's global tokens."
+            },
+            {
               "name": "total",
               "type": "number",
               "description": "Full row count on the server. Required — and only used — when {@link localPagination} is false, where it drives the page count and the \"N of M\" readouts; ignored otherwise, since the local row count is known.",
@@ -13090,6 +13095,11 @@
               "type": "EditorSize",
               "description": "Text size preset for the editor content. See {@link EditorSize}.",
               "default": "'default'"
+            },
+            {
+              "name": "theme",
+              "type": "ThemeName",
+              "description": "Colour preset for this editor and its overlays — the names `change-theme` accepts. Unset, the editor follows the app's global tokens."
             },
             {
               "name": "toolbar",
