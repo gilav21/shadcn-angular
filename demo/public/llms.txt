@@ -2787,7 +2787,7 @@ Collapsible app sidebar with grouped menu items, header, and footer.
 - Import: `import { SidebarComponent } from '@/components/ui/sidebar';`
 - Selector: `ui-sidebar`
 - Category: navigation
-- Depends on: `scroll-area`, `tooltip`
+- Depends on: `scroll-area`, `skeleton`, `tooltip`
 - npm dependencies: none
 - Inputs: `class: string = ''`, `collapseMode: "icon" | "hidden" = 'icon'`, `collapsible: boolean = true`, `side: "left" | "right" = 'left'`, `variant: SidebarVariant = 'sidebar'`
 
