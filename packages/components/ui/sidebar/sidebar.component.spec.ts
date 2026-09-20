@@ -1553,6 +1553,26 @@ describe('Sidebar', () => {
     });
 
     describe('menu skeleton', () => {
+      /**
+       * Skeleton rows sit directly inside `ui-sidebar-menu`'s <ul>, so each one
+       * must be a list item. It shipped without the role and axe's `list` rule
+       * caught it (serious) in the Storybook a11y run — nothing here asserted
+       * the list structure, so this does.
+       */
+      it('is a list item, so the menu list stays well formed', async () => {
+        const fixture = await createNestedHost();
+        const list = fixture.debugElement.query(By.css('ul[data-slot="sidebar-menu"]')).nativeElement;
+
+        for (const child of Array.from(list.children) as HTMLElement[]) {
+          const role = child.getAttribute('role');
+          expect(
+            role === 'listitem' || child.tagName === 'LI',
+            `<ul data-slot="sidebar-menu"> child <${child.tagName.toLowerCase()}> ` +
+              `must be a list item, got role="${role}"`
+          ).toBe(true);
+        }
+      });
+
       it('renders one row per entry with varying widths', async () => {
         const fixture = await createNestedHost();
         const rows = fixture.debugElement.queryAll(By.css('[data-slot="sidebar-menu-skeleton"]'));

@@ -36,7 +36,17 @@ import { SidebarService } from '../sidebar.service';
       }
     </div>
   `,
-  host: { class: 'contents' },
+  host: {
+    /*
+     * A skeleton row sits directly inside `ui-sidebar-menu`'s <ul> while nav
+     * data loads, so it has to be a list item like `ui-sidebar-menu-item` is —
+     * otherwise the <ul> has non-li children and axe's `list` rule fails
+     * (serious). The host itself carries the role for the same reason that
+     * component does: an inner <li> would not be a direct child of the <ul>.
+     */
+    role: 'listitem',
+    class: 'contents',
+  },
 })
 export class SidebarMenuSkeletonComponent {
   /** Extra classes merged onto the row. */
