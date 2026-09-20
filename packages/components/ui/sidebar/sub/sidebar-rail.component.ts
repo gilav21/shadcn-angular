@@ -71,9 +71,11 @@ export class SidebarRailComponent {
 
   /*
    * The highlight is driven from component state rather than Tailwind's
-   * `group-hover:`/`group-focus-visible:` variants: those utilities are not
-   * emitted by this project's CSS build, so the line silently never appeared.
-   * Tracking it here also makes the affordance assertable in a unit test.
+   * `group-hover:`/`group-focus-visible:` variants. Those combinations are not
+   * all emitted by this project's CSS build — `group-hover:bg-sidebar-primary`
+   * and every `group-focus-visible:*` produce no rule, so the line was applied
+   * to the element and still invisible on screen. Tracking the state here also
+   * makes the affordance assertable in a unit test.
    */
   protected readonly hovered = signal(false);
   protected readonly focused = signal(false);
