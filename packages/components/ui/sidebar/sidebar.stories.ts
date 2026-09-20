@@ -14,6 +14,14 @@ import {
   SidebarMenuItemComponent,
   SidebarMenuButtonComponent,
   SidebarMenuLinkComponent,
+  SidebarMenuSubComponent,
+  SidebarMenuSubItemComponent,
+  SidebarMenuSubButtonComponent,
+  SidebarMenuSubTriggerComponent,
+  SidebarMenuActionComponent,
+  SidebarMenuBadgeComponent,
+  SidebarMenuSkeletonComponent,
+  SidebarRailComponent,
   SidebarTriggerComponent,
   SidebarInsetComponent,
   SidebarSeparatorComponent,
@@ -101,6 +109,14 @@ const meta: Meta<SidebarComponent> = {
         SidebarMenuItemComponent,
         SidebarMenuButtonComponent,
         SidebarMenuLinkComponent,
+        SidebarMenuSubComponent,
+        SidebarMenuSubItemComponent,
+        SidebarMenuSubButtonComponent,
+        SidebarMenuSubTriggerComponent,
+        SidebarMenuActionComponent,
+        SidebarMenuBadgeComponent,
+        SidebarMenuSkeletonComponent,
+        SidebarRailComponent,
         SidebarTriggerComponent,
         SidebarInsetComponent,
         SidebarSeparatorComponent,
@@ -274,6 +290,67 @@ const ROUTER_TEMPLATE = `
     </ui-sidebar-inset>
   </ui-sidebar-provider>`;
 
+
+const NESTED_TEMPLATE = `
+  <ui-sidebar-provider [persistCollapsed]="false">
+    <ui-sidebar [side]="side" [variant]="variant" [collapsible]="collapsible" [collapseMode]="collapseMode" [class]="class">
+      ${SIDEBAR_HEADER}
+      <ui-sidebar-content>
+        <ui-sidebar-group>
+          <ui-sidebar-group-label>Workspace</ui-sidebar-group-label>
+          <ui-sidebar-group-content>
+            <ui-sidebar-menu>
+              <ui-sidebar-menu-item>
+                <ui-sidebar-menu-link href="#" [isActive]="true"><span>Dashboard</span></ui-sidebar-menu-link>
+              </ui-sidebar-menu-item>
+              <ui-sidebar-menu-item>
+                <ui-sidebar-menu-link href="#"><span>Inbox</span></ui-sidebar-menu-link>
+                <ui-sidebar-menu-badge>12</ui-sidebar-menu-badge>
+              </ui-sidebar-menu-item>
+              <ui-sidebar-menu-item>
+                <ui-sidebar-menu-sub-trigger [sub]="projects"><span>Projects</span></ui-sidebar-menu-sub-trigger>
+                <ui-sidebar-menu-sub #projects>
+                  <ui-sidebar-menu-sub-item>
+                    <ui-sidebar-menu-sub-button href="#" [isActive]="true"><span>Apollo</span></ui-sidebar-menu-sub-button>
+                  </ui-sidebar-menu-sub-item>
+                  <ui-sidebar-menu-sub-item>
+                    <ui-sidebar-menu-sub-button href="#"><span>Borealis</span></ui-sidebar-menu-sub-button>
+                  </ui-sidebar-menu-sub-item>
+                </ui-sidebar-menu-sub>
+              </ui-sidebar-menu-item>
+              <ui-sidebar-menu-item>
+                <ui-sidebar-menu-sub-trigger [sub]="team"><span>Team</span></ui-sidebar-menu-sub-trigger>
+                <ui-sidebar-menu-sub #team [expanded]="false">
+                  <ui-sidebar-menu-sub-item>
+                    <ui-sidebar-menu-sub-button href="#"><span>Members</span></ui-sidebar-menu-sub-button>
+                  </ui-sidebar-menu-sub-item>
+                </ui-sidebar-menu-sub>
+              </ui-sidebar-menu-item>
+              <ui-sidebar-menu-item>
+                <ui-sidebar-menu-link href="#"><span>Settings</span></ui-sidebar-menu-link>
+                <ui-sidebar-menu-action label="Settings options" showOnHover>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                </ui-sidebar-menu-action>
+              </ui-sidebar-menu-item>
+            </ui-sidebar-menu>
+          </ui-sidebar-group-content>
+        </ui-sidebar-group>
+        <ui-sidebar-group>
+          <ui-sidebar-group-label>Loading</ui-sidebar-group-label>
+          <ui-sidebar-group-content>
+            <ui-sidebar-menu>
+              <ui-sidebar-menu-skeleton [seed]="0" />
+              <ui-sidebar-menu-skeleton [seed]="1" />
+              <ui-sidebar-menu-skeleton [seed]="2" />
+            </ui-sidebar-menu>
+          </ui-sidebar-group-content>
+        </ui-sidebar-group>
+      </ui-sidebar-content>
+      <ui-sidebar-rail [side]="side" />
+    </ui-sidebar>
+    ${SIDEBAR_INSET}
+  </ui-sidebar-provider>`;
+
 const render: NonNullable<Story['render']> = (args) => ({
   props: args,
   template: TEMPLATE,
@@ -344,5 +421,18 @@ export const RouterNavigation: Story = {
   render: (args) => ({
     props: args,
     template: ROUTER_TEMPLATE,
+  }),
+};
+
+/**
+ * Nested menus with a badge, a hover-revealed row action, loading skeletons and
+ * the edge rail. The sub list stays in the DOM and collapses with a grid-row
+ * transition, so closing animates; closed rows are `inert` and Tab skips them.
+ * `expanded` defaults to open — Team opts out with `[expanded]="false"`.
+ */
+export const NestedMenus: Story = {
+  render: (args) => ({
+    props: args,
+    template: NESTED_TEMPLATE,
   }),
 };
