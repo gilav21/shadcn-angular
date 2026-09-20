@@ -16,8 +16,16 @@ import { SidebarService } from '../sidebar.service';
 /** What `routerLink` accepts: the same shape `RouterLink` itself takes. */
 export type SidebarMenuLinkCommands = readonly unknown[] | string;
 
-/** How `routerLinkActive` decides the link is current. Mirrors `RouterLinkActive.routerLinkActiveOptions`. */
-export type SidebarMenuLinkActiveOptions = { exact: boolean } | Partial<IsActiveMatchOptions>;
+/**
+ * How `routerLinkActive` decides the link is current.
+ *
+ * Deliberately the **Angular 20** shape (`IsActiveMatchOptions`, not
+ * `Partial<...>`): v21 widened the directive's own input to accept a partial,
+ * but this component is copied into consumers' projects and must compile on
+ * v20 too, where passing a partial is a type error. The narrower type is valid
+ * under both.
+ */
+export type SidebarMenuLinkActiveOptions = { exact: boolean } | IsActiveMatchOptions;
 
 @Component({
   selector: 'ui-sidebar-menu-link',
