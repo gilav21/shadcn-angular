@@ -1,5 +1,6 @@
 import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
-import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
+import { Meta, StoryObj, applicationConfig, moduleMetadata } from '@storybook/angular';
+import { provideRouter, RouterOutlet } from '@angular/router';
 import {
   SidebarComponent,
   SidebarProviderComponent,
@@ -37,6 +38,16 @@ class ForceCollapsedDemoComponent {
   constructor() {
     this.service.isCollapsed.set(true);
   }
+}
+
+/** Test-scaffolding route target for the RouterNavigation story. Not a shipped component. */
+@Component({
+  selector: 'story-route-page',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `<div class="p-4 text-sm text-muted-foreground">Routed page: {{ name }}</div>`,
+})
+class RoutePageDemoComponent {
+  name = 'home';
 }
 
 // Every input is exposed as an interactive control (argTypes) with a sensible
@@ -94,6 +105,7 @@ const meta: Meta<SidebarComponent> = {
         SidebarInsetComponent,
         SidebarSeparatorComponent,
         ForceCollapsedDemoComponent,
+        RouterOutlet,
       ],
     }),
   ],
@@ -216,6 +228,52 @@ const COLLAPSED_TEMPLATE = `
     ${SIDEBAR_INSET}
   </ui-sidebar-provider>`;
 
+
+const ROUTER_TEMPLATE = `
+  <ui-sidebar-provider>
+    <ui-sidebar [side]="side" [variant]="variant" [collapsible]="collapsible" [collapseMode]="collapseMode" [class]="class">
+      ${SIDEBAR_HEADER}
+      <ui-sidebar-content>
+        <ui-sidebar-group>
+          <ui-sidebar-group-label>Navigation</ui-sidebar-group-label>
+          <ui-sidebar-group-content>
+            <ui-sidebar-menu>
+              <ui-sidebar-menu-item>
+                <ui-sidebar-menu-link routerLink="/home">
+                  <span>Home</span>
+                </ui-sidebar-menu-link>
+              </ui-sidebar-menu-item>
+              <ui-sidebar-menu-item>
+                <ui-sidebar-menu-link routerLink="/inbox">
+                  <span>Inbox</span>
+                </ui-sidebar-menu-link>
+              </ui-sidebar-menu-item>
+              <ui-sidebar-menu-item>
+                <ui-sidebar-menu-link routerLink="/settings" [routerLinkActiveOptions]="{ exact: true }">
+                  <span>Settings (exact match)</span>
+                </ui-sidebar-menu-link>
+              </ui-sidebar-menu-item>
+              <ui-sidebar-menu-item>
+                <ui-sidebar-menu-link href="https://angular.dev" target="_blank">
+                  <span>External docs (plain href)</span>
+                </ui-sidebar-menu-link>
+              </ui-sidebar-menu-item>
+            </ui-sidebar-menu>
+          </ui-sidebar-group-content>
+        </ui-sidebar-group>
+      </ui-sidebar-content>
+      ${SIDEBAR_FOOTER}
+    </ui-sidebar>
+    <ui-sidebar-inset>
+      <header class="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+        <ui-sidebar-trigger class="-ml-1"></ui-sidebar-trigger>
+      </header>
+      <div class="flex flex-1 flex-col gap-4 p-4">
+        <router-outlet />
+      </div>
+    </ui-sidebar-inset>
+  </ui-sidebar-provider>`;
+
 const render: NonNullable<Story['render']> = (args) => ({
   props: args,
   template: TEMPLATE,
@@ -260,5 +318,31 @@ export const Rtl: Story = {
   render: (args) => ({
     props: args,
     template: RTL_TEMPLATE,
+  }),
+};
+
+/**
+ * Router-driven navigation: clicking an item navigates and the active
+ * highlight comes from the URL via `routerLinkActive`, not from a bound
+ * boolean. The last item shows that a plain `href` still works alongside it
+ * for external links.
+ */
+export const RouterNavigation: Story = {
+  decorators: [
+    applicationConfig({
+      providers: [
+        provideRouter([
+          { path: '', redirectTo: 'home', pathMatch: 'full' },
+          { path: 'home', component: RoutePageDemoComponent },
+          { path: 'inbox', component: RoutePageDemoComponent },
+          { path: 'settings', component: RoutePageDemoComponent },
+          { path: 'settings/profile', component: RoutePageDemoComponent },
+        ]),
+      ],
+    }),
+  ],
+  render: (args) => ({
+    props: args,
+    template: ROUTER_TEMPLATE,
   }),
 };

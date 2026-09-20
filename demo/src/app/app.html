@@ -13,11 +13,12 @@
           <ui-sidebar-menu>
             @for (link of getLinksByCategory(category); track link.id) {
             <ui-sidebar-menu-item>
-              <ui-sidebar-menu-button [isActive]="activeComponent() === link.id" (click)="navTo(link.id)" (keydown.enter)="navTo(link.id)"
-                [tooltip]="link.name">
+              <ui-sidebar-menu-link [routerLink]="link.id === 'introduction' ? '/' : '/' + link.id"
+                [routerLinkActiveOptions]="{ exact: link.id === 'introduction' }"
+                (navigated)="onSidebarNavigated()">
                 <span class="text-base">{{ link.icon }}</span>
                 <span>{{ link.name }}</span>
-              </ui-sidebar-menu-button>
+              </ui-sidebar-menu-link>
             </ui-sidebar-menu-item>
             }
           </ui-sidebar-menu>

@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, inject, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
+import { provideRouter, Router, RouterOutlet } from '@angular/router';
 import {
   describe,
   it,
@@ -149,6 +150,115 @@ class NoFocusHostComponent {
   }
 }
 
+@Component({
+  selector: 'test-blank-route',
+  template: '',
+})
+class BlankRouteComponent {}
+
+@Component({
+  selector: 'test-router-host',
+  template: `
+    <ui-sidebar-provider>
+      <ui-sidebar>
+        <ui-sidebar-content>
+          <ui-sidebar-menu>
+            <ui-sidebar-menu-item>
+              <ui-sidebar-menu-link routerLink="/home" (navigated)="onNavigated()"
+                >Home</ui-sidebar-menu-link
+              >
+            </ui-sidebar-menu-item>
+            <ui-sidebar-menu-item>
+              <ui-sidebar-menu-link [routerLink]="['/about']" (navigated)="onNavigated()"
+                >About</ui-sidebar-menu-link
+              >
+            </ui-sidebar-menu-item>
+            <ui-sidebar-menu-item>
+              <ui-sidebar-menu-link routerLink="/about" [routerLinkActiveOptions]="{ exact: true }"
+                >About exact</ui-sidebar-menu-link
+              >
+            </ui-sidebar-menu-item>
+            <ui-sidebar-menu-item>
+              <ui-sidebar-menu-link
+                routerLink="/home"
+                [queryParams]="{ tab: 'settings' }"
+                fragment="section"
+                >Home params</ui-sidebar-menu-link
+              >
+            </ui-sidebar-menu-item>
+            <ui-sidebar-menu-item>
+              <ui-sidebar-menu-link routerLink="">Self</ui-sidebar-menu-link>
+            </ui-sidebar-menu-item>
+            <ui-sidebar-menu-item>
+              <ui-sidebar-menu-link routerLink="/about" target="_blank"
+                >External route</ui-sidebar-menu-link
+              >
+            </ui-sidebar-menu-item>
+          </ui-sidebar-menu>
+        </ui-sidebar-content>
+      </ui-sidebar>
+      <ui-sidebar-inset><router-outlet /></ui-sidebar-inset>
+    </ui-sidebar-provider>
+  `,
+  imports: [
+    SidebarComponent,
+    SidebarProviderComponent,
+    SidebarContentComponent,
+    SidebarMenuComponent,
+    SidebarMenuItemComponent,
+    SidebarMenuLinkComponent,
+    SidebarInsetComponent,
+    RouterOutlet,
+  ],
+})
+class RouterHostComponent {
+  navigations = 0;
+
+  onNavigated(): void {
+    this.navigations++;
+  }
+}
+
+/** No `provideRouter` anywhere — proves the href branch injects no router. */
+@Component({
+  selector: 'test-plain-link-host',
+  template: `
+    <ui-sidebar-provider>
+      <ui-sidebar>
+        <ui-sidebar-content>
+          <ui-sidebar-menu>
+            <ui-sidebar-menu-item>
+              <ui-sidebar-menu-link
+                href="https://example.com/docs"
+                target="_blank"
+                [isActive]="active()"
+                (navigated)="onNavigated()"
+                >Docs</ui-sidebar-menu-link
+              >
+            </ui-sidebar-menu-item>
+          </ui-sidebar-menu>
+        </ui-sidebar-content>
+      </ui-sidebar>
+    </ui-sidebar-provider>
+  `,
+  imports: [
+    SidebarComponent,
+    SidebarProviderComponent,
+    SidebarContentComponent,
+    SidebarMenuComponent,
+    SidebarMenuItemComponent,
+    SidebarMenuLinkComponent,
+  ],
+})
+class PlainLinkHostComponent {
+  readonly active = signal(false);
+  navigations = 0;
+
+  onNavigated(): void {
+    this.navigations++;
+  }
+}
+
 describe('Sidebar', () => {
   const fixtures: ComponentFixture<unknown>[] = [];
   let originalInnerWidth: PropertyDescriptor | undefined;
@@ -210,8 +320,17 @@ describe('Sidebar', () => {
   });
 
   describe('SidebarService', () => {
+    /**
+     * The service injects `DOCUMENT` (for `localStorage`), so it needs an
+     * injection context — `new SidebarService()` throws outside one.
+     */
+    function createService(): SidebarService {
+      TestBed.configureTestingModule({ providers: [SidebarService] });
+      return TestBed.inject(SidebarService);
+    }
+
     it('toggles collapse on desktop and open on mobile', () => {
-      const service = new SidebarService();
+      const service = createService();
 
       service.isMobile.set(false);
       service.toggle();
@@ -226,7 +345,7 @@ describe('Sidebar', () => {
     });
 
     it('opens, closes and switches to mobile (forcing closed)', () => {
-      const service = new SidebarService();
+      const service = createService();
 
       service.open();
       expect(service.isOpen()).toBe(true);
@@ -599,6 +718,254 @@ describe('Sidebar', () => {
 
       expect(fixture.componentInstance.clicks).toBe(1);
       expect(fixture.componentInstance.lastEvent).toBeInstanceOf(MouseEvent);
+    });
+  });
+
+  /**
+   * Item 1 of the app-shell brief: `ui-sidebar-menu-link` used to be a plain
+   * `<a [href]>` whose JSDoc told consumers to fork the file for routing. These
+   * cover both modes of the replacement — and in particular that the active
+   * state of a routed link follows the URL rather than a bound input, which is
+   * the whole point of the change.
+   */
+  describe('menu link routing', () => {
+    async function createRouterHost(
+      initialUrl = '/home'
+    ): Promise<ComponentFixture<RouterHostComponent>> {
+      await TestBed.configureTestingModule({
+        imports: [RouterHostComponent],
+        providers: [
+          provideRouter([
+            { path: 'home', component: BlankRouteComponent },
+            { path: 'about', component: BlankRouteComponent },
+            { path: 'about/team', component: BlankRouteComponent },
+          ]),
+        ],
+      }).compileComponents();
+
+      const fixture = track(TestBed.createComponent(RouterHostComponent));
+      fixture.detectChanges();
+      await navigateTo(fixture, initialUrl);
+      return fixture;
+    }
+
+    /**
+     * Navigates and then settles the active state. `RouterLinkActive.update()`
+     * defers its work into a `queueMicrotask`, so `isActiveChange` — and hence
+     * `data-active` — lands one microtask AFTER `navigateByUrl` resolves. A
+     * plain `detectChanges()` here reads the pre-navigation state and the
+     * assertion passes or fails on whatever an earlier test happened to leave
+     * behind. Awaiting a macrotask drains that microtask queue first.
+     */
+    async function navigateTo(
+      fixture: ComponentFixture<unknown>,
+      url: string
+    ): Promise<void> {
+      await TestBed.inject(Router).navigateByUrl(url);
+      await new Promise(resolve => setTimeout(resolve, 0));
+      fixture.detectChanges();
+    }
+
+    function linkByText(
+      fixture: ComponentFixture<unknown>,
+      text: string
+    ): HTMLAnchorElement {
+      const match = fixture.debugElement
+        .queryAll(By.css('a[data-slot="sidebar-menu-link"]'))
+        .find(candidate => (candidate.nativeElement.textContent ?? '').trim() === text);
+      if (!match) throw new Error(`no sidebar menu link labelled "${text}"`);
+      return match.nativeElement as HTMLAnchorElement;
+    }
+
+    it('resolves routerLink into a real href', async () => {
+      const fixture = await createRouterHost();
+      expect(linkByText(fixture, 'Home').getAttribute('href')).toBe('/home');
+      expect(linkByText(fixture, 'About').getAttribute('href')).toBe('/about');
+    });
+
+    it('derives the active state from the route, not from an input', async () => {
+      const fixture = await createRouterHost('/home');
+      expect(linkByText(fixture, 'Home').getAttribute('data-active')).toBe('true');
+      expect(linkByText(fixture, 'About').getAttribute('data-active')).toBe('false');
+
+      // Nothing on the host changes here — only the URL does.
+      await navigateTo(fixture, '/about');
+
+      expect(linkByText(fixture, 'Home').getAttribute('data-active')).toBe('false');
+      expect(linkByText(fixture, 'About').getAttribute('data-active')).toBe('true');
+    });
+
+    it('applies the accent class and aria-current to the routed active link', async () => {
+      const fixture = await createRouterHost('/home');
+      const home = linkByText(fixture, 'Home');
+      expect(home.getAttribute('class') ?? '').toContain('bg-sidebar-accent');
+      expect(home.getAttribute('aria-current')).toBe('page');
+      expect(linkByText(fixture, 'About').getAttribute('aria-current')).toBeNull();
+    });
+
+    /**
+     * The default is `{ exact: false }`, so a parent route stays highlighted on a
+     * child URL. `/about/team` is the general case for this: a two-segment child
+     * under a one-segment parent. Navigating to `/about` itself would pass under
+     * both exact and non-exact matching and so would prove nothing.
+     */
+    it('keeps a parent link active on a child route by default', async () => {
+      const fixture = await createRouterHost('/about/team');
+      expect(linkByText(fixture, 'About').getAttribute('data-active')).toBe('true');
+    });
+
+    it('honours exact matching when routerLinkActiveOptions asks for it', async () => {
+      const fixture = await createRouterHost('/about/team');
+      expect(linkByText(fixture, 'About exact').getAttribute('data-active')).toBe('false');
+
+      await navigateTo(fixture, '/about');
+      expect(linkByText(fixture, 'About exact').getAttribute('data-active')).toBe('true');
+    });
+
+    it('navigates on click and moves the active state with it', async () => {
+      const fixture = await createRouterHost('/home');
+
+      linkByText(fixture, 'About').click();
+      await fixture.whenStable();
+      await new Promise(resolve => setTimeout(resolve, 0));
+      fixture.detectChanges();
+
+      expect(TestBed.inject(Router).url).toBe('/about');
+      expect(linkByText(fixture, 'About').getAttribute('data-active')).toBe('true');
+      expect(linkByText(fixture, 'Home').getAttribute('data-active')).toBe('false');
+    });
+
+    it('emits navigated on click in router mode', async () => {
+      const fixture = await createRouterHost('/home');
+      linkByText(fixture, 'About').click();
+      await fixture.whenStable();
+      await new Promise(resolve => setTimeout(resolve, 0));
+      fixture.detectChanges();
+      expect(fixture.componentInstance.navigations).toBe(1);
+    });
+
+    it('applies target on a routed link too, not only on href links', async () => {
+      const fixture = await createRouterHost();
+      expect(linkByText(fixture, 'External route').getAttribute('target')).toBe('_blank');
+    });
+
+    /**
+     * Seeding path 1 of 2. A link that is already active on FIRST PAINT never
+     * sees a `NavigationEnd` (the navigation completed before the component
+     * existed) and `isActiveChange` may have fired before the binding was live,
+     * so only the post-view-init read can set it. The host is created AFTER the
+     * router has already settled on /about, which is the shape that isolates
+     * this path — a host created before navigating would be rescued by the
+     * NavigationEnd subscription instead.
+     */
+    it('marks a link active on first paint, with no navigation after creation', async () => {
+      await TestBed.configureTestingModule({
+        imports: [RouterHostComponent],
+        providers: [
+          provideRouter([
+            { path: 'home', component: BlankRouteComponent },
+            { path: 'about', component: BlankRouteComponent },
+            { path: 'about/team', component: BlankRouteComponent },
+          ]),
+        ],
+      }).compileComponents();
+
+      const router = TestBed.inject(Router);
+      await router.navigateByUrl('/about');
+
+      const fixture = track(TestBed.createComponent(RouterHostComponent));
+      fixture.detectChanges();
+      await new Promise(resolve => setTimeout(resolve, 0));
+      fixture.detectChanges();
+
+      expect(linkByText(fixture, 'About').getAttribute('data-active')).toBe('true');
+      expect(linkByText(fixture, 'Home').getAttribute('data-active')).toBe('false');
+    });
+
+    /**
+     * Seeding path 2 of 2. `isActiveChange` fires on a transition, but a link
+     * going from active to INACTIVE while another becomes active exercises the
+     * NavigationEnd resync: without it a link can keep a stale `true` after the
+     * route moves away. Distinct from the first-paint case above, which the
+     * post-view-init read covers.
+     */
+    it('clears a stale active state when the route moves away', async () => {
+      const fixture = await createRouterHost('/about/team');
+      expect(linkByText(fixture, 'About').getAttribute('data-active')).toBe('true');
+
+      await navigateTo(fixture, '/home');
+
+      expect(linkByText(fixture, 'About').getAttribute('data-active')).toBe('false');
+      expect(linkByText(fixture, 'Home').getAttribute('data-active')).toBe('true');
+    });
+
+    it('carries queryParams and fragment into the resolved href', async () => {
+      const fixture = await createRouterHost();
+      expect(linkByText(fixture, 'Home params').getAttribute('href')).toBe(
+        '/home?tab=settings#section'
+      );
+    });
+
+    /**
+     * The href branch must not instantiate `RouterLink`, which injects `Router`
+     * as a hard dependency. This host has no `provideRouter` at all, so if the
+     * routed branch were ever rendered unconditionally the fixture would throw
+     * on creation rather than merely fail an assertion.
+     */
+    it('renders plain href links in an app with no router provider', async () => {
+      await TestBed.configureTestingModule({
+        imports: [PlainLinkHostComponent],
+      }).compileComponents();
+      const fixture = track(TestBed.createComponent(PlainLinkHostComponent));
+      fixture.detectChanges();
+
+      const link = fixture.debugElement.query(By.css('a[data-slot="sidebar-menu-link"]'));
+      expect(link.nativeElement.getAttribute('href')).toBe('https://example.com/docs');
+      expect(link.nativeElement.getAttribute('target')).toBe('_blank');
+    });
+
+    it('honours the isActive input in href mode', async () => {
+      await TestBed.configureTestingModule({
+        imports: [PlainLinkHostComponent],
+      }).compileComponents();
+      const fixture = track(TestBed.createComponent(PlainLinkHostComponent));
+      fixture.detectChanges();
+      const link = fixture.debugElement.query(By.css('a[data-slot="sidebar-menu-link"]'));
+
+      expect(link.nativeElement.getAttribute('data-active')).toBe('false');
+      fixture.componentInstance.active.set(true);
+      fixture.detectChanges();
+      expect(link.nativeElement.getAttribute('data-active')).toBe('true');
+    });
+
+    it('emits navigated on click in href mode', async () => {
+      await TestBed.configureTestingModule({
+        imports: [PlainLinkHostComponent],
+      }).compileComponents();
+      const fixture = track(TestBed.createComponent(PlainLinkHostComponent));
+      fixture.detectChanges();
+
+      const link = fixture.debugElement.query(By.css('a[data-slot="sidebar-menu-link"]'));
+      link.nativeElement.dispatchEvent(
+        new MouseEvent('click', { bubbles: true, cancelable: true })
+      );
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.navigations).toBe(1);
+    });
+
+    /**
+     * `routerLink=""` is a real destination ("this route"), so it must select the
+     * routed branch. It resolves against the sidebar's own `ActivatedRoute`,
+     * which is the root — hence `/`, not the current URL. The assertion that
+     * matters is that it is NOT the `#` href fallback, which is what a
+     * truthiness check on the input would have produced.
+     */
+    it('treats an empty-string routerLink as routed, not as unset', async () => {
+      const fixture = await createRouterHost('/home');
+      const self = linkByText(fixture, 'Self');
+      expect(self.getAttribute('href')).toBe('/');
+      expect(self.getAttribute('href')).not.toBe('#');
     });
   });
 });

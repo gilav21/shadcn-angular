@@ -36,7 +36,7 @@ import {
   SidebarGroupContentComponent,
   SidebarMenuComponent,
   SidebarMenuItemComponent,
-  SidebarMenuButtonComponent,
+  SidebarMenuLinkComponent,
   SidebarTriggerComponent,
   SidebarInsetComponent,
   ToasterComponent,
@@ -92,7 +92,7 @@ export interface ComponentNavItem {
     SidebarGroupContentComponent,
     SidebarMenuComponent,
     SidebarMenuItemComponent,
-    SidebarMenuButtonComponent,
+    SidebarMenuLinkComponent,
     SidebarTriggerComponent,
     SidebarInsetComponent,
     ToasterComponent,
@@ -379,6 +379,15 @@ export class AppComponent {
   navTo(id: string): void {
     this.showCommandDialog.set(false);
     this.router.navigate([id === 'introduction' ? '/' : `/${id}`]);
+  }
+
+  /**
+   * The sidebar items navigate themselves via `routerLink`; this only carries
+   * the side effect that used to live in {@link navTo} — dismissing the command
+   * palette if it was the thing that opened the page.
+   */
+  onSidebarNavigated(): void {
+    this.showCommandDialog.set(false);
   }
 
   getLinksByCategory(category: string): ComponentNavItem[] {
