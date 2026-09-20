@@ -27,6 +27,7 @@ import {
   SidebarMenuLinkComponent,
   SidebarInsetComponent,
   SidebarSeparatorComponent,
+  SIDEBAR_STORAGE_KEY,
 } from './';
 
 class ResizeObserverStub {
@@ -257,6 +258,28 @@ class PlainLinkHostComponent {
   onNavigated(): void {
     this.navigations++;
   }
+}
+
+@Component({
+  selector: 'test-persist-host',
+  template: `
+    <ui-sidebar-provider [persistCollapsed]="persist()" [storageKey]="key()">
+      <ui-sidebar>
+        <ui-sidebar-content>content</ui-sidebar-content>
+      </ui-sidebar>
+      <ui-sidebar-trigger />
+    </ui-sidebar-provider>
+  `,
+  imports: [
+    SidebarComponent,
+    SidebarProviderComponent,
+    SidebarContentComponent,
+    SidebarTriggerComponent,
+  ],
+})
+class PersistHostComponent {
+  readonly persist = signal(true);
+  readonly key = signal(SIDEBAR_STORAGE_KEY);
 }
 
 describe('Sidebar', () => {
@@ -966,6 +989,244 @@ describe('Sidebar', () => {
       const self = linkByText(fixture, 'Self');
       expect(self.getAttribute('href')).toBe('/');
       expect(self.getAttribute('href')).not.toBe('#');
+    });
+  });
+
+  /**
+   * Item 2 of the app-shell brief: the collapsed rail used to reset on every
+   * reload because the service held plain in-memory signals.
+   */
+  describe('collapsed-state persistence', () => {
+    const KEY = SIDEBAR_STORAGE_KEY;
+
+    async function createPersistHost(): Promise<ComponentFixture<PersistHostComponent>> {
+      await TestBed.configureTestingModule({ imports: [PersistHostComponent] }).compileComponents();
+      const fixture = track(TestBed.createComponent(PersistHostComponent));
+      fixture.detectChanges();
+      return fixture;
+    }
+
+    function collapsedAttr(fixture: ComponentFixture<unknown>): string | null {
+      return fixture.debugElement
+        .query(By.css('[data-slot="sidebar-provider"]'))
+        .nativeElement.getAttribute('data-collapsed');
+    }
+
+    beforeEach(() => {
+      globalThis.localStorage.clear();
+    });
+
+    afterEach(() => {
+      globalThis.localStorage.clear();
+    });
+
+    it('writes the collapsed flag when the rail is toggled', async () => {
+      const fixture = await createPersistHost();
+      expect(globalThis.localStorage.getItem(KEY)).toBeNull();
+
+      fixture.debugElement
+        .query(By.css('[data-slot="sidebar-trigger"]'))
+        .nativeElement.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      fixture.detectChanges();
+
+      expect(globalThis.localStorage.getItem(KEY)).toBe('true');
+    });
+
+    it('writes the expanded flag when toggled back', async () => {
+      const fixture = await createPersistHost();
+      const trigger = fixture.debugElement.query(By.css('[data-slot="sidebar-trigger"]'));
+
+      trigger.nativeElement.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      fixture.detectChanges();
+      trigger.nativeElement.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      fixture.detectChanges();
+
+      expect(globalThis.localStorage.getItem(KEY)).toBe('false');
+    });
+
+    /**
+     * The reload case, which is the whole point of the feature: a fresh
+     * component tree over an already-populated store must come up collapsed.
+     */
+    it('restores the collapsed rail from storage on a fresh mount', async () => {
+      globalThis.localStorage.setItem(KEY, 'true');
+      const fixture = await createPersistHost();
+
+      expect(getService(fixture).isCollapsed()).toBe(true);
+      expect(collapsedAttr(fixture)).toBe('true');
+    });
+
+    it('restores an expanded rail from storage on a fresh mount', async () => {
+      globalThis.localStorage.setItem(KEY, 'false');
+      const fixture = await createPersistHost();
+
+      expect(getService(fixture).isCollapsed()).toBe(false);
+      expect(collapsedAttr(fixture)).toBe('false');
+    });
+
+    it('starts expanded when nothing is stored', async () => {
+      const fixture = await createPersistHost();
+      expect(getService(fixture).isCollapsed()).toBe(false);
+    });
+
+    /**
+     * A value we did not write is treated as absent rather than coerced — a
+     * stray key from another app on the same origin must not collapse the rail.
+     * `'1'` is the general case here: truthy under a naive `Boolean(raw)` and
+     * under `raw !== 'false'`, so it discriminates between real parsing and
+     * either sloppy shortcut.
+     */
+    it('ignores a stored value it did not write', async () => {
+      globalThis.localStorage.setItem(KEY, '1');
+      const fixture = await createPersistHost();
+      expect(getService(fixture).isCollapsed()).toBe(false);
+    });
+
+    it('does not read or write when persistence is opted out', async () => {
+      globalThis.localStorage.setItem(KEY, 'true');
+
+      await TestBed.configureTestingModule({ imports: [PersistHostComponent] }).compileComponents();
+      const fixture = track(TestBed.createComponent(PersistHostComponent));
+      fixture.componentInstance.persist.set(false);
+      fixture.detectChanges();
+
+      expect(getService(fixture).isCollapsed()).toBe(false);
+
+      fixture.debugElement
+        .query(By.css('[data-slot="sidebar-trigger"]'))
+        .nativeElement.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      fixture.detectChanges();
+
+      expect(getService(fixture).isCollapsed()).toBe(true);
+      // Still the pre-existing value: opting out must not write either, or a
+      // disabled sidebar would silently clobber an enabled one's preference.
+      expect(globalThis.localStorage.getItem(KEY)).toBe('true');
+
+      fixture.debugElement
+        .query(By.css('[data-slot="sidebar-trigger"]'))
+        .nativeElement.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      fixture.detectChanges();
+
+      expect(getService(fixture).isCollapsed()).toBe(false);
+      expect(globalThis.localStorage.getItem(KEY)).toBe('true');
+    });
+
+    it('keeps two sidebars on one origin apart via distinct keys', async () => {
+      globalThis.localStorage.setItem('sidebar-a', 'true');
+      globalThis.localStorage.setItem('sidebar-b', 'false');
+
+      await TestBed.configureTestingModule({ imports: [PersistHostComponent] }).compileComponents();
+      const first = track(TestBed.createComponent(PersistHostComponent));
+      first.componentInstance.key.set('sidebar-a');
+      first.detectChanges();
+
+      const second = track(TestBed.createComponent(PersistHostComponent));
+      second.componentInstance.key.set('sidebar-b');
+      second.detectChanges();
+
+      expect(getService(first).isCollapsed()).toBe(true);
+      expect(getService(second).isCollapsed()).toBe(false);
+
+      globalThis.localStorage.removeItem('sidebar-a');
+      globalThis.localStorage.removeItem('sidebar-b');
+    });
+
+    /**
+     * The narrower failure: reads succeed but `setItem` throws, which is what
+     * Safari's private mode does on quota. The access-throws stub below cannot
+     * reach this path because the read guard catches it first, so this needs
+     * its own store.
+     */
+    describe('when setItem throws but reads work', () => {
+      let original: PropertyDescriptor | undefined;
+
+      beforeEach(() => {
+        original = Object.getOwnPropertyDescriptor(globalThis.window, 'localStorage');
+        // Reads succeed and always report "nothing stored"; only writes fail.
+        // Keeping a real backing map would be dead weight, since setItem never
+        // reaches it.
+        Object.defineProperty(globalThis.window, 'localStorage', {
+          configurable: true,
+          value: {
+            getItem: () => null,
+            setItem: () => {
+              throw new DOMException('quota exceeded', 'QuotaExceededError');
+            },
+            removeItem: () => undefined,
+            clear: () => undefined,
+          },
+        });
+      });
+
+      afterEach(() => {
+        if (original) {
+          Object.defineProperty(globalThis.window, 'localStorage', original);
+        }
+      });
+
+      /*
+       * Asserting only on the rendered state is NOT enough here: Angular
+       * reports an exception thrown from an event handler as an unhandled
+       * error and still applies the signal update, so the sidebar looks
+       * correct while the throw escapes into the consumer's app. The service
+       * is therefore driven directly, where an unguarded `setItem` propagates
+       * to this call and fails the test.
+       */
+      it('still toggles when the write is rejected', async () => {
+        const fixture = await createPersistHost();
+        const service = getService(fixture);
+
+        expect(() => service.toggle()).not.toThrow();
+
+        fixture.detectChanges();
+        expect(service.isCollapsed()).toBe(true);
+        expect(collapsedAttr(fixture)).toBe('true');
+      });
+
+      it('does not throw when seeding from an unreadable store', async () => {
+        expect(() => createPersistHost()).not.toThrow();
+      });
+    });
+
+    /**
+     * Private windows and blocked site data throw on ACCESS, not just on
+     * setItem — so the stub throws from the property getter, which is the
+     * harsher of the two and the one a `try { setItem }` alone would miss.
+     * The sidebar must still render and still toggle in memory.
+     */
+    describe('when localStorage is unavailable', () => {
+      let original: PropertyDescriptor | undefined;
+
+      beforeEach(() => {
+        original = Object.getOwnPropertyDescriptor(globalThis.window, 'localStorage');
+        Object.defineProperty(globalThis.window, 'localStorage', {
+          configurable: true,
+          get() {
+            throw new DOMException('access denied', 'SecurityError');
+          },
+        });
+      });
+
+      afterEach(() => {
+        if (original) {
+          Object.defineProperty(globalThis.window, 'localStorage', original);
+        }
+      });
+
+      it('still renders and still toggles', async () => {
+        const fixture = await createPersistHost();
+
+        expect(fixture.debugElement.query(By.css('[data-slot="sidebar"]'))).toBeTruthy();
+        expect(getService(fixture).isCollapsed()).toBe(false);
+
+        fixture.debugElement
+          .query(By.css('[data-slot="sidebar-trigger"]'))
+          .nativeElement.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        fixture.detectChanges();
+
+        expect(getService(fixture).isCollapsed()).toBe(true);
+        expect(collapsedAttr(fixture)).toBe('true');
+      });
     });
   });
 });

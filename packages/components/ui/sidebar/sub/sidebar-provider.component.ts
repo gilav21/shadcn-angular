@@ -3,10 +3,11 @@ import {
   ChangeDetectionStrategy,
   input,
   computed,
+  effect,
   inject,
 } from '@angular/core';
 import { cn } from '../../../lib/utils';
-import { SidebarService } from '../sidebar.service';
+import { SIDEBAR_STORAGE_KEY, SidebarService } from '../sidebar.service';
 
 /**
  * SidebarProvider - Wraps the sidebar and main content
@@ -33,10 +34,27 @@ import { SidebarService } from '../sidebar.service';
 export class SidebarProviderComponent {
   /** Extra classes merged onto the flex row that holds the sidebar and the inset. It is `min-h-screen w-full overflow-hidden`, so it wants to be the page-level wrapper. */
   class = input('');
+  /**
+   * Whether the desktop rail remembers being collapsed across reloads. On by
+   * default: a rail that springs back open every page load reads as the app
+   * forgetting the user's choice. Set `false` to opt out entirely — nothing is
+   * then read or written.
+   */
+  persistCollapsed = input(true);
+  /**
+   * Where the collapsed flag is stored. Give each sidebar its own key when an
+   * origin hosts more than one, otherwise they overwrite each other's state.
+   */
+  storageKey = input(SIDEBAR_STORAGE_KEY);
+
   readonly service = inject(SidebarService);
 
   constructor() {
     this.checkMobile();
+
+    effect(() => {
+      this.service.configurePersistence(this.persistCollapsed() ? this.storageKey() : null);
+    });
   }
 
   classes = computed(() => cn(
