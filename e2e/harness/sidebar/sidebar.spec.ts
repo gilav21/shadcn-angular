@@ -38,10 +38,14 @@ test('nested sub-menu collapses, stays in the DOM, and leaves the tab order', as
 
     const sub = page.locator('[data-slot="sidebar-menu-sub"]').first();
     const list = sub.locator('ul').first();
-    const trigger = page.getByTestId('sub-trigger');
+    // The testid is on the component host; the button that carries the ARIA
+    // state is inside it.
+    const trigger = page.locator('[data-slot="sidebar-menu-sub-trigger"]').first();
 
-    // Open by default: rows are visible and reachable.
-    await expect(page.getByTestId('sub-alpha')).toBeVisible();
+    // Open by default: rows are visible and reachable. The testid host is
+    // `display: contents` and has no box, so visibility is read off the anchor.
+    const alpha = page.locator('a[data-slot="sidebar-menu-sub-button"]').first();
+    await expect(alpha).toBeVisible();
     await expect(trigger).toHaveAttribute('aria-expanded', 'true');
     const openHeight = (await list.boundingBox())?.height ?? 0;
     expect(openHeight).toBeGreaterThan(20);
@@ -61,18 +65,29 @@ test('nested sub-menu collapses, stays in the DOM, and leaves the tab order', as
     // ...and inert, so it is out of the tab order and the a11y tree.
     await expect(list).toHaveAttribute('inert', '');
     await expect(trigger).toHaveAttribute('aria-expanded', 'false');
-    await expect(page.getByTestId('sub-alpha')).toBeHidden();
+    /*
+     * The row cannot take focus while the list is inert — that is the whole
+     * point of keeping it rendered. Asserted by trying to focus it, because
+     * the obvious matchers do not apply here: `toBeHidden()` fails since the
+     * collapse clips with grid-rows + overflow-hidden rather than
+     * display/visibility (which is what lets it animate), a boundingBox check
+     * fails since the clipped row keeps its natural 28px box, and
+     * `toBeDisabled()` only covers form controls, not an inert <a>.
+     */
+    await alpha.evaluate((el: HTMLElement) => el.focus());
+    const focusedTestId = await page.evaluate(() => document.activeElement?.getAttribute('data-slot') ?? '');
+    expect(focusedTestId).not.toBe('sidebar-menu-sub-button');
 
     await trigger.click();
-    await expect(page.getByTestId('sub-alpha')).toBeVisible();
+    await expect(alpha).toBeVisible();
 });
 
 test('row action fires without activating the row, and the badge renders', async ({ page }) => {
     await page.goto('/');
 
-    await expect(page.getByTestId('badge')).toHaveText('7');
+    await expect(page.locator('[data-slot="sidebar-menu-badge"]').first()).toHaveText('7');
 
-    const action = page.getByTestId('action');
+    const action = page.locator('[data-slot="sidebar-menu-action"]').first();
     await expect(action).toHaveAttribute('aria-label', 'Settings options');
     await action.click();
 
@@ -84,7 +99,7 @@ test('rail toggles the sidebar and exposes its state', async ({ page }) => {
     await page.goto('/');
 
     const sidebar = page.locator('aside[data-slot="sidebar"]').first();
-    const rail = page.getByTestId('rail');
+    const rail = page.locator('[data-slot="sidebar-rail"]').first();
 
     await expect(rail).toHaveAttribute('aria-expanded', 'true');
     const expanded = (await sidebar.boundingBox())?.width ?? 0;
