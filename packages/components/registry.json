@@ -2110,16 +2110,26 @@
       "sidebar/sub/sidebar-group.component.ts",
       "sidebar/sub/sidebar-header.component.ts",
       "sidebar/sub/sidebar-inset.component.ts",
+      "sidebar/sub/sidebar-menu-action.component.css",
+      "sidebar/sub/sidebar-menu-action.component.ts",
+      "sidebar/sub/sidebar-menu-badge.component.ts",
       "sidebar/sub/sidebar-menu-button.component.ts",
       "sidebar/sub/sidebar-menu-item.component.ts",
       "sidebar/sub/sidebar-menu-link.component.ts",
+      "sidebar/sub/sidebar-menu-skeleton.component.ts",
+      "sidebar/sub/sidebar-menu-sub-button.component.ts",
+      "sidebar/sub/sidebar-menu-sub-item.component.ts",
+      "sidebar/sub/sidebar-menu-sub-trigger.component.ts",
+      "sidebar/sub/sidebar-menu-sub.component.ts",
       "sidebar/sub/sidebar-menu.component.ts",
       "sidebar/sub/sidebar-provider.component.ts",
+      "sidebar/sub/sidebar-rail.component.ts",
       "sidebar/sub/sidebar-separator.component.ts",
       "sidebar/sub/sidebar-trigger.component.ts"
     ],
     "dependencies": [
       "scroll-area",
+      "skeleton",
       "tooltip"
     ],
     "testFiles": [

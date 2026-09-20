@@ -4970,24 +4970,24 @@
       "lines": 199
     },
     "sidebar/index.ts": {
-      "bytes": 770,
-      "lines": 16
+      "bytes": 1196,
+      "lines": 24
     },
     "sidebar/sidebar.component.spec.ts": {
-      "bytes": 22022,
-      "lines": 604
+      "bytes": 62104,
+      "lines": 1628
     },
     "sidebar/sidebar.component.ts": {
       "bytes": 7004,
       "lines": 199
     },
     "sidebar/sidebar.service.ts": {
-      "bytes": 1825,
-      "lines": 47
+      "bytes": 4672,
+      "lines": 124
     },
     "sidebar/sidebar.stories.ts": {
-      "bytes": 9435,
-      "lines": 264
+      "bytes": 16688,
+      "lines": 438
     },
     "sidebar/sub/sidebar-content.component.ts": {
       "bytes": 864,
@@ -5017,25 +5017,61 @@
       "bytes": 904,
       "lines": 29
     },
+    "sidebar/sub/sidebar-menu-action.component.css": {
+      "bytes": 1173,
+      "lines": 39
+    },
+    "sidebar/sub/sidebar-menu-action.component.ts": {
+      "bytes": 2803,
+      "lines": 81
+    },
+    "sidebar/sub/sidebar-menu-badge.component.ts": {
+      "bytes": 2060,
+      "lines": 61
+    },
     "sidebar/sub/sidebar-menu-button.component.ts": {
       "bytes": 2479,
       "lines": 67
     },
     "sidebar/sub/sidebar-menu-item.component.ts": {
-      "bytes": 1178,
-      "lines": 35
+      "bytes": 1391,
+      "lines": 38
     },
     "sidebar/sub/sidebar-menu-link.component.ts": {
-      "bytes": 1829,
-      "lines": 52
+      "bytes": 7203,
+      "lines": 166
+    },
+    "sidebar/sub/sidebar-menu-skeleton.component.ts": {
+      "bytes": 2656,
+      "lines": 78
+    },
+    "sidebar/sub/sidebar-menu-sub-button.component.ts": {
+      "bytes": 4502,
+      "lines": 118
+    },
+    "sidebar/sub/sidebar-menu-sub-item.component.ts": {
+      "bytes": 1026,
+      "lines": 32
+    },
+    "sidebar/sub/sidebar-menu-sub-trigger.component.ts": {
+      "bytes": 3326,
+      "lines": 98
+    },
+    "sidebar/sub/sidebar-menu-sub.component.ts": {
+      "bytes": 3251,
+      "lines": 95
     },
     "sidebar/sub/sidebar-menu.component.ts": {
       "bytes": 699,
       "lines": 27
     },
     "sidebar/sub/sidebar-provider.component.ts": {
-      "bytes": 1718,
-      "lines": 62
+      "bytes": 2393,
+      "lines": 80
+    },
+    "sidebar/sub/sidebar-rail.component.ts": {
+      "bytes": 4029,
+      "lines": 113
     },
     "sidebar/sub/sidebar-separator.component.ts": {
       "bytes": 666,

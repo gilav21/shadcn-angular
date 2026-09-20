@@ -15796,6 +15796,7 @@
       "selector": "ui-sidebar",
       "dependencies": [
         "scroll-area",
+        "skeleton",
         "tooltip"
       ],
       "npmDependencies": [],
@@ -15965,6 +15966,64 @@
           "methods": []
         },
         {
+          "className": "SidebarMenuActionComponent",
+          "file": "packages/components/ui/sidebar/sub/sidebar-menu-action.component.ts",
+          "kind": "component",
+          "selector": "ui-sidebar-menu-action",
+          "description": "Trailing action on a menu row — the \"…\" button that opens a row's own menu. Sits as a sibling of the row's button/link inside `ui-sidebar-menu-item`, positioned absolutely against it, so it does not join the row's own click target. The item is `relative` for this reason. On a fine pointer it fades in on row hover or when it takes focus. On touch there is no hover, so {@link showOnHover} is ignored under `(hover: none)` and the button is always visible — an action that only appears on hover is unreachable on a phone.",
+          "inputs": [
+            {
+              "name": "class",
+              "type": "string",
+              "description": "Extra classes merged onto the `<button>`.",
+              "default": "''"
+            },
+            {
+              "name": "label",
+              "type": "string",
+              "description": "Accessible name — the icon alone says nothing to a screen reader. Worth setting on every action.",
+              "default": "''"
+            },
+            {
+              "name": "showOnHover",
+              "type": "boolean",
+              "description": "Keep the action hidden until the row is hovered or the button is focused. Ignored on touch devices, where it is always visible.",
+              "default": "false"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "triggered",
+              "type": "MouseEvent",
+              "description": "The click, with propagation stopped so it never triggers the row behind it."
+            }
+          ],
+          "methods": []
+        },
+        {
+          "className": "SidebarMenuBadgeComponent",
+          "file": "packages/components/ui/sidebar/sub/sidebar-menu-badge.component.ts",
+          "kind": "component",
+          "selector": "ui-sidebar-menu-badge",
+          "description": "Trailing count or status on a menu row — unread messages, open issues. Positioned against the row like {@link SidebarMenuActionComponent}, and `aria-hidden` by default: a bare number announced after a link label is noise, so give the row itself an accessible name that includes the count (`aria-label=\"Inbox, 4 unread\"`) and leave the badge decorative. Set {@link announce} if the badge is genuinely the only place the information exists.",
+          "inputs": [
+            {
+              "name": "announce",
+              "type": "boolean",
+              "description": "Expose the badge to screen readers instead of hiding it. Off by default — see the class doc.",
+              "default": "false"
+            },
+            {
+              "name": "class",
+              "type": "string",
+              "description": "Extra classes merged onto the badge.",
+              "default": "''"
+            }
+          ],
+          "outputs": [],
+          "methods": []
+        },
+        {
           "className": "SidebarMenuButtonComponent",
           "file": "packages/components/ui/sidebar/sub/sidebar-menu-button.component.ts",
           "kind": "component",
@@ -16030,19 +16089,238 @@
               "default": "''"
             },
             {
+              "name": "fragment",
+              "type": "string | undefined",
+              "description": "URL fragment for the `routerLink` navigation. Ignored in `href` mode."
+            },
+            {
               "name": "href",
               "type": "string",
-              "description": "Plain `href`. This is a real anchor, not a router link — for in-app routing use {@link SidebarMenuButtonComponent} and navigate from its click, or add `routerLink` to your own copy of this file.",
+              "description": "Plain `href`, used when {@link routerLink} is unset — external links, `mailto:`, downloads.",
               "default": "'#'"
             },
             {
               "name": "isActive",
               "type": "boolean",
-              "description": "Marks the link as current — accent background plus `data-active`. Presentational only; nothing compares it against the active route.",
+              "description": "Marks the link as current — accent background, `data-active` and `aria-current=\"page\"`. **Only consulted when {@link routerLink} is unset**: with a `routerLink` the active state is derived from `routerLinkActive`, so the route is the single source of truth and this input is ignored.",
               "default": "false"
+            },
+            {
+              "name": "queryParams",
+              "type": "Params | null",
+              "description": "Query params for the `routerLink` navigation. Ignored in `href` mode.",
+              "default": "null"
+            },
+            {
+              "name": "queryParamsHandling",
+              "type": "QueryParamsHandling | null",
+              "description": "How existing query params are carried over. Ignored in `href` mode.",
+              "default": "null"
+            },
+            {
+              "name": "routerLink",
+              "type": "SidebarMenuLinkCommands | undefined",
+              "description": "In-app destination, passed straight to `routerLink` — a string or a commands array. Setting it switches the component to a router-driven anchor, and {@link isActive} then follows the real route instead of the input. Leave it unset for external or non-routed links and use {@link href} instead. Requires the app to provide a router (`provideRouter`). Apps without one must leave this unset; the `href` branch injects nothing router-related."
+            },
+            {
+              "name": "routerLinkActiveOptions",
+              "type": "SidebarMenuLinkActiveOptions",
+              "description": "Passed to `routerLinkActive`. Default `{ exact: false }` marks parents of the active route active too; pass `{ exact: true }` for leaf-only highlighting.",
+              "default": "{ exact: false }"
+            },
+            {
+              "name": "target",
+              "type": "string",
+              "description": "Anchor `target`, e.g. `'_blank'` for external links. Applies to both modes, but reaches the DOM differently: the href branch sets the attribute, while the routed branch binds `RouterLink.target`, because `RouterLink` writes that attribute itself and would overwrite a plain `[attr.target]`.",
+              "default": "''"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "navigated",
+              "type": "void",
+              "description": "Fired on click in both modes. The common use is closing the mobile drawer after navigating — the component deliberately does not do it for you, since whether a nav item should dismiss the sidebar is an app decision."
+            }
+          ],
+          "methods": []
+        },
+        {
+          "className": "SidebarMenuSkeletonComponent",
+          "file": "packages/components/ui/sidebar/sub/sidebar-menu-skeleton.component.ts",
+          "kind": "component",
+          "selector": "ui-sidebar-menu-skeleton",
+          "description": "Placeholder row shown while nav data loads. Matches the height of a real `ui-sidebar-menu-button` so the list does not jump when the data arrives. Widths vary per row so a column of these reads as text rather than as a stack of identical bars. The width is derived from {@link seed} rather than randomised, because a random width would change on every change-detection pass and make the placeholder shimmer at the wrong rhythm.",
+          "inputs": [
+            {
+              "name": "class",
+              "type": "string",
+              "description": "Extra classes merged onto the row.",
+              "default": "''"
+            },
+            {
+              "name": "seed",
+              "type": "number",
+              "description": "Picks the text bar's width from a fixed set. Pass the loop index (`[seed]=\"$index\"`) so consecutive rows differ; equal seeds give equal widths, which is what keeps the width stable across renders.",
+              "default": "0"
+            },
+            {
+              "name": "showIcon",
+              "type": "boolean",
+              "description": "Render a leading square for the row's icon.",
+              "default": "true"
+            },
+            {
+              "name": "variant",
+              "type": "\"pulse\" | \"shimmer\"",
+              "description": "Placeholder animation, passed through to `ui-skeleton`.",
+              "default": "'pulse'"
             }
           ],
           "outputs": [],
+          "methods": []
+        },
+        {
+          "className": "SidebarMenuSubButtonComponent",
+          "file": "packages/components/ui/sidebar/sub/sidebar-menu-sub-button.component.ts",
+          "kind": "component",
+          "selector": "ui-sidebar-menu-sub-button",
+          "description": "A row inside a nested menu. Routing works exactly as on {@link SidebarMenuLinkComponent} — set `routerLink` for in-app navigation and the active state follows the URL, or leave it unset and use `href` for external links. See that component for why the projected label is captured into an `<ng-template>` and why `target` binds differently per branch.",
+          "inputs": [
+            {
+              "name": "class",
+              "type": "string",
+              "description": "Extra classes merged onto the `<a>`.",
+              "default": "''"
+            },
+            {
+              "name": "fragment",
+              "type": "string | undefined",
+              "description": "URL fragment for the routed navigation."
+            },
+            {
+              "name": "href",
+              "type": "string",
+              "description": "Plain `href`, used when {@link routerLink} is unset.",
+              "default": "'#'"
+            },
+            {
+              "name": "isActive",
+              "type": "boolean",
+              "description": "Marks the row current. Only consulted when {@link routerLink} is unset.",
+              "default": "false"
+            },
+            {
+              "name": "queryParams",
+              "type": "Record<string, unknown> | null",
+              "description": "Query params for the routed navigation.",
+              "default": "null"
+            },
+            {
+              "name": "routerLink",
+              "type": "SidebarMenuLinkCommands | undefined",
+              "description": "In-app destination. Setting it switches to a router-driven anchor and makes {@link isActive} follow the route."
+            },
+            {
+              "name": "routerLinkActiveOptions",
+              "type": "SidebarMenuLinkActiveOptions",
+              "description": "Passed to `routerLinkActive`. Defaults to exact matching, since nested rows are usually leaves.",
+              "default": "{ exact: true }"
+            },
+            {
+              "name": "size",
+              "type": "SidebarMenuSubButtonSize",
+              "description": "Row height.",
+              "default": "'sm'"
+            },
+            {
+              "name": "target",
+              "type": "string",
+              "description": "Anchor `target`, e.g. `'_blank'`.",
+              "default": "''"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "navigated",
+              "type": "void",
+              "description": "Fired on click in both modes — use it to close the mobile drawer."
+            }
+          ],
+          "methods": []
+        },
+        {
+          "className": "SidebarMenuSubItemComponent",
+          "file": "packages/components/ui/sidebar/sub/sidebar-menu-sub-item.component.ts",
+          "kind": "component",
+          "selector": "ui-sidebar-menu-sub-item",
+          "description": "A row inside {@link SidebarMenuSubComponent}. Like {@link SidebarMenuItemComponent} the host itself is the `listitem`, so the nested `<ul>`'s direct children stay list items and the list/listitem relationship screen readers rely on is preserved.",
+          "inputs": [
+            {
+              "name": "class",
+              "type": "string",
+              "description": "Extra classes merged onto the host. Wrap exactly one sub-button per item so the list semantics stay intact.",
+              "default": "''"
+            }
+          ],
+          "outputs": [],
+          "methods": []
+        },
+        {
+          "className": "SidebarMenuSubTriggerComponent",
+          "file": "packages/components/ui/sidebar/sub/sidebar-menu-sub-trigger.component.ts",
+          "kind": "component",
+          "selector": "ui-sidebar-menu-sub-trigger",
+          "description": "The row that opens and closes a {@link SidebarMenuSubComponent}. It is a plain `<button>` rather than a heading + `role=\"menuitem\"`: the sidebar's menu is a real `<ul>` of `listitem`s, and a heading or menu role here would break the list relationship that `ui-sidebar-menu-item` exists to protect. `aria-expanded` and `aria-controls` carry the state instead, which is what a disclosure button needs. Place it and its sub list inside the same `ui-sidebar-menu-item`: ```html <ui-sidebar-menu-item> <ui-sidebar-menu-sub-trigger [sub]=\"projects\">Projects</ui-sidebar-menu-sub-trigger> <ui-sidebar-menu-sub #projects>…</ui-sidebar-menu-sub> </ui-sidebar-menu-item> ```",
+          "inputs": [
+            {
+              "name": "class",
+              "type": "string",
+              "description": "Extra classes merged onto the `<button>`.",
+              "default": "''"
+            },
+            {
+              "name": "sub",
+              "type": "SidebarMenuSubComponent | undefined",
+              "description": "The list this row controls, as a template reference (`[sub]=\"projects\"` with `<ui-sidebar-menu-sub #projects>`). Required for the toggle and for `aria-controls` to point anywhere."
+            }
+          ],
+          "outputs": [],
+          "methods": []
+        },
+        {
+          "className": "SidebarMenuSubComponent",
+          "file": "packages/components/ui/sidebar/sub/sidebar-menu-sub.component.ts",
+          "kind": "component",
+          "selector": "ui-sidebar-menu-sub",
+          "description": "Nested menu list, rendered as a `<ul>` inside a {@link SidebarMenuItemComponent} alongside the row that toggles it. The list is **always rendered** and hidden by collapsing a CSS grid row from `1fr` to `0fr`, which is what makes closing animate — a `@if` would destroy the subtree and the collapse would just pop. Closed content is `inert`, so it leaves the tab order and the accessibility tree entirely and Tab reaches only the rows a sighted user can see. That is the whole keyboard story here: the sidebar is a navigation list, not an ARIA menu widget, so there is no roving focus and no arrow-key handling to get wrong.",
+          "inputs": [
+            {
+              "name": "class",
+              "type": "string",
+              "description": "Extra classes merged onto the nested `<ul>`.",
+              "default": "''"
+            },
+            {
+              "name": "expanded",
+              "type": "boolean",
+              "description": "Whether the nested list is open. Two-way (`[(expanded)]`), so bind it to drive the list from your own state, pass it one-way to pin it, or leave it alone and let the trigger manage it. Defaults to **open** — a nav tree that hides its children until clicked makes them undiscoverable.",
+              "default": "true"
+            },
+            {
+              "name": "id",
+              "type": "string",
+              "description": "DOM id, used as the trigger's `aria-controls` target. Defaults to a generated unique value; override it only with something unique in the document.",
+              "default": "`sidebar-menu-sub-${nextId++}`"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "expanded",
+              "type": "boolean",
+              "description": "Whether the nested list is open. Two-way (`[(expanded)]`), so bind it to drive the list from your own state, pass it one-way to pin it, or leave it alone and let the trigger manage it. Defaults to **open** — a nav tree that hides its children until clicked makes them undiscoverable.",
+              "default": "true"
+            }
+          ],
           "methods": []
         },
         {
@@ -16074,6 +16352,47 @@
               "type": "string",
               "description": "Extra classes merged onto the flex row that holds the sidebar and the inset. It is `min-h-screen w-full overflow-hidden`, so it wants to be the page-level wrapper.",
               "default": "''"
+            },
+            {
+              "name": "persistCollapsed",
+              "type": "boolean",
+              "description": "Whether the desktop rail remembers being collapsed across reloads. On by default: a rail that springs back open every page load reads as the app forgetting the user's choice. Set `false` to opt out entirely — nothing is then read or written.",
+              "default": "true"
+            },
+            {
+              "name": "storageKey",
+              "type": "unknown",
+              "description": "Where the collapsed flag is stored. Give each sidebar its own key when an origin hosts more than one, otherwise they overwrite each other's state.",
+              "default": "SIDEBAR_STORAGE_KEY"
+            }
+          ],
+          "outputs": [],
+          "methods": []
+        },
+        {
+          "className": "SidebarRailComponent",
+          "file": "packages/components/ui/sidebar/sub/sidebar-rail.component.ts",
+          "kind": "component",
+          "selector": "ui-sidebar-rail",
+          "description": "The strip along the sidebar's inner edge that collapses and expands the rail. It is the affordance people already know from editors: the sidebar's edge is the thing you grab. The strip itself is narrow and invisible at rest so it does not read as a second border; hovering or focusing it fades in an accent line along the full height, which is the hover state doing the explaining rather than an always-on chrome element. It is a real `<button>` — focusable, labelled, `aria-expanded` — not a bare div with a click handler, so collapsing is reachable without a mouse. It is hidden on mobile, where the drawer's scrim and Escape already dismiss. Place it as a direct child of `ui-sidebar`, after the content: ```html <ui-sidebar> <ui-sidebar-content>…</ui-sidebar-content> <ui-sidebar-rail /> </ui-sidebar> ```",
+          "inputs": [
+            {
+              "name": "class",
+              "type": "string",
+              "description": "Extra classes merged onto the rail button.",
+              "default": "''"
+            },
+            {
+              "name": "label",
+              "type": "string",
+              "description": "Accessible name, also used as the native tooltip. Defaults to describing the action the click performs, which flips with the state.",
+              "default": "''"
+            },
+            {
+              "name": "side",
+              "type": "\"left\" | \"right\"",
+              "description": "Which edge the rail hugs — mirrors the sidebar's own `side`, defaulting to the common left-hand sidebar.",
+              "default": "'left'"
             }
           ],
           "outputs": [],
