@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import {
   IconComponent,
   SidebarComponent,
@@ -12,6 +12,14 @@ import {
   SidebarMenuComponent,
   SidebarMenuItemComponent,
   SidebarMenuLinkComponent,
+  SidebarMenuSubComponent,
+  SidebarMenuSubItemComponent,
+  SidebarMenuSubButtonComponent,
+  SidebarMenuSubTriggerComponent,
+  SidebarMenuActionComponent,
+  SidebarMenuBadgeComponent,
+  SidebarMenuSkeletonComponent,
+  SidebarRailComponent,
   SidebarProviderComponent,
   SidebarSeparatorComponent,
   SidebarTriggerComponent,
@@ -44,6 +52,14 @@ interface VariantTile {
     SidebarMenuComponent,
     SidebarMenuItemComponent,
     SidebarMenuLinkComponent,
+    SidebarMenuSubComponent,
+    SidebarMenuSubItemComponent,
+    SidebarMenuSubButtonComponent,
+    SidebarMenuSubTriggerComponent,
+    SidebarMenuActionComponent,
+    SidebarMenuBadgeComponent,
+    SidebarMenuSkeletonComponent,
+    SidebarRailComponent,
     SidebarTriggerComponent,
     SidebarInsetComponent,
     SidebarSeparatorComponent,
@@ -153,10 +169,123 @@ interface VariantTile {
           </div>
         }
       </div>
+
+      <h3 class="text-lg font-semibold pt-4">Nested menus, badges, actions and the rail</h3>
+      <p class="text-muted-foreground text-sm">
+        A sub-menu keeps its rows in the DOM and collapses them with a grid-row
+        transition, so closing animates; closed rows are <code>inert</code>, so Tab
+        skips them. <code>expanded</code> is two-way and defaults to open. Drag-free
+        collapse lives on the rail at the sidebar's edge — hover it.
+      </p>
+
+      <div class="border rounded-lg overflow-hidden h-[460px]">
+        <ui-sidebar-provider [persistCollapsed]="false">
+          <ui-sidebar>
+            <ui-sidebar-header>
+              <div class="font-semibold">Acme Inc</div>
+            </ui-sidebar-header>
+            <ui-sidebar-content>
+              <ui-sidebar-group>
+                <ui-sidebar-group-label>Workspace</ui-sidebar-group-label>
+                <ui-sidebar-group-content>
+                  <ui-sidebar-menu>
+                    <ui-sidebar-menu-item>
+                      <ui-sidebar-menu-link href="#" [isActive]="true">
+                        <ui-icon name="home" />
+                        <span>Dashboard</span>
+                      </ui-sidebar-menu-link>
+                    </ui-sidebar-menu-item>
+
+                    <ui-sidebar-menu-item>
+                      <ui-sidebar-menu-link href="#">
+                        <ui-icon name="mail" />
+                        <span>Inbox</span>
+                      </ui-sidebar-menu-link>
+                      <ui-sidebar-menu-badge>12</ui-sidebar-menu-badge>
+                    </ui-sidebar-menu-item>
+
+                    <ui-sidebar-menu-item>
+                      <ui-sidebar-menu-sub-trigger [sub]="projects">
+                        <ui-icon name="folder" />
+                        <span>Projects</span>
+                      </ui-sidebar-menu-sub-trigger>
+                      <ui-sidebar-menu-sub #projects [(expanded)]="projectsOpen">
+                        <ui-sidebar-menu-sub-item>
+                          <ui-sidebar-menu-sub-button href="#" [isActive]="true">
+                            <span>Apollo</span>
+                          </ui-sidebar-menu-sub-button>
+                        </ui-sidebar-menu-sub-item>
+                        <ui-sidebar-menu-sub-item>
+                          <ui-sidebar-menu-sub-button href="#">
+                            <span>Borealis</span>
+                          </ui-sidebar-menu-sub-button>
+                        </ui-sidebar-menu-sub-item>
+                        <ui-sidebar-menu-sub-item>
+                          <ui-sidebar-menu-sub-button href="#">
+                            <span>Cartograph</span>
+                          </ui-sidebar-menu-sub-button>
+                        </ui-sidebar-menu-sub-item>
+                      </ui-sidebar-menu-sub>
+                    </ui-sidebar-menu-item>
+
+                    <ui-sidebar-menu-item>
+                      <ui-sidebar-menu-sub-trigger [sub]="team">
+                        <ui-icon name="users" />
+                        <span>Team</span>
+                      </ui-sidebar-menu-sub-trigger>
+                      <ui-sidebar-menu-sub #team [(expanded)]="teamOpen">
+                        <ui-sidebar-menu-sub-item>
+                          <ui-sidebar-menu-sub-button href="#"><span>Members</span></ui-sidebar-menu-sub-button>
+                        </ui-sidebar-menu-sub-item>
+                        <ui-sidebar-menu-sub-item>
+                          <ui-sidebar-menu-sub-button href="#"><span>Invitations</span></ui-sidebar-menu-sub-button>
+                        </ui-sidebar-menu-sub-item>
+                      </ui-sidebar-menu-sub>
+                    </ui-sidebar-menu-item>
+
+                    <ui-sidebar-menu-item>
+                      <ui-sidebar-menu-link href="#">
+                        <ui-icon name="settings" />
+                        <span>Settings</span>
+                      </ui-sidebar-menu-link>
+                      <ui-sidebar-menu-action label="Settings options" (triggered)="lastAction.set('settings')">
+                        <ui-icon name="more-horizontal" />
+                      </ui-sidebar-menu-action>
+                    </ui-sidebar-menu-item>
+                  </ui-sidebar-menu>
+                </ui-sidebar-group-content>
+              </ui-sidebar-group>
+
+              <ui-sidebar-group>
+                <ui-sidebar-group-label>Loading</ui-sidebar-group-label>
+                <ui-sidebar-group-content>
+                  <ui-sidebar-menu>
+                    @for (row of [0, 1, 2]; track row) {
+                      <ui-sidebar-menu-skeleton [seed]="row" />
+                    }
+                  </ui-sidebar-menu>
+                </ui-sidebar-group-content>
+              </ui-sidebar-group>
+            </ui-sidebar-content>
+            <ui-sidebar-rail />
+          </ui-sidebar>
+          <ui-sidebar-inset class="p-4">
+            <ui-sidebar-trigger />
+            <p class="text-sm text-muted-foreground pt-2">
+              Projects open: {{ projectsOpen() }} · Team open: {{ teamOpen() }}
+              @if (lastAction()) { · last action: {{ lastAction() }} }
+            </p>
+          </ui-sidebar-inset>
+        </ui-sidebar-provider>
+      </div>
     </section>
   `,
 })
 export class SidebarDemoComponent {
+  readonly projectsOpen = signal(true);
+  readonly teamOpen = signal(false);
+  readonly lastAction = signal('');
+
   private readonly localeId = inject(UI_LOCALE_ID);
   protected readonly t = computed(() => SIDEBAR_DEMO_LOCALES[this.localeId()] ?? SIDEBAR_DEMO_LOCALES['en']);
 

@@ -1,0 +1,39 @@
+@layer components {
+  /*
+   * Hover-only reveal, opt-in via `showOnHover`. Scoped to pointers that can
+   * actually hover: under `(hover: none)` the rule is simply never applied, so
+   * a touch user always sees the action instead of having to guess it is there.
+   * Focus keeps it visible for keyboard users, who cannot hover either.
+   */
+  @media (hover: hover) {
+    .sidebar-action-hover-only {
+      opacity: 0;
+    }
+
+    [data-slot="sidebar-menu-item"]:hover .sidebar-action-hover-only,
+    [data-slot="sidebar-menu-sub-item"]:hover .sidebar-action-hover-only,
+    .sidebar-action-hover-only:focus-visible {
+      opacity: 1;
+    }
+  }
+
+  /*
+   * WCAG 2.5.8 / HIG: a 24px icon button is too small to hit reliably with a
+   * thumb. The painted box stays 24px so the row does not grow; an invisible
+   * pseudo-element extends the hit area to 44px around it.
+   */
+  @media (pointer: coarse) {
+    [data-slot="sidebar-menu-action"] {
+      position: relative;
+    }
+
+    [data-slot="sidebar-menu-action"]::after {
+      content: "";
+      position: absolute;
+      inset: 50%;
+      min-width: 44px;
+      min-height: 44px;
+      translate: -50% -50%;
+    }
+  }
+}

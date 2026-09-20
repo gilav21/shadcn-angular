@@ -28,8 +28,11 @@ export class SidebarMenuItemComponent {
   /** Extra classes merged onto the host, which is the `listitem` inside `ui-sidebar-menu`'s list. Wrap exactly one button or link per item so the list semantics stay intact. */
   class = input('');
 
+  // `relative` is the positioning context for ui-sidebar-menu-action, which
+  // is absolutely positioned against the row rather than sitting inside its
+  // click target. It changes nothing on its own.
   classes = computed(() => cn(
-    'list-none',
+    'relative list-none',
     this.class()
   ));
 }

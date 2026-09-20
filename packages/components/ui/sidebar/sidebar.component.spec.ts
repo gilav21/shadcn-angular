@@ -27,6 +27,14 @@ import {
   SidebarMenuLinkComponent,
   SidebarInsetComponent,
   SidebarSeparatorComponent,
+  SidebarMenuSubComponent,
+  SidebarMenuSubItemComponent,
+  SidebarMenuSubButtonComponent,
+  SidebarMenuSubTriggerComponent,
+  SidebarMenuActionComponent,
+  SidebarMenuBadgeComponent,
+  SidebarMenuSkeletonComponent,
+  SidebarRailComponent,
   SIDEBAR_STORAGE_KEY,
 } from './';
 
@@ -281,6 +289,94 @@ class PersistHostComponent {
   readonly persist = signal(true);
   readonly key = signal(SIDEBAR_STORAGE_KEY);
 }
+
+@Component({
+  selector: 'test-nested-host',
+  template: `
+    <ui-sidebar-provider>
+      <ui-sidebar>
+        <ui-sidebar-content>
+          <ui-sidebar-menu>
+            <ui-sidebar-menu-item>
+              <ui-sidebar-menu-sub-trigger [sub]="projects">
+                <span>Projects</span>
+              </ui-sidebar-menu-sub-trigger>
+              <ui-sidebar-menu-badge>4</ui-sidebar-menu-badge>
+              <ui-sidebar-menu-action label="Project options" (triggered)="actions = actions + 1">
+                <svg viewBox="0 0 24 24"><path d="M0 0" /></svg>
+              </ui-sidebar-menu-action>
+              <ui-sidebar-menu-sub #projects [(expanded)]="projectsOpen">
+                <ui-sidebar-menu-sub-item>
+                  <ui-sidebar-menu-sub-button href="/alpha">Alpha</ui-sidebar-menu-sub-button>
+                </ui-sidebar-menu-sub-item>
+                <ui-sidebar-menu-sub-item>
+                  <ui-sidebar-menu-sub-button href="/beta">Beta</ui-sidebar-menu-sub-button>
+                </ui-sidebar-menu-sub-item>
+              </ui-sidebar-menu-sub>
+            </ui-sidebar-menu-item>
+            @for (row of skeletonRows; track row) {
+              <ui-sidebar-menu-skeleton [seed]="row" />
+            }
+          </ui-sidebar-menu>
+        </ui-sidebar-content>
+        <ui-sidebar-rail />
+      </ui-sidebar>
+    </ui-sidebar-provider>
+  `,
+  imports: [
+    SidebarComponent,
+    SidebarProviderComponent,
+    SidebarContentComponent,
+    SidebarMenuComponent,
+    SidebarMenuItemComponent,
+    SidebarMenuSubComponent,
+    SidebarMenuSubItemComponent,
+    SidebarMenuSubButtonComponent,
+    SidebarMenuSubTriggerComponent,
+    SidebarMenuActionComponent,
+    SidebarMenuBadgeComponent,
+    SidebarMenuSkeletonComponent,
+    SidebarRailComponent,
+  ],
+})
+class NestedHostComponent {
+  readonly projectsOpen = signal(true);
+  readonly skeletonRows = [0, 1, 2];
+  actions = 0;
+}
+
+/** Nothing bound to `expanded` — exercises the input's own default. */
+@Component({
+  selector: 'test-unbound-sub-host',
+  template: `
+    <ui-sidebar-provider>
+      <ui-sidebar>
+        <ui-sidebar-content>
+          <ui-sidebar-menu>
+            <ui-sidebar-menu-item>
+              <ui-sidebar-menu-sub>
+                <ui-sidebar-menu-sub-item>
+                  <ui-sidebar-menu-sub-button href="/solo">Solo</ui-sidebar-menu-sub-button>
+                </ui-sidebar-menu-sub-item>
+              </ui-sidebar-menu-sub>
+            </ui-sidebar-menu-item>
+          </ui-sidebar-menu>
+        </ui-sidebar-content>
+      </ui-sidebar>
+    </ui-sidebar-provider>
+  `,
+  imports: [
+    SidebarComponent,
+    SidebarProviderComponent,
+    SidebarContentComponent,
+    SidebarMenuComponent,
+    SidebarMenuItemComponent,
+    SidebarMenuSubComponent,
+    SidebarMenuSubItemComponent,
+    SidebarMenuSubButtonComponent,
+  ],
+})
+class UnboundSubHostComponent {}
 
 describe('Sidebar', () => {
   const fixtures: ComponentFixture<unknown>[] = [];
@@ -1226,6 +1322,306 @@ describe('Sidebar', () => {
 
         expect(getService(fixture).isCollapsed()).toBe(true);
         expect(collapsedAttr(fixture)).toBe('true');
+      });
+    });
+  });
+
+  /**
+   * Item 3 of the app-shell brief: nested menus plus the action / badge /
+   * skeleton / rail parts. The sub list is deliberately always rendered and
+   * hidden with `inert` + a grid-rows transition, so these assert reachability
+   * (inert) and state, not the animation itself.
+   */
+  describe('nested menus', () => {
+    /*
+     * The provider persists the collapsed rail to localStorage, so a test that
+     * collapses it seeds the next fixture's initial state. Clearing between
+     * tests keeps each one independent — without this the rail cases pass or
+     * fail depending on the order they run in.
+     */
+    beforeEach(() => {
+      globalThis.localStorage.clear();
+    });
+
+    afterEach(() => {
+      globalThis.localStorage.clear();
+    });
+
+    async function createNestedHost(): Promise<ComponentFixture<NestedHostComponent>> {
+      await TestBed.configureTestingModule({ imports: [NestedHostComponent] }).compileComponents();
+      const fixture = track(TestBed.createComponent(NestedHostComponent));
+      fixture.detectChanges();
+      return fixture;
+    }
+
+    function subList(fixture: ComponentFixture<unknown>): HTMLElement {
+      return fixture.debugElement.query(By.css('[data-slot="sidebar-menu-sub"] ul')).nativeElement;
+    }
+
+    function trigger(fixture: ComponentFixture<unknown>): HTMLElement {
+      return fixture.debugElement.query(By.css('[data-slot="sidebar-menu-sub-trigger"]')).nativeElement;
+    }
+
+    it('renders sub items as list items inside a nested list', async () => {
+      const fixture = await createNestedHost();
+      const list = subList(fixture);
+
+      expect(list.tagName).toBe('UL');
+      const items = list.querySelectorAll('[data-slot="sidebar-menu-sub-item"]');
+      expect(items).toHaveLength(2);
+      for (const item of Array.from(items)) {
+        expect(item.getAttribute('role')).toBe('listitem');
+      }
+    });
+
+    /** The sidebar is a navigation list, not an ARIA menu widget. */
+    it('never declares menu roles on the nested list', async () => {
+      const fixture = await createNestedHost();
+      const sidebar = fixture.debugElement.query(By.css('[data-slot="sidebar"]')).nativeElement;
+      expect(sidebar.querySelectorAll('[role="menu"]')).toHaveLength(0);
+      expect(sidebar.querySelectorAll('[role="menuitem"]')).toHaveLength(0);
+      expect(sidebar.querySelectorAll('[role="menubar"]')).toHaveLength(0);
+    });
+
+    it('starts expanded by default', async () => {
+      const fixture = await createNestedHost();
+      expect(trigger(fixture).getAttribute('aria-expanded')).toBe('true');
+      expect(subList(fixture).hasAttribute('inert')).toBe(false);
+    });
+
+    /**
+     * The host above binds `[(expanded)]`, which would mask the input's own
+     * default. This mounts a sub with nothing bound — the shape a consumer
+     * writing plain markup gets — so a default of `false` is caught.
+     */
+    it('defaults to open when expanded is never bound', async () => {
+      await TestBed.configureTestingModule({ imports: [UnboundSubHostComponent] }).compileComponents();
+      const fixture = track(TestBed.createComponent(UnboundSubHostComponent));
+      fixture.detectChanges();
+
+      const list = fixture.debugElement.query(By.css('[data-slot="sidebar-menu-sub"] ul')).nativeElement;
+      expect(list.hasAttribute('inert')).toBe(false);
+      expect(
+        fixture.debugElement
+          .query(By.css('[data-slot="sidebar-menu-sub"]'))
+          .nativeElement.getAttribute('data-state')
+      ).toBe('open');
+    });
+
+    /**
+     * The whole point of keeping the list rendered: it must leave the tab order
+     * when closed, or Tab would walk invisible rows. `inert` is what does that,
+     * so it is asserted directly rather than via a class string.
+     */
+    it('makes the closed list inert so Tab skips it', async () => {
+      const fixture = await createNestedHost();
+
+      trigger(fixture).dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      fixture.detectChanges();
+
+      expect(subList(fixture).hasAttribute('inert')).toBe(true);
+      expect(trigger(fixture).getAttribute('aria-expanded')).toBe('false');
+    });
+
+    it('keeps the closed list in the DOM so the collapse can animate', async () => {
+      const fixture = await createNestedHost();
+
+      trigger(fixture).dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      fixture.detectChanges();
+
+      const wrapper = fixture.debugElement.query(By.css('[data-slot="sidebar-menu-sub"]')).nativeElement;
+      expect(wrapper.querySelectorAll('[data-slot="sidebar-menu-sub-button"]')).toHaveLength(2);
+      expect(wrapper.getAttribute('data-state')).toBe('closed');
+      expect(wrapper.getAttribute('class') ?? '').toContain('grid-rows-[0fr]');
+
+      /*
+       * `display: none` (or a `hidden` attribute) would suppress the
+       * grid-template-rows transition entirely, so the collapse would pop
+       * instead of animating. The rows must stay laid out and merely be
+       * clipped by the zero-height row.
+       */
+      const list = subList(fixture);
+      expect(list.hasAttribute('hidden')).toBe(false);
+      expect(getComputedStyle(list).display).not.toBe('none');
+      expect(getComputedStyle(list.parentElement as HTMLElement).display).not.toBe('none');
+    });
+
+    it('reopens on a second click', async () => {
+      const fixture = await createNestedHost();
+      const button = trigger(fixture);
+
+      button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      fixture.detectChanges();
+      button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      fixture.detectChanges();
+
+      expect(subList(fixture).hasAttribute('inert')).toBe(false);
+      expect(button.getAttribute('aria-expanded')).toBe('true');
+    });
+
+    it('points aria-controls at the list it toggles', async () => {
+      const fixture = await createNestedHost();
+      const controls = trigger(fixture).getAttribute('aria-controls');
+      const wrapper = fixture.debugElement.query(By.css('[data-slot="sidebar-menu-sub"]')).nativeElement;
+
+      expect(controls).toBeTruthy();
+      expect(wrapper.getAttribute('id')).toBe(controls);
+    });
+
+    it('writes the expanded model back to the host (two-way)', async () => {
+      const fixture = await createNestedHost();
+
+      trigger(fixture).dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.projectsOpen()).toBe(false);
+    });
+
+    it('follows the expanded model when the host drives it', async () => {
+      const fixture = await createNestedHost();
+
+      fixture.componentInstance.projectsOpen.set(false);
+      fixture.detectChanges();
+
+      expect(subList(fixture).hasAttribute('inert')).toBe(true);
+      expect(trigger(fixture).getAttribute('aria-expanded')).toBe('false');
+    });
+
+    /**
+     * A 60px rail cannot show nested rows. The list must shut without
+     * destroying the consumer's `expanded` value, so expanding the rail again
+     * restores what they had open.
+     */
+    it('force-closes on a collapsed rail and restores on expand', async () => {
+      const fixture = await createNestedHost();
+      const service = getService(fixture);
+
+      service.isCollapsed.set(true);
+      fixture.detectChanges();
+
+      expect(subList(fixture).hasAttribute('inert')).toBe(true);
+      expect(fixture.componentInstance.projectsOpen()).toBe(true);
+
+      service.isCollapsed.set(false);
+      fixture.detectChanges();
+
+      expect(subList(fixture).hasAttribute('inert')).toBe(false);
+    });
+
+    it('routes sub buttons through href when routerLink is unset', async () => {
+      const fixture = await createNestedHost();
+      const links = fixture.debugElement.queryAll(By.css('[data-slot="sidebar-menu-sub-button"]'));
+      expect(links.map(l => l.nativeElement.getAttribute('href'))).toEqual(['/alpha', '/beta']);
+    });
+
+    describe('menu action', () => {
+      it('emits without triggering the row behind it', async () => {
+        const fixture = await createNestedHost();
+        const action = fixture.debugElement.query(By.css('[data-slot="sidebar-menu-action"]')).nativeElement;
+        const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+
+        action.dispatchEvent(event);
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.actions).toBe(1);
+        expect(event.defaultPrevented).toBe(true);
+      });
+
+      it('carries an accessible name', async () => {
+        const fixture = await createNestedHost();
+        const action = fixture.debugElement.query(By.css('[data-slot="sidebar-menu-action"]')).nativeElement;
+        expect(action.getAttribute('aria-label')).toBe('Project options');
+      });
+
+      it('is hidden on a collapsed rail, where there is no room for it', async () => {
+        const fixture = await createNestedHost();
+        getService(fixture).isCollapsed.set(true);
+        fixture.detectChanges();
+
+        const action = fixture.debugElement.query(By.css('[data-slot="sidebar-menu-action"]')).nativeElement;
+        expect(action.getAttribute('class') ?? '').toContain('hidden');
+      });
+    });
+
+    describe('menu badge', () => {
+      it('is hidden from screen readers by default', async () => {
+        const fixture = await createNestedHost();
+        const badge = fixture.debugElement.query(By.css('[data-slot="sidebar-menu-badge"]')).nativeElement;
+        expect(badge.getAttribute('aria-hidden')).toBe('true');
+        expect(badge.textContent?.trim()).toBe('4');
+      });
+    });
+
+    describe('menu skeleton', () => {
+      it('renders one row per entry with varying widths', async () => {
+        const fixture = await createNestedHost();
+        const rows = fixture.debugElement.queryAll(By.css('[data-slot="sidebar-menu-skeleton"]'));
+        expect(rows).toHaveLength(3);
+
+        const widths = rows.map(row => {
+          const bars = row.nativeElement.querySelectorAll('[data-slot="skeleton"]');
+          return (bars[bars.length - 1] as HTMLElement).getAttribute('class') ?? '';
+        });
+        expect(new Set(widths).size).toBe(3);
+      });
+    });
+
+    describe('rail', () => {
+      function rail(fixture: ComponentFixture<unknown>): HTMLElement {
+        return fixture.debugElement.query(By.css('[data-slot="sidebar-rail"]')).nativeElement;
+      }
+
+      it('toggles the rail and reports its state', async () => {
+        const fixture = await createNestedHost();
+        const service = getService(fixture);
+
+        expect(rail(fixture).getAttribute('aria-expanded')).toBe('true');
+
+        rail(fixture).dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        fixture.detectChanges();
+
+        expect(service.isCollapsed()).toBe(true);
+        expect(rail(fixture).getAttribute('aria-expanded')).toBe('false');
+        expect(rail(fixture).getAttribute('data-state')).toBe('collapsed');
+      });
+
+      /**
+       * The edge line is the rail's only visual affordance, and it shipped
+       * broken once: it relied on Tailwind's `group-hover:` variants, which
+       * this project's CSS build does not emit, so it silently never appeared.
+       * Asserting the rendered classes catches that class of failure, where
+       * asserting the component's inputs would not.
+       */
+      it('reveals its edge line on hover and on keyboard focus', async () => {
+        const fixture = await createNestedHost();
+        const line = () =>
+          (rail(fixture).querySelector('span') as HTMLElement).getAttribute('class') ?? '';
+
+        expect(line()).toContain('opacity-0');
+
+        rail(fixture).dispatchEvent(new MouseEvent('mouseenter'));
+        fixture.detectChanges();
+        expect(line()).toContain('opacity-100');
+        expect(line()).toContain('bg-sidebar-primary');
+
+        rail(fixture).dispatchEvent(new MouseEvent('mouseleave'));
+        fixture.detectChanges();
+        expect(line()).toContain('opacity-0');
+
+        rail(fixture).dispatchEvent(new FocusEvent('focus'));
+        fixture.detectChanges();
+        expect(line()).toContain('opacity-100');
+      });
+
+      it('is a real button with a label that describes the action', async () => {
+        const fixture = await createNestedHost();
+        expect(rail(fixture).tagName).toBe('BUTTON');
+        expect(rail(fixture).getAttribute('aria-label')).toBe('Collapse sidebar');
+
+        rail(fixture).dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        fixture.detectChanges();
+
+        expect(rail(fixture).getAttribute('aria-label')).toBe('Expand sidebar');
       });
     });
   });
