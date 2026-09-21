@@ -23,7 +23,7 @@
   -->
   <span
     class="flex flex-col justify-center gap-0.5 overflow-hidden rounded-t-lg border-b px-3"
-    [style.min-height.px]="headerHeight"
+    [style.min-height.px]="headerHeight()"
     [attr.data-slot]="'node-editor-node-header'"
   >
     <span class="flex items-center gap-2">
@@ -117,21 +117,32 @@
       aria-hidden="true"
     ></span>
 
-    @if (bodyTemplate(); as body) {
-      <ng-container [ngTemplateOutlet]="body" [ngTemplateOutletContext]="{ $implicit: current }" />
-    } @else if (view(); as component) {
-      <!--
-        The node type's own view. Its injector carries this node's
-        NODE_CONTEXT, and is cached per node: a fresh injector each pass would
-        rebuild the view continuously and lose focus and caret position.
-      -->
-      <div class="p-2" [attr.data-slot]="'node-editor-node-body'">
+    <!--
+      One measured wrapper around BOTH body kinds, so `bodyMeasured` reports
+      the same thing whichever way the body was supplied. It is the element
+      the ResizeObserver watches; `min-w-0` keeps a wide child from widening
+      the card, matching the fieldset above.
+    -->
+    <div #projectedBody class="min-w-0" [attr.data-slot]="'node-editor-node-body'">
+      @if (bodyTemplate(); as body) {
         <ng-container
-          [ngComponentOutlet]="component"
-          [ngComponentOutletInjector]="viewInjector() ?? undefined"
+          [ngTemplateOutlet]="body"
+          [ngTemplateOutletContext]="{ $implicit: current }"
         />
-      </div>
-    }
+      } @else if (view(); as component) {
+        <!--
+          The node type's own view. Its injector carries this node's
+          NODE_CONTEXT, and is cached per node: a fresh injector each pass would
+          rebuild the view continuously and lose focus and caret position.
+        -->
+        <div class="p-2">
+          <ng-container
+            [ngComponentOutlet]="component"
+            [ngComponentOutletInjector]="viewInjector() ?? undefined"
+          />
+        </div>
+      }
+    </div>
   </fieldset>
 } @else {
   <!--

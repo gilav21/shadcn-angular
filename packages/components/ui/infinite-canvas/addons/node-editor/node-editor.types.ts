@@ -66,6 +66,17 @@ export interface EditorNode extends CanvasItem {
    * definition. Always populated by the time a node reaches rendering.
    */
   ports?: readonly NodePort[];
+  /**
+   * How tall this node's body is, below the ports.
+   *
+   * Only for a node whose body is a projected `*uiNodeEditorNode` template: a
+   * typed node takes its body height from its definition instead. It is a
+   * FLOOR, not the final answer — the editor measures the rendered body and
+   * grows the node when the content needs more, because no consumer can
+   * predict its own template's pixel height before layout. Set it to avoid a
+   * first-frame jump, or leave it out and let the measurement settle it.
+   */
+  bodyHeight?: number;
   /** Any CSS colour, painted as the node's header accent. */
   accent?: string;
   /** Selectable, but neither movable nor deletable. */

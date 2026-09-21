@@ -100,9 +100,15 @@ export function portRowsHeight(
 /**
  * A node's height: header, then port rows, then whatever its body needs.
  *
- * `bodyHeight` is not optional in spirit — a node type with a view that does
- * not declare one gets ports drawn straight over its content, which is exactly
- * the bug the screenshot of the first live demo showed.
+ * `bodyHeight` is not optional in spirit — a node with a body that does not
+ * declare one gets ports drawn straight over its content, which is exactly the
+ * bug the screenshot of the first live demo showed.
+ *
+ * A *projected* body cannot declare it honestly, though: nobody can predict
+ * their own template's pixel height before layout. So the editor measures the
+ * rendered body and feeds the measurement back in here, and a declared
+ * `bodyHeight` is only the floor it starts from — see `bodyHeightOf` in the
+ * editor.
  */
 export function nodeHeight(
   node: Pick<EditorNode, 'ports' | 'subtitle'>,

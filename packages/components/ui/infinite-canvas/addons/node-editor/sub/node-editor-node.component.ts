@@ -1,17 +1,28 @@
 import {
+  afterRenderEffect,
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
+  ElementRef,
+  inject,
   input,
+  output,
+  viewChild,
   type Injector,
   type TemplateRef,
   type Type,
 } from '@angular/core';
 import { NgComponentOutlet, NgTemplateOutlet } from '@angular/common';
 import { cn } from '../../../../../lib/utils';
-import { NODE_HEADER_HEIGHT, portRowsHeight, type PortMetrics } from '../node-editor.layout';
+import {
+  PORT_LIST_PADDING,
+  portListTop,
+  portRowsHeight,
+  type PortMetrics,
+} from '../node-editor.layout';
 import type { NodeStatus } from '../node-editor.runtime.types';
-import type { EditorNode, PortRef } from '../node-editor.types';
+import type { EditorNode, NodeId, PortRef } from '../node-editor.types';
 import { NodeEditorPortComponent, type PortDropState } from './node-editor-port.component';
 
 /** Context handed to a projected node template. */
@@ -75,7 +86,21 @@ export class NodeEditorNodeComponent {
   /** This node contains something worth opening; double-click descends into it. */
   readonly openable = input(false);
 
-  protected readonly headerHeight = NODE_HEADER_HEIGHT;
+  /**
+   * The header's height, derived from the same rule the port geometry uses.
+   *
+   * It must equal `portListTop(node) - PORT_LIST_PADDING`, because the ports
+   * are positioned from the node's top edge while the header is laid out by
+   * flow: if the two disagree the ports land on the body. They DID disagree —
+   * this restated only `NODE_HEADER_HEIGHT` and dropped the subtitle, so every
+   * node with a subtitle drew its ports NODE_SUBTITLE_HEIGHT too low.
+   *
+   * Invisible without a subtitle, because both expressions then reduce to the
+   * same number, which is why it survived. Derive, never restate.
+   */
+  protected readonly headerHeight = computed(
+    () => portListTop(this.node()) - PORT_LIST_PADDING,
+  );
 
   /**
    * The vertical band the ports occupy.
@@ -166,6 +191,70 @@ export class NodeEditorNodeComponent {
   protected readonly projectedCardClasses = computed(() =>
     cn(this.cardClasses(), 'm-0 min-w-0 p-0'),
   );
+
+  /**
+   * The rendered height of a projected body, in CSS pixels.
+   *
+   * An OUTPUT rather than an input because a consumer cannot know it: the
+   * height depends on the font, the density, the locale and on content that
+   * changes at runtime — a title wrapping to a second line is enough to move
+   * it. The declared `node.bodyHeight` is only a first-frame floor; this is
+   * what the body actually took.
+   *
+   * Emitted per node id rather than per card because the canvas RECYCLES these
+   * views: the same component instance renders a different node as one scrolls
+   * past, so a height remembered on the instance would be attributed to the
+   * wrong node.
+   */
+  readonly bodyMeasured = output<{ node: NodeId; height: number }>();
+
+  private readonly bodyRef = viewChild<ElementRef<HTMLElement>>('projectedBody');
+
+  /**
+   * Last height emitted for a given node, so an unchanged measurement is not
+   * re-emitted. A ResizeObserver fires on any layout pass that touches the
+   * element, and each emission costs the editor a signal write and the canvas
+   * a re-render — at which point the observer fires again. Emitting only on a
+   * real change is what stops that from being a loop.
+   */
+  private lastEmitted: { node: NodeId; height: number } | null = null;
+
+  constructor() {
+    const observer = new ResizeObserver(entries => {
+      const entry = entries[0];
+      if (!entry) return;
+      // borderBoxSize over contentRect: the body's padding and border are part
+      // of the space it needs, and contentRect excludes both.
+      const box = entry.borderBoxSize?.[0];
+      const height = box ? box.blockSize : entry.contentRect.height;
+      this.emitBody(height);
+    });
+
+    afterRenderEffect(() => {
+      const element = this.bodyRef()?.nativeElement;
+      observer.disconnect();
+      if (!element) {
+        this.lastEmitted = null;
+        return;
+      }
+      observer.observe(element);
+      // The observer's first callback is a frame away; measuring now means the
+      // node is the right height on the frame it appears rather than jumping.
+      this.emitBody(element.getBoundingClientRect().height);
+    });
+
+    inject(DestroyRef).onDestroy(() => observer.disconnect());
+  }
+
+  private emitBody(height: number): void {
+    const node = this.node().id;
+    // Sub-pixel noise: a fractional height re-emitting forever would keep the
+    // canvas re-rendering. Round to the pixel the card is actually drawn at.
+    const rounded = Math.ceil(height);
+    if (this.lastEmitted?.node === node && this.lastEmitted.height === rounded) return;
+    this.lastEmitted = { node, height: rounded };
+    this.bodyMeasured.emit({ node, height: rounded });
+  }
 
   protected dropStateFor(portId: string): PortDropState {
     const over = this.dropPort();

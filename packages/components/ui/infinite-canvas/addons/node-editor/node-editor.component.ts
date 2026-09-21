@@ -660,12 +660,80 @@ export class NodeEditorComponent {
         this.runtime.state(id)(),
       ),
       this.metrics,
-      node =>
-        node.type === undefined
-          ? 0
-          : (this.definitionIndex().get(node.type)?.bodyHeight ?? 0),
+      node => this.bodyHeightOf(node),
     ),
   );
+
+  /**
+   * Bodies the cards have measured, keyed by node id.
+   *
+   * Keyed by id rather than by node object because the node is replaced on
+   * every edit, and a body's height does not change just because its title
+   * did. Keyed rather than stored on the card because the canvas recycles
+   * those views.
+   */
+  private readonly measuredBodies = signal<ReadonlyMap<NodeId, number>>(new Map());
+
+  /**
+   * How much room a node's body needs: the LARGER of what it declared and
+   * what it measured.
+   *
+   * A declaration is a floor, not a rival estimate. Taking the measurement
+   * alone looks right — it is the number layout actually produced — but it
+   * silently discards the author's minimum whenever the body renders small or
+   * renders nothing, and a body that is empty right now is not a body that
+   * wants to be zero pixels tall. Taking the declaration alone is the bug
+   * being fixed: no consumer can predict its own template's pixel height
+   * before layout, and a guess goes stale the moment the font, the density,
+   * the locale or the body's own content changes.
+   *
+   * Before the fix a projected body was given a flat `0` here, which not only
+   * sized every such node as if it had no body but OVERRODE whatever the
+   * consumer had computed — `withDerivedHeights` runs again on the editor's
+   * own `nodes()`, so calling it before passing nodes in, as the API invites,
+   * did nothing at all.
+   */
+  private bodyHeightOf(node: EditorNode): number {
+    const declared =
+      node.type === undefined
+        ? (node.bodyHeight ?? 0)
+        : (this.definitionIndex().get(node.type)?.bodyHeight ?? 0);
+    return Math.max(declared, this.measuredBodies().get(node.id) ?? 0);
+  }
+
+  /**
+   * A card reporting the height its body actually rendered at.
+   *
+   * Writing only on a real change matters more than it looks: this feeds
+   * `sizedNodes`, which resizes the card, which fires the card's
+   * ResizeObserver again. Equal heights must not write, or that is a loop
+   * rather than a settling.
+   */
+  protected onBodyMeasured(measurement: { node: NodeId; height: number }): void {
+    const current = this.measuredBodies();
+    if (current.get(measurement.node) === measurement.height) return;
+
+    const next = new Map(current);
+    next.set(measurement.node, measurement.height);
+    /*
+     * Drop heights for nodes that are gone. Only cards that are MOUNTED report,
+     * and the canvas mounts only what is visible, so nothing prunes this map on
+     * its own: without this, a session that adds and deletes nodes keeps an
+     * entry for every node it has ever shown.
+     *
+     * Pruning against the authored nodes rather than the rendered ones - the
+     * rendered list is derived from this map, and reading it here would make
+     * the measurement depend on its own result.
+     */
+    if (next.size > this.nodes().length) {
+      const live = new Set(this.nodes().map(node => node.id));
+      for (const id of next.keys()) {
+        if (!live.has(id)) next.delete(id);
+      }
+    }
+
+    this.measuredBodies.set(next);
+  }
 
   /**
    * The nodes as RENDERED: types materialised, heights derived.

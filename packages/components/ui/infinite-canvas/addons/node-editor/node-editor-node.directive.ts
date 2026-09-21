@@ -16,6 +16,18 @@ export interface NodeEditorNodeContext<T extends EditorNode = EditorNode> {
  * The template replaces the card's **body**. Ports keep being rendered and
  * wired by the editor — see `NodeEditorNodeComponent`.
  *
+ * ### How tall the node gets
+ *
+ * The editor MEASURES the rendered body and grows the node to fit it, so a
+ * projected template needs no height declared for it and none passed in. Do
+ * not call `withDerivedHeights` on the nodes first — the editor derives every
+ * node's height from its own `nodes()` regardless, so a height computed
+ * outside is replaced on the way in.
+ *
+ * Set `bodyHeight` on a node only as a FLOOR, when the body's first frame
+ * would otherwise be visibly short before the measurement lands. The node
+ * takes whichever is larger.
+ *
  * @example
  * ```html
  * <ui-node-editor [nodes]="nodes()" [connections]="connections()">

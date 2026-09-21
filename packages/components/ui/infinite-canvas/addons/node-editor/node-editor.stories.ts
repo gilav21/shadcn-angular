@@ -225,6 +225,70 @@ export const CustomNodeTemplate: Story = {
   }),
 };
 
+/**
+ * A projected body whose height nobody declared: the editor MEASURES it and
+ * grows the card to fit.
+ *
+ * This is the case the previous story cannot show. Its body is `h-full`, so it
+ * stretches to whatever the card already is and would look right even when the
+ * card is far too short. A body made of data has its own height, and the card
+ * has to follow it — which is what a consumer reported it did not do: a card
+ * declared at 96px around 236px of content, spilling the difference over the
+ * canvas.
+ *
+ * Nothing here says how tall a row is, and nothing should: the answer changes
+ * with the font, the density and the locale.
+ */
+export const MeasuredProjectedBody: Story = {
+  render: args => ({
+    props: {
+      ...args,
+      nodes: [
+        {
+          id: 'survey',
+          x: 40,
+          y: 40,
+          width: 260,
+          height: 0,
+          title: 'survey-results-2026-08-30',
+          subtitle: '1 rows · 21 columns',
+          ports: [
+            { id: 'in', direction: 'in', label: 'Source' },
+            { id: 'out', direction: 'out', label: 'Rows' },
+          ],
+        },
+        {
+          id: 'short',
+          x: 380,
+          y: 40,
+          width: 200,
+          height: 0,
+          title: 'lookup',
+          subtitle: 'one column',
+          ports: [{ id: 'in', direction: 'in', label: 'Rows' }],
+        },
+      ],
+      connections: [],
+      columns: {
+        survey: ['respondent_id', 'submitted_at', 'channel', 'score', 'comment', 'locale'],
+        short: ['key'],
+      } as Record<string, readonly string[]>,
+    },
+    template: EDITOR(
+      '',
+      `
+      <ng-template uiNodeEditorNode let-node>
+        <div class="flex flex-col gap-0.5 px-3 pb-2 pt-1">
+          @for (column of columns[node.id] ?? []; track column) {
+            <span class="truncate font-mono text-[11px] text-muted-foreground">{{ column }}</span>
+          }
+        </div>
+      </ng-template>
+    `,
+    ),
+  }),
+};
+
 // ---------------------------------------------------------------------------
 // The runtime
 // ---------------------------------------------------------------------------
