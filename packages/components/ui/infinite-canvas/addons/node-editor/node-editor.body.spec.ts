@@ -24,6 +24,7 @@ import { NodeEditorNodeDirective } from './node-editor-node.directive';
 import {
   POINTER_METRICS,
   TOUCH_METRICS,
+  PORT_LIST_PADDING,
   nodeHeight,
   portListTop,
   portRowsHeight,
@@ -181,8 +182,9 @@ describe('the node card fits its subtitle and its projected body', () => {
     const port = relativeTo(card, one<HTMLElement>('[data-slot="node-editor-port"][data-port="in"]'));
     const body = relativeTo(card, one<HTMLElement>('[data-testid="body"]'));
 
-    // The symptom as reported: the port landed on the body's first row.
-    expect(port.bottom).toBeLessThanOrEqual(body.top + 1);
+    // PORT_LIST_PADDING separates the last port row from the body.
+    // Within the card's 1px border, which offsets its content but not the ports.
+    expect(Math.abs(body.top - port.bottom - PORT_LIST_PADDING)).toBeLessThanOrEqual(1);
   });
 
   it('grows the card to fit a projected body it never declared a height for', () => {
@@ -191,10 +193,10 @@ describe('the node card fits its subtitle and its projected body', () => {
     const body = one<HTMLElement>('[data-testid="body"]');
 
     expect(body.getBoundingClientRect().height).toBeGreaterThanOrEqual(ROW_HEIGHT * ROW_COUNT);
-    // Nothing hangs out of the card: the reported card was 96px around 193px
-    // of content, spilling the difference over the canvas.
+    // The body ends at the card's bottom edge: nothing spills out, and no
+    // height the card does not draw is left empty below it.
     expect(card.scrollHeight).toBeLessThanOrEqual(Math.ceil(rect.height) + 1);
-    expect(relativeTo(rect, body).bottom).toBeLessThanOrEqual(rect.height + 1);
+    expect(Math.abs(rect.height - relativeTo(rect, body).bottom)).toBeLessThanOrEqual(1);
   });
 
   it('grows again when the body does', async () => {
@@ -410,7 +412,7 @@ describe('touch-sized port rows with a subtitle', () => {
 
     // The premise: touch rows really are in force, or this is the pointer
     // test again under another name.
-    expect(band.height).toBeCloseTo(portRowsHeight(node, TOUCH_METRICS), 0);
+    expect(band.height).toBeCloseTo(portRowsHeight(node, TOUCH_METRICS) + PORT_LIST_PADDING, 0);
 
     expect(Math.abs(header.bottom - card.top - (portListTop(node) - 8))).toBeLessThanOrEqual(1);
     expect(port.top).toBeGreaterThanOrEqual(band.top - 1);

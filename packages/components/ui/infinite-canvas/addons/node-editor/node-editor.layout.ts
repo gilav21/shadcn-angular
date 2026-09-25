@@ -80,11 +80,11 @@ export function portListTop(node: Pick<EditorNode, 'subtitle'>): number {
 }
 
 /**
- * The vertical space the port rows occupy, below the header.
+ * The vertical space the port rows occupy, plus the padding below the last row.
  *
  * Inputs and outputs stack in parallel columns, so the row count is the larger
- * of the two — not their sum. The card renders a spacer of exactly this height
- * so that a node's body starts BELOW the ports instead of underneath them.
+ * of the two — not their sum. The padding ABOVE the first row belongs to
+ * `portListTop`, so the card's port band is this plus `PORT_LIST_PADDING`.
  */
 export function portRowsHeight(
   node: Pick<EditorNode, 'ports'>,

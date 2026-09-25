@@ -103,15 +103,17 @@ export class NodeEditorNodeComponent {
   );
 
   /**
-   * The vertical band the ports occupy.
+   * The vertical band the ports occupy, from the header to the body: the
+   * padding above the first row, the rows, and the padding below the last.
    *
-   * Ports are absolutely positioned siblings of the card, so without a spacer
-   * of exactly this height the card's body renders UNDERNEATH them — which is
-   * what the first live demo screenshot showed: port labels sitting on top of
-   * a text field and a value display.
+   * Ports are absolutely positioned siblings of the card, so without this
+   * spacer the body renders underneath them. It must hold BOTH paddings, as
+   * `nodeHeight` counts both: `portListTop` carries the one above the rows and
+   * `portRowsHeight` the one below, so a band of `portRowsHeight` alone put the
+   * body flush against the last row and left that padding as a gap below it.
    */
-  protected readonly portBandHeight = computed(() =>
-    portRowsHeight(this.node(), this.metrics()),
+  protected readonly portBandHeight = computed(
+    () => portRowsHeight(this.node(), this.metrics()) + PORT_LIST_PADDING,
   );
 
   /**

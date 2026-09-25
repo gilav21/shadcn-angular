@@ -2642,8 +2642,8 @@
       "lines": 344
     },
     "infinite-canvas/addons/node-editor/node-editor.body.spec.ts": {
-      "bytes": 19092,
-      "lines": 493
+      "bytes": 19248,
+      "lines": 495
     },
     "infinite-canvas/addons/node-editor/node-editor.component.css": {
       "bytes": 2020,
@@ -2694,7 +2694,7 @@
       "lines": 274
     },
     "infinite-canvas/addons/node-editor/node-editor.layout.ts": {
-      "bytes": 8695,
+      "bytes": 8708,
       "lines": 231
     },
     "infinite-canvas/addons/node-editor/node-editor.legibility.spec.ts": {
@@ -2790,8 +2790,8 @@
       "lines": 181
     },
     "infinite-canvas/addons/node-editor/sub/node-editor-node.component.ts": {
-      "bytes": 12220,
-      "lines": 286
+      "bytes": 12463,
+      "lines": 288
     },
     "infinite-canvas/addons/node-editor/sub/node-editor-port.component.html": {
       "bytes": 2002,
