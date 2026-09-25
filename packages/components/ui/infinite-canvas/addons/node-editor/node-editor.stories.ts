@@ -212,7 +212,7 @@ export const CustomNodeTemplate: Story = {
       '',
       `
       <ng-template uiNodeEditorNode let-node>
-        <div class="flex h-full w-full flex-col justify-center gap-1 px-3">
+        <div class="flex flex-col gap-1 px-3 pb-3">
           <span class="text-xs uppercase tracking-wide text-muted-foreground">custom</span>
           <span class="truncate text-sm font-semibold">{{ node.title }}</span>
           <span class="truncate text-[11px] text-muted-foreground">

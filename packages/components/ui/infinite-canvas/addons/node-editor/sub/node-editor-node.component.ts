@@ -187,9 +187,16 @@ export class NodeEditorNodeComponent {
   /**
    * The projected variant is a `<fieldset>`, which brings UA margin, padding
    * and — the one that actually bites — `min-inline-size: min-content`.
+   *
+   * It is also sized by its CONTENT, with the node's box as the floor, rather
+   * than filling the box exactly. The box only learns the body's height once
+   * the measurement comes back, a frame after the card mounts; filled exactly,
+   * the card painted that frame short, with the body spilling out of it. The
+   * canvas item does not clip, so a card taller than its box is simply drawn
+   * taller, and the box catches up on the next frame.
    */
   protected readonly projectedCardClasses = computed(() =>
-    cn(this.cardClasses(), 'm-0 min-w-0 p-0'),
+    cn(this.cardClasses(), 'm-0 min-w-0 p-0 h-auto min-h-full'),
   );
 
   /**
@@ -198,8 +205,8 @@ export class NodeEditorNodeComponent {
    * An OUTPUT rather than an input because a consumer cannot know it: the
    * height depends on the font, the density, the locale and on content that
    * changes at runtime — a title wrapping to a second line is enough to move
-   * it. The declared `node.bodyHeight` is only a first-frame floor; this is
-   * what the body actually took.
+   * it. The declared `node.bodyHeight` is only a minimum; this is what
+   * the body actually took.
    *
    * Emitted per node id rather than per card because the canvas RECYCLES these
    * views: the same component instance renders a different node as one scrolls

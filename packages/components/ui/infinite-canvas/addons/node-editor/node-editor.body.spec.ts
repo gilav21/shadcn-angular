@@ -14,14 +14,19 @@
 // Everything here asserts RENDERED geometry, never class names: a card can
 // carry every intended class and still lay out wrong, which is how both of
 // these shipped.
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Component, signal } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { InfiniteCanvasComponent } from '../..';
 import { NodeEditorComponent } from './node-editor.component';
 import { NodeEditorNodeDirective } from './node-editor-node.directive';
-import { POINTER_METRICS, portListTop } from './node-editor.layout';
+import {
+  POINTER_METRICS,
+  TOUCH_METRICS,
+  portListTop,
+  portRowsHeight,
+} from './node-editor.layout';
 import type { EditorNode } from './node-editor.types';
 
 /** Height of one row in the projected body, and how many there are. */
@@ -316,4 +321,216 @@ describe('the node card fits its subtitle and its projected body', () => {
     const floor = portListTop(node) + POINTER_METRICS.rowHeight + 8 + 120;
     expect(node.height).toBeGreaterThanOrEqual(floor - 1);
   });
+});
+
+/*
+ * Shared by the suites below, which each need a fixture built under a
+ * condition the default one cannot provide: a browser global replaced BEFORE
+ * the editor exists, because the editor reads it once, on creation.
+ */
+async function mountHost(): Promise<ComponentFixture<HostComponent>> {
+  await TestBed.configureTestingModule({ imports: [HostComponent] }).compileComponents();
+  const fixture = TestBed.createComponent(HostComponent);
+  document.body.appendChild(fixture.nativeElement as HTMLElement);
+  for (let i = 0; i < 2; i++) {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await nextFrame();
+  }
+  fixture.detectChanges();
+  return fixture;
+}
+
+function rectOf(fixture: ComponentFixture<HostComponent>, selector: string): DOMRect {
+  const el = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(selector);
+  if (!el) throw new Error('missing ' + selector);
+  return el.getBoundingClientRect();
+}
+
+function editorOf(fixture: ComponentFixture<HostComponent>): NodeEditorComponent {
+  return fixture.debugElement.query(By.directive(NodeEditorComponent))
+    .componentInstance as NodeEditorComponent;
+}
+
+describe('a card is drawn at its content height before the measurement lands', () => {
+  /*
+   * The node's box learns the body's height from a ResizeObserver, whose
+   * report arrives a frame after the card mounts. A card that FILLED its box
+   * was drawn that frame short, with the body hanging out of it.
+   *
+   * "Before the report" is one frame and cannot be caught reliably, so the
+   * observer is replaced with one that never reports: the box then never
+   * learns the height at all, and only a card sized by its own content can
+   * still contain the body.
+   */
+  const RealObserver = globalThis.ResizeObserver;
+  let fixture: ComponentFixture<HostComponent>;
+
+  beforeEach(async () => {
+    globalThis.ResizeObserver = class {
+      observe(): void {
+        // Never reports: this is the state of the frame before a real report.
+      }
+      unobserve(): void {
+        // Nothing to stop.
+      }
+      disconnect(): void {
+        // Nothing to stop.
+      }
+    } as unknown as typeof ResizeObserver;
+    fixture = await mountHost();
+  });
+
+  afterEach(() => {
+    globalThis.ResizeObserver = RealObserver;
+    (fixture.nativeElement as HTMLElement).remove();
+    fixture.destroy();
+  });
+
+  it('contains its body although the box never learned the body height', () => {
+    const card = rectOf(fixture, '[data-slot="node-editor-node"]');
+    const body = rectOf(fixture, '[data-testid="body"]');
+
+    // The premise: the box really is short, or this proves nothing.
+    expect(editorOf(fixture).renderedNodes()[0].height).toBeLessThan(body.bottom - card.top);
+
+    expect(body.bottom).toBeLessThanOrEqual(card.bottom + 1);
+  });
+});
+
+describe('touch-sized port rows with a subtitle', () => {
+  /*
+   * On a coarse pointer every port row is 44px, and the header still has to
+   * end where the rows begin. The header height and the row height come from
+   * different inputs, so the pointer-sized fixture above cannot show that the
+   * two compose.
+   */
+  const realMatchMedia = globalThis.matchMedia;
+  let fixture: ComponentFixture<HostComponent>;
+
+  beforeEach(async () => {
+    globalThis.matchMedia = ((query: string): MediaQueryList => {
+      if (query !== '(pointer: coarse)') return realMatchMedia.call(globalThis, query);
+      // `matches` is a getter on the real list, so a stand-in is the only way
+      // to answer yes; nothing here listens for changes.
+      return {
+        matches: true,
+        media: query,
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => false,
+      } as MediaQueryList;
+    }) as typeof matchMedia;
+    fixture = await mountHost();
+  });
+
+  afterEach(() => {
+    globalThis.matchMedia = realMatchMedia;
+    (fixture.nativeElement as HTMLElement).remove();
+    fixture.destroy();
+  });
+
+  it('keeps each port inside its band, below the header', () => {
+    const node = fixture.componentInstance.nodes()[0];
+    const card = rectOf(fixture, '[data-slot="node-editor-node"]');
+    const header = rectOf(fixture, '[data-slot="node-editor-node-header"]');
+    const band = rectOf(fixture, '[data-slot="node-editor-port-band"]');
+    const port = rectOf(fixture, '[data-slot="node-editor-port"][data-port="in"]');
+
+    // The premise: touch rows really are in force, or this is the pointer
+    // test again under another name.
+    expect(band.height).toBeCloseTo(portRowsHeight(node, TOUCH_METRICS), 0);
+
+    expect(Math.abs(header.bottom - card.top - (portListTop(node) - 8))).toBeLessThanOrEqual(1);
+    expect(port.top).toBeGreaterThanOrEqual(band.top - 1);
+    expect(port.bottom).toBeLessThanOrEqual(band.bottom + 1);
+  });
+});
+
+describe('measuring stays off the per-frame path', () => {
+  /*
+   * Every mounted card with a body owns an observer, and each report can write
+   * the editor's height map, which re-derives every node's height and
+   * re-renders the canvas. That is only affordable while a report that
+   * changes nothing writes nothing; otherwise panning a board of such nodes
+   * turns every recycled card into a full re-render.
+   *
+   * Asserted as a count, never a time: pan the whole board once so every node
+   * is measured, then take the same route again. The second pass re-attaches
+   * recycled cards, and every one of them reports; none of those reports may
+   * write.
+   */
+  let fixture: ComponentFixture<HostComponent>;
+
+  const COLUMNS = 20;
+  const board = (): EditorNode[] =>
+    Array.from({ length: 300 }, (_, i) => ({
+      id: 'n' + i,
+      x: (i % COLUMNS) * 300,
+      y: Math.floor(i / COLUMNS) * 300,
+      width: 230,
+      height: 0,
+      title: 'n' + i,
+      ports: [{ id: 'in', direction: 'in' as const, label: 'In' }],
+    }));
+
+  beforeEach(async () => {
+    fixture = await mountHost();
+    fixture.componentInstance.nodes.set(board());
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await nextFrame();
+  });
+
+  afterEach(() => {
+    (fixture.nativeElement as HTMLElement).remove();
+    fixture.destroy();
+  });
+
+  it('writes nothing when a pan revisits bodies it already measured', async () => {
+    const canvas = fixture.debugElement.query(By.directive(InfiniteCanvasComponent))
+      .componentInstance as InfiniteCanvasComponent;
+    const heights = (editorOf(fixture) as unknown as {
+      measuredBodies: { set: (value: unknown) => void } & (() => ReadonlyMap<unknown, number>);
+    }).measuredBodies;
+    const writes = vi.spyOn(heights, 'set');
+
+    const route = [
+      { x: 0, y: 0 },
+      { x: 2400, y: 0 },
+      { x: 5700, y: 0 },
+      { x: 5700, y: 2100 },
+      { x: 2400, y: 4200 },
+      { x: 0, y: 4200 },
+      { x: 0, y: 0 },
+    ];
+    const travel = async (): Promise<void> => {
+      for (const point of route) {
+        canvas.panTo(point);
+        for (let i = 0; i < 2; i++) {
+          fixture.detectChanges();
+          await fixture.whenStable();
+          await nextFrame();
+        }
+      }
+    };
+
+    await travel();
+    // The premise: the first pass measured, and measured more nodes than are
+    // ever mounted at once, so the second pass runs on recycled cards.
+    const mountedAtOnce = (fixture.nativeElement as HTMLElement).querySelectorAll(
+      '[data-slot="node-editor-node"]',
+    ).length;
+    expect(writes.mock.calls.length).toBeGreaterThan(0);
+    expect(heights().size).toBeGreaterThan(mountedAtOnce);
+
+    writes.mockClear();
+    await travel();
+
+    expect(writes).not.toHaveBeenCalled();
+    writes.mockRestore();
+  }, 60_000);
 });

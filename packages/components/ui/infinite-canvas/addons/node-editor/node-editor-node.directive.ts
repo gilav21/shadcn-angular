@@ -24,9 +24,15 @@ export interface NodeEditorNodeContext<T extends EditorNode = EditorNode> {
  * node's height from its own `nodes()` regardless, so a height computed
  * outside is replaced on the way in.
  *
- * Set `bodyHeight` on a node only as a FLOOR, when the body's first frame
- * would otherwise be visibly short before the measurement lands. The node
- * takes whichever is larger.
+ * Size the template by its content and give it its own padding. Filling the
+ * card with `h-full` does not work, deliberately: the body area is as tall as
+ * its content, because a body that filled the card would measure the card's
+ * own spare room and could then grow but never shrink back. No padding is
+ * imposed either — a projected body is yours, and a table usually wants to run
+ * edge to edge.
+ *
+ * Set `bodyHeight` on a node as a FLOOR, for a body that should keep a minimum
+ * size even when its content is smaller. The node takes whichever is larger.
  *
  * @example
  * ```html

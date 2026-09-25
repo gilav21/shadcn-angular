@@ -73,8 +73,14 @@ export interface EditorNode extends CanvasItem {
    * typed node takes its body height from its definition instead. It is a
    * FLOOR, not the final answer — the editor measures the rendered body and
    * grows the node when the content needs more, because no consumer can
-   * predict its own template's pixel height before layout. Set it to avoid a
-   * first-frame jump, or leave it out and let the measurement settle it.
+   * predict its own template's pixel height before layout. Leave it out and
+   * let the measurement settle it, or set it as a minimum.
+   *
+   * A body is measured only while its card is mounted, which is while the
+   * node is on screen or near it. A node whose body changes while it is far
+   * off screen keeps its last measured height until it comes back into view —
+   * culling, fit-view and the minimap read that height meanwhile. If exact
+   * off-screen heights matter, derive `bodyHeight` from the node's data.
    */
   bodyHeight?: number;
   /** Any CSS colour, painted as the node's header accent. */
