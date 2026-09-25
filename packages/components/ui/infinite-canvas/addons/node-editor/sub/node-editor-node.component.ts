@@ -218,15 +218,6 @@ export class NodeEditorNodeComponent {
   private readonly bodyRef = viewChild<ElementRef<HTMLElement>>('projectedBody');
 
   /**
-   * The node's id, as its own signal.
-   *
-   * The measuring effect depends on THIS rather than on `node()`, because the
-   * node object is replaced on every drag frame and every edit while its id
-   * stays put, and there is nothing to re-measure then.
-   */
-  private readonly nodeId = computed(() => this.node().id);
-
-  /**
    * Last height emitted for a given node, so an unchanged measurement is not
    * re-emitted. Each emission costs the editor a signal write and the canvas a
    * re-render; emitting only on a real change is what makes that a settling
@@ -239,15 +230,13 @@ export class NodeEditorNodeComponent {
 
   constructor() {
     afterRenderEffect(() => {
-      const element = this.bodyRef()?.nativeElement;
       /*
-       * Read for the dependency, defensively. Today the view pool DETACHES a
-       * released card and re-inserts it for its next node, so the body drops
-       * out of layout and back and the observer reports it anyway. A pool that
-       * swapped the node on an attached card would not, and without this the
-       * new node would never be measured.
+       * Depends on the body element alone. The node object is replaced on
+       * every drag frame and edit, and none of those is a reason to measure;
+       * a card recycled for another node is re-attached by the view pool,
+       * which the observer reports as a resize.
        */
-      this.nodeId();
+      const element = this.bodyRef()?.nativeElement;
       this.observer?.disconnect();
       if (!element) {
         this.lastEmitted = null;
@@ -272,7 +261,7 @@ export class NodeEditorNodeComponent {
          * everything reading it off screen. The observer records the zero all
          * the same, so re-attaching the card still reports afresh.
          */
-        if (entry?.target.isConnected) this.emitBody(this.nodeId(), entry.contentRect.height);
+        if (entry?.target.isConnected) this.emitBody(this.node().id, entry.contentRect.height);
       });
       this.observer.observe(element);
     });

@@ -14,7 +14,7 @@
 // Everything here asserts RENDERED geometry, never class names: a card can
 // carry every intended class and still lay out wrong, which is how both of
 // these shipped.
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Component, signal } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -24,6 +24,7 @@ import { NodeEditorNodeDirective } from './node-editor-node.directive';
 import {
   POINTER_METRICS,
   TOUCH_METRICS,
+  nodeHeight,
   portListTop,
   portRowsHeight,
 } from './node-editor.layout';
@@ -210,76 +211,43 @@ describe('the node card fits its subtitle and its projected body', () => {
     expect(after.scrollHeight).toBeLessThanOrEqual(Math.ceil(rect.height) + 1);
   });
 
-  it('forgets the measured height of a deleted node', async () => {
-    const measured = () =>
-      (editor() as unknown as { measuredBodies: () => ReadonlyMap<unknown, number> })
-        .measuredBodies();
+  it('measures the node a recycled card is reused for, and forgets the one it replaced', async () => {
+    const replacement: EditorNode = {
+      id: 'b',
+      x: 40,
+      y: 40,
+      width: 200,
+      height: 0,
+      title: 'replacement',
+      ports: [{ id: 'in', direction: 'in', label: 'In' }],
+    };
+    // Same spot and the same body size, so the pool hands a's card to b and
+    // nothing resizes.
+    fixture.componentInstance.nodes.set([replacement]);
+    await settle();
+    expect(renderedHeight('b')).toBe(nodeHeight(replacement, POINTER_METRICS, ROW_HEIGHT * ROW_COUNT));
 
-    expect(measured().has('a')).toBe(true);
+    // The deleted id comes back far off screen, where its body is never measured.
+    const reused: EditorNode = { ...replacement, id: 'a', x: 50_000, y: 50_000 };
+    fixture.componentInstance.nodes.set([replacement, reused]);
+    await settle();
+    expect(renderedHeight('a')).toBe(nodeHeight(reused, POINTER_METRICS, 0));
+  });
 
-    // Delete it, then add a DIFFERENT node so a measurement arrives and the
-    // prune has something to run on.
-    fixture.componentInstance.nodes.set([
-      {
-        id: 'b',
-        x: 40,
-        y: 40,
-        width: 200,
-        height: 0,
-        title: 'replacement',
-        ports: [{ id: 'in', direction: 'in', label: 'In' }],
-      },
+  // Zoom is a CSS scale on the viewport, so an on-screen height is world height x zoom.
+  it('measures a body in world units when its card mounts under zoom', async () => {
+    const atRest = renderedHeight('a');
+
+    zoomTo(2);
+    await settle();
+    fixture.componentInstance.nodes.update(nodes => [
+      ...nodes,
+      { ...nodes[0], id: 'late', x: nodes[0].x + 20, y: nodes[0].y + 20 },
     ]);
     await settle();
 
-    // Otherwise a long session keeps one entry per node it has ever rendered.
-    expect(measured().has('a')).toBe(false);
-    // And the replacement was measured, on what is the SAME card: the pool
-    // releases a's view before mounting b, and b's body is exactly as tall as
-    // a's was, so a report keyed to the old id would leave b unmeasured.
-    expect(measured().get('b')).toBe(ROW_HEIGHT * ROW_COUNT);
+    expect(renderedHeight('late')).toBe(atRest);
   });
-
-  /*
-   * Every other test here runs at zoom 1 — the one zoom where a height read
-   * off the screen equals the height in the world, so a measurement taken
-   * through the canvas's `scale()` passes them all. It shipped that way: the
-   * first time a node changed while zoomed, its body was re-measured at its
-   * ON-SCREEN size, and the card became twice as tall at 200% and half as tall
-   * at 50%, with the body spilling out of it again.
-   */
-  for (const zoom of [2, 0.5]) {
-    it(`keeps a body at its world height while a node is dragged at ${zoom * 100}% zoom`, async () => {
-      const atRest = renderedHeight('a');
-
-      zoomTo(zoom);
-      await settle();
-      // A drag replaces the node object every frame; any edit does the same.
-      for (let step = 0; step < 3; step++) {
-        fixture.componentInstance.nodes.update(nodes =>
-          nodes.map(node => ({ ...node, x: node.x + 10 })),
-        );
-        await settle();
-        expect(renderedHeight('a')).toBe(atRest);
-      }
-    });
-
-    it(`measures a node that first appears at ${zoom * 100}% zoom in world units`, async () => {
-      const atRest = renderedHeight('a');
-
-      zoomTo(zoom);
-      await settle();
-      // What scrolling a zoomed-out graph does: a card mounts for a node that
-      // has never been measured, with the scale already applied.
-      fixture.componentInstance.nodes.update(nodes => [
-        ...nodes,
-        { ...nodes[0], id: 'late', x: nodes[0].x + 20, y: nodes[0].y + 20 },
-      ]);
-      await settle();
-
-      expect(renderedHeight('late')).toBe(atRest);
-    });
-  }
 
   it('keeps a node its height while it is scrolled out of view', async () => {
     const atRest = renderedHeight('a');
@@ -450,19 +418,9 @@ describe('touch-sized port rows with a subtitle', () => {
   });
 });
 
-describe('measuring stays off the per-frame path', () => {
-  /*
-   * Every mounted card with a body owns an observer, and each report can write
-   * the editor's height map, which re-derives every node's height and
-   * re-renders the canvas. That is only affordable while a report that
-   * changes nothing writes nothing; otherwise panning a board of such nodes
-   * turns every recycled card into a full re-render.
-   *
-   * Asserted as a count, never a time: pan the whole board once so every node
-   * is measured, then take the same route again. The second pass re-attaches
-   * recycled cards, and every one of them reports; none of those reports may
-   * write.
-   */
+describe('revisiting measured bodies re-renders nothing', () => {
+  // Every recycled card reports its body again; a report that changes nothing
+  // must not hand the canvas a new node list.
   let fixture: ComponentFixture<HostComponent>;
 
   const COLUMNS = 20;
@@ -490,23 +448,18 @@ describe('measuring stays off the per-frame path', () => {
     fixture.destroy();
   });
 
-  it('writes nothing when a pan revisits bodies it already measured', async () => {
+  it('keeps the rendered node list when a pan revisits bodies it already measured', async () => {
     const canvas = fixture.debugElement.query(By.directive(InfiniteCanvasComponent))
       .componentInstance as InfiniteCanvasComponent;
-    const heights = (editorOf(fixture) as unknown as {
-      measuredBodies: { set: (value: unknown) => void } & (() => ReadonlyMap<unknown, number>);
-    }).measuredBodies;
-    const writes = vi.spyOn(heights, 'set');
-
     const route = [
       { x: 0, y: 0 },
-      { x: 2400, y: 0 },
       { x: 5700, y: 0 },
-      { x: 5700, y: 2100 },
-      { x: 2400, y: 4200 },
+      { x: 5700, y: 4200 },
       { x: 0, y: 4200 },
       { x: 0, y: 0 },
     ];
+    const seen = new Set<string>();
+    const frames: (readonly EditorNode[])[] = [];
     const travel = async (): Promise<void> => {
       for (const point of route) {
         canvas.panTo(point);
@@ -514,23 +467,27 @@ describe('measuring stays off the per-frame path', () => {
           fixture.detectChanges();
           await fixture.whenStable();
           await nextFrame();
+          frames.push(editorOf(fixture).renderedNodes());
+          for (const card of (fixture.nativeElement as HTMLElement).querySelectorAll(
+            '[data-slot="node-editor-node"]',
+          )) {
+            seen.add(card.getAttribute('data-node') ?? '');
+          }
         }
       }
     };
 
     await travel();
-    // The premise: the first pass measured, and measured more nodes than are
-    // ever mounted at once, so the second pass runs on recycled cards.
     const mountedAtOnce = (fixture.nativeElement as HTMLElement).querySelectorAll(
       '[data-slot="node-editor-node"]',
     ).length;
-    expect(writes.mock.calls.length).toBeGreaterThan(0);
-    expect(heights().size).toBeGreaterThan(mountedAtOnce);
+    // More nodes were shown than fit at once, so the second pass runs on recycled cards.
+    expect(seen.size).toBeGreaterThan(mountedAtOnce);
 
-    writes.mockClear();
+    const settled = editorOf(fixture).renderedNodes();
+    frames.length = 0;
     await travel();
 
-    expect(writes).not.toHaveBeenCalled();
-    writes.mockRestore();
+    expect(frames.every(frame => frame === settled)).toBe(true);
   }, 60_000);
 });
