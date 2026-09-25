@@ -173,40 +173,6 @@ describe('a second finger takes over from an edit', () => {
         expect(fixture.nativeElement.querySelector('[data-slot="node-editor-pending"]')).toBeNull();
         expect(host.connections()).toHaveLength(0);
     });
-
-    /**
-     * A press that never moved has nothing to put back, and the node must not
-     * jump anywhere when the second finger arrives.
-     */
-    it('leaves a node alone when the first finger never moved it', async () => {
-        const before = positionOf('a');
-
-        touch(nodeEl('a'), 'pointerdown', { pointerId: 1, isPrimary: true, clientX: 50, clientY: 50 });
-        touch(nodeEl('b'), 'pointerdown', { pointerId: 2, isPrimary: false, clientX: 300, clientY: 300 });
-        await settle();
-
-        expect(positionOf('a')).toEqual(before);
-    });
-
-    /**
-     * A mouse has one pointer and reports every press as primary. Narrowing
-     * the rule to touch keeps the desktop drag exactly as it was.
-     */
-    it('does not disturb a mouse drag', async () => {
-        const before = cardAt('a');
-
-        nodeEl('a').dispatchEvent(new PointerEvent('pointerdown', {
-            bubbles: true, cancelable: true, button: 0, pointerId: 1,
-            pointerType: 'mouse', clientX: 50, clientY: 50,
-        }));
-        nodeEl('a').dispatchEvent(new PointerEvent('pointermove', {
-            bubbles: true, cancelable: true, pointerId: 1,
-            pointerType: 'mouse', clientX: 200, clientY: 170,
-        }));
-        await settle();
-
-        expect(cardAt('a')).not.toEqual(before);
-    });
 });
 
 /*

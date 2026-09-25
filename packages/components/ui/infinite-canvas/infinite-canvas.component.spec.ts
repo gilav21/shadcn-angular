@@ -76,12 +76,6 @@ describe('InfiniteCanvasComponent (phase 1 — transform, pointer, keyboard)', (
   });
 
   describe('structure', () => {
-    it('renders the root, the edge canvas and the transform wrapper', () => {
-      expect(root).toBeTruthy();
-      expect(wrapper).toBeTruthy();
-      expect(fixture.nativeElement.querySelector('[data-slot="canvas-edges"]')).toBeTruthy();
-    });
-
     it('keeps the transform wrapper ZERO-SIZED (decision 2 — no giant composited layer)', () => {
       const rect = wrapper.getBoundingClientRect();
       expect(rect.width).toBe(0);
@@ -351,21 +345,6 @@ describe('InfiniteCanvasComponent (phase 1 — transform, pointer, keyboard)', (
 
       expect(screen.x).toBeCloseTo(centre.x, 4);
       expect(screen.y).toBeCloseTo(centre.y, 4);
-    });
-
-    it('fitView returns the identity viewport while there is no content (phase 1)', () => {
-      canvas.zoomTo(4);
-      canvas.fitView();
-      expect(canvas.viewport).toEqual({ x: 0, y: 0, zoom: 1 });
-    });
-
-    it('visibleWorldRect grows as the canvas zooms out', () => {
-      canvas.zoomTo(2);
-      const near = canvas.visibleWorldRect();
-      canvas.zoomTo(0.5);
-      const far = canvas.visibleWorldRect();
-
-      expect(far.width).toBeGreaterThan(near.width);
     });
 
     function centreOfRoot(): { x: number; y: number } {

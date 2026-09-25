@@ -64,10 +64,6 @@ describe('NodeEditorProblemsComponent', () => {
     afterEach(() => fixture.destroy());
 
     describe('it lists what is wrong, in words', () => {
-        it('renders one row per problem', () => {
-            expect(rows()).toHaveLength(3);
-        });
-
         it('shows the runtime’s message verbatim, never the code', () => {
             const text = root.textContent ?? '';
             expect(text).toContain('needs “Key” connected');

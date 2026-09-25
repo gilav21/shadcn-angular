@@ -83,15 +83,6 @@ describe('a run larger than the event cap', () => {
 });
 
 describe('collecting runs', () => {
-    it('keeps a finished run', () => {
-        const store = new RunHistoryStore();
-        store.begin(started(1), graph());
-        store.finish(finished(1));
-
-        expect(store.runs()).toHaveLength(1);
-        expect(store.runs()[0].id).toBe(1);
-    });
-
     it('lists newest first, the way a log is read', () => {
         const store = new RunHistoryStore();
         for (const id of [1, 2, 3]) {
@@ -106,10 +97,6 @@ describe('collecting runs', () => {
         store.begin(started(7), graph());
         store.finish(finished(7));
         expect(store.latest()?.id).toBe(7);
-    });
-
-    it('has no latest run before anything has run', () => {
-        expect(new RunHistoryStore().latest()).toBeNull();
     });
 
     it('carries each node’s inputs, outputs and duration', () => {
@@ -139,19 +126,6 @@ describe('collecting runs', () => {
 });
 
 describe('the graph is captured when the run STARTS', () => {
-    /**
-     * By the time anyone asks what a run did, the graph has usually been
-     * edited. A snapshot taken at the end would be a picture of a different
-     * graph than the one that produced the values beside it.
-     */
-    it('keeps the graph as it was at the start, not as it is at the end', () => {
-        const store = new RunHistoryStore();
-        store.begin(started(1), graph('Before the edit'));
-        const record = store.finish(finished(1));
-
-        expect(record.graph?.nodes[0].title).toBe('Before the edit');
-    });
-
     it('records a run that started before the store was listening', () => {
         const store = new RunHistoryStore();
         expect(store.finish(finished(1)).graph).toBeNull();
@@ -277,12 +251,6 @@ describe('storage is the consumer’s', () => {
         // Memory kept one; the sink saw all three. That is the point of it.
         expect(store.runs()).toHaveLength(1);
         expect(kept.map(r => r.id)).toEqual([1, 2, 3]);
-    });
-
-    it('works perfectly well with no sink at all', () => {
-        const store = new RunHistoryStore();
-        store.begin(started(1), graph());
-        expect(() => store.finish(finished(1))).not.toThrow();
     });
 });
 

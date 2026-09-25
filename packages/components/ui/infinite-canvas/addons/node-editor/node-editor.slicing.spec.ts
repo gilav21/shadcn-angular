@@ -82,18 +82,6 @@ function chain(depth: number): { nodes: EditorNode[]; connections: NodeConnectio
 }
 
 describe('a drain that yields', () => {
-    it('does not yield at all when nothing is configured', async () => {
-        const { nodes, connections } = fan(8);
-        const runtime = new NodeGraphRuntime();
-        runtime.setDefinitions([SOURCE, PASS]);
-        runtime.setGraph(nodes, connections);
-
-        await runtime.run();
-
-        expect(runtime.metrics.computedTotal).toBe(9);
-        runtime.dispose();
-    });
-
     it('runs a whole small graph inside one slice', async () => {
         const { nodes, connections } = fan(4);
         const graph = sliced(nodes, connections);

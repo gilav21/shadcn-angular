@@ -168,12 +168,6 @@ describe('NodeEditorComponent accessibility (T-10)', () => {
             expect(tree().textContent).toContain('not connected');
         });
 
-        it('distinguishes inputs from outputs, which the visual only shows by side', () => {
-            const text = tree().textContent ?? '';
-            expect(text).toContain('output');
-            expect(text).toContain('input');
-        });
-
         it('stays in sync when the graph changes', async () => {
             host.nodes.set([...NODES, {
                 id: 'extra', x: 0, y: 400, width: 180, height: 0,

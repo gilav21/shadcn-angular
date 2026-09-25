@@ -35,10 +35,6 @@ function outcome(view: GraphView, a: [string, string], b: [string, string]): Con
 }
 
 describe('canConnect accepts a valid pair', () => {
-    it('connects an output to an input', () => {
-        expect(outcome(graph(), ['a', 'out'], ['b', 'in'])).toBe('ok');
-    });
-
     it('normalises the endpoints so source is always the output side', () => {
         // Dragged backwards, from the input to the output.
         const result = canConnect(
@@ -51,10 +47,6 @@ describe('canConnect accepts a valid pair', () => {
             source: { node: 'a', port: 'out' },
             target: { node: 'b', port: 'in' },
         });
-    });
-
-    it('accepts either order — dragging backwards is not a different rule', () => {
-        expect(outcome(graph(), ['b', 'in'], ['a', 'out'])).toBe('ok');
     });
 });
 

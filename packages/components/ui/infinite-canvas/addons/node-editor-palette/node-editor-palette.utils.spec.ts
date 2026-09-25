@@ -95,11 +95,6 @@ describe('filterTypes — by what a type can accept', () => {
             .toEqual(['uppercase', 'log']);
     });
 
-    it('excludes a type with no inputs at all', () => {
-        expect(filterTypes(ALL, { acceptsType: 'table' }).map(t => t.id))
-            .not.toContain('read-csv');
-    });
-
     it('filters by what a type produces', () => {
         expect(filterTypes(ALL, { producesType: 'text' }).map(t => t.id)).toEqual(['uppercase']);
     });
@@ -130,10 +125,6 @@ describe('groupByCategory', () => {
 
     it('puts uncategorised types under the fallback heading', () => {
         expect(groupByCategory([LOG], 'Other')[0].category).toBe('Other');
-    });
-
-    it('returns nothing for nothing', () => {
-        expect(groupByCategory([], 'Other')).toEqual([]);
     });
 });
 

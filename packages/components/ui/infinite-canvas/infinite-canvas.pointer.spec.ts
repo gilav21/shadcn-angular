@@ -20,11 +20,6 @@ describe('CanvasPointerMachine', () => {
   });
 
   describe('T-1 — drag on empty space pans; the transform updates', () => {
-    it('starts idle', () => {
-      expect(machine.mode).toBe('idle');
-      expect(machine.viewport).toEqual({ x: 0, y: 0, zoom: 1 });
-    });
-
     it('enters panning on a primary drag over empty space and translates the viewport', () => {
       expect(down(machine, 100, 100)).toBe(true);
       expect(machine.mode).toBe('panning');

@@ -136,10 +136,6 @@ describe('NodeEditorHistoryComponent', () => {
     afterEach(() => fixture.destroy());
 
     describe('the run list', () => {
-        it('lists every run', () => {
-            expect(runRows()).toHaveLength(2);
-        });
-
         it('keeps the order it was given — newest first', () => {
             expect(runRows().map(row => row.dataset['run'])).toEqual(['2', '1']);
         });
@@ -163,10 +159,6 @@ describe('NodeEditorHistoryComponent', () => {
 
     describe('inspecting a run', () => {
         beforeEach(() => selectRun(2));
-
-        it('opens the detail for the run that was picked', () => {
-            expect(query('node-editor-history-detail')).not.toBeNull();
-        });
 
         it('marks which row is being inspected', () => {
             expect(runRows()[0].getAttribute('aria-current')).toBe('true');

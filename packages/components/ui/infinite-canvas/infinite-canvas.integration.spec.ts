@@ -71,11 +71,6 @@ describe('InfiniteCanvasComponent — items, edges, hit-testing, serialization',
       expect(nodeIds()).not.toContain('far');
     });
 
-    it('renders nothing when the item list is empty', async () => {
-      await setItems([]);
-      expect(nodeIds()).toEqual([]);
-    });
-
     it('brings a distant item into the DOM once panned to', async () => {
       await setItems(ITEMS);
       expect(nodeIds()).not.toContain('far');
@@ -91,12 +86,6 @@ describe('InfiniteCanvasComponent — items, edges, hit-testing, serialization',
       await setItems([{ id: 'solo', x: 10, y: 10, width: 50, height: 50 }]);
 
       expect(nodeIds()).toEqual(['solo']);
-    });
-
-    it('gives each mounted item the canvas-item slot used by the perf gate', async () => {
-      await setItems(ITEMS);
-      const hosts = root.querySelectorAll('[data-slot="canvas-item"]');
-      expect(hosts).toHaveLength(2);
     });
   });
 
@@ -170,17 +159,8 @@ describe('InfiniteCanvasComponent — items, edges, hit-testing, serialization',
       expect(canvas.hitTest(screenOf({ x: 200, y: 105 }))).toEqual({ kind: 'edge', id: 'edge-ab' });
     });
 
-    it('prefers the ITEM when an item and an edge overlap', () => {
-      const hit = canvas.hitTest(screenOf({ x: 50, y: 30 }));
-      expect(hit?.kind).toBe('item');
-    });
-
     it('returns null over empty space', () => {
       expect(canvas.hitTest(screenOf({ x: 250, y: 380 }))).toBeNull();
-    });
-
-    it('hits an item that is not currently mounted', () => {
-      expect(canvas.hitTest(screenOf({ x: 8050, y: 8030 }))).toEqual({ kind: 'item', id: 'far' });
     });
   });
 

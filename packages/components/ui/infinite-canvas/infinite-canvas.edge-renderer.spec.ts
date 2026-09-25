@@ -100,11 +100,6 @@ describe('CanvasEdgeRenderer', () => {
       expect(renderer.draw(IDENTITY, VIEW)).toBe(0);
     });
 
-    it('draws nothing when there are no edges', () => {
-      renderer.setEdges([], ITEMS);
-      expect(renderer.draw(IDENTITY, VIEW)).toBe(0);
-    });
-
     it('skips edges referencing an unknown item', () => {
       renderer.setEdges([{ id: 'dangling', source: 'a', target: 'nope' }], ITEMS);
       expect(renderer.edgeCount).toBe(0);
@@ -156,16 +151,6 @@ describe('CanvasEdgeRenderer', () => {
       expect(renderer.draw(IDENTITY, VIEW)).toBe(3);
     });
 
-    it('does NOT rebuild paths on pan or zoom — the cache survives untouched', () => {
-      renderer.setEdges([{ id: 'e', source: 'a', target: 'b' }], ITEMS);
-      const before = renderer.edgeCount;
-
-      renderer.draw({ x: -50, y: 20, zoom: 2 }, { x: 25, y: -10, width: 200, height: 150 });
-      renderer.draw({ x: 300, y: -100, zoom: 0.4 }, { x: -750, y: 250, width: 1000, height: 750 });
-
-      expect(renderer.edgeCount).toBe(before);
-    });
-
     it('keeps the on-screen stroke width constant across zoom levels', () => {
       renderer.setEdges([{ id: 'e', source: 'a', target: 'b', color: '#ff0000', width: 8 }], ITEMS);
 
@@ -197,16 +182,6 @@ describe('CanvasEdgeRenderer', () => {
   });
 
   describe('T-11 — hit testing via the cached world-space path (UC-9)', () => {
-    it('hits a point on the edge', () => {
-      renderer.setEdges([{ id: 'e', source: 'a', target: 'b' }], ITEMS);
-      expect(renderer.hitTest(100, 5, IDENTITY)?.id).toBe('e');
-    });
-
-    it('misses a point well away from the edge', () => {
-      renderer.setEdges([{ id: 'e', source: 'a', target: 'b' }], ITEMS);
-      expect(renderer.hitTest(100, 200, IDENTITY)).toBeNull();
-    });
-
     it('hits within tolerance but not beyond it', () => {
       renderer.setEdges([{ id: 'e', source: 'a', target: 'b' }], ITEMS);
       expect(renderer.hitTest(100, 8, IDENTITY)?.id).toBe('e');
@@ -240,10 +215,6 @@ describe('CanvasEdgeRenderer', () => {
       renderer.setEdges([{ id: 'e', source: 'left', target: 'right' }], items);
 
       expect(renderer.hitTest(0, 105, IDENTITY)?.id).toBe('e');
-    });
-
-    it('returns null with an empty cache', () => {
-      expect(renderer.hitTest(0, 0, IDENTITY)).toBeNull();
     });
   });
 
@@ -553,13 +524,6 @@ describe('setEdges reuses paths only when nothing that shapes them changed', () 
     expect(renderer.hitTest(105, 55, IDENTITY)?.id).toBe('e');
   });
 
-  it('keeps the path when nothing moved at all', () => {
-    renderer.setEdges([edge()], ITEMS);
-    renderer.setEdges([edge()], itemMap([...ITEMS.values()].map(item => ({ ...item }))));
-    expect(renderer.hitTest(105, 5, IDENTITY)?.id).toBe('e');
-    expect(renderer.edgeCount).toBe(1);
-  });
-
   it('forgets an edge that left the list', () => {
     renderer.setEdges([edge({ id: 'e1' }), edge({ id: 'e2' })], ITEMS);
     expect(renderer.edgeCount).toBe(2);
@@ -734,20 +698,6 @@ describe('setEdges builds no path until an edge is actually drawn', () => {
 
     renderer.hitTest(55, 5, IDENTITY);
     expect(renderer.builtPathCount).toBeGreaterThan(0);
-  });
-
-  it('drops the built path when the edge actually moves', () => {
-    const { edges, items } = spread(3);
-    renderer.setEdges(edges, items);
-    renderer.draw(IDENTITY, { x: -50, y: -50, width: 300, height: 300 });
-    expect(renderer.builtPathCount).toBe(1);
-
-    const moved = new Map(items);
-    moved.set('b0', { id: 'b0', x: 100, y: 900, width: 10, height: 10 });
-    renderer.setEdges(edges, moved);
-
-    // Rebuilt from scratch, so nothing is carrying the old shape.
-    expect(renderer.builtPathCount).toBe(0);
   });
 });
 

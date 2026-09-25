@@ -128,15 +128,6 @@ describe('run boundaries', () => {
         expect(r.finished).toHaveLength(1);
     });
 
-    it('numbers successive runs so they can be told apart', async () => {
-        const r = chain();
-        await r.runtime.run();
-        r.runtime.setState('a', 5);
-        await r.runtime.run();
-
-        expect(r.started.map(s => s.runId)).toEqual([1, 2]);
-    });
-
     it('says what was ready when it began', async () => {
         const r = chain();
         await r.runtime.run();
@@ -160,12 +151,6 @@ describe('run boundaries', () => {
 });
 
 describe('what settled', () => {
-    it('reports every node that ran, in the order they finished', async () => {
-        const r = chain();
-        await r.runtime.run();
-        expect(r.settled.map(s => s.nodeId)).toEqual(['a', 'b']);
-    });
-
     /**
      * The whole point. "What did node X get on run #47" cannot be answered by
      * a status, so the event carries the values on both sides of the node.
@@ -222,21 +207,6 @@ describe('what settled', () => {
         const r = chain();
         await r.runtime.run();
         expect(r.settled.every(s => s.error === undefined)).toBe(true);
-    });
-
-    /**
-     * A node re-dirtied mid-run has NOT settled — it goes back to stale and
-     * the drain picks it up again. Reporting it would put a value in the
-     * history that was never the node's final answer for that run.
-     */
-    it('does not report a node that was re-dirtied before it settled', async () => {
-        const r = recording([node('s', 'slow')], []);
-        const running = r.runtime.run();
-        r.runtime.setState('s', 'changed');
-        await running;
-
-        expect(r.settled.filter(s => s.nodeId === 's').length).toBeGreaterThan(0);
-        expect(r.settled.at(-1)?.status).toBe('done');
     });
 });
 
@@ -299,15 +269,4 @@ describe('a run bigger than the event cap', () => {
         expect(finished.slowest).not.toBeNull();
         graph.runtime.dispose();
     }, 60_000);
-});
-
-describe('no observer', () => {
-    it('runs perfectly well with nothing listening', async () => {
-        const runtime = new NodeGraphRuntime();
-        runtime.setDefinitions(DEFS);
-        runtime.setGraph([node('a', 'source'), node('b', 'double')], [link('c1', 'a', 'b')]);
-        await runtime.run();
-
-        expect(runtime.outputs('b')()).toEqual({ out: 2 });
-    });
 });

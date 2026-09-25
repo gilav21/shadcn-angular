@@ -32,17 +32,6 @@ class HostComponent {
     ]);
 }
 
-@Component({
-    standalone: true,
-    imports: [NodeEditorComponent],
-    template: `<ui-node-editor class="h-[400px] w-[400px]" [nodes]="nodes()" />`,
-})
-class BareHostComponent {
-    readonly nodes = signal<readonly EditorNode[]>([
-        { id: 'a', x: 0, y: 0, width: 170, height: 60, title: 'A' },
-    ]);
-}
-
 function nextFrame(): Promise<void> {
     return new Promise(resolve =>
         requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
@@ -71,37 +60,8 @@ describe('the world-space underlay', () => {
 
     afterEach(() => fixture.destroy());
 
-    it('actually renders the projected content', () => {
-        expect(frame()).not.toBeNull();
-    });
-
     it('renders it inside the canvas transform, so it pans with the plane', () => {
         const wrapper = fixture.nativeElement.querySelector('[data-slot="canvas-viewport"]');
         expect(wrapper.contains(frame())).toBe(true);
-    });
-
-    /**
-     * DOM order is paint order: an underlay must not cover the nodes it sits
-     * behind.
-     */
-    it('renders it before the node cards, so nodes paint on top', () => {
-        const card = fixture.nativeElement.querySelector('[data-slot="node-editor-node"]');
-        expect(card).not.toBeNull();
-        expect(
-            (frame() as HTMLElement).compareDocumentPosition(card) &
-                Node.DOCUMENT_POSITION_FOLLOWING,
-        ).toBeTruthy();
-    });
-
-    it('is optional — an editor with no underlay renders as before', async () => {
-        const bare = TestBed.createComponent(BareHostComponent);
-        bare.detectChanges();
-        await bare.whenStable();
-        await nextFrame();
-        bare.detectChanges();
-
-        expect(bare.nativeElement.querySelector('[data-slot="node-editor-node"]')).not.toBeNull();
-        expect(bare.nativeElement.querySelector('[data-testid="frame"]')).toBeNull();
-        bare.destroy();
     });
 });

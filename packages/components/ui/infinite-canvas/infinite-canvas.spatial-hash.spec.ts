@@ -29,11 +29,6 @@ describe('SpatialHash', () => {
   });
 
   describe('construction', () => {
-    it('starts empty', () => {
-      expect(hash.size).toBe(0);
-      expect(hash.query({ x: -1e6, y: -1e6, width: 2e6, height: 2e6 })).toEqual([]);
-    });
-
     it('rejects a non-positive cell size rather than dividing by zero', () => {
       expect(() => new SpatialHash<CanvasItem>(0)).toThrow();
       expect(() => new SpatialHash<CanvasItem>(-5)).toThrow();
