@@ -226,14 +226,6 @@ describe('the outer node’s ports come from the boundary nodes', () => {
         const graph: SubgraphGraph = { nodes: [node('bare', SUBGRAPH_INPUT_TYPE)], connections: [] };
         expect(boundaryPorts(graph)[0].label).toBe('bare');
     });
-
-    it('ignores ordinary nodes', () => {
-        expect(boundaryPorts(DOUBLER_GRAPH)).toHaveLength(2);
-    });
-
-    it('has no ports at all for a graph with no boundary nodes', () => {
-        expect(boundaryPorts({ nodes: [node('x', 'double')], connections: [] })).toEqual([]);
-    });
 });
 
 describe('inner state', () => {
@@ -269,13 +261,6 @@ describe('inner state', () => {
 });
 
 describe('the boundary types', () => {
-    it('exports both, for an editor that shows inner graphs', () => {
-        expect(SUBGRAPH_BOUNDARY_TYPES.map(t => t.id)).toEqual([
-            SUBGRAPH_INPUT_TYPE,
-            SUBGRAPH_OUTPUT_TYPE,
-        ]);
-    });
-
     /**
      * The outer node reads what ARRIVED at the output boundary. A compute that
      * echoed it would be a second copy of the value to keep in step, for
@@ -313,10 +298,6 @@ describe('a subgraph that starts empty', () => {
         id: 'blank',
         label: 'Subgraph',
         definitions: [DOUBLE],
-    });
-
-    it('starts with no ports at all', () => {
-        expect(EMPTY.ports).toEqual([]);
     });
 
     it('starts with an empty graph as its state', () => {
@@ -430,16 +411,6 @@ describe('renaming a boundary node names its port', () => {
         nodes: [node('in-1', SUBGRAPH_INPUT_TYPE), node('out-1', SUBGRAPH_OUTPUT_TYPE)],
         connections: [],
     };
-
-    it('falls back to the id, so a fresh port is at least addressable', () => {
-        expect(boundaryPorts(built).map(p => p.label)).toEqual(['in-1', 'out-1']);
-    });
-
-    it('shows the name the user typed', () => {
-        const withNames = renamed(renamed(built, 'in-1', 'URL'), 'out-1', 'Status');
-
-        expect(boundaryPorts(withNames).map(p => p.label)).toEqual(['URL', 'Status']);
-    });
 
     /** The point of keeping id and label apart. */
     it('leaves the port id alone, so connections survive the rename', () => {

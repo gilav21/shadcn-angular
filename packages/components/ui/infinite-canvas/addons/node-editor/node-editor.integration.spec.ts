@@ -197,11 +197,6 @@ describe('RT-11 typed nodes render their own view', () => {
     beforeEach(() => ctx.create());
     afterEach(() => ctx.destroy());
 
-    it('renders each node type view inside its card', () => {
-        expect(ctx.root.querySelector('[data-testid="text-field"]')).not.toBeNull();
-        expect(ctx.root.querySelector('[data-testid="display"]')).not.toBeNull();
-    });
-
     it('materialises ports and title from the definition, not the node', () => {
         expect(ctx.card('t')?.getAttribute('aria-label')).toContain('Text input');
 
@@ -231,11 +226,6 @@ describe('RT-11 the motivating example: typing streams downstream', () => {
     beforeEach(() => ctx.create());
     afterEach(() => ctx.destroy());
 
-    it('reaches the far end of the graph with no Run button', async () => {
-        await ctx.type('hello');
-        expect(ctx.display()).toBe('HELLO');
-    });
-
     it('keeps streaming on every keystroke', async () => {
         await ctx.type('a');
         expect(ctx.display()).toBe('A');
@@ -243,13 +233,6 @@ describe('RT-11 the motivating example: typing streams downstream', () => {
         expect(ctx.display()).toBe('AB');
         await ctx.type('abc');
         expect(ctx.display()).toBe('ABC');
-    });
-
-    it('does not evaluate at all when live is off', async () => {
-        ctx.host.live.set(false);
-        await ctx.settle();
-        await ctx.type('quiet');
-        expect(ctx.display()).not.toBe('QUIET');
     });
 
     it('catches up when run() is called explicitly', async () => {

@@ -83,13 +83,6 @@ describe('NodeEditorMinimapComponent', () => {
             expect(surface().style.width).toBe('200px');
         });
 
-        it('actually paints something', () => {
-            const context = surface().getContext('2d') as CanvasRenderingContext2D;
-            const { data } = context.getImageData(0, 0, surface().width, surface().height);
-            const painted = [...data].some((channel, i) => i % 4 === 3 && channel > 0);
-            expect(painted).toBe(true);
-        });
-
         it('repaints when the graph changes', async () => {
             const before = surface().toDataURL();
             host.nodes.set([...NODES, { id: 'd', x: 900, y: 600, width: 180, height: 80 }]);

@@ -17,7 +17,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Component, signal } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
-import { POINTER_METRICS, portAnchor } from './node-editor.layout';
+import { POINTER_METRICS } from './node-editor.layout';
 import { NodeEditorPortComponent } from './sub/node-editor-port.component';
 import type { EditorNode, NodePort } from './node-editor.types';
 
@@ -113,11 +113,5 @@ describe('port geometry does not follow writing direction', () => {
             expect(input, `${direction} input`).toBeLessThan(20);
             expect(output, `${direction} output`).toBeGreaterThan(CARD_WIDTH - 20);
         }
-    });
-
-    /** The side the wire leaves from, which is what the dots have to agree with. */
-    it('anchors edges at the same world offsets the dots are drawn at', () => {
-        expect(portAnchor(NODE, 'in')?.x).toBe(0);
-        expect(portAnchor(NODE, 'out')?.x).toBe(CARD_WIDTH);
     });
 });

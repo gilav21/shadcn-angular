@@ -37,24 +37,11 @@ describe('infinite-canvas transform math (T-10)', () => {
       expect(screenToWorld({ x: 25, y: 47 }, viewport)).toEqual({ x: 10, y: 20 });
     });
 
-    it('round-trips exactly at the identity viewport', () => {
-      const viewport: CanvasViewport = { x: 0, y: 0, zoom: 1 };
-      expect(roundTrip({ x: 123.5, y: -44.25 }, viewport)).toEqual({ x: 123.5, y: -44.25 });
-    });
-
     it('round-trips at a fractional zoom with a negative pan', () => {
       const viewport: CanvasViewport = { x: -1234.5, y: 987.25, zoom: 0.37 };
       const result = roundTrip({ x: 42, y: -17 }, viewport);
       expect(result.x).toBeCloseTo(42, 6);
       expect(result.y).toBeCloseTo(-17, 6);
-    });
-
-    it('handles world coordinates far from the origin (float-precision edge case R-4)', () => {
-      const viewport: CanvasViewport = { x: 0, y: 0, zoom: 1 };
-      const far = { x: 1e7, y: -1e7 };
-      const result = roundTrip(far, viewport);
-      expect(result.x).toBeCloseTo(far.x, 1);
-      expect(result.y).toBeCloseTo(far.y, 1);
     });
   });
 

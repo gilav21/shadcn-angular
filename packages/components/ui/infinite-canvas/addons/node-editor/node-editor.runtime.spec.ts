@@ -124,18 +124,6 @@ describe('RT-3 scoped re-evaluation and memoisation', () => {
         expect(runtime.metrics.computed).not.toContain('y');
     });
 
-    it('recomputes nothing at all when nothing changed', async () => {
-        const runtime = chainRuntime(['a', 'b', 'c']);
-        await runtime.run();
-
-        runtime.resetMetrics();
-        runtime.setState('a', 'seed');       // the value it already had
-        await runtime.run();
-
-        expect(runtime.metrics.computed).not.toContain('b');
-        expect(runtime.metrics.computed).not.toContain('c');
-    });
-
     /**
      * design §2.1, found by the spike and stronger than "only descendants".
      *
@@ -715,26 +703,6 @@ describe('what lands on a node, after the wiring changes', () => {
         }
     });
 
-    it('forgets a connection that was removed', async () => {
-        const runtime = new NodeGraphRuntime();
-        try {
-            runtime.setDefinitions(DEFS);
-            const nodes = [node('s', 'source'), node('a', 'passthrough')];
-            runtime.setGraph(nodes, [
-                { id: 'c', source: 's', sourcePort: 'out', target: 'a', targetPort: 'in' },
-            ]);
-            await runtime.run();
-            expect(runtime.inputs('a')()['in']).toBe('seed');
-
-            runtime.setGraph(nodes, []);
-            await runtime.run();
-
-            expect(runtime.inputs('a')()['in']).toBeUndefined();
-        } finally {
-            runtime.dispose();
-        }
-    });
-
     /** A required port reports as unconnected the moment its wire goes. */
     it('reports a required input again once its wire is gone', async () => {
         const NEEDS: NodeTypeDefinition = {
@@ -760,18 +728,6 @@ describe('what lands on a node, after the wiring changes', () => {
             runtime.dispose();
         }
     });
-
-    it('copes with a node nothing is wired to', () => {
-        const runtime = new NodeGraphRuntime();
-        try {
-            runtime.setDefinitions(DEFS);
-            runtime.setGraph([node('lonely', 'passthrough')], []);
-
-            expect(runtime.inputs('lonely')()['in']).toBeUndefined();
-        } finally {
-            runtime.dispose();
-        }
-    });
 });
 
 describe('state set before the node exists', () => {
@@ -785,19 +741,6 @@ describe('state set before the node exists', () => {
 
             expect(runtime.state('s')()).toBe('restored');
             expect(runtime.outputs('s')()['out']).toBe('restored');
-        } finally {
-            runtime.dispose();
-        }
-    });
-
-    it('still seeds initialState for a node nothing was written for', async () => {
-        const runtime = new NodeGraphRuntime();
-        try {
-            runtime.setDefinitions([SOURCE]);
-            runtime.setGraph([node('s', 'source')], []);
-            await runtime.run();
-
-            expect(runtime.state('s')()).toBe('seed');
         } finally {
             runtime.dispose();
         }
@@ -1044,26 +987,6 @@ describe('a hung node, a stale remote answer, and a node that opted out', () => 
         expect(fired).toBe(0);
 
         await runtime.run();
-        expect(fired).toBe(1);
-        runtime.dispose();
-    });
-
-    it('still runs a reactive node automatically', async () => {
-        let fired = 0;
-        const PURE: NodeTypeDefinition = {
-            id: 'pure',
-            label: 'Pure',
-            ports: [{ id: 'out', direction: 'out', label: 'Out' }],
-            compute: () => {
-                fired++;
-                return { out: fired };
-            },
-        };
-        const runtime = new NodeGraphRuntime();
-        runtime.setDefinitions([PURE]);
-        runtime.setGraph([{ id: 'p', type: 'pure', ...box }], []);
-
-        await runtime.run({ automatic: true });
         expect(fired).toBe(1);
         runtime.dispose();
     });

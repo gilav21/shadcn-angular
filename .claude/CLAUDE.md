@@ -353,8 +353,8 @@ reference implementation for this pattern.
 
 ### 3. Testing & Documentation
 
-- **Meaningful Unit Tests**: Tests must verify actual functionality
-  (interactions, state changes), not just component creation.
+- **Tests**: follow "Writing Tests" below — few, real-shaped inputs, one
+  test per behaviour.
 - **Storybook**: Every component must have a Storybook story showing all
   inputs/options.
 - **Demo Page**: Create a rich demo page with unique variants and
@@ -500,7 +500,8 @@ Before submitting a component, verify:
   where possible
 - [ ] Accessibility: proper ARIA attributes and keyboard navigation
 - [ ] RTL Support: verifies correct rendering in RTL mode
-- [ ] Tests cover both usage modes and verify functionality
+- [ ] Tests cover both usage modes and follow "Writing Tests" (one test per
+  behaviour, real-shaped inputs, the change mutation-checked)
 - [ ] Storybook covers all options/variants
 - [ ] Demo page includes copy-paste examples
 - [ ] No unused declarations (imports, variables, parameters, types) —
@@ -812,6 +813,77 @@ with no mouse or keyboard. Use the shared `touch.ts` utility
 
 ---
 
+## Writing Tests — Few, Real, Behaviour-Level
+
+> **A test earns its place by catching a regression no other test catches.**
+> Every other test costs run time and upkeep and buys nothing.
+
+### Writing a test — the steps
+
+1. **Name the behaviour** as given / when / then. Write one test per behaviour,
+   not one per input or per method.
+2. **Split the inputs into the classes the code treats differently** and use
+   one representative of each. Add a boundary case only where the spec defines
+   a boundary. A degenerate input — empty, a single item, zoom 1, the identity
+   viewport — is a class of its own, never a stand-in for the general case.
+3. **Build the input in the shape the code really receives**: a node with its
+   ports, title and subtitle; a realistic graph; real user text. Not the minimum
+   that compiles, and not a contrived curiosity. For a converter pair
+   (`toX`/`fromX`), its own output is a real input — include `fromX(toX(x))`.
+4. **Test at the lowest layer that can observe the behaviour.** Logic in a unit
+   test; a component test only for the wiring a unit test cannot see; e2e for
+   the consumer install and one or two critical user journeys. Never repeat an
+   assertion at another layer.
+5. **Assert the outcome through the public surface.**
+   - State, not calls: what the code produced, not the sequence it ran.
+   - The public API or the DOM — never private fields or spies on internals.
+   - Content as well as shape. Counts and lengths are satisfied by a fix that
+     deletes things.
+   - Layout as rendered geometry or computed style, never class strings, run in
+     the real browser leg.
+6. **Mutation-check the change before calling it done.** Break the code you
+   changed the way a plausible mistake would — flip a condition, drop a guard,
+   revert the fix, move a boundary — deriving each break from the contract,
+   not from the assertions. Every break must turn some test red; one that
+   survives means a test is missing or weak. Back up first, restore after,
+   never commit a break. This replaces any per-test ritual.
+
+### When a bug or regression gets past the tests
+
+The question is not "what test reproduces this?" but **"why did the existing
+tests let it through?"** There are three answers, and only one adds a test.
+
+1. **A test covers the behaviour, but its input or assertion was wrong** — a
+   degenerate input, or shape asserted instead of content. **Fix that test**
+   until it fails on the bug. No new test.
+2. **The behaviour is tested, but the bug lives in an input class no test
+   sampled** (any zoom other than 1, say). **Add that class to the existing
+   test** as one more representative. No test named after the incident.
+3. **No test covers the behaviour.** Only then **add one test** — for the
+   behaviour, at the lowest layer that can see it, with a real-shaped input.
+
+In every case: take the input from the bug's class (see "Fixing Bugs" §1), not
+from the literal reproduction; see the test fail before the fix and pass after;
+keep the incident's story in the commit message, not in the test. A fix that
+adds several tests has not found its input classes yet.
+
+### Deleting tests
+
+Remove a test that:
+
+- **cannot fail** — it asserts a constant, an initial state, or "it renders"
+  where other tests already render;
+- **duplicates** another test at the same or a lower layer;
+- **claims more than it asserts** — rename it or fix it, or delete it;
+- **asserts the bug** — a comment saying "known quirk", "currently" or "the
+  spec predicted X but…" beside an assertion is a red flag. Fix the code and
+  the test together, and say so in the commit message;
+- **measures without asserting** — that is a benchmark, not a test. Name it
+  `*.workload.spec.ts`, which the default run skips; `WORKLOAD=1 npx vitest
+  --run <file>` runs it.
+
+---
+
 ## Fixing Bugs — Fix the Class, Not the Reproduction
 
 > **A bug report hands you a sample of the broken class, not its definition.**
@@ -844,24 +916,14 @@ One commit here is titled *"make tag pairing local"* and computes the locality,
 then unions it away. The message described the intent, the symptom was gone, and
 nobody re-read the code. Ten seconds of checking would have caught it.
 
-### 4. Two questions for every regression test, not one
+### 4. Then fix the test that missed it
 
-Sabotage-testing (break the fix, confirm the test goes red) proves the
-**assertion** is load-bearing. It says **nothing** about whether the **input** is
-representative. Ask both:
-
-1. **Can it fail?** — sabotage it.
-2. **Is this input the general case, or the one shape where the bug hides?**
-
-The second failure mode is a **degenerate input**: the test does fail under
-sabotage, so it looks healthy, but the bug cannot manifest for that input. Two
-security fixes here shipped with green sabotage tests and live bugs —
-a tag-pairing test using a lone stray closing tag (unpaired under both
-implementations), and an open-redirect test using only two-character backslash
-forms while `https:\host` and `https:///host` both still bypassed.
-
-Write down the full input class the code path accepts, then pick from the middle
-of it, not the edge you were handed.
+Follow "Writing Tests › When a bug or regression gets past the tests": find why
+the existing tests let the bug through, and correct that test before adding
+one. The two security fixes that shipped live here did so on degenerate
+inputs — a lone stray closing tag, and only two-character backslash forms while
+`https:\host` and `https:///host` still bypassed. Take the test input from the
+class stated in §1, not from the reproduction.
 
 ### 5. Run the consumers, not just the folder you edited
 
@@ -876,19 +938,6 @@ npx vitest --run packages/components/ui/rich-text-editor packages/components/ui/
 ```
 
 `npx shadcn-angular why <component>` prints reverse dependents.
-
-### 6. Watch for tests that assert the bug
-
-Thirteen were found in that audit series. Three species, in increasing subtlety:
-
-- a **weak assertion** that passes either way (a trailing substring);
-- a test **asserting broken behaviour as correct** — sometimes with a comment
-  admitting the spec predicted better;
-- a **degenerate input** (see §4).
-
-A comment saying "known quirk", "currently", or "the spec predicted X but…"
-next to an assertion is a red flag, not documentation. Fix the code and the
-test, and say so in the commit message.
 
 ---
 
@@ -927,7 +976,9 @@ When generating or modifying components:
 3. **Preserve existing template-driven API** — never remove it
 4. **Add simple inputs** as a convenience layer on top
 5. **Use `@ContentChild`** to detect projection
-6. **Test both modes** in the spec file
+6. **Test both modes** in the spec file, following "Writing Tests": one test
+   per behaviour, real-shaped inputs, the lowest layer that can see it, and a
+   mutation check of the change
 7. **Follow naming conventions** exactly
 8. **Form Components**: Support both `value` input and `ControlValueAccessor`
 9. **Clean up unused declarations** — after writing or modifying code, verify
@@ -965,14 +1016,12 @@ When generating or modifying components:
     `e2e/orchestrator/specs.ts` for single-component specs — they are
     auto-discovered from the harness folder. Only multi-component or
     `initArgs`-override specs belong in `EXPLICIT_SPECS`.
-14. **Fixing a bug? Fix the CLASS, not the reproduction.** See the section
-    "Fixing Bugs — Fix the Class, Not the Reproduction". State the invariant as
-    a rule before writing the fix; read the spec for spec-defined behaviour;
-    re-read the diff against your own commit message; ask BOTH test questions
-    (can it fail, AND is the input the general case); run the consumers of any
-    shared service you touch. Eighteen of ~88 findings in the RTE audit series
-    were regressions from earlier fixes that were correct only for the input
-    they were handed.
+14. **Fixing a bug? Fix the CLASS, not the reproduction.** See "Fixing Bugs".
+    State the invariant as a rule before writing the fix; read the spec for
+    spec-defined behaviour; re-read the diff against your own commit message;
+    run the consumers of any shared service you touch. Then ask why the tests
+    missed it and fix THAT test before adding one ("Writing Tests › When a bug
+    or regression gets past the tests").
 
 15. **🔴 Final DONE gate — SonarQube server scan.** This is the LAST step before
     declaring any task/plan/PR complete, and it is mandatory:

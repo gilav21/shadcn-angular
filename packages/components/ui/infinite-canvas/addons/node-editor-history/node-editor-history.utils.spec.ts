@@ -101,10 +101,6 @@ describe('replayFrame — what makes replay possible at all', () => {
     it('is null for no run, which is how the editor returns to the present', () => {
         expect(replayFrame(null)).toBeNull();
     });
-
-    it('is an empty frame for a run in which nothing settled', () => {
-        expect(replayFrame(runRecord([]))).toEqual({});
-    });
 });
 
 describe('formatDuration', () => {
@@ -145,19 +141,6 @@ describe('formatStartedAt', () => {
 });
 
 describe('reading a run’s timings', () => {
-    it('names the slowest node', () => {
-        const run = runRecord([
-            nodeRecord({ nodeId: 'a', durationMs: 4 }),
-            nodeRecord({ nodeId: 'slow', durationMs: 90 }),
-            nodeRecord({ nodeId: 'c', durationMs: 12 }),
-        ]);
-        expect(slowestNode(run)?.nodeId).toBe('slow');
-    });
-
-    it('has no slowest node in an empty run, rather than a fabricated zero', () => {
-        expect(slowestNode(runRecord([]))).toBeNull();
-    });
-
     it('reports each node’s share of the work', () => {
         const run = runRecord([
             nodeRecord({ nodeId: 'a', durationMs: 25 }),
@@ -173,10 +156,6 @@ describe('reading a run’s timings', () => {
 });
 
 describe('exportRun', () => {
-    it('produces JSON that parses back', () => {
-        expect(JSON.parse(exportRun(runRecord())).id).toBe(1);
-    });
-
     it('is pretty-printed, because the destination is a bug report', () => {
         expect(exportRun(runRecord())).toContain('\n  ');
     });

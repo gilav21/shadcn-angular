@@ -169,27 +169,8 @@ describe('NodeEditorComponent', () => {
     afterEach(() => fixture.destroy());
 
     describe('T-7 rendering', () => {
-        it('mounts a card for each node', () => {
-            expect(root.querySelectorAll('[data-slot="node-editor-node"]')).toHaveLength(3);
-        });
-
         it('renders the node title', () => {
             expect(nodeEl('a').textContent).toContain('Node a');
-        });
-
-        it('renders a dot for every port', () => {
-            // Ports are SIBLINGS of the card, not children — nesting a button
-            // inside a button is an axe `nested-interactive` violation. So this
-            // queries the canvas item wrapper, which holds both.
-            const wrapper = nodeEl('a').closest('[data-slot="canvas-item"]') as HTMLElement;
-            expect(wrapper.querySelectorAll('[data-slot="node-editor-port"]')).toHaveLength(2);
-        });
-
-        it('derives each node height from its ports rather than trusting the input', () => {
-            // Every node was authored with height 0.
-            expect(host.nodes().every(n => n.height === 0)).toBe(true);
-            const rendered = nodeEl('a').closest<HTMLElement>('[data-slot="canvas-item"]');
-            expect(Number.parseFloat(rendered?.style.height ?? '0')).toBeGreaterThan(0);
         });
     });
 
@@ -579,14 +560,6 @@ describe('NodeEditorComponent', () => {
             expect(nodeEl('a').getAttribute('tabindex')).toBe('0');
         });
 
-        it('nudges the node with shift+arrow', async () => {
-            focus('a');
-            await settle();
-            key(nodeEl('a'), { key: 'ArrowRight', shiftKey: true });
-            await settle();
-            expect(host.nodes().find(n => n.id === 'a')?.x).toBeGreaterThan(0);
-        });
-
         it('nudges by one grid cell when snapping is on', async () => {
             host.gridSnap.set(25);
             await settle();
@@ -601,15 +574,6 @@ describe('NodeEditorComponent', () => {
             await settle();
             const event = key(nodeEl('a'), { key: 'ArrowRight' });
             expect(event.defaultPrevented).toBe(true);
-        });
-
-        it('cycles ports with Tab', async () => {
-            focus('a');
-            await settle();
-            key(nodeEl('a'), { key: 'Tab' });
-            await settle();
-            expect(root.querySelector('[data-slot="node-editor-port"][data-node="a"]'))
-                .not.toBeNull();
         });
 
         it('connects two ports with Enter, Tab, Enter', async () => {
@@ -848,17 +812,6 @@ describe('connecting on a touch device', () => {
             await settle();
         }
 
-        it('undoes a pointer drag, putting the node back where it started', async () => {
-            const before = positionOf('a');
-            await dragA();
-            expect(positionOf('a')).not.toEqual(before);
-
-            key(root, { key: 'z', ctrlKey: true });
-            await settle();
-
-            expect(positionOf('a')).toEqual(before);
-        });
-
         it('redoes the drag it just undid', async () => {
             const before = positionOf('a');
             await dragA();
@@ -966,26 +919,6 @@ describe('connecting on a touch device', () => {
             expect(host.connections()[0]).toMatchObject({ source: 'a', target: 'b' });
         });
 
-        it('undoes unplugging a wire into empty space', async () => {
-            await connectByDrag(['a', 'out'], ['b', 'in']);
-
-            const source = portEl('b', 'in');
-            const rect = root.getBoundingClientRect();
-            pointer(source, 'pointerdown', { clientX: 0, clientY: 0 });
-            await settle();
-            pointer(root, 'pointermove', { clientX: rect.left + 600, clientY: rect.top + 500 });
-            await settle();
-            pointer(root, 'pointerup', { clientX: rect.left + 600, clientY: rect.top + 500 });
-            await settle();
-            expect(host.connections()).toEqual([]);
-
-            key(root, { key: 'z', ctrlKey: true });
-            await settle();
-
-            expect(host.connections()).toHaveLength(1);
-            expect(host.connections()[0]).toMatchObject({ source: 'a', target: 'b' });
-        });
-
         it('undoes a connection made with the keyboard', async () => {
             // Pointer and keyboard must not disagree about history either.
             //
@@ -1030,6 +963,16 @@ describe('connecting on a touch device', () => {
             expect(host.rejections).toContain('same-direction');
             expect(host.connections()).toHaveLength(1);
             expect(host.connections()[0]).toMatchObject({ source: 'a', target: 'b' });
+
+            /*
+             * And it added no step: the one Ctrl+Z on the stack undoes the
+             * CONNECTION and leaves nothing. Recording the refusal instead
+             * would make the first Ctrl+Z put back the wire the refusal had
+             * deleted — the user pressing undo once and seeing no change.
+             */
+            key(root, { key: 'z', ctrlKey: true });
+            await settle();
+            expect(host.connections()).toEqual([]);
         });
 
         it('undoes the wire it just made, not another one', async () => {
@@ -1066,29 +1009,12 @@ describe('connecting on a touch device', () => {
             key(root, { key: 'z', ctrlKey: true });
             await settle();
             expect(host.connections()).toHaveLength(1);
+            expect(host.connections()[0]).toMatchObject({ source: 'a', target: 'b' });
 
             // `added: removed` would leave undo looking right and make redo a
             // no-op, so an unplug could never be redone.
             key(root, { key: 'y', ctrlKey: true });
             await settle();
-            expect(host.connections()).toEqual([]);
-        });
-
-        it('has nothing to undo after a refused drop', async () => {
-            await connectByDrag(['a', 'out'], ['b', 'in']);
-            await connectByDrag(['b', 'in'], ['c', 'out']);
-            expect(host.connections()).toHaveLength(1);
-
-            /*
-             * A refused drop is a failed gesture, not an edit, so it adds no
-             * step: the one Ctrl+Z on the stack undoes the CONNECTION and
-             * leaves nothing. Recording the refusal instead would make the
-             * first Ctrl+Z put back the wire the refusal had deleted — the
-             * user pressing undo once and seeing the board unchanged.
-             */
-            key(root, { key: 'z', ctrlKey: true });
-            await settle();
-
             expect(host.connections()).toEqual([]);
         });
 

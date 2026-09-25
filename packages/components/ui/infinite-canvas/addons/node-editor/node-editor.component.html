@@ -47,6 +47,7 @@
         [recentlyRan]="recentlyRan(node.id)"
         [openable]="isOpenable(node.id)"
         [connectable]="connectableFor(node)"
+        (bodyMeasured)="onBodyMeasured($event)"
       />
     </ng-template>
   </ui-infinite-canvas>

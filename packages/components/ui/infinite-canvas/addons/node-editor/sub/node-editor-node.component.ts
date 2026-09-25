@@ -1,17 +1,28 @@
 import {
+  afterRenderEffect,
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
+  ElementRef,
+  inject,
   input,
+  output,
+  viewChild,
   type Injector,
   type TemplateRef,
   type Type,
 } from '@angular/core';
 import { NgComponentOutlet, NgTemplateOutlet } from '@angular/common';
 import { cn } from '../../../../../lib/utils';
-import { NODE_HEADER_HEIGHT, portRowsHeight, type PortMetrics } from '../node-editor.layout';
+import {
+  PORT_LIST_PADDING,
+  portListTop,
+  portRowsHeight,
+  type PortMetrics,
+} from '../node-editor.layout';
 import type { NodeStatus } from '../node-editor.runtime.types';
-import type { EditorNode, PortRef } from '../node-editor.types';
+import type { EditorNode, NodeId, PortRef } from '../node-editor.types';
 import { NodeEditorPortComponent, type PortDropState } from './node-editor-port.component';
 
 /** Context handed to a projected node template. */
@@ -75,18 +86,34 @@ export class NodeEditorNodeComponent {
   /** This node contains something worth opening; double-click descends into it. */
   readonly openable = input(false);
 
-  protected readonly headerHeight = NODE_HEADER_HEIGHT;
+  /**
+   * The header's height, derived from the same rule the port geometry uses.
+   *
+   * It must equal `portListTop(node) - PORT_LIST_PADDING`, because the ports
+   * are positioned from the node's top edge while the header is laid out by
+   * flow: if the two disagree the ports land on the body. They DID disagree —
+   * this restated only `NODE_HEADER_HEIGHT` and dropped the subtitle, so every
+   * node with a subtitle drew its ports NODE_SUBTITLE_HEIGHT too low.
+   *
+   * Invisible without a subtitle, because both expressions then reduce to the
+   * same number, which is why it survived. Derive, never restate.
+   */
+  protected readonly headerHeight = computed(
+    () => portListTop(this.node()) - PORT_LIST_PADDING,
+  );
 
   /**
-   * The vertical band the ports occupy.
+   * The vertical band the ports occupy, from the header to the body: the
+   * padding above the first row, the rows, and the padding below the last.
    *
-   * Ports are absolutely positioned siblings of the card, so without a spacer
-   * of exactly this height the card's body renders UNDERNEATH them — which is
-   * what the first live demo screenshot showed: port labels sitting on top of
-   * a text field and a value display.
+   * Ports are absolutely positioned siblings of the card, so without this
+   * spacer the body renders underneath them. It must hold BOTH paddings, as
+   * `nodeHeight` counts both: `portListTop` carries the one above the rows and
+   * `portRowsHeight` the one below, so a band of `portRowsHeight` alone put the
+   * body flush against the last row and left that padding as a gap below it.
    */
-  protected readonly portBandHeight = computed(() =>
-    portRowsHeight(this.node(), this.metrics()),
+  protected readonly portBandHeight = computed(
+    () => portRowsHeight(this.node(), this.metrics()) + PORT_LIST_PADDING,
   );
 
   /**
@@ -162,10 +189,96 @@ export class NodeEditorNodeComponent {
   /**
    * The projected variant is a `<fieldset>`, which brings UA margin, padding
    * and — the one that actually bites — `min-inline-size: min-content`.
+   *
+   * It is also sized by its CONTENT, with the node's box as the floor, rather
+   * than filling the box exactly. The box only learns the body's height once
+   * the measurement comes back, a frame after the card mounts; filled exactly,
+   * the card painted that frame short, with the body spilling out of it. The
+   * canvas item does not clip, so a card taller than its box is simply drawn
+   * taller, and the box catches up on the next frame.
    */
   protected readonly projectedCardClasses = computed(() =>
-    cn(this.cardClasses(), 'm-0 min-w-0 p-0'),
+    cn(this.cardClasses(), 'm-0 min-w-0 p-0 h-auto min-h-full'),
   );
+
+  /**
+   * The rendered height of a projected body, in CSS pixels.
+   *
+   * An OUTPUT rather than an input because a consumer cannot know it: the
+   * height depends on the font, the density, the locale and on content that
+   * changes at runtime — a title wrapping to a second line is enough to move
+   * it. The declared `node.bodyHeight` is only a minimum; this is what
+   * the body actually took.
+   *
+   * Emitted per node id rather than per card because the canvas RECYCLES these
+   * views: the same component instance renders a different node as one scrolls
+   * past, so a height remembered on the instance would be attributed to the
+   * wrong node.
+   */
+  readonly bodyMeasured = output<{ node: NodeId; height: number }>();
+
+  private readonly bodyRef = viewChild<ElementRef<HTMLElement>>('projectedBody');
+
+  /**
+   * Last height emitted for a given node, so an unchanged measurement is not
+   * re-emitted. Each emission costs the editor a signal write and the canvas a
+   * re-render; emitting only on a real change is what makes that a settling
+   * rather than a loop.
+   */
+  private lastEmitted: { node: NodeId; height: number } | null = null;
+
+  /** Created on first render, so constructing a card never touches a browser API. */
+  private observer: ResizeObserver | null = null;
+
+  constructor() {
+    afterRenderEffect(() => {
+      /*
+       * Depends on the body element alone. The node object is replaced on
+       * every drag frame and edit, and none of those is a reason to measure;
+       * a card recycled for another node is re-attached by the view pool,
+       * which the observer reports as a resize.
+       */
+      const element = this.bodyRef()?.nativeElement;
+      this.observer?.disconnect();
+      if (!element) {
+        this.lastEmitted = null;
+        return;
+      }
+      /*
+       * A new observation always delivers an initial size, so a node is
+       * measured on mount even when nothing about it resizes.
+       *
+       * `contentRect` is the LAYOUT box, before transforms. That matters: the
+       * canvas zooms with a CSS `scale()`, so an on-screen measurement is the
+       * world height times the zoom — reading one made cards twice as tall at
+       * 200% and half as tall at 50%. The wrapper has no padding or border, so
+       * its content box is the whole of it.
+       */
+      this.observer ??= new ResizeObserver(entries => {
+        const entry = entries[0];
+        /*
+         * A card going back to the view pool is DETACHED, not destroyed, and a
+         * detached element measures 0 x 0. Reported, that zeroed the body of
+         * the node that just scrolled away and shrank its world box for
+         * everything reading it off screen. The observer records the zero all
+         * the same, so re-attaching the card still reports afresh.
+         */
+        if (entry?.target.isConnected) this.emitBody(this.node().id, entry.contentRect.height);
+      });
+      this.observer.observe(element);
+    });
+
+    inject(DestroyRef).onDestroy(() => this.observer?.disconnect());
+  }
+
+  private emitBody(node: NodeId, height: number): void {
+    // Rounded up, never down: a body a fraction of a pixel taller than its
+    // card would poke out of it.
+    const rounded = Math.ceil(height);
+    if (this.lastEmitted?.node === node && this.lastEmitted.height === rounded) return;
+    this.lastEmitted = { node, height: rounded };
+    this.bodyMeasured.emit({ node, height: rounded });
+  }
 
   protected dropStateFor(portId: string): PortDropState {
     const over = this.dropPort();

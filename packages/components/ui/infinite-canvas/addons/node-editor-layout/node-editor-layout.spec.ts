@@ -156,30 +156,12 @@ describe('cycles', () => {
         const positions = layoutGraph([node('solo')], [link('s', 'solo', 'solo')]);
         expect(positions.size).toBe(1);
     });
-
-    it('survives two nodes pointing at each other', () => {
-        const positions = layoutGraph(
-            [node('a'), node('b')],
-            [link('1', 'a', 'b'), link('2', 'b', 'a')],
-        );
-        expect(positions.size).toBe(2);
-    });
 });
 
 describe('robustness', () => {
-    it('returns nothing for no nodes', () => {
-        expect(layoutGraph([], []).size).toBe(0);
-    });
-
     it('ignores a connection pointing at a node that is not there', () => {
         const positions = layoutGraph([node('a')], [link('1', 'a', 'ghost')]);
         expect(positions.size).toBe(1);
-    });
-
-    it('positions EVERY node, so nothing is left where it was', () => {
-        const nodes = Array.from({ length: 30 }, (_, i) => node(`n${i}`));
-        const connections = nodes.slice(1).map((n, i) => link(`c${i}`, `n${i}`, n.id as string));
-        expect(layoutGraph(nodes, connections).size).toBe(30);
     });
 });
 

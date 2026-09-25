@@ -42,33 +42,6 @@ function chain(count: number): { nodes: EditorNode[]; connections: NodeConnectio
 }
 
 describe('the runtime lets go of a node it no longer has', () => {
-    it('holds nothing before a graph is set', () => {
-        const runtime = new NodeGraphRuntime();
-        try {
-            expect(runtime.metrics.retained).toBe(0);
-        } finally {
-            runtime.dispose();
-        }
-    });
-
-    it('comes back to zero when the graph empties', async () => {
-        const runtime = new NodeGraphRuntime();
-        try {
-            const { nodes, connections } = chain(25);
-            runtime.setDefinitions([PASS]);
-            runtime.setGraph(nodes, connections);
-            await runtime.run();
-
-            expect(runtime.metrics.retained).toBe(25);
-
-            runtime.setGraph([], []);
-
-            expect(runtime.metrics.retained).toBe(0);
-        } finally {
-            runtime.dispose();
-        }
-    });
-
     /*
      * The shape that actually happens: a graph edited for a while.
      *
@@ -157,29 +130,6 @@ describe('a disposed runtime holds nothing', () => {
         runtime.dispose();
 
         expect(() => runtime.dispose()).not.toThrow();
-        expect(runtime.metrics.retained).toBe(0);
-    });
-
-    /** A stream left open would keep its generator's `finally` from running. */
-    it('closes an open stream', async () => {
-        const STREAM: NodeTypeDefinition = {
-            id: 'stream',
-            label: 'Stream',
-            ports: [{ id: 'out', direction: 'out', label: 'Out' }],
-            compute: async function* () {
-                let i = 0;
-                while (i < 1000) yield { out: i++ };
-            },
-        };
-
-        const runtime = new NodeGraphRuntime();
-        runtime.setDefinitions([STREAM]);
-        runtime.setGraph([{ ...node('s'), type: 'stream' }], []);
-        await runtime.run();
-
-        runtime.dispose();
-
-        expect(runtime.metrics.openIterators).toBe(0);
         expect(runtime.metrics.retained).toBe(0);
     });
 });

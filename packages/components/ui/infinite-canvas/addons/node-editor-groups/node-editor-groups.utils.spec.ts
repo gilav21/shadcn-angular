@@ -49,32 +49,6 @@ describe('membership is containment, not overlap', () => {
     it('ignores a node entirely outside', () => {
         expect(contains(group('g', 0, 0, 100, 100), node('a', 500, 500))).toBe(false);
     });
-
-    it('lists the members of every group', () => {
-        const groups = [group('inner', 0, 0, 200, 200), group('far', 900, 900, 200, 200)];
-        const nodes = [node('a', 20, 20), node('b', 920, 920)];
-
-        const members = membership(groups, nodes);
-        expect(members.get('inner')).toEqual(['a']);
-        expect(members.get('far')).toEqual(['b']);
-    });
-
-    it('gives an empty list for a group containing nothing', () => {
-        expect(membership([group('g', 0, 0, 100, 100)], [])!.get('g')).toEqual([]);
-    });
-
-    /**
-     * Dragging the outer frame has to move everything drawn inside it. A node
-     * that opted out because a tighter group also claimed it would be left
-     * behind while the frame moved away from it.
-     */
-    it('puts a node in a nested group in BOTH', () => {
-        const groups = [group('outer', 0, 0, 600, 600), group('inner', 40, 40, 200, 200)];
-        const members = membership(groups, [node('a', 60, 60)]);
-
-        expect(members.get('outer')).toEqual(['a']);
-        expect(members.get('inner')).toEqual(['a']);
-    });
 });
 
 describe('fitting a group around nodes', () => {

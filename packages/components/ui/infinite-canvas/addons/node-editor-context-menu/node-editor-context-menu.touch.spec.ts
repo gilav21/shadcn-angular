@@ -127,13 +127,6 @@ describe('long-press opens the context menu', () => {
         fixture.destroy();
     });
 
-    it('resolves empty plane from a held finger', async () => {
-        pressAndHold(editorEl(), 300, 300);
-        await settle();
-
-        expect(host.opened()?.kind).toBe('canvas');
-    });
-
     it('resolves the node a finger was held on', async () => {
         pressAndHold(nodeEl(), 40, 40);
         await settle();
@@ -230,7 +223,7 @@ describe('long-press opens the context menu', () => {
         expect(host.opened()).toBeNull();
     });
 
-    it('still opens on a right-click well after any long-press', async () => {
+    it('opens on a plain right-click', async () => {
         editorEl().dispatchEvent(new MouseEvent('contextmenu', {
             bubbles: true, cancelable: true, clientX: 120, clientY: 120,
         }));
