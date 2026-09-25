@@ -991,3 +991,52 @@ describe('a hung node, a stale remote answer, and a node that opted out', () => 
         runtime.dispose();
     });
 });
+
+describe('a node without a type takes no part in evaluation', () => {
+    /** A comment card on a pipeline: untyped, wired in, carrying no data. */
+    function structural(id: string): EditorNode {
+        return {
+            id, x: 0, y: 0, width: 180, height: 80, title: 'Review this step',
+            ports: [
+                { id: 'in', direction: 'in', label: 'In' },
+                { id: 'out', direction: 'out', label: 'Out' },
+            ],
+        };
+    }
+
+    const edges = [link('c1', 'src', 'note'), link('c2', 'note', 'sink')];
+
+    it('is idle before and after a run, while its typed neighbours compute', async () => {
+        const runtime = new NodeGraphRuntime();
+        runtime.setDefinitions(DEFS);
+        runtime.setGraph([node('src', 'source'), structural('note'), node('sink', 'passthrough')], edges);
+        expect(runtime.status('note')()).toBe('idle');
+
+        await runtime.run();
+
+        expect(runtime.status('note')()).toBe('idle');
+        expect(runtime.status('src')()).toBe('done');
+        expect(runtime.status('sink')()).toBe('done');
+        expect(runtime.problems()).toEqual([]);
+        runtime.dispose();
+    });
+
+    it('computes once it gains a type, and stops feeding its readers once it loses it', async () => {
+        const runtime = new NodeGraphRuntime();
+        runtime.setDefinitions(DEFS);
+        const src = node('src', 'source');
+        const sink = node('sink', 'passthrough');
+        runtime.setGraph([src, structural('note'), sink], edges);
+        await runtime.run();
+
+        runtime.setGraph([src, { ...structural('note'), type: 'passthrough' }, sink], edges);
+        await runtime.run();
+        expect(runtime.outputs('sink')()['out']).toBe('seed');
+
+        runtime.setGraph([src, structural('note'), sink], edges);
+        await runtime.run();
+        expect(runtime.status('note')()).toBe('idle');
+        expect(runtime.outputs('sink')()['out']).toBeUndefined();
+        runtime.dispose();
+    });
+});

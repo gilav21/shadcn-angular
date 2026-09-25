@@ -586,8 +586,13 @@ export class NodeGraphRuntime {
     // Once for the whole batch, not once per node — see `compactOrder`.
     if (removed.length > 0) this.compactOrder();
     for (const node of nodes) {
-      if (this.nodes.has(node.id)) this.nodes.set(node.id, node);
-      else this.addNode(node);
+      const held = this.nodes.get(node.id);
+      if (held === undefined) {
+        this.addNode(node);
+        continue;
+      }
+      this.nodes.set(node.id, node);
+      if (held.type !== node.type) this.retype(node.id, node.type);
     }
     this.setConnections(connections);
     this.invalidateProblems();
@@ -672,6 +677,13 @@ export class NodeGraphRuntime {
     // every node in the graph before anything has asked to read one.
     this.stateSignals.get(node.id)?.set(initial);
 
+    // A structural node has nothing to compute, so nothing can make it fresh:
+    // marked stale here, it stayed stale for ever, or errored under `live`.
+    if (node.type === undefined) {
+      this.setStatus(node.id, 'idle');
+      return;
+    }
+
     /*
      * Inlined rather than `markDirty(node.id)`.
      *
@@ -685,6 +697,33 @@ export class NodeGraphRuntime {
     this.dirty.add(node.id);
     this.setStatus(node.id, 'stale');
     this.readySet.delete(node.id);
+  }
+
+  /**
+   * A kept node whose type changed computes with its new definition — or, when
+   * it lost its type, stops taking part in evaluation.
+   *
+   * Only `addNode` used to set a node's evaluation state, so a retyped node
+   * kept its old outputs and status. That went unseen while every node was
+   * dirtied on arrival; now a structural node is not, and gaining a type must
+   * dirty it or it would never compute.
+   */
+  private retype(id: NodeId, type: string | undefined): void {
+    if (type !== undefined) {
+      this.markDirty(id);
+      return;
+    }
+    this.abortRun(id);
+    this.teardownIterator(id);
+    this.dirty.delete(id);
+    this.readySet.delete(id);
+    this.cycleMembers.delete(id);
+    this.cyclesStale = true;
+    this.setStatus(id, 'idle');
+    this.outputValues.set(id, EMPTY_PORTS);
+    this.outputSignals.get(id)?.set(EMPTY_PORTS);
+    // What it last produced is gone, so whatever read it is out of date.
+    this.markDirtyAll(this.outgoing.get(id) ?? []);
   }
 
   private removeNode(id: NodeId): void {
@@ -985,6 +1024,15 @@ export class NodeGraphRuntime {
        * which is how it was found at all.
        */
       if (!this.nodes.has(node)) continue;
+
+      /*
+       * Nor can a structural one, and the walk stops at it.
+       *
+       * Its outputs never change, so nothing downstream can go stale through
+       * it. Walking on would also turn a loop through it — typed → structural
+       * → back — into a typed node that re-dirties itself on every settle.
+       */
+      if (this.nodes.get(node)?.type === undefined) continue;
 
       this.cyclesStale = true;
       this.dirtyVersion.set(node, (this.dirtyVersion.get(node) ?? 0) + 1);
