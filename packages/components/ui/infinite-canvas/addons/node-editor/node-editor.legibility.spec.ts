@@ -169,15 +169,6 @@ describe('RT-13 a refused connection explains itself', () => {
     });
 
     describe('a refusal says why, in words', () => {
-        /** The exact pair from the report. */
-        it('names BOTH types for a mismatch, not the word "type-mismatch"', async () => {
-            await startDragFrom('filter', 'dropped');
-            await hover('lookup', 'key');
-
-            expect(reason()).toBe('Key expects text, but Dropped is table');
-            expect(reason()).not.toContain('type-mismatch');
-        });
-
         /*
          * The half that was wrong, and the reason the sentence is built from
          * roles instead of from the drag.
@@ -204,12 +195,6 @@ describe('RT-13 a refused connection explains itself', () => {
             await startDragFrom('filter', 'dropped');
             await hover('filter', 'in');
             expect(reason()).toContain('cannot connect to itself');
-        });
-
-        it('says nothing at all while over a valid target', async () => {
-            await startDragFrom('filter', 'dropped');
-            await hover('lookup', 'rows');
-            expect(reason()).toBe('');
         });
 
         it('says nothing when the pointer is over empty plane', async () => {

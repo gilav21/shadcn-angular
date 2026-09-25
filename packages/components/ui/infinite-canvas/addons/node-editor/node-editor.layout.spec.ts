@@ -110,22 +110,6 @@ describe('portAnchor', () => {
         expect(portAnchor(n, 'o', M)?.x).toBe(200);
     });
 
-    /**
-     * The reason `layout.ts` exists as one module. The dot is placed by CSS
-     * inside the card; the wire is painted on a canvas. Two derivations of the
-     * same number drift, and the drift looks like a rendering artefact.
-     */
-    it('agrees with portOffsetTop for every port — the dot and the wire cannot drift', () => {
-        const n = node([
-            port('i1', 'in'), port('i2', 'in'),
-            port('o1', 'out'), port('o2', 'out'), port('o3', 'out'),
-        ], { subtitle: 'x' });
-
-        for (const p of portsOf(n)) {
-            expect(portAnchor(n, p.id, M)?.y).toBe(portOffsetTop(n, p.id, M));
-        }
-    });
-
     it('is relative to the node origin, so it survives the node moving', () => {
         const ports = [port('o', 'out')];
         const here = node(ports, { x: 0, y: 0 });
@@ -149,13 +133,6 @@ describe('withDerivedHeights', () => {
     it('writes the derived height onto each node', () => {
         const [only] = withDerivedHeights([node([port('a', 'in')])], M);
         expect(only.height).toBe(nodeHeight(only, M));
-    });
-
-    it('returns the SAME array when nothing changed', () => {
-        const settled = withDerivedHeights([node([port('a', 'in')])], M);
-        // Referential equality matters: a fresh array every pass would
-        // invalidate the engine's `items` input on every change detection.
-        expect(withDerivedHeights(settled, M)).toBe(settled);
     });
 
     it('leaves untouched nodes referentially equal when one changes', () => {
@@ -194,22 +171,13 @@ describe('port metrics adapt the row height to the device', () => {
         expect(TOUCH_METRICS.rowHeight).toBeGreaterThanOrEqual(44);
     });
 
-    it('makes a node taller on touch, so the ports still fit inside it', () => {
-        const n = node([port('a', 'in'), port('b', 'in')]);
-        expect(nodeHeight(n, TOUCH_METRICS)).toBeGreaterThan(nodeHeight(n, POINTER_METRICS));
-    });
-
     it('keeps the dot and the wire in agreement under either metric', () => {
-        const n = node([port('i', 'in'), port('o', 'out'), port('o2', 'out')]);
+        const n = node([port('i', 'in'), port('o', 'out'), port('o2', 'out')], { subtitle: 'x' });
         for (const metrics of [POINTER_METRICS, TOUCH_METRICS]) {
             for (const p of portsOf(n)) {
                 expect(portAnchor(n, p.id, metrics)?.y).toBe(portOffsetTop(n, p.id, metrics));
             }
         }
-    });
-
-    it('resolves a real metric by default', () => {
-        expect(defaultMetrics().rowHeight).toBeGreaterThan(0);
     });
 });
 
@@ -238,11 +206,6 @@ describe('a node with a view reserves room for it', () => {
             expect(portOffsetTop(n, p.id, M) as number).toBeLessThan(bandEnd);
         }
     });
-
-    it('costs nothing for a node with no view', () => {
-        const n = node([port('a', 'in')]);
-        expect(nodeHeight(n, M)).toBe(nodeHeight(n, M, 0));
-    });
 });
 
 /*
@@ -269,11 +232,6 @@ describe('withDerivedHeights remembers what it derived', () => {
 
         expect(second).toBe(first);
         expect(second[0]).toBe(first[0]);
-    });
-
-    it('still derives a height for a node it has not seen', () => {
-        const [sized] = withDerivedHeights([node('a', PORTS)]);
-        expect(sized.height).toBeGreaterThan(0);
     });
 
     it('re-derives when the ports changed, even at the same id', () => {

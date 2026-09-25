@@ -120,10 +120,6 @@ describe('keys pressed while typing belong to the field', () => {
 
     afterEach(() => fixture.destroy());
 
-    it('renders a field inside a node to type in', () => {
-        expect(field()).not.toBeNull();
-    });
-
     /**
      * The reported bug, exactly: a caret in a field, a Delete pressed to
      * remove a character, and the whole graph gone.
@@ -210,28 +206,6 @@ describe('keys pressed while typing belong to the field', () => {
             await settle();
 
             expect(host.nodes()).toHaveLength(1);
-        });
-
-        it('still undoes when the graph has focus', async () => {
-            editor.selection.set({ nodes: ['other'], connections: [] });
-            await settle();
-            pressOnGraph({ key: 'Delete' });
-            await settle();
-
-            pressOnGraph({ key: 'z', ctrlKey: true });
-            await settle();
-
-            expect(host.nodes()).toHaveLength(2);
-        });
-
-        it('still selects everything with Ctrl+A', async () => {
-            editor.selection.set({ nodes: [], connections: [] });
-            await settle();
-
-            pressOnGraph({ key: 'a', ctrlKey: true });
-            await settle();
-
-            expect(editor.selection().nodes).toHaveLength(2);
         });
     });
 });

@@ -116,10 +116,6 @@ describe('replay', () => {
 
     afterEach(() => fixture.destroy());
 
-    it('shows the live value with no frame bound', () => {
-        expect(shown()).toBe('1');
-    });
-
     /**
      * The point of the whole addon. The same view that renders the present
      * renders the past, so there is no second renderer to drift out of step

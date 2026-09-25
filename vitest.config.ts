@@ -5,6 +5,12 @@ import { defineConfig } from 'vite';
 import angular from '@analogjs/vite-plugin-angular';
 import { playwright } from '@vitest/browser-playwright';
 
+/**
+ * Benchmarks: they log timings and assert nothing a test would, so the default
+ * run skips them. Opt in with `WORKLOAD=1 npx vitest --run <file>`.
+ */
+const BENCHMARKS = process.env['WORKLOAD'] ? [] : ['**/*.workload.spec.ts'];
+
 export default defineConfig(({ mode: _mode }) => ({
     plugins: [angular({
         tsconfig: 'tsconfig.json',
@@ -34,7 +40,7 @@ export default defineConfig(({ mode: _mode }) => ({
         setupFiles: ['packages/test-setup.ts'],
         // environment: 'jsdom',
         include: ['packages/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}', 'demo/src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-        exclude: ['**/node_modules/**', '**/dist/**', 'packages/cli/**'],
+        exclude: ['**/node_modules/**', '**/dist/**', 'packages/cli/**', ...BENCHMARKS],
         reporters: ['default'],
         // Two classes of failure hid behind this number, and only one is gone.
         //

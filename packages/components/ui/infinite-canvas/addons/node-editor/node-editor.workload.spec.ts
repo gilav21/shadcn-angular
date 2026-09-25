@@ -15,6 +15,12 @@
  * **Timings are logged, never asserted.** A millisecond on a loaded Windows box
  * is not a fact; the counts beside them are. The numbers exist to be read
  * before and after a change, which is the only honest way to claim one helped.
+ *
+ * So this is a benchmark, not a test, and the default run skips it — every
+ * property it checks in passing is enforced in `node-editor.runtime.spec.ts`
+ * and `node-editor.perf.spec.ts`. Run it on purpose:
+ *
+ *     WORKLOAD=1 npx vitest --run node-editor.workload
  */
 import { describe, it, expect } from 'vitest';
 import { NodeGraphRuntime } from './node-editor.runtime';

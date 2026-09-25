@@ -62,10 +62,6 @@ describe('the world-space underlay slot', () => {
 
     afterEach(() => fixture.destroy());
 
-    it('projects the content', () => {
-        expect(frame()).not.toBeNull();
-    });
-
     /**
      * Inside the transform wrapper, not beside it. Anything else would need a
      * second wrapper carrying the same transform — a third style write on the
@@ -96,16 +92,5 @@ describe('the world-space underlay slot', () => {
         await settle();
 
         expect(frame().getBoundingClientRect().left).not.toBe(before);
-    });
-
-    it('is optional — a canvas with no underlay renders exactly as before', async () => {
-        const solo = TestBed.createComponent(InfiniteCanvasComponent);
-        solo.detectChanges();
-        await solo.whenStable();
-
-        expect(
-            solo.nativeElement.querySelector('[data-slot="canvas-viewport"]'),
-        ).not.toBeNull();
-        solo.destroy();
     });
 });

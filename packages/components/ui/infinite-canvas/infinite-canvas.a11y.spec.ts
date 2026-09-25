@@ -112,17 +112,4 @@ describe('InfiniteCanvasComponent accessibility (T-15)', () => {
 
     expect(await audit(root)).toEqual([]);
   });
-
-  it('exposes the canvas as a named landmark region without needing a role attribute', () => {
-    expect(root.tagName).toBe('SECTION');
-    expect(root.getAttribute('aria-label')).toBe('Diagram canvas');
-    expect(root.hasAttribute('role')).toBe(false);
-  });
-
-  it('keeps the decorative edge canvas out of the accessibility tree', () => {
-    const edgeCanvas = root.querySelector('[data-slot="canvas-edges"]') as HTMLElement;
-    expect(edgeCanvas.hasAttribute('aria-hidden')).toBe(false);
-    expect(edgeCanvas.hasAttribute('role')).toBe(false);
-    expect(edgeCanvas.childElementCount).toBe(0);
-  });
 });

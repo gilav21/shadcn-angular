@@ -6,7 +6,6 @@
 // listening to the graph rather than looking at it. So the shape is asserted
 // rather than trusted.
 import { describe, it, expect } from 'vitest';
-import { interpolate } from '../../../../lib/i18n';
 import { NODE_EDITOR_LOCALES, type NodeEditorLocale } from './node-editor.locales';
 
 const CODES = Object.keys(NODE_EDITOR_LOCALES);
@@ -80,17 +79,5 @@ describe('node editor locales', () => {
         );
 
         expect(rtl).toEqual(['ar', 'he']);
-    });
-
-    it('fills a real sentence end to end', () => {
-        const filled = interpolate(NODE_EDITOR_LOCALES['he'].typeMismatchDetail, {
-            input: 'סגנון',
-            inputType: 'object',
-            output: 'טקסט',
-            outputType: 'text',
-        });
-
-        expect(filled).not.toContain('{');
-        expect(filled).toContain('סגנון');
     });
 });

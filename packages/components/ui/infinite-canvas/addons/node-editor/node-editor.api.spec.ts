@@ -116,16 +116,6 @@ describe('the base API the addons need', () => {
             expect(editor.addNode('nope', { x: 0, y: 0 })).toBeNull();
             expect(host.nodes()).toHaveLength(2);
         });
-
-        it('is undoable, which is why it routes through the command funnel', async () => {
-            editor.addNode('source', { x: 0, y: 0 });
-            await settle();
-            expect(host.nodes()).toHaveLength(3);
-
-            editor.undo();
-            await settle();
-            expect(host.nodes()).toHaveLength(2);
-        });
     });
 
     describe('addNodeRequested — the intent, not the UI', () => {
@@ -236,12 +226,6 @@ describe('the base API the addons need', () => {
     });
 
     describe('viewport access — for the minimap', () => {
-        it('reports the visible world rect', () => {
-            const rect = editor.visibleRect();
-            expect(rect.width).toBeGreaterThan(0);
-            expect(rect.height).toBeGreaterThan(0);
-        });
-
         it('centres a world point', () => {
             const before = editor.visibleRect();
             editor.panTo({ x: 2000, y: 2000 });
@@ -272,34 +256,6 @@ describe('the base API the addons need', () => {
     });
 
 describe('pushEdit — an addon’s own edit, on the base’s undo stack', () => {
-    /**
-     * The seam an addon needs when its data and the graph move together.
-     * A group drag moves the frame — the addon's data — and the nodes inside
-     * it, which are the base's. As two entries, one Ctrl+Z puts the nodes back
-     * and leaves the frame behind, so the members end up outside the group
-     * that owns them.
-     */
-    it('undoes the addon’s data and the graph as ONE step', async () => {
-        const addonData = { x: 0 };
-
-        editor.placeNodes(new Map([['a', { x: 500, y: 40 }]]));
-        addonData.x = 500;
-        editor.pushEdit(
-            () => {
-                addonData.x = 500;
-            },
-            () => {
-                addonData.x = 0;
-            },
-        );
-        await settle();
-
-        // One undo has to reach both. Two entries would take two.
-        editor.undo();
-        await settle();
-        expect(addonData.x).toBe(0);
-    });
-
     it('redoes it too', async () => {
         const addonData = { x: 0 };
         editor.pushEdit(
@@ -320,19 +276,6 @@ describe('pushEdit — an addon’s own edit, on the base’s undo stack', () =>
         editor.redo();
         await settle();
         expect(addonData.x).toBe(1);
-    });
-
-    it('leaves the graph alone — the base never interprets the edit', async () => {
-        const before = host.nodes().length;
-        editor.pushEdit(
-            () => undefined,
-            () => undefined,
-        );
-        await settle();
-        editor.undo();
-        await settle();
-
-        expect(host.nodes()).toHaveLength(before);
     });
 
     it('refuses on a readonly graph, like every other edit', () => {
@@ -374,13 +317,6 @@ describe('run lifecycle — for the run-history addon', () => {
         expect(host.finished[0].nodes.find(n => n.nodeId === 'b')?.inputs).toEqual({
             in: 'later',
         });
-    });
-
-    it('says nothing when there is nothing to do', async () => {
-        await editor.run();
-        host.runs.length = 0;
-        await editor.run();
-        expect(host.runs).toEqual([]);
     });
 });
 

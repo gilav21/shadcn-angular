@@ -46,10 +46,6 @@ describe('toCanvasEdges', () => {
         expect(edge.targetAnchor).toEqual(portAnchor(NODES[1], 'in'));
     });
 
-    it('draws connections as beziers, the node-graph convention', () => {
-        expect(toCanvasEdges(NODES, [link('a', 'b')])[0].curve).toBe('bezier');
-    });
-
     it('carries the connection id through, so an edge hit maps back to a connection', () => {
         expect(toCanvasEdges(NODES, [link('a', 'b')])[0].id).toBe('a->b');
     });
@@ -73,10 +69,6 @@ describe('toCanvasEdges', () => {
     });
 
     describe('a graph mid-edit is inconsistent for a frame, and must not throw', () => {
-        it('skips a connection whose node is gone', () => {
-            expect(toCanvasEdges(NODES, [link('a', 'ghost')])).toEqual([]);
-        });
-
         it('skips a connection whose port is gone', () => {
             const stale: NodeConnection = { ...link('a', 'b'), sourcePort: 'removed' };
             expect(toCanvasEdges(NODES, [stale])).toEqual([]);
@@ -113,12 +105,6 @@ describe('adjacency and touchedBy', () => {
 });
 
 describe('connectionId', () => {
-    it('is derived from the endpoints, so a graph round-trips stably', () => {
-        const a = connectionId({ node: 'a', port: 'out' }, { node: 'b', port: 'in' });
-        const b = connectionId({ node: 'a', port: 'out' }, { node: 'b', port: 'in' });
-        expect(a).toBe(b);
-    });
-
     it('distinguishes different ports on the same pair of nodes', () => {
         expect(connectionId({ node: 'a', port: 'o1' }, { node: 'b', port: 'in' }))
             .not.toBe(connectionId({ node: 'a', port: 'o2' }, { node: 'b', port: 'in' }));

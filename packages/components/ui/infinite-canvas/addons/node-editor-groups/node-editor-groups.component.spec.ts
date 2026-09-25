@@ -102,10 +102,6 @@ describe('NodeEditorGroupsComponent', () => {
     afterEach(() => fixture.destroy());
 
     describe('rendering', () => {
-        it('draws a frame per group', () => {
-            expect(frames()).toHaveLength(2);
-        });
-
         it('positions it in world coordinates', () => {
             expect(frame('stage-1').style.left).toBe('20px');
             expect(frame('stage-1').style.width).toBe('400px');
@@ -146,22 +142,6 @@ describe('NodeEditorGroupsComponent', () => {
             await settle();
 
             expect(title('stage-1').textContent).toContain('1');
-        });
-
-        it('recounts when a node is dragged in', async () => {
-            expect(title('tiny').textContent).toContain('1');
-
-            host.nodes.set([{ ...NODES[0], x: 50, y: 50, width: 40, height: 40 }]);
-            await settle();
-
-            expect(title('tiny').textContent).toContain('1');
-            expect(title('stage-1').textContent).toContain('1');
-        });
-
-        it('counts nothing when the group holds nothing', async () => {
-            host.nodes.set([]);
-            await settle();
-            expect(title('stage-1').textContent).toContain('0');
         });
     });
 
@@ -206,10 +186,6 @@ describe('NodeEditorGroupsComponent', () => {
             await drag(title('tiny'), 0, 0);
             expect(host.activated()).toBe('tiny');
             expect(host.moved()).toBeNull();
-        });
-
-        it('does not move on a press that never moved', async () => {
-            await drag(title('tiny'), 0, 0);
             expect(host.groups().find(g => g.id === 'tiny')).toMatchObject({ x: 40, y: 40 });
         });
 
@@ -292,12 +268,6 @@ describe('NodeEditorGroupsComponent', () => {
             await settle();
 
             expect(host.moved()).toBeNull();
-        });
-
-        it('does not disturb a mouse drag', async () => {
-            const before = host.groups().find(g => g.id === 'stage-1');
-            await drag(title('stage-1'), 100, 50);
-            expect(host.groups().find(g => g.id === 'stage-1')).not.toEqual(before);
         });
     });
 

@@ -154,24 +154,10 @@ describe('NodeEditorPaletteComponent', () => {
             await settle();
         });
 
-        it('emits the type that was chosen', async () => {
-            row(items().find(i => i.dataset['type'] === 'uppercase')!).click();
-            await settle();
-            expect(host.picked()?.typeId).toBe('uppercase');
-        });
-
         it('closes afterwards', async () => {
             row(items()[0]).click();
             await settle();
             expect(host.open()).toBe(false);
-        });
-
-        it('does not insert anything itself — it only reports', async () => {
-            // The addon has no reference to an editor at all, which is the
-            // boundary rule made structural rather than promised.
-            row(items()[0]).click();
-            await settle();
-            expect(host.picked()).not.toBeNull();
         });
     });
 

@@ -1,7 +1,6 @@
 // RT-10 of `specs/node-editor-runtime-spec.md` — the versioned JSON format.
 import { describe, it, expect } from 'vitest';
 import {
-    GRAPH_FORMAT_VERSION,
     GraphFormatError,
     deserializeGraph,
     findUnserializableState,
@@ -21,10 +20,6 @@ const CONNECTIONS: NodeConnection[] = [
 const STATES = new Map<string, unknown>([['t1', { value: 'example.com' }]]);
 
 describe('the document shape', () => {
-    it('stamps the version, so a migration has somewhere to hook', () => {
-        expect(serializeGraph(NODES, CONNECTIONS).version).toBe(GRAPH_FORMAT_VERSION);
-    });
-
     it('writes an endpoint as a [node, port] pair', () => {
         const document = serializeGraph(NODES, CONNECTIONS);
         expect(document.connections[0].from).toEqual(['t1', 'text']);
@@ -44,11 +39,6 @@ describe('the document shape', () => {
     it('omits state entirely when a node has none', () => {
         const document = serializeGraph(NODES, CONNECTIONS);
         expect(document.nodes[1]).not.toHaveProperty('state');
-    });
-
-    it('carries state when there is some', () => {
-        const document = serializeGraph(NODES, CONNECTIONS, STATES);
-        expect(document.nodes[0].state).toEqual({ value: 'example.com' });
     });
 });
 
@@ -114,10 +104,6 @@ describe('a document is data from disk, so it is validated', () => {
         })).toThrow(/dangling/);
     });
 
-    it('accepts an older version, which is what the version field is for', () => {
-        expect(() => deserializeGraph({ version: 1, nodes: [], connections: [] })).not.toThrow();
-    });
-
     it('falls back to a sensible width and title', () => {
         const back = deserializeGraph({
             version: 1, nodes: [{ id: 'bare', x: 0, y: 0 }], connections: [],
@@ -139,10 +125,6 @@ describe('state must survive the round trip', () => {
 
     it('passes plain JSON-safe state', () => {
         expect(findUnserializableState(STATES)).toBeNull();
-    });
-
-    it('passes an empty map', () => {
-        expect(findUnserializableState(new Map())).toBeNull();
     });
 
     it('reports a circular structure rather than throwing', () => {

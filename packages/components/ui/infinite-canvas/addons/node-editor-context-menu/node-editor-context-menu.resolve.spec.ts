@@ -89,14 +89,9 @@ describe('resolveTarget', () => {
     });
 
     describe('a port', () => {
-        it('resolves to the port, not the node containing it', () => {
-            const target = resolveTarget(rightClick(query('[data-slot="node-editor-port"]')), editor);
-            expect(target?.kind).toBe('port');
-        });
-
         it('names the port and its direction', () => {
             const target = resolveTarget(rightClick(query('[data-slot="node-editor-port"]')), editor);
-            expect(target).toMatchObject({ nodeId: 'a', portId: 'out', direction: 'out' });
+            expect(target).toMatchObject({ kind: 'port', nodeId: 'a', portId: 'out', direction: 'out' });
         });
 
         /**
@@ -108,7 +103,7 @@ describe('resolveTarget', () => {
             expect(target?.kind === 'port' && target.connections.map(c => c.id)).toEqual(['c1']);
         });
 
-        it('carries no connections for an unconnected port', () => {
+        it('falls back to the node when the port id is not a real port', () => {
             const ports = root.querySelectorAll('[data-slot="node-editor-port"]');
             (ports[1] as HTMLElement).dataset['port'] = 'nothing-here';
             const target = resolveTarget(rightClick(ports[1]), editor);
@@ -118,11 +113,6 @@ describe('resolveTarget', () => {
     });
 
     describe('a node', () => {
-        it('resolves to the node', () => {
-            const target = resolveTarget(rightClick(query('[data-slot="node-editor-node"]')), editor);
-            expect(target).toMatchObject({ kind: 'node', nodeId: 'a' });
-        });
-
         /**
          * "Options per what you right-click" means reading the node, not just
          * its id — a subgraph node offers to open, a locked one does not offer
@@ -172,11 +162,6 @@ describe('resolveTarget', () => {
     });
 
     describe('empty plane', () => {
-        it('is still a target — it is where adding a node belongs', () => {
-            expect(resolveTarget(rightClick(query('[data-slot="canvas-viewport"]')), editor)?.kind)
-                .toBe('canvas');
-        });
-
         it('reports the WORLD point, so a new node lands where the pointer was', () => {
             const target = resolveTarget(rightClick(query('[data-slot="canvas-viewport"]')), editor);
             expect(target?.at).toEqual({ x: 1120, y: 1060 });

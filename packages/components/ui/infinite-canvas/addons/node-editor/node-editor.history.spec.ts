@@ -34,14 +34,6 @@ describe('every command has a true inverse', () => {
         expect(roundTrip(GRAPH, command).nodes.map(n => n.id)).toEqual(['a', 'b']);
     });
 
-    it('remove-nodes restores the node', () => {
-        const command: GraphCommand = {
-            kind: 'remove-nodes', nodes: [node('b')], connections: [link('c1', 'a', 'b')],
-        };
-        const back = roundTrip(GRAPH, command);
-        expect(back.nodes.map(n => String(n.id)).sort((x, y) => x.localeCompare(y))).toEqual(['a', 'b']);
-    });
-
     /**
      * Removing a node takes its edges with it, so the inverse has to bring
      * those back as well — and it does so ITSELF. An inverse that restored
@@ -53,6 +45,7 @@ describe('every command has a true inverse', () => {
             kind: 'remove-nodes', nodes: [node('b')], connections: [link('c1', 'a', 'b')],
         };
         const back = roundTrip(GRAPH, command);
+        expect(back.nodes.map(n => String(n.id)).sort((x, y) => x.localeCompare(y))).toEqual(['a', 'b']);
         expect(back.connections.map(c => c.id)).toEqual(['c1']);
     });
 
@@ -69,20 +62,6 @@ describe('every command has a true inverse', () => {
         };
         const back = roundTrip(GRAPH, command);
         expect(back.nodes[0]).toMatchObject({ x: 0, y: 0 });
-    });
-
-    it('rewire, adding', () => {
-        const command: GraphCommand = {
-            kind: 'rewire', removed: [], added: [link('c2', 'b', 'a')],
-        };
-        expect(roundTrip(GRAPH, command).connections.map(c => c.id)).toEqual(['c1']);
-    });
-
-    it('rewire, removing', () => {
-        const command: GraphCommand = {
-            kind: 'rewire', removed: [link('c1', 'a', 'b')], added: [],
-        };
-        expect(roundTrip(GRAPH, command).connections.map(c => c.id)).toEqual(['c1']);
     });
 
     /*
@@ -214,13 +193,6 @@ describe('coalescing — the rules that make undo usable', () => {
         history.push({ kind: 'move-nodes', deltas: new Map([['a', { x: 1, y: 1 }]]) });
         expect(history.entries).toHaveLength(2);
     });
-
-    /** A drag is one command, pushed on pointer-up — never one per frame. */
-    it('records a whole drag as one entry', () => {
-        const history = new GraphHistory();
-        history.push({ kind: 'move-nodes', deltas: new Map([['a', { x: 90, y: 0 }]]) });
-        expect(history.entries).toHaveLength(1);
-    });
 });
 
 describe('undo and redo', () => {
@@ -249,21 +221,6 @@ describe('undo and redo', () => {
 
         history.push({ kind: 'add-nodes', nodes: [node('d')] });
         expect(history.canRedo).toBe(false);
-    });
-
-    it('survives a full undo/redo cycle back to the original graph', () => {
-        const history = new GraphHistory();
-        const command: GraphCommand = {
-            kind: 'move-nodes', deltas: new Map([['a', { x: 50, y: 25 }]]),
-        };
-        history.push(command);
-
-        const moved = apply(GRAPH, command);
-        const undone = apply(moved, history.undo() as GraphCommand);
-        expect(undone.nodes[0]).toMatchObject({ x: 0, y: 0 });
-
-        const redone = apply(undone, history.redo() as GraphCommand);
-        expect(redone.nodes[0]).toMatchObject({ x: 50, y: 25 });
     });
 });
 

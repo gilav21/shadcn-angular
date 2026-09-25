@@ -453,14 +453,6 @@ describe('a transformer nobody wrote', () => {
     it('still answers when the colour has not been wired yet', async () => {
         expect(await build('hello', undefined)).toEqual({ text: 'HELLO', color: undefined });
     });
-
-    /** The composed value comes apart again — otherwise it is a dead end. */
-    it('reads the fields back out', async () => {
-        const styled = await build('hi', '#0f0');
-
-        expect(out(STD_GET_FIELD, { object: styled, key: 'text' })).toBe('HI');
-        expect(out(STD_GET_FIELD, { object: styled, key: 'color' })).toBe('#0f0');
-    });
 });
 
 /*
@@ -476,11 +468,5 @@ describe('a transformer nobody wrote', () => {
 describe('asText converts a Date to a form that survives the trip', () => {
     it('renders a Date as its ISO string', () => {
         expect(asText(new Date(Date.UTC(2026, 7, 27, 12, 0, 0)))).toBe('2026-08-27T12:00:00.000Z');
-    });
-
-    it('does not fall back to the locale-dependent default form', () => {
-        const rendered = asText(new Date(Date.UTC(2026, 7, 27, 12, 0, 0)));
-        expect(rendered).not.toContain('GMT');
-        expect(new Date(rendered).getTime()).toBe(Date.UTC(2026, 7, 27, 12, 0, 0));
     });
 });

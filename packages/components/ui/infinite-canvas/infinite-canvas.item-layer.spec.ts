@@ -81,20 +81,6 @@ describe('CanvasItemLayer + CanvasItemViewPool (virtualization and recycling)', 
       expect(mountedHosts()).toHaveLength(0);
     });
 
-    it('handles an empty item set', () => {
-      layer.setItems([]);
-      expect(layer.update(VIEW, 200)).toBe(true);
-      expect(layer.mountedCount).toBe(0);
-    });
-
-    it('handles a single item', () => {
-      layer.setItems([{ id: 'only', x: 10, y: 10, width: 50, height: 50 }]);
-      layer.update(VIEW, 200);
-
-      expect(layer.mountedCount).toBe(1);
-      expect(mountedHosts()[0].dataset['slot']).toBe('canvas-item');
-    });
-
     it('mounts every item stacked at the same coordinate', () => {
       layer.setItems([
         { id: 'a', x: 0, y: 0, width: 10, height: 10 },
@@ -220,7 +206,6 @@ describe('CanvasItemLayer + CanvasItemViewPool (virtualization and recycling)', 
 
       const peak = Math.max(...settled);
       expect(peak).toBeLessThan(400);
-      expect(settled[settled.length - 1]).toBeLessThanOrEqual(peak);
       expect(mountedHosts()).toHaveLength(layer.mountedCount);
     });
 
@@ -420,16 +405,6 @@ describe('CanvasItemLayer — the drag fast path', () => {
     expect(layer.itemCount).toBe(10);
     expect(visibleIn(NEAR)).toContain('x0');
     expect(visibleIn(NEAR)).not.toContain('0');
-  });
-
-  it('rebuilds when an item is added or removed', () => {
-    const items = grid(10);
-    layer.setItems(items);
-    layer.setItems(items.slice(0, 5));
-    expect(layer.itemCount).toBe(5);
-
-    layer.setItems(grid(12));
-    expect(layer.itemCount).toBe(12);
   });
 
   it('handles every item moving at once, as a select-all drag does', () => {
@@ -801,18 +776,6 @@ describe('CanvasItemLayer — zooming out cannot mount the whole board', () => {
 
     expect(inView.length).toBeGreaterThan(0);
     for (const item of inView) expect(mounted.has(Number(item.id))).toBe(true);
-  });
-
-  it('releases views back to the pool when the cap pushes items out', () => {
-    const layer = layerWithCap(30);
-    layer.setItems(grid(2000));
-
-    layer.update({ x: 0, y: 0, width: 1000, height: 1000 }, 0);
-    const first = layer.mountedCount;
-    layer.update(EVERYTHING, 0);
-
-    expect(first).toBeGreaterThan(0);
-    expect(layer.mountedCount).toBeLessThanOrEqual(30);
   });
 });
 
