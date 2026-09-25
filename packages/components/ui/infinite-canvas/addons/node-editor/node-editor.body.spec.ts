@@ -18,6 +18,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Component, signal } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { InfiniteCanvasComponent } from '../..';
 import { NodeEditorComponent } from './node-editor.component';
 import { NodeEditorNodeDirective } from './node-editor-node.directive';
 import { POINTER_METRICS, portListTop } from './node-editor.layout';
@@ -103,6 +104,26 @@ describe('the node card fits its subtitle and its projected body', () => {
     return el;
   }
 
+  function editor(): NodeEditorComponent {
+    return fixture.debugElement.query(By.directive(NodeEditorComponent))
+      .componentInstance as NodeEditorComponent;
+  }
+
+  function renderedHeight(id: string): number {
+    const node = editor().renderedNodes().find(candidate => candidate.id === id);
+    if (!node) throw new Error('no rendered node ' + id);
+    return node.height;
+  }
+
+  function canvas(): InfiniteCanvasComponent {
+    return fixture.debugElement.query(By.directive(InfiniteCanvasComponent))
+      .componentInstance as InfiniteCanvasComponent;
+  }
+
+  function zoomTo(zoom: number): void {
+    canvas().zoomTo(zoom);
+  }
+
   /** A rect measured relative to the node card's own top edge. */
   function relativeTo(card: DOMRect, el: HTMLElement): { top: number; bottom: number } {
     const rect = el.getBoundingClientRect();
@@ -185,11 +206,8 @@ describe('the node card fits its subtitle and its projected body', () => {
   });
 
   it('forgets the measured height of a deleted node', async () => {
-    const editor = fixture.debugElement.query(
-      By.directive(NodeEditorComponent),
-    ).componentInstance as NodeEditorComponent;
     const measured = () =>
-      (editor as unknown as { measuredBodies: () => ReadonlyMap<unknown, number> })
+      (editor() as unknown as { measuredBodies: () => ReadonlyMap<unknown, number> })
         .measuredBodies();
 
     expect(measured().has('a')).toBe(true);
@@ -211,6 +229,74 @@ describe('the node card fits its subtitle and its projected body', () => {
 
     // Otherwise a long session keeps one entry per node it has ever rendered.
     expect(measured().has('a')).toBe(false);
+    // And the replacement was measured, on what is the SAME card: the pool
+    // releases a's view before mounting b, and b's body is exactly as tall as
+    // a's was, so a report keyed to the old id would leave b unmeasured.
+    expect(measured().get('b')).toBe(ROW_HEIGHT * ROW_COUNT);
+  });
+
+  /*
+   * Every other test here runs at zoom 1 — the one zoom where a height read
+   * off the screen equals the height in the world, so a measurement taken
+   * through the canvas's `scale()` passes them all. It shipped that way: the
+   * first time a node changed while zoomed, its body was re-measured at its
+   * ON-SCREEN size, and the card became twice as tall at 200% and half as tall
+   * at 50%, with the body spilling out of it again.
+   */
+  for (const zoom of [2, 0.5]) {
+    it(`keeps a body at its world height while a node is dragged at ${zoom * 100}% zoom`, async () => {
+      const atRest = renderedHeight('a');
+
+      zoomTo(zoom);
+      await settle();
+      // A drag replaces the node object every frame; any edit does the same.
+      for (let step = 0; step < 3; step++) {
+        fixture.componentInstance.nodes.update(nodes =>
+          nodes.map(node => ({ ...node, x: node.x + 10 })),
+        );
+        await settle();
+        expect(renderedHeight('a')).toBe(atRest);
+      }
+    });
+
+    it(`measures a node that first appears at ${zoom * 100}% zoom in world units`, async () => {
+      const atRest = renderedHeight('a');
+
+      zoomTo(zoom);
+      await settle();
+      // What scrolling a zoomed-out graph does: a card mounts for a node that
+      // has never been measured, with the scale already applied.
+      fixture.componentInstance.nodes.update(nodes => [
+        ...nodes,
+        { ...nodes[0], id: 'late', x: nodes[0].x + 20, y: nodes[0].y + 20 },
+      ]);
+      await settle();
+
+      expect(renderedHeight('late')).toBe(atRest);
+    });
+  }
+
+  it('keeps a node its height while it is scrolled out of view', async () => {
+    const atRest = renderedHeight('a');
+
+    // Far enough that the node is culled and its card goes back to the pool.
+    canvas().panTo({ x: 20_000, y: 20_000 });
+    await settle();
+    expect(root.querySelector('[data-slot="node-editor-node"][data-node="a"]')).toBeNull();
+
+    // A pooled card is detached, not destroyed, and a detached element measures
+    // 0 x 0. An observer still watching it reported a body of 0 for the node
+    // that just left, shrinking its world box for everything that reads it
+    // off screen: culling, fit-view, the minimap, auto-layout.
+    expect(renderedHeight('a')).toBe(atRest);
+
+    // And back: the card comes out of the pool re-attached, and must still be
+    // measured — the ignored zero is what makes its return a resize.
+    fixture.componentInstance.rows.update(rows => [...rows, 'row 6']);
+    canvas().panTo({ x: 150, y: 150 });
+    await settle();
+    expect(root.querySelector('[data-slot="node-editor-node"][data-node="a"]')).not.toBeNull();
+    expect(renderedHeight('a')).toBe(atRest + ROW_HEIGHT);
   });
 
   it('honours a declared bodyHeight when there is no body to measure', async () => {
@@ -226,10 +312,7 @@ describe('the node card fits its subtitle and its projected body', () => {
 
     // `renderedNodes`, not the authored input: the editor derives the height
     // and does not write it back to the consumer's signal.
-    const editor = fixture.debugElement.query(
-      By.directive(NodeEditorComponent),
-    ).componentInstance as NodeEditorComponent;
-    const node = editor.renderedNodes().find(candidate => candidate.id === 'a') as EditorNode;
+    const node = editor().renderedNodes().find(candidate => candidate.id === 'a') as EditorNode;
     const floor = portListTop(node) + POINTER_METRICS.rowHeight + 8 + 120;
     expect(node.height).toBeGreaterThanOrEqual(floor - 1);
   });

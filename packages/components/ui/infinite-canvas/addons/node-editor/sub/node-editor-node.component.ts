@@ -211,45 +211,71 @@ export class NodeEditorNodeComponent {
   private readonly bodyRef = viewChild<ElementRef<HTMLElement>>('projectedBody');
 
   /**
+   * The node's id, as its own signal.
+   *
+   * The measuring effect depends on THIS rather than on `node()`, because the
+   * node object is replaced on every drag frame and every edit while its id
+   * stays put, and there is nothing to re-measure then.
+   */
+  private readonly nodeId = computed(() => this.node().id);
+
+  /**
    * Last height emitted for a given node, so an unchanged measurement is not
-   * re-emitted. A ResizeObserver fires on any layout pass that touches the
-   * element, and each emission costs the editor a signal write and the canvas
-   * a re-render — at which point the observer fires again. Emitting only on a
-   * real change is what stops that from being a loop.
+   * re-emitted. Each emission costs the editor a signal write and the canvas a
+   * re-render; emitting only on a real change is what makes that a settling
+   * rather than a loop.
    */
   private lastEmitted: { node: NodeId; height: number } | null = null;
 
-  constructor() {
-    const observer = new ResizeObserver(entries => {
-      const entry = entries[0];
-      if (!entry) return;
-      // borderBoxSize over contentRect: the body's padding and border are part
-      // of the space it needs, and contentRect excludes both.
-      const box = entry.borderBoxSize?.[0];
-      const height = box ? box.blockSize : entry.contentRect.height;
-      this.emitBody(height);
-    });
+  /** Created on first render, so constructing a card never touches a browser API. */
+  private observer: ResizeObserver | null = null;
 
+  constructor() {
     afterRenderEffect(() => {
       const element = this.bodyRef()?.nativeElement;
-      observer.disconnect();
+      /*
+       * Read for the dependency, defensively. Today the view pool DETACHES a
+       * released card and re-inserts it for its next node, so the body drops
+       * out of layout and back and the observer reports it anyway. A pool that
+       * swapped the node on an attached card would not, and without this the
+       * new node would never be measured.
+       */
+      this.nodeId();
+      this.observer?.disconnect();
       if (!element) {
         this.lastEmitted = null;
         return;
       }
-      observer.observe(element);
-      // The observer's first callback is a frame away; measuring now means the
-      // node is the right height on the frame it appears rather than jumping.
-      this.emitBody(element.getBoundingClientRect().height);
+      /*
+       * A new observation always delivers an initial size, so a node is
+       * measured on mount even when nothing about it resizes.
+       *
+       * `contentRect` is the LAYOUT box, before transforms. That matters: the
+       * canvas zooms with a CSS `scale()`, so an on-screen measurement is the
+       * world height times the zoom — reading one made cards twice as tall at
+       * 200% and half as tall at 50%. The wrapper has no padding or border, so
+       * its content box is the whole of it.
+       */
+      this.observer ??= new ResizeObserver(entries => {
+        const entry = entries[0];
+        /*
+         * A card going back to the view pool is DETACHED, not destroyed, and a
+         * detached element measures 0 x 0. Reported, that zeroed the body of
+         * the node that just scrolled away and shrank its world box for
+         * everything reading it off screen. The observer records the zero all
+         * the same, so re-attaching the card still reports afresh.
+         */
+        if (entry?.target.isConnected) this.emitBody(this.nodeId(), entry.contentRect.height);
+      });
+      this.observer.observe(element);
     });
 
-    inject(DestroyRef).onDestroy(() => observer.disconnect());
+    inject(DestroyRef).onDestroy(() => this.observer?.disconnect());
   }
 
-  private emitBody(height: number): void {
-    const node = this.node().id;
-    // Sub-pixel noise: a fractional height re-emitting forever would keep the
-    // canvas re-rendering. Round to the pixel the card is actually drawn at.
+  private emitBody(node: NodeId, height: number): void {
+    // Rounded up, never down: a body a fraction of a pixel taller than its
+    // card would poke out of it.
     const rounded = Math.ceil(height);
     if (this.lastEmitted?.node === node && this.lastEmitted.height === rounded) return;
     this.lastEmitted = { node, height: rounded };
