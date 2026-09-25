@@ -878,8 +878,9 @@ Remove a test that:
 - **asserts the bug** — a comment saying "known quirk", "currently" or "the
   spec predicted X but…" beside an assertion is a red flag. Fix the code and
   the test together, and say so in the commit message;
-- **measures without asserting** — that is a benchmark, not a test. Keep it
-  out of the default run.
+- **measures without asserting** — that is a benchmark, not a test. Name it
+  `*.workload.spec.ts`, which the default run skips; `WORKLOAD=1 npx vitest
+  --run <file>` runs it.
 
 ---
 
