@@ -176,9 +176,12 @@ describe('richTextMaxLength', () => {
         expect(validate(2, '<p>a<br>b</p>')).toBeNull();
     });
 
-    it('counts emoji in UTF-16 units, like Angular and the editor counter', () => {
-        expect(validate(1, '<p>🎉</p>')).toEqual({
-            maxlength: { requiredLength: 1, actualLength: 2 },
+    it('counts each emoji as one character, like the editor counter', () => {
+        // A skin-toned wave and a ZWJ family: 4 and 8 UTF-16 units.
+        const value = '<p>Hi 👋🏽 👨‍👩‍👧</p>';
+        expect(validate(6, value)).toBeNull();
+        expect(validate(5, value)).toEqual({
+            maxlength: { requiredLength: 5, actualLength: 6 },
         });
     });
 });

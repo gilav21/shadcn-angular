@@ -27,6 +27,7 @@ async function createEditor(mode?: 'html'): Promise<{
 }
 
 describe('RichTextEditorComponent — tables', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
     let editor: HTMLDivElement;
 
     const seedTable = () => {
@@ -47,7 +48,64 @@ describe('RichTextEditorComponent — tables', () => {
     };
 
     beforeEach(async () => {
-        ({ editor } = await createEditor('html'));
+        ({ fixture, editor } = await createEditor('html'));
+    });
+
+    /** Seed a fixed-width table and return its cells, row by row. */
+    const seedSpannedTable = (rowsHtml: string): HTMLTableCellElement[][] => {
+        editor.innerHTML = `<table style="width: 360px"><tbody>${rowsHtml}</tbody></table><p><br></p>`;
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        return Array.from(editor.querySelector('table')!.rows, row => Array.from(row.cells));
+    };
+
+    /** Just inside `cell`'s edge that faces the next rendered column. */
+    const endEdgeX = (cell: HTMLTableCellElement, dir: 'ltr' | 'rtl'): number => {
+        const rect = cell.getBoundingClientRect();
+        return dir === 'rtl' ? rect.left + 1 : rect.right - 1;
+    };
+
+    const mouse = (target: EventTarget, type: string, clientX: number, clientY: number) => {
+        target.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, clientX, clientY }));
+    };
+
+    const width = (cell: Element) => cell.getBoundingClientRect().width;
+
+    it('dragging a border resizes the rendered columns either side of it, under a rowspan and in RTL', () => {
+        for (const dir of ['ltr', 'rtl'] as const) {
+            fixture.componentRef.setInput('dir', dir);
+            fixture.detectChanges();
+            // A spans both rows, so D and E render in the 2nd and 3rd columns,
+            // under B and C, although they are the 1st and 2nd cells of their row.
+            const [[a, b, c], [d, e]] = seedSpannedTable(
+                '<tr><td rowspan="2">A</td><td>B</td><td>C</td></tr><tr><td>D</td><td>E</td></tr>',
+            );
+            const x = endEdgeX(d, dir);
+            const y = d.getBoundingClientRect().top + 5;
+            mouse(d, 'mousemove', x, y);
+            mouse(d, 'mousedown', x, y);
+            const before = [a, b, c, d, e].map(width);
+
+            const towardE = dir === 'rtl' ? -40 : 40;
+            mouse(document, 'mousemove', x + towardE, y);
+            mouse(document, 'mouseup', x + towardE, y);
+
+            const change = [a, b, c, d, e].map((cell, i) => Math.round(width(cell) - before[i]));
+            expect(change).toEqual([0, 40, -40, 40, -40]);
+        }
+    });
+
+    it('does not arm a border the first row cannot size alone, one inside a colspan', () => {
+        // Fixed table layout sizes columns from the first row only, and A spans
+        // the columns either side of the D|E border, so no cell can move it.
+        const [, [, d, e]] = seedSpannedTable(
+            '<tr><td colspan="2">A</td><td>B</td></tr><tr><td>C</td><td>D</td><td>E</td></tr>',
+        );
+        const y = d.getBoundingClientRect().top + 5;
+        mouse(d, 'mousemove', endEdgeX(d, 'ltr'), y);
+        expect(editor.style.cursor).toBe('');
+
+        mouse(e, 'mousemove', endEdgeX(e, 'ltr'), y);
+        expect(editor.style.cursor).toBe('col-resize');
     });
 
     // The marker used to be `bg-primary/15`; a cell carrying its own inline

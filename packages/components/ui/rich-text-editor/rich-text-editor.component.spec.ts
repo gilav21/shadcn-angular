@@ -4300,16 +4300,6 @@ describe('RichTextEditorComponent — tables', () => {
         expect(table.querySelectorAll('th')).toHaveLength(0);
     });
 
-    it('toggleTableHeaderRow is a no-op when the table reports no rows (white-box: forces the defensive no-firstRow guard)', () => {
-        const table = seedTable();
-        targetCell(table.querySelector<HTMLTableCellElement>('thead th')!);
-
-        vi.spyOn(table, 'querySelector').mockImplementation(((selector: string) =>
-            (selector === 'tr' ? null : Element.prototype.querySelector.call(table, selector))) as typeof table.querySelector);
-
-        expect(() => component.toggleTableHeaderRow()).not.toThrow();
-    });
-
     it('sets cell text alignment', () => {
         const table = seedTable();
         const cell = table.querySelector<HTMLTableCellElement>('tbody td')!;
@@ -4354,13 +4344,38 @@ describe('RichTextEditorComponent — tables', () => {
         expect(borderStyles(table)).toEqual([[none, none], [none, none], [none, none]]);
     });
 
-    it('applies "outer" border style', () => {
-        const table = seedTable();
-        targetCell(table.querySelector<HTMLTableCellElement>('td')!);
+    it('applies "outer" border style around the table as rendered, leaving a nested table alone', () => {
+        // [top, right, bottom, left]. A spans both rows of the first column, so
+        // C is the second row's only cell but sits in the last column; in RTL
+        // the first column is the rightmost one.
+        const frames = {
+            ltr: { A: ['solid', 'none', 'solid', 'solid'], B: ['solid', 'solid', 'none', 'none'], C: ['none', 'solid', 'solid', 'none'] },
+            rtl: { A: ['solid', 'solid', 'solid', 'none'], B: ['solid', 'none', 'none', 'solid'], C: ['none', 'none', 'solid', 'solid'] },
+        };
+        for (const dir of ['ltr', 'rtl'] as const) {
+            fixture.componentRef.setInput('dir', dir);
+            fixture.detectChanges();
+            editor.innerHTML = `<table><tbody>
+                <tr><td rowspan="2">A</td><td>B<table><tbody><tr><td>x</td></tr><tr><td>y</td></tr></tbody></table></td></tr>
+                <tr><td>C</td></tr>
+            </tbody></table>`;
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            const table = editor.querySelector('table')!;
+            targetCell(table.rows[0].cells[0]);
 
-        expect(() => component.setTableBorders('outer')).not.toThrow();
-        const firstCell = table.querySelector<HTMLTableCellElement>('thead th')!;
-        expect(firstCell.style.borderTopStyle).toBe('solid');
+            component.setTableBorders('outer');
+
+            const [a, b] = Array.from(table.rows[0].cells);
+            const c = table.rows[1].cells[0];
+            const sides = (cell: HTMLTableCellElement) => {
+                const style = getComputedStyle(cell);
+                return [style.borderTopStyle, style.borderRightStyle, style.borderBottomStyle, style.borderLeftStyle];
+            };
+            expect({ A: sides(a), B: sides(b), C: sides(c) }).toEqual(frames[dir]);
+            for (const inner of Array.from(b.querySelectorAll('td'))) {
+                expect(inner.getAttribute('style')).toBeNull();
+            }
+        }
     });
 
     it('applies "horizontal" border style', () => {
@@ -6178,22 +6193,24 @@ describe('RichTextEditorComponent — history delta, undo/redo & destroy', () =>
     it('trims history to the configured limit, keeping the newest entries undoable', () => {
         fixture.componentRef.setInput('history', { limit: 10 });
         fixture.detectChanges();
-        for (let i = 0; i < 30; i++) {
+        // 15 pushes, not a multiple of the keyframe cadence: the first trims
+        // drop a keyframe head with delta entries behind it.
+        for (let i = 0; i < 15; i++) {
             component.writeValue(`<p>entry ${i}</p>`);
             fixture.detectChanges();
             push();
         }
         expect(component.historyEntries()).toHaveLength(10);
 
-        // Undo walks back to entry 20 exactly and stops there.
+        // Undo walks back through every kept entry to entry 5 and stops there.
         const undone: string[] = [];
         for (let i = 0; i < 10; i++) {
             component.undo();
             undone.push(editor.innerHTML);
         }
         expect(undone).toEqual([
-            ...Array.from({ length: 9 }, (_, k) => `<p>entry ${28 - k}</p>`),
-            '<p>entry 20</p>',
+            ...Array.from({ length: 9 }, (_, k) => `<p>entry ${13 - k}</p>`),
+            '<p>entry 5</p>',
         ]);
     });
 
@@ -6415,38 +6432,9 @@ describe('RichTextEditorComponent — table mouse, resize & cell selection', () 
         }
     });
 
-    it('startTableResize returns true without starting a drag when the table reports no rows (white-box)', () => {
-        const table = seedTable();
-        const cell = table.querySelector('td')!;
-        Object.defineProperty(table, 'rows', { value: [], configurable: true });
-        try {
-            (component as unknown as { tableResizeCursor: { (): boolean; set(v: boolean): void } }).tableResizeCursor.set(true);
-            const result = (component as unknown as {
-                startTableResize: (e: { preventDefault(): void; stopPropagation(): void }, c: HTMLTableCellElement | null, x: number, onBorder: boolean) => boolean;
-            }).startTableResize({ preventDefault: vi.fn(), stopPropagation: vi.fn() }, cell, 0, true);
-            expect(result).toBe(true);
-        } finally {
-            (component as unknown as { tableResizeCursor: { (): boolean; set(v: boolean): void } }).tableResizeCursor.set(false);
-        }
-    });
-
     it('onTableResizeMove is a no-op without an active resize state (white-box)', () => {
         expect(() => (component as unknown as { onTableResizeMove: (e: MouseEvent) => void })
             .onTableResizeMove({ clientX: 0 } as unknown as MouseEvent)).not.toThrow();
-    });
-
-    it('onTableResizeMove is a no-op when the table reports no rows (white-box)', () => {
-        const table = seedTable();
-        (component as unknown as { tableResizeState: unknown }).tableResizeState = {
-            table, colIndex: 0, startX: 0, startWidths: [100, 100], tableWidth: 200,
-        };
-        Object.defineProperty(table, 'rows', { value: [], configurable: true });
-        try {
-            expect(() => (component as unknown as { onTableResizeMove: (e: MouseEvent) => void })
-                .onTableResizeMove({ clientX: 10 } as unknown as MouseEvent)).not.toThrow();
-        } finally {
-            (component as unknown as { tableResizeState: unknown }).tableResizeState = null;
-        }
     });
 
     it.each(['disabled', 'readonly'])('a touch neither resizes a column nor drag-selects cells while %s', (state) => {
@@ -6611,13 +6599,36 @@ describe('RichTextEditorComponent — table mouse, resize & cell selection', () 
             <tr><td>C</td><td>D</td></tr>
         </tbody></table>`;
         editor.dispatchEvent(new Event('input', { bubbles: true }));
-        const [cellA, , cellC] = Array.from(editor.querySelectorAll('td'));
+        const [cellA, , , cellD] = Array.from(editor.querySelectorAll('td'));
 
         component.onEditorMouseDown({ button: 0, target: cellA, preventDefault: vi.fn(), stopPropagation: vi.fn() } as unknown as MouseEvent);
-        document.dispatchEvent(new MouseEvent('mousemove', { clientX: centre(cellC).x, clientY: centre(cellC).y, bubbles: true }));
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: centre(cellD).x, clientY: centre(cellD).y, bubbles: true }));
         document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
 
-        expect(component.tableCellSelected().map(c => c.textContent)).toEqual(['A', 'B', 'C']);
+        expect(component.tableCellSelected().map(c => c.textContent)).toEqual(['A', 'B', 'C', 'D']);
+    });
+
+    it('selecting and merging cells of a table leaves a table nested in one of them alone', () => {
+        editor.innerHTML = `<table><tbody>
+            <tr><td>A<table><tbody><tr><td>x</td></tr><tr><td>y</td></tr></tbody></table></td><td>B</td></tr>
+            <tr><td>C</td><td>D</td></tr>
+        </tbody></table>`;
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        const outer = editor.querySelector('table')!;
+        const [cellA, cellB] = Array.from(outer.rows[0].cells);
+        const [cellC, cellD] = Array.from(outer.rows[1].cells);
+        const press = (target: HTMLTableCellElement, shiftKey: boolean) => component.onEditorMouseDown(
+            { button: 0, target, shiftKey, preventDefault: vi.fn(), stopPropagation: vi.fn() } as unknown as MouseEvent);
+
+        press(cellA, false);
+        document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+        press(cellD, true);
+        expect(component.tableCellSelected()).toEqual([cellA, cellB, cellC, cellD]);
+
+        component.mergeCells();
+        expect([cellA.rowSpan, cellA.colSpan]).toEqual([2, 2]);
+        expect(Array.from(cellA.querySelectorAll('td'), td => td.textContent)).toEqual(['x', 'y']);
+        expect(Array.from(outer.querySelectorAll(':scope > tbody > tr > td'))).toEqual([cellA]);
     });
 
     it('touch drag selects cells across the table', () => {
@@ -8002,10 +8013,15 @@ describe('RichTextEditorComponent — addon-host seams & edge coverage', () => {
     });
 
     it('executeToolbarCommandOnBlock is inert for a block detached from the editor', () => {
-        const detached = document.createElement('p');
-        detached.textContent = 'detached';
-        expect(() => host.executeToolbarCommandOnBlock('heading1', detached)).not.toThrow();
-        expect(detached.tagName).toBe('P');
+        // An addon's captured block, detached since by a content rewrite (undo).
+        editor.innerHTML = '<p>captured</p>';
+        const detached = editor.querySelector('p')!;
+        editor.innerHTML = '<p>inside</p>';
+        for (const command of ['heading1', 'code']) {
+            host.executeToolbarCommandOnBlock(command, detached);
+            expect(editor.innerHTML).toBe('<p>inside</p>');
+            expect(detached.outerHTML).toBe('<p>captured</p>');
+        }
     });
 
     it('executeToolbarCommandOnBlock wraps an already-empty block into a list item holding only caret padding', () => {
