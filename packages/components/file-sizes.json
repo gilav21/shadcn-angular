@@ -414,8 +414,8 @@
       "lines": 187
     },
     "bento-grid/bento-grid.component.spec.ts": {
-      "bytes": 72798,
-      "lines": 1679
+      "bytes": 73972,
+      "lines": 1701
     },
     "bento-grid/bento-grid.component.ts": {
       "bytes": 46912,
@@ -2229,13 +2229,17 @@
       "bytes": 22584,
       "lines": 597
     },
+    "file-upload/file-upload.crop.browser.spec.ts": {
+      "bytes": 10571,
+      "lines": 282
+    },
     "file-upload/file-upload.dom.spec.ts": {
       "bytes": 6622,
       "lines": 191
     },
     "file-upload/file-upload.features.spec.ts": {
-      "bytes": 21311,
-      "lines": 553
+      "bytes": 12836,
+      "lines": 319
     },
     "file-upload/file-upload.locales.ts": {
       "bytes": 9706,
@@ -2270,8 +2274,8 @@
       "lines": 216
     },
     "file-viewer/file-viewer.component.spec.ts": {
-      "bytes": 72524,
-      "lines": 1558
+      "bytes": 72685,
+      "lines": 1561
     },
     "file-viewer/file-viewer.component.ts": {
       "bytes": 73580,
@@ -2438,8 +2442,8 @@
       "lines": 108
     },
     "hover-card/hover-card.component.spec.ts": {
-      "bytes": 17607,
-      "lines": 481
+      "bytes": 18433,
+      "lines": 498
     },
     "hover-card/hover-card.component.ts": {
       "bytes": 4293,
@@ -3902,8 +3906,8 @@
       "lines": 182
     },
     "popover/popover.coverage.spec.ts": {
-      "bytes": 21137,
-      "lines": 473
+      "bytes": 22665,
+      "lines": 516
     },
     "popover/popover.stories.ts": {
       "bytes": 6286,
@@ -4050,11 +4054,11 @@
       "lines": 8
     },
     "resizable/resizable.component.spec.ts": {
-      "bytes": 17158,
-      "lines": 404
+      "bytes": 23488,
+      "lines": 540
     },
     "resizable/resizable.component.ts": {
-      "bytes": 1033,
+      "bytes": 1045,
       "lines": 31
     },
     "resizable/resizable.stories.ts": {
@@ -4062,8 +4066,8 @@
       "lines": 147
     },
     "resizable/sub/resizable-handle.component.ts": {
-      "bytes": 14777,
-      "lines": 378
+      "bytes": 14731,
+      "lines": 380
     },
     "resizable/sub/resizable-panel.component.ts": {
       "bytes": 4843,
@@ -5074,16 +5078,16 @@
       "lines": 11
     },
     "select/select.component.spec.ts": {
-      "bytes": 34941,
-      "lines": 908
+      "bytes": 35566,
+      "lines": 921
     },
     "select/select.component.ts": {
       "bytes": 24112,
       "lines": 607
     },
     "select/select.coverage.spec.ts": {
-      "bytes": 13228,
-      "lines": 302
+      "bytes": 14111,
+      "lines": 320
     },
     "select/select.stories.ts": {
       "bytes": 11222,
