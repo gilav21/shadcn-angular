@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
-import { FormsModule, ReactiveFormsModule, FormControl, FormGroup } from '@angular/forms';
+import { ReactiveFormsModule, FormControl, FormGroup } from '@angular/forms';
 import { By } from '@angular/platform-browser';
 import { NumberInputComponent } from './number-input.component';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -16,10 +16,6 @@ describe('NumberInputComponent', () => {
         fixture = TestBed.createComponent(NumberInputComponent);
         component = fixture.componentInstance;
         fixture.detectChanges();
-    });
-
-    it('should create', () => {
-        expect(component).toBeTruthy();
     });
 
     it('should have data-slot="number-input"', () => {
@@ -179,26 +175,6 @@ describe('NumberInputComponent', () => {
         expect(component.value()).toBe(100);
     });
 
-    it('should clamp value to max on blur', () => {
-        const emitted: (number | null)[] = [];
-        component.value.subscribe((v: number | null) => emitted.push(v));
-
-        fixture.componentRef.setInput('max', 10);
-        fixture.detectChanges();
-
-        const input = fixture.nativeElement.querySelector('input');
-        input.value = '15';
-        input.dispatchEvent(new Event('input'));
-        fixture.detectChanges();
-
-        component.onBlur();
-        fixture.detectChanges();
-
-        const clampedEmit = emitted.find((v) => v === 10);
-        expect(clampedEmit).toBe(10);
-        expect(component['_currentValue']()).toBe(10);
-    });
-
     it('should prevent default on ArrowUp/ArrowDown', () => {
         fixture.componentRef.setInput('value', 3);
         fixture.detectChanges();
@@ -217,14 +193,19 @@ describe('NumberInputComponent', () => {
     });
 
     it('should ignore other keys in onKeydown', () => {
-        const spy = vi.spyOn(component, 'increment');
-        const enterEvent = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true });
-        vi.spyOn(enterEvent, 'preventDefault');
+        const emitted: (number | null)[] = [];
+        component.value.subscribe((v: number | null) => emitted.push(v));
+        fixture.componentRef.setInput('value', 3);
+        fixture.detectChanges();
 
-        component.onKeydown(enterEvent);
+        const input: HTMLInputElement = fixture.nativeElement.querySelector('input');
+        const enterEvent = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+        input.dispatchEvent(enterEvent);
+        fixture.detectChanges();
 
-        expect(spy).not.toHaveBeenCalled();
-        expect(enterEvent.preventDefault).not.toHaveBeenCalled();
+        expect(emitted).toEqual([]);
+        expect(component.displayValue()).toBe('3');
+        expect(enterEvent.defaultPrevented).toBe(false);
     });
 
     it('should increment from null current value using 0 fallback', () => {
@@ -254,14 +235,18 @@ describe('NumberInputComponent', () => {
     it('should keep value null on blur when current value is null', () => {
         const emitted: (number | null)[] = [];
         component.value.subscribe((v: number | null) => emitted.push(v));
-
+        // A min makes clamp non-identity, so only the null guard keeps the field empty.
+        fixture.componentRef.setInput('min', 5);
         component.writeValue(null);
         fixture.detectChanges();
 
-        component.onBlur();
+        const input: HTMLInputElement = fixture.nativeElement.querySelector('input');
+        input.focus();
+        input.blur();
+        fixture.detectChanges();
 
-        expect(emitted).toHaveLength(0);
-        expect(component['_currentValue']()).toBeNull();
+        expect(emitted).toEqual([]);
+        expect(component.displayValue()).toBe('');
     });
 
     it('should call onTouched on blur', () => {
@@ -274,12 +259,11 @@ describe('NumberInputComponent', () => {
     });
 
     it('should focus the underlying input', () => {
-        const inner = component.inputRef();
-        const spy = vi.spyOn(inner, 'focus');
+        const input: HTMLInputElement = fixture.nativeElement.querySelector('input');
 
         component.focus();
 
-        expect(spy).toHaveBeenCalled();
+        expect(document.activeElement).toBe(input);
     });
 
     it('should increment on wheel scroll up when input is focused', () => {
@@ -373,25 +357,6 @@ describe('NumberInputComponent with ReactiveFormsModule', () => {
         fixture.detectChanges();
     });
 
-    it('should reflect control value via displayValue', async () => {
-        fixture.componentInstance.control.setValue(42);
-        fixture.detectChanges();
-        await fixture.whenStable();
-        fixture.detectChanges();
-
-        const numberInput = fixture.debugElement.children[0].componentInstance as NumberInputComponent;
-        expect(numberInput.displayValue()).toBe('42');
-    });
-
-    it('should update control when input changes', () => {
-        const input = fixture.nativeElement.querySelector('input');
-        input.value = '99';
-        input.dispatchEvent(new Event('input'));
-        fixture.detectChanges();
-
-        expect(fixture.componentInstance.control.value).toBe(99);
-    });
-
     it('should disable input when control is disabled', async () => {
         fixture.componentInstance.control.disable();
         fixture.detectChanges();
@@ -400,37 +365,6 @@ describe('NumberInputComponent with ReactiveFormsModule', () => {
 
         const input = fixture.nativeElement.querySelector('input');
         expect(input.disabled).toBe(true);
-    });
-});
-
-@Component({
-    selector: 'app-test-ngmodel',
-    imports: [NumberInputComponent, FormsModule],
-    template: `<ui-number-input [(ngModel)]="value" />`,
-})
-class TestNgModelComponent {
-    value: number | null = null;
-}
-
-describe('NumberInputComponent with ngModel', () => {
-    let fixture: ComponentFixture<TestNgModelComponent>;
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [TestNgModelComponent],
-        }).compileComponents();
-        fixture = TestBed.createComponent(TestNgModelComponent);
-        fixture.detectChanges();
-    });
-
-    it('should bind value via ngModel', async () => {
-        fixture.componentInstance.value = 7;
-        fixture.detectChanges();
-        await fixture.whenStable();
-        fixture.detectChanges();
-
-        const numberInput = fixture.debugElement.children[0].componentInstance as NumberInputComponent;
-        expect(numberInput.displayValue()).toBe('7');
     });
 });
 

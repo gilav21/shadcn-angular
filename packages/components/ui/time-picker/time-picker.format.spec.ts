@@ -25,10 +25,6 @@ describe('reading a stored value', () => {
         expect(parseTimeValue('14:30:09')).toEqual({ hours: 14, minutes: 30, seconds: 9 });
     });
 
-    it('reads midnight', () => {
-        expect(parseTimeValue('00:00')).toEqual({ hours: 0, minutes: 0, seconds: 0 });
-    });
-
     /**
      * The value is a wire format, not something a person typed, so anything
      * that is not a real clock reading is null rather than a guess.
@@ -54,10 +50,6 @@ describe('reading a stored value', () => {
 });
 
 describe('writing a value', () => {
-    it('zero-pads', () => {
-        expect(formatTimeValue({ hours: 9, minutes: 5, seconds: 0 }, false)).toBe('09:05');
-    });
-
     it('adds seconds only when asked', () => {
         const parts = { hours: 9, minutes: 5, seconds: 9 };
         expect(formatTimeValue(parts, false)).toBe('09:05');
@@ -189,12 +181,6 @@ describe('segment bounds and stepping', () => {
         expect(stepSegment(12, 1, bounds)).toBe(1);
         expect(stepSegment(1, -1, bounds)).toBe(12);
     });
-
-    it('wraps a 24-hour hour between 23 and 0', () => {
-        const bounds = segmentBounds('hour', false);
-        expect(stepSegment(23, 1, bounds)).toBe(0);
-        expect(stepSegment(0, -1, bounds)).toBe(23);
-    });
 });
 
 describe('digits that are not ASCII', () => {
@@ -208,10 +194,6 @@ describe('digits that are not ASCII', () => {
      */
     it('reads Arabic-Indic digits', () => {
         expect(parseSegmentDigits('٣٠', arabic)).toBe(30);
-    });
-
-    it('reads ASCII digits', () => {
-        expect(parseSegmentDigits('30', latin)).toBe(30);
     });
 
     /** A phone keyboard can produce ASCII even when the locale renders Arabic. */

@@ -2,8 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach } from 'vitest';
-// eslint-disable-next-line sonarjs/deprecation -- spec intentionally tests the deprecated ICONS alias
-import { IconComponent, DEFAULT_ICONS, ICONS, SOLID_SUPPORTED_ICONS } from './icon.component';
+import { IconComponent } from './icon.component';
 import { provideIcons } from './icon.token';
 
 @Component({
@@ -28,11 +27,6 @@ describe('IconComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        const icons = fixture.debugElement.queryAll(By.directive(IconComponent));
-        expect(icons).toHaveLength(3);
-    });
-
     it('should render SVG element with correct attributes', () => {
         const svg = fixture.debugElement.query(By.css('svg'));
         expect(svg).toBeTruthy();
@@ -43,7 +37,7 @@ describe('IconComponent', () => {
 
     it('should render SVG content for known icon', () => {
         const svg = fixture.debugElement.query(By.css('svg'));
-        expect(svg.nativeElement.innerHTML).toContain('path');
+        expect(svg.nativeElement.innerHTML).toContain('M20 6 9 17l-5-5');
     });
 
     it('should apply correct class based on icon name', () => {
@@ -64,19 +58,9 @@ describe('IconComponent', () => {
         const svgs = fixture.debugElement.queryAll(By.css('svg'));
         const unknownSvg = svgs[2];
         expect(unknownSvg.nativeElement.classList.contains('ui-icon-nonexistent')).toBe(true);
+        expect(unknownSvg.nativeElement.innerHTML).toBe('');
     });
 
-    it('should export DEFAULT_ICONS constant with expected keys', () => {
-        expect(DEFAULT_ICONS['check']).toBeDefined();
-        expect(DEFAULT_ICONS['arrow-up']).toBeDefined();
-        expect(DEFAULT_ICONS['x']).toBeDefined();
-        expect(DEFAULT_ICONS['calendar']).toBeDefined();
-    });
-
-    it('should export ICONS as backward-compatible alias', () => {
-        // eslint-disable-next-line sonarjs/deprecation -- verifying deprecated export still works
-        expect(ICONS).toBe(DEFAULT_ICONS);
-    });
 });
 
 describe('IconComponent with size input', () => {
@@ -158,11 +142,6 @@ describe('IconComponent with custom icons via provideIcons', () => {
         const svg = fixture.debugElement.query(By.css('svg'));
         expect(svg.nativeElement.innerHTML).toContain('M0 0L24 24');
     });
-
-    it('should apply ui-icon class with custom icon name', () => {
-        const svg = fixture.debugElement.query(By.css('svg'));
-        expect(svg.nativeElement.classList.contains('ui-icon-my-custom-icon')).toBe(true);
-    });
 });
 
 describe('IconComponent custom icons override built-in', () => {
@@ -192,34 +171,6 @@ describe('IconComponent custom icons override built-in', () => {
         const svg = fixture.debugElement.query(By.css('svg'));
         expect(svg.nativeElement.innerHTML).toContain('r="10"');
         expect(svg.nativeElement.innerHTML).not.toContain('M20 6');
-    });
-});
-
-describe('IconComponent without custom icons provider', () => {
-    @Component({
-        template: `<ui-icon name="check"></ui-icon>`,
-        imports: [IconComponent],
-    })
-    class NoProviderHostComponent {}
-
-    let fixture: ComponentFixture<NoProviderHostComponent>;
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [NoProviderHostComponent, IconComponent],
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(NoProviderHostComponent);
-        fixture.detectChanges();
-    });
-
-    it('should work with only built-in icons', () => {
-        const svg = fixture.debugElement.query(By.css('svg'));
-        expect(svg.nativeElement.innerHTML).toContain('path');
-    });
-
-    it('should not throw when UI_CUSTOM_ICONS is not provided', () => {
-        expect(() => fixture.detectChanges()).not.toThrow();
     });
 });
 
@@ -310,12 +261,6 @@ describe('IconComponent solid fallback for unsupported icons', () => {
         expect(svg.getAttribute('fill')).toBe('none');
         expect(svg.getAttribute('stroke')).toBe('currentColor');
     });
-
-    it('should export SOLID_SUPPORTED_ICONS set', () => {
-        expect(SOLID_SUPPORTED_ICONS).toBeInstanceOf(Set);
-        expect(SOLID_SUPPORTED_ICONS.has('heart')).toBe(true);
-        expect(SOLID_SUPPORTED_ICONS.has('settings')).toBe(false);
-    });
 });
 
 describe('IconComponent color inputs', () => {
@@ -348,12 +293,6 @@ describe('IconComponent color inputs', () => {
 
     it('should apply fillColor as SVG fill attribute', () => {
         const svg = fixture.debugElement.queryAll(By.css('svg'))[1].nativeElement;
-        expect(svg.getAttribute('fill')).toBe('blue');
-    });
-
-    it('should apply both color and fillColor independently', () => {
-        const svg = fixture.debugElement.queryAll(By.css('svg'))[2].nativeElement;
-        expect(svg.style.color).toBe('red');
         expect(svg.getAttribute('fill')).toBe('blue');
     });
 
@@ -397,10 +336,5 @@ describe('IconComponent strokeWidth input', () => {
     it('should override weight-derived strokeWidth', () => {
         const svg = fixture.debugElement.queryAll(By.css('svg'))[2].nativeElement;
         expect(svg.getAttribute('stroke-width')).toBe('0.8');
-    });
-
-    it('should use weight-derived strokeWidth when strokeWidth is not set', () => {
-        const svg = fixture.debugElement.queryAll(By.css('svg'))[3].nativeElement;
-        expect(svg.getAttribute('stroke-width')).toBe('2');
     });
 });

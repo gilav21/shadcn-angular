@@ -73,11 +73,6 @@ describe('ComparisonSliderComponent — pointer & resize interactions', () => {
         expect(component.rootHeight()).toBe(360);
     });
 
-    it('sets position from pointer on mousedown (horizontal)', () => {
-        root.dispatchEvent(new MouseEvent('mousedown', { clientX: 100, clientY: 0, bubbles: true }));
-        expect(component.position()).toBe(25);
-    });
-
     it('tracks the divider on window mousemove and stops on mouseup', () => {
         root.dispatchEvent(new MouseEvent('mousedown', { clientX: 200, clientY: 0, bubbles: true }));
         expect(component.position()).toBe(50);
@@ -103,11 +98,9 @@ describe('ComparisonSliderComponent — pointer & resize interactions', () => {
     });
 
     it('sets position from the first touch on touchstart', () => {
-        const event = {
-            touches: [{ clientX: 100, clientY: 0 }],
-            preventDefault() {},
-        } as unknown as TouchEvent;
-        component.onTrackTouchStart(event);
+        const event = new Event('touchstart', { bubbles: true, cancelable: true });
+        Object.defineProperty(event, 'touches', { value: [{ clientX: 100, clientY: 0 }] });
+        root.dispatchEvent(event);
         expect(component.position()).toBe(25);
     });
 

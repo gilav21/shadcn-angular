@@ -50,22 +50,13 @@ describe('InputGroupComponent', () => {
         fixture = TestBed.createComponent(TestHostComponent);
     });
 
-    it('should create all parts', () => {
-        fixture.detectChanges();
-        expect(fixture.debugElement.query(By.directive(InputGroupComponent))).toBeTruthy();
-        expect(fixture.debugElement.query(By.directive(InputGroupInputComponent))).toBeTruthy();
-        expect(fixture.debugElement.query(By.directive(InputGroupAddonComponent))).toBeTruthy();
-    });
-
     it('should structure content correctly', () => {
         fixture.detectChanges();
         const group = fixture.debugElement.query(By.css('[data-slot="input-group"]'));
         expect(group.nativeElement.tagName).toBe('FIELDSET');
-        expect(group.nativeElement.classList.contains('flex')).toBe(true);
-        expect(group.nativeElement.classList.contains('items-center')).toBe(true);
 
         const addons = fixture.debugElement.queryAll(By.css('[data-slot="input-group-addon"]'));
-        expect(addons).toHaveLength(2);
+        expect(addons.map(a => a.nativeElement.textContent.trim())).toEqual(['$', 'USD']);
     });
 
     it('should bind to FormControl (InputGroupInput)', async () => {

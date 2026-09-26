@@ -10,7 +10,7 @@ import {
 } from './index';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 
 // Basic test host
 @Component({
@@ -18,7 +18,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
         <ui-pagination>
             <ui-pagination-content>
                 <ui-pagination-item>
-                    <ui-pagination-previous (click)="onPrevious($event)" />
+                    <ui-pagination-previous [disabled]="currentPage() === 1" (click)="goTo(currentPage() - 1)" />
                 </ui-pagination-item>
                 <ui-pagination-item>
                     <ui-pagination-link [isActive]="currentPage() === 1" (click)="goTo(1)">1</ui-pagination-link>
@@ -33,7 +33,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
                     <ui-pagination-link [isActive]="currentPage() === 10" (click)="goTo(10)">10</ui-pagination-link>
                 </ui-pagination-item>
                 <ui-pagination-item>
-                    <ui-pagination-next (click)="onNext($event)" />
+                    <ui-pagination-next [disabled]="currentPage() === 10" (click)="goTo(currentPage() + 1)" />
                 </ui-pagination-item>
             </ui-pagination-content>
         </ui-pagination>
@@ -46,50 +46,9 @@ class TestHostComponent {
     goTo(page: number) {
         this.currentPage.set(page);
     }
-
-    onPrevious(_event: MouseEvent) {
-        if (this.currentPage() > 1) {
-            this.currentPage.update(p => p - 1);
-        }
-    }
-
-    onNext(_event: MouseEvent) {
-        if (this.currentPage() < 10) {
-            this.currentPage.update(p => p + 1);
-        }
-    }
-}
-
-// RTL test host
-@Component({
-    template: `
-        <div [dir]="dir()">
-            <ui-pagination>
-                <ui-pagination-content>
-                    <ui-pagination-item>
-                        <ui-pagination-previous />
-                    </ui-pagination-item>
-                    <ui-pagination-item>
-                        <ui-pagination-link [isActive]="true">1</ui-pagination-link>
-                    </ui-pagination-item>
-                    <ui-pagination-item>
-                        <ui-pagination-link>2</ui-pagination-link>
-                    </ui-pagination-item>
-                    <ui-pagination-item>
-                        <ui-pagination-next />
-                    </ui-pagination-item>
-                </ui-pagination-content>
-            </ui-pagination>
-        </div>
-    `,
-    imports: [PaginationComponent, PaginationContentComponent, PaginationItemComponent, PaginationLinkComponent, PaginationPreviousComponent, PaginationNextComponent]
-})
-class RTLTestHostComponent {
-    dir = signal<'ltr' | 'rtl'>('ltr');
 }
 
 describe('PaginationComponent', () => {
-    let component: PaginationComponent;
     let fixture: ComponentFixture<PaginationComponent>;
 
     beforeEach(async () => {
@@ -98,12 +57,7 @@ describe('PaginationComponent', () => {
         }).compileComponents();
 
         fixture = TestBed.createComponent(PaginationComponent);
-        component = fixture.componentInstance;
         fixture.detectChanges();
-    });
-
-    it('should create', () => {
-        expect(component).toBeTruthy();
     });
 
     it('should have role="navigation"', () => {
@@ -111,15 +65,6 @@ describe('PaginationComponent', () => {
         expect(nav).toBeTruthy();
     });
 
-    it('should have aria-label="pagination"', () => {
-        const nav = fixture.nativeElement.querySelector('[aria-label="pagination"]');
-        expect(nav).toBeTruthy();
-    });
-
-    it('should have data-slot="pagination"', () => {
-        const nav = fixture.nativeElement.querySelector('[data-slot="pagination"]');
-        expect(nav).toBeTruthy();
-    });
 });
 
 describe('Pagination Integration', () => {
@@ -136,36 +81,6 @@ describe('Pagination Integration', () => {
         fixture.detectChanges();
     });
 
-    it('should render pagination content', () => {
-        const content = fixture.debugElement.query(By.css('[data-slot="pagination-content"]'));
-        expect(content).toBeTruthy();
-    });
-
-    it('should render pagination items', () => {
-        const items = fixture.debugElement.queryAll(By.css('[data-slot="pagination-item"]'));
-        expect(items).toHaveLength(6);
-    });
-
-    it('should render pagination links', () => {
-        const links = fixture.debugElement.queryAll(By.css('[data-slot="pagination-link"]'));
-        expect(links).toHaveLength(3);
-    });
-
-    it('should render previous button', () => {
-        const prev = fixture.debugElement.query(By.css('[data-slot="pagination-previous"]'));
-        expect(prev).toBeTruthy();
-    });
-
-    it('should render next button', () => {
-        const next = fixture.debugElement.query(By.css('[data-slot="pagination-next"]'));
-        expect(next).toBeTruthy();
-    });
-
-    it('should render ellipsis', () => {
-        const ellipsis = fixture.debugElement.query(By.css('[data-slot="pagination-ellipsis"]'));
-        expect(ellipsis).toBeTruthy();
-    });
-
     it('should have aria-hidden on ellipsis', () => {
         const ellipsis = fixture.debugElement.query(By.css('[data-slot="pagination-ellipsis"]'));
         expect(ellipsis.nativeElement.getAttribute('aria-hidden')).toBe('true');
@@ -177,108 +92,41 @@ describe('Pagination Integration', () => {
         expect(activePage.nativeElement.textContent).toContain('1');
     });
 
-    it('should change page on link click', async () => {
+    it('should move aria-current to the clicked page link', async () => {
         const links = fixture.debugElement.queryAll(By.css('[data-slot="pagination-link"]'));
-        links[1].nativeElement.click(); // Click page 2
+        links[1].nativeElement.click();
         fixture.detectChanges();
         await fixture.whenStable();
 
-        expect(component.currentPage()).toBe(2);
+        const current = fixture.debugElement.queryAll(By.css('[aria-current="page"]'));
+        expect(current.map(el => el.nativeElement.textContent.trim())).toEqual(['2']);
     });
 
-    it('should go to next page on next click', async () => {
-        const next = fixture.debugElement.query(By.css('[data-slot="pagination-next"]'));
-        next.nativeElement.click();
+    it('disables the previous/next controls through their disabled input', async () => {
+        const prev = () => fixture.debugElement.query(By.css('[data-slot="pagination-previous"]')).nativeElement as HTMLButtonElement;
+        const next = () => fixture.debugElement.query(By.css('[data-slot="pagination-next"]')).nativeElement as HTMLButtonElement;
+
+        expect(prev().disabled).toBe(true);
+        expect(next().disabled).toBe(false);
+        prev().click();
         fixture.detectChanges();
         await fixture.whenStable();
+        expect(component.currentPage()).toBe(1);
 
-        expect(component.currentPage()).toBe(2);
-    });
-
-    it('should go to previous page on previous click', async () => {
-        component.currentPage.set(3);
+        component.currentPage.set(10);
         fixture.detectChanges();
-
-        const prev = fixture.debugElement.query(By.css('[data-slot="pagination-previous"]'));
-        prev.nativeElement.click();
+        expect(prev().disabled).toBe(false);
+        expect(next().disabled).toBe(true);
+        next().click();
         fixture.detectChanges();
         await fixture.whenStable();
-
-        expect(component.currentPage()).toBe(2);
+        expect(component.currentPage()).toBe(10);
     });
 
     it('should have screen reader text in ellipsis', () => {
         const ellipsis = fixture.debugElement.query(By.css('[data-slot="pagination-ellipsis"]'));
         const srOnly = ellipsis.nativeElement.querySelector('.sr-only');
         expect(srOnly.textContent).toContain('More pages');
-    });
-});
-
-describe('Pagination RTL Support', () => {
-    let fixture: ComponentFixture<RTLTestHostComponent>;
-    let component: RTLTestHostComponent;
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [RTLTestHostComponent]
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(RTLTestHostComponent);
-        component = fixture.componentInstance;
-        fixture.detectChanges();
-    });
-
-    afterEach(() => {
-        document.documentElement.removeAttribute('dir');
-    });
-
-    it('should render in LTR mode', () => {
-        const container = fixture.debugElement.query(By.css('[dir="ltr"]'));
-        expect(container).toBeTruthy();
-    });
-
-    it('should render in RTL mode', async () => {
-        component.dir.set('rtl');
-        document.documentElement.setAttribute('dir', 'rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const container = fixture.debugElement.query(By.css('[dir="rtl"]'));
-        expect(container).toBeTruthy();
-    });
-
-    it('should have rtl:rotate-180 class on previous arrow', () => {
-        const prev = fixture.debugElement.query(By.css('[data-slot="pagination-previous"]'));
-        const svg = prev.nativeElement.querySelector('svg');
-        const svgClass = svg.getAttribute('class') ?? '';
-        expect(svgClass).toContain('rtl:rotate-180');
-    });
-
-    it('should have rtl:rotate-180 class on next arrow', () => {
-        const next = fixture.debugElement.query(By.css('[data-slot="pagination-next"]'));
-        const svg = next.nativeElement.querySelector('svg');
-        const svgClass = svg.getAttribute('class') ?? '';
-        expect(svgClass).toContain('rtl:rotate-180');
-    });
-
-    it('should display pagination links in RTL', async () => {
-        component.dir.set('rtl');
-        document.documentElement.setAttribute('dir', 'rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const links = fixture.debugElement.queryAll(By.css('[data-slot="pagination-link"]'));
-        expect(links).toHaveLength(2);
-    });
-
-    it('should have active state in RTL', async () => {
-        component.dir.set('rtl');
-        document.documentElement.setAttribute('dir', 'rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const activePage = fixture.debugElement.query(By.css('[aria-current="page"]'));
-        expect(activePage).toBeTruthy();
     });
 });
 
@@ -318,21 +166,20 @@ describe('Pagination Simple Mode (Data-Driven)', () => {
         fixture.detectChanges();
     });
 
-    it('should render pagination content automatically', () => {
-        const content = fixture.debugElement.query(By.css('[data-slot="pagination-content"]'));
-        expect(content).toBeTruthy();
-    });
+    it.each([
+        { current: 1, total: 7, labels: ['1', '2', '3', '4', '5', '6', '7'] },
+        { current: 2, total: 10, labels: ['1', '2', '3', '4', '5', '…', '10'] },
+        { current: 9, total: 10, labels: ['1', '…', '6', '7', '8', '9', '10'] },
+        { current: 5, total: 10, labels: ['1', '…', '4', '5', '6', '…', '10'] },
+    ])('renders pages $labels for page $current of $total', ({ current, total, labels }) => {
+        component.currentPage.set(current);
+        component.totalPages.set(total);
+        fixture.detectChanges();
 
-    it('should render previous and next buttons', () => {
-        const prev = fixture.debugElement.query(By.css('[data-slot="pagination-previous"]'));
-        const next = fixture.debugElement.query(By.css('[data-slot="pagination-next"]'));
-        expect(prev).toBeTruthy();
-        expect(next).toBeTruthy();
-    });
-
-    it('should render page number buttons', () => {
-        const links = fixture.debugElement.queryAll(By.css('[data-slot="pagination-link"]'));
-        expect(links.length).toBeGreaterThan(0);
+        const content = fixture.debugElement.query(By.css('[data-slot="pagination-content"]')).nativeElement as HTMLElement;
+        const rendered = Array.from(content.querySelectorAll('[data-slot="pagination-link"], [data-slot="pagination-ellipsis"]'),
+            el => (el.getAttribute('data-slot') === 'pagination-ellipsis' ? '…' : (el.textContent ?? '').trim()));
+        expect(rendered).toEqual(labels);
     });
 
     it('should mark current page with aria-current', () => {
@@ -372,14 +219,6 @@ describe('Pagination Simple Mode (Data-Driven)', () => {
 
         const next = fixture.debugElement.query(By.css('[data-slot="pagination-next"]'));
         expect(next.nativeElement.disabled).toBe(true);
-    });
-
-    it('should render ellipsis for large page counts', () => {
-        component.currentPage.set(5);
-        fixture.detectChanges();
-
-        const ellipsis = fixture.debugElement.queryAll(By.css('[data-slot="pagination-ellipsis"]'));
-        expect(ellipsis.length).toBeGreaterThan(0);
     });
 
     it('should render both ellipses without a duplicate-key error', () => {

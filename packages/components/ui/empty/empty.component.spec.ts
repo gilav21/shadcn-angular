@@ -64,28 +64,6 @@ describe('EmptyComponent', () => {
         host = fixture.componentInstance;
     });
 
-    it('should create all parts', () => {
-        fixture.detectChanges();
-        expect(fixture.debugElement.query(By.directive(EmptyComponent))).toBeTruthy();
-        expect(fixture.debugElement.query(By.directive(EmptyHeaderComponent))).toBeTruthy();
-        expect(fixture.debugElement.query(By.directive(EmptyMediaComponent))).toBeTruthy();
-        expect(fixture.debugElement.query(By.directive(EmptyTitleComponent))).toBeTruthy();
-        expect(fixture.debugElement.query(By.directive(EmptyDescriptionComponent))).toBeTruthy();
-        expect(fixture.debugElement.query(By.directive(EmptyContentComponent))).toBeTruthy();
-    });
-
-    it('should render correct structure and classes', () => {
-        fixture.detectChanges();
-        const empty = fixture.debugElement.query(By.css('[data-slot="empty"]'));
-        expect(empty).toBeTruthy();
-        expect(empty.nativeElement.classList.contains('flex')).toBe(true);
-        expect(empty.nativeElement.classList.contains('border-dashed')).toBe(true);
-
-        const title = fixture.debugElement.query(By.css('[data-slot="empty-title"]'));
-        expect(title.nativeElement.textContent).toContain('No data');
-        expect(title.nativeElement.classList.contains('font-medium')).toBe(true);
-    });
-
     it('should apply custom classes', () => {
         host.customClass = 'my-empty-state';
         fixture.detectChanges();
@@ -109,10 +87,4 @@ describe('EmptyComponent', () => {
         expect(desc.nativeElement.textContent).toContain('Please add some items');
     });
 
-    it('should render content (actions)', () => {
-        fixture.detectChanges();
-        const content = fixture.debugElement.query(By.css('[data-slot="empty-content"]'));
-        expect(content.nativeElement.querySelector('button')).toBeTruthy();
-        expect(content.nativeElement.classList.contains('flex-col')).toBe(true);
-    });
 });

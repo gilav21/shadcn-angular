@@ -110,17 +110,9 @@ describe('ScrollAreaComponent', () => {
     Element.prototype.getBoundingClientRect = originalGetRect;
   });
 
-  it('should create', () => {
-    expect(component).toBeTruthy();
-  });
-
   it('applies the custom class to the root element', () => {
     const root = fixture.debugElement.query(By.css('[data-slot="scroll-area"]')).nativeElement as HTMLElement;
     expect(root.getAttribute('class') ?? '').toContain('h-[200px]');
-  });
-
-  it('has scrollbar-none on the viewport to hide native scrollbars', () => {
-    expect(getViewport().classList.contains('scrollbar-none')).toBe(true);
   });
 
   it('reports default thumb percentages when no metrics are available', () => {
@@ -138,8 +130,13 @@ describe('ScrollAreaComponent', () => {
 
     expect(scrollArea.showVertical()).toBe(true);
     expect(scrollArea.thumbHeightPercent()).toBe(10);
-    expect(scrollArea.scrollTopPercent()).toBeGreaterThan(0);
-    expect(fixture.debugElement.query(By.css('[data-orientation="vertical"]'))).toBeTruthy();
+    // 200 of 900 scrollable px, over the 90% of track the thumb leaves free.
+    expect(scrollArea.scrollTopPercent()).toBe(20);
+    const thumb = fixture.debugElement.query(
+      By.css('[data-orientation="vertical"] [data-slot="scroll-area-thumb"]'),
+    ).nativeElement as HTMLElement;
+    expect(thumb.style.height).toBe('10%');
+    expect(thumb.style.top).toBe('20%');
   });
 
   it('hides scrollbars when content fits', () => {
@@ -160,11 +157,15 @@ describe('ScrollAreaComponent', () => {
     expect(scrollArea.showHorizontal()).toBe(true);
     expect(scrollArea.showVertical()).toBe(false);
     expect(scrollArea.thumbWidthPercent()).toBe(10);
-    expect(scrollArea.scrollLeftPercent()).toBeGreaterThan(0);
-    expect(fixture.debugElement.query(By.css('[data-orientation="horizontal"]'))).toBeTruthy();
+    expect(scrollArea.scrollLeftPercent()).toBe(20);
+    const thumb = fixture.debugElement.query(
+      By.css('[data-orientation="horizontal"] [data-slot="scroll-area-thumb"]'),
+    ).nativeElement as HTMLElement;
+    expect(thumb.style.width).toBe('10%');
+    expect(thumb.style.left).toBe('20%');
   });
 
-  it('renders both scrollbars and the corner for orientation "both"', () => {
+  it('renders both scrollbars for orientation "both"', () => {
     component.orientation.set('both');
     fixture.detectChanges();
     applyMetrics({ scrollHeight: 1000, clientHeight: 100, scrollWidth: 1000, clientWidth: 100 });
@@ -265,12 +266,15 @@ describe('ScrollAreaComponent', () => {
 
   it('cleans up an active drag when the component is destroyed', () => {
     applyMetrics({ scrollHeight: 1000, clientHeight: 100, scrollWidth: 100, clientWidth: 100 });
+    const viewport = getViewport();
     const thumb = fixture.debugElement.query(
       By.css('[data-orientation="vertical"] [data-slot="scroll-area-thumb"]'),
     ).nativeElement as HTMLElement;
 
     thumb.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 0, clientY: 100 }));
+    fixture.destroy();
+    globalThis.window.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 0, clientY: 150 }));
 
-    expect(() => fixture.destroy()).not.toThrow();
+    expect(viewport.scrollTop).toBe(0);
   });
 });

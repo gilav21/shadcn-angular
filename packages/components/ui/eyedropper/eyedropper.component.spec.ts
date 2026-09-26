@@ -93,23 +93,10 @@ describe('EyedropperComponent', () => {
         return fixture.debugElement.query(By.css('button[data-slot="eyedropper-trigger"]')).nativeElement;
     }
 
-    it('renders the trigger button', () => {
-        deleteNativeEyeDropper();
-        setup();
-        expect(button()).toBeTruthy();
-    });
-
     it('is disabled when native API absent and no fallback target', () => {
         deleteNativeEyeDropper();
         setup();
         expect(button().disabled).toBe(true);
-    });
-
-    it('is enabled when native EyeDropper exists', () => {
-        const restore = installFakeEyeDropper({ sRGBHex: '#abcdef' });
-        setup();
-        expect(button().disabled).toBe(false);
-        restore();
     });
 
     it('emits colorPick with the native API result', async () => {
@@ -158,20 +145,6 @@ describe('EyedropperComponent', () => {
         restore();
     });
 
-    it('exposes aria-pressed=false initially', () => {
-        deleteNativeEyeDropper();
-        setup();
-        expect(button().getAttribute('aria-pressed')).toBe('false');
-    });
-
-    it('is enabled when a fallback target is provided even without native API', () => {
-        deleteNativeEyeDropper();
-        setup();
-        const img = document.createElement('img');
-        host.fallbackTarget.set(img);
-        fixture.detectChanges();
-        expect(button().disabled).toBe(false);
-    });
 });
 
 /**

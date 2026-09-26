@@ -85,18 +85,6 @@ describe('TableComponent', () => {
     // fixture.detectChanges(); // Removed to prevent NG0100
   });
 
-  it('should create all table parts', () => {
-    fixture.detectChanges();
-    expect(fixture.debugElement.query(By.directive(TableComponent))).toBeTruthy();
-    expect(fixture.debugElement.query(By.directive(TableHeaderComponent))).toBeTruthy();
-    expect(fixture.debugElement.query(By.directive(TableBodyComponent))).toBeTruthy();
-    expect(fixture.debugElement.query(By.directive(TableFooterComponent))).toBeTruthy();
-    expect(fixture.debugElement.query(By.directive(TableRowComponent))).toBeTruthy();
-    expect(fixture.debugElement.query(By.directive(TableHeadComponent))).toBeTruthy();
-    expect(fixture.debugElement.query(By.directive(TableCellComponent))).toBeTruthy();
-    expect(fixture.debugElement.query(By.directive(TableCaptionComponent))).toBeTruthy();
-  });
-
   it('should apply custom classes to table', () => {
     host.customClass = 'my-custom-table';
     fixture.detectChanges();
@@ -104,7 +92,6 @@ describe('TableComponent', () => {
     // The classes are applied to the inner div
     const innerDiv = table.query(By.css('[data-slot="table"]'));
     expect(innerDiv.nativeElement.classList.contains('my-custom-table')).toBe(true);
-    expect(innerDiv.nativeElement.classList.contains('w-full')).toBe(true);
   });
 
   it('should handle selected row state', () => {
@@ -136,21 +123,6 @@ describe('TableComponent', () => {
 
     const headCell = fixture.debugElement.query(By.directive(TableHeadComponent));
     expect(headCell.nativeElement.getAttribute('role')).toBe('columnheader');
-  });
-
-  it('should apply RTL text alignment classes to table head', async () => {
-    // TableHeadComponent has 'ltr:text-left rtl:text-right'
-
-    host.dir.set('rtl');
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    const head = fixture.debugElement.query(By.directive(TableHeadComponent));
-    // The host element itself has the classes
-    const classes = head.nativeElement.className;
-
-    expect(classes).toContain('ltr:text-left');
-    expect(classes).toContain('rtl:text-right');
   });
 
   it('should apply data-slot attributes', () => {
@@ -210,14 +182,6 @@ describe('TableHeaderDirective', () => {
     fixture = TestBed.createComponent(DirectiveHostComponent);
   });
 
-  it('should attach to thead[uiTableHeader] and expose computed classes', () => {
-    fixture.detectChanges();
-    const thead = fixture.debugElement.query(By.directive(TableHeaderDirective));
-    expect(thead).toBeTruthy();
-    const directive = thead.injector.get(TableHeaderDirective);
-    expect(directive.classes()).toBe('');
-  });
-
   it('should merge the class input into computed classes', () => {
     fixture.componentInstance.customClass = 'border-collapse';
     fixture.detectChanges();
@@ -267,15 +231,6 @@ describe('table role and the cell role that follows from it', () => {
 
         expect(table().getAttribute('role')).toBe('treegrid');
         expect(cells().every(c => c.getAttribute('role') === 'gridcell')).toBe(true);
-    });
-
-    it('goes back to plain cells when the table goes back to a table', () => {
-        fixture.componentInstance.role.set('grid');
-        fixture.detectChanges();
-        fixture.componentInstance.role.set('table');
-        fixture.detectChanges();
-
-        expect(cells().every(c => c.getAttribute('role') === 'cell')).toBe(true);
     });
 });
 

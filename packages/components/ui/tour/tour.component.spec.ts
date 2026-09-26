@@ -45,7 +45,6 @@ interface StubbableElementProto {
     scrollIntoView?: (arg?: unknown) => void;
 }
 
-let rectSpy: ReturnType<typeof vi.spyOn>;
 let addedScrollIntoView = false;
 const VIEWPORT_WIDTH = 1024;
 const VIEWPORT_HEIGHT = 768;
@@ -71,7 +70,7 @@ function installBrowserStubs(): void {
         addedScrollIntoView = true;
     }
 
-    rectSpy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue(DEFAULT_TARGET_RECT);
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue(DEFAULT_TARGET_RECT);
     vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(CARD_OFFSET_WIDTH);
     vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(CARD_OFFSET_HEIGHT);
 
@@ -196,18 +195,6 @@ describe('TourComponent', () => {
         const spotlight = fixture.nativeElement.querySelector('[data-slot="tour-spotlight"]');
         expect(card).not.toBeNull();
         expect(spotlight).not.toBeNull();
-    });
-
-    it('should expose isReady as false before activation', () => {
-        const tour = getTour(fixture);
-        expect(tour.isReady()).toBe(false);
-    });
-
-    it('should become ready after async readiness pass', async () => {
-        host.active.set(true);
-        await flush(fixture);
-        const tour = getTour(fixture);
-        expect(tour.isReady()).toBe(true);
     });
 
     it('should show step title and description', async () => {
@@ -372,26 +359,24 @@ describe('TourComponent', () => {
         expect(tour.currentIndex()).toBe(0);
     });
 
-    it('should highlight target while active (data attribute + outline)', async () => {
-        host.active.set(true);
-        await flush(fixture);
-
-        const target = document.getElementById('step1');
-        expect(target?.hasAttribute('data-ui-tour-highlight')).toBe(true);
-        expect(target?.style.outline).toContain('2px');
-    });
-
     it('should re-read the target rect on scroll and resize reposition', async () => {
+        const target = document.getElementById('step1') as HTMLElement;
+        let rect = DEFAULT_TARGET_RECT;
+        Object.defineProperty(target, 'getBoundingClientRect', { configurable: true, value: () => rect });
         host.active.set(true);
         await flush(fixture);
+        const spotlight = () => fixture.nativeElement.querySelector('[data-slot="tour-spotlight"]') as HTMLElement;
+        expect(spotlight().style.top).toBe(`${100 - 6}px`);
 
-        rectSpy.mockReturnValue(makeRect(250, 150, 200, 50));
+        rect = makeRect(250, 150, 200, 50);
         globalThis.window.dispatchEvent(new Event('scroll'));
-        globalThis.window.dispatchEvent(new Event('resize'));
-        await flush(fixture);
+        fixture.detectChanges();
+        expect(spotlight().style.top).toBe(`${250 - 6}px`);
 
-        const tour = getTour(fixture);
-        expect(tour.isReady()).toBe(true);
+        rect = makeRect(400, 150, 200, 50);
+        globalThis.window.dispatchEvent(new Event('resize'));
+        fixture.detectChanges();
+        expect(spotlight().style.top).toBe(`${400 - 6}px`);
     });
 
     it('should move highlight from previous target when advancing', async () => {
@@ -424,20 +409,9 @@ describe('TourComponent', () => {
         host.active.set(false);
         fixture.detectChanges();
 
+        expect(target?.hasAttribute('data-ui-tour-highlight')).toBe(false);
         expect(target?.style.outline).toBe(savedOutline);
         expect(target?.style.borderRadius).toBe(savedRadius);
-    });
-
-    it('should remove highlight on teardown', async () => {
-        host.active.set(true);
-        await flush(fixture);
-
-        host.active.set(false);
-        fixture.detectChanges();
-
-        const target = document.getElementById('step1');
-        expect(target?.hasAttribute('data-ui-tour-highlight')).toBe(false);
-        expect(target?.style.outline).toBe('');
     });
 
     it('should clean up highlight when the component is destroyed', async () => {
@@ -564,7 +538,7 @@ describe('TourComponent — positioning', () => {
 
     it('places the card above a bottom-anchored target', async () => {
         const tour = await activateWithRect(makeRect(600, 400, 100, 100));
-        expect(tour.cardPos().top).toBeLessThan(600);
+        expect(tour.cardPos().top).toBe(600 - CARD_OFFSET_HEIGHT - 12);
     });
 
     it('places the card to the right when there is horizontal room only', async () => {
@@ -576,7 +550,7 @@ describe('TourComponent — positioning', () => {
     it('places the card to the left when only left room remains', async () => {
         const target = makeRect(100, 800, 100, 600);
         const tour = await activateWithRect(target);
-        expect(tour.cardPos().left).toBeLessThan(target.left);
+        expect(tour.cardPos().left).toBe(target.left - CARD_OFFSET_WIDTH - 12);
     });
 
     it('clamps into the viewport when the target fills the screen', async () => {
@@ -587,11 +561,12 @@ describe('TourComponent — positioning', () => {
     });
 
     it('honours an explicit side override on the step', async () => {
-        host.steps.set([{ target: '#pt', title: 'Pos', side: 'bottom' }]);
+        // Auto-placement picks 'bottom' for this rect (418px free below).
+        host.steps.set([{ target: '#pt', title: 'Pos', side: 'top' }]);
         fixture.detectChanges();
-        const target = makeRect(100, 100, 200, 50);
+        const target = makeRect(300, 100, 200, 50);
         const tour = await activateWithRect(target);
-        expect(tour.cardPos().top).toBeGreaterThan(target.bottom - CARD_OFFSET_HEIGHT);
+        expect(tour.cardPos().top).toBe(target.top - CARD_OFFSET_HEIGHT - 12);
     });
 
     it('applies position:relative to a statically-positioned target', async () => {

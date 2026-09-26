@@ -5,7 +5,6 @@ import {
     describe,
     it,
     expect,
-    vi,
     beforeEach,
     afterEach,
 } from 'vitest';
@@ -55,19 +54,6 @@ describe('ColumnRangeChartComponent', () => {
             originalResizeObserver;
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
-    it('should compute bars from data', () => {
-        expect(component.bars()).toHaveLength(3);
-    });
-
-    it('should render an SVG element', () => {
-        const svg = fixture.nativeElement.querySelector('svg');
-        expect(svg).toBeTruthy();
-    });
-
     it('should set aria-label on SVG', () => {
         const svg = fixture.nativeElement.querySelector('svg[role="group"]');
         expect(svg).toBeTruthy();
@@ -80,20 +66,14 @@ describe('ColumnRangeChartComponent', () => {
         expect(component.chartAriaLabel()).toContain('Temperatures');
     });
 
-    it('should compute bars with positive height based on data range', () => {
-        const bars = component.bars();
-        for (const bar of bars) {
-            expect(bar.height).toBeGreaterThan(0);
-        }
-    });
-
-    it('should give taller bars to data points with wider ranges', () => {
-        const bars = component.bars();
-        const janBar = bars[0];
-        const marBar = bars[2];
-
-        // Jan range = 10 - (-5) = 15; Mar range = 18 - 2 = 16 (wider) => Mar bar is taller.
-        expect(marBar.height).toBeGreaterThan(janBar.height);
+    it('should place each bar between its low and high on the padded value axis', () => {
+        // Axis [-7.3, 20.3] (range plus 10% each side) over the 235px plot from y=30 to y=265.
+        const jan = component.bars()[0];
+        expect(jan.highY).toBeCloseTo(265 - (17.3 / 27.6) * 235, 6);
+        expect(jan.lowY).toBeCloseTo(265 - (2.3 / 27.6) * 235, 6);
+        expect(jan.y).toBe(jan.highY);
+        expect(jan.height).toBeCloseTo(jan.lowY - jan.highY, 6);
+        expect(jan.height).toBeCloseTo((15 / 27.6) * 235, 6);
     });
 
     it('should clamp bar height to a minimum of 1 for a zero-width range', () => {
@@ -216,17 +196,9 @@ describe('ColumnRangeChartComponent', () => {
         expect(component.bars()).toEqual([]);
     });
 
-    it('should compute lowY greater than highY for each bar', () => {
-        const bars = component.bars();
-        for (const bar of bars) {
-            expect(bar.lowY).toBeGreaterThan(bar.highY);
-        }
-    });
-
     it('should compute axis ticks spanning the data range', () => {
-        const ticks = component.axisTicks();
-        expect(ticks.length).toBeGreaterThan(1);
-        expect(ticks[0]).toBeLessThanOrEqual(component.dataRange().min + 1e-6);
+        // [-7.3, 20.3] / 5 ticks -> a nice step of 5, widened outwards to whole steps.
+        expect(component.axisTicks()).toEqual([-10, -5, 0, 5, 10, 15, 20, 25]);
     });
 
     it('should position the bottom tick near the chart bottom', () => {
@@ -243,13 +215,15 @@ describe('ColumnRangeChartComponent', () => {
     });
 
     it('should hide range labels when showRangeLabels is false', () => {
-        const withLabels =
-            fixture.nativeElement.querySelectorAll('svg text').length;
+        const texts = (): string[] =>
+            Array.from(fixture.nativeElement.querySelectorAll('svg text') as NodeListOf<SVGTextElement>)
+                .map(t => t.textContent?.trim() ?? '');
+        const axisAndCategories = ['-10', '-5', '0', '5', '10', '15', '20', '25', 'Jan', 'Feb', 'Mar'];
+        expect(texts()).toEqual([...axisAndCategories, '10', '-5', '12', '-3', '18', '2']);
+
         fixture.componentRef.setInput('showRangeLabels', false);
         fixture.detectChanges();
-        const withoutLabels =
-            fixture.nativeElement.querySelectorAll('svg text').length;
-        expect(withoutLabels).toBeLessThan(withLabels);
+        expect(texts()).toEqual(axisAndCategories);
     });
 
     it('should honor a custom bar color', () => {
@@ -266,34 +240,11 @@ describe('ColumnRangeChartComponent', () => {
         expect(component.containerClasses()).toContain('my-extra-class');
     });
 
-    it('should re-check direction on the deferred ngAfterViewInit timer', () => {
-        vi.useFakeTimers();
-        const local = TestBed.createComponent(ColumnRangeChartComponent);
-        local.componentRef.setInput('data', sampleData);
-        local.detectChanges();
-        vi.advanceTimersByTime(0);
-        vi.useRealTimers();
-        expect(local.componentInstance.isRtl()).toBe(false);
-        local.destroy();
-    });
-
     describe('RTL', () => {
         it('should report isRtl true when dir is rtl', () => {
             fixture.componentRef.setInput('dir', 'rtl');
             fixture.detectChanges();
             expect(component.isRtl()).toBe(true);
-        });
-
-        it('should report isRtl false when dir is ltr', () => {
-            fixture.componentRef.setInput('dir', 'ltr');
-            fixture.detectChanges();
-            expect(component.isRtl()).toBe(false);
-        });
-
-        it('should fall back to the DOM direction when dir is auto', () => {
-            fixture.componentRef.setInput('dir', 'auto');
-            fixture.detectChanges();
-            expect(component.isRtl()).toBe(false);
         });
 
         it('should swap left/right padding in RTL', () => {

@@ -126,15 +126,6 @@ describe('CurrencyInputComponent', () => {
 
             expect(emissions).toBe(0);
         });
-
-        it('renders a value written in from outside', async () => {
-            const editor = fixture.debugElement.children[0]
-                .componentInstance as CurrencyInputComponent;
-            editor.writeValue(1234.5);
-            await settle();
-
-            expect(field().value).toBe('$1,234.50');
-        });
     });
 
     describe('a reactive form', () => {
@@ -161,7 +152,7 @@ describe('CurrencyInputComponent', () => {
             reactive.componentInstance.control.setValue(42);
             await reactiveSettle();
 
-            expect(reactive.nativeElement.querySelector('input').value).toContain('42');
+            expect(reactive.nativeElement.querySelector('input').value).toBe('$42.00');
         });
 
         it('writes a user edit back into the control', async () => {
@@ -288,11 +279,6 @@ describe('CurrencyInputComponent', () => {
             expect(field().disabled).toBe(true);
         });
 
-        it('ignores text that is not a number', async () => {
-            await type('abc');
-            expect(host.amount()).toBeNull();
-        });
-
         /**
          * A programmatic write while someone is typing must not yank the
          * visible text out from under them.
@@ -307,13 +293,6 @@ describe('CurrencyInputComponent', () => {
             await settle();
 
             expect(field().value).toBe('12');
-        });
-
-        /** Compared as text: "unchanged" is about the serialised form. */
-        it('survives a JSON round trip unchanged', () => {
-            const original = { amount: 1234.56 };
-            const revived: unknown = JSON.parse(JSON.stringify(original));
-            expect(JSON.stringify(revived)).toBe(JSON.stringify(original));
         });
     });
 

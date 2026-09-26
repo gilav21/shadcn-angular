@@ -55,11 +55,6 @@ describe('MorphingTextComponent', () => {
         vi.useRealTimers();
     });
 
-    it('should render current text initially', () => {
-        fixture.detectChanges();
-        expect(getComp().currentText()).toBe('Hello');
-    });
-
     it('should render next text initially (second text in list)', () => {
         fixture.detectChanges();
         expect(getComp().nextText()).toBe('World');
@@ -75,12 +70,6 @@ describe('MorphingTextComponent', () => {
         expect(comp.longestText()).toBe('');
     });
 
-    it('should compute the longest text for sizing', () => {
-        host.texts.set(['Hi', 'Hello World', 'Bye']);
-        fixture.detectChanges();
-        expect(getComp().longestText()).toBe('Hello World');
-    });
-
     it('should render an invisible span with the longest text', () => {
         host.texts.set(['Hi', 'Hello World', 'Bye']);
         fixture.detectChanges();
@@ -88,11 +77,6 @@ describe('MorphingTextComponent', () => {
         const invisibleSpan = fixture.debugElement.query(By.css('.invisible'));
         expect(invisibleSpan).toBeTruthy();
         expect((invisibleSpan.nativeElement as HTMLElement).textContent).toBe('Hello World');
-    });
-
-    it('should start with currentVisible = true', () => {
-        fixture.detectChanges();
-        expect(getComp().currentVisible()).toBe(true);
     });
 
     it('should toggle currentVisible after half the interval', () => {
@@ -160,12 +144,6 @@ describe('MorphingTextComponent', () => {
         expect(comp.currentVisible()).toBe(true);
     });
 
-    it('should set data-slot attribute', () => {
-        fixture.detectChanges();
-        const el = fixture.debugElement.query(By.css('[data-slot="morphing-text"]'));
-        expect(el).toBeTruthy();
-    });
-
     it('should apply custom class to container', () => {
         host.cls.set('text-5xl');
         fixture.detectChanges();
@@ -174,13 +152,13 @@ describe('MorphingTextComponent', () => {
         expect((container.nativeElement as HTMLElement).className).toContain('text-5xl');
     });
 
-    it('should compute transition duration as fraction of interval', () => {
+    it('should cap transition duration at 500ms for long intervals', () => {
         host.interval.set(6000);
         fixture.detectChanges();
         expect(getComp().transitionDuration()).toBe('500ms');
     });
 
-    it('should cap transition duration at a third of small intervals', () => {
+    it('should use a third of the interval as transition duration for short intervals', () => {
         host.interval.set(900);
         fixture.detectChanges();
         expect(getComp().transitionDuration()).toBe('300ms');

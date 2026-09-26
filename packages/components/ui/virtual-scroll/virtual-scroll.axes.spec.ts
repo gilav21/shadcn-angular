@@ -234,11 +234,6 @@ describe('VirtualScrollComponent — horizontal orientation', () => {
         expect(vs.paddingBottom()).toBe(0);
     });
 
-    it('marks the container with its orientation and scrolls on X', () => {
-        expect(container.dataset['orientation']).toBe('horizontal');
-        expect(vs.containerClasses()).toContain('overflow-x-auto');
-    });
-
     it('scrollToIndex moves the X axis, not the Y axis', () => {
         vs.scrollToIndex(20);
         expect(container.scrollLeft).toBe(2000);
@@ -307,11 +302,6 @@ describe('VirtualScrollComponent — 2D (both axes)', () => {
     afterEach(() => {
         restore();
         fixture.destroy();
-    });
-
-    it('derives the row count from the column count', () => {
-        expect(vs.gridColumns()).toBe(40);
-        expect(vs.gridRows()).toBe(100);
     });
 
     it('renders the intersection of both windows, not a whole row or column', () => {

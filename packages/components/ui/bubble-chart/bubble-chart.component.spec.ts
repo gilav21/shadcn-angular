@@ -102,6 +102,26 @@ describe('BubbleChartComponent', () => {
         fixture.detectChanges();
     }
 
+    const root = (): HTMLElement => fixture.nativeElement as HTMLElement;
+    const svg = (): SVGSVGElement => root().querySelector('svg')!;
+    /** The rendered bubble whose aria-label names this data point. */
+    const circle = (label: string): SVGCircleElement =>
+        root().querySelector<SVGCircleElement>(`circle[aria-label="${label}"]`)!;
+    const tooltip = (): HTMLElement | null => root().querySelector('[data-slot="chart-tooltip"]');
+
+    /** A real mouse event at a bubble's centre, mapped from viewBox units to client pixels. */
+    function mouseAt(type: string, target: SVGCircleElement): MouseEvent {
+        const rect = svg().getBoundingClientRect();
+        const box = svg().viewBox.baseVal;
+        const cx = Number(target.getAttribute('cx'));
+        const cy = Number(target.getAttribute('cy'));
+        return new MouseEvent(type, {
+            bubbles: true,
+            clientX: rect.left + (cx / box.width) * rect.width,
+            clientY: rect.top + (cy / box.height) * rect.height,
+        });
+    }
+
     it('renders with an accessible Bubble chart label', async () => {
         await setup();
         const c = fixture.nativeElement.querySelector('[role="group"]');
@@ -123,15 +143,14 @@ describe('BubbleChartComponent', () => {
         expect(big.r).toBeGreaterThan(small.r);
     });
 
-    it('keeps all radii within the configured range', async () => {
+    it('maps the z extremes onto minRadius and maxRadius', async () => {
         await setup();
         fixture.componentRef.setInput('minRadius', 4);
         fixture.componentRef.setInput('maxRadius', 20);
         fixture.detectChanges();
-        for (const b of component.bubbles()) {
-            expect(b.r).toBeGreaterThanOrEqual(4);
-            expect(b.r).toBeLessThanOrEqual(20);
-        }
+        const bubbles = component.bubbles();
+        expect(bubbles.find(b => b.datum.z === 5)!.r).toBe(4);
+        expect(bubbles.find(b => b.datum.z === 50)!.r).toBe(20);
     });
 
     it('uses palette colors by index and a custom series color', async () => {
@@ -152,10 +171,11 @@ describe('BubbleChartComponent', () => {
 
     it('renders y-axis ticks with grid lines when enabled', async () => {
         await setup();
-        expect(component.yTicks().length).toBeGreaterThan(0);
-        expect(
-            fixture.nativeElement.querySelectorAll('line[data-slot="grid-line"]').length,
-        ).toBeGreaterThan(0);
+        const ticks = component.yTicks();
+        const lines = [...root().querySelectorAll('line[data-slot="grid-line"]')];
+        expect(lines.map(l => Number(l.getAttribute('y1')))).toEqual(ticks.map(t => t.y));
+        expect([...svg().querySelectorAll('text')].map(t => t.textContent!.trim()))
+            .toEqual(ticks.map(t => String(t.value)));
     });
 
     it('omits grid lines when showGrid is false', async () => {
@@ -214,65 +234,70 @@ describe('BubbleChartComponent', () => {
 
     it('clamps radii to minRadius when all z values are equal', async () => {
         await setup([{ name: 'Flat', points: [{ x: 1, y: 1, z: 7 }, { x: 2, y: 2, z: 7 }] }]);
-        for (const b of component.bubbles()) {
-            expect(b.r).toBe(component.bubbles()[0].r);
-        }
+        expect(component.bubbles().map(b => b.r)).toEqual([6, 6]);
     });
 
-    it('resolves RTL from the explicit dir input', async () => {
+    it('mirrors the x axis and the tick labels for an explicit dir', async () => {
         await setup();
+        const cx = (label: string): number => Number(circle(label).getAttribute('cx'));
+        const anchors = (): string[] => [...svg().querySelectorAll('text')].map(t => t.getAttribute('text-anchor')!);
+
         fixture.componentRef.setInput('dir', 'rtl');
         fixture.detectChanges();
-        expect(component.isRtl()).toBe(true);
-        const rtlArea = component['area']();
+        expect(cx('Markets: (1, 2, 5)')).toBeGreaterThan(cx('Markets: (5, 1, 20)'));
+        expect(new Set(anchors())).toEqual(new Set(['start']));
 
         fixture.componentRef.setInput('dir', 'ltr');
         fixture.detectChanges();
-        expect(component.isRtl()).toBe(false);
-        const ltrArea = component['area']();
-        expect(rtlArea.left).not.toBe(ltrArea.left);
+        expect(cx('Markets: (1, 2, 5)')).toBeLessThan(cx('Markets: (5, 1, 20)'));
+        expect(new Set(anchors())).toEqual(new Set(['end']));
     });
 
-    it('positions the tooltip and sets hover on pointer move', async () => {
+    it('highlights the bubble under the pointer and shows its tooltip', async () => {
         await setup();
-        const evt = new MouseEvent('mousemove', { clientX: 100, clientY: 120 });
-        component.onPointerMove(evt);
-        expect((component as unknown as { hovered(): unknown }).hovered()).not.toBeNull();
-        expect(component.tooltipPos().x).toBeGreaterThan(0);
+        const target = circle('Markets: (3, 5, 50)');
+        svg().dispatchEvent(mouseAt('mousemove', target));
+        fixture.detectChanges();
+
+        expect(target.getAttribute('fill-opacity')).toBe('0.85');
+        expect(circle('Trade: (4, 6, 30)').getAttribute('fill-opacity')).toBe('0.55');
+        expect(tooltip()?.textContent).toContain('Markets');
+        expect(tooltip()?.textContent).toContain('50');
     });
 
     it('ignores pointer move when there are no bubbles', async () => {
         await setup([]);
-        component.onPointerMove(new MouseEvent('mousemove', { clientX: 10, clientY: 10 }));
-        expect((component as unknown as { hovered(): unknown }).hovered()).toBeNull();
-    });
-
-    it('ignores pointer move when the svg reference is unresolved', async () => {
-        await setup();
-        (component as unknown as { _svg: () => undefined })._svg = () => undefined;
-        component.onPointerMove(new MouseEvent('mousemove', { clientX: 5, clientY: 5 }));
-        expect((component as unknown as { hovered(): unknown }).hovered()).toBeNull();
+        svg().dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 10, clientY: 10 }));
+        fixture.detectChanges();
+        expect(tooltip()).toBeNull();
     });
 
     it('clears hover on pointer leave', async () => {
         await setup();
-        component.setHover(0, 0);
-        expect((component as unknown as { hovered(): unknown }).hovered()).not.toBeNull();
-        component.onPointerLeave();
-        expect((component as unknown as { hovered(): unknown }).hovered()).toBeNull();
+        const target = circle('Markets: (3, 5, 50)');
+        svg().dispatchEvent(mouseAt('mousemove', target));
+        fixture.detectChanges();
+        expect(tooltip()).not.toBeNull();
+
+        svg().dispatchEvent(new MouseEvent('mouseleave'));
+        fixture.detectChanges();
+        expect(target.getAttribute('fill-opacity')).toBe('0.55');
+        expect(tooltip()).toBeNull();
     });
 
-    it('emits pointClick for a valid point and stays silent for an invalid one', async () => {
+    it('emits pointClick on click and on Enter, and stays silent for an invalid point', async () => {
         await setup();
         const events: ChartClickEvent<XYZDataPoint>[] = [];
         component.pointClick.subscribe(e => events.push(e));
 
-        component.onPointClick(0, 1);
-        expect(events).toHaveLength(1);
-        expect(events[0].index).toBe(1);
-        expect(events[0].point.z).toBe(50);
+        circle('Markets: (3, 5, 50)').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        circle('Trade: (2, 4, 10)').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        expect(events).toEqual([
+            { point: { x: 3, y: 5, z: 50 }, index: 1 },
+            { point: { x: 2, y: 4, z: 10 }, index: 0 },
+        ]);
 
         component.onPointClick(99, 99);
-        expect(events).toHaveLength(1);
+        expect(events).toHaveLength(2);
     });
 });

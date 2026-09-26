@@ -13,6 +13,7 @@ interface FakeAnimation {
 }
 
 let rafQueue: RafCb[] = [];
+let rafById = new Map<number, RafCb>();
 let rafIdSeq = 0;
 let cancelledIds: number[] = [];
 let reducedMotion = false;
@@ -92,6 +93,7 @@ function recordContainerAnimations(fixture: ComponentFixture<unknown>): void {
  */
 function installStubs(): void {
     rafQueue = [];
+    rafById = new Map();
     rafIdSeq = 0;
     cancelledIds = [];
 
@@ -99,11 +101,15 @@ function installStubs(): void {
 
     vi.stubGlobal('requestAnimationFrame', (cb: RafCb): number => {
         rafQueue.push(cb);
-        return ++rafIdSeq;
+        rafById.set(++rafIdSeq, cb);
+        return rafIdSeq;
     });
 
+    // A cancelled frame really does not run, as in the browser.
     vi.stubGlobal('cancelAnimationFrame', (id: number): void => {
         cancelledIds.push(id);
+        const cb = rafById.get(id);
+        rafQueue = rafQueue.filter((queued) => queued !== cb);
     });
 }
 
@@ -201,13 +207,18 @@ describe('NumberTickerComponent — animation (deterministic frames)', () => {
         const fixture = await makeTicker({ value: 50, duration: 1, delay: 2 });
         const cmp = fixture.componentInstance;
 
+        // Frames before the 2s delay must not move the count.
         vi.advanceTimersByTime(1999);
-        expect(animationFrames(cmp)).toHaveLength(0);
+        flushFrame(0);
+        flushFrame(1000);
+        expect(cmp.displayValue()).toBe('0');
 
         vi.advanceTimersByTime(1);
-        expect(animationFrames(cmp)).toHaveLength(1);
-
         flushFrame(0);
+        flushFrame(500);
+        const mid = Number(cmp.displayValue());
+        expect(mid).toBeGreaterThan(0);
+        expect(mid).toBeLessThan(50);
         flushFrame(1000);
         expect(cmp.displayValue()).toBe('50');
     });
@@ -256,15 +267,17 @@ describe('NumberTickerComponent — animation (deterministic frames)', () => {
         expect(animationFrames(cmp)).toHaveLength(0);
     });
 
-    it('cancels the pending frame on destroy', async () => {
+    it('stops counting once destroyed', async () => {
         const fixture = await makeTicker({ value: 100, duration: 1 });
+        const cmp = fixture.componentInstance;
 
         vi.advanceTimersByTime(1);
         flushFrame(0);
+        expect(cmp.displayValue()).toBe('0');
 
-        const before = cancelledIds.length;
         fixture.destroy();
-        expect(cancelledIds.length).toBeGreaterThan(before);
+        flushFrame(500);
+        expect(cmp.displayValue()).toBe('0');
     });
 
     it('merges a custom class into the computed classes', async () => {
@@ -418,11 +431,6 @@ describe('NumberTickerComponent — i18n integration', () => {
         fixture.detectChanges();
         return fixture;
     }
-
-    it('defaults the resolved locale to the app-wide value when no locale is set', async () => {
-        const fixture = await setup();
-        expect(fixture.componentInstance.resolvedLocale()).toBe('en');
-    });
 
     it('resolves locale from the per-instance input', async () => {
         const fixture = await setup({ locale: 'de' });

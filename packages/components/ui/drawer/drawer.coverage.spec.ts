@@ -59,69 +59,64 @@ describe('Drawer trigger keyboard handling', () => {
     });
 
     it('opens the drawer when Enter is pressed on the trigger itself', () => {
-        const drawer = fixture.debugElement.query(By.directive(DrawerComponent))
-            .componentInstance as DrawerComponent;
-        const trigger = fixture.debugElement.query(By.directive(DrawerTriggerComponent))
-            .componentInstance as DrawerTriggerComponent;
+        const span = fixture.nativeElement.querySelector('[data-slot="drawer-trigger"]') as HTMLElement;
+        const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+        span.dispatchEvent(enter);
+        fixture.detectChanges();
 
-        const span = fixture.nativeElement.querySelector('[data-slot="drawer-trigger"]');
-        const preventDefault = vi.fn();
-        trigger.onKeydown({ target: span, currentTarget: span, preventDefault } as unknown as Event);
-
-        expect(preventDefault).toHaveBeenCalledTimes(1);
-        expect(drawer.open()).toBe(true);
+        expect(enter.defaultPrevented).toBe(true);
+        expect(fixture.nativeElement.querySelector('[data-slot="drawer-content"]')).not.toBeNull();
     });
 
     it('ignores keydown that bubbled from a child element (target !== currentTarget)', () => {
-        const drawer = fixture.debugElement.query(By.directive(DrawerComponent))
-            .componentInstance as DrawerComponent;
-        const trigger = fixture.debugElement.query(By.directive(DrawerTriggerComponent))
-            .componentInstance as DrawerTriggerComponent;
+        // A projected control's Enter already clicks it, and that click bubbles
+        // to the trigger; toggling on the keydown too would open-then-close.
+        @Component({
+            template: `
+                <ui-drawer>
+                    <ui-drawer-trigger><button type="button">Open</button></ui-drawer-trigger>
+                    <ui-drawer-content>Panel</ui-drawer-content>
+                </ui-drawer>
+            `,
+            imports: [DrawerComponent, DrawerTriggerComponent, DrawerContentComponent],
+        })
+        class ButtonTriggerHost {}
 
-        const span = fixture.nativeElement.querySelector('[data-slot="drawer-trigger"]');
-        const preventDefault = vi.fn();
-        trigger.onKeydown({ target: {}, currentTarget: span, preventDefault } as unknown as Event);
+        const host = TestBed.createComponent(ButtonTriggerHost);
+        host.detectChanges();
+        const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+        (host.nativeElement.querySelector('button') as HTMLElement).dispatchEvent(enter);
+        host.detectChanges();
 
-        expect(preventDefault).not.toHaveBeenCalled();
-        expect(drawer.open()).toBe(false);
+        expect(enter.defaultPrevented).toBe(false);
+        expect(host.nativeElement.querySelector('[data-slot="drawer-content"]')).toBeNull();
     });
 });
 
 describe('Drawer close keyboard handling', () => {
-    // Standalone close with no DRAWER ancestor also proves the optional() null path.
-    @Component({
-        template: `<ui-drawer-close>X</ui-drawer-close>`,
-        imports: [DrawerCloseComponent],
-    })
-    class LoneCloseHostComponent {}
+    it('keeps the drawer open when Enter bubbles from a control inside the close element', async () => {
+        @Component({
+            template: `
+                <ui-drawer [open]="true">
+                    <ui-drawer-content>
+                        <ui-drawer-close><button type="button">Close</button></ui-drawer-close>
+                    </ui-drawer-content>
+                </ui-drawer>
+            `,
+            imports: [DrawerComponent, DrawerContentComponent, DrawerCloseComponent],
+        })
+        class ButtonCloseHost {}
 
-    it('hides the drawer when Enter is pressed on the close element', async () => {
-        await TestBed.configureTestingModule({
-            imports: [FocusTrapHostComponent, DrawerCloseComponent],
-        }).compileComponents();
-        const fixture = TestBed.createComponent(FocusTrapHostComponent);
+        await TestBed.configureTestingModule({ imports: [ButtonCloseHost] }).compileComponents();
+        const fixture = TestBed.createComponent(ButtonCloseHost);
         fixture.detectChanges();
 
-        const drawer = fixture.debugElement.query(By.directive(DrawerComponent))
-            .componentInstance as DrawerComponent;
-        drawer.show();
+        const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+        (fixture.nativeElement.querySelector('ui-drawer-close button') as HTMLElement).dispatchEvent(enter);
         fixture.detectChanges();
 
-        // Build a close component instance bound to the same drawer via a fresh host.
-        const closeFixture = TestBed.createComponent(LoneCloseHostComponent);
-        closeFixture.detectChanges();
-        const close = closeFixture.debugElement.query(By.directive(DrawerCloseComponent))
-            .componentInstance as DrawerCloseComponent;
-        const span = closeFixture.nativeElement.querySelector('[data-slot="drawer-close"]');
-        const preventDefault = vi.fn();
-
-        // target !== currentTarget -> early return (no throw even without a drawer)
-        close.onKeydown({ target: {}, currentTarget: span, preventDefault } as unknown as Event);
-        expect(preventDefault).not.toHaveBeenCalled();
-
-        // target === currentTarget -> onClick(); drawer is null (optional) so no error
-        close.onKeydown({ target: span, currentTarget: span, preventDefault } as unknown as Event);
-        expect(preventDefault).toHaveBeenCalledTimes(1);
+        expect(enter.defaultPrevented).toBe(false);
+        expect(fixture.nativeElement.querySelector('[data-slot="drawer-content"]')).not.toBeNull();
 
         document.body.style.overflow = '';
         document.body.style.paddingRight = '';
@@ -191,23 +186,11 @@ describe('DrawerContent focus + direction fallback', () => {
             imports: [OpenAtInitHostComponent],
         }).compileComponents();
         const fixture = TestBed.createComponent(OpenAtInitHostComponent);
-
-        const contentDivFocus = vi.fn();
-        // ngAfterViewInit runs during the first detectChanges with drawer already open.
         fixture.detectChanges();
-
-        const contentDiv = fixture.nativeElement.querySelector('[data-slot="drawer-content"]') as HTMLElement;
-        expect(contentDiv).toBeTruthy();
-        vi.spyOn(contentDiv, 'focus').mockImplementation(contentDivFocus);
-
-        // Also let the effect's setTimeout(focusFirstElement) run.
         await flushMicrotimers();
 
-        expect(contentDiv.querySelector('button')).toBeNull();
-        // focusFirstElement was invoked (via ngAfterViewInit and/or the effect);
-        // with no focusable child it targets the content element itself.
-        contentDiv.focus();
-        expect(contentDivFocus).toHaveBeenCalled();
+        const contentDiv = fixture.nativeElement.querySelector('[data-slot="drawer-content"]') as HTMLElement;
+        expect(document.activeElement).toBe(contentDiv);
     });
 
     it('runs focusFirstElement with no content present (drawer closed before deferred focus)', async () => {

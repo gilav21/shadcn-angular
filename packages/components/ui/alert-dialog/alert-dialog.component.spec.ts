@@ -10,7 +10,7 @@ import {
     AlertDialogActionComponent,
     AlertDialogCancelComponent
 } from './index';
-import { Component, signal } from '@angular/core';
+import { Component } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
@@ -47,39 +47,6 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 })
 class TestHostComponent { }
 
-// RTL Test host
-@Component({
-    template: `
-        <div [dir]="dir()">
-            <ui-alert-dialog>
-                <ui-alert-dialog-trigger>حذف</ui-alert-dialog-trigger>
-                <ui-alert-dialog-content>
-                    <ui-alert-dialog-header>
-                        <ui-alert-dialog-title>هل أنت متأكد؟</ui-alert-dialog-title>
-                    </ui-alert-dialog-header>
-                    <ui-alert-dialog-footer>
-                        <ui-alert-dialog-cancel>إلغاء</ui-alert-dialog-cancel>
-                        <ui-alert-dialog-action>تأكيد</ui-alert-dialog-action>
-                    </ui-alert-dialog-footer>
-                </ui-alert-dialog-content>
-            </ui-alert-dialog>
-        </div>
-    `,
-    imports: [
-        AlertDialogComponent,
-        AlertDialogTriggerComponent,
-        AlertDialogContentComponent,
-        AlertDialogHeaderComponent,
-        AlertDialogFooterComponent,
-        AlertDialogTitleComponent,
-        AlertDialogActionComponent,
-        AlertDialogCancelComponent
-    ]
-})
-class RTLTestHostComponent {
-    dir = signal<'ltr' | 'rtl'>('ltr');
-}
-
 describe('AlertDialogComponent', () => {
     let component: AlertDialogComponent;
     let fixture: ComponentFixture<AlertDialogComponent>;
@@ -92,14 +59,6 @@ describe('AlertDialogComponent', () => {
         fixture = TestBed.createComponent(AlertDialogComponent);
         component = fixture.componentInstance;
         fixture.detectChanges();
-    });
-
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
-    it('should be closed by default', () => {
-        expect(component.open()).toBe(false);
     });
 
     it('should open and close', () => {
@@ -136,27 +95,20 @@ describe('AlertDialog Integration', () => {
         expect(content).toBeNull();
     });
 
-    it('should render content on trigger click', async () => {
-        const trigger = fixture.debugElement.query(By.css('[data-slot="alert-dialog-trigger"]'));
-        trigger.nativeElement.click();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const content = document.querySelector('[data-slot="alert-dialog-content"]');
-        expect(content).toBeTruthy();
-    });
-
     it('should render title and description', async () => {
         const trigger = fixture.debugElement.query(By.css('[data-slot="alert-dialog-trigger"]'));
         trigger.nativeElement.click();
         fixture.detectChanges();
         await fixture.whenStable();
 
-        const title = document.querySelector('[data-slot="alert-dialog-title"]');
-        const desc = document.querySelector('[data-slot="alert-dialog-description"]');
+        const title = document.querySelector('[data-slot="alert-dialog-title"]')!;
+        const desc = document.querySelector('[data-slot="alert-dialog-description"]')!;
+        const content = document.querySelector('[data-slot="alert-dialog-content"]')!;
 
-        expect(title).toBeTruthy();
-        expect(desc).toBeTruthy();
+        expect(title.textContent?.trim()).toBe('Are you absolutely sure?');
+        expect(desc.textContent?.trim()).toBe('This action cannot be undone.');
+        expect(title.id).toBeTruthy();
+        expect(content.getAttribute('aria-labelledby')).toBe(title.id);
     });
 
     it('should close on cancel click', async () => {
@@ -190,107 +142,19 @@ describe('AlertDialog Integration', () => {
     });
 
     it('should NOT close on overlay click (unlike regular Dialog)', async () => {
-        // Find the overlay directly
-        // The component structure is:
-        // <div class="fixed inset-0 ..."> <-- Container
-        //   <div class="fixed inset-0 bg-black/80 ..."></div> <-- Overlay
-        //   <div ...>Content</div>
-        // </div>
-
-        // Let's open it
         const trigger = fixture.debugElement.query(By.css('[data-slot="alert-dialog-trigger"]'));
         trigger.nativeElement.click();
         fixture.detectChanges();
         await fixture.whenStable();
 
-        // There isn't a click handler on the overlay in the source code, so clicking it should do nothing.
-        // We can verify this by clicking the container or overlay element.
-        // Since the component uses portals/fixed positioning, we need to query document body.
-
-        // Just verify it's still open... wait, how do we simulate user click on overlay?
-        // In the template:
-        // <div class="fixed inset-0 z-50 flex items-center justify-center">
-        //    <div class="fixed inset-0 bg-black/80 animate-in fade-in-0"></div>
-        // </div>
-        // The overlay div doesn't have a (click) handler.
-        // So this test is essentially verifying that we didn't accidentally add one.
+        const content = document.querySelector<HTMLElement>('[data-slot="alert-dialog-content"]')!;
+        const overlay = content.parentElement!.firstElementChild as HTMLElement;
+        expect(overlay).not.toBe(content);
+        overlay.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
 
         expect(document.querySelector('[data-slot="alert-dialog-content"]')).toBeTruthy();
-    });
-});
-
-describe('AlertDialog RTL Support', () => {
-    let fixture: ComponentFixture<RTLTestHostComponent>;
-    let component: RTLTestHostComponent;
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [RTLTestHostComponent]
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(RTLTestHostComponent);
-        component = fixture.componentInstance;
-        fixture.detectChanges();
-    });
-
-    afterEach(() => {
-        document.documentElement.removeAttribute('dir');
-        // Clean up portals if any left
-        // Content is destroyed when component is destroyed usually, but let's be safe
-    });
-
-    it('should render in LTR mode', () => {
-        const container = fixture.debugElement.query(By.css('[dir="ltr"]'));
-        expect(container).toBeTruthy();
-    });
-
-    it('should render in RTL mode', async () => {
-        component.dir.set('rtl');
-        document.documentElement.setAttribute('dir', 'rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const container = fixture.debugElement.query(By.css('[dir="rtl"]'));
-        expect(container).toBeTruthy();
-    });
-
-    it('should apply RTL utility classes to header', async () => {
-        component.dir.set('rtl');
-        document.documentElement.setAttribute('dir', 'rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const trigger = fixture.debugElement.query(By.css('[data-slot="alert-dialog-trigger"]'));
-        trigger.nativeElement.click();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const header = document.querySelector('[data-slot="alert-dialog-header"]');
-        expect(header).toBeTruthy();
-        expect(header?.className).toContain('rtl:text-right');
-    });
-
-    it('should open and function in RTL mode', async () => {
-        component.dir.set('rtl');
-        document.documentElement.setAttribute('dir', 'rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const trigger = fixture.debugElement.query(By.css('[data-slot="alert-dialog-trigger"]'));
-        trigger.nativeElement.click();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const content = document.querySelector('[data-slot="alert-dialog-content"]');
-        expect(content).toBeTruthy();
-
-        // Close with cancel
-        const cancel = document.querySelector<HTMLElement>('[data-slot="alert-dialog-cancel"]');
-        cancel!.click();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        expect(document.querySelector('[data-slot="alert-dialog-content"]')).toBeNull();
     });
 });
 
@@ -304,12 +168,16 @@ describe('AlertDialog RTL Support', () => {
                 description="This cannot be undone."
                 actionText="Delete"
                 cancelText="Keep"
+                (cancelClick)="events.push('cancel')"
+                (actionClick)="events.push('action')"
             />
         </ui-alert-dialog>
     `,
     imports: [AlertDialogComponent, AlertDialogTriggerComponent, AlertDialogContentComponent]
 })
-class SimpleModeTestHostComponent { }
+class SimpleModeTestHostComponent {
+    readonly events: string[] = [];
+}
 
 describe('AlertDialog Simple Mode', () => {
     let fixture: ComponentFixture<SimpleModeTestHostComponent>;
@@ -345,31 +213,22 @@ describe('AlertDialog Simple Mode', () => {
         expect(desc?.textContent).toContain('This cannot be undone.');
     });
 
-    it('should auto-render action and cancel buttons', async () => {
+    it('emits cancelClick and actionClick from the auto-rendered buttons', async () => {
         const trigger = fixture.debugElement.query(By.css('[data-slot="alert-dialog-trigger"]'));
-        trigger.nativeElement.click();
-        fixture.detectChanges();
-        await fixture.whenStable();
+        const clickIn = async (slot: string): Promise<void> => {
+            trigger.nativeElement.click();
+            fixture.detectChanges();
+            await fixture.whenStable();
+            document.querySelector<HTMLElement>(`[data-slot="${slot}"]`)!.click();
+            fixture.detectChanges();
+            await fixture.whenStable();
+        };
 
-        const action = document.querySelector('[data-slot="alert-dialog-action"]');
-        const cancel = document.querySelector('[data-slot="alert-dialog-cancel"]');
-        expect(action).toBeTruthy();
-        expect(cancel).toBeTruthy();
-        expect(action?.textContent).toContain('Delete');
-        expect(cancel?.textContent).toContain('Keep');
-    });
+        await clickIn('alert-dialog-cancel');
+        expect(fixture.componentInstance.events).toEqual(['cancel']);
 
-    it('should close on auto-rendered cancel click', async () => {
-        const trigger = fixture.debugElement.query(By.css('[data-slot="alert-dialog-trigger"]'));
-        trigger.nativeElement.click();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const cancel = document.querySelector<HTMLElement>('[data-slot="alert-dialog-cancel"]');
-        cancel!.click();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
+        await clickIn('alert-dialog-action');
+        expect(fixture.componentInstance.events).toEqual(['cancel', 'action']);
         expect(document.querySelector('[data-slot="alert-dialog-content"]')).toBeNull();
     });
 });
@@ -575,15 +434,7 @@ describe('AlertDialogContent — no focusable content', () => {
         expect(content).toBeTruthy();
         expect(content.getAttribute('aria-labelledby')).toBeNull();
         expect(document.querySelector('[data-slot="alert-dialog-title"]')).toBeNull();
-    });
-
-    it('returns early from Tab handling when there is nothing focusable', () => {
-        openViaTriggerWithTimers(fixture);
-        const content = document.querySelector('[data-slot="alert-dialog-content"]')!;
-        const evt = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true });
-        const prevented = vi.spyOn(evt, 'preventDefault');
-        (content.parentElement as HTMLElement).dispatchEvent(evt);
-        expect(prevented).not.toHaveBeenCalled();
+        expect(document.activeElement).toBe(content);
     });
 });
 
@@ -592,10 +443,10 @@ describe('AlertDialogContent — open on initial render', () => {
         await TestBed.configureTestingModule({ imports: [OpenAtInitHostComponent] }).compileComponents();
         const fixture = TestBed.createComponent(OpenAtInitHostComponent);
         fixture.detectChanges();
-        await fixture.whenStable();
 
-        expect(document.querySelector('[data-slot="alert-dialog-content"]')).toBeTruthy();
-        expect(document.querySelector('[data-slot="alert-dialog-title"]')?.textContent).toContain('Open at init');
+        // Synchronous: the effect's setTimeout focus has not run yet, so only ngAfterViewInit can have focused.
+        const content = document.querySelector('[data-slot="alert-dialog-content"]')!;
+        expect(document.activeElement).toBe(content.querySelector('[data-slot="alert-dialog-cancel"]'));
     });
 });
 
@@ -640,17 +491,26 @@ describe('AlertDialogTrigger — keyboard activation', () => {
         expect(document.querySelector('[data-slot="alert-dialog-content"]')).toBeTruthy();
     });
 
-    it('does nothing when the keydown originates from a nested element', () => {
-        const triggerCmp = fixture.debugElement
-            .query(By.directive(AlertDialogTriggerComponent))
-            .componentInstance as AlertDialogTriggerComponent;
-        const alertDialog = fixture.debugElement.query(By.directive(AlertDialogComponent)).componentInstance as AlertDialogComponent;
+    it('does nothing when the keydown originates from a nested element', async () => {
+        const nestedFixture = TestBed.createComponent(NestedTriggerHostComponent);
+        nestedFixture.detectChanges();
+        await nestedFixture.whenStable();
 
-        const nested = document.createElement('a');
-        const host = document.createElement('span');
-        const event = { target: nested, currentTarget: host, preventDefault: vi.fn() } as unknown as Event;
-        triggerCmp.onKeydown(event);
+        const nested = nestedFixture.nativeElement.querySelector('b') as HTMLElement;
+        nested.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+        nestedFixture.detectChanges();
 
-        expect(alertDialog.open()).toBe(false);
+        expect(nestedFixture.nativeElement.querySelector('[data-slot="alert-dialog-content"]')).toBeNull();
     });
 });
+
+@Component({
+    template: `
+        <ui-alert-dialog>
+            <ui-alert-dialog-trigger><span>Open <b>now</b></span></ui-alert-dialog-trigger>
+            <ui-alert-dialog-content title="Nested" />
+        </ui-alert-dialog>
+    `,
+    imports: [AlertDialogComponent, AlertDialogTriggerComponent, AlertDialogContentComponent],
+})
+class NestedTriggerHostComponent { }

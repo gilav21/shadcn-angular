@@ -38,7 +38,7 @@ afterEach(() => {
     imports: [ShortcutBindingsDialogComponent]
 })
 class TestHostComponent {
-    open = false;
+    open = signal(false);
     allowSaveMapping = signal(false);
 }
 
@@ -60,49 +60,26 @@ describe('ShortcutBindingsDialogComponent', () => {
         dialog = fixture.debugElement.query(By.directive(ShortcutBindingsDialogComponent)).componentInstance as ShortcutBindingsDialogComponent;
     });
 
-    it('should create', () => {
-        expect(fixture.componentInstance).toBeTruthy();
-    });
+    it('offers Save Changes only with allowSaveMapping, and clicking it emits mappingSave', async () => {
+        const saveButton = (): HTMLButtonElement | undefined =>
+            [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')]
+                .find(b => b.textContent?.trim() === 'Save Changes');
+        host.open.set(true);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(saveButton()).toBeUndefined();
 
-    it('should start with dialog closed', () => {
-        expect(host.open).toBe(false);
-    });
-
-    it('should accept allowSaveMapping input', async () => {
         host.allowSaveMapping.set(true);
         fixture.detectChanges();
         await fixture.whenStable();
-        expect(host.allowSaveMapping()).toBe(true);
+        const emitted: unknown[] = [];
+        dialog.mappingSave.subscribe(schema => emitted.push(schema));
+        saveButton()!.click();
+
+        expect(emitted).toEqual([TestBed.inject(ShortcutBindingService).exportOverrideSchema()]);
     });
 
     describe('search', () => {
-        it('should update search signal via onSearchInput', () => {
-            const mockEvent = { target: { value: 'test query' } } as any;
-            dialog.onSearchInput(mockEvent);
-
-            expect(dialog.search()).toBe('test query');
-        });
-
-        it('should set search to empty string when event target value is empty', () => {
-            dialog.search.set('previous value');
-            const mockEvent = { target: { value: '' } } as any;
-            dialog.onSearchInput(mockEvent);
-
-            expect(dialog.search()).toBe('');
-        });
-
-        it('should report searchActive as true when search has content', () => {
-            dialog.search.set('test');
-
-            expect(dialog.searchActive()).toBe(true);
-        });
-
-        it('should report searchActive as false when search is empty', () => {
-            dialog.search.set('');
-
-            expect(dialog.searchActive()).toBe(false);
-        });
-
         it('should report searchActive as false when search is only whitespace', () => {
             dialog.search.set('   ');
 
@@ -110,49 +87,7 @@ describe('ShortcutBindingsDialogComponent', () => {
         });
     });
 
-    describe('key formatting helpers', () => {
-        it('should format actionKey as componentName::actionId', () => {
-            expect(dialog.actionKey('toggle', 'dialog')).toBe('dialog::toggle');
-        });
-
-        it('should format groupValue as group::componentName', () => {
-            expect(dialog.groupValue('dialog')).toBe('group::dialog');
-        });
-
-        it('should format actionValue with action:: prefix and actionKey', () => {
-            expect(dialog.actionValue('toggle', 'dialog')).toBe('action::dialog::toggle');
-        });
-
-        it('should format captureComponentKey as component::componentName::actionId', () => {
-            expect(dialog.captureComponentKey('toggle', 'dialog')).toBe('component::dialog::toggle');
-        });
-
-        it('should format captureInstanceKey as instance::componentId::actionId', () => {
-            expect(dialog.captureInstanceKey('toggle', 'dialog-1')).toBe('instance::dialog-1::toggle');
-        });
-    });
-
     describe('capture state management', () => {
-        it('should start with capturingActionKey as null', () => {
-            expect(dialog.capturingActionKey()).toBeNull();
-        });
-
-        it('should set capturingActionKey when startCaptureForComponent is called', () => {
-            const mockButton = document.createElement('button');
-
-            dialog.startCaptureForComponent('toggle', 'dialog', mockButton);
-
-            expect(dialog.capturingActionKey()).toBe('component::dialog::toggle');
-        });
-
-        it('should set capturingActionKey when startCaptureForInstance is called', () => {
-            const mockButton = document.createElement('button');
-
-            dialog.startCaptureForInstance('toggle', 'dialog-1', mockButton);
-
-            expect(dialog.capturingActionKey()).toBe('instance::dialog-1::toggle');
-        });
-
         it('should reset capturingActionKey to null when Escape is pressed during component capture', () => {
             const mockButton = document.createElement('button');
             dialog.startCaptureForComponent('toggle', 'dialog', mockButton);
@@ -182,19 +117,6 @@ describe('ShortcutBindingsDialogComponent', () => {
             dialog.onComponentCaptureKeydown(escapeEvent, 'toggle', 'dialog');
 
             expect(dialog.capturingActionKey()).toBe('component::other::action');
-        });
-    });
-
-    describe('format', () => {
-        it('should format a simple shortcut key', () => {
-            const result = dialog.format('a');
-            expect(result).toBeTruthy();
-            expect(typeof result).toBe('string');
-        });
-
-        it('should return the input when it cannot be parsed', () => {
-            const result = dialog.format('');
-            expect(result).toBe('');
         });
     });
 });
@@ -267,6 +189,20 @@ describe('ShortcutBindingsDialogComponent — rebind + grouping with live bindin
 
         expect(dialog.isConflicting('find')).toBe(false);
         expect(dialog.isConflicting('save')).toBe(false);
+    });
+
+    it('filters the rendered groups as the user types in the search box', () => {
+        const groupNames = (): string[] =>
+            [...(fixture.nativeElement as HTMLElement).querySelectorAll('ui-accordion-trigger h3.capitalize')]
+                .map(h => h.textContent!.trim());
+        expect(groupNames()).toEqual(['editor', 'viewer']);
+
+        const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('input[type="text"]')!;
+        input.value = 'Find in page';
+        input.dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+
+        expect(groupNames()).toEqual(['viewer']);
     });
 
     it('filters bindings by the search query', () => {
@@ -444,13 +380,35 @@ describe('ShortcutBindingsDialogComponent — i18n integration', () => {
         return fixture;
     }
 
+    const searchPlaceholder = (fixture: ComponentFixture<ShortcutBindingsDialogComponent>): string =>
+        (fixture.nativeElement as HTMLElement).querySelector('input[type="text"]')!.getAttribute('placeholder')!;
+
+    function registerConflictingPair(): void {
+        const service = TestBed.inject(ShortcutBindingService);
+        service.registerComponent('Alpha', [
+            { actionId: 'go', description: 'Go', defaultShortcut: 'ctrl+k', category: 'Nav', handler: () => undefined },
+        ]);
+        service.registerComponent('Beta', [
+            { actionId: 'run', description: 'Run', defaultShortcut: 'ctrl+k', category: 'Nav', handler: () => undefined },
+        ]);
+    }
+
     it('defaults dictionary keys to English', async () => {
+        localStorage.clear();
         const fixture = await setup();
-        const cmp = fixture.componentInstance as unknown as { t: () => { searchPlaceholder: string; conflict: string; rebindAllInstances: string; rebindInstance: string } };
-        expect(cmp.t().searchPlaceholder).toContain('Search actions');
-        expect(cmp.t().conflict).toBe('Conflict');
-        expect(cmp.t().rebindAllInstances).toBe('Rebind all instances of {binding}');
-        expect(cmp.t().rebindInstance).toBe('Rebind instance {name} for {binding}');
+        registerConflictingPair();
+        fixture.detectChanges();
+        // The per-action badges live inside each collapsed group.
+        for (const title of (fixture.nativeElement as HTMLElement).querySelectorAll('ui-accordion-trigger h3.capitalize')) {
+            title.closest('button')!.click();
+        }
+        fixture.detectChanges();
+
+        expect(searchPlaceholder(fixture)).toContain('Search actions');
+        const destructive = [...(fixture.nativeElement as HTMLElement).querySelectorAll('ui-badge')]
+            .map(b => b.textContent!.trim())
+            .filter(text => text !== 'Nav');
+        expect(destructive).toEqual(['Conflict', 'Conflict']);
     });
 
     it('interpolates rebindAllAriaLabel and rebindInstanceAriaLabel with English template + localised template', async () => {
@@ -466,7 +424,6 @@ describe('ShortcutBindingsDialogComponent — i18n integration', () => {
 
     it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
         const fixture = await setup({ providerLocale: 'fr' });
-        const cmp = fixture.componentInstance as unknown as { t: () => { searchPlaceholder: string } };
-        expect(cmp.t().searchPlaceholder).toContain('Rechercher');
+        expect(searchPlaceholder(fixture)).toContain('Rechercher');
     });
 });

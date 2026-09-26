@@ -56,7 +56,7 @@ class OutlineHostComponent {
     readonly roots = signal<Node[]>([
         { id: 'a', children: [{ id: 'a1', children: [] }] },
         { id: 'b', children: [{ id: 'b1', children: [] }] },
-        { id: 'c', children: [{ id: 'c1', children: [] }] },
+        { id: 'c', children: [{ id: 'c1', children: [] }, { id: 'c2', children: [] }] },
     ]);
     readonly events: SortableReorderEvent<unknown>[] = [];
     readonly landEffect = signal<(item: unknown, from: SortableLocation, to: SortableLocation) => string | null>(() => null);
@@ -102,73 +102,58 @@ describe('SortableComponent — nested lists', () => {
         return found as SortableComponent<unknown>;
     }
 
-    it('gives a top-level list a single-element path', () => {
-        expect(sortableFor('root').path()).toEqual(['root']);
-        expect(sortableFor('root').depth()).toBe(1);
-    });
+    /** Pins a list's container rect so the hit test is deterministic in any runner. */
+    function stubListRect(listId: string, rect: Pick<DOMRect, 'left' | 'right' | 'top' | 'bottom'>): void {
+        const hostEl = fixture.debugElement
+            .queryAll(d => d.componentInstance instanceof SortableComponent)
+            .find(d => (d.componentInstance as SortableComponent<unknown>).resolvedListId() === listId)!
+            .nativeElement as HTMLElement;
+        const container = hostEl.querySelector<HTMLElement>('[data-slot="sortable"]')!;
+        container.getBoundingClientRect = (): DOMRect => rect as DOMRect;
+    }
 
-    it('gives a nested list its full ancestry, outermost first', () => {
-        expect(sortableFor('child-a').path()).toEqual(['root', 'child-a']);
-        expect(sortableFor('child-a').depth()).toBe(2);
-    });
-
-    it('resolves the parent through the injector, so every child of the same root shares its prefix', () => {
-        for (const id of ['child-a', 'child-b']) {
-            expect(sortableFor(id).path()[0]).toBe('root');
-        }
-    });
-
-    it('reports the path on both endpoints of a same-list reorder', () => {
-        host.events.length = 0;
-        const root = sortableFor('root');
-        root['applyReorder'](0, 1, { clearDrag: false, emit: true });
-        fixture.detectChanges();
-
-        const event = host.events.at(-1);
-        expect(event?.from).toMatchObject({ listId: 'root', index: 0, path: ['root'] });
-        expect(event?.to).toMatchObject({ listId: 'root', index: 1, path: ['root'] });
-    });
+    function key(k: string): KeyboardEvent {
+        return new KeyboardEvent('keydown', { key: k });
+    }
 
     it('reports the nested list own path when the reorder happens inside a child', () => {
         host.events.length = 0;
-        const child = sortableFor('child-a');
-        child['applyReorder'](0, 0, { clearDrag: false, emit: true });
-        child.items.set(['x', 'y'] as unknown as never[]);
-        fixture.detectChanges();
-        child['applyReorder'](0, 1, { clearDrag: false, emit: true });
+        const child = sortableFor('child-c');
+        child.handleItemKeyDown(0, key(' '));
+        child.handleItemKeyDown(0, key('ArrowDown'));
 
-        const event = host.events.at(-1);
-        expect(event?.from.path).toEqual(['root', 'child-a']);
-        expect(event?.to.path).toEqual(['root', 'child-a']);
+        expect(host.events).toHaveLength(1);
+        expect(host.events[0].from).toMatchObject({ listId: 'child-c', index: 0, path: ['root', 'child-c'] });
+        expect(host.events[0].to).toMatchObject({ listId: 'child-c', index: 1, path: ['root', 'child-c'] });
     });
 
     it('reports the path on the KEYBOARD cross-list hand-off, not just the pointer one', () => {
         host.events.length = 0;
         const root = sortableFor('root');
 
-        // Row 1 hosts no child list, so child-b is a legal keyboard target.
-        root['_liftedIndex'].set(1);
-        root['keyboardCrossList'](1, 1);
+        // Row 1 hosts child-b, which the hand-off skips; any other list is a legal target.
+        root.handleItemKeyDown(1, key(' '));
+        root.handleItemKeyDown(1, key('Tab'));
         fixture.detectChanges();
 
         const event = host.events.at(-1);
-        expect(event?.from.path).toEqual(['root']);
-        expect(event?.to.path).toBeDefined();
-        expect(event?.to.path?.[0]).toBe('root');
+        expect(event?.from).toMatchObject({ listId: 'root', index: 1, path: ['root'] });
+        expect(event?.to.listId).toMatch(/^child-[ac]$/);
+        expect(event?.to.path).toEqual(['root', event?.to.listId]);
     });
 
     it('reports the path on landEffect endpoints as well', () => {
         const root = sortableFor('root');
         const seen: { from: readonly string[] | undefined; to: readonly string[] | undefined }[] = [];
 
-        // landEffect receives two SortableLocations; both must carry the path.
         host.landEffect.set((_item, from, to) => {
             seen.push({ from: from.path, to: to.path });
             return null;
         });
         fixture.detectChanges();
 
-        root['scheduleLandEffect'](0, 1, root.items()[0]);
+        root.handleItemKeyDown(0, key(' '));
+        root.handleItemKeyDown(0, key('ArrowDown'));
 
         expect(seen).toEqual([{ from: ['root'], to: ['root'] }]);
     });
@@ -176,12 +161,12 @@ describe('SortableComponent — nested lists', () => {
     it('reports the full path of BOTH lists when an item crosses into a nested list', () => {
         host.events.length = 0;
         const root = sortableFor('root');
-        const child = sortableFor('child-a');
+        // Far above the real layout, so only the stubbed child-a contains the pointer.
+        stubListRect('child-a', { left: 4900, right: 5100, top: -5100, bottom: -4900 });
 
         root.startDrag(1, 0, 0);
-        root['_hoverPeer'].set(child['registryEntry']);
-        root['_hoverPeerTarget'].set(0);
-        root['onDragEnd']();
+        globalThis.dispatchEvent(new MouseEvent('mousemove', { clientX: 5000, clientY: -5000 }));
+        globalThis.dispatchEvent(new MouseEvent('mouseup', { clientX: 5000, clientY: -5000 }));
         fixture.detectChanges();
 
         const event = host.events.at(-1);
@@ -190,63 +175,29 @@ describe('SortableComponent — nested lists', () => {
     });
 
     it('picks the innermost list when nested rects overlap under the pointer', () => {
-        const root = sortableFor('root');
-        const child = sortableFor('child-a');
+        const source = sortableFor('child-c');
+        stubListRect('root', { left: 0, right: 400, top: 0, bottom: 400 });
+        stubListRect('child-a', { left: 50, right: 200, top: 50, bottom: 200 });
+        stubListRect('child-b', { left: 50, right: 200, top: 250, bottom: 300 });
 
-        const rootRect = { left: 0, right: 400, top: 0, bottom: 400 } as DOMRect;
-        const childRect = { left: 50, right: 200, top: 50, bottom: 200 } as DOMRect;
-        root['registryEntry'].element.getBoundingClientRect = (): DOMRect => rootRect;
-        child['registryEntry'].element.getBoundingClientRect = (): DOMRect => childRect;
-
-        const peerInsideChild = root['findHoverPeer'](100, 100);
-        expect(peerInsideChild?.listId).toBe('child-a');
+        // Both root and child-a contain the pointer; the nested one must win.
+        source.startDrag(0, 0, 0);
+        globalThis.dispatchEvent(new MouseEvent('mousemove', { clientX: 100, clientY: 100 }));
+        expect(source.hoverPeer()?.listId).toBe('child-a');
+        globalThis.dispatchEvent(new MouseEvent('mouseup', { clientX: 100, clientY: 100 }));
     });
 
     it('falls back to the outer list when the pointer is outside every inner rect', () => {
-        const root = sortableFor('root');
         const child = sortableFor('child-a');
-        const childB = sortableFor('child-b');
+        stubListRect('root', { left: 0, right: 400, top: 0, bottom: 400 });
+        stubListRect('child-a', { left: 50, right: 200, top: 50, bottom: 200 });
+        stubListRect('child-b', { left: 50, right: 200, top: 250, bottom: 300 });
+        stubListRect('child-c', { left: 50, right: 200, top: 310, bottom: 340 });
 
-        child['registryEntry'].element.getBoundingClientRect = (): DOMRect =>
-            ({ left: 50, right: 200, top: 50, bottom: 200 } as DOMRect);
-        childB['registryEntry'].element.getBoundingClientRect = (): DOMRect =>
-            ({ left: 50, right: 200, top: 250, bottom: 300 } as DOMRect);
-        root['registryEntry'].element.getBoundingClientRect = (): DOMRect =>
-            ({ left: 0, right: 400, top: 0, bottom: 400 } as DOMRect);
-
-        const peer = child['findHoverPeer'](350, 350);
-        expect(peer?.listId).toBe('root');
-    });
-
-    it('refuses to drop an item into a list nested inside that very item', () => {
-        // The cycle case: an outline row hosts its own child list, so the
-        // pointer sitting over that child makes it the DEEPEST hit. Dropping
-        // there would remove the item from its parent and re-insert it into a
-        // list it itself owns, detaching its own subtree from the tree.
-        //
-        // Driven through the real `startDrag` rather than by hand-setting
-        // `_dragSource`: the dragged element is captured there, and the whole
-        // class of bug this guards against lives in how that element is
-        // resolved.
-        const root = sortableFor('root');
-        const ownChild = sortableFor('child-a');
-        const otherChild = sortableFor('child-b');
-
-        const wide = { left: 0, right: 400, top: 0, bottom: 400 } as DOMRect;
-        root['registryEntry'].element.getBoundingClientRect = (): DOMRect => wide;
-        ownChild['registryEntry'].element.getBoundingClientRect = (): DOMRect => wide;
-        otherChild['registryEntry'].element.getBoundingClientRect = (): DOMRect => wide;
-
-        // Row 0 hosts child-a; row 1 hosts child-b.
-        root.startDrag(0, 0, 0);
-        const hit = root['findHoverPeer'](10, 10);
-        expect(hit?.listId).not.toBe('child-a');
-        root['onDragEnd']();
-
-        // Dragging row 1 instead, child-a is a perfectly good target again.
-        root.startDrag(1, 0, 0);
-        expect(root['findHoverPeer'](10, 10)?.listId).toBe('child-a');
-        root['onDragEnd']();
+        child.startDrag(0, 0, 0);
+        globalThis.dispatchEvent(new MouseEvent('mousemove', { clientX: 350, clientY: 350 }));
+        expect(child.hoverPeer()?.listId).toBe('root');
+        globalThis.dispatchEvent(new MouseEvent('mouseup', { clientX: 350, clientY: 350 }));
     });
 
     it('counts only its OWN items, excluding nested lists and the ghost', () => {
@@ -264,6 +215,9 @@ describe('SortableComponent — nested lists', () => {
     });
 
     it('guards the cycle for EVERY row, not just row 0', () => {
+        // The cycle: dropping a row into the child list it hosts would detach
+        // its own subtree from the tree.
+        //
         // Row 2 is where the old off-by-N hid: `collectItemElements()[2]`
         // resolved to the wrong element, `contains()` returned false, and the
         // item's own child list won the hit test.
@@ -288,6 +242,11 @@ describe('SortableComponent — nested lists', () => {
 
             root['onDragEnd']();
         }
+
+        // The guard does not over-block: a row that does not own child-a can still drop into it.
+        root.startDrag(1, 0, 0);
+        expect(root['findHoverPeer'](10, 10)?.listId).toBe('child-a');
+        root['onDragEnd']();
     });
 
     it('skips a self-owned list on the keyboard hand-off too', () => {
@@ -295,26 +254,14 @@ describe('SortableComponent — nested lists', () => {
         const ownChild = sortableFor('child-a');
 
         // Row 0 is the one that HOSTS child-a.
-        root['_liftedIndex'].set(0);
-        root['keyboardCrossList'](0, 1);
+        root.handleItemKeyDown(0, key(' '));
+        root.handleItemKeyDown(0, key('Tab'));
         fixture.detectChanges();
 
         // It must not have landed in the list it owns. The guard SKIPS rather
         // than blocks, so it does land in the next eligible peer — what matters
         // is that the eligible peer is never its own child.
         expect(ownChild.items().map((c: unknown) => (c as Node).id)).toEqual(['a1']);
-    });
-
-    it('keeps depth ordering stable regardless of registration order', () => {
-        const root = sortableFor('root');
-        const child = sortableFor('child-a');
-        const wide = { left: 0, right: 400, top: 0, bottom: 400 } as DOMRect;
-
-        root['registryEntry'].element.getBoundingClientRect = (): DOMRect => wide;
-        child['registryEntry'].element.getBoundingClientRect = (): DOMRect => wide;
-
-        expect(root['findHoverPeer'](10, 10)?.listId).toBe('child-a');
-        expect(child['findHoverPeer'](10, 10)?.listId).toBe('root');
     });
 });
 
@@ -371,5 +318,9 @@ describe('SortableComponent — nesting deeper than three levels', () => {
         expect(paths).toContainEqual(['L1', 'L2']);
         expect(paths).toContainEqual(['L1', 'L2', 'L3']);
         expect(paths).toContainEqual(['L1', 'L2', 'L3', 'L4']);
+        const depthOf = (id: string): number | undefined =>
+            fixture.componentInstance.sortables().find(s => s.resolvedListId() === id)?.depth();
+        expect(depthOf('L1')).toBe(1);
+        expect(depthOf('L4')).toBe(4);
     });
 });

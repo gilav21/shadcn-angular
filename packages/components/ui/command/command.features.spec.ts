@@ -11,8 +11,7 @@ import { readRecentValues, unshiftUniqueValue, writeRecentValues } from './comma
 
 /**
  * Feature specs for the additive command API — async sources, recent items and
- * nested pages. `command.component.spec.ts` is the untouched
- * backward-compatibility gate.
+ * nested pages. `command.component.spec.ts` covers the base API.
  */
 
 interface Deferred {
@@ -42,7 +41,7 @@ function row(id: string): CommandResult {
             [source]="source()"
             [debounce]="0"
             [recentKey]="recentKey()"
-            [recentLimit]="3"
+            [recentLimit]="recentLimit()"
             #cmd
         >
             <ui-command-input />
@@ -57,6 +56,7 @@ function row(id: string): CommandResult {
 class CommandFeaturesHostComponent {
     readonly source = signal<CommandSource | null>(null);
     readonly recentKey = signal<string | null>(null);
+    readonly recentLimit = signal(3);
     readonly staticItems = signal<string[]>(['alpha', 'beta']);
 }
 
@@ -131,11 +131,6 @@ describe('CommandComponent — async source', () => {
     afterEach(() => {
         globalThis.localStorage?.clear();
         TestBed.resetTestingModule();
-    });
-
-    it('starts with no results and no loading state when no source is set', () => {
-        expect(cmd.results()).toEqual([]);
-        expect(cmd.isLoading()).toBe(false);
     });
 
     it('shows loading, then populates the results', async () => {
@@ -383,7 +378,7 @@ describe('CommandComponent — recent items', () => {
         cmd.markRecent('alpha');
         expect(cmd.recents()).toEqual(['alpha']);
 
-        fixture.componentRef.setInput('recentKey', null);
+        host.recentLimit.set(5);
         fixture.detectChanges();
 
         expect(cmd.recents()).toEqual(['alpha']);
@@ -422,11 +417,6 @@ describe('CommandComponent — nested pages', () => {
     });
 
     afterEach(() => TestBed.resetTestingModule());
-
-    it('starts at the top level', () => {
-        expect(cmd.page()).toBeNull();
-        expect(cmd.pages()).toEqual([]);
-    });
 
     it('opens a nested page and clears the query', () => {
         typeQuery(fixture, 'alp');

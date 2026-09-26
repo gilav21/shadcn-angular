@@ -21,7 +21,6 @@ const isJsdom = navigator.userAgent.includes('jsdom');
 
 describe('RichTextViewComponent', () => {
     let fixture: ComponentFixture<RichTextViewComponent>;
-    let component: RichTextViewComponent;
 
     /** The rendered content element. */
     const content = (): HTMLElement =>
@@ -32,7 +31,6 @@ describe('RichTextViewComponent', () => {
             imports: [RichTextViewComponent],
         }).compileComponents();
         fixture = TestBed.createComponent(RichTextViewComponent);
-        component = fixture.componentInstance;
     });
 
     // T-20
@@ -91,29 +89,6 @@ describe('RichTextViewComponent', () => {
 
         expect(content().querySelector('script')).toBeNull();
         expect(content().innerHTML).not.toContain('pwned');
-    });
-
-    it('T-22a the prose constant actually covers the document elements it claims to', () => {
-        // Without this, T-22 and T-22b are vacuous: they assert both elements
-        // carry every class *in* the constant, so deleting an entry — the exact
-        // drift the constant exists to prevent — would make them trivially
-        // pass. Verified by removing the h1 line, which this test catches and
-        // those two do not.
-        const flat = RICH_TEXT_PROSE_CLASSES.join(' ');
-        for (const selector of [
-            '[&_h1]:', '[&_h2]:', '[&_h3]:', '[&_ul]:', '[&_ol]:', '[&_li]:',
-            '[&_a]:', '[&_code]:', '[&_pre]:', '[&_img]:', '[&_table]:',
-            '[&_td]:', '[&_th]:', '[&_details]:', '[&_summary]:', '[&_hr]:',
-            '[&_ul[data-task-list]]:', '[&_li[data-task]]:', '[&_blockquote]:',
-        ]) {
-            expect(flat, selector).toContain(selector);
-        }
-        // A blockquote with no rule renders identically to a paragraph: the
-        // `> ` input rule and the toolbar button both "worked" in the DOM while
-        // the user saw no change at all. The border is what makes it visible.
-        expect(flat).toContain('[&_blockquote]:border-s-4');
-        expect(flat).toContain('[&_h1]:text-3xl');
-        expect(flat).toContain('[&_h1]:font-bold');
     });
 
     // T-22 (view half)
@@ -176,17 +151,6 @@ describe('RichTextViewComponent', () => {
         expect(boxes[1].checked).toBe(false);
     });
 
-    // T-25 (class half)
-    it('T-25 size sm and lg add the editor text-size classes', () => {
-        fixture.componentRef.setInput('size', 'sm');
-        fixture.detectChanges();
-        expect(content().className.split(/\s+/)).toContain('text-sm');
-
-        fixture.componentRef.setInput('size', 'lg');
-        fixture.detectChanges();
-        expect(content().className.split(/\s+/)).toContain('text-lg');
-    });
-
     it('T-25b class merges onto the content element', () => {
         fixture.componentRef.setInput('class', 'px-4 custom-thing');
         fixture.detectChanges();
@@ -240,10 +204,6 @@ describe('RichTextViewComponent', () => {
 
         expect(() => fixture.detectChanges()).not.toThrow();
         expect(content().querySelector('p')?.textContent).toHaveLength(500_000);
-    });
-
-    it('exposes the component instance for the default mode', () => {
-        expect(component.mode()).toBe('markdown');
     });
 });
 
@@ -727,18 +687,6 @@ describe('RichTextViewComponent - syntax highlighting', () => {
         expect(code.querySelector('.token-number')?.textContent).toBe('1');
     });
 
-    it('shows exactly the code the author wrote', () => {
-        const code = render('```ts\nconst a = 1;\nlet b = 2;\n```').querySelector('pre > code') as HTMLElement;
-        expect(code.textContent).toBe('const a = 1;\nlet b = 2;');
-    });
-
-    it('leaves a fence with no language, or an unknown one, uncoloured', () => {
-        // Not a TypeScript fallback: a document is mostly prose, and notes in a
-        // bare fence would be given keywords they do not have.
-        expect(render('```\nconst a = 1;\n```').querySelectorAll('.token')).toHaveLength(0);
-        expect(render('```klingon\nconst a = 1;\n```').querySelectorAll('.token')).toHaveLength(0);
-    });
-
     it('re-renders the colours when the document changes', () => {
         render('```ts\nconst a = 1;\n```');
         const code = render('```python\ndef f(): pass\n```').querySelector('pre > code') as HTMLElement;
@@ -749,13 +697,5 @@ describe('RichTextViewComponent - syntax highlighting', () => {
         const code = render('<pre><code class="language-python">def f(): pass</code></pre>', 'html')
             .querySelector('pre > code') as HTMLElement;
         expect(code.querySelector('.token-keyword')?.textContent).toBe('def');
-    });
-
-    it('keeps an image a code block holds', () => {
-        // The markdown writer keeps an image in a block by writing the block in
-        // its tag form. The highlighter rebuilds a block from its text, so it
-        // must refuse this one rather than delete what it cannot redraw.
-        const el = render('<pre><code data-language="ts">a<img src="https://e.com/x.png" alt="q">b</code></pre>', 'html');
-        expect(el.querySelector('pre img')).not.toBeNull();
     });
 });

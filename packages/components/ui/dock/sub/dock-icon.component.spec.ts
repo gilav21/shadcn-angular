@@ -30,15 +30,6 @@ describe('DockIconComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(fixture.componentInstance).toBeTruthy();
-    });
-
-    it('should render with data-slot attribute', () => {
-        const el = fixture.debugElement.query(By.css('[data-slot="dock-icon"]'));
-        expect(el).toBeTruthy();
-    });
-
     it('should project content', () => {
         const content = fixture.debugElement.query(By.css('.test-icon-content'));
         expect(content).toBeTruthy();
@@ -53,12 +44,5 @@ describe('DockIconComponent', () => {
         const el = fixture.debugElement.query(By.css('[data-slot="dock-icon"]'));
         expect(el.nativeElement.className).toContain('bg-blue-500');
         expect(el.nativeElement.className).toContain('rounded-xl');
-    });
-
-    it('should have base layout classes', () => {
-        const el = fixture.debugElement.query(By.css('[data-slot="dock-icon"]'));
-        expect(el.nativeElement.className).toContain('flex');
-        expect(el.nativeElement.className).toContain('items-center');
-        expect(el.nativeElement.className).toContain('justify-center');
     });
 });

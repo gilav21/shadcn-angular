@@ -88,23 +88,13 @@ describe('KanbanComponent — swimlanes', () => {
         expect(fixture.nativeElement.querySelector('[data-slot="kanban"]')).not.toBeNull();
     });
 
-    it('groups cards into one lane per distinct value', () => {
-        expect(board.swimlanes().map(l => l.id)).toEqual(['ada', 'grace', '']);
-        expect(laneEls()).toHaveLength(3);
-    });
-
     it('counts the cards in each lane', () => {
         expect(board.swimlanes()).toEqual([
             { id: 'ada', label: 'ada', count: 2 },
             { id: 'grace', label: 'grace', count: 1 },
             { id: '', label: 'Unassigned', count: 1 },
         ]);
-    });
-
-    it('collects value-less cards in a single unnamed lane, rendered last', () => {
-        const last = board.swimlanes().at(-1);
-        expect(last?.id).toBe('');
-        expect(last?.label).toBe('Unassigned');
+        expect(laneEls()).toHaveLength(3);
     });
 
     it('scopes each column to its own lane', () => {
@@ -171,11 +161,6 @@ describe('KanbanComponent — swimlane collapse', () => {
     function headers(): HTMLElement[] {
         return Array.from(fixture.nativeElement.querySelectorAll('[data-slot="kanban-swimlane-header"]'));
     }
-
-    it('starts every lane expanded', () => {
-        expect(board.collapsedSwimlanes().size).toBe(0);
-        expect(headers().every(h => h.getAttribute('aria-expanded') === 'true')).toBe(true);
-    });
 
     it('collapses each lane independently', () => {
         board.toggleSwimlane('ada');

@@ -68,10 +68,6 @@ describe('PageBuilderComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
     it('should render sidebar with components', () => {
         const sidebar = fixture.debugElement.query(By.css('aside'));
         expect(sidebar).toBeTruthy();
@@ -82,17 +78,6 @@ describe('PageBuilderComponent', () => {
         const widget = sidebar.query(By.css('[draggable="true"]'));
         expect(widget).toBeTruthy();
         expect(widget.nativeElement.textContent).toContain('Mock Widget');
-    });
-
-    it('should add item when calling addItem', () => {
-        component.addItem(mockComponents[0]);
-        fixture.detectChanges();
-
-        expect(component.items()).toHaveLength(1);
-        const item = component.items()[0];
-        expect(item.content).toBe(MockWidgetComponent);
-        expect(item.cols).toBe(2);
-        expect(item.rows).toBe(2);
     });
 
     it('should update grid settings', () => {
@@ -128,11 +113,6 @@ describe('PageBuilderComponent', () => {
 
         expect(component.items()).toHaveLength(0);
         expect(component.selectedItemId()).toBeNull();
-    });
-
-    it('should default gridRowHeight to 20px and gridSquareCells to true', () => {
-        expect(component.gridRowHeight()).toBe('20px');
-        expect(component.gridSquareCells()).toBe(true);
     });
 
     it('should show the Save button by default and hide the Export button', () => {
@@ -281,6 +261,8 @@ describe('PageBuilderComponent — editor behavior', () => {
 
     describe('sidebar derivation', () => {
         it('derives sorted categories and groups components by category', () => {
+            fixture.componentRef.setInput('components', [progressMeta, widgetMeta]);
+            fixture.detectChanges();
             expect(component.categories()).toEqual(['Basic', 'Data']);
             const grouped = component.componentsByCategory();
             expect(grouped['Basic'].map(c => c.id)).toEqual(['mock-widget']);
@@ -305,6 +287,7 @@ describe('PageBuilderComponent — editor behavior', () => {
             expect(item.y).toBe(6);
             expect(item.content).toBe(MockProgressComponent);
             expect(item.cols).toBe(3);
+            expect(item.rows).toBe(1);
             expect(item.inputs).toEqual({ value: 40, label: 'CPU' });
         });
 

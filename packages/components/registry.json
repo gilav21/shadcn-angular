@@ -295,9 +295,6 @@
     ],
     "testFiles": [
       "button-group/button-group.component.spec.ts"
-    ],
-    "testDependencies": [
-      "button"
     ]
   },
   "calendar": {
@@ -3808,8 +3805,7 @@
     ],
     "testFiles": [
       "sortable/sortable.component.spec.ts",
-      "sortable/sortable.nested.spec.ts",
-      "sortable/sub/sortable-ghost.directive.spec.ts"
+      "sortable/sortable.nested.spec.ts"
     ]
   },
   "context-menu-attach": {

@@ -63,40 +63,20 @@ describe('AutocompleteComponent', () => {
 
     // --- Existing creation/structure tests ---
 
-    it('should create', () => {
-        expect(fixture.componentInstance).toBeTruthy();
-    });
-
-    it('should render the autocomplete container', () => {
-        const container = fixture.debugElement.query(By.css('[data-state]'));
-        expect(container).toBeTruthy();
-    });
-
     it('should display the placeholder text', () => {
         const input = fixture.debugElement.query(By.css('input'));
         expect(input.nativeElement.placeholder).toBe('Select a fruit...');
     });
 
     it('should apply disabled state', async () => {
+        const container = fixture.debugElement.query(By.css('[data-state]'));
+        expect(container.nativeElement.dataset['disabled']).toBeUndefined();
+
         host.disabled.set(true);
         fixture.detectChanges();
         await fixture.whenStable();
 
-        const container = fixture.debugElement.query(By.css('[data-disabled]'));
-        expect(container).toBeTruthy();
-    });
-
-    it('should not show disabled attribute when not disabled', () => {
-        host.disabled.set(false);
-        fixture.detectChanges();
-
-        const container = fixture.debugElement.query(By.css('[data-state]'));
-        expect(container.nativeElement.dataset['disabled']).toBeUndefined();
-    });
-
-    it('should render in single mode by default', () => {
-        const input = fixture.debugElement.query(By.css('input[role="combobox"]'));
-        expect(input).toBeTruthy();
+        expect(container.nativeElement.dataset['disabled']).toBe('true');
     });
 
     // --- ControlValueAccessor tests ---
@@ -142,12 +122,6 @@ describe('AutocompleteComponent', () => {
     // --- Single selection tests ---
 
     describe('single selection', () => {
-        it('should set internalValue to the selected option', () => {
-            autocomplete.onSelect(fruits[0]);
-
-            expect(autocomplete.internalValue()).toEqual([fruits[0]]);
-        });
-
         it('selects via a command-item activation (template must bind the renamed selectItem output, not native select)', () => {
             autocomplete.open.set(true);
             fixture.detectChanges();
@@ -161,20 +135,13 @@ describe('AutocompleteComponent', () => {
             expect(autocomplete.internalValue()).toEqual([fruits[0]]);
         });
 
-        it('lays the selected check at the row end via ms-auto, never absolutely over the label', () => {
+        it('shows the check only on the selected option', () => {
             autocomplete.onSelect(fruits[0]);
             autocomplete.open.set(true);
             fixture.detectChanges();
 
             const items = fixture.debugElement.queryAll(By.css('ui-command-item'));
-            // Every option carries a check slot that flows to the row end
-            // (margin-inline-start:auto) rather than overlaying the label.
-            const checks = items.map((i) => i.nativeElement.querySelector('span.ms-auto'));
-            expect(checks.every(Boolean)).toBe(true);
-            // The old broken pattern positioned the check `absolute`, which — with no
-            // dir="ltr" ancestor — collapsed onto the text. Guard against its return.
-            expect(items[0].nativeElement.querySelector('span.absolute')).toBeNull();
-            // Only the selected option's check is visible.
+            const checks = items.map((i) => (i.nativeElement as HTMLElement).querySelector('svg')?.parentElement as HTMLElement);
             expect(checks[0].classList.contains('opacity-100')).toBe(true);
             expect(checks[1].classList.contains('opacity-100')).toBe(false);
         });
@@ -200,15 +167,6 @@ describe('AutocompleteComponent', () => {
             autocomplete.onSelect(fruits[1]);
             expect(autocomplete.internalValue()).toEqual([fruits[1]]);
         });
-
-        it('should call onChange with null when selecting in single mode after clearing', () => {
-            const changeSpy = vi.fn();
-            autocomplete.registerOnChange(changeSpy);
-
-            autocomplete.updateValue([]);
-
-            expect(changeSpy).toHaveBeenCalledWith(null);
-        });
     });
 
     // --- Multiple selection tests ---
@@ -218,13 +176,6 @@ describe('AutocompleteComponent', () => {
             host.multiple.set(true);
             fixture.detectChanges();
             await fixture.whenStable();
-        });
-
-        it('should accumulate selected items', () => {
-            autocomplete.onSelect(fruits[0]);
-            autocomplete.onSelect(fruits[1]);
-
-            expect(autocomplete.internalValue()).toEqual([fruits[0], fruits[1]]);
         });
 
         it('should keep popover open after selection in multi mode', () => {
@@ -243,13 +194,17 @@ describe('AutocompleteComponent', () => {
 
         it('should call onChange with the full array in multi mode', () => {
             const changeSpy = vi.fn();
+            const valueSpy = vi.fn();
             autocomplete.registerOnChange(changeSpy);
+            autocomplete.value.subscribe(valueSpy);
 
             autocomplete.onSelect(fruits[0]);
             expect(changeSpy).toHaveBeenCalledWith([fruits[0]]);
+            expect(valueSpy).toHaveBeenCalledWith([fruits[0]]);
 
             autocomplete.onSelect(fruits[1]);
             expect(changeSpy).toHaveBeenCalledWith([fruits[0], fruits[1]]);
+            expect(valueSpy).toHaveBeenCalledWith([fruits[0], fruits[1]]);
         });
     });
 
@@ -260,14 +215,6 @@ describe('AutocompleteComponent', () => {
             host.multiple.set(true);
             fixture.detectChanges();
             await fixture.whenStable();
-        });
-
-        it('should deselect an already-selected item when selected again', () => {
-            autocomplete.onSelect(fruits[0]);
-            expect(autocomplete.internalValue()).toEqual([fruits[0]]);
-
-            autocomplete.onSelect(fruits[0]);
-            expect(autocomplete.internalValue()).toEqual([]);
         });
 
         it('should toggle only the targeted item without affecting others', () => {
@@ -291,28 +238,18 @@ describe('AutocompleteComponent', () => {
         });
 
         it('should remove the specified item from internalValue', () => {
+            const changeSpy = vi.fn();
+            autocomplete.registerOnChange(changeSpy);
             autocomplete.onSelect(fruits[0]);
             autocomplete.onSelect(fruits[1]);
             autocomplete.onSelect(fruits[2]);
+            changeSpy.mockClear();
 
             const mockEvent = new MouseEvent('click');
             autocomplete.removeItem(fruits[1], mockEvent);
 
             expect(autocomplete.internalValue()).toEqual([fruits[0], fruits[2]]);
-        });
-
-        it('should call onChange with updated array after removing', () => {
-            const changeSpy = vi.fn();
-            autocomplete.registerOnChange(changeSpy);
-
-            autocomplete.onSelect(fruits[0]);
-            autocomplete.onSelect(fruits[1]);
-            changeSpy.mockClear();
-
-            const mockEvent = new MouseEvent('click');
-            autocomplete.removeItem(fruits[0], mockEvent);
-
-            expect(changeSpy).toHaveBeenCalledWith([fruits[1]]);
+            expect(changeSpy).toHaveBeenCalledWith([fruits[0], fruits[2]]);
         });
     });
 
@@ -359,29 +296,24 @@ describe('AutocompleteComponent', () => {
             expect(autocomplete.internalValue()).toEqual([fruits[0], fruits[1]]);
         });
 
-        it('should not error on Backspace when no items are selected', () => {
+        it('emits nothing on Backspace when no items are selected', () => {
+            const changeSpy = vi.fn();
+            const valueSpy = vi.fn();
+            autocomplete.registerOnChange(changeSpy);
+            autocomplete.value.subscribe(valueSpy);
+
             autocomplete.searchTerm.set('');
             autocomplete.onKeydown(new KeyboardEvent('keydown', { key: 'Backspace' }));
 
             expect(autocomplete.internalValue()).toEqual([]);
+            expect(changeSpy).not.toHaveBeenCalled();
+            expect(valueSpy).not.toHaveBeenCalled();
         });
     });
 
     // --- Disabled state ---
 
     describe('disabled state', () => {
-        it('should report isDisabled as true when disabled input is set', async () => {
-            host.disabled.set(true);
-            fixture.detectChanges();
-            await fixture.whenStable();
-
-            expect(autocomplete.isDisabled()).toBe(true);
-        });
-
-        it('should report isDisabled as false when disabled input is not set', () => {
-            expect(autocomplete.isDisabled()).toBe(false);
-        });
-
         it('should not process keydown events when disabled', async () => {
             host.disabled.set(true);
             fixture.detectChanges();
@@ -397,35 +329,12 @@ describe('AutocompleteComponent', () => {
     // --- setDisabledState ---
 
     describe('setDisabledState', () => {
-        it('should set formDisabled via setDisabledState', () => {
-            expect(autocomplete.isDisabled()).toBe(false);
-
-            autocomplete.setDisabledState(true);
-
-            expect(autocomplete.isDisabled()).toBe(true);
-        });
-
         it('should clear formDisabled when setDisabledState(false) is called', () => {
             autocomplete.setDisabledState(true);
             expect(autocomplete.isDisabled()).toBe(true);
 
             autocomplete.setDisabledState(false);
             expect(autocomplete.isDisabled()).toBe(false);
-        });
-
-        it('should be disabled when either disabled input or formDisabled is true', async () => {
-            host.disabled.set(false);
-            fixture.detectChanges();
-            autocomplete.setDisabledState(true);
-
-            expect(autocomplete.isDisabled()).toBe(true);
-
-            autocomplete.setDisabledState(false);
-            host.disabled.set(true);
-            fixture.detectChanges();
-            await fixture.whenStable();
-
-            expect(autocomplete.isDisabled()).toBe(true);
         });
     });
 
@@ -437,7 +346,7 @@ describe('AutocompleteComponent', () => {
             fixture.detectChanges();
         });
 
-        it('opens the dropdown on focus and resolves a side', () => {
+        it('opens the dropdown on focus', () => {
             autocomplete.onFocus();
             fixture.detectChanges();
             expect(autocomplete.open()).toBe(true);
@@ -450,14 +359,6 @@ describe('AutocompleteComponent', () => {
             await fixture.whenStable();
             autocomplete.onFocus();
             expect(autocomplete.open()).toBe(false);
-        });
-
-        it('does not reopen on focus when already open', () => {
-            autocomplete.open.set(true);
-            const sideBefore = autocomplete.dropdownSide();
-            autocomplete.onFocus();
-            expect(autocomplete.open()).toBe(true);
-            expect(autocomplete.dropdownSide()).toBe(sideBefore);
         });
 
         it('calls onTouched on blur', () => {
@@ -501,9 +402,12 @@ describe('AutocompleteComponent', () => {
 
         it('focuses the input on container click', () => {
             const input = fixture.debugElement.query(By.css('input')).nativeElement as HTMLInputElement;
-            const spy = vi.spyOn(input, 'focus');
-            autocomplete.onContainerClick(new MouseEvent('click'));
-            expect(spy).toHaveBeenCalled();
+            const container = fixture.nativeElement.querySelector('[data-slot="autocomplete-container"]') as HTMLElement;
+            expect(document.activeElement).not.toBe(input);
+
+            container.click();
+
+            expect(document.activeElement).toBe(input);
         });
 
         it('prevents interaction on container click when disabled', async () => {
@@ -589,40 +493,20 @@ describe('AutocompleteComponent', () => {
             expect(autocomplete.open()).toBe(true);
         });
 
-        it('ArrowDown moves to the next item when open', async () => {
-            autocomplete.onFocus();
-            fixture.detectChanges();
-            await fixture.whenStable();
-            const cmd = autocomplete.command();
-            const spy = cmd ? vi.spyOn(cmd, 'moveNext') : null;
-            autocomplete.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
-            if (spy) expect(spy).toHaveBeenCalled();
-        });
-
-        it('Enter selects the active item when open', async () => {
-            autocomplete.onFocus();
-            fixture.detectChanges();
-            await fixture.whenStable();
-            const cmd = autocomplete.command();
-            const spy = cmd ? vi.spyOn(cmd, 'selectActive') : null;
-            autocomplete.onKeydown(new KeyboardEvent('keydown', { key: 'Enter' }));
-            if (spy) expect(spy).toHaveBeenCalled();
-        });
-
         it('renders command items for every option when open', async () => {
             autocomplete.onFocus();
             fixture.detectChanges();
             await fixture.whenStable();
             fixture.detectChanges();
-            const items = document.querySelectorAll('[data-slot="command-item"]');
-            expect(items).toHaveLength(fruits.length);
+            const items = [...fixture.nativeElement.querySelectorAll('[data-slot="command-item"]')] as HTMLElement[];
+            expect(items.map(i => i.textContent?.trim())).toEqual(fruits.map(f => f.name));
         });
     });
 
     // --- getDisplayValue fallback ---
 
     describe('getDisplayValue', () => {
-        it('uses String() when displayWith is not a function', async () => {
+        it('defaults displayWith to String()', async () => {
             TestBed.resetTestingModule();
             await TestBed.configureTestingModule({
                 imports: [AutocompleteComponent],
@@ -638,37 +522,16 @@ describe('AutocompleteComponent', () => {
     // --- valueChange output ---
 
     describe('valueChange output', () => {
-        it('should emit the selected value in single mode', () => {
-            const spy = vi.fn();
-            autocomplete.value.subscribe(spy);
-
-            autocomplete.onSelect(fruits[0]);
-
-            expect(spy).toHaveBeenCalledWith(fruits[0]);
-        });
-
         it('should emit null when value is cleared in single mode', () => {
             const spy = vi.fn();
+            const changeSpy = vi.fn();
             autocomplete.value.subscribe(spy);
+            autocomplete.registerOnChange(changeSpy);
 
             autocomplete.updateValue([]);
 
             expect(spy).toHaveBeenCalledWith(null);
-        });
-
-        it('should emit array in multiple mode', async () => {
-            host.multiple.set(true);
-            fixture.detectChanges();
-            await fixture.whenStable();
-
-            const spy = vi.fn();
-            autocomplete.value.subscribe(spy);
-
-            autocomplete.onSelect(fruits[0]);
-            expect(spy).toHaveBeenCalledWith([fruits[0]]);
-
-            autocomplete.onSelect(fruits[1]);
-            expect(spy).toHaveBeenCalledWith([fruits[0], fruits[1]]);
+            expect(changeSpy).toHaveBeenCalledWith(null);
         });
     });
 
@@ -678,23 +541,7 @@ describe('AutocompleteComponent', () => {
         it('should return true for a selected option', () => {
             autocomplete.onSelect(fruits[0]);
             expect(autocomplete.isSelected(fruits[0])).toBe(true);
-        });
-
-        it('should return false for a non-selected option', () => {
-            autocomplete.onSelect(fruits[0]);
             expect(autocomplete.isSelected(fruits[1])).toBe(false);
-        });
-
-        it('should reflect toggled state in multi mode', async () => {
-            host.multiple.set(true);
-            fixture.detectChanges();
-            await fixture.whenStable();
-
-            autocomplete.onSelect(fruits[0]);
-            expect(autocomplete.isSelected(fruits[0])).toBe(true);
-
-            autocomplete.onSelect(fruits[0]);
-            expect(autocomplete.isSelected(fruits[0])).toBe(false);
         });
     });
 });

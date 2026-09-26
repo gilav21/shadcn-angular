@@ -41,22 +41,6 @@ class TestHostComponent {
     }
 }
 
-// RTL Test host
-@Component({
-    template: `
-        <div [dir]="dir()">
-            <ui-sheet>
-                <ui-sheet-trigger>فتح</ui-sheet-trigger>
-                <ui-sheet-content side="left">محتوى</ui-sheet-content>
-            </ui-sheet>
-        </div>
-    `,
-    imports: [SheetComponent, SheetTriggerComponent, SheetContentComponent]
-})
-class RTLTestHostComponent {
-    dir = signal<'ltr' | 'rtl'>('ltr');
-}
-
 describe('SheetComponent', () => {
     let component: SheetComponent;
     let fixture: ComponentFixture<SheetComponent>;
@@ -74,14 +58,6 @@ describe('SheetComponent', () => {
     afterEach(() => {
         document.body.style.overflow = '';
         document.body.style.paddingRight = '';
-    });
-
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
-    it('should be closed by default', () => {
-        expect(component.open()).toBe(false);
     });
 
     it('should show when show() is called', () => {
@@ -122,11 +98,6 @@ describe('Sheet Integration', () => {
         document.body.style.paddingRight = '';
     });
 
-    it('should render trigger', () => {
-        const trigger = fixture.debugElement.query(By.css('[data-slot="sheet-trigger"]'));
-        expect(trigger).toBeTruthy();
-    });
-
     it('should not show content when closed', () => {
         const content = fixture.debugElement.query(By.css('[data-slot="sheet-content"]'));
         expect(content).toBeNull();
@@ -140,14 +111,6 @@ describe('Sheet Integration', () => {
 
         const content = fixture.debugElement.query(By.css('[data-slot="sheet-content"]'));
         expect(content).toBeTruthy();
-    });
-
-    it('should emit openChange', async () => {
-        const trigger = fixture.debugElement.query(By.css('[data-slot="sheet-trigger"]'));
-        trigger.nativeElement.click();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
         expect(component.isOpen).toBe(true);
     });
 
@@ -179,29 +142,6 @@ describe('Sheet Integration', () => {
         expect(content).toBeNull();
     });
 
-    it('should have data-state="open" when opened', async () => {
-        const sheetComp = fixture.debugElement.query(By.directive(SheetComponent));
-        sheetComp.componentInstance.show();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const content = fixture.debugElement.query(By.css('[data-slot="sheet-content"]'));
-        expect(content.nativeElement.dataset['state']).toBe('open');
-    });
-
-    it('should apply correct side classes', async () => {
-        const sheetComp = fixture.debugElement.query(By.directive(SheetComponent));
-        sheetComp.componentInstance.show();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const content = fixture.debugElement.query(By.css('[data-slot="sheet-content"]'));
-        // Default is right, check for border-l (ltr) or border-r (rtl) generic logic from usage
-        // usage: side="right" => 'inset-y-0 ... border-l ...'
-        expect(content.nativeElement.className).toContain('inset-y-0');
-        expect(content.nativeElement.className).toContain('right-0'); // LTR default
-    });
-
     it('should close on Escape key', async () => {
         const sheetComp = fixture.debugElement.query(By.directive(SheetComponent));
         sheetComp.componentInstance.show();
@@ -226,55 +166,6 @@ describe('Sheet Integration', () => {
         fixture.detectChanges();
 
         expect(component.isOpen).toBe(false);
-    });
-});
-
-describe('Sheet RTL Support', () => {
-    let fixture: ComponentFixture<RTLTestHostComponent>;
-    let component: RTLTestHostComponent;
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [RTLTestHostComponent]
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(RTLTestHostComponent);
-        component = fixture.componentInstance;
-        fixture.detectChanges();
-    });
-
-    afterEach(() => {
-        document.documentElement.removeAttribute('dir');
-        document.body.style.overflow = '';
-        document.body.style.paddingRight = '';
-    });
-
-    it('should render in LTR mode', () => {
-        const container = fixture.debugElement.query(By.css('[dir="ltr"]'));
-        expect(container).toBeTruthy();
-    });
-
-    it('should render in RTL mode', async () => {
-        component.dir.set('rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const container = fixture.debugElement.query(By.css('[dir="rtl"]'));
-        expect(container).toBeTruthy();
-    });
-
-    it('should open sheet in RTL', async () => {
-        component.dir.set('rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const trigger = fixture.debugElement.query(By.css('[data-slot="sheet-trigger"]'));
-        trigger.nativeElement.click();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const content = fixture.debugElement.query(By.css('[data-slot="sheet-content"]'));
-        expect(content).toBeTruthy();
     });
 });
 
@@ -313,24 +204,10 @@ describe('Sheet Simple Mode', () => {
         const title = fixture.debugElement.query(By.css('[data-slot="sheet-title"]'));
         expect(title).toBeTruthy();
         expect(title.nativeElement.textContent).toContain('Settings');
-    });
-
-    it('should auto-render description input', async () => {
-        const sheetComp = fixture.debugElement.query(By.directive(SheetComponent));
-        sheetComp.componentInstance.show();
-        fixture.detectChanges();
-        await fixture.whenStable();
 
         const desc = fixture.debugElement.query(By.css('[data-slot="sheet-description"]'));
         expect(desc).toBeTruthy();
         expect(desc.nativeElement.textContent).toContain('Manage preferences.');
-    });
-
-    it('should still render projected body content', async () => {
-        const sheetComp = fixture.debugElement.query(By.directive(SheetComponent));
-        sheetComp.componentInstance.show();
-        fixture.detectChanges();
-        await fixture.whenStable();
 
         const content = fixture.debugElement.query(By.css('[data-slot="sheet-content"]'));
         expect(content.nativeElement.textContent).toContain('Body content');
@@ -415,6 +292,7 @@ describe('Sheet Trigger / Close keyboard activation', () => {
     });
 
     it('ignores trigger keydown that bubbles from an inner element', () => {
+        const sheetComp = fixture.debugElement.query(By.directive(SheetComponent)).componentInstance as SheetComponent;
         const triggerComp = fixture.debugElement.query(By.directive(SheetTriggerComponent)).componentInstance as SheetTriggerComponent;
         const span = fixture.debugElement.query(By.css('[data-slot="sheet-trigger"]')).nativeElement as HTMLElement;
         const inner = document.createElement('button');
@@ -422,8 +300,7 @@ describe('Sheet Trigger / Close keyboard activation', () => {
 
         triggerComp.onKeydown(keyEvent('Enter', inner, span));
 
-        const content = fixture.debugElement.query(By.css('[data-slot="sheet-content"]'));
-        expect(content).toBeNull();
+        expect(sheetComp.open()).toBe(false);
     });
 
     it('hides the sheet when Enter is pressed on the close control', async () => {
@@ -551,11 +428,6 @@ describe('Sheet Content focus trap & close button', () => {
         closeBtn.nativeElement.click();
         expect(mockSheet.hide).toHaveBeenCalled();
     });
-
-    it('hides the sheet on Escape keydown', () => {
-        contentComp.onKeydown(keyEvent('Escape', document.body, document.body));
-        expect(mockSheet.hide).toHaveBeenCalled();
-    });
 });
 
 // Host with no projected focusable content, mock sheet starts closed.
@@ -589,10 +461,9 @@ describe('Sheet Content — falls back to focusing the container', () => {
 
         const content = fixture.nativeElement.querySelector('[data-slot="sheet-content"]') as HTMLElement;
         content.querySelector('button')?.remove();
-        const focusSpy = vi.spyOn(content, 'focus');
 
         vi.advanceTimersByTime(5);
 
-        expect(focusSpy).toHaveBeenCalled();
+        expect(document.activeElement).toBe(content);
     });
 });

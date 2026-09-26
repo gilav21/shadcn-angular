@@ -79,12 +79,6 @@ describe('WobbleCardComponent', () => {
         expect(nativeEl().textContent?.trim()).toBe('Card Content');
     });
 
-    it('should have initial transform with zero rotation', () => {
-        const style = nativeEl().style.transform;
-        expect(style).toContain('rotateX(0deg)');
-        expect(style).toContain('rotateY(0deg)');
-    });
-
     it('should include perspective in the initial transform', () => {
         host.perspective.set(800);
         fixture.detectChanges();
@@ -97,7 +91,7 @@ describe('WobbleCardComponent', () => {
 
         // center is (100,100). x=150 -> rotateY = ((150-100)/100)*15 = 7.5
         // y=30 -> rotateX = ((30-100)/100)*-15 = 10.5
-        const transform = (comp().styles() as TransformStyle).transform;
+        const transform = nativeEl().style.transform;
         expect(transform).toContain('rotateY(7.5deg)');
         expect(transform).toContain('rotateX(10.5deg)');
     });
@@ -145,9 +139,5 @@ describe('WobbleCardComponent', () => {
         host.cls.set('my-card');
         fixture.detectChanges();
         expect(nativeEl().className).toContain('my-card');
-    });
-
-    it('should apply base classes including rounded-xl', () => {
-        expect(nativeEl().className).toContain('rounded-xl');
     });
 });

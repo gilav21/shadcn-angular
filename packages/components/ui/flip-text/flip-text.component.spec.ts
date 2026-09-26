@@ -39,14 +39,6 @@ describe('FlipTextComponent', () => {
         expect(charSpans[1].nativeElement.textContent).toBe('i');
     });
 
-    it('should render correct number of character spans for a word', () => {
-        host.text.set('Hello');
-        fixture.detectChanges();
-
-        const comp = fixture.debugElement.query(By.directive(FlipTextComponent)).componentInstance as FlipTextComponent;
-        expect(comp.characters()).toHaveLength(5);
-    });
-
     it('should render non-breaking space for space characters', () => {
         host.text.set('Hi There');
         fixture.detectChanges();
@@ -85,20 +77,6 @@ describe('FlipTextComponent', () => {
         expect(inner.nativeElement.className).toContain('text-2xl');
     });
 
-    it('should set data-slot attribute on the inner span', () => {
-        const inner = fixture.debugElement.query(By.css('[data-slot="flip-text"]'));
-        expect(inner).toBeTruthy();
-    });
-
-    it('should update characters when text input changes', () => {
-        host.text.set('Hi');
-        fixture.detectChanges();
-        expect(fixture.debugElement.queryAll(By.css('[data-slot="flip-text"] span'))).toHaveLength(2);
-
-        host.text.set('Hello');
-        fixture.detectChanges();
-        expect(fixture.debugElement.queryAll(By.css('[data-slot="flip-text"] span'))).toHaveLength(5);
-    });
 });
 
 describe('FlipTextComponent playAnimation', () => {
@@ -191,18 +169,5 @@ describe('FlipTextComponent playAnimation', () => {
         } finally {
             win.matchMedia = originalMatchMedia;
         }
-    });
-
-    it('does nothing when there are no character spans', () => {
-        host.text.set('');
-        fixture.detectChanges();
-
-        const comp = fixture.debugElement.query(By.directive(FlipTextComponent))
-            .componentInstance as FlipTextComponent;
-
-        comp.playAnimation();
-
-        expect(animateSpy).not.toHaveBeenCalled();
-        expect(cancelSpy).not.toHaveBeenCalled();
     });
 });

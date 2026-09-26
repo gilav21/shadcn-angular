@@ -71,25 +71,15 @@ describe('BarRaceChartComponent', () => {
         vi.useRealTimers();
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
+    it('renders one rect per bar, sized from displayBars, with names in rank order', () => {
+        fixture.detectChanges();
+        const chart = fixture.nativeElement.querySelector('svg[role="img"]') as SVGSVGElement;
+        const rects = Array.from(chart.querySelectorAll('rect'));
+        const bars = component.displayBars();
 
-    it('should start at frame index 0', () => {
-        expect(component.currentFrameIndex()).toBe(0);
-    });
-
-    it('should not be playing initially', () => {
-        expect(component.isPlaying()).toBe(false);
-    });
-
-    it('should compute display bars from current frame', () => {
-        expect(component.displayBars()).toHaveLength(3);
-    });
-
-    it('should render an SVG element', () => {
-        const svg = fixture.nativeElement.querySelector('svg');
-        expect(svg).toBeTruthy();
+        expect(rects.map(r => Number(r.getAttribute('width')))).toEqual(bars.map(b => b.animatedWidth));
+        const names = Array.from(chart.querySelectorAll('g > g')).map(g => g.querySelector('text')?.textContent?.trim());
+        expect(names).toEqual(['Item B', 'Item C', 'Item A']);
     });
 
     describe('displayBars computed', () => {
@@ -120,13 +110,10 @@ describe('BarRaceChartComponent', () => {
             expect(bars[2].rank).toBe(2);
         });
 
-        it('should assign positive widths proportional to values', () => {
+        it('should assign widths proportional to values, the top bar filling 1/1.1 of the plot', () => {
             const bars = component.displayBars();
-            for (const bar of bars) {
-                expect(bar.width).toBeGreaterThan(0);
-                expect(bar.animatedWidth).toBeGreaterThan(0);
-            }
-            expect(bars[0].width).toBeGreaterThan(bars[2].width);
+            expect(bars[0].width / bars[2].width).toBeCloseTo(20 / 10, 6);
+            expect(bars[0].width).toBeCloseTo(component.chartArea().width / 1.1, 6);
         });
 
         it('should return empty array for an empty frame', () => {
@@ -146,20 +133,6 @@ describe('BarRaceChartComponent', () => {
     });
 
     describe('play', () => {
-        it('should set isPlaying to true', () => {
-            component.play();
-
-            expect(component.isPlaying()).toBe(true);
-        });
-
-        it('should immediately advance to the next frame when play is called', () => {
-            expect(component.currentFrameIndex()).toBe(0);
-
-            component.play();
-
-            expect(component.currentFrameIndex()).toBe(1);
-        });
-
         it('should advance to subsequent frames via timers', () => {
             component.play();
             expect(component.currentFrameIndex()).toBe(1);
@@ -224,19 +197,12 @@ describe('BarRaceChartComponent', () => {
     });
 
     describe('pause', () => {
-        it('should set isPlaying to false', () => {
-            component.play();
-            expect(component.isPlaying()).toBe(true);
-
-            component.pause();
-            expect(component.isPlaying()).toBe(false);
-        });
-
         it('should stop frame advancement', () => {
             component.play();
             expect(component.currentFrameIndex()).toBe(1);
 
             component.pause();
+            expect(component.isPlaying()).toBe(false);
             vi.advanceTimersByTime(1000);
             expect(component.currentFrameIndex()).toBe(1);
         });
@@ -311,29 +277,16 @@ describe('BarRaceChartComponent', () => {
     });
 
     describe('onSliderChange', () => {
-        it('should pause playback and go to the specified frame', () => {
+        it('should pause playback and go to the frame the slider is dragged to', () => {
             component.play();
             expect(component.isPlaying()).toBe(true);
 
-            const event = {
-                target: { value: '2' },
-            } as unknown as Event;
-            component.onSliderChange(event);
+            const slider = fixture.nativeElement.querySelector('input[type="range"]') as HTMLInputElement;
+            slider.value = '2';
+            slider.dispatchEvent(new Event('input'));
 
             expect(component.isPlaying()).toBe(false);
             expect(component.currentFrameIndex()).toBe(2);
-        });
-
-        it('should emit frameChange when slider changes', () => {
-            const frameEvents: number[] = [];
-            component.frameChange.subscribe(idx => frameEvents.push(idx));
-
-            const event = {
-                target: { value: '1' },
-            } as unknown as Event;
-            component.onSliderChange(event);
-
-            expect(frameEvents).toEqual([1]);
         });
     });
 
@@ -358,15 +311,14 @@ describe('BarRaceChartComponent', () => {
     });
 
     describe('DOM interaction', () => {
-        it('should render play/pause button', () => {
-            const buttons = fixture.nativeElement.querySelectorAll(
-                'button[type="button"]',
-            );
-            const playButton = Array.from(buttons).find(
-                (btn: unknown) =>
-                    (btn as HTMLElement).getAttribute('aria-label') === 'Play',
-            ) as HTMLElement | undefined;
-            expect(playButton).toBeTruthy();
+        it('starts playback from the play button and relabels it Pause', () => {
+            const playButton = fixture.nativeElement.querySelector('button[aria-label="Play"]') as HTMLButtonElement;
+            playButton.click();
+            fixture.detectChanges();
+
+            expect(component.isPlaying()).toBe(true);
+            expect(component.currentFrameIndex()).toBe(1);
+            expect(playButton.getAttribute('aria-label')).toBe('Pause');
         });
 
         it('should render a range slider', () => {
@@ -376,17 +328,6 @@ describe('BarRaceChartComponent', () => {
             expect(slider).toBeTruthy();
             expect(slider.getAttribute('min')).toBe('0');
             expect(slider.getAttribute('max')).toBe('2');
-        });
-
-        it('should render reset button', () => {
-            const buttons = fixture.nativeElement.querySelectorAll(
-                'button[type="button"]',
-            );
-            const resetButton = Array.from(buttons).find(
-                (btn: unknown) =>
-                    (btn as HTMLElement).getAttribute('aria-label') === 'Reset',
-            ) as HTMLElement | undefined;
-            expect(resetButton).toBeTruthy();
         });
     });
 
@@ -414,13 +355,8 @@ describe('BarRaceChartComponent', () => {
 
             const bars = component.displayBars();
             const area = component.chartArea();
-            expect(bars[0].x).toBeLessThanOrEqual(area.right);
-        });
-
-        it('resolves isRtl to false when dir="ltr"', () => {
-            fixture.componentRef.setInput('dir', 'ltr');
-            fixture.detectChanges();
-            expect(component.isRtl()).toBe(false);
+            expect(bars[0].x + bars[0].width).toBeCloseTo(area.right, 6);
+            expect(bars[2].x + bars[2].width).toBeCloseTo(area.right, 6);
         });
     });
 

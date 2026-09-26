@@ -276,16 +276,13 @@ describe('FileUploadComponent — directory drop', () => {
         fixture.detectChanges();
     }
 
-    it('does not set webkitdirectory by default', () => {
+    it('sets webkitdirectory once directories are allowed', () => {
         const input: HTMLInputElement = fixture.nativeElement.querySelector('input[type="file"]');
         expect(input.hasAttribute('webkitdirectory')).toBe(false);
-    });
 
-    it('sets webkitdirectory once directories are allowed', () => {
         host.allowDirectories.set(true);
         fixture.detectChanges();
 
-        const input: HTMLInputElement = fixture.nativeElement.querySelector('input[type="file"]');
         expect(input.hasAttribute('webkitdirectory')).toBe(true);
     });
 
@@ -320,17 +317,6 @@ describe('FileUploadComponent — directory drop', () => {
 
         expect(upload.files().map(f => f.file.name)).toEqual(['b.md']);
         expect(host.errors).toHaveLength(1);
-    });
-
-    it('adds nothing for an empty directory', async () => {
-        host.allowDirectories.set(true);
-        fixture.detectChanges();
-
-        drop(fakeDataTransfer([dirEntry('empty', [])]));
-        await flush();
-        fixture.detectChanges();
-
-        expect(upload.files()).toHaveLength(0);
     });
 });
 

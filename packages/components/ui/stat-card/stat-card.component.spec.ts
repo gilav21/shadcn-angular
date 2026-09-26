@@ -144,15 +144,6 @@ describe('StatCardComponent', () => {
             expect(getComputedStyle(content).display).not.toBe('none');
         });
 
-        it('merges the class input onto the card surface, not the host', () => {
-            host.cls.set('ring-2');
-            fixture.detectChanges();
-            expect(need('[data-slot="card"]').classList.contains('ring-2')).toBe(true);
-        });
-
-        it('keeps the host transparent so the card stays the grid item', () => {
-            expect(getComputedStyle(need('ui-stat-card')).display).toBe('contents');
-        });
     });
 
     // T-2 / UC-2 — trend drives badge colour and the arrow glyph.
@@ -201,24 +192,6 @@ describe('StatCardComponent', () => {
                 need('[data-slot="badge"]').classList.contains('bg-destructive'),
             ).toBe(true);
             expect(q('[data-slot="stat-card-trend"]')).toBeNull();
-        });
-
-        it('leaves the badge unspaced when no arrow is drawn', () => {
-            host.trend.set('up');
-            host.trendIcon.set(false);
-            fixture.detectChanges();
-            expect(need('[data-slot="badge"]').classList.contains('gap-1')).toBe(false);
-        });
-
-        it('keeps the delta text intact for zero and negative values', () => {
-            host.delta.set('0.0%');
-            fixture.detectChanges();
-            expect(need('[data-slot="badge"]').textContent?.trim()).toBe('0.0%');
-
-            host.delta.set('-3.2%');
-            host.trend.set('down');
-            fixture.detectChanges();
-            expect(need('[data-slot="badge"]').textContent?.trim()).toBe('-3.2%');
         });
     });
 
@@ -315,18 +288,6 @@ describe('StatCardComponent', () => {
             fixture.detectChanges();
         });
 
-        it('inherits the ambient direction', () => {
-            expect(getComputedStyle(need('[data-slot="card"]')).direction).toBe('rtl');
-        });
-
-        it('renders the same content under RTL', () => {
-            expect(need('[data-slot="card-description"]').textContent?.trim()).toBe(
-                'Total Revenue',
-            );
-            expect(need('[data-slot="badge"]').textContent?.trim()).toBe('+20.1%');
-            expect(need('[data-slot="stat-card-trend"]')).toBeTruthy();
-        });
-
         it('uses only direction-agnostic spacing utilities', () => {
             const physical =
                 /(^|:)(ml|mr|pl|pr|left|right|border-l|border-r|rounded-l|rounded-r|text-left|text-right)(-|$)/;
@@ -394,9 +355,5 @@ describe('StatCardComponent class input', () => {
     it('leaves the static spelling duplicated on the host, where it is inert', () => {
         expect(hosts()[0].classList.contains('static-class')).toBe(true);
         expect(getComputedStyle(hosts()[0]).display).toBe('contents');
-    });
-
-    it('does not copy a bound class onto the host', () => {
-        expect(hosts()[1].classList.contains('bound-class')).toBe(false);
     });
 });

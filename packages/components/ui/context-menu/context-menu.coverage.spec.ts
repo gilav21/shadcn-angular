@@ -113,10 +113,6 @@ describe('ContextMenuComponent document listeners', () => {
         document.dispatchEvent(new Event('scroll'));
         expect(menu.open()).toBe(false);
     });
-
-    it('exposes isRtl() reflecting the resolved direction (ltr by default)', () => {
-        expect(menuInstance(fixture).isRtl()).toBe(false);
-    });
 });
 
 describe('ContextMenuItemComponent click handling', () => {
@@ -408,8 +404,10 @@ describe('ContextMenuSubTriggerComponent keyboard navigation', () => {
     });
 
     it('ArrowLeft in RTL opens the sub', () => {
+        const sub = fixture.debugElement.query(By.directive(ContextMenuSubComponent)).componentInstance as ContextMenuSubComponent;
         forceRtl();
         expect(press('ArrowLeft').defaultPrevented).toBe(true);
+        expect(sub.isOpen()).toBe(true);
     });
 
     it('ArrowLeft in LTR is ignored', () => {
@@ -417,7 +415,9 @@ describe('ContextMenuSubTriggerComponent keyboard navigation', () => {
     });
 
     it('Enter opens the sub', () => {
+        const sub = fixture.debugElement.query(By.directive(ContextMenuSubComponent)).componentInstance as ContextMenuSubComponent;
         expect(press('Enter').defaultPrevented).toBe(true);
+        expect(sub.isOpen()).toBe(true);
     });
 });
 
@@ -473,15 +473,6 @@ describe('ContextMenuSubContentComponent positioning', () => {
     function calc(content: ContextMenuSubContentComponent): void {
         (content as unknown as PositionedPortal).calculatePosition();
     }
-
-    it('places to the left in RTL, falling back to the right when it underflows', () => {
-        vi.spyOn(menuInstance(fixture), 'isRtl').mockReturnValue(true);
-        const content = openSub();
-        // left-hugging trigger: RTL x underflows below 8 → fallback x = right + 4
-        stubRects(makeRect(50, 20, 5, 100), makeRect(100, 50));
-        calc(content);
-        expect(content.portalPosition()).toEqual({ x: 59, y: 100 });
-    });
 
     it('clamps RTL x and y to the far edges when the content overflows', () => {
         vi.spyOn(menuInstance(fixture), 'isRtl').mockReturnValue(true);

@@ -17,6 +17,7 @@ import {
     KanbanColumnDeleteEvent,
     KanbanHistoryState,
 } from '../kanban';
+import { ContextMenuComponent } from '../context-menu';
 
 // Simple mode test host
 @Component({
@@ -159,16 +160,6 @@ describe('KanbanComponent', () => {
             fixture.detectChanges();
         });
 
-        it('should render kanban board with data-slot', () => {
-            const kanban = fixture.debugElement.query(By.css('[data-slot="kanban"]'));
-            expect(kanban).toBeTruthy();
-        });
-
-        it('should render all columns', () => {
-            const columns = fixture.debugElement.queryAll(By.css('[data-slot="kanban-column"]'));
-            expect(columns).toHaveLength(3);
-        });
-
         it('should render column titles', () => {
             const headers = fixture.debugElement.queryAll(By.css('[data-slot="kanban-column-header"]'));
             expect(headers).toHaveLength(3);
@@ -181,18 +172,11 @@ describe('KanbanComponent', () => {
 
         it('should render cards in correct columns', () => {
             const columns = fixture.debugElement.queryAll(By.css('[data-slot="kanban-column"]'));
-            const todoCards = columns[0].queryAll(By.css('[data-slot="kanban-card"]'));
-            const doingCards = columns[1].queryAll(By.css('[data-slot="kanban-card"]'));
-            const doneCards = columns[2].queryAll(By.css('[data-slot="kanban-card"]'));
+            const cardIds = columns.map(col =>
+                col.queryAll(By.css('[data-slot="kanban-card"]')).map(c => c.nativeElement.dataset.cardId),
+            );
 
-            expect(todoCards).toHaveLength(2);
-            expect(doingCards).toHaveLength(1);
-            expect(doneCards).toHaveLength(0);
-        });
-
-        it('should display card titles', () => {
-            const cards = fixture.debugElement.queryAll(By.css('[data-slot="kanban-card"]'));
-            expect(cards[0].nativeElement.textContent).toContain('Task 1');
+            expect(cardIds).toEqual([['card-1', 'card-2'], ['card-3'], []]);
         });
 
         it('should display card descriptions', () => {
@@ -207,12 +191,15 @@ describe('KanbanComponent', () => {
 
         it('should render card labels as badges', () => {
             const badges = fixture.debugElement.queryAll(By.css('[data-slot="kanban-card"] [data-slot="badge"]'));
-            expect(badges.length).toBeGreaterThan(0);
+            expect(badges).toHaveLength(1);
+            const badge = badges[0].nativeElement as HTMLElement;
+            expect(badge.textContent?.trim()).toBe('Bug');
+            expect(badge.style.backgroundColor).toBe('rgb(239, 68, 68)');
         });
 
         it('should render card count badges on columns', () => {
             const badges = fixture.debugElement.queryAll(By.css('[data-slot="kanban-column-header"] [data-slot="badge"]'));
-            expect(badges).toHaveLength(3);
+            expect(badges.map(b => b.nativeElement.textContent.trim())).toEqual(['2', '1', '0']);
         });
 
         it('should filter cards by search term', async () => {
@@ -230,14 +217,18 @@ describe('KanbanComponent', () => {
             expect(card.nativeElement.getAttribute('draggable')).toBe('true');
         });
 
-        it('should always render drop indicators in DOM', () => {
-            const indicators = fixture.debugElement.queryAll(
-                By.css('[data-slot="kanban-drop-indicator"]')
-            );
-            expect(indicators).toHaveLength(3);
-            indicators.forEach(ind => {
-                expect(ind.nativeElement.classList).toContain('opacity-0');
-            });
+        it('should show the drop indicator only in the column being dragged over', () => {
+            getKanban().startDrag('card-1', 'todo');
+            fixture.detectChanges();
+
+            const columns = fixture.debugElement.queryAll(By.css('[data-slot="kanban-column"]'));
+            columns[1].nativeElement.dispatchEvent(new DragEvent('dragover', { bubbles: true, clientY: 0 }));
+            fixture.detectChanges();
+
+            const visible = fixture.debugElement
+                .queryAll(By.css('[data-slot="kanban-drop-indicator"]'))
+                .map(ind => ind.nativeElement.classList.contains('opacity-100') && !ind.nativeElement.classList.contains('opacity-0'));
+            expect(visible).toEqual([false, true, false]);
         });
 
         it('should set data-drag-over attribute on column during drag', () => {
@@ -314,13 +305,24 @@ describe('KanbanComponent', () => {
             fixture.detectChanges();
 
             expect(doingColumn.nativeElement.dataset.dragOver).toBeUndefined();
+            expect(component.cardsChanged.find(c => c.id === 'card-1')?.columnId).toBe('doing');
+            const dropped = doingColumn.query(By.css('[data-card-id="card-1"]'));
+            expect(dropped).toBeTruthy();
+            expect(dropped.nativeElement.className).not.toContain('opacity-50');
         });
 
-        it('should render add-card button in each column header', () => {
-            const buttons = fixture.debugElement.queryAll(
-                By.css('[data-slot="kanban-add-card-button"]')
-            );
-            expect(buttons).toHaveLength(3);
+        it('opens the add-card dialog for the column whose header button is clicked', () => {
+            const dialog = fixture.debugElement.query(By.directive(KanbanCardDialogComponent))
+                .componentInstance as KanbanCardDialogComponent;
+            const buttons = fixture.debugElement.queryAll(By.css('[data-slot="kanban-add-card-button"]'));
+            (buttons[0].nativeElement as HTMLButtonElement).click();
+            fixture.detectChanges();
+
+            expect(dialog.dialogOpen()).toBe(true);
+            expect(dialog.mode()).toBe('add');
+            dialog.formTitle.set('New task');
+            dialog.onSubmit();
+            expect(component.cardAddedEvent?.columnId).toBe('todo');
         });
 
         it('should render empty state in column with no cards', () => {
@@ -399,19 +401,6 @@ describe('KanbanComponent', () => {
             vi.useRealTimers();
         });
 
-        it('should emit historyChange after undo', () => {
-            const kanbanEl = fixture.debugElement.query(By.directive(KanbanComponent));
-            const kanban = kanbanEl.componentInstance as KanbanComponent;
-            const card = component.cards()[0];
-
-            kanban.onMoveCardToColumn(card, 'doing');
-            fixture.detectChanges();
-
-            expect(component.historyState).toBeTruthy();
-            expect(component.historyState!.canUndo).toBe(true);
-            expect(component.historyState!.canRedo).toBe(false);
-        });
-
         it('should undo last action', () => {
             const kanbanEl = fixture.debugElement.query(By.directive(KanbanComponent));
             const kanban = kanbanEl.componentInstance as KanbanComponent;
@@ -486,17 +475,6 @@ describe('KanbanComponent', () => {
             expect(component.columnsChanged).toHaveLength(0);
         });
 
-        it('should capture snapshot on moveCard for history', () => {
-            const kanbanEl = fixture.debugElement.query(By.directive(KanbanComponent));
-            const kanban = kanbanEl.componentInstance as KanbanComponent;
-
-            kanban.moveCard('card-1', 'doing', 0);
-            fixture.detectChanges();
-
-            expect(component.historyState).toBeTruthy();
-            expect(component.historyState!.canUndo).toBe(true);
-        });
-
         function getKanban(): KanbanComponent {
             return fixture.debugElement.query(By.directive(KanbanComponent)).componentInstance as KanbanComponent;
         }
@@ -566,7 +544,7 @@ describe('KanbanComponent', () => {
             vi.useRealTimers();
         });
 
-        it('onEditCard opens the dialog and onCardDialogSubmitted edits emit cardUpdated', () => {
+        it('onCardDialogSubmitted in edit mode emits cardUpdated merged onto the card', () => {
             const kanban = getKanban();
             const card = component.cards()[0];
             kanban.onCardDialogSubmitted({
@@ -644,16 +622,29 @@ describe('KanbanComponent', () => {
             expect(component.columnsChanged).toHaveLength(0);
         });
 
-        it('onBoardContextMenu shows the board menu when not on a column', () => {
-            const kanban = getKanban();
-            const spy = vi.spyOn(kanban, 'onAddColumn');
+        function boardMenu(): ContextMenuComponent {
+            // Declared third in the board template: card menu, column menu, board menu.
+            return fixture.debugElement.queryAll(By.directive(ContextMenuComponent))[2]
+                .componentInstance as ContextMenuComponent;
+        }
+
+        it('onBoardContextMenu shows the board menu when not on a column, and its Add Column item opens the add-column dialog', () => {
             const boardEl = fixture.debugElement.query(By.css('[data-slot="kanban"]')).nativeElement as HTMLElement;
-            const ev = new MouseEvent('contextmenu', { bubbles: true, clientX: 10, clientY: 10 });
+            const ev = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 });
             boardEl.dispatchEvent(ev);
             fixture.detectChanges();
-            // Board menu is shown; invoking add column from the menu calls openAddColumn path
-            kanban.onAddColumn();
-            expect(spy).toHaveBeenCalled();
+
+            expect(boardMenu().open()).toBe(true);
+            expect(ev.defaultPrevented).toBe(true);
+
+            const addColumn = Array.from(document.querySelectorAll<HTMLElement>('[data-slot="context-menu-item"]'))
+                .find(item => item.textContent?.trim() === 'Add Column');
+            addColumn!.click();
+            fixture.detectChanges();
+            const columnDialog = fixture.debugElement.query(By.directive(KanbanColumnDialogComponent))
+                .componentInstance as KanbanColumnDialogComponent;
+            expect(columnDialog.dialogOpen()).toBe(true);
+            expect(columnDialog.mode()).toBe('add-column');
         });
 
         it('redo with empty stack is a no-op', () => {
@@ -691,27 +682,43 @@ describe('KanbanComponent', () => {
             expect(component.columnUpdatedEvent).toBeNull();
         });
 
-        it('opens dialogs for edit / rename / set-wip / delete without throwing', () => {
+        it('opens the edit, column and delete dialogs seeded from their target', () => {
             const kanban = getKanban();
             const card = component.cards()[0];
             const col = component.columns()[0];
-            expect(() => {
-                kanban.onEditCard(card);
-                kanban.onRenameColumn(col);
-                kanban.onSetWipLimit(col);
-                kanban.onDeleteColumn(col);
-                kanban.showCardContextMenu(10, 20, card);
-                kanban.showColumnContextMenu(10, 20, col);
-            }).not.toThrow();
+            const cardDialog = fixture.debugElement.query(By.directive(KanbanCardDialogComponent))
+                .componentInstance as KanbanCardDialogComponent;
+            const columnDialog = fixture.debugElement.query(By.directive(KanbanColumnDialogComponent))
+                .componentInstance as KanbanColumnDialogComponent;
+            const deleteDialog = fixture.debugElement.query(By.directive(KanbanDeleteColumnDialogComponent))
+                .componentInstance as KanbanDeleteColumnDialogComponent;
+
+            kanban.onEditCard(card);
+            expect(cardDialog.dialogOpen()).toBe(true);
+            expect(cardDialog.mode()).toBe('edit');
+            expect(cardDialog.formTitle()).toBe('Task 1');
+
+            kanban.onRenameColumn(col);
+            expect(columnDialog.dialogOpen()).toBe(true);
+            expect(columnDialog.mode()).toBe('rename-column');
+            expect(columnDialog.formName()).toBe('To Do');
+
+            kanban.onSetWipLimit(col);
+            expect(columnDialog.mode()).toBe('set-wip');
+            expect(columnDialog.formWip()).toBe('3');
+
+            kanban.onDeleteColumn(col);
+            expect(deleteDialog.cardCount()).toBe(2);
         });
 
         it('onBoardContextMenu bails out when the target is inside a column', () => {
-            const kanban = getKanban();
-            const spy = vi.spyOn(kanban, 'showCardContextMenu');
-            const columnEl = fixture.debugElement.query(By.css('[data-slot="kanban-column"]')).nativeElement as HTMLElement;
-            const fakeEvent = { target: columnEl, preventDefault: () => { /* noop */ } } as unknown as MouseEvent;
-            kanban.onBoardContextMenu(fakeEvent);
-            expect(spy).not.toHaveBeenCalled();
+            const emptyState = fixture.debugElement.query(By.css('[data-slot="kanban-empty-state"]')).nativeElement as HTMLElement;
+            const ev = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 });
+            emptyState.dispatchEvent(ev);
+            fixture.detectChanges();
+
+            expect(boardMenu().open()).toBe(false);
+            expect(ev.defaultPrevented).toBe(false);
         });
 
         it('undoCardDelete with no pending delete is a no-op', () => {
@@ -728,10 +735,12 @@ describe('KanbanComponent', () => {
                 kanban.onSetCardPriority(card, 'low');
             }
             fixture.detectChanges();
-            expect(component.historyState!.canUndo).toBe(true);
-            for (let i = 0; i < 60; i++) {
+            // Only the latest 50 snapshots survive: 49 undos leave one, the 50th empties it.
+            for (let i = 0; i < 49; i++) {
                 kanban.undo();
             }
+            expect(component.historyState!.canUndo).toBe(true);
+            kanban.undo();
             expect(component.historyState!.canUndo).toBe(false);
         });
 
@@ -859,12 +868,19 @@ describe('KanbanComponent', () => {
             expect(spy.mock.calls[0][2].id).toBe('todo');
         });
 
-        it('onAddCard from the empty state opens the add dialog path', () => {
-            const kanban = getKanban();
-            const spy = vi.spyOn(kanban, 'onAddCard');
-            const col = getColumn(2); // done column, empty
-            col.onAddCard();
-            expect(spy).toHaveBeenCalledWith('done');
+        it('the empty-state button opens the add dialog for its column', () => {
+            const dialog = fixture.debugElement.query(By.directive(KanbanCardDialogComponent))
+                .componentInstance as KanbanCardDialogComponent;
+            const addButton = fixture.debugElement.queryAll(By.css('[data-slot="kanban-column"]'))[2]
+                .query(By.css('[data-slot="kanban-empty-state"] button'));
+            (addButton.nativeElement as HTMLButtonElement).click();
+            fixture.detectChanges();
+
+            expect(dialog.dialogOpen()).toBe(true);
+            expect(dialog.mode()).toBe('add');
+            dialog.formTitle.set('New task');
+            dialog.onSubmit();
+            expect(component.cardAddedEvent?.columnId).toBe('done');
         });
 
         it('isOverWipLimit becomes true and applies destructive styling', () => {
@@ -887,27 +903,6 @@ describe('KanbanComponent', () => {
             const ev = new DragEvent('dragenter', { bubbles: true });
             col.onDragEnter(ev);
             expect(col.isDragOver()).toBe(false);
-        });
-
-        it('dragover computes a drop indicator index using card positions', () => {
-            const kanban = getKanban();
-            kanban.startDrag('card-3', 'doing');
-            fixture.detectChanges();
-
-            const col = getColumn(0); // first column has card-1, card-2
-            const ev = new DragEvent('dragover', { bubbles: true, clientY: -100000 });
-            Object.defineProperty(ev, 'dataTransfer', { value: { dropEffect: '' } });
-            // clientY far above → index 0
-            col.onDragOver(ev);
-            expect(col.dropIndicatorIndex()).toBe(0);
-
-            // Far below → index = card count (append)
-            const ev2 = new DragEvent('dragover', { bubbles: true, clientY: 100000 });
-            Object.defineProperty(ev2, 'dataTransfer', { value: { dropEffect: '' } });
-            // Throttle guard: advance lastDragOverTime by faking enough time
-            col['lastDragOverTime'] = 0;
-            col.onDragOver(ev2);
-            expect(col.dropIndicatorIndex()).toBeGreaterThanOrEqual(2);
         });
 
         it('dragover without an active drag does nothing', () => {
@@ -1029,6 +1024,12 @@ describe('KanbanComponent', () => {
             Object.defineProperty(ev, 'dataTransfer', { value: { dropEffect: '' } });
             col.onDragOver(ev);
             expect(col.dropIndicatorIndex()).toBe(1);
+
+            col['lastDragOverTime'] = 0;
+            const below = new DragEvent('dragover', { bubbles: true, clientY: 100 });
+            Object.defineProperty(below, 'dataTransfer', { value: { dropEffect: '' } });
+            col.onDragOver(below);
+            expect(col.dropIndicatorIndex()).toBe(2);
         });
     });
 

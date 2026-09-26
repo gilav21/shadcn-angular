@@ -24,11 +24,6 @@ describe('CalendarHeatmapComponent', () => {
         fixture.detectChanges();
     });
 
-    it('renders with an accessible Calendar heatmap label', () => {
-        const c = fixture.nativeElement.querySelector('[role="group"]');
-        expect(c.getAttribute('aria-label')).toContain('Calendar');
-    });
-
     it('renders one cell per day', () => {
         expect(fixture.nativeElement.querySelectorAll('rect[data-slot="calendar-day"]')).toHaveLength(4);
     });
@@ -81,7 +76,8 @@ describe('CalendarHeatmapComponent', () => {
     });
 
     it('omits the title prefix from the accessible label by default', () => {
-        expect(component.ariaLabel()).toBe('Calendar heatmap with 4 days.');
+        const group = fixture.nativeElement.querySelector('[role="group"]');
+        expect(group.getAttribute('aria-label')).toBe('Calendar heatmap with 4 days.');
     });
 
     it('sets the hover state and tooltip position on cell enter', () => {

@@ -19,15 +19,6 @@ describe('CheckboxComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
-    it('renders a native checkbox input', () => {
-        const input = fixture.debugElement.query(By.css('input[type="checkbox"]'));
-        expect(input).toBeTruthy();
-    });
-
     it('should render a skeleton instead of the checkbox when skeleton is true', () => {
         fixture.componentRef.setInput('skeleton', true);
         fixture.detectChanges();
@@ -129,11 +120,6 @@ describe('CheckboxComponent with Label', () => {
         const label = fixture.debugElement.query(By.css('label'));
         expect(label).toBeTruthy();
         expect(label.nativeElement.textContent).toContain('Accept terms');
-    });
-
-    it('should render checkbox with label in flex container', () => {
-        const container = fixture.debugElement.query(By.css('div.flex.items-center.gap-2'));
-        expect(container).toBeTruthy();
     });
 
     it('should associate label with checkbox via for/id', () => {
@@ -257,7 +243,7 @@ describe('CheckboxComponent methods', () => {
 })
 class CheckboxHostComponent {
     readonly control = new FormControl(false);
-    modelValue = false;
+    readonly modelValue = signal(false);
 }
 
 describe('CheckboxComponent as a form control', () => {
@@ -274,7 +260,7 @@ describe('CheckboxComponent as a form control', () => {
         fixture.detectChanges();
     });
 
-    it('wires NG_VALUE_ACCESSOR so reactive + template forms drive the checkbox', () => {
+    it('wires NG_VALUE_ACCESSOR so reactive + template forms drive the checkbox', async () => {
         const checkboxes = fixture.debugElement.queryAll(By.directive(CheckboxComponent));
         const reactive = checkboxes[0].componentInstance as CheckboxComponent;
         const template = checkboxes[1].componentInstance as CheckboxComponent;
@@ -292,7 +278,17 @@ describe('CheckboxComponent as a form control', () => {
         fixture.detectChanges();
         expect(reactiveInput.nativeElement.disabled).toBe(true);
 
-        expect(template.checked()).toBe(false);
+        const templateInput: HTMLInputElement = checkboxes[1].query(By.css('input')).nativeElement;
+        host.modelValue.set(true);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(template.checked()).toBe(true);
+        expect(templateInput.checked).toBe(true);
+
+        templateInput.click();
+        fixture.detectChanges();
+        expect(host.modelValue()).toBe(false);
     });
 });
 

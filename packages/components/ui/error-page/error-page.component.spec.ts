@@ -169,12 +169,10 @@ describe('ErrorPageComponent', () => {
 
     // T-10 / UC-10 — default copy per code.
     describe('T-10 known codes render their default copy', () => {
-        it('renders the code itself', () => {
-            withCode('404');
-            expect(need('[data-slot="error-page-code"]').textContent?.trim()).toBe('404');
-        });
-
         it('renders the locale copy for every known code', () => {
+            // Distinct titles, so rendering one code's copy for another cannot pass.
+            const titles = KNOWN_CODES.map(code => EN.codes[code].title);
+            expect(new Set(titles).size).toBe(KNOWN_CODES.length);
             for (const code of KNOWN_CODES) {
                 withCode(code);
                 const expected = EN.codes[code];
@@ -186,11 +184,6 @@ describe('ErrorPageComponent', () => {
                     need('[data-slot="error-page-description"]').textContent?.trim(),
                 ).toBe(expected.description);
             }
-        });
-
-        it('gives each known code its own copy', () => {
-            const titles = KNOWN_CODES.map(code => EN.codes[code].title);
-            expect(new Set(titles).size).toBe(KNOWN_CODES.length);
         });
 
         it('falls back to generic copy for an unrecognised code', () => {
@@ -315,12 +308,6 @@ describe('ErrorPageComponent', () => {
             expect(q('[data-slot="error-page-home"]')).toBeTruthy();
             expect(q('[data-testid="nested-action"]')).toBeNull();
         });
-
-        it('renders exactly one actions region when actions are projected', () => {
-            host.showActions.set(true);
-            fixture.detectChanges();
-            expect(all('[data-slot="error-page-actions"]')).toHaveLength(1);
-        });
     });
 
     // T-13 / UC-13 — projected illustration replaces the default.
@@ -418,12 +405,6 @@ describe('ErrorPageComponent', () => {
         beforeEach(() => {
             host.dir.set('rtl');
             fixture.detectChanges();
-        });
-
-        it('inherits the ambient direction', () => {
-            expect(getComputedStyle(need('[data-slot="error-page"]')).direction).toBe(
-                'rtl',
-            );
         });
 
         it('sets dir from an RTL locale even inside an LTR document', () => {

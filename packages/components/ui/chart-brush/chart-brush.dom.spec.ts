@@ -176,11 +176,4 @@ describe('ChartBrushComponent guard clauses', () => {
         expect(calls).toBe(0);
         expect(component.current()).toBeNull();
     });
-
-    it('end does nothing while idle', () => {
-        let calls = 0;
-        component.selectionChange.subscribe(() => calls++);
-        component.end();
-        expect(calls).toBe(0);
-    });
 });

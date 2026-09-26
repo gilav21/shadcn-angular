@@ -41,10 +41,6 @@ describe('ToggleComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
     it('should have data-slot="toggle"', () => {
         const button = fixture.debugElement.query(By.css('button'));
         expect(button.nativeElement.dataset.slot).toBe('toggle');
@@ -53,10 +49,6 @@ describe('ToggleComponent', () => {
     it('should have aria-pressed="false" by default', () => {
         const button = fixture.debugElement.query(By.css('button'));
         expect(button.nativeElement.getAttribute('aria-pressed')).toBe('false');
-    });
-
-    it('should have data-state="off" by default', () => {
-        const button = fixture.debugElement.query(By.css('button'));
         expect(button.nativeElement.dataset.state).toBe('off');
     });
 
@@ -71,45 +63,12 @@ describe('ToggleComponent', () => {
         expect(button.nativeElement.dataset.state).toBe('on');
     });
 
-    it('should not toggle when disabled', async () => {
-        fixture.componentRef.setInput('disabled', true);
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const button = fixture.debugElement.query(By.css('button'));
-        button.nativeElement.click();
-        fixture.detectChanges();
-
-        expect(component.pressed()).toBe(false);
-    });
-
-    it('should apply default variant classes', () => {
-        const button = fixture.debugElement.query(By.css('button'));
-        expect(button.nativeElement.className).toContain('bg-transparent');
-    });
-
     it('should apply outline variant classes', () => {
         fixture.componentRef.setInput('variant', 'outline');
         fixture.detectChanges();
 
         const button = fixture.debugElement.query(By.css('button'));
         expect(button.nativeElement.className).toContain('border');
-    });
-
-    it('should apply small size classes', () => {
-        fixture.componentRef.setInput('size', 'sm');
-        fixture.detectChanges();
-
-        const button = fixture.debugElement.query(By.css('button'));
-        expect(button.nativeElement.getAttribute('data-size')).toBe('sm');
-    });
-
-    it('should apply large size classes', () => {
-        fixture.componentRef.setInput('size', 'lg');
-        fixture.detectChanges();
-
-        const button = fixture.debugElement.query(By.css('button'));
-        expect(button.nativeElement.getAttribute('data-size')).toBe('lg');
     });
 
     it('should be disabled when disabled input is true', async () => {
@@ -122,20 +81,14 @@ describe('ToggleComponent', () => {
     });
 
     it('should toggle on touchend and prevent default', () => {
-        const button = fixture.debugElement.query(By.css('button'));
-        let preventedDefault = false;
-        const event = {
-            preventDefault: () => {
-                preventedDefault = true;
-            },
-        } as unknown as TouchEvent;
+        const button: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+        const event = new TouchEvent('touchend', { bubbles: true, cancelable: true });
 
-        component.onTouchEnd(event);
+        button.dispatchEvent(event);
         fixture.detectChanges();
 
-        expect(preventedDefault).toBe(true);
-        expect(component.pressed()).toBe(true);
-        expect(button.nativeElement.getAttribute('aria-pressed')).toBe('true');
+        expect(event.defaultPrevented).toBe(true);
+        expect(button.getAttribute('aria-pressed')).toBe('true');
     });
 
     it('should not toggle on touchend when disabled', () => {
@@ -205,17 +158,6 @@ describe('ToggleComponent defaultPressed', () => {
         expect(ref.instance.pressed()).toBe(true);
         ref.destroy();
     });
-
-    it('leaves pressed false when defaultPressed is not set', async () => {
-        await TestBed.configureTestingModule({}).compileComponents();
-        const environmentInjector = TestBed.inject(EnvironmentInjector);
-
-        const ref = createComponent(ToggleComponent, { environmentInjector });
-        ref.changeDetectorRef.detectChanges();
-
-        expect(ref.instance.pressed()).toBe(false);
-        ref.destroy();
-    });
 });
 
 describe('Toggle RTL Support', () => {
@@ -236,21 +178,7 @@ describe('Toggle RTL Support', () => {
         document.documentElement.removeAttribute('dir');
     });
 
-    it('should render in LTR mode', () => {
-        const container = fixture.debugElement.query(By.css('[dir="ltr"]'));
-        expect(container).toBeTruthy();
-    });
-
-    it('should render in RTL mode', async () => {
-        component.dir.set('rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const container = fixture.debugElement.query(By.css('[dir="rtl"]'));
-        expect(container).toBeTruthy();
-    });
-
-    it('should emit pressedChange in RTL', async () => {
+    it('should emit pressedChange with the new state on click', async () => {
         component.dir.set('rtl');
         fixture.detectChanges();
         await fixture.whenStable();

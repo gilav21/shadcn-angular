@@ -97,14 +97,6 @@ describe('StepperComponent — data-driven public API', () => {
     expect(host.activeStep()).toBe(0);
   });
 
-  it('renders vertical layout (stepItemClasses vertical branch)', () => {
-    host.orientation.set('vertical');
-    fixture.detectChanges();
-    const item = fixture.debugElement.query(By.css('[data-slot="stepper-item"]'));
-    expect(item.nativeElement.className).toContain('flex-row');
-    expect(item.nativeElement.dataset.orientation).toBe('vertical');
-  });
-
   it('linear mode disables and dims unreachable triggers (stepTriggerClasses/canNavigateToIndex)', () => {
     host.linear.set(true);
     fixture.detectChanges();
@@ -120,11 +112,6 @@ describe('StepperComponent — data-driven public API', () => {
     stepper.goToStep(2);
     expect(host.activeStep()).toBe(0);
     expect(host.last()).toBe(-1);
-  });
-
-  it('exposes step count via the internal computed', () => {
-    const count = (stepper as unknown as { simpleStepCount: () => number }).simpleStepCount();
-    expect(count).toBe(3);
   });
 });
 
@@ -229,13 +216,5 @@ describe('StepperSeparatorComponent', () => {
     expect(seps[0].nativeElement.className).toContain('w-full');
     expect(seps[1].nativeElement.dataset.complete).toBeUndefined();
     expect(seps[1].nativeElement.className).toContain('bg-border');
-  });
-
-  it('applies vertical sizing classes', () => {
-    fixture.componentInstance.orientation.set('vertical');
-    fixture.detectChanges();
-    const sep = fixture.debugElement.query(By.css('[data-slot="stepper-separator"]'));
-    expect(sep.nativeElement.className).toContain('w-0.5');
-    expect(sep.nativeElement.className).toContain('h-8');
   });
 });

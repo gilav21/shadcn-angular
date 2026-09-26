@@ -53,22 +53,6 @@ describe('PropertyEditorComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
-    it('should default item to undefined', () => {
-        expect(component.item()).toBeUndefined();
-    });
-
-    it('should default componentMeta to undefined', () => {
-        expect(component.componentMeta()).toBeUndefined();
-    });
-
-    it('should default isLoading to false', () => {
-        expect(component.isLoading()).toBe(false);
-    });
-
     it('should show empty state when no item is selected', () => {
         const el = fixture.nativeElement as HTMLElement;
         expect(el.textContent).toContain('No Selection');
@@ -123,23 +107,6 @@ describe('PropertyEditorComponent', () => {
         component.onPropertyChange('cols', 4);
 
         expect(emitted).toBe(false);
-    });
-
-    it('should add a binding when toggleBinding is called on an item without that binding', () => {
-        fixture.componentRef.setInput('item', { ...mockItem, bindings: {} });
-        fixture.detectChanges();
-
-        let emitted: { id: string; prop: string; value: any } | undefined;
-        component.itemChange.subscribe((event) => {
-            emitted = event;
-        });
-
-        component.toggleBinding('title');
-
-        expect(emitted).toBeDefined();
-        expect(emitted!.prop).toBe('bindings');
-        expect(emitted!.value).toHaveProperty('title');
-        expect(emitted!.value['title']).toBe('');
     });
 
     it('should remove a binding when toggleBinding is called on an item that already has that binding', () => {
@@ -280,6 +247,7 @@ describe('PropertyEditorComponent', () => {
         const el = fixture.nativeElement as HTMLElement;
         expect(el.textContent).toContain('item-1');
         expect(el.textContent).toContain('Layout');
+        expect(el.textContent).toContain('Test Component');
     });
 
     it('should hide No Selection when item is set', () => {
@@ -314,15 +282,6 @@ describe('PropertyEditorComponent', () => {
 
         const el = fixture.nativeElement as HTMLElement;
         expect(el.textContent).not.toContain('Settings');
-    });
-
-    it('should display the component name from componentMeta', () => {
-        fixture.componentRef.setInput('item', mockItem);
-        fixture.componentRef.setInput('componentMeta', mockComponentMeta);
-        fixture.detectChanges();
-
-        const el = fixture.nativeElement as HTMLElement;
-        expect(el.textContent).toContain('Test Component');
     });
 
     it('should handle toggleBinding when item has no bindings property', () => {

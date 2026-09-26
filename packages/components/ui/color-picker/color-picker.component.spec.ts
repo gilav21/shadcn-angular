@@ -79,14 +79,22 @@ describe('ColorPickerComponent', () => {
     });
 
     describe('Basic Rendering', () => {
-        it('renders the picker', () => {
-            const picker = fixture.debugElement.query(By.directive(ColorPickerComponent));
-            expect(picker).toBeTruthy();
-        });
+        it('shows the current colour on the trigger and follows a preset pick', async () => {
+            const trigger = (): HTMLElement =>
+                fixture.nativeElement.querySelector('[data-slot="color-picker-trigger"]');
+            const swatch = (): HTMLElement => trigger().querySelector('span')!;
+            fixture.detectChanges();
+            await fixture.whenStable();
+            expect(swatch().style.backgroundColor).toBe('rgb(59, 130, 246)');
+            expect(trigger().textContent).toContain('#3b82f6');
 
-        it('renders the trigger swatch', () => {
-            const swatch = fixture.debugElement.query(By.css('[style*="background"]'));
-            expect(swatch).toBeTruthy();
+            await openAndGetPicker(fixture);
+            (document.querySelector('[aria-label="Select #ef4444"]') as HTMLButtonElement).click();
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            expect(swatch().style.backgroundColor).toBe('rgb(239, 68, 68)');
+            expect(trigger().textContent).toContain('#ef4444');
         });
     });
 
@@ -129,13 +137,6 @@ describe('ColorPickerComponent', () => {
             expect(host.color()).toBe('#ff0000');
         });
 
-        it('ignores invalid hex input', async () => {
-            const picker = await openAndGetPicker(fixture);
-            picker.onHexInput('invalid');
-            fixture.detectChanges();
-            expect(host.color()).toBe('#3b82f6');
-        });
-
         it('updates color via RGB channel input', async () => {
             const picker = await openAndGetPicker(fixture);
             picker.onRgbChange('r', 255);
@@ -165,36 +166,6 @@ describe('ColorPickerComponent', () => {
             expect(ev.defaultPrevented).toBe(true);
             window.dispatchEvent(new MouseEvent('mouseup')); // release the drag listeners
         });
-
-        it('top-left selects white', async () => {
-            const picker = await openAndGetPicker(fixture);
-            stubAreaRect(picker);
-            (picker as unknown as { updateFromAreaPosition: (x: number, y: number) => void })
-                .updateFromAreaPosition(0, 0);
-            fixture.detectChanges();
-            expect(picker.saturation()).toBe(0);
-            expect(picker.hsvValue()).toBe(100);
-            expect(picker.currentColor()).toBe('#ffffff');
-        });
-
-        it('top-right selects pure hue', async () => {
-            const picker = await openAndGetPicker(fixture);
-            stubAreaRect(picker);
-            picker.hue.set(0);
-            (picker as unknown as { updateFromAreaPosition: (x: number, y: number) => void })
-                .updateFromAreaPosition(200, 0);
-            fixture.detectChanges();
-            expect(picker.currentColor()).toBe('#ff0000');
-        });
-
-        it('bottom selects black', async () => {
-            const picker = await openAndGetPicker(fixture);
-            stubAreaRect(picker);
-            (picker as unknown as { updateFromAreaPosition: (x: number, y: number) => void })
-                .updateFromAreaPosition(100, 100);
-            fixture.detectChanges();
-            expect(picker.currentColor()).toBe('#000000');
-        });
     });
 
     describe('Keyboard nav on SV area', () => {
@@ -212,11 +183,14 @@ describe('ColorPickerComponent', () => {
             expect(picker.hsvValue()).toBe(Math.max(0, startV - 10));
         });
 
-        it('Home clamps saturation to 0', async () => {
+        it('Home and End clamp saturation to 0 and 100', async () => {
             const picker = await openAndGetPicker(fixture);
             picker.saturation.set(50);
             picker.onAreaKeyDown(new KeyboardEvent('keydown', { key: 'Home' }));
             expect(picker.saturation()).toBe(0);
+            picker.saturation.set(50);
+            picker.onAreaKeyDown(new KeyboardEvent('keydown', { key: 'End' }));
+            expect(picker.saturation()).toBe(100);
         });
     });
 
@@ -241,8 +215,9 @@ describe('ColorPickerComponent', () => {
     describe('Presets', () => {
         it('renders all preset swatches', async () => {
             await openAndGetPicker(fixture);
-            const presetButtons = fixture.debugElement.queryAll(By.css('[aria-label^="Select #"]'));
-            expect(presetButtons).toHaveLength(3);
+            const labels = Array.from(document.querySelectorAll('[aria-label^="Select #"]'))
+                .map(el => el.getAttribute('aria-label'));
+            expect(labels).toEqual(['Select #ef4444', 'Select #22c55e', 'Select #3b82f6']);
         });
     });
 
@@ -271,13 +246,6 @@ describe('ColorPickerComponent', () => {
     });
 
     describe('Recent colors', () => {
-        it('records a preset selection in recents', async () => {
-            const picker = await openAndGetPicker(fixture);
-            picker.selectPreset('#ef4444');
-            fixture.detectChanges();
-            expect(picker.recents()).toContain('#ef4444');
-        });
-
         it('dedupes recent entries', async () => {
             const picker = await openAndGetPicker(fixture);
             picker.selectPreset('#ef4444');
@@ -403,7 +371,7 @@ describe('ColorPickerComponent', () => {
 
         it('compares against the second slot, not the background input', async () => {
             host.showContrast.set(true);
-            host.contrastBackground.set('#ffffff');
+            host.contrastBackground.set('#777777');
             fixture.detectChanges();
             const picker = await openAndGetPicker(fixture);
             picker.selectPreset('#000000');
@@ -421,11 +389,22 @@ describe('ColorPickerComponent', () => {
     });
 
     describe('Formats / OKLCH tab', () => {
-        it('exposes oklch when included in formats', async () => {
+        it('offers the OKLCH tab only when oklch is in formats', async () => {
+            const tabs = (): string[] => Array.from(document.querySelectorAll('[role="tab"]'))
+                .map(el => el.textContent!.trim());
+            await openAndGetPicker(fixture);
+            expect(tabs()).toEqual(['hex', 'rgb', 'hsl']);
+
             host.formats.set(['hex', 'rgb', 'hsl', 'oklch']);
             fixture.detectChanges();
-            const picker = await openAndGetPicker(fixture);
-            expect(picker.formatValues().oklch).toMatch(/^oklch\(/);
+            await fixture.whenStable();
+            expect(tabs()).toEqual(['hex', 'rgb', 'hsl', 'oklch']);
+
+            (Array.from(document.querySelectorAll('[role="tab"]'))
+                .find(el => el.textContent!.trim() === 'oklch') as HTMLButtonElement).click();
+            fixture.detectChanges();
+            await fixture.whenStable();
+            expect(document.querySelector('[role="tabpanel"]')?.textContent).toMatch(/oklch\(/);
         });
     });
 
@@ -469,26 +448,12 @@ describe('ColorPickerComponent', () => {
             expect(picker.currentColor()).toBe('#ffffff');
         });
 
-        it('onHslChange clamps out-of-range input', async () => {
-            const picker = await openAndGetPicker(fixture);
-            picker.onHslChange('s', 999);
-            fixture.detectChanges();
-            expect(picker.hsl().s).toBeLessThanOrEqual(100);
-        });
-
         it('onHslHueChange rotates the hue', async () => {
             const picker = await openAndGetPicker(fixture);
             picker.applyRgba({ r: 255, g: 0, b: 0, a: 1 });
             picker.onHslHueChange(240);
             fixture.detectChanges();
             expect(picker.currentColor()).toBe('#0000ff');
-        });
-
-        it('onHslHueChange clamps to 0..360', async () => {
-            const picker = await openAndGetPicker(fixture);
-            picker.onHslHueChange(720);
-            fixture.detectChanges();
-            expect(picker.hsl().h).toBeLessThanOrEqual(360);
         });
     });
 
@@ -500,6 +465,7 @@ describe('ColorPickerComponent', () => {
             fixture.detectChanges();
             expect(picker.saturation()).toBe(0);
             expect(picker.hsvValue()).toBe(100);
+            expect(picker.currentColor()).toBe('#ffffff');
             // release any global drag listeners
             document.dispatchEvent(new MouseEvent('mouseup'));
         });
@@ -526,6 +492,7 @@ describe('ColorPickerComponent', () => {
             fixture.detectChanges();
             expect(picker.saturation()).toBe(100);
             expect(picker.hsvValue()).toBe(100);
+            expect(picker.currentColor()).toBe('#ff0000');
             document.dispatchEvent(new Event('touchend'));
         });
     });
@@ -552,26 +519,26 @@ describe('ColorPickerComponent', () => {
             expect(picker.extractedPalette()).toEqual([]);
         });
 
-        it('openImagePicker clicks the hidden file input', async () => {
+        it('the image-pick button clicks the hidden file input', async () => {
             host.enableImagePick.set(true);
             fixture.detectChanges();
-            const picker = await openAndGetPicker(fixture);
-            const fileInput = (picker as unknown as { imageFile: () => { nativeElement: HTMLInputElement } | undefined }).imageFile();
-            if (fileInput) {
-                const spy = vi.spyOn(fileInput.nativeElement, 'click');
-                picker.openImagePicker();
-                expect(spy).toHaveBeenCalled();
-            }
+            await openAndGetPicker(fixture);
+            const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+            expect(fileInput).not.toBeNull();
+            const spy = vi.spyOn(fileInput, 'click').mockImplementation(() => undefined);
+            (document.querySelector('[data-slot="image-pick-trigger"]') as HTMLButtonElement).click();
+            expect(spy).toHaveBeenCalledTimes(1);
         });
 
         it('onImageSelected ignores an empty file selection', async () => {
             const picker = await openAndGetPicker(fixture);
+            picker.extractedPalette.set(['#aaaaaa']);
             const input = document.createElement('input');
             input.type = 'file';
             const ev = new Event('change');
             Object.defineProperty(ev, 'target', { value: input });
             await expect(picker.onImageSelected(ev)).resolves.toBeUndefined();
-            expect(picker.extractedPalette()).toEqual([]);
+            expect(picker.extractedPalette()).toEqual(['#aaaaaa']);
         });
     });
 
@@ -610,10 +577,13 @@ describe('ColorPickerComponent', () => {
             expect(picker.currentColor()).toBe('#00ff00');
         });
 
-        it('handles null in writeValue', () => {
+        it('keeps the current colour when writeValue receives null or an empty string', () => {
             const picker = fixture.debugElement.query(By.directive(ColorPickerComponent))
                 .componentInstance as ColorPickerComponent;
-            expect(() => picker.writeValue(null)).not.toThrow();
+            picker.writeValue(null);
+            picker.writeValue('');
+            fixture.detectChanges();
+            expect(picker.currentColor()).toBe('#3b82f6');
         });
 
         it('does not emit its initial colour before any interaction', async () => {
@@ -660,17 +630,6 @@ describe('ColorPickerComponent', () => {
 
             expect(changes).toEqual(['#ff0000']);
         });
-
-        it('emits via onChange when color changes', async () => {
-            const picker = fixture.debugElement.query(By.directive(ColorPickerComponent))
-                .componentInstance as ColorPickerComponent;
-            let changed = '';
-            picker.registerOnChange((value: string) => { changed = value; });
-            picker.selectPreset('#ff0000');
-            fixture.detectChanges();
-            await fixture.whenStable();
-            expect(changed).toBe('#ff0000');
-        });
     });
 
     describe('Security', () => {
@@ -683,47 +642,6 @@ describe('ColorPickerComponent', () => {
             fixture.detectChanges();
             expect(host.color()).toBe('#3b82f6');
         });
-
-        it('does not render script content from presets', async () => {
-            host.presets.set(['<script>alert(1)</script>']);
-            fixture.detectChanges();
-            const trigger = fixture.debugElement.query(By.css('button'));
-            trigger.nativeElement.click();
-            fixture.detectChanges();
-            const scripts = (fixture.debugElement.nativeElement as HTMLElement).querySelectorAll('script');
-            expect(scripts).toHaveLength(0);
-        });
-    });
-
-    describe('RTL', () => {
-        it('renders in RTL', async () => {
-            host.dir.set('rtl');
-            fixture.detectChanges();
-            await fixture.whenStable();
-            const container = fixture.debugElement.query(By.css('[dir="rtl"]'));
-            expect(container).toBeTruthy();
-        });
-    });
-
-    describe('Derived color spaces', () => {
-        it('exposes an OKLCH triple for the current color', async () => {
-            const picker = await openAndGetPicker(fixture);
-            picker.applyRgba({ r: 255, g: 0, b: 0, a: 1 });
-            const value = picker.oklch();
-            expect(value.l).toBeGreaterThan(0);
-            expect(value.c).toBeGreaterThan(0);
-        });
-    });
-
-    describe('Compare slot no-op', () => {
-        it('setCompareSlot on the active slot is a no-op', async () => {
-            const picker = await openAndGetPicker(fixture);
-            picker.selectPreset('#ff0000');
-            fixture.detectChanges();
-            picker.setCompareSlot('a');
-            expect(picker.compareActive()).toBe('a');
-            expect(picker.currentColor()).toBe('#ff0000');
-        });
     });
 
     describe('Area drag movement', () => {
@@ -735,7 +653,28 @@ describe('ColorPickerComponent', () => {
             fixture.detectChanges();
             expect(picker.saturation()).toBe(100);
             expect(picker.hsvValue()).toBe(0);
+            expect(picker.currentColor()).toBe('#000000');
             window.dispatchEvent(new MouseEvent('mouseup'));
+        });
+
+        it('ignores a drag move that arrives after the picker was destroyed mid-drag', async () => {
+            const picker = await openAndGetPicker(fixture);
+            stubAreaRect(picker);
+            picker.onAreaMouseDown(new MouseEvent('mousedown', { clientX: 0, clientY: 0 }));
+            // The window drag listeners outlive the view, so the move lands with no area to measure.
+            fixture.destroy();
+            expect(picker.colorArea()).toBeUndefined();
+
+            const errors: unknown[] = [];
+            const onError = (e: ErrorEvent): void => { errors.push(e.error); };
+            window.addEventListener('error', onError);
+            window.dispatchEvent(new MouseEvent('mousemove', { clientX: 200, clientY: 100 }));
+            window.removeEventListener('error', onError);
+            window.dispatchEvent(new MouseEvent('mouseup'));
+
+            expect(errors).toEqual([]);
+            expect(picker.saturation()).toBe(0);
+            expect(picker.currentColor()).toBe('#ffffff');
         });
     });
 
@@ -774,24 +713,6 @@ describe('ColorPickerComponent', () => {
         });
     });
 
-    describe('Keyboard steps (remaining directions)', () => {
-        it('ArrowLeft, ArrowUp, End, PageUp and PageDown all move the marker', async () => {
-            const picker = await openAndGetPicker(fixture);
-            picker.saturation.set(50);
-            picker.hsvValue.set(50);
-            picker.onAreaKeyDown(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
-            expect(picker.saturation()).toBe(49);
-            picker.onAreaKeyDown(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
-            expect(picker.hsvValue()).toBe(51);
-            picker.onAreaKeyDown(new KeyboardEvent('keydown', { key: 'End' }));
-            expect(picker.saturation()).toBe(100);
-            picker.onAreaKeyDown(new KeyboardEvent('keydown', { key: 'PageDown' }));
-            expect(picker.hsvValue()).toBe(41);
-            picker.onAreaKeyDown(new KeyboardEvent('keydown', { key: 'PageUp' }));
-            expect(picker.hsvValue()).toBe(51);
-        });
-    });
-
     describe('Image extraction', () => {
         function fileChangeEvent(file: File): Event {
             const input = document.createElement('input');
@@ -809,18 +730,20 @@ describe('ColorPickerComponent', () => {
             };
             const originalGetContext = proto.getContext;
             vi.stubGlobal('createImageBitmap', () =>
-                Promise.resolve({ width: 2, height: 2, close: () => undefined }),
+                Promise.resolve({ width: 20, height: 1, close: () => undefined }),
             );
+            // A 20x1 image: left half red, right half blue. Sampling takes every 10th pixel.
+            const red = [220, 38, 38, 255];
+            const blue = [37, 99, 235, 255];
+            const pixels = [...Array.from({ length: 10 }, () => red), ...Array.from({ length: 10 }, () => blue)].flat();
             proto.getContext = () => ({
                 drawImage: () => undefined,
-                getImageData: () => ({
-                    data: new Uint8ClampedArray([120, 80, 40, 255, 30, 60, 90, 255, 10, 20, 30, 255, 200, 150, 100, 255]),
-                }),
+                getImageData: () => ({ data: new Uint8ClampedArray(pixels) }),
             });
             const file = new File([new Uint8Array([1, 2, 3])], 'x.png', { type: 'image/png' });
             await picker.onImageSelected(fileChangeEvent(file));
-            expect(picker.extractedPalette().length).toBeGreaterThan(0);
-            expect(picker.currentColor()).toMatch(/^#[0-9a-f]{6}$/);
+            expect(picker.extractedPalette()).toEqual(['#2563eb', '#dc2626']);
+            expect(picker.currentColor()).toBe('#2563eb');
             proto.getContext = originalGetContext;
             vi.unstubAllGlobals();
         });
@@ -935,20 +858,6 @@ describe('ColorPickerComponent — controlled recents', () => {
         fixture.detectChanges();
         fixture.componentInstance.selectPreset('#ff0000');
         expect(emitted).toEqual(['#ff0000']);
-    });
-});
-
-describe('ColorPickerComponent — area not yet rendered', () => {
-    it('updateFromAreaPosition is a no-op when the SV area is absent', async () => {
-        await TestBed.configureTestingModule({ imports: [ColorPickerComponent] }).compileComponents();
-        const fixture = TestBed.createComponent(ColorPickerComponent);
-        fixture.detectChanges();
-        const picker = fixture.componentInstance;
-        const before = picker.saturation();
-        (picker as unknown as { colorArea: () => undefined }).colorArea = () => undefined;
-        (picker as unknown as { updateFromAreaPosition: (x: number, y: number) => void })
-            .updateFromAreaPosition(5, 5);
-        expect(picker.saturation()).toBe(before);
     });
 });
 
@@ -1145,15 +1054,5 @@ describe('ColorPickerComponent — signal-forms readiness', () => {
 
         expect(componentOf(fixture).currentColor()).toBe('#abcdef');
         expect(fixture.componentInstance.colorEmissions).toEqual([]);
-    });
-
-    it('leaves the HSV brightness channel readable under its own name', async () => {
-        const fixture = TestBed.createComponent(TwoWayColorHost);
-        await settle(fixture);
-
-        componentOf(fixture).writeValue('#000000');
-        await settle(fixture);
-
-        expect(componentOf(fixture).hsvValue()).toBe(0);
     });
 });

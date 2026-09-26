@@ -39,12 +39,6 @@ describe('DatePickerComponent', () => {
         component = fixture.componentInstance;
     });
 
-    it('should create', () => {
-        fixture.detectChanges();
-        expect(fixture.debugElement.query(By.directive(DatePickerComponent))).toBeTruthy();
-        expect(fixture.debugElement.query(By.directive(DateRangePickerComponent))).toBeTruthy();
-    });
-
     it('should display placeholder initially', () => {
         fixture.detectChanges();
         const picker = fixture.debugElement.query(By.directive(DatePickerComponent));

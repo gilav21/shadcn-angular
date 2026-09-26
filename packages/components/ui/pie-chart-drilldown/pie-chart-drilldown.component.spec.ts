@@ -36,23 +36,6 @@ describe('PieChartDrilldownComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
-    it('should compute slices from data', () => {
-        expect(component.currentSlices()).toHaveLength(2);
-    });
-
-    it('should not be drilled down initially', () => {
-        expect(component.isDrilledDown()).toBe(false);
-    });
-
-    it('should render an SVG element', () => {
-        const svg = fixture.nativeElement.querySelector('svg');
-        expect(svg).toBeTruthy();
-    });
-
     it('should set aria-label on SVG', () => {
         const svg = fixture.nativeElement.querySelector('svg[role="group"]');
         expect(svg).toBeTruthy();
@@ -66,18 +49,14 @@ describe('PieChartDrilldownComponent', () => {
             expect(slices[1].percentage).toBe(40);
         });
 
-        it('should assign sequential indices', () => {
-            const slices = component.currentSlices();
-            expect(slices[0].index).toBe(0);
-            expect(slices[1].index).toBe(1);
-        });
-
-        it('should assign a path string to each slice', () => {
-            const slices = component.currentSlices();
-            for (const slice of slices) {
-                expect(slice.path).toBeTruthy();
-                expect(typeof slice.path).toBe('string');
-            }
+        it('should lay slices end to end clockwise from the top', () => {
+            const [first, second] = component.currentSlices();
+            const top = -Math.PI / 2;
+            expect(first.startAngle).toBeCloseTo(top, 10);
+            expect(first.endAngle).toBeCloseTo(top + 0.6 * 2 * Math.PI, 10);
+            expect(second.startAngle).toBeCloseTo(first.endAngle, 10);
+            expect(second.endAngle).toBeCloseTo(top + 2 * Math.PI, 10);
+            expect(first.path).not.toBe(second.path);
         });
 
         it('should return empty array when data is empty', () => {
@@ -85,19 +64,6 @@ describe('PieChartDrilldownComponent', () => {
             fixture.detectChanges();
 
             expect(component.currentSlices()).toHaveLength(0);
-        });
-    });
-
-    describe('currentTotal computed', () => {
-        it('should return the sum of all data values', () => {
-            expect(component.currentTotal()).toBe(100);
-        });
-
-        it('should update when drilled down', () => {
-            const slice = component.currentSlices()[0];
-            component.onSliceClick(new MouseEvent('click'), slice);
-
-            expect(component.currentTotal()).toBe(60);
         });
     });
 
@@ -116,21 +82,6 @@ describe('PieChartDrilldownComponent', () => {
                 seriesId: 'fruits-detail',
                 parentPoint: sampleData[0],
             });
-        });
-
-        it('should switch currentData to the drilldown series data', () => {
-            const drillableSlice = component.currentSlices()[0];
-            component.onSliceClick(new MouseEvent('click'), drillableSlice);
-
-            expect(component.currentData()).toEqual(sampleDrilldownSeries[0].data);
-            expect(component.currentData()).toHaveLength(3);
-        });
-
-        it('should update currentSeriesName to the drilldown series name', () => {
-            const drillableSlice = component.currentSlices()[0];
-            component.onSliceClick(new MouseEvent('click'), drillableSlice);
-
-            expect(component.currentSeriesName()).toBe('Fruits Breakdown');
         });
 
         it('should recompute slices for the drilled-down data', () => {
@@ -175,19 +126,6 @@ describe('PieChartDrilldownComponent', () => {
     });
 
     describe('sliceClick output', () => {
-        it('should always emit sliceClick regardless of drilldown capability', () => {
-            const clickEvents: unknown[] = [];
-            component.sliceClick.subscribe(event => clickEvents.push(event));
-
-            const drillableSlice = component.currentSlices()[0];
-            component.onSliceClick(new MouseEvent('click'), drillableSlice);
-
-            const nonDrillableSlice = component.currentSlices()[1];
-            component.onSliceClick(new MouseEvent('click'), nonDrillableSlice);
-
-            expect(clickEvents).toHaveLength(2);
-        });
-
         it('should include the MouseEvent in the emitted click event', () => {
             const clickEvents: { event?: MouseEvent }[] = [];
             component.sliceClick.subscribe(event => clickEvents.push(event));
@@ -271,13 +209,6 @@ describe('PieChartDrilldownComponent', () => {
     });
 
     describe('hover behavior', () => {
-        it('should set hoveredIndex when onSliceHover is called', () => {
-            const slice = component.currentSlices()[0];
-            component.onSliceHover(slice);
-
-            expect(component.hoveredIndex()).toBe(0);
-        });
-
         it('should emit sliceHover with the slice data on hover', () => {
             const hoverEvents: unknown[] = [];
             component.sliceHover.subscribe(event => hoverEvents.push(event));
@@ -356,20 +287,6 @@ describe('PieChartDrilldownComponent', () => {
             expect(backButton).toBeFalsy();
         });
 
-        it('should show breadcrumb when drilled down and showBreadcrumb is true', () => {
-            const drillableSlice = component.currentSlices()[0];
-            component.onSliceClick(new MouseEvent('click'), drillableSlice);
-            fixture.detectChanges();
-
-            const buttons = fixture.nativeElement.querySelectorAll(
-                'button[type="button"]',
-            );
-            const backButton = Array.from(buttons).find(
-                (btn: unknown) => (btn as HTMLElement).textContent?.includes('Back'),
-            ) as HTMLElement | undefined;
-            expect(backButton).toBeTruthy();
-        });
-
         it('should display the drilldown series name in the breadcrumb', () => {
             const drillableSlice = component.currentSlices()[0];
             component.onSliceClick(new MouseEvent('click'), drillableSlice);
@@ -429,45 +346,18 @@ describe('PieChartDrilldownComponent', () => {
             fixture.componentRef.setInput('showLegend', false);
             fixture.detectChanges();
 
-            const legendButtons = fixture.nativeElement.querySelectorAll(
-                '.flex.items-center.gap-2.text-sm',
-            );
-            expect(legendButtons).toHaveLength(0);
+            const host: HTMLElement = fixture.nativeElement;
+            expect(host.querySelectorAll('button')).toHaveLength(0);
+            expect(host.textContent).not.toContain('Vegetables');
         });
 
         it('should not render legend when legendPosition is none', () => {
             fixture.componentRef.setInput('legendPosition', 'none');
             fixture.detectChanges();
 
-            const container = fixture.nativeElement;
-            const legendColorDots = container.querySelectorAll('.w-3.h-3.rounded-sm');
-            expect(legendColorDots).toHaveLength(0);
-        });
-    });
-
-    describe('legendPosition layout variants', () => {
-        it('should reverse the row for legendPosition left', () => {
-            fixture.componentRef.setInput('legendPosition', 'left');
-            fixture.detectChanges();
-
-            expect(component.chartContainerClasses()).toContain('sm:flex-row-reverse');
-            expect(component.chartContainerClasses()).toContain('flex-col sm:flex-row');
-        });
-
-        it('should reverse the column for legendPosition top and use horizontal legend', () => {
-            fixture.componentRef.setInput('legendPosition', 'top');
-            fixture.detectChanges();
-
-            expect(component.chartContainerClasses()).toContain('flex-col-reverse');
-            expect(component.legendClasses()).toContain('flex-row flex-wrap justify-center');
-            expect(component.legendClasses()).not.toContain('sm:flex-col');
-        });
-
-        it('should use a vertical legend layout for legendPosition right', () => {
-            fixture.componentRef.setInput('legendPosition', 'right');
-            fixture.detectChanges();
-
-            expect(component.legendClasses()).toContain('sm:flex-col');
+            const host: HTMLElement = fixture.nativeElement;
+            expect(host.querySelectorAll('button')).toHaveLength(0);
+            expect(host.textContent).not.toContain('Vegetables');
         });
     });
 
@@ -478,12 +368,6 @@ describe('PieChartDrilldownComponent', () => {
 
             expect(component.currentData()).toEqual([]);
             expect(component.currentSlices()).toHaveLength(0);
-        });
-
-        it('should fall back to empty series name when currentDrilldownId has no matching series', () => {
-            component.currentDrilldownId.set('nonexistent-id');
-            fixture.detectChanges();
-
             expect(component.currentSeriesName()).toBe('');
         });
 

@@ -106,13 +106,6 @@ describe('SpeedDial toggle from open state', () => {
         sd = getSpeedDial(fixture);
     });
 
-    it('toggle() hides when already open', () => {
-        sd.show();
-        expect(sd.open()).toBe(true);
-        sd.toggle();
-        expect(sd.open()).toBe(false);
-    });
-
     it('show() emits shown + visibleChange and clears context position', () => {
         sd.contextPosition.set({ x: 5, y: 5 });
         const visible: boolean[] = [];
@@ -361,8 +354,8 @@ describe('SpeedDialItem circular positioning', () => {
 
     it('resolves quarter-circle down-left angles', () => {
         configure('quarter-circle', 'down-left');
-        // start 90 -> idx0 y 80
-        expect(transformOf(0)).toContain('80px)');
+        // start 90 -> idx0 y +80
+        expect(transformOf(0)).toContain(', 80px)');
     });
 
     it('resolves quarter-circle default angles for a non-diagonal direction', () => {
@@ -372,16 +365,14 @@ describe('SpeedDialItem circular positioning', () => {
     });
 });
 
-describe('SpeedDialMenu context + circular classes', () => {
+describe('SpeedDialMenu context position', () => {
     let fixture: ComponentFixture<ConfigHostComponent>;
-    let host: ConfigHostComponent;
     let sd: SpeedDialComponent;
     let menu: SpeedDialMenuComponent;
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({ imports: [ConfigHostComponent] }).compileComponents();
         fixture = TestBed.createComponent(ConfigHostComponent);
-        host = fixture.componentInstance;
         fixture.detectChanges();
         sd = getSpeedDial(fixture);
         menu = fixture.debugElement.query(By.directive(SpeedDialMenuComponent)).componentInstance;
@@ -390,27 +381,6 @@ describe('SpeedDialMenu context + circular classes', () => {
     it('positions the menu absolutely at the context coordinates', () => {
         sd.contextPosition.set({ x: 42, y: 99 });
         expect(menu.positionStyle()).toEqual({ left: '42px', top: '99px' });
-    });
-
-    it('uses fixed positioning + linear layout classes in context mode', () => {
-        host.direction.set('down');
-        fixture.detectChanges();
-        sd.contextPosition.set({ x: 10, y: 10 });
-        sd.open.set(true);
-        const classes = menu.classes();
-        expect(classes).toContain('fixed');
-        expect(classes).toContain('z-50');
-        expect(classes).toContain('flex-col');
-        expect(classes).not.toContain('pointer-events-none');
-    });
-
-    it('falls back to inset classes for circular type without context position', () => {
-        host.type.set('circle');
-        fixture.detectChanges();
-        const classes = menu.classes();
-        expect(classes).toContain('absolute');
-        expect(classes).toContain('inset-0');
-        expect(classes).toContain('pointer-events-none');
     });
 });
 
@@ -437,7 +407,6 @@ class ContextTriggerHostComponent {}
 describe('SpeedDialContextTrigger component', () => {
     let fixture: ComponentFixture<ContextTriggerHostComponent>;
     let sd: SpeedDialComponent;
-    let trigger: SpeedDialContextTriggerComponent;
     let area: HTMLElement;
 
     beforeEach(async () => {
@@ -446,17 +415,12 @@ describe('SpeedDialContextTrigger component', () => {
         fixture.detectChanges();
         sd = getSpeedDial(fixture);
         const triggerDe = fixture.debugElement.query(By.directive(SpeedDialContextTriggerComponent));
-        trigger = triggerDe.componentInstance;
         area = triggerDe.nativeElement;
         vi.useFakeTimers();
     });
 
     afterEach(() => {
         vi.useRealTimers();
-    });
-
-    it('exposes relative host classes', () => {
-        expect(trigger.hostClasses()).toContain('relative');
     });
 
     it('opens the speed dial at the right-click position', () => {

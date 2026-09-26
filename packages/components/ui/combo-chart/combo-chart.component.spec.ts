@@ -142,23 +142,12 @@ describe('ComboChartComponent', () => {
         vi.unstubAllGlobals();
     });
 
-    it('renders with an accessible Combo chart label', () => {
-        const container = fixture.nativeElement.querySelector('[role="group"]');
-        expect(container.getAttribute('aria-label')).toContain('Combo chart');
-    });
-
     it('includes the title in the accessible label', () => {
         fixture.componentRef.setInput('title', 'Pareto');
         fixture.detectChanges();
         const container = fixture.nativeElement.querySelector('[role="group"]');
+        expect(container.getAttribute('aria-label')).toContain('Combo chart');
         expect(container.getAttribute('aria-label')).toContain('Pareto');
-    });
-
-    it('renders one bar per category per bar series', () => {
-        const bars = fixture.nativeElement.querySelectorAll(
-            'rect[data-slot="combo-bar"]',
-        );
-        expect(bars).toHaveLength(4);
     });
 
     it('renders side-by-side bars for multiple bar series', () => {
@@ -188,8 +177,13 @@ describe('ComboChartComponent', () => {
         expect(component.categories()).toEqual(['A', 'B', 'C', 'D']);
     });
 
-    it('sets the primary y-domain from the bar values', () => {
-        expect(component.primaryMax()).toBe(50);
+    it('sets the primary y-domain from the max across every bar series', () => {
+        fixture.componentRef.setInput('barSeries', [
+            barSeries[0],
+            { name: 'Rework', data: [{ name: 'A', value: 20 }, { name: 'B', value: 72 }, { name: 'C', value: 9 }, { name: 'D', value: 3 }] },
+        ]);
+        fixture.detectChanges();
+        expect(component.primaryMax()).toBe(72);
     });
 
     it('falls back to a primary max of 1 when the bar data is empty', () => {
@@ -200,12 +194,10 @@ describe('ComboChartComponent', () => {
     });
 
     it('renders y-axis grid lines and primary ticks', () => {
+        expect(component.primaryTicks().map((t) => t.value)).toEqual([0, 10, 20, 30, 40, 50]);
         expect(
-            fixture.nativeElement.querySelectorAll('line[data-slot="grid-line"]')
-                .length,
-        ).toBeGreaterThan(0);
-        expect(component.primaryTicks()[0].value).toBe(0);
-        expect(component.primaryTicks().length).toBeGreaterThan(1);
+            fixture.nativeElement.querySelectorAll('line[data-slot="grid-line"]'),
+        ).toHaveLength(component.primaryTicks().length);
     });
 
     it('hides grid lines when showGrid is false', () => {
@@ -317,10 +309,10 @@ describe('ComboChartComponent', () => {
     it('exposes the hovered crosshair position and renders the crosshair', () => {
         component.setHover(1);
         fixture.detectChanges();
-        expect(component.crosshairX()).not.toBeNull();
-        expect(
-            fixture.nativeElement.querySelector('line[data-slot="crosshair"]'),
-        ).toBeTruthy();
+        const centreB = component.categoryCenters()[1].x;
+        expect(component.crosshairX()).toBe(centreB);
+        const line = fixture.nativeElement.querySelector('line[data-slot="crosshair"]');
+        expect(Number(line.getAttribute('x1'))).toBeCloseTo(centreB, 5);
     });
 
     it('updates hover state and tooltip position on pointer move', () => {
@@ -329,27 +321,16 @@ describe('ComboChartComponent', () => {
             new MouseEvent('mousemove', { clientX: 480, clientY: 100 }),
         );
         fixture.detectChanges();
-        expect(component.hoveredIndex()).not.toBeNull();
-        expect(component.tooltipPos().x).toBeGreaterThan(0);
+        expect(component.hoveredIndex()).toBe(3);
+        expect(component.tooltipPos().x).toBeCloseTo(component.categoryCenters()[3].x + 12, 5);
     });
 
     it('ignores pointer moves when there are no categories', () => {
         fixture.componentRef.setInput('barSeries', [{ name: 'Empty', data: [] }]);
         fixture.detectChanges();
-        const svg = fixture.nativeElement.querySelector('svg') as SVGSVGElement;
-        svg.dispatchEvent(
-            new MouseEvent('mousemove', { clientX: 100, clientY: 100 }),
-        );
-        expect(component.hoveredIndex()).toBeNull();
-    });
-
-    it('does nothing on pointer move when the svg ref is unavailable', () => {
-        (
-            component as unknown as { _svg: () => undefined }
-        )._svg = () => undefined;
-        component.onPointerMove(
-            new MouseEvent('mousemove', { clientX: 10, clientY: 10 }),
-        );
+        expect(() =>
+            component.onPointerMove(new MouseEvent('mousemove', { clientX: 100, clientY: 100 })),
+        ).not.toThrow();
         expect(component.hoveredIndex()).toBeNull();
     });
 
@@ -378,12 +359,13 @@ describe('ComboChartComponent', () => {
     it('clicking a rendered bar emits its datum', () => {
         const events: ChartClickEvent[] = [];
         component.barClick.subscribe((e) => events.push(e));
-        const bar = fixture.nativeElement.querySelector(
+        const bars = fixture.nativeElement.querySelectorAll(
             'rect[data-slot="combo-bar"]',
-        ) as SVGRectElement;
-        bar.dispatchEvent(new MouseEvent('click'));
+        );
+        (bars[2] as SVGRectElement).dispatchEvent(new MouseEvent('click'));
         expect(events).toHaveLength(1);
-        expect(events[0].point.value).toBe(50);
+        expect(events[0].index).toBe(2);
+        expect(events[0].point.value).toBe(15);
     });
 
     it('resolves rtl layout from the dir input', () => {
@@ -391,19 +373,7 @@ describe('ComboChartComponent', () => {
         fixture.detectChanges();
         expect(component.isRtl()).toBe(true);
         const bandBars = component.bars();
-        expect(bandBars).toHaveLength(4);
-    });
-
-    it('forces ltr layout when dir is ltr', () => {
-        fixture.componentRef.setInput('dir', 'ltr');
-        fixture.detectChanges();
-        expect(component.isRtl()).toBe(false);
-    });
-
-    it('falls back to DOM direction when dir is auto', () => {
-        fixture.componentRef.setInput('dir', 'auto');
-        fixture.detectChanges();
-        expect(component.isRtl()).toBe(false);
+        expect(bandBars[0].x).toBeGreaterThan(bandBars[3].x);
     });
 
     it('hides the tooltip and legend when disabled', () => {

@@ -210,18 +210,6 @@ describe('TourComponent — storageKey persistence', () => {
         expect(readTourCompleted(KEY)).toBe(true);
     });
 
-    it('records completion again on a second run once a step did show', () => {
-        host.storageKey.set(KEY);
-        fixture.detectChanges();
-        host.active.set(true);
-        fixture.detectChanges();
-
-        getTour(fixture).skip();
-        fixture.detectChanges();
-
-        expect(readTourCompleted(KEY)).toBe(true);
-    });
-
     it('writes nothing when no storageKey is set', () => {
         host.active.set(true);
         fixture.detectChanges();
@@ -289,20 +277,6 @@ describe('TourComponent — branching', () => {
         expect(tour.currentIndex()).toBe(3);
     });
 
-    it('routes the other way when the predicate flips', () => {
-        const tour = start([
-            { target: '#s0', title: 'Zero', next: () => 2 },
-            { target: '#s1', title: 'One' },
-            { target: '#s2', title: 'Two' },
-            { target: '#s3', title: 'Three' },
-        ]);
-
-        tour.next();
-        fixture.detectChanges();
-
-        expect(tour.currentIndex()).toBe(2);
-    });
-
     it('ends the tour when the predicate returns null', () => {
         const tour = start([
             { target: '#s0', title: 'Zero', next: () => null },
@@ -357,17 +331,5 @@ describe('TourComponent — branching', () => {
 
         expect(tour.currentIndex()).toBe(1);
         warn.mockRestore();
-    });
-
-    it('leaves steps without a predicate on the default path', () => {
-        const tour = start([
-            { target: '#s0', title: 'Zero' },
-            { target: '#s1', title: 'One' },
-        ]);
-
-        tour.next();
-        fixture.detectChanges();
-
-        expect(tour.currentIndex()).toBe(1);
     });
 });

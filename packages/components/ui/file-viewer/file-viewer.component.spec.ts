@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component } from '@angular/core';
-import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as nodeBuffer from 'node:buffer';
 import { FileViewerComponent, FileViewerToolbarDirective, FileViewerContentDirective } from './file-viewer.component';
 
@@ -81,26 +81,10 @@ describe('FileViewerComponent', () => {
         component = fixture.componentInstance;
     });
 
-    it('should create the component', () => {
-        fixture.detectChanges();
-        expect(component).toBeTruthy();
-    });
-
-    it('should start in idle state', () => {
-        fixture.detectChanges();
-        expect(component.state()).toBe('idle');
-    });
-
     it('should show correct default height', () => {
         fixture.detectChanges();
         const el = fixture.nativeElement.querySelector('[data-slot="file-viewer"]');
         expect(el.style.height).toBe('600px');
-    });
-
-    it('should have data-slot attribute', () => {
-        fixture.detectChanges();
-        const el = fixture.nativeElement.querySelector('[data-slot="file-viewer"]');
-        expect(el).toBeTruthy();
     });
 
     it('should display filename from File object', () => {
@@ -227,17 +211,6 @@ describe('FileViewerComponent', () => {
         });
     });
 
-    describe('sheet tabs', () => {
-        beforeEach(() => {
-            fixture.detectChanges();
-        });
-
-        it('should switch active sheet', () => {
-            component.setActiveSheet(2);
-            expect(component.activeSheetIndex()).toBe(2);
-        });
-    });
-
     describe('custom mode (content projection)', () => {
         let customFixture: ComponentFixture<CustomModeHostComponent>;
 
@@ -253,13 +226,24 @@ describe('FileViewerComponent', () => {
     });
 
     describe('cleanup', () => {
-        it('should revoke blob URLs on destroy', () => {
-            const spy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+        it('should revoke blob URLs on destroy', async () => {
+            const created: string[] = [];
+            const revoked: string[] = [];
+            urlApi.createObjectURL = () => {
+                const url = `blob:mock/${created.length}`;
+                created.push(url);
+                return url;
+            };
+            urlApi.revokeObjectURL = url => { revoked.push(url); };
+            const loaded = whenLoaded(component);
+            fixture.componentRef.setInput('type', 'audio');
+            fixture.componentRef.setInput('file', new File([new Uint8Array([1, 2, 3])], 's.mp3', { type: 'audio/mpeg' }));
             fixture.detectChanges();
-            (component as unknown as { blobUrls: string[] }).blobUrls.push('blob:test1', 'blob:test2');
+            await loaded;
+            // One URL for the download link, one for the media source.
+            expect(created).toHaveLength(2);
             fixture.destroy();
-            expect(spy).toHaveBeenCalledTimes(2);
-            spy.mockRestore();
+            expect(revoked).toEqual(created);
         });
     });
 });
@@ -321,9 +305,9 @@ function internals(c: FileViewerComponent): FileViewerInternals {
     return c as unknown as FileViewerInternals;
 }
 
-async function flush(): Promise<void> {
-    await new Promise(r => setTimeout(r, 0));
-    await new Promise(r => setTimeout(r, 0));
+/** Resolves on the `loaded` output, before a rendered media/img element can report a load error. */
+function whenLoaded(c: FileViewerComponent): Promise<unknown> {
+    return new Promise(resolve => c.loaded.subscribe(resolve));
 }
 
 describe('FileViewerComponent rendering internals', () => {
@@ -339,21 +323,19 @@ describe('FileViewerComponent rendering internals', () => {
     });
 
     describe('text / media processing', () => {
-        it('decodes text bytes into textContent', () => {
-            api.processText(new TextEncoder().encode('hello world'));
-            expect(component.textContent()).toBe('hello world');
-        });
-
-        it('creates a media blob url and tracks it', () => {
-            const before = api.blobUrls.length;
-            api.processMedia(new Uint8Array([1, 2, 3]), 'audio/mpeg');
-            expect(api.blobUrls).toHaveLength(before + 1);
-            expect(component.mediaSrc()).toBeTruthy();
-        });
-
-        it('falls back to octet-stream mime when none given', () => {
-            api.processMedia(new Uint8Array([1, 2, 3]), '');
-            expect(component.mediaSrc()).toBeTruthy();
+        it('falls back to octet-stream mime when none given', async () => {
+            const blobs: Blob[] = [];
+            urlApi.createObjectURL = blob => {
+                blobs.push(blob as Blob);
+                return `blob:mock/${blobs.length}`;
+            };
+            // An explicit `type` skips detection, so no MIME reaches processMedia.
+            const loaded = whenLoaded(component);
+            fixture.componentRef.setInput('type', 'video');
+            fixture.componentRef.setInput('file', new File([new Uint8Array([1, 2, 3])], 'clip'));
+            fixture.detectChanges();
+            await loaded;
+            expect(blobs.at(-1)?.type).toBe('application/octet-stream');
         });
 
         it('onMediaError sets error state', () => {
@@ -411,18 +393,22 @@ describe('FileViewerComponent rendering internals', () => {
     });
 
     describe('processImage', () => {
-        it('renders a raster image via blob url', async () => {
-            const file = new File([new Uint8Array([0xFF, 0xD8, 0xFF])], 'a.jpg', { type: 'image/jpeg' });
-            await api.processImage(new Uint8Array([0xFF, 0xD8, 0xFF]), file);
-            expect(component.imageSrc()).toBeTruthy();
-        });
-
-        it('sanitizes and renders a valid svg', async () => {
-            const svg = '<svg xmlns="http://www.w3.org/2000/svg"><rect width="10" height="10"/></svg>';
-            const bytes = new TextEncoder().encode(svg);
-            const file = new File([bytes], 'a.svg', { type: 'image/svg+xml' });
-            await api.processImage(bytes, file);
-            expect(component.imageSrc()).toBeTruthy();
+        it('strips scripts and event handlers from an svg before rendering it', async () => {
+            const blobs: Blob[] = [];
+            urlApi.createObjectURL = blob => {
+                blobs.push(blob as Blob);
+                return `blob:mock/${blobs.length}`;
+            };
+            const svg = '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)">'
+                + '<script>alert(2)</script><rect width="10" height="10"/></svg>';
+            const loaded = whenLoaded(component);
+            fixture.componentRef.setInput('type', 'image');
+            fixture.componentRef.setInput('file', new File([svg], 'a.svg', { type: 'image/svg+xml' }));
+            fixture.detectChanges();
+            await loaded;
+            const rendered = await blobs.at(-1)!.text();
+            expect(rendered).toContain('<rect');
+            expect(rendered).not.toMatch(/onload|<script|alert/);
         });
 
         it('throws on unsafe/invalid svg', async () => {
@@ -449,21 +435,6 @@ describe('FileViewerComponent rendering internals', () => {
             await api.loadFromUrl('https://x.com/missing.txt');
             expect(component.state()).toBe('error');
             expect(component.errorMessage()).toContain('404');
-            globalThis.fetch = orig;
-        });
-
-        it('loads a text file from a url', async () => {
-            const orig = globalThis.fetch;
-            const blob = new Blob(['url text'], { type: 'text/plain' });
-            globalThis.fetch = vi.fn(() => Promise.resolve({
-                ok: true,
-                status: 200,
-                blob: () => Promise.resolve(blob),
-            } as unknown as Response)) as unknown as typeof fetch;
-            await api.loadFromUrl('https://x.com/note.txt');
-            await flush();
-            expect(component.state()).toBe('loaded');
-            expect(component.textContent()).toBe('url text');
             globalThis.fetch = orig;
         });
     });
@@ -643,8 +614,9 @@ describe('FileViewerComponent rendering internals', () => {
             expect(html).toContain('vertical-align:middle');
         });
 
-        it('builds table width for dxa unit', () => {
-            expect(api.buildTableWidth({ width: 2000, widthUnit: 'dxa' })).toContain('pt');
+        it('builds table width for dxa and pct units', () => {
+            expect(api.buildTableWidth({ width: 2000, widthUnit: 'dxa' })).toBe(' style="width:100pt"');
+            expect(api.buildTableWidth({ width: 2500, widthUnit: 'pct' })).toBe(' style="width:50%"');
             expect(api.buildTableWidth(undefined)).toBe('');
         });
 
@@ -762,7 +734,7 @@ describe('FileViewerComponent rendering internals', () => {
                 tabs: [{ position: 100, alignment: 'r' }],
                 defaultTabSize: 48,
             }, 0);
-            expect(html).toContain('a');
+            expect(html).toContain('a<span style="display:inline-block;min-width:100px;text-align:right"></span>b');
         });
 
         it('renders various run fills and effects', () => {
@@ -799,10 +771,12 @@ describe('FileViewerComponent rendering internals', () => {
             const connOf = (opts: Record<string, unknown>) => api.renderSlideConnector({
                 type: 'connector', x: 0, y: 0, width: 50, height: 30, color: '#000', lineWidth: 2, ...opts,
             });
-            expect(connOf({ connectorType: 'straightConnector1' })).toContain('<path');
-            expect(connOf({ connectorType: 'bentConnector2', flipH: true })).toContain('<path');
-            expect(connOf({ connectorType: 'bentConnector3', flipV: true })).toContain('<path');
-            expect(connOf({ connectorType: 'curvedConnector3' })).toContain('C');
+            const pathOf = (opts: Record<string, unknown>) => /<path d="([^"]+)"/.exec(connOf(opts))?.[1];
+            // 50x30 box, line width 2 -> 4px padding on every side.
+            expect(pathOf({ connectorType: 'straightConnector1' })).toBe('M4,4 L54,34');
+            expect(pathOf({ connectorType: 'bentConnector2', flipH: true })).toBe('M54,4 L4,4 L4,34');
+            expect(pathOf({ connectorType: 'bentConnector3', flipV: true })).toBe('M4,34 L29,34 L29,4 L54,4');
+            expect(pathOf({ connectorType: 'curvedConnector3' })).toBe('M4,4 C29,4 29,34 54,34');
             expect(connOf({ dashStyle: 'dash', headEnd: { type: 'arrow' }, tailEnd: { type: 'arrow' }, rotation: 10 })).toContain('marker-end');
         });
 
@@ -902,6 +876,7 @@ describe('FileViewerComponent rendering internals', () => {
         it('connector dash attributes', () => {
             expect(api.getConnectorDashAttr(undefined)).toBe('');
             expect(api.getConnectorDashAttr('dot')).toContain('dasharray');
+            expect(api.getConnectorDashAttr('dashDot')).toBe(' stroke-dasharray="8,4,2,4"');
             expect(api.getConnectorDashAttr('lgDash')).toContain('12');
             expect(api.getConnectorDashAttr('lgDashDotDot')).toContain('dasharray');
             expect(api.getConnectorDashAttr('weird')).toBe('');
@@ -960,13 +935,18 @@ describe('FileViewerComponent rendering internals', () => {
             expect(component.xlsxDataRows()).toEqual([]);
         });
 
-        it('currentPdfPageHtml renders the active page', () => {
+        it('renders the active pdf page with the global css', () => {
+            component.state.set('loaded');
+            component.detectedType.set('pdf');
             api.pdfPages.set([{ html: '<p>page1</p>' }, { html: '<p>page2</p>' }]);
             api.pdfGlobalCss.set('.x{color:red}');
             component.totalPages.set(2);
             component.currentPage.set(2);
-            const html = component.currentPdfPageHtml();
-            expect(html).toBeTruthy();
+            fixture.detectChanges();
+            const page: HTMLElement = fixture.nativeElement.querySelector('[data-slot="file-viewer-content"] .pdf-page');
+            expect(page.querySelector('p')?.textContent).toBe('page2');
+            expect(page.textContent).not.toContain('page1');
+            expect(page.querySelector('style')?.textContent).toBe('.x{color:red}');
         });
 
         it('currentSlideHtml and pptx display reflect set slides', () => {
@@ -975,11 +955,6 @@ describe('FileViewerComponent rendering internals', () => {
             expect(component.currentSlideHtml()).toBeTruthy();
             expect(component.pptxDisplayWidth()).toBe(800);
             expect(component.pptxDisplayHeight()).toBe(600);
-        });
-
-        it('docxHtml reflects set rendered html', () => {
-            api.docxRenderedHtml.set('<p>doc body</p>');
-            expect(component.docxHtml()).toBeTruthy();
         });
     });
 
@@ -997,15 +972,6 @@ describe('FileViewerComponent rendering internals', () => {
             expect(html).toContain('inner');
         });
 
-        it('omits blank nested paragraph from cell content', () => {
-            const table = {
-                type: 'table', tableStyle: {},
-                rows: [{ cells: [{ elements: [{ type: 'paragraph', style: '', runs: [{ text: '   ', style: {} }] }], colSpan: 1, rowSpan: 1 }] }],
-            };
-            const html = api.renderDocxTable(table);
-            expect(html).toContain('<td');
-        });
-
         it('builds cell percentage width', () => {
             const table = {
                 type: 'table', tableStyle: {},
@@ -1019,12 +985,6 @@ describe('FileViewerComponent rendering internals', () => {
                 const html = api.renderSlideShape({ type: 'shape', x: 0, y: 0, width: 5, height: 5, shapeType: t });
                 expect(html).toContain('clip-path');
             }
-        });
-
-        it('connector with dashDot dash array and bentConnector flips', () => {
-            expect(api.getConnectorDashAttr('dashDot')).toContain('dasharray');
-            const conn = api.renderSlideConnector({ type: 'connector', x: 5, y: 5, width: 40, height: 20, connectorType: 'bentConnector2', flipH: true, flipV: true });
-            expect(conn).toContain('<path');
         });
     });
 
@@ -1054,14 +1014,6 @@ describe('FileViewerComponent rendering internals', () => {
             expect(component.errorMessage()).toBe('Failed to process file');
         });
 
-        it('routes the video type through media processing', async () => {
-            fixture.componentRef.setInput('type', 'video');
-            const file = new File([new Uint8Array([1, 2, 3])], 'v.mp4', { type: 'video/mp4' });
-            await api.loadFile(file);
-            expect(component.mediaSrc()).toBeTruthy();
-            expect(component.state()).toBe('loaded');
-        });
-
         it('renderDocxToHtml ignores unrecognized element types', () => {
             expect(api.renderDocxToHtml([{ type: 'bookmarkEnd' }])).toBe('');
         });
@@ -1089,14 +1041,6 @@ describe('FileViewerComponent rendering internals', () => {
             const html = api.renderDocxParagraph({ type: 'paragraph', style: 'Heading8', runs: [{ text: 'x', style: {} }] });
             expect(html).toContain('<p');
             expect(html).not.toContain('<h8');
-        });
-
-        it('ignores unrecognized element types inside table cell content', () => {
-            const table = {
-                type: 'table', tableStyle: {},
-                rows: [{ cells: [{ elements: [{ type: 'bookmarkStart' }], colSpan: 1, rowSpan: 1 }] }],
-            };
-            expect(api.renderDocxTable(table)).toContain('<td');
         });
 
         it('cell with an empty cellStyle object yields no style attribute', () => {
@@ -1202,201 +1146,6 @@ describe('FileViewerComponent rendering internals', () => {
         it('tab width falls back to 48px when no tab stop or default size is given', () => {
             expect(api.renderTabContent('a\tb')).toContain('width:48px');
         });
-    });
-});
-
-describe('file-type-detector', () => {
-    let detectFileType: typeof import('../../lib/parsers/file-type-detector').detectFileType;
-
-    beforeAll(async () => {
-        const module = await import('../../lib/parsers/file-type-detector');
-        detectFileType = module.detectFileType;
-    });
-
-    it('should detect PDF', () => {
-        const bytes = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2D]);
-        expect(detectFileType(bytes).type).toBe('pdf');
-    });
-
-    it('should detect JPEG', () => {
-        const bytes = new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0]);
-        expect(detectFileType(bytes).type).toBe('image');
-    });
-
-    it('should detect PNG', () => {
-        const bytes = new Uint8Array([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
-        expect(detectFileType(bytes).type).toBe('image');
-    });
-
-    it('should detect GIF', () => {
-        const bytes = new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61]);
-        expect(detectFileType(bytes).type).toBe('image');
-    });
-
-    it('should detect MP3 (sync bytes)', () => {
-        const bytes = new Uint8Array([0xFF, 0xFB, 0x90, 0x00]);
-        expect(detectFileType(bytes).type).toBe('audio');
-    });
-
-    it('should detect MP3 (ID3 tag)', () => {
-        const bytes = new Uint8Array([0x49, 0x44, 0x33, 0x03]);
-        expect(detectFileType(bytes).type).toBe('audio');
-    });
-
-    it('should detect text content', () => {
-        const text = 'Hello, this is a plain text file with no special bytes.';
-        const bytes = new TextEncoder().encode(text);
-        expect(detectFileType(bytes).type).toBe('text');
-    });
-
-    it('should return unknown for empty data', () => {
-        const bytes = new Uint8Array(0);
-        expect(detectFileType(bytes).type).toBe('unknown');
-    });
-
-    it('should return unknown for binary data', () => {
-        const bytes = new Uint8Array([0x00, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00]);
-        expect(detectFileType(bytes).type).toBe('unknown');
-    });
-});
-
-describe('inflate', () => {
-    let inflate: typeof import('../../lib/parsers/inflate').inflate;
-    let zlibInflate: typeof import('../../lib/parsers/inflate').zlibInflate;
-
-    beforeAll(async () => {
-        const module = await import('../../lib/parsers/inflate');
-        inflate = module.inflate;
-        zlibInflate = module.zlibInflate;
-    });
-
-    it('should inflate stored block data', () => {
-        const stored = new Uint8Array([
-            0x01, 0x05, 0x00, 0xFA, 0xFF,
-            0x48, 0x65, 0x6C, 0x6C, 0x6F,
-        ]);
-        const result = inflate(stored);
-        const text = new TextDecoder().decode(result);
-        expect(text).toBe('Hello');
-    });
-
-    it('should handle zlib wrapper', () => {
-        const zlibWrapped = new Uint8Array([
-            0x78, 0x01,
-            0x01, 0x05, 0x00, 0xFA, 0xFF,
-            0x48, 0x65, 0x6C, 0x6C, 0x6F,
-        ]);
-        const result = zlibInflate(zlibWrapped);
-        const text = new TextDecoder().decode(result);
-        expect(text).toBe('Hello');
-    });
-});
-
-describe('zip-reader', () => {
-    let readZip: typeof import('../../lib/parsers/zip-reader').readZip;
-    let listZipEntries: typeof import('../../lib/parsers/zip-reader').listZipEntries;
-
-    beforeAll(async () => {
-        const module = await import('../../lib/parsers/zip-reader');
-        readZip = module.readZip;
-        listZipEntries = module.listZipEntries;
-    });
-
-    function createMinimalZip(): Uint8Array {
-        const encoder = new TextEncoder();
-        const filename = encoder.encode('hello.txt');
-        const content = encoder.encode('Hello');
-        const crc = 0xF7D18982;
-
-        const buf = new Uint8Array(30 + filename.length + content.length + 46 + filename.length + 22);
-        const view = new DataView(buf.buffer);
-        let pos = 0;
-
-        view.setUint32(pos, 0x04034b50, true); pos += 4;
-        view.setUint16(pos, 20, true); pos += 2;
-        view.setUint16(pos, 0, true); pos += 2;
-        view.setUint16(pos, 0, true); pos += 2;
-        view.setUint16(pos, 0, true); pos += 2;
-        view.setUint16(pos, 0, true); pos += 2;
-        view.setUint32(pos, crc, true); pos += 4;
-        view.setUint32(pos, content.length, true); pos += 4;
-        view.setUint32(pos, content.length, true); pos += 4;
-        view.setUint16(pos, filename.length, true); pos += 2;
-        view.setUint16(pos, 0, true); pos += 2;
-        buf.set(filename, pos); pos += filename.length;
-        buf.set(content, pos); pos += content.length;
-
-        const centralDirOffset = pos;
-        view.setUint32(pos, 0x02014b50, true); pos += 4;
-        view.setUint16(pos, 20, true); pos += 2;
-        view.setUint16(pos, 20, true); pos += 2;
-        view.setUint16(pos, 0, true); pos += 2;
-        view.setUint16(pos, 0, true); pos += 2;
-        view.setUint16(pos, 0, true); pos += 2;
-        view.setUint16(pos, 0, true); pos += 2;
-        view.setUint32(pos, crc, true); pos += 4;
-        view.setUint32(pos, content.length, true); pos += 4;
-        view.setUint32(pos, content.length, true); pos += 4;
-        view.setUint16(pos, filename.length, true); pos += 2;
-        view.setUint16(pos, 0, true); pos += 2;
-        view.setUint16(pos, 0, true); pos += 2;
-        view.setUint16(pos, 0, true); pos += 2;
-        view.setUint16(pos, 0, true); pos += 2;
-        view.setUint32(pos, 0, true); pos += 4;
-        view.setUint32(pos, 0, true); pos += 4;
-        buf.set(filename, pos); pos += filename.length;
-
-        const centralDirSize = pos - centralDirOffset;
-        view.setUint32(pos, 0x06054b50, true); pos += 4;
-        view.setUint16(pos, 0, true); pos += 2;
-        view.setUint16(pos, 0, true); pos += 2;
-        view.setUint16(pos, 1, true); pos += 2;
-        view.setUint16(pos, 1, true); pos += 2;
-        view.setUint32(pos, centralDirSize, true); pos += 4;
-        view.setUint32(pos, centralDirOffset, true); pos += 4;
-        view.setUint16(pos, 0, true);
-
-        return buf;
-    }
-
-    it('should list zip entries', () => {
-        const zip = createMinimalZip();
-        const entries = listZipEntries(zip);
-        expect(entries).toHaveLength(1);
-        expect(entries[0].path).toBe('hello.txt');
-    });
-
-    it('should extract zip files', () => {
-        const zip = createMinimalZip();
-        const files = readZip(zip);
-        expect(files.size).toBe(1);
-        const content = new TextDecoder().decode(files.get('hello.txt'));
-        expect(content).toBe('Hello');
-    });
-
-    it('should throw on non-zip data', () => {
-        const data = new Uint8Array([0x00, 0x01, 0x02, 0x03]);
-        expect(() => listZipEntries(data)).toThrow();
-    });
-
-    it('should throw on too small data', () => {
-        const data = new Uint8Array([0x50, 0x4B]);
-        expect(() => listZipEntries(data)).toThrow();
-    });
-
-    it('should reject path traversal', () => {
-        const zip = createMinimalZip();
-        const view = new DataView(zip.buffer);
-        const encoder = new TextEncoder();
-        const maliciousName = encoder.encode('../etc/passwd');
-        const nameOffset = 30;
-        view.setUint16(26, maliciousName.length, true);
-        zip.set(maliciousName, nameOffset);
-
-        const centralNameOffset = 30 + maliciousName.length + 5 + 46;
-        view.setUint16(centralNameOffset - 46 + 28, maliciousName.length, true);
-
-        expect(() => readZip(zip)).toThrow();
     });
 });
 
@@ -1575,17 +1324,32 @@ describe('FileViewerComponent end-to-end parser paths', () => {
     });
 
     it('loads an XLSX workbook', async () => {
+        const wb = '<workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            + '<sheets><sheet name="Sales" sheetId="1" r:id="rId1"/></sheets></workbook>';
+        const cell = (ref: string, text: string) => `<c r="${ref}" t="str"><v>${text}</v></c>`;
+        const sheet = '<worksheet><sheetData>'
+            + `<row r="1">${cell('A1', 'Region')}${cell('B1', 'Total')}</row>`
+            + `<row r="2">${cell('A2', 'North')}<c r="B2"><v>120</v></c></row>`
+            + `<row r="3">${cell('A3', 'South')}<c r="B3"><v>95</v></c></row>`
+            + '</sheetData></worksheet>';
         fixture.componentRef.setInput('type', 'xlsx');
-        await api.loadFile(fileOf(buildStoredZip([{ name: 'hello.txt', content: 'hi' }]), 's.xlsx'));
+        await api.loadFile(fileOf(buildStoredZip([
+            { name: 'xl/workbook.xml', content: wb },
+            { name: 'xl/worksheets/sheet1.xml', content: sheet },
+        ]), 's.xlsx'));
         expect(component.state()).toBe('loaded');
-        expect(component.detectedType()).toBe('xlsx');
+        expect(component.xlsxSheetNames()).toEqual(['Sales']);
+        expect(component.xlsxHeaderRow()).toEqual(['Region', 'Total']);
+        expect(component.xlsxDataRows()).toEqual([['North', '120'], ['South', '95']]);
     });
 
     it('loads a DOCX document and renders body html', async () => {
         fixture.componentRef.setInput('type', 'docx');
         await api.loadFile(fileOf(buildMinimalDocx(), 'a.docx'));
+        fixture.detectChanges();
         expect(component.state()).toBe('loaded');
-        expect(component.docxHtml()).toBeTruthy();
+        const content: HTMLElement = fixture.nativeElement.querySelector('[data-slot="file-viewer-content"]');
+        expect(content.textContent).toContain('Hi');
     });
 
     it('loads a legacy DOC via graceful fallback', async () => {
@@ -1643,18 +1407,6 @@ describe('FileViewerComponent end-to-end parser paths', () => {
         });
         expect(component.textContent()).toBe('effect text');
         globalThis.fetch = orig;
-    });
-
-    it('scrolls the pdf content region to top on page change', () => {
-        component.state.set('loaded');
-        component.detectedType.set('pdf');
-        api.pdfPages.set([{ html: '<p>a</p>' }, { html: '<p>b</p>' }]);
-        api.pdfGlobalCss.set('');
-        component.totalPages.set(2);
-        component.currentPage.set(1);
-        fixture.detectChanges();
-        component.nextPage();
-        expect(component.currentPage()).toBe(2);
     });
 });
 

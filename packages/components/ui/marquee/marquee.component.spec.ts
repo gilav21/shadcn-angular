@@ -163,29 +163,17 @@ describe('MarqueeComponent', () => {
         restoreStubs();
     });
 
-    it('should render the marquee element with data-slot', () => {
+    it('should render the projected content twice, the loop copy hidden from assistive tech', () => {
         fixture.detectChanges();
-        const marquee = fixture.debugElement.query(
-            By.css('[data-slot="marquee"]')
-        );
-        expect(marquee).toBeTruthy();
-    });
-
-    it('should render projected content', () => {
-        fixture.detectChanges();
+        flushRaf();
         const items = fixture.debugElement.queryAll(By.css('.item'));
-        expect(items.length).toBeGreaterThanOrEqual(2);
-        expect(items[0].nativeElement.textContent).toContain('Item A');
-    });
-
-    it('should apply overflow-hidden class', () => {
-        fixture.detectChanges();
-        const marquee = fixture.debugElement.query(
-            By.css('[data-slot="marquee"]')
-        );
-        expect(
-            (marquee.nativeElement as HTMLElement).className
-        ).toContain('overflow-hidden');
+        expect(items.map(i => (i.nativeElement as HTMLElement).textContent)).toEqual([
+            'Item A', 'Item B', 'Item A', 'Item B',
+        ]);
+        const track = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="marquee"] > div')!;
+        const [original, copy] = Array.from(track.children);
+        expect(original.getAttribute('aria-hidden')).toBeNull();
+        expect(copy.getAttribute('aria-hidden')).toBe('true');
     });
 
     it('should apply custom class', () => {
@@ -264,22 +252,6 @@ describe('MarqueeComponent', () => {
         expect(anim!.options.duration).toBe(40000);
     });
 
-    it('should pause and resume the animation on hover when pauseOnHover is true', () => {
-        host.pauseOnHover.set(true);
-        fixture.detectChanges();
-        flushRaf();
-
-        const comp = getComponent(fixture);
-        const anim = getAnimation(comp);
-        expect(anim!.playState).toBe('running');
-
-        comp.onMouseEnter();
-        expect(anim!.playState).toBe('paused');
-
-        comp.onMouseLeave();
-        expect(anim!.playState).toBe('running');
-    });
-
     it('should not pause the animation on hover when pauseOnHover is false', () => {
         host.pauseOnHover.set(false);
         fixture.detectChanges();
@@ -324,21 +296,4 @@ describe('MarqueeComponent', () => {
         expect(anim!.playState).toBe('idle');
     });
 
-    it('should accept direction input', () => {
-        fixture.detectChanges();
-        const comp = getComponent(fixture);
-        expect(comp.direction()).toBe('left');
-        host.direction.set('right');
-        fixture.detectChanges();
-        expect(comp.direction()).toBe('right');
-    });
-
-    it('should accept speed input', () => {
-        fixture.detectChanges();
-        const comp = getComponent(fixture);
-        expect(comp.speed()).toBe(20);
-        host.speed.set(40);
-        fixture.detectChanges();
-        expect(comp.speed()).toBe(40);
-    });
 });

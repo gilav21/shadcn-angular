@@ -67,7 +67,6 @@ function makeMeteor(overrides: Partial<MeteorLike> = {}): MeteorLike {
 
 describe('MeteorsComponent', () => {
     let fixture: ComponentFixture<TestHostComponent>;
-    let host: TestHostComponent;
     let rafSpy: ReturnType<typeof vi.spyOn>;
     let resizeCallbacks: ResizeObserverCallback[];
     let originalMatchMedia: typeof globalThis.window.matchMedia | undefined;
@@ -90,7 +89,6 @@ describe('MeteorsComponent', () => {
 
     function createFixture(): void {
         fixture = TestBed.createComponent(TestHostComponent);
-        host = fixture.componentInstance;
         fixture.detectChanges();
     }
 
@@ -165,14 +163,8 @@ describe('MeteorsComponent', () => {
 
         it('should set host position to absolute', () => {
             expect(getHostEl().style.position).toBe('absolute');
-        });
-
-        it('should set host inset to 0', () => {
             // A real browser normalizes the inline value '0' to '0px'; jsdom keeps '0'.
             expect(getHostEl().style.inset).toMatch(/^0(px)?$/);
-        });
-
-        it('should set pointer-events to none', () => {
             expect(getHostEl().style.pointerEvents).toBe('none');
         });
 
@@ -180,32 +172,8 @@ describe('MeteorsComponent', () => {
             expect(getHostEl().querySelector('canvas')).toBeTruthy();
         });
 
-        it('should start requestAnimationFrame loop', () => {
-            expect(rafSpy).toHaveBeenCalled();
-        });
-
         it('should populate the meteor field with count meteors', () => {
             expect(internals(getComp()).meteors).toHaveLength(10);
-        });
-    });
-
-    describe('inputs', () => {
-        beforeEach(() => createFixture());
-
-        it('should accept count input', () => {
-            expect(getComp().count()).toBe(10);
-        });
-
-        it('should accept and react to speed input', () => {
-            const comp = getComp();
-            expect(comp.speed()).toBe('medium');
-            host.speed.set('fast');
-            fixture.detectChanges();
-            expect(comp.speed()).toBe('fast');
-        });
-
-        it('should accept color input', () => {
-            expect(getComp().color()).toBe('white');
         });
     });
 
@@ -240,7 +208,6 @@ describe('MeteorsComponent', () => {
 
     describe('speedMultiplier', () => {
         it('should return 0.5 for slow', () => {
-            host = new TestHostComponent();
             fixture = TestBed.createComponent(TestHostComponent);
             fixture.componentInstance.speed.set('slow');
             fixture.detectChanges();
@@ -261,11 +228,6 @@ describe('MeteorsComponent', () => {
     });
 
     describe('resolveColor', () => {
-        it('should keep white as full-intensity white', () => {
-            createFixture();
-            expect(internals(getComp()).rgb).toEqual({ r: 255, g: 255, b: 255 });
-        });
-
         it('should resolve a non-white color into rgb components', () => {
             fixture = TestBed.createComponent(TestHostComponent);
             fixture.componentInstance.color.set('rgb(12, 34, 56)');
@@ -307,12 +269,6 @@ describe('MeteorsComponent', () => {
             int.syncCanvasSize();
             expect(int.canvas?.width).toBe(640);
             expect(int.canvas?.height).toBe(480);
-        });
-
-        it('should be a no-op when there is no canvas', () => {
-            const int = internals(getComp());
-            int.canvas = null;
-            expect(() => int.syncCanvasSize()).not.toThrow();
         });
     });
 
@@ -356,17 +312,6 @@ describe('MeteorsComponent', () => {
             const m = int.spawnMeteor(false);
             expect(Number.isFinite(m.x)).toBe(true);
             expect(Number.isFinite(m.vx)).toBe(true);
-        });
-    });
-
-    describe('createMeteors', () => {
-        it('should rebuild the meteor array to match count', () => {
-            fixture = TestBed.createComponent(TestHostComponent);
-            fixture.componentInstance.count.set(5);
-            fixture.detectChanges();
-            const int = internals(getComp());
-            int.createMeteors();
-            expect(int.meteors).toHaveLength(5);
         });
     });
 

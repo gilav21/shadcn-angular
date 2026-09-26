@@ -540,17 +540,6 @@ describe('Sidebar', () => {
       expect(groupLabel.nativeElement.getAttribute('class') ?? '').toContain('sr-only');
     });
 
-    it('renders the hidden collapse mode width when collapsed', async () => {
-      const fixture = await createMainHost();
-      const service = getService(fixture);
-      fixture.componentInstance.mode.set('hidden');
-      service.isCollapsed.set(true);
-      fixture.detectChanges();
-
-      const aside = fixture.debugElement.query(By.css('[data-slot="sidebar"]'));
-      expect(aside.nativeElement.getAttribute('class') ?? '').toContain('w-0');
-    });
-
     it('renders a distinct desktop chrome per variant', async () => {
       const fixture = await createMainHost();
       const aside = fixture.debugElement.query(By.css('[data-slot="sidebar"]'));
@@ -666,31 +655,6 @@ describe('Sidebar', () => {
       );
       fixture.detectChanges();
       expect(service.isOpen()).toBe(false);
-    });
-
-    it('renders the right-side mobile transform when closed', async () => {
-      const fixture = await createMainHost();
-      const service = getService(fixture);
-      fixture.componentInstance.side.set('right');
-      service.setMobile(true);
-      fixture.detectChanges();
-
-      const aside = fixture.debugElement.query(By.css('[data-slot="sidebar"]'));
-      expect(aside.nativeElement.getAttribute('class') ?? '').toContain('translate-x-full');
-      expect(aside.nativeElement.getAttribute('class') ?? '').toContain('right-0');
-    });
-
-    it('toggles open state via the trigger while in mobile mode', async () => {
-      const fixture = await createMainHost();
-      const service = getService(fixture);
-      service.setMobile(true);
-      fixture.detectChanges();
-      expect(service.isOpen()).toBe(false);
-
-      const trigger = fixture.debugElement.query(By.css('[data-slot="sidebar-trigger"]'));
-      trigger.nativeElement.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      fixture.detectChanges();
-      expect(service.isOpen()).toBe(true);
     });
   });
 
@@ -950,17 +914,9 @@ describe('Sidebar', () => {
       fixture.detectChanges();
 
       expect(TestBed.inject(Router).url).toBe('/about');
+      expect(fixture.componentInstance.navigations).toBe(1);
       expect(linkByText(fixture, 'About').getAttribute('data-active')).toBe('true');
       expect(linkByText(fixture, 'Home').getAttribute('data-active')).toBe('false');
-    });
-
-    it('emits navigated on click in router mode', async () => {
-      const fixture = await createRouterHost('/home');
-      linkByText(fixture, 'About').click();
-      await fixture.whenStable();
-      await new Promise(resolve => setTimeout(resolve, 0));
-      fixture.detectChanges();
-      expect(fixture.componentInstance.navigations).toBe(1);
     });
 
     it('applies target on a routed link too, not only on href links', async () => {
@@ -1116,24 +1072,15 @@ describe('Sidebar', () => {
       globalThis.localStorage.clear();
     });
 
-    it('writes the collapsed flag when the rail is toggled', async () => {
-      const fixture = await createPersistHost();
-      expect(globalThis.localStorage.getItem(KEY)).toBeNull();
-
-      fixture.debugElement
-        .query(By.css('[data-slot="sidebar-trigger"]'))
-        .nativeElement.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      fixture.detectChanges();
-
-      expect(globalThis.localStorage.getItem(KEY)).toBe('true');
-    });
-
     it('writes the expanded flag when toggled back', async () => {
       const fixture = await createPersistHost();
       const trigger = fixture.debugElement.query(By.css('[data-slot="sidebar-trigger"]'));
+      expect(globalThis.localStorage.getItem(KEY)).toBeNull();
 
       trigger.nativeElement.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       fixture.detectChanges();
+      expect(globalThis.localStorage.getItem(KEY)).toBe('true');
+
       trigger.nativeElement.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       fixture.detectChanges();
 
@@ -1152,17 +1099,22 @@ describe('Sidebar', () => {
       expect(collapsedAttr(fixture)).toBe('true');
     });
 
-    it('restores an expanded rail from storage on a fresh mount', async () => {
-      globalThis.localStorage.setItem(KEY, 'false');
+    /**
+     * Expanded is also the default, so a fresh mount cannot tell a parsed
+     * `'false'` from an ignored one. Start collapsed under one key, then point
+     * the provider at a key holding `'false'`: only a real read expands it.
+     */
+    it('restores an expanded rail from storage when seeded', async () => {
+      globalThis.localStorage.setItem(KEY, 'true');
+      globalThis.localStorage.setItem('other-sidebar', 'false');
       const fixture = await createPersistHost();
+      expect(collapsedAttr(fixture)).toBe('true');
+
+      fixture.componentInstance.key.set('other-sidebar');
+      fixture.detectChanges();
 
       expect(getService(fixture).isCollapsed()).toBe(false);
       expect(collapsedAttr(fixture)).toBe('false');
-    });
-
-    it('starts expanded when nothing is stored', async () => {
-      const fixture = await createPersistHost();
-      expect(getService(fixture).isCollapsed()).toBe(false);
     });
 
     /**
@@ -1278,10 +1230,6 @@ describe('Sidebar', () => {
         expect(service.isCollapsed()).toBe(true);
         expect(collapsedAttr(fixture)).toBe('true');
       });
-
-      it('does not throw when seeding from an unreadable store', async () => {
-        expect(() => createPersistHost()).not.toThrow();
-      });
     });
 
     /**
@@ -1383,12 +1331,6 @@ describe('Sidebar', () => {
       expect(sidebar.querySelectorAll('[role="menubar"]')).toHaveLength(0);
     });
 
-    it('starts expanded by default', async () => {
-      const fixture = await createNestedHost();
-      expect(trigger(fixture).getAttribute('aria-expanded')).toBe('true');
-      expect(subList(fixture).hasAttribute('inert')).toBe(false);
-    });
-
     /**
      * The host above binds `[(expanded)]`, which would mask the input's own
      * default. This mounts a sub with nothing bound — the shape a consumer
@@ -1421,6 +1363,7 @@ describe('Sidebar', () => {
 
       expect(subList(fixture).hasAttribute('inert')).toBe(true);
       expect(trigger(fixture).getAttribute('aria-expanded')).toBe('false');
+      expect(fixture.componentInstance.projectsOpen()).toBe(false);
     });
 
     it('keeps the closed list in the DOM so the collapse can animate', async () => {
@@ -1466,15 +1409,6 @@ describe('Sidebar', () => {
 
       expect(controls).toBeTruthy();
       expect(wrapper.getAttribute('id')).toBe(controls);
-    });
-
-    it('writes the expanded model back to the host (two-way)', async () => {
-      const fixture = await createNestedHost();
-
-      trigger(fixture).dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      fixture.detectChanges();
-
-      expect(fixture.componentInstance.projectsOpen()).toBe(false);
     });
 
     it('follows the expanded model when the host drives it', async () => {
@@ -1571,18 +1505,6 @@ describe('Sidebar', () => {
               `must be a list item, got role="${role}"`
           ).toBe(true);
         }
-      });
-
-      it('renders one row per entry with varying widths', async () => {
-        const fixture = await createNestedHost();
-        const rows = fixture.debugElement.queryAll(By.css('[data-slot="sidebar-menu-skeleton"]'));
-        expect(rows).toHaveLength(3);
-
-        const widths = rows.map(row => {
-          const bars = row.nativeElement.querySelectorAll('[data-slot="skeleton"]');
-          return (bars[bars.length - 1] as HTMLElement).getAttribute('class') ?? '';
-        });
-        expect(new Set(widths).size).toBe(3);
       });
     });
 

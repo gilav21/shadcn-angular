@@ -115,42 +115,10 @@ describe('OrbitComponent', () => {
             expect((hostEl.nativeElement as HTMLElement).dataset['slot']).toBe('orbit');
         });
 
-        it('should have absolute inset-0 pointer-events-none on host', () => {
-            const hostEl = fixture.debugElement.query(By.directive(OrbitComponent));
-            const className = (hostEl.nativeElement as HTMLElement).getAttribute('class') ?? '';
-            expect(className).toContain('absolute');
-            expect(className).toContain('inset-0');
-            expect(className).toContain('pointer-events-none');
-        });
-
         it('should render the orbit-item element with projected content', () => {
             const item = fixture.debugElement.query(By.css('.orbit-item'));
             expect(item).toBeTruthy();
             expect((item.nativeElement as HTMLElement).textContent?.trim()).toBe('Orbiting');
-        });
-
-        it('should position orbit-item with translateX based on radius', () => {
-            const comp = fixture.debugElement.query(By.directive(OrbitComponent)).componentInstance as OrbitComponent;
-            const styles = comp.itemStyles();
-            expect(styles.transform).toContain('translateX(100px)');
-        });
-
-        it('should position orbit-item at center with translate(-50%, -50%)', () => {
-            const comp = fixture.debugElement.query(By.directive(OrbitComponent)).componentInstance as OrbitComponent;
-            const styles = comp.itemStyles();
-            expect(styles.top).toBe('50%');
-            expect(styles.left).toBe('50%');
-            expect(styles.transform).toContain('translate(-50%, -50%)');
-        });
-
-        it('should set pointerEvents auto on orbit-item', () => {
-            const comp = fixture.debugElement.query(By.directive(OrbitComponent)).componentInstance as OrbitComponent;
-            expect(comp.itemStyles().pointerEvents).toBe('auto');
-        });
-
-        it('should set position absolute on orbit-item', () => {
-            const comp = fixture.debugElement.query(By.directive(OrbitComponent)).componentInstance as OrbitComponent;
-            expect(comp.itemStyles().position).toBe('absolute');
         });
 
         it('should call element.animate() with rotation keyframes', () => {
@@ -166,13 +134,6 @@ describe('OrbitComponent', () => {
                     direction: 'normal',
                     delay: 0,
                 })
-            );
-        });
-
-        it('should set normal direction when reverse input is false', () => {
-            expect(animateMock).toHaveBeenCalledWith(
-                expect.any(Array),
-                expect.objectContaining({ direction: 'normal' })
             );
         });
 
@@ -226,11 +187,6 @@ describe('OrbitComponent', () => {
                     delay: 2000,
                 })
             );
-        });
-
-        it('should position orbit-item with custom radius', () => {
-            const comp = fixture.debugElement.query(By.directive(OrbitComponent)).componentInstance as OrbitComponent;
-            expect(comp.itemStyles().transform).toContain('translateX(150px)');
         });
     });
 

@@ -28,15 +28,6 @@ describe('ComparisonSliderComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
-    it('should have data-slot="comparison-slider"', () => {
-        const root = fixture.nativeElement.querySelector('[data-slot="comparison-slider"]');
-        expect(root).toBeTruthy();
-    });
-
     it('should render both images with correct src', () => {
         const imgs: NodeListOf<HTMLImageElement> = fixture.nativeElement.querySelectorAll('img');
         const srcs = Array.from(imgs).map((img) => img.src);
@@ -44,16 +35,15 @@ describe('ComparisonSliderComponent', () => {
         expect(srcs.some((s) => s.includes('id/20'))).toBe(true);
     });
 
-    it('should default position to 50', () => {
-        expect(component.position()).toBe(50);
-    });
-
     it('should reflect position in clip wrapper style', () => {
-        const clipWrapper = fixture.nativeElement.querySelector('[data-slot="comparison-slider"] > div:nth-child(2)');
-        expect(clipWrapper).toBeTruthy();
+        const clipWrapper = fixture.nativeElement.querySelector('[data-slot="comparison-slider"] > div:nth-child(2)') as HTMLElement;
         fixture.componentRef.setInput('position', 70);
         fixture.detectChanges();
-        expect(component.position()).toBe(70);
+        expect([clipWrapper.style.width, clipWrapper.style.height]).toEqual(['70%', '']);
+
+        fixture.componentRef.setInput('orientation', 'vertical');
+        fixture.detectChanges();
+        expect([clipWrapper.style.width, clipWrapper.style.height]).toEqual(['', '70%']);
     });
 
     it('should increment position on ArrowRight', () => {
@@ -109,12 +99,6 @@ describe('ComparisonSliderComponent', () => {
         handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
         fixture.detectChanges();
         expect(component.position()).toBe(100);
-    });
-
-    it('should switch clip axis with vertical orientation', () => {
-        fixture.componentRef.setInput('orientation', 'vertical');
-        fixture.detectChanges();
-        expect(component.isHorizontal()).toBe(false);
     });
 
     it('should move the divider down on ArrowDown in vertical orientation', () => {

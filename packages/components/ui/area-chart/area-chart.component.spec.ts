@@ -9,6 +9,7 @@ import {
 } from 'vitest';
 import { AreaChartComponent } from './area-chart.component';
 import { ChartSeries, ChartClickEvent } from '../../lib/chart.types';
+import { getChartColor } from '../../lib/chart.utils';
 
 class ResizeObserverStub {
     observe(): void {
@@ -132,16 +133,17 @@ describe('AreaChartComponent', () => {
         ).toHaveLength(0);
     });
 
-    it('produces area path d-attributes with move + line commands', () => {
+    it('draws the Desktop area through its values and closes it on the baseline', () => {
         const area = fixture.nativeElement.querySelector('path[data-slot="area-series"]');
-        const d = area.getAttribute('d') ?? '';
-        expect(d).toMatch(/^M/);
-        expect(d).toContain('L');
+        // The plot spans x 44..(width - 12) and y 12..272 over the domain 0..200
+        // (the width is the measured host width in a browser, 500 in jsdom):
+        // Q1=100 sits mid-height, Q2=200 at the top-right corner.
+        const right = component.svgWidth() - 12;
+        expect(area.getAttribute('d')).toBe(`M 44 142 L ${right} 12 L ${right} 272 L 44 272 Z`);
     });
 
-    it('exposes nice y-axis ticks starting at zero', () => {
-        expect(component.yTicks()[0]).toBe(0);
-        expect(component.yTicks().length).toBeGreaterThan(1);
+    it('exposes nice y-axis ticks from zero to the domain max', () => {
+        expect(component.yTicks()).toEqual([0, 50, 100, 150, 200]);
     });
 
     it('uses each series max for the y-domain when not stacked', () => {
@@ -151,7 +153,7 @@ describe('AreaChartComponent', () => {
     it('uses category totals for the y-domain when stacked', () => {
         fixture.componentRef.setInput('stacked', true);
         fixture.detectChanges();
-        expect(component.yDomainMax()).toBeGreaterThanOrEqual(320);
+        expect(component.yDomainMax()).toBe(320);
     });
 
     it('normalizes the stacked percent domain to 100', () => {
@@ -161,16 +163,20 @@ describe('AreaChartComponent', () => {
         expect(component.yDomainMax()).toBe(100);
     });
 
-    it('builds stacked band area paths', () => {
+    it('stacks the Mobile band on top of the Desktop band', () => {
         fixture.componentRef.setInput('stacked', true);
         fixture.detectChanges();
-        expect(
+        const points = (el: Element): string[] =>
+            (el.getAttribute('d') ?? '').split(/[A-Z]/).map(p => p.trim()).filter(Boolean);
+        const [desktop, mobile] = Array.from(
             fixture.nativeElement.querySelectorAll('path[data-slot="area-series"]'),
-        ).toHaveLength(2);
-        const d = fixture.nativeElement
-            .querySelector('path[data-slot="area-series"]')
-            .getAttribute('d');
-        expect(d).toMatch(/^M/);
+        ) as Element[];
+        const desktopTop = points(desktop).slice(0, 2);
+        // Desktop's band rests on the baseline; Mobile's lower edge (traced back
+        // right-to-left) retraces Desktop's upper edge.
+        expect(points(desktop).slice(2)).toEqual([`${component.svgWidth() - 12} 272`, '44 272']);
+        expect(points(mobile).slice(2)).toEqual([...desktopTop].reverse());
+        expect(points(mobile).slice(0, 2)).not.toEqual(desktopTop);
     });
 
     it('falls back to a domain of 1 when all series are hidden', () => {
@@ -186,9 +192,11 @@ describe('AreaChartComponent', () => {
     it('hides a series when toggled off via the legend', () => {
         component.toggleSeries('Mobile');
         fixture.detectChanges();
-        expect(
-            fixture.nativeElement.querySelectorAll('path[data-slot="area-series"]'),
-        ).toHaveLength(1);
+        const areas = fixture.nativeElement.querySelectorAll('path[data-slot="area-series"]');
+        expect(areas).toHaveLength(1);
+        expect(areas[0].getAttribute('fill')).toBe(getChartColor(0));
+        component.setHover(1);
+        expect(component.tooltipRows().map((r) => r.label)).toEqual(['Desktop']);
     });
 
     it('re-shows a series when toggled back on', () => {
@@ -224,12 +232,6 @@ describe('AreaChartComponent', () => {
         expect(component.tooltipRows()[0].value).toContain('200');
     });
 
-    it('returns no tooltip rows and no hover title when nothing is hovered', () => {
-        expect(component.tooltipRows()).toHaveLength(0);
-        expect(component.hoverTitle()).toBeUndefined();
-        expect(component.crosshairX()).toBeNull();
-    });
-
     it('exposes the hovered category title and crosshair position', () => {
         component.setHover(0);
         expect(component.hoverTitle()).toBe('Q1');
@@ -252,14 +254,19 @@ describe('AreaChartComponent', () => {
             new MouseEvent('mousemove', { clientX: 480, clientY: 100 }),
         );
         fixture.detectChanges();
-        expect(component.hoveredIndex()).not.toBeNull();
-        expect(component.tooltipPos().x).toBeGreaterThan(0);
+        // clientX 480 of the 500px rect is nearest the Q2 tick at the plot's
+        // right edge (width - 12); the tooltip parks 12px past it.
+        expect(component.hoveredIndex()).toBe(1);
+        expect(component.tooltipPos().x).toBe(component.svgWidth());
     });
 
     it('clears hover state on pointer leave', () => {
         component.setHover(1);
         component.onPointerLeave();
         expect(component.hoveredIndex()).toBeNull();
+        expect(component.tooltipRows()).toHaveLength(0);
+        expect(component.hoverTitle()).toBeUndefined();
+        expect(component.crosshairX()).toBeNull();
     });
 
     it('ignores pointer moves when there are no categories', () => {
@@ -272,15 +279,16 @@ describe('AreaChartComponent', () => {
         expect(component.hoveredIndex()).toBeNull();
     });
 
-    it('resolves rtl layout from the dir input', () => {
+    it('reverses the category axis when dir is rtl', () => {
+        const labelX = (name: string): number => {
+            const text = Array.from(
+                fixture.nativeElement.querySelectorAll('text') as NodeListOf<SVGTextElement>,
+            ).find((t) => t.textContent?.trim() === name);
+            return Number(text?.getAttribute('x'));
+        };
+        expect(labelX('Q1')).toBeLessThan(labelX('Q2'));
         fixture.componentRef.setInput('dir', 'rtl');
         fixture.detectChanges();
-        expect(component.isRtl()).toBe(true);
-    });
-
-    it('forces ltr layout when dir is ltr', () => {
-        fixture.componentRef.setInput('dir', 'ltr');
-        fixture.detectChanges();
-        expect(component.isRtl()).toBe(false);
+        expect(labelX('Q1')).toBeGreaterThan(labelX('Q2'));
     });
 });

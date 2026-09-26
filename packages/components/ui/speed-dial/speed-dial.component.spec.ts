@@ -50,22 +50,13 @@ describe('SpeedDialComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(fixture.componentInstance).toBeTruthy();
-    });
-
-    it('should be closed by default', () => {
-        const menu = fixture.debugElement.query(By.css('[data-slot="speed-dial-menu"]'));
-        expect(menu.nativeElement.dataset.state).toBe('closed');
-    });
-
     it('should open when trigger is clicked', () => {
         const trigger = fixture.debugElement.query(By.css('[data-slot="speed-dial-trigger"]'));
         trigger.nativeElement.click();
         fixture.detectChanges();
 
         const menu = fixture.debugElement.query(By.css('[data-slot="speed-dial-menu"]'));
-        expect(menu).toBeTruthy();
+        expect(menu.nativeElement.dataset.state).toBe('open');
     });
 
     it('should close when triggered again', () => {
@@ -111,40 +102,5 @@ describe('SpeedDialComponent', () => {
         fixture.detectChanges();
 
         expect(trigger.nativeElement.className).toContain('rotate-45');
-    });
-});
-
-describe('SpeedDial RTL Support', () => {
-    let fixture: ComponentFixture<TestHostComponent>;
-    let component: TestHostComponent;
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [TestHostComponent]
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(TestHostComponent);
-        component = fixture.componentInstance;
-        fixture.detectChanges();
-    });
-
-    it('should apply correct absolute positioning for linear up in LTR', () => {
-        const trigger = fixture.debugElement.query(By.css('[data-slot="speed-dial-trigger"]'));
-        trigger.nativeElement.click();
-        fixture.detectChanges();
-
-        const menu = fixture.debugElement.query(By.css('[data-slot="speed-dial-menu"]'));
-        // Linear up: 'absolute bottom-full left-1/2 -translate-x-1/2 mb-2 flex flex-col-reverse gap-2'
-        expect(menu.nativeElement.className).toContain('bottom-full');
-        expect(menu.nativeElement.className).toContain('left-1/2');
-    });
-
-    it('should render in RTL', async () => {
-        component.dir.set('rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const container = fixture.debugElement.query(By.css('[dir="rtl"]'));
-        expect(container).toBeTruthy();
     });
 });

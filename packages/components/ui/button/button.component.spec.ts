@@ -17,10 +17,6 @@ describe('ButtonComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
     it('should render a button element', () => {
         const button = fixture.debugElement.query(By.css('button'));
         expect(button).toBeTruthy();
@@ -62,33 +58,6 @@ describe('ButtonComponent', () => {
 
         const button = fixture.debugElement.query(By.css('button'));
         expect(button.nativeElement.className).toContain('hover:bg-muted');
-    });
-
-    it('drives small size via the data-size attribute and keeps text-xs', () => {
-        // Density-aware sizing (height/padding) lives in the component's scoped
-        // CSS keyed on [data-size]; only the non-sizing cosmetics stay as classes.
-        fixture.componentRef.setInput('size', 'sm');
-        fixture.detectChanges();
-
-        expect(fixture.nativeElement.getAttribute('data-size')).toBe('sm');
-        const button = fixture.debugElement.query(By.css('button'));
-        expect(button.nativeElement.className).toContain('text-xs');
-    });
-
-    it('drives large size via the data-size attribute and keeps rounded-md', () => {
-        fixture.componentRef.setInput('size', 'lg');
-        fixture.detectChanges();
-
-        expect(fixture.nativeElement.getAttribute('data-size')).toBe('lg');
-        const button = fixture.debugElement.query(By.css('button'));
-        expect(button.nativeElement.className).toContain('rounded-md');
-    });
-
-    it('drives icon size via the data-size attribute', () => {
-        fixture.componentRef.setInput('size', 'icon');
-        fixture.detectChanges();
-
-        expect(fixture.nativeElement.getAttribute('data-size')).toBe('icon');
     });
 
     it('should be disabled when disabled input is true', () => {

@@ -41,14 +41,12 @@ describe('StepperComponent — canLeave guard', () => {
         stepper = fixture.debugElement.children[0].componentInstance as StepperComponent;
     });
 
-    it('advances normally when no guard is supplied', () => {
-        stepper.nextStep();
-        expect(stepper.activeStep()).toBe(1);
-        expect(stepper.guardPending()).toBe(false);
-    });
-
     it('blocks the transition when a sync guard returns false', () => {
         const seen: { from: number; to: number }[] = [];
+        const changes: number[] = [];
+        const blocked: { from: number; to: number }[] = [];
+        stepper.stepChange.subscribe(i => changes.push(i));
+        stepper.stepBlocked.subscribe(e => blocked.push(e));
         host.guard.set((from, to) => { seen.push({ from, to }); return false; });
         fixture.detectChanges();
 
@@ -56,6 +54,8 @@ describe('StepperComponent — canLeave guard', () => {
 
         expect(stepper.activeStep()).toBe(0);
         expect(seen).toEqual([{ from: 0, to: 1 }]);
+        expect(changes).toEqual([]);
+        expect(blocked).toEqual([{ from: 0, to: 1 }]);
     });
 
     it('allows the transition when a sync guard returns true — synchronously', () => {
@@ -66,17 +66,6 @@ describe('StepperComponent — canLeave guard', () => {
 
         expect(stepper.activeStep()).toBe(1);
         expect(stepper.guardPending()).toBe(false);
-    });
-
-    it('emits stepBlocked when a guard refuses', () => {
-        const blocked: { from: number; to: number }[] = [];
-        stepper.stepBlocked.subscribe(e => blocked.push(e));
-        host.guard.set(() => false);
-        fixture.detectChanges();
-
-        stepper.nextStep();
-
-        expect(blocked).toEqual([{ from: 0, to: 1 }]);
     });
 
     it('treats a guard that throws as a refusal', () => {
@@ -115,6 +104,10 @@ describe('StepperComponent — canLeave guard', () => {
     });
 
     it('shows pending state then blocks an async guard that resolves false', async () => {
+        const changes: number[] = [];
+        const blocked: { from: number; to: number }[] = [];
+        stepper.stepChange.subscribe(i => changes.push(i));
+        stepper.stepBlocked.subscribe(e => blocked.push(e));
         host.guard.set(() => Promise.resolve(false));
         fixture.detectChanges();
 
@@ -125,9 +118,15 @@ describe('StepperComponent — canLeave guard', () => {
 
         expect(stepper.guardPending()).toBe(false);
         expect(stepper.activeStep()).toBe(0);
+        expect(changes).toEqual([]);
+        expect(blocked).toEqual([{ from: 0, to: 1 }]);
     });
 
     it('blocks when an async guard rejects', async () => {
+        const changes: number[] = [];
+        const blocked: { from: number; to: number }[] = [];
+        stepper.stepChange.subscribe(i => changes.push(i));
+        stepper.stepBlocked.subscribe(e => blocked.push(e));
         host.guard.set(() => Promise.reject(new Error('server said no')));
         fixture.detectChanges();
 
@@ -136,6 +135,8 @@ describe('StepperComponent — canLeave guard', () => {
 
         expect(stepper.guardPending()).toBe(false);
         expect(stepper.activeStep()).toBe(0);
+        expect(changes).toEqual([]);
+        expect(blocked).toEqual([{ from: 0, to: 1 }]);
     });
 
     it('ignores a stale async guard result once a newer move started', async () => {
@@ -183,47 +184,6 @@ describe('StepperComponent — canLeave guard', () => {
         expect(stepper.activeStep()).toBe(2);
         expect(stepper.guardPending()).toBe(false);
         expect(changes).toEqual([2]);
-    });
-
-    it('emits no stepChange when a sync guard refuses', () => {
-        const changes: number[] = [];
-        stepper.stepChange.subscribe(i => changes.push(i));
-        host.guard.set(() => false);
-        fixture.detectChanges();
-
-        stepper.nextStep();
-
-        expect(changes).toEqual([]);
-    });
-
-    it('emits stepBlocked and no stepChange when an async guard resolves false', async () => {
-        const changes: number[] = [];
-        const blocked: { from: number; to: number }[] = [];
-        stepper.stepChange.subscribe(i => changes.push(i));
-        stepper.stepBlocked.subscribe(e => blocked.push(e));
-        host.guard.set(() => Promise.resolve(false));
-        fixture.detectChanges();
-
-        stepper.nextStep();
-        await fixture.whenStable();
-
-        expect(changes).toEqual([]);
-        expect(blocked).toEqual([{ from: 0, to: 1 }]);
-    });
-
-    it('emits stepBlocked and no stepChange when an async guard rejects', async () => {
-        const changes: number[] = [];
-        const blocked: { from: number; to: number }[] = [];
-        stepper.stepChange.subscribe(i => changes.push(i));
-        stepper.stepBlocked.subscribe(e => blocked.push(e));
-        host.guard.set(() => Promise.reject(new Error('server said no')));
-        fixture.detectChanges();
-
-        stepper.nextStep();
-        await fixture.whenStable();
-
-        expect(changes).toEqual([]);
-        expect(blocked).toEqual([{ from: 0, to: 1 }]);
     });
 
     it('runs the guard for backward moves too, so the guard can decide', () => {

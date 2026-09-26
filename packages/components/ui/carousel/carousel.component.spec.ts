@@ -80,21 +80,6 @@ class VerticalTestHost { }
 
 @Component({
     template: `
-        <ui-carousel orientation="vertical">
-            <ui-carousel-content>
-                <ui-carousel-item>Slide 1</ui-carousel-item>
-                <ui-carousel-item>Slide 2</ui-carousel-item>
-            </ui-carousel-content>
-            <ui-carousel-previous />
-            <ui-carousel-next />
-        </ui-carousel>
-    `,
-    imports: [CarouselComponent, CarouselContentComponent, CarouselItemComponent, CarouselPreviousComponent, CarouselNextComponent]
-})
-class VerticalWithButtonsHost { }
-
-@Component({
-    template: `
         <ui-carousel>
             <ui-carousel-content></ui-carousel-content>
         </ui-carousel>
@@ -136,27 +121,10 @@ describe('CarouselComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
-    it('should have data-slot="carousel"', () => {
-        const carousel = fixture.debugElement.query(By.css('[data-slot="carousel"]'));
-        expect(carousel).toBeTruthy();
-    });
-
     it('should have role="region"', () => {
         const carousel = fixture.debugElement.query(By.css('[role="region"]'));
         expect(carousel).toBeTruthy();
-    });
-
-    it('should have default orientation of horizontal', () => {
-        expect(component.orientation()).toBe('horizontal');
-    });
-
-    it('should have aria-roledescription="carousel"', () => {
-        const carousel = fixture.debugElement.query(By.css('[aria-roledescription="carousel"]'));
-        expect(carousel).toBeTruthy();
+        expect(carousel.nativeElement.getAttribute('aria-roledescription')).toBe('carousel');
     });
 
     it('applies a custom class input', () => {
@@ -189,34 +157,10 @@ describe('Carousel Integration', () => {
         fixture.detectChanges();
     });
 
-    it('should render carousel content', () => {
-        const content = fixture.debugElement.query(By.css('[data-slot="carousel-content"]'));
-        expect(content).toBeTruthy();
-    });
-
-    it('should render carousel items', () => {
-        const items = fixture.debugElement.queryAll(By.css('[data-slot="carousel-item"]'));
-        expect(items).toHaveLength(3);
-    });
-
-    it('should render previous button', () => {
-        const prev = fixture.debugElement.query(By.css('[data-slot="carousel-previous"]'));
-        expect(prev).toBeTruthy();
-    });
-
-    it('should render next button', () => {
-        const next = fixture.debugElement.query(By.css('[data-slot="carousel-next"]'));
-        expect(next).toBeTruthy();
-    });
-
     it('should have aria-roledescription="slide" on items', () => {
         const items = fixture.debugElement.queryAll(By.css('[aria-roledescription="slide"]'));
         expect(items).toHaveLength(3);
-    });
-
-    it('should have role="group" on items', () => {
-        const items = fixture.debugElement.queryAll(By.css('[role="group"]'));
-        expect(items).toHaveLength(3);
+        expect(fixture.debugElement.queryAll(By.css('[role="group"]'))).toHaveLength(3);
     });
 });
 
@@ -354,16 +298,6 @@ describe('Carousel Vertical Orientation', () => {
         expect(carousel.nativeElement.dataset['orientation']).toBe('vertical');
     });
 
-    it('should apply vertical flex classes to content', () => {
-        const content = fixture.debugElement.query(By.css('[data-slot="carousel-content"]'));
-        expect(content.nativeElement.className).toContain('flex-col');
-    });
-
-    it('should apply vertical padding class to items', () => {
-        const item = fixture.debugElement.query(By.css('[data-slot="carousel-item"]'));
-        expect(item.nativeElement.className).toContain('pt-4');
-    });
-
     it('updates scroll state and index along the vertical axis', async () => {
         await flushSetup(fixture);
         const carousel = getCarousel(fixture);
@@ -390,18 +324,6 @@ describe('Carousel Vertical Orientation', () => {
     });
 });
 
-describe('Carousel vertical nav buttons', () => {
-    it('renders previous/next with vertical positioning classes', async () => {
-        await TestBed.configureTestingModule({ imports: [VerticalWithButtonsHost] }).compileComponents();
-        const fixture = TestBed.createComponent(VerticalWithButtonsHost);
-        fixture.detectChanges();
-        const prev = fixture.debugElement.query(By.css('[data-slot="carousel-previous"]')).nativeElement as HTMLElement;
-        const next = fixture.debugElement.query(By.css('[data-slot="carousel-next"]')).nativeElement as HTMLElement;
-        expect(prev.className).toContain('rotate-90');
-        expect(next.className).toContain('rotate-90');
-    });
-});
-
 describe('Carousel with empty content', () => {
     it('handles a scroll container that has no items', async () => {
         await TestBed.configureTestingModule({ imports: [EmptyContentHost] }).compileComponents();
@@ -421,7 +343,12 @@ describe('Carousel lifecycle cleanup', () => {
         await TestBed.configureTestingModule({ imports: [TestHostComponent] }).compileComponents();
         const fixture = TestBed.createComponent(TestHostComponent);
         fixture.detectChanges();
-        expect(() => fixture.destroy()).not.toThrow();
+        const addSpy = vi.spyOn(getScrollEl(fixture), 'addEventListener');
+
+        fixture.destroy();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(addSpy).not.toHaveBeenCalledWith('scroll', expect.any(Function));
     });
 
     it('detaches the scroll listener and observers on destroy', async () => {
@@ -450,40 +377,6 @@ describe('Carousel RTL Support', () => {
         fixture.detectChanges();
     });
 
-    it('should render in LTR mode', () => {
-        const container = fixture.debugElement.query(By.css('[dir="ltr"]'));
-        expect(container).toBeTruthy();
-    });
-
-    it('should render in RTL mode', async () => {
-        component.dir.set('rtl');
-        document.documentElement.setAttribute('dir', 'rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const container = fixture.debugElement.query(By.css('[dir="rtl"]'));
-        expect(container).toBeTruthy();
-    });
-
-    it('re-reads RTL state when the document dir attribute mutates', async () => {
-        const carousel = getCarousel(fixture);
-        const spy = vi.spyOn(carousel, 'updateScrollState');
-        document.documentElement.setAttribute('dir', 'rtl');
-        await new Promise((resolve) => setTimeout(resolve, 0));
-        expect(spy).toHaveBeenCalled();
-    });
-
-    it('should maintain navigation buttons in RTL', async () => {
-        component.dir.set('rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const prev = fixture.debugElement.query(By.css('[data-slot="carousel-previous"]'));
-        const next = fixture.debugElement.query(By.css('[data-slot="carousel-next"]'));
-        expect(prev).toBeTruthy();
-        expect(next).toBeTruthy();
-    });
-
     it('should have next (right arrow) disabled at first index in RTL', async () => {
         component.dir.set('rtl');
         document.documentElement.setAttribute('dir', 'rtl');
@@ -498,23 +391,8 @@ describe('Carousel RTL Support', () => {
         await fixture.whenStable();
 
         const next = fixture.debugElement.query(By.css('[data-slot="carousel-next"]'));
-        expect(next.nativeElement.disabled).toBe(true);
-    });
-
-    it('should have previous (left arrow) enabled at first index in RTL', async () => {
-        component.dir.set('rtl');
-        document.documentElement.setAttribute('dir', 'rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const carouselComp = fixture.debugElement.query(By.directive(CarouselComponent));
-        carouselComp.componentInstance.rtl.set(true);
-        carouselComp.componentInstance.canScrollPrev.set(false);
-        carouselComp.componentInstance.canScrollNext.set(true);
-        fixture.detectChanges();
-        await fixture.whenStable();
-
         const prev = fixture.debugElement.query(By.css('[data-slot="carousel-previous"]'));
+        expect(next.nativeElement.disabled).toBe(true);
         expect(prev.nativeElement.disabled).toBe(false);
     });
 
@@ -549,27 +427,13 @@ describe('Carousel RTL Support', () => {
         const carouselComp = fixture.debugElement.query(By.directive(CarouselComponent));
         carouselComp.componentInstance.rtl.set(true);
         carouselComp.componentInstance.canScrollNext.set(false);
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const prev = fixture.debugElement.query(By.css('[data-slot="carousel-previous"]'));
-        expect(prev.nativeElement.disabled).toBe(true);
-    });
-
-    it('should have next (right arrow) enabled at last index in RTL', async () => {
-        component.dir.set('rtl');
-        document.documentElement.setAttribute('dir', 'rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const carouselComp = fixture.debugElement.query(By.directive(CarouselComponent));
-        carouselComp.componentInstance.rtl.set(true);
-        carouselComp.componentInstance.canScrollNext.set(false);
         carouselComp.componentInstance.canScrollPrev.set(true);
         fixture.detectChanges();
         await fixture.whenStable();
 
+        const prev = fixture.debugElement.query(By.css('[data-slot="carousel-previous"]'));
         const next = fixture.debugElement.query(By.css('[data-slot="carousel-next"]'));
+        expect(prev.nativeElement.disabled).toBe(true);
         expect(next.nativeElement.disabled).toBe(false);
     });
 });

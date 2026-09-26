@@ -9,6 +9,9 @@ import {
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { TabsComponent, TabConfig } from './tabs.component';
+import { TabsListComponent } from './sub/tabs-list.component';
+import { TabsTriggerComponent } from './sub/tabs-trigger.component';
+import { TabsContentComponent } from './sub/tabs-content.component';
 
 @Component({
   selector: 'ui-tab-outlet-content',
@@ -130,12 +133,6 @@ describe('TabsComponent simple mode (tabs input)', () => {
     expect(buttons[1].nativeElement.disabled).toBe(true);
   });
 
-  it('renders string content directly (isString true)', () => {
-    build([{ value: 'a', label: 'Alpha', content: 'plain string content' }]);
-    const panel = fixture.debugElement.query(By.css('[role="tabpanel"]'));
-    expect(panel.nativeElement.textContent).toContain('plain string content');
-  });
-
   it('renders TemplateRef content via ngTemplateOutlet (isTemplateRef true)', () => {
     host.tabs = [
       {
@@ -181,11 +178,45 @@ describe('TabsComponent simple mode (tabs input)', () => {
     expect(tabs.isTemplateRef('nope')).toBe(false);
   });
 
-  it('exposes stable trigger/panel id helpers', () => {
-    build([{ value: 'a', label: 'Alpha', content: 'A' }]);
-    const tabs = fixture.debugElement.query(By.directive(TabsComponent))
-      .componentInstance as TabsComponent;
-    expect(tabs.getTriggerId('a')).toBe(`${tabs.tabsId}-trigger-a`);
-    expect(tabs.getPanelId('a')).toBe(`${tabs.tabsId}-panel-a`);
+});
+
+@Component({
+  template: `
+    @for (set of ['first', 'second']; track set) {
+      <ui-tabs defaultValue="account">
+        <ui-tabs-list>
+          <ui-tabs-trigger value="account">Account</ui-tabs-trigger>
+          <ui-tabs-trigger value="password">Password</ui-tabs-trigger>
+        </ui-tabs-list>
+        <ui-tabs-content value="account">Account settings</ui-tabs-content>
+        <ui-tabs-content value="password">Password settings</ui-tabs-content>
+      </ui-tabs>
+    }
+  `,
+  imports: [TabsComponent, TabsListComponent, TabsTriggerComponent, TabsContentComponent],
+})
+class TwoTabSetsHostComponent {}
+
+describe('TabsComponent template mode trigger/panel linking', () => {
+  it('links each trigger and panel by id, uniquely per tab set', async () => {
+    await TestBed.configureTestingModule({ imports: [TwoTabSetsHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwoTabSetsHostComponent);
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+
+    const sets = Array.from(root.querySelectorAll('ui-tabs')).map(set => {
+      const trigger = Array.from(set.querySelectorAll<HTMLElement>('[role="tab"]'))
+        .find(t => t.textContent?.trim() === 'Account')!;
+      const panel = set.querySelector<HTMLElement>('[role="tabpanel"]')!;
+      expect(panel.textContent?.trim()).toBe('Account settings');
+      expect(trigger.getAttribute('aria-controls')).toBe(panel.id);
+      expect(panel.getAttribute('aria-labelledby')).toBe(trigger.id);
+      return { trigger: trigger.id, panel: panel.id };
+    });
+
+    expect(sets).toHaveLength(2);
+    expect(sets[0].trigger).not.toBe(sets[1].trigger);
+    expect(sets[0].panel).not.toBe(sets[1].panel);
+    expect(root.querySelectorAll(`[id="${sets[0].trigger}"]`)).toHaveLength(1);
   });
 });

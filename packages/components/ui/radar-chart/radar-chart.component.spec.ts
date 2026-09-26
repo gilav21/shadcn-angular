@@ -42,8 +42,14 @@ describe('RadarChartComponent', () => {
         expect(fixture.nativeElement.querySelectorAll('path[data-slot="radar-series"]')).toHaveLength(2);
     });
 
-    it('derives the max value across all series', () => {
-        expect(component.maxValue()).toBe(9);
+    it('derives the max value across all series, hidden ones included', () => {
+        fixture.componentRef.setInput('series', [
+            series[0],
+            { ...series[1], data: series[1].data.map(d => (d.name === 'Power' ? { ...d, value: 12 } : d)) },
+        ]);
+        component.toggleSeries('Product B');
+        fixture.detectChanges();
+        expect(component.maxValue()).toBe(12);
     });
 
     it('renders the configured number of grid rings', () => {
@@ -52,17 +58,14 @@ describe('RadarChartComponent', () => {
         expect(fixture.nativeElement.querySelectorAll('polygon[data-slot="radar-ring"]')).toHaveLength(5);
     });
 
-    it('hides a series when toggled off via the legend', () => {
-        component.toggleSeries('Product B');
-        fixture.detectChanges();
-        expect(component.seriesPolygons()).toHaveLength(1);
-    });
-
-    it('builds a non-empty polygon path for each series', () => {
-        for (const p of component.seriesPolygons()) {
-            expect(p.path.startsWith('M')).toBe(true);
-            expect(p.path.trim().endsWith('Z')).toBe(true);
-        }
+    it('places each vertex at value / max of the radius along its axis', () => {
+        const path = fixture.nativeElement.querySelector('path[data-slot="radar-series"]').getAttribute('d') as string;
+        const numbers = (path.match(/-?\d+(\.\d+)?(e-?\d+)?/g) ?? []).map(Number);
+        const distances = [0, 2, 4, 6].map(i =>
+            Math.hypot(numbers[i] - component.center(), numbers[i + 1] - component.center()));
+        // Product A: Speed 8, Power 6, Range 9, Comfort 5, against a max of 9.
+        [8, 6, 9, 5].forEach((value, i) =>
+            expect(distances[i]).toBeCloseTo((component.radius() * value) / 9, 6));
     });
 
     it('uses the explicit max value input when provided', () => {
@@ -74,10 +77,10 @@ describe('RadarChartComponent', () => {
     it('re-shows a hidden series when toggled again', () => {
         component.toggleSeries('Product B');
         fixture.detectChanges();
-        expect(component.seriesPolygons()).toHaveLength(1);
+        expect(component.seriesPolygons().map(p => p.name)).toEqual(['Product A']);
         component.toggleSeries('Product B');
         fixture.detectChanges();
-        expect(component.seriesPolygons()).toHaveLength(2);
+        expect(component.seriesPolygons().map(p => p.name)).toEqual(['Product A', 'Product B']);
         expect(component.hiddenSeries()).toEqual([]);
     });
 

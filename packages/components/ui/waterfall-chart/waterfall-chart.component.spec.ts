@@ -107,13 +107,17 @@ describe('WaterfallChartComponent', () => {
         expect(c.getAttribute('aria-label')).toContain('Revenue bridge');
     });
 
-    it('renders one bar per data point', async () => {
+    it('renders one labelled bar per data point', async () => {
         await createFixture();
-        expect(
-            fixture.nativeElement.querySelectorAll(
-                'rect[data-slot="waterfall-bar"]',
-            ),
-        ).toHaveLength(4);
+        const bars: SVGRectElement[] = Array.from(
+            fixture.nativeElement.querySelectorAll('rect[data-slot="waterfall-bar"]'),
+        );
+        expect(bars.map(b => b.getAttribute('aria-label'))).toEqual([
+            'Q1: 500 (total 500)',
+            'Q2: 300 (total 800)',
+            'Q3: -200 (total 600)',
+            'Total: 600 (total 600)',
+        ]);
     });
 
     it('accumulates running totals across relative bars', async () => {
@@ -158,14 +162,25 @@ describe('WaterfallChartComponent', () => {
         expect(bars[3].color).toBe('#0000ff');
     });
 
-    it('renders connectors between consecutive bars when enabled', async () => {
+    it('connects each bar at its closing level to the next bar', async () => {
         await createFixture();
-        expect(component.connectors()).toHaveLength(3);
-        expect(
-            fixture.nativeElement.querySelectorAll(
-                'line[data-slot="waterfall-connector"]',
-            ),
-        ).toHaveLength(3);
+        const num = (el: Element, attr: string): number => Number(el.getAttribute(attr));
+        const bars: Element[] = Array.from(
+            fixture.nativeElement.querySelectorAll('rect[data-slot="waterfall-bar"]'),
+        );
+        const lines: Element[] = Array.from(
+            fixture.nativeElement.querySelectorAll('line[data-slot="waterfall-connector"]'),
+        );
+        expect(lines).toHaveLength(3);
+        lines.forEach((line, i) => {
+            const bar = bars[i];
+            // A rise closes at the bar's top edge, a fall at its bottom edge.
+            const closingY = data[i].value >= 0 ? num(bar, 'y') : num(bar, 'y') + num(bar, 'height');
+            expect(num(line, 'x1')).toBeCloseTo(num(bar, 'x') + num(bar, 'width'), 6);
+            expect(num(line, 'x2')).toBeCloseTo(num(bars[i + 1], 'x'), 6);
+            expect(num(line, 'y1')).toBeCloseTo(closingY, 6);
+            expect(num(line, 'y2')).toBeCloseTo(closingY, 6);
+        });
     });
 
     it('hides connectors when showConnectors is false', async () => {
@@ -181,11 +196,16 @@ describe('WaterfallChartComponent', () => {
 
     it('renders value labels when showValues is enabled', async () => {
         await createFixture();
-        const before = fixture.nativeElement.querySelectorAll('svg text').length;
+        const texts = (): string[] => Array.from(
+            fixture.nativeElement.querySelectorAll('svg text'),
+            t => (t as Element).textContent!.trim(),
+        );
+        const before = texts();
         fixture.componentRef.setInput('showValues', true);
         fixture.detectChanges();
-        const after = fixture.nativeElement.querySelectorAll('svg text').length;
-        expect(after).toBeGreaterThan(before);
+        const added = texts();
+        for (const t of before) added.splice(added.indexOf(t), 1);
+        expect(added).toEqual(['500', '300', '-200', '600']);
     });
 
     it('scales the y-domain to include negative running levels', async () => {
@@ -201,13 +221,16 @@ describe('WaterfallChartComponent', () => {
         expect(bars[1].height).toBeGreaterThan(0);
     });
 
-    it('renders y-axis gridline ticks', async () => {
+    it('renders one labelled gridline per y-axis tick', async () => {
         await createFixture();
-        expect(component.yTicks().length).toBeGreaterThan(1);
-        const gridLines = fixture.nativeElement.querySelectorAll(
+        const ticks = component.yTicks();
+        const gridLines: Element[] = Array.from(fixture.nativeElement.querySelectorAll(
             'line:not([data-slot="waterfall-connector"])',
-        );
-        expect(gridLines.length).toBeGreaterThan(0);
+        ));
+        const tickLabels: Element[] = Array.from(fixture.nativeElement.querySelectorAll('svg text[x="4"]'));
+        expect(ticks.map(t => t.value)).toContain(800);
+        expect(gridLines.map(l => Number(l.getAttribute('y1')))).toEqual(ticks.map(t => t.y));
+        expect(tickLabels.map(t => t.textContent!.trim())).toEqual(ticks.map(t => String(t.value)));
     });
 
     it('renders category name labels for each bar', async () => {
@@ -227,25 +250,30 @@ describe('WaterfallChartComponent', () => {
         expect(component.hoverTitle()).toContain('Q2');
     });
 
-    it('returns empty tooltip rows and no title when nothing is hovered', async () => {
-        await createFixture();
-        expect(component.tooltipRows()).toEqual([]);
-        expect(component.hoverTitle()).toBeUndefined();
-    });
-
     it('returns empty tooltip rows when the hovered index is out of range', async () => {
         await createFixture();
         component.setHover(99);
         expect(component.tooltipRows()).toEqual([]);
     });
 
-    it('shows the tooltip when hovering and hides it on leave', async () => {
+    /** clientX over bar i's centre: the stubbed svg rect is 520px wide, the viewBox svgWidth(). */
+    function clientXOverBar(i: number): number {
+        return (component.bars()[i].centerX * boundingRect.width) / component.svgWidth();
+    }
+
+    it('shows the tooltip for the bar under the pointer and hides it on leave', async () => {
         await createFixture();
-        component.setHover(2);
+        const svg = fixture.nativeElement.querySelector('svg') as SVGSVGElement;
+        const tooltip = (): HTMLElement | null => fixture.nativeElement.querySelector('[data-slot="chart-tooltip"]');
+        expect(tooltip()).toBeNull();
+
+        svg.dispatchEvent(new MouseEvent('mousemove', { clientX: clientXOverBar(2), clientY: 100 }));
         fixture.detectChanges();
-        expect(component.hovered()).toBe(2);
-        component.onPointerLeave();
-        expect(component.hovered()).toBeNull();
+        expect(tooltip()!.textContent).toContain('Q3');
+
+        svg.dispatchEvent(new MouseEvent('mouseleave'));
+        fixture.detectChanges();
+        expect(tooltip()).toBeNull();
     });
 
     it('does not render the tooltip element when showTooltip is false', async () => {
@@ -257,15 +285,17 @@ describe('WaterfallChartComponent', () => {
         ).toBeNull();
     });
 
-    it('updates hover and tooltip position on pointer move', async () => {
+    it('hovers the nearest bar and anchors the tooltip 12px past its centre', async () => {
         await createFixture();
+        const target = component.bars()[2];
+        // A few px right of bar 2's centre is still nearer to it than to bar 3.
         const event = new MouseEvent('mousemove', {
-            clientX: 300,
+            clientX: clientXOverBar(2) + 5,
             clientY: 100,
         });
         component.onPointerMove(event);
-        expect(component.hovered()).not.toBeNull();
-        expect(component.tooltipPos().x).toBeGreaterThan(0);
+        expect(component.hovered()).toBe(2);
+        expect(component.tooltipPos().x).toBeCloseTo(target.centerX + 12, 6);
     });
 
     it('emits barClick with the point and index for a valid bar', async () => {
@@ -315,20 +345,6 @@ describe('WaterfallChartComponent', () => {
             expect(component.isRtl()).toBe(true);
             const bars = component.bars();
             expect(bars[0].x).toBeGreaterThan(bars[3].x);
-        });
-
-        it('reports isRtl false when dir is ltr', async () => {
-            await createFixture();
-            fixture.componentRef.setInput('dir', 'ltr');
-            fixture.detectChanges();
-            expect(component.isRtl()).toBe(false);
-        });
-
-        it('falls back to the DOM direction when dir is auto', async () => {
-            await createFixture();
-            fixture.componentRef.setInput('dir', 'auto');
-            fixture.detectChanges();
-            expect(component.isRtl()).toBe(false);
         });
     });
 });

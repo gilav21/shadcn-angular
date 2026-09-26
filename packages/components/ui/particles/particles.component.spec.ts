@@ -16,10 +16,6 @@ interface ParticlesInternals {
     canvas: HTMLCanvasElement | null;
     ctx: CanvasRenderingContext2D | null;
     particles: TestParticle[];
-    animationFrameId: number | null;
-    mouseX: number;
-    mouseY: number;
-    resolvedColor: string;
     animate: () => void;
     syncCanvasSize: () => void;
     createParticles: () => void;
@@ -29,19 +25,40 @@ function internals(comp: ParticlesComponent): ParticlesInternals {
     return comp as unknown as ParticlesInternals;
 }
 
-// Fake 2D context: jsdom has no canvas 2D context, so every method is a no-op
-// and the style/alpha fields are plain writable properties the component sets.
+interface DrawCall {
+    op: string;
+    args: number[];
+}
+
+/** Every drawing call made on the fake context, in order; tests clear it per frame. */
+const drawLog: DrawCall[] = [];
+/** The context the component obtained, so its style fields can be read back. */
+let lastContext: CanvasRenderingContext2D | null = null;
+
+function arcs(): { x: number; y: number }[] {
+    return drawLog.filter(c => c.op === 'arc').map(c => ({ x: c.args[0], y: c.args[1] }));
+}
+
+function countOps(op: string): number {
+    return drawLog.filter(c => c.op === op).length;
+}
+
+// Fake 2D context: jsdom has no canvas 2D context, so the drawing methods only
+// record themselves and the style/alpha fields are plain writable properties.
 function makeContext(): CanvasRenderingContext2D {
     const noop = (): void => {};
-    return {
+    const record = (op: string) => (...args: number[]): void => {
+        drawLog.push({ op, args });
+    };
+    lastContext = {
         clearRect: noop,
         fillRect: noop,
         beginPath: noop,
-        arc: noop,
+        arc: record('arc'),
         fill: noop,
         moveTo: noop,
-        lineTo: noop,
-        stroke: noop,
+        lineTo: record('lineTo'),
+        stroke: record('stroke'),
         closePath: noop,
         save: noop,
         restore: noop,
@@ -53,6 +70,16 @@ function makeContext(): CanvasRenderingContext2D {
         globalAlpha: 1,
         lineWidth: 0.5,
     } as unknown as CanvasRenderingContext2D;
+    return lastContext;
+}
+
+/**
+ * Makes `Math.random` return `values` in order (then 0.5). Each particle draws
+ * five values: x / width, y / height, vx and vy as `(r - 0.5) * speed`, radius.
+ */
+function seedRandom(values: number[]): void {
+    const queue = [...values];
+    vi.spyOn(Math, 'random').mockImplementation(() => queue.shift() ?? 0.5);
 }
 
 type CanvasProto = { getContext: (id: string) => unknown };
@@ -190,10 +217,18 @@ describe('ParticlesComponent', () => {
         });
         vi.spyOn(globalThis, 'cancelAnimationFrame').mockImplementation(() => {});
         installDom();
+        drawLog.length = 0;
+        lastContext = null;
 
         await TestBed.configureTestingModule({ imports: [HostComponent] }).compileComponents();
         fixture = TestBed.createComponent(HostComponent);
     });
+
+    /** Runs every pending animation frame, recording only that frame's drawing. */
+    function runFrame(): void {
+        drawLog.length = 0;
+        for (const cb of rafCallbacks.splice(0)) cb(0);
+    }
 
     afterEach(() => {
         restoreDom();
@@ -218,17 +253,12 @@ describe('ParticlesComponent', () => {
 
     it('spawns the requested number of particles sized to the host', () => {
         fixture.detectChanges();
-        const comp = queryComp(fixture);
-        expect(internals(comp).particles).toHaveLength(20);
-        expect(internals(comp).canvas!.width).toBe(200);
-    });
-
-    it('exposes count, color and mouseInteraction inputs', () => {
-        fixture.detectChanges();
-        const comp = queryComp(fixture);
-        expect(comp.count()).toBe(20);
-        expect(comp.color()).toBe('hsl(var(--foreground))');
-        expect(comp.mouseInteraction()).toBe(true);
+        const canvas = queryHostEl(fixture).querySelector('canvas')!;
+        expect(canvas.width).toBe(200);
+        expect(canvas.height).toBe(200);
+        expect(arcs()).toHaveLength(20);
+        runFrame();
+        expect(arcs()).toHaveLength(20);
     });
 
     it('enables pointer events on the host when mouse interaction is on', () => {
@@ -240,32 +270,42 @@ describe('ParticlesComponent', () => {
         fixture.componentInstance.color.set('currentColor');
         fixture.componentInstance.hostColor.set('rgb(10, 20, 30)');
         fixture.detectChanges();
-        expect(internals(queryComp(fixture)).resolvedColor).toBe('rgb(10, 20, 30)');
+        expect(lastContext!.fillStyle).toBe('rgb(10, 20, 30)');
     });
 
     it('uses a literal color verbatim without touching computed styles', () => {
+        const computedSpy = vi.spyOn(globalThis, 'getComputedStyle');
         fixture.componentInstance.color.set('#ff0000');
         fixture.detectChanges();
-        expect(internals(queryComp(fixture)).resolvedColor).toBe('#ff0000');
+        expect(lastContext!.fillStyle).toBe('#ff0000');
+        expect(computedSpy).not.toHaveBeenCalled();
     });
 
-    it('re-runs a frame that moves particles, wraps edges and reacts to the mouse', () => {
+    it('bounces particles off all four edges and repels them from the pointer', () => {
+        fixture.componentInstance.count.set(5);
+        fixture.componentInstance.speed.set(2);
+        seedRandom([
+            0, 0.5, 0, 0.5, 0.5, // (0, 100) heading left
+            0.9999, 0.5, 0.99, 0.5, 0.5, // (199.98, 100) heading right
+            0.5, 0, 0.5, 0, 0.5, // (100, 0) heading up
+            0.5, 0.9999, 0.5, 0.99, 0.5, // (100, 199.98) heading down
+            0.52, 0.5, 0.5, 0.5, 0.5, // (104, 100) at rest, beside the pointer
+        ]);
         fixture.detectChanges();
-        const comp = queryComp(fixture);
-        const state = internals(comp);
-        state.particles = [
-            { x: -5, y: 100, vx: 1, vy: 1, radius: 2 },
-            { x: 205, y: 100, vx: 1, vy: 1, radius: 2 },
-            { x: 100, y: -5, vx: 1, vy: 1, radius: 2 },
-            { x: 100, y: 205, vx: 1, vy: 1, radius: 2 },
-            { x: 100, y: 100, vx: 1, vy: 1, radius: 2 },
-            { x: 104, y: 100, vx: 1, vy: 1, radius: 2 },
-        ];
-        state.mouseX = 100;
-        state.mouseY = 100;
-        state.animate();
-        expect(state.particles[0].vx).toBe(-1);
-        expect(state.particles[2].vy).toBe(-1);
+        queryHostEl(fixture).dispatchEvent(new MouseEvent('mousemove', { clientX: 100, clientY: 100 }));
+
+        // Each edge particle crossed its edge in the first frame; a bounce sends it straight back.
+        runFrame();
+        const [left, right, top, bottom, resting] = arcs();
+        expect(left.x).toBeCloseTo(0, 6);
+        expect(right.x).toBeCloseTo(199.98, 6);
+        expect(top.y).toBeCloseTo(0, 6);
+        expect(bottom.y).toBeCloseTo(199.98, 6);
+        expect(resting.x).toBeCloseTo(104, 6);
+
+        runFrame();
+        expect(arcs()[4].x).toBeGreaterThan(104);
+        expect(arcs()[4].y).toBeCloseTo(100, 6);
     });
 
     it('reschedules a frame without drawing when the canvas has zero size', () => {
@@ -286,14 +326,6 @@ describe('ParticlesComponent', () => {
         const before = rafCallbacks.length;
         state.animate();
         expect(rafCallbacks).toHaveLength(before);
-    });
-
-    it('skips sizing when the canvas is absent', () => {
-        fixture.detectChanges();
-        const comp = queryComp(fixture);
-        const state = internals(comp);
-        state.canvas = null;
-        expect(() => state.syncCanvasSize()).not.toThrow();
     });
 
     it('leaves canvas size unchanged when the host has zero dimensions', () => {
@@ -324,15 +356,31 @@ describe('ParticlesComponent', () => {
         expect(internals(comp).particles.length).toBeGreaterThan(0);
     });
 
-    it('tracks the pointer via mousemove and resets it on mouseleave', () => {
+    it('tracks the pointer via mousemove and stops repelling on mouseleave', () => {
+        fixture.componentInstance.count.set(1);
+        seedRandom([0.52, 0.5, 0.5, 0.5, 0.5]); // (104, 100) at rest
         fixture.detectChanges();
-        const comp = queryComp(fixture);
         const hostEl = queryHostEl(fixture);
-        hostEl.dispatchEvent(new MouseEvent('mousemove', { clientX: 150, clientY: 160 }));
-        expect(internals(comp).mouseX).toBe(150);
-        expect(internals(comp).mouseY).toBe(160);
+
+        hostEl.dispatchEvent(new MouseEvent('mousemove', { clientX: 100, clientY: 100 }));
+        runFrame();
+        runFrame();
+        const pushed = arcs()[0].x;
+        expect(pushed).toBeGreaterThan(104);
+
         hostEl.dispatchEvent(new MouseEvent('mouseleave'));
-        expect(internals(comp).mouseX).toBe(-1000);
+        runFrame();
+        const step = arcs()[0].x - pushed;
+        runFrame();
+        expect(arcs()[0].x - pushed).toBeCloseTo(2 * step, 10);
+    });
+
+    it('joins two particles closer than connectDistance with one line', () => {
+        fixture.componentInstance.count.set(2);
+        seedRandom([0.5, 0.5, 0.5, 0.5, 0.5, 0.55, 0.5, 0.5, 0.5, 0.5]); // (100, 100) and (110, 100)
+        fixture.detectChanges();
+        expect(countOps('lineTo')).toBe(1);
+        expect(countOps('stroke')).toBe(1);
     });
 
     it('cleans up the canvas and animation frame on destroy', () => {
@@ -356,6 +404,7 @@ describe('ParticlesComponent without mouse interaction or connections', () => {
         vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation(() => 1 as unknown as number);
         vi.spyOn(globalThis, 'cancelAnimationFrame').mockImplementation(() => {});
         installDom();
+        drawLog.length = 0;
 
         await TestBed.configureTestingModule({ imports: [HostComponent] }).compileComponents();
         fixture = TestBed.createComponent(HostComponent);
@@ -375,10 +424,10 @@ describe('ParticlesComponent without mouse interaction or connections', () => {
         expect(hostEl.style.pointerEvents).not.toBe('auto');
     });
 
-    it('still spawns particles and runs a frame without connections', () => {
-        const comp = queryComp(fixture);
-        expect(internals(comp).particles).toHaveLength(20);
-        expect(() => internals(comp).animate()).not.toThrow();
+    it('draws the particles but no connecting lines when connectDistance is 0', () => {
+        expect(countOps('arc')).toBe(20);
+        expect(countOps('lineTo')).toBe(0);
+        expect(countOps('stroke')).toBe(0);
     });
 });
 
@@ -395,6 +444,7 @@ describe('ParticlesComponent reduced motion behavior', () => {
 
         await TestBed.configureTestingModule({ imports: [HostComponent] }).compileComponents();
         fixture = TestBed.createComponent(HostComponent);
+        vi.mocked(requestAnimationFrame).mockClear();
         fixture.detectChanges();
     });
 
@@ -407,14 +457,7 @@ describe('ParticlesComponent reduced motion behavior', () => {
         const hostEl = queryHostEl(fixture);
         expect(hostEl.querySelector('canvas')).toBeFalsy();
         expect(internals(queryComp(fixture)).particles).toHaveLength(0);
-    });
-
-    it('still sets the data-slot attribute', () => {
-        expect(queryHostEl(fixture).dataset['slot']).toBe('particles');
-    });
-
-    it('never schedules an animation frame', () => {
-        expect(internals(queryComp(fixture)).animationFrameId).toBeNull();
+        expect(requestAnimationFrame).not.toHaveBeenCalled();
     });
 
     it('destroys cleanly without a scheduled frame', () => {

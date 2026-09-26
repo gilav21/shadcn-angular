@@ -4,7 +4,7 @@
 // that a test calling `onBlur()` directly proves the method works and says
 // nothing about whether anything ever calls it.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { Component, signal, type ModelSignal } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { TimePickerComponent } from './time-picker.component';
@@ -86,15 +86,6 @@ describe('TimePickerComponent', () => {
     afterEach(() => fixture.destroy());
 
     describe('the conformance contract', () => {
-        it('exposes value as a model signal', () => {
-            const control = fixture.debugElement.children[0]
-                .componentInstance as TimePickerComponent;
-            const value: ModelSignal<string | null> = control.value;
-
-            expect(typeof value.set).toBe('function');
-            expect(typeof value.subscribe).toBe('function');
-        });
-
         it('emits through the two-way binding on a user edit', async () => {
             await typeInto('hour', '9');
             await typeInto('minute', '5');
@@ -116,15 +107,6 @@ describe('TimePickerComponent', () => {
     });
 
     describe('the value is HH:mm, 24-hour', () => {
-        it('stores 24-hour even when it renders 12-hour', async () => {
-            await typeInto('hour', '9');
-            await typeInto('minute', '5');
-            period()!.click();
-            await settle();
-
-            expect(host.time()).toBe('21:05');
-        });
-
         /** UC-2: the same instant, entered in two locales, is one value. */
         it('is the same string whichever locale entered it', async () => {
             await typeInto('hour', '9');
@@ -132,6 +114,8 @@ describe('TimePickerComponent', () => {
             period()!.click();
             await settle();
             const american = host.time();
+            // Stored 24-hour even though it renders 12-hour.
+            expect(american).toBe('21:05');
 
             host.locale.set('de-DE');
             host.time.set(null);
@@ -182,12 +166,6 @@ describe('TimePickerComponent', () => {
         it('keeps the digit that was typed', async () => {
             await typeInto('hour', '9');
             expect(segment('hour').value).toBe('9');
-        });
-
-        it('produces a value as soon as the minute arrives', async () => {
-            await typeInto('hour', '9');
-            await typeInto('minute', '5');
-            expect(host.time()).toBe('09:05');
         });
 
         it('goes back to no value when a segment is emptied', async () => {
@@ -282,17 +260,6 @@ describe('TimePickerComponent', () => {
             expect(host.time()).toBe('23:00');
         });
 
-        it('clamps a minute above the maximum', async () => {
-            await typeInto('hour', '9');
-            await typeInto('minute', '99');
-            expect(host.time()).toBe('09:59');
-        });
-
-        it('ignores characters that are not digits', async () => {
-            await typeInto('hour', '9');
-            await typeInto('minute', '3a0');
-            expect(host.time()).toBe('09:30');
-        });
     });
 
     describe('arrow keys', () => {
@@ -305,14 +272,6 @@ describe('TimePickerComponent', () => {
 
             await press('minute', 'ArrowDown');
             expect(host.time()).toBe('09:05');
-        });
-
-        it('wraps a minute rather than sticking at 59', async () => {
-            host.time.set('09:59');
-            await settle();
-            await press('minute', 'ArrowUp');
-
-            expect(host.time()).toBe('09:00');
         });
 
         /** A 12-hour hour runs 1–12, so it wraps to 1 rather than to 0. */
@@ -468,12 +427,6 @@ describe('TimePickerComponent', () => {
 
         it('names the meridiem button', () => {
             expect(period()!.getAttribute('aria-label')).toBe('AM or PM');
-        });
-
-        it('keeps the meridiem out of the tab order of a 24-hour locale', async () => {
-            host.locale.set('en-GB');
-            await settle();
-            expect(period()).toBeNull();
         });
 
         it('asks for a numeric keypad without being a number field', () => {

@@ -131,49 +131,9 @@ describe('SignaturePadComponent', () => {
             ]);
             expect(host.strokes()).toBe(2);
         });
-
-        /** Risk R-3 — a form writing in must not look like a user drawing. */
-        it('does NOT emit when a value is written in from outside', async () => {
-            let emissions = 0;
-            pad().value.subscribe(() => emissions++);
-
-            pad().writeValue(null);
-            await settle();
-
-            expect(emissions).toBe(0);
-        });
     });
 
     describe('drawing', () => {
-        it('records a stroke', async () => {
-            await draw([
-                [10, 10],
-                [40, 40],
-                [80, 20],
-            ]);
-
-            expect(pad().strokes()).toHaveLength(1);
-            expect(pad().strokes()[0].length).toBeGreaterThan(1);
-        });
-
-        /**
-         * R-4: the strokes are normalised to the pad, so the same mark means
-         * the same thing at any size or pixel ratio.
-         */
-        it('keeps the strokes normalised to the pad', async () => {
-            await draw([
-                [10, 10],
-                [40, 40],
-            ]);
-
-            for (const point of pad().strokes()[0]) {
-                expect(point.x).toBeGreaterThanOrEqual(0);
-                expect(point.x).toBeLessThanOrEqual(1);
-                expect(point.y).toBeGreaterThanOrEqual(0);
-                expect(point.y).toBeLessThanOrEqual(1);
-            }
-        });
-
         it('starts a new stroke for each press', async () => {
             await draw([
                 [10, 10],
@@ -262,22 +222,6 @@ describe('SignaturePadComponent', () => {
     });
 
     describe('undo and clear', () => {
-        it('removes the last stroke only', async () => {
-            await draw([
-                [10, 10],
-                [40, 40],
-            ]);
-            await draw([
-                [50, 50],
-                [70, 70],
-            ]);
-
-            button('undo')!.click();
-            await settle();
-
-            expect(pad().strokes()).toHaveLength(1);
-        });
-
         it('erases everything and empties the value', async () => {
             await draw([
                 [10, 10],

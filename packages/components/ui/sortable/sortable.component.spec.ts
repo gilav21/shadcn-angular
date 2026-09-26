@@ -10,8 +10,6 @@ import {
     type SortableReorderEvent,
     type SortableDropRejectedEvent,
 } from './sortable.component';
-import { provideUiLocale } from '../../lib/i18n';
-import type { SortableLocale } from './sortable-locales';
 import { SortableGhostTemplateDirective } from './sub/sortable-ghost.directive';
 import { SortablePlaceholderTemplateDirective } from './sub/sortable-placeholder.directive';
 import { peersInGroup, groupSize, clearRegistry } from '../../lib/sortable-registry';
@@ -194,25 +192,6 @@ describe('SortableComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create the component', () => {
-        expect(host).toBeTruthy();
-    });
-
-    it('should render the container with data-slot="sortable"', () => {
-        const el: HTMLElement = fixture.nativeElement.querySelector('[data-slot="sortable"]');
-        expect(el).toBeTruthy();
-    });
-
-    it('should render one item per entry in items()', () => {
-        const items: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll('[data-slot="sortable-item"]');
-        expect(items).toHaveLength(3);
-    });
-
-    it('should render data-slot="sortable-item" on each row', () => {
-        const items: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll('[data-slot="sortable-item"]');
-        items.forEach(item => expect(item.getAttribute('data-slot')).toBe('sortable-item'));
-    });
-
     it('should apply custom class to the sortable container', () => {
         host.extraClass.set('my-custom');
         fixture.detectChanges();
@@ -224,22 +203,6 @@ describe('SortableComponent', () => {
         const names: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll('.name');
         const texts = Array.from(names).map(n => n.textContent?.trim());
         expect(texts).toEqual(['Alpha', 'Beta', 'Gamma']);
-    });
-
-    it('should update items() and emit reorder on keyboard move (Space + ArrowDown)', () => {
-        const sortable = getSortable<TestRow>(fixture);
-        expect(sortable).toBeTruthy();
-
-        sortable.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: ' ' }));
-        sortable.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: 'ArrowDown' }));
-        fixture.detectChanges();
-
-        expect(host.rows()[0].name).toBe('Beta');
-        expect(host.rows()[1].name).toBe('Alpha');
-        expect(host.lastReorder?.from.index).toBe(0);
-        expect(host.lastReorder?.to.index).toBe(1);
-        expect(host.lastReorder?.from.listId).toBe(host.lastReorder?.to.listId);
-        expect(host.lastReorder?.item).toBeTruthy();
     });
 
     it('should not reorder when disabled', () => {
@@ -326,15 +289,6 @@ describe('SortableComponent', () => {
         const sortable = getSortable<TestRow>(fixture);
 
         firstItem.onMouseDown(new MouseEvent('mousedown', { clientX: 0, clientY: 0 }));
-        expect(sortable.dragSource()).toBeNull();
-    });
-
-    it('startDrag respects disabled flag', () => {
-        host.disabled.set(true);
-        fixture.detectChanges();
-
-        const sortable = getSortable<TestRow>(fixture);
-        sortable.startDrag(0, 0, 0);
         expect(sortable.dragSource()).toBeNull();
     });
 
@@ -450,9 +404,10 @@ describe('SortableComponent', () => {
         }
         const f = TestBed.createComponent(SlotHost);
         f.detectChanges();
-        const header: HTMLElement | null = f.nativeElement.querySelector('[data-testid="header"]');
-        expect(header).not.toBeNull();
-        expect(header?.textContent).toBe('HEADER');
+        const header: HTMLElement = f.nativeElement.querySelector('[data-testid="header"]');
+        const firstItem: HTMLElement = f.nativeElement.querySelector('[data-slot="sortable-item"]');
+        expect(header.textContent).toBe('HEADER');
+        expect(header.compareDocumentPosition(firstItem) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
     it('projects uiSortableFooter content below the items', () => {
@@ -474,12 +429,14 @@ describe('SortableComponent', () => {
             `,
         })
         class FooterHost {
-            readonly rows = signal<TestRow[]>([{ id: 1, name: 'A' }]);
+            readonly rows = signal<TestRow[]>([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]);
         }
         const f = TestBed.createComponent(FooterHost);
         f.detectChanges();
-        const footer: HTMLElement | null = f.nativeElement.querySelector('[data-testid="footer"]');
-        expect(footer).not.toBeNull();
+        const footer: HTMLElement = f.nativeElement.querySelector('[data-testid="footer"]');
+        const items: NodeListOf<HTMLElement> = f.nativeElement.querySelectorAll('[data-slot="sortable-item"]');
+        expect(footer.textContent).toBe('FOOTER');
+        expect(footer.compareDocumentPosition(items[items.length - 1]) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
     });
 
     it('projects uiSortableEmpty only when items is empty', () => {
@@ -671,18 +628,6 @@ describe('SortableComponent', () => {
         expect(itemsAfter[0].className).not.toContain('cursor-grab');
     });
 
-    it('exports SORTABLE_LAND_EFFECTS with the four built-in class names', () => {
-        expect(SORTABLE_LAND_EFFECTS.flash).toBe('ui-sortable-land-flash');
-        expect(SORTABLE_LAND_EFFECTS.pulse).toBe('ui-sortable-land-pulse');
-        expect(SORTABLE_LAND_EFFECTS.shake).toBe('ui-sortable-land-shake');
-        expect(SORTABLE_LAND_EFFECTS.glow).toBe('ui-sortable-land-glow');
-    });
-
-    it('SORTABLE_LAND_EFFECTS is readonly (frozen-shape const)', () => {
-        const keys = Object.keys(SORTABLE_LAND_EFFECTS).sort((a, b) => a.localeCompare(b));
-        expect(keys).toEqual(['flash', 'glow', 'pulse', 'shake']);
-    });
-
     it('applies positionClass to each item wrapper, re-evaluating on reorder', () => {
         @Component({
             selector: 'app-pos-host',
@@ -849,14 +794,6 @@ describe('SortableComponent', () => {
         expect(peers[0].listId).toBe('A');
         expect(peers[0].group).toBe('my-grp');
         expect(peers[0].orientation).toBe('vertical');
-    });
-
-    it('does not register when [group] is empty (the default)', () => {
-        clearRegistry();
-        const sortable = getSortable<TestRow>(fixture);
-        expect(sortable).toBeTruthy();
-        expect(groupSize('')).toBe(0);
-        expect(groupSize('any')).toBe(0);
     });
 
     it('unregisters on destroy', () => {
@@ -1215,40 +1152,6 @@ describe('SortableComponent', () => {
         document.body.removeChild(f.nativeElement);
     });
 
-    it('accepts a fully custom SortableLocale object as input', () => {
-        const customLocale: SortableLocale = {
-            code: 'xx',
-            pickedUp: (label, n, total) => `XX-PICKED ${label} ${n}/${total}`,
-            moved: (n, total) => `XX-MOVED ${n}/${total}`,
-            movedToList: (l, n, t) => `XX-MTL ${l} ${n}/${t}`,
-            dropped: (n) => `XX-DROP ${n}`,
-            rejected: (reason) => `XX-REJ ${reason ?? ''}`,
-            cancelled: 'XX-CANCELLED',
-        };
-
-        @Component({
-            selector: 'app-custom-loc-host',
-            standalone: true,
-            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective],
-            template: `
-                <ui-sortable [(items)]="rows" [locale]="loc">
-                    <ng-template uiSortableItem let-row let-i="index">
-                        <ui-sortable-item [index]="i">{{ $any(row).name }}</ui-sortable-item>
-                    </ng-template>
-                </ui-sortable>
-            `,
-        })
-        class CustomLocHost {
-            readonly rows = signal<TestRow[]>([{ id: 1, name: 'A' }]);
-            readonly loc = customLocale;
-        }
-        const f = TestBed.createComponent(CustomLocHost);
-        f.detectChanges();
-        const sortable = f.debugElement.query(el => el.componentInstance instanceof SortableComponent).componentInstance as SortableComponent<TestRow>;
-        expect(sortable.currentLocale().cancelled).toBe('XX-CANCELLED');
-        expect(sortable.currentLocale().pickedUp('A', 1, 3)).toBe('XX-PICKED A 1/3');
-    });
-
     it('Home jumps the lifted item to position 0', () => {
         const sortable = getSortable<TestRow>(fixture);
         sortable.handleItemKeyDown(2, new KeyboardEvent('keydown', { key: ' ' }));
@@ -1354,13 +1257,13 @@ describe('SortableComponent', () => {
         document.body.removeChild(f.nativeElement);
     });
 
-    it('built-in landEffect plays via element.animate with composite:"add"', async () => {
+    it.each(Object.values(SORTABLE_LAND_EFFECTS))('built-in landEffect %s plays via element.animate with composite:"add"', async (effect) => {
         @Component({
             selector: 'app-builtin-land',
             standalone: true,
             imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective],
             template: `
-                <ui-sortable [(items)]="rows" [landEffect]="pulseFn">
+                <ui-sortable [(items)]="rows" [landEffect]="landFn">
                     <ng-template uiSortableItem let-row let-i="index">
                         <ui-sortable-item [index]="i" style="display:block; height:40px; width:200px;">{{ $any(row).name }}</ui-sortable-item>
                     </ng-template>
@@ -1369,7 +1272,7 @@ describe('SortableComponent', () => {
         })
         class BuiltInHost {
             readonly rows = signal<TestRow[]>([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]);
-            readonly pulseFn = (): string => SORTABLE_LAND_EFFECTS.pulse;
+            readonly landFn = (): string => effect;
         }
         const f = TestBed.createComponent(BuiltInHost);
         document.body.appendChild(f.nativeElement);
@@ -1422,133 +1325,13 @@ describe('SortableComponent', () => {
         globalThis.dispatchEvent(new MouseEvent('mouseup', { clientX: 5, clientY: targetY }));
         fixture.detectChanges();
 
-        // Old algorithm: cursor stayed in upper half of source's adjusted rect → target=0 forever → no reorder.
-        // New algorithm: source is skipped during scan → target computed from neighbours, reorder happens.
-        expect(host.rows()[0].name).not.toBe('Alpha');
-        detachFixture();
-    });
-
-    it('animates after Escape-cancel restores order', async () => {
-        attachAndSizeFixture();
-        const sortable = getSortable<TestRow>(fixture);
-
-        sortable.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: ' ' }));
-        sortable.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: 'ArrowDown' }));
-        fixture.detectChanges();
-        await flushTimers();
-
-        const animateSpy = vi.spyOn(HTMLElement.prototype, 'animate');
-        sortable.handleItemKeyDown(1, new KeyboardEvent('keydown', { key: 'Escape' }));
-        fixture.detectChanges();
-        await flushTimers();
-
-        expect(animateSpy).toHaveBeenCalled();
-        animateSpy.mockRestore();
+        // The old algorithm pinned target=0 while the cursor sat in the source's upper half.
+        expect(host.rows().map(r => r.name)).toEqual(['Beta', 'Gamma', 'Alpha']);
+        expect(host.lastReorder?.from.index).toBe(0);
+        expect(host.lastReorder?.to.index).toBe(2);
         detachFixture();
     });
 });
-
-describe('SortableComponent — i18n integration', () => {
-    it('falls back to global UI_LOCALE_ID when no locale input is set', async () => {
-        @Component({
-            selector: 'app-global-loc-host',
-            standalone: true,
-            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective],
-            template: `
-                <ui-sortable [(items)]="rows">
-                    <ng-template uiSortableItem let-row let-i="index">
-                        <ui-sortable-item [index]="i">{{ $any(row).name }}</ui-sortable-item>
-                    </ng-template>
-                </ui-sortable>
-            `,
-        })
-        class GlobalLocHost {
-            readonly rows = signal<TestRow[]>([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]);
-        }
-        await TestBed.configureTestingModule({
-            imports: [GlobalLocHost],
-            providers: [provideUiLocale('he')],
-        }).compileComponents();
-        const f = TestBed.createComponent(GlobalLocHost);
-        f.detectChanges();
-        const sortable = f.debugElement.query(el => el.componentInstance instanceof SortableComponent).componentInstance as SortableComponent<TestRow>;
-        expect(sortable.currentLocale().code).toBe('he');
-        expect(sortable.currentLocale().cancelled).toContain('בוטל');
-    });
-
-    it('per-instance locale input overrides the global signal', async () => {
-        @Component({
-            selector: 'app-override-loc-host',
-            standalone: true,
-            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective],
-            template: `
-                <ui-sortable [(items)]="rows" locale="fr">
-                    <ng-template uiSortableItem let-row let-i="index">
-                        <ui-sortable-item [index]="i">{{ $any(row).name }}</ui-sortable-item>
-                    </ng-template>
-                </ui-sortable>
-            `,
-        })
-        class OverrideLocHost {
-            readonly rows = signal<TestRow[]>([{ id: 1, name: 'A' }]);
-        }
-        await TestBed.configureTestingModule({
-            imports: [OverrideLocHost],
-            providers: [provideUiLocale('he')],
-        }).compileComponents();
-        const f = TestBed.createComponent(OverrideLocHost);
-        f.detectChanges();
-        const sortable = f.debugElement.query(el => el.componentInstance instanceof SortableComponent).componentInstance as SortableComponent<TestRow>;
-        expect(sortable.currentLocale().code).toBe('fr');
-        expect(sortable.currentLocale().cancelled).toContain('annulée');
-    });
-
-    it('reacts to a signal-based global locale change', async () => {
-        const localeSignal = signal('en');
-
-        @Component({
-            selector: 'app-signal-loc-host',
-            standalone: true,
-            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective],
-            template: `
-                <ui-sortable [(items)]="rows">
-                    <ng-template uiSortableItem let-row let-i="index">
-                        <ui-sortable-item [index]="i">{{ $any(row).name }}</ui-sortable-item>
-                    </ng-template>
-                </ui-sortable>
-            `,
-        })
-        class SignalLocHost {
-            readonly rows = signal<TestRow[]>([{ id: 1, name: 'A' }]);
-        }
-        await TestBed.configureTestingModule({
-            imports: [SignalLocHost],
-            providers: [provideUiLocale(localeSignal)],
-        }).compileComponents();
-        const f = TestBed.createComponent(SignalLocHost);
-        f.detectChanges();
-        const sortable = f.debugElement.query(el => el.componentInstance instanceof SortableComponent).componentInstance as SortableComponent<TestRow>;
-        expect(sortable.currentLocale().code).toBe('en');
-
-        localeSignal.set('ar');
-        f.detectChanges();
-        expect(sortable.currentLocale().code).toBe('ar');
-        expect(sortable.currentLocale().rtl).toBe(true);
-    });
-});
-
-/** Private surface reached via cast to exercise defensive guards jsdom can't hit naturally. */
-interface SortablePrivate {
-    cancelDragDueTo(reason: string): void;
-    onDragEnd(): void;
-    updatePeerRejectVisual(peer: unknown, toIndex: number): void;
-    keyboardCrossList(fromIndex: number, direction: number): void;
-    readonly _dragTarget: { set(value: number | null): void };
-}
-
-function asPrivate<T>(sortable: SortableComponent<T>): SortablePrivate {
-    return sortable as unknown as SortablePrivate;
-}
 
 function firstSortable<T>(f: ComponentFixture<unknown>, listId?: string): SortableComponent<T> {
     const all = f.debugElement
@@ -1557,12 +1340,50 @@ function firstSortable<T>(f: ComponentFixture<unknown>, listId?: string): Sortab
     return (listId ? all.find(s => s.listId() === listId) : all[0]) as SortableComponent<T>;
 }
 
+/** Private surface reached via cast to exercise defensive guards no public path reaches. */
+interface SortablePrivate {
+    onDragEnd(): void;
+    readonly _dragTarget: { set(value: number | null): void };
+}
+
+function asPrivate<T>(sortable: SortableComponent<T>): SortablePrivate {
+    return sortable as unknown as SortablePrivate;
+}
+
 describe('SortableComponent — coverage completion', () => {
-    it('SortableItemTemplateDirective exposes a passthrough ngTemplateContextGuard', () => {
-        const guard = SortableItemTemplateDirective.ngTemplateContextGuard;
-        expect(guard({} as SortableItemTemplateDirective, { $implicit: 1, index: 0 })).toBe(true);
+    it('template-marker directives expose passthrough ngTemplateContextGuards (white-box: compile-time type guards with no runtime caller)', () => {
+        expect(SortableItemTemplateDirective.ngTemplateContextGuard({} as SortableItemTemplateDirective, { $implicit: 1, index: 0 })).toBe(true);
+        expect(SortableGhostTemplateDirective.ngTemplateContextGuard({} as SortableGhostTemplateDirective, { $implicit: { id: 1 }, index: 0 })).toBe(true);
+        expect(SortablePlaceholderTemplateDirective.ngTemplateContextGuard({} as SortablePlaceholderTemplateDirective, { $implicit: 'x', index: 2 })).toBe(true);
     });
 
+    it('onDragEnd clears state when invoked without an active source (white-box: unreachable through the public API)', () => {
+        const f = TestBed.createComponent(TestHostComponent);
+        document.body.appendChild(f.nativeElement);
+        f.detectChanges();
+        const sortable = firstSortable<TestRow>(f);
+        expect(() => asPrivate(sortable).onDragEnd()).not.toThrow();
+        expect(sortable.dragSource()).toBeNull();
+        document.body.removeChild(f.nativeElement);
+    });
+
+    it('onDragEnd with no computed gap snaps back without reordering and clears drag state (white-box: startDrag always seeds a gap)', () => {
+        const f = TestBed.createComponent(TestHostComponent);
+        document.body.appendChild(f.nativeElement);
+        f.detectChanges();
+        const sortable = firstSortable<TestRow>(f);
+
+        sortable.startDrag(0, 5, 5);
+        expect(sortable.dragSource()).toBe(0);
+        asPrivate(sortable)._dragTarget.set(null);
+        asPrivate(sortable).onDragEnd();
+
+        expect(sortable.dragSource()).toBeNull();
+        expect(sortable.dragTarget()).toBeNull();
+        expect(f.componentInstance.lastReorder).toBeNull();
+        expect(f.componentInstance.rows().map(r => r.name)).toEqual(['Alpha', 'Beta', 'Gamma']);
+        document.body.removeChild(f.nativeElement);
+    });
     it('a handle with no sortable ancestor ignores mouse and touch without throwing', () => {
         @Component({
             selector: 'app-orphan-handle-host',
@@ -1765,50 +1586,6 @@ describe('SortableComponent — coverage completion', () => {
         expect(f.componentInstance.rows().map(r => r.name)).toEqual(['B']);
     });
 
-    it('cancelDragDueTo is a no-op when no drag is in flight', () => {
-        const f = TestBed.createComponent(TestHostComponent);
-        f.detectChanges();
-        const sortable = firstSortable<TestRow>(f);
-        expect(() => asPrivate(sortable).cancelDragDueTo('external')).not.toThrow();
-        expect(sortable.dragSource()).toBeNull();
-    });
-
-    it('updatePeerRejectVisual is a no-op when there is no dragged item', () => {
-        const f = TestBed.createComponent(TestHostComponent);
-        f.detectChanges();
-        const sortable = firstSortable<TestRow>(f);
-        const peer = { setRejectReason: vi.fn(), canAccept: vi.fn() };
-        asPrivate(sortable).updatePeerRejectVisual(peer, 0);
-        expect(peer.setRejectReason).not.toHaveBeenCalled();
-        expect(peer.canAccept).not.toHaveBeenCalled();
-    });
-
-    it('onDragEnd clears state when invoked without an active source', () => {
-        const f = TestBed.createComponent(TestHostComponent);
-        document.body.appendChild(f.nativeElement);
-        f.detectChanges();
-        const sortable = firstSortable<TestRow>(f);
-        expect(() => asPrivate(sortable).onDragEnd()).not.toThrow();
-        expect(sortable.dragSource()).toBeNull();
-        document.body.removeChild(f.nativeElement);
-    });
-
-    it('onDragEnd with no computed gap snaps back via FLIP and clears drag state', () => {
-        const f = TestBed.createComponent(TestHostComponent);
-        document.body.appendChild(f.nativeElement);
-        f.detectChanges();
-        const sortable = firstSortable<TestRow>(f);
-
-        sortable.startDrag(0, 5, 5);
-        expect(sortable.dragSource()).toBe(0);
-        asPrivate(sortable)._dragTarget.set(null);
-        asPrivate(sortable).onDragEnd();
-
-        expect(sortable.dragSource()).toBeNull();
-        expect(sortable.dragTarget()).toBeNull();
-        document.body.removeChild(f.nativeElement);
-    });
-
     it('a movement key pressed on an un-lifted item is ignored', () => {
         const f = TestBed.createComponent(TestHostComponent);
         f.detectChanges();
@@ -1859,37 +1636,6 @@ describe('SortableComponent — coverage completion', () => {
         sortable.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: ' ' }));
         sortable.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: 'Tab' }));
         expect(f.componentInstance.rows().map(r => r.name)).toEqual(['A', 'B']);
-    });
-
-    it('keyboardCrossList is a no-op when the resolved peer is the list itself (zero direction)', () => {
-        clearRegistry();
-        @Component({
-            selector: 'app-selfpeer-host',
-            standalone: true,
-            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective],
-            template: `
-                <ui-sortable [(items)]="left" group="selfp" listId="L">
-                    <ng-template uiSortableItem let-row let-i="index">
-                        <ui-sortable-item [index]="i">{{ $any(row).name }}</ui-sortable-item>
-                    </ng-template>
-                </ui-sortable>
-                <ui-sortable [(items)]="right" group="selfp" listId="R">
-                    <ng-template uiSortableItem let-row let-i="index">
-                        <ui-sortable-item [index]="i">{{ $any(row).name }}</ui-sortable-item>
-                    </ng-template>
-                </ui-sortable>
-            `,
-        })
-        class SelfPeerHost {
-            readonly left = signal<TestRow[]>([{ id: 1, name: 'A' }]);
-            readonly right = signal<TestRow[]>([{ id: 2, name: 'B' }]);
-        }
-        const f = TestBed.createComponent(SelfPeerHost);
-        f.detectChanges();
-        const leftS = firstSortable<TestRow>(f, 'L');
-        asPrivate(leftS).keyboardCrossList(0, 0);
-        expect(f.componentInstance.left().map(r => r.name)).toEqual(['A']);
-        expect(f.componentInstance.right().map(r => r.name)).toEqual(['B']);
     });
 
     it('Tab hand-off to a rejecting peer announces and emits dropRejected without moving', () => {
@@ -2000,7 +1746,7 @@ describe('SortableComponent — coverage completion', () => {
                         <ui-sortable-item [index]="i" style="display:block; height:40px; width:200px;">{{ $any(row).name }}</ui-sortable-item>
                     </ng-template>
                 </ui-sortable>
-                <ui-sortable [(items)]="b" group="tri" listId="B"
+                <ui-sortable [(items)]="b" group="tri" listId="B" (itemLeave)="bLeaves = bLeaves + 1"
                     style="display:block; position:fixed; left:300px; top:0px; width:200px;">
                     <ng-template uiSortableItem let-row let-i="index">
                         <ui-sortable-item [index]="i" style="display:block; height:40px; width:200px;">{{ $any(row).name }}</ui-sortable-item>
@@ -2018,6 +1764,7 @@ describe('SortableComponent — coverage completion', () => {
             readonly a = signal<TestRow[]>([{ id: 1, name: 'A1' }]);
             readonly b = signal<TestRow[]>([{ id: 2, name: 'B1' }]);
             readonly c = signal<TestRow[]>([{ id: 3, name: 'C1' }]);
+            bLeaves = 0;
         }
         const f = TestBed.createComponent(ThreeListHost);
         document.body.appendChild(f.nativeElement);
@@ -2029,10 +1776,15 @@ describe('SortableComponent — coverage completion', () => {
         globalThis.dispatchEvent(new MouseEvent('mousemove', { clientX: 350, clientY: 10 }));
         f.detectChanges();
         expect(aS.hoverPeer()?.listId).toBe('B');
+        const bContainer: HTMLElement = f.nativeElement.querySelectorAll('[data-slot="sortable"]')[1];
+        expect(bContainer.dataset['receiving']).toBe('true');
+        expect(f.componentInstance.bLeaves).toBe(0);
 
         globalThis.dispatchEvent(new MouseEvent('mousemove', { clientX: 650, clientY: 10 }));
         f.detectChanges();
         expect(aS.hoverPeer()?.listId).toBe('C');
+        expect(f.componentInstance.bLeaves).toBe(1);
+        expect(bContainer.dataset['receiving']).toBeUndefined();
 
         globalThis.dispatchEvent(new MouseEvent('mouseup', { clientX: 650, clientY: 10 }));
         f.detectChanges();

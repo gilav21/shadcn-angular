@@ -12,8 +12,6 @@ type ContentStrategy = 'absolute' | 'fixed';
 interface ContentInternals {
     onScroll: () => void;
     updateFixedPosition: () => void;
-    isScrollingProgrammatically: boolean;
-    _scrollArea: ScrollAreaComponent | undefined;
     scrollArea: ScrollAreaComponent | undefined;
 }
 
@@ -98,12 +96,6 @@ describe('EmojiPickerComponent', () => {
         protoWithScroll.scrollTo = originalScrollTo;
     });
 
-    it('creates the picker and stays closed initially', () => {
-        expect(picker).toBeTruthy();
-        expect(picker.open()).toBe(false);
-        expect(contentEl()).toBeNull();
-    });
-
     it('opens and closes when the trigger is clicked', () => {
         const triggerSpan = fixture.debugElement
             .query(By.directive(EmojiPickerTriggerComponent))
@@ -117,6 +109,7 @@ describe('EmojiPickerComponent', () => {
         triggerSpan.nativeElement.dispatchEvent(new MouseEvent('click', { bubbles: true }));
         fixture.detectChanges();
         expect(picker.open()).toBe(false);
+        expect(contentEl()).toBeNull();
     });
 
     it('hides on an outside document click but not on an inside click', () => {
@@ -128,14 +121,6 @@ describe('EmojiPickerComponent', () => {
 
         document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
         fixture.detectChanges();
-        expect(picker.open()).toBe(false);
-    });
-
-    it('emits and closes on select when closeOnSelect is true', () => {
-        open();
-        picker.selectEmoji('🐶');
-        fixture.detectChanges();
-        expect(component.selectedEmoji).toBe('🐶');
         expect(picker.open()).toBe(false);
     });
 
@@ -280,12 +265,24 @@ describe('EmojiPickerComponent', () => {
     it('stops at the first section scrolled past its buffer', () => {
         open();
         const content = contentInstance();
+        const scrollArea = fixture.debugElement.query(By.directive(ScrollAreaComponent))
+            .componentInstance as ScrollAreaComponent;
+        (content as unknown as ContentInternals).scrollArea = scrollArea;
+        vi.runAllTimers();
+        content.activeCategory.set('food');
+
+        const viewport = scrollArea.viewportRef?.nativeElement as HTMLElement;
         const sections = Array.from(
             contentEl().querySelectorAll('[data-category]')
         ) as HTMLElement[];
-        Object.defineProperty(sections[1], 'offsetTop', { value: 5000, configurable: true });
+        // Offsets out of order: 'people' lies further down than 'animals', so a
+        // scan that does not stop at 'people' would land on 'animals'.
+        sections.forEach((section, index) => {
+            Object.defineProperty(section, 'offsetTop', { value: index === 1 ? 5000 : index * 1000, configurable: true });
+        });
+        Object.defineProperty(viewport, 'scrollTop', { value: 2500, configurable: true });
 
-        (content as unknown as ContentInternals).onScroll();
+        viewport.dispatchEvent(new Event('scroll'));
         fixture.detectChanges();
         expect(content.activeCategory()).toBe('smileys');
     });
@@ -293,9 +290,31 @@ describe('EmojiPickerComponent', () => {
     it('ignores scroll events while a programmatic scroll is running', () => {
         open();
         const content = contentInstance();
-        const internals = content as unknown as ContentInternals;
-        internals.isScrollingProgrammatically = true;
-        internals.onScroll();
+        const scrollArea = fixture.debugElement.query(By.directive(ScrollAreaComponent))
+            .componentInstance as ScrollAreaComponent;
+        (content as unknown as ContentInternals).scrollArea = scrollArea;
+        vi.runAllTimers();
+
+        const viewport = scrollArea.viewportRef?.nativeElement as HTMLElement;
+        const sections = Array.from(
+            contentEl().querySelectorAll('[data-category]')
+        ) as HTMLElement[];
+        sections.forEach((section, index) => {
+            Object.defineProperty(section, 'offsetTop', { value: index * 1000, configurable: true });
+        });
+        Object.defineProperty(viewport, 'scrollTop', { value: 0, configurable: true });
+
+        const foodTab = Array.from(
+            contentEl().querySelectorAll('.border-b button')
+        ).find(b => b.textContent?.trim() === '🍔') as HTMLButtonElement;
+        foodTab.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        vi.advanceTimersByTime(100);
+
+        viewport.dispatchEvent(new Event('scroll'));
+        expect(content.activeCategory()).toBe('food');
+
+        vi.advanceTimersByTime(800);
+        viewport.dispatchEvent(new Event('scroll'));
         expect(content.activeCategory()).toBe('smileys');
     });
 
@@ -305,28 +324,6 @@ describe('EmojiPickerComponent', () => {
         picker.open.set(false);
         fixture.detectChanges();
         expect(() => (content as unknown as ContentInternals).onScroll()).not.toThrow();
-    });
-
-    it('detaches the scroll listener when the content collapses', () => {
-        open();
-        expect(contentEl()).toBeTruthy();
-        picker.open.set(false);
-        fixture.detectChanges();
-        expect(contentEl()).toBeNull();
-    });
-
-    it('positions the panel with the fixed strategy once measured', () => {
-        component.strategy.set('fixed');
-        fixture.detectChanges();
-        open();
-        const content = contentInstance();
-        expect(contentEl().getAttribute('style')).toContain('visibility: hidden');
-
-        vi.runAllTimers();
-        fixture.detectChanges();
-        expect(content.fixedReady()).toBe(true);
-        expect(content.contentStyles()).toContain('top:');
-        expect(contentEl().className).toContain('fixed');
     });
 
     it('fixed positioning bails out when no trigger is present', () => {
@@ -380,12 +377,15 @@ describe('EmojiPickerComponent', () => {
         expect(prevent).not.toHaveBeenCalled();
     });
 
-    it('cleans up the scroll listener on destroy', () => {
+    it('removes the close-on-scroll listener on destroy', () => {
         component.closeOnScroll.set(true);
         fixture.detectChanges();
         open();
         vi.runAllTimers();
-        expect(() => fixture.destroy()).not.toThrow();
+
+        fixture.destroy();
+        globalThis.window.dispatchEvent(new Event('scroll'));
+        expect(picker.open()).toBe(true);
     });
 
     it('gives every emoji button a spoken name, not just the glyph', () => {

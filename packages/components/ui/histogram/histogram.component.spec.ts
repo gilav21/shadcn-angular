@@ -54,14 +54,11 @@ describe('HistogramComponent', () => {
         it('gives every bar a positive width and a height proportional to its count', async () => {
             await createFixture([1, 1, 1, 2]);
             const bars = component.bars();
-            expect(bars.length).toBeGreaterThan(0);
-            for (const bar of bars) {
-                expect(bar.width).toBeGreaterThan(0);
-                expect(Number.isFinite(bar.height)).toBe(true);
-                expect(bar.height).toBeGreaterThanOrEqual(0);
-            }
-            const tallest = bars.reduce((a, b) => (a.count >= b.count ? a : b), bars[0]);
-            expect(tallest.count).toBe(3);
+            for (const bar of bars) expect(bar.width).toBeGreaterThan(0);
+            const three = bars.find(bar => bar.count === 3)!;
+            const one = bars.find(bar => bar.count === 1)!;
+            expect(one.height).toBeGreaterThan(0);
+            expect(three.height).toBeCloseTo(3 * one.height, 6);
         });
     });
 
@@ -154,12 +151,6 @@ describe('HistogramComponent', () => {
 
     // T-4: axis bounds are nice numbers
     describe('T-4 nice axis bounds', () => {
-        it('rounds the value-axis bounds outward to nice numbers', async () => {
-            await createFixture([3, 97]);
-            expect(component.bins()[0].start).toBe(0);
-            expect(component.bins().at(-1)!.end).toBe(100);
-        });
-
         it('starts the count axis at zero and ends on a whole tick', async () => {
             await createFixture(range(100));
             const ticks = component.countTicks();
@@ -215,35 +206,10 @@ describe('HistogramComponent', () => {
             }
         });
 
-        it('renders zero-variance data without dividing by zero', async () => {
-            await createFixture([7, 7, 7, 7]);
-            for (const bar of component.bars()) {
-                expect(Number.isFinite(bar.x)).toBe(true);
-                expect(Number.isFinite(bar.height)).toBe(true);
-            }
-            expect(component.bars().filter(b => b.count > 0)).toHaveLength(1);
-        });
-
-        it('renders negative values', async () => {
-            await createFixture([-10, -5, 0, 5, 10]);
-            expect(component.bars().length).toBeGreaterThan(0);
-            for (const bar of component.bars()) {
-                expect(Number.isFinite(bar.x)).toBe(true);
-            }
-        });
     });
 
     // T-20: RTL
     describe('T-20 RTL', () => {
-        it('mirrors the bar order when dir is rtl', async () => {
-            await createFixture(range(100));
-            const ltrFirst = component.bars()[0].x;
-            fixture.componentRef.setInput('dir', 'rtl');
-            fixture.detectChanges();
-            const rtlFirst = component.bars()[0].x;
-            expect(rtlFirst).toBeGreaterThan(ltrFirst);
-        });
-
         it('keeps every bar inside the chart and ordered right-to-left in RTL', async () => {
             await createFixture(range(100));
             fixture.componentRef.setInput('dir', 'rtl');

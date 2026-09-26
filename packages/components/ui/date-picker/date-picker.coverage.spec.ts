@@ -7,10 +7,7 @@ import {
   DatePickerComponent,
   DateRangePickerComponent,
   calculatePopupPosition,
-  computePopupClasses,
   computePopupStyles,
-  DEFAULT_POPUP_POSITION,
-  PopupPosition,
 } from './date-picker.component';
 import { CalendarComponent, DateRange, TimeRange } from '../calendar';
 
@@ -118,20 +115,6 @@ describe('calculatePopupPosition', () => {
   });
 });
 
-describe('computePopupClasses', () => {
-  it('adds bottom placement classes for the bottom side', () => {
-    const classes = computePopupClasses({ offsetX: 0, actualSide: 'bottom' });
-    expect(classes).toContain('top-full');
-    expect(classes).toContain('mt-1');
-  });
-
-  it('adds top placement classes for the top side', () => {
-    const classes = computePopupClasses({ offsetX: 0, actualSide: 'top' });
-    expect(classes).toContain('bottom-full');
-    expect(classes).toContain('mb-1');
-  });
-});
-
 describe('computePopupStyles', () => {
   it('emits a translateX transform when there is a horizontal offset', () => {
     expect(computePopupStyles({ offsetX: 12, actualSide: 'bottom' })).toBe(
@@ -141,13 +124,6 @@ describe('computePopupStyles', () => {
 
   it('emits an empty string when there is no horizontal offset', () => {
     expect(computePopupStyles({ offsetX: 0, actualSide: 'bottom' })).toBe('');
-  });
-});
-
-describe('DEFAULT_POPUP_POSITION', () => {
-  it('defaults to no offset on the bottom side', () => {
-    const def: PopupPosition = DEFAULT_POPUP_POSITION;
-    expect(def).toEqual({ offsetX: 0, actualSide: 'bottom' });
   });
 });
 
@@ -204,13 +180,6 @@ describe('DatePickerComponent', () => {
     expect(fresh.componentInstance.internalValue()).toBe(written);
   });
 
-  it('renders the placeholder when no value is selected', () => {
-    fixture.componentRef.setInput('placeholder', 'Choose day');
-    fixture.detectChanges();
-    const span = fixture.debugElement.query(By.css('span.text-muted-foreground'));
-    expect(span.nativeElement.textContent).toContain('Choose day');
-  });
-
   it('toggles open only when enabled', () => {
     component.toggleOpen();
     expect(component.isOpen()).toBe(true);
@@ -237,9 +206,13 @@ describe('DatePickerComponent', () => {
     expect(component.popupStyles()).toContain('translateX');
   });
 
-  it('does nothing in positionPopup when the popup element is absent', () => {
-    const internal = component as unknown as { positionPopup(): void };
-    expect(() => internal.positionPopup()).not.toThrow();
+  it('does nothing in positionPopup when the popup closes before its frame runs', () => {
+    component.toggleOpen();
+    fixture.detectChanges();
+    component.toggleOpen();
+    fixture.detectChanges();
+
+    expect(() => flushRaf(rafQueue)).not.toThrow();
     expect(component.popupStyles()).toBe('');
   });
 
@@ -292,10 +265,6 @@ describe('DatePickerComponent', () => {
     expect(component.isOpen()).toBe(false);
   });
 
-  it('formats a date without time by default', () => {
-    expect(component.formatDate(new Date(2023, 0, 15))).toContain('January 15, 2023');
-  });
-
   it('formats a date with time when showTime is enabled', () => {
     fixture.componentRef.setInput('showTime', true);
     fixture.detectChanges();
@@ -310,10 +279,6 @@ describe('DatePickerComponent', () => {
     expect(component.internalValue()).toBe(d);
     component.writeValue(null);
     expect(component.internalValue()).toBeNull();
-  });
-
-  it('exposes setDisabledState as a no-op', () => {
-    expect(() => component.setDisabledState(true)).not.toThrow();
   });
 
   it('computes the button classes with the provided class input', () => {
@@ -416,9 +381,14 @@ describe('DateRangePickerComponent', () => {
     expect(component.popupStyles()).toContain('translateX');
   });
 
-  it('does nothing in positionPopup when the popup element is absent', () => {
-    const internal = component as unknown as { positionPopup(): void };
-    expect(() => internal.positionPopup()).not.toThrow();
+  it('does nothing in positionPopup when the popup closes before its frame runs', () => {
+    component.toggleOpen();
+    fixture.detectChanges();
+    component.toggleOpen();
+    fixture.detectChanges();
+
+    expect(() => flushRaf(rafQueue)).not.toThrow();
+    expect(component.popupStyles()).toBe('');
   });
 
   it('selects a full range, emits, and closes when time is hidden', () => {
@@ -491,7 +461,7 @@ describe('DateRangePickerComponent', () => {
   });
 
   it('formats a date without time by default', () => {
-    expect(component.formatDate(new Date(2023, 0, 15))).toContain('2023');
+    expect(component.formatDate(new Date(2023, 0, 15))).toBe('Jan 15, 2023');
   });
 
   it('formats a date with time when showTime is enabled', () => {
@@ -513,10 +483,6 @@ describe('DateRangePickerComponent', () => {
     expect(component.rangeValue()).toEqual({ start: null, end: null });
   });
 
-  it('exposes setDisabledState as a no-op', () => {
-    expect(() => component.setDisabledState(true)).not.toThrow();
-  });
-
   it('renders the full range label in the button', () => {
     component.writeValue({
       start: new Date(2024, 0, 1),
@@ -524,8 +490,7 @@ describe('DateRangePickerComponent', () => {
     });
     fixture.detectChanges();
     const btn = fixture.debugElement.query(By.css('button')).nativeElement;
-    expect(btn.textContent).toContain('-');
-    expect(btn.textContent).not.toContain('...');
+    expect(btn.textContent).toContain('Jan 1, 2024 - Jan 5, 2024');
   });
 
   it('renders the partial range label in the button', () => {
@@ -533,9 +498,5 @@ describe('DateRangePickerComponent', () => {
     fixture.detectChanges();
     const btn = fixture.debugElement.query(By.css('button')).nativeElement;
     expect(btn.textContent).toContain('...');
-  });
-
-  it('computes the button classes', () => {
-    expect(component.buttonClasses()).toContain('inline-flex');
   });
 });

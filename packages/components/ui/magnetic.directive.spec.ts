@@ -74,38 +74,17 @@ describe('UiMagneticDirective', () => {
         });
     });
 
-    it('should start with translate(0px, 0px) transform', () => {
-        expect(getDirective().transform()).toBe('translate(0px, 0px)');
-    });
-
-    it('should apply initial zero transform via host binding', () => {
-        expect(magnetEl.style.transform).toBe('translate(0px, 0px)');
-    });
-
-    it('should apply translate transform when cursor moves within radius', () => {
-        const directive = getDirective();
-
-        magnetEl.dispatchEvent(new MouseEvent('mousemove', { clientX: 60, clientY: 25, bubbles: true }));
-
-        expect(directive.transform()).not.toBe('translate(0px, 0px)');
-        expect(directive.transform()).toContain('translate(');
-    });
-
     it('should calculate pull based on strength input', () => {
         host.strength.set(0.5);
         fixture.detectChanges();
 
         const directive = getDirective();
-        magnetEl.dispatchEvent(new MouseEvent('mousemove', { clientX: 60, clientY: 25, bubbles: true }));
+        // Centre is (50, 25): the pointer is 10px right and 15px below it.
+        magnetEl.dispatchEvent(new MouseEvent('mousemove', { clientX: 60, clientY: 40, bubbles: true }));
+        expect(directive.transform()).toBe('translate(5px, 7.5px)');
 
-        const transform = directive.transform();
-        const match = /translate\((-?\d+(?:\.\d+)?)px,\s*(-?\d+(?:\.\d+)?)px\)/.exec(transform);
-        expect(match).toBeTruthy();
-
-        const pullX = Number.parseFloat(match![1]);
-        const centerX = 50;
-        const distX = 60 - centerX;
-        expect(Math.abs(pullX - distX * 0.5)).toBeLessThan(0.01);
+        fixture.detectChanges();
+        expect(magnetEl.style.transform).toBe('translate(5px, 7.5px)');
     });
 
     it('should reset transform to zero on mouseleave', () => {
@@ -124,7 +103,8 @@ describe('UiMagneticDirective', () => {
 
         const directive = getDirective();
 
-        magnetEl.dispatchEvent(new MouseEvent('mousemove', { clientX: 500, clientY: 500, bubbles: true }));
+        // 20px from the centre: inside the default 200px radius, outside 10px.
+        magnetEl.dispatchEvent(new MouseEvent('mousemove', { clientX: 70, clientY: 25, bubbles: true }));
         expect(directive.transform()).toBe('translate(0px, 0px)');
     });
 

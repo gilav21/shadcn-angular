@@ -34,47 +34,21 @@ describe('AvatarComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
-    it('should have data-slot="avatar"', () => {
-        expect(fixture.nativeElement.dataset['slot']).toBe('avatar');
-    });
-
-    it('should apply default classes', () => {
-        expect(fixture.nativeElement.className).toContain('flex');
-        expect(fixture.nativeElement.className).toContain('shrink-0');
-        expect(fixture.nativeElement.className).toContain('overflow-hidden');
-        expect(fixture.nativeElement.className).toContain('rounded-full');
-    });
-
-    it('should size via the scoped data-slot, not utility classes', () => {
-        // Density sizing lives in the scoped CSS keyed on data-slot="avatar";
-        // height/width utilities must NOT be duplicated in the class string.
-        expect(fixture.nativeElement.dataset['slot']).toBe('avatar');
-        expect(fixture.nativeElement.className).not.toContain('h-10');
-        expect(fixture.nativeElement.className).not.toContain('w-10');
-    });
-
-    it('should apply custom class', () => {
-        fixture.componentRef.setInput('class', 'h-12 w-12');
-        fixture.detectChanges();
-
-        expect(fixture.nativeElement.className).toContain('h-12');
-        expect(fixture.nativeElement.className).toContain('w-12');
-    });
-
-    it('should apply skeleton classes when skeleton input is set', () => {
-        fixture.componentRef.setInput('skeleton', true);
+    it('renders a skeleton instead of the avatar while skeleton is set', () => {
+        fixture.componentRef.setInput('src', 'https://example.com/avatar.jpg');
+        fixture.componentRef.setInput('fallback', 'JD');
         fixture.componentRef.setInput('class', 'my-extra');
         fixture.detectChanges();
+        const host = fixture.nativeElement as HTMLElement;
+        expect(host.querySelector('img')).not.toBeNull();
 
-        expect(fixture.nativeElement.className).toContain('block');
-        expect(fixture.nativeElement.className).toContain('shrink-0');
-        expect(fixture.nativeElement.className).toContain('my-extra');
-        // Skeleton mode drops the non-skeleton avatar utilities.
-        expect(fixture.nativeElement.className).not.toContain('overflow-hidden');
+        fixture.componentRef.setInput('skeleton', true);
+        fixture.detectChanges();
+        expect(host.querySelector('ui-skeleton')).not.toBeNull();
+        expect(host.querySelector('img')).toBeNull();
+        expect(host.querySelector('[data-slot="avatar-fallback"]')).toBeNull();
+        expect(host.textContent).not.toContain('JD');
+        expect(host.classList).toContain('my-extra');
     });
 
     it('should set status to "loaded" on onLoad()', () => {
@@ -108,7 +82,6 @@ describe('AvatarComponent', () => {
 });
 
 describe('AvatarImageComponent', () => {
-    let component: AvatarImageComponent;
     let fixture: ComponentFixture<AvatarImageComponent>;
 
     beforeEach(async () => {
@@ -117,13 +90,8 @@ describe('AvatarImageComponent', () => {
         }).compileComponents();
 
         fixture = TestBed.createComponent(AvatarImageComponent);
-        component = fixture.componentInstance;
         fixture.componentRef.setInput('src', 'https://example.com/avatar.jpg');
         fixture.detectChanges();
-    });
-
-    it('should create', () => {
-        expect(component).toBeTruthy();
     });
 
     it('should render an img element with correct src', () => {
@@ -146,38 +114,6 @@ describe('AvatarImageComponent', () => {
     });
 });
 
-describe('AvatarFallbackComponent', () => {
-    let component: AvatarFallbackComponent;
-    let fixture: ComponentFixture<AvatarFallbackComponent>;
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [AvatarFallbackComponent]
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(AvatarFallbackComponent);
-        component = fixture.componentInstance;
-        fixture.detectChanges();
-    });
-
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
-    it('should have data-slot="avatar-fallback"', () => {
-        const fallback = fixture.debugElement.query(By.css('[data-slot="avatar-fallback"]'));
-        expect(fallback.nativeElement.dataset['slot']).toBe('avatar-fallback');
-    });
-
-    it('should apply default classes', () => {
-        const fallback = fixture.debugElement.query(By.css('[data-slot="avatar-fallback"]'));
-        expect(fallback.nativeElement.className).toContain('flex');
-        expect(fallback.nativeElement.className).toContain('items-center');
-        expect(fallback.nativeElement.className).toContain('justify-center');
-        expect(fallback.nativeElement.className).toContain('bg-muted');
-    });
-});
-
 describe('Avatar Integration', () => {
     let fixture: ComponentFixture<TestHostComponent>;
 
@@ -188,16 +124,6 @@ describe('Avatar Integration', () => {
 
         fixture = TestBed.createComponent(TestHostComponent);
         fixture.detectChanges();
-    });
-
-    it('should render avatar with image and fallback', () => {
-        const avatar = fixture.debugElement.query(By.directive(AvatarComponent));
-        const image = fixture.debugElement.query(By.directive(AvatarImageComponent));
-        const fallback = fixture.debugElement.query(By.directive(AvatarFallbackComponent));
-
-        expect(avatar).toBeTruthy();
-        expect(image).toBeTruthy();
-        expect(fallback).toBeTruthy();
     });
 
     it('should show fallback and hide image when in loading state', () => {

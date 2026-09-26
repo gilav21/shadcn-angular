@@ -174,11 +174,17 @@ describe('TableContextMenuDirective', () => {
 
   it('calls preventDefault/stopPropagation and opens the context menu at the click position with the row data', () => {
     const showSpy = vi.spyOn(ContextMenuComponent.prototype, 'show');
+    const tableParent = fixture.nativeElement as HTMLElement;
+    let reachedParent = false;
+    const onParent = (): void => { reachedParent = true; };
+    tableParent.addEventListener('contextmenu', onParent);
 
     const cell = query(fixture, 'td-named');
     const event = fireContextMenu(cell, 42, 84);
+    tableParent.removeEventListener('contextmenu', onParent);
 
     expect(event.defaultPrevented).toBe(true);
+    expect(reachedParent).toBe(false);
     expect(showSpy).toHaveBeenCalledTimes(1);
     expect(showSpy).toHaveBeenCalledWith(42, 84, { id: 1, name: 'Alice' });
   });
@@ -242,8 +248,9 @@ describe('TableContextMenuDirective', () => {
     expect(host.rowEvents).toHaveLength(1);
 
     fixture.destroy();
-    fireContextMenu(cell);
+    const afterDestroy = fireContextMenu(cell);
 
+    expect(afterDestroy.defaultPrevented).toBe(false);
     expect(host.rowEvents).toHaveLength(1);
   });
 });

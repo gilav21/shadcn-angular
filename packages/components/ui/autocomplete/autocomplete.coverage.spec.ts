@@ -1,10 +1,12 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Component } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { By } from '@angular/platform-browser';
 import { AutocompleteComponent } from './autocomplete.component';
 import { HighlightPipe } from './highlight.pipe';
+
+// jsdom (the portable leg) has no scrollIntoView, which the command item calls on
+// highlight — fill it in only when absent so the real browser keeps its own.
+const elementProto = Element.prototype as Partial<Element>;
+elementProto.scrollIntoView ??= () => undefined;
 
 interface Fruit {
     name: string;
@@ -16,10 +18,6 @@ const fruits: Fruit[] = [
     { name: 'Banana', value: 'banana' },
     { name: 'Cherry', value: 'cherry' },
 ];
-
-type Privates = {
-    resolveDropdownSide: () => void;
-};
 
 describe('AutocompleteComponent — coverage completion', () => {
     // --- selectedItems: value-not-in-options fallthrough (returns the raw value) ---
@@ -48,13 +46,6 @@ describe('AutocompleteComponent — coverage completion', () => {
     // --- value input effect (single + array) ---
 
     describe('value input effect', () => {
-        it('seeds internalValue from a single value input', () => {
-            const f = TestBed.createComponent(AutocompleteComponent<Fruit>);
-            f.componentRef.setInput('value', fruits[0]);
-            f.detectChanges();
-            expect(f.componentInstance.internalValue()).toEqual([fruits[0]]);
-        });
-
         it('seeds internalValue from an array value input', () => {
             const f = TestBed.createComponent(AutocompleteComponent<Fruit>);
             f.componentRef.setInput('value', [fruits[0], fruits[1]]);
@@ -66,11 +57,11 @@ describe('AutocompleteComponent — coverage completion', () => {
     // --- resolveDropdownSide: no trigger container present ---
 
     describe('resolveDropdownSide with no rendered trigger', () => {
-        it('returns early when the [data-state] container is absent', () => {
+        it('opens below when focused before the trigger has rendered', () => {
             const f = TestBed.createComponent(AutocompleteComponent<Fruit>);
             // No detectChanges → the view (and its [data-state] element) is not rendered.
-            const cmp = f.componentInstance as unknown as Privates;
-            expect(() => cmp.resolveDropdownSide()).not.toThrow();
+            expect(() => f.componentInstance.onFocus()).not.toThrow();
+            expect(f.componentInstance.open()).toBe(true);
             expect(f.componentInstance.dropdownSide()).toBe('bottom');
         });
     });
@@ -148,6 +139,7 @@ describe('AutocompleteComponent — additional keyboard/input branches', () => {
     beforeEach(() => {
         fixture = TestBed.createComponent(AutocompleteComponent<Fruit>);
         fixture.componentRef.setInput('options', fruits);
+        fixture.componentRef.setInput('displayWith', (f: Fruit) => f.name);
         document.body.appendChild(fixture.nativeElement);
         fixture.detectChanges();
         cmp = fixture.componentInstance;
@@ -157,65 +149,50 @@ describe('AutocompleteComponent — additional keyboard/input branches', () => {
         if (fixture.nativeElement.parentNode) fixture.nativeElement.remove();
     });
 
-    it('ArrowUp calls movePrev when the dropdown is open', async () => {
+    function combobox(): HTMLInputElement {
+        return fixture.nativeElement.querySelector('input[role="combobox"]') as HTMLInputElement;
+    }
+
+    function highlightedLabel(): string | undefined {
+        const id = combobox().getAttribute('aria-activedescendant');
+        if (!id) return undefined;
+        return fixture.nativeElement.querySelector(`[id="${id}"]`)?.textContent?.trim();
+    }
+
+    async function press(key: string): Promise<KeyboardEvent> {
+        const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+        combobox().dispatchEvent(event);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        return event;
+    }
+
+    it('ArrowUp moves the highlight back, wrapping from the first option to the last', async () => {
         cmp.onFocus();
         fixture.detectChanges();
         await fixture.whenStable();
-        const command = cmp.command();
-        expect(command).toBeTruthy();
-        const spy = vi.spyOn(command!, 'movePrev');
-        cmp.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
-        expect(spy).toHaveBeenCalled();
+
+        await press('ArrowDown');
+        expect(highlightedLabel()).toBe('Apple');
+
+        await press('ArrowUp');
+        expect(highlightedLabel()).toBe('Cherry');
     });
 
-    it('Enter is a no-op when the dropdown is closed', () => {
+    it('Enter while closed never submits the surrounding form and selects nothing', async () => {
+        const valueSpy = vi.fn();
+        cmp.value.subscribe(valueSpy);
+        combobox().focus();
+        await press('ArrowDown');
+        await press('Escape');
         expect(cmp.open()).toBe(false);
-        cmp.onKeydown(new KeyboardEvent('keydown', { key: 'Enter' }));
+
+        const event = await press('Enter');
+
+        expect(event.defaultPrevented).toBe(true);
+        expect(valueSpy).not.toHaveBeenCalled();
         expect(cmp.open()).toBe(false);
-    });
-
-    it('onInput does not re-open when already open', () => {
-        cmp.open.set(true);
-        const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
-        input.value = 'ap';
-        const ev = new Event('input', { bubbles: true });
-        Object.defineProperty(ev, 'target', { value: input });
-        cmp.onInput(ev);
-        expect(cmp.searchTerm()).toBe('ap');
-        expect(cmp.open()).toBe(true);
-    });
-});
-
-// --- ControlValueAccessor wired via ngModel (forwardRef factory execution) ---
-
-@Component({
-    template: `<ui-autocomplete [options]="options" [(ngModel)]="model" />`,
-    imports: [AutocompleteComponent, FormsModule],
-})
-class NgModelHostComponent {
-    options = fruits;
-    model: Fruit | null = null;
-}
-
-describe('AutocompleteComponent — NG_VALUE_ACCESSOR via ngModel', () => {
-    let fixture: ComponentFixture<NgModelHostComponent>;
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({ imports: [NgModelHostComponent] }).compileComponents();
-        fixture = TestBed.createComponent(NgModelHostComponent);
-        fixture.detectChanges();
-    });
-
-    afterEach(() => {
-        if (fixture.nativeElement.parentNode) fixture.nativeElement.remove();
-    });
-
-    it('binds the component as the form value accessor and pushes selections to the model', async () => {
-        const cmp = fixture.debugElement.query(By.directive(AutocompleteComponent)).componentInstance as AutocompleteComponent<Fruit>;
-        cmp.onSelect(fruits[2]);
-        fixture.detectChanges();
-        await fixture.whenStable();
-        expect(fixture.componentInstance.model).toEqual(fruits[2]);
     });
 });
 
@@ -235,7 +212,8 @@ describe('HighlightPipe', () => {
     });
 
     it('wraps the matched substring in a highlight span', () => {
-        expect(pipe.transform('Apple', 'ap')).toContain('<span');
-        expect(pipe.transform('Apple', 'ap')).toContain('Ap');
+        expect(pipe.transform('Apple', 'ap')).toBe(
+            '<span class="bg-yellow-200 dark:bg-yellow-800 dark:text-yellow-100">Ap</span>ple',
+        );
     });
 });

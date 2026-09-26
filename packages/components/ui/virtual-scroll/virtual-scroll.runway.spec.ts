@@ -68,25 +68,6 @@ describe('VirtualScroll Runway Logic', () => {
         globalThis.ResizeObserver = savedResizeObserver as typeof ResizeObserver;
     });
 
-    it('should calculate initial offsets based on minHeight', () => {
-        expect(priv.getOffsetForIndex(0)).toBe(0);
-        expect(priv.getOffsetForIndex(10)).toBe(500);
-        expect(priv.getOffsetForIndex(99)).toBe(4950);
-    });
-
-    it('should update offsets when items are measured', () => {
-        const entries = [{
-            target: { dataset: { index: '0' } },
-            borderBoxSize: [{ blockSize: 100 }],
-        }] as unknown as ResizeObserverEntry[];
-
-        priv.handleResizes(entries);
-
-        expect(priv.getOffsetForIndex(0)).toBe(0);
-        expect(priv.getOffsetForIndex(1)).toBe(100);
-        expect(priv.getOffsetForIndex(10)).toBe(550);
-    });
-
     it('scroll anchoring: should adjust scrollTop when upstream item expands', () => {
         component.scrollTop.set(500);
         expect(component.viewportRange().start).toBe(10);

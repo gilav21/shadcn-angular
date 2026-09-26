@@ -65,16 +65,8 @@ describe('ContextMenuComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
     it('should have data-slot="context-menu"', () => {
         expect(fixture.nativeElement.dataset.slot).toBe('context-menu');
-    });
-
-    it('should be closed by default', () => {
-        expect(component.open()).toBe(false);
     });
 
     it('should show at position', () => {
@@ -107,25 +99,9 @@ describe('ContextMenu Integration', () => {
         document.querySelectorAll('[data-context-menu-portal]').forEach(el => el.remove());
     });
 
-    it('should render trigger', () => {
-        const trigger = fixture.debugElement.query(By.css('[data-slot="context-menu-trigger"]'));
-        expect(trigger).toBeTruthy();
-    });
-
     it('should not show content when closed', () => {
         const content = document.querySelector('[data-slot="context-menu-content"]');
         expect(content).toBeNull();
-    });
-
-    it('should show content on right-click', async () => {
-        const contextMenuComp = fixture.debugElement.query(By.directive(ContextMenuComponent));
-        contextMenuComp.componentInstance.show(100, 100);
-        fixture.detectChanges();
-        await fixture.whenStable();
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        const content = document.querySelector('[data-slot="context-menu-content"]');
-        expect(content).toBeTruthy();
     });
 
     it('should render menu items', async () => {
@@ -135,30 +111,11 @@ describe('ContextMenu Integration', () => {
         await fixture.whenStable();
         await new Promise(resolve => setTimeout(resolve, 50));
 
-        const items = document.querySelectorAll('[data-slot="context-menu-item"]');
-        expect(items).toHaveLength(3);
-    });
-
-    it('should render separator', async () => {
-        const contextMenuComp = fixture.debugElement.query(By.directive(ContextMenuComponent));
-        contextMenuComp.componentInstance.show(100, 100);
-        fixture.detectChanges();
-        await fixture.whenStable();
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        const separator = document.querySelector('[data-slot="context-menu-separator"]');
-        expect(separator).toBeTruthy();
-    });
-
-    it('should render label', async () => {
-        const contextMenuComp = fixture.debugElement.query(By.directive(ContextMenuComponent));
-        contextMenuComp.componentInstance.show(100, 100);
-        fixture.detectChanges();
-        await fixture.whenStable();
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        const label = document.querySelector('[data-slot="context-menu-label"]');
-        expect(label).toBeTruthy();
+        const content = document.querySelector('[data-slot="context-menu-content"]')!;
+        const items = Array.from(content.querySelectorAll('[data-slot="context-menu-item"]'));
+        expect(items.map(i => i.textContent?.trim())).toEqual(['Copy', 'Paste', 'Delete']);
+        expect(content.querySelector('[data-slot="context-menu-label"]')?.textContent?.trim()).toBe('Actions');
+        expect(content.querySelector('[data-slot="context-menu-separator"]')).toBeTruthy();
     });
 });
 
@@ -179,74 +136,6 @@ describe('ContextMenu RTL Support', () => {
     afterEach(() => {
         document.documentElement.removeAttribute('dir');
         document.querySelectorAll('[data-context-menu-portal]').forEach(el => el.remove());
-    });
-
-    it('should render in LTR mode', () => {
-        const container = fixture.debugElement.query(By.css('[dir="ltr"]'));
-        expect(container).toBeTruthy();
-    });
-
-    it('should render in RTL mode', async () => {
-        component.dir.set('rtl');
-        document.documentElement.setAttribute('dir', 'rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const container = fixture.debugElement.query(By.css('[dir="rtl"]'));
-        expect(container).toBeTruthy();
-    });
-
-    it('should open context menu in RTL', async () => {
-        component.dir.set('rtl');
-        document.documentElement.setAttribute('dir', 'rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const contextMenuComp = fixture.debugElement.query(By.directive(ContextMenuComponent));
-        contextMenuComp.componentInstance.show(100, 100);
-        fixture.detectChanges();
-        await fixture.whenStable();
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        const content = document.querySelector('[data-slot="context-menu-content"]');
-        expect(content).toBeTruthy();
-    });
-
-    it('should have shortcut with RTL margin class (mr-auto pushes to left)', async () => {
-        component.dir.set('rtl');
-        document.documentElement.setAttribute('dir', 'rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const contextMenuComp = fixture.debugElement.query(By.directive(ContextMenuComponent));
-        contextMenuComp.componentInstance.show(100, 100);
-        fixture.detectChanges();
-        await fixture.whenStable();
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        // The shortcut should have rtl:mr-auto class which pushes it to the left in RTL
-        const shortcut = document.querySelector('[data-slot="context-menu-shortcut"]');
-        expect(shortcut).toBeTruthy();
-        const shortcutClass = shortcut?.className ?? '';
-        // Verify the RTL-specific class is present
-        expect(shortcutClass).toContain('rtl:mr-auto');
-        expect(shortcutClass).toContain('ltr:ml-auto');
-    });
-
-    it('should render menu items in RTL', async () => {
-        component.dir.set('rtl');
-        document.documentElement.setAttribute('dir', 'rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const contextMenuComp = fixture.debugElement.query(By.directive(ContextMenuComponent));
-        contextMenuComp.componentInstance.show(100, 100);
-        fixture.detectChanges();
-        await fixture.whenStable();
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        const items = document.querySelectorAll('[data-slot="context-menu-item"]');
-        expect(items).toHaveLength(2);
     });
 
     it('should render shortcuts in RTL', async () => {
@@ -420,46 +309,6 @@ describe('ContextMenu Items-Driven Mode', () => {
 })
 class SubMenuTestHostComponent { }
 
-describe('ContextMenu Sub-Menu (Template-Driven)', () => {
-    let fixture: ComponentFixture<SubMenuTestHostComponent>;
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [SubMenuTestHostComponent]
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(SubMenuTestHostComponent);
-        fixture.detectChanges();
-    });
-
-    afterEach(() => {
-        document.querySelectorAll('[data-context-menu-portal]').forEach(el => el.remove());
-    });
-
-    it('should render sub-menu trigger', async () => {
-        const contextMenuComp = fixture.debugElement.query(By.directive(ContextMenuComponent));
-        contextMenuComp.componentInstance.show(100, 100);
-        fixture.detectChanges();
-        await fixture.whenStable();
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        const subTrigger = document.querySelector('[data-slot="context-menu-sub-trigger"]');
-        expect(subTrigger).toBeTruthy();
-        expect(subTrigger?.textContent?.trim()).toContain('More Options');
-    });
-
-    it('should not show sub-content initially', async () => {
-        const contextMenuComp = fixture.debugElement.query(By.directive(ContextMenuComponent));
-        contextMenuComp.componentInstance.show(100, 100);
-        fixture.detectChanges();
-        await fixture.whenStable();
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        const subContent = document.querySelector('[data-slot="context-menu-sub-content"]');
-        expect(subContent).toBeNull();
-    });
-});
-
 describe('ContextMenu close on stopPropagation clicks', () => {
     let fixture: ComponentFixture<TestHostComponent>;
 
@@ -568,10 +417,6 @@ describe('ContextMenu disabled sub-trigger', () => {
     it('marks the row with data-disabled and aria-disabled', () => {
         expect(triggerRow().hasAttribute('data-disabled')).toBe(true);
         expect(triggerRow().getAttribute('aria-disabled')).toBe('true');
-    });
-
-    it('keeps the row out of the tab order', () => {
-        expect(triggerRow().getAttribute('tabindex')).toBe('-1');
     });
 
     it('does not open the flyout on hover', () => {

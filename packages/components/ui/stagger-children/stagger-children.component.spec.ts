@@ -125,12 +125,6 @@ describe('StaggerChildrenComponent', () => {
         }
     });
 
-    it('should render all child elements', () => {
-        const hostEl = fixture.debugElement.query(By.directive(StaggerChildrenComponent));
-        const children = hostEl.nativeElement.querySelectorAll(':scope > div');
-        expect(children).toHaveLength(3);
-    });
-
     it('should hide children by setting opacity to 0 after init', () => {
         const hostEl = fixture.debugElement.query(By.directive(StaggerChildrenComponent));
         const children = hostEl.nativeElement.querySelectorAll(
@@ -141,22 +135,12 @@ describe('StaggerChildrenComponent', () => {
         });
     });
 
-    it('should set data-slot attribute', () => {
-        const el = fixture.debugElement.query(By.css('[data-slot="stagger-children"]'));
-        expect(el).toBeTruthy();
-    });
-
     it('should apply custom class', () => {
         host.cls.set('my-stagger');
         fixture.detectChanges();
 
         const el = fixture.debugElement.query(By.css('[data-slot="stagger-children"]'));
         expect((el.nativeElement as HTMLElement).className).toContain('my-stagger');
-    });
-
-    it('should include block class on host', () => {
-        const el = fixture.debugElement.query(By.css('[data-slot="stagger-children"]'));
-        expect((el.nativeElement as HTMLElement).className).toContain('block');
     });
 
     it('should project child content', () => {
@@ -264,40 +248,6 @@ describe('StaggerChildrenComponent', () => {
         expect(cancelFn).toHaveBeenCalledTimes(3);
     });
 
-    it('should call playAnimation() and re-animate children', () => {
-        const animateSpy = vi
-            .spyOn(HTMLElement.prototype, 'animate')
-            .mockReturnValue(makeAnimation());
-
-        getComponent(fixture).playAnimation();
-
-        expect(animateSpy).toHaveBeenCalledTimes(3);
-    });
-
-    it('should pass staggered delays to each child animation via playAnimation()', () => {
-        const animateSpy = vi
-            .spyOn(HTMLElement.prototype, 'animate')
-            .mockReturnValue(makeAnimation());
-
-        getComponent(fixture).playAnimation();
-
-        expect(animateSpy).toHaveBeenNthCalledWith(
-            1,
-            expect.any(Array),
-            expect.objectContaining({ delay: 0 }),
-        );
-        expect(animateSpy).toHaveBeenNthCalledWith(
-            2,
-            expect.any(Array),
-            expect.objectContaining({ delay: 80 }),
-        );
-        expect(animateSpy).toHaveBeenNthCalledWith(
-            3,
-            expect.any(Array),
-            expect.objectContaining({ delay: 160 }),
-        );
-    });
-
     it('should use correct translate for direction up', () => {
         const animateSpy = vi
             .spyOn(HTMLElement.prototype, 'animate')
@@ -314,6 +264,8 @@ describe('StaggerChildrenComponent', () => {
     });
 
     it('should pass duration and fill forwards to animation options', () => {
+        host.duration.set(250);
+        fixture.detectChanges();
         const animateSpy = vi
             .spyOn(HTMLElement.prototype, 'animate')
             .mockReturnValue(makeAnimation());
@@ -323,7 +275,7 @@ describe('StaggerChildrenComponent', () => {
         expect(animateSpy).toHaveBeenCalledWith(
             expect.any(Array),
             expect.objectContaining({
-                duration: 400,
+                duration: 250,
                 fill: 'forwards',
                 easing: 'cubic-bezier(0.2, 0.6, 0.35, 1)',
             }),

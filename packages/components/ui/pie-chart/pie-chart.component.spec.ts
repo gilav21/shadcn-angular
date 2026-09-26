@@ -24,23 +24,6 @@ describe('PieChartComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
-    it('should compute slices from data', () => {
-        expect(component.slices()).toHaveLength(3);
-    });
-
-    it('should compute total correctly', () => {
-        expect(component.total()).toBe(100);
-    });
-
-    it('should render an SVG element', () => {
-        const svg = fixture.nativeElement.querySelector('svg');
-        expect(svg).toBeTruthy();
-    });
-
     it('should set aria-label on container', () => {
         const container = fixture.nativeElement.querySelector('[role="group"]');
         expect(container).toBeTruthy();

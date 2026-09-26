@@ -137,10 +137,6 @@ describe('ContextMenuSubContentComponent', () => {
         raf.restore();
     });
 
-    it('creates and registers itself with the sub container', () => {
-        expect(contentComponent()).toBeTruthy();
-    });
-
     it('does not render a portal while the sub is closed', () => {
         expect(portalContent()).toBeNull();
         expect(document.querySelector('[data-context-menu-sub-portal]')).toBeNull();
@@ -188,7 +184,7 @@ describe('ContextMenuSubContentComponent', () => {
         expect(contentComponent().portalPosition().y).toBe(50);
     });
 
-    it('positions the content to the left of the trigger in RTL', async () => {
+    it('falls back to the right of a left-hugging trigger in RTL', async () => {
         host.dir.set('rtl');
         document.documentElement.setAttribute('dir', 'rtl');
         fixture.detectChanges();
@@ -274,8 +270,16 @@ describe('ContextMenuSubContentComponent', () => {
         });
 
         it('ArrowLeft in LTR closes the sub and refocuses the trigger', () => {
-            const event = dispatchKey(itemEl('a'), 'ArrowLeft');
-            expect(event.defaultPrevented).toBe(true);
+            vi.useFakeTimers();
+            try {
+                const event = dispatchKey(itemEl('a'), 'ArrowLeft');
+                vi.advanceTimersByTime(100);
+                expect(event.defaultPrevented).toBe(true);
+                expect(subComponent().isOpen()).toBe(false);
+                expect(document.activeElement).toBe(triggerEl());
+            } finally {
+                vi.useRealTimers();
+            }
         });
 
         it('ArrowLeft in RTL is ignored (no preventDefault)', async () => {
@@ -292,8 +296,15 @@ describe('ContextMenuSubContentComponent', () => {
             document.documentElement.setAttribute('dir', 'rtl');
             forceRtl();
             fixture.detectChanges(false);
-            const event = dispatchKey(itemEl('a'), 'ArrowRight');
-            expect(event.defaultPrevented).toBe(true);
+            vi.useFakeTimers();
+            try {
+                const event = dispatchKey(itemEl('a'), 'ArrowRight');
+                vi.advanceTimersByTime(100);
+                expect(event.defaultPrevented).toBe(true);
+                expect(subComponent().isOpen()).toBe(false);
+            } finally {
+                vi.useRealTimers();
+            }
         });
 
         it('ArrowRight in LTR is ignored (no preventDefault)', () => {
@@ -301,9 +312,19 @@ describe('ContextMenuSubContentComponent', () => {
             expect(event.defaultPrevented).toBe(false);
         });
 
-        it('Escape closes the sub and prevents default', () => {
-            const event = dispatchKey(itemEl('a'), 'Escape');
-            expect(event.defaultPrevented).toBe(true);
+        it('Escape closes the sub but leaves the root menu open', () => {
+            const menu = fixture.debugElement.query(By.directive(ContextMenuComponent)).componentInstance as ContextMenuComponent;
+            menu.show(100, 100);
+            vi.useFakeTimers();
+            try {
+                const event = dispatchKey(itemEl('a'), 'Escape');
+                vi.advanceTimersByTime(100);
+                expect(event.defaultPrevented).toBe(true);
+                expect(subComponent().isOpen()).toBe(false);
+                expect(menu.open()).toBe(true);
+            } finally {
+                vi.useRealTimers();
+            }
         });
 
         it('an unhandled key does not prevent default', () => {
@@ -312,17 +333,25 @@ describe('ContextMenuSubContentComponent', () => {
         });
     });
 
-    it('mouseenter/mouseleave on the content keeps/releases the open state', async () => {
+    it('mouseleave closes the content after 100ms unless the pointer comes back', async () => {
         subComponent().enter();
         await settlePortal(fixture);
         const content = portalContent()!;
 
-        content.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-        expect(subComponent().isOpen()).toBe(true);
+        vi.useFakeTimers();
+        try {
+            content.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+            vi.advanceTimersByTime(50);
+            content.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+            vi.advanceTimersByTime(100);
+            expect(subComponent().isOpen()).toBe(true);
 
-        content.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
-        // leave() schedules a delayed close; immediately it is still open
-        expect(subComponent().isOpen()).toBe(true);
+            content.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+            vi.advanceTimersByTime(100);
+            expect(subComponent().isOpen()).toBe(false);
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it('cleans up the portal on component destroy', async () => {

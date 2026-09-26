@@ -1,6 +1,6 @@
 // `duration-input` — `specs/form-controls-small-spec.md` T-2.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { Component, signal, type ModelSignal } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { DurationInputComponent } from './duration-input.component';
@@ -70,15 +70,6 @@ describe('DurationInputComponent', () => {
     afterEach(() => fixture.destroy());
 
     describe('the conformance contract', () => {
-        it('exposes value as a model signal', () => {
-            const control = fixture.debugElement.children[0]
-                .componentInstance as DurationInputComponent;
-            const value: ModelSignal<number | null> = control.value;
-
-            expect(typeof value.set).toBe('function');
-            expect(typeof value.subscribe).toBe('function');
-        });
-
         it('emits through the two-way binding on a user edit', async () => {
             await typeInto('minutes', '30');
             expect(host.duration()).toBe(1800);
@@ -106,7 +97,7 @@ describe('DurationInputComponent', () => {
         it('shows the units it was asked for', async () => {
             host.units.set(['hours', 'minutes', 'seconds']);
             await settle();
-            expect(segments()).toHaveLength(3);
+            expect(segments().map(field => field.dataset['unit'])).toEqual(['hours', 'minutes', 'seconds']);
         });
 
         it('starts empty for a null value', () => {
@@ -145,11 +136,6 @@ describe('DurationInputComponent', () => {
     });
 
     describe('typing', () => {
-        it('reads digits into the segment they were typed in', async () => {
-            await typeInto('hours', '2');
-            expect(host.duration()).toBe(7200);
-        });
-
         it('adds up across segments', async () => {
             await typeInto('hours', '1');
             await typeInto('minutes', '30');
@@ -197,8 +183,16 @@ describe('DurationInputComponent', () => {
         it('does not take a key it does not handle', async () => {
             host.duration.set(3600);
             await settle();
-            await press('minutes', 'a');
+            const control = fixture.debugElement.children[0].componentInstance as DurationInputComponent;
+            let emissions = 0;
+            control.value.subscribe(() => emissions++);
 
+            const key = new KeyboardEvent('keydown', { key: 'a', bubbles: true, cancelable: true });
+            const notCancelled = segment('minutes').dispatchEvent(key);
+            await settle();
+
+            expect(notCancelled).toBe(true);
+            expect(emissions).toBe(0);
             expect(host.duration()).toBe(3600);
         });
 

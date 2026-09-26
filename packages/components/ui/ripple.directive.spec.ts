@@ -80,15 +80,10 @@ describe('UiRippleDirective', () => {
         }
     });
 
-    it('should apply position relative to the host element', () => {
-        expect(button.style.position).toBe('relative');
-    });
-
-    it('should apply overflow hidden to the host element', () => {
-        expect(button.style.overflow).toBe('hidden');
-    });
-
     it('should clear position and overflow styles when disabled', () => {
+        expect(button.style.position).toBe('relative');
+        expect(button.style.overflow).toBe('hidden');
+
         host.disabled.set(true);
         fixture.detectChanges();
 
@@ -119,21 +114,10 @@ describe('UiRippleDirective', () => {
 
         const ripple = button.querySelector<HTMLSpanElement>('span')!;
         const diameter = Math.max(100, 50) * 2; // 200
+        expect(ripple.style.width).toBe(`${diameter}px`);
+        expect(ripple.style.height).toBe(`${diameter}px`);
         expect(ripple.style.left).toBe(`${50 - diameter / 2}px`); // -50px
         expect(ripple.style.top).toBe(`${25 - diameter / 2}px`); // -75px
-    });
-
-    it('should size the ripple based on the largest host dimension', () => {
-        const mockAnimation: MockAnimation = { onfinish: null };
-        vi.spyOn(HTMLElement.prototype, 'animate').mockReturnValue(mockAnimation as unknown as Animation);
-
-        clickAt(button, 50, 25);
-        fixture.detectChanges();
-
-        const ripple = button.querySelector<HTMLSpanElement>('span')!;
-        const expectedDiameter = Math.max(100, 50) * 2;
-        expect(ripple.style.width).toBe(`${expectedDiameter}px`);
-        expect(ripple.style.height).toBe(`${expectedDiameter}px`);
     });
 
     it('should remove the ripple span after animation finishes', () => {

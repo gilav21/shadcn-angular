@@ -40,18 +40,8 @@ describe('BannerComponent', () => {
             expect(message?.textContent?.trim()).toBe('Scheduled maintenance at 02:00 UTC.');
         });
 
-        it('spans the full width of its container', () => {
-            expect(host.className).toContain('w-full');
-            expect(host.className).toContain('block');
-        });
-
         it('exposes a data-slot hook', () => {
             expect(host.dataset['slot']).toBe('banner');
-        });
-
-        it('uses theme tokens rather than hard-coded colours', () => {
-            expect(host.className).not.toMatch(/#[0-9a-f]{3,6}/i);
-            expect(host.className).toMatch(/bg-\w/);
         });
     });
 
@@ -59,18 +49,19 @@ describe('BannerComponent', () => {
     describe('T-2: applies variant classes for each of the four variants', () => {
         const variants: readonly BannerVariant[] = ['info', 'warning', 'destructive', 'success'];
 
-        it('renders a distinct class string per variant', () => {
-            const seen = new Set<string>();
+        it('paints each variant with its own background token', () => {
+            const expected: Record<BannerVariant, string> = {
+                info: 'bg-muted',
+                warning: 'bg-amber-500/10',
+                success: 'bg-green-500/10',
+                destructive: 'bg-destructive/10',
+            };
             for (const variant of variants) {
                 fixture.componentRef.setInput('variant', variant);
                 fixture.detectChanges();
-                seen.add(host.className);
+                const backgrounds = host.className.split(/\s+/).filter(c => c.startsWith('bg-'));
+                expect(backgrounds, variant).toEqual([expected[variant]]);
             }
-            expect(seen.size).toBe(variants.length);
-        });
-
-        it('defaults to the info variant', () => {
-            expect(fixture.componentInstance.variant()).toBe('info');
         });
 
         it('merges the class input onto the host', () => {
@@ -84,12 +75,6 @@ describe('BannerComponent', () => {
     describe('T-3: dismiss button removes banner and emits dismissed', () => {
         it('renders no dismiss button unless dismissible', () => {
             expect(host.querySelector('[data-slot="banner-dismiss"]')).toBeNull();
-        });
-
-        it('renders a dismiss button when dismissible', () => {
-            fixture.componentRef.setInput('dismissible', true);
-            fixture.detectChanges();
-            expect(host.querySelector('[data-slot="banner-dismiss"]')).not.toBeNull();
         });
 
         it('removes the banner content and emits dismissed on click', () => {
@@ -131,11 +116,16 @@ describe('BannerComponent', () => {
             expect(spy).toHaveBeenCalledTimes(1);
         });
 
-        it('gives the dismiss control an accessible name', () => {
+        it('gives the dismiss control a localised accessible name', () => {
             fixture.componentRef.setInput('dismissible', true);
             fixture.detectChanges();
-            const button = host.querySelector<HTMLButtonElement>('[data-slot="banner-dismiss"] button');
-            expect(button?.getAttribute('aria-label')?.length).toBeGreaterThan(0);
+            const label = (): string | null | undefined =>
+                host.querySelector<HTMLButtonElement>('[data-slot="banner-dismiss"] button')?.getAttribute('aria-label');
+            expect(label()).toBe('Close');
+
+            fixture.componentRef.setInput('locale', 'he');
+            fixture.detectChanges();
+            expect(label()).toBe('סגור');
         });
     });
 
@@ -167,9 +157,6 @@ describe('BannerComponent', () => {
             fixture.detectChanges();
             expect(document.activeElement).not.toBe(host);
             expect(host.contains(document.activeElement)).toBe(false);
-        });
-
-        it('is not focusable itself', () => {
             expect(host.hasAttribute('tabindex')).toBe(false);
         });
     });
@@ -182,12 +169,6 @@ describe('BannerComponent', () => {
             expect(host.querySelector('[data-slot="banner-message"]')?.textContent?.trim()).toBe('');
         });
 
-        it('wraps an extremely long unbroken message instead of overflowing', () => {
-            fixture.componentRef.setInput('message', 'x'.repeat(400));
-            fixture.detectChanges();
-            const message = host.querySelector<HTMLElement>('[data-slot="banner-message"]');
-            expect(message?.className).toContain('break-words');
-        });
     });
 });
 

@@ -43,29 +43,6 @@ describe('ConfirmDirective', () => {
         document.body.querySelectorAll('ui-confirm-dialog').forEach(el => el.remove());
     });
 
-    it('should create', () => {
-        expect(host).toBeTruthy();
-    });
-
-    it('should open a confirmation dialog when the button is clicked', async () => {
-        const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
-        button.click();
-        appRef.tick();
-        await fixture.whenStable();
-
-        const dialog = document.body.querySelector('ui-confirm-dialog');
-        expect(dialog).toBeTruthy();
-    });
-
-    it('should NOT emit confirmed before interaction', async () => {
-        const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
-        button.click();
-        appRef.tick();
-        await fixture.whenStable();
-
-        expect(host.confirmed).toBe(false);
-    });
-
     it('should emit confirmed when the action button is clicked', async () => {
         const spy = vi.spyOn(host, 'onConfirmed');
 
@@ -83,19 +60,19 @@ describe('ConfirmDirective', () => {
     });
 
     it('should NOT emit confirmed when the cancel button is clicked', async () => {
-        const spy = vi.spyOn(host, 'onConfirmed');
-
         const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
         button.click();
         appRef.tick();
         await fixture.whenStable();
 
-        const cancelButton = document.body.querySelector('ui-alert-dialog-cancel') as HTMLElement | null;
-        cancelButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        const cancelButton = document.body.querySelector<HTMLElement>('ui-confirm-dialog ui-alert-dialog-cancel');
+        expect(cancelButton?.textContent?.trim()).toBe('No, keep it');
+        cancelButton!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
         appRef.tick();
         await fixture.whenStable();
 
-        expect(spy).not.toHaveBeenCalled();
+        expect(host.confirmed).toBe(false);
+        expect(document.body.querySelector('ui-confirm-dialog')).toBeNull();
     });
 
     it('should pass custom labels to the dialog', async () => {
@@ -124,16 +101,6 @@ describe('ConfirmDialogComponent', () => {
         fixture = TestBed.createComponent(ConfirmDialogComponent);
         dialog = fixture.componentInstance;
         fixture.detectChanges();
-    });
-
-    it('opens via show() and closes via hide()', () => {
-        dialog.show();
-        fixture.detectChanges();
-        expect(dialog.open()).toBe(true);
-
-        dialog.hide();
-        fixture.detectChanges();
-        expect(dialog.open()).toBe(false);
     });
 
     it('emits cancelled when the dialog closes externally (Escape / hide)', () => {

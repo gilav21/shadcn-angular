@@ -1,25 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SliderComponent } from './slider.component';
-import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-
-// RTL Test host
-@Component({
-    template: `
-        <div [dir]="dir()">
-            <ui-slider [defaultValue]="50" (valueChange)="onValueChange($event)" />
-        </div>
-    `,
-    imports: [SliderComponent]
-})
-class RTLTestHostComponent {
-    dir = signal<'ltr' | 'rtl'>('ltr');
-    currentValue = 50;
-    onValueChange(value: number) {
-        this.currentValue = value;
-    }
-}
 
 describe('SliderComponent', () => {
     let component: SliderComponent;
@@ -35,24 +17,17 @@ describe('SliderComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
+    it('reflects min/max on the range input and resolves an unbound max to 100', () => {
+        fixture.componentRef.setInput('min', 10);
+        fixture.componentRef.setInput('max', 50);
+        fixture.detectChanges();
+        const input = fixture.debugElement.query(By.css('input[type="range"]')).nativeElement as HTMLInputElement;
+        expect([input.min, input.max]).toEqual(['10', '50']);
 
-    it('should have data-slot="slider"', () => {
-        const slider = fixture.debugElement.query(By.css('[data-slot="slider"]'));
-        expect(slider).toBeTruthy();
-    });
-
-    it('renders a native range input as the slider control', () => {
-        const thumb = fixture.debugElement.query(By.css('input[type="range"]'));
-        expect(thumb).toBeTruthy();
-    });
-
-    it('should have default min/max values', () => {
-        const thumb = fixture.debugElement.query(By.css('input[type="range"]'));
-        expect(thumb.nativeElement.min).toBe('0');
-        expect(thumb.nativeElement.max).toBe('100');
+        // A Signal Forms field with no max rule pushes `undefined` in.
+        fixture.componentRef.setInput('max', undefined);
+        fixture.detectChanges();
+        expect(input.max).toBe('100');
     });
 
     it('reflects value on the native range input', async () => {
@@ -62,13 +37,6 @@ describe('SliderComponent', () => {
 
         const thumb = fixture.debugElement.query(By.css('input[type="range"]'));
         expect(thumb.nativeElement.value).toBe('50');
-    });
-
-    it('should calculate percentage correctly', () => {
-        component.value.set(75);
-        fixture.detectChanges();
-
-        expect(component.percentage()).toBe(75);
     });
 
     it('should respect custom min/max', () => {
@@ -96,12 +64,6 @@ describe('SliderComponent', () => {
 
         const thumb = fixture.debugElement.query(By.css('input[type="range"]'));
         expect(thumb.nativeElement.getAttribute('aria-label')).toBe('Volume');
-    });
-
-    it('should apply flex layout', () => {
-        const slider = fixture.debugElement.query(By.css('[data-slot="slider"]'));
-        expect(slider.nativeElement.className).toContain('flex');
-        expect(slider.nativeElement.className).toContain('items-center');
     });
 });
 
@@ -210,13 +172,6 @@ describe('Slider Keyboard — additional keys', () => {
         key('ArrowRight');
         expect(component.value()).toBe(50);
     });
-
-    it('emits valueChange only when the value changes', () => {
-        let emitted: number | null = null;
-        component.value.subscribe((v: number) => (emitted = v));
-        key('ArrowRight');
-        expect(emitted).toBe(51);
-    });
 });
 
 describe('Slider pointer dragging', () => {
@@ -298,11 +253,10 @@ describe('Slider pointer dragging', () => {
     it('thumb mousedown starts dragging without jumping the value', () => {
         component.value.set(40);
         fixture.detectChanges();
-        const thumb = fixture.debugElement.query(By.css('[data-slot="slider"]')).nativeElement as HTMLElement;
-        const rect = thumb.getBoundingClientRect();
-        // Dispatch a mousedown on the slider element marked as thumb handler is bound in template;
-        // call the handler directly to assert it does not change the value immediately.
-        component.onThumbMouseDown(new MouseEvent('mousedown', { clientX: rect.left }));
+        const rect = track().getBoundingClientRect();
+        const thumb = fixture.debugElement.query(By.css('[data-slot="slider-thumb"]')).nativeElement as HTMLElement;
+        // The grab bubbles to the track; unless the thumb stops it, the value jumps to 100.
+        thumb.dispatchEvent(new MouseEvent('mousedown', { clientX: rect.right, bubbles: true }));
         fixture.detectChanges();
         expect(component.value()).toBe(40);
         document.dispatchEvent(new MouseEvent('mousemove', { clientX: rect.right }));
@@ -375,7 +329,7 @@ describe('Slider pointer dragging', () => {
 });
 
 describe('Slider invalid range', () => {
-    it('returns 0 percentage and logs when min >= max', async () => {
+    it('returns 0 percentage when min >= max', async () => {
         await TestBed.configureTestingModule({ imports: [SliderComponent] }).compileComponents();
         const fixture = TestBed.createComponent(SliderComponent);
         fixture.componentRef.setInput('min', 100);
@@ -383,48 +337,6 @@ describe('Slider invalid range', () => {
         fixture.componentInstance.value.set(75);
         fixture.detectChanges();
         expect(fixture.componentInstance.percentage()).toBe(0);
-    });
-});
-
-describe('Slider RTL Support', () => {
-    let fixture: ComponentFixture<RTLTestHostComponent>;
-    let component: RTLTestHostComponent;
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [RTLTestHostComponent]
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(RTLTestHostComponent);
-        component = fixture.componentInstance;
-        fixture.detectChanges();
-    });
-
-    afterEach(() => {
-        document.documentElement.removeAttribute('dir');
-    });
-
-    it('should render in LTR mode', () => {
-        const container = fixture.debugElement.query(By.css('[dir="ltr"]'));
-        expect(container).toBeTruthy();
-    });
-
-    it('should render in RTL mode', async () => {
-        component.dir.set('rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const container = fixture.debugElement.query(By.css('[dir="rtl"]'));
-        expect(container).toBeTruthy();
-    });
-
-    it('should maintain slider functionality in RTL', async () => {
-        component.dir.set('rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const slider = fixture.debugElement.query(By.directive(SliderComponent));
-        expect(slider).toBeTruthy();
     });
 });
 

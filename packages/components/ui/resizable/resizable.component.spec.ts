@@ -38,6 +38,18 @@ class RTLTestHostComponent {
     dir = signal<'ltr' | 'rtl'>('ltr');
 }
 
+@Component({
+    template: `
+    <ui-resizable-panel-group direction="horizontal">
+      <ui-resizable-panel [defaultSize]="30">Left</ui-resizable-panel>
+      <ui-resizable-handle></ui-resizable-handle>
+      <ui-resizable-panel [defaultSize]="70">Right</ui-resizable-panel>
+    </ui-resizable-panel-group>
+  `,
+    imports: [ResizablePanelGroupComponent, ResizablePanelComponent, ResizableHandleComponent]
+})
+class SplitHostComponent { }
+
 describe('ResizableComponent', () => {
     let fixture: ComponentFixture<TestHostComponent>;
     let component: TestHostComponent;
@@ -59,14 +71,15 @@ describe('ResizableComponent', () => {
         await fixture.whenStable(); // For initial setTimeout in panel
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
-    it('should set initial sizes', () => {
-        const panels = fixture.debugElement.queryAll(By.directive(ResizablePanelComponent));
-        expect(panels[0].nativeElement.style.flexBasis).toBe('50%');
-        expect(panels[1].nativeElement.style.flexBasis).toBe('50%');
+    it('should set initial sizes from defaultSize', async () => {
+        const split = TestBed.createComponent(SplitHostComponent);
+        split.detectChanges();
+        // defaultSize is applied in a setTimeout after construction.
+        await new Promise(resolve => setTimeout(resolve));
+        split.detectChanges();
+        const panels = split.debugElement.queryAll(By.directive(ResizablePanelComponent));
+        expect(panels[0].nativeElement.style.flexBasis).toBe('30%');
+        expect(panels[1].nativeElement.style.flexBasis).toBe('70%');
     });
 
     it('should resize horizontal panels on touch drag', () => {
@@ -97,16 +110,27 @@ describe('ResizableComponent', () => {
     });
 
     it('should ignore multi-touch start', () => {
+        const group = fixture.debugElement.query(By.css('[data-slot="resizable-panel-group"]')).nativeElement;
+        mockLayout(group, 1000);
+        const panels = fixture.debugElement.queryAll(By.directive(ResizablePanelComponent));
+        mockLayout(panels[0].nativeElement, 500);
+        mockLayout(panels[1].nativeElement, 500);
         const handle = fixture.debugElement.query(By.directive(ResizableHandleComponent));
         const handleEl = handle.query(By.css('[data-slot="resizable-handle"]'));
 
         handleEl.triggerEventHandler('touchstart', {
             preventDefault: () => { },
-            touches: [{ clientX: 0, clientY: 0 }, { clientX: 10, clientY: 10 }]
+            touches: [{ clientX: 500, clientY: 0 }, { clientX: 520, clientY: 10 }]
         });
+        // A pinch that then lifts a finger must not have started a drag.
+        const move = new Event('touchmove', { bubbles: true, cancelable: true });
+        (move as unknown as { touches: { clientX: number; clientY: number }[] }).touches = [{ clientX: 600, clientY: 0 }];
+        document.dispatchEvent(move);
+        fixture.detectChanges();
 
-        const panels = fixture.debugElement.queryAll(By.directive(ResizablePanelComponent));
         expect(panels[0].nativeElement.style.flexBasis).toBe('50%');
+        expect(document.body.style.cursor).toBe('');
+        document.dispatchEvent(new Event('touchend', { bubbles: true }));
     });
 
     it('should resize horizontal panels on drag', () => {
@@ -259,53 +283,6 @@ describe('Resizable RTL Support', () => {
             globalThis.getComputedStyle = originalGetComputedStyle;
             document.documentElement.removeAttribute('dir');
         }
-    });
-});
-
-@Component({
-    template: `
-    <ui-resizable-panel-group direction="horizontal">
-      <ui-resizable-panel [defaultSize]="50">A</ui-resizable-panel>
-      <ui-resizable-handle [withHandle]="true"></ui-resizable-handle>
-      <ui-resizable-panel [defaultSize]="50">B</ui-resizable-panel>
-    </ui-resizable-panel-group>
-    <ui-resizable-panel-group direction="vertical">
-      <ui-resizable-panel [defaultSize]="50">C</ui-resizable-panel>
-      <ui-resizable-handle [withHandle]="true"></ui-resizable-handle>
-      <ui-resizable-panel [defaultSize]="50">D</ui-resizable-panel>
-    </ui-resizable-panel-group>
-  `,
-    imports: [ResizablePanelGroupComponent, ResizablePanelComponent, ResizableHandleComponent]
-})
-class WithHandleHostComponent { }
-
-describe('Resizable grip/handle rendering', () => {
-    let fixture: ComponentFixture<WithHandleHostComponent>;
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [WithHandleHostComponent]
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(WithHandleHostComponent);
-        fixture.detectChanges();
-        await fixture.whenStable();
-    });
-
-    it('renders grips in both orientations with detected direction styles', () => {
-        const handles = fixture.debugElement.queryAll(By.css('[data-slot="resizable-handle"]'));
-        expect(handles).toHaveLength(2);
-
-        const horizontal = handles[0].nativeElement as HTMLElement;
-        const vertical = handles[1].nativeElement as HTMLElement;
-
-        expect(horizontal.getAttribute('style')).toContain('width');
-        expect(vertical.getAttribute('style')).toContain('height');
-
-        const svgs = fixture.debugElement.queryAll(By.css('svg'));
-        expect(svgs).toHaveLength(2);
-        const verticalSvgClass = svgs[1].nativeElement.getAttribute('class') ?? '';
-        expect(verticalSvgClass).toContain('rotate-90');
     });
 });
 

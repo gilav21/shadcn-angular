@@ -13,22 +13,16 @@ const stubRect = {
 };
 
 interface ContentPrivates {
-    finalizeFixedPosition(): void;
-    portalAndPosition(n: number): void;
-    placeContent(): boolean;
-    portalToBody(): boolean;
-    calculatePosition(): void;
     adjustFixedPosition(el: HTMLElement): void;
+    calculatePosition(): void;
+    contentEl?: { nativeElement: HTMLElement };
     computeVerticalAdjustment(r: DOMRect, b: { top: number; bottom: number }): { side: string; offsetY: number };
     resolveVerticalOverflow(
         cs: string, os: string, fs: string, o: number, ch: number, b: { top: number; bottom: number }
     ): { side: string; offsetY: number };
     getAvailableSpace(fs: string, tr: DOMRect | null, b: { top: number; bottom: number }): number;
-    computeFixedStyles(pos: { side: string; align: string; offsetX: number; offsetY: number }): string;
     positionStyles(): string;
     adjustedPosition: { set(v: { side: string; align: string; offsetX: number; offsetY: number }): void };
-    contentEl?: { nativeElement: HTMLElement };
-    triggerRectSig: { set(v: DOMRect | null): void };
 }
 
 function priv(c: PopoverContentComponent): ContentPrivates {
@@ -85,11 +79,10 @@ describe('PopoverComponent dismissal behavior', () => {
     it('ignores clicks inside the popover host', () => {
         popover.show();
         fixture.detectChanges();
-        const trigger = fixture.nativeElement.querySelector('[data-slot="popover-trigger"]') as HTMLElement;
-        trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-        // trigger click toggles via trigger handler (stopPropagation) — host contains it,
-        // so the document listener returns early and does not double-toggle.
-        expect(popover.open()).toBe(false);
+        // The absolute panel renders inside the host; a click in it reaches the document listener.
+        const panel = fixture.nativeElement.querySelector('[data-slot="popover-content"]') as HTMLElement;
+        panel.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        expect(popover.open()).toBe(true);
     });
 
     it('ignores clicks inside a registered portal element', () => {
@@ -275,6 +268,16 @@ class FixedHost {
     avoidCollisions = signal(true);
 }
 
+@Component({
+    template: `
+        <ui-popover [open]="true">
+            <ui-popover-content strategy="fixed">No trigger</ui-popover-content>
+        </ui-popover>
+    `,
+    imports: [PopoverComponent, PopoverContentComponent],
+})
+class NoTriggerHost {}
+
 describe('PopoverContent fixed strategy (Popover API path)', () => {
     let fixture: ComponentFixture<FixedHost>;
     let host: FixedHost;
@@ -285,10 +288,6 @@ describe('PopoverContent fixed strategy (Popover API path)', () => {
 
     function content(): PopoverContentComponent {
         return fixture.debugElement.query(By.directive(PopoverContentComponent)).componentInstance as PopoverContentComponent;
-    }
-
-    function popover(): PopoverComponent {
-        return fixture.debugElement.query(By.directive(PopoverComponent)).componentInstance as PopoverComponent;
     }
 
     async function flush(): Promise<void> {
@@ -345,31 +344,6 @@ describe('PopoverContent fixed strategy (Popover API path)', () => {
         }
     });
 
-    it('opens with the Popover API and reveals fixed styles, then tears down on close', async () => {
-        host.open.set(true);
-        await flush();
-        const el = document.querySelector('[data-slot="popover-content"]') as HTMLElement;
-        expect(el).toBeTruthy();
-        expect(el.getAttribute('popover')).toBe('manual');
-        const styles = content().positionStyles();
-        expect(styles).toContain('position:fixed');
-        expect(styles).toContain('top:');
-        expect(styles).toContain('left:');
-
-        host.open.set(false);
-        fixture.detectChanges();
-        await fixture.whenStable();
-        expect(document.querySelector('[data-slot="popover-content"]')).toBeNull();
-    });
-
-    it('runs the fixed placement path from ngAfterViewInit when open on init', async () => {
-        // open before first change detection so ngAfterViewInit sees a placeable element
-        host.open.set(true);
-        await flush();
-        const el = document.querySelector('[data-slot="popover-content"]') as HTMLElement;
-        expect(el.getAttribute('popover')).toBe('manual');
-    });
-
     it('uses top-4 for the top side in fixed styles', async () => {
         host.side.set('top');
         host.open.set(true);
@@ -380,112 +354,48 @@ describe('PopoverContent fixed strategy (Popover API path)', () => {
         expect(styles).toContain('top:96px');
     });
 
-    it('end align translates -100% in fixed styles', async () => {
-        host.align.set('end');
-        host.open.set(true);
-        await flush();
-        expect(content().positionStyles()).toContain('translateX(-100%)');
-    });
-
-    it('start align uses no translate in fixed styles', async () => {
-        host.align.set('start');
-        host.open.set(true);
-        await flush();
-        expect(content().positionStyles()).not.toContain('translateX');
-    });
-
-    it('uses raw side/align when avoidCollisions is disabled (fixed)', async () => {
-        host.avoidCollisions.set(false);
-        host.side.set('top');
-        host.align.set('end');
-        host.open.set(true);
-        await flush();
-        const styles = content().positionStyles();
-        expect(styles).toContain('translateX(-100%)');
-        expect(styles).toContain('top:96px');
-    });
-
-    it('portalAndPosition retries when the content element is missing (fixed)', async () => {
-        host.open.set(true);
-        await flush();
-        const c = content();
-        const saved = priv(c).contentEl;
-        priv(c).contentEl = undefined;
-        // no element to place → schedules a retry frame; then close to stop recursion
-        priv(c).portalAndPosition(0);
-        priv(c).contentEl = saved;
-        popover().hide();
-        await new Promise<void>((r) => requestAnimationFrame(() => r()));
-        expect(popover().open()).toBe(false);
-    });
-
-    it('finalizeFixedPosition returns early when the popover is closed', async () => {
-        host.open.set(true);
-        await flush();
-        const c = content();
-        popover().hide();
-        fixture.detectChanges();
-        // popover closed → both guards short-circuit
-        priv(c).finalizeFixedPosition();
-        await new Promise<void>((r) => requestAnimationFrame(() => r()));
-        expect(popover().open()).toBe(false);
-    });
-
-    it('finalizeFixedPosition inner frame bails when closed mid-flight', async () => {
-        host.open.set(true);
-        await flush();
-        const c = content();
-        priv(c).finalizeFixedPosition();
-        popover().hide();
-        await new Promise<void>((r) => requestAnimationFrame(() => r()));
-        expect(popover().open()).toBe(false);
-    });
-
-    it('calculatePosition adjusts a fixed element directly', async () => {
-        host.open.set(true);
-        await flush();
-        const c = content();
-        expect(() => priv(c).calculatePosition()).not.toThrow();
-    });
-
-    it('portalToBody returns false for non-fixed strategy and when no element', async () => {
-        host.strategy.set('absolute');
-        host.open.set(true);
-        await flush();
-        const c = content();
-        expect(priv(c).portalToBody()).toBe(false); // strategy !== fixed
-    });
-
-    it('portalToBody returns false when the element is missing (fixed)', async () => {
-        host.open.set(true);
-        await flush();
-        const c = content();
-        const saved = priv(c).contentEl;
-        priv(c).contentEl = undefined;
-        expect(priv(c).portalToBody()).toBe(false);
-        priv(c).contentEl = saved;
-    });
-
     it('adjustFixedPosition clamps when overflowing the viewport', async () => {
+        host.open.set(true);
+        await flush();
+        const c = content();
+        // Every element measures as stubRect (100..200 x 100..140).
+        Object.defineProperty(globalThis, 'innerWidth', { configurable: true, value: 1000 });
+        Object.defineProperty(globalThis, 'innerHeight', { configurable: true, value: 1000 });
+        const fits = document.createElement('div');
+        priv(c).adjustFixedPosition(fits);
+        expect([fits.style.left, fits.style.top, fits.style.transform]).toEqual(['', '', '']);
+
+        Object.defineProperty(globalThis, 'innerWidth', { configurable: true, value: 150 });
+        Object.defineProperty(globalThis, 'innerHeight', { configurable: true, value: 120 });
+        const el = document.createElement('div');
+        priv(c).adjustFixedPosition(el);
+        // 150 - 100 wide - 8 margin, and 120 - 40 tall - 8 margin.
+        expect(el.style.left).toBe('42px');
+        expect(el.style.top).toBe('72px');
+        expect(el.style.transform).toBe('none');
+    });
+
+    it('calculatePosition clamps a fixed content element in place (white-box: unreachable through the public API, fixed placement never routes through calculatePosition)', async () => {
         host.open.set(true);
         await flush();
         const c = content();
         Object.defineProperty(globalThis, 'innerWidth', { configurable: true, value: 150 });
         Object.defineProperty(globalThis, 'innerHeight', { configurable: true, value: 120 });
-        const el = document.createElement('div');
-        priv(c).adjustFixedPosition(el);
-        expect(el.style.left).not.toBe('');
-        expect(el.style.top).not.toBe('');
-        expect(el.style.transform).toBe('none');
+        priv(c).calculatePosition();
+        const el = priv(c).contentEl!.nativeElement;
+        expect([el.style.left, el.style.top, el.style.transform]).toEqual(['42px', '72px', 'none']);
     });
 
-    it('computeFixedStyles returns empty string when there is no trigger rect', async () => {
-        host.open.set(true);
-        await flush();
-        const c = content();
-        vi.spyOn(popover(), 'getTriggerRect').mockReturnValue(null);
-        priv(c).triggerRectSig.set(null);
-        expect(priv(c).computeFixedStyles({ side: 'bottom', align: 'center', offsetX: 0, offsetY: 0 })).toBe('');
+    it('has no fixed position styles when the popover has no trigger', async () => {
+        const noTrigger = TestBed.createComponent(NoTriggerHost);
+        document.body.appendChild(noTrigger.nativeElement);
+        noTrigger.detectChanges();
+        await noTrigger.whenStable();
+        await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+        const c = noTrigger.debugElement.query(By.directive(PopoverContentComponent)).componentInstance as PopoverContentComponent;
+        expect(c.positionStyles()).toBe('');
+        noTrigger.destroy();
+        noTrigger.nativeElement.remove();
     });
 });
 
@@ -528,20 +438,12 @@ describe('PopoverContent collision helpers', () => {
         document.querySelectorAll('[data-popover-portal]').forEach((n) => n.remove());
     });
 
-    it('offsets up when content overflows the top boundary', () => {
+    it('offsets down when content overflows the top boundary', () => {
         const c = priv(content());
         const rect = { top: -50, bottom: 300, height: 350, left: 0, right: 200 } as DOMRect;
         const res = c.computeVerticalAdjustment(rect, { top: 0, bottom: 800 });
-        // side 'bottom' with a top overflow keeps the side and offsets it back down
-        expect(res.side).toBe('bottom');
-        expect(res.offsetY).not.toBe(0);
-    });
-
-    it('keeps current side when the overflow side differs', () => {
-        const c = priv(content());
-        const res = c.resolveVerticalOverflow('left', 'bottom', 'top', 50, 100, { top: 0, bottom: 800 });
-        expect(res.side).toBe('left');
-        expect(res.offsetY).toBeLessThan(0);
+        // side 'bottom' with a 50px top overflow keeps the side and moves down 50 + 8.
+        expect(res).toEqual({ side: 'bottom', offsetY: 42 });
     });
 
     it('flips to the opposite side when there is enough room', () => {

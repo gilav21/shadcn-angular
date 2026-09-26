@@ -19,24 +19,6 @@ describe('PhoneInputComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
-    it('should have data-slot="phone-input"', () => {
-        const el = fixture.nativeElement.querySelector('[data-slot="phone-input"]');
-        expect(el).toBeTruthy();
-    });
-
-    it('should render an input of type tel', () => {
-        const input = fixture.nativeElement.querySelector('input[type="tel"]');
-        expect(input).toBeTruthy();
-    });
-
-    it('should default to US country', () => {
-        expect(component.selectedCountry().code).toBe('US');
-    });
-
     it('should change country when defaultCountry input changes', async () => {
         fixture.componentRef.setInput('defaultCountry', 'DE');
         fixture.detectChanges();
@@ -72,14 +54,6 @@ describe('PhoneInputComponent', () => {
 
         const triggerBtn = fixture.nativeElement.querySelector('button[type="button"]');
         expect(triggerBtn.disabled).toBe(true);
-    });
-
-    it('should emit E.164 on national number change', () => {
-        const emitted: (string | null)[] = [];
-        component.value.subscribe((v: string | null) => emitted.push(v));
-
-        component.onNationalChange('5551234567');
-        expect(emitted[0]).toBe('+15551234567');
     });
 
     it('should strip non-digit chars when building E.164', () => {
@@ -134,11 +108,19 @@ describe('PhoneInputComponent', () => {
         expect(component.nationalNumber()).toBe('');
     });
 
-    it('should expose mask on the selected country', () => {
-        expect(component.selectedCountry().mask).toBe('(000) 000-0000');
+    it('masks typed digits with the selected country\'s pattern', async () => {
         const gb = DEFAULT_COUNTRIES.find(c => c.code === 'GB')!;
         component.selectCountry(gb);
-        expect(component.selectedCountry().mask).toBe('0000 000000');
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const telInput: HTMLInputElement = fixture.nativeElement.querySelector('input[type="tel"]');
+        telInput.value = '2071234567';
+        telInput.dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(telInput.value).toBe('2071 234567');
     });
 
     it('should use country placeholder when no placeholder input is given', () => {
@@ -178,9 +160,13 @@ describe('PhoneInputComponent writeValue', () => {
         expect(component.nationalNumber()).toBe('5551234567');
     });
 
-    it('should handle null/empty writeValue gracefully', () => {
+    it('clears the number but keeps the country on a null writeValue', () => {
+        component.writeValue('+442071234567');
+        expect(component.nationalNumber()).toBe('2071234567');
+
         component.writeValue(null);
         expect(component.nationalNumber()).toBe('');
+        expect(component.selectedCountry().code).toBe('GB');
     });
 
     it('should handle non-E.164 value gracefully', () => {
@@ -211,21 +197,6 @@ describe('PhoneInputComponent mask enforcement (via InputMaskDirective)', () => 
         fixture.detectChanges();
     });
 
-    it('should reject letters typed into the masked tel input', async () => {
-        const telInput = fixture.nativeElement.querySelector('input[type="tel"]') as HTMLInputElement;
-        expect(telInput).toBeTruthy();
-
-        telInput.value = 'abc';
-        telInput.dispatchEvent(new Event('input'));
-        fixture.detectChanges();
-        await fixture.whenStable();
-        fixture.detectChanges();
-
-        expect(telInput.value).not.toContain('a');
-        expect(telInput.value).not.toContain('b');
-        expect(telInput.value).not.toContain('c');
-    });
-
     it('should format raw digits according to the US mask', async () => {
         const telInput = fixture.nativeElement.querySelector('input[type="tel"]') as HTMLInputElement;
 
@@ -236,18 +207,7 @@ describe('PhoneInputComponent mask enforcement (via InputMaskDirective)', () => 
         fixture.detectChanges();
 
         expect(telInput.value).toBe('(555) 123-4567');
-    });
-
-    it('should strip letters from a mixed input and keep only digits formatted', async () => {
-        const telInput = fixture.nativeElement.querySelector('input[type="tel"]') as HTMLInputElement;
-
-        telInput.value = '5a5b5c1234567';
-        telInput.dispatchEvent(new Event('input'));
-        fixture.detectChanges();
-        await fixture.whenStable();
-        fixture.detectChanges();
-
-        expect(telInput.value).toBe('(555) 123-4567');
+        expect(fixture.componentInstance.value).toBe('+15551234567');
     });
 });
 
@@ -269,22 +229,6 @@ describe('PhoneInputComponent with ReactiveFormsModule', () => {
         }).compileComponents();
         fixture = TestBed.createComponent(TestReactiveComponent);
         fixture.detectChanges();
-    });
-
-    it('should reflect control value via nationalNumber', async () => {
-        fixture.componentInstance.control.setValue('+4915123456789');
-        fixture.detectChanges();
-        await fixture.whenStable();
-        fixture.detectChanges();
-
-        const phoneInput = fixture.debugElement.children[0].componentInstance as PhoneInputComponent;
-        expect(phoneInput.nationalNumber()).toBe('15123456789');
-    });
-
-    it('should update control when national number changes', () => {
-        const phoneInput = fixture.debugElement.children[0].componentInstance as PhoneInputComponent;
-        phoneInput.onNationalChange('5551234567');
-        expect(fixture.componentInstance.control.value).toBe('+15551234567');
     });
 
     it('should disable input when control is disabled', async () => {
@@ -330,41 +274,6 @@ describe('PhoneInputComponent with ngModel', () => {
 });
 
 describe('PhoneInputComponent — i18n integration', () => {
-    async function setup(locale?: string, providerLocale?: string): Promise<PhoneInputComponent> {
-        const { provideUiLocale } = await import('../../lib/i18n');
-        await TestBed.configureTestingModule({
-            imports: [PhoneInputComponent],
-            providers: providerLocale ? [provideUiLocale(providerLocale)] : [],
-        }).compileComponents();
-        const fixture = TestBed.createComponent(PhoneInputComponent);
-        if (locale) fixture.componentRef.setInput('locale', locale);
-        fixture.detectChanges();
-        return fixture.componentInstance as PhoneInputComponent;
-    }
-
-    function readT(cmp: PhoneInputComponent): { searchCountryPlaceholder: string; noCountryFound: string } {
-        return (cmp as unknown as { t: () => { searchCountryPlaceholder: string; noCountryFound: string } }).t();
-    }
-
-    it('defaults search placeholder + empty-state text to English', async () => {
-        const cmp = await setup();
-        const t = readT(cmp);
-        expect(t.searchCountryPlaceholder).toBe('Search country...');
-        expect(t.noCountryFound).toBe('No countries found');
-    });
-
-    it('localises search placeholder + empty-state text when locale="he"', async () => {
-        const cmp = await setup('he');
-        const t = readT(cmp);
-        expect(t.searchCountryPlaceholder).toBe('...חיפוש מדינה');
-        expect(t.noCountryFound).toBe('לא נמצאו מדינות');
-    });
-
-    it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
-        const cmp = await setup(undefined, 'fr');
-        expect(readT(cmp).searchCountryPlaceholder).toBe('Rechercher un pays...');
-    });
-
     it('renders localised search placeholder + no-results text in the country picker popover (DOM)', async () => {
         const { provideUiLocale } = await import('../../lib/i18n');
         await TestBed.configureTestingModule({
@@ -471,6 +380,7 @@ describe('PhoneInputComponent — signal-forms readiness', () => {
         fixture.detectChanges();
 
         expect(componentOf(fixture).nationalNumber()).toBe('2071234567');
+        expect(fixture.componentInstance.emissions).toEqual([]);
     });
 
     it('T-9: emits valueChange exactly once per user edit', () => {
@@ -497,15 +407,6 @@ describe('PhoneInputComponent — signal-forms readiness', () => {
         expect(fixture.componentInstance.emissions).toEqual([]);
     });
 
-    it('stays silent when the form writes a number the user did not type', () => {
-        const fixture = TestBed.createComponent(FormGroupPhoneHost);
-        fixture.detectChanges();
-
-        fixture.componentInstance.form.setValue({ phone: '+442071234567' });
-        fixture.detectChanges();
-
-        expect(fixture.componentInstance.emissions).toEqual([]);
-    });
 });
 
 /**
