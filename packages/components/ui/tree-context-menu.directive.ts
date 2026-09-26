@@ -89,11 +89,8 @@ export class TreeContextMenuDirective<T = unknown> implements OnDestroy {
    * itself has none.
    */
   private ownLabel(item: HTMLElement): string {
-    for (const label of item.querySelectorAll('[data-slot="tree-label"]')) {
-      if (label.closest('[data-slot="tree-item"]') === item) {
-        return label.textContent?.trim() ?? '';
-      }
-    }
-    return '';
+    const own = Array.from(item.querySelectorAll('[data-slot="tree-label"]'))
+      .find((label) => label.closest('[data-slot="tree-item"]') === item);
+    return own?.textContent?.trim() ?? '';
   }
 }
