@@ -218,6 +218,17 @@ describe('BentoGridComponent', () => {
 
             expect(grid.isSelected('1')).toBe(false);
             expect(grid.isSelected('2')).toBe(false);
+            expect(component.lastSelectionChange).toEqual([]);
+
+            // An already-empty selection is not changed, so nothing is emitted.
+            component.lastSelectionChange = null;
+            component.editable.set(true);
+            fixture.detectChanges();
+            component.editable.set(false);
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            expect(component.lastSelectionChange).toBeNull();
         });
     });
 

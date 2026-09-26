@@ -1528,7 +1528,7 @@ describe('SortableComponent — coverage completion', () => {
         expect(sortable.effectiveDragDelta()).toEqual({ x: 0, y: 0 });
     });
 
-    it('re-registers when [group] changes to a different non-empty value', () => {
+    it('moves its registration to the new group when [group] changes, and drops it on an empty group', () => {
         clearRegistry();
         @Component({
             selector: 'app-grpchg-host',
@@ -1552,8 +1552,14 @@ describe('SortableComponent — coverage completion', () => {
 
         f.componentInstance.grp.set('g2');
         f.detectChanges();
+        expect(groupSize('g1')).toBe(0);
         expect(groupSize('g2')).toBe(1);
         expect(peersInGroup('g2')[0].listId).toBe('G');
+
+        f.componentInstance.grp.set('');
+        f.detectChanges();
+        expect(groupSize('g2')).toBe(0);
+        expect(groupSize('')).toBe(0);
     });
 
     it('registry entry removeItem removes a matching item and no-ops for an absent one', () => {

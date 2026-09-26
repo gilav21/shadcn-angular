@@ -1384,6 +1384,7 @@ export const registry = defineRegistry({
     files: ['tree-context-menu.directive.ts'],
     dependencies: ['context-menu'],
     testFiles: ['tree-context-menu.directive.spec.ts'],
+    testDependencies: ['tree'],
   },
   'table-context-menu': {
     name: 'table-context-menu',

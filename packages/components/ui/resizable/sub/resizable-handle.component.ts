@@ -10,7 +10,7 @@ import {
   AfterViewInit,
   OnDestroy,
 } from '@angular/core';
-import { cn } from '../../../lib/utils';
+import { cn, isRtl } from '../../../lib/utils';
 import { ResizablePanelComponent } from './resizable-panel.component';
 
 const DEFAULT_MIN_SIZE = 10;
@@ -220,7 +220,7 @@ export class ResizableHandleComponent implements AfterViewInit, OnDestroy {
       if (key === 'ArrowDown') return KEYBOARD_STEP;
       return 0;
     }
-    const sign = this.isRtl() ? -1 : 1;
+    const sign = this.isOwnDirectionRtl() ? -1 : 1;
     if (key === 'ArrowLeft') return -KEYBOARD_STEP * sign;
     if (key === 'ArrowRight') return KEYBOARD_STEP * sign;
     return 0;
@@ -242,8 +242,9 @@ export class ResizableHandleComponent implements AfterViewInit, OnDestroy {
     this.resized.emit({ delta: 0, sizes: [Math.round(beforeSize), Math.round(afterSize)] });
   }
 
-  private isRtl(): boolean {
-    return getComputedStyle(document.documentElement).direction === 'rtl';
+  /** The handle's own resolved direction — a local `dir="rtl"` container mirrors it even on an LTR page. */
+  private isOwnDirectionRtl(): boolean {
+    return isRtl(this.el.nativeElement);
   }
 
   private findAdjacentPanels(
@@ -306,16 +307,16 @@ export class ResizableHandleComponent implements AfterViewInit, OnDestroy {
   }
 
   private buildMoveHandler(
-    ctx: { isHorizontal: boolean; isRtl: boolean; containerSize: number; startX: number; startY: number },
+    ctx: { isHorizontal: boolean; rtl: boolean; containerSize: number; startX: number; startY: number },
     beforeEl: HTMLElement, afterEl: HTMLElement,
     startSizeBefore: number, startSizeAfter: number
   ): (clientX: number, clientY: number) => void {
-    const { isHorizontal, isRtl, containerSize, startX, startY } = ctx;
+    const { isHorizontal, rtl, containerSize, startX, startY } = ctx;
     const beforeLimits = this.limitsOf(beforeEl);
     const afterLimits = this.limitsOf(afterEl);
     return (clientX: number, clientY: number): void => {
       let delta = isHorizontal ? clientX - startX : clientY - startY;
-      if (isHorizontal && isRtl) delta = -delta;
+      if (isHorizontal && rtl) delta = -delta;
       const newPercentBefore = ((startSizeBefore + delta) / containerSize) * 100;
       const newPercentAfter = ((startSizeAfter - delta) / containerSize) * 100;
       if (newPercentBefore >= beforeLimits.min && newPercentAfter >= afterLimits.min &&
@@ -370,7 +371,7 @@ export class ResizableHandleComponent implements AfterViewInit, OnDestroy {
     const startSizeBefore = isHorizontal ? beforeEl.offsetWidth : beforeEl.offsetHeight;
     const startSizeAfter = isHorizontal ? afterEl.offsetWidth : afterEl.offsetHeight;
     const onMove = this.buildMoveHandler(
-      { isHorizontal, isRtl: this.isRtl(), containerSize, startX, startY },
+      { isHorizontal, rtl: this.isOwnDirectionRtl(), containerSize, startX, startY },
       beforeEl, afterEl, startSizeBefore, startSizeAfter);
     this.attachListeners(isTouch, isHorizontal, onMove);
   }

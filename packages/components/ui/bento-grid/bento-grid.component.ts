@@ -9,6 +9,7 @@ import {
     inject,
     ElementRef,
     effect,
+    untracked,
     ComponentRef,
     viewChild,
     AfterViewInit,
@@ -126,7 +127,7 @@ export class BentoGridComponent implements AfterViewInit, OnDestroy {
     });
     /**
      * Master switch for every edit affordance: drag, resize handles, selection,
-     * context menus and drops. Turning it off also clears the current selection
+     * context menus and drops. Turning it off also clears a non-empty selection
      * (and emits an empty {@link selectionChange}) and hides the cell grid overlay.
      */
     readonly editable = input<boolean>(true);
@@ -140,7 +141,7 @@ export class BentoGridComponent implements AfterViewInit, OnDestroy {
      * they cannot shrink), so the array may be shorter than the one you passed in.
      */
     readonly itemsChange = output<DashboardItem[]>();
-    /** The ids currently selected, after every {@link toggleSelection} / {@link clearSelection} and whenever {@link editable} goes false. */
+    /** The ids currently selected, after every {@link toggleSelection} / {@link clearSelection} and whenever {@link editable} going false clears a non-empty selection. */
     readonly selectionChange = output<string[]>();
     /**
      * A widget dragged in from outside was dropped. `x`/`y` carry the target cell
@@ -249,9 +250,9 @@ export class BentoGridComponent implements AfterViewInit, OnDestroy {
 
     constructor() {
         effect(() => {
-            if (!this.editable()) {
-                this.selectedItemIds.set([]);
-            }
+            if (this.editable()) return;
+            // Untracked: the effect must re-run only on `editable`, not on selection edits.
+            untracked(() => this.clearNonEmptySelection());
         });
     }
 
@@ -284,6 +285,12 @@ export class BentoGridComponent implements AfterViewInit, OnDestroy {
     clearSelection(): void {
         this.selectedItemIds.set([]);
         this.selectionChange.emit([]);
+    }
+
+    /** Clears a non-empty selection and emits it; an already-empty selection is left alone so nothing is emitted. */
+    private clearNonEmptySelection(): void {
+        if (this.selectedItemIds().length === 0) return;
+        this.clearSelection();
     }
 
     /** Whether the widget is in the current selection. Template helper — O(1), backed by a `Set`. */

@@ -1,4 +1,4 @@
-<ui-popover [(open)]="isOpen" [attr.data-slot]="'tree-select'" [attr.dir]="dir()">
+<ui-popover [open]="isOpen()" (openChange)="onOpenChange($event)" [attr.data-slot]="'tree-select'" [attr.dir]="dir()">
   @if (isDataDriven()) {
     <ui-popover-trigger class="w-full">
       <button

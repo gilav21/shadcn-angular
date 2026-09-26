@@ -3848,6 +3848,9 @@
     ],
     "testFiles": [
       "tree-context-menu.directive.spec.ts"
+    ],
+    "testDependencies": [
+      "tree"
     ]
   },
   "table-context-menu": {

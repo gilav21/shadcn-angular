@@ -16,7 +16,10 @@ export interface TreeContextMenuEvent<T = unknown> {
 /**
  * Attach a context menu to a `<ui-tree>` element. Right-clicking a tree item
  * opens the provided {@link ContextMenuComponent} at the cursor position and
- * emits {@link TreeContextMenuEvent} with the node data extracted from the DOM.
+ * emits {@link TreeContextMenuEvent} with the node data extracted from the DOM:
+ * `{ key, label, expanded, selected, element }`, where `key` is the item's
+ * `value` (its `data-key`), `label` its own `<ui-tree-label>` text, and
+ * `expanded` / `selected` its current state.
  */
 @Directive({
   selector: 'ui-tree[uiTreeContextMenu]',
@@ -71,15 +74,26 @@ export class TreeContextMenuDirective<T = unknown> implements OnDestroy {
     const expanded = element.dataset['expanded'] === 'true';
     const selected = element.dataset['selected'] === 'true';
 
-    const labelElement = element.querySelector('[data-slot="tree-label"]');
-    const label = labelElement?.textContent?.trim() ?? '';
-
     return {
       key,
-      label,
+      label: this.ownLabel(element),
       expanded,
       selected,
       element,
     } as unknown as T;
+  }
+
+  /**
+   * The text of the item's own label. Nested items render inside their parent's
+   * row, so the first label in the subtree can belong to a child when the item
+   * itself has none.
+   */
+  private ownLabel(item: HTMLElement): string {
+    for (const label of item.querySelectorAll('[data-slot="tree-label"]')) {
+      if (label.closest('[data-slot="tree-item"]') === item) {
+        return label.textContent?.trim() ?? '';
+      }
+    }
+    return '';
   }
 }

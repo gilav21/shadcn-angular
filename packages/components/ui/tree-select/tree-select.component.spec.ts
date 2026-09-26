@@ -69,6 +69,7 @@ class TestHostComponent {
             [nodes]="nodes"
             [formControl]="control"
         />
+        <button type="button" id="elsewhere">Elsewhere</button>
     `,
     imports: [TreeSelectComponent, ReactiveFormsModule]
 })
@@ -244,6 +245,38 @@ describe('TreeSelect ControlValueAccessor', () => {
         const trigger = fixture.debugElement.query(By.css('button[role="combobox"]'));
         expect(trigger.nativeElement.disabled).toBe(true);
     });
+
+    it('marks the control touched when the user leaves it: closing the popover (dismiss or pick) or blurring the closed trigger', async () => {
+        const trigger = fixture.debugElement.query(By.css('button[role="combobox"]')).nativeElement as HTMLButtonElement;
+        const elsewhere = (fixture.nativeElement as HTMLElement).querySelector('#elsewhere') as HTMLButtonElement;
+        const open = async (): Promise<void> => {
+            trigger.click();
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+        };
+
+        await open();
+        trigger.focus();
+        elsewhere.focus();
+        expect(component.control.touched).toBe(false);
+        trigger.click();
+        fixture.detectChanges();
+        expect(component.control.touched).toBe(true);
+
+        component.control.markAsUntouched();
+        await open();
+        const node = document.querySelector<HTMLElement>('#tree-select-popup [data-key="images"] > div');
+        node?.click();
+        fixture.detectChanges();
+        expect(component.control.value).toBe('images');
+        expect(component.control.touched).toBe(true);
+
+        component.control.markAsUntouched();
+        trigger.focus();
+        elsewhere.focus();
+        expect(component.control.touched).toBe(true);
+    });
 });
 
 describe('TreeSelect Custom Mode', () => {
@@ -269,14 +302,34 @@ describe('TreeSelect Custom Mode', () => {
         expect(document.querySelector('#tree-select-popup')).toBeNull();
     });
 
-    it('should open popover in custom mode programmatically', async () => {
+    const panelText = (): string | undefined =>
+        document.querySelector('#tree-select-custom-popup [data-slot="popover-content"]')?.textContent ?? undefined;
+
+    it('renders the projected content when opened programmatically', async () => {
         const treeSelect = fixture.debugElement.query(By.directive(TreeSelectComponent)).componentInstance as TreeSelectComponent;
         treeSelect.isOpen.set(true);
         fixture.detectChanges();
         await fixture.whenStable();
         fixture.detectChanges();
 
+        expect(panelText()).toContain('Documents');
+    });
+
+    it('toggles the popover from the projected trigger', async () => {
+        const treeSelect = fixture.debugElement.query(By.directive(TreeSelectComponent)).componentInstance as TreeSelectComponent;
+        const button = fixture.debugElement.query(By.css('button[role="combobox"]')).nativeElement as HTMLButtonElement;
+
+        button.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
         expect(treeSelect.isOpen()).toBe(true);
+        expect(panelText()).toContain('Documents');
+
+        button.click();
+        fixture.detectChanges();
+        expect(treeSelect.isOpen()).toBe(false);
+        expect(panelText()).toBeUndefined();
     });
 });
 
@@ -357,16 +410,6 @@ describe('TreeSelect value input + onSelectionChange edge cases', () => {
         expect(component.internalValue()).toBeNull();
         expect(emitted).toEqual([]);
         expect(component.isOpen()).toBe(false);
-    });
-
-    it('exposes the default onTouched no-op until registerOnTouched replaces it', () => {
-        const withTouched = component as unknown as { onTouched: () => void };
-        expect(() => withTouched.onTouched()).not.toThrow();
-
-        let touched = false;
-        component.registerOnTouched(() => { touched = true; });
-        withTouched.onTouched();
-        expect(touched).toBe(true);
     });
 });
 

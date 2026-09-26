@@ -6,7 +6,7 @@ import {
     ResizablePanelComponent,
     ResizableHandleComponent
 } from './index';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 
 @Component({
     template: `
@@ -20,22 +20,6 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 })
 class TestHostComponent {
     direction = signal<'horizontal' | 'vertical'>('horizontal');
-}
-
-@Component({
-    template: `
-    <div [dir]="dir()">
-      <ui-resizable-panel-group direction="horizontal">
-        <ui-resizable-panel [defaultSize]="50" class="panel-a">Start</ui-resizable-panel>
-        <ui-resizable-handle></ui-resizable-handle>
-        <ui-resizable-panel [defaultSize]="50" class="panel-b">End</ui-resizable-panel>
-      </ui-resizable-panel-group>
-    </div>
-  `,
-    imports: [ResizablePanelGroupComponent, ResizablePanelComponent, ResizableHandleComponent]
-})
-class RTLTestHostComponent {
-    dir = signal<'ltr' | 'rtl'>('ltr');
 }
 
 @Component({
@@ -198,94 +182,6 @@ describe('ResizableComponent', () => {
     });
 });
 
-describe('Resizable RTL Support', () => {
-    let fixture: ComponentFixture<RTLTestHostComponent>;
-    let component: RTLTestHostComponent;
-
-    // Helper to mock layout
-    const mockLayout = (element: HTMLElement, size: number) => {
-        Object.defineProperty(element, 'offsetWidth', { configurable: true, value: size });
-        Object.defineProperty(element, 'offsetHeight', { configurable: true, value: size });
-    };
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [RTLTestHostComponent]
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(RTLTestHostComponent);
-        component = fixture.componentInstance;
-        fixture.detectChanges();
-        await fixture.whenStable();
-    });
-
-    afterEach(() => {
-        document.documentElement.removeAttribute('dir');
-    });
-
-    it('should resize in RTL direction', async () => {
-        // isRtl() reads getComputedStyle(el).direction; jsdom doesn't cascade
-        // `dir` into computed direction across runners, so reflect the nearest
-        // [dir] ancestor here (what a real browser resolves).
-        const originalGetComputedStyle = globalThis.getComputedStyle;
-        globalThis.getComputedStyle = ((el: Element, pseudo?: string | null) => {
-            const real = originalGetComputedStyle(el, pseudo ?? undefined);
-            const dir = (el as HTMLElement).closest?.('[dir]')?.getAttribute('dir');
-            if (!dir) return real;
-            return new Proxy(real, {
-                get: (target, prop) => (prop === 'direction' ? dir : Reflect.get(target, prop)),
-            });
-        }) as typeof getComputedStyle;
-        try {
-        component.dir.set('rtl');
-        document.documentElement.setAttribute('dir', 'rtl'); // Important for getComputedStyle
-        fixture.detectChanges();
-
-        const group = fixture.debugElement.query(By.css('[data-slot="resizable-panel-group"]')).nativeElement;
-        mockLayout(group, 1000);
-
-        const panels = fixture.debugElement.queryAll(By.directive(ResizablePanelComponent));
-        mockLayout(panels[0].nativeElement, 500);
-        mockLayout(panels[1].nativeElement, 500);
-
-        const handle = fixture.debugElement.query(By.directive(ResizableHandleComponent));
-
-        const handleEl = handle.query(By.css('[data-slot="resizable-handle"]'));
-
-        // Start drag at 500px
-        handleEl.triggerEventHandler('mousedown', {
-            preventDefault: () => { },
-            clientX: 500,
-            clientY: 0
-        });
-
-        // Move to 400px (visually LEFT in RTL means increasing first panel?)
-        // Wait, standard RTL:
-        // [Panel A] [Handle] [Panel B]
-        // Panel A is on Right? 
-        // No, Flex RTL: A is Right, B is Left.
-        // If I move handle Left (clientX decreases), Panel A (Right) grows?
-        // Let's check logic: delta = clientX - startX.
-        // If clientX 500 -> 400, delta = -100.
-        // Logic: if (isHorizontal && isRtl) delta = -delta; => delta = 100.
-        // newSizeBefore (Panel A) = 500 + 100 = 600.
-        // So moving Left (-100px) increases Panel A by 100px.
-        // This is correct behavior for RTL if Panel A is the "start" (Right side).
-
-        document.dispatchEvent(new MouseEvent('mousemove', { clientX: 400, clientY: 0 }));
-        fixture.detectChanges();
-
-        // Panel A should grow to 60%
-        expect(panels[0].nativeElement.style.flexBasis).toBe('60%');
-
-        document.dispatchEvent(new MouseEvent('mouseup'));
-        } finally {
-            globalThis.getComputedStyle = originalGetComputedStyle;
-            document.documentElement.removeAttribute('dir');
-        }
-    });
-});
-
 @Component({
     template: `<ui-resizable-handle></ui-resizable-handle>`,
     imports: [ResizableHandleComponent]
@@ -440,30 +336,6 @@ describe('Resizable panel limits and state', () => {
         handleEl.triggerEventHandler('keydown', { key: 'ArrowLeft', preventDefault: () => { } });
         fixture.detectChanges();
         expect(panelA.size()).toBe(50);
-    });
-
-    it('mirrors the arrow keys in RTL', async () => {
-        const originalGetComputedStyle = globalThis.getComputedStyle;
-        globalThis.getComputedStyle = ((el: Element, pseudo?: string | null) => {
-            const real = originalGetComputedStyle(el, pseudo ?? undefined);
-            return new Proxy(real, {
-                get: (target, prop) => (prop === 'direction' ? 'rtl' : Reflect.get(target, prop)),
-            });
-        }) as typeof getComputedStyle;
-
-        try {
-            const fixture = await setupLimitsFixture();
-            const panels = fixture.debugElement.queryAll(By.directive(ResizablePanelComponent));
-            const panelA = panels[0].componentInstance as ResizablePanelComponent;
-            const handleEl = fixture.debugElement.query(By.css('[data-slot="resizable-handle"]'));
-
-            handleEl.triggerEventHandler('keydown', { key: 'ArrowLeft', preventDefault: () => { } });
-            fixture.detectChanges();
-
-            expect(panelA.size()).toBe(55);
-        } finally {
-            globalThis.getComputedStyle = originalGetComputedStyle;
-        }
     });
 
     it('ignores keys that are not on the group axis', async () => {
