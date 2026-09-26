@@ -6,6 +6,7 @@
 // assert against a table whose DOM deliberately does not hold all its rows.
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
+import { By } from '@angular/platform-browser';
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { DataTableComponent } from './data-table.component';
 import type { ColumnDef } from './data-table.types';
@@ -188,11 +189,24 @@ describe('data-table grid semantics', () => {
             expect(grid().getAttribute('aria-rowcount')).toBe('5001');
         });
 
-        it('numbers rows by their absolute position, not their DOM position', () => {
+        it('numbers rows by their absolute position, not their DOM position', async () => {
+            const scroller: HTMLElement = fixture.nativeElement.querySelector('[data-slot="table"]')
+                .closest('.overflow-auto');
+            // Pinned rather than assigned: jsdom has no layout, so a real scrollTop stays 0.
+            Object.defineProperty(scroller, 'scrollTop', { value: 100_000, configurable: true });
+            scroller.dispatchEvent(new Event('scroll'));
+            await new Promise(resolve => requestAnimationFrame(resolve));
+            await settle();
+
+            const table = fixture.debugElement.query(By.directive(DataTableComponent))
+                .componentInstance as DataTableComponent<Row>;
+            const start = table.virtualRowRange().start;
             const indices = bodyRows().map(r => Number(r.getAttribute('aria-rowindex')));
 
-            // Consecutive, and offset past the header row.
-            expect(indices[0]).toBe(2);
+            // Consecutive, and offset past the header row and every row above the window.
+            expect(start).toBeGreaterThan(2000);
+            expect(indices[0]).toBe(start + 2);
+            expect(bodyRows()[0].textContent).toContain(`Person ${start + 1}`);
             for (const [n, index] of indices.entries()) {
                 expect(index).toBe(indices[0] + n);
             }

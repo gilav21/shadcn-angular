@@ -99,10 +99,10 @@ describe('stagedFiles (T-2)', () => {
         expect(staged).toHaveLength(288);
     });
 
-    it('data-table stages 179 files', () => {
+    it('data-table stages 180 files', () => {
         const staged = stagedFiles('data-table');
         expect(new Set(staged.map((f) => f.dest))).toEqual(expectedDests('data-table'));
-        expect(staged).toHaveLength(179);
+        expect(staged).toHaveLength(180);
     });
 
     it('never stages spec, stories or screenshot files', () => {

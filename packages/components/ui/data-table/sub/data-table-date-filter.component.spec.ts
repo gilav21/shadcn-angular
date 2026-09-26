@@ -30,10 +30,6 @@ describe('DataTableDateFilterComponent', () => {
     fixture.detectChanges();
   });
 
-  it('should create', () => {
-    expect(component).toBeTruthy();
-  });
-
   it('should emit date on selection', () => {
     const date = new Date(2024, 5, 15);
     component.onDateSelect(date);
@@ -137,10 +133,6 @@ describe('DataTableDateRangeFilterComponent', () => {
     fixture.detectChanges();
   });
 
-  it('should create', () => {
-    expect(component).toBeTruthy();
-  });
-
   it('should emit range when both dates are selected', () => {
     const range: DateRange = {
       start: new Date(2024, 0, 1),
@@ -180,14 +172,17 @@ describe('DataTableDateRangeFilterComponent', () => {
     expect(emitted).toBeNull();
   });
 
-  it('should apply preset and emit', () => {
-    const presets = component.effectivePresets();
-    expect(presets.length).toBeGreaterThan(0);
+  it('clicking the "Last 7 days" preset emits and selects the last seven whole days', () => {
+    const buttons: HTMLButtonElement[] = Array.from(fixture.nativeElement.querySelectorAll('button'));
+    buttons.find((b) => b.textContent?.trim() === 'Last 7 days')?.click();
 
-    component.applyPreset(presets[0]);
-    expect(emitted).toBeTruthy();
-    expect(emitted!.start).toBeInstanceOf(Date);
-    expect(emitted!.end).toBeInstanceOf(Date);
+    const now = new Date();
+    const expected: DateRange = {
+      start: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6),
+      end: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+    };
+    expect(emitted).toEqual(expected);
+    expect(component.selectedValue()).toEqual(expected);
   });
 
   it('should render default presets', () => {
@@ -237,14 +232,6 @@ describe('DataTableDateRangeFilterComponent', () => {
     expect(texts).not.toContain('Clear');
   });
 
-  it('should still use custom presets over locale defaults', () => {
-    fixture.componentRef.setInput('locale', 'he');
-    const custom = [{ label: 'Custom', range: { start: new Date(), end: new Date() } }];
-    fixture.componentRef.setInput('presets', custom);
-    fixture.detectChanges();
-    expect(component.effectivePresets()).toEqual(custom);
-  });
-
   it('should set dir="rtl" when locale is RTL', () => {
     fixture.componentRef.setInput('locale', 'ar');
     fixture.detectChanges();
@@ -276,10 +263,12 @@ describe('dateFilterFn', () => {
     expect(dateFilterFn(row, filter, (r: Row) => r.createdAt)).toBe(false);
   });
 
-  it('should handle ISO string cell values', () => {
-    const row: Row = { id: 1, createdAt: '2024-06-15T14:30:00.000Z' };
+  it('matches ISO date-time string cell values by their calendar day', () => {
     const filter = new Date(2024, 5, 15);
-    expect(dateFilterFn(row, filter, (r: Row) => r.createdAt)).toBe(true);
+    const createdAt = (r: Row) => r.createdAt;
+    expect(dateFilterFn<Row>({ id: 1, createdAt: '2024-06-15T23:59:00' }, filter, createdAt)).toBe(true);
+    expect(dateFilterFn<Row>({ id: 2, createdAt: '2024-06-16T00:01:00' }, filter, createdAt)).toBe(false);
+    expect(dateFilterFn<Row>({ id: 3, createdAt: '2024-06-14T23:59:00' }, filter, createdAt)).toBe(false);
   });
 
   it('should handle timestamp cell values', () => {

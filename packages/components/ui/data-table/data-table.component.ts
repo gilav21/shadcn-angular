@@ -26,6 +26,7 @@ import { onPointerDrag, onLongPress } from "../../lib/touch";
 import type { ThemeName } from "../../lib/theme-presets";
 import { createLocaleBindings, interpolate, provideComponentLocale, type LocaleInput } from "../../lib/i18n";
 import { DATA_TABLE_LOCALES, type DataTableLocale } from "./data-table.locales";
+import { guardSpreadsheetFormula, restoreSpreadsheetText } from "./data-table.spreadsheet";
 import {
   DataTableAddonHost,
   AddonSlotRegistry,
@@ -136,6 +137,15 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
   if (id == null) return JSON.stringify(row);
   return stringifyValue(id);
 };
+
+/**
+ * Serialises a grid as the TSV every copy path writes: one line per row, cells
+ * formula-guarded so pasting into a spreadsheet never runs a cell as a formula.
+ * The paste path undoes the guard with `restoreSpreadsheetText`.
+ */
+function toClipboardText(grid: readonly (readonly string[])[]): string {
+  return grid.map((cells) => cells.map(guardSpreadsheetFormula).join("\t")).join("\n");
+}
 
 /**
  * Whether two requests describe the same page of data.
@@ -415,7 +425,9 @@ export class DataTableComponent<T>
   /**
    * Enables the clipboard paths: `Ctrl/Cmd+C` and the
    * `copy*ToClipboard` methods, all of which return early when false. The
-   * selection, expander and actions columns are never copied.
+   * selection, expander and actions columns are never copied. A copied cell a
+   * spreadsheet would run as a formula (`=`, `+`, `-`, `@`, tab, CR) is written
+   * with a leading `'`; see `guardSpreadsheetFormula`.
    */
   readonly enableCopy = input(true);
   /**
@@ -604,7 +616,9 @@ export class DataTableComponent<T>
   readonly fillSeries = output<FillSeriesEvent>();
   /**
    * Allow pasting a clipboard grid (TSV/CSV) into cells starting at the focused
-   * cell (`Ctrl/Cmd+V`). Only columns with a `valueSetter` are written.
+   * cell (`Ctrl/Cmd+V`). Only columns with a `valueSetter` are written. The
+   * formula guard's leading `'` is dropped, as a spreadsheet does, so a range
+   * copied out of the table pastes back unchanged.
    */
   readonly enableClipboardPaste = input(false);
   /** Emitted after a clipboard grid is pasted into cells. */
@@ -2609,7 +2623,7 @@ export class DataTableComponent<T>
 
   private async pasteFromClipboard(startRow: number, startColumn: string): Promise<void> {
     const text = await navigator.clipboard.readText();
-    const grid = parseClipboardGrid(text);
+    const grid = parseClipboardGrid(text).map((line) => line.map(restoreSpreadsheetText));
     if (grid.length > 0) this.pasteGridAt(startRow, startColumn, grid);
   }
 
@@ -2929,7 +2943,8 @@ export class DataTableComponent<T>
       return base + " bg-primary/15";
     }
     if (rowIndex !== undefined && this.isCellInFillPreview(rowIndex, key)) {
-      return base + " bg-primary/5 ring-1 ring-dashed ring-primary/40 ring-inset";
+      // An outline, not a ring: a ring is a box-shadow and cannot be dashed.
+      return base + " bg-primary/5 outline-1 outline-dashed outline-primary/40 -outline-offset-1";
     }
     return base;
   }
@@ -4004,7 +4019,7 @@ export class DataTableComponent<T>
       (c) => String(c.accessorKey) === focused.columnKey,
     );
     if (row && col) {
-      await navigator.clipboard.writeText(this.getCellStringValue(row, col));
+      await navigator.clipboard.writeText(toClipboardText([[this.getCellStringValue(row, col)]]));
     }
   }
 
@@ -4021,7 +4036,7 @@ export class DataTableComponent<T>
         col.accessorKey !== "_actions",
     );
     const values = columns.map((col) => this.getCellStringValue(row, col));
-    await navigator.clipboard.writeText(values.join("\t"));
+    await navigator.clipboard.writeText(toClipboardText([values]));
   }
 
   /**
@@ -4043,11 +4058,11 @@ export class DataTableComponent<T>
     );
     if (rows.length === 0) return;
 
-    const headerLine = columns.map((col) => col.header).join("\t");
-    const dataLines = rows.map((row) =>
-      columns.map((col) => this.getCellStringValue(row, col)).join("\t"),
+    const header = columns.map((col) => col.header);
+    const body = rows.map((row) =>
+      columns.map((col) => this.getCellStringValue(row, col)),
     );
-    await navigator.clipboard.writeText([headerLine, ...dataLines].join("\n"));
+    await navigator.clipboard.writeText(toClipboardText([header, ...body]));
   }
 
   /**
@@ -4056,9 +4071,7 @@ export class DataTableComponent<T>
    */
   async copyAllToClipboard(): Promise<void> {
     if (!this.enableCopy()) return;
-    const data = this.getExportData();
-    const text = data.map((row) => row.join("\t")).join("\n");
-    await navigator.clipboard.writeText(text);
+    await navigator.clipboard.writeText(toClipboardText(this.getExportData()));
   }
 
   /**
@@ -4287,7 +4300,7 @@ export class DataTableComponent<T>
       );
       if (row && col) {
         event.preventDefault();
-        navigator.clipboard.writeText(this.getCellStringValue(row, col));
+        navigator.clipboard.writeText(toClipboardText([[this.getCellStringValue(row, col)]]));
         return true;
       }
     }
@@ -4316,17 +4329,16 @@ export class DataTableComponent<T>
     const data = this.processedData();
     const columns = this.enhancedColumns();
 
-    const lines: string[] = [];
+    const grid: string[][] = [];
     for (let r = range.minRow; r <= range.maxRow; r++) {
       const row = data[r];
       if (!row) continue;
-      const values = rangeCols.map((key) => {
+      grid.push(rangeCols.map((key) => {
         const col = columns.find((c) => String(c.accessorKey) === key);
         return col ? this.getCellStringValue(row, col) : "";
-      });
-      lines.push(values.join("\t"));
+      }));
     }
-    await navigator.clipboard.writeText(lines.join("\n"));
+    await navigator.clipboard.writeText(toClipboardText(grid));
   }
 
   private computeNextCell(

@@ -1486,8 +1486,8 @@
       "lines": 1
     },
     "data-table/addons/context-menu/context-menu.directive.spec.ts": {
-      "bytes": 20288,
-      "lines": 526
+      "bytes": 18526,
+      "lines": 486
     },
     "data-table/addons/context-menu/context-menu.directive.ts": {
       "bytes": 8343,
@@ -1498,12 +1498,12 @@
       "lines": 1
     },
     "data-table/addons/export/export.directive.spec.ts": {
-      "bytes": 8557,
-      "lines": 252
+      "bytes": 10343,
+      "lines": 305
     },
     "data-table/addons/export/export.directive.ts": {
-      "bytes": 4307,
-      "lines": 107
+      "bytes": 4635,
+      "lines": 116
     },
     "data-table/addons/export/export.locales.ts": {
       "bytes": 589,
@@ -1518,84 +1518,88 @@
       "lines": 2
     },
     "data-table/addons/pivot/pivot.directive.spec.ts": {
-      "bytes": 7161,
-      "lines": 196
+      "bytes": 7741,
+      "lines": 211
     },
     "data-table/addons/pivot/pivot.directive.ts": {
       "bytes": 1315,
       "lines": 32
     },
     "data-table/addons/pivot/pivot.utils.ts": {
-      "bytes": 3889,
-      "lines": 116
+      "bytes": 4953,
+      "lines": 137
     },
     "data-table/data-table-advanced-filter.spec.ts": {
-      "bytes": 13733,
-      "lines": 356
+      "bytes": 14786,
+      "lines": 377
     },
     "data-table/data-table-ai.spec.ts": {
-      "bytes": 7441,
-      "lines": 184
+      "bytes": 7476,
+      "lines": 185
     },
     "data-table/data-table-autofit.spec.ts": {
-      "bytes": 5568,
-      "lines": 163
+      "bytes": 5620,
+      "lines": 155
     },
     "data-table/data-table-column-builder.spec.ts": {
-      "bytes": 5148,
-      "lines": 151
+      "bytes": 4996,
+      "lines": 146
     },
     "data-table/data-table-column-builder.ts": {
       "bytes": 3084,
       "lines": 80
     },
     "data-table/data-table-fill.spec.ts": {
-      "bytes": 4662,
-      "lines": 123
+      "bytes": 4534,
+      "lines": 119
     },
     "data-table/data-table-grid-semantics.spec.ts": {
-      "bytes": 7477,
-      "lines": 201
+      "bytes": 8403,
+      "lines": 215
     },
     "data-table/data-table-paste.spec.ts": {
       "bytes": 1314,
       "lines": 48
     },
     "data-table/data-table-query.spec.ts": {
-      "bytes": 8696,
-      "lines": 246
+      "bytes": 7908,
+      "lines": 223
     },
     "data-table/data-table-view-state.spec.ts": {
-      "bytes": 9544,
-      "lines": 263
+      "bytes": 8920,
+      "lines": 242
     },
     "data-table/data-table-virtual-scroll.spec.ts": {
-      "bytes": 6853,
-      "lines": 183
+      "bytes": 7092,
+      "lines": 190
+    },
+    "data-table/data-table.component.browser.spec.ts": {
+      "bytes": 7208,
+      "lines": 142
     },
     "data-table/data-table.component.css": {
       "bytes": 4243,
       "lines": 132
     },
     "data-table/data-table.component.html": {
-      "bytes": 68703,
-      "lines": 1522
+      "bytes": 68537,
+      "lines": 1520
     },
     "data-table/data-table.component.spec.ts": {
-      "bytes": 301382,
-      "lines": 6894
+      "bytes": 282922,
+      "lines": 6398
     },
     "data-table/data-table.component.ts": {
-      "bytes": 220960,
-      "lines": 6143
+      "bytes": 221793,
+      "lines": 6155
     },
     "data-table/data-table.coverage.spec.ts": {
-      "bytes": 25674,
-      "lines": 687
+      "bytes": 19823,
+      "lines": 543
     },
     "data-table/data-table.host.spec.ts": {
-      "bytes": 6400,
-      "lines": 189
+      "bytes": 4347,
+      "lines": 131
     },
     "data-table/data-table.host.ts": {
       "bytes": 4481,
@@ -1604,6 +1608,10 @@
     "data-table/data-table.locales.ts": {
       "bytes": 12901,
       "lines": 340
+    },
+    "data-table/data-table.spreadsheet.ts": {
+      "bytes": 2430,
+      "lines": 56
     },
     "data-table/data-table.stories.ts": {
       "bytes": 75600,
@@ -1614,24 +1622,24 @@
       "lines": 473
     },
     "data-table/data-table.utils.ts": {
-      "bytes": 24969,
-      "lines": 760
+      "bytes": 26144,
+      "lines": 778
     },
     "data-table/index.ts": {
-      "bytes": 633,
-      "lines": 13
+      "bytes": 675,
+      "lines": 14
     },
     "data-table/sub/data-table-column-header.component.html": {
-      "bytes": 995,
-      "lines": 32
+      "bytes": 909,
+      "lines": 30
     },
     "data-table/sub/data-table-column-header.component.spec.ts": {
-      "bytes": 10824,
-      "lines": 303
+      "bytes": 7598,
+      "lines": 210
     },
     "data-table/sub/data-table-column-header.component.ts": {
-      "bytes": 3914,
-      "lines": 103
+      "bytes": 3992,
+      "lines": 104
     },
     "data-table/sub/data-table-column-header.stories.ts": {
       "bytes": 3969,
@@ -1642,8 +1650,8 @@
       "lines": 24
     },
     "data-table/sub/data-table-date-filter.component.spec.ts": {
-      "bytes": 13955,
-      "lines": 360
+      "bytes": 13973,
+      "lines": 349
     },
     "data-table/sub/data-table-date-filter.component.ts": {
       "bytes": 3949,
@@ -1670,20 +1678,20 @@
       "lines": 38
     },
     "data-table/sub/data-table-multiselect-filter.component.spec.ts": {
-      "bytes": 8114,
-      "lines": 230
+      "bytes": 8556,
+      "lines": 232
     },
     "data-table/sub/data-table-multiselect-filter.component.ts": {
       "bytes": 6278,
       "lines": 177
     },
     "data-table/sub/data-table-pagination.component.html": {
-      "bytes": 3672,
-      "lines": 88
+      "bytes": 3302,
+      "lines": 80
     },
     "data-table/sub/data-table-pagination.component.spec.ts": {
-      "bytes": 4477,
-      "lines": 138
+      "bytes": 5179,
+      "lines": 147
     },
     "data-table/sub/data-table-pagination.component.ts": {
       "bytes": 4730,

@@ -12,12 +12,7 @@ import {
     toEditedDateValue,
     toLocalDateString,
 } from './data-table.utils';
-import {
-    DATA_TABLE_VIEW_STATE_VERSION,
-    type ColumnDef,
-    type DataTableViewState,
-    type FilterGroup,
-} from './data-table.types';
+import type { ColumnDef, DataTableViewState, FilterGroup } from './data-table.types';
 
 interface Row {
     id: number;
@@ -94,21 +89,6 @@ describe('saved views', () => {
         await settle();
     }
 
-    it('captures more than the column layout', async () => {
-        await arrangeAView();
-        const view = table().getViewState();
-
-        expect(view.sort).toEqual({ column: 'name', direction: 'desc' });
-        expect(view.columnFilters).toEqual({ name: 'Person 1' });
-        expect(view.globalFilter).toBe('person');
-        expect(view.pagination).toEqual({ pageIndex: 2, pageSize: 10 });
-        expect(view.columns.length).toBeGreaterThan(0);
-    });
-
-    it('stamps the schema version', async () => {
-        expect(table().getViewState().version).toBe(DATA_TABLE_VIEW_STATE_VERSION);
-    });
-
     /** UC-3: arrange, save, wander off, come back to exactly that. */
     it('restores everything it captured', async () => {
         await arrangeAView();
@@ -120,12 +100,15 @@ describe('saved views', () => {
         t.columnFilters.set({});
         t.globalFilter.set('');
         t.paginationState.set({ pageIndex: 0, pageSize: 10 });
+        t.columnVisibility.set({});
         await settle();
 
         expect(t.applyViewState(saved)).toBe(true);
         await settle();
 
         expect(t.sortState()).toEqual({ column: 'name', direction: 'desc' });
+        expect(t.multiSortState()).toEqual([{ column: 'name', direction: 'desc' }]);
+        expect(t.columnVisibility()['id']).toBe(false);
         expect(t.columnFilters()).toEqual({ name: 'Person 1' });
         expect(t.globalFilter()).toBe('person');
         expect(t.paginationState()).toEqual({ pageIndex: 2, pageSize: 10 });
@@ -146,25 +129,19 @@ describe('saved views', () => {
      * which is worse than not restoring at all.
      */
     describe('a token it cannot read', () => {
-        it('refuses a future version outright', async () => {
-            await arrangeAView();
-            const saved = table().getViewState();
-            const future = { ...saved, version: saved.version + 1, globalFilter: 'zzz' };
-
-            expect(table().applyViewState(future)).toBe(false);
-        });
-
         it('changes nothing at all when it refuses', async () => {
             await arrangeAView();
             const before = JSON.stringify(table().getViewState());
 
-            table().applyViewState({
+            const refused = table().applyViewState({
                 ...table().getViewState(),
                 version: 99,
                 globalFilter: 'zzz',
                 sort: { column: 'id', direction: 'asc' },
             });
             await settle();
+
+            expect(refused).toBe(false);
 
             expect(JSON.stringify(table().getViewState())).toBe(before);
         });
@@ -253,7 +230,9 @@ describe('editing a date cell', () => {
      * the wrong timezone looks.
      */
     it('formats in the local calendar, not UTC', () => {
+        const localMidnight = new Date(2026, 2, 4);
         const lateEvening = new Date(2026, 2, 4, 23, 30);
+        expect(toLocalDateString(localMidnight)).toBe('2026-03-04');
         expect(toLocalDateString(lateEvening)).toBe('2026-03-04');
     });
 
