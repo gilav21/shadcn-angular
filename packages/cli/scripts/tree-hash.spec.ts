@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { treeHash } from '../../../scripts/tree-hash.mjs';
+import { envForGitAt, treeHash } from '../../../scripts/tree-hash.mjs';
 
 /**
  * The fingerprint `npm run coverage` writes and `npm run sonar` checks. Its
@@ -13,8 +13,10 @@ import { treeHash } from '../../../scripts/tree-hash.mjs';
  */
 describe('treeHash', () => {
     let repo: string;
+    // Run inside the pre-push hook, an inherited GIT_DIR would point `init` and
+    // `config` at the real repository instead of this temp one.
     const git = (...args: string[]) =>
-        execFileSync('git', args, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+        execFileSync('git', args, { cwd: repo, env: envForGitAt(), encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
 
     beforeEach(() => {
         repo = mkdtempSync(join(tmpdir(), 'tree-hash-'));
@@ -31,6 +33,21 @@ describe('treeHash', () => {
 
     it('is stable for an unchanged tree', () => {
         expect(treeHash(repo)).toBe(treeHash(repo));
+    });
+
+    it('hashes its own directory even when a git hook exported GIT_DIR for another repository', () => {
+        const expected = treeHash(repo);
+        const other = mkdtempSync(join(tmpdir(), 'tree-hash-other-'));
+        execFileSync('git', ['init', '-q'], { cwd: other, env: envForGitAt(), stdio: 'ignore' });
+        const saved = process.env['GIT_DIR'];
+        process.env['GIT_DIR'] = join(other, '.git');
+        try {
+            expect(treeHash(repo)).toBe(expected);
+        } finally {
+            if (saved === undefined) delete process.env['GIT_DIR'];
+            else process.env['GIT_DIR'] = saved;
+            rmSync(other, { recursive: true, force: true });
+        }
     });
 
     it('changes when a tracked file is edited but not committed', () => {

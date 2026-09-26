@@ -19,12 +19,26 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
+ * The current environment without any `GIT_*` variable, so a git command run
+ * with `cwd` really targets that directory. A git hook exports `GIT_DIR` and
+ * friends (as an absolute path when it runs from a worktree), and they override
+ * `cwd`: the command then reads — or, for `init` and `config`, rewrites — the
+ * repository the hook came from. Same scrub as `fixtureGitEnv` in
+ * packages/cli/scripts/repo-fixtures.ts.
+ * @returns {NodeJS.ProcessEnv}
+ */
+export function envForGitAt() {
+  return Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')));
+}
+
+/**
  * @param {string} [cwd] repository root; defaults to the current directory.
  * @returns {string} 64-char hex digest.
  */
 export function treeHash(cwd = process.cwd()) {
+  const env = envForGitAt();
   const git = (...args) =>
-    execFileSync('git', args, { cwd, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
+    execFileSync('git', args, { cwd, env, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
 
   const hash = createHash('sha256');
   hash.update(git('ls-files', '-s'));
