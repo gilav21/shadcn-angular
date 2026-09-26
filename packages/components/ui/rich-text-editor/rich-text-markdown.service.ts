@@ -1386,6 +1386,7 @@ export class RichTextMarkdownService {
 
         html = this.parseImages(html, protectedInline, inlineSources, protectedTags, protectedEscapes);
         html = this.parseLinks(html, inlineSources, protectedTags, protectedEscapes);
+        html = this.dropEmptiedParagraphs(html);
         html = this.parseBoldItalic(html);
         html = this.parseStrikethrough(html);
 
@@ -2285,6 +2286,24 @@ export class RichTextMarkdownService {
             if (!safeUrl) return text;
             return `<a href="${this.attr(safeUrl)}" rel="noopener noreferrer">${text}</a>`;
         });
+    }
+
+    /**
+     * Remove a paragraph whose only content the media passes rejected.
+     *
+     * parseParagraphs must wrap lines before parseImages runs (the order is
+     * load-bearing), so a line holding only an unsafe image was wrapped first
+     * and then emptied, leaving a `<p></p>` the author never wrote -- visible
+     * spacing under prose margins. A paragraph is the parser's wrapper for
+     * content, so with its content gone it goes too; a heading or list item the
+     * author marked keeps its structure. Only parser-written `<p>` is literal at
+     * this point: an author's raw `<p></p>` is still parked and survives. One
+     * separating newline goes with the paragraph, so its neighbours keep the
+     * single newline between them.
+     */
+    private dropEmptiedParagraphs(html: string): string {
+        return html.replaceAll(/\n?<p>\s*<\/p>\n?/g, (match: string) =>
+            match.startsWith('\n') && match.endsWith('\n') ? '\n' : '');
     }
 
     /**

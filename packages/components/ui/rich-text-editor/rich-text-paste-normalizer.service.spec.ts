@@ -296,11 +296,12 @@ describe('RichTextPasteNormalizerService', () => {
             expect(service.normalize(html, '')).toBe('<p>Keep</p><p>Also keep</p>');
         });
 
-        it('should handle mso-spacerun whitespace', () => {
-            const html = '<p class="MsoNormal"><span style="mso-spacerun:yes">   </span>Text</p>';
-            const result = service.normalize(html, '');
-            expect(result).not.toContain('mso-spacerun');
-            expect(result).toContain('Text');
+        it('keeps the whitespace between words, and a Word spacerun keeps its width', () => {
+            // Word writes three typed spaces as a spacerun of two nbsp and a space.
+            const word = '<p class="MsoNormal">Hello<span style="mso-spacerun:yes">&nbsp;&nbsp; </span>world</p>';
+            expect(service.normalize(word, '')).toBe('<p>Hello&nbsp;&nbsp; world</p>');
+            expect(service.normalize('<p><b>bold</b><span> </span><i>italic</i></p>', ''))
+                .toBe('<p><strong>bold</strong> <em>italic</em></p>');
         });
 
         it('should convert font elements to spans with color', () => {
@@ -1424,14 +1425,15 @@ describe('RichTextPasteNormalizerService', () => {
     });
 
     describe('normalizeOffice - list level edges', () => {
-        it('closes deeper levels when returning to a shallower list level', () => {
+        it('keeps same-level siblings in one list and closes deeper levels when returning to a shallower one', () => {
             const html = [
                 '<p class="MsoListParagraph" style="mso-list:l0 level1 lfo1"><span style="mso-list:Ignore">· </span>One</p>',
                 '<p class="MsoListParagraph" style="mso-list:l0 level2 lfo1"><span style="mso-list:Ignore">o </span>One-A</p>',
+                '<p class="MsoListParagraph" style="mso-list:l0 level2 lfo1"><span style="mso-list:Ignore">o </span>One-B</p>',
                 '<p class="MsoListParagraph" style="mso-list:l0 level1 lfo1"><span style="mso-list:Ignore">· </span>Two</p>',
             ].join('');
             expect(service.normalize(html, ''))
-                .toBe('<ul><li>One<ul><li>One-A</li></ul></li><li>Two</li></ul>');
+                .toBe('<ul><li>One<ul><li>One-A</li><li>One-B</li></ul></li><li>Two</li></ul>');
         });
 
         it('creates a synthetic parent li when a list starts at a deeper level', () => {
@@ -1439,12 +1441,8 @@ describe('RichTextPasteNormalizerService', () => {
                 '<p class="MsoListParagraph" style="mso-list:l0 level2 lfo1"><span style="mso-list:Ignore">o </span>Deep first</p>',
                 '<p class="MsoListParagraph" style="mso-list:l0 level2 lfo1"><span style="mso-list:Ignore">o </span>Deep second</p>',
             ].join('');
-            const probe = document.createElement('div');
-            probe.innerHTML = service.normalize(html, '');
-            const parent = probe.querySelector(':scope > ul > li');
-            expect(Array.from(parent?.childNodes ?? []).map((n) => n.nodeName)).not.toContain('#text');
-            expect(Array.from(probe.querySelectorAll(':scope > ul > li > ul > li')).map((li) => li.textContent))
-                .toEqual(['Deep first', 'Deep second']);
+            expect(service.normalize(html, ''))
+                .toBe('<ul><li><ul><li>Deep first</li><li>Deep second</li></ul></li></ul>');
         });
     });
 
@@ -1601,34 +1599,6 @@ describe('RichTextPasteNormalizerService', () => {
     });
 
     describe('private helper edges (white-box)', () => {
-        it('normalizeWhitespace strips mso-spacerun and keeps remaining style properties', () => {
-            const container = document.createElement('div');
-            const span = document.createElement('span');
-            span.setAttribute('style', 'mso-spacerun:yes; color: red');
-            span.textContent = '   ';
-            container.appendChild(span);
-
-            (service as unknown as { normalizeWhitespace: (c: HTMLElement) => void })
-                .normalizeWhitespace(container);
-
-            expect(span.getAttribute('style')).toBe('color: red');
-            expect(span.textContent).toBe('   ');
-        });
-
-        it('normalizeWhitespace removes the style attribute when mso-spacerun was the only property', () => {
-            const container = document.createElement('div');
-            const span = document.createElement('span');
-            span.setAttribute('style', 'mso-spacerun:yes');
-            span.textContent = '  ';
-            container.appendChild(span);
-
-            (service as unknown as { normalizeWhitespace: (c: HTMLElement) => void })
-                .normalizeWhitespace(container);
-
-            expect(span.hasAttribute('style')).toBe(false);
-            expect(span.textContent).toBe('  ');
-        });
-
         it('normalizeOutlookSpecific removes lowercase v: elements (upstream generic namespace strip already catches uppercase ones)', () => {
             const container = document.createElement('div');
             container.innerHTML = '<p>Keep</p>';

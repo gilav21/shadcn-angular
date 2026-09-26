@@ -73,9 +73,12 @@ describe('RichTextMarkdownService', () => {
             );
         });
 
-        it('removes an image with unsafe src, leaving an empty paragraph', () => {
-            // parseParagraphs wraps the line before parseImages strips the image.
-            expect(service.toHtml('![alt](javascript:evil)')).toBe('<p></p>');
+        it('removes an image with unsafe src without leaving an empty paragraph behind', () => {
+            expect(service.toHtml('![alt](javascript:evil)')).toBe('');
+            expect(service.toHtml('Intro\n\n![a](javascript:x) ![b](data:text/html,x)\n\n# Next\n![c](javascript:y)'))
+                .toBe('<p>Intro</p>\n<h1>Next</h1>');
+            // Other text on the line keeps its paragraph; only the image goes.
+            expect(service.toHtml('See ![alt](javascript:evil) here')).toBe('<p>See  here</p>');
         });
 
         it('converts a fenced code block with language', () => {

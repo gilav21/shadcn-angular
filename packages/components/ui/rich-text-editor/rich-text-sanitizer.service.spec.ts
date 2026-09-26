@@ -498,10 +498,16 @@ describe('RichTextSanitizerService', () => {
             expect(result).not.toContain('javascript');
         });
 
-        it('should remove javascript: in image src', () => {
-            const html = '<img src="javascript:alert(1)">';
-            const result = service.sanitize(html);
-            expect(result).not.toContain('javascript:');
+        it('drops an image whose src is rejected, and a paragraph that sanitising left empty', () => {
+            const html = [
+                '<p>Intro</p>',
+                '<p><img src="javascript:alert(1)" alt="chart"></p>',
+                '<p>See <img src="javascript:alert(1)" alt="chart"> here</p>',
+                '<p> <script>alert(1)</script> </p>',
+                '<p></p>',
+            ].join('');
+            // An author's own empty paragraph is not sanitising's doing, so it stays.
+            expect(service.sanitize(html)).toBe('<p>Intro</p><p>See  here</p><p></p>');
         });
 
         it('should remove vbscript: URLs', () => {
@@ -530,6 +536,7 @@ describe('RichTextSanitizerService', () => {
             expect(service.sanitizeImageSrc('/images/photo.jpg')).toBe('/images/photo.jpg');
             expect(service.sanitizeImageSrc('./photo.jpg')).toBe('./photo.jpg');
             expect(service.sanitizeImageSrc('../photo.jpg')).toBe('../photo.jpg');
+            expect(service.sanitizeImageSrc('images/photo.jpg')).toBe('images/photo.jpg');
         });
 
         it('should block http image URLs (except localhost)', () => {
@@ -1496,9 +1503,7 @@ describe('RichTextSanitizerService - data-blocked-src is re-judged, never copied
 
     it('drops an UNSAFE marker outright instead of carrying it verbatim', () => {
         for (const bad of ['javascript:alert(1)', '//evil.example/p.png', 'data:text/html,<script>']) {
-            const img = imgOf(`<p><img data-blocked-src="${bad}" alt="c"></p>`);
-            expect(img?.hasAttribute('src'), bad).toBe(false);
-            expect(img?.hasAttribute('data-blocked-src'), bad).toBe(false);
+            expect(service.sanitize(`<p>Chart <img data-blocked-src="${bad}" alt="c"></p>`), bad).toBe('<p>Chart </p>');
         }
     });
 
