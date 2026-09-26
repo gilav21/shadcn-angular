@@ -15,6 +15,7 @@ class PdfBuilder {
     private readonly pageWidth: number;
     private readonly pageHeight: number;
     private readonly extraPages: { width: number; height: number; content: string }[] = [];
+    private readonly linkUris: string[] = [];
 
     constructor(width = 612, height = 792) {
         this.pageWidth = width;
@@ -33,6 +34,12 @@ class PdfBuilder {
 
     addPage(width: number, height: number, content: string): this {
         this.extraPages.push({ width, height, content });
+        return this;
+    }
+
+    /** Adds a URI link annotation to the first page; `uri` is a PDF literal string body. */
+    addLink(uri: string): this {
+        this.linkUris.push(uri);
         return this;
     }
 
@@ -61,6 +68,18 @@ class PdfBuilder {
         const contentObj1 = this.nextObj++;
         pageRefs.push(`${pageObj1} 0 R`);
 
+        const annotRefs: string[] = [];
+        for (const [i, uri] of this.linkUris.entries()) {
+            const num = this.nextObj++;
+            const y = 700 - i * 40;
+            this.objects.push({
+                num,
+                content: `<< /Type /Annot /Subtype /Link /Rect [72 ${y} 272 ${y + 20}] /A << /S /URI /URI (${uri}) >> >>`,
+            });
+            annotRefs.push(`${num} 0 R`);
+        }
+        const annots = annotRefs.length > 0 ? ` /Annots [${annotRefs.join(' ')}]` : '';
+
         const pageContentPairs: { pageNum: number; contentNum: number; w: number; h: number; stream: string }[] = [
             { pageNum: pageObj1, contentNum: contentObj1, w: this.pageWidth, h: this.pageHeight, stream: this.contentStream },
         ];
@@ -80,9 +99,10 @@ class PdfBuilder {
         ];
 
         for (const pc of pageContentPairs) {
+            const pageAnnots = pc.pageNum === pageObj1 ? annots : '';
             allObjects.push({
                 num: pc.pageNum,
-                content: `<< /Type /Page /Parent ${pagesObj} 0 R /MediaBox [0 0 ${pc.w} ${pc.h}] /Resources ${resourcesDict} /Contents ${pc.contentNum} 0 R >>`,
+                content: `<< /Type /Page /Parent ${pagesObj} 0 R /MediaBox [0 0 ${pc.w} ${pc.h}] /Resources ${resourcesDict} /Contents ${pc.contentNum} 0 R${pageAnnots} >>`,
             }, {
                 num: pc.contentNum,
                 content: `<< /Length ${pc.stream.length} >>\nstream\n${pc.stream}\nendstream`,
@@ -2057,5 +2077,59 @@ describe('alternate font program formats', () => {
         expect(result.pages[0].text).toContain('T1');
         // Subset prefix "T1FONT+" is stripped → 'Custom', sans-serif.
         expect(result.globalCss).toMatch(/\.ff[0-9a-f]+\{font-family:'Custom', sans-serif/);
+    });
+});
+
+// ══════════════════════════════════════════════════════════════════════
+// Document-controlled values in the generated markup
+// ══════════════════════════════════════════════════════════════════════
+
+describe('document-controlled values', () => {
+    /** Renders the result the way the file viewer does: the global CSS in a style element, then the page. */
+    function mount(result: { globalCss: string; pages: ReadonlyArray<{ html: string }> }): HTMLElement {
+        const host = document.createElement('div');
+        host.innerHTML = `<style>${result.globalCss}</style>${result.pages[0].html}`;
+        return host;
+    }
+
+    it('keeps font names from the PDF inside the generated style rules', async () => {
+        // Decodes to: Evil'}.pf{background:url(https://tracker.example/p)}</style><mark>injected</mark>
+        const hostileName = 'Evil#27#7D.pf#7Bbackground:url#28https:#2F#2Ftracker.example#2Fp#29#7D'
+            + '#3C#2Fstyle#3E#3Cmark#3Einjected#3C#2Fmark#3E';
+        const pdf = new PdfBuilder()
+            .addFont('F1', hostileName)
+            .addFont('F2', 'Helvetica')
+            .setContent('BT /F1 12 Tf 72 720 Td (Alpha) Tj /F2 12 Tf 72 700 Td (Beta) Tj ET')
+            .build();
+
+        const result = await renderPixelPerfectPaged(pdf, { zoom: 1 });
+        const host = mount(result);
+
+        expect(host.querySelector('mark')).toBeNull();
+        expect(host.querySelector('style')?.textContent).toBe(result.globalCss);
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync(result.globalCss);
+        const rulesNamingTracker = Array.from(sheet.cssRules)
+            .filter(rule => rule.cssText.includes('tracker.example'))
+            .map(rule => rule.cssText.slice(0, rule.cssText.indexOf('{')).trim());
+        expect(rulesNamingTracker).toEqual([expect.stringMatching(/^\.ff[\da-f]+$/)]);
+        expect(result.globalCss).toContain("'Helvetica'");
+        expect(host.textContent).toContain('Alpha');
+    });
+
+    it('links annotations only to http, https and mailto URIs', async () => {
+        const pdf = new PdfBuilder()
+            .addFont('F1', 'Helvetica')
+            .setContent('BT /F1 12 Tf 72 720 Td (Links) Tj ET')
+            .addLink(String.raw` JaVaScRiPt:void\(0\)`)
+            .addLink('data:text/html;base64,PGI+eDwvYj4=')
+            .addLink('https://example.com/spec')
+            .addLink('mailto:team@example.com')
+            .build();
+
+        const result = await renderPixelPerfectPaged(pdf, { zoom: 1 });
+        const hrefs = Array.from(mount(result).querySelectorAll('a[href]'), a => a.getAttribute('href'));
+
+        expect(hrefs).toEqual(['https://example.com/spec', 'mailto:team@example.com']);
     });
 });

@@ -4,6 +4,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as nodeBuffer from 'node:buffer';
 import { FileViewerComponent, FileViewerToolbarDirective, FileViewerContentDirective } from './file-viewer.component';
 
+/** The shape of every image source the document parsers emit. */
+const PNG_DATA_URL = 'data:image/png;base64,iVBORw0KGgo=';
+
 function createTextBlob(content: string): File {
     return new File([content], 'test.txt', { type: 'text/plain' });
 }
@@ -519,7 +522,7 @@ describe('FileViewerComponent rendering internals', () => {
 
         it('applies full run formatting', () => {
             const run = {
-                text: 'x', href: 'http://h', isInserted: true, isDeleted: true,
+                text: 'x', href: 'https://example.com/report', isInserted: true, isDeleted: true,
                 style: {
                     bold: true, italic: true, underline: true, strikethrough: true,
                     doubleStrikethrough: true, caps: true, smallCaps: true,
@@ -530,7 +533,7 @@ describe('FileViewerComponent rendering internals', () => {
             const html = api.renderDocxParagraph({ type: 'paragraph', style: '', runs: [run] });
             expect(html).toContain('<strong>');
             expect(html).toContain('<em>');
-            expect(html).toContain('<a href="http://h"');
+            expect(html).toContain('<a href="https://example.com/report"');
             expect(html).toContain('dir="rtl"');
             expect(html).toContain('<ins');
             expect(html).toContain('<del');
@@ -579,8 +582,8 @@ describe('FileViewerComponent rendering internals', () => {
         });
 
         it('renders an image element', () => {
-            const html = api.renderDocxImage({ dataUrl: 'data:img', width: 10, height: 20, altText: 'alt<x>' });
-            expect(html).toContain('src="data:img"');
+            const html = api.renderDocxImage({ dataUrl: PNG_DATA_URL, width: 10, height: 20, altText: 'alt<x>' });
+            expect(html).toContain(`src="${PNG_DATA_URL}"`);
             expect(html).toContain('alt="alt&lt;x&gt;"');
         });
 
@@ -663,7 +666,7 @@ describe('FileViewerComponent rendering internals', () => {
             const html = api.renderDocxToHtml([
                 { type: 'paragraph', style: '', runs: [{ text: 'p', style: {} }] },
                 { type: 'table', tableStyle: {}, rows: [] },
-                { type: 'image', dataUrl: 'd', width: 1, height: 1, altText: '' },
+                { type: 'image', dataUrl: PNG_DATA_URL, width: 1, height: 1, altText: '' },
             ]);
             expect(html).toContain('<p');
             expect(html).toContain('<table');
@@ -674,15 +677,15 @@ describe('FileViewerComponent rendering internals', () => {
     describe('pptx slide rendering', () => {
         it('renders slide background, image, and dispatches elements', () => {
             const slide = {
-                backgroundColor: '#123', backgroundImage: 'data:bg',
+                backgroundColor: '#123', backgroundImage: PNG_DATA_URL,
                 elements: [
-                    { type: 'image', dataUrl: 'd', x: 1, y: 2, width: 3, height: 4 },
+                    { type: 'image', dataUrl: PNG_DATA_URL, x: 1, y: 2, width: 3, height: 4 },
                     { type: 'unknownkind', x: 0, y: 0, width: 0, height: 0 },
                 ],
             };
             const html = api.renderSlideToHtml(slide);
             expect(html).toContain('background-color:#123');
-            expect(html).toContain('background-image:url(data:bg)');
+            expect(html).toContain(`background-image:url(${PNG_DATA_URL})`);
             expect(html).toContain('<img');
         });
 
@@ -725,7 +728,7 @@ describe('FileViewerComponent rendering internals', () => {
         });
 
         it('renders image bullet prefix', () => {
-            expect(api.renderBulletPrefix({ imageDataUrl: 'data:b' }, 0)).toContain('<img');
+            expect(api.renderBulletPrefix({ imageDataUrl: PNG_DATA_URL }, 0)).toContain('<img');
         });
 
         it('renders run with tab content', () => {
@@ -741,7 +744,7 @@ describe('FileViewerComponent rendering internals', () => {
             const base = { text: 'x' };
             expect(api.renderSlideRun({ ...base, noFill: true })).toContain('transparent');
             expect(api.renderSlideRun({ ...base, gradientFill: { type: 'linear', angle: 45, stops: [{ color: '#000', position: 0 }, { color: '#fff', position: 100 }] } })).toContain('linear-gradient');
-            expect(api.renderSlideRun({ ...base, imageFill: 'data:i' })).toContain('background-image');
+            expect(api.renderSlideRun({ ...base, imageFill: PNG_DATA_URL })).toContain('background-image');
             expect(api.renderSlideRun({ ...base, patternFill: { preset: 'cross', fgColor: '#000', bgColor: '#fff' } })).toContain('background-image');
             expect(api.renderSlideRun({ ...base, cap: 'all', spc: 1, highlight: '#ff0' })).toContain('uppercase');
             expect(api.renderSlideRun({ ...base, cap: 'small' })).toContain('small-caps');
@@ -758,7 +761,7 @@ describe('FileViewerComponent rendering internals', () => {
                 type: 'shape', x: 0, y: 0, width: 10, height: 10, shapeType: 'rect', ...opts,
             });
             expect(shapeOf({ gradientFill: { type: 'radial', stops: [{ color: '#000', position: 0 }] } })).toContain('radial-gradient');
-            expect(shapeOf({ imageFill: 'data:i' })).toContain('background-image');
+            expect(shapeOf({ imageFill: PNG_DATA_URL })).toContain('background-image');
             expect(shapeOf({ patternFill: { preset: 'pct50', fgColor: '#000', bgColor: '#fff' } })).toContain('radial-gradient');
             expect(shapeOf({ fillColor: '#abc', borderColor: '#000', borderWidth: 2, dashStyle: 'dash', rotation: 5 })).toContain('rotate(5deg)');
             expect(shapeOf({ shapeType: 'roundRect' })).toContain('border-radius:8px');
@@ -1199,10 +1202,24 @@ function buildStoredZip(files: ReadonlyArray<{ name: string; content: string }>)
     return new Uint8Array([...local, ...central, ...eocd]);
 }
 
-function buildMinimalDocx(): Uint8Array {
-    const w = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
-    const body = `<w:body><w:p><w:r><w:t>Hi</w:t></w:r></w:p></w:body>`;
-    return buildStoredZip([{ name: 'word/document.xml', content: `<?xml version="1.0"?><w:document ${w}>${body}</w:document>` }]);
+function buildMinimalDocx(
+    paragraphs = '<w:p><w:r><w:t>Hi</w:t></w:r></w:p>',
+    relationships: ReadonlyArray<{ id: string; target: string }> = [],
+): Uint8Array {
+    const ns = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
+        + ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
+    const parts = [{ name: 'word/document.xml', content: `<?xml version="1.0"?><w:document ${ns}><w:body>${paragraphs}</w:body></w:document>` }];
+    if (relationships.length > 0) {
+        const hyperlinkType = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink';
+        const rels = relationships
+            .map(r => `<Relationship Id="${r.id}" Type="${hyperlinkType}" Target="${r.target}" TargetMode="External"/>`)
+            .join('');
+        parts.push({
+            name: 'word/_rels/document.xml.rels',
+            content: `<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rels}</Relationships>`,
+        });
+    }
+    return buildStoredZip(parts);
 }
 
 function buildMinimalPdf(): Uint8Array {
@@ -1275,10 +1292,10 @@ function buildOle2(streamName: string, payload: Uint8Array): Uint8Array {
     return buf;
 }
 
-function buildMinimalPptx(): Uint8Array {
+function buildMinimalPptx(shapes = ''): Uint8Array {
     const p = 'xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"';
     const a = 'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"';
-    const slide = `<?xml version="1.0"?><p:sld ${p} ${a}><p:cSld><p:spTree></p:spTree></p:cSld></p:sld>`;
+    const slide = `<?xml version="1.0"?><p:sld ${p} ${a}><p:cSld><p:spTree>${shapes}</p:spTree></p:cSld></p:sld>`;
     return buildStoredZip([{ name: 'ppt/slides/slide1.xml', content: slide }]);
 }
 
@@ -1350,6 +1367,87 @@ describe('FileViewerComponent end-to-end parser paths', () => {
         expect(component.state()).toBe('loaded');
         const content: HTMLElement = fixture.nativeElement.querySelector('[data-slot="file-viewer-content"]');
         expect(content.textContent).toContain('Hi');
+    });
+
+    /**
+     * An XML-escaped font name that tries to end its CSS string and add a declaration,
+     * then end the style attribute and add a marker attribute.
+     */
+    const HOSTILE_FONT = 'x&apos;;background-image:url(https://tracker.example/f);&quot; data-injected=&quot;1&quot; title=&quot;';
+
+    function renderedContent(): HTMLElement {
+        fixture.detectChanges();
+        return fixture.nativeElement.querySelector('[data-slot="file-viewer-content"]');
+    }
+
+    /** Every background image any rendered element ended up with. */
+    function backgroundImages(root: HTMLElement): string[] {
+        return Array.from(root.querySelectorAll<HTMLElement>('[style]'), el => el.style.backgroundImage).filter(Boolean);
+    }
+
+    it('keeps DOCX run font and colour values inside their style declarations', async () => {
+        const hostile = `<w:rPr><w:rFonts w:ascii="${HOSTILE_FONT}"/><w:color w:val="f00&quot; data-injected=&quot;2"/>`
+            + '<w:highlight w:val="red;background-image:url(https://tracker.example/h)"/>'
+            + '<w:shd w:fill="0f0&quot; data-injected=&quot;3"/></w:rPr>';
+        const plain = '<w:rPr><w:rFonts w:ascii="Georgia"/><w:color w:val="1F4E79"/></w:rPr>';
+        fixture.componentRef.setInput('type', 'docx');
+        await api.loadFile(fileOf(buildMinimalDocx(
+            `<w:p><w:r>${hostile}<w:t>Quarterly results</w:t></w:r><w:r>${plain}<w:t> in navy</w:t></w:r></w:p>`,
+        ), 'a.docx'));
+        const content = renderedContent();
+
+        expect(content.querySelector('[data-injected]')).toBeNull();
+        expect(backgroundImages(content)).toEqual([]);
+        expect(content.textContent).toContain('Quarterly results in navy');
+        const navy = Array.from(content.querySelectorAll('span')).find(s => s.textContent === ' in navy');
+        expect(navy?.style.color).toBe('rgb(31, 78, 121)');
+        expect(navy?.style.fontFamily).toContain('Georgia');
+    });
+
+    it('links DOCX hyperlinks only to http, https, mailto and in-document targets', async () => {
+        const link = (rId: string, text: string): string =>
+            `<w:hyperlink r:id="${rId}"><w:r><w:t>${text}</w:t></w:r></w:hyperlink>`;
+        fixture.componentRef.setInput('type', 'docx');
+        await api.loadFile(fileOf(buildMinimalDocx(
+            '<w:p>'
+            + link('rId1', 'script link') + link('rId2', 'data link') + link('rId3', 'site') + link('rId4', 'mail')
+            + '<w:hyperlink w:anchor="summary"><w:r><w:t>jump</w:t></w:r></w:hyperlink>'
+            + '</w:p>',
+            [
+                { id: 'rId1', target: ' JaVaScRiPt:void(0)' },
+                { id: 'rId2', target: 'data:text/html;base64,PGI+eDwvYj4=' },
+                { id: 'rId3', target: 'https://example.com/docs' },
+                { id: 'rId4', target: 'mailto:team@example.com' },
+            ],
+        ), 'a.docx'));
+        const content = renderedContent();
+
+        const hrefs = Array.from(content.querySelectorAll('a[href]'), a => [a.textContent, a.getAttribute('href')]);
+        expect(hrefs).toEqual([
+            ['site', 'https://example.com/docs'],
+            ['mail', 'mailto:team@example.com'],
+            ['jump', '#bookmark-summary'],
+        ]);
+        expect(content.textContent).toContain('script link');
+        expect(content.textContent).toContain('data link');
+    });
+
+    it('keeps PPTX run and bullet font names inside their style declarations', async () => {
+        const shape = '<p:sp><p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="3000000" cy="1000000"/></a:xfrm></p:spPr>'
+            + '<p:txBody><a:bodyPr/><a:p>'
+            + `<a:pPr><a:buFont typeface="${HOSTILE_FONT}"/><a:buChar char="-"/></a:pPr>`
+            + `<a:r><a:rPr><a:latin typeface="${HOSTILE_FONT}"/></a:rPr><a:t>Roadmap</a:t></a:r>`
+            + '<a:r><a:rPr><a:latin typeface="Georgia"/></a:rPr><a:t> 2027</a:t></a:r>'
+            + '</a:p></p:txBody></p:sp>';
+        fixture.componentRef.setInput('type', 'pptx');
+        await api.loadFile(fileOf(buildMinimalPptx(shape), 'p.pptx'));
+        const content = renderedContent();
+
+        expect(content.querySelector('[data-injected]')).toBeNull();
+        expect(backgroundImages(content)).toEqual([]);
+        expect(content.textContent).toContain('Roadmap 2027');
+        const georgia = Array.from(content.querySelectorAll('span')).find(s => s.textContent === ' 2027');
+        expect(georgia?.style.fontFamily).toContain('Georgia');
     });
 
     it('loads a legacy DOC via graceful fallback', async () => {
