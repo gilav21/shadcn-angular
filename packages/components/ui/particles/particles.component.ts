@@ -39,7 +39,8 @@ export class ParticlesComponent implements OnInit, OnDestroy {
      * Number of particles seeded across the canvas. Cost is roughly quadratic
      * because every pair is tested for a connecting line each frame, so keep it
      * modest on large surfaces. Read when the field is created (init, or the
-     * first resize that gives the host a non-zero size).
+     * first resize that gives the host a non-zero size); later resizes scale
+     * the existing particles to the new size instead of reseeding them.
      */
     count = input(50);
     /**
@@ -68,6 +69,9 @@ export class ParticlesComponent implements OnInit, OnDestroy {
     private canvas: HTMLCanvasElement | null = null;
     private ctx: CanvasRenderingContext2D | null = null;
     private particles: Particle[] = [];
+    /** Host size the particles are currently laid out in; 0 until the host first measures non-zero. */
+    private fieldWidth = 0;
+    private fieldHeight = 0;
     private animationFrameId: number | null = null;
     private resizeObserver: ResizeObserver | null = null;
     private mouseX = -1000;
@@ -91,7 +95,7 @@ export class ParticlesComponent implements OnInit, OnDestroy {
         this.ngZone.runOutsideAngular(() => {
             this.setupCanvas();
             this.resolveColor();
-            this.createParticles();
+            this.layoutParticles();
             this.animate();
         });
     }
@@ -134,7 +138,7 @@ export class ParticlesComponent implements OnInit, OnDestroy {
 
         this.resizeObserver = new ResizeObserver(() => {
             this.syncCanvasSize();
-            if (this.particles.length === 0) this.createParticles();
+            this.layoutParticles();
         });
         this.resizeObserver.observe(host);
 
@@ -145,21 +149,47 @@ export class ParticlesComponent implements OnInit, OnDestroy {
         }
     }
 
+    /**
+     * Mirrors the host's size onto the canvas, zero included: skipping a zero
+     * size would leave the canvas at the browser's default 300x150, and the
+     * field would be seeded into an area the host does not have.
+     */
     private syncCanvasSize(): void {
         if (!this.canvas) return;
         const host = this.el.nativeElement as HTMLElement;
-        const w = host.clientWidth;
-        const h = host.clientHeight;
-        if (w > 0 && h > 0) {
-            this.canvas.width = w;
-            this.canvas.height = h;
+        this.canvas.width = host.clientWidth;
+        this.canvas.height = host.clientHeight;
+    }
+
+    /**
+     * Keeps every particle inside the canvas: seeds the field the first time
+     * the canvas has an area, and scales it on every later resize so a shrink
+     * cannot strand particles outside the edges (where the bounce would only
+     * flip their velocity each frame). A zero size — a hidden host — leaves the
+     * layout alone so the field comes back as it was.
+     */
+    private layoutParticles(): void {
+        if (!this.canvas) return;
+        const { width, height } = this.canvas;
+        if (width === 0 || height === 0) return;
+
+        if (this.fieldWidth === 0) {
+            this.createParticles(width, height);
+        } else {
+            this.scaleParticles(width / this.fieldWidth, height / this.fieldHeight);
+        }
+        this.fieldWidth = width;
+        this.fieldHeight = height;
+    }
+
+    private scaleParticles(sx: number, sy: number): void {
+        for (const p of this.particles) {
+            p.x *= sx;
+            p.y *= sy;
         }
     }
 
-    private createParticles(): void {
-        if (!this.canvas || this.canvas.width === 0) return;
-        const w = this.canvas.width;
-        const h = this.canvas.height;
+    private createParticles(w: number, h: number): void {
         this.particles = [];
 
         for (let i = 0; i < this.count(); i++) {
@@ -197,7 +227,7 @@ export class ParticlesComponent implements OnInit, OnDestroy {
 
     private updateAndDrawParticles(w: number, h: number, color: string): void {
         if (!this.ctx) return;
-        const ctx = this.ctx;;
+        const ctx = this.ctx;
         const applyMouse = this.mouseInteraction() && this.mouseX > -999;
 
         for (const p of this.particles) {
@@ -227,7 +257,7 @@ export class ParticlesComponent implements OnInit, OnDestroy {
 
     private drawConnections(color: string): void {
         if (!this.ctx) return;
-        const ctx = this.ctx;;
+        const ctx = this.ctx;
         const connDist = this.connectDistance();
         if (connDist <= 0) return;
 

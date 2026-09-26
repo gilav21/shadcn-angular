@@ -17,8 +17,6 @@ interface ParticlesInternals {
     ctx: CanvasRenderingContext2D | null;
     particles: TestParticle[];
     animate: () => void;
-    syncCanvasSize: () => void;
-    createParticles: () => void;
 }
 
 function internals(comp: ParticlesComponent): ParticlesInternals {
@@ -308,16 +306,6 @@ describe('ParticlesComponent', () => {
         expect(arcs()[4].y).toBeCloseTo(100, 6);
     });
 
-    it('reschedules a frame without drawing when the canvas has zero size', () => {
-        fixture.detectChanges();
-        const comp = queryComp(fixture);
-        const state = internals(comp);
-        internals(comp).canvas!.width = 0;
-        const before = rafCallbacks.length;
-        state.animate();
-        expect(rafCallbacks).toHaveLength(before + 1);
-    });
-
     it('does nothing in a frame once the context is gone', () => {
         fixture.detectChanges();
         const comp = queryComp(fixture);
@@ -328,32 +316,36 @@ describe('ParticlesComponent', () => {
         expect(rafCallbacks).toHaveLength(before);
     });
 
-    it('leaves canvas size unchanged when the host has zero dimensions', () => {
-        fixture.detectChanges();
-        const comp = queryComp(fixture);
+    it('keeps every particle inside the size the host measures, from 0x0 through growing and shrinking', () => {
+        function resizeHost(width: number, height: number): void {
+            stubWidth = width;
+            stubHeight = height;
+            latestResizeCallback!([], {} as ResizeObserver);
+            runFrame();
+        }
+        function expectInside(width: number, height: number): void {
+            // One frame of drift (at most speed / 2 per axis) may carry a particle just past an edge.
+            for (const { x, y } of arcs()) {
+                expect(x).toBeGreaterThanOrEqual(-1);
+                expect(x).toBeLessThanOrEqual(width + 1);
+                expect(y).toBeGreaterThanOrEqual(-1);
+                expect(y).toBeLessThanOrEqual(height + 1);
+            }
+        }
+
         stubWidth = 0;
         stubHeight = 0;
-        internals(comp).canvas!.width = 123;
-        internals(comp).syncCanvasSize();
-        expect(internals(comp).canvas!.width).toBe(123);
-    });
-
-    it('does not spawn particles while the canvas measures zero', () => {
         fixture.detectChanges();
-        const comp = queryComp(fixture);
-        const state = internals(comp);
-        internals(comp).canvas!.width = 0;
-        state.particles = [];
-        state.createParticles();
-        expect(state.particles).toHaveLength(0);
-    });
+        runFrame();
+        expect(arcs()).toHaveLength(0);
 
-    it('respawns particles from the resize observer when the field is empty', () => {
-        fixture.detectChanges();
-        const comp = queryComp(fixture);
-        internals(comp).particles = [];
-        latestResizeCallback!([], {} as ResizeObserver);
-        expect(internals(comp).particles.length).toBeGreaterThan(0);
+        resizeHost(200, 200);
+        expect(arcs()).toHaveLength(20);
+        expectInside(200, 200);
+
+        resizeHost(100, 60);
+        expect(arcs()).toHaveLength(20);
+        expectInside(100, 60);
     });
 
     it('tracks the pointer via mousemove and stops repelling on mouseleave', () => {

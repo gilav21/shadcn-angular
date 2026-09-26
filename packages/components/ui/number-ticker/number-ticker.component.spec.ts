@@ -71,11 +71,11 @@ function installAnimateStubs(): void {
  * 1". An own-property spy on the single element under test cannot be clobbered
  * by another file.
  *
- * Safe because `.flex` lives inside `@if (isDigit())`: it survives every
- * digit → digit change, which is all these tests perform.
+ * Safe because the digit column lives inside `@if (isDigit())`: it survives
+ * every digit → digit change, which is all the animating tests perform.
  */
 function recordContainerAnimations(fixture: ComponentFixture<unknown>): void {
-    const container = fixture.nativeElement.querySelector('.flex') as HTMLElement;
+    const container = fixture.nativeElement.querySelector('[data-slot="number-ticker-digit-column"]') as HTMLElement;
     vi.spyOn(container, 'animate').mockImplementation((() => {
         const anim: FakeAnimation = {
             onfinish: null,
@@ -317,11 +317,11 @@ describe('NumberTickerDigitComponent', () => {
         // `whenStable` settles both: the effect's first pass has run (it takes
         // the `!_initialized` branch and only seeds prevDigit, so a digit change
         // that beats it initialises straight to the new value and never
-        // animates), and the view has rendered the `.flex` container the effect
+        // animates), and the view has rendered the digit column the effect
         // looks for (without it the change takes the silent fallback branch).
         await fixture.whenStable();
         expect(digitInstance().prevDigit()).toBe('5');
-        expect(fixture.nativeElement.querySelector('.flex')).not.toBeNull();
+        expect(fixture.nativeElement.querySelector('[data-slot="number-ticker-digit-column"]')).not.toBeNull();
         recordContainerAnimations(fixture);
     });
 
@@ -395,15 +395,15 @@ describe('NumberTickerDigitComponent', () => {
         expect(finishSpy).toHaveBeenCalled();
     });
 
-    it('falls back to setting prevDigit when the flex container is missing', () => {
-        const debugEl = fixture.debugElement.query(By.directive(NumberTickerDigitComponent));
-        const el = debugEl.componentInstance as NumberTickerDigitComponent;
-        vi.spyOn(debugEl.nativeElement, 'querySelector').mockReturnValue(null);
-
+    it('shows a digit that replaces a separator straight away, without animating from the separator', () => {
+        host.digit.set(',');
+        fixture.detectChanges();
         host.digit.set('8');
         fixture.detectChanges();
 
-        expect(el.prevDigit()).toBe('8');
+        // At rest the column's first slot is the one inside the 1em window.
+        const column = fixture.nativeElement.querySelector('[data-slot="number-ticker-digit-column"]') as HTMLElement;
+        expect(column.firstElementChild?.textContent?.trim()).toBe('8');
         expect(animations).toHaveLength(0);
     });
 });
