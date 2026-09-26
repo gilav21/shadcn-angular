@@ -514,6 +514,13 @@ describe('DropdownMenu Submenu (LTR)', () => {
         level1Item2.focus();
         await pressOn(level1Item2, 'ArrowDown');
         expect(document.activeElement).toBe(level2Sub);
+
+        // Level 2 is still open: the level-1 ring wraps over level 1's own rows, never into level 2's.
+        expect(subComps[1].componentInstance.isOpen()).toBe(true);
+        await pressOn(level2Sub, 'ArrowDown');
+        expect(document.activeElement).toBe(row('Level 1 Item 1'));
+        await pressOn(row('Level 1 Item 1'), 'ArrowUp');
+        expect(document.activeElement).toBe(level2Sub);
     });
 });
 

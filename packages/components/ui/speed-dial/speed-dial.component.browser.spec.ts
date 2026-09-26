@@ -15,8 +15,7 @@ import {
 @Component({
     template: `
         <div style="padding: 200px 0 0 150px">
-            <!-- The dial host is positioned only in context mode, so the absolute menu needs a positioned dial. -->
-            <ui-speed-dial class="relative" [type]="type()" [direction]="direction()">
+            <ui-speed-dial [type]="type()" [direction]="direction()">
                 <ui-speed-dial-trigger><button type="button" data-test="trigger">+</button></ui-speed-dial-trigger>
                 <ui-speed-dial-menu>
                     <ui-speed-dial-item><button type="button">One</button></ui-speed-dial-item>

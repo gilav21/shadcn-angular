@@ -26,12 +26,6 @@ describe('SplitButtonComponent — menu placement', () => {
         fixture.detectChanges();
 
         const toggle = fixture.nativeElement.querySelectorAll('ui-button button')[1] as HTMLButtonElement;
-        // The component measures its own `display: contents` host, whose real
-        // rect is all zeros (so it never flips on its own). Pin the host's rect
-        // to the toggle's real one, as an own property that dies with the element.
-        const host = fixture.nativeElement.querySelector('ui-split-button') as HTMLElement;
-        Object.defineProperty(host, 'getBoundingClientRect', { value: () => toggle.getBoundingClientRect() });
-
         toggle.click();
         fixture.detectChanges();
 

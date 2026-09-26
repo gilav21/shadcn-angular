@@ -11,6 +11,18 @@ import { isTouchDevice } from '../../../lib/touch';
 import { DropdownMenuService } from '../dropdown-menu.component';
 import { DropdownMenuSubComponent } from './dropdown-menu-sub.component';
 
+/** The enabled items that belong to `menu` itself — items of a nested submenu belong to that submenu's own `role="menu"`. */
+function ownItems(menu: HTMLElement): HTMLElement[] {
+    return Array.from(menu.querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'))
+        .filter((item) => item.closest('[role="menu"]') === menu);
+}
+
+/** The arrow-key ring `item` moves in: the own items of the menu that contains it. */
+function ringOf(item: HTMLElement): HTMLElement[] {
+    const menu = item.closest<HTMLElement>('[role="menu"]');
+    return menu ? ownItems(menu) : [];
+}
+
 @Component({
     selector: 'ui-dropdown-menu-sub-content',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -69,8 +81,9 @@ export class DropdownMenuSubContentComponent {
      * `<ui-dropdown-menu-sub>` when the submenu is opened from the keyboard.
      */
     focusFirst(): void {
-        const items = Array.from((this.el.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
-        items[0]?.focus();
+        const panel = (this.el.nativeElement as HTMLElement).querySelector<HTMLElement>('[role="menu"]');
+        if (!panel) return;
+        ownItems(panel)[0]?.focus();
     }
 
     /**
@@ -109,13 +122,13 @@ export class DropdownMenuSubContentComponent {
     }
 
     /**
-     * Focuses the item after `currentItem`, wrapping around. The ring is scoped
-     * to the `role="menu"` that owns `currentItem`, so navigation stays inside
-     * whichever submenu level has focus.
+     * Focuses the item after `currentItem`, wrapping around. The ring is the
+     * enabled items whose closest `role="menu"` is the one owning
+     * `currentItem`, so navigation stays inside whichever submenu level has
+     * focus and never enters a deeper submenu that is open beneath it.
      */
     focusNextItem(currentItem: HTMLElement): void {
-        const div = currentItem.closest<HTMLElement>('[role="menu"]') ?? currentItem;
-        const items = Array.from(div.querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
+        const items = ringOf(currentItem);
         const index = items.indexOf(currentItem);
         const nextIndex = (index + 1) % items.length;
         items[nextIndex]?.focus();
@@ -126,8 +139,7 @@ export class DropdownMenuSubContentComponent {
      * item's own `role="menu"` — see {@link focusNextItem}.
      */
     focusPrevItem(currentItem: HTMLElement): void {
-        const div = currentItem.closest<HTMLElement>('[role="menu"]') ?? currentItem;
-        const items = Array.from(div.querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
+        const items = ringOf(currentItem);
         const index = items.indexOf(currentItem);
         const prevIndex = (index - 1 + items.length) % items.length;
         items[prevIndex]?.focus();

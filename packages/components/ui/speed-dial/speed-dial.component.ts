@@ -3,7 +3,6 @@ import {
     ChangeDetectionStrategy,
     input,
     output,
-    computed,
     signal,
     inject,
     ElementRef,
@@ -13,7 +12,6 @@ import {
     forwardRef,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
-import { cn } from '../../lib/utils';
 
 export type SpeedDialType = 'linear' | 'circle' | 'semi-circle' | 'quarter-circle';
 export type SpeedDialDirection =
@@ -52,7 +50,8 @@ export const SPEED_DIAL = new InjectionToken<SpeedDialComponent>('SPEED_DIAL');
     providers: [{ provide: SPEED_DIAL, useExisting: forwardRef(() => SpeedDialComponent) }],
     template: `<ng-content />`,
     host: {
-        '[class]': 'hostClasses()',
+        // Always positioned: the linear and circular menus are absolute and must anchor to the dial, not to some ancestor.
+        class: 'relative inline-flex',
         '[attr.data-slot]': '"speed-dial"',
         '[attr.data-state]': 'open() ? "open" : "closed"',
     },
@@ -132,13 +131,6 @@ export class SpeedDialComponent implements OnDestroy {
      * the menu was already closed. Pairs with {@link visibleChange}.
      */
     hidden = output<void>();
-
-    hostClasses = computed(() =>
-        cn(
-            'inline-flex',
-            this.contextPosition() && 'relative'
-        )
-    );
 
     private readonly clickListener = (event: MouseEvent): void => {
         if (!this.el.nativeElement.contains(event.target)) {

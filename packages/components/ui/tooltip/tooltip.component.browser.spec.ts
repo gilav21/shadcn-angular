@@ -58,12 +58,9 @@ describe('Tooltip content placement (browser)', () => {
         });
     }
 
-    // Only the side is asserted under RTL: the gap comes from logical me-2/ms-2
-    // paired with physical right-full/left-full, so in RTL the margin lands on
-    // the far side and the bubble touches the trigger (measured gap 0px).
     for (const side of ['left', 'right'] as const) {
-        it(`keeps side="${side}" on the physical ${side} under dir="rtl"`, () => {
-            expect(openAndMeasure(side, 'rtl')[side]).toBeGreaterThanOrEqual(0);
+        it(`keeps side="${side}" on the physical ${side} with an 8px gap under dir="rtl"`, () => {
+            expect(openAndMeasure(side, 'rtl')[side]).toBeCloseTo(8, 0);
         });
     }
 });

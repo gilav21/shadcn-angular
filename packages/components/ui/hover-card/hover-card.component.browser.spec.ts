@@ -78,18 +78,21 @@ describe('HoverCard placement (browser)', () => {
     });
 
     it('flips a bottom card to top when it overflows the bottom boundary', async () => {
-        const { card, trigger } = await openAt({ top: 340 });
+        const { card, trigger, content } = await openAt({ top: 340 });
         expect(card.bottom).toBeLessThanOrEqual(trigger.top);
+        expect(content.dataset['side']).toBe('top');
     });
 
     it('flips a top card to bottom when it overflows the top boundary', async () => {
-        const { card, trigger } = await openAt({ top: 10, side: 'top' });
+        const { card, trigger, content } = await openAt({ top: 10, side: 'top' });
         expect(card.top).toBeGreaterThanOrEqual(trigger.bottom);
+        expect(content.dataset['side']).toBe('bottom');
     });
 
     it('keeps a top card on top when it fits', async () => {
-        const { card, trigger } = await openAt({ top: 300, side: 'top' });
+        const { card, trigger, content } = await openAt({ top: 300, side: 'top' });
         expect(card.bottom).toBeLessThanOrEqual(trigger.top);
+        expect(content.dataset['side']).toBe('top');
     });
 
     it('aligns the card start edge with the trigger for align="start"', async () => {
