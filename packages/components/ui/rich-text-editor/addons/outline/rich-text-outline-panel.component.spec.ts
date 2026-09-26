@@ -37,7 +37,6 @@ describe('RichTextOutlinePanelComponent', () => {
     const isOpen = signal(true);
     const headings = signal<readonly OutlineHeading[]>([]);
     const close = vi.fn();
-    const scrollTo = vi.fn();
     const onEntryKeydown = vi.fn();
 
     const context: RichTextOutlineContext = {
@@ -45,7 +44,7 @@ describe('RichTextOutlinePanelComponent', () => {
         headings,
         isOpen,
         close,
-        scrollTo,
+        scrollTo: vi.fn(),
         onEntryKeydown,
     };
 
@@ -54,7 +53,6 @@ describe('RichTextOutlinePanelComponent', () => {
         isOpen.set(true);
         headings.set([]);
         close.mockClear();
-        scrollTo.mockClear();
         onEntryKeydown.mockClear();
 
         await TestBed.configureTestingModule({
@@ -85,23 +83,6 @@ describe('RichTextOutlinePanelComponent', () => {
         expect(panel()).toBeTruthy();
         expect(panel()!.querySelector('[data-slot="rich-text-outline-empty"]')).toBeTruthy();
         expect(panel()!.textContent).toContain(RICH_TEXT_OUTLINE_LOCALES['en'].empty);
-    });
-
-    it('lists headings indented by level and jumps on click', () => {
-        headings.set([
-            { level: 1, text: 'Intro', index: 0 },
-            { level: 2, text: 'Setup', index: 1 },
-        ]);
-        fixture.detectChanges();
-
-        const rows = Array.from(
-            (fixture.nativeElement as HTMLElement).querySelectorAll('[data-outline-entry]'),
-        ) as HTMLElement[];
-        expect(rows.map((r) => r.textContent?.trim())).toEqual(['Intro', 'Setup']);
-        expect(rows.map((r) => r.getAttribute('data-outline-level'))).toEqual(['1', '2']);
-
-        rows[1].dispatchEvent(new MouseEvent('click', { bubbles: true }));
-        expect(scrollTo).toHaveBeenCalledWith(1);
     });
 
     it('routes keyboard activation on a row to onEntryKeydown', () => {

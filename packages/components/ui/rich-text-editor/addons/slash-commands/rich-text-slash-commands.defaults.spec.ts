@@ -48,28 +48,17 @@ describe('buildDefaultSlashCommands', () => {
         expect([...ids].sort(cmp)).toEqual(Object.keys(TOOLBAR_BY_ID).sort(cmp));
     });
 
-    it('labels each command from the supplied locale', () => {
-        const commands = buildDefaultSlashCommands(EN);
-        const byId = new Map(commands.map((c) => [c.id, c]));
+    it('localizes labels when handed a different locale', () => {
+        const byId = new Map(buildDefaultSlashCommands(EN).map((c) => [c.id, c]));
         expect(byId.get('format.paragraph')!.label).toBe(EN.paragraph);
         expect(byId.get('format.heading-1')!.label).toBe(EN.heading1);
         expect(byId.get('format.code-block')!.description).toBe(EN.codeBlockDescription);
         expect(byId.get('history.redo')!.label).toBe(EN.redo);
-    });
 
-    it('localizes labels when handed a different locale', () => {
         const commands = buildDefaultSlashCommands(HE);
         const paragraph = commands.find((c) => c.id === 'format.paragraph')!;
         expect(paragraph.label).toBe(HE.paragraph);
         expect(paragraph.description).toBe(HE.paragraphDescription);
-    });
-
-    it('gives every command keywords and a numeric order', () => {
-        for (const command of buildDefaultSlashCommands(EN)) {
-            expect(Array.isArray(command.keywords)).toBe(true);
-            expect(command.keywords!.length).toBeGreaterThan(0);
-            expect(typeof command.order).toBe('number');
-        }
     });
 
     it('runs each command against the toolbar command it maps to', () => {

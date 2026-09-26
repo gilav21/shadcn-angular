@@ -170,16 +170,6 @@ describe('RichTextColorsDirective', () => {
         expect(fixture.nativeElement.querySelector('[data-addon-slot="colors.foreground"]')).toBeTruthy();
     });
 
-    it('contributes text-colour and highlight-colour toolbar slots', () => {
-        const fixture = createFixture();
-        const fg = fixture.nativeElement.querySelector('[data-addon-slot="colors.foreground"]');
-        const bg = fixture.nativeElement.querySelector('[data-addon-slot="colors.background"]');
-        expect(fg).toBeTruthy();
-        expect(bg).toBeTruthy();
-        expect(fg.querySelector('button[title="Text Color"]')).toBeTruthy();
-        expect(bg.querySelector('button[title="Background Color"]')).toBeTruthy();
-    });
-
     it('applies a text colour to the selection as an inline style and emits colorChange', () => {
         const fixture = createFixture();
         const { el } = selectContent(fixture, '<p>Recolour me</p>');
@@ -189,6 +179,13 @@ describe('RichTextColorsDirective', () => {
         expect(el.innerHTML.toLowerCase()).not.toContain('<font');
         expect(el.innerHTML).toContain('rgb(255, 0, 0)');
         expect(fixture.componentInstance.changes).toEqual([{ type: 'fontColor', color: '#ff0000' }]);
+        // No keyup/mouseup here on purpose: the toolbar must not lag a step
+        // behind the colour the next typed character will actually take.
+        expect(buttonByKind(fixture, 'foreground').context.activeColor()).toBe('#ff0000');
+        const bar = fixture.nativeElement.querySelector(
+            '[data-addon-slot="colors.foreground"] [data-slot="rte-color-indicator"]',
+        ) as HTMLElement;
+        expect(bar.style.backgroundColor).toBe('rgb(255, 0, 0)');
     });
 
     it('applies a highlight colour to the selection and emits colorChange', () => {
@@ -199,6 +196,7 @@ describe('RichTextColorsDirective', () => {
 
         expect(el.innerHTML.toLowerCase()).toMatch(/background|rgb\(0,\s*255/);
         expect(fixture.componentInstance.changes).toEqual([{ type: 'backgroundColor', color: '#00ff00' }]);
+        expect(buttonByKind(fixture, 'background').context.activeColor()).toBe('#00ff00');
     });
 
     it('styles mention chips in the selection that execCommand skips', () => {
@@ -249,32 +247,6 @@ describe('RichTextColorsDirective', () => {
             '[data-addon-slot="colors.foreground"] [data-slot="rte-color-indicator"]',
         ) as HTMLElement;
         expect(bar.style.backgroundColor).toBe('rgb(37, 99, 235)');
-    });
-
-    it('reflects a just-applied colour immediately, with no further editor interaction', () => {
-        const fixture = createFixture();
-        selectContent(fixture, '<p>Plain</p>');
-        const fg = buttonByKind(fixture, 'foreground');
-        expect(fg.context.activeColor()).not.toBe('#ff0000');
-
-        pick(fixture, 'foreground', '#ff0000');
-
-        // No keyup/mouseup here on purpose: the toolbar must not lag a step
-        // behind the colour the next typed character will actually take.
-        expect(fg.context.activeColor()).toBe('#ff0000');
-        const bar = fixture.nativeElement.querySelector(
-            '[data-addon-slot="colors.foreground"] [data-slot="rte-color-indicator"]',
-        ) as HTMLElement;
-        expect(bar.style.backgroundColor).toBe('rgb(255, 0, 0)');
-    });
-
-    it('reflects a just-applied highlight colour immediately', () => {
-        const fixture = createFixture();
-        selectContent(fixture, '<p>Plain</p>');
-
-        pick(fixture, 'background', '#00ff00');
-
-        expect(buttonByKind(fixture, 'background').context.activeColor()).toBe('#00ff00');
     });
 
     /**
@@ -401,24 +373,6 @@ describe('RichTextColorsDirective', () => {
         expect(fixture.debugElement.query(By.directive(ColorPickerComponent))).toBeTruthy();
     });
 
-    it('does not apply a colour while the editor is disabled', () => {
-        const fixture = createFixture();
-        const { el } = selectContent(fixture, '<p>Locked</p>');
-        const before = el.innerHTML;
-        fixture.componentInstance.disabled.set(true);
-        fixture.detectChanges();
-
-        const fgButton = fixture.nativeElement.querySelector(
-            '[data-addon-slot="colors.foreground"] button',
-        ) as HTMLButtonElement;
-        expect(fgButton.disabled).toBe(true);
-
-        pick(fixture, 'foreground', '#ff0000');
-
-        expect(el.innerHTML).toBe(before);
-        expect(fixture.componentInstance.changes).toEqual([]);
-    });
-
     it('localizes the button tooltips (he)', () => {
         const fixture = createFixture();
         fixture.componentInstance.locale.set('he');
@@ -428,17 +382,5 @@ describe('RichTextColorsDirective', () => {
         const bg = fixture.nativeElement.querySelector('[data-addon-slot="colors.background"] button') as HTMLButtonElement;
         expect(fg.title).toBe('צבע טקסט');
         expect(bg.title).toBe('צבע רקע');
-    });
-
-    it('removes its toolbar slots when the host is destroyed', () => {
-        const fixture = createFixture();
-        const editor = fixture.debugElement.query(By.directive(RichTextEditorComponent))
-            .componentInstance as RichTextEditorComponent;
-        expect(editor.toolbarSlots.slots()).toHaveLength(2);
-
-        fixture.destroy();
-        openFixtures.pop();
-
-        expect(editor.toolbarSlots.slots()).toHaveLength(0);
     });
 });

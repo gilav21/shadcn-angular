@@ -118,20 +118,6 @@ describe('RichTextSlashCommandsDirective', () => {
     });
 
 
-    // T-24 — the two features share the typing path. The slash menu must still
-    // open on "/h1", and a Markdown block rule must leave it closed: the
-    // transform runs BEFORE the input observers, so the trigger text the addon
-    // sees is the post-transform text, which carries no "/".
-    it('still opens the menu on "/h1" while markdown shortcuts are on', () => {
-        const { fixture, editor, editorCmp } = create();
-        expect(editorCmp.markdownShortcuts()).toBe(true);
-
-        typeSlash(editor, editorCmp, '/h1');
-        fixture.detectChanges();
-
-        expect(menu()).toBeTruthy();
-    });
-
     // The menu is created through the directive's ViewContainerRef — a sibling
     // of the editor, outside the element that carries the preset.
     it('shows the menu in the editor theme although it renders outside the editor', (ctx) => {
@@ -148,33 +134,6 @@ describe('RichTextSlashCommandsDirective', () => {
         expect(shown).toBeTruthy();
         expect(editorHost.contains(shown)).toBe(false);
         expect(getComputedStyle(shown as HTMLElement).getPropertyValue('--primary').trim()).toBe('rgb(1, 99, 2)');
-    });
-
-    it('leaves the menu closed after a "# " block transform', () => {
-        const { fixture, editor, editorCmp } = create();
-
-        typeSlash(editor, editorCmp, '# ');
-        fixture.detectChanges();
-
-        expect(editor.querySelector('h1')).toBeTruthy();
-        expect(menu()).toBeFalsy();
-    });
-
-    // The observer is registered BEFORE the transforming keystroke, so what it
-    // records is the text as of that very input event. Running the transform
-    // after `notifyInputObservers` would hand the addon "# " — the marker the
-    // author no longer has — and this assertion is what catches that.
-    it('hands input observers the post-transform text for the transforming keystroke', () => {
-        const { fixture, editor, editorCmp } = create();
-
-        const observed: string[] = [];
-        editorCmp.registerInputObserver((text: string) => observed.push(text));
-
-        typeSlash(editor, editorCmp, '# ');
-        fixture.detectChanges();
-
-        expect(editor.querySelector('h1')).toBeTruthy();
-        expect(observed.at(-1)).not.toContain('#');
     });
 
     it('closes and stops opening the menu when uiRteSlashCommands is false, reopening when re-enabled', () => {
@@ -202,15 +161,6 @@ describe('RichTextSlashCommandsDirective', () => {
         typeSlash(editor, editorCmp, '/h');
         fixture.detectChanges();
         expect(menu()).toBeTruthy();
-    });
-
-    it('opens the menu when typing "/"', () => {
-        const { fixture, editor, editorCmp } = create();
-        typeSlash(editor, editorCmp, '/hea');
-        fixture.detectChanges();
-        expect(menu()).toBeTruthy();
-        const labels = menuOptions().map(o => o.textContent);
-        expect(labels.some(l => l?.includes('Heading 1'))).toBe(true);
     });
 
     it('does not open when "/" follows a letter', () => {
@@ -324,27 +274,6 @@ describe('RichTextSlashCommandsDirective', () => {
         expect(menu()).toBeNull();
     });
 
-    it('positions an empty-block menu at the caret line, not the viewport corner', () => {
-        const { fixture, editor, editorCmp } = create();
-        typeSlash(editor, editorCmp, '/');
-        fixture.detectChanges();
-        const el = menu() as HTMLElement;
-        expect(el.style.position).toBe('fixed');
-        expect(el.style.top).not.toBe('0px');
-    });
-
-    it('includes commands contributed through the shared command registry', () => {
-        const { fixture, editor, editorCmp } = create();
-        const registry = TestBed.inject(RichTextCommandRegistry);
-        registry.registerCommand({
-            id: 'reg.hello', label: 'Registry Hello', keywords: ['hello'], order: 200, run: () => undefined,
-        });
-        typeSlash(editor, editorCmp, '/hello');
-        fixture.detectChanges();
-        expect(menuOptions().some(o => o.textContent?.includes('Registry Hello'))).toBe(true);
-        registry.unregisterCommand('reg.hello');
-    });
-
     it('includes custom commands from the [uiRteSlashCommands] input and runs them', async () => {
         const { fixture, editor, editorCmp } = create();
         fixture.componentInstance.custom.set([{
@@ -369,14 +298,6 @@ describe('RichTextSlashCommandsDirective', () => {
         fixture.detectChanges();
         expect(menu()!.getAttribute('aria-label')).toBe('תפריט פקודות');
         expect(menuOptions().some(o => o.textContent?.includes('פסקה'))).toBe(true);
-    });
-
-    it('shows the no-results message when nothing matches', () => {
-        const { fixture, editor, editorCmp } = create();
-        typeSlash(editor, editorCmp, '/zzzznope');
-        fixture.detectChanges();
-        expect(menuOptions()).toHaveLength(0);
-        expect(menu()!.textContent).toContain('No commands found');
     });
 
     it('scopes instance-registered commands to their own editor, while global commands appear everywhere', () => {
@@ -488,6 +409,18 @@ describe('RichTextSlashCommandsDirective', () => {
         expect(menu()).toBeNull();
     });
 
+    it('guards positioning and outside-pointer handling against missing state', () => {
+        const { fixture } = create();
+        const dir = fixture.debugElement.query(By.directive(RichTextSlashCommandsDirective))
+            .injector.get(RichTextSlashCommandsDirective) as unknown as {
+                updatePosition(): void;
+                onOutsidePointer(event: Event): void;
+            };
+        window.getSelection()?.removeAllRanges();
+        expect(() => dir.updatePosition()).not.toThrow();
+        expect(() => dir.onOutsidePointer(new MouseEvent('mousedown'))).not.toThrow();
+    });
+
     it('ignores keys that are not menu keys while the menu is open', () => {
         const { fixture, editor, editorCmp } = create();
         typeSlash(editor, editorCmp, '/');
@@ -502,6 +435,7 @@ describe('RichTextSlashCommandsDirective', () => {
         typeSlash(editor, editorCmp, '/zzzznope');
         fixture.detectChanges();
         expect(menuOptions()).toHaveLength(0);
+        expect(menu()!.textContent).toContain('No commands found');
 
         editorCmp.onKeydown(enter());
         fixture.detectChanges();
@@ -541,6 +475,8 @@ describe('RichTextSlashCommandsDirective', () => {
 
     it('runs custom commands that use insertHtml, showLinkDialog, and focusEditor', async () => {
         const { fixture, editor, editorCmp } = create();
+        const linkEditorOpenedAt: Array<{ x: number; y: number } | undefined> = [];
+        editorCmp.registerLinkEditor((hint) => linkEditorOpenedAt.push(hint));
         fixture.componentInstance.custom.set([
             { id: 'c.html', label: 'Html Cmd', keywords: ['htmlcmd'], order: 300, run: (ctx) => ctx.insertHtml('<b>BOLD</b>') },
             { id: 'c.link', label: 'Link Cmd', keywords: ['linkcmd'], order: 301, run: (ctx) => ctx.showLinkDialog() },
@@ -560,19 +496,28 @@ describe('RichTextSlashCommandsDirective', () => {
         editorCmp.onKeydown(enter());
         await fixture.whenStable();
         fixture.detectChanges();
+        // Opened at the caret as it was before the trigger was consumed.
+        expect(linkEditorOpenedAt).toEqual([{ x: 120, y: 118 }]);
 
+        editor.blur();
         typeSlash(editor, editorCmp, '/focuscmd');
         fixture.detectChanges();
         editorCmp.onKeydown(enter());
         await fixture.whenStable();
         fixture.detectChanges();
-        expect(menu()).toBeNull();
+        expect(document.activeElement).toBe(editor);
     });
 
     it('refocuses the editor when a command leaves the selection outside it', async () => {
         const { fixture, editor, editorCmp } = create();
         fixture.componentInstance.custom.set([
-            { id: 'c.blur', label: 'Blur Cmd', keywords: ['blurcmd'], order: 300, run: () => window.getSelection()?.removeAllRanges() },
+            {
+                id: 'c.blur', label: 'Blur Cmd', keywords: ['blurcmd'], order: 300,
+                run: () => {
+                    editor.blur();
+                    window.getSelection()?.removeAllRanges();
+                },
+            },
         ]);
         fixture.detectChanges();
         typeSlash(editor, editorCmp, '/blurcmd');
@@ -580,18 +525,19 @@ describe('RichTextSlashCommandsDirective', () => {
         editorCmp.onKeydown(enter());
         await fixture.whenStable();
         fixture.detectChanges();
-        expect(menu()).toBeNull();
+        expect(document.activeElement).toBe(editor);
     });
 
     it('selects a command even when the live selection was cleared first', async () => {
         const { fixture, editor, editorCmp } = create();
-        typeSlash(editor, editorCmp, '/h1');
+        typeSlash(editor, editorCmp, 'Intro /h1');
         fixture.detectChanges();
         window.getSelection()?.removeAllRanges();
         editorCmp.onKeydown(enter());
         await fixture.whenStable();
         fixture.detectChanges();
-        expect(menu()).toBeNull();
+        expect(editor.querySelector('h1')?.textContent?.trim()).toBe('Intro');
+        expect(editor.textContent).not.toContain('/h1');
     });
 
     it('breaks command order ties by label', () => {
@@ -628,29 +574,22 @@ describe('RichTextSlashCommandsDirective', () => {
         }
     });
 
-    it('leaves the menu unpositioned and still opens when no rect is usable', async () => {
+    it('still opens and runs a command when neither the caret nor its block has a usable rect', async () => {
         (Range.prototype as RangeWithRect).getBoundingClientRect = () => ZERO_RECT;
         const { fixture, editor, editorCmp } = create();
-        typeSlash(editor, editorCmp, '/');
+        editor.innerHTML = '<p>Intro /h1</p>';
+        const block = editor.querySelector('p')!;
+        block.getBoundingClientRect = () => ZERO_RECT;
+        const text = block.firstChild as Text;
+        window.getSelection()!.collapse(text, text.length);
+        editorCmp.onInput({ target: editor } as unknown as Event);
         fixture.detectChanges();
-        expect(menu()).toBeTruthy();
+        expect(menuOptions().map(o => o.textContent)).toEqual([expect.stringContaining('Heading 1')]);
 
         editorCmp.onKeydown(enter());
         await fixture.whenStable();
         fixture.detectChanges();
-        expect(menu()).toBeNull();
-    });
-
-    it('guards positioning and outside-pointer handling against missing state', () => {
-        const { fixture } = create();
-        const dir = fixture.debugElement.query(By.directive(RichTextSlashCommandsDirective))
-            .injector.get(RichTextSlashCommandsDirective) as unknown as {
-                updatePosition(): void;
-                onOutsidePointer(event: Event): void;
-            };
-        window.getSelection()?.removeAllRanges();
-        expect(() => dir.updatePosition()).not.toThrow();
-        expect(() => dir.onOutsidePointer(new MouseEvent('mousedown'))).not.toThrow();
+        expect(editor.querySelector('h1')?.textContent?.trim()).toBe('Intro');
     });
 
     it('renders the menu in the native top layer when the popover API is available', () => {

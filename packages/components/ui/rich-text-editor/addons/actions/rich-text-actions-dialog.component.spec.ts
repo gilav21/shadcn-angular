@@ -89,24 +89,64 @@ describe('RichTextActionsDialogComponent', () => {
         expect(payload!.trigger).toBe('hover');
     });
 
-    it('stores the hover params bucket via onHoverParamsChange', () => {
-        const fixture = mount();
-        fixture.componentInstance.onHoverParamsChange({ previewLen: 80 });
-        expect(fixture.componentInstance.hoverParams()).toEqual({ previewLen: 80 });
+    it('confirms the hover field group as combinedParams.hover in paramsMode:separate', () => {
+        const fixture = TestBed.createComponent(RichTextActionsDialogComponent);
+        const ref = fixture.componentRef;
+        ref.setInput('definitions', [
+            {
+                id: 'dictionary', label: 'Dictionary', triggers: ['click', 'hover'],
+                combined: true, paramsMode: 'separate',
+                fieldsByTrigger: {
+                    hover: [{ key: 'previewLen', label: 'Preview length', type: 'number' }],
+                    click: [{ key: 'dialogId', label: 'Dialog', type: 'text' }],
+                },
+            },
+        ] satisfies RichTextActionDefinition[]);
+        ref.setInput('context', {
+            mode: 'create', targetKind: 'text', selectionText: 'sla', occupiedTriggers: [], prefill: null,
+        });
+        fixture.detectChanges();
+        (fixture.nativeElement.querySelector('[data-action-option="dictionary"]') as HTMLButtonElement).click();
+        fixture.detectChanges();
+
+        const typeInto = (key: string, value: string): void => {
+            const input = fixture.nativeElement.querySelector(`input[data-field="${key}"]`) as HTMLInputElement;
+            input.value = value;
+            input.dispatchEvent(new Event('input'));
+            fixture.detectChanges();
+        };
+        typeInto('previewLen', '80');
+        typeInto('dialogId', 'sla-terms');
+
+        let payload: ActionsDialogConfirm | undefined;
+        fixture.componentInstance.confirm.subscribe((p) => (payload = p));
+        confirmButton(fixture).click();
+        expect(payload?.combinedParams).toEqual({ click: { dialogId: 'sla-terms' }, hover: { previewLen: 80 } });
     });
 
-    it('picking an unknown id clears the selection and stays unconfirmable', () => {
+    it('picking an unknown id after a valid selection clears it and stays unconfirmable', () => {
         const fixture = mount();
         const inst = fixture.componentInstance;
+        (fixture.nativeElement.querySelector('[data-action-option="open-dialog"]') as HTMLButtonElement).click();
+        fixture.detectChanges();
+        const field = fixture.nativeElement.querySelector('input[data-field="dialogId"]') as HTMLInputElement;
+        field.value = 'pricing';
+        field.dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+        expect(confirmButton(fixture).disabled).toBe(false);
+
         inst.pickAction('does-not-exist');
-        expect(inst.selectedDef()).toBeNull();
-        expect(inst.selectedTrigger()).toBeNull();
-        expect(inst.canConfirm()).toBe(false);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('input[data-field="dialogId"]')).toBeNull();
+        expect(fixture.nativeElement.querySelector('[aria-pressed="true"]')).toBeNull();
+        expect(confirmButton(fixture).disabled).toBe(true);
     });
 
-    it('onConfirm is a no-op when no action is selected', () => {
+    it('onConfirm does not emit while a required field is still empty', () => {
         const fixture = mount();
         const inst = fixture.componentInstance;
+        (fixture.nativeElement.querySelector('[data-action-option="open-dialog"]') as HTMLButtonElement).click();
+        fixture.detectChanges();
         let emitted = false;
         inst.confirm.subscribe(() => (emitted = true));
         inst.onConfirm();
@@ -132,6 +172,7 @@ describe('RichTextActionsDialogComponent', () => {
         fixture.detectChanges();
         expect(fixture.nativeElement.textContent).toContain('לחיצה / ריחוף');
         expect(fixture.nativeElement.textContent).not.toContain('click');
+        expect(fixture.nativeElement.querySelector('[dir="rtl"]')).toBeTruthy();
     });
 
     it('emits dismiss when the cancel button is clicked', () => {
@@ -141,29 +182,6 @@ describe('RichTextActionsDialogComponent', () => {
         const cancelBtn = fixture.nativeElement.querySelector('[data-testid="rta-cancel"] button') as HTMLButtonElement;
         cancelBtn.click();
         expect(dismissed).toBe(true);
-    });
-
-    it('renders Hebrew strings and RTL when a he locale is supplied', () => {
-        const fixture = TestBed.createComponent(RichTextActionsDialogComponent);
-        const ref = fixture.componentRef;
-        ref.setInput('definitions', []);
-        ref.setInput('context', {
-            mode: 'create', targetKind: 'text', selectionText: 's', occupiedTriggers: [], prefill: null,
-        });
-        ref.setInput('locale', {
-            code: 'he', rtl: true,
-            dialog: {
-                attachToText: 'צירוף', attachToImage: '', editTitle: '', searchPlaceholder: '',
-                searchLabel: 'חיפוש', noActions: 'אין', replacesExisting: '', cancel: 'ביטול',
-                attach: 'צרף', replace: '', combinedBadge: '',
-            },
-            popover: { unavailable: '', edit: '', remove: '', add: '' },
-            form: { required: '' },
-            triggers: { click: 'לחיצה', hover: 'ריחוף' },
-        });
-        fixture.detectChanges();
-        expect(fixture.nativeElement.textContent).toContain('ביטול');
-        expect(fixture.nativeElement.querySelector('[dir="rtl"]')).toBeTruthy();
     });
 
     it('renders a tier-2 formComponent and gates confirm on its valid signal', () => {

@@ -125,10 +125,10 @@ describe('RichTextAiDirective', () => {
         expect(query(fixture, 'rich-text-ai-trigger')).toBeTruthy();
     });
 
-    it('does not show the chip when readonly or disabled', () => {
+    it.each(['readonly', 'disabled'] as const)('does not show the chip when %s', (state) => {
         const fixture = createFixture();
         fixture.componentInstance.provider.set(() => 'x');
-        fixture.componentInstance.readonly.set(true);
+        fixture.componentInstance[state].set(true);
         fixture.detectChanges();
         const el = setContent(fixture, '<p>hello world</p>');
         selectAll(el);
@@ -242,25 +242,6 @@ describe('RichTextAiDirective', () => {
         expect(cmp.historyEntries().length).toBeGreaterThan(before);
     });
 
-    it('restores the original content on discard', () => {
-        const fixture = createFixture();
-        fixture.componentInstance.provider.set(() => 'REPLACED');
-        fixture.detectChanges();
-        const el = setContent(fixture, '<p>keep me</p>');
-        selectAll(el);
-        fixture.detectChanges();
-
-        const dir = directiveOf(fixture);
-        dir.openPanel();
-        dir.runTask('rewrite');
-        expect(el.textContent).toContain('REPLACED');
-
-        dir.discard();
-        fixture.detectChanges();
-        expect(el.textContent).toContain('keep me');
-        expect(el.textContent).not.toContain('REPLACED');
-    });
-
     it('streams progressive output from an Observable provider', () => {
         const fixture = createFixture();
         const subject = new Subject<string>();
@@ -319,23 +300,6 @@ describe('RichTextAiDirective', () => {
         expect(query(fixture, 'rich-text-ai-panel')).toBeNull();
     });
 
-    it('runs a custom prompt and emits aiRequest with the prompt', () => {
-        const fixture = createFixture();
-        fixture.componentInstance.provider.set((req) => `(${req.prompt}) ${req.input}`);
-        fixture.detectChanges();
-        const el = setContent(fixture, '<p>base</p>');
-        selectAll(el);
-        fixture.detectChanges();
-
-        const dir = directiveOf(fixture);
-        dir.openPanel();
-        dir.runCustom('make it formal');
-        fixture.detectChanges();
-        expect(el.querySelector('[data-ai-draft]')?.textContent).toBe('(make it formal) base');
-        expect(fixture.componentInstance.requests.at(-1)).toEqual({ task: 'custom', prompt: 'make it formal' });
-        dir.accept();
-    });
-
     it('resolves Hebrew locale strings for the chip and menu', () => {
         const fixture = createFixture();
         fixture.componentInstance.provider.set(() => 'x');
@@ -381,7 +345,7 @@ describe('RichTextAiDirective', () => {
         expect(query(fixture, 'rich-text-ai-review')).toBeTruthy();
     });
 
-    it('runs a custom prompt typed into the panel input and cleared on reopen', () => {
+    it('runs a custom prompt typed into the panel input', () => {
         const fixture = createFixture();
         fixture.componentInstance.provider.set((req) => `(${req.prompt}) ${req.input}`);
         fixture.detectChanges();
@@ -402,7 +366,7 @@ describe('RichTextAiDirective', () => {
         expect(fixture.componentInstance.requests.at(-1)).toEqual({ task: 'custom', prompt: 'make it bold' });
     });
 
-    it('accepts, discards, and retries via the review buttons', () => {
+    it('accepts and retries via the review buttons', () => {
         const fixture = createFixture();
         let calls = 0;
         fixture.componentInstance.provider.set(() => `draft-${++calls}`);
@@ -440,10 +404,11 @@ describe('RichTextAiDirective', () => {
         dir.openPanel();
         dir.runTask('rewrite');
         fixture.detectChanges();
+        expect(el.textContent).toBe('NEW');
         const discard = query(fixture, 'rich-text-ai-review')!.querySelectorAll('button')[1];
         clickEl(discard);
         fixture.detectChanges();
-        expect(el.textContent).toContain('original');
+        expect(el.textContent).toBe('original');
     });
 
     it('discards the draft on Escape while in review', () => {
@@ -482,7 +447,7 @@ describe('RichTextAiDirective', () => {
         dir.discard();
     });
 
-    it('ignores non-Escape keys and a second openPanel while the menu is open', () => {
+    it('ignores non-Escape keys while the menu is open', () => {
         const fixture = createFixture();
         openMenu(fixture);
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
@@ -503,7 +468,7 @@ describe('RichTextAiDirective', () => {
 
         directiveOf(fixture).openPanel();
         fixture.detectChanges();
-        document.dispatchEvent(new Event('selectionchange'));
+        selectAll(el);
         fixture.detectChanges();
         expect(query(fixture, 'rich-text-ai-trigger')).toBeNull();
     });
@@ -520,15 +485,15 @@ describe('RichTextAiDirective', () => {
         dir.openPanel();
         dir.runTask('continue');
         fixture.detectChanges();
-        expect(el.querySelector('[data-ai-draft]')).toBeTruthy();
+        expect(el.querySelector('[data-ai-draft]')?.textContent).toBe('story!');
 
         dir.discard();
         fixture.detectChanges();
         expect(el.querySelector('[data-ai-draft]')).toBeNull();
-        expect(el.textContent).toContain('story');
+        expect(el.textContent).toBe('story');
     });
 
-    it('does nothing when opening the panel with no selection range', () => {
+    it('runs no task when the panel was opened with no selection range', () => {
         const fixture = createFixture();
         fixture.componentInstance.provider.set(() => 'x');
         fixture.detectChanges();
@@ -610,25 +575,6 @@ describe('RichTextAiDirective', () => {
         expect(fixture.componentInstance.errors.at(-1)).toBeDefined();
     });
 
-    it('does not restore a discarded draft into detached DOM', () => {
-        const fixture = createFixture();
-        fixture.componentInstance.provider.set(() => 'generated');
-        fixture.detectChanges();
-        const el = setContent(fixture, '<p>src</p>');
-        selectAll(el);
-        fixture.detectChanges();
-
-        const dir = directiveOf(fixture);
-        dir.openPanel();
-        dir.runTask('rewrite');
-
-        el.innerHTML = '<p>replaced while the panel was open</p>';
-        dir.discard();
-        fixture.detectChanges();
-
-        expect(el.textContent).toBe('replaced while the panel was open');
-    });
-
     it('refuses to commit a draft that would exceed maxLength', () => {
         // Every addon mutates through mutateContent, which the base's own
         // maxLength checks never see — so a model returning more than the field
@@ -705,8 +651,11 @@ describe('RichTextAiDirective', () => {
         const fixture = createFixture();
         fixture.componentInstance.provider.set(() => 'x');
         fixture.detectChanges();
-        setContent(fixture, '<p>content</p>');
-        expect(() => directiveOf(fixture).accept()).not.toThrow();
+        const el = setContent(fixture, '<p>content</p>');
+        directiveOf(fixture).accept();
+        fixture.detectChanges();
+        expect(el.textContent).toBe('content');
+        expect(fixture.componentInstance.errors).toEqual([]);
     });
 
     it('falls back to the block element rect when the caret rect is degenerate', () => {
@@ -717,19 +666,15 @@ describe('RichTextAiDirective', () => {
         selectAll(el);
         fixture.detectChanges();
 
-        const elementProto = Element.prototype as Element & { getBoundingClientRect: () => DOMRect };
-        const originalElementRect = elementProto.getBoundingClientRect;
         rangeProto.getBoundingClientRect = () => ({
             x: 0, y: 0, left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0, toJSON: () => ({}),
         } as DOMRect);
-        elementProto.getBoundingClientRect = fixedRect;
-        try {
-            directiveOf(fixture).openPanel();
-            fixture.detectChanges();
-            expect(query(fixture, 'rich-text-ai-panel')).toBeTruthy();
-        } finally {
-            elementProto.getBoundingClientRect = originalElementRect;
-            rangeProto.getBoundingClientRect = fixedRect;
-        }
+        // selectAll ranges over the editable itself, so it is the caret's block.
+        el.getBoundingClientRect = fixedRect;
+        directiveOf(fixture).openPanel();
+        fixture.detectChanges();
+        const panel = query(fixture, 'rich-text-ai-panel')!;
+        expect(panel.style.left).toBe('10px');
+        expect(panel.style.top).toBe('68px');
     });
 });

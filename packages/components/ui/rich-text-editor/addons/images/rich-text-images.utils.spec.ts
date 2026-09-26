@@ -22,6 +22,7 @@ describe('rich-text-images.utils', () => {
         it('floats left with margins for left', () => {
             const img = document.createElement('img');
             applyImageAlignment(img, 'left');
+            expect(img.style.display).toBe('block');
             expect(img.style.float).toBe('left');
             expect(img.style.marginRight).toBe('12px');
             expect(img.style.marginBottom).toBe('4px');
@@ -30,6 +31,7 @@ describe('rich-text-images.utils', () => {
         it('centers with auto side margins for center', () => {
             const img = document.createElement('img');
             applyImageAlignment(img, 'center');
+            expect(img.style.display).toBe('block');
             expect(img.style.marginLeft).toBe('auto');
             expect(img.style.marginRight).toBe('auto');
         });
@@ -37,8 +39,10 @@ describe('rich-text-images.utils', () => {
         it('floats right with margins for right', () => {
             const img = document.createElement('img');
             applyImageAlignment(img, 'right');
+            expect(img.style.display).toBe('block');
             expect(img.style.float).toBe('right');
             expect(img.style.marginLeft).toBe('12px');
+            expect(img.style.marginBottom).toBe('4px');
         });
 
         it('clears prior styles when switching alignment', () => {
@@ -107,19 +111,25 @@ describe('rich-text-images.utils', () => {
         });
 
         it('inserts at the caret inside the root and moves the caret after the image', () => {
-            const root = makeRoot();
+            const root = document.createElement('div');
+            root.innerHTML = '<p>Hello world</p>';
+            document.body.appendChild(root);
             const p = root.querySelector('p')!;
             const range = document.createRange();
-            range.selectNodeContents(p);
-            range.collapse(false);
+            range.setStart(p.firstChild!, 'Hello '.length);
+            range.collapse(true);
             const sel = document.getSelection()!;
             sel.removeAllRanges();
             sel.addRange(range);
 
             const img = document.createElement('img');
             placeImageAtSelection(document, root, img);
-            expect(root.contains(img)).toBe(true);
-            expect(sel.rangeCount).toBe(1);
+
+            expect(p.innerHTML).toBe('Hello <img>world');
+            const caret = sel.getRangeAt(0);
+            expect(caret.collapsed).toBe(true);
+            expect(caret.startContainer).toBe(p);
+            expect(caret.startOffset).toBe(Array.from(p.childNodes).indexOf(img) + 1);
             root.remove();
         });
 
@@ -143,12 +153,13 @@ describe('rich-text-images.utils', () => {
     });
 
     describe('dataUrlToFile', () => {
-        it('decodes a base64 data URL into a File with the parsed MIME type', () => {
+        it('decodes a base64 data URL into a File with the parsed MIME type', async () => {
             const file = dataUrlToFile(TRANSPARENT_PIXEL, 'pixel.gif');
-            expect(file).toBeInstanceOf(File);
             expect(file.name).toBe('pixel.gif');
             expect(file.type).toBe('image/gif');
-            expect(file.size).toBeGreaterThan(0);
+            // Re-encoding the file must give back the source URL byte for byte.
+            // FileReader rather than file.arrayBuffer(): jsdom has no Blob.arrayBuffer.
+            expect(await readFileAsDataUrl(file)).toBe(TRANSPARENT_PIXEL);
         });
 
         it('defaults to image/png when the MIME type cannot be parsed', () => {

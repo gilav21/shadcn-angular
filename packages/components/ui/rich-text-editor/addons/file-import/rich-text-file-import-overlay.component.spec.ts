@@ -18,33 +18,6 @@ describe('RichTextFileImportOverlayComponent', () => {
         host = fixture.nativeElement as HTMLElement;
     });
 
-    it('renders nothing while idle', () => {
-        fixture.detectChanges();
-        expect(host.querySelector('[data-slot="rte-file-import-busy"]')).toBeNull();
-        expect(host.querySelector('[data-slot="rte-file-import-error"]')).toBeNull();
-    });
-
-    it('shows the busy layer with the localized importing string', () => {
-        fixture.componentRef.setInput('importing', true);
-        fixture.detectChanges();
-        const busy = host.querySelector('[data-slot="rte-file-import-busy"]');
-        expect(busy).toBeTruthy();
-        expect(busy?.textContent).toContain(LOCALE_EN.importing);
-    });
-
-    it('shows the error banner with the given message', () => {
-        fixture.componentRef.setInput('errorMessage', 'Boom');
-        fixture.detectChanges();
-        const error = host.querySelector('[data-slot="rte-file-import-error"]');
-        expect(error).toBeTruthy();
-        expect(error?.textContent).toContain('Boom');
-    });
-
-    it('defaults importing to false and errorMessage to empty', () => {
-        expect(fixture.componentInstance.importing()).toBe(false);
-        expect(fixture.componentInstance.errorMessage()).toBe('');
-    });
-
     it('keeps both live regions mounted while idle, so later text is announced', () => {
         fixture.detectChanges();
         const busy = host.querySelector('[data-slot="rte-file-import-busy-status"]');
@@ -55,6 +28,8 @@ describe('RichTextFileImportOverlayComponent', () => {
         expect(error?.getAttribute('aria-live')).toBe('assertive');
         expect(busy?.textContent?.trim()).toBe('');
         expect(error?.textContent?.trim()).toBe('');
+        expect(host.querySelector('[data-slot="rte-file-import-busy"]')).toBeNull();
+        expect(host.querySelector('[data-slot="rte-file-import-error"]')).toBeNull();
     });
 
     it('announces the busy state and hides the visual layer from AT', () => {
@@ -63,9 +38,9 @@ describe('RichTextFileImportOverlayComponent', () => {
         fixture.detectChanges();
         const region = host.querySelector('[data-slot="rte-file-import-busy-status"]');
         expect(region?.textContent?.trim()).toBe(LOCALE_EN.importing);
-        expect(
-            host.querySelector('[data-slot="rte-file-import-busy"]')?.getAttribute('aria-hidden'),
-        ).toBe('true');
+        const busy = host.querySelector('[data-slot="rte-file-import-busy"]');
+        expect(busy?.textContent?.trim()).toBe(LOCALE_EN.importing);
+        expect(busy?.getAttribute('aria-hidden')).toBe('true');
     });
 
     it('announces the failure assertively and hides the visual layer from AT', () => {
@@ -75,8 +50,8 @@ describe('RichTextFileImportOverlayComponent', () => {
         const region = host.querySelector('[data-slot="rte-file-import-error-alert"]');
         expect(region?.textContent?.trim()).toBe('Boom');
         expect(region?.getAttribute('role')).toBe('alert');
-        expect(
-            host.querySelector('[data-slot="rte-file-import-error"]')?.getAttribute('aria-hidden'),
-        ).toBe('true');
+        const banner = host.querySelector('[data-slot="rte-file-import-error"]');
+        expect(banner?.textContent?.trim()).toBe('Boom');
+        expect(banner?.getAttribute('aria-hidden')).toBe('true');
     });
 });

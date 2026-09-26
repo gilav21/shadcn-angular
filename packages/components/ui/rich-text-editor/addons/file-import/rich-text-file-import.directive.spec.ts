@@ -262,24 +262,7 @@ describe('RichTextFileImportDirective', () => {
         expect(fixture.componentInstance.starts).toHaveLength(1);
     });
 
-    it('routes a picked image to the image pipeline instead of inserting one', async () => {
-        const fixture = createFixture();
-        const { cmp } = editorOf(fixture);
-        const routed: File[] = [];
-        cmp.registerImageFileHandler((f) => routed.push(f));
-        fixture.detectChanges();
-
-        buttonContext(fixture).onImport(pngFile());
-        await waitUntil(() => routed.length > 0);
-        fixture.detectChanges();
-
-        expect(routed.map((f) => f.name)).toEqual(['photo.png']);
-        expect(fixture.componentInstance.starts).toHaveLength(0);
-        expect(fixture.componentInstance.completes).toHaveLength(0);
-        expect(editorOf(fixture).el.querySelector('img')).toBeNull();
-    });
-
-    it('routes by magic bytes, not the spoofable file type', async () => {
+    it('routes a picked image to the image pipeline by its bytes, not its declared type', async () => {
         const fixture = createFixture();
         const { cmp } = editorOf(fixture);
         const routed: File[] = [];
@@ -289,8 +272,13 @@ describe('RichTextFileImportDirective', () => {
         const lying = new File([await pngFile().arrayBuffer()], 'note.txt', { type: 'text/plain' });
         buttonContext(fixture).onImport(lying);
         await waitUntil(() => routed.length > 0);
+        fixture.detectChanges();
 
-        expect(routed).toHaveLength(1);
+        expect(routed).toEqual([lying]);
+        expect(fixture.componentInstance.errors).toHaveLength(0);
+        expect(fixture.componentInstance.starts).toHaveLength(0);
+        expect(fixture.componentInstance.completes).toHaveLength(0);
+        expect(editorOf(fixture).el.querySelector('img')).toBeNull();
     });
 
     it('offers image types in the picker only while an image handler is registered', () => {
@@ -346,17 +334,16 @@ describe('RichTextFileImportDirective', () => {
         expect(fixture.nativeElement.querySelector('[data-slot="rte-file-import-error"]')).toBeTruthy();
     });
 
-    it('recognises a PDF header and fires fileImportStart', async () => {
+    it('starts a truncated PDF import, then reports the localized failure instead of the parser error', async () => {
         const fixture = createFixture();
         const host = fixture.componentInstance;
-        // %PDF- magic bytes; the parser will fail on this stub, but start must fire.
         const file = new File([new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31])], 'doc.pdf', { type: 'application/pdf' });
         buttonContext(fixture).onImport(file);
-        await waitUntil(() => host.starts.length > 0);
-        expect(host.starts).toContain(file);
-        // Let the parse settle (it errors on the stub) so the async emit doesn't
-        // fire after the fixture is torn down.
         await waitUntil(() => host.errors.length > 0 || host.completes.length > 0);
+
+        expect(host.starts).toEqual([file]);
+        expect(host.errors).toEqual(['Failed to import file. The file may be unsupported or corrupted.']);
+        expect(host.completes).toHaveLength(0);
     });
 
     it('imports a DOCX dropped onto the editor', async () => {
@@ -380,14 +367,16 @@ describe('RichTextFileImportDirective', () => {
         expect(cmp.dragOver()).toBe(true);
     });
 
-    it('does not import a dropped document when readonly', async () => {
+    it('does not import a picked document when readonly', async () => {
         const fixture = createFixture();
+        const { el } = setContent(fixture, '<p>x</p>');
+        const { onImport } = buttonContext(fixture);
         fixture.componentInstance.readonly.set(true);
         fixture.detectChanges();
-        const { cmp } = editorOf(fixture);
-        await cmp.onEditorDrop(dropEvent([docxFile()]));
+        onImport(docxFile());
         await wait();
         expect(fixture.componentInstance.starts).toHaveLength(0);
+        expect(el.textContent).toBe('x');
     });
 
     it('does not import when disabled', async () => {
@@ -422,10 +411,10 @@ describe('RichTextFileImportDirective', () => {
             for (let i = 0; i < 20; i++) {
                 probe.injectFontCss(`@font-face{font-family:'pdfX-f${i}';src:url('data:font/ttf;base64,AAAA');}`);
             }
-            const styles = document.head.querySelectorAll('style[data-ui-rte-pdf-fonts]');
-            expect(styles.length).toBeLessThanOrEqual(12);
-            // The most recent import must still have its fonts.
-            expect(styles[styles.length - 1].textContent).toContain('pdfX-f19');
+            const families = Array.from(document.head.querySelectorAll('style[data-ui-rte-pdf-fonts]'))
+                .map((style) => /pdfX-f\d+/.exec(style.textContent ?? '')?.[0]);
+            // Oldest dropped first: the twelve most recent imports keep their fonts.
+            expect(families).toEqual(Array.from({ length: 12 }, (_, i) => `pdfX-f${i + 8}`));
         } finally {
             for (const s of Array.from(document.head.querySelectorAll('style[data-ui-rte-pdf-fonts]'))) {
                 s.remove();
@@ -468,14 +457,19 @@ describe('RichTextFileImportDirective', () => {
         expect(sanitized).not.toContain('<style');
     });
 
-    it('reports a failure when a parsed document yields no content', () => {
+    it('reports a failure when a parsed document yields no content', async () => {
         const fixture = createFixture();
-        const directive = fixture.debugElement.query(By.directive(RichTextFileImportDirective))
-            .injector.get(RichTextFileImportDirective);
-        (directive as unknown as { insertImported(html: string): void }).insertImported('   ');
-        expect(fixture.componentInstance.errors).toContain(
-            'Failed to import file. The file may be unsupported or corrupted.',
-        );
+        const host = fixture.componentInstance;
+        const { el } = setContent(fixture, '<p>x</p>');
+        caretAtEnd(el);
+        const documentXml = `<?xml version="1.0"?><w:document ${W}><w:body></w:body></w:document>`;
+        const empty = new File([makeZip([{ name: 'word/document.xml', content: documentXml }])], 'empty.docx');
+        buttonContext(fixture).onImport(empty);
+        await waitUntil(() => host.errors.length > 0 || host.completes.length > 0);
+
+        expect(host.errors).toEqual(['Failed to import file. The file may be unsupported or corrupted.']);
+        expect(host.completes).toHaveLength(0);
+        expect(el.innerHTML).toBe('<p>x</p>');
     });
 
     function directiveOf(fixture: ComponentFixture<HostCmp>): RichTextFileImportDirective {
@@ -501,37 +495,37 @@ describe('RichTextFileImportDirective', () => {
         expect(fixture.componentInstance.starts).toHaveLength(0);
     });
 
-    it('ignores a drop whose files are not supported documents', async () => {
+    it('restarts the error dismissal on a second failure and clears the banner 4s after the last one', async () => {
         const fixture = createFixture();
-        const { cmp } = editorOf(fixture);
-        await cmp.onEditorDrop(dropEvent([new File([new Uint8Array([1, 2])], 'note.txt', { type: 'text/plain' })]));
-        await wait();
-        expect(fixture.componentInstance.starts).toHaveLength(0);
-    });
-
-    it('replaces a pending error timer and auto-dismisses the message', () => {
+        const host = fixture.componentInstance;
+        const banner = (): Element | null => {
+            fixture.detectChanges();
+            return fixture.nativeElement.querySelector('[data-slot="rte-file-import-error"]');
+        };
+        // Frames stay real (captured before the clock is faked): the import
+        // reads the file's bytes for real, and the test waits for that read.
+        const realFrame = globalThis.requestAnimationFrame.bind(globalThis);
+        const failImport = async (count: number): Promise<void> => {
+            buttonContext(fixture).onImport(new File([new Uint8Array([1, 2, 3, 4, 5])], 'note.txt'));
+            for (let i = 0; i < 200 && host.errors.length < count; i++) {
+                await new Promise((r) => realFrame(r));
+            }
+            expect(host.errors).toHaveLength(count);
+        };
         vi.useFakeTimers();
-        const fixture = createFixture();
-        const directive = directiveOf(fixture) as unknown as {
-            reportError(message: string): void;
-            errorMessage(): string;
-        };
-        directive.reportError('first');
-        directive.reportError('second');
-        expect(directive.errorMessage()).toBe('second');
-        vi.advanceTimersByTime(4000);
-        expect(directive.errorMessage()).toBe('');
-        vi.useRealTimers();
-    });
-
-    it('is a no-op when syncing overlay inputs before the overlay exists', () => {
-        const fixture = createFixture();
-        const directive = directiveOf(fixture) as unknown as {
-            overlayRef: unknown;
-            syncOverlayInputs(): void;
-        };
-        directive.overlayRef = undefined;
-        expect(() => directive.syncOverlayInputs()).not.toThrow();
+        try {
+            await failImport(1);
+            vi.advanceTimersByTime(3000);
+            await failImport(2);
+            vi.advanceTimersByTime(1000);
+            expect(banner()?.textContent).toContain('The selected file is not a supported document or image.');
+            vi.advanceTimersByTime(2999);
+            expect(banner()).toBeTruthy();
+            vi.advanceTimersByTime(1);
+            expect(banner()).toBeNull();
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it('resolves Hebrew locale strings for the button and RTL flag', () => {

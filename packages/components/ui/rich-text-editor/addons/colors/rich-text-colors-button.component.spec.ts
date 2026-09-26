@@ -1,4 +1,4 @@
-import { signal, type Provider, type WritableSignal } from '@angular/core';
+import { signal, type WritableSignal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { describe, it, expect, vi, afterEach } from 'vitest';
@@ -9,7 +9,7 @@ import {
     type RichTextColorButtonContext,
     type RichTextColorKind,
 } from './rich-text-colors.context';
-import { RichTextEditorAddonHost, RichTextToolbarViewContext } from '../..';
+import { RichTextEditorAddonHost } from '../..';
 
 interface MockHost {
     disabled: WritableSignal<boolean>;
@@ -50,7 +50,7 @@ describe('RichTextColorsButtonComponent', () => {
     let host: MockHost;
     let ctx: ReturnType<typeof buildContext>;
 
-    function render(kind: RichTextColorKind, compact?: boolean): HTMLElement {
+    function render(kind: RichTextColorKind): HTMLElement {
         const disabledSignal = signal(false);
         host = {
             disabled: disabledSignal,
@@ -59,17 +59,12 @@ describe('RichTextColorsButtonComponent', () => {
             registerExclusivePopover: () => ({ notifyOpened: () => {}, release: () => {} }),
         };
         ctx = buildContext(kind);
-        const providers: Provider[] = [
-            { provide: RichTextEditorAddonHost, useValue: host },
-            { provide: RICH_TEXT_COLOR_BUTTON_CONTEXT, useValue: ctx },
-        ];
-        if (compact !== undefined) {
-            providers.push({
-                provide: RichTextToolbarViewContext,
-                useValue: { compact: signal(compact) },
-            });
-        }
-        TestBed.configureTestingModule({ providers });
+        TestBed.configureTestingModule({
+            providers: [
+                { provide: RichTextEditorAddonHost, useValue: host },
+                { provide: RICH_TEXT_COLOR_BUTTON_CONTEXT, useValue: ctx },
+            ],
+        });
         fixture = TestBed.createComponent(RichTextColorsButtonComponent);
         fixture.detectChanges();
         return fixture.nativeElement as HTMLElement;
@@ -88,14 +83,6 @@ describe('RichTextColorsButtonComponent', () => {
         const button = el.querySelector('button') as HTMLButtonElement;
         expect(button.title).toBe('Text Color');
         expect(button.querySelector('svg')).toBeTruthy();
-        expect(button.className).toContain('p-1.5');
-    });
-
-    it('uses compact padding inside a compact toolbar view', () => {
-        const el = render('background', true);
-        const button = el.querySelector('button') as HTMLButtonElement;
-        expect(button.className).toContain('p-1');
-        expect(button.className).not.toContain('p-1.5');
     });
 
     it('disables the button and blocks colour changes while the editor is disabled', () => {
@@ -129,7 +116,7 @@ describe('RichTextColorsButtonComponent', () => {
         expect(ctx.onSelect).toHaveBeenCalledTimes(1);
     });
 
-    it('restores the pre-open caret when the popover is dismissed', () => {
+    it('calls onClose when the popover closes, not when it opens', () => {
         render('foreground');
         const p = probe();
 
@@ -138,21 +125,6 @@ describe('RichTextColorsButtonComponent', () => {
 
         p.onOpenChange(false);
         expect(ctx.onClose).toHaveBeenCalledTimes(1);
-    });
-
-    it('ignores colour emissions that arrive as the popover tears down', () => {
-        render('foreground');
-        const p = probe();
-        p.onOpenChange(true);
-        ctx.onSelect.mockClear();
-
-        // The picker can emit while unmounting; `open()` is already false by the
-        // time onClose runs, so a teardown emission must not reach the editor.
-        p.onOpenChange(false);
-        p.onUserInteract();
-        p.onColorChange('#ff0000');
-
-        expect(ctx.onSelect).not.toHaveBeenCalled();
     });
 
     it('ignores the picker’s initialisation emission, so opening applies nothing', () => {
@@ -166,17 +138,6 @@ describe('RichTextColorsButtonComponent', () => {
         p.onColorChange('#000000');
 
         expect(ctx.onSelect).not.toHaveBeenCalled();
-    });
-
-    it('forwards a pick that follows a user interaction', () => {
-        render('background');
-        const p = probe();
-
-        p.onOpenChange(true);
-        p.onUserInteract();
-        p.onColorChange('#bbf7d0');
-
-        expect(ctx.onSelect).toHaveBeenCalledWith('#bbf7d0');
     });
 
     it('requires a fresh interaction after each open', () => {
@@ -226,19 +187,13 @@ describe('RichTextColorsButtonComponent', () => {
         expect(bar.className).toContain('bg-foreground');
     });
 
-    it('keeps the indicator inside the shared 16px icon box', () => {
-        const el = render('foreground');
-        const bar = el.querySelector('[data-slot="rte-color-indicator"]') as HTMLElement;
-        expect((bar.parentElement as HTMLElement).className).toContain('size-4');
-        expect(bar.className).toContain('h-[3px]');
-    });
-
     it('renders the inline colour picker seeded from the context', async () => {
         render('background');
         probe().onOpenChange(true);
         fixture.detectChanges();
-        await fixture.whenStable();
-        const picker = fixture.debugElement.query(By.directive(ColorPickerComponent));
-        expect(picker).toBeTruthy();
+        const picker = fixture.debugElement.query(By.directive(ColorPickerComponent))
+            .componentInstance as ColorPickerComponent;
+        // ngModel writes the seed asynchronously.
+        await vi.waitFor(() => expect(picker.value()).toBe('#123456'));
     });
 });

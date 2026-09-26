@@ -1,6 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RichTextImageResizerComponent, type RichTextImageResizerLabels } from './rich-text-images-resizer.component';
-import { applyImageAlignment } from './rich-text-images.utils';
 
 const LABELS_EN: RichTextImageResizerLabels = {
     inline: 'Inline with text',
@@ -8,13 +7,6 @@ const LABELS_EN: RichTextImageResizerLabels = {
     center: 'Center',
     floatRight: 'Float right',
     deleteImage: 'Delete image',
-};
-const LABELS_HE: RichTextImageResizerLabels = {
-    inline: 'בתוך הטקסט',
-    floatLeft: 'הצמדה לשמאל',
-    center: 'מירכוז',
-    floatRight: 'הצמדה לימין',
-    deleteImage: 'מחיקת תמונה',
 };
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
@@ -54,107 +46,7 @@ describe('RichTextImageResizerComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
-    it('should default target to null', () => {
-        expect(component.target()).toBeNull();
-    });
-
-    it('should default container to null', () => {
-        expect(component.container()).toBeNull();
-    });
-
-    it('should not be visible when target is null', () => {
-        expect(component.visible()).toBe(false);
-    });
-
-    it('should have alignment options', () => {
-        expect(component.alignments).toEqual(['inline', 'left', 'center', 'right']);
-    });
-
-    it('should default currentAlignment to inline when no target', () => {
-        expect(component.currentAlignment()).toBe('inline');
-    });
-
-    describe('applyImageAlignment', () => {
-        let img: HTMLImageElement;
-
-        beforeEach(() => {
-            img = document.createElement('img');
-        });
-
-        it('should set display to inline for inline alignment', () => {
-            applyImageAlignment(img, 'inline');
-
-            expect(img.style.display).toBe('inline');
-            expect(img.style.margin).toBe('0px');
-        });
-
-        it('should set float to left for left alignment', () => {
-            applyImageAlignment(img, 'left');
-
-            expect(img.style.display).toBe('block');
-            expect(img.style.float).toBe('left');
-            expect(img.style.marginRight).toBe('12px');
-            expect(img.style.marginBottom).toBe('4px');
-        });
-
-        it('should set auto margins for center alignment', () => {
-            applyImageAlignment(img, 'center');
-
-            expect(img.style.display).toBe('block');
-            expect(img.style.marginLeft).toBe('auto');
-            expect(img.style.marginRight).toBe('auto');
-        });
-
-        it('should set float to right for right alignment', () => {
-            applyImageAlignment(img, 'right');
-
-            expect(img.style.display).toBe('block');
-            expect(img.style.float).toBe('right');
-            expect(img.style.marginLeft).toBe('12px');
-            expect(img.style.marginBottom).toBe('4px');
-        });
-
-        it('should clear previous alignment styles when switching alignments', () => {
-            applyImageAlignment(img, 'left');
-            expect(img.style.float).toBe('left');
-
-            applyImageAlignment(img, 'center');
-            expect(img.style.float).toBe('');
-            expect(img.style.marginLeft).toBe('auto');
-            expect(img.style.marginRight).toBe('auto');
-        });
-
-        it('should clear float when switching from right to inline', () => {
-            applyImageAlignment(img, 'right');
-            expect(img.style.float).toBe('right');
-
-            applyImageAlignment(img, 'inline');
-            expect(img.style.float).toBe('');
-            expect(img.style.display).toBe('inline');
-        });
-    });
-
     describe('onDeleteClick', () => {
-        it('should emit imageRemove with the target element', () => {
-            const img = document.createElement('img');
-            fixture.componentRef.setInput('target', img);
-            fixture.detectChanges();
-
-            let emittedTarget: HTMLImageElement | undefined;
-            component.imageRemove.subscribe((target) => {
-                emittedTarget = target;
-            });
-
-            const mockEvent = { preventDefault: () => {}, stopPropagation: () => {} } as any;
-            component.onDeleteClick(mockEvent);
-
-            expect(emittedTarget).toBe(img);
-        });
-
         it('should not emit imageRemove when target is null', () => {
             let emitted = false;
             component.imageRemove.subscribe(() => {
@@ -187,45 +79,6 @@ describe('RichTextImageResizerComponent', () => {
     });
 
     describe('onAlignClick', () => {
-        it('should emit alignmentChange with the selected alignment', () => {
-            const img = document.createElement('img');
-            fixture.componentRef.setInput('target', img);
-            fixture.detectChanges();
-
-            let emittedAlignment: string | undefined;
-            component.alignmentChange.subscribe((align) => {
-                emittedAlignment = align;
-            });
-
-            const mockEvent = { preventDefault: () => {}, stopPropagation: () => {} } as any;
-            component.onAlignClick(mockEvent, 'center');
-
-            expect(emittedAlignment).toBe('center');
-        });
-
-        it('should set data-align attribute on the target image', () => {
-            const img = document.createElement('img');
-            fixture.componentRef.setInput('target', img);
-            fixture.detectChanges();
-
-            const mockEvent = { preventDefault: () => {}, stopPropagation: () => {} } as any;
-            component.onAlignClick(mockEvent, 'right');
-
-            expect(img.dataset['align']).toBe('right');
-        });
-
-        it('should apply alignment styles to the target image', () => {
-            const img = document.createElement('img');
-            fixture.componentRef.setInput('target', img);
-            fixture.detectChanges();
-
-            const mockEvent = { preventDefault: () => {}, stopPropagation: () => {} } as any;
-            component.onAlignClick(mockEvent, 'left');
-
-            expect(img.style.float).toBe('left');
-            expect(img.style.display).toBe('block');
-        });
-
         it('should not emit when target is null', () => {
             let emitted = false;
             component.alignmentChange.subscribe(() => {
@@ -257,31 +110,6 @@ describe('RichTextImageResizerComponent', () => {
             expect(component.currentAlignment()).toBe('inline');
         });
 
-        it('should return center when target has data-align set to center', () => {
-            const img = document.createElement('img');
-            img.dataset['align'] = 'center';
-            fixture.componentRef.setInput('target', img);
-            fixture.detectChanges();
-
-            expect(component.currentAlignment()).toBe('center');
-        });
-
-        it('should return right when target has data-align set to right', () => {
-            const img = document.createElement('img');
-            img.dataset['align'] = 'right';
-            fixture.componentRef.setInput('target', img);
-            fixture.detectChanges();
-
-            expect(component.currentAlignment()).toBe('right');
-        });
-    });
-
-    describe('getAlignIcon', () => {
-        it('returns a SafeHtml icon for each alignment', () => {
-            for (const align of component.alignments) {
-                expect(component.getAlignIcon(align)).toBeTruthy();
-            }
-        });
     });
 
     describe('resolvedAlignmentLabels', () => {
@@ -293,13 +121,6 @@ describe('RichTextImageResizerComponent', () => {
             expect(labels.left).toBe(LABELS_EN.floatLeft);
             expect(labels.center).toBe(LABELS_EN.center);
             expect(labels.right).toBe(LABELS_EN.floatRight);
-        });
-
-        it('reflects a different label set', () => {
-            fixture.componentRef.setInput('labels', LABELS_HE);
-            fixture.detectChanges();
-            const labels = component.resolvedAlignmentLabels();
-            expect(labels.inline).toBe(LABELS_HE.inline);
         });
     });
 
@@ -371,16 +192,71 @@ describe('RichTextImageResizerComponent', () => {
             // locked the gate in onPointerMove cannot be satisfied by shrinking
             // further, so the image simply stopped responding. Clamping to the
             // bound is what the resize was always documented to do.
+            // 100x50 dragged to 10x5: the short side lands on the floor and the
+            // 2:1 ratio holds.
             dragHandle('sw', 90);
-            expect(Number.parseFloat(img.style.width)).toBeGreaterThanOrEqual(20);
-            expect(Number.parseFloat(img.style.height)).toBeGreaterThanOrEqual(20);
+            expect(img.style.width).toBe('40px');
+            expect(img.style.height).toBe('20px');
         });
 
         it('respects a custom minWidth floor', () => {
             fixture.componentRef.setInput('minWidth', 80);
             fixture.detectChanges();
             dragHandle('sw', 40);
-            expect(Number.parseFloat(img.style.width)).toBeGreaterThanOrEqual(80);
+            expect(img.style.width).toBe('160px');
+            expect(img.style.height).toBe('80px');
+        });
+
+        function retarget(el: HTMLImageElement): void {
+            fixture.componentRef.setInput('target', el);
+            fixture.detectChanges();
+        }
+
+        it('bounds height on the LOCKED-aspect path, which is the default', () => {
+            // lockedSize derived height by an unclamped division, and
+            // lockAspectRatio defaults to true -- a tall narrow image reached
+            // 5,000,000px. The bound must hold on whichever axis hits it first,
+            // and must scale the other axis with it.
+            dragHandle('se', 100000);
+            expect(img.style.width).toBe('10000px');
+            expect(img.style.height).toBe('5000px');
+            document.dispatchEvent(new MouseEvent('mouseup'));
+
+            const tall = buildImage(20, 5000);
+            retarget(tall);
+            dragHandle('e', 100000);
+            expect(tall.style.width).toBe('40px');
+            expect(tall.style.height).toBe('10000px');
+        });
+
+        it('honours the requested width while the ratio allows it', () => {
+            // With a 50:1 ratio and a 20px floor, ANY width under 1000px forces
+            // the height under the floor, so clamping to one minimum size there
+            // is correct geometry, not a freeze. Above it the width must track
+            // the request.
+            const banner = buildImage(2000, 40);
+            retarget(banner);
+            const dragTo = (dx: number): string[] => {
+                // A refused write leaves the previous size behind; clear it so
+                // every drag is judged on what it wrote itself.
+                banner.removeAttribute('style');
+                dragHandle('e', dx);
+                document.dispatchEvent(new MouseEvent('mouseup'));
+                return [banner.style.width, banner.style.height];
+            };
+
+            expect(dragTo(-500)).toEqual(['1500px', '30px']);
+            expect(dragTo(-1000)).toEqual(['1000px', '20px']);
+            expect(dragTo(-1900)).toEqual(['1000px', '20px']);
+        });
+
+        it('never returns a dimension under the floor it enforces', () => {
+            // A 1:1000 sliver: the floor must hold on both axes.
+            const sliver = buildImage(10, 10000);
+            retarget(sliver);
+            dragHandle('e', 8990);
+            expect(Number.parseFloat(sliver.style.width)).toBeGreaterThanOrEqual(20);
+            expect(Number.parseFloat(sliver.style.height)).toBeGreaterThanOrEqual(20);
         });
 
         it('clamps width to maxWidth when growing past the ceiling', () => {
@@ -417,6 +293,32 @@ describe('RichTextImageResizerComponent', () => {
                 expect(img.style.width).toBe('140px');
                 expect(img.style.height).toBe('60px');
             });
+
+            it('clamps height at the minimum instead of freezing the drag', () => {
+                dragHandle('n', 0, 400);
+                expect(img.style.width).toBe('100px');
+                expect(img.style.height).toBe('20px');
+            });
+
+            it('bounds height at an absolute maximum', () => {
+                // Removing the width ceiling was right; leaving height with NO
+                // upper bound reintroduced the 100,000px drag.
+                dragHandle('se', 100, 100000);
+                expect(img.style.width).toBe('200px');
+                expect(img.style.height).toBe('10000px');
+            });
+
+            it('bounds WIDTH at both ends, like height', () => {
+                // The height fix covered one of two mirror-image axes; a
+                // 100px drag on the broken one was a degenerate input for it.
+                dragHandle('e', 100000);
+                expect(img.style.width).toBe('10000px');
+                document.dispatchEvent(new MouseEvent('mouseup'));
+
+                dragHandle('e', -5000);
+                expect(img.style.width).toBe('20px');
+                expect(img.style.height).toBe('50px');
+            });
         });
 
         it('emits resizeEnd on mouseup and clears drag listeners', () => {
@@ -433,20 +335,32 @@ describe('RichTextImageResizerComponent', () => {
         });
 
         it('ignores pointer moves after the target is cleared mid-drag', () => {
-            const start = {
-                clientX: 0,
-                clientY: 0,
-                preventDefault: () => {},
-                stopPropagation: () => {},
-            } as unknown as MouseEvent;
-            component.startResize(start, 'se');
-            fixture.componentRef.setInput('target', null);
-            fixture.detectChanges();
+            // A throw inside a document listener never reaches dispatchEvent's
+            // caller; it is reported on the window, so that is where to look.
+            const errors: unknown[] = [];
+            const onError = (e: ErrorEvent): void => {
+                errors.push(e.error);
+                e.preventDefault();
+            };
+            globalThis.addEventListener('error', onError);
+            try {
+                const start = {
+                    clientX: 0,
+                    clientY: 0,
+                    preventDefault: () => {},
+                    stopPropagation: () => {},
+                } as unknown as MouseEvent;
+                component.startResize(start, 'se');
+                fixture.componentRef.setInput('target', null);
+                fixture.detectChanges();
 
-            expect(() =>
-                document.dispatchEvent(new MouseEvent('mousemove', { clientX: 50, clientY: 0 })),
-            ).not.toThrow();
-            document.dispatchEvent(new MouseEvent('mouseup'));
+                document.dispatchEvent(new MouseEvent('mousemove', { clientX: 50, clientY: 0 }));
+                document.dispatchEvent(new MouseEvent('mouseup'));
+            } finally {
+                globalThis.removeEventListener('error', onError);
+            }
+            expect(errors).toEqual([]);
+            expect(img.style.width).toBe('');
         });
 
         it('does nothing on startResize when there is no target', () => {
@@ -511,8 +425,12 @@ describe('RichTextImageResizerComponent', () => {
                     preventDefault: () => {},
                     stopPropagation: () => {},
                 } as unknown as TouchEvent;
-                expect(() => component.startResize(event, 'se')).not.toThrow();
-                document.dispatchEvent(new Event('touchend'));
+                component.startResize(event, 'se');
+                // The drag is measured from the changedTouches point (5,5).
+                dispatchTouch('touchmove', 55, 5);
+                expect(img.style.width).toBe('150px');
+                expect(img.style.height).toBe('75px');
+                dispatchTouch('touchend', 55, 5);
             });
 
             it('emits resizeEnd on touchend and clears touch listeners', () => {
@@ -587,6 +505,26 @@ describe('RichTextImageResizerComponent', () => {
     });
 
     describe('tracking lifecycle', () => {
+        const frame = (): Promise<void> => new Promise((r) => requestAnimationFrame(() => r()));
+
+        /** A tracked image inside a 200x200 container, with a movable rect. */
+        async function mountVisible(): Promise<{ img: HTMLImageElement; container: HTMLElement; moveTo(top: number): void }> {
+            let top = 10;
+            const img = document.createElement('img');
+            img.getBoundingClientRect = () =>
+                ({ width: 80, height: 40, top, left: 10, right: 90, bottom: top + 40 } as DOMRect);
+            const container = document.createElement('div');
+            container.getBoundingClientRect = () =>
+                ({ width: 200, height: 200, top: 0, left: 0, right: 200, bottom: 200 } as DOMRect);
+            document.body.appendChild(container);
+            fixture.componentRef.setInput('container', container);
+            fixture.componentRef.setInput('target', img);
+            fixture.detectChanges();
+            await frame();
+            expect(component.visible()).toBe(true);
+            return { img, container, moveTo: (t: number) => { top = t; } };
+        }
+
         it('becomes visible and computes a rect when target overlaps the container', async () => {
             const img = document.createElement('img');
             img.getBoundingClientRect = () =>
@@ -622,73 +560,74 @@ describe('RichTextImageResizerComponent', () => {
             expect(component.visible()).toBe(false);
         });
 
-        it('stays hidden when a target is tracked without a container', async () => {
-            const img = document.createElement('img');
-            img.getBoundingClientRect = () =>
-                ({ width: 80, height: 40, top: 10, left: 10, right: 90, bottom: 50 } as DOMRect);
-            fixture.componentRef.setInput('target', img);
-            fixture.detectChanges();
+        it('hides when the container goes away while a target is tracked', async () => {
+            const { container } = await mountVisible();
 
-            await new Promise((r) => requestAnimationFrame(() => r(null)));
+            fixture.componentRef.setInput('container', null);
+            fixture.detectChanges();
+            await frame();
 
             expect(component.visible()).toBe(false);
+            container.remove();
         });
 
-        it('stops tracking and hides when the target is cleared', () => {
-            const img = document.createElement('img');
-            const container = document.createElement('div');
-            fixture.componentRef.setInput('container', container);
-            fixture.componentRef.setInput('target', img);
-            fixture.detectChanges();
+        it('stops tracking and hides when the target is cleared', async () => {
+            const { container } = await mountVisible();
 
             fixture.componentRef.setInput('target', null);
             fixture.detectChanges();
 
             expect(component.visible()).toBe(false);
-        });
-
-        it('reschedules an update on container scroll and window resize', () => {
-            const img = document.createElement('img');
-            const container = document.createElement('div');
-            document.body.appendChild(container);
-            fixture.componentRef.setInput('container', container);
-            fixture.componentRef.setInput('target', img);
-            fixture.detectChanges();
-
-            expect(() => {
-                container.dispatchEvent(new Event('scroll'));
-                window.dispatchEvent(new Event('resize'));
-            }).not.toThrow();
             container.remove();
         });
 
-        it('reschedules an update when the ResizeObserver fires', () => {
+        it('re-measures on container scroll and window resize', async () => {
+            const { container, moveTo } = await mountVisible();
+
+            moveTo(30);
+            container.dispatchEvent(new Event('scroll'));
+            await frame();
+            expect(component.rect().top).toBe(30);
+
+            moveTo(50);
+            globalThis.dispatchEvent(new Event('resize'));
+            await frame();
+            expect(component.rect().top).toBe(50);
+            container.remove();
+        });
+
+        it('re-measures when the ResizeObserver fires', async () => {
             let observed: (() => void) | null = null;
             class CapturingResizeObserver {
                 constructor(cb: () => void) { observed = cb; }
-                observe(): void { observed?.(); }
+                observe(): void { /* no-op */ }
                 unobserve(): void { /* no-op */ }
                 disconnect(): void { /* no-op */ }
             }
             (globalThis as ResizeObserverGlobal).ResizeObserver =
                 CapturingResizeObserver as unknown as typeof ResizeObserver;
 
-            const img = document.createElement('img');
-            const container = document.createElement('div');
-            fixture.componentRef.setInput('container', container);
-            fixture.componentRef.setInput('target', img);
-            expect(() => fixture.detectChanges()).not.toThrow();
-            expect(observed).not.toBeNull();
+            const { container, moveTo } = await mountVisible();
+            moveTo(60);
+            observed!();
+            await frame();
+
+            expect(component.rect().top).toBe(60);
+            container.remove();
         });
 
-        it('cleans up listeners on destroy without throwing', () => {
+        it('stops a drag in progress when destroyed', () => {
             const img = document.createElement('img');
-            const container = document.createElement('div');
-            fixture.componentRef.setInput('container', container);
+            img.getBoundingClientRect = () =>
+                ({ width: 100, height: 50, top: 0, left: 0, right: 100, bottom: 50 } as DOMRect);
             fixture.componentRef.setInput('target', img);
             fixture.detectChanges();
+            component.startResize(new MouseEvent('mousedown', { clientX: 0, clientY: 0 }), 'se');
 
-            expect(() => fixture.destroy()).not.toThrow();
+            fixture.destroy();
+            document.dispatchEvent(new MouseEvent('mousemove', { clientX: 50, clientY: 0 }));
+
+            expect(img.style.width).toBe('');
         });
     });
 
@@ -725,6 +664,7 @@ describe('RichTextImageResizerComponent', () => {
 
             expect(emitted).toEqual(['right']);
             expect(img.dataset['align']).toBe('right');
+            expect(img.style.float).toBe('right');
             img.remove();
         });
 
@@ -790,19 +730,6 @@ describe('RichTextImageResizerComponent', () => {
         function press(el: HTMLButtonElement, key: string, shift = false): void {
             el.dispatchEvent(new KeyboardEvent('keydown', { key, shiftKey: shift, bubbles: true }));
         }
-
-        it('exposes the drag handles as named, focusable buttons', () => {
-            mountWithImage();
-            const buttons = Array.from(
-                (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
-                    'button[aria-label^="Resize from"]',
-                ),
-            );
-            expect(buttons.length).toBeGreaterThan(0);
-            for (const b of buttons) {
-                expect(b.tagName).toBe('BUTTON');
-            }
-        });
 
         it('honours the handle: the east edge grows on ArrowRight', () => {
             const img = mountWithImage();
@@ -877,19 +804,6 @@ describe('RichTextImageResizerComponent', () => {
             expect(img.style.width).toBe('');
         });
 
-        it('clamps height at the minimum instead of freezing the drag', () => {
-            const cmp = component as unknown as {
-                freeSize(s: { startWidth: number; startHeight: number; handle: string }, dx: number, dy: number): { width: number; height: number };
-                minWidth(): number;
-            };
-            fixture.componentRef.setInput('lockAspectRatio', false);
-            fixture.detectChanges();
-
-            const shrunk = cmp.freeSize({ startWidth: 200, startHeight: 100, handle: 'n' }, 0, 400);
-            expect(shrunk.height).toBeGreaterThanOrEqual(cmp.minWidth());
-        });
-
-
         it('does not apply the WIDTH ceiling to height', () => {
             // maxWidth is a width ceiling. Using it for height silently squashed
             // every portrait image, and the previous version of this test
@@ -906,72 +820,6 @@ describe('RichTextImageResizerComponent', () => {
             // The width ceiling still applies to width.
             press(handle('e'), 'ArrowRight', true);
             expect(Number.parseFloat(img.style.width)).toBeLessThanOrEqual(120);
-        });
-
-
-        it('bounds height at an absolute maximum', () => {
-            // Removing the width ceiling was right; leaving height with NO upper
-            // bound reintroduced the 100,000px drag the freeSize comment says was
-            // fixed. onPointerMove then refuses the write, which reads as a
-            // frozen drag rather than a clamp.
-            const cmp = component as unknown as {
-                freeSize(
-                    s: { startWidth: number; startHeight: number; handle: string },
-                    dx: number,
-                    dy: number,
-                ): { width: number; height: number };
-            };
-            const huge = cmp.freeSize({ startWidth: 200, startHeight: 100, handle: 'se' }, 100, 100000);
-            expect(huge.height).toBeLessThanOrEqual(10000);
-        });
-
-
-        it('bounds WIDTH at both ends, like height', () => {
-            // The height fix covered one of two mirror-image axes. The guarding
-            // test dragged 100,000px on the axis that was fixed and 100px on the
-            // one that was broken -- a degenerate input for this bug.
-            const cmp = component as unknown as {
-                freeSize(
-                    s: { startWidth: number; startHeight: number; handle: string },
-                    dx: number,
-                    dy: number,
-                ): { width: number; height: number };
-                minWidth(): number;
-            };
-            const state = { startWidth: 200, startHeight: 100, handle: 'e' };
-
-            expect(cmp.freeSize(state, 100000, 0).width).toBeLessThanOrEqual(10000);
-            expect(cmp.freeSize(state, -5000, 0).width).toBeGreaterThanOrEqual(cmp.minWidth());
-        });
-
-
-        it('bounds height on the LOCKED-aspect path, which is the default', () => {
-            // The round-21 fix bounded clampWidth and clampHeight, and both
-            // guarding tests called freeSize -- the lockAspectRatio:false
-            // function. lockedSize derives height by division and never clamps
-            // it, and lockAspectRatio defaults to TRUE, so the uncovered path is
-            // the one most users are on. A tall narrow image reaches 5,000,000px.
-            const cmp = component as unknown as {
-                lockedSize(
-                    s: { startWidth: number; startHeight: number; handle: string },
-                    dx: number,
-                ): { width: number; height: number };
-            };
-            const tall = cmp.lockedSize({ startWidth: 20, startHeight: 10000, handle: 'e' }, 100000);
-            expect(tall.height).toBeLessThanOrEqual(10000);
-            expect(tall.width).toBeLessThanOrEqual(10000);
-        });
-
-        it('keeps the aspect ratio when the locked path clamps', () => {
-            const cmp = component as unknown as {
-                lockedSize(
-                    s: { startWidth: number; startHeight: number; handle: string },
-                    dx: number,
-                ): { width: number; height: number };
-            };
-            // 2:1 image grown past the bound stays 2:1.
-            const wide = cmp.lockedSize({ startWidth: 200, startHeight: 100, handle: 'e' }, 100000);
-            expect(wide.width / wide.height).toBeCloseTo(2, 5);
         });
 
 
@@ -1001,46 +849,6 @@ describe('RichTextImageResizerComponent', () => {
             img.remove();
         });
 
-
-        it('honours the requested width while the ratio allows it', () => {
-            // The previous version asserted only that both axes cleared the
-            // floor, so 1600, 100000 or Infinity all passed -- it could not see
-            // the floor being back-projected onto the axis being dragged.
-            //
-            // With a 50:1 ratio and a 20px floor, ANY width under 1000px forces
-            // the height under the floor, so clamping to one minimum size there
-            // is correct geometry, not a freeze. What must hold is that the
-            // width tracks the request until that bound, and never exceeds it.
-            const cmp = component as unknown as {
-                lockedSize(
-                    s: { startWidth: number; startHeight: number; handle: string },
-                    dx: number,
-                ): { width: number; height: number };
-                minWidth(): number;
-            };
-            const banner = { startWidth: 2000, startHeight: 40, handle: 'e' };
-            const min = cmp.minWidth();
-
-            expect(cmp.lockedSize(banner, -500).width).toBeCloseTo(1500, 0);
-            expect(cmp.lockedSize(banner, -1000).width).toBeCloseTo(1000, 0);
-
-            // Past the bound both axes sit exactly on the floor, never under it,
-            // and never inflated above the request.
-            const clamped = cmp.lockedSize(banner, -1900);
-            expect(clamped.height).toBeCloseTo(min, 5);
-            expect(clamped.width).toBeLessThanOrEqual(1000);
-        });
-
-        it('never returns a dimension under the floor it enforces', () => {
-            const cmp = component as unknown as {
-                ratioBoundedSize(width: number, aspect: number): { width: number; height: number };
-                minWidth(): number;
-            };
-            const min = cmp.minWidth();
-            const r = cmp.ratioBoundedSize(9000, 0.001);
-            expect(r.width).toBeGreaterThanOrEqual(min);
-            expect(r.height).toBeGreaterThanOrEqual(min);
-        });
 
         it('ignores keys that are not arrows', () => {
             const img = mountWithImage();

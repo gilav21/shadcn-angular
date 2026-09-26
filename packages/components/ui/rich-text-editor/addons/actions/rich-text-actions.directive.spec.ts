@@ -19,22 +19,10 @@ function editorSanitizer(fixture: ComponentFixture<unknown>): RichTextSanitizerS
     return editor.injector.get(RichTextSanitizerService);
 }
 
-
 interface ApplyTargetLike {
     kind: 'text' | 'image';
     existing: HTMLElement | null;
     image: HTMLImageElement | null;
-}
-interface DirectiveInternals {
-    applyAction(
-        def: RichTextActionDefinition, trigger: RichTextActionTrigger, params: ActionParams, target: ApplyTargetLike,
-    ): boolean;
-    applyCombined(
-        def: RichTextActionDefinition,
-        params: { click: ActionParams; hover: ActionParams },
-        target: ApplyTargetLike,
-    ): boolean;
-    editAction(el: HTMLElement, trigger: RichTextActionTrigger): void;
 }
 
 @Component({
@@ -74,6 +62,29 @@ function currentPopover(): HTMLElement {
     return document.querySelector('[data-slot="rich-text-actions-popover"]') as HTMLElement;
 }
 
+function directiveOf(fixture: ComponentFixture<unknown>): RichTextActionsDirective {
+    return fixture.debugElement.query(By.directive(RichTextActionsDirective)).injector.get(RichTextActionsDirective);
+}
+
+function editorOf(fixture: ComponentFixture<unknown>): RichTextEditorComponent {
+    return fixture.debugElement.query(By.directive(RichTextEditorComponent)).componentInstance as RichTextEditorComponent;
+}
+
+/** Capture `[rich-text-actions]` diagnostics as `[message, detail]` pairs while `body` runs. */
+async function collectActionErrors(body: () => Promise<void> | void): Promise<unknown[][]> {
+    const errors: unknown[][] = [];
+    const orig = console.error;
+    console.error = (...a: unknown[]) => {
+        if (String(a[0]).startsWith('[rich-text-actions]')) errors.push(a);
+    };
+    try {
+        await body();
+    } finally {
+        console.error = orig;
+    }
+    return errors;
+}
+
 describe('RichTextActionsDirective', () => {
     const openFixtures: ComponentFixture<HostCmp>[] = [];
 
@@ -94,16 +105,6 @@ describe('RichTextActionsDirective', () => {
         removeLeftoverOverlays();
     });
 
-    it('registers a toolbar slot + sanitizer rules when defs are present', () => {
-        const fixture = createFixture();
-        fixture.detectChanges();
-        const sanitizer = editorSanitizer(fixture);
-        expect(sanitizer.sanitize('<span data-action-click="open-dialog">x</span>'))
-            .toBe('<span data-action-click="open-dialog">x</span>');
-        const slotBtn = fixture.nativeElement.querySelector('[data-addon-slot="actions.attach"]');
-        expect(slotBtn).toBeTruthy();
-    });
-
     it('registers nothing when defs are empty', () => {
         const fixture = createFixture();
         fixture.componentInstance.defs = [];
@@ -113,7 +114,7 @@ describe('RichTextActionsDirective', () => {
         expect(fixture.nativeElement.querySelector('[data-addon-slot="actions.attach"]')).toBeFalsy();
     });
 
-    it('tears down registrations on destroy', () => {
+    it('removes its sanitizer rules on destroy', () => {
         const fixture = createFixture();
         fixture.detectChanges();
         // Captured BEFORE destroy: the editor cannot be queried once it is gone,
@@ -141,6 +142,8 @@ describe('RichTextActionsDirective', () => {
 
         const slot = fixture.nativeElement.querySelector('[data-addon-slot="actions.attach"]') as HTMLButtonElement;
         expect(slot.disabled).toBe(false);
+        const attached: unknown[] = [];
+        directiveOf(fixture).actionAttached.subscribe((e) => attached.push(e));
         slot.click();
         fixture.detectChanges();
 
@@ -156,10 +159,14 @@ describe('RichTextActionsDirective', () => {
         const span = editor.querySelector('span[data-action-click="open-dialog"]');
         expect(span?.getAttribute('data-action-click-params')).toBe('{"dialogId":"pricing"}');
         expect(span?.textContent).toBe('hello');
+        expect(attached).toEqual([
+            { actionId: 'open-dialog', trigger: 'click', params: { dialogId: 'pricing' }, targetKind: 'text' },
+        ]);
     });
 
     it('applies an action to an image target captured before the dialog steals focus', () => {
         const fixture = createFixture();
+        fixture.componentInstance.styleSeed = { color: '#2563eb' };
         fixture.detectChanges();
         const editorCmp = fixture.debugElement.children[0].componentInstance as RichTextEditorComponent;
         const editor = fixture.nativeElement.querySelector('[data-slot="rich-text-editor"]') as HTMLElement;
@@ -188,8 +195,10 @@ describe('RichTextActionsDirective', () => {
         (document.querySelector('[data-testid="rta-confirm"] button') as HTMLButtonElement).click();
         fixture.detectChanges();
 
-        expect(editor.querySelector('img[data-action-click="open-dialog"]')?.getAttribute('data-action-click-params'))
-            .toBe('{"dialogId":"pricing"}');
+        const attachedImg = editor.querySelector('img[data-action-click="open-dialog"]');
+        expect(attachedImg?.getAttribute('data-action-click-params')).toBe('{"dialogId":"pricing"}');
+        // The starter style seed is for text runs only.
+        expect(attachedImg?.getAttribute('style')).toBeNull();
     });
 
     async function attachFirstAction(fixture: ComponentFixture<HostCmp>): Promise<HTMLElement> {
@@ -234,24 +243,32 @@ describe('RichTextActionsDirective', () => {
     });
 
     it('rejects non-flat params from a tier and does not attach', async () => {
-        const errors: unknown[] = [];
-        const origErr = console.error;
-        console.error = (...a: unknown[]) => { errors.push(a); };
-        try {
-            const fixture = createFixture();
-            fixture.componentInstance.defs = [{
-                id: 'bad', label: 'Bad', triggers: ['click'],
-                resolveParams: async () => ({ nested: { x: 1 } } as unknown as Record<string, string | number | boolean>),
-            }];
-            const editor = await attachFirstAction(fixture);
-            (document.querySelector('[data-action-option="bad"]') as HTMLButtonElement).click();
-            await Promise.resolve(); await Promise.resolve();
-            fixture.detectChanges();
-            expect(editor.querySelector('span[data-action-click="bad"]')).toBeFalsy();
-            expect(errors.length).toBeGreaterThan(0);
-        } finally {
-            console.error = origErr;
-        }
+        const nonFlat = async (): Promise<ActionParams> => ({ nested: { x: 1 } } as unknown as ActionParams);
+        const fixture = createFixture();
+        fixture.componentInstance.defs = [
+            { id: 'bad', label: 'Bad', triggers: ['click'], resolveParams: nonFlat },
+            { id: 'bad-combined', label: 'Bad combined', triggers: ['click', 'hover'], combined: true, resolveParams: nonFlat },
+        ];
+        fixture.detectChanges();
+        const attached: unknown[] = [];
+        directiveOf(fixture).actionAttached.subscribe((e) => attached.push(e));
+        const errors = await collectActionErrors(async () => {
+            for (const id of ['bad', 'bad-combined']) {
+                const editor = await attachFirstAction(fixture);
+                (document.querySelector(`[data-action-option="${id}"]`) as HTMLButtonElement).click();
+                await Promise.resolve(); await Promise.resolve();
+                fixture.detectChanges();
+                expect(editor.innerHTML).toBe('<p>go</p>');
+            }
+        });
+        expect(attached).toEqual([]);
+        const flatError = expect.objectContaining({
+            message: 'Action params must be a flat object of string | number | boolean values.',
+        });
+        expect(errors).toEqual([
+            ['[rich-text-actions] refused to attach non-flat params:', flatError],
+            ['[rich-text-actions] refused to attach non-flat combined params:', flatError],
+        ]);
     });
 
     it('logs a diagnostic when an action declares multiple param tiers', async () => {
@@ -319,26 +336,14 @@ describe('RichTextActionsDirective', () => {
         // content swap — a save/reload, a collaborative overwrite, an "insert
         // template" button — left it floating over content that no longer
         // exists, still offering Edit and Remove for a deleted span.
-        //
-        // Asserted through the directive's own guard rather than the rendered
-        // DOM: this harness does not flush the history effect that closes it in
-        // a real browser (verified there separately), but the guard is the same
-        // one that effect calls.
         const fixture = createFixture();
         caretInside(fixture, '<p><span data-action-click="open-dialog" data-action-click-params=\'{"dialogId":"x"}\'>t</span></p>');
-        const directive = fixture.debugElement
-            .query(By.directive(RichTextActionsDirective))
-            .injector.get(RichTextActionsDirective) as unknown as {
-                popoverTarget: HTMLElement | null;
-                dropPopoverIfDetached(): void;
-            };
-        expect(directive.popoverTarget).not.toBeNull();
+        expect(currentPopover()).not.toBeNull();
 
-        (fixture.debugElement.children[0].componentInstance as RichTextEditorComponent).setContent('<p>replaced entirely</p>');
-        directive.dropPopoverIfDetached();
+        editorOf(fixture).setContent('<p>replaced entirely</p>');
+        fixture.detectChanges();
 
-        expect(directive.popoverTarget).toBeNull();
-        expect(document.querySelector('[data-slot="rich-text-actions-popover"]')).toBeNull();
+        expect(currentPopover()).toBeNull();
     });
 
     it('renders the popover in the native top layer when showPopover is available', () => {
@@ -365,8 +370,7 @@ describe('RichTextActionsDirective', () => {
         const editor = caretInside(fixture, '<p><span data-action-click="open-dialog" data-action-click-params=\'{"dialogId":"x"}\'>t</span></p>');
         (document.querySelector('[data-testid="rta-remove"]') as HTMLButtonElement).click();
         fixture.detectChanges();
-        expect(editor.querySelector('span[data-action-click]')).toBeFalsy();
-        expect(editor.querySelector('p')!.textContent).toBe('t');
+        expect(editor.querySelector('p')!.innerHTML).toBe('t');
     });
 
     it('renders a combined action as a single popover row and removes both triggers', () => {
@@ -520,72 +524,111 @@ describe('RichTextActionsDirective', () => {
         expect(document.querySelector('[data-testid="rta-cancel"]')).toBeTruthy();
     });
 
-    it('refuses to write and returns false when the apply target was lost', () => {
-        const errors: string[] = [];
-        const orig = console.error;
-        console.error = (...a: unknown[]) => { errors.push(String(a[0])); };
-        try {
-            const fixture = createFixture();
-            fixture.detectChanges();
-            const de = fixture.debugElement.query(By.directive(RichTextActionsDirective));
-            const dir = de.injector.get(RichTextActionsDirective) as unknown as DirectiveInternals;
-            const editor = fixture.debugElement.query(By.directive(RichTextEditorComponent))
-                .componentInstance as { wrapSelection: (f: () => HTMLElement) => HTMLElement[] };
-            const def: RichTextActionDefinition = { id: 'x', label: 'X', triggers: ['click'] };
-
-            // Image target captured but the element is gone → guard returns false.
-            expect(dir.applyAction(def, 'click', {}, { kind: 'image', existing: null, image: null })).toBe(false);
-            expect(errors.some((m) => m.includes('lost the image target'))).toBe(true);
-
-            // Text selection can no longer be wrapped (wrapSelection yields nothing) → guard returns false.
-            editor.wrapSelection = () => [];
-            expect(dir.applyAction(def, 'click', {}, { kind: 'text', existing: null, image: null })).toBe(false);
-            expect(errors.some((m) => m.includes('lost the text selection'))).toBe(true);
-
-            const combined: RichTextActionDefinition = {
-                id: 'c', label: 'C', triggers: ['click', 'hover'], combined: true,
-            };
-            const nonFlat = { nested: { deep: 1 } } as unknown as ActionParams;
-            expect(dir.applyCombined(combined, { click: nonFlat, hover: {} }, { kind: 'text', existing: null, image: null }))
-                .toBe(false);
-            expect(errors.some((m) => m.includes('non-flat combined params'))).toBe(true);
-
-            expect(dir.applyCombined(combined, { click: {}, hover: {} }, { kind: 'image', existing: null, image: null }))
-                .toBe(false);
-
-            expect(dir.applyCombined(combined, { click: {}, hover: {} }, { kind: 'text', existing: null, image: null }))
-                .toBe(false);
-            expect(errors.some((m) => m.includes('lost the text selection before applying the combined'))).toBe(true);
-
-            const existing = document.createElement('span');
-            expect(dir.applyCombined(combined, { click: { a: 1 }, hover: { b: 2 } }, {
-                kind: 'text', existing, image: null,
-            })).toBe(true);
-            expect(existing.getAttribute('data-action-click')).toBe('c');
-            expect(existing.getAttribute('data-action-hover')).toBe('c');
-        } finally {
-            console.error = orig;
-        }
-    });
-
-    it('edit on a combined action carries the hover params into the dialog prefill', () => {
+    it('keeps the dialog open and writes nothing when the text selection was lost before confirm', async () => {
         const fixture = createFixture();
         fixture.componentInstance.defs = [
-            { id: 'dictionary', label: 'Dictionary', triggers: ['click', 'hover'], combined: true },
+            {
+                id: 'open-dialog', label: 'Open dialog', triggers: ['click'],
+                fields: [{ key: 'dialogId', label: 'Dialog', type: 'text', required: true }],
+            },
+            {
+                id: 'dictionary', label: 'Dictionary', triggers: ['click', 'hover'], combined: true, paramsMode: 'shared',
+                fields: [{ key: 'value', label: 'Value', type: 'text', required: true }],
+            },
         ];
+        const editor = await attachFirstAction(fixture);
+        // The host could not re-establish the saved range (content swapped under the dialog).
+        editorOf(fixture).wrapSelection = () => [];
+        const attached: unknown[] = [];
+        directiveOf(fixture).actionAttached.subscribe((e) => attached.push(e));
+
+        const errors = await collectActionErrors(() => {
+            for (const [id, key] of [['open-dialog', 'dialogId'], ['dictionary', 'value']]) {
+                (currentDialog().querySelector(`[data-action-option="${id}"]`) as HTMLButtonElement).click();
+                fixture.detectChanges();
+                const field = currentDialog().querySelector(`input[data-field="${key}"]`) as HTMLInputElement;
+                field.value = 'pricing';
+                field.dispatchEvent(new Event('input'));
+                fixture.detectChanges();
+                (currentDialog().querySelector('[data-testid="rta-confirm"] button') as HTMLButtonElement).click();
+                fixture.detectChanges();
+                expect(currentDialog()).not.toBeNull();
+            }
+        });
+
+        expect(editor.innerHTML).toBe('<p>go</p>');
+        expect(attached).toEqual([]);
+        expect(errors.map((e) => e[0])).toEqual([
+            '[rich-text-actions] lost the text selection before applying the action.',
+            '[rich-text-actions] lost the text selection before applying the combined action.',
+        ]);
+    });
+
+    it('refuses an image target that is already gone (white-box: unreachable through the dialog)', async () => {
+        const fixture = createFixture();
         fixture.detectChanges();
-        const de = fixture.debugElement.query(By.directive(RichTextActionsDirective));
-        const dir = de.injector.get(RichTextActionsDirective) as unknown as DirectiveInternals;
-        const el = document.createElement('span');
-        el.setAttribute('data-action-click', 'dictionary');
-        el.setAttribute('data-action-hover', 'dictionary');
-        el.setAttribute('data-action-hover-params', '{"previewLen":90}');
-        el.textContent = 'term';
-        document.body.appendChild(el);
-        dir.editAction(el, 'click');
+        const dir = directiveOf(fixture) as unknown as {
+            applyAction(def: RichTextActionDefinition, trigger: RichTextActionTrigger, params: ActionParams, target: ApplyTargetLike): boolean;
+            applyCombined(def: RichTextActionDefinition, params: { click: ActionParams; hover: ActionParams }, target: ApplyTargetLike): boolean;
+        };
+        const attached: unknown[] = [];
+        directiveOf(fixture).actionAttached.subscribe((e) => attached.push(e));
+        const lostImage: ApplyTargetLike = { kind: 'image', existing: null, image: null };
+        const results: boolean[] = [];
+
+        const errors = await collectActionErrors(() => {
+            results.push(
+                dir.applyAction({ id: 'x', label: 'X', triggers: ['click'] }, 'click', {}, lostImage),
+                dir.applyCombined(
+                    { id: 'c', label: 'C', triggers: ['click', 'hover'], combined: true },
+                    { click: {}, hover: {} },
+                    lostImage,
+                ),
+            );
+        });
+
+        expect(results).toEqual([false, false]);
+        expect(errors.map((e) => e[0])).toEqual([
+            '[rich-text-actions] lost the image target before applying the action.',
+            '[rich-text-actions] lost the image target before applying the action.',
+        ]);
+        expect(attached).toEqual([]);
+    });
+
+    it('edit on a combined separate-params action prefills both groups and rewrites both triggers', () => {
+        const fixture = createFixture();
+        fixture.componentInstance.defs = [{
+            id: 'dictionary', label: 'Dictionary', triggers: ['click', 'hover'], combined: true, paramsMode: 'separate',
+            fieldsByTrigger: {
+                hover: [{ key: 'previewLen', label: 'Preview length', type: 'number' }],
+                click: [{ key: 'dialogId', label: 'Dialog', type: 'text' }],
+            },
+        }];
+        const editor = caretInside(fixture, `<p><span data-action-click="dictionary" data-action-hover="dictionary"
+            data-action-click-params='{"dialogId":"sla-terms"}' data-action-hover-params='{"previewLen":90}'>SLA</span></p>`);
+        const attached: unknown[] = [];
+        directiveOf(fixture).actionAttached.subscribe((e) => attached.push(e));
+        (currentPopover().querySelector('[data-testid="rta-edit"]') as HTMLButtonElement).click();
         fixture.detectChanges();
-        expect(currentDialog()).toBeTruthy();
-        el.remove();
+
+        const previewLen = currentDialog().querySelector('input[data-field="previewLen"]') as HTMLInputElement;
+        const dialogId = currentDialog().querySelector('input[data-field="dialogId"]') as HTMLInputElement;
+        expect([previewLen.value, dialogId.value]).toEqual(['90', 'sla-terms']);
+        previewLen.value = '120';
+        previewLen.dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+        (currentDialog().querySelector('[data-testid="rta-confirm"] button') as HTMLButtonElement).click();
+        fixture.detectChanges();
+
+        const span = editor.querySelector('span[data-action-click="dictionary"]');
+        expect(span?.getAttribute('data-action-hover')).toBe('dictionary');
+        expect(span?.getAttribute('data-action-click-params')).toBe('{"dialogId":"sla-terms"}');
+        expect(span?.getAttribute('data-action-hover-params')).toBe('{"previewLen":120}');
+        expect(attached).toEqual([
+            { actionId: 'dictionary', trigger: 'click', params: { dialogId: 'sla-terms' }, targetKind: 'text' },
+            { actionId: 'dictionary', trigger: 'hover', params: { previewLen: 120 }, targetKind: 'text' },
+        ]);
+        expect(currentDialog()).toBeNull();
     });
 
     it('attaches a combined action to both triggers in one undoable transaction', async () => {
@@ -743,40 +786,6 @@ describe('RichTextActionsDirective', () => {
             expect(span.style.color).toBe('red');
         });
 
-        it('ignores the style seed for image targets', () => {
-            const fixture = createFixture();
-            fixture.componentInstance.styleSeed = { color: '#2563eb' };
-            fixture.detectChanges();
-            const editorCmp = fixture.debugElement.children[0].componentInstance as RichTextEditorComponent;
-            const editor = fixture.nativeElement.querySelector('[data-slot="rich-text-editor"]') as HTMLElement;
-            editor.innerHTML = '<p><img src="https://example.com/a.png" alt="a"></p>';
-            const img = editor.querySelector('img') as HTMLImageElement;
-            editorCmp.setSelectedImage(img);
-            const range = document.createRange();
-            range.selectNode(img);
-            const sel = window.getSelection()!; sel.removeAllRanges(); sel.addRange(range);
-            editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-            fixture.detectChanges();
-
-            const slot = fixture.nativeElement.querySelector('[data-addon-slot="actions.attach"]') as HTMLButtonElement;
-            slot.click();
-            fixture.detectChanges();
-            sel.removeAllRanges();
-            editorCmp.setSelectedImage(null);
-
-            (document.querySelector('[data-action-option="open-dialog"]') as HTMLButtonElement).click();
-            fixture.detectChanges();
-            const dialogInput = currentDialog().querySelector('input[data-field="dialogId"]') as HTMLInputElement;
-            dialogInput.value = 'pricing';
-            dialogInput.dispatchEvent(new Event('input'));
-            fixture.detectChanges();
-            (currentDialog().querySelector('[data-testid="rta-confirm"] button') as HTMLButtonElement).click();
-            fixture.detectChanges();
-
-            const attachedImg = editor.querySelector('img[data-action-click="open-dialog"]');
-            expect(attachedImg?.getAttribute('style')).toBeNull();
-        });
-
         it('strips an unedited seed and unwraps the bare span on remove', async () => {
             const fixture = createFixture();
             fixture.componentInstance.styleSeed = { color: '#2563eb' };
@@ -798,8 +807,7 @@ describe('RichTextActionsDirective', () => {
             (currentPopover().querySelector('[data-testid="rta-remove"]') as HTMLButtonElement).click();
             fixture.detectChanges();
 
-            expect(editor.querySelector('[data-action-click]')).toBeFalsy();
-            expect(editor.innerHTML).not.toContain('style=');
+            expect(editor.querySelector('p')!.innerHTML).toBe('go');
         });
 
         it('keeps an author-edited style span on remove', async () => {

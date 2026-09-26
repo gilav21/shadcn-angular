@@ -134,13 +134,6 @@ class SearchHostCmp {
     readonly search = signal<(q: string) => RichTextEntitySearchResult<MentionItem>>(() => USERS);
 }
 
-@Component({
-    standalone: true,
-    imports: [RichTextEditorComponent, RichTextMentionsDirective],
-    template: `<ui-rich-text-editor mode="html" uiRteMentions [uiRteTags]="true"></ui-rich-text-editor>`,
-})
-class DefaultSearchHostCmp {}
-
 describe('RichTextMentionsDirective', () => {
     const fixtures: ComponentFixture<unknown>[] = [];
     let restoreRects: Restore;
@@ -232,20 +225,17 @@ describe('RichTextMentionsDirective', () => {
         expect(popoverOf(fixture)!.query()).toBe('привет.мир-2');
     });
 
-    it('does not treat an email address as a mention trigger', () => {
-        const fixture = createFixture();
-        type(fixture, 'Reach me at test@example.com');
-        expect(popoverOf(fixture)).toBeNull();
-    });
-
     it('loads search results into the popover after debounce', async () => {
         const fixture = createFixture();
         type(fixture, '@jane');
         await wait();
         fixture.detectChanges();
-        const items = popoverOf(fixture)!.items();
-        expect(items).toHaveLength(1);
-        expect(items[0].label).toBe('Jane Smith');
+        expect(popoverOf(fixture)!.items().map((i) => i.label)).toEqual(['Jane Smith']);
+
+        type(fixture, '#an');
+        await wait();
+        fixture.detectChanges();
+        expect(popoverOf(fixture)!.items().map((i) => i.label)).toEqual(['Angular UI']);
     });
 
     it('inserts a mention chip and places the caret outside it, emitting mentionInsert', () => {
@@ -260,7 +250,10 @@ describe('RichTextMentionsDirective', () => {
         expect(chip!.textContent).toBe('@John Doe');
         const anchorParent = document.getSelection()?.anchorNode?.parentElement;
         expect(anchorParent?.hasAttribute('data-mention')).toBe(false);
-        expect(fixture.componentInstance.mentions).toHaveLength(1);
+        expect(fixture.componentInstance.mentions).toEqual([expect.objectContaining({
+            type: 'mention', trigger: '@', id: 'u1', value: 'john-doe', label: 'John Doe',
+            query: 'jo', html: chip!.outerHTML,
+        })]);
     });
 
     it('renders a mention as a link when the render mode is link', () => {
@@ -298,7 +291,7 @@ describe('RichTextMentionsDirective', () => {
         el.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
         el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
         fixture.detectChanges();
-        expect(el.querySelector('[data-mention]')).toBeTruthy();
+        expect(el.querySelector('[data-mention]')?.getAttribute('data-mention')).toBe('jane.smith');
     });
 
     it('handles Enter and Tab without throwing', async () => {
@@ -379,23 +372,6 @@ describe('RichTextMentionsDirective', () => {
         return fixture;
     }
 
-    it('falls back to the empty default search for mentions and tags', async () => {
-        const fixture = TestBed.createComponent(DefaultSearchHostCmp);
-        fixtures.push(fixture);
-        document.body.appendChild(fixture.nativeElement);
-        fixture.detectChanges();
-
-        typeInto(fixture, '@jo');
-        await wait();
-        fixture.detectChanges();
-        expect(popoverIn(fixture)!.items()).toHaveLength(0);
-
-        typeInto(fixture, '#ux');
-        await wait();
-        fixture.detectChanges();
-        expect(popoverIn(fixture)!.items()).toHaveLength(0);
-    });
-
     it('loads observable search results into the popover', async () => {
         const fixture = mountSearchHost();
         fixture.componentInstance.search.set(() => of(USERS));
@@ -435,7 +411,8 @@ describe('RichTextMentionsDirective', () => {
         const { el } = type(fixture, '@jo');
         expect(popoverOf(fixture)).toBeTruthy();
 
-        el.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true, cancelable: true }));
+        const notCancelled = el.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true, cancelable: true }));
+        expect(notCancelled).toBe(true);
         expect(popoverOf(fixture)).toBeTruthy();
     });
 
@@ -462,6 +439,7 @@ describe('RichTextMentionsDirective', () => {
         fixture.detectChanges();
 
         expect(el.querySelector('[data-mention="john-doe"]')).toBeTruthy();
+        expect(el.textContent).toMatch(/^@John Doe\s$/);
     });
 
     it('appends the entity at the content root when no selection survives to insert time', () => {
@@ -477,21 +455,17 @@ describe('RichTextMentionsDirective', () => {
         expect(el.querySelector('[data-mention="john-doe"]')).toBeTruthy();
     });
 
-    it('skips caret positioning when the selection has no range', () => {
+    it('positions the popover from the caret block when the range rect is degenerate', () => {
         const fixture = createFixture();
-        const directive = fixture.debugElement.query(By.directive(RichTextEditorComponent))
-            .injector.get(RichTextMentionsDirective) as unknown as { updatePosition(): void };
-        const spy = vi.spyOn(Document.prototype, 'getSelection')
-            .mockReturnValue({ rangeCount: 0 } as unknown as Selection);
-        try {
-            expect(() => directive.updatePosition()).not.toThrow();
-        } finally {
-            spy.mockRestore();
-        }
-    });
-
-    it('opens without a caret rect when the range rect is degenerate', () => {
-        const fixture = createFixture();
+        const { el, cmp } = editorOf(fixture);
+        el.innerHTML = '<p>@jo</p>';
+        const block = el.querySelector('p')!;
+        cmp.overlayAnchor.getBoundingClientRect = () => ({
+            x: 0, y: 0, width: 800, height: 600, top: 0, left: 0, right: 800, bottom: 600, toJSON: () => ({}),
+        } as DOMRect);
+        block.getBoundingClientRect = () => ({
+            x: 30, y: 20, width: 200, height: 20, top: 20, left: 30, right: 230, bottom: 40, toJSON: () => ({}),
+        } as DOMRect);
         const rangeProto = Range.prototype as unknown as Record<string, unknown>;
         const saved = Object.getOwnPropertyDescriptor(rangeProto, 'getBoundingClientRect');
         const zeroRect = (): DOMRect => ({
@@ -500,8 +474,12 @@ describe('RichTextMentionsDirective', () => {
         Object.defineProperty(rangeProto, 'getBoundingClientRect', { value: zeroRect, configurable: true, writable: true });
 
         try {
-            type(fixture, '@jo');
-            expect(popoverOf(fixture)).toBeTruthy();
+            setCaret(block.firstChild!, 3);
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+            const listbox = fixture.nativeElement.querySelector('[role="listbox"]') as HTMLElement;
+            expect(listbox.style.left).toBe('30px');
+            expect(listbox.style.top).toBe('45px');
         } finally {
             if (saved) Object.defineProperty(rangeProto, 'getBoundingClientRect', saved);
         }

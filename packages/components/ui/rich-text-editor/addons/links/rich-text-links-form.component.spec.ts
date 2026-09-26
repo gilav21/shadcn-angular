@@ -70,6 +70,10 @@ describe('RichTextLinksFormComponent', () => {
     });
 
     it('renders the remove button and update label only in edit mode', () => {
+        const root = fixture.nativeElement as HTMLElement;
+        expect(root.querySelectorAll('button')).toHaveLength(2);
+        expect(confirmButton().textContent?.trim()).toBe(RICH_TEXT_LINKS_LOCALES['en'].insert);
+
         fixture.componentRef.setInput('showRemove', true);
         fixture.componentRef.setInput('url', 'https://old.test');
         fixture.detectChanges();
@@ -78,9 +82,7 @@ describe('RichTextLinksFormComponent', () => {
         const cancelled = vi.fn();
         component.removeLink.subscribe(removed);
         component.cancelLink.subscribe(cancelled);
-        const buttons = Array.from(
-            (fixture.nativeElement as HTMLElement).querySelectorAll('button'),
-        );
+        const buttons = Array.from(root.querySelectorAll('button'));
         expect(buttons).toHaveLength(3);
         expect(confirmButton().textContent?.trim()).toBe(RICH_TEXT_LINKS_LOCALES['en'].update);
 

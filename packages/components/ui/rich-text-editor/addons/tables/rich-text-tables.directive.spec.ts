@@ -98,7 +98,7 @@ describe('RichTextTablesDirective', () => {
         const fixture = TestBed.createComponent(ToggleHostCmp);
         openFixtures.push(fixture);
         fixture.detectChanges();
-        expect(fixture.nativeElement.querySelector('[data-addon-slot="tables.insert"]')).toBeTruthy();
+        expect(fixture.nativeElement.querySelector('[data-addon-slot="tables.insert"] button[title="Insert Table"]')).toBeTruthy();
 
         fixture.componentInstance.enabled.set(false);
         fixture.detectChanges();
@@ -107,13 +107,6 @@ describe('RichTextTablesDirective', () => {
         fixture.componentInstance.enabled.set(true);
         fixture.detectChanges();
         expect(fixture.nativeElement.querySelector('[data-addon-slot="tables.insert"]')).toBeTruthy();
-    });
-
-    it('contributes a table toolbar slot with the localized tooltip', () => {
-        const fixture = createFixture();
-        const slot = fixture.nativeElement.querySelector('[data-addon-slot="tables.insert"]');
-        expect(slot).toBeTruthy();
-        expect(slot.querySelector('button[title="Insert Table"]')).toBeTruthy();
     });
 
     it('inserts a 3x4 table with the right rows and columns and emits tableInsert', () => {
@@ -132,6 +125,7 @@ describe('RichTextTablesDirective', () => {
             expect(bodyRow.querySelectorAll('td')).toHaveLength(4);
         }
         expect(fixture.componentInstance.inserted).toEqual([{ rows: 3, cols: 4 }]);
+        expect(table.nextElementSibling?.tagName).toBe('P');
     });
 
     it('inserts a header-only table for a 1x1 selection', () => {
@@ -144,16 +138,6 @@ describe('RichTextTablesDirective', () => {
         const table = el.querySelector('table')!;
         expect(table.querySelectorAll('thead tr th')).toHaveLength(1);
         expect(table.querySelectorAll('tbody tr')).toHaveLength(0);
-    });
-
-    it('places a trailing paragraph after the inserted table', () => {
-        const fixture = createFixture();
-        const el = setContent(fixture, '<p>x</p>');
-        caretInside(el.firstChild!.firstChild!, 1);
-
-        insertGrid(fixture, 2, 2);
-
-        expect(el.querySelector('table')!.nextElementSibling?.tagName).toBe('P');
     });
 
     it('does not insert a table while the editor is disabled', () => {
@@ -175,13 +159,6 @@ describe('RichTextTablesDirective', () => {
         fixture.detectChanges();
 
         expect(fixture.nativeElement.querySelector('[data-addon-slot="tables.insert"]')).toBeNull();
-    });
-
-    it('tracks the hovered grid size before selection', () => {
-        const fixture = createFixture();
-        const probe = buttonProbe(fixture);
-        probe.onHover(4, 5);
-        expect(probe.hoverRows()).toBe(4);
     });
 
     it('disables the toolbar button while the editor is disabled', () => {

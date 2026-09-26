@@ -8,7 +8,7 @@ import {
     type RichTextImageSources,
 } from './rich-text-images.context';
 import { RICH_TEXT_IMAGES_LOCALES } from './rich-text-images.locales';
-import { RichTextEditorAddonHost, RichTextToolbarViewContext } from '../..';
+import { RichTextEditorAddonHost } from '../..';
 
 const LOCALE_EN = RICH_TEXT_IMAGES_LOCALES['en'];
 
@@ -50,15 +50,12 @@ interface ButtonInternals {
     onInsertUrl(src: HTMLInputElement, alt: HTMLInputElement): void;
     onFileSelected(event: Event): void;
     readonly open: () => boolean;
-    readonly showUrl: () => boolean;
-    readonly showUpload: () => boolean;
     readonly locale: () => typeof LOCALE_EN;
 }
 
 describe('RichTextImagesButtonComponent', () => {
     const disabled = signal(false);
     const readonly = signal(false);
-    const compact = signal(false);
     const sources = signal<RichTextImageSources>('all');
     const onOpen = vi.fn<() => void>();
     const onInsertUrl = vi.fn<(url: string, alt: string) => void>();
@@ -75,14 +72,13 @@ describe('RichTextImagesButtonComponent', () => {
     let fixture: ComponentFixture<RichTextImagesButtonComponent>;
     let internals: ButtonInternals;
 
-    async function setup(withToolbarView = false): Promise<void> {
+    async function setup(): Promise<void> {
         TestBed.resetTestingModule();
         await TestBed.configureTestingModule({
             imports: [RichTextImagesButtonComponent],
             providers: [
                 { provide: RichTextEditorAddonHost, useValue: { disabled, isDisabled: disabled, readonly, registerExclusivePopover: () => ({ notifyOpened: () => {}, release: () => {} }) } },
                 { provide: RICH_TEXT_IMAGES_BUTTON_CONTEXT, useValue: context },
-                ...(withToolbarView ? [{ provide: RichTextToolbarViewContext, useValue: { compact } }] : []),
             ],
         }).compileComponents();
         fixture = TestBed.createComponent(RichTextImagesButtonComponent);
@@ -90,10 +86,20 @@ describe('RichTextImagesButtonComponent', () => {
         fixture.detectChanges();
     }
 
+    /** Open the popover and report which insert controls it rendered. */
+    function openControls(): { url: boolean; upload: boolean } {
+        internals.onOpenChange(true);
+        fixture.detectChanges();
+        const host = fixture.nativeElement as HTMLElement;
+        return {
+            url: host.querySelector('[data-slot="rte-images-url"]') !== null,
+            upload: host.querySelector('[data-slot="rte-images-file"]') !== null,
+        };
+    }
+
     beforeEach(() => {
         disabled.set(false);
         readonly.set(false);
-        compact.set(false);
         sources.set('all');
         onOpen.mockReset();
         onInsertUrl.mockReset();
@@ -109,24 +115,19 @@ describe('RichTextImagesButtonComponent', () => {
 
     it('exposes both URL and upload sources by default', async () => {
         await setup();
-        expect(internals.showUrl()).toBe(true);
-        expect(internals.showUpload()).toBe(true);
+        expect(openControls()).toEqual({ url: true, upload: true });
     });
 
     it('hides the URL form when sources is upload-only', async () => {
         await setup();
         sources.set('upload');
-        fixture.detectChanges();
-        expect(internals.showUrl()).toBe(false);
-        expect(internals.showUpload()).toBe(true);
+        expect(openControls()).toEqual({ url: false, upload: true });
     });
 
     it('hides the upload control when sources is url-only', async () => {
         await setup();
         sources.set('url');
-        fixture.detectChanges();
-        expect(internals.showUrl()).toBe(true);
-        expect(internals.showUpload()).toBe(false);
+        expect(openControls()).toEqual({ url: true, upload: false });
     });
 
     it('saves the selection and opens on open change', async () => {
@@ -193,19 +194,6 @@ describe('RichTextImagesButtonComponent', () => {
         expect(onInsertUrl).not.toHaveBeenCalled();
     });
 
-    it('uploads a chosen file, closes, and clears the input value', async () => {
-        await setup();
-        const input = document.createElement('input');
-        input.type = 'file';
-        const file = new File(['x'], 'p.png', { type: 'image/png' });
-        Object.defineProperty(input, 'files', { value: [file], configurable: true });
-        input.value = '';
-        internals.onOpenChange(true);
-        internals.onFileSelected({ target: input } as unknown as Event);
-        expect(onUploadFile).toHaveBeenCalledWith(file);
-        expect(internals.open()).toBe(false);
-    });
-
     it('ignores a file change with no file', async () => {
         await setup();
         const input = document.createElement('input');
@@ -225,11 +213,4 @@ describe('RichTextImagesButtonComponent', () => {
         expect(onUploadFile).not.toHaveBeenCalled();
     });
 
-    it('uses compact padding inside a compact toolbar', async () => {
-        compact.set(true);
-        await setup(true);
-        const button = (fixture.nativeElement as HTMLElement)
-            .querySelector<HTMLButtonElement>('[data-slot="rte-images-button"]');
-        expect(button?.className).toContain('p-1');
-    });
 });

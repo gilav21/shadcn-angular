@@ -76,9 +76,7 @@ interface MockHost {
 /** Protected/private surface of the panel exercised by the tests. */
 interface PanelInternals {
     historyTimelineEntries(): ReadonlyArray<RichTextHistoryEntrySnapshot & { active: boolean }>;
-    historyCount(): number;
     selectedHistoryEntry(): { index: number; html: string; markdown: string; timestamp: number } | null;
-    interpolate(template: string, values: Record<string, string | number>): string;
     onHistoryPanelOpenChange(next: boolean): void;
     openHistoryPreview(index: number, event?: Event): void;
     onQuickApplyFromHistory(index: number, event: Event): void;
@@ -157,9 +155,13 @@ describe('RichTextHistoryPanelComponent', () => {
         fixture.destroy();
     });
 
-    it('creates and renders the corner button when showButton is true', () => {
-        expect(panel).toBeInstanceOf(RichTextHistoryPanelComponent);
-        expect((fixture.nativeElement as HTMLElement).querySelector('ui-button')).toBeTruthy();
+    it('labels the corner button with the live history count', () => {
+        const button = (fixture.nativeElement as HTMLElement).querySelector('ui-button');
+        expect(button?.textContent?.trim()).toBe('History (3)');
+
+        host.historyEntries.set([snapshot(0), snapshot(1), snapshot(2), snapshot(3)]);
+        fixture.detectChanges();
+        expect(button?.textContent?.trim()).toBe('History (4)');
     });
 
     it('reverses the timeline and marks the active entry', () => {
@@ -167,14 +169,6 @@ describe('RichTextHistoryPanelComponent', () => {
         expect(entries).toHaveLength(3);
         expect(entries[0].index).toBe(2);
         expect(entries.find((e) => e.index === 1)?.active).toBe(true);
-    });
-
-    it('reports the history count', () => {
-        expect(internals.historyCount()).toBe(3);
-    });
-
-    it('interpolates template values', () => {
-        expect(internals.interpolate('{count} left', { count: 4 })).toContain('4');
     });
 
     describe('rendered preview', () => {
@@ -206,10 +200,6 @@ describe('RichTextHistoryPanelComponent', () => {
     });
 
     describe('selectedHistoryEntry', () => {
-        it('is null when nothing is selected', () => {
-            expect(internals.selectedHistoryEntry()).toBeNull();
-        });
-
         it('returns the reconstructed entry for a valid selection', () => {
             internals.openHistoryPreview(0);
             const selected = internals.selectedHistoryEntry();
@@ -306,11 +296,28 @@ describe('RichTextHistoryPanelComponent', () => {
     });
 
     describe('onQuickApplyFromHistory', () => {
-        it('applies the entry and resolves the list type from the target', () => {
-            const row = makeRow('popover', 1);
-            internals.onQuickApplyFromHistory(1, { currentTarget: row } as unknown as Event);
+        it('applies the entry and returns focus to that row in the list it was clicked in', async () => {
+            const root = fixture.nativeElement as HTMLElement;
+            const rowIn = (list: 'popover' | 'dialog'): HTMLElement => {
+                const container = document.createElement('div');
+                container.dataset['historyList'] = list;
+                const row = document.createElement('div');
+                row.dataset['historyEntryAction'] = 'true';
+                row.dataset['historyEntryIndex'] = '1';
+                row.tabIndex = 0;
+                container.appendChild(row);
+                root.appendChild(container);
+                return row;
+            };
+            const dialogRow = rowIn('dialog');
+            const popoverRow = rowIn('popover');
+
+            internals.onQuickApplyFromHistory(1, { currentTarget: popoverRow } as unknown as Event);
+            await new Promise((r) => setTimeout(r, 0));
+
             expect(host.restoreHistoryEntry).toHaveBeenCalledWith(1);
-            expect(internals.lastAppliedHistoryIndex()).toBe(1);
+            expect(document.activeElement).toBe(popoverRow);
+            expect(document.activeElement).not.toBe(dialogRow);
         });
 
         it('applies even when the event has no current target', () => {
@@ -463,9 +470,21 @@ describe('RichTextHistoryPanelComponent', () => {
             expect(focusSpy).toHaveBeenCalled();
         });
 
-        it('retries and gives up when no action ever appears', () => {
+        it('retries until the first action appears, and gives up after the fifth attempt', () => {
+            // Attempts run at 24ms, then every 16ms: 24, 40, 56, 72, 88.
             internals.focusFirstHistoryActionSoon('dialog');
-            expect(() => vi.advanceTimersByTime(24 + 16 * 5)).not.toThrow();
+            vi.advanceTimersByTime(72);
+            const late = seedActionInPanel('dialog', 0);
+            vi.advanceTimersByTime(16);
+            expect(document.activeElement).toBe(late);
+
+            late.blur();
+            late.parentElement!.remove();
+            internals.focusFirstHistoryActionSoon('dialog');
+            vi.advanceTimersByTime(88);
+            const tooLate = seedActionInPanel('dialog', 0);
+            vi.advanceTimersByTime(1000);
+            expect(document.activeElement).not.toBe(tooLate);
         });
 
         it('focuses a specific entry by index', () => {

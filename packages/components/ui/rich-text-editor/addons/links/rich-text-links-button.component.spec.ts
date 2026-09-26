@@ -11,7 +11,6 @@ type ButtonProbe = {
     onOpenChange(next: boolean): void;
     onSubmit(payload: RichTextLinkSubmit): void;
     open: { (): boolean };
-    interactionDisabled(): boolean;
 };
 
 describe('RichTextLinksButtonComponent', () => {
@@ -96,17 +95,17 @@ describe('RichTextLinksButtonComponent', () => {
         expect(probe.open()).toBe(false);
     });
 
-    it('disables interaction while the editor is disabled or readonly', () => {
-        expect(probe.interactionDisabled()).toBe(false);
+    it('disables the trigger button while the editor is disabled or readonly', () => {
+        const button = (fixture.nativeElement as HTMLElement).querySelector('button')!;
+        expect(button.disabled).toBe(false);
+
         readonly.set(true);
         fixture.detectChanges();
-        expect(probe.interactionDisabled()).toBe(true);
+        expect(button.disabled).toBe(true);
 
         readonly.set(false);
         disabled.set(true);
         fixture.detectChanges();
-        expect(probe.interactionDisabled()).toBe(true);
-        const button = (fixture.nativeElement as HTMLElement).querySelector('button');
-        expect(button?.disabled).toBe(true);
+        expect(button.disabled).toBe(true);
     });
 });

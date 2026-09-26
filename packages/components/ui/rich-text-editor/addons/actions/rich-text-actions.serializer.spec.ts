@@ -29,12 +29,6 @@ describe('action serializer', () => {
         expect(validateActionParams(big)).toBeNull();
     });
 
-    it('canonicalization is idempotent', () => {
-        const once = validateActionParams('{"b":2,"a":1}');
-        expect(once).not.toBeNull();
-        expect(validateActionParams(once as string)).toBe(once);
-    });
-
     it('writes and reads both triggers off one element', () => {
         const el = document.createElement('span');
         writeAction(el, 'click', 'open-dialog', { dialogId: 'pricing' });

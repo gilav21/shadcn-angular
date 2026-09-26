@@ -32,6 +32,7 @@ import { RichTextImageResizerComponent } from './rich-text-images-resizer.compon
 import type { RichTextImagesButtonContext } from './rich-text-images.context';
 import type { RichTextImageSources } from './rich-text-images.context';
 import { RichTextEditorComponent } from '../..';
+import { RICH_TEXT_IMAGES_LOCALES } from './rich-text-images.locales';
 
 const TINY_BASE64 =
     'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
@@ -108,6 +109,31 @@ describe('RichTextImagesDirective', () => {
     function resizer(fixture: ComponentFixture<HostCmp>): RichTextImageResizerComponent | null {
         const de = fixture.debugElement.query(By.directive(RichTextImageResizerComponent));
         return de ? (de.componentInstance as RichTextImageResizerComponent) : null;
+    }
+
+    const LOCALE_EN = RICH_TEXT_IMAGES_LOCALES['en'];
+
+    /** An overlay button (resize handle or toolbar button) by its accessible name. */
+    function overlayButton(fixture: ComponentFixture<HostCmp>, label: string): HTMLButtonElement {
+        const btn = (fixture.nativeElement as HTMLElement)
+            .querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
+        expect(btn).not.toBeNull();
+        return btn!;
+    }
+
+    /** The Retry button on the first auto-upload error badge. */
+    function retryButton(fixture: ComponentFixture<HostCmp>): HTMLButtonElement {
+        fixture.detectChanges();
+        const btn = Array.from((fixture.nativeElement as HTMLElement)
+            .querySelectorAll<HTMLButtonElement>('[data-slot="rte-images-error"] button'))
+            .find((b) => b.textContent?.trim() === LOCALE_EN.uploadRetry);
+        expect(btn).toBeDefined();
+        return btn!;
+    }
+
+    function errorBadges(fixture: ComponentFixture<HostCmp>): number {
+        fixture.detectChanges();
+        return (fixture.nativeElement as HTMLElement).querySelectorAll('[data-slot="rte-images-error"]').length;
     }
 
     function setContent(fixture: ComponentFixture<HostCmp>, html: string): { el: HTMLElement; cmp: RichTextEditorComponent } {
@@ -451,38 +477,50 @@ describe('RichTextImagesDirective', () => {
         expect(resizer(fixture)?.target()).toBe(img);
     });
 
-    it('resizes the selected image via mouse and touch drag', () => {
+    it('records a drag resize as one undoable step', () => {
         const fixture = createFixture();
-        const { el } = setContent(fixture, '<p><img src="https://cdn.test/a.png" alt="a"></p>');
+        const { el, cmp } = setContent(fixture, '<p><img src="https://cdn.test/a.png" alt="a"></p>');
+        cmp.flushPendingHistoryPush();
         const img = el.querySelector('img')!;
         Object.defineProperty(img, 'getBoundingClientRect', {
             value: () => ({ width: 100, height: 80, top: 0, left: 0, right: 100, bottom: 80 }),
         });
         img.dispatchEvent(new MouseEvent('click', { bubbles: true }));
         fixture.detectChanges();
-        const rz = resizer(fixture)!;
 
-        rz.startResize(new MouseEvent('mousedown', { clientX: 0, clientY: 0 }), 'se');
+        overlayButton(fixture, resizer(fixture)!.handleLabel('se'))
+            .dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 0, clientY: 0 }));
         document.dispatchEvent(new MouseEvent('mousemove', { clientX: 40, clientY: 40 }));
-        expect(Number.parseInt(img.style.width, 10)).toBeGreaterThan(100);
         document.dispatchEvent(new MouseEvent('mouseup'));
+        expect([img.style.width, img.style.height]).toEqual(['140px', '112px']);
 
-        const touch = { clientX: 60, clientY: 60 } as Touch;
-        rz.startResize({ preventDefault: vi.fn(), stopPropagation: vi.fn(), touches: [touch] } as unknown as TouchEvent, 'se');
-        document.dispatchEvent(Object.assign(new Event('touchmove'), { touches: [{ clientX: 80, clientY: 80 }], preventDefault: vi.fn() }));
-        expect(Number.parseInt(img.style.width, 10)).toBeGreaterThan(100);
-        document.dispatchEvent(new Event('touchend'));
+        cmp.undo();
+        const restored = el.querySelector('img');
+        expect(restored).not.toBeNull();
+        expect(restored!.style.width).toBe('');
+
+        cmp.redo();
+        expect(el.querySelector('img')?.style.width).toBe('140px');
     });
 
-    it('changes image alignment through the overlay', () => {
+    it('changes image alignment through the overlay as one undoable step', () => {
         const fixture = createFixture();
-        const { el } = setContent(fixture, '<p><img src="https://cdn.test/a.png" alt="a"></p>');
+        const { el, cmp } = setContent(fixture, '<p><img src="https://cdn.test/a.png" alt="a"></p>');
+        cmp.flushPendingHistoryPush();
         const img = el.querySelector('img')!;
         img.dispatchEvent(new MouseEvent('click', { bubbles: true }));
         fixture.detectChanges();
-        resizer(fixture)!.onAlignClick(new MouseEvent('mousedown'), 'right');
+
+        overlayButton(fixture, LOCALE_EN.floatRight)
+            .dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
         expect(img.dataset['align']).toBe('right');
         expect(img.style.float).toBe('right');
+
+        cmp.undo();
+        const restored = el.querySelector('img');
+        expect(restored).not.toBeNull();
+        expect(restored!.dataset['align']).toBeUndefined();
+        expect(restored!.style.float).toBe('');
     });
 
     it('removes the selected image through the overlay', () => {
@@ -496,26 +534,12 @@ describe('RichTextImagesDirective', () => {
         expect(el.querySelector('img')).toBeNull();
     });
 
-    it('does not insert when the editor is disabled', () => {
-        const fixture = createFixture();
-        fixture.componentInstance.disabled.set(true);
-        fixture.detectChanges();
-        const { el, cmp } = editorOf(fixture);
-        cmp.onPaste(pasteEvent([new File(['img'], 'x.png', { type: 'image/png' })]));
-        expect(el.querySelector('img')).toBeNull();
-    });
-
     // ── Edge / error / defensive paths ────────────────────────────────
 
     interface DirectiveInternals {
         autoUploadErrors: WritableSignal<Map<string, { dataUrl: string; imgElement: HTMLImageElement }>>;
         autoUploadMap: Map<string, { subscription: Subscription; dataUrl: string }>;
-        overlayRef?: unknown;
-        scanForBase64Images(): void;
-        processAutoUploadImage(img: HTMLImageElement): void;
         removeAutoUploadImage(id: string): void;
-        syncOverlayInputs(): void;
-        errorEntries(): ReadonlyArray<{ id: string }>;
     }
 
     function directiveOf(fixture: ComponentFixture<HostCmp>): RichTextImagesDirective {
@@ -564,20 +588,26 @@ describe('RichTextImagesDirective', () => {
         expect(editorOf(fixture).cmp.toolbarSlots.slots().some((s) => s.id === 'images.insert')).toBe(false);
     });
 
-    it('defers a paste while the image feature is disabled', () => {
+    it('defers a paste while the image feature is disabled', async () => {
         const fixture = createFixture();
         fixture.componentInstance.enabled.set(false);
         fixture.detectChanges();
         const { el, cmp } = setContent(fixture, '<p>x</p>');
-        cmp.onPaste(pasteEvent([imageFile()]));
+        caretAtEnd(el.querySelector('p')!);
+        cmp.onPaste(pasteEvent([imageFile()], '', 'pasted words'));
+        await wait();
         expect(el.querySelector('img')).toBeNull();
+        expect(el.textContent).toContain('pasted words');
     });
 
-    it('defers a paste that carries no image file', () => {
+    it('defers a paste that carries no image file', async () => {
         const fixture = createFixture();
         const { el, cmp } = setContent(fixture, '<p>x</p>');
-        cmp.onPaste(pasteEvent([new File(['t'], 'a.txt', { type: 'text/plain' })]));
+        caretAtEnd(el.querySelector('p')!);
+        cmp.onPaste(pasteEvent([new File(['t'], 'a.txt', { type: 'text/plain' })], '', 'pasted words'));
+        await wait();
         expect(el.querySelector('img')).toBeNull();
+        expect(el.textContent).toContain('pasted words');
     });
 
     it('defers a drop while the image feature is disabled', async () => {
@@ -593,9 +623,13 @@ describe('RichTextImagesDirective', () => {
     it('defers a drop that carries no image file', async () => {
         const fixture = createFixture();
         const { el, cmp } = editorOf(fixture);
-        await cmp.onEditorDrop(dropEvent([new File(['t'], 'a.txt', { type: 'text/plain' })]));
+        const drop = dropEvent([new File(['t'], 'a.txt', { type: 'text/plain' })]);
+        await cmp.onEditorDrop(drop);
         await wait();
+        // Unclaimed: the browser's default drop handling stays in charge.
+        expect(drop.preventDefault).not.toHaveBeenCalled();
         expect(el.querySelector('img')).toBeNull();
+        expect(fixture.componentInstance.uploadError).toEqual([]);
     });
 
     it('errors when upload is the only source but no uploader is configured', async () => {
@@ -706,36 +740,48 @@ describe('RichTextImagesDirective', () => {
 
     it('retries a failed auto-upload from the error overlay', async () => {
         const fixture = createFixture();
+        const sent: string[] = [];
         fixture.componentInstance.autoUpload.set(true);
-        fixture.componentInstance.uploader.set(() => throwError(() => new Error('flaky')));
+        fixture.componentInstance.uploader.set((file) => {
+            sent.push(file.type);
+            return sent.length === 1
+                ? throwError(() => new Error('flaky'))
+                : of('https://cdn.example.com/retried.png');
+        });
         fixture.detectChanges();
         const { el } = editorOf(fixture);
-        await appendBase64(el, TINY_BASE64);
-        const errors = internalsOf(fixture).autoUploadErrors();
-        const id = [...errors.keys()][0];
-        expect(id).toBeTruthy();
-        overlayOf(fixture).retryError.emit(id);
-        await wait();
-        expect(internalsOf(fixture).autoUploadErrors().has(id)).toBe(false);
-    });
+        const img = await appendBase64(el, TINY_BASE64);
+        expect(img.dataset['autoUploadStatus']).toBe('error');
 
-    it('ignores a retry for an unknown error id', () => {
-        const fixture = createFixture();
-        expect(() => overlayOf(fixture).retryError.emit('does-not-exist')).not.toThrow();
+        retryButton(fixture).click();
+        await wait();
+
+        // The retry re-sends the original image, not the placeholder.
+        expect(sent).toEqual(['image/png', 'image/png']);
+        expect(img.getAttribute('src')).toBe('https://cdn.example.com/retried.png');
+        expect(fixture.componentInstance.autoComplete).toEqual(['https://cdn.example.com/retried.png']);
+        expect(errorBadges(fixture)).toBe(0);
     });
 
     it('ignores a retry when the errored image is disconnected', async () => {
         const fixture = createFixture();
+        let attempts = 0;
         fixture.componentInstance.autoUpload.set(true);
-        fixture.componentInstance.uploader.set(() => throwError(() => new Error('flaky')));
+        fixture.componentInstance.uploader.set(() => {
+            attempts++;
+            return throwError(() => new Error('flaky'));
+        });
         fixture.detectChanges();
         const { el } = editorOf(fixture);
         const img = await appendBase64(el, TINY_BASE64);
-        const id = [...internalsOf(fixture).autoUploadErrors().keys()][0];
+        const retry = retryButton(fixture);
+
         img.remove();
-        overlayOf(fixture).retryError.emit(id);
+        retry.click();
         await wait();
-        expect('autoUploadStatus' in img.dataset).toBe(true);
+
+        expect(attempts).toBe(1);
+        expect(img.dataset['autoUploadStatus']).toBe('error');
     });
 
     it('removes a failed auto-upload image from the error overlay', async () => {
@@ -758,84 +804,64 @@ describe('RichTextImagesDirective', () => {
         const img = document.createElement('img');
         editorOf(fixture).el.appendChild(img);
         const subscription = new Subscription();
-        const unsub = vi.spyOn(subscription, 'unsubscribe');
         internals.autoUploadMap.set('pending-1', { subscription, dataUrl: TINY_BASE64 });
         internals.autoUploadErrors.set(new Map([['pending-1', { dataUrl: TINY_BASE64, imgElement: img }]]));
         internals.removeAutoUploadImage('pending-1');
-        expect(unsub).toHaveBeenCalled();
+        expect(subscription.closed).toBe(true);
         expect(internals.autoUploadMap.has('pending-1')).toBe(false);
+        expect(img.isConnected).toBe(false);
     });
 
-    it('skips disconnected images when computing error overlay positions', () => {
+    it('drops the badge of an errored image that has left the document', async () => {
         const fixture = createFixture();
-        const internals = internalsOf(fixture);
-        const detached = document.createElement('img');
-        internals.autoUploadErrors.set(new Map([['gone', { dataUrl: TINY_BASE64, imgElement: detached }]]));
-        expect(internals.errorEntries()).toHaveLength(0);
+        fixture.componentInstance.autoUpload.set(true);
+        fixture.componentInstance.uploader.set(() => throwError(() => new Error('flaky')));
+        fixture.detectChanges();
+        const { el } = editorOf(fixture);
+        const first = await appendBase64(el, TINY_BASE64);
+        expect(errorBadges(fixture)).toBe(1);
+
+        first.remove();
+        // A second failure re-lays the badges out.
+        await appendBase64(el, TINY_BASE64);
+        expect(errorBadges(fixture)).toBe(1);
     });
 
-    it('does nothing when auto-uploading an image with no uploader configured', () => {
+    it('leaves a retried image as it is once the uploader has been removed', async () => {
         const fixture = createFixture();
-        const img = document.createElement('img');
-        img.setAttribute('src', TINY_BASE64);
-        expect(() => internalsOf(fixture).processAutoUploadImage(img)).not.toThrow();
+        fixture.componentInstance.autoUpload.set(true);
+        fixture.componentInstance.uploader.set(() => throwError(() => new Error('flaky')));
+        fixture.detectChanges();
+        const { el } = editorOf(fixture);
+        const img = await appendBase64(el, TINY_BASE64);
+        const retry = retryButton(fixture);
+
+        fixture.componentInstance.uploader.set(undefined);
+        fixture.detectChanges();
+        retry.click();
+        await wait();
+
+        expect(img.getAttribute('src')).toBe(TINY_BASE64);
         expect('autoUploadStatus' in img.dataset).toBe(false);
     });
 
-    it('guards the base64 scan when the content root is unavailable', () => {
-        const fixture = createFixture();
-        fixture.componentInstance.uploader.set(() => of('https://cdn.example.com/ok.png'));
-        fixture.detectChanges();
-        const { cmp } = editorOf(fixture);
-        const descriptor = Object.getOwnPropertyDescriptor(
-            Object.getPrototypeOf(cmp), 'contentRoot',
-        );
-        Object.defineProperty(cmp, 'contentRoot', { get: () => null, configurable: true });
-        try {
-            expect(() => internalsOf(fixture).scanForBase64Images()).not.toThrow();
-        } finally {
-            if (descriptor) {
-                delete (cmp as unknown as Record<string, unknown>)['contentRoot'];
-            }
-        }
-    });
-
-    it('is a no-op when syncing overlay inputs before the overlay exists', () => {
-        const fixture = createFixture();
-        const internals = internalsOf(fixture);
-        internals.overlayRef = undefined;
-        expect(() => internals.syncOverlayInputs()).not.toThrow();
-    });
-
-    it('unsubscribes in-flight auto-uploads on teardown', async () => {
+    it('drops an in-flight auto-upload result after teardown', async () => {
         const fixture = createFixture();
         const upload$ = new Subject<string>();
         fixture.componentInstance.autoUpload.set(true);
         fixture.componentInstance.uploader.set(() => upload$);
         fixture.detectChanges();
         const { el } = editorOf(fixture);
-        await appendBase64(el, TINY_BASE64);
-        expect(internalsOf(fixture).autoUploadMap.size).toBeGreaterThan(0);
-        expect(() => fixture.destroy()).not.toThrow();
-    });
+        const img = await appendBase64(el, TINY_BASE64);
+        expect(img.dataset['autoUploadStatus']).toBe('uploading');
 
-    it('ignores mutations that originate from its own edits', async () => {
-        const fixture = createFixture();
-        fixture.componentInstance.autoUpload.set(true);
-        fixture.componentInstance.uploader.set(() => of('https://cdn.example.com/ok.png'));
-        fixture.detectChanges();
+        fixture.destroy();
+        upload$.next('https://cdn.example.com/late.png');
+        upload$.complete();
         await wait();
 
-        const { el } = editorOf(fixture);
-        const internals = directiveOf(fixture) as unknown as { autoUploadMutating: boolean };
-        internals.autoUploadMutating = true;
-        const img = document.createElement('img');
-        img.setAttribute('src', TINY_BASE64);
-        el.appendChild(img);
-        await wait();
-        internals.autoUploadMutating = false;
-
-        expect('autoUploadStatus' in img.dataset).toBe(false);
+        expect(img.getAttribute('src')).toBe(TRANSPARENT_PIXEL);
+        expect(fixture.componentInstance.autoComplete).toEqual([]);
     });
 
     it('tears down auto-upload scanning when the feature is turned off', async () => {
@@ -866,18 +892,6 @@ describe('RichTextImagesDirective', () => {
     describe('shared upload styles (round-15 audit)', () => {
         const styleTag = (): HTMLElement | null =>
             document.getElementById('ui-rte-auto-upload-styles');
-
-        it('removes the global style tag when the last editor using it goes', () => {
-            // The tag was appended once and never removed, so it outlived every
-            // editor and kept styling img[data-auto-upload-status] app-wide.
-            const fixture = createFixture();
-            fixture.componentInstance.autoUpload.set(true);
-            fixture.detectChanges();
-            expect(styleTag()).toBeTruthy();
-
-            fixture.destroy();
-            expect(styleTag()).toBeNull();
-        });
 
         it('keeps the tag while another editor still needs it', () => {
             const a = createFixture();

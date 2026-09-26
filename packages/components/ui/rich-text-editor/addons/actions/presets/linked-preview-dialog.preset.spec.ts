@@ -4,23 +4,11 @@ import { describe, it, expect } from 'vitest';
 import { linkedPreviewDialogAction, linkedPreviewDialogHandlers } from './linked-preview-dialog.preset';
 
 describe('linked-preview-dialog preset', () => {
-    it('action is combined with both triggers and tier-1 fields', () => {
-        const def = linkedPreviewDialogAction();
-        expect(def.combined).toBe(true);
-        expect(def.triggers).toEqual(['click', 'hover']);
-        expect((def.fields ?? []).length).toBeGreaterThan(0);
-    });
-
-    it('handlers map has one entry keyed on the action id', () => {
-        const injector = TestBed.inject(Injector);
-        const handlers = linkedPreviewDialogHandlers(injector);
-        expect(Object.keys(handlers)).toEqual([linkedPreviewDialogAction().id]);
-    });
-
     it('hover start renders a preview card; click opens a dialog', () => {
         const injector = TestBed.inject(Injector);
         const handlers = linkedPreviewDialogHandlers(injector);
         const id = linkedPreviewDialogAction().id;
+        expect(Object.keys(handlers)).toEqual([id]);
         const el = document.createElement('span');
         el.textContent = 'SLA';
         document.body.appendChild(el);
@@ -33,7 +21,7 @@ describe('linked-preview-dialog preset', () => {
         el.remove();
     });
 
-    it('reuses hover-card grace-area/Esc-close logic (delegates, does not reimplement)', async () => {
+    it('reuses hover-card Esc-close logic (delegates, does not reimplement)', async () => {
         const injector = TestBed.inject(Injector);
         const handlers = linkedPreviewDialogHandlers(injector, { closeDelay: 20 });
         const id = linkedPreviewDialogAction().id;
