@@ -187,11 +187,7 @@ describe('RichTextImageResizerComponent', () => {
         });
 
         it('stops AT the 20px minimum rather than freezing', () => {
-            // This asserted that an undersized drag writes NOTHING -- which is
-            // the frozen-drag symptom, enshrined as the contract. With the ratio
-            // locked the gate in onPointerMove cannot be satisfied by shrinking
-            // further, so the image simply stopped responding. Clamping to the
-            // bound is what the resize was always documented to do.
+            // An undersized drag clamps to the bound instead of writing nothing.
             // 100x50 dragged to 10x5: the short side lands on the floor and the
             // 2:1 ratio holds.
             dragHandle('sw', 90);
@@ -250,13 +246,26 @@ describe('RichTextImageResizerComponent', () => {
             expect(dragTo(-1900)).toEqual(['1000px', '20px']);
         });
 
-        it('never returns a dimension under the floor it enforces', () => {
-            // A 1:1000 sliver: the floor must hold on both axes.
+        it('keeps the ceiling and the ratio when the floor cannot hold as well', () => {
+            // A 1:1000 sliver is past MAX/min (500:1): no size keeps both axes
+            // inside [20, 10000] at that ratio, and the ceiling is the hard bound.
             const sliver = buildImage(10, 10000);
             retarget(sliver);
             dragHandle('e', 8990);
-            expect(Number.parseFloat(sliver.style.width)).toBeGreaterThanOrEqual(20);
-            expect(Number.parseFloat(sliver.style.height)).toBeGreaterThanOrEqual(20);
+            const width = Number.parseFloat(sliver.style.width);
+            const height = Number.parseFloat(sliver.style.height);
+            expect(width).toBeLessThanOrEqual(10000);
+            expect(height).toBeLessThanOrEqual(10000);
+            expect(width / height).toBeCloseTo(10 / 10000, 6);
+            document.dispatchEvent(new MouseEvent('mouseup'));
+
+            // A maxWidth is the width ceiling: at 50:1 and a 500px cap, the floor
+            // (1000x20) is out of reach too.
+            fixture.componentRef.setInput('maxWidth', 500);
+            const banner = buildImage(2000, 40);
+            retarget(banner);
+            dragHandle('e', -1500);
+            expect([banner.style.width, banner.style.height]).toEqual(['500px', '10px']);
         });
 
         it('clamps width to maxWidth when growing past the ceiling', () => {
@@ -569,6 +578,24 @@ describe('RichTextImageResizerComponent', () => {
 
             expect(component.visible()).toBe(false);
             container.remove();
+        });
+
+        it('stops listening to a container once it is replaced', async () => {
+            const { container, moveTo } = await mountVisible();
+            const next = document.createElement('div');
+            next.getBoundingClientRect = container.getBoundingClientRect;
+            document.body.appendChild(next);
+            fixture.componentRef.setInput('container', next);
+            fixture.detectChanges();
+            await frame();
+
+            moveTo(70);
+            container.dispatchEvent(new Event('scroll'));
+            await frame();
+
+            expect(component.rect().top).toBe(10);
+            container.remove();
+            next.remove();
         });
 
         it('stops tracking and hides when the target is cleared', async () => {

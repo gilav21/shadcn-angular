@@ -2,7 +2,7 @@ import { Component, signal, type WritableSignal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { Subject, Subscription, of, throwError, type Observable } from 'rxjs';
+import { Subject, of, throwError, type Observable } from 'rxjs';
 import { RichTextImagesOverlayComponent } from './rich-text-images-overlay.component';
 
 /** jsdom lacks ResizeObserver; the resize overlay's tracking effect constructs one. */
@@ -297,6 +297,7 @@ describe('RichTextImagesDirective', () => {
         await wait();
 
         fixture.destroy();
+        expect(upload$.observed).toBe(false);
         const completedBefore = [...fixture.componentInstance.uploadComplete];
 
         upload$.next('https://cdn.example.com/late.png');
@@ -397,27 +398,36 @@ describe('RichTextImagesDirective', () => {
 
     it('auto-uploads a base64 image and swaps in the returned URL', async () => {
         const fixture = createFixture();
-        const upload$ = new Subject<string>();
+        const sent: string[] = [];
+        const replies: Subject<string>[] = [];
         fixture.componentInstance.autoUpload.set(true);
-        fixture.componentInstance.uploader.set(() => upload$);
+        fixture.componentInstance.uploader.set((file) => {
+            sent.push(file.name);
+            const reply = new Subject<string>();
+            replies.push(reply);
+            return reply;
+        });
         fixture.detectChanges();
         const { el } = editorOf(fixture);
 
-        const img = document.createElement('img');
-        img.setAttribute('src', TINY_BASE64);
-        el.appendChild(img);
+        // A returned data URL (a client-side compressor, say) is written by the
+        // directive itself, so it must not be picked up and sent again.
+        for (const returned of ['https://cdn.example.com/uploaded.png', TINY_BASE64]) {
+            const img = await appendBase64(el, TINY_BASE64);
+            expect(img.dataset['autoUploadStatus']).toBe('uploading');
+            expect(img.getAttribute('src')).toBe(TRANSPARENT_PIXEL);
+
+            replies.at(-1)!.next(returned);
+            replies.at(-1)!.complete();
+            await wait();
+
+            expect(img.getAttribute('src')).toBe(returned);
+            expect('autoUploadId' in img.dataset).toBe(false);
+            expect(fixture.componentInstance.autoComplete.at(-1)).toBe(returned);
+        }
+        el.appendChild(document.createElement('p'));
         await wait();
-
-        expect(img.dataset['autoUploadStatus']).toBe('uploading');
-        expect(img.getAttribute('src')).toBe(TRANSPARENT_PIXEL);
-
-        upload$.next('https://cdn.example.com/uploaded.png');
-        upload$.complete();
-        await wait();
-
-        expect(img.getAttribute('src')).toBe('https://cdn.example.com/uploaded.png');
-        expect('autoUploadId' in img.dataset).toBe(false);
-        expect(fixture.componentInstance.autoComplete).toContain('https://cdn.example.com/uploaded.png');
+        expect(sent).toHaveLength(2);
     });
 
     it('drops an auto-upload result whose image was detached mid-flight', async () => {
@@ -538,8 +548,6 @@ describe('RichTextImagesDirective', () => {
 
     interface DirectiveInternals {
         autoUploadErrors: WritableSignal<Map<string, { dataUrl: string; imgElement: HTMLImageElement }>>;
-        autoUploadMap: Map<string, { subscription: Subscription; dataUrl: string }>;
-        removeAutoUploadImage(id: string): void;
     }
 
     function directiveOf(fixture: ComponentFixture<HostCmp>): RichTextImagesDirective {
@@ -717,13 +725,29 @@ describe('RichTextImagesDirective', () => {
 
     it('reverts and reports a base64 image that is not a valid image', async () => {
         const fixture = createFixture();
+        const sent: string[] = [];
         fixture.componentInstance.autoUpload.set(true);
-        fixture.componentInstance.uploader.set(() => of('https://cdn.example.com/ok.png'));
+        fixture.componentInstance.uploader.set((file) => {
+            sent.push(file.name);
+            return of('https://cdn.example.com/ok.png');
+        });
         fixture.detectChanges();
-        const { el } = editorOf(fixture);
-        await appendBase64(el, 'data:image/png;base64,QUJD');
+        const { el, cmp } = editorOf(fixture);
+        const img = await appendBase64(el, 'data:image/png;base64,QUJD');
         expect(fixture.componentInstance.autoError)
-            .toContain('The image could not be uploaded because its content is not a valid image.');
+            .toEqual(['The image could not be uploaded because its content is not a valid image.']);
+
+        // The placeholder left behind is itself a data URL; no later edit may
+        // send it, nor a copy restored as a new element, as undo does.
+        el.appendChild(document.createElement('p'));
+        await wait();
+        cmp.setContent(el.innerHTML);
+        await wait();
+        expect(el.querySelector('img')?.getAttribute('src')).toBe(TRANSPARENT_PIXEL);
+
+        expect(sent).toEqual([]);
+        expect(fixture.componentInstance.autoComplete).toEqual([]);
+        expect(img.getAttribute('src')).toBe(TRANSPARENT_PIXEL);
     });
 
     it('reports an auto-upload whose returned URL the sanitizer disallows', async () => {
@@ -798,18 +822,38 @@ describe('RichTextImagesDirective', () => {
         expect(internalsOf(fixture).autoUploadErrors().has(id)).toBe(false);
     });
 
-    it('unsubscribes a still-pending upload when its image is removed', () => {
+    it('cancels an upload as soon as its image leaves the editor', async () => {
         const fixture = createFixture();
-        const internals = internalsOf(fixture);
-        const img = document.createElement('img');
-        editorOf(fixture).el.appendChild(img);
-        const subscription = new Subscription();
-        internals.autoUploadMap.set('pending-1', { subscription, dataUrl: TINY_BASE64 });
-        internals.autoUploadErrors.set(new Map([['pending-1', { dataUrl: TINY_BASE64, imgElement: img }]]));
-        internals.removeAutoUploadImage('pending-1');
-        expect(subscription.closed).toBe(true);
-        expect(internals.autoUploadMap.has('pending-1')).toBe(false);
-        expect(img.isConnected).toBe(false);
+        const uploads: Subject<string>[] = [];
+        fixture.componentInstance.autoUpload.set(true);
+        fixture.componentInstance.uploader.set(() => {
+            const upload$ = new Subject<string>();
+            uploads.push(upload$);
+            return upload$;
+        });
+        fixture.detectChanges();
+        const { el, cmp } = editorOf(fixture);
+
+        // Deleted along with the paragraph that holds it.
+        const paragraph = document.createElement('p');
+        el.appendChild(paragraph);
+        const deleted = await appendBase64(paragraph, TINY_BASE64);
+        expect(deleted.dataset['autoUploadStatus']).toBe('uploading');
+        paragraph.remove();
+        await wait();
+        expect(uploads[0].observed).toBe(false);
+
+        // Moved within the editor: removed and re-added in one batch.
+        const moved = await appendBase64(el, TINY_BASE64);
+        const target = document.createElement('p');
+        el.appendChild(target);
+        target.appendChild(moved);
+        await wait();
+        expect(uploads[1].observed).toBe(true);
+
+        cmp.setContent('<p>replaced</p>');
+        await wait();
+        expect(uploads[1].observed).toBe(false);
     });
 
     it('drops the badge of an errored image that has left the document', async () => {
@@ -856,6 +900,7 @@ describe('RichTextImagesDirective', () => {
         expect(img.dataset['autoUploadStatus']).toBe('uploading');
 
         fixture.destroy();
+        expect(upload$.observed).toBe(false);
         upload$.next('https://cdn.example.com/late.png');
         upload$.complete();
         await wait();
