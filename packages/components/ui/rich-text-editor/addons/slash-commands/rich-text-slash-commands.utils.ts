@@ -157,7 +157,9 @@ export function findClosestEditableBlockFromRange(doc: Document, root: HTMLEleme
 
 /**
  * The block a slash command anchors to: the line the caret sits in, as the editor
- * reads lines.
+ * reads lines. Null for a node outside `root`: the anchor never leaves the
+ * editor, since the command would then move the caret to and act on a block of
+ * the surrounding page.
  *
  * The addon kept its own list of block tags, with no summary, table cell or
  * h4-h6. A slash typed in a summary anchored to the whole details block and one
@@ -165,6 +167,7 @@ export function findClosestEditableBlockFromRange(doc: Document, root: HTMLEleme
  * or the last cell and the command acted there.
  */
 export function findClosestEditableBlock(doc: Document, root: HTMLElement, node: Node): HTMLElement | null {
+    if (!root.contains(node)) return null;
     const line = lineOf(node, root);
     if (line) return line.owner;
     let current: Node | null = node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
@@ -213,8 +216,9 @@ function resolveTopLevelEditorBlock(doc: Document, root: HTMLElement, node: Node
 
 /**
  * Remove the typed `/query` trigger text, trying the captured range, the anchor
- * block, the whole editor, then the live caret in turn. Returns the block the
- * caret ended up in, or null when nothing matched.
+ * block, then the whole editor in turn. Returns the block the caret ended up in,
+ * or null when nothing matched. Only text inside `root` is ever edited: a caret
+ * that moved to another part of the page is not a place to delete from.
  */
 export function removeSlashTriggerText(
     doc: Document, root: HTMLElement, query: string, triggerRange: Range | null, anchorBlock: HTMLElement | null,
@@ -222,8 +226,7 @@ export function removeSlashTriggerText(
     return removeFromRange(doc, root, query, triggerRange)
         ?? removeFromAnchorBlock(doc, root, query, getClosestEditableBlockForSlashCommand(doc, root, anchorBlock, triggerRange))
         ?? removeFromAnchorBlock(doc, root, query, anchorBlock)
-        ?? removeFromEditor(doc, root, query)
-        ?? removeFromLiveCaret(doc, root, query);
+        ?? removeFromEditor(doc, root, query);
 }
 
 function removeFromRange(doc: Document, root: HTMLElement, query: string, range: Range | null): HTMLElement | null {
@@ -297,30 +300,6 @@ function deleteLastTriggerInScope(doc: Document, scope: HTMLElement, query: stri
         selection.addRange(range);
     }
     return candidateNode;
-}
-
-function removeFromLiveCaret(doc: Document, root: HTMLElement, query: string): HTMLElement | null {
-    const selection = doc.getSelection();
-    if (!selection || selection.rangeCount === 0) {
-        return null;
-    }
-    const range = selection.getRangeAt(0);
-    if (range.startContainer.nodeType !== Node.TEXT_NODE) {
-        return null;
-    }
-    const triggerLength = query.length + 1;
-    const textNode = range.startContainer as Text;
-    const deleteStart = Math.max(0, range.startOffset - triggerLength);
-    const triggerText = textNode.data.slice(deleteStart, range.startOffset);
-    if (triggerText !== `/${query}`) {
-        return null;
-    }
-    range.setStart(textNode, deleteStart);
-    range.deleteContents();
-    range.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(range);
-    return findClosestEditableBlock(doc, root, textNode);
 }
 
 /** Move the caret to the end of the given block (creating a zero-width node when empty). */

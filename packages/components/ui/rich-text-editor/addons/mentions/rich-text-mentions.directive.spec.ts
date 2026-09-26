@@ -395,15 +395,28 @@ describe('RichTextMentionsDirective', () => {
         expect(popoverIn(fixture)!.items()).toHaveLength(USERS.length);
     });
 
-    it('recovers from a failing search by showing no candidates', async () => {
+    it.each<[string, () => RichTextEntitySearchResult<MentionItem>]>([
+        ['an erroring Observable', () => throwError(() => new Error('boom')) as Observable<MentionItem[]>],
+        ['a rejected Promise', () => Promise.reject(new Error('boom'))],
+        ['a synchronous throw', () => { throw new Error('boom'); }],
+    ])('shows no candidates for a search that fails with %s, then searches again on the next keystroke', async (_kind, fail) => {
         const fixture = mountSearchHost();
-        fixture.componentInstance.search.set(() => throwError(() => new Error('boom')) as Observable<MentionItem[]>);
+        let calls = 0;
+        fixture.componentInstance.search.set((q) => {
+            calls += 1;
+            return calls === 1 ? fail() : of(USERS.filter((u) => u.label.toLowerCase().includes(q.toLowerCase())));
+        });
         fixture.detectChanges();
 
         typeInto(fixture, '@j');
         await wait();
         fixture.detectChanges();
-        expect(popoverIn(fixture)!.items()).toHaveLength(0);
+        expect(popoverIn(fixture)!.items()).toEqual([]);
+
+        typeInto(fixture, '@ja');
+        await wait();
+        fixture.detectChanges();
+        expect(popoverIn(fixture)!.items().map((i) => i.label)).toEqual(['Jane Smith']);
     });
 
     it('ignores non-navigation keys while the popover is open', () => {

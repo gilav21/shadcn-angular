@@ -201,6 +201,44 @@ describe('RichTextActionsDirective', () => {
         expect(attachedImg?.getAttribute('style')).toBeNull();
     });
 
+    it('refuses to write when the captured image left the document before confirm', async () => {
+        const fixture = createFixture();
+        fixture.detectChanges();
+        const editorCmp = editorOf(fixture);
+        const editor = fixture.nativeElement.querySelector('[data-slot="rich-text-editor"]') as HTMLElement;
+        editor.innerHTML = '<p>intro <img src="https://example.com/a.png" alt="a"></p>';
+        const img = editor.querySelector('img') as HTMLImageElement;
+        editorCmp.setSelectedImage(img);
+        const range = document.createRange();
+        range.selectNode(img);
+        const sel = window.getSelection()!; sel.removeAllRanges(); sel.addRange(range);
+        editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+        fixture.detectChanges();
+        (fixture.nativeElement.querySelector('[data-addon-slot="actions.attach"]') as HTMLButtonElement).click();
+        fixture.detectChanges();
+        const attached: unknown[] = [];
+        directiveOf(fixture).actionAttached.subscribe((e) => attached.push(e));
+
+        editorCmp.setContent('<p>replaced entirely</p>');
+        fixture.detectChanges();
+        const errors = await collectActionErrors(() => {
+            (currentDialog().querySelector('[data-action-option="open-dialog"]') as HTMLButtonElement).click();
+            fixture.detectChanges();
+            const field = currentDialog().querySelector('input[data-field="dialogId"]') as HTMLInputElement;
+            field.value = 'pricing';
+            field.dispatchEvent(new Event('input'));
+            fixture.detectChanges();
+            (currentDialog().querySelector('[data-testid="rta-confirm"] button') as HTMLButtonElement).click();
+            fixture.detectChanges();
+        });
+
+        expect(attached).toEqual([]);
+        expect(currentDialog()).not.toBeNull();
+        expect(img.hasAttribute('data-action-click')).toBe(false);
+        expect(editor.innerHTML).toBe('<p>replaced entirely</p>');
+        expect(errors.map((e) => e[0])).toEqual(['[rich-text-actions] lost the image target before applying the action.']);
+    });
+
     async function attachFirstAction(fixture: ComponentFixture<HostCmp>): Promise<HTMLElement> {
         fixture.detectChanges();
         const editor = fixture.nativeElement.querySelector('[data-slot="rich-text-editor"]') as HTMLElement;
@@ -564,35 +602,57 @@ describe('RichTextActionsDirective', () => {
         ]);
     });
 
-    it('refuses an image target that is already gone (white-box: unreachable through the dialog)', async () => {
+    it('refuses to write and returns false when the apply target was lost', async () => {
+        // White-box: a null image target is unreachable through the dialog, and
+        // this drives applyCombined and the action-element (edit / add a
+        // trigger) flows without building each dialog.
         const fixture = createFixture();
         fixture.detectChanges();
+        const editor = fixture.nativeElement.querySelector('[data-slot="rich-text-editor"]') as HTMLElement;
+        editor.innerHTML = '<p>see <span data-action-click="open-dialog">terms</span> '
+            + '<img src="https://example.com/a.png" alt="a"></p>';
+        const detachedSpan = editor.querySelector('span')!;
+        const detachedImage = editor.querySelector('img')!;
+        editor.innerHTML = '<p>replaced</p>';
+        const elsewhere = document.createElement('span');
+        elsewhere.textContent = 'outside the editor';
+        document.body.appendChild(elsewhere);
         const dir = directiveOf(fixture) as unknown as {
             applyAction(def: RichTextActionDefinition, trigger: RichTextActionTrigger, params: ActionParams, target: ApplyTargetLike): boolean;
             applyCombined(def: RichTextActionDefinition, params: { click: ActionParams; hover: ActionParams }, target: ApplyTargetLike): boolean;
         };
         const attached: unknown[] = [];
         directiveOf(fixture).actionAttached.subscribe((e) => attached.push(e));
-        const lostImage: ApplyTargetLike = { kind: 'image', existing: null, image: null };
+        const lostTargets: ApplyTargetLike[] = [
+            { kind: 'image', existing: null, image: null },
+            { kind: 'image', existing: null, image: detachedImage },
+            { kind: 'text', existing: detachedSpan, image: null },
+            { kind: 'text', existing: elsewhere, image: null },
+        ];
         const results: boolean[] = [];
 
         const errors = await collectActionErrors(() => {
-            results.push(
-                dir.applyAction({ id: 'x', label: 'X', triggers: ['click'] }, 'click', {}, lostImage),
-                dir.applyCombined(
-                    { id: 'c', label: 'C', triggers: ['click', 'hover'], combined: true },
-                    { click: {}, hover: {} },
-                    lostImage,
-                ),
-            );
+            for (const target of lostTargets) {
+                results.push(
+                    dir.applyAction({ id: 'x', label: 'X', triggers: ['hover'] }, 'hover', { v: 1 }, target),
+                    dir.applyCombined(
+                        { id: 'c', label: 'C', triggers: ['click', 'hover'], combined: true },
+                        { click: { v: 1 }, hover: { v: 2 } },
+                        target,
+                    ),
+                );
+            }
         });
+        elsewhere.remove();
 
-        expect(results).toEqual([false, false]);
-        expect(errors.map((e) => e[0])).toEqual([
-            '[rich-text-actions] lost the image target before applying the action.',
-            '[rich-text-actions] lost the image target before applying the action.',
-        ]);
+        expect(results).toEqual(new Array(8).fill(false));
         expect(attached).toEqual([]);
+        expect(errors.map((e) => e[0])).toEqual([
+            ...new Array(4).fill('[rich-text-actions] lost the image target before applying the action.'),
+            ...new Array(4).fill('[rich-text-actions] lost the text target before applying the action.'),
+        ]);
+        expect([detachedImage, detachedSpan, elsewhere].map((el) => el.hasAttribute('data-action-hover'))).toEqual([false, false, false]);
+        expect(editor.innerHTML).toBe('<p>replaced</p>');
     });
 
     it('edit on a combined separate-params action prefills both groups and rewrites both triggers', () => {

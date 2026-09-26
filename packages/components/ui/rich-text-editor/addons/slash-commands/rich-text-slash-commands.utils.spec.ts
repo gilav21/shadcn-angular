@@ -319,6 +319,14 @@ describe('rich-text-slash-commands.utils', () => {
             expect(findClosestEditableBlock(document, root, comment)).toBe(span);
         });
 
+        it('returns null for a node outside the root', () => {
+            const root = makeRoot('<p>inside</p>');
+            const outside = makeRoot('<p>outside</p>');
+            const text = outside.querySelector('p')!.firstChild as Text;
+
+            expect(findClosestEditableBlock(document, root, text)).toBeNull();
+        });
+
         it('returns null when the root holds no element to anchor to', () => {
             const root = makeRoot('');
             const comment = document.createComment('only');
@@ -386,13 +394,15 @@ describe('rich-text-slash-commands.utils', () => {
             expect(root.textContent).toContain('find  now');
         });
 
-        it('falls back to the live caret when the trigger lives outside the root', () => {
+        it('leaves a trigger outside the root untouched and anchors nothing', () => {
             const root = makeRoot('<p>plain</p>');
             const outside = makeRoot('<p>run /live cmd</p>');
             const text = outside.querySelector('p')!.firstChild as Text;
             setCaret(text, 9);
-            removeSlashTriggerText(document, root, 'live', null, null);
-            expect(outside.textContent).toContain('run  cmd');
+
+            expect(removeSlashTriggerText(document, root, 'live', null, null)).toBeNull();
+            expect(outside.textContent).toBe('run /live cmd');
+            expect(root.textContent).toBe('plain');
         });
 
         it('returns null when nothing matches anywhere', () => {
@@ -412,11 +422,6 @@ describe('rich-text-slash-commands.utils', () => {
             expect(root.textContent).toBe('abc def');
         });
 
-        it('returns null when the live caret sits on a non-text node', () => {
-            const root = makeRoot('<p>abc</p>');
-            setCaret(root, 0);
-            expect(removeSlashTriggerText(document, root, 'no', null, null)).toBeNull();
-        });
 
         it('skips the captured-range path when the selection is unavailable', () => {
             const root = makeRoot('<p>use /go now</p>');
