@@ -18,10 +18,11 @@ describe('computeRowRange', () => {
         expect(result.end).toBe(15);
     });
 
-    it('should compute correct range at middle of scroll', () => {
-        const result = computeRowRange(5000, 400, 40, 10000, 5);
-        expect(result.start).toBe(120);
-        expect(result.end).toBe(140);
+    it('covers every row that intersects the viewport, widened by the buffer', () => {
+        expect(computeRowRange(5000, 400, 40, 10000, 5)).toEqual({ start: 120, end: 140 });
+        // Row 125 is half scrolled off, so the viewport [5020, 5420) reaches into row 135.
+        expect(computeRowRange(5020, 400, 40, 10000, 0)).toEqual({ start: 125, end: 136 });
+        expect(computeRowRange(100000, 400, 40, 1000, 5)).toEqual({ start: 1000, end: 1000 });
     });
 
     it('should clamp end to totalRows', () => {
@@ -44,12 +45,35 @@ describe('computeColumnRange', () => {
         expect(result).toEqual({ start: 0, end: 0, paddingLeft: 0, paddingRight: 0 });
     });
 
-    it('should compute range in middle with correct padding', () => {
+    it('covers every column that intersects the viewport', () => {
+        // Column 2 (250-450) is half scrolled off; column 5 (650-950) still shows up to 800.
+        expect(computeColumnRange(400, 400, widths, 0)).toEqual({
+            start: 2,
+            end: 6,
+            paddingLeft: 250,
+            paddingRight: 570,
+        });
+        // The viewport [450, 650) starts and ends exactly on column edges.
+        expect(computeColumnRange(450, 200, widths, 0)).toEqual({
+            start: 3,
+            end: 5,
+            paddingLeft: 450,
+            paddingRight: 870,
+        });
+        expect(computeColumnRange(100000, 500, widths, 0)).toEqual({
+            start: widths.length,
+            end: widths.length,
+            paddingLeft: 1520,
+            paddingRight: 0,
+        });
+    });
+
+    it('widens the range by the buffer on each side and pads the columns left out', () => {
         expect(computeColumnRange(400, 400, widths, 1)).toEqual({
             start: 1,
-            end: 6,
+            end: 7,
             paddingLeft: 100,
-            paddingRight: 570,
+            paddingRight: 470,
         });
     });
 
@@ -58,13 +82,6 @@ describe('computeColumnRange', () => {
         expect(result.start).toBe(0);
         expect(result.end).toBe(widths.length);
         expect(result.paddingLeft).toBe(0);
-        expect(result.paddingRight).toBe(0);
-    });
-
-    it('places the window past the last column when scrolled beyond every column', () => {
-        const result = computeColumnRange(100000, 500, widths, 0);
-        expect(result.start).toBe(widths.length);
-        expect(result.end).toBe(widths.length);
         expect(result.paddingRight).toBe(0);
     });
 
@@ -113,11 +130,27 @@ describe('computeVariableRowRange', () => {
         expect(result.paddingTop + visibleHeight + result.paddingBottom).toBe(totalHeight);
     });
 
-    it('places the window past the last row when scrolled beyond every row', () => {
-        const result = computeVariableRowRange(100000, 300, getHeight, heights.length, 0);
-        expect(result.start).toBe(heights.length);
-        expect(result.end).toBe(heights.length);
-        expect(result.paddingBottom).toBe(0);
+    it('covers every row that intersects the viewport when walking row heights', () => {
+        // Row 1 (40-140) is partly scrolled off; row 4 (390-470) still shows up to 400.
+        expect(computeVariableRowRange(100, 300, getHeight, heights.length, 0)).toEqual({
+            start: 1,
+            end: 5,
+            paddingTop: 40,
+            paddingBottom: 1440,
+        });
+        // The viewport [40, 340) starts and ends exactly on row edges.
+        expect(computeVariableRowRange(40, 300, getHeight, heights.length, 0)).toEqual({
+            start: 1,
+            end: 3,
+            paddingTop: 40,
+            paddingBottom: 1570,
+        });
+        expect(computeVariableRowRange(100000, 300, getHeight, heights.length, 0)).toEqual({
+            start: heights.length,
+            end: heights.length,
+            paddingTop: 1910,
+            paddingBottom: 0,
+        });
     });
 
     interface Range {
