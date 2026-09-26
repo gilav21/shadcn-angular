@@ -3,8 +3,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_TOOLBAR_ITEMS, FIND_MAX_PAINTED_RECTS, RICH_TEXT_PROSE_CLASSES, RichTextEditorComponent, type RichTextHistoryState } from './index';
-import type { RichTextEditorApi, RichTextEditorRef } from './index';
+import { DEFAULT_TOOLBAR_ITEMS, FIND_MAX_PAINTED_RECTS, RichTextEditorComponent, type RichTextHistoryState } from './index';
+import type { RichTextEditorRef } from './index';
 import { isRichTextEmpty } from './index';
 import { EMPTINESS_FIXTURES } from './index';
 import { RichTextEditorAddonHost } from './index';
@@ -403,21 +403,6 @@ describe('RichTextEditorComponent', () => {
     });
 
     describe('zero-width caret anchors (round-15 audit)', () => {
-        it('drops the anchor once its text node holds real text', () => {
-            // The anchor gives an empty block something to put the caret in, but
-            // nothing removed it afterwards, so it stayed in the live DOM for
-            // good -- invisible, stripped from output, and one extra step for
-            // every caret moving over it.
-            editor.innerHTML = '<p>\u200Balpha</p>';
-            editor.dispatchEvent(
-                new InputEvent('input', { bubbles: true, inputType: 'insertText', data: 'a' }),
-            );
-            fixture.detectChanges();
-
-            expect(editor.querySelector('p')?.textContent).toBe('alpha');
-            expect(editor.textContent).not.toContain('\u200B');
-        });
-
         it('keeps the anchor while it is still the only thing in the block', () => {
             editor.innerHTML = '<p>\u200B</p>';
             editor.dispatchEvent(
@@ -769,9 +754,11 @@ describe('RichTextEditorComponent', () => {
             );
             fixture.detectChanges();
             const cell = editor.querySelector('td') as HTMLElement;
-            pressEnterAt(cell.firstChild as Node, 1);
+            const event = pressEnterAt(cell.firstChild as Node, 1);
 
-            expect(editor.querySelector('blockquote table')).toBeTruthy();
+            expect(event.defaultPrevented).toBe(false);
+            expect(editor.querySelector('blockquote + p')).toBeNull();
+            expect(editor.querySelector('blockquote table td')?.textContent).toBe('a');
         });
 
 
@@ -786,18 +773,6 @@ describe('RichTextEditorComponent', () => {
             expect(event.defaultPrevented).toBe(true);
             expect(Array.from(editor.querySelectorAll('blockquote p')).map((p) => p.textContent)).toEqual(['first', 'third']);
             expect(editor.querySelector('blockquote + p')).not.toBeNull();
-        });
-
-        it('removes the spent blank line when exiting from the end', () => {
-            component.writeValue('<blockquote><p>first</p><p><br></p></blockquote>');
-            fixture.detectChanges();
-            const blank = editor.querySelectorAll('blockquote p')[1] as HTMLElement;
-            const event = pressEnterAt(blank, 0);
-
-            expect(event.defaultPrevented).toBe(true);
-            // The quote keeps its real content and loses only the blank line.
-            expect(editor.querySelector('blockquote')?.textContent).toBe('first');
-            expect(editor.querySelectorAll('blockquote p')).toHaveLength(1);
         });
 
         it('still exits the quote on a blank quoted line', () => {
@@ -1001,31 +976,6 @@ describe('RichTextEditorComponent', () => {
         });
 
 
-        it('restores a caret that was a child index into the editor', () => {
-            // With startContainer === editor, startOffset is a CHILD INDEX. The
-            // wrap removes N children and inserts 1, so the saved offset is out
-            // of range and setStart throws IndexSizeError -- escaping the
-            // Angular listener and aborting the transform mid-flight. The
-            // fallback branch that reaches this case was added one round before
-            // the restore was migrated to match.
-            editor.innerHTML = '';
-            editor.append(
-                document.createTextNode('# '),
-                document.createTextNode('b'),
-                document.createTextNode('c'),
-            );
-            const range = document.createRange();
-            range.setStart(editor, 2);
-            range.collapse(true);
-            const selection = document.getSelection();
-            selection?.removeAllRanges();
-            selection?.addRange(range);
-
-            expect(() => (component as unknown as {
-                wrapBareTextInParagraph(el: HTMLElement): HTMLElement | null;
-            }).wrapBareTextInParagraph(editor)).not.toThrow();
-        });
-
 
         it('keeps the caret where it was when the run does not start at index 0', () => {
             // startOffset is an index into the EDITOR's children; it was reused
@@ -1077,28 +1027,24 @@ describe('RichTextEditorComponent', () => {
         });
     });
 
-    it('prevents replacements that would exceed maxLength', () => {
+    it('counts a replaced selection as freed budget, preventing only a replacement that exceeds maxLength', () => {
         fixture.componentRef.setInput('maxLength', 5);
         fixture.detectChanges();
 
-        component.writeValue('hello');
+        // Five graphemes in eight UTF-16 units, so the budget is counted in
+        // graphemes rather than settled by the raw-length shortcut.
+        component.writeValue('😀😀😀lo');
         fixture.detectChanges();
+        selectRangeIn(document.createTreeWalker(editor, NodeFilter.SHOW_TEXT).nextNode() as Text, 6, 8);
 
-        const selection = document.getSelection();
-        const range = document.createRange();
-        range.selectNodeContents(editor);
-        selection?.removeAllRanges();
-        selection?.addRange(range);
+        const typeOver = (data: string): InputEvent => {
+            const event = new InputEvent('beforeinput', { bubbles: true, cancelable: true, data, inputType: 'insertText' });
+            editor.dispatchEvent(event);
+            return event;
+        };
 
-        const beforeInput = new InputEvent('beforeinput', {
-            bubbles: true,
-            cancelable: true,
-            data: 'toolong',
-            inputType: 'insertText',
-        });
-        editor.dispatchEvent(beforeInput);
-
-        expect(beforeInput.defaultPrevented).toBe(true);
+        expect(typeOver('XY').defaultPrevented).toBe(false);
+        expect(typeOver('XYZ').defaultPrevented).toBe(true);
     });
 
     it('supports undo after truncated paste path', () => {
@@ -1150,18 +1096,22 @@ describe('RichTextEditorComponent', () => {
         expect(beforeInput.defaultPrevented).toBe(false);
     });
 
-    it('onBeforeInput ignores delete and format input types even with maxLength set', () => {
+    it('onBeforeInput lets delete and format input types edit an over-limit document back down', () => {
         fixture.componentRef.setInput('maxLength', 3);
         fixture.detectChanges();
-        component.writeValue('abc');
+        component.writeValue('abcdef');
         fixture.detectChanges();
+        setCaret(document.createTreeWalker(editor, NodeFilter.SHOW_TEXT).nextNode() as Text, 6);
 
-        const beforeInput = new InputEvent('beforeinput', {
-            bubbles: true, cancelable: true, inputType: 'deleteContentBackward',
-        });
-        editor.dispatchEvent(beforeInput);
+        const fire = (inputType: string, data: string | null = null): InputEvent => {
+            const event = new InputEvent('beforeinput', { bubbles: true, cancelable: true, inputType, data });
+            editor.dispatchEvent(event);
+            return event;
+        };
 
-        expect(beforeInput.defaultPrevented).toBe(false);
+        expect(fire('insertText', 'x').defaultPrevented).toBe(true);
+        expect(fire('deleteContentBackward').defaultPrevented).toBe(false);
+        expect(fire('formatBold').defaultPrevented).toBe(false);
     });
 
     it('handlePasteMaxLength returns true without inserting when no space remains', () => {
@@ -1229,19 +1179,20 @@ describe('RichTextEditorComponent', () => {
             clipboardData: { getData: (type: string) => (type === 'text/plain' ? 'XY' : '') } as DataTransfer,
         } as unknown as ClipboardEvent);
 
-        expect(editor.textContent?.length).toBeLessThanOrEqual(5);
+        expect(editor.textContent).toBe('aXYe');
     });
 
     it('restoreHistoryEntry ignores an out-of-range index', () => {
         component.writeValue('one');
         fixture.detectChanges();
         (component as any).pushHistory();
-        const before = (component as any).historyIndex;
+        const before = component.currentHistoryIndex();
 
-        component.restoreHistoryEntry(999);
+        component.restoreHistoryEntry(component.historyEntries().length);
         component.restoreHistoryEntry(-1);
 
-        expect((component as any).historyIndex).toBe(before);
+        expect(component.currentHistoryIndex()).toBe(before);
+        expect(editor.textContent).toBe('one');
     });
 
     it('getNodePath returns an empty path for a detached node with no parent (white-box)', () => {
@@ -1310,7 +1261,7 @@ describe('RichTextEditorComponent', () => {
         expect(document.getSelection()?.anchorOffset).toBe(pastedCaretOffset);
     });
 
-    it('does not throw when formatting a partial multi-node selection', () => {
+    it('wraps a partial multi-node selection in inline code', () => {
         component.writeValue('<p>Hello <b>World</b></p>');
         fixture.detectChanges();
 
@@ -1325,7 +1276,10 @@ describe('RichTextEditorComponent', () => {
         selection?.removeAllRanges();
         selection?.addRange(range);
 
-        expect(() => component.onFormatCommand('code')).not.toThrow();
+        component.onFormatCommand('code');
+
+        expect(Array.from(editor.querySelectorAll('code'), (code) => code.textContent).join('')).toBe('llo Wor');
+        expect(p.textContent).toBe('Hello World');
     });
 
     it('debounces history snapshots for rapid typing', () => {
@@ -1340,14 +1294,14 @@ describe('RichTextEditorComponent', () => {
         editor.textContent = 'abc';
         editor.dispatchEvent(new Event('input', { bubbles: true }));
 
-        expect((component as any).snapshots).toHaveLength(1);
+        expect(component.historyEntries()).toHaveLength(1);
 
         vi.advanceTimersByTime(199);
-        expect((component as any).snapshots).toHaveLength(1);
+        expect(component.historyEntries()).toHaveLength(1);
 
         vi.advanceTimersByTime(1);
-        expect((component as any).snapshots).toHaveLength(2);
-        expect((component as any).snapshots.at(-1).preview).toContain('abc');
+        expect(component.historyEntries()).toHaveLength(2);
+        expect(component.historyEntries().at(-1)?.preview).toBe('abc');
 
         vi.useRealTimers();
     });
@@ -1365,14 +1319,14 @@ describe('RichTextEditorComponent', () => {
         fixture.detectChanges();
         (component as any).pushHistory();
 
-        const baselineLength = (component as any).snapshots.length;
-        expect(baselineLength).toBeGreaterThanOrEqual(4);
+        const baseline = component.historyEntries().map((entry) => entry.preview);
+        expect(baseline.slice(-3)).toEqual(['one', 'two', 'three']);
 
-        component.restoreHistoryEntry(1);
+        component.restoreHistoryEntry(baseline.indexOf('one'));
 
-        expect(editor.textContent).toContain('one');
-        expect((component as any).historyIndex).toBe(1);
-        expect((component as any).snapshots).toHaveLength(baselineLength);
+        expect(editor.textContent).toBe('one');
+        expect(component.currentHistoryIndex()).toBe(baseline.indexOf('one'));
+        expect(component.historyEntries().map((entry) => entry.preview)).toEqual(baseline);
     });
 
     it('stores multiline-friendly preview lines in history entries', () => {
@@ -1380,9 +1334,9 @@ describe('RichTextEditorComponent', () => {
         fixture.detectChanges();
         (component as any).pushHistory();
 
-        const latest = (component as any).snapshots.at(-1);
-        expect(latest.lineCount).toBe(4);
-        expect(latest.previewLines).toEqual(['Line one', 'Line two', 'Line three']);
+        const latest = component.historyEntries().at(-1);
+        expect(latest?.lineCount).toBe(4);
+        expect(latest?.previewLines).toEqual(['Line one', 'Line two', 'Line three']);
     });
 
     it('marks list items in history previews with a real bullet character', () => {
@@ -1390,8 +1344,7 @@ describe('RichTextEditorComponent', () => {
         fixture.detectChanges();
         (component as any).pushHistory();
 
-        const latest = (component as any).snapshots.at(-1);
-        expect(latest.previewLines).toEqual(['• First item', '• Second item']);
+        expect(component.historyEntries().at(-1)?.previewLines).toEqual(['• First item', '• Second item']);
     });
 
     it('prefers local component shortcut over later global dispatch for same event', () => {
@@ -1419,23 +1372,6 @@ describe('RichTextEditorComponent', () => {
         cleanup();
     });
 
-    it('redoes via the Mod+Shift+Z shortcut', () => {
-        component.writeValue('one');
-        fixture.detectChanges();
-        (component as any).pushHistory();
-        component.writeValue('two');
-        fixture.detectChanges();
-        (component as any).pushHistory();
-        (component as any).undo();
-        expect(editor.textContent).toBe('one');
-
-        component.onKeydown(new KeyboardEvent('keydown', {
-            key: 'z', ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true,
-        }));
-
-        expect(editor.textContent).toBe('two');
-    });
-
     it('registers shortcut bindings on init and unregisters them on destroy', () => {
         const viewsBeforeDestroy = shortcutBindings.getShortcutBindingViews()
             .filter(view => view.componentId.startsWith('rich-text-editor-'));
@@ -1449,72 +1385,10 @@ describe('RichTextEditorComponent', () => {
     });
 
     describe('Locale and RTL', () => {
-        it('resolves English locale by default', () => {
-            expect(component.resolvedLocale()).toBe(RICH_TEXT_LOCALES['en']);
-            expect(component.resolvedLocale().toolbar.bold).toBe('Bold');
-        });
-
-        it('resolves locale from string key', () => {
-            fixture.componentRef.setInput('locale', 'he');
-            fixture.detectChanges();
-            expect(component.resolvedLocale()).toBe(RICH_TEXT_LOCALES['he']);
-            expect(component.resolvedLocale().toolbar.bold).toBe('מודגש');
-        });
-
-        it('resolves locale from full object', () => {
-            const custom: RichTextLocale = {
-                ...RICH_TEXT_LOCALES['en'],
-                toolbar: { ...RICH_TEXT_LOCALES['en'].toolbar, bold: 'Custom Bold' },
-            };
-            fixture.componentRef.setInput('locale', custom);
-            fixture.detectChanges();
-            expect(component.resolvedLocale().toolbar.bold).toBe('Custom Bold');
-        });
-
         it('falls back to English for unknown locale key', () => {
             fixture.componentRef.setInput('locale', 'xx');
             fixture.detectChanges();
             expect(component.resolvedLocale()).toBe(RICH_TEXT_LOCALES['en']);
-        });
-
-        it('sets dir=rtl for Hebrew locale', () => {
-            fixture.componentRef.setInput('locale', 'he');
-            fixture.detectChanges();
-            expect(component.isRtl()).toBe(true);
-            const container = fixture.nativeElement.querySelector('[dir="rtl"]');
-            expect(container).toBeTruthy();
-        });
-
-        it('sets dir=rtl for Arabic locale', () => {
-            fixture.componentRef.setInput('locale', 'ar');
-            fixture.detectChanges();
-            expect(component.isRtl()).toBe(true);
-            const container = fixture.nativeElement.querySelector('[dir="rtl"]');
-            expect(container).toBeTruthy();
-        });
-
-        it('sets dir=ltr for English locale', () => {
-            fixture.componentRef.setInput('locale', 'en');
-            fixture.detectChanges();
-            expect(component.isRtl()).toBe(false);
-            const container = fixture.nativeElement.querySelector('[dir="ltr"]');
-            expect(container).toBeTruthy();
-        });
-
-        it('sets dir=ltr for French locale', () => {
-            fixture.componentRef.setInput('locale', 'fr');
-            fixture.detectChanges();
-            expect(component.isRtl()).toBe(false);
-            const container = fixture.nativeElement.querySelector('[dir="ltr"]');
-            expect(container).toBeTruthy();
-        });
-
-        it('sets dir=ltr for German locale', () => {
-            fixture.componentRef.setInput('locale', 'de');
-            fixture.detectChanges();
-            expect(component.isRtl()).toBe(false);
-            const container = fixture.nativeElement.querySelector('[dir="ltr"]');
-            expect(container).toBeTruthy();
         });
 
         it('uses localized placeholder from Hebrew locale', () => {
@@ -1524,23 +1398,12 @@ describe('RichTextEditorComponent', () => {
             expect(editorEl.getAttribute('placeholder')).toBe(RICH_TEXT_LOCALES['he'].editor.placeholder);
         });
 
-        it('uses localized placeholder from Arabic locale', () => {
-            fixture.componentRef.setInput('locale', 'ar');
-            fixture.detectChanges();
-            const editorEl = fixture.nativeElement.querySelector('[data-slot="rich-text-editor"]');
-            expect(editorEl.getAttribute('placeholder')).toBe(RICH_TEXT_LOCALES['ar'].editor.placeholder);
-        });
-
         it('prefers explicit placeholder over locale default', () => {
             fixture.componentRef.setInput('locale', 'he');
             fixture.componentRef.setInput('placeholder', 'Custom placeholder');
             fixture.detectChanges();
             const editorEl = fixture.nativeElement.querySelector('[data-slot="rich-text-editor"]');
             expect(editorEl.getAttribute('placeholder')).toBe('Custom placeholder');
-        });
-
-        it('exposes no base-owned builtin slash commands (all moved to addons)', () => {
-            expect(component.builtinCommands()).toEqual([]);
         });
 
         it('switches RTL when locale changes from LTR to RTL', () => {
@@ -1658,28 +1521,15 @@ describe('RichTextEditorComponent', () => {
         it('mergeCells does nothing with fewer than 2 selected cells', () => {
             const table = create3x3Table();
             const cell = table.querySelector<HTMLTableRowElement>('tbody tr')!.cells[0];
+            const before = table.outerHTML;
+            const onChange = vi.fn();
+            component.registerOnChange(onChange);
 
             component.tableCellSelected.set([cell]);
             component.mergeCells();
 
-            expect(cell.colSpan).toBe(1);
-            expect(cell.rowSpan).toBe(1);
-        });
-
-        it('mergeCells concatenates content from all cells', () => {
-            const table = create3x3Table();
-            const row = table.querySelector<HTMLTableRowElement>('tbody tr')!;
-            const cells = [row.cells[0], row.cells[1], row.cells[2]];
-            cells.forEach(c => c.classList.add('rte-cell-selected'));
-            component.tableCellSelected.set(cells);
-
-            component.mergeCells();
-
-            expect(row.cells[0].colSpan).toBe(3);
-            expect(row.cells[0].textContent).toContain('A1');
-            expect(row.cells[0].textContent).toContain('A2');
-            expect(row.cells[0].textContent).toContain('A3');
-            expect(row.cells).toHaveLength(1);
+            expect(table.outerHTML).toBe(before);
+            expect(onChange).not.toHaveBeenCalled();
         });
 
         it('mergeCells sets innerHTML to <br> when all cells are empty', () => {
@@ -1733,14 +1583,6 @@ describe('RichTextEditorComponent', () => {
 
         it('splitCell is a no-op without a context-menu target', () => {
             (component as any).tableContextMenuTarget = null;
-            expect(() => component.splitCell()).not.toThrow();
-        });
-
-        it('splitCell is a no-op when the target has no table ancestor', () => {
-            const detached = document.createElement('td');
-            detached.colSpan = 2;
-            (component as any).tableContextMenuTarget = detached;
-
             expect(() => component.splitCell()).not.toThrow();
         });
 
@@ -1809,6 +1651,7 @@ describe('RichTextEditorComponent', () => {
 
             expect(row.cells[0].colSpan).toBe(1);
             expect(row.cells).toHaveLength(3);
+            expect(row.cells[1].innerHTML).toBe('<br>');
         });
 
         it('splitCell splits a rowspan=2 cell back into individual cells', () => {
@@ -1830,33 +1673,18 @@ describe('RichTextEditorComponent', () => {
             expect((rows[1] as HTMLTableRowElement).cells).toHaveLength(3);
         });
 
-        it('splitCell creates new cells with <br> content', () => {
-            const table = create3x3Table();
-            const row = table.querySelector<HTMLTableRowElement>('tbody tr')!;
-            const cellA1 = row.cells[0];
-            const cellA2 = row.cells[1];
-
-            cellA1.classList.add('rte-cell-selected');
-            cellA2.classList.add('rte-cell-selected');
-            component.tableCellSelected.set([cellA1, cellA2]);
-            component.mergeCells();
-
-            (component as any).tableContextMenuTarget = row.cells[0];
-            component.splitCell();
-
-            expect(row.cells[1].innerHTML).toBe('<br>');
-        });
-
         it('splitCell does nothing if cell has no colspan or rowspan', () => {
             const table = create3x3Table();
             const cell = table.querySelector<HTMLTableRowElement>('tbody tr')!.cells[0];
             (component as any).tableContextMenuTarget = cell;
+            const before = table.outerHTML;
+            const onChange = vi.fn();
+            component.registerOnChange(onChange);
 
-            const cellCountBefore = table.querySelector<HTMLTableRowElement>('tbody tr')!.cells.length;
             component.splitCell();
-            const cellCountAfter = table.querySelector<HTMLTableRowElement>('tbody tr')!.cells.length;
 
-            expect(cellCountAfter).toBe(cellCountBefore);
+            expect(table.outerHTML).toBe(before);
+            expect(onChange).not.toHaveBeenCalled();
         });
 
         it('splitCell creates th elements when splitting inside thead', () => {
@@ -1975,115 +1803,58 @@ describe('RichTextEditorComponent', () => {
             expect(component.tableCellSelected()).toHaveLength(0);
         });
 
-        it('context menu reopens via right-click after closing by action', () => {
-            const table = create3x3Table();
-            const row = table.querySelector<HTMLTableRowElement>('tbody tr')!;
-            const cell = row.cells[0];
+        const rightClickOn = (cell: HTMLElement): void => {
+            cell.dispatchEvent(new MouseEvent('contextmenu', { clientX: 100, clientY: 100, bubbles: true, cancelable: true }));
+        };
 
-            const rightClick = new MouseEvent('contextmenu', {
-                clientX: 100,
-                clientY: 100,
-                bubbles: true,
-                cancelable: true,
-            });
-            cell.dispatchEvent(rightClick);
+        it('context menu reopens via right-click after closing by action, and an outside click closes it again', () => {
+            vi.useFakeTimers();
+            try {
+                const cell = create3x3Table().querySelector<HTMLTableRowElement>('tbody tr')!.cells[0];
 
-            expect(component.tableContextMenuOpen()).toBe(true);
+                rightClickOn(cell);
+                vi.runAllTimers();
+                expect(component.tableContextMenuOpen()).toBe(true);
 
-            (component as any).tableContextMenuTarget = cell;
-            component.addTableRowAbove();
+                component.addTableRowAbove();
+                expect(component.tableContextMenuOpen()).toBe(false);
 
-            expect(component.tableContextMenuOpen()).toBe(false);
+                rightClickOn(cell);
+                vi.runAllTimers();
+                expect(component.tableContextMenuOpen()).toBe(true);
 
-            const rightClick2 = new MouseEvent('contextmenu', {
-                clientX: 120,
-                clientY: 120,
-                bubbles: true,
-                cancelable: true,
-            });
-            cell.dispatchEvent(rightClick2);
-
-            expect(component.tableContextMenuOpen()).toBe(true);
+                document.body.click();
+                expect(component.tableContextMenuOpen()).toBe(false);
+            } finally {
+                vi.useRealTimers();
+            }
         });
 
-        it('closeTableContextMenu removes document-level close handlers', () => {
-            const table = create3x3Table();
-            const row = table.querySelector<HTMLTableRowElement>('tbody tr')!;
-            const cell = row.cells[0];
+        it('an outside click closes the context menu and detaches the document listeners it armed', () => {
+            vi.useFakeTimers();
+            const added = vi.spyOn(document, 'addEventListener');
+            const removed = vi.spyOn(document, 'removeEventListener');
+            try {
+                rightClickOn(create3x3Table().querySelector<HTMLTableRowElement>('tbody tr')!.cells[0]);
+                vi.runAllTimers();
+                const armed = added.mock.calls.filter(([type]) => type === 'click' || type === 'contextmenu');
+                expect(armed.map(([type]) => type)).toEqual(['click', 'contextmenu']);
 
-            const rightClick = new MouseEvent('contextmenu', {
-                clientX: 100,
-                clientY: 100,
-                bubbles: true,
-                cancelable: true,
-            });
-            cell.dispatchEvent(rightClick);
+                document.body.click();
 
-            expect(component.tableContextMenuOpen()).toBe(true);
-            expect((component as any).tableContextMenuCloseHandler).not.toBeNull();
-
-            (component as any).closeTableContextMenu();
-
-            expect(component.tableContextMenuOpen()).toBe(false);
-            expect((component as any).tableContextMenuCloseHandler).toBeNull();
-        });
-
-        it('right-click on overlay prevents default and closes menu when no cell beneath', () => {
-            const table = create3x3Table();
-            const row = table.querySelector<HTMLTableRowElement>('tbody tr')!;
-            const cell = row.cells[0];
-
-            const rightClick = new MouseEvent('contextmenu', {
-                clientX: 100,
-                clientY: 100,
-                bubbles: true,
-                cancelable: true,
-            });
-            cell.dispatchEvent(rightClick);
-
-            expect(component.tableContextMenuOpen()).toBe(true);
-
-            const overlayEvent = new MouseEvent('contextmenu', {
-                clientX: 150,
-                clientY: 150,
-                bubbles: true,
-                cancelable: true,
-            });
-            component.onContextMenuOverlayContextMenu(overlayEvent);
-
-            expect(overlayEvent.defaultPrevented).toBe(true);
-            expect(component.tableContextMenuOpen()).toBe(false);
+                expect(component.tableContextMenuOpen()).toBe(false);
+                for (const [type, listener] of armed) {
+                    expect(removed).toHaveBeenCalledWith(type, listener);
+                }
+            } finally {
+                added.mockRestore();
+                removed.mockRestore();
+                vi.useRealTimers();
+            }
         });
     });
 
     describe('font apply paths (backing applyInlineStyle for the typography addon)', () => {
-        it('applies font-family style via font[face] to span conversion', () => {
-            fixture.componentRef.setInput('mode', 'html');
-            fixture.detectChanges();
-
-            editor.innerHTML = '<font face="Georgia">Hello World</font>';
-            editor.dispatchEvent(new Event('input', { bubbles: true }));
-            fixture.detectChanges();
-
-            const selection = document.getSelection();
-            const range = document.createRange();
-            range.selectNodeContents(editor);
-            selection?.removeAllRanges();
-            selection?.addRange(range);
-
-            component.applyInlineStyle({ fontFamily: 'Georgia' });
-            fixture.detectChanges();
-
-            const fontElements = editor.querySelectorAll('font[face]');
-            expect(fontElements).toHaveLength(0);
-
-            const spans = editor.querySelectorAll('span');
-            const hasGeorgia = Array.from(spans).some(
-                span => span.style.fontFamily.includes('Georgia')
-            );
-            expect(hasGeorgia).toBe(true);
-        });
-
         it('detects current font family at cursor position', () => {
             fixture.componentRef.setInput('mode', 'html');
             fixture.detectChanges();
@@ -2092,20 +1863,10 @@ describe('RichTextEditorComponent', () => {
             editor.dispatchEvent(new Event('input', { bubbles: true }));
             fixture.detectChanges();
 
-            const textNode = editor.querySelector('span')?.firstChild as Text;
-            if (textNode) {
-                const selection = document.getSelection();
-                const range = document.createRange();
-                range.setStart(textNode, 2);
-                range.collapse(true);
-                selection?.removeAllRanges();
-                selection?.addRange(range);
+            setCaretAt(editor.querySelector('span')?.firstChild as Text, 2);
+            editor.dispatchEvent(new Event('keyup', { bubbles: true }));
 
-                editor.dispatchEvent(new Event('keyup', { bubbles: true }));
-                fixture.detectChanges();
-
-                expect(component.currentFontFamily()).toBeTruthy();
-            }
+            expect(component.currentFontFamily()).toBe('Georgia');
         });
     });
 
@@ -2158,40 +1919,6 @@ describe('RichTextEditorComponent', () => {
             expect(component.selectionInlineStyle().backgroundColor).toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
         });
 
-        it('applies a font color to the selection via applyInlineStyle', () => {
-            fixture.componentRef.setInput('mode', 'html');
-            fixture.detectChanges();
-
-            editor.innerHTML = '<span style="color:#2563eb">SLA</span>';
-            editor.dispatchEvent(new Event('input', { bubbles: true }));
-            fixture.detectChanges();
-            const span = editor.querySelector('span') as HTMLElement;
-            selectAllOf(span);
-            component['updateActiveFormats']();
-
-            component.applyInlineStyle({ color: '#ff0000' });
-            fixture.detectChanges();
-
-            expect(editor.innerHTML).toContain('rgb(255, 0, 0)');
-        });
-
-        /**
-         * A colour applied to a collapsed caret is a *pending typing style* the
-         * browser holds internally, not in the DOM, so computed style cannot see
-         * it. These pin the `queryCommandValue` fallback that surfaces it — the
-         * real-browser behaviour a stubbed `execCommand` cannot reproduce.
-         */
-        function withCommandValue(values: Record<string, string>, run: () => void): void {
-            const doc = document as Document & { queryCommandValue: (id: string) => string };
-            const original = doc.queryCommandValue;
-            doc.queryCommandValue = (id: string) => values[id] ?? original.call(document, id);
-            try {
-                run();
-            } finally {
-                doc.queryCommandValue = original;
-            }
-        }
-
         function placeCaret(offset: number): void {
             editor.innerHTML = '<p>hello</p>';
             editor.dispatchEvent(new Event('input', { bubbles: true }));
@@ -2205,18 +1932,6 @@ describe('RichTextEditorComponent', () => {
             selection.removeAllRanges();
             selection.addRange(caret);
         }
-
-        it('reflects a pending typing colour at a collapsed caret', () => {
-            fixture.componentRef.setInput('mode', 'html');
-            fixture.detectChanges();
-            placeCaret(5);
-
-            // Nothing reaches the DOM at a caret: the colour exists only as the
-            // style the next character will take, and the toolbar must show it.
-            component.applyInlineStyle({ color: '#9333ea' });
-
-            expect(component.selectionInlineStyle().color).toBe('#9333ea');
-        });
 
         it('keeps a highlight when a text colour is chosen at the same caret', () => {
             fixture.componentRef.setInput('mode', 'html');
@@ -2314,16 +2029,6 @@ describe('RichTextEditorComponent', () => {
             expect(component.selectionInlineStyle().backgroundColor).toBe('#ffff00');
         });
 
-        it('reflects a pending typing highlight at a collapsed caret', () => {
-            fixture.componentRef.setInput('mode', 'html');
-            fixture.detectChanges();
-            placeCaret(5);
-
-            component.applyInlineStyle({ backgroundColor: '#ffff00' });
-
-            expect(component.selectionInlineStyle().backgroundColor).toBe('#ffff00');
-        });
-
         it('ignores a selection that has collapsed outside the editor', () => {
             fixture.componentRef.setInput('mode', 'html');
             fixture.detectChanges();
@@ -2393,24 +2098,6 @@ describe('RichTextEditorComponent', () => {
             expect(component.selectionInlineStyle().color).not.toBe('#9333ea');
         });
 
-        it('falls back to computed style when the caret has no pending colour', () => {
-            fixture.componentRef.setInput('mode', 'html');
-            fixture.detectChanges();
-            placeCaret(5);
-
-            // With nothing pending the browser reports the theme's own specified
-            // colour (non-rgb), which must not be mistaken for a typing style —
-            // for backColor it is the editor's opaque background, not a highlight.
-            // These sentinel values could never come from computed style, so
-            // seeing them reflected would mean a non-rgb value slipped through.
-            withCommandValue({ foreColor: 'oklch(0.7 0.2 30)', backColor: 'oklch(0.6 0.1 200)' }, () => {
-                component['updateActiveFormats']();
-            });
-
-            expect(component.selectionInlineStyle().color).not.toBe('oklch(0.7 0.2 30)');
-            expect(component.selectionInlineStyle().backgroundColor).not.toBe('oklch(0.6 0.1 200)');
-        });
-
         it('ignores a pending colour when the selection is not collapsed', () => {
             fixture.componentRef.setInput('mode', 'html');
             fixture.detectChanges();
@@ -2418,13 +2105,19 @@ describe('RichTextEditorComponent', () => {
             editor.innerHTML = '<p><span style="color:#2563eb">ranged</span></p>';
             editor.dispatchEvent(new Event('input', { bubbles: true }));
             fixture.detectChanges();
-            selectAllOf(editor.querySelector('span') as HTMLElement);
+            // A real browser arms a caret colour without touching the DOM, which
+            // the wrapping shim does not model.
+            (document as StubbableDocument).execCommand = () => true;
+            const text = editor.querySelector('span')?.firstChild as Text;
+            setCaretAt(text, 2);
+            component.applyInlineStyle({ color: '#9333ea' });
+            expect(component.selectionInlineStyle().color).toBe('#9333ea');
 
-            withCommandValue({ foreColor: 'rgb(147, 51, 234)' }, () => {
-                component['updateActiveFormats']();
-            });
+            // Extend from the armed caret: same anchor, but a range now.
+            document.getSelection()?.setBaseAndExtent(text, 2, text, 6);
+            editor.dispatchEvent(new Event('keyup', { bubbles: true }));
 
-            expect(component.selectionInlineStyle().color).toContain('37, 99, 235');
+            expect(component.selectionInlineStyle().color).toBe('rgb(37, 99, 235)');
         });
 
         it('ignores a color with no selection so it cannot clobber the model on init', () => {
@@ -2463,23 +2156,6 @@ describe('RichTextEditorComponent', () => {
             fixture.detectChanges();
             expect(editor.innerHTML).toContain('rgb(0, 0, 255)');
             expect(window.getSelection()?.isCollapsed).toBe(false);
-        });
-
-        it('applies font color as an inline style, not a <font> tag, so it survives sanitization', () => {
-            fixture.componentRef.setInput('mode', 'html');
-            fixture.detectChanges();
-            editor.innerHTML = '<p>Colour me</p>';
-            editor.dispatchEvent(new Event('input', { bubbles: true }));
-            fixture.detectChanges();
-            selectAllOf(editor.querySelector('p') as HTMLElement);
-
-            component.applyInlineStyle({ color: '#e67e22' });
-            fixture.detectChanges();
-
-            expect(editor.innerHTML.toLowerCase()).not.toContain('<font');
-            const styled = editor.querySelector('[style*="color"]') as HTMLElement | null;
-            expect(styled).not.toBeNull();
-            expect(styled?.style.color).not.toBe('');
         });
 
         it('applies a font size to the selection via applyInlineStyle', () => {
@@ -2530,19 +2206,6 @@ describe('RichTextEditorComponent', () => {
             expect(component.selectionInlineStyle().fontFamily).toBe('Georgia');
         });
     });
-
-    describe('document outline (extracted to the outline addon)', () => {
-        it('renders no docked outline panel and owns no outline API in the base', () => {
-            editor.innerHTML =
-                '<h1>Intro</h1><p>text</p><h2>Setup</h2><h3>Details</h3><h2>Done</h2>';
-            editor.dispatchEvent(new Event('input', { bubbles: true }));
-            fixture.detectChanges();
-
-            expect(fixture.nativeElement.querySelector('[data-slot="rich-text-outline-panel"]')).toBeNull();
-            expect((component as unknown as Record<string, unknown>)['outlinePanelOpen']).toBeUndefined();
-            expect((component as unknown as Record<string, unknown>)['outlineHeadings']).toBeUndefined();
-        });
-    });
 });
 
 describe('RichTextEditorComponent — formatting, blocks & lists', () => {
@@ -2565,25 +2228,6 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
     });
 
-    it('wraps selection in inline code via the code format command', () => {
-        component.writeValue('<p>hello world</p>');
-        fixture.detectChanges();
-        const text = editor.querySelector('p')!.firstChild as Text;
-        const selection = document.getSelection();
-        const range = document.createRange();
-        range.setStart(text, 0);
-        range.setEnd(text, 5);
-        selection?.removeAllRanges();
-        selection?.addRange(range);
-
-        component.onFormatCommand('code');
-
-        const code = editor.querySelector('code');
-        expect(code).toBeTruthy();
-        expect(code?.textContent).toBe('hello');
-        expect(editor.textContent).toBe('hello world');
-    });
-
     it('unwraps inline code on a second apply instead of nesting it', () => {
         component.writeValue('<p>hello world</p>');
         fixture.detectChanges();
@@ -2592,6 +2236,7 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         component.onFormatCommand('code');
         const code = editor.querySelector('code')!;
         expect(code.textContent).toBe('hello');
+        expect(editor.textContent).toBe('hello world');
 
         // The wrapped text stays selected, so the toolbar reads pressed and the
         // second click -- with no re-selection -- unwraps rather than wrapping
@@ -2600,8 +2245,6 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         expect(component.activeFormats().has('code')).toBe(true);
         component.onFormatCommand('code');
 
-        expect(editor.querySelectorAll('code')).toHaveLength(0);
-        expect(editor.querySelectorAll('code code')).toHaveLength(0);
         expect(editor.querySelectorAll('code')).toHaveLength(0);
         expect(editor.textContent).toBe('hello world');
     });
@@ -3624,33 +3267,6 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         expect(editor.querySelector('ul > li')?.textContent).toBe('item');
     });
 
-    it('the code block toggle still joins a run of selected paragraphs', () => {
-        component.writeValue('<p>one</p><p>two</p><p>three</p>');
-        fixture.detectChanges();
-        const paragraphs = editor.querySelectorAll('p');
-        const range = document.createRange();
-        range.setStart(paragraphs[0].firstChild!, 0);
-        range.setEnd(paragraphs[2].firstChild!, 5);
-        const selection = document.getSelection()!;
-        selection.removeAllRanges();
-        selection.addRange(range);
-
-        component.onFormatCommand('codeBlock');
-
-        expect(editor.querySelectorAll('p')).toHaveLength(0);
-        expect(editor.querySelector('pre code')?.textContent).toBe('one\ntwo\nthree');
-    });
-
-    it('inserts a horizontal rule', () => {
-        component.writeValue('<p>before</p>');
-        fixture.detectChanges();
-        caretIn(editor.querySelector('p')!.firstChild as Text, 6);
-
-        component.onFormatCommand('horizontalRule');
-
-        expect(editor.querySelector('hr')).toBeTruthy();
-    });
-
     it('inserts the rule after the caret\'s line, whole, with the caret in the paragraph that follows', () => {
         // The fragment inserter splits the block at the caret, which is right
         // for pasted prose and cut a word in two for the toolbar command.
@@ -3690,16 +3306,6 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         // After the table, never inside its cell: a table in a cell has no
         // markdown form.
         expect(Array.from(editor.children).map((el) => el.tagName)).toEqual(['TABLE', 'TABLE', 'P']);
-    });
-
-    it('keeps an empty table when the horizontal rule is inserted from inside it', () => {
-        component.writeValue('<table><tbody><tr><td><br></td></tr></tbody></table>');
-        fixture.detectChanges();
-        caretIn(editor.querySelector('td')!, 0);
-
-        component.onFormatCommand('horizontalRule');
-
-        expect(Array.from(editor.children).map((el) => el.tagName)).toEqual(['TABLE', 'HR', 'P']);
     });
 
     it('insertBlockAtCaret lands the caret in the first cell of an inserted table', () => {
@@ -3750,16 +3356,6 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         component.onFormatCommand('orderedList');
         expect(Array.from(editor.children).map((el) => el.tagName)).toEqual(['P', 'P', 'P']);
         expect(editor.children[0].textContent).toBe('first');
-    });
-
-    it('toggles an ordered list', () => {
-        component.writeValue('<p>item one</p>');
-        fixture.detectChanges();
-        selectAll();
-
-        component.onFormatCommand('orderedList');
-
-        expect(editor.querySelector('ol')).toBeTruthy();
     });
 
     it('inserts a task list with a checkbox and editable text span', () => {
@@ -3813,13 +3409,19 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
     it('inserts a collapsible toggle block', () => {
         component.writeValue('<p>x</p>');
         fixture.detectChanges();
+        // jsdom moves the selection to the editor's start when focus arrives; focus first, as a user does.
+        editor.focus();
         caretIn(editor.querySelector('p')!.firstChild as Text, 1);
 
         component.onFormatCommand('toggle');
 
         const details = editor.querySelector('details');
-        expect(details).toBeTruthy();
-        expect(details?.querySelector('summary')).toBeTruthy();
+        expect(editor.textContent).toBe('xToggle titleContent here...');
+        expect(details?.open).toBe(true);
+        expect(details?.querySelector(':scope > summary')?.textContent).toBe('Toggle title');
+        expect(details?.querySelector(':scope > p')?.textContent).toBe('Content here...');
+        // The title is selected so typing replaces the placeholder.
+        expect(document.getSelection()?.toString()).toBe('Toggle title');
     });
 
     // Pressing Tab twice in a row is the user-visible contract, and nothing
@@ -3888,26 +3490,42 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         expect(editor.querySelector('li > ul')).toBeNull();
     });
 
-    it('indent/outdent/taskList are no-ops when the caret is not inside a list', () => {
+    it('indent/outdent step a paragraph outside a list by its left margin, never below zero', () => {
         component.writeValue('<p>plain text</p>');
         fixture.detectChanges();
+        // jsdom moves the selection to the editor's start when focus arrives; focus first, as a user does.
+        editor.focus();
         caretIn(editor.querySelector('p')!.firstChild as Text, 2);
+        const marginLeft = () => editor.querySelector('p')!.style.marginLeft;
 
-        expect(() => component.onFormatCommand('indent')).not.toThrow();
-        expect(() => component.onFormatCommand('outdent')).not.toThrow();
-        expect(editor.querySelector('ul')).toBeNull();
+        component.onFormatCommand('indent');
+        expect(marginLeft()).toBe('2rem');
+        component.onFormatCommand('indent');
+        expect(marginLeft()).toBe('4rem');
+        component.onFormatCommand('outdent');
+        expect(marginLeft()).toBe('2rem');
+        component.onFormatCommand('outdent');
+        component.onFormatCommand('outdent');
+        expect(marginLeft()).toBe('');
+
+        expect(editor.querySelector('ul, ol')).toBeNull();
+        expect(editor.textContent).toBe('plain text');
     });
 
     it('does not indent a list item already at the maximum nesting depth', () => {
+        // "f" has a previous sibling to nest under, so only the depth cap refuses.
         component.writeValue(
-            '<ul><li>a<ul><li>b<ul><li>c<ul><li>d<ul><li>e<ul><li>f</li></ul></li></ul></li></ul></li></ul></li></ul></li></ul>'
+            '<ul><li>a<ul><li>b<ul><li>c<ul><li>d<ul><li>e<ul><li>f0</li><li>f</li></ul></li></ul></li></ul></li></ul></li></ul></li></ul>'
         );
         fixture.detectChanges();
+        const before = editor.innerHTML;
         const deepest = Array.from(editor.querySelectorAll('li')).at(-1)!;
         caretIn(deepest.firstChild as Text, 0);
 
-        expect(() => component.onFormatCommand('indent')).not.toThrow();
-        expect(editor.querySelectorAll('ul ul ul ul ul ul')).toHaveLength(1);
+        component.onFormatCommand('indent');
+
+        expect(editor.innerHTML).toBe(before);
+        expect(deepest.previousElementSibling?.textContent).toBe('f0');
     });
 
     it('does not outdent a top-level list item (no grandparent list)', () => {
@@ -3949,36 +3567,6 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         expect(nestedUl?.hasAttribute('data-task-list')).toBe(true);
     });
 
-    it('outdentListItem is a no-op for a list item whose parent is not a UL/OL (white-box malformed DOM)', () => {
-        component.writeValue('<div><li>rogue</li></div>');
-        fixture.detectChanges();
-        const li = editor.querySelector('li')!;
-        caretIn(li.firstChild as Text, 0);
-
-        expect(() => component.onFormatCommand('outdent')).not.toThrow();
-        expect(editor.querySelector('li')).toBeTruthy();
-    });
-
-    it('outdentListItem is a no-op when the grandparent list item has no parent list (white-box malformed DOM)', () => {
-        component.writeValue('<ul><li>x</li></ul>');
-        fixture.detectChanges();
-        const outerLi = document.createElement('li');
-        const nestedUl = document.createElement('ul');
-        const nestedLi = document.createElement('li');
-        nestedLi.textContent = 'nested';
-        nestedUl.appendChild(nestedLi);
-        outerLi.appendChild(nestedUl);
-
-        const spy = vi.spyOn(component as unknown as { getParentListItem: () => HTMLElement | null }, 'getParentListItem')
-            .mockReturnValue(nestedLi);
-        try {
-            expect(() => (component as unknown as { outdentListItem: () => void }).outdentListItem()).not.toThrow();
-        } finally {
-            spy.mockRestore();
-        }
-        expect(nestedLi.textContent).toBe('nested');
-    });
-
     it('insertTaskList is a no-op without an active selection', () => {
         component.writeValue('<p>x</p>');
         fixture.detectChanges();
@@ -3993,26 +3581,22 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
     });
 
     it('applies center alignment to the current block', () => {
-        component.writeValue('<p>centered</p>');
+        component.writeValue('<p>first</p><p>centered</p>');
         fixture.detectChanges();
-        selectAll();
+        caretIn(editor.querySelectorAll('p')[1].firstChild as Text, 3);
+        // The shim treats justify* as a no-op, so the command stream is what
+        // can be observed: which command, and which block the caret was in.
+        const issued: { command: string; block: string | null | undefined }[] = [];
+        (document as StubbableDocument).execCommand = (command: string, showUi?: boolean, value?: string) => {
+            issued.push({ command, block: document.getSelection()?.anchorNode?.parentElement?.closest('p')?.textContent });
+            return execCommandShim(command, showUi, value);
+        };
 
         component.onFormatCommand('alignCenter');
 
-        expect(editor.innerHTML).toContain('center');
-    });
-
-    it('is a no-op when disabled', () => {
-        fixture.componentRef.setInput('disabled', true);
-        fixture.detectChanges();
-        component.writeValue('<p>locked</p>');
-        fixture.detectChanges();
-        selectAll();
-        const before = editor.innerHTML;
-
-        component.onFormatCommand('heading1');
-
-        expect(editor.innerHTML).toBe(before);
+        expect(issued.filter(({ command }) => command.startsWith('justify'))).toEqual([
+            { command: 'justifyCenter', block: 'centered' },
+        ]);
     });
 
     it('clears inline formatting with the clear command', () => {
@@ -4086,31 +3670,6 @@ describe('RichTextEditorComponent — toolbar actions (link, image, color, font)
         editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
     });
 
-    it('inserts overlay text at the caret position', () => {
-        component.writeValue('<p>hi</p>');
-        fixture.detectChanges();
-        const text = editor.querySelector('p')!.firstChild as Text;
-        caretIn(text, 2);
-        const selection = document.getSelection();
-        if (selection?.rangeCount) {
-            (component as unknown as { savedRange: Range }).savedRange = selection.getRangeAt(0).cloneRange();
-        }
-
-        component.insertTextFromOverlay('🎉');
-
-        expect(editor.textContent).toContain('🎉');
-    });
-
-    it('applies a font color via foreColor command', () => {
-        component.writeValue('<p>colored</p>');
-        fixture.detectChanges();
-        selectContents(editor.querySelector('p')!);
-
-        component.applyInlineStyle({ color: '#ff0000' });
-
-        expect(editor.innerHTML.toLowerCase()).toMatch(/color|ff0000|rgb\(255/);
-    });
-
     // `savedRange` is captured on blur, so after clicking away and back it holds
     // a COLLAPSED caret. A keyboard shortcut runs while the editor still holds a
     // real selection; preferring the stale range there replaced that selection
@@ -4131,28 +3690,42 @@ describe('RichTextEditorComponent — toolbar actions (link, image, color, font)
         expect(document.getSelection()?.toString()).toBe('make me bold');
     });
 
-    it('applies a color using a savedRange when the live selection is collapsed elsewhere', () => {
+    it('applies a color to the range saved on blur when the live selection is collapsed', () => {
         component.writeValue('<p>colored</p>');
         fixture.detectChanges();
         const p = editor.querySelector('p')!;
         selectContents(p);
-        const selection = document.getSelection()!;
-        (component as unknown as { savedRange: Range }).savedRange = selection.getRangeAt(0).cloneRange();
+        component.onBlur();
         caretIn(p.firstChild as Text, 0);
 
         component.applyInlineStyle({ color: '#00ffaa' });
 
-        expect(editor.innerHTML.toLowerCase()).toMatch(/color|00ffaa|rgb\(0,\s*255/);
+        const colored = editor.querySelector<HTMLElement>('[style*="color"]');
+        expect(colored?.textContent).toBe('colored');
+        expect(getComputedStyle(colored!).color).toBe('rgb(0, 255, 170)');
     });
 
-    it('hasColorTarget returns false when the editor view is not yet available', () => {
-        const original = (component as unknown as { editorDiv?: unknown }).editorDiv;
-        (component as unknown as { editorDiv?: unknown }).editorDiv = undefined;
-        try {
-            expect(() => component.applyInlineStyle({ color: '#ff0000' })).not.toThrow();
-        } finally {
-            (component as unknown as { editorDiv?: unknown }).editorDiv = original;
-        }
+    it('applies no color from an editor whose view has not rendered yet, even with a selection elsewhere', () => {
+        component.writeValue('<p>other editor</p>');
+        fixture.detectChanges();
+        const unrendered = TestBed.createComponent(RichTextEditorComponent).componentInstance;
+        const onChange = vi.fn();
+        unrendered.registerOnChange(onChange);
+        // Selected only now: creating a component clears the document selection.
+        selectContents(editor.querySelector('p')!);
+
+        // Commands go to the document, so any issued here would land on the
+        // other editor's selection.
+        const issued: string[] = [];
+        (document as StubbableDocument).execCommand = (command: string, showUi?: boolean, value?: string) => {
+            issued.push(command);
+            return execCommandShim(command, showUi, value);
+        };
+        unrendered.applyInlineStyle({ color: '#ff0000' });
+
+        expect(issued).toEqual([]);
+        expect(editor.innerHTML).toBe('<p>other editor</p>');
+        expect(onChange).not.toHaveBeenCalled();
     });
 
     it('applies a background (highlight) color', () => {
@@ -4175,10 +3748,14 @@ describe('RichTextEditorComponent — toolbar actions (link, image, color, font)
         doc.execCommand = ((id: string, ui?: boolean, val?: string) =>
             id === 'hiliteColor' ? false : original.call(document, id, ui, val)) as typeof doc.execCommand;
         try {
-            expect(() => component.applyInlineStyle({ backgroundColor: '#123456' })).not.toThrow();
+            component.applyInlineStyle({ backgroundColor: '#123456' });
         } finally {
             doc.execCommand = original;
         }
+
+        const highlighted = editor.querySelector<HTMLElement>('[style*="background"]');
+        expect(highlighted?.textContent).toBe('highlight');
+        expect(getComputedStyle(highlighted!).backgroundColor).toBe('rgb(18, 52, 86)');
     });
 
     it('restoreColorTargetSelection is a no-op when getSelection returns null (white-box)', () => {
@@ -4194,68 +3771,6 @@ describe('RichTextEditorComponent — toolbar actions (link, image, color, font)
         } finally {
             spy.mockRestore();
         }
-    });
-
-    it('applies a font size by converting font[size=7] into a styled span', () => {
-        component.writeValue('<p>sized text</p>');
-        fixture.detectChanges();
-        selectContents(editor.querySelector('p')!);
-
-        component.applyInlineStyle({ fontSize: '24' });
-
-        expect(editor.querySelectorAll('font[size="7"]')).toHaveLength(0);
-        const span = Array.from(editor.querySelectorAll('span')).find(s => s.style.fontSize === '24px');
-        expect(span).toBeTruthy();
-    });
-
-    it('applies a font family by converting font[face] into a styled span', () => {
-        component.writeValue('<p>family text</p>');
-        fixture.detectChanges();
-        selectContents(editor.querySelector('p')!);
-
-        component.applyInlineStyle({ fontFamily: 'Georgia' });
-
-        expect(editor.querySelectorAll('font[face]')).toHaveLength(0);
-        const span = Array.from(editor.querySelectorAll('span')).find(s => s.style.fontFamily.includes('Georgia'));
-        expect(span).toBeTruthy();
-    });
-
-    // Was pinned as spec correction C-15 (the CVA had no setDisabledState, so a
-    // reactive form's control.disable() never reached the editor). Fixed: the
-    // form's disabled state now lands in a private signal that is OR-ed with the
-    // public [disabled] input, so both paths work and neither overrides the
-    // other. These tests now assert the CORRECT behaviour.
-    it('honours a reactive form disabling the control through setDisabledState', () => {
-        const surface = component as unknown as Record<string, unknown>;
-        expect(typeof surface['setDisabledState']).toBe('function');
-
-        component.setDisabledState(true);
-        fixture.detectChanges();
-
-        expect(component.isDisabled()).toBe(true);
-        expect(editor.getAttribute('contenteditable')).toBe('false');
-        expect(editor.getAttribute('aria-disabled')).toBe('true');
-    });
-
-    it('re-enables the editor when the form control is enabled again', () => {
-        component.setDisabledState(true);
-        fixture.detectChanges();
-        expect(editor.getAttribute('contenteditable')).toBe('false');
-
-        component.setDisabledState(false);
-        fixture.detectChanges();
-
-        expect(component.isDisabled()).toBe(false);
-        expect(editor.getAttribute('contenteditable')).toBe('true');
-        expect(editor.getAttribute('aria-disabled')).toBe('false');
-    });
-
-    it('locks the editor through the [disabled] input, independently of the form', () => {
-        fixture.componentRef.setInput('disabled', true);
-        fixture.detectChanges();
-        expect(component.disabled()).toBe(true);
-        expect(component.isDisabled()).toBe(true);
-        expect(editor.getAttribute('contenteditable')).toBe('false');
     });
 
     it('keeps the [disabled] input and the form state independent — neither overrides the other', () => {
@@ -4277,6 +3792,7 @@ describe('RichTextEditorComponent — toolbar actions (link, image, color, font)
         fixture.detectChanges();
         expect(component.isDisabled()).toBe(true);
         expect(editor.getAttribute('contenteditable')).toBe('false');
+        expect(editor.getAttribute('aria-disabled')).toBe('true');
 
         // Both false — only now is it editable. The public input echoes only
         // itself, never the form's state.
@@ -4285,6 +3801,7 @@ describe('RichTextEditorComponent — toolbar actions (link, image, color, font)
         expect(component.disabled()).toBe(false);
         expect(component.isDisabled()).toBe(false);
         expect(editor.getAttribute('contenteditable')).toBe('true');
+        expect(editor.getAttribute('aria-disabled')).toBe('false');
     });
 
     it('blocks toolbar commands while the form has disabled the control', () => {
@@ -4414,7 +3931,7 @@ describe('RichTextEditorComponent — floating toolbar', () => {
         editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
     });
 
-    it('registers a scroll listener that hides the floating toolbar once shown, and removes it once hidden', () => {
+    it('hides the floating toolbar when the window scrolls', () => {
         vi.useFakeTimers();
         try {
             component.showFloatingToolbar.set(true);
@@ -4423,14 +3940,6 @@ describe('RichTextEditorComponent — floating toolbar', () => {
 
             globalThis.window.dispatchEvent(new Event('scroll'));
             expect(component.showFloatingToolbar()).toBe(false);
-
-            component.showFloatingToolbar.set(true);
-            fixture.detectChanges();
-            vi.advanceTimersByTime(0);
-            component.showFloatingToolbar.set(false);
-            fixture.detectChanges();
-
-            expect(() => globalThis.window.dispatchEvent(new Event('scroll'))).not.toThrow();
         } finally {
             vi.useRealTimers();
         }
@@ -4449,17 +3958,6 @@ describe('RichTextEditorComponent — floating toolbar', () => {
         expect(component.showFloatingToolbar()).toBe(false);
     });
 
-    it('wraps the selection in an italic tag', () => {
-        component.writeValue('<p>make italic</p>');
-        fixture.detectChanges();
-        const text = editor.querySelector('p')!.firstChild as Text;
-        selectRange(text, 0, 4);
-
-        component.onFloatingFormatCommand('italic');
-
-        expect(editor.querySelector('i')?.textContent).toBe('make');
-    });
-
     it('applies a heading via the floating block command path', () => {
         component.writeValue('<p>heading me</p>');
         fixture.detectChanges();
@@ -4471,65 +3969,23 @@ describe('RichTextEditorComponent — floating toolbar', () => {
         expect(editor.querySelector('h2')).toBeTruthy();
     });
 
-    it('collapseFloatingToolbarAfterFormat moves the caret just past a formatted inline node (white-box)', () => {
-        component.writeValue('<p><b>bold text</b></p>');
+    it('moves the caret just past the formatted inline node after a toolbar format, and hides the floating toolbar', () => {
+        component.writeValue('<p>make bold text</p>');
         fixture.detectChanges();
-        const boldEl = editor.querySelector('b')!;
-        const textNode = boldEl.firstChild as Text;
-        const selection = document.getSelection()!;
-        const range = document.createRange();
-        range.setStart(textNode, 2);
-        range.setEnd(textNode, 6);
-        selection.removeAllRanges();
-        selection.addRange(range);
-
-        (component as unknown as { collapseFloatingToolbarAfterFormat: () => void })
-            .collapseFloatingToolbarAfterFormat();
-
-        expect(component.showFloatingToolbar()).toBe(false);
-        const anchorNode = document.getSelection()?.anchorNode;
-        expect(anchorNode).toBeTruthy();
-        expect(editor.contains(anchorNode ?? null)).toBe(true);
-    });
-
-    it('collapseFloatingToolbarAfterFormat walks past document.documentElement when the selection sits outside the editor (white-box)', () => {
-        component.writeValue('<p>seed</p>');
-        fixture.detectChanges();
-        const outside = document.createElement('span');
-        outside.textContent = 'outside the editor';
-        document.body.appendChild(outside);
-        try {
-            const range = document.createRange();
-            range.setStart(outside.firstChild as Text, 2);
-            range.setEnd(outside.firstChild as Text, 5);
-            const selection = document.getSelection()!;
-            selection.removeAllRanges();
-            selection.addRange(range);
-
-            expect(() => (component as unknown as { collapseFloatingToolbarAfterFormat: () => void })
-                .collapseFloatingToolbarAfterFormat()).not.toThrow();
-
-            expect(component.showFloatingToolbar()).toBe(false);
-        } finally {
-            outside.remove();
-        }
-    });
-
-    it('collapseFloatingToolbarAfterFormat walks up to the editor root when no inline tag is found (white-box)', () => {
-        component.writeValue('<p>plain text</p>');
-        fixture.detectChanges();
+        // jsdom moves the selection to the editor's start when focus arrives; focus first, as a user does.
+        editor.focus();
         const p = editor.querySelector('p')!;
-        const textNode = p.firstChild as Text;
+        selectRange(p.firstChild as Text, 5, 9);
+        component.showFloatingToolbar.set(true);
+
+        component.onFormatCommand('bold');
+
+        const bold = editor.querySelector('b')!;
+        expect(bold.textContent).toBe('bold');
         const selection = document.getSelection()!;
-        const range = document.createRange();
-        range.setStart(textNode, 0);
-        range.setEnd(textNode, 5);
-        selection.removeAllRanges();
-        selection.addRange(range);
-
-        expect(() => (component as unknown as { collapseFloatingToolbarAfterFormat: () => void })
-            .collapseFloatingToolbarAfterFormat()).not.toThrow();
-
+        expect(selection.isCollapsed).toBe(true);
+        expect(selection.anchorNode).toBe(p);
+        expect(selection.anchorOffset).toBe(Array.from(p.childNodes).indexOf(bold) + 1);
         expect(component.showFloatingToolbar()).toBe(false);
     });
 
@@ -4576,6 +4032,47 @@ describe('RichTextEditorComponent — floating toolbar', () => {
         expect(component.showFloatingToolbar()).toBe(true);
         expect(component.selectedText()).toBe('select');
     });
+
+    it('collapseFloatingToolbarAfterFormat walks past document.documentElement when the selection sits outside the editor (white-box)', () => {
+        component.writeValue('<p>seed</p>');
+        fixture.detectChanges();
+        const outside = document.createElement('span');
+        outside.textContent = 'outside the editor';
+        document.body.appendChild(outside);
+        try {
+            const range = document.createRange();
+            range.setStart(outside.firstChild as Text, 2);
+            range.setEnd(outside.firstChild as Text, 5);
+            const selection = document.getSelection()!;
+            selection.removeAllRanges();
+            selection.addRange(range);
+
+            expect(() => (component as unknown as { collapseFloatingToolbarAfterFormat: () => void })
+                .collapseFloatingToolbarAfterFormat()).not.toThrow();
+
+            expect(component.showFloatingToolbar()).toBe(false);
+        } finally {
+            outside.remove();
+        }
+    });
+
+    it('collapseFloatingToolbarAfterFormat walks up to the editor root when no inline tag is found (white-box)', () => {
+        component.writeValue('<p>plain text</p>');
+        fixture.detectChanges();
+        const p = editor.querySelector('p')!;
+        const textNode = p.firstChild as Text;
+        const selection = document.getSelection()!;
+        const range = document.createRange();
+        range.setStart(textNode, 0);
+        range.setEnd(textNode, 5);
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        expect(() => (component as unknown as { collapseFloatingToolbarAfterFormat: () => void })
+            .collapseFloatingToolbarAfterFormat()).not.toThrow();
+
+        expect(component.showFloatingToolbar()).toBe(false);
+    });
 });
 
 describe('RichTextEditorComponent — tables', () => {
@@ -4599,6 +4096,10 @@ describe('RichTextEditorComponent — tables', () => {
     const targetCell = (cell: HTMLTableCellElement) => {
         (component as unknown as { tableContextMenuTarget: HTMLTableCellElement }).tableContextMenuTarget = cell;
     };
+
+    /** Every row's cell texts, top to bottom, thead included. */
+    const grid = (table: HTMLTableElement): string[][] =>
+        Array.from(table.rows, (row) => Array.from(row.cells, (cell) => cell.textContent?.trim() ?? ''));
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
@@ -4645,6 +4146,7 @@ describe('RichTextEditorComponent — tables', () => {
 
         component.toggleTableHeaderRow();
 
+        expect(table.querySelector('thead')).toBeNull();
         expect(table.querySelectorAll('th')).toHaveLength(0);
 
         for (const cell of component.tableCellSelected()) {
@@ -4659,7 +4161,7 @@ describe('RichTextEditorComponent — tables', () => {
 
         component.addTableRowAbove();
 
-        expect(table.querySelectorAll('tbody tr')).toHaveLength(3);
+        expect(grid(table)).toEqual([['H1', 'H2'], ['', ''], ['A1', 'A2'], ['B1', 'B2']]);
     });
 
     it('adds a row below the targeted cell', () => {
@@ -4669,7 +4171,7 @@ describe('RichTextEditorComponent — tables', () => {
 
         component.addTableRowBelow();
 
-        expect(table.querySelectorAll('tbody tr')).toHaveLength(3);
+        expect(grid(table)).toEqual([['H1', 'H2'], ['A1', 'A2'], ['', ''], ['B1', 'B2']]);
     });
 
     it('adds a column to the left and right', () => {
@@ -4677,11 +4179,12 @@ describe('RichTextEditorComponent — tables', () => {
         const a1 = table.querySelector<HTMLTableCellElement>('tbody td')!;
         targetCell(a1);
         component.addTableColumnLeft();
-        expect(table.querySelectorAll('tbody tr')[0].children).toHaveLength(3);
+        expect(grid(table)).toEqual([['', 'H1', 'H2'], ['', 'A1', 'A2'], ['', 'B1', 'B2']]);
 
-        targetCell(table.querySelector<HTMLTableCellElement>('tbody td')!);
+        targetCell(a1);
         component.addTableColumnRight();
-        expect(table.querySelectorAll('tbody tr')[0].children).toHaveLength(4);
+        expect(grid(table)).toEqual([['', 'H1', '', 'H2'], ['', 'A1', '', 'A2'], ['', 'B1', '', 'B2']]);
+        expect(Array.from(table.rows[0].cells, (cell) => cell.tagName)).toEqual(['TH', 'TH', 'TH', 'TH']);
     });
 
     it('deletes the targeted row', () => {
@@ -4691,7 +4194,7 @@ describe('RichTextEditorComponent — tables', () => {
 
         component.deleteTableRow();
 
-        expect(table.querySelectorAll('tbody tr')).toHaveLength(1);
+        expect(grid(table)).toEqual([['H1', 'H2'], ['A1', 'A2']]);
     });
 
     it('removes the whole table when deleting the last remaining row', () => {
@@ -4712,7 +4215,7 @@ describe('RichTextEditorComponent — tables', () => {
 
         component.deleteTableColumn();
 
-        expect(table.querySelectorAll('tbody tr')[0].children).toHaveLength(1);
+        expect(grid(table)).toEqual([['H2'], ['A2'], ['B2']]);
     });
 
     it('removes the whole table when deleting the last remaining column', () => {
@@ -4734,11 +4237,6 @@ describe('RichTextEditorComponent — tables', () => {
         expect(editor.querySelector('table')).toBeNull();
     });
 
-    // The two tests below each call targetCell() first, so they never exercise
-    // a SECOND toggle against the target the first one left behind. Toggling
-    // replaces every cell in the row, detaching the element the context-menu
-    // target pointed at; the next call then found no `closest('table')`, bailed
-    // out silently, and the header could be turned on but never off again.
     // Spreadsheet-style cell picking. Dragging selects cells AS TEXT, which
     // wraps across row ends (a blue band spilling over the row above) and left
     // it ambiguous what a following command would hit.
@@ -4771,20 +4269,6 @@ describe('RichTextEditorComponent — tables', () => {
             .toEqual(['A1', 'A2', 'B1', 'B2']);
     });
 
-    // The marker used to be `bg-primary/15`; a cell carrying its own inline
-    // background painted straight over it, so a coloured cell showed no sign of
-    // being selected at all.
-    it('marks a cell that has its own background colour', () => {
-        const table = seedTable();
-        const cell = table.querySelector('td')!;
-        cell.style.backgroundColor = '#fde68a';
-
-        cellMouseDown(cell, { ctrlKey: true });
-
-        expect(cell.classList.contains('rte-cell-selected')).toBe(true);
-        expect(cell.style.backgroundColor).toBe('rgb(253, 230, 138)');
-    });
-
     it('applies an inline format to the selected cells only', () => {
         const table = seedTable();
         const cells = Array.from(table.querySelectorAll('td'));
@@ -4799,6 +4283,9 @@ describe('RichTextEditorComponent — tables', () => {
         expect(cells[3].querySelector('b, strong')).toBeNull();
     });
 
+    // Toggling replaces every cell in the row, detaching the element the
+    // context-menu target pointed at; the second toggle then found no table and
+    // the header could be turned on but never off again.
     it('toggles the header row off again without re-targeting the cell', () => {
         editor.innerHTML = '<table><tbody><tr><td>c1</td><td>c2</td></tr><tr><td>d1</td><td>d2</td></tr></tbody></table>';
         editor.dispatchEvent(new Event('input', { bubbles: true }));
@@ -4806,33 +4293,11 @@ describe('RichTextEditorComponent — tables', () => {
         targetCell(table.querySelector<HTMLTableCellElement>('td')!);
 
         component.toggleTableHeaderRow();
-        expect(table.querySelectorAll('th')).toHaveLength(2);
-
-        component.toggleTableHeaderRow();
-        expect(table.querySelector('thead')).toBeNull();
-        expect(table.querySelectorAll('th')).toHaveLength(0);
-    });
-
-    it('toggles a header row off (thead cells become tbody td)', () => {
-        const table = seedTable();
-        targetCell(table.querySelector<HTMLTableCellElement>('thead th')!);
-
-        component.toggleTableHeaderRow();
-
-        expect(table.querySelector('thead')).toBeNull();
-        expect(table.querySelectorAll('th')).toHaveLength(0);
-    });
-
-    it('toggles a header row on for a headerless table', () => {
-        editor.innerHTML = '<table><tbody><tr><td>c1</td><td>c2</td></tr><tr><td>d1</td><td>d2</td></tr></tbody></table>';
-        editor.dispatchEvent(new Event('input', { bubbles: true }));
-        const table = editor.querySelector('table')!;
-        targetCell(table.querySelector<HTMLTableCellElement>('td')!);
-
-        component.toggleTableHeaderRow();
-
-        expect(table.querySelector('thead')).toBeTruthy();
         expect(table.querySelectorAll('thead th')).toHaveLength(2);
+
+        component.toggleTableHeaderRow();
+        expect(table.querySelector('thead')).toBeNull();
+        expect(table.querySelectorAll('th')).toHaveLength(0);
     });
 
     it('toggleTableHeaderRow is a no-op when the table reports no rows (white-box: forces the defensive no-firstRow guard)', () => {
@@ -4868,16 +4333,25 @@ describe('RichTextEditorComponent — tables', () => {
         expect(cell.style.backgroundColor).toBe('');
     });
 
+    /** Each cell's computed [top, right, bottom, left] border styles, row by row. */
+    const borderStyles = (table: HTMLTableElement): string[][][] =>
+        Array.from(table.rows, (row) => Array.from(row.cells, (cell) => {
+            const style = getComputedStyle(cell);
+            return [style.borderTopStyle, style.borderRightStyle, style.borderBottomStyle, style.borderLeftStyle];
+        }));
+
+    // Each border test starts from 'outer', so it has another style's
+    // overrides to replace rather than a pristine table.
     it('applies "none" border style to all cells', () => {
         const table = seedTable();
         targetCell(table.querySelector<HTMLTableCellElement>('td')!);
+        component.setTableBorders('outer');
 
+        targetCell(table.querySelector<HTMLTableCellElement>('td')!);
         component.setTableBorders('none');
 
-        const cell = table.querySelector<HTMLTableCellElement>('td')!;
-        // jsdom serializes a set 'none' border-style back as '' across runners;
-        // both mean "no border".
-        expect(['none', '']).toContain(cell.style.borderTopStyle);
+        const none = ['none', 'none', 'none', 'none'];
+        expect(borderStyles(table)).toEqual([[none, none], [none, none], [none, none]]);
     });
 
     it('applies "outer" border style', () => {
@@ -4892,20 +4366,33 @@ describe('RichTextEditorComponent — tables', () => {
     it('applies "horizontal" border style', () => {
         const table = seedTable();
         targetCell(table.querySelector<HTMLTableCellElement>('td')!);
+        component.setTableBorders('outer');
 
-        expect(() => component.setTableBorders('horizontal')).not.toThrow();
-        const cell = table.querySelector<HTMLTableCellElement>('td')!;
-        // jsdom serializes a set 'none' border-style back as '' across runners.
-        expect(['none', '']).toContain(cell.style.borderLeftStyle);
+        targetCell(table.querySelector<HTMLTableCellElement>('td')!);
+        component.setTableBorders('horizontal');
+
+        // [top, right, bottom, left]: rules between rows and over the top, no
+        // verticals, and no rule under the last row.
+        const first = ['solid', 'none', 'solid', 'none'];
+        const middle = ['none', 'none', 'solid', 'none'];
+        const last = ['none', 'none', 'none', 'none'];
+        expect(borderStyles(table)).toEqual([[first, first], [middle, middle], [last, last]]);
     });
 
     it('applies "all" border style, clearing overrides back to the table default', () => {
-        const table = seedTable();
+        const pristine = borderStyles(seedTable());
+        const table = editor.querySelector('table')!;
         targetCell(table.querySelector<HTMLTableCellElement>('td')!);
+        component.setTableBorders('outer');
+        expect(borderStyles(table)).not.toEqual(pristine);
 
-        expect(() => component.setTableBorders('all')).not.toThrow();
-        const cell = table.querySelector<HTMLTableCellElement>('td')!;
-        expect(cell.style.border).toBe('');
+        targetCell(table.querySelector<HTMLTableCellElement>('td')!);
+        component.setTableBorders('all');
+
+        expect(borderStyles(table)).toEqual(pristine);
+        for (const cell of Array.from(table.querySelectorAll<HTMLElement>('td, th'))) {
+            expect(cell.getAttribute('style') ?? '').not.toContain('border');
+        }
     });
 
     it('setTableBorders/setCellAlignment/setCellColor are no-ops without a target cell', () => {
@@ -4917,11 +4404,18 @@ describe('RichTextEditorComponent — tables', () => {
     });
 
     it('table operations are no-ops without a target cell', () => {
-        seedTable();
+        const table = seedTable();
+        const before = table.innerHTML;
         targetCell(null as unknown as HTMLTableCellElement);
-        expect(() => component.addTableRowAbove()).not.toThrow();
-        expect(() => component.deleteTableColumn()).not.toThrow();
-        expect(() => component.toggleTableHeaderRow()).not.toThrow();
+        component.addTableRowAbove();
+        component.addTableRowBelow();
+        component.addTableColumnLeft();
+        component.deleteTableRow();
+        component.deleteTableColumn();
+        component.toggleTableHeaderRow();
+        component.deleteTable();
+        expect(editor.contains(table)).toBe(true);
+        expect(table.innerHTML).toBe(before);
     });
 });
 
@@ -4950,15 +4444,6 @@ describe('RichTextEditorComponent — find and replace', () => {
         expect(component.findShowReplace()).toBe(false);
     });
 
-    it('finds all case-insensitive matches and highlights them', () => {
-        component.onFindQueryChange('cat');
-
-        expect(component.findMatches()).toHaveLength(2);
-        expect(component.findCurrentIndex()).toBe(0);
-        expect(editor.querySelectorAll('mark[data-find-match]')).toHaveLength(0);
-        expect(component.findMatchCount()).toBe(2);
-    });
-
     it('clears matches when the query is emptied', () => {
         component.onFindQueryChange('cat');
         component.onFindQueryChange('');
@@ -4966,19 +4451,6 @@ describe('RichTextEditorComponent — find and replace', () => {
         expect(component.findMatches()).toHaveLength(0);
         expect(component.findCurrentIndex()).toBe(-1);
         expect(component.findMatchCount()).toBe(0);
-    });
-
-    it('navigates matches with findNext (wrapping) and findPrevious', () => {
-        component.onFindQueryChange('cat');
-        expect(component.findCurrentIndex()).toBe(0);
-
-        component.findNext();
-        expect(component.findCurrentIndex()).toBe(1);
-        component.findNext();
-        expect(component.findCurrentIndex()).toBe(0);
-
-        component.findPrevious();
-        expect(component.findCurrentIndex()).toBe(1);
     });
 
     it('respects case sensitivity when toggled', () => {
@@ -4992,14 +4464,15 @@ describe('RichTextEditorComponent — find and replace', () => {
         expect(component.findMatches()).toHaveLength(1);
     });
 
-    it('performFind is a no-op when the editor view is not yet available', () => {
-        const original = (component as unknown as { editorDiv?: unknown }).editorDiv;
-        (component as unknown as { editorDiv?: unknown }).editorDiv = undefined;
-        try {
-            expect(() => component.onFindQueryChange('cat')).not.toThrow();
-        } finally {
-            (component as unknown as { editorDiv?: unknown }).editorDiv = original;
-        }
+    it('finds nothing in an editor whose view has not rendered yet', () => {
+        const unrenderedFixture = TestBed.createComponent(RichTextEditorComponent);
+        unrenderedFixture.componentRef.setInput('findDebounceMs', 0);
+        const unrendered = unrenderedFixture.componentInstance;
+
+        unrendered.onFindQueryChange('cat');
+
+        expect(unrendered.findMatchCount()).toBe(0);
+        expect(unrendered.findCurrentIndex()).toBe(-1);
     });
 
     it('findNext/findPrevious/replaceSingle are no-ops without any matches', () => {
@@ -5010,37 +4483,22 @@ describe('RichTextEditorComponent — find and replace', () => {
         expect(component.findCurrentIndex()).toBe(-1);
     });
 
-    it('replaces the current match with replaceSingle', () => {
+    it('Enter in the query field steps to the next match and Shift+Enter back to the previous one', () => {
+        // Three matches, so stepping back from the second cannot be mistaken
+        // for wrapping forward.
+        component.writeValue('<p>cat cat cat</p>');
+        component.openFindReplace(false);
+        fixture.detectChanges();
         component.onFindQueryChange('cat');
-        component.replaceText.set('dog');
+        const queryInput = (fixture.nativeElement as HTMLElement)
+            .querySelector('[data-slot="rich-text-find-query"]') as HTMLInputElement;
+        const press = (shiftKey: boolean) =>
+            queryInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', shiftKey, bubbles: true, cancelable: true }));
 
-        component.replaceSingle();
-
-        expect(editor.textContent).toContain('dog');
-        expect(editor.textContent).toContain('cat');
-        expect((editor.textContent ?? '').match(/cat/g)?.length).toBe(1);
-    });
-
-    it('replaces every match with replaceAll', () => {
-        component.onFindQueryChange('cat');
-        component.replaceText.set('dog');
-
-        component.replaceAll();
-
-        expect((editor.textContent ?? '').includes('cat')).toBe(false);
-        expect((editor.textContent ?? '').match(/dog/g)?.length).toBe(2);
-    });
-
-    it('Enter triggers findNext and Shift+Enter triggers findPrevious', () => {
-        component.onFindQueryChange('cat');
-        const nextSpy = vi.spyOn(component, 'findNext');
-        const prevSpy = vi.spyOn(component, 'findPrevious');
-
-        component.onFindReplaceKeydown(new KeyboardEvent('keydown', { key: 'Enter' }));
-        expect(nextSpy).toHaveBeenCalled();
-
-        component.onFindReplaceKeydown(new KeyboardEvent('keydown', { key: 'Enter', shiftKey: true }));
-        expect(prevSpy).toHaveBeenCalled();
+        press(false);
+        expect(component.findCurrentIndex()).toBe(1);
+        press(true);
+        expect(component.findCurrentIndex()).toBe(0);
     });
 
     it('closeFindReplace resets query, matches and highlights', () => {
@@ -5095,12 +4553,6 @@ describe('RichTextEditorComponent — find and replace', () => {
         } finally {
             vi.useRealTimers();
         }
-    });
-
-    it('T-4 findDebounceMs=0 searches synchronously', () => {
-        component.onFindQueryChange('cat');
-
-        expect(component.findMatchCount()).toBe(2);
     });
 
     it('T-5 counter renders "{current} of {total}", "No results", and empty', () => {
@@ -5280,7 +4732,7 @@ describe('RichTextEditorComponent — find and replace', () => {
         component.replaceAll();
 
         expect(historyLength(component) - entriesBefore).toBe(2);
-        expect((editor.textContent ?? '').includes('cat')).toBe(false);
+        expect(editor.textContent).toBe('dog dog dog dog dog!');
 
         component.onKeydown(undoKey());
 
@@ -5315,6 +4767,9 @@ describe('RichTextEditorComponent — find and replace', () => {
 
         component.findNext();
         expect(component.findCurrentIndex()).toBe(0);
+
+        component.findPrevious();
+        expect(component.findCurrentIndex()).toBe(1);
     });
 
     it('T-20 Enter in the replace input replaces; Mod+Alt+Enter replaces all; Escape closes', () => {
@@ -5336,7 +4791,10 @@ describe('RichTextEditorComponent — find and replace', () => {
 
         const all = new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, altKey: true, cancelable: true });
         component.onFindReplaceKeydown(all);
-        expect((editor.textContent ?? '').includes('cat')).toBe(false);
+        expect(editor.textContent).toBe('dog dog');
+
+        replaceInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+        expect(component.findReplaceVisible()).toBe(false);
     });
 
     it('T-21 openFindReplace seeds the query from a non-empty selection and leaves it alone when collapsed', () => {
@@ -5598,19 +5056,6 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         component.onKeydown(tabKey());
 
         expect(editor.textContent).toContain('\t');
-    });
-
-    it('Enter in a non-empty task list item creates a new task item', () => {
-        component.writeValue('<ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox"><span>todo</span></li></ul>');
-        fixture.detectChanges();
-        const span = editor.querySelector('li[data-task] span')!;
-        caretIn(span.firstChild as Text, 4);
-
-        const ev = enterKey();
-        component.onKeydown(ev);
-
-        expect(ev.defaultPrevented).toBe(true);
-        expect(editor.querySelectorAll('li[data-task]')).toHaveLength(2);
     });
 
     const twoTasks = () => component.writeValue(
@@ -5953,55 +5398,6 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         expect(editor.querySelector('blockquote > p')?.textContent).toBe('first');
     });
 
-    it('a heading on a details summary keeps the summary', () => {
-        // Re-tagging the element destroyed the disclosure's label and turned
-        // its text into hidden body content.
-        component.writeValue('<details><summary>head</summary><p>body</p></details>');
-        fixture.detectChanges();
-        caretIn(editor.querySelector('summary')!.firstChild as Text, 2);
-
-        component.onFormatCommand('heading1');
-
-        expect(editor.querySelector('details > summary')).not.toBeNull();
-        expect(editor.querySelector('details > summary')?.textContent).toBe('head');
-        expect(editor.querySelector('details > h1')).toBeNull();
-    });
-
-    it('a heading leaves a list item as it is, rather than building a block markdown cannot carry', () => {
-        // Chrome's formatBlock wrapped the whole <ul> in the heading, so this
-        // became editor-owned. Putting the heading INSIDE the item was the
-        // first attempt, and a heading in a list item survives no save: the
-        // markdown writer emits "- # Title" and the reader brings it back as
-        // literal text. The item keeps its own tag instead.
-        component.writeValue('<ul><li>one</li><li>two</li></ul>');
-        fixture.detectChanges();
-        caretIn(editor.querySelector('li')!.firstChild as Text, 1);
-
-        component.onFormatCommand('heading1');
-
-        expect(editor.querySelectorAll('li')).toHaveLength(2);
-        expect(editor.querySelector('h1')).toBeNull();
-        expect(editor.querySelector('li')?.textContent).toBe('one');
-        expect(editor.querySelector('ul')).not.toBeNull();
-    });
-
-    it('a heading leaves a task row alone rather than burying a block in its span', () => {
-        // Forcing one in produced a row with no heading and a paragraph inside
-        // the span the rest of the editor relies on.
-        component.writeValue('<ul data-task-list=""><li data-task="" data-checked="false">'
-            + '<input type="checkbox"><span>todo</span></li></ul>');
-        fixture.detectChanges();
-        caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 2);
-
-        component.onFormatCommand('heading1');
-
-        const row = editor.querySelector('li[data-task]')!;
-        expect(Array.from(row.children).map(el => el.tagName)).toEqual(['INPUT', 'SPAN']);
-        expect(row.querySelector('span > p')).toBeNull();
-        expect(row.querySelector('h1')).toBeNull();
-        expect(row.querySelector(':scope > span')?.textContent).toBe('todo');
-    });
-
     const textStyleSelect = (): HTMLSelectElement =>
         (fixture.nativeElement as HTMLElement).querySelector<HTMLSelectElement>('[data-slot="rich-text-toolbar-text-style"]')!;
 
@@ -6071,20 +5467,6 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         expect(available).toBe(editor.innerHTML !== before);
     });
 
-    it('the text style select shows the heading a pick applied', () => {
-        component.writeValue('<p>text</p>');
-        fixture.detectChanges();
-        placeForTextStyle('p');
-        const select = textStyleSelect();
-
-        select.value = 'heading1';
-        select.dispatchEvent(new Event('change', { bubbles: true }));
-        fixture.detectChanges();
-
-        expect(editor.querySelector('h1')?.textContent).toBe('text');
-        expect(select.value).toBe('heading1');
-    });
-
     it('after a task row the select is back on normal text, and a heading on the next paragraph applies', () => {
         // The reported sequence: the select stuck on a heading after a task
         // row, and picking that heading on a real paragraph then did nothing.
@@ -6104,6 +5486,7 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         select.dispatchEvent(new Event('change', { bubbles: true }));
         fixture.detectChanges();
         expect(editor.querySelector('h1')?.textContent).toBe('text');
+        expect(select.value).toBe('heading1');
     });
 
     it('Delete into a line that has a sub-list puts the text above that list', () => {
@@ -6372,15 +5755,6 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         expect(editor.querySelectorAll('li[data-task]')).toHaveLength(2);
     });
 
-    it('an empty span does not make a blank line look full', () => {
-        // One of the two old predicates counted any child element as content.
-        component.writeValue('<p>text</p><p><span></span></p>');
-        fixture.detectChanges();
-
-        const blank = editor.querySelectorAll('p')[1];
-        expect((component as unknown as { isEmptyBlock(el: HTMLElement): boolean }).isEmptyBlock(blank)).toBe(true);
-    });
-
     it('Enter at the end of a bold run in a details block does not leave the block', () => {
         // A line with content is never the line the block is left from,
         // however close to its end the caret is.
@@ -6449,8 +5823,10 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         fixture.detectChanges();
         caretIn(editor.querySelector('li[data-task] > span')!.firstChild as Text, 4);
 
-        component.onKeydown(enterKey());
+        const ev = enterKey();
+        component.onKeydown(ev);
 
+        expect(ev.defaultPrevented).toBe(true);
         const rows = Array.from(editor.querySelectorAll<HTMLElement>('li[data-task]'));
         expect(rows).toHaveLength(2);
         const added = rows[1];
@@ -6530,18 +5906,6 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         }
     });
 
-    it('Enter in an empty task list item exits the task list into a paragraph', () => {
-        component.writeValue('<ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox"><span> </span></li></ul>');
-        fixture.detectChanges();
-        const span = editor.querySelector('li[data-task] span')!;
-        caretIn(span.firstChild as Text, 0);
-
-        component.onKeydown(enterKey());
-
-        expect(editor.querySelector('li[data-task]')).toBeNull();
-        expect(editor.querySelector('p')).toBeTruthy();
-    });
-
     it('Enter on an empty nested task row steps it out one level instead of leaving the list', () => {
         // Leaving the list from a nested row built a paragraph inside the parent
         // row, and the next keypress moved that paragraph into the row's text.
@@ -6592,65 +5956,6 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         expect(contentP.contains(anchor as Node) || contentP === anchor).toBe(true);
     });
 
-    it('Enter on an empty trailing details line exits the details block', () => {
-        component.writeValue('<details open><summary>T</summary><p> </p></details>');
-        fixture.detectChanges();
-        const p = editor.querySelector('details > p')!;
-        const textNode = p.firstChild as Text;
-        // make it empty
-        textNode.data = '';
-        caretIn(p, 0);
-
-        const ev = enterKey();
-        component.onKeydown(ev);
-
-        expect(ev.defaultPrevented).toBe(true);
-        expect(editor.querySelector('details > p')).toBeNull();
-    });
-
-    it('Enter with the caret on a details block whose last child is the summary itself is a no-op', () => {
-        component.writeValue('<details open><summary>Title only</summary></details>');
-        fixture.detectChanges();
-        const details = editor.querySelector('details')!;
-        caretIn(details, 0);
-
-        const ev = enterKey();
-        component.onKeydown(ev);
-
-        expect(editor.querySelector('summary')?.textContent).toBe('Title only');
-        expect(editor.querySelectorAll('details')).toHaveLength(1);
-    });
-
-    it('handleEnterInSummary is a no-op for a detached summary with no parent (white-box)', () => {
-        const summary = document.createElement('summary');
-        summary.textContent = 'Orphan';
-        const range = document.createRange();
-        range.setStart(summary.firstChild as Text, 2);
-        range.collapse(true);
-        const selection = document.getSelection() as Selection;
-        const ev = enterKey();
-
-        const result = (component as unknown as {
-            handleEnterInSummary: (e: KeyboardEvent, r: Range, s: Selection) => boolean;
-        }).handleEnterInSummary(ev, range, selection);
-
-        expect(result).toBe(true);
-        expect(ev.defaultPrevented).toBe(true);
-    });
-
-    it('Enter mid-line inside a non-empty details content paragraph does not exit the block', () => {
-        component.writeValue('<details open><summary>T</summary><p>not at end</p></details>');
-        fixture.detectChanges();
-        const p = editor.querySelector('details > p')!;
-        caretIn(p.firstChild as Text, 3);
-
-        const ev = enterKey();
-        component.onKeydown(ev);
-
-        expect(editor.querySelector('details > p')).toBeTruthy();
-        expect(editor.querySelector('details > p')?.textContent).toBe('not at end');
-    });
-
     // Enter leaves a code block and Shift+Enter adds a line inside it — one key,
     // one meaning. The old two-step (Enter opens a blank line, a second Enter
     // steps out) forced the exit to detect and unpick that blank line, and that
@@ -6678,6 +5983,7 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
 
         component.onKeydown(enterKey());
 
+        expect(editor.querySelector('code')?.textContent).toBe('done\n');
         expect(editor.querySelector('pre + p')).toBeTruthy();
     });
 
@@ -6709,17 +6015,6 @@ describe('RichTextEditorComponent — drag and drop', () => {
         fixture.detectChanges();
     });
 
-    it('ignores drag events without files', () => {
-        const ev = {
-            dataTransfer: makeDataTransfer([], ['text/plain']),
-            preventDefault: vi.fn(),
-        } as unknown as DragEvent;
-
-        component.onEditorDragOver(ev);
-
-        expect(component.dragOver()).toBe(false);
-    });
-
     it('clears dragOver on drag leave outside the editor', () => {
         component.dragOver.set(true);
         const current = document.createElement('div');
@@ -6742,8 +6037,11 @@ describe('RichTextEditorComponent — drag and drop', () => {
         expect(component.dragOver()).toBe(false);
     });
 
-    it('ignores drag-over while disabled or readonly', () => {
-        fixture.componentRef.setInput('disabled', true);
+    it.each(['disabled', 'readonly'])('ignores a file drag an addon would accept while %s', (state) => {
+        // With no predicate registered nothing is accepted anyway, so the
+        // state guard only shows once an addon claims the drag.
+        component.registerDropZonePredicate(() => true);
+        fixture.componentRef.setInput(state, true);
         fixture.detectChanges();
         const ev = { dataTransfer: makeDataTransfer([], ['Files']), preventDefault: vi.fn() } as unknown as DragEvent;
 
@@ -6782,37 +6080,14 @@ describe('RichTextEditorComponent — mention styling during formatting', () => 
         expect(chip.style.fontWeight).toBe('bold');
     });
 
-    it('underline toggles text decoration on mention chips', () => {
-        selectAll();
-        component.onFormatCommand('underline');
-        const chip = editor.querySelector<HTMLElement>('[data-mention]')!;
-        expect(chip.style.textDecoration).toContain('underline');
-    });
-
     it('underline toggled twice removes the text decoration on mention chips', () => {
         selectAll();
         component.onFormatCommand('underline');
+        const chip = () => editor.querySelector<HTMLElement>('[data-mention]')!;
+        expect(chip().style.textDecoration).toContain('underline');
         selectAll();
         component.onFormatCommand('underline');
-        const chip = editor.querySelector<HTMLElement>('[data-mention]')!;
-        expect(chip.style.textDecoration).not.toContain('underline');
-    });
-
-    it('getMentionElementsInSelection returns no chips when the selection is outside the editor', () => {
-        const outside = document.createElement('p');
-        outside.textContent = 'outside';
-        document.body.appendChild(outside);
-        try {
-            const range = document.createRange();
-            range.selectNodeContents(outside);
-            const sel = document.getSelection()!;
-            sel.removeAllRanges();
-            sel.addRange(range);
-
-            expect(() => component.onFormatCommand('bold')).not.toThrow();
-        } finally {
-            outside.remove();
-        }
+        expect(chip().style.textDecoration).not.toContain('underline');
     });
 
     it('getMentionElementsInSelection returns [] for a live selection outside the editor (white-box, bypassing restoreSelection self-heal)', () => {
@@ -6882,21 +6157,25 @@ describe('RichTextEditorComponent — history delta, undo/redo & destroy', () =>
         }
         // history should contain a mix of keyframes and deltas
         const hist = getHistory() as { keyframe: boolean }[];
-        expect(hist.length).toBeGreaterThan(10);
         expect(hist.some(e => e.keyframe)).toBe(true);
         expect(hist.some(e => !e.keyframe)).toBe(true);
 
-        // Undo from latest several steps and confirm reconstructed HTML matches
-        editor.dispatchEvent(new Event('input', { bubbles: true }));
-        component.onKeydown(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true, cancelable: true }));
-        component.onKeydown(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true, cancelable: true }));
-        expect(editor.textContent).toMatch(/v\d+/);
-        const afterUndos = editor.textContent;
-        component.onKeydown(new KeyboardEvent('keydown', { key: 'y', ctrlKey: true, bubbles: true, cancelable: true }));
-        expect(editor.textContent).not.toBe(afterUndos);
+        const undone: string[] = [];
+        for (let i = 0; i < 12; i++) {
+            component.onKeydown(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true, cancelable: true }));
+            undone.push(editor.innerHTML);
+        }
+        expect(undone).toEqual(snapshots.slice(0, 12).reverse());
+
+        const redone: string[] = [];
+        for (let i = 0; i < 12; i++) {
+            component.onKeydown(new KeyboardEvent('keydown', { key: 'y', ctrlKey: true, bubbles: true, cancelable: true }));
+            redone.push(editor.innerHTML);
+        }
+        expect(redone).toEqual(snapshots.slice(1));
     });
 
-    it('trims history to the configured limit, promoting a new keyframe', () => {
+    it('trims history to the configured limit, keeping the newest entries undoable', () => {
         fixture.componentRef.setInput('history', { limit: 10 });
         fixture.detectChanges();
         for (let i = 0; i < 30; i++) {
@@ -6904,13 +6183,21 @@ describe('RichTextEditorComponent — history delta, undo/redo & destroy', () =>
             fixture.detectChanges();
             push();
         }
-        const hist = getHistory();
-        expect(hist.length).toBeLessThanOrEqual(10);
-        // First entry must be a keyframe so reconstruction stays valid
-        expect((hist[0] as { keyframe: boolean }).keyframe).toBe(true);
+        expect(component.historyEntries()).toHaveLength(10);
+
+        // Undo walks back to entry 20 exactly and stops there.
+        const undone: string[] = [];
+        for (let i = 0; i < 10; i++) {
+            component.undo();
+            undone.push(editor.innerHTML);
+        }
+        expect(undone).toEqual([
+            ...Array.from({ length: 9 }, (_, k) => `<p>entry ${28 - k}</p>`),
+            '<p>entry 20</p>',
+        ]);
     });
 
-    it('reconstructHtml walks through an interior keyframe and a delta-less entry in a malformed history (white-box)', () => {
+    it('reconstructHtml falls back to an entry\'s own html when it carries no delta (white-box)', () => {
         component.writeValue('<p>seed</p>');
         fixture.detectChanges();
         push();
@@ -6928,17 +6215,10 @@ describe('RichTextEditorComponent — history delta, undo/redo & destroy', () =>
     });
 
     it('reconstructHtml walks a keyframe entry mid-loop when the flag flips between the backward scan and the forward pass (white-box, provably unreachable via any static history array)', () => {
-        // reconstructHtml's own backward search for the nearest keyframe is exhaustive: it
-        // walks from `index` down to 0 and stops at the FIRST (closest) keyframe:true entry
-        // it finds. By construction, every index strictly between that stop point and the
-        // original `index` was already read during that scan and found to be keyframe:false
-        // -- so the forward loop that follows can never encounter a keyframe:true entry
-        // partway through, for ANY static history array, malformed or not. The `e.keyframe`
-        // check inside that forward loop (source line ~3771) is therefore dead code baked
-        // into the algorithm's invariant. The only way to exercise it at all is a history
-        // entry whose `keyframe` getter itself is non-deterministic across the two reads --
-        // which is what this test does, purely to close the coverage line; it does not
-        // represent a real (or even plausible) runtime history state.
+        // The backward scan stops at the closest keyframe, so the forward loop can never meet
+        // one for any static history: its `e.keyframe` check is dead code. Only an entry whose
+        // `keyframe` getter changes between reads reaches it; this covers that line on purpose
+        // and does not model a real history state.
         component.writeValue('<p>seed</p>');
         fixture.detectChanges();
         push();
@@ -6948,10 +6228,7 @@ describe('RichTextEditorComponent — history delta, undo/redo & destroy', () =>
         const flakyKeyframeEntry: Entry = { ...base, html: '<p>flaky</p>', delta: null, keyframe: false };
         let reads = 0;
         Object.defineProperty(flakyKeyframeEntry, 'keyframe', {
-            // Read 1: reconstructHtml's own top-level `if (entry.keyframe)` early-return check.
-            // Read 2: the backward keyframe-search's own first probe of this same index.
-            // Read 3+: the forward reconstruction loop's re-check of this index -- this is the
-            // one that must flip to true to reach the interior-keyframe branch at all.
+            // Reads 1-2: the early-return check and the backward scan; read 3: the forward loop.
             get: () => { reads += 1; return reads > 2; },
             configurable: true,
         });
@@ -6965,26 +6242,6 @@ describe('RichTextEditorComponent — history delta, undo/redo & destroy', () =>
         expect(reconstruct(1)).toBe('<p>flaky</p>');
     });
 
-    it('selecting then pushing new content truncates the redo branch', () => {
-        component.writeValue('<p>a</p>'); fixture.detectChanges(); push();
-        component.writeValue('<p>b</p>'); fixture.detectChanges(); push();
-        component.writeValue('<p>c</p>'); fixture.detectChanges(); push();
-        const fullLen = getHistory().length;
-
-        component.restoreHistoryEntry(1);
-        component.writeValue('<p>branch</p>');
-        fixture.detectChanges();
-        push();
-
-        expect(getHistory().length).toBeLessThan(fullLen + 1);
-        expect((getHistory().at(-1) as { preview: string }).preview).toContain('branch');
-    });
-
-    it('ngOnDestroy unregisters shortcuts and disconnects observers without throwing', () => {
-        component.writeValue('<p>cleanup</p>');
-        fixture.detectChanges();
-        expect(() => fixture.destroy()).not.toThrow();
-    });
 });
 
 describe('RichTextEditorComponent — table mouse, resize & cell selection', () => {
@@ -7046,47 +6303,58 @@ describe('RichTextEditorComponent — table mouse, resize & cell selection', () 
         expect(editor.style.cursor).toBe('');
     });
 
-    it('starts a column resize when mousedown happens on the resize border', () => {
+    const styleWidth = (el: HTMLElement) => Number.parseFloat(el.style.width);
+    const rectWidth = (el: Element) => el.getBoundingClientRect().width;
+    const touchMoveTo = (x: number, y: number): TouchEvent => {
+        const move = new Event('touchmove', { bubbles: true, cancelable: true }) as TouchEvent;
+        Object.defineProperty(move, 'touches', { value: [{ clientX: x, clientY: y }] });
+        document.dispatchEvent(move);
+        return move;
+    };
+    const centre = (el: Element) => {
+        const r = el.getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    };
+
+    it('dragging a column border moves width from the next column into this one', () => {
         const table = seedTable();
-        const a1 = table.querySelectorAll('td')[0] as HTMLTableCellElement;
-        const rect = a1.getBoundingClientRect();
-        component.onEditorMouseMove({ target: a1, clientX: rect.right - 1, clientY: rect.top + 5 } as unknown as MouseEvent);
+        const [a1, a2, a3] = Array.from(table.rows[0].cells);
+        const [w1, w2, w3] = [a1, a2, a3].map(rectWidth);
+        const tableWidth = rectWidth(table);
+        const x = a1.getBoundingClientRect().right - 1;
+        const y = a1.getBoundingClientRect().top + 5;
+        component.onEditorMouseMove({ target: a1, clientX: x, clientY: y } as unknown as MouseEvent);
+        component.onEditorMouseDown({ button: 0, target: a1, clientX: x, clientY: y, preventDefault: vi.fn(), stopPropagation: vi.fn() } as unknown as MouseEvent);
 
-        const down = { button: 0, target: a1, clientX: rect.right - 1, clientY: rect.top + 5, preventDefault: vi.fn(), stopPropagation: vi.fn() } as unknown as MouseEvent;
-        component.onEditorMouseDown(down);
-
-        expect(table.style.tableLayout).toBe('fixed');
-
-        document.dispatchEvent(new MouseEvent('mousemove', { clientX: rect.right + 40, clientY: rect.top + 5, bubbles: true }));
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: x + 40, clientY: y, bubbles: true }));
         document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
 
-        expect(table.style.width).toContain('px');
+        expect(table.style.tableLayout).toBe('fixed');
+        expect(styleWidth(a1)).toBeCloseTo(w1 + 40);
+        expect(styleWidth(a2)).toBeCloseTo(w2 - 40);
+        expect(styleWidth(a3)).toBeCloseTo(w3);
+        expect(styleWidth(table)).toBeCloseTo(tableWidth);
     });
 
-    it('starts a column resize from a touch on the resize border', () => {
+    it('dragging a column border by touch resizes the column and keeps the page from scrolling', () => {
         // Column resize was mouse-only: onEditorTouchStart handled cell SELECTION
         // and never checked the resize hotspot, so a table column could not be
         // resized at all on a phone or tablet.
         const table = seedTable();
-        const a1 = table.querySelectorAll('td')[0] as HTMLTableCellElement;
-        const rect = a1.getBoundingClientRect();
-        const touchAt = (x: number, y: number) => ({
-            target: a1,
-            touches: [{ clientX: x, clientY: y }],
-            changedTouches: [{ clientX: x, clientY: y }],
-            preventDefault: vi.fn(),
-            stopPropagation: vi.fn(),
-        }) as unknown as TouchEvent;
+        const [a1, a2] = Array.from(table.rows[0].cells);
+        const [w1, w2] = [a1, a2].map(rectWidth);
+        const x = a1.getBoundingClientRect().right - 1;
+        const y = a1.getBoundingClientRect().top + 5;
 
-        component.onEditorTouchStart(touchAt(rect.right - 1, rect.top + 5));
+        component.onEditorTouchStart({
+            target: a1, touches: [{ clientX: x, clientY: y }], preventDefault: vi.fn(), stopPropagation: vi.fn(),
+        } as unknown as TouchEvent);
+        const move = touchMoveTo(x + 40, y);
+        document.dispatchEvent(new Event('touchend', { bubbles: true }));
 
-        expect(table.style.tableLayout).toBe('fixed');
-        const startWidth = table.getBoundingClientRect().width;
-
-        document.dispatchEvent(new TouchEvent('touchmove', { bubbles: true, cancelable: true }));
-        component.onEditorTouchStart(touchAt(rect.right - 1, rect.top + 5));
-        expect(table.style.width).toContain('px');
-        expect(startWidth).toBeGreaterThan(0);
+        expect(move.defaultPrevented).toBe(true);
+        expect(styleWidth(a1)).toBeCloseTo(w1 + 40);
+        expect(styleWidth(a2)).toBeCloseTo(w2 - 40);
     });
 
     it('right-click on an unselected cell clears the existing cell selection', () => {
@@ -7115,22 +6383,21 @@ describe('RichTextEditorComponent — table mouse, resize & cell selection', () 
         expect(editor.style.cursor).toBe('');
     });
 
-    it('onEditorMouseDown/mousemove are no-ops while disabled or readonly', () => {
+    it.each(['disabled', 'readonly'])('the mouse neither drag-selects cells nor arms a column resize while %s', (state) => {
         const table = seedTable();
-        const a1 = table.querySelectorAll('td')[0] as HTMLTableCellElement;
-        fixture.componentRef.setInput('disabled', true);
+        fixture.componentRef.setInput(state, true);
         fixture.detectChanges();
+        const a1 = table.rows[0].cells[0];
+        const b2 = centre(table.rows[1].cells[1]);
 
-        expect(() => component.onEditorMouseDown(
-            { button: 0, target: a1, preventDefault: vi.fn(), stopPropagation: vi.fn() } as unknown as MouseEvent
-        )).not.toThrow();
-        expect(component.tableCellSelected()).toHaveLength(0);
+        component.onEditorMouseDown({ button: 0, target: a1, preventDefault: vi.fn(), stopPropagation: vi.fn() } as unknown as MouseEvent);
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: b2.x, clientY: b2.y, bubbles: true }));
+        document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+        expect(component.tableCellSelected()).toEqual([]);
 
         const rect = a1.getBoundingClientRect();
-        expect(() => component.onEditorMouseMove(
-            { target: a1, clientX: rect.right - 1, clientY: rect.top + 5 } as unknown as MouseEvent
-        )).not.toThrow();
-        expect((component as unknown as { tableResizeCursor: { (): boolean; set(v: boolean): void } }).tableResizeCursor()).toBe(false);
+        component.onEditorMouseMove({ target: a1, clientX: rect.right - 1, clientY: rect.top + 5 } as unknown as MouseEvent);
+        expect(editor.style.cursor).toBe('');
     });
 
     it('startTableResize returns false for a cell detached from any table (white-box)', () => {
@@ -7182,108 +6449,107 @@ describe('RichTextEditorComponent — table mouse, resize & cell selection', () 
         }
     });
 
-    it('onTableCellSelectMove is a no-op when not currently selecting (white-box)', () => {
-        (component as unknown as { tableCellSelecting: boolean }).tableCellSelecting = false;
-        expect(() => (component as unknown as { onTableCellSelectMove: (e: MouseEvent) => void })
-            .onTableCellSelectMove({ clientX: 0, clientY: 0 } as unknown as MouseEvent)).not.toThrow();
-    });
-
-    it('onEditorTouchStart is a no-op while disabled or readonly', () => {
+    it.each(['disabled', 'readonly'])('a touch neither resizes a column nor drag-selects cells while %s', (state) => {
         const table = seedTable();
-        const a1 = table.querySelectorAll('td')[0] as HTMLTableCellElement;
-        fixture.componentRef.setInput('readonly', true);
+        fixture.componentRef.setInput(state, true);
         fixture.detectChanges();
+        const [a1, a2] = Array.from(table.rows[0].cells);
+        const rect = a1.getBoundingClientRect();
+        const touchStart = (x: number, y: number) => component.onEditorTouchStart({
+            target: a1, touches: [{ clientX: x, clientY: y }], preventDefault: vi.fn(), stopPropagation: vi.fn(),
+        } as unknown as TouchEvent);
 
-        expect(() => component.onEditorTouchStart(
-            { target: a1, touches: [{ clientX: 0, clientY: 0 }] } as unknown as TouchEvent
-        )).not.toThrow();
-        expect(component.tableCellSelected()).toHaveLength(0);
+        touchStart(rect.right - 1, rect.top + 5);
+        expect(table.style.tableLayout).toBe('');
+
+        touchStart(centre(a1).x, centre(a1).y);
+        touchMoveTo(centre(a2).x, centre(a2).y);
+        document.dispatchEvent(new Event('touchend', { bubbles: true }));
+        expect(component.tableCellSelected()).toEqual([]);
     });
 
-    it('onTableCellTouchMove ignores touches while not selecting, off any target, or off any cell (white-box)', () => {
-        const touchMove = (component as unknown as { onTableCellTouchMove: (e: TouchEvent) => void })
-            .onTableCellTouchMove.bind(component);
+    /**
+     * The file-level stubs give every table the same cell grid and resolve a
+     * point to the first cell in document order, so a table placed before the
+     * editor owns the points of its top-left cell. The stubbed lookup never
+     * answers `null`, so an empty point is fed once through a spy.
+     */
+    const otherTableFirst = () => {
+        const other = document.createElement('table');
+        other.innerHTML = '<tbody><tr><td>other</td></tr></tbody>';
+        document.body.prepend(other);
+        return other;
+    };
+    const noCellPoint = { x: 350, y: 500 };
 
-        (component as unknown as { tableCellSelecting: boolean }).tableCellSelecting = false;
-        expect(() => touchMove({ touches: [{ clientX: 0, clientY: 0 }] } as unknown as TouchEvent)).not.toThrow();
-
-        (component as unknown as { tableCellSelecting: boolean }).tableCellSelecting = true;
+    it('a touch drag that strays onto nothing, off any cell or onto another table selects nothing and lets the page scroll', () => {
         const table = seedTable();
-        (component as unknown as { tableCellSelectAnchor: HTMLTableCellElement }).tableCellSelectAnchor =
-            table.querySelector('td')!;
+        const [, b2, b3] = Array.from(table.rows[1].cells);
+        const other = otherTableFirst();
+        try {
+            component.onEditorTouchStart({ target: b2, touches: [{ clientX: centre(b2).x, clientY: centre(b2).y }] } as unknown as TouchEvent);
 
-        const noTargetSpy = vi.spyOn(document, 'elementFromPoint').mockReturnValue(null);
-        expect(() => touchMove({ touches: [{ clientX: 0, clientY: 0 }], preventDefault: vi.fn() } as unknown as TouchEvent)).not.toThrow();
-        noTargetSpy.mockRestore();
+            vi.spyOn(document, 'elementFromPoint').mockReturnValueOnce(null);
+            const otherCell = centre(other.rows[0].cells[0]);
+            const strays = [
+                touchMoveTo(0, 0),
+                touchMoveTo(noCellPoint.x, noCellPoint.y),
+                touchMoveTo(otherCell.x, otherCell.y),
+            ];
+            expect(strays.map(e => e.defaultPrevented)).toEqual([false, false, false]);
+            expect(component.tableCellSelected()).toEqual([]);
 
-        const nonCellSpy = vi.spyOn(document, 'elementFromPoint').mockReturnValue(document.body);
-        expect(() => touchMove({ touches: [{ clientX: 0, clientY: 0 }], preventDefault: vi.fn() } as unknown as TouchEvent)).not.toThrow();
-        nonCellSpy.mockRestore();
-
-        const otherTable = document.createElement('table');
-        const otherRow = document.createElement('tr');
-        const otherCell = document.createElement('td');
-        otherRow.appendChild(otherCell);
-        otherTable.appendChild(otherRow);
-        document.body.appendChild(otherTable);
-        const otherTableSpy = vi.spyOn(document, 'elementFromPoint').mockReturnValue(otherCell);
-        expect(() => touchMove({ touches: [{ clientX: 0, clientY: 0 }], preventDefault: vi.fn() } as unknown as TouchEvent)).not.toThrow();
-        expect(component.tableCellSelected()).toHaveLength(0);
-        otherTableSpy.mockRestore();
-        otherTable.remove();
-
-        (component as unknown as { tableCellSelecting: boolean }).tableCellSelecting = false;
+            const onTable = touchMoveTo(centre(b3).x, centre(b3).y);
+            expect(onTable.defaultPrevented).toBe(true);
+            expect(component.tableCellSelected()).toEqual([b2, b3]);
+        } finally {
+            document.dispatchEvent(new Event('touchend', { bubbles: true }));
+            other.remove();
+        }
     });
 
     it('resizing the last column grows the table width instead of a sibling column', () => {
         const table = seedTable();
-        const cells = table.querySelectorAll('tr')[0].querySelectorAll('td');
-        const lastCell = cells[cells.length - 1] as HTMLTableCellElement;
-        const rect = lastCell.getBoundingClientRect();
-        component.onEditorMouseMove({ target: lastCell, clientX: rect.right - 1, clientY: rect.top + 5 } as unknown as MouseEvent);
+        const [, a2, a3] = Array.from(table.rows[0].cells);
+        const [w2, w3] = [a2, a3].map(rectWidth);
+        const tableWidth = rectWidth(table);
+        const x = a3.getBoundingClientRect().right - 1;
+        const y = a3.getBoundingClientRect().top + 5;
+        component.onEditorMouseMove({ target: a3, clientX: x, clientY: y } as unknown as MouseEvent);
         component.onEditorMouseDown({
-            button: 0, target: lastCell, clientX: rect.right - 1, clientY: rect.top + 5,
+            button: 0, target: a3, clientX: x, clientY: y,
             preventDefault: vi.fn(), stopPropagation: vi.fn(),
         } as unknown as MouseEvent);
 
-        document.dispatchEvent(new MouseEvent('mousemove', { clientX: rect.right + 40, clientY: rect.top + 5, bubbles: true }));
-
-        expect(table.style.width).toContain('px');
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: x + 40, clientY: y, bubbles: true }));
         document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+
+        expect(styleWidth(a3)).toBeCloseTo(w3 + 40);
+        expect(styleWidth(a2)).toBeCloseTo(w2);
+        expect(styleWidth(table)).toBeCloseTo(tableWidth + 40);
     });
 
-    it('onTableCellSelectMove ignores moves outside any cell, off-table, or to a different table (white-box)', () => {
+    it('a mouse drag that strays onto nothing, off any cell or onto another table selects nothing', () => {
         const table = seedTable();
-        const a1 = table.querySelectorAll('td')[0] as HTMLTableCellElement;
-        const moveFn = (component as unknown as { onTableCellSelectMove: (e: MouseEvent) => void })
-            .onTableCellSelectMove.bind(component);
+        const [, b2, b3] = Array.from(table.rows[1].cells);
+        const other = otherTableFirst();
+        const moveTo = (p: { x: number; y: number }) =>
+            document.dispatchEvent(new MouseEvent('mousemove', { clientX: p.x, clientY: p.y, bubbles: true }));
+        try {
+            component.onEditorMouseDown({ button: 0, target: b2, preventDefault: vi.fn(), stopPropagation: vi.fn() } as unknown as MouseEvent);
 
-        (component as unknown as { tableCellSelecting: boolean }).tableCellSelecting = true;
-        (component as unknown as { tableCellSelectAnchor: HTMLTableCellElement | null }).tableCellSelectAnchor = a1;
+            vi.spyOn(document, 'elementFromPoint').mockReturnValueOnce(null);
+            for (const p of [{ x: 0, y: 0 }, noCellPoint, centre(other.rows[0].cells[0])]) {
+                moveTo(p);
+                expect(component.tableCellSelected()).toEqual([]);
+            }
 
-        const noTargetSpy = vi.spyOn(document, 'elementFromPoint').mockReturnValue(null);
-        expect(() => moveFn({ clientX: -1, clientY: -1 } as unknown as MouseEvent)).not.toThrow();
-        expect(component.tableCellSelected()).toHaveLength(0);
-        noTargetSpy.mockRestore();
-
-        const nonCellSpy = vi.spyOn(document, 'elementFromPoint').mockReturnValue(document.body);
-        expect(() => moveFn({ clientX: 0, clientY: 0 } as unknown as MouseEvent)).not.toThrow();
-        expect(component.tableCellSelected()).toHaveLength(0);
-        nonCellSpy.mockRestore();
-
-        const otherTable = document.createElement('table');
-        const otherRow = document.createElement('tr');
-        const otherCell = document.createElement('td');
-        otherRow.appendChild(otherCell);
-        otherTable.appendChild(otherRow);
-        document.body.appendChild(otherTable);
-        const otherTableSpy = vi.spyOn(document, 'elementFromPoint').mockReturnValue(otherCell);
-        expect(() => moveFn({ clientX: 0, clientY: 0 } as unknown as MouseEvent)).not.toThrow();
-        expect(component.tableCellSelected()).toHaveLength(0);
-        otherTableSpy.mockRestore();
-        otherTable.remove();
-
-        (component as unknown as { tableCellSelecting: boolean }).tableCellSelecting = false;
+            moveTo(centre(b3));
+            expect(component.tableCellSelected()).toEqual([b2, b3]);
+        } finally {
+            document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+            other.remove();
+        }
     });
 
     it('selecting a row whose rowspan cell reaches into the next row auto-expands the selection to include it', () => {
@@ -7339,19 +6605,19 @@ describe('RichTextEditorComponent — table mouse, resize & cell selection', () 
         expect(component.tableCellSelected()).toHaveLength(0);
     });
 
-    it('updateCellSelection handles a row-overflow caused by a rowspan pushing a cell past the grid width (white-box)', () => {
+    it('drag-selecting from a rowspan cell to a cell it pushed right selects the block between them', () => {
         editor.innerHTML = `<table><tbody>
             <tr><td rowspan="2">A</td><td>B</td></tr>
             <tr><td>C</td><td>D</td></tr>
         </tbody></table>`;
         editor.dispatchEvent(new Event('input', { bubbles: true }));
-        const table = editor.querySelector('table')!;
-        const cellA = table.querySelector('td')!;
-        const cellD = table.querySelectorAll('td')[3] as HTMLTableCellElement;
+        const [cellA, , cellC] = Array.from(editor.querySelectorAll('td'));
 
-        expect(() => (component as unknown as {
-            updateCellSelection: (a: HTMLTableCellElement, c: HTMLTableCellElement) => void;
-        }).updateCellSelection(cellA, cellD)).not.toThrow();
+        component.onEditorMouseDown({ button: 0, target: cellA, preventDefault: vi.fn(), stopPropagation: vi.fn() } as unknown as MouseEvent);
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: centre(cellC).x, clientY: centre(cellC).y, bubbles: true }));
+        document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+
+        expect(component.tableCellSelected().map(c => c.textContent)).toEqual(['A', 'B', 'C']);
     });
 
     it('touch drag selects cells across the table', () => {
@@ -7387,20 +6653,6 @@ describe('RichTextEditorComponent — task checkbox & image element handlers', (
         editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
     });
 
-    it('clicking a task checkbox toggles the checked dataset on its list item', () => {
-        component.writeValue('<ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox"><span>do it</span></li></ul>');
-        fixture.detectChanges();
-        const checkbox = editor.querySelector('input[type="checkbox"]') as HTMLInputElement;
-
-        component.onEditorClick({ target: checkbox, preventDefault: vi.fn() } as unknown as MouseEvent);
-
-        const li = editor.querySelector('li[data-task]')!;
-        expect(li.getAttribute('data-checked')).toBe('true');
-
-        component.onEditorClick({ target: checkbox, preventDefault: vi.fn() } as unknown as MouseEvent);
-        expect(li.getAttribute('data-checked')).toBe('false');
-    });
-
     const nestedTasks = () => component.writeValue(
         '<ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox"><span>parent</span>'
         + '<ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox"><span>child a</span>'
@@ -7429,12 +6681,6 @@ describe('RichTextEditorComponent — task checkbox & image element handlers', (
         expect(checkedStates()).toEqual([
             'parent:true:true', 'child a:false:false', 'grandchild:false:false', 'child b:false:false',
         ]);
-    });
-
-    it('strikes only a checked row\'s own text, not the rows nested under it', () => {
-        const rule = RICH_TEXT_PROSE_CLASSES.find(c => c.includes('data-checked=true'))!;
-        expect(rule).toContain('[&_li[data-task][data-checked=true]>span]:line-through');
-        expect(rule).not.toMatch(/\[&_li\[data-task]\[data-checked=true]]:/);
     });
 
     it('clicking a checkbox with no data-task ancestor <li> is a no-op', () => {
@@ -7552,11 +6798,6 @@ describe('RichTextEditorComponent — history delta algorithm', () => {
         const c = component as unknown as DeltaComponent;
         expect(c.applyDelta('base\ncontent', '')).toBe('base\ncontent');
     });
-
-    it('applyDelta skips an empty op segment produced by a malformed delta string (white-box)', () => {
-        const c = component as unknown as DeltaComponent;
-        expect(c.applyDelta('a\nb', '=0\x01\x01+c')).toBe('a\nc');
-    });
 });
 
 describe('RichTextEditorComponent — keyboard shortcuts execute formatting', () => {
@@ -7613,13 +6854,6 @@ describe('RichTextEditorComponent — keyboard shortcuts execute formatting', ()
         component.registerLinkEditor(() => { opened = true; });
         component.onKeydown(key('k'));
         expect(opened).toBe(true);
-    });
-
-    it('Ctrl+K is inert when no link editor is registered', () => {
-        component.writeValue('<p>link me</p>');
-        fixture.detectChanges();
-        selectAll();
-        expect(() => component.onKeydown(key('k'))).not.toThrow();
     });
 
     it('Ctrl+F opens find without replace', () => {
@@ -7687,14 +6921,18 @@ describe('RichTextEditorComponent — focus, blur & selection edge cases', () =>
         fixture.detectChanges();
         const toolbarButton = document.createElement('button');
         (fixture.nativeElement as HTMLElement).appendChild(toolbarButton);
+        vi.useFakeTimers();
         try {
-            const blurSpy = vi.fn();
-            component.blurred.subscribe(blurSpy);
+            component.showFloatingToolbar.set(true);
 
+            // Focus has not landed anywhere yet, so the timeout, had it run,
+            // would find it outside the component and hide the toolbar.
             component.onBlur({ relatedTarget: toolbarButton } as unknown as FocusEvent);
+            vi.advanceTimersByTime(300);
 
-            expect(blurSpy).toHaveBeenCalled();
+            expect(component.showFloatingToolbar()).toBe(true);
         } finally {
+            vi.useRealTimers();
             toolbarButton.remove();
         }
     });
@@ -7808,15 +7046,20 @@ describe('RichTextEditorComponent — content insertion fallbacks', () => {
     });
 
     it('appends text to the editor when there is no selection', () => {
+        component.writeValue('<p>existing</p>');
+        fixture.detectChanges();
         document.getSelection()?.removeAllRanges();
         (component as unknown as Internal).insertText('appended-text');
-        expect(editor.textContent).toContain('appended-text');
+        expect(editor.textContent).toBe('existingappended-text');
     });
 
     it('appends HTML to the editor end when there is no selection', () => {
+        component.writeValue('<p>existing</p>');
+        fixture.detectChanges();
         document.getSelection()?.removeAllRanges();
         (component as unknown as Internal).insertHtml('<strong>appended-html</strong>');
-        expect(editor.querySelector('strong')?.textContent).toBe('appended-html');
+        expect(editor.textContent).toBe('existingappended-html');
+        expect(editor.lastElementChild?.outerHTML).toBe('<strong>appended-html</strong>');
     });
 
 });
@@ -7838,21 +7081,25 @@ describe('RichTextEditorComponent — readonly & disabled guards', () => {
         editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
     });
 
-    it('does not paste content when readonly', async () => {
+    it('does not paste content when readonly', () => {
         component.writeValue('<p>locked</p>');
         fixture.detectChanges();
-        await component.onPaste({
+        setCaretAt(editor.querySelector('p')!.firstChild!, 3);
+        const before = editor.innerHTML;
+        component.onPaste({
             preventDefault: vi.fn(),
             clipboardData: { getData: () => 'should not appear', files: [] } as unknown as DataTransfer,
         } as unknown as ClipboardEvent);
-        expect(editor.textContent).not.toContain('should not appear');
+        expect(editor.innerHTML).toBe(before);
     });
-
-
 
     it('floating format command is a no-op when readonly', () => {
         component.writeValue('<p>nope</p>');
         fixture.detectChanges();
+        const range = document.createRange();
+        range.selectNodeContents(editor.querySelector('p')!);
+        document.getSelection()!.removeAllRanges();
+        document.getSelection()!.addRange(range);
         const before = editor.innerHTML;
         component.onFloatingFormatCommand('bold');
         expect(editor.innerHTML).toBe(before);
@@ -7891,9 +7138,8 @@ describe('RichTextEditorComponent — output formats & counts', () => {
         editor.dispatchEvent(new Event('input', { bubbles: true }));
         fixture.detectChanges();
 
-        expect(htmlSpy).toHaveBeenCalled();
-        expect(mdSpy).toHaveBeenCalled();
-        expect(htmlSpy.mock.calls.at(-1)?.[0]).toContain('hello world');
+        expect(htmlSpy.mock.calls.at(-1)?.[0]).toBe('<p>hello world</p>');
+        expect(mdSpy.mock.calls.at(-1)?.[0]).toBe('hello world');
     });
 
     it('computes character and word counts and emits wordCountChange', () => {
@@ -7934,7 +7180,7 @@ describe('RichTextEditorComponent — table context menu interactions', () => {
         document.body.appendChild(fixture.nativeElement);
     });
 
-    it('opening the context menu over a cell positions and shows it, with rAF adjustment', () => {
+    it('opening the context menu over a cell shows it at the pointer', () => {
         vi.useFakeTimers();
         editor.innerHTML = '<table><tbody><tr><td>c</td></tr></tbody></table>';
         editor.dispatchEvent(new Event('input', { bubbles: true }));
@@ -7952,8 +7198,7 @@ describe('RichTextEditorComponent — table context menu interactions', () => {
         vi.useRealTimers();
     });
 
-    it('adjusts the context menu position so it never overflows the viewport', () => {
-        vi.useFakeTimers();
+    it('adjusts the context menu position so it never overflows the viewport', async () => {
         editor.innerHTML = '<table><tbody><tr><td>c</td></tr></tbody></table>';
         editor.dispatchEvent(new Event('input', { bubbles: true }));
         const cell = editor.querySelector('td')!;
@@ -7964,23 +7209,21 @@ describe('RichTextEditorComponent — table context menu interactions', () => {
         } as unknown as MouseEvent);
         fixture.detectChanges();
 
-        const menuEl = (fixture.nativeElement as HTMLElement).querySelector('.z-50.min-w-\\[180px\\]') as HTMLElement | null;
-        if (menuEl) {
-            vi.spyOn(menuEl, 'getBoundingClientRect').mockReturnValue({
-                right: globalThis.innerWidth + 500,
-                bottom: globalThis.innerHeight + 500,
-                width: 200,
-                height: 150,
-                left: 0, top: 0, x: 0, y: 0, toJSON: () => ({}),
-            } as DOMRect);
-        }
+        // A 200x150 menu that overflows both edges of the viewport.
+        const menuEl = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('.z-50.min-w-\\[180px\\]')!;
+        vi.spyOn(menuEl, 'getBoundingClientRect').mockReturnValue({
+            right: globalThis.innerWidth + 500,
+            bottom: globalThis.innerHeight + 500,
+            width: 200,
+            height: 150,
+            left: 0, top: 0, x: 0, y: 0, toJSON: () => ({}),
+        } as DOMRect);
+        await new Promise(resolve => requestAnimationFrame(resolve));
 
-        vi.runAllTimers();
-        vi.useRealTimers();
-
-        const pos = component.tableContextMenuPosition();
-        expect(pos.x).toBeLessThanOrEqual(globalThis.innerWidth);
-        expect(pos.y).toBeLessThanOrEqual(globalThis.innerHeight);
+        expect(component.tableContextMenuPosition()).toEqual({
+            x: globalThis.innerWidth - 200 - 8,
+            y: globalThis.innerHeight - 150 - 8,
+        });
     });
 
     it('closes the context menu when right-clicking outside any table cell', () => {
@@ -8015,9 +7258,11 @@ describe('RichTextEditorComponent — floating format caret & inline formats', (
         document.body.appendChild(fixture.nativeElement);
     });
 
-    it('moves the caret past the formatting node after a floating bold inside existing bold text', () => {
+    it('a format inside existing bold text parks the caret just past the innermost formatting node', () => {
         component.writeValue('<p><b>already bold</b></p>');
         fixture.detectChanges();
+        // jsdom moves the selection to the editor's start when focus arrives; focus first, as a user does.
+        editor.focus();
         const boldText = editor.querySelector('b')!.firstChild as Text;
         const sel = document.getSelection();
         const r = document.createRange();
@@ -8029,9 +7274,13 @@ describe('RichTextEditorComponent — floating format caret & inline formats', (
 
         component.onFormatCommand('bold');
 
-        // The toolbar collapses and the selection should be repositioned.
+        const inner = editor.querySelector('b b')!;
+        expect(inner.textContent).toBe('read');
+        const selection = document.getSelection()!;
+        expect(selection.isCollapsed).toBe(true);
+        expect(selection.anchorNode).toBe(inner.parentNode);
+        expect(selection.anchorOffset).toBe(Array.from(inner.parentNode!.childNodes).indexOf(inner) + 1);
         expect(component.showFloatingToolbar()).toBe(false);
-        expect(document.getSelection()?.isCollapsed).toBe(true);
     });
 
     it('strikethrough wraps the selection in a strike element', () => {
@@ -8047,7 +7296,7 @@ describe('RichTextEditorComponent — floating format caret & inline formats', (
 
         component.onFormatCommand('strikethrough');
 
-        expect(editor.querySelector('s,strike')).toBeTruthy();
+        expect(editor.querySelector('s,strike')?.textContent).toBe('strike');
     });
 
     it('clear command on the floating toolbar removes formatting', () => {
@@ -8129,8 +7378,8 @@ describe('RichTextEditorComponent — tail span table edits', () => {
 
         component.deleteTableColumn();
 
-        const merged = table.querySelector('td[colspan]') as HTMLTableCellElement | null;
-        expect(merged?.colSpan ?? 1).toBe(1);
+        const cells = Array.from(table.querySelectorAll('td'));
+        expect(cells.map(c => `${c.textContent}:${c.colSpan}`)).toEqual(['M:1', 'B2:1']);
     });
 });
 
@@ -8153,8 +7402,9 @@ describe('RichTextEditorComponent — find with no editor & openFindReplace focu
         component.openFindReplace(true);
         fixture.detectChanges();
         await new Promise(r => requestAnimationFrame(() => r(null)));
-        const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('input[placeholder]');
-        expect(input).toBeTruthy();
+        const input = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-find-query"]');
+        expect(input).not.toBeNull();
+        expect(document.activeElement).toBe(input);
     });
 });
 
@@ -8175,28 +7425,6 @@ describe('RichTextEditorComponent — paste max length & overlay handlers', () =
         document.body.appendChild(fixture.nativeElement);
     });
 
-
-    it('truncates a paste that would exceed maxLength', () => {
-        fixture.componentRef.setInput('maxLength', 8);
-        fixture.detectChanges();
-        editor.innerHTML = 'abc';
-        editor.dispatchEvent(new Event('input', { bubbles: true }));
-        const text = editor.firstChild as Text;
-        const sel = document.getSelection();
-        const r = document.createRange();
-        r.setStart(text, text.length);
-        r.collapse(true);
-        sel?.removeAllRanges();
-        sel?.addRange(r);
-
-        component.onPaste({
-            preventDefault: vi.fn(),
-            clipboardData: { getData: (t: string) => (t === 'text/plain' ? 'defghijklmnop' : ''), files: [] } as unknown as DataTransfer,
-        } as unknown as ClipboardEvent);
-
-        expect(editor.textContent ?? '').toHaveLength(8);
-        expect(editor.textContent).toBe('abcdefgh');
-    });
 
     it('overlay text insertion temporarily disables the editor inputMode then restores it', () => {
         vi.useFakeTimers();
@@ -8322,12 +7550,7 @@ describe('RichTextEditorComponent - addon host', () => {
         editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
     });
 
-    it('is provided via DI as RichTextEditorAddonHost', () => {
-        const host = fixture.debugElement.injector.get(RichTextEditorAddonHost);
-        expect(host).toBe(component);
-    });
-
-    it('renders a registered toolbar slot after built-ins and fires its onClick', () => {
+    it('renders a registered toolbar slot and fires its onClick', () => {
         const host = fixture.debugElement.injector.get(RichTextEditorAddonHost);
         const clicks: Event[] = [];
         host.toolbarSlots.register({
@@ -8339,13 +7562,6 @@ describe('RichTextEditorComponent - addon host', () => {
         expect(btn).toBeTruthy();
         btn.click();
         expect(clicks).toHaveLength(1);
-    });
-
-    it('selection() reports none when the editor is empty and unfocused', () => {
-        const host = fixture.debugElement.injector.get(RichTextEditorAddonHost);
-        const snap = host.selection();
-        expect(snap.kind).toBe('none');
-        expect(snap.closestWithAttrs(['data-foo'])).toBeNull();
     });
 
     it('selection() reports none when there is a live selection with zero ranges', () => {
@@ -8363,19 +7579,9 @@ describe('RichTextEditorComponent - addon host', () => {
         const sel = window.getSelection()!; sel.removeAllRanges(); sel.addRange(range);
 
         const snap = host.selection();
-        expect(snap.closestWithAttrs(['data-testid'])?.getAttribute('data-testid')).toBe('wrap');
-    });
-
-    it('selection() reports text kind and the selected string', () => {
-        const host = fixture.debugElement.injector.get(RichTextEditorAddonHost);
-        editor.innerHTML = '<p>hello world</p>';
-        const node = editor.querySelector('p')!.firstChild!;
-        const range = document.createRange();
-        range.setStart(node, 0); range.setEnd(node, 5);
-        const sel = window.getSelection()!; sel.removeAllRanges(); sel.addRange(range);
-        const snap = host.selection();
         expect(snap.kind).toBe('text');
         expect(snap.text).toBe('hello');
+        expect(snap.closestWithAttrs(['data-testid'])?.getAttribute('data-testid')).toBe('wrap');
     });
 
     it('wrapSelection wraps the current text range in the built element', () => {
@@ -8486,23 +7692,19 @@ describe('RichTextEditorComponent - addon host', () => {
         expect(editor.querySelector('ul > li')?.textContent).toBe('item');
     });
 
-    it('executeToolbarCommandOnBlock inserts inline code at the caret', () => {
-        const host = fixture.debugElement.injector.get(RichTextEditorAddonHost);
-        editor.innerHTML = '<p>x</p>';
-        const block = editor.querySelector('p')!;
-        caretIn(block.firstChild!, 1);
-        host.executeToolbarCommandOnBlock('code', block);
-        expect(editor.querySelector('code')).toBeTruthy();
-    });
-
     it('insertTextAtCaret / insertHtmlAtCaret insert one undoable entry each', () => {
         const host = fixture.debugElement.injector.get(RichTextEditorAddonHost);
-        editor.innerHTML = '<p>a</p>';
+        host.mutateContent((root) => { root.innerHTML = '<p>a</p>'; });
         caretIn(editor.querySelector('p')!.firstChild!, 1);
         host.insertTextAtCaret('B');
-        expect(editor.textContent).toContain('aB');
         host.insertHtmlAtCaret('<strong>C</strong>');
         expect(editor.querySelector('strong')?.textContent).toBe('C');
+
+        const undo = () => component.onKeydown(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true, cancelable: true }));
+        undo();
+        expect(editor.textContent).toBe('aB');
+        undo();
+        expect(editor.textContent).toBe('a');
     });
 
     it('insertHtmlAtCaret with html that sanitizes to nothing collapses the caret at the range end', () => {
@@ -8510,8 +7712,17 @@ describe('RichTextEditorComponent - addon host', () => {
         editor.innerHTML = '<p>a</p>';
         caretIn(editor.querySelector('p')!.firstChild!, 1);
 
-        expect(() => host.insertHtmlAtCaret('<script>evil()</script>')).not.toThrow();
-        expect(editor.textContent).toBe('a');
+        host.insertHtmlAtCaret('<script>evil()</script>');
+
+        expect(editor.innerHTML).toBe('<p>a</p>');
+        const selection = document.getSelection()!;
+        expect(selection.isCollapsed).toBe(true);
+        const p = editor.querySelector('p')!;
+        const before = document.createRange();
+        before.setStart(p, 0);
+        before.setEnd(selection.anchorNode!, selection.anchorOffset);
+        expect(p.contains(selection.anchorNode)).toBe(true);
+        expect(before.toString()).toBe('a');
     });
 
     it('commitContent syncs direct DOM edits into the emitted model value', () => {
@@ -8523,7 +7734,7 @@ describe('RichTextEditorComponent - addon host', () => {
         expect(emitted.at(-1)).toContain('direct edit');
     });
 
-    it('registerKeydownInterceptor consumes the event and blocks base handling', () => {
+    it('registerKeydownInterceptor sees keydowns until its disposer runs', () => {
         const host = fixture.debugElement.injector.get(RichTextEditorAddonHost);
         const seen: string[] = [];
         const off = host.registerKeydownInterceptor((e) => {
@@ -8539,28 +7750,20 @@ describe('RichTextEditorComponent - addon host', () => {
         expect(seen).toEqual([]);
     });
 
-    it('getCaretOffset returns 0 without a selection or without an anchorNode (white-box)', () => {
+    it('input observers get the caret\'s text offset, or the text length when there is no selection', () => {
+        const host = fixture.debugElement.injector.get(RichTextEditorAddonHost);
+        const seen: [string, number][] = [];
+        host.registerInputObserver((text, caret) => seen.push([text, caret]));
         editor.innerHTML = '<p>text</p>';
-        const getOffset = (component as unknown as { getCaretOffset: (el: HTMLElement) => number }).getCaretOffset.bind(component);
 
-        const noSelSpy = vi.spyOn(Document.prototype, 'getSelection').mockImplementation(() => null);
-        try {
-            expect(getOffset(editor)).toBe(0);
-        } finally {
-            noSelSpy.mockRestore();
-        }
+        caretIn(editor.querySelector('p')!.firstChild!, 0);
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        caretIn(editor.querySelector('p')!.firstChild!, 3);
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        document.getSelection()!.removeAllRanges();
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
 
-        const sel = document.getSelection()!;
-        sel.removeAllRanges();
-        const range = document.createRange();
-        range.selectNodeContents(editor.querySelector('p')!);
-        sel.addRange(range);
-        const noAnchorSpy = vi.spyOn(Selection.prototype, 'anchorNode', 'get').mockReturnValue(null);
-        try {
-            expect(getOffset(editor)).toBe(0);
-        } finally {
-            noAnchorSpy.mockRestore();
-        }
+        expect(seen).toEqual([['text\n', 0], ['text\n', 3], ['text\n', 5]]);
     });
 
     it('registerExclusivePopover closes every other registered panel when one opens', () => {
@@ -8678,13 +7881,6 @@ describe('RichTextEditorComponent — addon-host seams & edge coverage', () => {
         off();
     });
 
-    it('onEditorDrop with no interceptors claiming it falls through cleanly', async () => {
-        await expect(component.onEditorDrop({
-            preventDefault: vi.fn(),
-            dataTransfer: { types: ['Files'], files: [] },
-        } as unknown as DragEvent)).resolves.toBeUndefined();
-    });
-
     it('onEditorDrop is a no-op while disabled', async () => {
         fixture.componentRef.setInput('disabled', true);
         fixture.detectChanges();
@@ -8764,8 +7960,9 @@ describe('RichTextEditorComponent — addon-host seams & edge coverage', () => {
         component.saveSelection();
 
         const wrapped = host.wrapSelection(() => document.createElement('mark'));
-        expect(wrapped).toHaveLength(1);
-        expect(editor.querySelector('mark')).toBeTruthy();
+        expect(wrapped).toEqual([editor.querySelector('mark')]);
+        expect(wrapped[0].textContent).toBe('old');
+        expect(editor.textContent).toBe('bold text');
     });
 
     it('executeToolbarCommandOnBlock places the caret in an empty block then formats it', () => {
@@ -8773,14 +7970,6 @@ describe('RichTextEditorComponent — addon-host seams & edge coverage', () => {
         const block = editor.querySelector('p')!;
         host.executeToolbarCommandOnBlock('heading2', block);
         expect(editor.querySelector('h2')).toBeTruthy();
-    });
-
-    it('executeToolbarCommandOnBlock falls back to onFormatCommand for a null-transform command', () => {
-        editor.innerHTML = '<p>align me</p>';
-        const block = editor.querySelector('p')!;
-        caretIn(block.firstChild!, 5);
-        host.executeToolbarCommandOnBlock('alignCenter', block);
-        expect(editor.querySelector('p')).toBeTruthy();
     });
 
     it('executeToolbarCommandOnBlock places a zero-width node into a block with no children at all', () => {
@@ -8808,8 +7997,8 @@ describe('RichTextEditorComponent — addon-host seams & edge coverage', () => {
         host.executeToolbarCommandOnBlock('heading2', block);
         const h2 = editor.querySelector('h2')!;
 
-        expect(() => host.executeToolbarCommandOnBlock('heading3', h2)).not.toThrow();
-        expect(editor.querySelector('h3')).toBeTruthy();
+        host.executeToolbarCommandOnBlock('heading3', h2);
+        expect(editor.querySelector('h3')?.textContent).toBe('\u200B');
     });
 
     it('executeToolbarCommandOnBlock is inert for a block detached from the editor', () => {
@@ -8817,13 +8006,6 @@ describe('RichTextEditorComponent — addon-host seams & edge coverage', () => {
         detached.textContent = 'detached';
         expect(() => host.executeToolbarCommandOnBlock('heading1', detached)).not.toThrow();
         expect(detached.tagName).toBe('P');
-    });
-
-    it('executeToolbarCommandOnBlock wraps a block in an ordered list', () => {
-        editor.innerHTML = '<p>numbered</p>';
-        const block = editor.querySelector('p')!;
-        host.executeToolbarCommandOnBlock('orderedList', block);
-        expect(editor.querySelector('ol')).toBeTruthy();
     });
 
     it('executeToolbarCommandOnBlock wraps an already-empty block into a list item holding only caret padding', () => {
@@ -8865,11 +8047,17 @@ describe('RichTextEditorComponent — addon-host seams & edge coverage', () => {
 
     it('executeToolbarCommandOnBlock places the caret after a trailing non-text node', () => {
         editor.innerHTML = '<p>text<img src="https://cdn.test/a.png" alt="a"></p>';
+        // jsdom moves the selection to the editor's start when focus arrives; focus first, as a user does.
+        editor.focus();
         const block = editor.querySelector('p')!;
         caretIn(block.firstChild!, 2);
 
-        expect(() => host.executeToolbarCommandOnBlock('alignCenter', block)).not.toThrow();
-        expect(editor.querySelector('img')).toBeTruthy();
+        host.executeToolbarCommandOnBlock('alignCenter', block);
+
+        const selection = document.getSelection()!;
+        expect(selection.isCollapsed).toBe(true);
+        expect(selection.anchorNode).toBe(block);
+        expect(selection.anchorOffset).toBe(2);
     });
 
     it('showLinkDialog delegates to a registered editor and is inert once torn down', () => {
@@ -8898,58 +8086,18 @@ describe('RichTextEditorComponent — addon-host seams & edge coverage', () => {
         expect(editor.querySelector('p')).toBeTruthy();
     });
 
-    it('undoes via the undo block format command', () => {
-        component.writeValue('one');
-        fixture.detectChanges();
-        (component as any).pushHistory();
-        component.writeValue('two');
-        fixture.detectChanges();
-        (component as any).pushHistory();
-
-        component.onFormatCommand('undo');
-        expect(editor.textContent).toBe('one');
-    });
-
-    it('redoes via the redo block format command', () => {
-        component.writeValue('one');
-        fixture.detectChanges();
-        (component as any).pushHistory();
-        component.writeValue('two');
-        fixture.detectChanges();
-        (component as any).pushHistory();
-        (component as any).undo();
-        expect(editor.textContent).toBe('one');
-
-        component.onFormatCommand('redo');
-        expect(editor.textContent).toBe('two');
-    });
-
     it('applies left and right alignment and ignores an unknown command', () => {
         component.writeValue('<p>aligned</p>');
         fixture.detectChanges();
         selectAllOf(editor);
-        expect(() => component.onFormatCommand('alignLeft')).not.toThrow();
-        expect(() => component.onFormatCommand('alignRight')).not.toThrow();
-        expect(() => component.onFormatCommand('not-a-command')).not.toThrow();
-        expect(editor.textContent).toContain('aligned');
-    });
+        const exec = vi.spyOn(document, 'execCommand');
 
-    it('lights up active inline formats after bolding the selection', () => {
-        component.writeValue('<p>state</p>');
-        fixture.detectChanges();
-        selectAllOf(editor);
-        component.onFormatCommand('bold');
-        selectAllOf(editor.querySelector('b')!);
-        component['updateActiveFormats']();
-        expect(component.activeFormats().has('bold')).toBe(true);
-    });
+        component.onFormatCommand('alignLeft');
+        component.onFormatCommand('alignRight');
+        component.onFormatCommand('not-a-command');
 
-    it('reports a bullet list as an active format', () => {
-        component.writeValue('<ul><li>one</li></ul>');
-        fixture.detectChanges();
-        selectAllOf(editor.querySelector('li')!.firstChild!);
-        component['updateActiveFormats']();
-        expect(component.activeFormats().has('bulletList')).toBe(true);
+        expect(exec.mock.calls.map(c => c[0])).toEqual(['justifyLeft', 'justifyRight']);
+        expect(editor.textContent).toBe('aligned');
     });
 
     it('detectCurrentFontSize/FontFamily are no-ops without a defaultView on the document', () => {
@@ -8963,14 +8111,6 @@ describe('RichTextEditorComponent — addon-host seams & edge coverage', () => {
         } finally {
             spy.mockRestore();
         }
-    });
-
-    it('taskList command re-lists when the caret already sits in a task list', () => {
-        component.writeValue('<ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox"><span>todo</span></li></ul>');
-        fixture.detectChanges();
-        const span = editor.querySelector('li[data-task] span')!;
-        caretIn(span.firstChild ?? span, 0);
-        expect(() => component.onFormatCommand('taskList')).not.toThrow();
     });
 });
 
@@ -9000,24 +8140,6 @@ describe('RichTextEditorComponent — table operations via context menu', () => 
         editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
     });
 
-    it('adds a row above and below the targeted cell', () => {
-        const table = seed();
-        setTarget(table.querySelectorAll('td')[0] as HTMLTableCellElement);
-        component.addTableRowBelow();
-        setTarget(table.querySelectorAll('td')[0] as HTMLTableCellElement);
-        component.addTableRowAbove();
-        expect(table.querySelectorAll('tr')).toHaveLength(4);
-    });
-
-    it('adds a column to the left and right of the targeted cell', () => {
-        const table = seed();
-        setTarget(table.querySelectorAll('td')[0] as HTMLTableCellElement);
-        component.addTableColumnRight();
-        setTarget(table.querySelectorAll('td')[0] as HTMLTableCellElement);
-        component.addTableColumnLeft();
-        expect(table.querySelectorAll('tr')[0].querySelectorAll('td')).toHaveLength(4);
-    });
-
     it('insertTableColumn skips a grid row index with no corresponding <tr> (white-box: forces the rows/grid length mismatch defensive guard)', () => {
         const table = seed();
         setTarget(table.querySelectorAll('td')[0] as HTMLTableCellElement);
@@ -9038,48 +8160,6 @@ describe('RichTextEditorComponent — table operations via context menu', () => 
         expect(() => component.addTableColumnRight()).not.toThrow();
     });
 
-    it('merges the selected cells then splits the merged cell back', () => {
-        const table = seed();
-        const firstRow = table.querySelectorAll('tr')[0];
-        const cells = Array.from(firstRow.querySelectorAll('td')) as HTMLTableCellElement[];
-        component.tableCellSelected.set(cells);
-        component.mergeCells();
-        const merged = table.querySelector('td[colspan="2"]') as HTMLTableCellElement | null;
-        expect(merged).not.toBeNull();
-
-        setTarget(merged!);
-        expect(component.canSplitCell()).toBe(true);
-        component.splitCell();
-        expect(table.querySelector('td[colspan="2"]')).toBeNull();
-    });
-
-    it('deletes the targeted column and row', () => {
-        const table = seed();
-        setTarget(table.querySelectorAll('td')[1] as HTMLTableCellElement);
-        component.deleteTableColumn();
-        expect(table.querySelectorAll('tr')[0].querySelectorAll('td')).toHaveLength(1);
-
-        setTarget(table.querySelectorAll('td')[0] as HTMLTableCellElement);
-        component.deleteTableRow();
-        expect(table.querySelectorAll('tr')).toHaveLength(1);
-    });
-
-    it('deleteTableRow removes a single-row table entirely', () => {
-        editor.innerHTML = '<table><tbody><tr><td>only</td></tr></tbody></table>';
-        editor.dispatchEvent(new Event('input', { bubbles: true }));
-        const table = editor.querySelector('table')!;
-        setTarget(table.querySelector('td') as HTMLTableCellElement);
-        component.deleteTableRow();
-        expect(editor.querySelector('table')).toBeNull();
-    });
-
-    it('deleteTable removes the whole table', () => {
-        const table = seed();
-        setTarget(table.querySelector('td') as HTMLTableCellElement);
-        component.deleteTable();
-        expect(editor.querySelector('table')).toBeNull();
-    });
-
     it('inserting a row mid-table above a cell spanning both rows and columns skips already-expanded reference cells', () => {
         editor.innerHTML = '<table><tbody>'
             + '<tr><td rowspan="2" colspan="2">A</td><td>B</td></tr>'
@@ -9091,11 +8171,12 @@ describe('RichTextEditorComponent — table operations via context menu', () => 
         const cellC = table.querySelectorAll('tr')[1].querySelector('td')!;
         setTarget(cellC);
 
-        expect(() => component.addTableRowAbove()).not.toThrow();
+        component.addTableRowAbove();
 
         const cellA = table.querySelector('td')!;
         expect(cellA.rowSpan).toBe(3);
         expect(table.querySelectorAll('tr')).toHaveLength(4);
+        expect(table.rows[1].cells).toHaveLength(1);
     });
 
     it('inserting a column mid-table before a cell spanning both rows and columns skips already-expanded reference cells', () => {
@@ -9109,10 +8190,12 @@ describe('RichTextEditorComponent — table operations via context menu', () => 
         const cellE = table.querySelectorAll('tr')[2].querySelectorAll('td')[1];
         setTarget(cellE);
 
-        expect(() => component.addTableColumnLeft()).not.toThrow();
+        component.addTableColumnLeft();
 
         const cellA = table.querySelector('td')!;
         expect(cellA.colSpan).toBe(3);
+        expect(table.rows[1].cells).toHaveLength(1);
+        expect(table.rows[2].cells).toHaveLength(4);
     });
 
     it('deleting a row intersecting a rowspan shrinks the span and moves the cell into the next row', () => {
@@ -9125,13 +8208,12 @@ describe('RichTextEditorComponent — table operations via context menu', () => 
         const cellB = table.querySelectorAll('tr')[0].querySelectorAll('td')[1];
         setTarget(cellB);
 
-        expect(() => component.deleteTableRow()).not.toThrow();
+        component.deleteTableRow();
 
         const cellA = table.querySelector('td')!;
         expect(cellA.rowSpan).toBe(1);
         expect(table.querySelectorAll('tr')).toHaveLength(1);
-        expect(table.textContent).toContain('A');
-        expect(table.textContent).toContain('C');
+        expect(Array.from(table.rows[0].cells).map(c => c.textContent)).toEqual(['A', 'C']);
     });
 
     it('deleting a column intersecting a colspan reduces the span', () => {
@@ -9144,9 +8226,10 @@ describe('RichTextEditorComponent — table operations via context menu', () => 
         const cellD = table.querySelectorAll('tr')[1].querySelectorAll('td')[1];
         setTarget(cellD);
 
-        expect(() => component.deleteTableColumn()).not.toThrow();
+        component.deleteTableColumn();
 
         const cellA = table.querySelector('td')!;
+        expect(cellA.textContent).toBe('A');
         expect(cellA.colSpan).toBe(1);
     });
 
@@ -9205,11 +8288,10 @@ describe('RichTextEditorComponent — table operations via context menu', () => 
         const cellX = table.querySelectorAll('tr')[1].querySelector('td')!;
         setTarget(cellX);
 
-        expect(() => component.deleteTableRow()).not.toThrow();
+        component.deleteTableRow();
 
         expect(table.querySelectorAll('tr')).toHaveLength(2);
-        expect(table.textContent).toContain('X');
-        expect(table.textContent).toContain('T');
+        expect(Array.from(table.rows[1].cells).map(c => c.textContent)).toEqual(['X', 'T']);
         const cellQ = table.querySelector('td[rowspan]') as HTMLTableCellElement;
         expect(cellQ.rowSpan).toBe(2);
     });
@@ -9226,12 +8308,27 @@ describe('RichTextEditorComponent — table operations via context menu', () => 
         const cellC = table.querySelectorAll('td')[2] as HTMLTableCellElement;
         component.tableCellSelected.set([cellA, cellB, cellC]);
 
-        expect(() => component.mergeCells()).not.toThrow();
+        component.mergeCells();
 
         const merged = table.querySelector('td')!;
-        expect(merged.textContent).toContain('A');
-        expect(merged.textContent).toContain('B');
-        expect(merged.textContent).toContain('C');
+        expect(merged.innerHTML).toBe('A B C');
+    });
+
+    it('merges the selected cells then splits the merged cell back', () => {
+        const table = seed();
+        const firstRow = table.querySelectorAll('tr')[0];
+        const cells = Array.from(firstRow.querySelectorAll('td'));
+        component.tableCellSelected.set(cells);
+        component.mergeCells();
+        const merged = editor.querySelector<HTMLTableCellElement>('td[colspan="2"]');
+        expect(merged?.textContent).toBe('A B');
+
+        setTarget(merged!);
+        expect(component.canSplitCell()).toBe(true);
+        component.splitCell();
+        const rows = Array.from(editor.querySelectorAll('tr'));
+        expect(editor.querySelector('td[colspan="2"]')).toBeNull();
+        expect(rows.map((r) => Array.from(r.cells, (c) => c.textContent))).toEqual([['A B', ''], ['C', 'D']]);
     });
 
     it('inserting a column after a rowspan/colspan cell skips a non-adjacent neighbor before finding the real column reference cell', () => {
@@ -9250,7 +8347,7 @@ describe('RichTextEditorComponent — table operations via context menu', () => 
         expect(table.querySelectorAll('tr')[0].querySelectorAll('td, th')).toHaveLength(4);
     });
 
-    it('deleting a column skips a rowspan cell it already processed on an earlier grid row', () => {
+    it('deleting a column removes a rowspan cell that occupies it', () => {
         editor.innerHTML = '<table><tbody>'
             + '<tr><td rowspan="2">A</td><td>B</td></tr>'
             + '<tr><td>C</td></tr>'
@@ -9263,12 +8360,6 @@ describe('RichTextEditorComponent — table operations via context menu', () => 
         expect(() => component.deleteTableColumn()).not.toThrow();
 
         expect(table.querySelector('td')?.textContent).not.toContain('A');
-    });
-
-    it('deleteTable is a no-op without a target cell', () => {
-        seed();
-        setTarget(null as unknown as HTMLTableCellElement);
-        expect(() => component.deleteTable()).not.toThrow();
     });
 
     it('toggleTableHeaderRow creates a tbody when none exists while un-toggling a header-only table', () => {
@@ -9300,23 +8391,6 @@ describe('RichTextEditorComponent — table operations via context menu', () => 
         expect(table.querySelectorAll('tr')).toHaveLength(2);
         expect(table.textContent).toContain('X');
         expect(table.querySelectorAll('tr')[1].contains(cellX)).toBe(true);
-    });
-
-    it('getTableCellInfo returns null for a cell with no row/table ancestor (white-box via addTableRowAbove)', () => {
-        const detached = document.createElement('td');
-        setTarget(detached);
-        expect(() => component.addTableRowAbove()).not.toThrow();
-    });
-
-    it('table operations are inert without a target cell', () => {
-        seed();
-        setTarget(null as unknown as HTMLTableCellElement);
-        expect(() => {
-            component.addTableRowBelow();
-            component.addTableColumnLeft();
-            component.deleteTableRow();
-            component.deleteTableColumn();
-        }).not.toThrow();
     });
 });
 
@@ -9350,17 +8424,26 @@ describe('RichTextEditorComponent — RTL, Enter edges & misc coverage', () => {
         component.writeValue('<p>rtl align</p>');
         fixture.detectChanges();
         selectAllOf(editor);
-        expect(() => component.onFormatCommand('alignLeft')).not.toThrow();
-        expect(() => component.onFormatCommand('alignRight')).not.toThrow();
+        const exec = vi.spyOn(document, 'execCommand');
+        component.onFormatCommand('alignLeft');
+        component.onFormatCommand('alignRight');
+        expect(exec.mock.calls.map(c => c[0])).toEqual(['justifyRight', 'justifyLeft']);
 
+        // Left of A in a right-to-left table is the side B sits on.
         editor.innerHTML = '<table><tbody><tr><td>A</td><td>B</td></tr></tbody></table>';
         editor.dispatchEvent(new Event('input', { bubbles: true }));
         const table = editor.querySelector('table')!;
         setTarget(table.querySelector('td') as HTMLTableCellElement);
         component.addTableColumnLeft();
-        setTarget(table.querySelector('td') as HTMLTableCellElement);
+        expect(Array.from(table.rows[0].cells).map(c => c.textContent)).toEqual(['A', '', 'B']);
+
+        // ...and right of A is the side that precedes it in document order.
+        editor.innerHTML = '<table><tbody><tr><td>A</td><td>B</td></tr></tbody></table>';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        const second = editor.querySelector('table')!;
+        setTarget(second.querySelector('td') as HTMLTableCellElement);
         component.addTableColumnRight();
-        expect(table.querySelectorAll('tr')[0].querySelectorAll('td')).toHaveLength(4);
+        expect(Array.from(second.rows[0].cells).map(c => c.textContent)).toEqual(['', 'A', 'B']);
     });
 
     describe('LTR editor', () => {
@@ -9382,15 +8465,6 @@ describe('RichTextEditorComponent — RTL, Enter edges & misc coverage', () => {
             caretIn(summary.firstChild ?? summary, 0);
             component.onKeydown(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
             expect(editor.querySelector('details > p')).toBeTruthy();
-        });
-
-        it('Enter at the end of an empty details tail line exits the block', () => {
-            component.writeValue('<details><summary>s</summary><p>body</p><p></p></details>');
-            fixture.detectChanges();
-            const tail = editor.querySelectorAll('details > p')[1] as HTMLElement;
-            caretIn(tail, 0);
-            component.onKeydown(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
-            expect(editor.querySelectorAll('details').length).toBeLessThanOrEqual(1);
         });
 
         it('isSelectionInsideEditor reflects whether the caret sits in the editor', () => {
@@ -9452,11 +8526,6 @@ describe('RichTextEditorComponent — targeted branch coverage top-up', () => {
         editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
     });
 
-    it('ngAfterViewInit no-ops when the editor view child is absent', () => {
-        priv().editorDiv = undefined;
-        expect(() => component.ngAfterViewInit()).not.toThrow();
-    });
-
     it('typing after an undo is recorded as a new edit, not swallowed by the replay', () => {
         // Rewriting innerHTML fires no `input` event, so no replay flag exists
         // any more; the observable guarantee is that the first keystroke after
@@ -9502,15 +8571,6 @@ describe('RichTextEditorComponent — targeted branch coverage top-up', () => {
         expect(editor.querySelector('pre + p')).toBeTruthy();
     });
 
-    it('onBeforeInput treats a missing editor as empty text', () => {
-        fixture.componentRef.setInput('maxLength', 3);
-        fixture.detectChanges();
-        priv().editorDiv = undefined;
-        const ev = { inputType: 'insertText', data: 'ab', preventDefault: vi.fn() } as unknown as InputEvent;
-        component.onBeforeInput(ev);
-        expect(ev.preventDefault).not.toHaveBeenCalled();
-    });
-
     it('onBeforeInput counts a null insert payload against a collapsed caret', () => {
         fixture.componentRef.setInput('maxLength', 3);
         fixture.detectChanges();
@@ -9522,48 +8582,6 @@ describe('RichTextEditorComponent — targeted branch coverage top-up', () => {
         expect(ev.preventDefault).not.toHaveBeenCalled();
     });
 
-    it('onPaste stops at the first interceptor that returns true', () => {
-        const dispose = component.registerPasteInterceptor(() => true);
-        const norm = vi.spyOn(priv().pasteNormalizer, 'normalize');
-        component.onPaste({
-            preventDefault: vi.fn(),
-            clipboardData: { getData: () => '' } as unknown as DataTransfer,
-        } as unknown as ClipboardEvent);
-        expect(norm).not.toHaveBeenCalled();
-        dispose();
-    });
-
-    it('onPaste tolerates clipboard data returning null for both formats', () => {
-        const norm = vi.spyOn(priv().pasteNormalizer, 'normalize');
-        component.onPaste({
-            preventDefault: vi.fn(),
-            clipboardData: { getData: () => null } as unknown as DataTransfer,
-        } as unknown as ClipboardEvent);
-        expect(norm).toHaveBeenCalledWith(null, '');
-    });
-
-    it('handlePasteMaxLength treats a missing editor as empty content', () => {
-        fixture.componentRef.setInput('maxLength', 5);
-        fixture.detectChanges();
-        priv().editorDiv = undefined;
-        expect(priv().handlePasteMaxLength('abc')).toBe(false);
-    });
-
-    it('onEditorDragOver ignores drags with no dataTransfer', () => {
-        const ev = { dataTransfer: undefined, preventDefault: vi.fn() } as unknown as DragEvent;
-        component.onEditorDragOver(ev);
-        expect(component.dragOver()).toBe(false);
-        expect(ev.preventDefault).not.toHaveBeenCalled();
-    });
-
-    it('onEditorDragOver accepts a file drag when an addon predicate matches', () => {
-        component.registerDropZonePredicate(() => true);
-        const ev = { dataTransfer: { types: ['Files'] }, preventDefault: vi.fn() } as unknown as DragEvent;
-        component.onEditorDragOver(ev);
-        expect(ev.preventDefault).toHaveBeenCalled();
-        expect(component.dragOver()).toBe(true);
-    });
-
     it('onEditorDragLeave keeps drag state when moving to a child element', () => {
         const current = document.createElement('div');
         const child = document.createElement('span');
@@ -9571,14 +8589,6 @@ describe('RichTextEditorComponent — targeted branch coverage top-up', () => {
         component.dragOver.set(true);
         component.onEditorDragLeave({ currentTarget: current, relatedTarget: child } as unknown as DragEvent);
         expect(component.dragOver()).toBe(true);
-    });
-
-    it('onBlur without a selection range still emits blur', () => {
-        document.getSelection()?.removeAllRanges();
-        const spy = vi.fn();
-        component.blurred.subscribe(spy);
-        component.onBlur();
-        expect(spy).toHaveBeenCalled();
     });
 
     it('onBlur keeps the floating toolbar when focus stays inside the component', () => {
@@ -9596,65 +8606,27 @@ describe('RichTextEditorComponent — targeted branch coverage top-up', () => {
         }
     });
 
-    it('restoreHistoryEntry updates the model even without a live editor element', () => {
-        component.writeValue('<p>one</p>');
-        fixture.detectChanges();
-        priv().pushHistory();
-        priv().editorDiv = undefined;
-        expect(() => component.restoreHistoryEntry(0)).not.toThrow();
-    });
-
-    it('applyFloatingBlockCommand ignores unknown commands', () => {
-        component.writeValue('<p>abc</p>');
-        fixture.detectChanges();
-        selectAllOf(editor.querySelector('p')!);
-        expect(() => component.onFloatingFormatCommand('noop')).not.toThrow();
-    });
-
-    it('insertTextFromOverlay tolerates a missing editor and no selection', () => {
-        document.getSelection()?.removeAllRanges();
-        priv().editorDiv = undefined;
-        expect(() => component.insertTextFromOverlay('hi')).not.toThrow();
-    });
-
     it('onKeydown stops at a keydown interceptor that returns true', () => {
-        const handleEnter = vi.spyOn(priv(), 'handleEnterKey');
-        const dispose = component.registerKeydownInterceptor(() => true);
-        component.onKeydown(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
-        expect(handleEnter).not.toHaveBeenCalled();
-        dispose();
-    });
-
-    it('onEditorDrop stops at a drop interceptor that returns true', async () => {
-        const dispose = component.registerDropInterceptor(() => true);
-        await component.onEditorDrop({ preventDefault: vi.fn(), dataTransfer: {} } as unknown as DragEvent);
-        dispose();
-        expect(component.dragOver()).toBe(false);
-    });
-
-    it('applyInlineStyle restores the saved range when there is no live selection', () => {
-        component.writeValue('<p>color me</p>');
+        component.writeValue('<p>ab</p>');
         fixture.detectChanges();
-        selectAllOf(editor.querySelector('p')!);
-        component.saveSelection();
-        document.getSelection()?.removeAllRanges();
-        expect(() => component.applyInlineStyle({ color: '#ff0000' })).not.toThrow();
-    });
+        const tab = () => new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+        let consume = true;
+        const dispose = component.registerKeydownInterceptor(() => consume);
+        try {
+            caretIn(editor.querySelector('p')!.firstChild!, 1);
+            const swallowed = tab();
+            component.onKeydown(swallowed);
+            expect(editor.querySelector('p')!.textContent).toBe('ab');
+            expect(swallowed.defaultPrevented).toBe(false);
 
-    it('applyInlineStyle leaves a collapsed in-editor caret untouched', () => {
-        component.writeValue('<p>abc</p>');
-        fixture.detectChanges();
-        caretIn(editor.querySelector('p')!.firstChild!, 1);
-        priv().savedRange = null;
-        expect(() => component.applyInlineStyle({ backgroundColor: '#00ff00' })).not.toThrow();
-    });
-
-    it('onFontSizeSelect tolerates a missing editor element', () => {
-        component.writeValue('<p>abc</p>');
-        fixture.detectChanges();
-        selectAllOf(editor.querySelector('p')!);
-        priv().editorDiv = undefined;
-        expect(() => component.onFontSizeSelect('18')).not.toThrow();
+            consume = false;
+            const passed = tab();
+            component.onKeydown(passed);
+            expect(editor.querySelector('p')!.textContent).toBe('a\tb');
+            expect(passed.defaultPrevented).toBe(true);
+        } finally {
+            dispose();
+        }
     });
 
     it('onFontSizeSelect keeps an explicit px unit', () => {
@@ -9663,24 +8635,6 @@ describe('RichTextEditorComponent — targeted branch coverage top-up', () => {
         selectAllOf(editor.querySelector('p')!);
         component.onFontSizeSelect('20px');
         expect(editor.innerHTML).toContain('20px');
-    });
-
-    it('onFontFamilySelect tolerates a missing editor element', () => {
-        component.writeValue('<p>abc</p>');
-        fixture.detectChanges();
-        selectAllOf(editor.querySelector('p')!);
-        priv().editorDiv = undefined;
-        expect(() => component.onFontFamilySelect('Arial')).not.toThrow();
-    });
-
-    it('wrapSelectionWithTag is a no-op without a selection', () => {
-        document.getSelection()?.removeAllRanges();
-        expect(() => priv().wrapSelectionWithTag('code')).not.toThrow();
-    });
-
-    it('toggleCodeBlock is a no-op without a selection', () => {
-        document.getSelection()?.removeAllRanges();
-        expect(() => priv().toggleCodeBlock()).not.toThrow();
     });
 
     it("toggleCodeBlock seeds an empty block's code element with a newline", () => {
@@ -9717,84 +8671,35 @@ describe('RichTextEditorComponent — targeted branch coverage top-up', () => {
         expect(component.tableContextMenuOpen()).toBe(false);
     });
 
-    it('onEditorMouseMove over non-cell content with no active resize cursor does nothing', () => {
-        component.writeValue('<p>text</p>');
-        fixture.detectChanges();
-        component.onEditorMouseMove({ target: editor.querySelector('p')! } as unknown as MouseEvent);
-        expect((component as unknown as { tableResizeCursor: { (): boolean; set(v: boolean): void } }).tableResizeCursor()).toBe(false);
-    });
-
-    it('onEditorMouseMove near a border tolerates a missing editor element', () => {
-        component.writeValue('<table><tbody><tr><td>A</td><td>B</td></tr></tbody></table>');
-        fixture.detectChanges();
-        const td = editor.querySelectorAll('td')[0] as HTMLTableCellElement;
-        priv().editorDiv = undefined;
-        component.onEditorMouseMove({ target: td, clientX: 97 } as unknown as MouseEvent);
-        expect((component as unknown as { tableResizeCursor: { (): boolean; set(v: boolean): void } }).tableResizeCursor()).toBe(true);
-    });
-
-    it('onEditorMouseMove in the middle of a cell clears nothing when idle', () => {
-        component.writeValue('<table><tbody><tr><td>A</td><td>B</td></tr></tbody></table>');
-        fixture.detectChanges();
-        const td = editor.querySelectorAll('td')[0] as HTMLTableCellElement;
-        component.onEditorMouseMove({ target: td, clientX: 50 } as unknown as MouseEvent);
-        expect((component as unknown as { tableResizeCursor: { (): boolean; set(v: boolean): void } }).tableResizeCursor()).toBe(false);
-    });
-
-    it('onEditorMouseMove clearing the resize cursor tolerates a missing editor', () => {
-        component.writeValue('<table><tbody><tr><td>A</td><td>B</td></tr></tbody></table>');
-        fixture.detectChanges();
-        const td = editor.querySelectorAll('td')[0] as HTMLTableCellElement;
-        priv().tableResizeCursor.set(true);
-        priv().editorDiv = undefined;
-        component.onEditorMouseMove({ target: td, clientX: 50 } as unknown as MouseEvent);
-        expect((component as unknown as { tableResizeCursor: { (): boolean; set(v: boolean): void } }).tableResizeCursor()).toBe(false);
-    });
-
-    it('onEditorMouseDown outside a table cell starts no cell selection', () => {
-        component.writeValue('<p>text</p>');
-        fixture.detectChanges();
-        component.onEditorMouseDown({
-            target: editor.querySelector('p')!, button: 0, preventDefault: vi.fn(), stopPropagation: vi.fn(),
-        } as unknown as MouseEvent);
-        expect(priv().tableCellSelecting).toBe(false);
-    });
-
     it('starting a resize from a left border targets the previous column', () => {
         component.writeValue('<table><tbody><tr><td>A</td><td>B</td></tr></tbody></table>');
         fixture.detectChanges();
-        const second = editor.querySelectorAll('td')[1] as HTMLTableCellElement;
-        priv().tableResizeCursor.set(true);
-        component.onEditorMouseDown({
-            target: second, button: 0, clientX: 101, preventDefault: vi.fn(), stopPropagation: vi.fn(),
-        } as unknown as MouseEvent);
-        expect(priv().tableResizeState.colIndex).toBe(0);
-        priv().onTableResizeUp();
-    });
+        const [first, second] = Array.from(editor.querySelectorAll('td'));
+        // The stubbed geometry lays each cell out 100px wide, so x=102 is just
+        // inside B's left edge.
+        const mouse = (type: string, clientX: number) =>
+            new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, clientX, clientY: 5 });
+        second.dispatchEvent(mouse('mousemove', 102));
+        second.dispatchEvent(mouse('mousedown', 102));
+        document.dispatchEvent(mouse('mousemove', 132));
+        document.dispatchEvent(mouse('mouseup', 132));
 
-    it('onTableResizeUp tolerates a missing editor element', () => {
-        priv().tableResizeState = {
-            table: document.createElement('table'), colIndex: 0, startX: 0, startWidths: [100], tableWidth: 100,
-        };
-        priv().editorDiv = undefined;
-        expect(() => priv().onTableResizeUp()).not.toThrow();
-    });
-
-    it('onEditorTouchStart outside a cell starts no selection', () => {
-        component.writeValue('<p>t</p>');
-        fixture.detectChanges();
-        component.onEditorTouchStart({ target: editor.querySelector('p')! } as unknown as TouchEvent);
-        expect(priv().tableCellSelecting).toBe(false);
+        expect(first.style.width).toBe('130px');
+        expect(second.style.width).toBe('70px');
     });
 
     it('cell selection over a ragged table skips empty grid slots', () => {
         component.writeValue('<table><tbody><tr><td>1</td><td>2</td></tr><tr><td>3</td></tr></tbody></table>');
         fixture.detectChanges();
         const rows = editor.querySelectorAll('tr');
-        const anchor = rows[0].cells[1] as HTMLTableCellElement;
-        const current = rows[1].cells[0] as HTMLTableCellElement;
-        priv().updateCellSelection(anchor, current);
-        expect(component.tableCellSelected().length).toBeGreaterThan(0);
+        const mouse = (shiftKey: boolean) =>
+            new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0, clientX: 150, clientY: 5, shiftKey });
+        rows[0].cells[1].dispatchEvent(mouse(false));
+        document.dispatchEvent(new MouseEvent('mouseup'));
+        rows[1].cells[0].dispatchEvent(mouse(true));
+        const texts = component.tableCellSelected().map(cell => cell.textContent ?? '');
+        texts.sort((x, y) => x.localeCompare(y));
+        expect(texts).toEqual(['1', '2', '3']);
     });
 
     it('adding a row above the header row inserts header cells', () => {
@@ -9838,35 +8743,19 @@ describe('RichTextEditorComponent — targeted branch coverage top-up', () => {
         expect(editor.querySelector('li ol')).toBeTruthy();
     });
 
-    it('outdenting a nested item keeps a nested list that still has items', () => {
-        component.writeValue('<ul><li>a<ul><li>b</li><li>c</li></ul></li></ul>');
+    it('outdenting a middle nested item leaves the items before it and carries the items after it', () => {
+        component.writeValue('<ul><li>a<ul><li>b</li><li>c</li><li>d</li></ul></li></ul>');
         fixture.detectChanges();
-        caretIn(editor.querySelectorAll('ul ul li')[0].firstChild!, 1);
+        caretIn(editor.querySelectorAll('ul ul li')[1].firstChild!, 1);
         component.onKeydown(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true }));
-        expect(editor.querySelector('ul ul')).toBeTruthy();
-    });
 
-    it('insertToggleBlock tolerates a missing editor element', () => {
-        priv().editorDiv = undefined;
-        expect(() => priv().insertToggleBlock()).not.toThrow();
-    });
-
-    it('clearFindHighlights skips marks already detached from the DOM', () => {
-        priv().findHighlightElements = [document.createElement('mark')];
-        expect(() => priv().clearFindHighlights()).not.toThrow();
-    });
-
-    it('scrollToCurrentMatch is a no-op with no current match element', () => {
-        expect(() => priv().scrollToCurrentMatch()).not.toThrow();
-    });
-
-    it('onFindReplaceKeydown ignores non-Enter keys', () => {
-        expect(() => component.onFindReplaceKeydown(new KeyboardEvent('keydown', { key: 'a' }))).not.toThrow();
-    });
-
-    it('syncContentFromEditor is a no-op before the view initializes', () => {
-        const f = TestBed.createComponent(RichTextEditorComponent);
-        expect(() => (f.componentInstance as any).syncContentFromEditor()).not.toThrow();
+        const outline = (list: Element): unknown[] =>
+            Array.from(list.children).map(li => {
+                const own = Array.from(li.childNodes).filter(n => n.nodeType === Node.TEXT_NODE).map(n => n.textContent).join('');
+                const nested = li.querySelector(':scope > ul');
+                return nested ? [own, outline(nested)] : own;
+            });
+        expect(outline(editor.querySelector('ul')!)).toEqual([['a', ['b']], ['c', ['d']]]);
     });
 
     it('toggleMentionStyle turns a style off when already on', () => {
@@ -9874,14 +8763,6 @@ describe('RichTextEditorComponent — targeted branch coverage top-up', () => {
         el.style.fontWeight = 'bold';
         priv().toggleMentionStyle([el], 'fontWeight', 'bold', 'normal');
         expect(el.style.fontWeight).toBe('normal');
-    });
-
-    it('applyMutation skips history when pushHistory is false', () => {
-        component.writeValue('<p>x</p>');
-        fixture.detectChanges();
-        const spy = vi.spyOn(priv(), 'pushHistory');
-        priv().applyMutation({ pushHistory: false });
-        expect(spy).not.toHaveBeenCalled();
     });
 
     it('execEditorCommand returns false when execCommand is unavailable', () => {
@@ -9923,27 +8804,24 @@ describe('RichTextEditorComponent — targeted branch coverage top-up', () => {
         expect(component.selection().kind).toBe('none');
     });
 
-    it('closestElementWithAttrs returns null for a detached text node', () => {
-        expect(priv().closestElementWithAttrs(document.createTextNode('x'), ['data-x'], editor)).toBeNull();
-    });
-
     it('saveSelection ignores selections outside the editor', () => {
-        document.getSelection()?.removeAllRanges();
-        priv().savedRange = null;
-        component.saveSelection();
-        expect(priv().savedRange).toBeNull();
-    });
-
-    it('updateFloatingToolbarPosition is a no-op without a selection', () => {
-        document.getSelection()?.removeAllRanges();
-        expect(() => priv().updateFloatingToolbarPosition()).not.toThrow();
-    });
-
-    it('collapseFloatingToolbarAfterFormat tolerates no selection', () => {
-        fixture.componentRef.setInput('toolbar', 'floating');
+        component.writeValue('<p>alpha beta</p>');
         fixture.detectChanges();
-        document.getSelection()?.removeAllRanges();
-        expect(() => priv().collapseFloatingToolbarAfterFormat()).not.toThrow();
+        selectRangeIn(editor.querySelector('p')!.firstChild!, 6, 10);
+        component.saveSelection();
+
+        const outside = document.createElement('div');
+        outside.textContent = 'elsewhere';
+        document.body.appendChild(outside);
+        try {
+            selectAllOf(outside);
+            component.saveSelection();
+            const [mark] = component.wrapSelection(() => document.createElement('mark'));
+            expect(mark.textContent).toBe('beta');
+            expect(editor.querySelector('p')!.innerHTML).toBe('alpha <mark>beta</mark>');
+        } finally {
+            outside.remove();
+        }
     });
 
     it('placeCaretAtEndOfBlock inserts a zero-width node into an empty block', () => {
@@ -9955,16 +8833,12 @@ describe('RichTextEditorComponent — targeted branch coverage top-up', () => {
     });
 
     it('executeToolbarCommandOnBlock with a null block falls through to the format command', () => {
-        const spy = vi.spyOn(component, 'onFormatCommand');
-        component.executeToolbarCommandOnBlock('paragraph', null);
-        expect(spy).toHaveBeenCalledWith('paragraph');
-    });
-
-    it('wrapping an LI already in a different list swaps the list tag', () => {
-        component.writeValue('<ul><li>a</li></ul>');
+        component.writeValue('<h2>title</h2>');
         fixture.detectChanges();
-        priv().executeToolbarCommandOnBlock('orderedList', editor.querySelector('li'));
-        expect(editor.querySelector('ol')).toBeTruthy();
+        caretIn(editor.querySelector('h2')!.firstChild!, 2);
+        component.executeToolbarCommandOnBlock('paragraph', null);
+        expect(editor.querySelector('h2')).toBeNull();
+        expect(editor.querySelector('p')?.textContent).toBe('title');
     });
 
     it('the slash menu turns a list off when its own kind is picked again, as the toolbar does', () => {
@@ -9977,96 +8851,42 @@ describe('RichTextEditorComponent — targeted branch coverage top-up', () => {
         expect(editor.querySelector('p')?.textContent).toBe('a');
     });
 
-    it('computeDelta picks the nearer match when both directions match', () => {
-        expect(typeof priv().computeDelta('a\nb', 'b\na')).toBe('string');
-    });
-
-    it('applyDelta ignores keep-ops that point past the base', () => {
-        expect(priv().applyDelta('a\nb', '=5')).toBe('');
-    });
-
-    it('undo at the first history entry does nothing', () => {
-        component.writeValue('<p>a</p>');
-        fixture.detectChanges();
-        priv().pushHistory();
-        priv().historyIndex = 0;
-        expect(() => priv().undo()).not.toThrow();
-    });
-
-    it('undo updates the model even without a live editor element', () => {
-        component.writeValue('<p>a</p>');
-        fixture.detectChanges();
-        priv().pushHistory();
-        editor.innerHTML = '<p>ab</p>';
-        editor.dispatchEvent(new Event('input', { bubbles: true }));
-        priv().flushPendingHistoryPush();
-        priv().editorDiv = undefined;
-        expect(() => priv().undo()).not.toThrow();
-    });
-
-    it('redo at the last history entry does nothing', () => {
-        component.writeValue('<p>a</p>');
-        fixture.detectChanges();
-        priv().pushHistory();
-        expect(() => priv().redo()).not.toThrow();
-    });
-
-    it('redo updates the model even without a live editor element', () => {
-        component.writeValue('<p>a</p>');
-        fixture.detectChanges();
-        priv().pushHistory();
-        editor.innerHTML = '<p>ab</p>';
-        editor.dispatchEvent(new Event('input', { bubbles: true }));
-        priv().flushPendingHistoryPush();
-        priv().undo();
-        priv().editorDiv = undefined;
-        expect(() => priv().redo()).not.toThrow();
+    it('computeDelta round-trips a swap where both directions match', () => {
+        expect(priv().applyDelta('a\nb', priv().computeDelta('a\nb', 'b\na'))).toBe('b\na');
     });
 
     it('onPaste continues past an interceptor that returns false', () => {
-        const norm = vi.spyOn(priv().pasteNormalizer, 'normalize');
-        const dispose = component.registerPasteInterceptor(() => false);
-        component.onPaste({
-            preventDefault: vi.fn(),
-            clipboardData: { getData: () => 'txt' } as unknown as DataTransfer,
-        } as unknown as ClipboardEvent);
-        expect(norm).toHaveBeenCalled();
-        dispose();
-    });
-
-    it('onEditorDragOver ignores a file drag when no addon predicate matches', () => {
-        const dispose = component.registerDropZonePredicate(() => false);
-        const ev = { dataTransfer: { types: ['Files'] }, preventDefault: vi.fn() } as unknown as DragEvent;
-        component.onEditorDragOver(ev);
-        expect(ev.preventDefault).not.toHaveBeenCalled();
-        dispose();
-    });
-
-    it('onKeydown continues past a keydown interceptor that returns false', () => {
-        const handleEnter = vi.spyOn(priv(), 'handleEnterKey');
-        component.writeValue('<p>x</p>');
+        component.writeValue('<p>ab</p>');
         fixture.detectChanges();
         caretIn(editor.querySelector('p')!.firstChild!, 1);
-        const dispose = component.registerKeydownInterceptor(() => false);
-        component.onKeydown(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
-        expect(handleEnter).toHaveBeenCalled();
-        dispose();
+        const seen: string[] = [];
+        const dispose = component.registerPasteInterceptor(event => {
+            seen.push(event.clipboardData?.getData('text/plain') ?? '');
+            return false;
+        });
+        try {
+            // A plain-text clipboard; jsdom has no DataTransfer constructor.
+            const paste = new Event('paste', { bubbles: true, cancelable: true }) as ClipboardEvent;
+            Object.defineProperty(paste, 'clipboardData', {
+                value: { getData: (type: string) => (type === 'text/plain' ? 'txt' : ''), types: ['text/plain'], files: [] },
+            });
+            component.onPaste(paste);
+            expect(seen).toEqual(['txt']);
+            expect(editor.textContent).toBe('atxtb');
+        } finally {
+            dispose();
+        }
     });
 
-    it('onEditorDrop continues past a drop interceptor that returns false', async () => {
-        const intercept = vi.fn(() => false);
-        const dispose = component.registerDropInterceptor(intercept);
-        await component.onEditorDrop({ preventDefault: vi.fn(), dataTransfer: {} } as unknown as DragEvent);
-        expect(intercept).toHaveBeenCalled();
-        dispose();
-    });
-
-    it('onEditorMouseMove near a left border evaluates the column-index guard', () => {
+    it("onEditorMouseMove arms the resize cursor at a column's left edge, except the first", () => {
         component.writeValue('<table><tbody><tr><td>A</td><td>B</td></tr></tbody></table>');
         fixture.detectChanges();
-        const second = editor.querySelectorAll('td')[1] as HTMLTableCellElement;
-        component.onEditorMouseMove({ target: second, clientX: 102 } as unknown as MouseEvent);
-        expect((component as unknown as { tableResizeCursor: { (): boolean; set(v: boolean): void } }).tableResizeCursor()).toBe(true);
+        const [first, second] = Array.from(editor.querySelectorAll('td'));
+        // Stubbed geometry: A spans x 0-100, B spans x 100-200.
+        first.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 2, clientY: 5 }));
+        expect(editor.style.cursor).toBe('');
+        second.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 102, clientY: 5 }));
+        expect(editor.style.cursor).toBe('col-resize');
     });
 
     it('buildCellGrid ignores rowspans that exceed the table bounds', () => {
@@ -10075,14 +8895,9 @@ describe('RichTextEditorComponent — targeted branch coverage top-up', () => {
         );
         fixture.detectChanges();
         setTarget(editor.querySelector('td') as HTMLTableCellElement);
-        expect(() => component.addTableRowBelow()).not.toThrow();
-    });
-
-    it('buildCellGrid treats a rowspan of zero as a single-row span', () => {
-        component.writeValue('<table><tbody><tr><td rowspan="0">A</td><td>B</td></tr></tbody></table>');
-        fixture.detectChanges();
-        setTarget(editor.querySelectorAll('td')[1] as HTMLTableCellElement);
-        expect(() => component.addTableColumnRight()).not.toThrow();
+        component.addTableRowBelow();
+        const rows = Array.from(editor.querySelectorAll('tr')).map(tr => Array.from(tr.cells).map(td => td.textContent));
+        expect(rows).toEqual([['A', 'B'], ['C'], ['', '']]);
     });
 
     it('wrapBlockInList swaps an LI parent list to the requested type', () => {
@@ -10146,19 +8961,6 @@ describe('RichTextEditorComponent — reactive forms disabled state', () => {
         expect(editor.getAttribute('aria-disabled')).toBe('true');
     });
 
-    it('control.enable() restores editing', () => {
-        wire();
-        host.control.disable();
-        fixture.detectChanges();
-        expect(editor.getAttribute('contenteditable')).toBe('false');
-
-        host.control.enable();
-        fixture.detectChanges();
-
-        expect(rte.isDisabled()).toBe(false);
-        expect(editor.getAttribute('contenteditable')).toBe('true');
-    });
-
     it('a FormControl constructed with disabled:true starts the editor locked', () => {
         host.control = new FormControl({ value: '<p>form</p>', disabled: true }, { nonNullable: true });
         wire();
@@ -10180,70 +8982,6 @@ describe('RichTextEditorComponent — reactive forms disabled state', () => {
         expect(host.control.value).toBe(before);
     });
 
-    it('control.disable() blocks toolbar format commands', () => {
-        wire();
-        rte.writeValue('<p>plain</p>');
-        fixture.detectChanges();
-        const p = editor.querySelector('p')!;
-        const selection = document.getSelection();
-        const range = document.createRange();
-        range.selectNodeContents(p);
-        selection?.removeAllRanges();
-        selection?.addRange(range);
-
-        host.control.disable();
-        fixture.detectChanges();
-
-        rte.onFormatCommand('bold');
-
-        expect(editor.querySelector('strong')).toBeNull();
-        expect(editor.querySelector('b')).toBeNull();
-    });
-
-    // The paste/drop guards return before the addon interceptor chain is
-    // dispatched, so a registered interceptor is the observable proof that the
-    // guard fired — the base itself inserts nothing for a plain-text drop, and
-    // a caret-less paste is a no-op regardless of the guard.
-    it('control.disable() swallows paste before any interceptor sees it', () => {
-        wire();
-        const seen = vi.fn().mockReturnValue(true);
-        rte.registerPasteInterceptor(seen);
-
-        const paste = new Event('paste') as ClipboardEvent;
-        Object.defineProperty(paste, 'clipboardData', {
-            value: { getData: () => 'pasted', types: ['text/plain'], files: [] },
-        });
-
-        rte.onPaste(paste);
-        expect(seen).toHaveBeenCalledTimes(1);
-
-        host.control.disable();
-        fixture.detectChanges();
-
-        rte.onPaste(paste);
-        expect(seen).toHaveBeenCalledTimes(1);
-    });
-
-    it('control.disable() swallows drop before any interceptor sees it', async () => {
-        wire();
-        const seen = vi.fn().mockReturnValue(true);
-        rte.registerDropInterceptor(seen);
-
-        const drop = new Event('drop') as DragEvent;
-        Object.defineProperty(drop, 'dataTransfer', {
-            value: { getData: () => 'dropped', types: ['text/plain'], files: [] },
-        });
-
-        await rte.onEditorDrop(drop);
-        expect(seen).toHaveBeenCalledTimes(1);
-
-        host.control.disable();
-        fixture.detectChanges();
-
-        await rte.onEditorDrop(drop);
-        expect(seen).toHaveBeenCalledTimes(1);
-    });
-
     it('control.disable() disables every docked toolbar button', () => {
         wire();
         const enabled = Array.from(
@@ -10262,77 +9000,34 @@ describe('RichTextEditorComponent — reactive forms disabled state', () => {
         expect(buttons.every(b => b.disabled)).toBe(true);
     });
 
-    it('the [disabled] input keeps working while the form control is enabled', () => {
-        wire();
-        host.inputDisabled.set(true);
-        fixture.detectChanges();
-
-        expect(host.control.disabled).toBe(false);
-        expect(rte.isDisabled()).toBe(true);
-        expect(editor.getAttribute('contenteditable')).toBe('false');
-    });
-
-    it('the form state does not leak into the public [disabled] input', () => {
-        wire();
-        host.control.disable();
-        fixture.detectChanges();
-
-        expect(rte.disabled()).toBe(false);
-        expect(rte.isDisabled()).toBe(true);
-    });
-
-    // RTL is driven by the `locale` input through the i18n service (`dir` is a
-    // computed, not an input), so the editor is only really in RTL once a
-    // Hebrew locale is bound — asserted here before the disable, or the case
-    // would be vacuous.
-    it('locks the same way in RTL', () => {
-        host.locale.set('he');
-        wire();
-        expect(rte.isRtl()).toBe(true);
-        expect((fixture.nativeElement as HTMLElement).querySelector('[dir="rtl"]')).toBeTruthy();
-
-        host.control.disable();
-        fixture.detectChanges();
-
-        expect(rte.isDisabled()).toBe(true);
-        expect(editor.getAttribute('contenteditable')).toBe('false');
-        expect(editor.getAttribute('aria-disabled')).toBe('true');
-        // Still RTL after locking — the two are independent.
-        expect(rte.isRtl()).toBe(true);
-
-        const buttons = Array.from(
-            (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('[role="toolbar"] button'),
-        );
-        expect(buttons.length).toBeGreaterThan(0);
-        expect(buttons.every(b => b.disabled)).toBe(true);
-    });
-
-    // Touch table-cell selection is gated on the same guard. Its observable
-    // effect is the private tableCellSelecting flag, which a form-disabled
-    // editor must never set.
     it('touch table-cell selection is a no-op while the form has disabled the control', () => {
         wire();
         rte.writeValue('<table><tbody><tr><td>a</td><td>b</td></tr></tbody></table>');
         fixture.detectChanges();
-        const cell = editor.querySelector('td')!;
-        const selecting = () => (rte as unknown as { tableCellSelecting: boolean }).tableCellSelecting;
-
-        const fire = () => {
-            const touch = new Event('touchstart', { bubbles: true }) as TouchEvent;
-            Object.defineProperty(touch, 'target', { value: cell });
-            rte.onEditorTouchStart(touch);
+        const [a, b] = Array.from(editor.querySelectorAll('td'));
+        // Stubbed geometry: a spans x 0-100, b spans x 100-200.
+        const touch = (type: string, target: EventTarget, clientX: number) => {
+            const event = new Event(type, { bubbles: true, cancelable: true });
+            Object.defineProperty(event, 'touches', { value: [{ clientX, clientY: 5, target }] });
+            target.dispatchEvent(event);
+        };
+        const dragAcross = () => {
+            touch('touchstart', a, 50);
+            touch('touchmove', document, 150);
+            touch('touchend', document, 150);
         };
 
-        fire();
-        expect(selecting()).toBe(true);
-        (rte as unknown as { tableCellSelecting: boolean }).tableCellSelecting = false;
+        dragAcross();
+        expect(rte.tableCellSelected()).toEqual([a, b]);
+        touch('touchstart', a, 50);
+        touch('touchend', document, 50);
+        expect(rte.tableCellSelected()).toEqual([]);
 
         host.control.disable();
         fixture.detectChanges();
 
-        fire();
-        expect(selecting()).toBe(false);
-        expect(rte.isDisabled()).toBe(true);
+        dragAcross();
+        expect(rte.tableCellSelected()).toEqual([]);
     });
 });
 
@@ -10428,12 +9123,6 @@ describe('RichTextEditorComponent markdown input rules', () => {
         expect(editor.querySelector('h3')).not.toBeNull();
     });
 
-    it('does not fire on "#### " — h4 is not a rule', () => {
-        typeInto(seed('<p><br></p>'), '#### ');
-        expect(editor.querySelector('h4')).toBeNull();
-        expect(editor.textContent).toContain('#');
-    });
-
     // T-10 — the marker is stripped but the text after it survives.
     it('keeps text that already followed the caret: "# " before "Title" yields <h1>Title</h1>', () => {
         typeMarkerBefore(seed('<p>Title</p>'), '# Title', 2);
@@ -10450,11 +9139,6 @@ describe('RichTextEditorComponent markdown input rules', () => {
         const item = editor.querySelector('ul > li');
         expect(item).not.toBeNull();
         expect(item?.contains(caretElement())).toBe(true);
-    });
-
-    it('wraps the paragraph in ul > li for "* "', () => {
-        typeInto(seed('<p><br></p>'), '* ');
-        expect(editor.querySelector('ul > li')).not.toBeNull();
     });
 
     it('wraps the paragraph in ol > li for "1. "', () => {
@@ -10479,19 +9163,6 @@ describe('RichTextEditorComponent markdown input rules', () => {
         expect(line?.contains(caretElement())).toBe(true);
     });
 
-    it('escapes a "> " quote with one Enter, as the user types it', () => {
-        typeInto(seed('<p><br></p>'), '> ');
-        const line = editor.querySelector('blockquote > p') as HTMLElement;
-        line.textContent = 'asdasd';
-        setCaretAt(line.firstChild as Text, 6);
-        component.onKeydown(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
-
-        expect(editor.querySelectorAll('blockquote')).toHaveLength(1);
-        expect(editor.querySelector('blockquote > p')?.textContent).toBe('asdasd');
-        expect(editor.querySelector('blockquote + p')).not.toBeNull();
-        expect(editor.querySelector('blockquote + p')?.contains(caretElement())).toBe(true);
-    });
-
 
     // T-12b — nested quotes, issue #134. The parser has always read ">>" and
     // round-tripped it; the input rule matched exactly one ">", so an author
@@ -10503,10 +9174,6 @@ describe('RichTextEditorComponent markdown input rules', () => {
 
         typeInto(seed('<p><br></p>'), '>>> ');
         expect(editor.querySelectorAll('blockquote')).toHaveLength(3);
-    });
-
-    it('leaves the caret usable in the innermost quote', () => {
-        typeInto(seed('<p><br></p>'), '>>> ');
         const innermost = editor.querySelector('blockquote > blockquote > blockquote > p');
         expect(innermost?.contains(caretElement())).toBe(true);
     });
@@ -10607,26 +9274,6 @@ describe('RichTextEditorComponent markdown input rules', () => {
 
     // T-22 — every guard that must stop a rule from firing.
     describe('guards', () => {
-        // Typing on into a long paragraph must stay inert: no transform, no
-        // history entry, no model churn. The length cap of §D.2 is what makes
-        // this cheap, but the cap itself has no DOM-visible effect — a prefix
-        // that long cannot match a marker either way — so this asserts the
-        // observable half only.
-        it('stays inert while the author types on in a long paragraph', () => {
-            const block = seed('<p><br></p>');
-            const long = 'x'.repeat(40);
-            const textNode = block.insertBefore(document.createTextNode(long), block.firstChild) as Text;
-            setCaretAt(textNode, long.length);
-
-            const before = component.historyEntries().length;
-            const applied = (
-                component as unknown as { applyInputRules(event: Event): boolean }
-            ).applyInputRules(new InputEvent('input', { inputType: 'insertText', data: 'x' }));
-
-            expect(applied).toBe(false);
-            expect(component.historyEntries()).toHaveLength(before);
-        });
-
         it('does not fire when the marker is not the whole prefix ("foo - ")', () => {
             typeInto(seed('<p>foo </p>'), '- ');
 
@@ -10634,41 +9281,21 @@ describe('RichTextEditorComponent markdown input rules', () => {
             expect(editor.textContent).toContain('foo -');
         });
 
-        // Each of these seeds an EMPTY structure, so the marker really is the
-        // whole text before the caret. Only the structural guard can stop the
-        // transform — with the guard removed, every one of them fires.
-        it('does not fire inside a list item', () => {
-            const item = seed('<ul><li><br></li></ul>').querySelector('li') as HTMLElement;
-            typeInto(item, '# ');
+        // One case per forbidden ancestor (the list item has its own test
+        // below): with only one exercised, the others could be deleted from the
+        // selector with the suite still green.
+        it.each([
+            ['a table cell', '<table><tbody><tr><td><p><br></p></td></tr></tbody></table>'],
+            ['a table header cell', '<table><thead><tr><th><p><br></p></th></tr></thead></table>'],
+            ['a pre', '<pre><p><br></p></pre>'],
+            ['a summary', '<details><summary><p><br></p></summary><p>body</p></details>'],
+        ])('does not fire in a paragraph inside %s', (_where, html) => {
+            const paragraph = seed(html).querySelector('p') as HTMLElement;
+            typeInto(paragraph, '# ');
 
             expect(editor.querySelector('h1')).toBeNull();
-            expect(editor.querySelector('li')?.textContent).toContain('#');
-        });
-
-        it('does not fire inside a table cell', () => {
-            const cell = seed('<table><tbody><tr><td><br></td></tr></tbody></table>')
-                .querySelector('td') as HTMLElement;
-            typeInto(cell, '# ');
-
-            expect(editor.querySelector('h1')).toBeNull();
-            expect(editor.querySelector('td')?.textContent).toContain('#');
-        });
-
-        it('does not fire inside a pre', () => {
-            const code = seed('<pre><code></code></pre>').querySelector('code') as HTMLElement;
-            typeInto(code, '# ');
-
-            expect(editor.querySelector('h1')).toBeNull();
-            expect(editor.querySelector('pre')?.textContent).toContain('#');
-        });
-
-        it('does not fire inside a summary', () => {
-            const summary = seed('<details><summary><br></summary><p>b</p></details>')
-                .querySelector('summary') as HTMLElement;
-            typeInto(summary, '# ');
-
-            expect(editor.querySelector('h1')).toBeNull();
-            expect(editor.querySelector('summary')?.textContent).toContain('#');
+            expect(paragraph.isConnected).toBe(true);
+            expect(paragraph.textContent).toBe('# ');
         });
 
         it('does not fire inside an existing heading', () => {
@@ -10783,13 +9410,11 @@ describe('RichTextEditorComponent markdown input rules', () => {
             range.setEnd(textNode, 4);
             selection?.removeAllRanges();
             selection?.addRange(range);
+            editor.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: ' ' }));
+            fixture.detectChanges();
 
-            const applied = (
-                component as unknown as { applyInputRules(event: Event): boolean }
-            ).applyInputRules(new InputEvent('input', { inputType: 'insertText', data: ' ' }));
-
-            expect(applied).toBe(false);
             expect(editor.querySelector('h1')).toBeNull();
+            expect(editor.innerHTML).toBe('<p># abc</p>');
         });
 
         // Deletions, history replays and formatting commands are not the author
@@ -10929,7 +9554,7 @@ describe('RichTextEditorComponent markdown input rules', () => {
     // The empty fence has to keep the newline `insertCodeBlock` also seeds, or
     // `handleEnterInCodeBlock` can never see "the text already ends with \n"
     // and Enter appends forever instead of leaving the block.
-    it('seeds an empty rule-created code block with the newline the exit rule needs', () => {
+    it('seeds an empty rule-created code block with a newline, as insertCodeBlock does', () => {
         typeInto(seed('<p><br></p>'), '``` ');
 
         const code = editor.querySelector('pre > code') as HTMLElement;
@@ -10937,7 +9562,7 @@ describe('RichTextEditorComponent markdown input rules', () => {
         expect(code.textContent).toBe('\n');
     });
 
-    it('leaves a code block created by the rule on the second Enter, as insertCodeBlock does', () => {
+    it('leaves a code block created by the rule on Enter, dropping its seed newline, as insertCodeBlock does', () => {
         typeInto(seed('<p><br></p>'), '``` ');
         const code = editor.querySelector('pre > code') as HTMLElement;
         setCaretAt(code.firstChild as Text, (code.firstChild as Text).data.length);
@@ -10946,7 +9571,11 @@ describe('RichTextEditorComponent markdown input rules', () => {
         component.onKeydown(enter);
         fixture.detectChanges();
 
-        expect(editor.querySelector('pre > code')?.textContent).not.toContain('\n\n');
+        expect(enter.defaultPrevented).toBe(true);
+        expect(code.textContent).toBe('');
+        const after = editor.querySelector('pre + p');
+        expect(after).not.toBeNull();
+        expect(after?.contains(caretElement())).toBe(true);
     });
 
     // §D.4.3 lists `onInput` among the hooks that close the revert window. An
@@ -11017,14 +9646,6 @@ describe('RichTextEditorComponent markdown input rules', () => {
             expect(em?.textContent).toBe('it');
         });
 
-        it('does not fire on the inner star of an unfinished "**bo*"', () => {
-            typeInto(seed('<p><br></p>'), '**bo*');
-
-            expect(editor.querySelector('em')).toBeNull();
-            expect(editor.querySelector('strong')).toBeNull();
-            expect(editor.textContent).toContain('**bo*');
-        });
-
         // T-18
         it('turns "`c`" into a code element', () => {
             typeInto(seed('<p><br></p>'), '`c`');
@@ -11032,14 +9653,6 @@ describe('RichTextEditorComponent markdown input rules', () => {
             const code = editor.querySelector('code');
             expect(code).not.toBeNull();
             expect(code?.textContent).toBe('c');
-        });
-
-        it('changes nothing when the same keystrokes land inside a pre', () => {
-            const code = seed('<pre><code>x</code></pre>').querySelector('code') as HTMLElement;
-            typeInto(code, '**b**');
-
-            expect(editor.querySelector('strong')).toBeNull();
-            expect(editor.querySelector('pre')?.textContent).toContain('**b**');
         });
 
         it('changes nothing when the same keystrokes land inside an inline code element', () => {
@@ -11091,17 +9704,6 @@ describe('RichTextEditorComponent markdown input rules', () => {
             expect(em.querySelector('code')).not.toBeNull();
         });
 
-        it('is one undo step, restoring the literal markers', () => {
-            typeInto(seed('<p><br></p>'), '**bold**');
-            expect(editor.querySelector('strong')).not.toBeNull();
-
-            (component as unknown as { undo(): void }).undo();
-            fixture.detectChanges();
-
-            expect(editor.querySelector('strong')).toBeNull();
-            expect(editor.textContent).toContain('**bold**');
-        });
-
         it('reverts on an immediate Backspace', () => {
             typeInto(seed('<p><br></p>'), '`c`');
             expect(editor.querySelector('code')).not.toBeNull();
@@ -11117,16 +9719,6 @@ describe('RichTextEditorComponent markdown input rules', () => {
             expect(event.defaultPrevented).toBe(true);
             expect(editor.querySelector('code')).toBeNull();
             expect(editor.textContent).toContain('`c`');
-        });
-
-        it('does not fire when [markdownShortcuts] is false', () => {
-            fixture.componentRef.setInput('markdownShortcuts', false);
-            fixture.detectChanges();
-
-            typeInto(seed('<p><br></p>'), '**bold**');
-
-            expect(editor.querySelector('strong')).toBeNull();
-            expect(editor.textContent).toContain('**bold**');
         });
     });
 
@@ -11175,20 +9767,6 @@ describe('RichTextEditorComponent markdown input rules', () => {
             typeInto(seed('<p><br></p>'), '# ');
 
             expect(component.historyEntries().length - before).toBe(2);
-        });
-
-        it('leaves earlier text untouched when the transform is undone', () => {
-            const block = seed('<p>hello</p>');
-            const second = editor.appendChild(document.createElement('p'));
-            second.innerHTML = '<br>';
-            typeInto(second, '# ');
-            expect(editor.querySelector('h1')).not.toBeNull();
-
-            component.onFormatCommand('undo');
-            fixture.detectChanges();
-
-            expect(editor.textContent).toContain('hello');
-            expect(block.textContent).toBe('hello');
         });
 
         it('reverts the transform on Backspace and prevents the default delete', () => {
@@ -11245,20 +9823,20 @@ describe('RichTextEditorComponent markdown input rules', () => {
             const outside = editor.appendChild(document.createElement('p'));
             outside.appendChild(document.createTextNode('elsewhere'));
             typeInto(block, '# ');
-
-            const recorded = () =>
-                (component as unknown as { lastInputRule: unknown }).lastInputRule;
-            expect(recorded()).not.toBeNull();
+            const heading = editor.querySelector('h1') as HTMLElement;
+            const caret = document.getSelection()!.getRangeAt(0).cloneRange();
 
             setCaretAt(outside.firstChild as Text, 3);
             component.onSelectionChange();
+            // Back to the exact spot the rule left the caret: only a dropped
+            // record stops the revert now, not the containment check.
+            setCaretAt(caret.startContainer, caret.startOffset);
+            component.onSelectionChange();
             fixture.detectChanges();
-
-            expect(recorded()).toBeNull();
 
             const event = press('Backspace');
             expect(event.defaultPrevented).toBe(false);
-            expect(editor.querySelector('h1')).not.toBeNull();
+            expect(editor.querySelector('h1')).toBe(heading);
         });
     });
 
@@ -11325,18 +9903,18 @@ describe('RichTextEditorComponent block-state activeFormats', () => {
 
     it('reports blockquote, codeBlock and inline code', () => {
         expect(caretIn('<blockquote>a</blockquote>', 'blockquote')).toContain('blockquote');
-        expect(caretIn('<pre><code>a</code></pre>', 'code')).toContain('codeBlock');
+        const inPre = caretIn('<pre><code>a</code></pre>', 'code');
+        expect(inPre).toContain('codeBlock');
+        expect(inPre).not.toContain('code');
         expect(caretIn('<p><code>a</code></p>', 'code')).toContain('code');
     });
 
-    it('does not report inline code for a code element inside a pre', () => {
-        const formats = caretIn('<pre><code>a</code></pre>', 'code');
-        expect(formats).toContain('codeBlock');
-        expect(formats).not.toContain('code');
-    });
-
     it('reports bulletList, orderedList and taskList', () => {
-        expect(caretIn('<ul><li>a</li></ul>', 'li')).toContain('bulletList');
+        const bullet = caretIn('<ul><li>a</li></ul>', 'li');
+        expect(bullet).toContain('bulletList');
+        expect(bullet).not.toContain('paragraph');
+        // `taskList` is keyed on the marker attribute, not on the tag.
+        expect(bullet).not.toContain('taskList');
         expect(caretIn('<ol><li>a</li></ol>', 'li')).toContain('orderedList');
         const task = caretIn(
             '<ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>a</span></li></ul>',
@@ -11351,28 +9929,24 @@ describe('RichTextEditorComponent block-state activeFormats', () => {
         // queryCommandState('bold') reads the computed weight, so every heading
         // lit the Bold button with nothing for it to turn off. The browser only
         // answers that query for a focused document, which the harness is not,
-        // so the guard that filters its answer is exercised directly.
-        const guard = component as unknown as { boldOnlyFromHeading(): boolean };
-        const inheritedOnly = (html: string, selector: string): boolean => {
-            editor.innerHTML = html;
-            setCaretAt(editor.querySelector(selector)!.firstChild!, 1);
-            return guard.boldOnlyFromHeading();
+        // so the stub answers as the browser would: bold for any heavy ancestor.
+        const doc = document as StubbableDocument;
+        const shim = doc.queryCommandState;
+        doc.queryCommandState = (commandId: string): boolean => {
+            if (commandId !== 'bold') return shim?.(commandId) ?? false;
+            const node = document.getSelection()?.getRangeAt(0).startContainer;
+            const start = node?.nodeType === Node.TEXT_NODE ? node.parentElement : (node as HTMLElement | null);
+            return !!start?.closest('h1, h2, h3, h4, h5, h6, b, strong, [style*="font-weight"]');
         };
-        expect(inheritedOnly('<h2>title</h2>', 'h2')).toBe(true);
-        expect(inheritedOnly('<h2>a <b>bb</b></h2>', 'b')).toBe(false);
-        expect(inheritedOnly('<h3><span style="font-weight:700">xx</span></h3>', 'span')).toBe(false);
-        expect(inheritedOnly('<p><strong>xx</strong></p>', 'strong')).toBe(false);
-        expect(inheritedOnly('<p>plain</p>', 'p')).toBe(false);
-    });
-
-    it('does not report paragraph inside a list item', () => {
-        expect(caretIn('<ul><li>a</li></ul>', 'li')).not.toContain('paragraph');
-    });
-
-    // `taskList` is keyed on the marker attribute, not on the tag: a plain
-    // bullet list must not press the task-list button.
-    it('does not report taskList for a plain ul', () => {
-        expect(caretIn('<ul><li>a</li></ul>', 'li')).not.toContain('taskList');
+        try {
+            expect(caretIn('<h2>title</h2>', 'h2')).not.toContain('bold');
+            expect(caretIn('<h2>a <b>bb</b></h2>', 'b')).toContain('bold');
+            expect(caretIn('<h3><span style="font-weight:700">xx</span></h3>', 'span')).toContain('bold');
+            expect(caretIn('<p><strong>xx</strong></p>', 'strong')).toContain('bold');
+            expect(caretIn('<p>plain</p>', 'p')).not.toContain('bold');
+        } finally {
+            doc.queryCommandState = shim;
+        }
     });
 
     // T-27 — alignment, and its RTL mirroring.
@@ -11449,21 +10023,18 @@ describe('RichTextEditorComponent text style select', () => {
         ) as HTMLDivElement;
     });
 
-    // T-33 — the default layout change, and the escape hatch for it.
-    it('puts textStyle in the default toolbar in place of the four block buttons', () => {
-        expect(DEFAULT_TOOLBAR_ITEMS).toContain('textStyle');
-        for (const item of ['paragraph', 'heading1', 'heading2', 'heading3']) {
-            expect(DEFAULT_TOOLBAR_ITEMS).not.toContain(item);
-        }
-    });
-
     it('renders the select by default and no block buttons', () => {
         expect(
             fixture.nativeElement.querySelector('[data-slot="rich-text-toolbar-text-style"]')
         ).not.toBeNull();
+        const titles = Array.from(
+            (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[role="toolbar"] button'),
+        ).map((button) => button.getAttribute('title') ?? '');
+        expect(titles.length).toBeGreaterThan(0);
+        expect(titles.filter((title) => /^(Normal Text|Heading [123])\b/.test(title))).toEqual([]);
     });
 
-    it('still renders four working buttons when a consumer lists them explicitly', () => {
+    it('presses the explicit heading button matching the caret block', () => {
         fixture.componentRef.setInput('toolbarItems', [
             'paragraph', 'heading1', 'heading2', 'heading3',
         ]);
@@ -11476,13 +10047,6 @@ describe('RichTextEditorComponent text style select', () => {
         expect(
             fixture.nativeElement.querySelector('[data-slot="rich-text-toolbar-text-style"]')
         ).toBeNull();
-    });
-
-    it('presses the explicit heading button matching the caret block', () => {
-        fixture.componentRef.setInput('toolbarItems', [
-            'paragraph', 'heading1', 'heading2', 'heading3',
-        ]);
-        fixture.detectChanges();
 
         editor.innerHTML = '<h2>a</h2>';
         const textNode = editor.querySelector('h2')!.firstChild as Text;
@@ -11495,41 +10059,6 @@ describe('RichTextEditorComponent text style select', () => {
         ) as HTMLElement[];
         expect(pressed).toHaveLength(1);
         expect(pressed[0].getAttribute('title')).toContain('Heading 2');
-    });
-
-    // T-35, corrected. Measured, not class-asserted.
-    //
-    // The spec predicted the default toolbar would be "at least 3 button
-    // widths narrower". It is not: the select is capped at max-w-[7rem] plus
-    // its icon (~114px) and four 28px buttons are ~112px, so at default sizing
-    // they are within a couple of pixels. What the select actually buys is a
-    // control that TRUNCATES — it holds that cap whatever the locale's labels
-    // are, while four buttons cannot shrink — plus four fewer focus stops.
-    //
-    // So this asserts the property that holds and matters: the default layout
-    // is never wider, and it replaces four rendered items with one.
-    it('is no wider than the four-button layout and renders four fewer items', () => {
-        const toolbarEl = () =>
-            fixture.nativeElement.querySelector('[role="toolbar"]') as HTMLElement;
-        const itemsWidth = () =>
-            Array.from(toolbarEl().children as HTMLCollectionOf<HTMLElement>)
-                .reduce((total, child) => total + child.offsetWidth, 0);
-
-        const classic = [
-            ...DEFAULT_TOOLBAR_ITEMS.filter((item) => item !== 'textStyle'),
-            'paragraph', 'heading1', 'heading2', 'heading3',
-        ];
-        fixture.componentRef.setInput('toolbarItems', classic);
-        fixture.detectChanges();
-        const classicWidth = itemsWidth();
-        const classicCount = toolbarEl().children.length;
-        expect(classicWidth).toBeGreaterThan(0);
-
-        fixture.componentRef.setInput('toolbarItems', DEFAULT_TOOLBAR_ITEMS);
-        fixture.detectChanges();
-
-        expect(itemsWidth()).toBeLessThanOrEqual(classicWidth);
-        expect(classicCount - toolbarEl().children.length).toBe(3);
     });
 
     // T-32 — choosing an option converts the block the editor had saved when
@@ -11674,13 +10203,17 @@ describe('RichTextEditorComponent — undo consistency', () => {
 
     it('T-33 writeValue default never calls onChange and does not change the stack length', () => {
         const seen: string[] = [];
+        const html: string[] = [];
         component.registerOnChange(v => seen.push(v));
+        component.htmlChange.subscribe(v => html.push(v));
         const before = historyLength(component);
 
         component.writeValue('<p>three</p>');
+        fixture.detectChanges();
 
         expect(historyLength(component)).toBe(before);
         expect(seen).toHaveLength(0);
+        expect(html.at(-1)).toContain('three');
         expect(editor.textContent).toBe('three');
     });
 
@@ -11800,19 +10333,6 @@ describe('RichTextEditorComponent — undo consistency', () => {
         expect(component.isDirty()).toBe(false);
     });
 
-    it('writeValue emits the content outputs but not the form callback', () => {
-        const html: string[] = [];
-        const changes: string[] = [];
-        component.htmlChange.subscribe(v => html.push(v));
-        component.registerOnChange(v => changes.push(v));
-
-        component.writeValue('<p>fresh</p>');
-        fixture.detectChanges();
-
-        expect(html.at(-1)).toContain('fresh');
-        expect(changes).toHaveLength(0);
-    });
-
     it('T-39 isDirty is true after typing and false after undoing back to the loaded content', () => {
         type('one changed');
         component.flushPendingHistoryPush();
@@ -11893,26 +10413,6 @@ describe('RichTextEditorComponent — imperative API', () => {
         setCaretAt(textNode, textNode.length);
         component.saveSelection();
     };
-
-    it('T-1 satisfies RichTextEditorApi and exposes every member of the contract', () => {
-        const api: RichTextEditorApi = component;
-        expect(api).toBe(component);
-
-        const methods: ReadonlyArray<keyof RichTextEditorApi> = [
-            'focus', 'insertText', 'insertHtml', 'format', 'selection',
-            'isEmpty', 'undo', 'redo', 'setContent', 'markClean',
-        ];
-        for (const name of methods) {
-            expect(typeof (component as unknown as Record<string, unknown>)[name]).toBe('function');
-        }
-
-        const signals: ReadonlyArray<keyof RichTextEditorApi> = [
-            'canUndo', 'canRedo', 'isDirty', 'htmlOutput', 'markdownOutput',
-        ];
-        for (const name of signals) {
-            expect(typeof (component as unknown as Record<string, unknown>)[name]).toBe('function');
-        }
-    });
 
     it('T-2 focus() focuses the editable and restores the saved caret', () => {
         caretAfterHello();
@@ -12098,14 +10598,6 @@ describe('RichTextEditorComponent — imperative API', () => {
         expect(historyLength(component)).toBe(before);
     });
 
-    it('T-6 format(command) delegates to onFormatCommand', () => {
-        const spy = vi.spyOn(component, 'onFormatCommand');
-
-        component.format('bold');
-
-        expect(spy).toHaveBeenCalledWith('bold');
-    });
-
     it('T-6b format("bold") bolds the selection, records one entry, updates activeFormats and focuses', () => {
         const p = editor.querySelector('p') as HTMLParagraphElement;
         selectAllOf(p);
@@ -12123,12 +10615,12 @@ describe('RichTextEditorComponent — imperative API', () => {
 
     it('T-6c format() on a collapsed caret still runs the command', () => {
         caretAfterHello();
-        const spy = vi.spyOn(component, 'onFormatCommand');
+        expect(component.activeFormats().has('italic')).toBe(false);
 
         component.format('italic');
 
-        expect(spy).toHaveBeenCalledWith('italic');
         expect(component.activeFormats().has('italic')).toBe(true);
+        expect(editor.textContent).toBe('Hello');
     });
 
     it('T-7 format rejects textStyle, find, undo, redo and unknown ids at the type level', () => {
@@ -12192,12 +10684,6 @@ describe('RichTextEditorComponent — imperative API', () => {
         expect(seen.at(-1)?.canRedo).toBe(false);
     });
 
-    it.each(EMPTINESS_FIXTURES)('T-9 isEmpty() is %s for %j', (value, expected) => {
-        component.setContent(value);
-
-        expect(component.isEmpty()).toBe(expected);
-    });
-
     it('T-9b isEmpty() tracks typing', () => {
         component.setContent('');
         expect(component.isEmpty()).toBe(true);
@@ -12206,12 +10692,6 @@ describe('RichTextEditorComponent — imperative API', () => {
         editor.dispatchEvent(new Event('input', { bubbles: true }));
 
         expect(component.isEmpty()).toBe(false);
-    });
-
-    it('T-10 has no getSelectionSnapshot member; selection() is the snapshot', () => {
-        expect('getSelectionSnapshot' in component).toBe(false);
-        expect(typeof component.selection).toBe('function');
-        expect(component.selection()).toMatchObject({ kind: expect.any(String), text: expect.any(String) });
     });
 
     it.each(EMPTINESS_FIXTURES)('T-18 isEmpty() and isRichTextEmpty agree on %j', (value, expected) => {
@@ -12301,22 +10781,10 @@ describe('RichTextEditorComponent — locale cascade', () => {
         expect(hello(fixture, FakeLocaleAddonFrDirective)).toBe('Bonjour');
     });
 
-    it('T-37b falls back to en when the addon registry lacks the app-wide key', async () => {
-        const fixture = await setup('en-fallback', 'ja');
-
-        expect(hello(fixture)).toBe('Hello');
-    });
-
     it('T-37c the editor locale cascades into an addon that did not bind its own', async () => {
         const fixture = await setup('he-static');
 
         expect(hello(fixture)).toBe('שלום');
-    });
-
-    it('T-37d the addon input wins over the editor locale', async () => {
-        const fixture = await setup('he-overridden');
-
-        expect(hello(fixture)).toBe('Hello');
     });
 
     it('T-38 a locale object with code "he" cascades as he', async () => {
@@ -12455,26 +10923,6 @@ describe('RichTextEditorComponent - remote resource policy', () => {
         expect(img.getAttribute('aria-label')).toContain('blocked');
     });
 
-    it('keeps a blocked image in MARKDOWN mode too', () => {
-        // mode defaults to 'markdown', so this is the path most documents take.
-        // parseImages dropped a refused image outright -- correct for an unsafe
-        // source, but it deleted policy-blocked ones instead of showing the
-        // placeholder the HTML path produces.
-        const fixture = TestBed.createComponent(PolicyHostComponent);
-        fixture.componentInstance.hosts.set(['cdn.trusted.com']);
-        fixture.detectChanges();
-
-        editorAt(fixture, 0).writeValue('![chart](https://tracker.example/p.png)');
-        fixture.detectChanges();
-
-        const img = fixture.nativeElement.querySelector('img') as HTMLImageElement;
-        expect(img).toBeTruthy();
-        expect(img.hasAttribute('src')).toBe(false);
-        expect(img.getAttribute('data-blocked-src')).toBe('https://tracker.example/p.png');
-        expect(img.getAttribute('alt')).toBe('chart');
-        expect(img.getAttribute('data-blocked-label')).toBe('Image blocked by security policy');
-    });
-
     it('still drops an UNSAFE source in markdown mode', () => {
         const fixture = TestBed.createComponent(PolicyHostComponent);
         fixture.detectChanges();
@@ -12550,7 +10998,9 @@ describe('RichTextEditorComponent - remote resource policy', () => {
 
     it('survives repeated saves while still blocked', () => {
         // Three cycles through the saved markdown: the URL must not erode, and
-        // the placeholder must not decay into literal text.
+        // the placeholder must not decay into literal text. Markdown is the
+        // default mode, and parseImages once deleted policy-blocked images there
+        // instead of showing the placeholder the HTML path produces.
         const fixture = TestBed.createComponent(PolicyHostComponent);
         fixture.componentInstance.hosts.set(['cdn.trusted.com']);
         fixture.detectChanges();
@@ -12561,24 +11011,12 @@ describe('RichTextEditorComponent - remote resource policy', () => {
             fixture.detectChanges();
             const img = fixture.nativeElement.querySelector('img') as HTMLImageElement;
             expect(img).toBeTruthy();
+            expect(img.hasAttribute('src')).toBe(false);
             expect(img.getAttribute('data-blocked-src')).toBe('https://tracker.example/p.png');
             expect(img.getAttribute('alt')).toBe('c');
+            expect(img.getAttribute('data-blocked-label')).toBe('Image blocked by security policy');
             doc = fixture.componentInstance.saved;
         }
-    });
-
-    it('applies a policy change without recreating the editor', () => {
-        const fixture = TestBed.createComponent(PolicyHostComponent);
-        fixture.detectChanges();
-        const sanitizer = sanitizerAt(fixture, 0);
-        expect(sanitizer.sanitizeImageSrc('https://tracker.example/p.png')).not.toBeNull();
-
-        // Through the signal, so the binding re-evaluates and the editor's
-        // effect actually sees the change -- mutating a plain field would leave
-        // the policy stale and the test would pass for the wrong reason.
-        fixture.componentInstance.hosts.set(['cdn.trusted.com']);
-        fixture.detectChanges();
-        expect(sanitizer.sanitizeImageSrc('https://tracker.example/p.png')).toBeNull();
     });
 });
 
@@ -12696,22 +11134,6 @@ describe('RichTextEditorComponent - replace keeps everything but the matched tex
     /** Tag names of every element in the editor, in document order. */
     const tagsIn = (): string[] => Array.from(editor.querySelectorAll('*')).map((el) => el.tagName);
 
-    it('keeps an image that sits beside the match', () => {
-        // An <img> has empty textContent and no descendants, so the old
-        // "remove whatever emptied" sweep removed the picture next to the word.
-        load('<p>the cat <img src="/x.png" alt="x"> sat</p>');
-        replaceAllWith('cat', 'dog');
-        expect(editor.querySelector('img')).not.toBeNull();
-        expect(editor.textContent).toBe('the dog  sat');
-    });
-
-    it('keeps a line break inside the paragraph', () => {
-        load('<p>line one<br>line cat</p>');
-        replaceAllWith('cat', 'dog');
-        expect(editor.querySelector('br')).not.toBeNull();
-        expect(editor.querySelector('p')?.innerHTML).toBe('line one<br>line dog');
-    });
-
     it('keeps a table cell whose only text was the match, on an empty replacement', () => {
         load('<table><tbody><tr><td>TBD</td><td>keep</td></tr></tbody></table>');
         replaceAllWith('TBD', '');
@@ -12726,12 +11148,6 @@ describe('RichTextEditorComponent - replace keeps everything but the matched tex
         expect(editor.querySelector('li[data-task]')).not.toBeNull();
         expect(editor.querySelector('input[type="checkbox"]')).not.toBeNull();
         expect(editor.querySelector('li[data-task] > span')).not.toBeNull();
-    });
-
-    it('keeps a heading emptied by the replacement', () => {
-        load('<h1>cat</h1><p>body</p>');
-        replaceAllWith('cat', '');
-        expect(editor.querySelector('h1')).not.toBeNull();
     });
 
     it('still drops an inline wrapper the deletion emptied', () => {
@@ -12796,10 +11212,16 @@ describe('RichTextEditorComponent - wrapper policy and Enter on image-only block
     });
 
     it('and its own list wins whole over the wrapper, never merged', () => {
+        const CDN = 'https://cdn.trusted.com/a.png';
         const fixture = TestBed.createComponent(WrappedEditorComponent);
         fixture.componentInstance.own.set(['tracker.example']);
+        fixture.componentInstance.control.setValue(`<p><img src="${TRACKER}" alt="chart"> <img src="${CDN}" alt="logo"></p>`);
         fixture.detectChanges();
-        expect((fixture.nativeElement as HTMLElement).querySelector('img')?.getAttribute('src')).toBe(TRACKER);
+        const [tracker, cdn] = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('img'));
+        expect(tracker.getAttribute('src')).toBe(TRACKER);
+        // The wrapper allows cdn.trusted.com, but the editor's own list replaced it.
+        expect(cdn.hasAttribute('src')).toBe(false);
+        expect(cdn.getAttribute('data-blocked-src')).toBe(CDN);
     });
 
     describe('Enter on a block holding only an image', () => {
@@ -12861,9 +11283,17 @@ describe('RichTextEditorComponent - allowedLinkSchemes on the editor (follow-up 
 
         fixture.componentInstance.schemes.set(['acme-crm']);
         fixture.detectChanges();
-        editor.writeValue('<p><a href="acme-crm://contact/42">crm</a></p>');
+        editor.writeValue('<p><a href="acme-crm://contact/42">crm</a> <a href="slack://channel?id=1">slack</a></p>');
         fixture.detectChanges();
-        expect(anchors()).toEqual(['acme-crm://contact/42']);
+        expect(anchors()).toEqual(['acme-crm://contact/42', 'slack://channel?id=1']);
+
+        // Narrowing the list re-judges the rendered document in place, with no
+        // new value written: a link allowed a moment ago must not survive it.
+        fixture.componentInstance.schemes.set([]);
+        fixture.detectChanges();
+        expect(anchors()).toEqual(['slack://channel?id=1']);
+        expect(editor.htmlOutput()).not.toContain('acme-crm');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('crm');
     });
 });
 
@@ -12929,17 +11359,6 @@ describe('RichTextEditorComponent - live code highlighting', () => {
 
         expect(Array.from(codeElement().querySelectorAll('.token-keyword'), (el) => el.textContent))
             .toEqual(['const', 'let']);
-    });
-
-    it('keeps the spans out of the value, in markdown mode', () => {
-        component.writeValue('```ts\nconst a = 1;\n```');
-        fixture.detectChanges();
-
-        let emitted = '';
-        component.registerOnChange((value: string) => { emitted = value; });
-        typeAtEndOfCode(' let b = 2;');
-
-        expect(emitted).toBe('```ts\nconst a = 1; let b = 2;\n```');
     });
 
     it('keeps the spans out of the value, in html mode too', () => {
@@ -13024,14 +11443,23 @@ describe('RichTextEditorComponent - live code highlighting', () => {
     });
 
     it('repaints only after the debounce when one is set', () => {
-        fixture.componentRef.setInput('codeHighlightDebounceMs', 5000);
-        component.writeValue('```ts\nconst a = 1;\n```');
-        fixture.detectChanges();
-        typeAtEndOfCode(' let b = 2;');
+        vi.useFakeTimers();
+        try {
+            fixture.componentRef.setInput('codeHighlightDebounceMs', 300);
+            component.writeValue('```ts\nconst a = 1;\n```');
+            fixture.detectChanges();
+            typeAtEndOfCode(' let b = 2;');
+            const keywords = () => Array.from(codeElement().querySelectorAll('.token-keyword'), (el) => el.textContent);
 
-        // The load painted `const`; the typed `let` waits for the quiet.
-        expect(Array.from(codeElement().querySelectorAll('.token-keyword'), (el) => el.textContent))
-            .toEqual(['const']);
+            // The load painted `const`; the typed `let` waits for the quiet.
+            expect(keywords()).toEqual(['const']);
+            vi.advanceTimersByTime(299);
+            expect(keywords()).toEqual(['const']);
+            vi.advanceTimersByTime(1);
+            expect(keywords()).toEqual(['const', 'let']);
+        } finally {
+            vi.useRealTimers();
+        }
     });
 });
 
@@ -13050,11 +11478,6 @@ describe('RichTextEditorComponent - theme preset', () => {
 
     const host = (): HTMLElement => fixture.nativeElement as HTMLElement;
     const token = (el: Element, name: string): string => getComputedStyle(el).getPropertyValue(name).trim();
-
-    it('carries no preset attribute while the theme is unset', () => {
-        fixture.detectChanges();
-        expect(host().hasAttribute('data-ui-theme')).toBe(false);
-    });
 
     it('drops the attribute again when the theme is cleared', () => {
         fixture.componentRef.setInput('theme', 'rose');

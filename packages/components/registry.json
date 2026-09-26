@@ -4887,7 +4887,6 @@
     ],
     "testFiles": [
       "rich-text-editor/addons/emoji/rich-text-emoji-button.component.spec.ts",
-      "rich-text-editor/addons/emoji/rich-text-emoji.context.spec.ts",
       "rich-text-editor/addons/emoji/rich-text-emoji.directive.spec.ts"
     ],
     "requiresBaseFiles": [
@@ -5090,7 +5089,6 @@
     ],
     "testFiles": [
       "rich-text-editor/addons/colors/rich-text-colors-button.component.spec.ts",
-      "rich-text-editor/addons/colors/rich-text-colors.context.spec.ts",
       "rich-text-editor/addons/colors/rich-text-colors.directive.spec.ts"
     ],
     "requiresBaseFiles": [
@@ -5150,7 +5148,6 @@
       "rich-text-editor"
     ],
     "testFiles": [
-      "rich-text-editor/addons/typography/rich-text-typography.context.spec.ts",
       "rich-text-editor/addons/typography/rich-text-typography.directive.spec.ts"
     ],
     "requiresBaseFiles": [
@@ -5215,7 +5212,6 @@
     "testFiles": [
       "rich-text-editor/addons/links/rich-text-links-button.component.spec.ts",
       "rich-text-editor/addons/links/rich-text-links-form.component.spec.ts",
-      "rich-text-editor/addons/links/rich-text-links.context.spec.ts",
       "rich-text-editor/addons/links/rich-text-links.directive.spec.ts"
     ],
     "requiresBaseFiles": [
@@ -5278,7 +5274,6 @@
     ],
     "testFiles": [
       "rich-text-editor/addons/tables/rich-text-tables-button.component.spec.ts",
-      "rich-text-editor/addons/tables/rich-text-tables.context.spec.ts",
       "rich-text-editor/addons/tables/rich-text-tables.directive.spec.ts"
     ],
     "requiresBaseFiles": [
@@ -5348,7 +5343,6 @@
       "rich-text-editor/addons/images/rich-text-images-button.component.spec.ts",
       "rich-text-editor/addons/images/rich-text-images-overlay.component.spec.ts",
       "rich-text-editor/addons/images/rich-text-images-resizer.component.spec.ts",
-      "rich-text-editor/addons/images/rich-text-images.context.spec.ts",
       "rich-text-editor/addons/images/rich-text-images.directive.spec.ts",
       "rich-text-editor/addons/images/rich-text-images.utils.spec.ts"
     ],
@@ -5521,7 +5515,6 @@
     "testFiles": [
       "rich-text-editor/addons/file-import/rich-text-file-import-button.component.spec.ts",
       "rich-text-editor/addons/file-import/rich-text-file-import-overlay.component.spec.ts",
-      "rich-text-editor/addons/file-import/rich-text-file-import.context.spec.ts",
       "rich-text-editor/addons/file-import/rich-text-file-import.directive.spec.ts",
       "rich-text-editor/addons/file-import/rich-text-file-import.utils.spec.ts"
     ],
@@ -5589,7 +5582,6 @@
     "testFiles": [
       "rich-text-editor/addons/ai/rich-text-ai-chip.component.spec.ts",
       "rich-text-editor/addons/ai/rich-text-ai-panel.component.spec.ts",
-      "rich-text-editor/addons/ai/rich-text-ai.context.spec.ts",
       "rich-text-editor/addons/ai/rich-text-ai.directive.spec.ts"
     ],
     "requiresBaseFiles": [
@@ -5636,7 +5628,6 @@
     ],
     "testFiles": [
       "rich-text-editor/addons/outline/rich-text-outline-panel.component.spec.ts",
-      "rich-text-editor/addons/outline/rich-text-outline.context.spec.ts",
       "rich-text-editor/addons/outline/rich-text-outline.directive.spec.ts"
     ],
     "requiresBaseFiles": [

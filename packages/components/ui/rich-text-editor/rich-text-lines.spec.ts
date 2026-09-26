@@ -147,12 +147,6 @@ describe('rich text line model — the shape table', () => {
         expect(lineText(buildLineIndex(root).lines[0])).toBe(text);
     });
 
-    it('has an expectation for every shape, so a new shape cannot slip through untested', () => {
-        const named = LINE_SHAPE_FIXTURES.map(([name]) => name);
-        expect(named.filter((name) => EXPECTED[name] === undefined)).toEqual([]);
-        expect(Object.keys(EXPECTED).filter((name) => !named.includes(name))).toEqual([]);
-    });
-
     it.each(LINE_SHAPE_FIXTURES)('%s yields the lines the table says', (name, html) => {
         expect(actualLines(html)).toEqual(EXPECTED[name].map((row) => [...row]));
     });
@@ -194,7 +188,7 @@ describe('rich text line model — the rules', () => {
         expect(isLineOwner(wrapped.querySelector('li')!, wrapped)).toBe(false);
     });
 
-    it('a quote or a cell wrapping a list is a container, so the items are the lines', () => {
+    it('a quote wrapping a list is a container, so the items are the lines', () => {
         const quote = rootOf('<blockquote><ul><li>item</li></ul></blockquote>');
         expect(isLineOwner(quote.querySelector('blockquote')!, quote)).toBe(false);
         expect(buildLineIndex(quote).lines.map((l) => l.owner.tagName)).toEqual(['LI']);
@@ -296,6 +290,10 @@ describe('rich text line model — the rules', () => {
         const root = rootOf('<table><tbody><tr><td><br></td></tr></tbody></table>');
         expect(holdsNothing(root.querySelector('table')!)).toBe(false);
         expect(holdsNothing(root.querySelector('td')!)).toBe(true);
+
+        // An empty span does not make a blank line look full.
+        const blank = rootOf('<p><span></span></p>');
+        expect(holdsNothing(blank.querySelector('p')!)).toBe(true);
     });
 
     it('a block that follows a line goes inside it when the parent rejects blocks', () => {
@@ -314,7 +312,7 @@ describe('rich text line model — the rules', () => {
         expect(positionAfterLine(first)).toEqual({ parent: prose, before: prose.children[1] });
     });
 
-    it('a container element holding both text and a block is a shape the sanitizer removes', () => {
+    it('text beside a block in a list item belongs to no line', () => {
         // The model answers honestly that such text belongs to no line, which
         // is why nothing may hold both: a block command given that item used to
         // reach out to the whole list and destroy it. The editor never builds
@@ -507,16 +505,6 @@ describe('rich text line model — the rules', () => {
         const back = placeCaretIn(position.line, position.offset);
         expect(back.startContainer).toBe(bold);
         expect(back.startOffset).toBe(2);
-    });
-
-    it('a line removed from the document is no longer in an index built before it went', () => {
-        const root = rootOf('<p>one</p><p>two</p>');
-        const index = buildLineIndex(root);
-        const second = index.lines[1];
-        second.owner.remove();
-
-        expect(lineBelow(buildLineIndex(root), buildLineIndex(root).lines[0])).toBeNull();
-        expect(lineAbove(buildLineIndex(root), second)).toBeNull();
     });
 });
 

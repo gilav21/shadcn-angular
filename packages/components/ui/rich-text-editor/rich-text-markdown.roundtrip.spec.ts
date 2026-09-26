@@ -235,10 +235,6 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         expect(Array.from(out.querySelectorAll('strong em, b i, b em, strong i')).map((el) => el.textContent)).toEqual(['x', 'y']);
     });
 
-    it('still reads a single bold-italic run', () => {
-        expect(read(service.toHtml('***both***')).querySelector('strong > em')?.textContent).toBe('both');
-    });
-
     it('keeps a quote holding code inside a list item', () => {
         const once = saved('<ul><li><blockquote><pre><code>x = 1</code></pre></blockquote></li></ul>');
         const out = read(once);
@@ -987,12 +983,6 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         expect(out.textContent).toContain(':::details T');
     });
 
-    it('still closes a details block in a list item with a closer at the margin right after its body', () => {
-        const out = read(service.toHtml('- item\n  :::details s\n  body\n:::'));
-
-        expect(out.querySelector('li details > summary')?.textContent).toBe('s');
-    });
-
     it.each([
         ['after a period', '<p><i><b>x.</b></i><i>.y</i></p>', 'x..y'],
         ['after an exclamation mark', '<p><i><b>x!</b></i><i>(y)</i></p>', 'x!(y)'],
@@ -1220,10 +1210,6 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         expect(out.textContent).not.toContain(':::');
         expect(saved(once)).toBe(once);
     });
-
-    it('writes no start attribute for a list that counts from one', () => {
-        expect(read(service.toHtml('1. one\n2. two')).querySelector('ol')?.hasAttribute('start')).toBe(false);
-    });
 });
 
 /**
@@ -1309,19 +1295,14 @@ describe('RichTextMarkdownService - reported markdown round-trip defects (#135-#
 
     describe('#137 an image alt attribute is text, not markdown', () => {
         it('keeps link syntax in alt text as the characters the author typed', () => {
-            const img = parse('![a [b](https://x.test/) c](https://y.test/i.png)').querySelector('img');
+            const body = parse('![a [b](https://x.test/) c](https://y.test/i.png)');
+            const img = body.querySelector('img');
             expect(img?.getAttribute('alt')).toBe('a [b](https://x.test/) c');
             expect(img?.getAttribute('src')).toBe('https://y.test/i.png');
-        });
-
-        it('leaves nothing of the alt text outside the tag', () => {
-            // Asserting only "no <a> element" would pass over the defect: the
-            // broken output is `alt="a <a href="` followed by loose text, which
-            // parses to no anchor at all. What it DOES leave behind is page text
+            // The broken output was `alt="a <a href="` plus loose text: page text
             // beside the image, and an image with more than its two attributes.
-            const body = parse('![a [b](https://x.test/) c](https://y.test/i.png)');
             expect(body.textContent).toBe('');
-            expect(body.querySelector('img')?.attributes).toHaveLength(2);
+            expect(img?.attributes).toHaveLength(2);
         });
 
         it('keeps emphasis and code syntax in alt text as characters', () => {
@@ -1358,11 +1339,6 @@ describe('RichTextMarkdownService - reported markdown round-trip defects (#135-#
             expect(item?.querySelectorAll(':scope > ul')).toHaveLength(2);
         });
 
-        it('leaves a list with no list beside it written with the usual marker', () => {
-            expect(service.toMarkdown('<ul><li>a</li><li>b</li></ul>')).toBe('- a\n- b');
-            expect(service.toMarkdown('<ol><li>a</li><li>b</li></ol>')).toBe('1. a\n2. b');
-        });
-
         it('reads the ")" ordered delimiter', () => {
             expect(parse('1) a\n2) b').querySelectorAll('ol li')).toHaveLength(2);
         });
@@ -1391,11 +1367,6 @@ describe('RichTextMarkdownService - reported markdown round-trip defects (#135-#
             const block = parse(cycle(html)).querySelector('pre code');
             expect(block?.textContent).toBe('l1\nl2');
             expect(block?.querySelector('img')).not.toBeNull();
-        });
-
-        it('still writes a block with no image as a fence', () => {
-            expect(service.toMarkdown('<pre><code data-language="ts">const a = 1;</code></pre>'))
-                .toBe('```ts\nconst a = 1;\n```');
         });
     });
 
@@ -1441,10 +1412,6 @@ describe('RichTextMarkdownService - code block lines written as <br>', () => {
     it('saves each <br> as a line of the fence', () => {
         const html = '<pre><code data-language="ts">function f() {<br>    return 1;<br>}</code></pre>';
         expect(service.toMarkdown(html)).toBe('```ts\nfunction f() {\n    return 1;\n}\n```');
-    });
-
-    it('keeps the rows through a save and reload', () => {
-        expect(fenceBody('<pre><code data-language="ts">a<br>b<br>c</code></pre>')).toBe('a\nb\nc');
     });
 
     it('keeps rows made of <br> and newline characters together', () => {

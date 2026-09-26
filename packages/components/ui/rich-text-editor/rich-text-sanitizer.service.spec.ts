@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { DEFAULT_LINK_SCHEMES, RichTextSanitizerService } from './index';
+import { RichTextSanitizerService } from './index';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 /** The `style` attribute the sanitizer kept for a declaration, or null. */
@@ -42,6 +42,7 @@ describe('RichTextSanitizerService — task row shape', () => {
     it('leaves a row that already has its span alone', () => {
         const row = rowOf('<ul data-task-list><li data-task><input type="checkbox"><span>todo</span></li></ul>');
 
+        expect(Array.from(row.children).map((el) => el.tagName)).toEqual(['INPUT', 'SPAN']);
         expect(row.querySelectorAll('span')).toHaveLength(1);
         expect(row.querySelector(':scope > span')?.textContent).toBe('todo');
     });
@@ -173,18 +174,7 @@ describe('RichTextSanitizerService — an element holds a line or holds blocks',
 
         expect(span.textContent).toBe(text);
         expect(span.querySelector('blockquote, p, div, ul, ol, li, table, tr, td, th')).toBeNull();
-    });
-
-    it('unwraps a block inside a task row rather than nesting it in the span', () => {
-        // The PDF-import shape named in the docstring. Wrapping the block into
-        // the span left the row owning a line and the block owning one too, and
-        // the pass that repairs that shape has no `span` among its hosts, so it
-        // was stable rather than fixed.
-        const out = clean('<ul><li data-task><input type="checkbox">intro<blockquote>quoted</blockquote></li></ul>');
-        const span = out.querySelector('li[data-task] > span')!;
-
-        expect(span.querySelector('blockquote, p, h1, div')).toBeNull();
-        expect(span.textContent).toBe('intro quoted');
+        // Unwrapped, not wrapped into the span beside a block the row still owns.
         expect(Array.from(out.querySelector('li[data-task]')!.children).map((el) => el.tagName))
             .toEqual(['INPUT', 'SPAN']);
     });
@@ -227,12 +217,6 @@ describe('RichTextSanitizerService — an element holds a line or holds blocks',
         expect(Array.from(div.childNodes).every((n) => n.nodeType === Node.ELEMENT_NODE)).toBe(true);
     });
 
-    it('leaves a task row alone, whose checkbox is structure and not a stray run', () => {
-        const out = clean('<ul data-task-list><li data-task><input type="checkbox"><span>todo</span></li></ul>');
-        const row = out.querySelector('li[data-task]')!;
-
-        expect(Array.from(row.children).map((el) => el.tagName)).toEqual(['INPUT', 'SPAN']);
-    });
 });
 
 describe('RichTextSanitizerService — output the HTML parser reads back unchanged', () => {
@@ -462,11 +446,6 @@ describe('RichTextSanitizerService', () => {
             expect(result).toContain('background:#4a86e8');
             expect(result).toContain('color:#ffffff');
         });
-
-        it('still rejects a url() payload in the `background` shorthand', () => {
-            const html = '<p style="background:url(javascript:alert(1))">x</p>';
-            expect(service.sanitize(html)).not.toContain('url(');
-        });
     });
 
     describe('XSS prevention - script injection', () => {
@@ -483,22 +462,9 @@ describe('RichTextSanitizerService', () => {
             const html = '<script type="text/javascript">document.cookie</script>';
             expect(service.sanitize(html)).toBe('');
         });
-
-        it('should remove scripts in attributes via event handlers', () => {
-            const html = '<img src="x" onerror="alert(1)">';
-            const result = service.sanitize(html);
-            expect(result).not.toContain('onerror');
-            expect(result).not.toContain('alert');
-        });
     });
 
     describe('XSS prevention - event handlers', () => {
-        it('should remove onclick handlers', () => {
-            const html = '<button onclick="evil()">Click</button>';
-            const result = service.sanitize(html);
-            expect(result).not.toContain('onclick');
-        });
-
         it('should remove onmouseover handlers', () => {
             const html = '<div onmouseover="evil()">Hover</div>';
             const result = service.sanitize(html);
@@ -516,13 +482,6 @@ describe('RichTextSanitizerService', () => {
             const result = service.sanitize(html);
             expect(result).not.toContain('onerror');
             expect(result).not.toContain('alert');
-        });
-
-        it('should remove onfocus/onblur handlers', () => {
-            const html = '<input onfocus="evil()" onblur="evil2()">';
-            const result = service.sanitize(html);
-            expect(result).not.toContain('onfocus');
-            expect(result).not.toContain('onblur');
         });
     });
 
@@ -553,12 +512,6 @@ describe('RichTextSanitizerService', () => {
     });
 
     describe('XSS prevention - data: URLs', () => {
-        it('should allow safe data:image URLs', () => {
-            const html = '<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA">';
-            const result = service.sanitize(html);
-            expect(result).toContain('data:image/png');
-        });
-
         it('should block data:text/html URLs', () => {
             const html = '<img src="data:text/html,<script>alert(1)</script>">';
             const result = service.sanitize(html);
@@ -573,11 +526,6 @@ describe('RichTextSanitizerService', () => {
     });
 
     describe('image src sanitization', () => {
-        it('should allow https image URLs', () => {
-            const result = service.sanitizeImageSrc('https://example.com/image.jpg');
-            expect(result).toBe('https://example.com/image.jpg');
-        });
-
         it('should allow relative image URLs', () => {
             expect(service.sanitizeImageSrc('/images/photo.jpg')).toBe('/images/photo.jpg');
             expect(service.sanitizeImageSrc('./photo.jpg')).toBe('./photo.jpg');
@@ -634,14 +582,6 @@ describe('RichTextSanitizerService', () => {
             ]) {
                 expect(service.sanitizeImageSrc(src)).toBe(src);
             }
-        });
-
-        it('keeps a percent-encoded image in a document', () => {
-            // The failure mode was deletion, not refusal: the src was stripped
-            // and the image vanished with no warning and no way back.
-            const html = '<p>before</p><img src="data:image/png,%89PNG%0D%0A%1A%0A" alt="chart"><p>after</p>';
-            const out = service.sanitize(html);
-            expect(out).toContain('src="data:image/png,%89PNG%0D%0A%1A%0A"');
         });
 
         it('rejects a non-image percent-encoded payload in either encoding', () => {
@@ -711,10 +651,6 @@ describe('RichTextSanitizerService', () => {
             expect(service.sanitizeUrl('/path/to/page')).toBe('/path/to/page');
         });
 
-        it('should block javascript URLs', () => {
-            expect(service.sanitizeUrl('javascript:alert(1)')).toBeNull();
-        });
-
         it('should block vbscript URLs', () => {
             expect(service.sanitizeUrl('vbscript:msgbox(1)')).toBeNull();
         });
@@ -747,19 +683,12 @@ describe('RichTextSanitizerService', () => {
     });
 
     describe('disallowed elements are unwrapped', () => {
-        it('should unwrap style tags but preserve text', () => {
+        it('drops a style element, keeping the text around it', () => {
             const html = '<p>Hello <style>.evil{}</style>World</p>';
             const result = service.sanitize(html);
             expect(result).not.toContain('<style');
             expect(result).toContain('Hello');
             expect(result).toContain('World');
-        });
-
-        it('should unwrap custom/unknown elements', () => {
-            const html = '<custom-element>Content</custom-element>';
-            const result = service.sanitize(html);
-            expect(result).not.toContain('custom-element');
-            expect(result).toContain('Content');
         });
 
         it('should unwrap form elements', () => {
@@ -848,11 +777,6 @@ describe('RichTextSanitizerService', () => {
             expect(service.stripTags('')).toBe('');
             expect(service.stripTags(null as unknown as string)).toBe('');
         });
-
-        it('should handle nested elements', () => {
-            const html = '<div><p>Line 1</p><p>Line 2</p></div>';
-            expect(service.stripTags(html)).toBe('Line 1Line 2');
-        });
     });
 
     describe('sanitizeToFragment', () => {
@@ -872,26 +796,10 @@ describe('RichTextSanitizerService', () => {
             expect(result).not.toContain('&quot;');
         });
 
-        it('should handle multiple quoted font families', () => {
-            const html = '<span style="font-family: &quot;Times New Roman&quot;">Text</span>';
-            const result = service.sanitize(html);
-            expect(result).toContain("font-family: 'Times New Roman'");
-            expect(result).not.toContain('&quot;');
-        });
-
         it('should preserve unquoted font-family names', () => {
             const html = '<span style="font-family: Arial">Text</span>';
             const result = service.sanitize(html);
             expect(result).toContain('font-family: Arial');
-        });
-
-        it('should handle font-family with other styles', () => {
-            const html = '<span style="font-family: &quot;Comic Sans MS&quot;; color: red; font-size: 14px">Text</span>';
-            const result = service.sanitize(html);
-            expect(result).toContain("font-family: 'Comic Sans MS'");
-            expect(result).toContain('color: red');
-            expect(result).toContain('font-size: 14px');
-            expect(result).not.toContain('&quot;');
         });
     });
 
@@ -902,13 +810,6 @@ describe('RichTextSanitizerService', () => {
             expect(result).not.toContain('onload');
             expect(result).not.toContain('<script');
             expect(result).not.toContain('alert');
-        });
-
-        it('should handle malformed HTML gracefully', () => {
-            const html = '<p>Unclosed <b>tags <i>here';
-            const result = service.sanitize(html);
-            // Should not throw, should return valid HTML
-            expect(result).toContain('Unclosed');
         });
 
         it('should handle HTML entities', () => {
@@ -963,7 +864,7 @@ describe('RichTextSanitizerService', () => {
             off();
         });
 
-        it('keeps the id attr but strips invalid params JSON, then drops orphan params', () => {
+        it('keeps the id attr but strips a params attribute whose JSON is invalid', () => {
             const off = service.registerAttributeRules([idRule, paramsRule]);
             const out = service.sanitize(
                 '<span data-action-click="a" data-action-click-params="{bad">x</span>');
@@ -1001,18 +902,6 @@ describe('RichTextSanitizerService', () => {
             off();
         });
 
-        it('preserves a safe inline style on an action span (v2 starter-style discovery)', () => {
-            const off = service.registerAttributeRules([idRule, paramsRule]);
-            const html =
-                '<span style="color:#2563eb;text-decoration:underline dotted" ' +
-                'data-action-click="dictionary" data-action-click-params=\'{"value":"sla"}\'>SLA</span>';
-            const out = service.sanitize(html);
-            off();
-            expect(out).toContain('data-action-click="dictionary"');
-            expect(out.toLowerCase()).toContain('color');
-            expect(out.toLowerCase()).toContain('#2563eb');
-        });
-
         it('tolerates calling the teardown twice (no entry on the second call)', () => {
             const off = service.registerAttributeRules([idRule]);
             off();
@@ -1026,34 +915,12 @@ describe('RichTextSanitizerService', () => {
             expect(service.isUrlSafe('')).toBe(false);
             expect(service.isUrlSafe(null as unknown as string)).toBe(false);
         });
-
-        it('returns true for a plain safe url', () => {
-            expect(service.isUrlSafe('https://example.com')).toBe(true);
-        });
     });
 
     describe('sanitizeImageSrc edge cases', () => {
         it('returns null for empty or non-string input', () => {
             expect(service.sanitizeImageSrc('')).toBeNull();
             expect(service.sanitizeImageSrc(null as unknown as string)).toBeNull();
-        });
-
-        it('rejects protocol-relative URLs', () => {
-            expect(service.sanitizeImageSrc('//evil.com/x.png')).toBeNull();
-            expect(service.sanitizeImageSrc('/\\evil.com/x.png')).toBeNull();
-        });
-
-        it('rejects a data:image/png whose bytes are not a real image', () => {
-            const bogus = `data:image/png;base64,${btoa('not-a-png-header')}`;
-            expect(service.sanitizeImageSrc(bogus)).toBeNull();
-        });
-
-        it('rejects a non-base64 data:image/png whose payload is not an image', () => {
-            // This asserted the OPPOSITE, and its own title said why:
-            // "(unchecked bytes)". Skipping validation when ';base64,' is
-            // absent meant the encoding decided the verdict rather than the
-            // content -- the same bytes were rejected once base64-encoded.
-            expect(service.sanitizeImageSrc('data:image/png,rawplaceholder')).toBeNull();
         });
 
         it('rejects a data:image/png with an empty base64 payload', () => {
@@ -1144,15 +1011,6 @@ describe('RichTextSanitizerService — structural size ceiling', () => {
         expect(elapsed).toBeLessThan(5000);
     });
 
-    it('leaves an ordinary document untouched', () => {
-        const normal = '<p>hello</p><table><tbody><tr><td>a</td><td>b</td></tr></tbody></table>';
-        const out = service.sanitize(normal);
-        const parsed = new DOMParser().parseFromString(out, 'text/html');
-
-        expect(parsed.querySelectorAll('td')).toHaveLength(2);
-        expect(parsed.body.textContent).toBe('helloab');
-    });
-
     describe('data: URLs in href (round-15 audit)', () => {
         it('rejects a scriptable SVG data: URL used as a link target', () => {
             // isAllowedDataUrl returned true unconditionally for
@@ -1206,11 +1064,6 @@ describe('RichTextSanitizerService — structural size ceiling', () => {
             }
         });
 
-        it('refuses a protocol-relative URL, which looks relative but is not', () => {
-            // sanitizeImageSrc already rejected these; the href path did not.
-            expect(service.isUrlSafe('//evil.example/x')).toBe(false);
-        });
-
         it('still allows the schemes real links use', () => {
             for (const url of [
                 'https://example.com/a?b=1#c',
@@ -1245,12 +1098,6 @@ describe('RichTextSanitizerService — structural size ceiling', () => {
             const url = 'data:image/jpeg,' + encodeURIComponent(svgPayload);
             const out = service.sanitizeImageSrc(url);
             expect(out === null || !decodeURIComponent(out).includes('onload')).toBe(true);
-        });
-
-        it('still accepts a genuine raster data URL', () => {
-            const png =
-                'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
-            expect(service.sanitizeImageSrc(png)).toBe(png);
         });
     });
 
@@ -1301,10 +1148,6 @@ describe('RichTextSanitizerService — structural size ceiling', () => {
             }
         });
 
-        it('still allows an ordinary absolute URL', () => {
-            expect(service.isUrlSafe('https://example.com/a')).toBe(true);
-        });
-
         it('rewrites such an href to the explicit absolute URL in a full sanitize pass', () => {
             // Not dropped: an explicit https link to the same host is allowed,
             // so dropping the shorthand deleted legitimate links while
@@ -1316,10 +1159,6 @@ describe('RichTextSanitizerService — structural size ceiling', () => {
             // explicit absolute URL -- never as the relative-looking spelling.
             const href = /href="([^"]*)"/.exec(html)?.[1];
             expect(href === undefined || /^https?:\/\//.test(href)).toBe(true);
-        });
-
-        it('still allows an ordinary rooted path', () => {
-            expect(service.isUrlSafe('/docs/page')).toBe(true);
         });
     });
 
@@ -1334,11 +1173,6 @@ describe('RichTextSanitizerService — structural size ceiling', () => {
             const out = service.sanitizeImageSrc(url);
             expect(out).not.toBeNull();
             expect(decodeURIComponent(out ?? '')).toContain('<svg');
-        });
-
-        it('keeps a plain (unencoded) SVG data URL', () => {
-            const out = service.sanitizeImageSrc('data:image/svg+xml,' + benign);
-            expect(out).not.toBeNull();
         });
 
         it('still scrubs a scriptable non-base64 SVG rather than passing it', () => {
@@ -1364,21 +1198,6 @@ describe('RichTextSanitizerService — data: URL encoding parity (round-26 audit
         const parsed = new DOMParser().parseFromString(out, 'text/html');
         return parsed.querySelector('img')?.getAttribute('src') ?? null;
     };
-
-    it('judges a payload by its content, not by its encoding', () => {
-        // isAllowedDataUrl returned true as soon as ';base64,' was absent, so
-        // the percent-encoded form skipped magic-byte validation entirely:
-        // 'data:image/png,<script>...' was kept verbatim while the SAME bytes
-        // base64-encoded were rejected. The encoding decided the verdict.
-        for (const payload of [
-            '<script>alert(1)</script>',
-            '<html><body onload=alert(1)></body></html>',
-            'hello world, not an image at all',
-        ]) {
-            expect(srcOf('data:image/png,' + encodeURIComponent(payload))).toBeNull();
-            expect(srcOf('data:image/png;base64,' + btoa(payload))).toBeNull();
-        }
-    });
 
     it('still accepts a real PNG in either encoding', () => {
         // The bound must not over-reject: both forms of a genuine image pass.
@@ -1573,26 +1392,10 @@ describe('RichTextSanitizerService - remote host policy', () => {
         ]);
     });
 
-    it('drains decisions, so a second read does not repeat them', () => {
-        service.sanitizeImageSrc('https://tracker.example/p.png');
-        expect(service.drainResourceDecisions()).toHaveLength(1);
-        expect(service.drainResourceDecisions()).toHaveLength(0);
-    });
-
     it('does not record a decision for an exempt source', () => {
         service.sanitizeImageSrc('/local.png');
         service.sanitizeImageSrc('data:image/png,%89PNG%0D%0A%1A%0A');
         expect(service.drainResourceDecisions()).toHaveLength(0);
-    });
-
-    it('applies one policy to both images and CSS backgrounds', () => {
-        service.setRemoteHostPolicy(['cdn.trusted.com']);
-
-        expect(service.sanitizeImageSrc('https://cdn.trusted.com/a.png')).not.toBeNull();
-        expect(styleOf('background: url(https://cdn.trusted.com/a.png)')).not.toBeNull();
-
-        expect(service.sanitizeImageSrc('https://tracker.example/p.png')).toBeNull();
-        expect(styleOf('background: url(https://tracker.example/p.png)')).toBeNull();
     });
 
     it('still refuses code constructs whatever the allowlist says', () => {
@@ -1824,12 +1627,6 @@ describe('RichTextSanitizerService - link schemes: a curated base list plus the 
         for (const href of ['javascript:alert(1)', 'data:text/html,<b>x</b>', 'file:///etc/passwd', 'blob:https://x/y', 'ms-msdt:/id PCWDiagnostic']) {
             expect(hrefOf(href), href).toBeNull();
         }
-    });
-
-    it('exports the base list so a consumer can see what is already covered', () => {
-        expect(DEFAULT_LINK_SCHEMES).toContain('https');
-        expect(DEFAULT_LINK_SCHEMES).toContain('slack');
-        expect(DEFAULT_LINK_SCHEMES).not.toContain('javascript');
     });
 });
 

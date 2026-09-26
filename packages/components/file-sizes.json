@@ -3870,8 +3870,8 @@
       "lines": 36
     },
     "rich-text-editor/addons/actions/actions-runtime.spec.ts": {
-      "bytes": 10495,
-      "lines": 217
+      "bytes": 10075,
+      "lines": 208
     },
     "rich-text-editor/addons/actions/actions-runtime.ts": {
       "bytes": 8204,
@@ -3882,8 +3882,8 @@
       "lines": 6
     },
     "rich-text-editor/addons/actions/presets/hover-card.preset.spec.ts": {
-      "bytes": 5255,
-      "lines": 108
+      "bytes": 5148,
+      "lines": 103
     },
     "rich-text-editor/addons/actions/presets/hover-card.preset.ts": {
       "bytes": 4685,
@@ -3894,16 +3894,16 @@
       "lines": 4
     },
     "rich-text-editor/addons/actions/presets/linked-preview-dialog.preset.spec.ts": {
-      "bytes": 3436,
-      "lines": 63
+      "bytes": 2912,
+      "lines": 51
     },
     "rich-text-editor/addons/actions/presets/linked-preview-dialog.preset.ts": {
       "bytes": 3110,
       "lines": 67
     },
     "rich-text-editor/addons/actions/presets/open-dialog.preset.spec.ts": {
-      "bytes": 4019,
-      "lines": 83
+      "bytes": 3269,
+      "lines": 69
     },
     "rich-text-editor/addons/actions/presets/open-dialog.preset.ts": {
       "bytes": 7228,
@@ -3930,8 +3930,8 @@
       "lines": 98
     },
     "rich-text-editor/addons/actions/rich-text-actions-dialog.component.spec.ts": {
-      "bytes": 16660,
-      "lines": 343
+      "bytes": 17772,
+      "lines": 361
     },
     "rich-text-editor/addons/actions/rich-text-actions-dialog.component.ts": {
       "bytes": 15203,
@@ -3962,8 +3962,8 @@
       "lines": 72
     },
     "rich-text-editor/addons/actions/rich-text-actions.directive.spec.ts": {
-      "bytes": 42744,
-      "lines": 833
+      "bytes": 43092,
+      "lines": 841
     },
     "rich-text-editor/addons/actions/rich-text-actions.directive.ts": {
       "bytes": 25216,
@@ -3974,8 +3974,8 @@
       "lines": 98
     },
     "rich-text-editor/addons/actions/rich-text-actions.serializer.spec.ts": {
-      "bytes": 6339,
-      "lines": 134
+      "bytes": 6119,
+      "lines": 128
     },
     "rich-text-editor/addons/actions/rich-text-actions.serializer.ts": {
       "bytes": 5764,
@@ -4017,17 +4017,13 @@
       "bytes": 1553,
       "lines": 42
     },
-    "rich-text-editor/addons/ai/rich-text-ai.context.spec.ts": {
-      "bytes": 435,
-      "lines": 10
-    },
     "rich-text-editor/addons/ai/rich-text-ai.context.ts": {
       "bytes": 2367,
       "lines": 57
     },
     "rich-text-editor/addons/ai/rich-text-ai.directive.spec.ts": {
-      "bytes": 29322,
-      "lines": 735
+      "bytes": 27226,
+      "lines": 680
     },
     "rich-text-editor/addons/ai/rich-text-ai.directive.ts": {
       "bytes": 22278,
@@ -4045,29 +4041,29 @@
       "bytes": 187,
       "lines": 4
     },
+    "rich-text-editor/addons/colors/rich-text-colors-button.component.browser.spec.ts": {
+      "bytes": 3495,
+      "lines": 85
+    },
     "rich-text-editor/addons/colors/rich-text-colors-button.component.html": {
       "bytes": 1616,
       "lines": 40
     },
     "rich-text-editor/addons/colors/rich-text-colors-button.component.spec.ts": {
-      "bytes": 8992,
-      "lines": 244
+      "bytes": 7313,
+      "lines": 199
     },
     "rich-text-editor/addons/colors/rich-text-colors-button.component.ts": {
       "bytes": 6677,
       "lines": 157
-    },
-    "rich-text-editor/addons/colors/rich-text-colors.context.spec.ts": {
-      "bytes": 494,
-      "lines": 10
     },
     "rich-text-editor/addons/colors/rich-text-colors.context.ts": {
       "bytes": 2116,
       "lines": 47
     },
     "rich-text-editor/addons/colors/rich-text-colors.directive.spec.ts": {
-      "bytes": 18312,
-      "lines": 444
+      "bytes": 16102,
+      "lines": 386
     },
     "rich-text-editor/addons/colors/rich-text-colors.directive.ts": {
       "bytes": 12023,
@@ -4085,29 +4081,29 @@
       "bytes": 183,
       "lines": 4
     },
+    "rich-text-editor/addons/emoji/rich-text-emoji-button.component.browser.spec.ts": {
+      "bytes": 2345,
+      "lines": 55
+    },
     "rich-text-editor/addons/emoji/rich-text-emoji-button.component.html": {
       "bytes": 507,
       "lines": 19
     },
     "rich-text-editor/addons/emoji/rich-text-emoji-button.component.spec.ts": {
-      "bytes": 3601,
-      "lines": 95
+      "bytes": 3077,
+      "lines": 84
     },
     "rich-text-editor/addons/emoji/rich-text-emoji-button.component.ts": {
       "bytes": 3549,
       "lines": 89
-    },
-    "rich-text-editor/addons/emoji/rich-text-emoji.context.spec.ts": {
-      "bytes": 456,
-      "lines": 10
     },
     "rich-text-editor/addons/emoji/rich-text-emoji.context.ts": {
       "bytes": 552,
       "lines": 16
     },
     "rich-text-editor/addons/emoji/rich-text-emoji.directive.spec.ts": {
-      "bytes": 8630,
-      "lines": 218
+      "bytes": 6069,
+      "lines": 156
     },
     "rich-text-editor/addons/emoji/rich-text-emoji.directive.ts": {
       "bytes": 3714,
@@ -4125,13 +4121,17 @@
       "bytes": 313,
       "lines": 6
     },
+    "rich-text-editor/addons/file-import/rich-text-file-import-button.component.browser.spec.ts": {
+      "bytes": 2619,
+      "lines": 57
+    },
     "rich-text-editor/addons/file-import/rich-text-file-import-button.component.html": {
       "bytes": 948,
       "lines": 29
     },
     "rich-text-editor/addons/file-import/rich-text-file-import-button.component.spec.ts": {
-      "bytes": 5128,
-      "lines": 116
+      "bytes": 4574,
+      "lines": 107
     },
     "rich-text-editor/addons/file-import/rich-text-file-import-button.component.ts": {
       "bytes": 2947,
@@ -4142,24 +4142,20 @@
       "lines": 41
     },
     "rich-text-editor/addons/file-import/rich-text-file-import-overlay.component.spec.ts": {
-      "bytes": 3745,
-      "lines": 82
+      "bytes": 2887,
+      "lines": 57
     },
     "rich-text-editor/addons/file-import/rich-text-file-import-overlay.component.ts": {
       "bytes": 1789,
       "lines": 39
-    },
-    "rich-text-editor/addons/file-import/rich-text-file-import.context.spec.ts": {
-      "bytes": 513,
-      "lines": 10
     },
     "rich-text-editor/addons/file-import/rich-text-file-import.context.ts": {
       "bytes": 939,
       "lines": 20
     },
     "rich-text-editor/addons/file-import/rich-text-file-import.directive.spec.ts": {
-      "bytes": 24038,
-      "lines": 546
+      "bytes": 24220,
+      "lines": 540
     },
     "rich-text-editor/addons/file-import/rich-text-file-import.directive.ts": {
       "bytes": 14946,
@@ -4174,24 +4170,24 @@
       "lines": 71
     },
     "rich-text-editor/addons/file-import/rich-text-file-import.utils.spec.ts": {
-      "bytes": 5272,
-      "lines": 133
+      "bytes": 4379,
+      "lines": 112
     },
     "rich-text-editor/addons/file-import/rich-text-file-import.utils.ts": {
       "bytes": 3846,
       "lines": 92
     },
     "rich-text-editor/addons/full/full-barrel.spec.ts": {
-      "bytes": 1488,
-      "lines": 33
+      "bytes": 1423,
+      "lines": 30
     },
     "rich-text-editor/addons/full/index.ts": {
       "bytes": 1637,
       "lines": 47
     },
     "rich-text-editor/addons/full/rich-text-full.spec.ts": {
-      "bytes": 5536,
-      "lines": 149
+      "bytes": 5143,
+      "lines": 136
     },
     "rich-text-editor/addons/full/rich-text-full.stories.ts": {
       "bytes": 2539,
@@ -4206,16 +4202,16 @@
       "lines": 182
     },
     "rich-text-editor/addons/history/rich-text-history-panel.component.spec.ts": {
-      "bytes": 21078,
-      "lines": 479
+      "bytes": 22103,
+      "lines": 498
     },
     "rich-text-editor/addons/history/rich-text-history-panel.component.ts": {
       "bytes": 11520,
       "lines": 323
     },
     "rich-text-editor/addons/history/rich-text-history.directive.spec.ts": {
-      "bytes": 13059,
-      "lines": 313
+      "bytes": 10057,
+      "lines": 246
     },
     "rich-text-editor/addons/history/rich-text-history.directive.ts": {
       "bytes": 4494,
@@ -4233,25 +4229,33 @@
       "bytes": 337,
       "lines": 7
     },
+    "rich-text-editor/addons/images/rich-text-images-button.component.browser.spec.ts": {
+      "bytes": 4061,
+      "lines": 96
+    },
     "rich-text-editor/addons/images/rich-text-images-button.component.html": {
       "bytes": 2802,
       "lines": 70
     },
     "rich-text-editor/addons/images/rich-text-images-button.component.spec.ts": {
-      "bytes": 9375,
-      "lines": 235
+      "bytes": 8460,
+      "lines": 216
     },
     "rich-text-editor/addons/images/rich-text-images-button.component.ts": {
       "bytes": 4732,
       "lines": 107
+    },
+    "rich-text-editor/addons/images/rich-text-images-overlay.component.browser.spec.ts": {
+      "bytes": 2643,
+      "lines": 61
     },
     "rich-text-editor/addons/images/rich-text-images-overlay.component.html": {
       "bytes": 2018,
       "lines": 52
     },
     "rich-text-editor/addons/images/rich-text-images-overlay.component.spec.ts": {
-      "bytes": 5690,
-      "lines": 138
+      "bytes": 5014,
+      "lines": 123
     },
     "rich-text-editor/addons/images/rich-text-images-overlay.component.ts": {
       "bytes": 4485,
@@ -4262,24 +4266,20 @@
       "lines": 84
     },
     "rich-text-editor/addons/images/rich-text-images-resizer.component.spec.ts": {
-      "bytes": 44507,
-      "lines": 1052
+      "bytes": 36841,
+      "lines": 860
     },
     "rich-text-editor/addons/images/rich-text-images-resizer.component.ts": {
       "bytes": 24976,
       "lines": 575
-    },
-    "rich-text-editor/addons/images/rich-text-images.context.spec.ts": {
-      "bytes": 483,
-      "lines": 10
     },
     "rich-text-editor/addons/images/rich-text-images.context.ts": {
       "bytes": 1209,
       "lines": 28
     },
     "rich-text-editor/addons/images/rich-text-images.directive.spec.ts": {
-      "bytes": 40145,
-      "lines": 898
+      "bytes": 40218,
+      "lines": 912
     },
     "rich-text-editor/addons/images/rich-text-images.directive.ts": {
       "bytes": 28524,
@@ -4294,8 +4294,8 @@
       "lines": 106
     },
     "rich-text-editor/addons/images/rich-text-images.utils.spec.ts": {
-      "bytes": 7777,
-      "lines": 194
+      "bytes": 8473,
+      "lines": 205
     },
     "rich-text-editor/addons/images/rich-text-images.utils.ts": {
       "bytes": 4910,
@@ -4310,8 +4310,8 @@
       "lines": 25
     },
     "rich-text-editor/addons/links/rich-text-links-button.component.spec.ts": {
-      "bytes": 4456,
-      "lines": 112
+      "bytes": 4348,
+      "lines": 111
     },
     "rich-text-editor/addons/links/rich-text-links-button.component.ts": {
       "bytes": 4002,
@@ -4322,24 +4322,20 @@
       "lines": 49
     },
     "rich-text-editor/addons/links/rich-text-links-form.component.spec.ts": {
-      "bytes": 4004,
-      "lines": 100
+      "bytes": 4168,
+      "lines": 102
     },
     "rich-text-editor/addons/links/rich-text-links-form.component.ts": {
       "bytes": 2478,
       "lines": 58
-    },
-    "rich-text-editor/addons/links/rich-text-links.context.spec.ts": {
-      "bytes": 480,
-      "lines": 10
     },
     "rich-text-editor/addons/links/rich-text-links.context.ts": {
       "bytes": 1757,
       "lines": 36
     },
     "rich-text-editor/addons/links/rich-text-links.directive.spec.ts": {
-      "bytes": 30514,
-      "lines": 708
+      "bytes": 29453,
+      "lines": 677
     },
     "rich-text-editor/addons/links/rich-text-links.directive.ts": {
       "bytes": 20925,
@@ -4362,16 +4358,16 @@
       "lines": 71
     },
     "rich-text-editor/addons/mentions/rich-text-mention-popover.component.spec.ts": {
-      "bytes": 7904,
-      "lines": 197
+      "bytes": 7997,
+      "lines": 198
     },
     "rich-text-editor/addons/mentions/rich-text-mention-popover.component.ts": {
       "bytes": 8215,
       "lines": 235
     },
     "rich-text-editor/addons/mentions/rich-text-mentions.directive.spec.ts": {
-      "bytes": 20492,
-      "lines": 509
+      "bytes": 20084,
+      "lines": 487
     },
     "rich-text-editor/addons/mentions/rich-text-mentions.directive.ts": {
       "bytes": 13069,
@@ -4401,29 +4397,33 @@
       "bytes": 190,
       "lines": 4
     },
+    "rich-text-editor/addons/outline/rich-text-outline-panel.component.browser.spec.ts": {
+      "bytes": 2545,
+      "lines": 68
+    },
     "rich-text-editor/addons/outline/rich-text-outline-panel.component.html": {
       "bytes": 2345,
       "lines": 56
     },
     "rich-text-editor/addons/outline/rich-text-outline-panel.component.spec.ts": {
-      "bytes": 5402,
-      "lines": 148
+      "bytes": 4646,
+      "lines": 129
     },
     "rich-text-editor/addons/outline/rich-text-outline-panel.component.ts": {
       "bytes": 1557,
       "lines": 34
     },
-    "rich-text-editor/addons/outline/rich-text-outline.context.spec.ts": {
-      "bytes": 457,
-      "lines": 10
-    },
     "rich-text-editor/addons/outline/rich-text-outline.context.ts": {
       "bytes": 1554,
       "lines": 37
     },
+    "rich-text-editor/addons/outline/rich-text-outline.directive.browser.spec.ts": {
+      "bytes": 3403,
+      "lines": 83
+    },
     "rich-text-editor/addons/outline/rich-text-outline.directive.spec.ts": {
-      "bytes": 11398,
-      "lines": 292
+      "bytes": 10590,
+      "lines": 271
     },
     "rich-text-editor/addons/outline/rich-text-outline.directive.ts": {
       "bytes": 9890,
@@ -4454,16 +4454,20 @@
       "lines": 92
     },
     "rich-text-editor/addons/slash-commands/rich-text-slash-commands.defaults.spec.ts": {
-      "bytes": 4153,
-      "lines": 91
+      "bytes": 3712,
+      "lines": 80
     },
     "rich-text-editor/addons/slash-commands/rich-text-slash-commands.defaults.ts": {
       "bytes": 5554,
       "lines": 163
     },
+    "rich-text-editor/addons/slash-commands/rich-text-slash-commands.directive.browser.spec.ts": {
+      "bytes": 3982,
+      "lines": 92
+    },
     "rich-text-editor/addons/slash-commands/rich-text-slash-commands.directive.spec.ts": {
-      "bytes": 29716,
-      "lines": 683
+      "bytes": 27413,
+      "lines": 622
     },
     "rich-text-editor/addons/slash-commands/rich-text-slash-commands.directive.ts": {
       "bytes": 19961,
@@ -4478,8 +4482,8 @@
       "lines": 88
     },
     "rich-text-editor/addons/slash-commands/rich-text-slash-commands.utils.spec.ts": {
-      "bytes": 25194,
-      "lines": 553
+      "bytes": 24677,
+      "lines": 539
     },
     "rich-text-editor/addons/slash-commands/rich-text-slash-commands.utils.ts": {
       "bytes": 16128,
@@ -4494,24 +4498,20 @@
       "lines": 42
     },
     "rich-text-editor/addons/tables/rich-text-tables-button.component.spec.ts": {
-      "bytes": 4471,
-      "lines": 122
+      "bytes": 5517,
+      "lines": 140
     },
     "rich-text-editor/addons/tables/rich-text-tables-button.component.ts": {
       "bytes": 3933,
       "lines": 104
-    },
-    "rich-text-editor/addons/tables/rich-text-tables.context.spec.ts": {
-      "bytes": 1147,
-      "lines": 27
     },
     "rich-text-editor/addons/tables/rich-text-tables.context.ts": {
       "bytes": 838,
       "lines": 20
     },
     "rich-text-editor/addons/tables/rich-text-tables.directive.spec.ts": {
-      "bytes": 8392,
-      "lines": 214
+      "bytes": 7569,
+      "lines": 191
     },
     "rich-text-editor/addons/tables/rich-text-tables.directive.ts": {
       "bytes": 4501,
@@ -4537,17 +4537,13 @@
       "bytes": 4314,
       "lines": 105
     },
-    "rich-text-editor/addons/typography/rich-text-typography.context.spec.ts": {
-      "bytes": 1425,
-      "lines": 38
-    },
     "rich-text-editor/addons/typography/rich-text-typography.context.ts": {
       "bytes": 1497,
       "lines": 34
     },
     "rich-text-editor/addons/typography/rich-text-typography.directive.spec.ts": {
-      "bytes": 17140,
-      "lines": 419
+      "bytes": 16041,
+      "lines": 394
     },
     "rich-text-editor/addons/typography/rich-text-typography.directive.ts": {
       "bytes": 8199,
@@ -4562,8 +4558,8 @@
       "lines": 72
     },
     "rich-text-editor/barrel.spec.ts": {
-      "bytes": 1477,
-      "lines": 32
+      "bytes": 1148,
+      "lines": 26
     },
     "rich-text-editor/index.ts": {
       "bytes": 774,
@@ -4574,8 +4570,8 @@
       "lines": 38
     },
     "rich-text-editor/rich-text-command-registry.service.spec.ts": {
-      "bytes": 3400,
-      "lines": 90
+      "bytes": 3303,
+      "lines": 86
     },
     "rich-text-editor/rich-text-command-registry.service.ts": {
       "bytes": 7526,
@@ -4584,6 +4580,10 @@
     "rich-text-editor/rich-text-editor.api.ts": {
       "bytes": 4416,
       "lines": 102
+    },
+    "rich-text-editor/rich-text-editor.component.browser.spec.ts": {
+      "bytes": 6759,
+      "lines": 146
     },
     "rich-text-editor/rich-text-editor.component.css": {
       "bytes": 6574,
@@ -4594,8 +4594,8 @@
       "lines": 302
     },
     "rich-text-editor/rich-text-editor.component.spec.ts": {
-      "bytes": 581318,
-      "lines": 13081
+      "bytes": 517066,
+      "lines": 11504
     },
     "rich-text-editor/rich-text-editor.component.ts": {
       "bytes": 380373,
@@ -4618,32 +4618,32 @@
       "lines": 801
     },
     "rich-text-editor/rich-text-editor.validators.spec.ts": {
-      "bytes": 11008,
-      "lines": 256
+      "bytes": 10042,
+      "lines": 230
     },
     "rich-text-editor/rich-text-editor.validators.ts": {
       "bytes": 9859,
       "lines": 242
     },
     "rich-text-editor/rich-text-find.utils.spec.ts": {
-      "bytes": 5677,
-      "lines": 122
+      "bytes": 5278,
+      "lines": 112
     },
     "rich-text-editor/rich-text-find.utils.ts": {
       "bytes": 10061,
       "lines": 254
     },
     "rich-text-editor/rich-text-input-rules.spec.ts": {
-      "bytes": 10029,
-      "lines": 249
+      "bytes": 10351,
+      "lines": 253
     },
     "rich-text-editor/rich-text-input-rules.ts": {
       "bytes": 7477,
       "lines": 175
     },
     "rich-text-editor/rich-text-lines.spec.ts": {
-      "bytes": 29253,
-      "lines": 562
+      "bytes": 28622,
+      "lines": 550
     },
     "rich-text-editor/rich-text-lines.ts": {
       "bytes": 33195,
@@ -4654,20 +4654,24 @@
       "lines": 888
     },
     "rich-text-editor/rich-text-markdown.roundtrip.spec.ts": {
-      "bytes": 76406,
-      "lines": 1466
+      "bytes": 74755,
+      "lines": 1433
     },
     "rich-text-editor/rich-text-markdown.service.spec.ts": {
-      "bytes": 130393,
-      "lines": 2535
+      "bytes": 123074,
+      "lines": 2387
     },
     "rich-text-editor/rich-text-markdown.service.ts": {
       "bytes": 156593,
       "lines": 3412
     },
+    "rich-text-editor/rich-text-paste-normalizer.service.browser.spec.ts": {
+      "bytes": 1341,
+      "lines": 33
+    },
     "rich-text-editor/rich-text-paste-normalizer.service.spec.ts": {
-      "bytes": 106418,
-      "lines": 2167
+      "bytes": 89619,
+      "lines": 1798
     },
     "rich-text-editor/rich-text-paste-normalizer.service.ts": {
       "bytes": 46648,
@@ -4686,12 +4690,16 @@
       "lines": 374
     },
     "rich-text-editor/rich-text-sanitizer.service.spec.ts": {
-      "bytes": 94471,
-      "lines": 1945
+      "bytes": 84790,
+      "lines": 1742
     },
     "rich-text-editor/rich-text-sanitizer.service.ts": {
       "bytes": 68425,
       "lines": 1575
+    },
+    "rich-text-editor/sub/rich-text-toolbar.component.browser.spec.ts": {
+      "bytes": 3236,
+      "lines": 68
     },
     "rich-text-editor/sub/rich-text-toolbar.component.css": {
       "bytes": 1932,
@@ -4702,8 +4710,8 @@
       "lines": 80
     },
     "rich-text-editor/sub/rich-text-toolbar.component.spec.ts": {
-      "bytes": 41518,
-      "lines": 895
+      "bytes": 31674,
+      "lines": 696
     },
     "rich-text-editor/sub/rich-text-toolbar.component.ts": {
       "bytes": 36773,

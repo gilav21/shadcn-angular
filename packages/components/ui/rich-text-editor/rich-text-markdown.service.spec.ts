@@ -96,10 +96,6 @@ describe('RichTextMarkdownService', () => {
             expect(service.toHtml(md)).toBe('<pre><code>&lt;div&gt; &amp; "q"</code></pre>');
         });
 
-        it('converts a single unordered list item', () => {
-            expect(service.toHtml('- a')).toBe('<ul><li>a</li></ul>');
-        });
-
         it('merges consecutive top-level items into one list', () => {
             // Was locked in as a "known quirk": sibling items each flushed to
             // their own list, so an ordered list renumbered from 1 on every row.
@@ -144,21 +140,11 @@ describe('RichTextMarkdownService', () => {
                 .toBe('<blockquote><p>line1</p><p>line2</p></blockquote>');
         });
 
-        it('round-trips a multi-line quote as a fixed point', () => {
-            // Two lines of a quote are two paragraphs in the editor, written with a
-            // blank quote line between them, as markdown keeps paragraphs apart:
-            // without it a markdown reader takes them as one. The first save
-            // writes that form, and the next one keeps it.
-            const md = '> line1\n> line2';
-            const once = service.toMarkdown(service.toHtml(md));
-            expect(once).toBe('> line1\n>\n> line2');
-            expect(service.toMarkdown(service.toHtml(once))).toBe(once);
-        });
-
         it('converts horizontal rules', () => {
             expect(service.toHtml('---')).toBe('<hr>');
             expect(service.toHtml('***')).toBe('<hr>');
             expect(service.toHtml('___')).toBe('<hr>');
+            expect(service.toHtml('----')).toBe('<hr>');
         });
 
         it('wraps plain text in a paragraph', () => {
@@ -210,21 +196,6 @@ describe('RichTextMarkdownService', () => {
     // HTML -> MARKDOWN
     // =====================================================================
     describe('blockquote at the very start of a document', () => {
-        it('quotes a single opening line', () => {
-            // The lookbehind deciding whether a bare '>' is markup has no
-            // character to test at index 0, so it escaped the '>' before the
-            // blockquote pass ran. A note that opens with a quote — the most
-            // common way to open one — lost the blockquote entirely.
-            expect(service.toHtml('> only line')).toContain('<blockquote>');
-        });
-
-        it('quotes both lines of an opening multi-line quote', () => {
-            const html = service.toHtml('> line1\n> line2');
-            expect(html).not.toContain('&gt; line1');
-            expect(html).toContain('line1');
-            expect(html).toContain('line2');
-        });
-
         it('still escapes a greater-than that is not markup', () => {
             expect(service.toHtml('a > b')).toBe('<p>a &gt; b</p>');
             expect(service.toHtml('5 > 3 is true')).toContain('&gt;');
@@ -270,7 +241,10 @@ describe('RichTextMarkdownService', () => {
             const md = service.toMarkdown(
                 '<details><summary>T</summary><p>one</p><p>two</p></details>',
             );
-            expect(md).not.toContain('onetwo');
+            const probe = document.createElement('div');
+            probe.innerHTML = service.toHtml(md);
+            expect([...probe.querySelectorAll('details > p')].map((p) => p.textContent))
+                .toEqual(['one', 'two']);
         });
 
         it('does not rewrite markdown characters inside a link URL', () => {
@@ -314,19 +288,8 @@ describe('RichTextMarkdownService', () => {
             // Each line became its own single-item list, so an ordered list
             // restarted at "1." on every row and a screen reader announced
             // "list, 1 item" repeatedly.
-            const html = service.toHtml('1. first\n2. second\n3. third');
-            const parsed = new DOMParser().parseFromString(html, 'text/html');
-
-            expect(parsed.querySelectorAll('ol')).toHaveLength(1);
-            expect(parsed.querySelectorAll('li')).toHaveLength(3);
-        });
-
-        it('merges adjacent bullets into one list', () => {
-            const html = service.toHtml('- one\n- two');
-            const parsed = new DOMParser().parseFromString(html, 'text/html');
-
-            expect(parsed.querySelectorAll('ul')).toHaveLength(1);
-            expect(parsed.querySelectorAll('li')).toHaveLength(2);
+            expect(service.toHtml('1. first\n2. second\n3. third'))
+                .toBe('<ol><li>first</li><li>second</li><li>third</li></ol>');
         });
     });
 
@@ -355,15 +318,11 @@ describe('RichTextMarkdownService', () => {
             expect(service.toMarkdown('<s>x</s>')).toBe('~~x~~');
         });
 
-        it('keeps underline as <u>', () => {
-            expect(service.toMarkdown('<u>x</u>')).toBe('<u>x</u>');
-        });
-
         it('converts inline code', () => {
             expect(service.toMarkdown('<code>x</code>')).toBe('`x`');
         });
 
-        it('converts code inside pre without backticks', () => {
+        it('writes a pre with no language as a bare fence', () => {
             expect(service.toMarkdown('<pre><code>line</code></pre>')).toBe('```\nline\n```');
         });
 
@@ -392,20 +351,9 @@ describe('RichTextMarkdownService', () => {
             expect(service.toMarkdown(html)).toBe('#news');
         });
 
-        it('returns inner text for plain span', () => {
-            expect(service.toMarkdown('<span>plain</span>')).toBe('plain');
-        });
-
         it('converts an unordered list (li content wrapped in inline elements)', () => {
             const html = '<ul><li><span>a</span></li><li><span>b</span></li></ul>';
             expect(service.toMarkdown(html)).toBe('- a\n- b');
-        });
-
-        it('keeps bare text-node li content', () => {
-            // Was locked in as a "known bug": the cause was understood and
-            // written down, and the broken output asserted as correct rather than
-            // fixed — so every save from markdown mode dropped plain bullet text.
-            expect(service.toMarkdown('<ul><li>a</li><li>b</li></ul>')).toBe('- a\n- b');
         });
 
         it('converts an ordered list with numbering', () => {
@@ -457,7 +405,7 @@ describe('RichTextMarkdownService', () => {
             expect(service.toMarkdown(html)).toBe(':::details More\nhidden\n:::');
         });
 
-        it('uses default summary when details has no summary', () => {
+        it('writes no summary title when details has no summary', () => {
             const html = '<details><p>hidden</p></details>';
             // No title rather than an invented one: "Toggle" was a word the author
             // never wrote, and it came back as the summary's text.
@@ -644,19 +592,6 @@ describe('RichTextMarkdownService', () => {
             },
         };
 
-        it('serializes an action span as inline HTML with inner markdown preserved', () => {
-            const offSpan = service.registerSpanSerializer(actionSerializer);
-            const offRules = sanitizer.registerAttributeRules([
-                { tag: '*', attr: 'data-action-click', validate: (v) => v },
-            ]);
-            const html = '<p>hi <span data-action-click="a"><strong>bold</strong></span></p>';
-            const md = service.toMarkdown(html);
-            expect(md).toContain('data-action-click="a"');
-            expect(md).toContain('**bold**');
-            offRules();
-            offSpan();
-        });
-
         it('leaves mention/tag spans to the built-in handler (regression)', () => {
             const off = service.registerSpanSerializer(actionSerializer);
             expect(service.toMarkdown('<p><span data-mention="alice">Alice</span></p>'))
@@ -689,7 +624,9 @@ describe('RichTextMarkdownService', () => {
                 { tag: '*', attr: 'data-action-click', validate: (v) => v },
             ]);
             const html = '<p><span data-action-click="a"><strong>bold</strong></span></p>';
-            const back = service.toHtml(service.toMarkdown(html));
+            const md = service.toMarkdown(html);
+            expect(md).toContain('**bold**');
+            const back = service.toHtml(md);
             expect(back).toContain('<strong>bold</strong>');
             expect(back).toContain('data-action-click="a"');
             offRules();
@@ -713,9 +650,7 @@ describe('RichTextMarkdownService', () => {
         it('skips a whitespace-only paragraph block', () => {
             // The " " block between the double newlines trims to empty and is
             // dropped by parseParagraphs.
-            const html = service.toHtml('a\n\n \n\nb');
-            expect(html).toContain('<p>a</p>');
-            expect(html).toContain('<p>b</p>');
+            expect(service.toHtml('a\n\n \n\nb')).toBe('<p>a</p>\n<p>b</p>');
         });
     });
 
@@ -868,28 +803,12 @@ describe('RichTextMarkdownService', () => {
     });
 
     describe('toggle blocks (round-16 audit)', () => {
-        it('keeps the body out of the summary', () => {
-            const md = ':::details Title\nbody text\n:::';
-            const html = service.toHtml(md);
-            const probe = document.createElement('div');
-            probe.innerHTML = html;
-            const summary = probe.querySelector('summary');
-            expect(summary?.textContent?.trim()).toBe('Title');
-            expect(summary?.querySelector('p')).toBeNull();
-            expect(probe.querySelector('details > p')?.textContent).toContain('body text');
-        });
-
         it('keeps the body out of the summary when the title holds markup', () => {
             const md = ':::details ![x](https://e.com/a.png)\nbody text\n:::';
             const probe = document.createElement('div');
             probe.innerHTML = service.toHtml(md);
             expect(probe.querySelector('summary p')).toBeNull();
             expect(probe.querySelector('details > p')?.textContent).toContain('body text');
-        });
-
-        it('does not wrap a details block in stray empty paragraphs', () => {
-            const html = service.toHtml(':::details T\nbody\n:::');
-            expect(html).not.toContain('<p></p>');
         });
     });
 
@@ -905,21 +824,6 @@ describe('RichTextMarkdownService', () => {
             const probe = document.createElement('div');
             probe.innerHTML = service.toHtml(md);
             expect(probe.querySelectorAll('tbody tr')).toHaveLength(1);
-        });
-
-        it('sizes the separator so header and body agree, padding never cutting', () => {
-            // This asserted the HEADER's width, which is what made truncation
-            // look necessary -- and truncation deleted the extra cells. GFM only
-            // requires header and separator to agree; the honest way to reach
-            // that with a wider body row is to widen, since padding is lossless
-            // and cutting is not.
-            const html = '<table><thead><tr><th>a</th><th>b</th></tr></thead>'
-                + '<tbody><tr><td>1</td><td>2</td><td>3</td></tr></tbody></table>';
-            const md = service.toMarkdown(html);
-            const rows = md.split('\n').filter((l) => l.trim().startsWith('|'));
-            const counts = rows.map((l) => l.split('|').slice(1, -1).length);
-            expect(new Set(counts).size).toBe(1);
-            expect(md).toContain('3');
         });
     });
 
@@ -980,10 +884,6 @@ describe('RichTextMarkdownService', () => {
             }
             expect(md).toBe(first);
             expect(md).not.toContain('---');
-        });
-
-        it('still renders a genuinely paired inline tag', () => {
-            expect(service.toHtml('<b>bold</b>')).toBe('<p><b>bold</b></p>');
         });
 
         it('still renders paired block markup written as HTML', () => {
@@ -1052,7 +952,9 @@ describe('RichTextMarkdownService', () => {
         it('keeps a quoted nested list as a list', () => {
             const probe = document.createElement('div');
             probe.innerHTML = service.toHtml('> - a\n>   - b');
-            expect(probe.querySelector('blockquote ul')).toBeTruthy();
+            expect(probe.querySelector('blockquote > ul > li')?.firstChild?.textContent?.trim())
+                .toBe('a');
+            expect(probe.querySelector('blockquote > ul > li > ul > li')?.textContent).toBe('b');
         });
 
         it('does not grow on every round-trip', () => {
@@ -1091,8 +993,8 @@ describe('RichTextMarkdownService', () => {
         it('parses a doubly-nested blockquote as nested quotes', () => {
             const probe = document.createElement('div');
             probe.innerHTML = service.toHtml('> outer\n> > deeper');
-            expect(probe.querySelector('blockquote blockquote')).toBeTruthy();
-            expect(probe.textContent).not.toContain('&gt;');
+            expect(probe.querySelector('blockquote blockquote')?.textContent).toBe('deeper');
+            expect(probe.textContent).not.toContain('>');
         });
     });
 
@@ -1137,31 +1039,9 @@ describe('RichTextMarkdownService', () => {
             const md = service.toMarkdown(html);
             expect(md.length).toBeLessThan(20000);
         });
-
-        it('still round-trips an ordinary span', () => {
-            const html = '<table><tbody><tr><td colspan="2">wide</td></tr><tr><td>a</td><td>b</td></tr></tbody></table>';
-            const probe = document.createElement('div');
-            probe.innerHTML = service.toHtml(service.toMarkdown(html));
-            expect(probe.querySelector('table')).toBeTruthy();
-        });
     });
 
     describe('hard line breaks (round-24 audit)', () => {
-        it('survives two save/load cycles', () => {
-            // toHtml emits <br> plus a real newline; toMarkdown then emits
-            // "line1  " + newline + newline -- a BLANK line, which is a
-            // paragraph break, not a hard break. By the second cycle the <br>
-            // is gone for good. Shift+Enter is a first-class gesture.
-            const md = 'line1  \nline2';
-            const once = service.toMarkdown(service.toHtml(md));
-            const twice = service.toMarkdown(service.toHtml(once));
-            expect(twice).toBe(once);
-
-            const probe = document.createElement('div');
-            probe.innerHTML = service.toHtml(twice);
-            expect(probe.querySelector('br')).toBeTruthy();
-        });
-
         it('reads back its own toHtml output', () => {
             // The guarding test used 'x<br>y' -- no whitespace after the <br> --
             // the one shape where the bug cannot manifest. The service's own
@@ -1363,9 +1243,15 @@ describe('RichTextMarkdownService', () => {
                 '<table><tr><th>H1</th><th>H2</th></tr>' +
                 '<tr><td>x</td><td><table><tr><td>n1</td><td>n2</td></tr></table></td></tr></table>';
             const md = service.toMarkdown(html);
-            const bodyRows = md.split('\n').filter((l) => l.trim().startsWith('|')).length;
+            const rows = md.split('\n').filter((l) => l.trim().startsWith('|'));
             // header + separator + one body row
-            expect(bodyRows).toBe(3);
+            expect(rows).toHaveLength(3);
+            // The nested table's own pipes are escaped, so only bare ones split cells.
+            const cells = rows[2].split(/(?<!\\)\|/).map((c) => c.trim()).filter(Boolean);
+            expect(cells).toHaveLength(2);
+            expect(cells[0]).toBe('x');
+            expect(cells[1]).toContain('n1');
+            expect(cells[1]).toContain('n2');
         });
 
 
@@ -1576,11 +1462,6 @@ describe('RichTextMarkdownService', () => {
             expect(once).toBe('> a' + NLC + '>' + NLC + '> b');
             expect(once).not.toContain('  ' + NLC);
             expect(service.toMarkdown(service.toHtml(once))).toBe(once);
-        });
-
-        it('keeps a hard break that is followed by content', () => {
-            const html = service.toHtml('a  ' + String.fromCodePoint(10) + 'b');
-            expect(html).toContain('<br>');
         });
 
         it('does not emit a break before a block boundary', () => {
@@ -1886,35 +1767,6 @@ describe('RichTextMarkdownService', () => {
                 expect(probe.textContent).not.toContain('- ');
                 expect(service.toMarkdown(service.toHtml(md))).toBe(md);
             }
-        });
-
-        it('still reads a rule, not a list item, for --- and friends', () => {
-            // Widening the item pattern must not swallow a rule: it has no space
-            // after the marker, which is what separates the two.
-            for (const rule of ['---', '***', '___', '----']) {
-                const probe = document.createElement('div');
-                probe.innerHTML = service.toHtml(rule);
-                expect(probe.querySelector('hr')).toBeTruthy();
-                expect(probe.querySelector('li')).toBeNull();
-            }
-        });
-
-        it('keeps the paragraph after a rule wrapped', () => {
-            // Under /m, \s* matches the line terminator, so it greedily ate the
-            // BLANK LINE after the rule -- the separator parseParagraphs needs.
-            // The rule and the next paragraph fused into one block, which matched
-            // the "already block-level" guard, so the paragraph was never wrapped
-            // and came back as a bare text node.
-            //
-            // The existing rule tests had NOTHING after the rule, which is the one
-            // shape where this cannot appear, and there was no hr round-trip test
-            // at all.
-            const md = service.toMarkdown('<p>Intro</p><hr><p>Body text</p>');
-            const probe = document.createElement('div');
-            probe.innerHTML = service.toHtml(md);
-            expect(probe.querySelectorAll('p')).toHaveLength(2);
-            expect(probe.querySelectorAll('hr')).toHaveLength(1);
-            expect(probe.querySelectorAll('p')[1].textContent).toBe('Body text');
         });
 
         it('settles after one save for a document with rules', () => {

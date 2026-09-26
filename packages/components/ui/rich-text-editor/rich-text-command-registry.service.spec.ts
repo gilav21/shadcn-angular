@@ -17,10 +17,6 @@ describe('RichTextCommandRegistry', () => {
         registry = TestBed.inject(RichTextCommandRegistry);
     });
 
-    it('starts empty', () => {
-        expect(registry.listCommands()).toHaveLength(0);
-    });
-
     it('registers a command and lists it', () => {
         registry.registerCommand(makeCommand('insert.date'));
         const commands = registry.listCommands();

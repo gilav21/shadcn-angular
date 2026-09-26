@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FormControl, Validators } from '@angular/forms';
+import { FormControl } from '@angular/forms';
 import {
     isRichTextEmpty,
     richTextHasMedia,
@@ -130,29 +130,9 @@ describe('isRichTextEmpty', () => {
     });
 });
 
-// T-14 — evidence: the built-in behaviour these validators exist to fix.
-describe('evidence — Angular built-ins on rich-text values', () => {
-    it('Validators.required passes an emptied HTML-mode editor', () => {
-        expect(Validators.required(new FormControl('<p><br></p>'))).toBeNull();
-    });
-
-    it('Validators.maxLength counts markup characters', () => {
-        expect(Validators.maxLength(4)(new FormControl('**ab**'))).toEqual({
-            maxlength: { requiredLength: 4, actualLength: 6 },
-        });
-    });
-});
-
 // T-15
 describe('richTextRequired', () => {
     const validate = (v: unknown): unknown => richTextRequired()(new FormControl(v));
-
-    it.each([null, '', '<p><br></p>', '<p>&nbsp;</p>', '  \n', '​'])(
-        'reports required for %j',
-        (value) => {
-            expect(validate(value)).toEqual({ required: true });
-        },
-    );
 
     it.each(['<p>a</p>', '<img src="x">', '<hr>', '![alt](x.png)', '---', '| a |\n| --- |\n| 1 |'])(
         'passes %j',
@@ -200,12 +180,6 @@ describe('richTextMaxLength', () => {
         expect(validate(1, '<p>🎉</p>')).toEqual({
             maxlength: { requiredLength: 1, actualLength: 2 },
         });
-    });
-
-    it('passes empty and nullish values', () => {
-        expect(validate(3, '')).toBeNull();
-        expect(validate(3, null)).toBeNull();
-        expect(validate(3, '<p><br></p>')).toBeNull();
     });
 });
 

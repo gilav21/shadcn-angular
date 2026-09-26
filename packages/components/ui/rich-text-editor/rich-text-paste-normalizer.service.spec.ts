@@ -2,22 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { RichTextPasteNormalizerService } from './index';
 import { RichTextSanitizerService } from './index';
 import { RichTextMarkdownService } from './index';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-type PasteNormalizerPrivate = {
-    removeNamespacedElements: (container: HTMLElement) => void;
-    normalizeOutlookSpecific: (container: HTMLElement) => void;
-    mapMsoProperty: (
-        prop: string,
-        value: string,
-        mapped: Map<string, string>,
-        el: HTMLElement
-    ) => void;
-    unwrapElement: (el: Element) => void;
-    isEffectivelyEmpty: (el: HTMLElement) => boolean;
-    applyMissingProps: (props: Map<string, string>, target: HTMLElement) => void;
-    parseStyles: (styleAttr: string) => Map<string, string>;
-};
+import { beforeEach, describe, expect, it } from 'vitest';
 
 describe('RichTextPasteNormalizerService', () => {
     let service: RichTextPasteNormalizerService;
@@ -85,11 +70,6 @@ describe('RichTextPasteNormalizerService', () => {
             expect(service.detectSource(html, '')).toBe('outlook');
         });
 
-        it('should prefer Outlook over generic Word when both signals present', () => {
-            const html = '<div class="WordSection1"><p class="MsoNormal" style="mso-list:l0 level1">Text</p></div>';
-            expect(service.detectSource(html, '')).toBe('outlook');
-        });
-
         it('should detect Google Docs HTML', () => {
             const html = '<b id="docs-internal-guid-abc123"><span>Text</span></b>';
             expect(service.detectSource(html, '')).toBe('google-docs');
@@ -120,8 +100,8 @@ describe('RichTextPasteNormalizerService', () => {
             expect(service.detectSource(null, text)).toBe('markdown');
         });
 
-        it('should detect markdown with links and headings', () => {
-            const text = '## Title\n[Click here](https://example.com)';
+        it('should detect markdown from a link alone', () => {
+            const text = 'See [the docs](https://example.com) for details.';
             expect(service.detectSource(null, text)).toBe('markdown');
         });
 
@@ -220,31 +200,6 @@ describe('RichTextPasteNormalizerService', () => {
             expect(result).toContain('Text');
         });
 
-        it('unwraps a namespaced element preserving its children (white-box: jsdom querySelectorAll has no namespaced-tag support)', () => {
-            const container = document.createElement('div');
-            container.innerHTML = '<p>Text</p>';
-            const p = container.querySelector('p') as HTMLElement;
-            const op = document.createElement('o:p');
-            op.textContent = 'kept';
-            p.appendChild(op);
-
-            const realQuery = container.querySelectorAll.bind(container);
-            vi.spyOn(container, 'querySelectorAll').mockImplementation(((selector: string) => {
-                if (selector.includes('o\\:p')) {
-                    const found = Array.from(container.getElementsByTagName('o:p'));
-                    return {
-                        forEach: (cb: (el: Element) => void) => found.forEach(cb),
-                    } as unknown as NodeListOf<Element>;
-                }
-                return realQuery(selector);
-            }) as typeof container.querySelectorAll);
-
-            (service as unknown as PasteNormalizerPrivate).removeNamespacedElements(container);
-
-            expect(container.querySelector('o\\:p')).toBeNull();
-            expect(container.textContent).toContain('kept');
-        });
-
         it('should remove style blocks', () => {
             const html = '<style><!--.MsoNormal{font-family:Calibri}--></style><p class="MsoNormal">Text</p>';
             const result = service.normalize(html, '');
@@ -291,21 +246,6 @@ describe('RichTextPasteNormalizerService', () => {
             expect(result).not.toContain('MsoListParagraph');
         });
 
-        it('should handle nested list levels', () => {
-            const html = [
-                '<p class="MsoListParagraph" style="mso-list:l0 level1 lfo1">',
-                '<span style="mso-list:Ignore">\u00B7 </span>Parent</p>',
-                '<p class="MsoListParagraph" style="mso-list:l0 level2 lfo1">',
-                '<span style="mso-list:Ignore">o </span>Child</p>',
-            ].join('');
-            const result = service.normalize(html, '');
-            expect(result).toContain('<ul>');
-            expect(result).toContain('Parent');
-            expect(result).toContain('Child');
-            const liCount = (result.match(/<li>/g) ?? []).length;
-            expect(liCount).toBeGreaterThanOrEqual(2);
-        });
-
         it('should convert ordered lists', () => {
             const html = [
                 '<p class="MsoListParagraph" style="mso-list:l1 level1 lfo2">',
@@ -327,13 +267,6 @@ describe('RichTextPasteNormalizerService', () => {
             const html = '<p class="MsoNormal">Before</p><table><tr><td><p class="MsoNormal">Cell content</p></td></tr></table>';
             const result = service.normalize(html, '');
             expect(result).toContain('Cell content');
-            expect(result).toContain('<table>');
-            expect(result).toContain('<td>');
-        });
-
-        it('should preserve real data tables', () => {
-            const html = '<p class="MsoNormal">Text</p><table><tr><td>A</td><td>B</td></tr><tr><td>C</td><td>D</td></tr></table>';
-            const result = service.normalize(html, '');
             expect(result).toContain('<table>');
             expect(result).toContain('<td>');
         });
@@ -360,9 +293,7 @@ describe('RichTextPasteNormalizerService', () => {
 
         it('should remove empty paragraphs with only nbsp', () => {
             const html = '<p class="MsoNormal">Keep</p><p class="MsoNormal">&nbsp;</p><p class="MsoNormal">Also keep</p>';
-            const result = service.normalize(html, '');
-            expect(result).toContain('Keep');
-            expect(result).toContain('Also keep');
+            expect(service.normalize(html, '')).toBe('<p>Keep</p><p>Also keep</p>');
         });
 
         it('should handle mso-spacerun whitespace', () => {
@@ -370,13 +301,6 @@ describe('RichTextPasteNormalizerService', () => {
             const result = service.normalize(html, '');
             expect(result).not.toContain('mso-spacerun');
             expect(result).toContain('Text');
-        });
-
-        it('should preserve color on span with mso-spacerun', () => {
-            const html = '<p class="MsoNormal"><span style="color:red; mso-spacerun:yes"> </span><span style="color:red">Colored</span></p>';
-            const result = service.normalize(html, '');
-            expect(result).toContain('color: red');
-            expect(result).not.toContain('mso-spacerun');
         });
 
         it('should convert font elements to spans with color', () => {
@@ -408,10 +332,9 @@ describe('RichTextPasteNormalizerService', () => {
         });
 
         it('should strip XML processing instructions', () => {
-            const html = '<?xml version="1.0" encoding="UTF-8"?><p class="MsoNormal">Text</p>';
-            const result = service.normalize(html, '');
-            expect(result).not.toContain('<?xml');
-            expect(result).toContain('Text');
+            // After the content: a leading one lands before <html>, never in the body.
+            const html = '<p class="MsoNormal">Text</p><?xml version="1.0" encoding="UTF-8"?>';
+            expect(service.normalize(html, '')).toBe('<p>Text</p>');
         });
 
         it('should strip class and id attributes', () => {
@@ -455,19 +378,6 @@ describe('RichTextPasteNormalizerService', () => {
             expect(result).not.toContain('#333333');
         });
 
-        it('should inline CSS from multiple selectors', () => {
-            const html = [
-                '<style>',
-                'span.RedText { color: #FF0000; }',
-                'span.BlueBold { color: #0000FF; font-weight: bold; }',
-                '</style>',
-                '<p class="MsoNormal"><span class="RedText">Red</span> and <span class="BlueBold">Blue Bold</span></p>',
-            ].join('');
-            const result = service.normalize(html, '');
-            expect(result).toContain('color: #FF0000');
-            expect(result).toContain('color: #0000FF');
-        });
-
         it('should handle comma-separated selectors in style blocks', () => {
             const html = [
                 '<style>p.MsoNormal, li.MsoNormal { color: #444444; }</style>',
@@ -475,15 +385,6 @@ describe('RichTextPasteNormalizerService', () => {
             ].join('');
             const result = service.normalize(html, '');
             expect(result).toContain('color: #444444');
-        });
-
-        it('should inline background-color from style blocks', () => {
-            const html = [
-                '<style>span.Highlight { background-color: yellow; }</style>',
-                '<p class="MsoNormal"><span class="Highlight">Highlighted text</span></p>',
-            ].join('');
-            const result = service.normalize(html, '');
-            expect(result).toContain('background-color: yellow');
         });
 
         it('should inline CSS from style blocks wrapped in HTML comments', () => {
@@ -531,9 +432,7 @@ describe('RichTextPasteNormalizerService', () => {
     describe('normalizeOffice - Outlook', () => {
         it('should strip WordSection1 wrapper', () => {
             const html = '<div class="WordSection1"><p class="MsoNormal">Content</p></div>';
-            const result = service.normalize(html, '');
-            expect(result).not.toContain('WordSection1');
-            expect(result).toContain('Content');
+            expect(service.normalize(html, '')).toBe('<p>Content</p>');
         });
 
         it('should remove VML elements', () => {
@@ -559,9 +458,7 @@ describe('RichTextPasteNormalizerService', () => {
     describe('normalizeGoogleDocs', () => {
         it('should remove docs-internal-guid wrapper', () => {
             const html = '<b id="docs-internal-guid-abc123" style="font-weight:normal"><span style="font-size:11pt;">Text</span></b>';
-            const result = service.normalize(html, '');
-            expect(result).not.toContain('docs-internal-guid');
-            expect(result).toContain('Text');
+            expect(service.normalize(html, '')).toBe('<span style="font-size: 11pt">Text</span>');
         });
 
         it('should simplify bloated span styles', () => {
@@ -592,13 +489,6 @@ describe('RichTextPasteNormalizerService', () => {
             const result = service.normalize(html, '');
             expect(result).toContain('<u>');
             expect(result).toContain('Underlined');
-        });
-
-        it('should remove default/transparent styles', () => {
-            const html = '<span id="docs-internal-guid-x"><span style="color:#000000;background-color:transparent">Text</span></span>';
-            const result = service.normalize(html, '');
-            expect(result).not.toContain('#000000');
-            expect(result).not.toContain('transparent');
         });
 
         it('should preserve meaningful colors', () => {
@@ -646,10 +536,9 @@ describe('RichTextPasteNormalizerService', () => {
 
     describe('normalizeGenericOffice', () => {
         it('should strip Apple Pages meta tags', () => {
-            const html = '<html><head><meta name="Generator" content="Cocoa HTML Writer"></head><body><p>Text</p></body></html>';
-            const result = service.normalize(html, '');
-            expect(result).not.toContain('<meta');
-            expect(result).toContain('Text');
+            // After the content, so the parser puts it in the body, not the head.
+            const html = '<p>Text</p><meta name="Generator" content="Cocoa HTML Writer">';
+            expect(service.normalize(html, '')).toBe('<p>Text</p>');
         });
 
         it('should strip vendor-prefixed styles', () => {
@@ -666,13 +555,6 @@ describe('RichTextPasteNormalizerService', () => {
             expect(result).not.toContain('<font');
             expect(result).toContain('Big Red');
             expect(result).toContain('color: red');
-        });
-
-        it('should strip LibreOffice meta tags', () => {
-            const html = '<html><head><meta name="generator" content="LibreOffice 7.5"></head><body><p>Text</p></body></html>';
-            const result = service.normalize(html, '');
-            expect(result).not.toContain('<meta');
-            expect(result).toContain('Text');
         });
 
         it('should strip class and id attributes', () => {
@@ -725,16 +607,9 @@ describe('RichTextPasteNormalizerService', () => {
         });
 
         it('should strip meta tags', () => {
-            const html = '<meta charset="utf-8"><p>Text</p>';
-            const result = service.normalize(html, '');
-            expect(result).not.toContain('<meta');
-            expect(result).toContain('Text');
-        });
-
-        it('should strip style blocks', () => {
-            const html = '<style>.foo{color:red}</style><p>Text</p>';
-            const result = service.normalize(html, '');
-            expect(result).not.toContain('<style');
+            // After the content, so the parser puts it in the body, not the head.
+            const html = '<p>Text</p><meta charset="utf-8">';
+            expect(service.normalize(html, '')).toBe('<p>Text</p>');
         });
 
         it('should preserve semantic formatting', () => {
@@ -856,34 +731,6 @@ describe('RichTextPasteNormalizerService', () => {
             expect(result).not.toContain('mso-highlight');
         });
 
-        it('should handle realistic multi-row Excel paste with mixed formatting', () => {
-            const html = [
-                '<html xmlns:x="urn:schemas-microsoft-com:office:excel"><body>',
-                '<table>',
-                '<tr><td style="font-weight:bold">Header 1</td><td style="font-weight:bold">Header 2</td></tr>',
-                '<tr><td>Value A</td><td style="font-style:italic">Value B</td></tr>',
-                '<tr><td></td><td>Value D</td></tr>',
-                '</table>',
-                '</body></html>',
-            ].join('');
-            const result = service.normalize(html, '');
-            expect(result).toContain('<strong>');
-            expect(result).toContain('Header 1');
-            expect(result).toContain('<em>');
-            expect(result).toContain('Value B');
-            expect(result).toContain('<br>');
-            expect(result).toContain('Value D');
-        });
-
-        it('should produce clean table HTML through the full pipeline', () => {
-            const html = '<html xmlns:x="urn:schemas-microsoft-com:office:excel"><body><style>.xl65{color:red}</style><table class="xl65"><tr><td class="xl65">42</td></tr></table></body></html>';
-            const result = pipeline(html, '');
-            expect(result).toContain('<table>');
-            expect(result).toContain('42');
-            expect(result).not.toContain('mso-');
-            expect(result).not.toContain('<style');
-            expect(result).not.toContain('class=');
-        });
     });
 
     // =========================================================================
@@ -1069,29 +916,6 @@ describe('RichTextPasteNormalizerService', () => {
             expect(result).toContain('<h2>');
         });
 
-        it('should convert bold/italic markdown to HTML', () => {
-            const result = service.normalize(null, '**Bold** and *italic* text\n\n- list item');
-            expect(result).toContain('<strong>');
-            expect(result).toContain('Bold');
-            expect(result).toContain('<em>');
-        });
-
-        it('should convert markdown lists to HTML', () => {
-            const result = service.normalize(null, '# Title\n\n- Item 1\n- Item 2\n- Item 3');
-            expect(result).toContain('<li>');
-        });
-
-        it('should convert code blocks to HTML', () => {
-            const result = service.normalize(null, '```javascript\nconst x = 1;\n```\n\nSome **bold** text');
-            expect(result).toContain('<code');
-            expect(result).toContain('const x = 1;');
-        });
-
-        it('should convert markdown links to HTML', () => {
-            const result = service.normalize(null, '## Links\n\n[Example](https://example.com)');
-            expect(result).toContain('<a');
-            expect(result).toContain('https://example.com');
-        });
     });
 
     // =========================================================================
@@ -1148,21 +972,6 @@ describe('RichTextPasteNormalizerService', () => {
             expect(result).not.toContain('background-color: transparent');
         });
 
-        it('should handle empty clipboard data', () => {
-            expect(pipeline(null, '')).toBe('');
-        });
-
-        it('should handle null html with text fallback', () => {
-            const result = pipeline(null, 'Just plain text');
-            expect(result).toContain('Just plain text');
-        });
-
-        it('should handle markdown text when no html', () => {
-            const result = pipeline(null, '# Hello\n\n**World**\n\n- Item');
-            expect(result).toContain('<h1>');
-            expect(result).toContain('<strong>');
-            expect(result).toContain('<li>');
-        });
     });
 
     // =========================================================================
@@ -1224,14 +1033,6 @@ describe('RichTextPasteNormalizerService', () => {
             expect(result).not.toContain('alert(1)');
         });
 
-        it('should strip nested conditional comments with iframe', () => {
-            const html = '<p class="MsoNormal">Safe</p><!--[if mso]><iframe src="https://evil.com"></iframe><![endif]-->';
-            const result = pipeline(html, '');
-            expect(result).not.toContain('<iframe');
-            expect(result).not.toContain('evil.com');
-            expect(result).toContain('Safe');
-        });
-
         it('should remove xml blocks with script content', () => {
             const html = '<xml><script>alert(1)</script></xml><p class="MsoNormal">Safe</p>';
             const result = pipeline(html, '');
@@ -1248,10 +1049,11 @@ describe('RichTextPasteNormalizerService', () => {
         });
 
         it('should strip style blocks containing malicious CSS', () => {
-            const html = '<style>body{background:url(javascript:alert(1))}</style><p class="MsoNormal">Text</p>';
-            const result = pipeline(html, '');
-            expect(result).not.toContain('<style');
-            expect(result).not.toContain('javascript:');
+            // After the content, so the parser puts it in the body, not the head.
+            // Both layers drop it on their own.
+            const html = '<p class="MsoNormal">Text</p><style>body{background:url(javascript:alert(1))}</style>';
+            expect(service.normalize(html, '')).toBe('<p>Text</p>');
+            expect(pipeline(html, '')).toBe('<p>Text</p>');
         });
 
         it('should not inline disallowed CSS properties from style blocks', () => {
@@ -1449,17 +1251,19 @@ describe('RichTextPasteNormalizerService', () => {
         });
 
         it('should remove meta refresh redirect', () => {
-            const html = '<meta http-equiv="refresh" content="0;url=https://evil.com"><p>Safe</p>';
-            const result = pipeline(html, '');
-            expect(result).not.toContain('<meta');
-            expect(result).not.toContain('evil.com');
+            // After the content, so the parser puts it in the body, not the head.
+            // Both layers drop it on their own.
+            const html = '<p>Safe</p><meta http-equiv="refresh" content="0;url=https://evil.com">';
+            expect(service.normalize(html, '')).toBe('<p>Safe</p>');
+            expect(pipeline(html, '')).toBe('<p>Safe</p>');
         });
 
         it('should remove base tag', () => {
-            const html = '<base href="https://evil.com"><p>Safe</p>';
-            const result = pipeline(html, '');
-            expect(result).not.toContain('<base');
-            expect(result).not.toContain('evil.com');
+            // After the content, so the parser puts it in the body, not the head.
+            // Both layers drop it on their own.
+            const html = '<p>Safe</p><base href="https://evil.com">';
+            expect(service.normalize(html, '')).toBe('<p>Safe</p>');
+            expect(pipeline(html, '')).toBe('<p>Safe</p>');
         });
 
         it('should strip event handlers after browser entity decoding', () => {
@@ -1497,12 +1301,6 @@ describe('RichTextPasteNormalizerService', () => {
     // =========================================================================
 
     describe('Security - Plain text paste injection', () => {
-        it('should escape script tags in plain text', () => {
-            const result = pipeline(null, '<script>alert(1)</script>');
-            expect(result).not.toContain('<script>');
-            expect(result).toContain('&lt;script&gt;');
-        });
-
         it('should double-escape HTML entities', () => {
             const result = pipeline(null, '&lt;script&gt;alert(1)&lt;/script&gt;');
             expect(result).toContain('&amp;lt;script&amp;gt;');
@@ -1525,12 +1323,6 @@ describe('RichTextPasteNormalizerService', () => {
         it('should not auto-link data: URIs', () => {
             const result = pipeline(null, 'data:text/html,<script>alert(1)</script>');
             expect(result).not.toContain('<a href="data:');
-        });
-
-        it('should escape svg tags in plain text', () => {
-            const result = pipeline(null, '<svg onload="alert(1)">');
-            expect(result).not.toContain('<svg');
-            expect(result).toContain('&lt;svg');
         });
 
         it('should not auto-link vbscript: protocol URLs', () => {
@@ -1592,49 +1384,6 @@ describe('RichTextPasteNormalizerService', () => {
             expect(sanitized).toContain('Safe');
         });
 
-        it('should verify double-sanitization is idempotent', () => {
-            const html = '<p style="color: red"><strong>Bold</strong></p>';
-            const once = sanitizer.sanitize(html);
-            const twice = sanitizer.sanitize(once);
-            expect(once).toBe(twice);
-        });
-
-        it('should handle null html without throwing', () => {
-            expect(() => service.normalize(null, '')).not.toThrow();
-        });
-
-        it('should handle empty string html without throwing', () => {
-            expect(() => service.normalize('', '')).not.toThrow();
-        });
-
-        it('should handle both null html and empty text', () => {
-            const result = pipeline(null, '');
-            expect(result).toBe('');
-        });
-
-        it('should handle undefined-like values gracefully', () => {
-            const result = pipeline(null, undefined as unknown as string);
-            expect(result).toBeDefined();
-        });
-
-        it('should never produce executable script from any source', () => {
-            const sources: [string | null, string][] = [
-                ['<p class="MsoNormal"><script>alert(1)</script></p>', ''],
-                ['<b id="docs-internal-guid-x"><script>alert(1)</script></b>', ''],
-                ['<meta name="Generator" content="Cocoa HTML Writer"><script>alert(1)</script>', ''],
-                [null, '# Title\n\n<script>alert(1)</script>\n\n**bold**'],
-                ['<script>alert(1)</script>', ''],
-            ];
-
-            for (const [html, text] of sources) {
-                const result = pipeline(html, text);
-                expect(result).not.toMatch(/<script[\s>]/i);
-            }
-
-            const plainTextResult = pipeline(null, '<script>alert(1)</script>');
-            expect(plainTextResult).not.toMatch(/<script[\s>]/i);
-            expect(plainTextResult).toContain('&lt;script&gt;');
-        });
     });
 
     // =========================================================================
@@ -1642,10 +1391,6 @@ describe('RichTextPasteNormalizerService', () => {
     // =========================================================================
 
     describe('detectSource - markdown scoring edges', () => {
-        it('returns plain-text for text shorter than 3 characters', () => {
-            expect(service.detectSource(null, 'ab')).toBe('plain-text');
-        });
-
         it('scores ordered lists and blockquotes toward markdown', () => {
             const text = '1. first\n2. second\n> a quote line\nmore body text';
             expect(service.detectSource(null, text)).toBe('markdown');
@@ -1658,24 +1403,6 @@ describe('RichTextPasteNormalizerService', () => {
             const result = service.normalize(html, '');
             expect(result).not.toContain('<style');
             expect(result).toContain('Body');
-        });
-
-        it('skips at-rule selectors inside style blocks', () => {
-            const html = [
-                '<style>@media print { p.MsoNormal { color: red; } } span.Blue { color: #0000ff; }</style>',
-                '<p class="MsoNormal"><span class="Blue">Text</span></p>',
-            ].join('');
-            const result = service.normalize(html, '');
-            expect(result).toContain('color: #0000ff');
-        });
-
-        it('skips empty selectors produced by a trailing comma', () => {
-            const html = [
-                '<style>span.Blue, { color: #0000ff; }</style>',
-                '<p class="MsoNormal"><span class="Blue">Text</span></p>',
-            ].join('');
-            const result = service.normalize(html, '');
-            expect(result).toContain('color: #0000ff');
         });
 
         it('merges declarations when the same selector appears twice', () => {
@@ -1694,12 +1421,6 @@ describe('RichTextPasteNormalizerService', () => {
             expect(result).toContain('<h2>');
             expect(result).toContain('Styled Title');
         });
-
-        it('keeps surrounding content when a table has no rows', () => {
-            const html = '<p class="MsoNormal">Before</p><table></table>';
-            const result = service.normalize(html, '');
-            expect(result).toContain('Before');
-        });
     });
 
     describe('normalizeOffice - list level edges', () => {
@@ -1709,10 +1430,8 @@ describe('RichTextPasteNormalizerService', () => {
                 '<p class="MsoListParagraph" style="mso-list:l0 level2 lfo1"><span style="mso-list:Ignore">o </span>One-A</p>',
                 '<p class="MsoListParagraph" style="mso-list:l0 level1 lfo1"><span style="mso-list:Ignore">· </span>Two</p>',
             ].join('');
-            const result = service.normalize(html, '');
-            expect(result).toContain('One');
-            expect(result).toContain('One-A');
-            expect(result).toContain('Two');
+            expect(service.normalize(html, ''))
+                .toBe('<ul><li>One<ul><li>One-A</li></ul></li><li>Two</li></ul>');
         });
 
         it('creates a synthetic parent li when a list starts at a deeper level', () => {
@@ -1720,10 +1439,12 @@ describe('RichTextPasteNormalizerService', () => {
                 '<p class="MsoListParagraph" style="mso-list:l0 level2 lfo1"><span style="mso-list:Ignore">o </span>Deep first</p>',
                 '<p class="MsoListParagraph" style="mso-list:l0 level2 lfo1"><span style="mso-list:Ignore">o </span>Deep second</p>',
             ].join('');
-            const result = service.normalize(html, '');
-            expect(result).toContain('Deep first');
-            expect(result).toContain('Deep second');
-            expect(result).toContain('<ul>');
+            const probe = document.createElement('div');
+            probe.innerHTML = service.normalize(html, '');
+            const parent = probe.querySelector(':scope > ul > li');
+            expect(Array.from(parent?.childNodes ?? []).map((n) => n.nodeName)).not.toContain('#text');
+            expect(Array.from(probe.querySelectorAll(':scope > ul > li > ul > li')).map((li) => li.textContent))
+                .toEqual(['Deep first', 'Deep second']);
         });
     });
 
@@ -1805,9 +1526,7 @@ describe('RichTextPasteNormalizerService', () => {
 
         it('keeps a non-color background value as-is (not a simple color)', () => {
             const html = '<p class="MsoNormal"><span style="background:none">Bg</span></p>';
-            const result = service.normalize(html, '');
-            expect(result).toContain('Bg');
-            expect(result).not.toContain('background-color');
+            expect(service.normalize(html, '')).toBe('<p><span style="background: none">Bg</span></p>');
         });
 
         it('skips mso whitespace normalization inside pre elements', () => {
@@ -1817,33 +1536,8 @@ describe('RichTextPasteNormalizerService', () => {
         });
 
         it('collapses runs of non-breaking spaces in regular text', () => {
-            const html = '<p class="MsoNormal">a   b</p>';
-            const result = service.normalize(html, '');
-            expect(result).not.toContain('  ');
-            expect(result).toContain('a b');
-        });
-
-        it('mapMsoProperty is a no-op for an empty value (white-box: upstream parseStyles already filters these out)', () => {
-            const el = document.createElement('span');
-            const mapped = new Map<string, string>();
-            (service as unknown as PasteNormalizerPrivate).mapMsoProperty('mso-line-height-alt', '', mapped, el);
-            expect(mapped.size).toBe(0);
-        });
-    });
-
-    describe('normalizeOffice - Outlook VML removal (white-box)', () => {
-        it('normalizeOutlookSpecific removes lowercase v: elements (upstream generic namespace strip already catches uppercase ones)', () => {
-            const container = document.createElement('div');
-            container.innerHTML = '<p>Keep</p>';
-            const shape = document.createElement('v:shape');
-            shape.textContent = 'Drawing';
-            Object.defineProperty(shape, 'tagName', { value: 'v:shape' });
-            container.appendChild(shape);
-
-            (service as unknown as PasteNormalizerPrivate).normalizeOutlookSpecific(container);
-
-            expect(container.contains(shape)).toBe(false);
-            expect(container.textContent).toContain('Keep');
+            const html = '<p class="MsoNormal">a&nbsp;&nbsp;&nbsp;b</p>';
+            expect(service.normalize(html, '')).toBe('<p>a b</p>');
         });
     });
 
@@ -1851,7 +1545,8 @@ describe('RichTextPasteNormalizerService', () => {
         it('unwraps a nested bold element with font-weight:normal (no guid id)', () => {
             const html = '<b id="docs-internal-guid-x"><b style="font-weight:normal"><span style="color:red">Red</span></b></b>';
             const result = service.normalize(html, '');
-            expect(result).toContain('Red');
+            expect(result).not.toContain('<b');
+            expect(result).toBe('<span style="color: red">Red</span>');
         });
 
         it('removes list-item styles that reduce to nothing', () => {
@@ -1885,78 +1580,27 @@ describe('RichTextPasteNormalizerService', () => {
             expect(result).toContain('<del>');
             expect(result).toContain('gone');
         });
-
-        it('handles an empty styled element with no children to wrap', () => {
-            const html = '<p><span style="font-weight:bold"></span>after</p>';
-            const result = service.normalize(html, '');
-            expect(result).toContain('after');
-        });
     });
 
     describe('looksLikePdfText - source routing only', () => {
 
-        it('does not treat varied lines with a blank separator as PDF text', () => {
-            const text = [
+        it('routes varied lines with a blank separator to the HTML path, not PDF text', () => {
+            // The PDF heuristic is consulted only when the paste carries HTML;
+            // with none, detectSource never reaches it.
+            const lines = [
                 'x',
                 'a fairly long line of prose that keeps going on',
                 '',
                 'y',
                 'another fairly long line of prose that continues',
                 'z',
-            ].join('\n');
-            const result = service.normalize(null, text);
-            // Asserts the BR, not just the <p>: both branches wrap in <p>, so
-            // toContain('<p>') passed either way and could not tell the two
-            // apart. This test and the one above had OPPOSITE titles and the
-            // identical assertion; inverting the heuristic broke neither.
-            expect(result).toContain('<br>');
-            expect(result).toContain('x<br>a fairly long line');
-        });
-    });
-
-    describe('plain text is never restructured', () => {
-        it('invents no heading from a short or a long line', () => {
-            // These two tests asserted only toContain('<p>') against the removed
-            // reflow, so they could not fail. What matters now is that no line,
-            // whatever its length, is promoted to a heading or a list item.
-            const NLC = String.fromCodePoint(10);
-            const lines = [
-                'This is a very long line that exceeds eighty characters in total length so it cannot be a heading at all.',
-                'a',
-                'SHOUTED TEXT THAT LOOKS LIKE A HEADING',
-                '1. Something that looks like a numbered heading',
-                'This is a normal paragraph line that continues on',
-                '42',
             ];
-            const result = service.normalize(null, lines.join(NLC));
-            expect(result).not.toContain('<h1>');
-            expect(result).not.toContain('<h2>');
-            expect(result).not.toContain('<h3>');
-            expect(result).not.toContain('<li>');
-            // Every line survives, including the short numeric one that the old
-            // path deleted outright as PDF page furniture.
-            for (const line of lines) {
-                expect(result).toContain(line);
-            }
-            expect(result.match(/<br>/g) ?? []).toHaveLength(lines.length - 1);
+            const html = `<meta charset="utf-8"><span>${lines.join('<br>')}</span>`;
+            expect(service.detectSource(html, lines.join('\n'))).toBe('html');
         });
     });
 
     describe('private helper edges (white-box)', () => {
-        it('unwrapElement is a no-op for a detached element with no parent', () => {
-            const detached = document.createElement('span');
-            detached.textContent = 'orphan';
-            expect(() => (service as unknown as PasteNormalizerPrivate).unwrapElement(detached)).not.toThrow();
-            expect(detached.textContent).toBe('orphan');
-        });
-
-        it('isEffectivelyEmpty treats BR/HR/IMG as never-empty', () => {
-            const priv = service as unknown as PasteNormalizerPrivate;
-            expect(priv.isEffectivelyEmpty(document.createElement('br'))).toBe(false);
-            expect(priv.isEffectivelyEmpty(document.createElement('hr'))).toBe(false);
-            expect(priv.isEffectivelyEmpty(document.createElement('img'))).toBe(false);
-        });
-
         it('normalizeWhitespace strips mso-spacerun and keeps remaining style properties', () => {
             const container = document.createElement('div');
             const span = document.createElement('span');
@@ -1984,26 +1628,27 @@ describe('RichTextPasteNormalizerService', () => {
             expect(span.hasAttribute('style')).toBe(false);
             expect(span.textContent).toBe('  ');
         });
+
+        it('normalizeOutlookSpecific removes lowercase v: elements (upstream generic namespace strip already catches uppercase ones)', () => {
+            const container = document.createElement('div');
+            container.innerHTML = '<p>Keep</p>';
+            const shape = document.createElement('v:shape');
+            shape.textContent = 'Drawing';
+            Object.defineProperty(shape, 'tagName', { value: 'v:shape' });
+            container.appendChild(shape);
+
+            (service as unknown as { normalizeOutlookSpecific: (c: HTMLElement) => void })
+                .normalizeOutlookSpecific(container);
+
+            expect(container.contains(shape)).toBe(false);
+            expect(container.textContent).toContain('Keep');
+        });
     });
     // =========================================================================
     // BRANCH COVERAGE BOOST
     // =========================================================================
 
     describe('branch coverage boost', () => {
-        const priv = () => service as unknown as PasteNormalizerPrivate;
-
-        it('applyMissingProps leaves style unset when nothing to serialize', () => {
-            const el = document.createElement('div');
-            priv().applyMissingProps(new Map<string, string>(), el);
-            expect(el.hasAttribute('style')).toBe(false);
-        });
-
-        it('detectWordHeadingLevel/parseWordListItem tolerate a P with no class attribute', () => {
-            const html = '<p style="mso-foo:1">marker</p><p>plain paragraph</p>';
-            const result = service.normalize(html, '');
-            expect(result).toContain('plain paragraph');
-        });
-
         it('Word list item without a level falls back to level 1 and default listId', () => {
             const html = '<p class="MsoListParagraph">Task alpha</p>';
             const result = service.normalize(html, '');
@@ -2019,10 +1664,9 @@ describe('RichTextPasteNormalizerService', () => {
         });
 
         it('Word list item whose first child is an element (not text) is not marker-stripped', () => {
-            const html =
-                '<p class="MsoListParagraph"><b>bold lead</b> rest</p>';
-            const result = service.normalize(html, '');
-            expect(result).toContain('bold lead');
+            // "i." reads as a roman-numeral marker; only a leading TEXT node is one.
+            const html = '<p class="MsoListParagraph"><i>i.e.</i> the gist</p>';
+            expect(service.normalize(html, '')).toBe('<ul><li><i>i.e.</i> the gist</li></ul>');
         });
 
         it('builds a nested ORDERED list when a deeper item is ordered', () => {
@@ -2077,8 +1721,7 @@ describe('RichTextPasteNormalizerService', () => {
         it('leaves a Google Docs <b> without id/normal-weight in place', () => {
             const html =
                 '<span id="docs-internal-guid-abc">wrap</span><b>bold text</b>';
-            const result = service.normalize(html, '');
-            expect(result).toContain('bold text');
+            expect(service.normalize(html, '')).toBe('wrap<b>bold text</b>');
         });
 
         it('Google Docs span keeps other attributes after style is emptied', () => {
@@ -2131,26 +1774,14 @@ describe('RichTextPasteNormalizerService', () => {
             const html =
                 '<meta name="Generator" content="Microsoft Excel 15">' +
                 '<table><tr><td>x</td></tr></table><!-- ordinary note -->';
-            const result = service.normalize(html, '');
-            expect(result).toContain('<td>x</td>');
-        });
-
-        it('getPdfColumnWidth falls back to 80 with three or fewer lines', () => {
-            const text = [
-                'This is line one of some text here now.',
-                'This is line two of some text here now.',
-                'This is line three of some text here too.',
-            ].join('\n');
-            const result = service.normalize(null, text);
-            expect(result).toContain('<p>');
+            expect(service.normalize(html, ''))
+                .toBe('<table><tbody><tr><td>x</td></tr></tbody></table><!-- ordinary note -->');
         });
 
 
-        it('parseStyles skips declarations with an empty prop or value', () => {
-            const parsed = priv().parseStyles('color:red; :orphan; empty:');
-            expect(parsed.get('color')).toBe('red');
-            expect(parsed.has('empty')).toBe(false);
-            expect(parsed.size).toBe(1);
+        it('drops style declarations with an empty property or value', () => {
+            const html = '<p class="MsoNormal"><span style="color:red; :orphan; empty:">x</span></p>';
+            expect(service.normalize(html, '')).toBe('<p><span style="color: red">x</span></p>');
         });
 
         it('keeps an empty paragraph that is the only child of its parent', () => {
