@@ -9,7 +9,8 @@ import { ButtonGroupComponent, ButtonGroupSeparatorComponent } from './index';
         <div [dir]="dir()">
             <ui-button-group [orientation]="orientation()">
                 <ui-button variant="outline">First</ui-button>
-                <ui-button variant="outline">Second</ui-button>
+                <!-- A consumer's own button, placed directly in the group. -->
+                <button type="button" class="rounded-lg border border-input px-3 text-sm">Second</button>
                 <ui-button variant="outline">Third</ui-button>
             </ui-button-group>
         </div>
@@ -49,10 +50,42 @@ function rects(fixture: ComponentFixture<unknown>): DOMRect[] {
     return [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].map(b => b.getBoundingClientRect());
 }
 
-// The group's corner/border stripping (`[&>*]:rounded-s-none`, `border-s-0`, …)
-// lands on the `display: contents` <ui-button> hosts and never reaches the inner
-// <button>, so squared corners are not asserted here: every button keeps its
-// radius and full border today.
+type Axis = 'horizontal' | 'vertical';
+type Ends = 'round' | 'square' | 'mixed';
+
+const AXIS = {
+    horizontal: { pos: 'left', lead: ['top-left', 'bottom-left'], trail: ['top-right', 'bottom-right'], leadEdge: 'left', trailEdge: 'right' },
+    vertical: { pos: 'top', lead: ['top-left', 'top-right'], trail: ['bottom-left', 'bottom-right'], leadEdge: 'top', trailEdge: 'bottom' },
+} as const;
+
+function ends(style: CSSStyleDeclaration, corners: readonly string[]): Ends {
+    const radii = corners.map(corner => Number.parseFloat(style.getPropertyValue(`border-${corner}-radius`)));
+    if (radii.every(r => r > 0)) return 'round';
+    return radii.every(r => r === 0) ? 'square' : 'mixed';
+}
+
+/**
+ * The group read in visual order along its axis: each button's leading/trailing
+ * corner state, and the total border width drawn at every join.
+ */
+function joinProfile(fixture: ComponentFixture<unknown>, axis: Axis) {
+    const { pos, lead, trail, leadEdge, trailEdge } = AXIS[axis];
+    const buttons = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')]
+        .sort((a, b) => a.getBoundingClientRect()[pos] - b.getBoundingClientRect()[pos])
+        .map(el => getComputedStyle(el));
+    const width = (style: CSSStyleDeclaration, edge: string) => Number.parseFloat(style.getPropertyValue(`border-${edge}-width`));
+    return {
+        corners: buttons.map(style => [ends(style, lead), ends(style, trail)]),
+        joins: buttons.slice(1).map((style, i) => width(buttons[i], trailEdge) + width(style, leadEdge)),
+    };
+}
+
+/** Only the group's outer corners are rounded, and each join draws one 1px border. */
+const JOINED = {
+    corners: [['round', 'square'], ['square', 'square'], ['square', 'round']],
+    joins: [1, 1],
+};
+
 describe('ButtonGroupComponent layout (browser)', () => {
     function render(orientation: 'horizontal' | 'vertical', dir: 'ltr' | 'rtl') {
         const fixture = TestBed.createComponent(GroupHost);
@@ -74,13 +107,16 @@ describe('ButtonGroupComponent layout (browser)', () => {
         expect(b.left).toBeCloseTo(a.right, 0);
         expect(c.left).toBeCloseTo(b.right, 0);
         expect([b.top, c.top]).toEqual([a.top, a.top]);
+        expect(joinProfile(fixture, 'horizontal')).toEqual(JOINED);
     });
 
     it('runs the row from the right under dir="rtl"', () => {
-        const [a, b, c] = rects(render('horizontal', 'rtl'));
+        const fixture = render('horizontal', 'rtl');
+        const [a, b, c] = rects(fixture);
 
         expect(a.left).toBeCloseTo(b.right, 0);
         expect(b.left).toBeCloseTo(c.right, 0);
+        expect(joinProfile(fixture, 'horizontal')).toEqual(JOINED);
     });
 
     it('stacks vertical buttons with no gap', () => {
@@ -91,6 +127,7 @@ describe('ButtonGroupComponent layout (browser)', () => {
         expect(b.top).toBeCloseTo(a.bottom, 0);
         expect(c.top).toBeCloseTo(b.bottom, 0);
         expect([b.left, c.left]).toEqual([a.left, a.left]);
+        expect(joinProfile(fixture, 'vertical')).toEqual(JOINED);
     });
 });
 

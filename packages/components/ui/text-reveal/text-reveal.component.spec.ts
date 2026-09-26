@@ -15,16 +15,13 @@ describe('TextRevealComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should render each word in a separate span', () => {
-        fixture.componentRef.setInput('text', 'The quick brown fox');
+    it('should render each word in a separate span, however the words are spaced', () => {
+        fixture.componentRef.setInput('text', ' The quick\nbrown   fox\u00a0jumps ');
         fixture.detectChanges();
 
         const spans = fixture.debugElement.queryAll(By.css('span'));
-        expect(spans).toHaveLength(4);
-        expect(spans[0].nativeElement.textContent).toContain('The');
-        expect(spans[1].nativeElement.textContent).toContain('quick');
-        expect(spans[2].nativeElement.textContent).toContain('brown');
-        expect(spans[3].nativeElement.textContent).toContain('fox');
+        // A no-break space keeps its two words together in one span.
+        expect(spans.map(s => s.nativeElement.textContent.trim())).toEqual(['The', 'quick', 'brown', 'fox\u00a0jumps']);
     });
 
     it('should apply animation-delay style to word spans', () => {
@@ -52,12 +49,13 @@ describe('TextRevealComponent', () => {
         expect(container.nativeElement.className).toContain('text-4xl');
     });
 
-    it('should render no word text when text is empty', () => {
-        fixture.componentRef.setInput('text', '');
-        fixture.detectChanges();
+    it('should render no word spans when the text is empty or only whitespace', () => {
+        for (const text of ['', '   ']) {
+            fixture.componentRef.setInput('text', text);
+            fixture.detectChanges();
 
-        const spans = fixture.debugElement.queryAll(By.css('span'));
-        expect(spans.map(s => s.nativeElement.textContent.trim())).toEqual(spans.map(() => ''));
+            expect(fixture.debugElement.queryAll(By.css('span')), JSON.stringify(text)).toHaveLength(0);
+        }
     });
 
     it('should stagger animation delays incrementally for many words', () => {

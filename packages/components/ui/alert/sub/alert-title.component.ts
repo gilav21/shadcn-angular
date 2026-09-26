@@ -16,10 +16,10 @@ import { cn } from '../../../lib/utils';
     },
 })
 export class AlertTitleComponent {
-    /** Extra classes merged onto the title host. Renders as a plain styled `<div>`, not a heading element — add your own `<h2>`/`<h3>` inside if the alert needs to appear in the document outline. */
+    /** Extra classes merged onto the title host. The host is a block (like a plain styled `<div>`), not a heading element — add your own `<h2>`/`<h3>` inside if the alert needs to appear in the document outline. */
     class = input('');
 
     classes = computed(() =>
-        cn('mb-1 font-medium leading-none tracking-tight', this.class())
+        cn('mb-1 block font-medium leading-none tracking-tight', this.class())
     );
 }

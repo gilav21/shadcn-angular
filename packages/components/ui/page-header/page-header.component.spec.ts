@@ -101,8 +101,11 @@ describe('PageHeaderComponent', () => {
             const heading = host.querySelector<HTMLElement>('[data-slot="page-header-heading-block"]')!;
 
             expect(globalThis.getComputedStyle(row).flexWrap).toBe('wrap');
-            // A basis the title holds onto, so the actions give up the line first.
-            expect(globalThis.getComputedStyle(heading).flexBasis).not.toBe('auto');
+            // On the row, a basis the title holds onto, so the actions give up the line
+            // first; stacked, that basis would be a height, so the block sizes to its content.
+            const isDesktop = globalThis.matchMedia('(min-width: 640px)').matches;
+            const basis = globalThis.getComputedStyle(heading).flexBasis;
+            expect(basis === 'auto').toBe(!isDesktop);
         });
     });
 

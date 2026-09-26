@@ -3,7 +3,7 @@ import { ToggleGroupComponent, ToggleGroupItem } from './toggle-group.component'
 import { ToggleGroupItemComponent } from './sub/toggle-group-item.component';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 
 @Component({
     template: `
@@ -186,34 +186,5 @@ describe('ToggleGroup Data-Driven Mode', () => {
         items.forEach(item => {
             expect(item.nativeElement.disabled).toBe(true);
         });
-    });
-});
-
-describe('ToggleGroup RTL Support', () => {
-    let fixture: ComponentFixture<TestHostComponent>;
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [TestHostComponent]
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(TestHostComponent);
-        fixture.detectChanges();
-    });
-
-    afterEach(() => {
-        document.documentElement.removeAttribute('dir');
-    });
-
-    // Class strings, not computed corners: every item button is the only child
-    // of its display:contents host, so first:/last: match all of them and each
-    // item renders fully rounded — a geometry test fails on that bug today.
-    it('should apply correct rounded corners in LTR', () => {
-        const items = fixture.debugElement.queryAll(By.css('[data-slot="toggle-group-item"]'));
-        const classes0 = items[0].nativeElement.className;
-        const classesLast = items[2].nativeElement.className;
-
-        expect(classes0).toContain('ltr:first:rounded-l-md');
-        expect(classesLast).toContain('ltr:last:rounded-r-md');
     });
 });

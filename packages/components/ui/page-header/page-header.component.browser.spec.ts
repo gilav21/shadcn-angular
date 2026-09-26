@@ -62,21 +62,27 @@ describe('PageHeaderComponent (browser layout)', () => {
         expect(size()).toEqual(atLevel1);
     });
 
-    /*
-     * Measured at a desktop viewport: below 640px the row stacks with
-     * items-start, the heading block shrink-wraps to the unbroken word and the
-     * title overflows the header — a known bug this test does not cover.
-     */
-    it('wraps an extremely long unbroken title instead of overflowing', async () => {
+    // The runner's own viewport is below 640px, where the row stacks (max-sm:); 1024px is the desktop row.
+    it('wraps an extremely long unbroken title and description inside a narrow header, stacked and on the desktop row', async () => {
+        host.style.width = '200px';
+        fixture.componentRef.setInput('title', 'x'.repeat(300));
+        fixture.componentRef.setInput('description', 'y'.repeat(300));
+        fixture.detectChanges();
+        const expectContained = () => {
+            for (const slot of ['title', 'description']) {
+                const text = part(slot);
+                expect(text.scrollWidth, slot).toBeLessThanOrEqual(text.clientWidth);
+                expect(text.getBoundingClientRect().right, slot).toBeLessThanOrEqual(host.getBoundingClientRect().right);
+            }
+        };
+
+        expect(globalThis.innerWidth).toBeLessThan(640);
+        expectContained();
+
         const [width, height] = [globalThis.innerWidth, globalThis.innerHeight];
         await page.viewport(1024, 768);
         try {
-            host.style.width = '200px';
-            fixture.componentRef.setInput('title', 'x'.repeat(300));
-            fixture.detectChanges();
-            const title = part('title');
-            expect(title.scrollWidth).toBeLessThanOrEqual(title.clientWidth);
-            expect(title.getBoundingClientRect().right).toBeLessThanOrEqual(host.getBoundingClientRect().right);
+            expectContained();
         } finally {
             await page.viewport(width, height);
         }
@@ -86,14 +92,22 @@ describe('PageHeaderComponent (browser layout)', () => {
         expect(getComputedStyle(part('heading-block')).minWidth).toBe('0px');
     });
 
-    it('spaces a projected breadcrumb above the title', () => {
+    // The runner's own viewport is below 640px, so the row is stacked here.
+    it('spaces a projected breadcrumb above the title and stacks the actions right under the heading', () => {
         const projected = TestBed.createComponent(ProjectedHostComponent);
         projected.detectChanges();
         const header = projected.debugElement.query(By.directive(PageHeaderComponent)).nativeElement as HTMLElement;
-        const slot = header.querySelector<HTMLElement>('[data-slot="page-header-breadcrumb"]')!;
-        const title = header.querySelector<HTMLElement>('[data-slot="page-header-title"]')!;
+        const rect = (slot: string): DOMRect =>
+            header.querySelector<HTMLElement>(`[data-slot="page-header-${slot}"]`)!.getBoundingClientRect();
+        const title = rect('title');
 
-        expect(title.getBoundingClientRect().top).toBeGreaterThan(slot.getBoundingClientRect().bottom);
+        expect(title.top).toBeGreaterThan(rect('breadcrumb').bottom);
+
+        expect(globalThis.innerWidth).toBeLessThan(640);
+        const heading = rect('heading-block');
+        expect(heading.height).toBeCloseTo(title.height, 0);
+        const rowGap = Number.parseFloat(getComputedStyle(header.querySelector('[data-slot="page-header-row"]')!).rowGap);
+        expect(rect('actions').top - heading.bottom).toBeCloseTo(rowGap, 0);
         projected.destroy();
     });
 });
