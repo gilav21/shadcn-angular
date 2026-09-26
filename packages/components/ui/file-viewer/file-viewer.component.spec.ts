@@ -1411,6 +1411,7 @@ describe('FileViewerComponent end-to-end parser paths', () => {
         await api.loadFile(fileOf(buildMinimalDocx(
             '<w:p>'
             + link('rId1', 'script link') + link('rId2', 'data link') + link('rId3', 'site') + link('rId4', 'mail')
+            + link('rId5', 'appendix')
             + '<w:hyperlink w:anchor="summary"><w:r><w:t>jump</w:t></w:r></w:hyperlink>'
             + '</w:p>',
             [
@@ -1418,6 +1419,7 @@ describe('FileViewerComponent end-to-end parser paths', () => {
                 { id: 'rId2', target: 'data:text/html;base64,PGI+eDwvYj4=' },
                 { id: 'rId3', target: 'https://example.com/docs' },
                 { id: 'rId4', target: 'mailto:team@example.com' },
+                { id: 'rId5', target: 'appendix/costs.docx' },
             ],
         ), 'a.docx'));
         const content = renderedContent();
@@ -1430,6 +1432,7 @@ describe('FileViewerComponent end-to-end parser paths', () => {
         ]);
         expect(content.textContent).toContain('script link');
         expect(content.textContent).toContain('data link');
+        expect(content.textContent).toContain('appendix');
     });
 
     it('keeps PPTX run and bullet font names inside their style declarations', async () => {

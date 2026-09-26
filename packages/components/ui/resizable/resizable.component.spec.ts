@@ -147,6 +147,26 @@ describe('ResizableComponent', () => {
         document.dispatchEvent(new MouseEvent('mouseup'));
     });
 
+    it('re-orients the handle when the group direction changes after init', async () => {
+        const handle = (): HTMLElement => fixture.nativeElement.querySelector('[data-slot="resizable-handle"]');
+        const panelA = fixture.debugElement.queryAll(By.directive(ResizablePanelComponent))[0]
+            .componentInstance as ResizablePanelComponent;
+        const press = (key: string): void => {
+            handle().dispatchEvent(new KeyboardEvent('keydown', { key, cancelable: true }));
+            fixture.detectChanges();
+        };
+        expect(handle().getAttribute('aria-orientation')).toBe('vertical');
+
+        component.direction.set('vertical');
+        fixture.detectChanges();
+
+        expect(handle().getAttribute('aria-orientation')).toBe('horizontal');
+        press('ArrowRight');
+        expect(panelA.size()).toBe(50);
+        press('ArrowDown');
+        expect(panelA.size()).toBe(55);
+    });
+
     it('should resize vertical panels on drag', async () => {
         component.direction.set('vertical');
         fixture.detectChanges();
@@ -198,6 +218,18 @@ class NoGroupHostComponent { }
 })
 class NoPanelsHostComponent { }
 
+@Component({
+    template: `
+    <ui-resizable-panel-group direction="horizontal">
+      <ui-resizable-panel [defaultSize]="50">Panel</ui-resizable-panel>
+      <ui-resizable-handle></ui-resizable-handle>
+      <div data-slot="resizable-panel" style="flex-basis: 50%">Plain element</div>
+    </ui-resizable-panel-group>
+  `,
+    imports: [ResizablePanelGroupComponent, ResizablePanelComponent, ResizableHandleComponent]
+})
+class PlainNeighbourHostComponent { }
+
 describe('Resizable drag guards', () => {
     const triggerDrag = (fixture: ComponentFixture<unknown>) => {
         const handleEl = fixture.debugElement.query(By.css('[data-slot="resizable-handle"]'));
@@ -216,6 +248,27 @@ describe('Resizable drag guards', () => {
 
         triggerDrag(fixture);
         expect(document.body.style.cursor).toBe('');
+    });
+
+    it('resizes a plain element marked as a panel through its flex-basis', async () => {
+        await TestBed.configureTestingModule({ imports: [PlainNeighbourHostComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(PlainNeighbourHostComponent);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const group = fixture.nativeElement.querySelector('[data-slot="resizable-panel-group"]') as HTMLElement;
+        const [panel, plain] = Array.from(group.querySelectorAll<HTMLElement>('[data-slot="resizable-panel"]'));
+        for (const [el, size] of [[group, 1000], [panel, 500], [plain, 500]] as const) {
+            Object.defineProperty(el, 'offsetWidth', { configurable: true, value: size });
+        }
+
+        fixture.debugElement.query(By.css('[data-slot="resizable-handle"]'))
+            .triggerEventHandler('mousedown', { preventDefault: () => { }, clientX: 500, clientY: 0 });
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: 600, clientY: 0 }));
+        document.dispatchEvent(new MouseEvent('mouseup'));
+        fixture.detectChanges();
+
+        expect(panel.style.flexBasis).toBe('60%');
+        expect(plain.style.flexBasis).toBe('40%');
     });
 
     it('does nothing when there are no adjacent panels', async () => {
@@ -240,6 +293,58 @@ describe('Resizable drag guards', () => {
     imports: [ResizablePanelGroupComponent, ResizablePanelComponent, ResizableHandleComponent]
 })
 class LimitsHostComponent { }
+
+@Component({
+    template: `
+    <ui-resizable-panel-group direction="vertical">
+      <ui-resizable-panel [defaultSize]="50">Top</ui-resizable-panel>
+      <ui-resizable-handle [withHandle]="withHandle()"></ui-resizable-handle>
+      <ui-resizable-panel [defaultSize]="50">Bottom</ui-resizable-panel>
+    </ui-resizable-panel-group>
+  `,
+    imports: [ResizablePanelGroupComponent, ResizablePanelComponent, ResizableHandleComponent]
+})
+class VerticalHostComponent {
+    readonly withHandle = signal(false);
+}
+
+describe('Resizable vertical group', () => {
+    const setup = async (): Promise<ComponentFixture<VerticalHostComponent>> => {
+        await TestBed.configureTestingModule({ imports: [VerticalHostComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(VerticalHostComponent);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        return fixture;
+    };
+
+    it('is a horizontal separator that ArrowDown and ArrowUp resize, ignoring the horizontal arrows', async () => {
+        const fixture = await setup();
+        const top = fixture.debugElement.queryAll(By.directive(ResizablePanelComponent))[0]
+            .componentInstance as ResizablePanelComponent;
+        const handle = fixture.debugElement.query(By.css('[data-slot="resizable-handle"]'));
+
+        expect(handle.nativeElement.getAttribute('aria-orientation')).toBe('horizontal');
+
+        handle.triggerEventHandler('keydown', { key: 'ArrowDown', preventDefault: () => { } });
+        expect(top.size()).toBe(55);
+        handle.triggerEventHandler('keydown', { key: 'ArrowRight', preventDefault: () => { } });
+        expect(top.size()).toBe(55);
+        handle.triggerEventHandler('keydown', { key: 'ArrowUp', preventDefault: () => { } });
+        handle.triggerEventHandler('keydown', { key: 'ArrowUp', preventDefault: () => { } });
+        expect(top.size()).toBe(45);
+    });
+
+    it('draws the grip inside the divider only while withHandle is on', async () => {
+        const fixture = await setup();
+        const divider = (): HTMLElement => fixture.nativeElement.querySelector('[data-slot="resizable-handle"]');
+        expect(divider().querySelector('svg')).toBeNull();
+
+        fixture.componentInstance.withHandle.set(true);
+        fixture.detectChanges();
+        expect(divider().querySelector('svg circle')).not.toBeNull();
+    });
+});
 
 describe('Resizable panel limits and state', () => {
     const mockLayout = (element: HTMLElement, size: number) => {
@@ -382,7 +487,38 @@ describe('Resizable panel limits and state', () => {
     });
 });
 
+@Component({
+    template: `
+    <ui-resizable-panel-group direction="horizontal">
+      <ui-resizable-panel [defaultSize]="100">Only</ui-resizable-panel>
+    </ui-resizable-panel-group>
+  `,
+    imports: [ResizablePanelGroupComponent, ResizablePanelComponent]
+})
+class LonePanelHostComponent { }
+
 describe('ResizablePanel updateSize', () => {
+    it('takes the difference from the previous panel when it is the last, and from no one when it is alone', async () => {
+        await TestBed.configureTestingModule({ imports: [SplitHostComponent, LonePanelHostComponent] }).compileComponents();
+        const split = TestBed.createComponent(SplitHostComponent);
+        split.detectChanges();
+        await split.whenStable();
+        const [first, last] = split.debugElement.queryAll(By.directive(ResizablePanelComponent))
+            .map(d => d.componentInstance as ResizablePanelComponent);
+
+        last.updateSize(60);
+        expect([first.size(), last.size()]).toEqual([40, 60]);
+
+        const lone = TestBed.createComponent(LonePanelHostComponent);
+        lone.detectChanges();
+        await lone.whenStable();
+        const only = lone.debugElement.query(By.directive(ResizablePanelComponent))
+            .componentInstance as ResizablePanelComponent;
+
+        only.updateSize(70);
+        expect(only.size()).toBe(70);
+    });
+
     it('updates its size and emits the change', async () => {
         await TestBed.configureTestingModule({ imports: [TestHostComponent] }).compileComponents();
         const fixture = TestBed.createComponent(TestHostComponent);

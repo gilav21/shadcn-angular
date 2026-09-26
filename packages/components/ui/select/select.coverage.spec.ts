@@ -215,7 +215,7 @@ describe('SelectComponent data-driven internals', () => {
 // ============================================================================
 @Component({
     template: `
-        <ui-select [value]="value()">
+        <ui-select [value]="value()" [position]="position()">
             <ui-select-trigger>
                 <ui-select-value />
             </ui-select-trigger>
@@ -233,6 +233,7 @@ describe('SelectComponent data-driven internals', () => {
 class ContentHost {
     readonly value = signal<string | undefined>(undefined);
     readonly showContent = signal(true);
+    readonly position = signal<'popper' | 'item-aligned'>('item-aligned');
 }
 
 @Component({
@@ -289,6 +290,23 @@ describe('SelectContentComponent positioning & keyboard', () => {
 
         const content: HTMLElement = fixture.nativeElement.querySelector('[data-slot="select-content"]');
         expect(content.style.top).toBe(`${-(getSelect(fixture).getSelectedItemOffset() + 4)}px`);
+    });
+
+    it('with popper position drops the popup beside the trigger instead of overlaying the selected row', async () => {
+        await TestBed.configureTestingModule({ imports: [ContentHost] }).compileComponents();
+        const fixture = TestBed.createComponent(ContentHost);
+        fixture.componentInstance.value.set('c');
+        fixture.componentInstance.position.set('popper');
+        fixture.detectChanges();
+
+        getSelect(fixture).open.set(true);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await new Promise(resolve => setTimeout(resolve, 0));
+        fixture.detectChanges();
+
+        const content: HTMLElement = fixture.nativeElement.querySelector('[data-slot="select-content"]');
+        expect(content.style.top).toBe('');
     });
 
     it('content keydown returns early when the dropdown is closed (no content element)', async () => {

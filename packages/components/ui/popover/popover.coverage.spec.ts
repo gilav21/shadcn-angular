@@ -397,6 +397,49 @@ describe('PopoverContent fixed strategy (Popover API path)', () => {
         noTrigger.destroy();
         noTrigger.nativeElement.remove();
     });
+
+    function frames(count: number): Promise<void> {
+        return new Promise<void>((resolve) => {
+            const step = (left: number): void => {
+                if (left === 0) {
+                    resolve();
+                    return;
+                }
+                requestAnimationFrame(() => step(left - 1));
+            };
+            step(count);
+        });
+    }
+
+    function panel(): HTMLElement {
+        return document.querySelector('[data-slot="popover-content"]') as HTMLElement;
+    }
+
+    it('opened while detached, waits for attachment and then promotes the panel to the top layer in place', async () => {
+        fixture.nativeElement.remove();
+        host.open.set(true);
+        fixture.detectChanges();
+        await frames(3);
+        expect(panel()).toBeNull();
+
+        document.body.appendChild(fixture.nativeElement);
+        await frames(3);
+
+        expect(panel().getAttribute('popover')).toBe('manual');
+        expect(panel().closest('ui-popover')).not.toBeNull();
+        expect(document.querySelector('[data-popover-portal]')).toBeNull();
+    });
+
+    it('falls back to a body portal when the panel is still detached once its retries run out', async () => {
+        fixture.nativeElement.remove();
+        host.open.set(true);
+        fixture.detectChanges();
+        await frames(14);
+
+        const portal = document.querySelector('[data-popover-portal]');
+        expect(portal?.contains(panel())).toBe(true);
+        expect(panel().hasAttribute('popover')).toBe(false);
+    });
 });
 
 // ---------------------------------------------------------------------------

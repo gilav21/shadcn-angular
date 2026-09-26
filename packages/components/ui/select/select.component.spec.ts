@@ -743,6 +743,19 @@ describe('SelectComponent — i18n integration', () => {
         fixture.detectChanges();
         expect(trigger.textContent).toContain('...בחר');
     });
+
+    it('resolves isRtl from the direction its locale writes on the host', async () => {
+        await TestBed.configureTestingModule({ imports: [SelectComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(SelectComponent);
+        fixture.componentRef.setInput('options', ['a', 'b']);
+        fixture.componentRef.setInput('locale', 'he');
+        fixture.detectChanges();
+        expect(fixture.componentInstance.isRtl()).toBe(true);
+
+        fixture.componentRef.setInput('locale', 'en');
+        fixture.detectChanges();
+        expect(fixture.componentInstance.isRtl()).toBe(false);
+    });
 });
 
 @Component({

@@ -161,6 +161,18 @@
     "rich-text-editor/slash-commands": {
       "lines": 99,
       "reason": "1 dead line in rich-text-slash-commands.directive.ts:178 — the for-of loop body over host.builtinCommands() which is computed(() => []) (an empty seam for future base commands), unreachable in the current build."
+    },
+    "pie-chart-drilldown": {
+      "lines": 97,
+      "reason": "2 layout-only lines in pie-chart-drilldown.component.ts (201, 203): chartContainerClasses picks the flex direction for a left/top legend. Their only effect is rendered geometry, asserted in pie-chart-drilldown.component.browser.spec.ts; jsdom has no layout to assert against."
+    },
+    "select": {
+      "lines": 99,
+      "reason": "1 layout-only line in sub/select-content.component.ts:153: popper side resolution for side=\"top\", whose only effect is the bottom-full/top-full placement. Asserted as rendered geometry in select.component.browser.spec.ts ('honours an explicit popper position with a top side preference')."
+    },
+    "file-upload": {
+      "lines": 67,
+      "reason": "The inline-crop flow (file-upload.component.ts crop panel, file-upload.utils.ts cropImageFile) needs URL.createObjectURL, createImageBitmap and canvas, none of which jsdom provides. It is tested in file-upload.crop.browser.spec.ts; the shipped specs cover everything else."
     }
   }
 }

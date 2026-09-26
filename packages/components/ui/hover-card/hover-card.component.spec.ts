@@ -218,14 +218,16 @@ describe('HoverCardComponent', () => {
             <ui-hover-card-trigger>
                 <button>Hover me</button>
             </ui-hover-card-trigger>
-            <ui-hover-card-content>
+            <ui-hover-card-content [side]="side()">
                 <div class="body">Some description here.</div>
             </ui-hover-card-content>
         </ui-hover-card>
     `,
     imports: [HoverCardComponent, HoverCardTriggerComponent, HoverCardContentComponent],
 })
-class TestHostComponent { }
+class TestHostComponent {
+    readonly side = signal<'top' | 'bottom'>('bottom');
+}
 
 function contentEl(fixture: ComponentFixture<unknown>): HTMLElement | null {
     return fixture.nativeElement.querySelector('[data-slot="hover-card-content"]');
@@ -376,6 +378,21 @@ describe('HoverCard integration', () => {
         openAndPosition(fixture);
         const style = contentEl(fixture)?.getAttribute('style') ?? '';
         expect(style).toContain('translateX(58px)');
+    });
+
+    it('opens on the opposite side when the measured card overflows its preferred side, and only then', () => {
+        const resolvedSide = (side: 'top' | 'bottom', rect: RectShape): string | undefined => {
+            hoverCardOf(fixture).open.set(false);
+            fixture.componentInstance.side.set(side);
+            fixture.detectChanges();
+            currentRect = rect;
+            openAndPosition(fixture);
+            return contentEl(fixture)?.dataset['side'];
+        };
+
+        expect(resolvedSide('bottom', { x: 100, y: 740, w: 200, h: 50 })).toBe('top');
+        expect(resolvedSide('top', { x: 100, y: -10, w: 200, h: 50 })).toBe('bottom');
+        expect(resolvedSide('top', { x: 100, y: 300, w: 200, h: 50 })).toBe('top');
     });
 
     it('guards position calculation when the card closes before its frames run', () => {

@@ -1,9 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Component, signal } from '@angular/core';
+import { Component, ComponentRef, input, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { BentoGridComponent, DashboardItem } from './bento-grid.component';
 import { BentoGridItemComponent } from './sub/bento-grid-item.component';
+
+/** A dashboard widget of the kind consumers pass as `content`, fed through `inputs`. */
+@Component({
+    selector: 'test-kpi-widget',
+    template: `<span data-testid="kpi-widget">{{ label() }}</span>`,
+})
+class KpiWidgetComponent {
+    readonly label = input('');
+}
 
 /** Create a standalone, change-detected bento-grid fixture. */
 function makeStandaloneGrid(): ComponentFixture<BentoGridComponent> {
@@ -539,8 +548,21 @@ describe('BentoGridComponent', () => {
     });
 
     describe('helper methods', () => {
-        it('isComponent should be true for component type', () => {
-            expect(getGrid().isComponent(BentoGridItemComponent)).toBe(true);
+        it('renders a component-typed widget through the outlet with its inputs and hands its ref to componentInit', () => {
+            const f = TestBed.createComponent(BentoGridComponent);
+            const inits: { id: string; ref: ComponentRef<unknown> }[] = [];
+            f.componentInstance.componentInit.subscribe(e => inits.push(e));
+            f.componentRef.setInput('items', [
+                { id: 'kpi', x: 1, y: 1, cols: 1, rows: 1, content: KpiWidgetComponent, inputs: { label: 'Monthly Revenue' } },
+                { id: 'note', x: 2, y: 1, cols: 1, rows: 1, content: 'Plain note' },
+            ]);
+            f.detectChanges();
+
+            const widget = f.nativeElement.querySelector('[data-testid="kpi-widget"]') as HTMLElement;
+            expect(widget.textContent).toBe('Monthly Revenue');
+            expect(inits.map(e => e.id)).toEqual(['kpi']);
+            expect(inits[0].ref.instance).toBeInstanceOf(KpiWidgetComponent);
+            expect(f.nativeElement.textContent).toContain('Plain note');
         });
 
         it('castMenuData should return null for nullish', () => {
