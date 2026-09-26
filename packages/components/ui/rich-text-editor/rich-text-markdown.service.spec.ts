@@ -2388,3 +2388,91 @@ describe('RichTextMarkdownService - attribute values cannot break out of their a
         expect(a?.getAttribute('href')).toBe('https://example.com/?a=1&b=2');
     });
 });
+
+/**
+ * Raw HTML blocks follow CommonMark 0.31.2 §4.6: a line that meets a start
+ * condition opens a block passed through verbatim until that condition's end,
+ * and everything outside it is markdown. Inputs are the spec's own examples.
+ */
+describe('RichTextMarkdownService - raw HTML blocks (CommonMark §4.6)', () => {
+    let service: RichTextMarkdownService;
+
+    beforeEach(() => {
+        TestBed.configureTestingModule({ providers: [RichTextMarkdownService, RichTextSanitizerService] });
+        service = TestBed.inject(RichTextMarkdownService);
+    });
+
+    const render = (md: string): HTMLElement => {
+        const probe = document.createElement('div');
+        probe.innerHTML = service.toHtml(md);
+        return probe;
+    };
+
+    it('ends a block-tag block at the blank line, so the markdown between two blocks is parsed (examples 152, 188)', () => {
+        const probe = render('<details>\n<summary>More</summary>\n\nHidden **text**.\n\n</details>');
+
+        const details = probe.querySelector(':scope > details');
+        expect(details?.querySelector(':scope > summary')?.textContent).toBe('More');
+        const paragraph = details?.querySelector(':scope > p');
+        expect(paragraph?.textContent).toBe('Hidden text.');
+        expect(paragraph?.querySelector('strong')?.textContent).toBe('text');
+        expect(probe.textContent).not.toContain('<');
+    });
+
+    it('runs a <pre> block past blank lines to its closing tag, verbatim (example 169)', () => {
+        const probe = render('<pre language="haskell"><code>\nimport Text.HTML.TagSoup\n\nmain :: IO ()\nmain = print $ parseTags tags\n</code></pre>\nokay');
+
+        expect(Array.from(probe.children, (el) => el.tagName)).toEqual(['PRE', 'P']);
+        expect(probe.querySelector('pre > code')?.textContent).toBe('\nimport Text.HTML.TagSoup\n\nmain :: IO ()\nmain = print $ parseTags tags\n');
+        expect(probe.querySelector('p')?.textContent).toBe('okay');
+    });
+
+    it('opens a lone-tag block only where no paragraph is open (examples 166, 187)', () => {
+        const block = render('<del>\n*foo*\n</del>');
+        expect(block.querySelector(':scope > del')?.textContent).toBe('\n*foo*\n');
+        expect(block.querySelector('em, p')).toBeNull();
+
+        const inParagraph = render('Foo\n<del>\n*foo*\n</del>');
+        expect(inParagraph.querySelector(':scope > p > del > em')?.textContent).toBe('foo');
+    });
+
+    it('leaves a tag line indented under a list item to the item, and lifts it once the list has ended', () => {
+        const probe = render('- a\n\n  <div>*x*</div>\n\nprose\n\n  <div>*y*</div>');
+
+        expect(probe.querySelector('li > div')?.textContent).toContain('x');
+        expect(probe.querySelector(':scope > div')?.textContent).toBe('*y*');
+    });
+
+    it('ends a block with the details block it sits in, as a quote or list item ends one (examples 174, 175)', () => {
+        const probe = render(':::details Notes\n<div>\ninside\n:::\nafter');
+
+        expect(probe.querySelector('details > div')?.textContent?.trim()).toBe('inside');
+        expect(probe.querySelector(':scope > p')?.textContent).toBe('after');
+        expect(probe.textContent).not.toContain(':::');
+    });
+
+    it('keeps a fence line inside a block as raw HTML, and a tag inside a fence as code (example 161)', () => {
+        const inBlock = render('<pre>\n```\n<b>x</b>\n```\n</pre>');
+        expect(inBlock.querySelectorAll('pre')).toHaveLength(1);
+        expect(inBlock.querySelector('pre')?.textContent).toBe('```\nx\n```\n');
+        expect(inBlock.querySelector('pre > b')?.textContent).toBe('x');
+
+        const inFence = render('```\n<div>\n\n*x*\n```');
+        expect(inFence.querySelector('pre > code')?.textContent).toBe('<div>\n\n*x*');
+        expect(inFence.querySelector('div, em')).toBeNull();
+    });
+
+    it('does not let a parking delimiter typed inside a block forge another pass\'s token', () => {
+        const OPEN = String.fromCodePoint(0xe112);
+        const CLOSE = String.fromCodePoint(0xe113);
+        const html = service.toHtml('`SECRET`\n\n<div>\n' + OPEN + '0' + CLOSE + '\n</div>');
+        expect(html.match(/SECRET/g) ?? []).toHaveLength(1);
+    });
+
+    it('runs a comment block past blank lines to its end marker, and the sanitizer drops it (example 179)', () => {
+        const probe = render('<!-- Foo\n\nbar\n   baz -->\nokay');
+
+        expect(Array.from(probe.children, (el) => el.outerHTML)).toEqual(['<p>okay</p>']);
+        expect(probe.textContent?.trim()).toBe('okay');
+    });
+});
