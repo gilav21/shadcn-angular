@@ -1115,7 +1115,10 @@ export class RichTextSanitizerService {
             return null;
         }
 
-        if (probe.startsWith('/') || probe.startsWith('./') || probe.startsWith('../')) {
+        // Any schemeless target is same-origin once the authority forms above
+        // are refused. Only "/", "./" and "../" were accepted, so a bare
+        // "images/a.png" was judged unsafe, and an unsafe image is dropped.
+        if (probe && !/^[a-z][a-z0-9+.-]*:/i.test(probe)) {
             return trimmed;
         }
 
@@ -1165,33 +1168,58 @@ export class RichTextSanitizerService {
         'script', 'style', 'iframe', 'object', 'embed', 'noscript', 'template'
     ]);
 
-    private processElementNode(element: HTMLElement, target: HTMLElement): void {
+    /**
+     * Copy one element, or what of it is safe, into `target`. Returns whether
+     * anything in it was removed rather than copied, so a paragraph can tell an
+     * emptiness sanitising caused from one the author wrote.
+     */
+    private processElementNode(element: HTMLElement, target: HTMLElement): boolean {
         const tagName = element.tagName.toLowerCase();
-        if (this.ALLOWED_TAGS.has(tagName)) {
-            if (tagName === 'input' && element.getAttribute('type') !== 'checkbox') {
-                return;
-            }
-            const cleanElement = this.document.createElement(tagName);
-            this.sanitizeAttributes(element, cleanElement, tagName);
-            this.processNodes(element, cleanElement);
-            target.appendChild(cleanElement);
-        } else if (!this.TAGS_TO_REMOVE.has(tagName)) {
-            this.processNodes(element, target);
+        if (!this.ALLOWED_TAGS.has(tagName)) {
+            return this.TAGS_TO_REMOVE.has(tagName) || this.processNodes(element, target);
         }
+        if (tagName === 'input' && element.getAttribute('type') !== 'checkbox') return true;
+        const cleanElement = this.document.createElement(tagName);
+        this.sanitizeAttributes(element, cleanElement, tagName);
+        // Kept without its source, an unsafe image was an empty frame the
+        // author never asked for; a policy-blocked one keeps its marker and stays.
+        if (tagName === 'img' && this.lostItsSource(element, cleanElement)) return true;
+        const removed = this.processNodes(element, cleanElement);
+        if (removed && tagName === 'p' && this.showsNothingAtAll(cleanElement)) return true;
+        target.appendChild(cleanElement);
+        return removed;
+    }
+
+    /** Whether an image that named a source was left with neither a `src` nor a blocked-source marker. */
+    private lostItsSource(source: HTMLElement, clean: HTMLElement): boolean {
+        const named = source.hasAttribute('src') || 'blockedSrc' in source.dataset;
+        return named && !clean.hasAttribute('src') && !('blockedSrc' in clean.dataset);
+    }
+
+    /**
+     * Whether a block renders nothing: no element that draws, and no text but
+     * collapsible whitespace. A non-breaking space is the author's blank line
+     * and counts as content.
+     */
+    private showsNothingAtAll(el: HTMLElement): boolean {
+        return /^[ \t\n\r\f]*$/.test(el.textContent ?? '') && !el.querySelector('img, br, hr, input, table');
     }
 
     /**
      * Process nodes recursively, copying safe content to clean container.
+     * Returns whether any of them was removed rather than copied.
      */
-    private processNodes(source: Node, target: HTMLElement): void {
+    private processNodes(source: Node, target: HTMLElement): boolean {
+        let removed = false;
         for (const node of Array.from(source.childNodes)) {
             if (node.nodeType === Node.TEXT_NODE) {
                 target.appendChild(this.document.createTextNode(node.textContent ?? ''));
             } else if (node.nodeType === Node.ELEMENT_NODE) {
-                this.processElementNode(node as HTMLElement, target);
+                removed = this.processElementNode(node as HTMLElement, target) || removed;
             }
             // Ignore comments, processing instructions, etc.
         }
+        return removed;
     }
 
     /**

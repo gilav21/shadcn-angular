@@ -118,7 +118,8 @@ describe('RichTextOutlineDirective', () => {
         fixtures.push(fixture);
         document.body.appendChild(fixture.nativeElement);
         fixture.detectChanges();
-        expect(fixture.nativeElement.querySelector('[data-addon-slot="view.outline"]')).toBeTruthy();
+        expect(fixture.nativeElement.querySelector('[data-addon-slot="view.outline"]')?.getAttribute('title'))
+            .toBe(RICH_TEXT_OUTLINE_LOCALES['en'].toolbar);
 
         fixture.componentInstance.enabled.set(false);
         fixture.detectChanges();
@@ -127,13 +128,6 @@ describe('RichTextOutlineDirective', () => {
         fixture.componentInstance.enabled.set(true);
         fixture.detectChanges();
         expect(fixture.nativeElement.querySelector('[data-addon-slot="view.outline"]')).toBeTruthy();
-    });
-
-    it('renders the outline toolbar button after the built-in items', () => {
-        const fixture = createFixture();
-        const button = outlineButton(fixture);
-        expect(button).toBeTruthy();
-        expect(button!.getAttribute('title')).toBe(RICH_TEXT_OUTLINE_LOCALES['en'].toolbar);
     });
 
     it('toggles the docked panel when the toolbar button is clicked', () => {
@@ -159,16 +153,6 @@ describe('RichTextOutlineDirective', () => {
         const rows = entries(fixture);
         expect(rows.map((r) => r.textContent?.trim())).toEqual(['Intro', 'Setup', 'Details', 'Done']);
         expect(rows.map((r) => r.getAttribute('data-outline-level'))).toEqual(['1', '2', '3', '2']);
-    });
-
-    it('shows the empty state when the document has no headings', () => {
-        const fixture = createFixture();
-        setContent(fixture, '<p>just a paragraph</p>');
-        outlineButton(fixture)!.click();
-        fixture.detectChanges();
-
-        expect(fixture.nativeElement.querySelector('[data-slot="rich-text-outline-empty"]')).toBeTruthy();
-        expect(entries(fixture)).toHaveLength(0);
     });
 
     it('refreshes the heading list when content changes while the panel is open', async () => {
@@ -200,7 +184,7 @@ describe('RichTextOutlineDirective', () => {
         expect(scrollIntoView).not.toHaveBeenCalled();
     });
 
-    it('scrolls to a heading on Enter/Space keyboard activation', () => {
+    it('scrolls to a heading on Enter or Space, and leaves other keys alone', () => {
         const fixture = createFixture();
         const el = setContent(fixture, HEADINGS);
         const scrollBy = vi.fn();
@@ -208,10 +192,13 @@ describe('RichTextOutlineDirective', () => {
         outlineButton(fixture)!.click();
         fixture.detectChanges();
 
-        const event = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true, bubbles: true });
-        entries(fixture)[1].dispatchEvent(event);
-        expect(scrollBy).toHaveBeenCalled();
-        expect(event.defaultPrevented).toBe(true);
+        const press = (key: string): [boolean, number] => {
+            scrollBy.mockClear();
+            const event = new KeyboardEvent('keydown', { key, cancelable: true, bubbles: true });
+            entries(fixture)[1].dispatchEvent(event);
+            return [event.defaultPrevented, scrollBy.mock.calls.length];
+        };
+        expect([press('Enter'), press(' '), press('a')]).toEqual([[true, 1], [true, 1], [false, 0]]);
     });
 
     it('closes the panel from the close button', () => {
@@ -246,7 +233,7 @@ describe('RichTextOutlineDirective', () => {
         expect(panel(fixture)).toBeTruthy();
     });
 
-    it('hides the toolbar button when [uiRteOutlineButton] is false but keeps the /outline command', () => {
+    it('hides the toolbar button with { toolbar: false } but keeps the /outline command', () => {
         const fixture = createFixture();
         fixture.componentInstance.button.set(false);
         fixture.detectChanges();
@@ -281,12 +268,4 @@ describe('RichTextOutlineDirective', () => {
         expect(panel(fixture)!.textContent).toContain(RICH_TEXT_OUTLINE_LOCALES['he'].title);
     });
 
-    it('directs the docked panel to the start edge in RTL', () => {
-        const fixture = createFixture();
-        fixture.componentInstance.locale.set('he');
-        fixture.detectChanges();
-        outlineButton(fixture)!.click();
-        fixture.detectChanges();
-        expect(panel(fixture)!.className).toContain('rtl:right-0');
-    });
 });

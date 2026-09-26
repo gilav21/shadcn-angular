@@ -43,7 +43,7 @@ describe('compileFindRegex', () => {
         }
 
         it('still accepts ordinary quantified patterns', () => {
-            for (const safe of ['a+', String.raw`\d{2,4}`, 'c[ao]t+', '^start', 'end$', '(foo|bar)']) {
+            for (const safe of ['a+', String.raw`\d{2,4}`, 'c[ao]t+', '^start', 'end$', '(foo|bar)', '(?:foo)', '[a-z]+']) {
                 expect(compileFindRegex(safe, opts({ useRegex: true }))).not.toBeNull();
             }
         });
@@ -92,16 +92,6 @@ describe('compileFindRegex', () => {
         it('still accepts an optional group that is not repeated', () => {
             expect(compileFindRegex('(foo)?bar', opts({ useRegex: true }))).not.toBeNull();
             expect(compileFindRegex('colou?r', opts({ useRegex: true }))).not.toBeNull();
-        });
-
-        it('still rejects the capturing form', () => {
-            expect(compileFindRegex('(a+)+$', opts({ useRegex: true }))).toBeNull();
-        });
-
-        it('still accepts ordinary patterns', () => {
-            for (const p of ['hello', 'a+b', '(foo|bar)', '(?:foo)', '[a-z]+', '^start', 'end$']) {
-                expect(compileFindRegex(p, opts({ useRegex: true }))).not.toBeNull();
-            }
         });
 
         it('rejects the nested quantifier under a NAMED group (fine-comb review)', () => {

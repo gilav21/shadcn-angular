@@ -13,7 +13,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DOCUMENT } from '@angular/common';
-import { Subject, from, isObservable, of } from 'rxjs';
+import { Subject, defer, from, isObservable, of, type Observable } from 'rxjs';
 import { catchError, debounceTime, switchMap, tap } from 'rxjs/operators';
 import { RichTextEditorAddonHost, RichTextSanitizerService } from '../..';
 import { createLocaleBindings, type LocaleInput } from '../../../../lib/i18n';
@@ -130,17 +130,24 @@ export class RichTextMentionsDirective {
         this.search$.pipe(
             debounceTime(SEARCH_DEBOUNCE_MS),
             tap(() => this.applyPopoverInputs(this.items())),
-            switchMap(({ type, query }) => {
-                const result = type === 'mention'
-                    ? this.uiRteMentionsSearch()(query)
-                    : this.uiRteTagsSearch()(query);
-                if (isObservable(result)) return result;
-                if (result instanceof Promise) return from(result);
-                return of((result ?? []) as (MentionItem | TagItem)[]);
-            }),
-            catchError(() => of([] as (MentionItem | TagItem)[])),
+            // The error is caught per query, inside the projection: a catchError
+            // on the outer stream would replace it with a completed of([]) and
+            // drop every later keystroke's search. defer() routes a search
+            // function that throws synchronously into the same catch.
+            switchMap(({ type, query }) => defer(() => this.runSearch(type, query)).pipe(
+                catchError(() => of<(MentionItem | TagItem)[]>([])),
+            )),
             takeUntilDestroyed(),
         ).subscribe((items) => this.loadedItems.set(items));
+    }
+
+    private runSearch(type: RichTextEntityType, query: string): Observable<(MentionItem | TagItem)[]> {
+        const result = type === 'mention'
+            ? this.uiRteMentionsSearch()(query)
+            : this.uiRteTagsSearch()(query);
+        if (isObservable(result)) return result;
+        if (result instanceof Promise) return from(result);
+        return of(result ?? []);
     }
 
 

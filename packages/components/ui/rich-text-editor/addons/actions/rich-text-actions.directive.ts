@@ -63,8 +63,10 @@ export class RichTextActionsDirective {
     /**
      * An action was written to the document (attach or edit). A combined
      * action emits twice — once for `'click'`, once for `'hover'` — with the
-     * params each trigger received. Not emitted when the flow aborts because
-     * the target selection was lost.
+     * params each trigger received. Not emitted when the target was lost —
+     * the text selection could not be restored, or the captured image or
+     * action element left the editor while the dialog was open (setContent,
+     * undo): nothing is written and a dialog awaiting confirm stays open.
      */
     readonly actionAttached = output<{
         actionId: string; trigger: RichTextActionTrigger; params: ActionParams; targetKind: ActionTargetKind;
@@ -475,6 +477,21 @@ export class RichTextActionsDirective {
         else style.dataset['refcount'] = String(next);
     }
 
+    /**
+     * Whether the element the flow captured can no longer take the action,
+     * logging when so. An image flow always captures its image, and any
+     * captured element must still be inside the editor: setContent, undo or
+     * writeValue can replace the content while the dialog is open, and an
+     * action written onto the detached node would be reported as attached
+     * although the document never changed.
+     */
+    private targetLost(target: ApplyTarget): boolean {
+        const el = capturedElement(target);
+        const lost = el ? !this.host.contentRoot.contains(el) : target.kind === 'image';
+        if (lost) console.error(`[rich-text-actions] lost the ${target.kind} target before applying the action.`);
+        return lost;
+    }
+
     private applyAction(
         def: RichTextActionDefinition, trigger: RichTextActionTrigger,
         params: ActionParams, target: ApplyTarget,
@@ -485,12 +502,10 @@ export class RichTextActionsDirective {
             console.error('[rich-text-actions] refused to attach non-flat params:', err);
             return false;
         }
-        const el = target.kind === 'image' ? target.image : target.existing;
+        if (this.targetLost(target)) return false;
+        const el = capturedElement(target);
         if (el) {
             this.host.mutateContent(() => writeAction(el, trigger, def.id, params));
-        } else if (target.kind === 'image') {
-            console.error('[rich-text-actions] lost the image target before applying the action.');
-            return false;
         } else {
             const doc = this.host.contentRoot.ownerDocument;
             const seed = this.mergedSeed(def);
@@ -519,12 +534,10 @@ export class RichTextActionsDirective {
             console.error('[rich-text-actions] refused to attach non-flat combined params:', err);
             return false;
         }
-        const el = target.kind === 'image' ? target.image : target.existing;
+        if (this.targetLost(target)) return false;
+        const el = capturedElement(target);
         if (el) {
             this.host.mutateContent(() => writeCombined(el, def.id, params));
-        } else if (target.kind === 'image') {
-            console.error('[rich-text-actions] lost the image target before applying the action.');
-            return false;
         } else {
             const doc = this.host.contentRoot.ownerDocument;
             const seed = this.mergedSeed(def);
@@ -543,6 +556,15 @@ export class RichTextActionsDirective {
         this.actionAttached.emit({ actionId: def.id, trigger: 'hover', params: params.hover, targetKind: target.kind });
         return true;
     }
+}
+
+/**
+ * The element a flow captured when its dialog opened (the selected image, or
+ * the action element the caret sat in), or null when it captured none and the
+ * action wraps the live text selection instead.
+ */
+function capturedElement(target: ApplyTarget): HTMLElement | null {
+    return target.kind === 'image' ? target.image : target.existing;
 }
 
 /** The DOM target captured when the attach flow opens. */

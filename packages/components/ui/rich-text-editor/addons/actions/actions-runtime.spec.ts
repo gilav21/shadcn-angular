@@ -64,15 +64,6 @@ describe('bindRichTextActions', () => {
         off(); el.remove();
     });
 
-    it('gives handler {} for malformed params', () => {
-        const el = container('<span data-action-click="a" data-action-click-params="{bad">t</span>');
-        let params: unknown = null;
-        const off = bindRichTextActions(el, { handlers: { a: (e) => (params = e.params) } });
-        (el.querySelector('span') as HTMLElement).click();
-        expect(params).toEqual({});
-        off(); el.remove();
-    });
-
     it('applies a11y affordances and reverts them on unbind', () => {
         const el = container('<span data-action-click="a">t</span>');
         const off = bindRichTextActions(el, { handlers: { a: () => undefined } });

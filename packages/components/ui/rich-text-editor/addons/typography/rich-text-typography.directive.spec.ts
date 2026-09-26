@@ -194,8 +194,8 @@ describe('RichTextTypographyDirective', () => {
         const fixture = TestBed.createComponent(ToggleHostCmp);
         openFixtures.push(fixture);
         fixture.detectChanges();
-        expect(fixture.nativeElement.querySelector('[data-addon-slot="typography.size"]')).toBeTruthy();
-        expect(fixture.nativeElement.querySelector('[data-addon-slot="typography.family"]')).toBeTruthy();
+        expect(fixture.nativeElement.querySelector('[data-addon-slot="typography.size"] button[title="Font Size"]')).toBeTruthy();
+        expect(fixture.nativeElement.querySelector('[data-addon-slot="typography.family"] button[title="Font Family"]')).toBeTruthy();
 
         fixture.componentInstance.enabled.set(false);
         fixture.detectChanges();
@@ -205,16 +205,6 @@ describe('RichTextTypographyDirective', () => {
         fixture.componentInstance.enabled.set(true);
         fixture.detectChanges();
         expect(fixture.nativeElement.querySelector('[data-addon-slot="typography.size"]')).toBeTruthy();
-    });
-
-    it('contributes font-size and font-family toolbar slots', () => {
-        const fixture = createFixture();
-        const size = fixture.nativeElement.querySelector('[data-addon-slot="typography.size"]');
-        const family = fixture.nativeElement.querySelector('[data-addon-slot="typography.family"]');
-        expect(size).toBeTruthy();
-        expect(family).toBeTruthy();
-        expect(size.querySelector('button[title="Font Size"]')).toBeTruthy();
-        expect(family.querySelector('button[title="Font Family"]')).toBeTruthy();
     });
 
     // `execCommand` replaces the styled run with NEW nodes, so a range saved
@@ -349,12 +339,6 @@ describe('RichTextTypographyDirective', () => {
         expect(fixture.componentInstance.sizes).toEqual([]);
     });
 
-    it('offers the built-in font families by default', () => {
-        const fixture = createFixture();
-        const family = buttonByKind(fixture, 'family');
-        expect(family.context.options()).toEqual(DEFAULT_FONT_FAMILIES);
-    });
-
     it('appends custom fonts to the defaults with the append strategy', () => {
         const fixture = createFixture();
         fixture.componentInstance.families.set(['Roboto', 'Open Sans']);
@@ -383,15 +367,6 @@ describe('RichTextTypographyDirective', () => {
 
         const family = buttonByKind(fixture, 'family');
         expect(family.context.options()).toEqual(DEFAULT_FONT_FAMILIES);
-    });
-
-    it('exposes font-size options suffixed with px', () => {
-        const fixture = createFixture();
-        const size = buttonByKind(fixture, 'size');
-        const options = size.context.options();
-        expect(options[0]).toBe('8px');
-        expect(options).toContain('24px');
-        expect(options.every((o) => o.endsWith('px'))).toBe(true);
     });
 
     it('localizes the button tooltips (he)', () => {

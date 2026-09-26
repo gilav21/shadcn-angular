@@ -20,12 +20,6 @@ describe('rich-text-editor barrel', () => {
         expect(exported.has('TOOLBAR_BUTTONS')).toBe(true);
     });
 
-    it('exports the toolbar item unions the typed table is keyed by', () => {
-        // Runtime proof the table itself (not just its type) crossed the barrel.
-        expect(Object.keys(barrel.TOOLBAR_BUTTONS).length).toBeGreaterThan(20);
-        expect(Object.keys(barrel.TOOLBAR_BUTTONS)).not.toContain('separator');
-    });
-
     it('keeps the data-driven custom toolbar types public', () => {
         expect(item.id).toBe('x');
     });

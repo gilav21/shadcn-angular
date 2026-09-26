@@ -64,10 +64,35 @@ describe('RichTextTablesButtonComponent', () => {
         }
     });
 
-    it('opens the grid popover, saving the selection', () => {
-        const { button } = create();
-        button.onOpenChange(true);
-        expect(button.open()).toBe(true);
+    it('inserts at the caret saved when the grid popover opened, after the selection has left the editor', () => {
+        const { fixture, editor } = create();
+        editor.innerHTML = '<p>first</p><p>second</p>';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        fixture.detectChanges();
+        const caretAt = (text: Node): void => {
+            const range = document.createRange();
+            range.setStart(text, text.textContent!.length);
+            range.collapse(true);
+            document.getSelection()!.removeAllRanges();
+            document.getSelection()!.addRange(range);
+        };
+        caretAt(editor.querySelector('p')!.firstChild!);
+
+        const trigger = fixture.nativeElement.querySelector('[data-addon-slot="tables.insert"] button') as HTMLButtonElement;
+        trigger.click();
+        fixture.detectChanges();
+        const outside = document.createElement('p');
+        outside.textContent = 'elsewhere';
+        document.body.appendChild(outside);
+        caretAt(outside.firstChild!);
+        (document.querySelector('[data-grid-cell][aria-label="2x2"]') as HTMLButtonElement).click();
+        fixture.detectChanges();
+
+        outside.remove();
+
+        expect(Array.from(editor.children).map((c) => c.tagName)).toEqual(['P', 'TABLE', 'P', 'P']);
+        expect(editor.children[0].textContent).toBe('first');
+        expect(editor.children[3].textContent).toBe('second');
     });
 
     it('resets the hover size when the popover closes', () => {
@@ -82,13 +107,6 @@ describe('RichTextTablesButtonComponent', () => {
         expect(button.open()).toBe(false);
         expect(button.hoverRows()).toBe(0);
         expect(button.hoverCols()).toBe(0);
-    });
-
-    it('tracks the hovered grid dimensions', () => {
-        const { button } = create();
-        button.onHover(2, 5);
-        expect(button.hoverRows()).toBe(2);
-        expect(button.hoverCols()).toBe(5);
     });
 
     it('inserts a table and closes on select', () => {

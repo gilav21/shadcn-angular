@@ -175,6 +175,12 @@ export class RichTextImageResizerComponent implements OnDestroy {
 
     private rafId: number | null = null;
     private resizeObserver: ResizeObserver | null = null;
+    /**
+     * The element the scroll listener was added to. Kept because
+     * {@link container} may have changed by the time tracking stops, and the
+     * listener must come off the element it went on.
+     */
+    private scrollListenerTarget: HTMLElement | null = null;
     private readonly onContainerScrollBound = (): void => this.scheduleUpdate();
     private readonly onWindowResizeBound = (): void => this.scheduleUpdate();
     private resizeState: ResizeState | null = null;
@@ -271,6 +277,7 @@ export class RichTextImageResizerComponent implements OnDestroy {
         if (container) {
             this.resizeObserver.observe(container);
             container.addEventListener('scroll', this.onContainerScrollBound, { passive: true });
+            this.scrollListenerTarget = container;
         }
         this.document.defaultView?.addEventListener('resize', this.onWindowResizeBound);
         this.scheduleUpdate();
@@ -285,7 +292,8 @@ export class RichTextImageResizerComponent implements OnDestroy {
             this.resizeObserver.disconnect();
             this.resizeObserver = null;
         }
-        this.container()?.removeEventListener('scroll', this.onContainerScrollBound);
+        this.scrollListenerTarget?.removeEventListener('scroll', this.onContainerScrollBound);
+        this.scrollListenerTarget = null;
         this.document.defaultView?.removeEventListener('resize', this.onWindowResizeBound);
     }
 
@@ -373,23 +381,13 @@ export class RichTextImageResizerComponent implements OnDestroy {
             ? this.lockedSize(state, deltaX)
             : this.freeSize(state, deltaX, deltaY);
 
-        const min = this.minWidth();
-        if (size.width >= min && size.height >= min) {
-            t.style.width = `${size.width}px`;
-            t.style.height = `${size.height}px`;
-        }
+        // Written unconditionally: both size paths already bound their result,
+        // and a floor gate here would freeze the drag of an image whose ratio
+        // lets the ceiling push its short side under the floor.
+        t.style.width = `${size.width}px`;
+        t.style.height = `${size.height}px`;
     }
 
-    /**
-     * Resize the image from the keyboard.
-     *
-     * The eight drag handles are pointer-only by nature -- a drag has no
-     * keyboard equivalent -- and they were bare divs with no tabindex, role or
-     * key handling, so image resizing could not be done without a pointer at
-     * all. This gives the overlay one focusable control that grows and shrinks
-     * the image with the arrow keys, holding the aspect ratio when
-     * {@link lockAspectRatio} asks for it. Shift moves in larger steps.
-     */
     /**
      * Accessible name for one resize handle.
      *
@@ -402,6 +400,16 @@ export class RichTextImageResizerComponent implements OnDestroy {
         return RESIZE_HANDLE_LABELS[handle];
     }
 
+    /**
+     * Resize the image from the keyboard.
+     *
+     * The eight drag handles are pointer-only by nature -- a drag has no
+     * keyboard equivalent -- and they were bare divs with no tabindex, role or
+     * key handling, so image resizing could not be done without a pointer at
+     * all. This gives the overlay one focusable control that grows and shrinks
+     * the image with the arrow keys, holding the aspect ratio when
+     * {@link lockAspectRatio} asks for it. Shift moves in larger steps.
+     */
     onResizeKeydown(event: KeyboardEvent, handle: ResizeHandle): void {
         const arrow = KEYBOARD_RESIZE_DELTA[event.key];
         if (!arrow) return;
@@ -476,47 +484,33 @@ export class RichTextImageResizerComponent implements OnDestroy {
      * the default.
      */
     private clampWidth(width: number): number {
-        const max = this.maxWidth() ?? MAX_IMAGE_DIMENSION;
-        return Math.min(Math.min(max, MAX_IMAGE_DIMENSION), Math.max(this.minWidth(), width));
+        return Math.min(this.widthCeiling(), Math.max(this.minWidth(), width));
+    }
+
+    /** The width bound: {@link maxWidth} when set, never above the absolute cap. */
+    private widthCeiling(): number {
+        return Math.min(this.maxWidth() ?? MAX_IMAGE_DIMENSION, MAX_IMAGE_DIMENSION);
     }
 
     /**
-     * Size with the aspect ratio held. BOTH axes are bounded here.
+     * Fit a ratio-locked size inside the bounds by scaling both axes by one
+     * factor, so the image keeps its shape and the drag stays responsive.
      *
-     * Clamping width and then deriving height by division skipped the height
-     * bound entirely: a 20x10000 image dragged out reached 5,000,000px. And
-     * because `lockAspectRatio` defaults to true, that is the path most users
-     * are on -- the earlier bounds fix, and both of its tests, only exercised
-     * `freeSize`, the ratio-unlocked function.
-     *
-     * The ratio is preserved while clamping, so the image stays the shape it
-     * was. Only the ceiling is enforced here; the floor belongs to
-     * onPointerMove, which rejects an undersized drag rather than snapping it.
-     */
-    /**
-     * Fit a ratio-locked size inside the bounds, scaling rather than overriding.
-     *
-     * The earlier version enforced the floor on the DERIVED axis and then
-     * back-projected it onto the axis the user was dragging, which pinned the
-     * width: a 2000x40 banner returned 1000px for a 500px request and for a
-     * 100px request alike, so the drag was unresponsive below 1000px -- the
-     * frozen drag relocated, not removed. It could also return a dimension under
-     * the very floor it exists to enforce.
-     *
-     * Scaling both axes by one factor keeps the ratio, keeps the drag
-     * responsive, and cannot produce a dimension outside the bounds.
+     * The floor is applied first and the ceiling last, so the ceiling always
+     * holds: {@link minWidth} on both axes, {@link maxWidth} (or the absolute
+     * cap) on width and the absolute cap on height. When the ratio is so extreme
+     * that no size satisfies floor and ceiling together (past cap:floor, 500:1 by
+     * default), the ceiling wins and the short side may end under the floor --
+     * the ratio is never bent to rescue it.
      */
     private ratioBoundedSize(width: number, aspect: number): { width: number; height: number } {
         const min = this.minWidth();
         const height = width / aspect;
+        const underBy = Math.max(min / width, min / height, 1);
+        const grown = { width: width * underBy, height: height * underBy };
+        const overBy = Math.max(grown.width / this.widthCeiling(), grown.height / MAX_IMAGE_DIMENSION, 1);
 
-        // Shrink if either axis is over the ceiling, grow if either is under the
-        // floor; the tighter constraint wins.
-        const overBy = Math.max(width / MAX_IMAGE_DIMENSION, height / MAX_IMAGE_DIMENSION, 1);
-        const scaled = { width: width / overBy, height: height / overBy };
-        const underBy = Math.max(min / scaled.width, min / scaled.height, 1);
-
-        return { width: scaled.width * underBy, height: scaled.height * underBy };
+        return { width: grown.width / overBy, height: grown.height / overBy };
     }
 
     private lockedSize(state: ResizeState, deltaX: number): { width: number; height: number } {

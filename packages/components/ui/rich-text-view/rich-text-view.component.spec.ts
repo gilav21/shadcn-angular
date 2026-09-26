@@ -38,7 +38,7 @@ describe('RichTextViewComponent', () => {
         fixture.componentRef.setInput('mode', 'html');
         fixture.componentRef.setInput(
             'value',
-            '<p>Hi<script>x()</script></p><img src="x" onerror="alert(1)">',
+            '<p>Hi<script>x()</script></p><img src="/logo.png" onerror="alert(1)">',
         );
         fixture.detectChanges();
 
@@ -46,7 +46,7 @@ describe('RichTextViewComponent', () => {
         expect(el.querySelector('p')?.textContent).toBe('Hi');
         expect(el.querySelector('script')).toBeNull();
         expect(el.innerHTML).not.toContain('onerror');
-        expect(el.querySelector('img')).not.toBeNull();
+        expect(el.querySelector('img')?.getAttribute('src')).toBe('/logo.png');
     });
 
     it('T-20b drops a javascript: href', () => {

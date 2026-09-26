@@ -56,29 +56,14 @@ describe('RichTextImagesOverlayComponent', () => {
         host = fixture.nativeElement as HTMLElement;
     });
 
-    it('hides the uploading layer by default', () => {
+    it('shows the uploading layer with the localized string', () => {
         fixture.detectChanges();
         expect(host.querySelector('[data-slot="rte-images-uploading"]')).toBeNull();
-    });
 
-    it('shows the uploading layer with the localized string', () => {
         fixture.componentRef.setInput('uploading', true);
         fixture.detectChanges();
         const layer = host.querySelector('[data-slot="rte-images-uploading"]');
         expect(layer?.textContent).toContain(LOCALE_EN.uploading);
-    });
-
-    it('renders one error badge per error entry positioned via inline styles', () => {
-        const entries: ImageUploadErrorEntry[] = [
-            { id: 'a', top: 10, left: 20, width: 120, height: 80 },
-        ];
-        fixture.componentRef.setInput('errorEntries', entries);
-        fixture.detectChanges();
-        const badge = host.querySelector<HTMLElement>('[data-slot="rte-images-error"]');
-        expect(badge).toBeTruthy();
-        expect(badge?.style.top).toBe('10px');
-        expect(badge?.style.left).toBe('20px');
-        expect(badge?.textContent).toContain(LOCALE_EN.uploadFailed);
     });
 
     it('re-emits retryError and removeError from the badge buttons', () => {

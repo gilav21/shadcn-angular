@@ -163,13 +163,14 @@ describe('RichTextMentionPopoverComponent', () => {
         expect(selected).toHaveBeenCalledWith(USERS[0]);
     });
 
-    it('renders a tag row via the tag accessor', () => {
+    it('renders a tag row as its color dot and label', () => {
         fixture.componentRef.setInput('type', 'tag');
         fixture.componentRef.setInput('items', TAGS);
         fixture.detectChanges();
-        const dot = (fixture.nativeElement as HTMLElement).querySelector('[style*="background-color"]');
-        expect(dot).toBeTruthy();
-        expect(component.asTag(TAGS[0]).color).toBe('#f00');
+        const row = (fixture.nativeElement as HTMLElement).querySelector('button[role="option"]')!;
+        const dot = row.querySelector('.rounded-full')!;
+        expect(getComputedStyle(dot).backgroundColor).toBe('rgb(255, 0, 0)');
+        expect(row.textContent?.trim()).toBe('UX');
     });
 });
 
