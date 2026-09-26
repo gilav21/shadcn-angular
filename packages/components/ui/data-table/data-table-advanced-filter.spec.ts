@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { evaluateAdvancedFilter, matchesCondition } from './data-table.utils';
 import { DataTableComponent } from './data-table.component';
 import { DataTableFilterBuilderComponent } from './sub/data-table-filter-builder.component';
-import { ColumnDef, FilterGroup, FilterOperator } from './data-table.types';
+import { ColumnDef, FilterGroup, FilterOperator, FilterRule } from './data-table.types';
 
 let originalResizeObserver: typeof ResizeObserver | undefined;
 
@@ -32,6 +32,13 @@ describe('matchesCondition (A5)', () => {
     expect(matchesCondition('Hello', 'endsWith', 'LO')).toBe(true);
     expect(matchesCondition('Hello', 'equals', 'hello')).toBe(true);
     expect(matchesCondition('Hello', 'notEquals', 'bye')).toBe(true);
+
+    expect(matchesCondition('Hello World', 'contains', 'globe')).toBe(false);
+    expect(matchesCondition('Hello', 'notContains', 'ELL')).toBe(false);
+    expect(matchesCondition('Hello', 'startsWith', 'lo')).toBe(false);
+    expect(matchesCondition('Hello', 'endsWith', 'he')).toBe(false);
+    expect(matchesCondition('Hello', 'equals', 'hell')).toBe(false);
+    expect(matchesCondition('Hello', 'notEquals', 'HELLO')).toBe(false);
   });
 
   it('handles numeric comparisons', () => {
@@ -48,6 +55,8 @@ describe('matchesCondition (A5)', () => {
     expect(matchesCondition('  ', 'isEmpty', undefined)).toBe(true);
     expect(matchesCondition('x', 'isNotEmpty', undefined)).toBe(true);
     expect(matchesCondition(null, 'isEmpty', undefined)).toBe(true);
+    expect(matchesCondition('x', 'isEmpty', undefined)).toBe(false);
+    expect(matchesCondition('  ', 'isNotEmpty', undefined)).toBe(false);
   });
 
   it('matches everything for an unknown operator', () => {
@@ -109,6 +118,22 @@ describe('evaluateAdvancedFilter (A5)', () => {
       ],
     };
     expect(evaluateAdvancedFilter(group, get)).toBe(true);
+
+    const failingNested: FilterGroup = {
+      ...group,
+      rules: [
+        group.rules[0],
+        {
+          type: 'group',
+          combinator: 'or',
+          rules: [
+            { type: 'condition', column: 'amount', operator: 'lt', value: 100 },
+            { type: 'condition', column: 'name', operator: 'startsWith', value: 'Glo' },
+          ],
+        },
+      ],
+    };
+    expect(evaluateAdvancedFilter(failingNested, get)).toBe(false);
   });
 });
 
@@ -147,11 +172,6 @@ describe('DataTableComponent advanced filter integration (A5)', () => {
     expect(component.filteredData().map((r) => r.id)).toEqual(['1', '3']);
   });
 
-  it('ignores an empty advanced filter group', () => {
-    component.advancedFilter.set({ type: 'group', combinator: 'and', rules: [] });
-    expect(component.filteredData()).toHaveLength(3);
-  });
-
   it('combines with OR across columns', () => {
     component.advancedFilter.set({
       type: 'group',
@@ -173,10 +193,6 @@ describe('DataTableComponent advanced filter integration (A5)', () => {
       { key: 'name', header: 'Name' },
       { key: 'amount', header: 'Amount' },
     ]);
-  });
-
-  it('filterBuilderLabels falls back to the English defaults', () => {
-    expect(component.filterBuilderLabels().addCondition).toBe('+ Condition');
   });
 
   it('advancedFilterCount counts leaf conditions across nested groups, and clearAdvancedFilter resets it', () => {
@@ -202,21 +218,17 @@ describe('DataTableComponent advanced filter integration (A5)', () => {
     expect(component.advancedFilterCount()).toBe(0);
   });
 
-  it('onAdvancedFilterChange updates the advancedFilter model', () => {
-    const group: FilterGroup = { type: 'group', combinator: 'or', rules: [] };
-    component.onAdvancedFilterChange(group);
-    expect(component.advancedFilter()).toEqual(group);
-  });
-
   it('onAdvancedFilterChange returns to page 0 so a narrowing edit cannot strand the view', () => {
     component.paginationState.set({ pageIndex: 2, pageSize: 1 });
-
-    component.onAdvancedFilterChange({
+    const tree: FilterGroup = {
       type: 'group',
       combinator: 'and',
       rules: [{ type: 'condition', column: 'amount', operator: 'gt', value: 1000 }],
-    });
+    };
 
+    component.onAdvancedFilterChange(tree);
+
+    expect(component.advancedFilter()).toEqual(tree);
     expect(component.paginationState().pageIndex).toBe(0);
     expect(component.paginationState().pageSize).toBe(1);
   });
@@ -241,19 +253,30 @@ describe('DataTableFilterBuilderComponent (A5)', () => {
     fixture.detectChanges();
   });
 
-  it('emits a new condition on addCondition', () => {
+  const existing: FilterRule = { type: 'condition', column: 'name', operator: 'equals', value: 'Acme' };
+
+  it('appends a new condition after the existing rules on addCondition', () => {
+    fixture.componentRef.setInput('group', { type: 'group', combinator: 'or', rules: [existing] });
     let emitted: FilterGroup | null = null;
     component.groupChange.subscribe((g) => (emitted = g));
     component.addCondition();
-    expect(emitted!.rules).toHaveLength(1);
-    expect(emitted!.rules[0]).toMatchObject({ type: 'condition', column: 'name', operator: 'contains' });
+    expect(emitted).toEqual({
+      type: 'group',
+      combinator: 'or',
+      rules: [existing, { type: 'condition', column: 'name', operator: 'contains', value: '' }],
+    });
   });
 
-  it('emits a nested group on addGroup', () => {
+  it('appends an empty nested group after the existing rules on addGroup', () => {
+    fixture.componentRef.setInput('group', { type: 'group', combinator: 'or', rules: [existing] });
     let emitted: FilterGroup | null = null;
     component.groupChange.subscribe((g) => (emitted = g));
     component.addGroup();
-    expect(emitted!.rules[0]).toMatchObject({ type: 'group', combinator: 'and' });
+    expect(emitted).toEqual({
+      type: 'group',
+      combinator: 'or',
+      rules: [existing, { type: 'group', combinator: 'and', rules: [] }],
+    });
   });
 
   it('toggles the combinator', () => {
@@ -263,15 +286,13 @@ describe('DataTableFilterBuilderComponent (A5)', () => {
     expect(emitted!.combinator).toBe('or');
   });
 
-  it('removes a rule', () => {
-    fixture.componentRef.setInput('group', {
-      type: 'group', combinator: 'and',
-      rules: [{ type: 'condition', column: 'name', operator: 'contains', value: 'x' }],
-    });
+  it('removes only the rule at the given index', () => {
+    const second: FilterRule = { type: 'condition', column: 'name', operator: 'contains', value: 'x' };
+    fixture.componentRef.setInput('group', { type: 'group', combinator: 'and', rules: [existing, second] });
     let emitted: FilterGroup | null = null;
     component.groupChange.subscribe((g) => (emitted = g));
     component.removeRule(0);
-    expect(emitted!.rules).toHaveLength(0);
+    expect(emitted!.rules).toEqual([second]);
   });
 
   it('needsValue is false for valueless operators and true otherwise', () => {

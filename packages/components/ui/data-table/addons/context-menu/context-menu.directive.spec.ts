@@ -15,7 +15,7 @@ import {
   type RowActionContext,
   type SortDirection,
 } from '../..';
-import type { ContextMenuItem } from '../../../context-menu';
+import { ContextMenuComponent, type ContextMenuItem } from '../../../context-menu';
 
 interface Row {
   id: string;
@@ -226,14 +226,6 @@ describe('DataTableContextMenuDirective', () => {
     }
   });
 
-  it('registers a cell-action slot when rowActions is provided', () => {
-    const { comp, fixture } = setup(host);
-    expect(host.cellActionSlots()).toHaveLength(0);
-    comp.actions.set(() => [{ label: 'Edit' }]);
-    fixture.detectChanges();
-    expect(host.cellActionSlots()).toHaveLength(1);
-  });
-
   it('removes the cell-action slot when rowActions is cleared', () => {
     const { comp, fixture } = setup(host);
     comp.actions.set(() => [{ label: 'Edit' }]);
@@ -258,18 +250,6 @@ describe('DataTableContextMenuDirective', () => {
     fixture.detectChanges();
     const items = directive.buildRowMenuItems(host.getRowContext({ id: '1', name: 'Alice' }, 0));
     expect(items).toEqual([{ label: 'Edit Alice' }]);
-  });
-
-  it('buildColumnMenuItems includes sort, pin, and visibility items', () => {
-    const { directive } = setup(host);
-    const items = directive.buildColumnMenuItems(SORTABLE);
-    const labels = items.filter((i) => i.label).map((i) => i.label);
-    expect(labels).toContain('Sort Ascending');
-    expect(labels).toContain('Sort Descending');
-    expect(labels).toContain('Pin Left');
-    expect(labels).toContain('Pin Right');
-    expect(labels).toContain('Hide Column');
-    expect(labels).toContain('Show All Columns');
   });
 
   it('disables the active sort direction and wires sort clicks to the host', () => {
@@ -298,12 +278,6 @@ describe('DataTableContextMenuDirective', () => {
     expect(labels).toContain('הצמד לשמאל');
     expect(labels).toContain('הסתר עמודה');
     expect(labels).toContain('הצג את כל העמודות');
-  });
-
-  it('never surfaces undefined labels when the host locale omits keys', () => {
-    const { directive } = setup(host);
-    const labels = directive.buildColumnMenuItems(SORTABLE).filter((i) => i.type !== 'separator').map((i) => i.label);
-    expect(labels.every((l) => typeof l === 'string' && l.length > 0)).toBe(true);
   });
 
   it('omits sort items for a column with enableSorting:false', () => {
@@ -473,7 +447,7 @@ describe('DataTableContextMenuDirective', () => {
     expect(emitted).toHaveLength(0);
   });
 
-  it('opens a row menu from the cell-action button positioned at its rect', () => {
+  it('opens a row menu from the cell-action button at its bottom-right corner, or at the origin with no button', () => {
     const { comp, fixture, directive } = setup(host);
     comp.actions.set(() => [{ label: 'Edit' }]);
     fixture.detectChanges();
@@ -481,23 +455,20 @@ describe('DataTableContextMenuDirective', () => {
     directive.rowMenuOpen.subscribe((ctx) => emitted.push(ctx));
 
     const button = document.createElement('button');
+    const icon = document.createElement('span');
+    button.appendChild(icon);
     const context: RowActionContext<Row> = { row: { id: '1', name: 'Alice' }, index: 0, selected: false };
-    host.cellActionSlots()[0].onClick({ target: button } as unknown as Event, context);
-
-    expect(emitted).toEqual([context]);
-  });
-
-  it('opens a row menu from a button click even when the target is not a button', () => {
-    const { comp, fixture, directive } = setup(host);
-    comp.actions.set(() => [{ label: 'Edit' }]);
+    host.cellActionSlots()[0].onClick({ target: icon } as unknown as Event, context);
     fixture.detectChanges();
-    const emitted: RowActionContext<Row>[] = [];
-    directive.rowMenuOpen.subscribe((ctx) => emitted.push(ctx));
 
-    const context: RowActionContext<Row> = { row: { id: '1', name: 'Alice' }, index: 0, selected: false };
-    host.cellActionSlots()[0].onClick({ target: document.createElement('span') } as unknown as Event, context);
-
+    const menu = fixture.debugElement.query(By.directive(ContextMenuComponent)).componentInstance as ContextMenuComponent;
     expect(emitted).toEqual([context]);
+    expect(menu.open()).toBe(true);
+    expect(menu.position()).toEqual({ x: FIXED_RECT.right, y: FIXED_RECT.bottom });
+    expect(menu.data()).toEqual(context);
+
+    host.cellActionSlots()[0].onClick({ target: document.createElement('div') } as unknown as Event, context);
+    expect(menu.position()).toEqual({ x: 0, y: 0 });
   });
 
   it('opens a column menu from the header-action button and emits its column', () => {
@@ -511,16 +482,5 @@ describe('DataTableContextMenuDirective', () => {
     host.headerActionSlots()[0].onClick({ target: button } as unknown as Event, SORTABLE);
 
     expect(emitted).toEqual([SORTABLE]);
-  });
-
-  it('cleans up open menus on destroy without throwing', () => {
-    const { comp, fixture } = setup(host);
-    comp.actions.set(() => [{ label: 'Edit' }]);
-    comp.colMenu.set(true);
-    fixture.detectChanges();
-    const context: RowActionContext<Row> = { row: { id: '1', name: 'Alice' }, index: 0, selected: false };
-    host.cellActionSlots()[0].onClick({ target: document.createElement('button') } as unknown as Event, context);
-    host.headerActionSlots()[0].onClick({ target: document.createElement('button') } as unknown as Event, SORTABLE);
-    expect(() => fixture.destroy()).not.toThrow();
   });
 });

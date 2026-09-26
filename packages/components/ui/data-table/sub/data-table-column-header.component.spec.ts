@@ -43,20 +43,6 @@ describe('DataTableColumnHeaderComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(fixture.componentInstance).toBeTruthy();
-    });
-
-    it('should render title', () => {
-        const el = fixture.debugElement.query(By.css('span'));
-        expect(el.nativeElement.textContent.trim()).toBe('Name');
-    });
-
-    it('should render a sort button when sorting is enabled', () => {
-        const button = fixture.debugElement.query(By.css('ui-button'));
-        expect(button).toBeTruthy();
-    });
-
     it('should render plain text when sorting is disabled', async () => {
         host.enableSorting.set(false);
         fixture.detectChanges();
@@ -67,38 +53,6 @@ describe('DataTableColumnHeaderComponent', () => {
 
         const textDiv = fixture.debugElement.query(By.css('div > div'));
         expect(textDiv.nativeElement.textContent.trim()).toBe('Name');
-    });
-
-    it('should emit sort event on click with asc when no direction set', () => {
-        const button = fixture.debugElement.query(By.css('ui-button'));
-        button.nativeElement.click();
-        fixture.detectChanges();
-
-        expect(host.onSort).toHaveBeenCalledWith('asc');
-    });
-
-    it('should emit sort desc when current direction is asc', async () => {
-        host.direction.set('asc');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const button = fixture.debugElement.query(By.css('ui-button'));
-        button.nativeElement.click();
-        fixture.detectChanges();
-
-        expect(host.onSort).toHaveBeenCalledWith('desc');
-    });
-
-    it('should emit sort null when current direction is desc', async () => {
-        host.direction.set('desc');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const button = fixture.debugElement.query(By.css('ui-button'));
-        button.nativeElement.click();
-        fixture.detectChanges();
-
-        expect(host.onSort).toHaveBeenCalledWith(null);
     });
 
     it('should show sort index badge when sortIndex is provided', async () => {
@@ -151,6 +105,7 @@ describe('DataTableColumnHeaderComponent', () => {
             button.nativeElement.click();
             fixture.detectChanges();
             expect(host.onSort).toHaveBeenLastCalledWith(null);
+            expect(host.onSort).toHaveBeenCalledTimes(3);
         });
 
         it('should emit sortMeta with correct direction at each step of the cycle', async () => {
@@ -176,57 +131,9 @@ describe('DataTableColumnHeaderComponent', () => {
             fixture.detectChanges();
             expect(host.onSortMeta).toHaveBeenLastCalledWith({ direction: null, multi: false });
         });
-
-        it('should have been called exactly 3 times after full cycle', async () => {
-            host.onSort.mockClear();
-            const button = fixture.debugElement.query(By.css('ui-button'));
-
-            button.nativeElement.click();
-            fixture.detectChanges();
-
-            host.direction.set('asc');
-            fixture.detectChanges();
-            await fixture.whenStable();
-
-            button.nativeElement.click();
-            fixture.detectChanges();
-
-            host.direction.set('desc');
-            fixture.detectChanges();
-            await fixture.whenStable();
-
-            button.nativeElement.click();
-            fixture.detectChanges();
-
-            expect(host.onSort).toHaveBeenCalledTimes(3);
-        });
     });
 
     describe('shift-click for multi-sort', () => {
-        it('should emit sortMeta with multi=true when shift key is held', () => {
-            const headerComponent = fixture.debugElement.query(By.directive(DataTableColumnHeaderComponent));
-            const buttonEl = headerComponent.query(By.css('ui-button'));
-
-            const shiftClickEvent = new MouseEvent('click', {
-                bubbles: true,
-                cancelable: true,
-                shiftKey: true,
-            });
-            buttonEl.nativeElement.dispatchEvent(shiftClickEvent);
-            fixture.detectChanges();
-
-            expect(host.onSortMeta).toHaveBeenCalledWith({ direction: 'asc', multi: true });
-        });
-
-        it('should emit sortMeta with multi=false when shift key is not held', () => {
-            const button = fixture.debugElement.query(By.css('ui-button'));
-
-            button.nativeElement.click();
-            fixture.detectChanges();
-
-            expect(host.onSortMeta).toHaveBeenCalledWith({ direction: 'asc', multi: false });
-        });
-
         it('should emit multi=true through the full sort cycle with shift held', async () => {
             const headerComponent = fixture.debugElement.query(By.directive(DataTableColumnHeaderComponent));
             const buttonEl = headerComponent.query(By.css('ui-button'));

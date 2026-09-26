@@ -145,10 +145,38 @@ function setup(host: FakeHost<Row>): {
   return { fixture, comp, directive };
 }
 
-function stubDownload(): void {
-  vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
-  vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:fake');
+interface Download {
+  name: string;
+  blob: Blob;
+}
+
+/** Stubs the browser download and records each file the user would receive. */
+function stubDownload(): Download[] {
+  const downloads: Download[] = [];
+  let pending: Blob | undefined;
+  vi.spyOn(URL, 'createObjectURL').mockImplementation((blob: Blob | MediaSource) => {
+    pending = blob as Blob;
+    return 'blob:fake';
+  });
   vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+  vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function recordDownload(this: HTMLAnchorElement) {
+    if (pending) downloads.push({ name: this.download, blob: pending });
+  });
+  return downloads;
+}
+
+/** jsdom's Blob has no text()/arrayBuffer(), so read through FileReader (works in both). */
+function readBlob(blob: Blob): Promise<ArrayBuffer> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as ArrayBuffer);
+    reader.onerror = () => reject(reader.error ?? new Error('blob read failed'));
+    reader.readAsArrayBuffer(blob);
+  });
+}
+
+async function blobText(blob: Blob): Promise<string> {
+  return new TextDecoder('utf-8', { ignoreBOM: true }).decode(await readBlob(blob));
 }
 
 describe('DataTableExportDirective', () => {
@@ -164,26 +192,23 @@ describe('DataTableExportDirective', () => {
     vi.restoreAllMocks();
   });
 
-  it('exportToCsv quotes cells containing commas and triggers a download', async () => {
-    host.rows = [{ id: '1', name: 'Smith, John', score: 1 }];
+  it('exportToCsv downloads a BOM-prefixed CSV that quotes commas, quotes and newlines', async () => {
+    host.rows = [
+      { id: '1', name: 'Smith, John', score: 1 },
+      { id: '2', name: 'She said "hi"', score: 2 },
+      { id: '3', name: '12 Main St\nSpringfield', score: 3 },
+      { id: '4', name: 'Plain', score: 4 },
+    ];
     const { directive } = setup(host);
-    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
-    // Spying a class and letting it call through fails under jest (it invokes
-    // the constructor via apply, not new) — construct through a captured ref.
-    const OriginalBlob = globalThis.Blob;
-    const blobSpy = vi.spyOn(globalThis, 'Blob').mockImplementation(function makeBlob(
-      ...args: unknown[]
-    ): Blob {
-      return new OriginalBlob(...(args as [BlobPart[]?, BlobPropertyBag?]));
-    } as never);
-    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:fake');
-    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    const downloads = stubDownload();
 
     await directive.exportToCsv('myfile');
 
-    expect(clickSpy).toHaveBeenCalled();
-    const csv = String((blobSpy.mock.calls[0][0] as string[])[0]);
-    expect(csv).toContain('"Smith, John"');
+    expect(downloads.map((d) => d.name)).toEqual(['myfile.csv']);
+    expect(downloads[0].blob.type).toBe('text/csv;charset=utf-8;');
+    expect(await blobText(downloads[0].blob)).toBe(
+      '\uFEFFID,Name,Score\r\n1,"Smith, John",1\r\n2,"She said ""hi""",2\r\n3,"12 Main St\nSpringfield",3\r\n4,Plain,4',
+    );
     expect(host.busyLabel()).toBeNull();
     vi.restoreAllMocks();
   });
@@ -196,7 +221,7 @@ describe('DataTableExportDirective', () => {
     vi.restoreAllMocks();
   });
 
-  it('uses the exportDataProvider when configured', async () => {
+  it('exports the exportDataProvider rows instead of the table rows', async () => {
     const providerRows: Row[] = [{ id: '99', name: 'Provided', score: 0 }];
     const provider = vi.fn<ExportDataProvider<Row>>(async () => providerRows);
     const { comp, fixture } = setup(host);
@@ -205,10 +230,13 @@ describe('DataTableExportDirective', () => {
     const directive = fixture.debugElement
       .query(By.directive(DataTableExportDirective))
       .injector.get<DataTableExportDirective<Row>>(DataTableExportDirective);
-    stubDownload();
+    const downloads = stubDownload();
 
     await directive.exportToCsv();
     expect(provider).toHaveBeenCalledWith(host.query);
+    const csv = await blobText(downloads[0].blob);
+    expect(csv).toBe('\uFEFFID,Name,Score\r\n99,Provided,0');
+    expect(csv).not.toContain('Alice');
     vi.restoreAllMocks();
   });
 
@@ -238,14 +266,16 @@ describe('DataTableExportDirective', () => {
     vi.restoreAllMocks();
   });
 
-  it('exportToExcel produces a blob download and clears busy', async () => {
+  it('exportToExcel downloads an .xlsx zip package and clears busy', async () => {
     const { directive } = setup(host);
-    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
-    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:fake');
-    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    const downloads = stubDownload();
 
     await directive.exportToExcel('sheet');
-    expect(clickSpy).toHaveBeenCalled();
+
+    expect(downloads.map((d) => d.name)).toEqual(['sheet.xlsx']);
+    expect(downloads[0].blob.type).toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    const bytes = new Uint8Array(await readBlob(downloads[0].blob));
+    expect(String.fromCodePoint(bytes[0], bytes[1])).toBe('PK');
     expect(host.busyLabel()).toBeNull();
     vi.restoreAllMocks();
   });

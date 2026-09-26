@@ -104,15 +104,6 @@ describe('the data-table server-side query contract', () => {
     });
 
     describe('what it reports', () => {
-        /*
-         * There is no change to report at construction, and an output that
-         * emits while the component is being built fires before a consumer can
-         * be ready for it. The first fetch comes from `currentQuery()`.
-         */
-        it('says nothing on init', () => {
-            expect(host.seen).toEqual([]);
-        });
-
         it('describes the current state without emitting, for the first fetch', () => {
             expect(table().currentQuery()).toEqual({
                 globalFilter: '',
@@ -155,13 +146,6 @@ describe('the data-table server-side query contract', () => {
             await settle();
 
             expect(host.seen.at(-1)?.sortStates.map(s => s.column)).toEqual(['name', 'id']);
-        });
-
-        it('carries the global filter', async () => {
-            host.globalFilter.set('ali');
-            await settle();
-
-            expect(host.seen.at(-1)?.globalFilter).toBe('ali');
         });
 
         it('carries per-column filters', async () => {
@@ -234,13 +218,6 @@ describe('the data-table server-side query contract', () => {
 
             const sent = host.seen.at(-1)!;
             expect(JSON.parse(JSON.stringify(sent))).toEqual(sent);
-        });
-
-        it('matches what currentQuery reports at the same moment', async () => {
-            host.globalFilter.set('bob');
-            await settle();
-
-            expect(host.seen.at(-1)).toEqual(table().currentQuery());
         });
     });
 });

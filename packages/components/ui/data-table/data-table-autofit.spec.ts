@@ -20,8 +20,6 @@ const COLS: ColumnDef<Row>[] = [
   { accessorKey: 'note', header: 'Note' },
 ];
 
-type RectFn = typeof Element.prototype.getBoundingClientRect;
-
 class FakeResizeObserver {
   observe(): void {
     /* jsdom has no ResizeObserver; noop stub */
@@ -34,34 +32,20 @@ class FakeResizeObserver {
   }
 }
 
+/** A text-proportional rect, so content width is measurable without a layout engine. */
+function textRect(this: Element): DOMRect {
+  const width = (this.textContent ?? '').length * 7;
+  return { width, height: 16, top: 0, left: 0, right: width, bottom: 16, x: 0, y: 0, toJSON: () => ({}) } as DOMRect;
+}
+
 describe('DataTableComponent column auto-fit (A8)', () => {
   let component: DataTableComponent<Row>;
   let fixture: ComponentFixture<DataTableComponent<Row>>;
-  let hadResizeObserver: boolean;
-  let originalRect: RectFn | undefined;
+  let originalResizeObserver: typeof ResizeObserver | undefined;
 
   beforeEach(async () => {
-    hadResizeObserver = 'ResizeObserver' in globalThis;
+    originalResizeObserver = globalThis.ResizeObserver;
     (globalThis as { ResizeObserver?: unknown }).ResizeObserver = FakeResizeObserver;
-
-    originalRect = Object.getOwnPropertyDescriptor(
-      Element.prototype,
-      'getBoundingClientRect',
-    )?.value as RectFn | undefined;
-    Element.prototype.getBoundingClientRect = function (this: Element): DOMRect {
-      const width = (this.textContent ?? '').length * 7;
-      return {
-        width,
-        height: 16,
-        top: 0,
-        left: 0,
-        right: width,
-        bottom: 16,
-        x: 0,
-        y: 0,
-        toJSON: () => ({}),
-      } as DOMRect;
-    };
 
     await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
     fixture = TestBed.createComponent(DataTableComponent<Row>);
@@ -70,15 +54,21 @@ describe('DataTableComponent column auto-fit (A8)', () => {
     fixture.componentRef.setInput('columns', COLS);
     fixture.componentRef.setInput('enableColumnResize', true);
     fixture.detectChanges();
+
+    // Only the off-screen measurer is created after render; give that instance the stub.
+    const createElement = document.createElement.bind(document);
+    vi.spyOn(document, 'createElement').mockImplementation((tag: string, options?: ElementCreationOptions) => {
+      const el = createElement(tag, options);
+      el.getBoundingClientRect = textRect;
+      return el;
+    });
   });
 
   afterEach(() => {
-    if (originalRect) {
-      Element.prototype.getBoundingClientRect = originalRect;
+    vi.restoreAllMocks();
+    if (originalResizeObserver) {
+      globalThis.ResizeObserver = originalResizeObserver;
     } else {
-      delete (Element.prototype as { getBoundingClientRect?: RectFn }).getBoundingClientRect;
-    }
-    if (!hadResizeObserver) {
       delete (globalThis as { ResizeObserver?: unknown }).ResizeObserver;
     }
   });
@@ -119,11 +109,12 @@ describe('DataTableComponent column auto-fit (A8)', () => {
   });
 
   it('distributes the viewport width evenly across columns', () => {
+    const container = component.scrollContainerRef()!.nativeElement;
+    Object.defineProperty(container, 'clientWidth', { value: 900, configurable: true });
+
     component.fitColumnsToViewport();
-    const widths = component.columnWidths();
-    expect(widths['id']).toEqual(widths['name']);
-    expect(widths['name']).toEqual(widths['note']);
-    expect(Number.parseInt(widths['id'], 10)).toBeGreaterThanOrEqual(50);
+
+    expect(component.columnWidths()).toEqual({ id: '300px', name: '300px', note: '300px' });
   });
 
   it('autoSizeColumn/fitColumnsToViewport/scrollToRow/scrollToColumn are no-ops without a scroll container', () => {
@@ -148,11 +139,12 @@ describe('DataTableComponent column auto-fit (A8)', () => {
   });
 
   it('scrollToColumn is a no-op for an unknown column key', () => {
-    const container = { scrollLeft: 0 } as HTMLElement;
-    vi.spyOn(component, 'scrollContainerRef').mockReturnValue({ nativeElement: container } as never);
+    const container = component.scrollContainerRef()!.nativeElement;
+    Object.defineProperty(container, 'scrollLeft', { value: 120, writable: true, configurable: true });
+
     component.scrollToColumn('does-not-exist');
-    expect(container.scrollLeft).toBe(0);
-    vi.restoreAllMocks();
+
+    expect(container.scrollLeft).toBe(120);
   });
 
   it('onResizeMove is a no-op when nothing is being resized', () => {

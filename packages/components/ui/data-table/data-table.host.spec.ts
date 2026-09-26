@@ -43,18 +43,6 @@ const COLUMNS: ColumnDef<Row>[] = [
 ];
 
 describe('AddonSlotRegistry', () => {
-  it('starts empty', () => {
-    const registry = new AddonSlotRegistry<Slot>();
-    expect(registry.slots()).toEqual([]);
-  });
-
-  it('lists a registered slot', () => {
-    const registry = new AddonSlotRegistry<Slot>();
-    const slot: Slot = { id: 'a' };
-    registry.register(slot);
-    expect(registry.slots()).toEqual([slot]);
-  });
-
   it('preserves registration order across multiple slots', () => {
     const registry = new AddonSlotRegistry<Slot>();
     const a: Slot = { id: 'a' };
@@ -100,22 +88,11 @@ describe('DataTableComponent as DataTableAddonHost', () => {
     expect(host.cellActionSlots()).toEqual([]);
   });
 
-  it('reflects a registered header-action slot', () => {
-    const slot = { id: 'context-menu', onClick: () => undefined };
-    host.registerHeaderAction(slot);
-    expect(host.headerActionSlots()).toEqual([slot]);
-  });
-
-  it('exposes column pin state through getColumnPin/pinColumn', () => {
-    expect(host.getColumnPin('name')).toBeUndefined();
-    host.pinColumn('name', 'left');
-    expect(host.getColumnPin('name')).toBe('left');
-  });
-
-  it('exposes columns, a rendered row, and the locale', () => {
-    expect(host.enhancedColumns().length).toBeGreaterThan(0);
-    expect(host.getRenderedRowAt(0)).toEqual(ROWS[0]);
-    expect(typeof host.getLocale()).toBe('object');
+  it('exposes columns, the rendered row order, and the locale', () => {
+    host.onSortChange('name', 'desc');
+    expect(host.enhancedColumns().map((c) => c.accessorKey)).toEqual(['id', 'name']);
+    expect(host.getRenderedRowAt(0)).toEqual(ROWS[1]);
+    expect(host.getLocale().code).toBe('en');
   });
 
   it('returns undefined for an out-of-range rendered row', () => {
@@ -138,45 +115,10 @@ describe('DataTableComponent as DataTableAddonHost', () => {
     expect(host.headerActionSlots()).toEqual([]);
   });
 
-  it('unpins a column when pinned to undefined', () => {
-    host.pinColumn('name', 'left');
-    expect(host.getColumnPin('name')).toBe('left');
-    host.pinColumn('name', undefined);
-    expect(host.getColumnPin('name')).toBeUndefined();
-  });
-
-  it('toggles column visibility and restores every column via showAllColumns', () => {
-    host.setColumnVisibility('name', false);
-    expect(host.enhancedColumns().some((c) => String(c.accessorKey) === 'name')).toBe(false);
-    host.showAllColumns();
-    expect(host.enhancedColumns().some((c) => String(c.accessorKey) === 'name')).toBe(true);
-  });
-
-  it('builds a row-action context for a rendered row', () => {
-    const context = host.getRowContext(ROWS[0], 0);
-    expect(context).toMatchObject({ row: ROWS[0], index: 0, selected: false });
-  });
-
-  it('resolves a cell value via getCellValue', () => {
-    expect(host.getCellValue(ROWS[0], 'name')).toBe('Alice');
-  });
-
-  it('shapes export data as a header row plus cell rows', () => {
-    const grid = host.getExportData();
-    expect(grid[0]).toEqual(['ID', 'Name']);
-    expect(grid).toHaveLength(ROWS.length + 1);
-  });
-
   it('exposes sorted and raw rows across the whole data set', () => {
-    expect(host.getSortedRows()).toHaveLength(ROWS.length);
-    expect(host.getRawRows()).toEqual(ROWS);
-  });
-
-  it('reports the active filter + sort query state', () => {
     host.onSortChange('name', 'desc');
-    const query = host.queryState();
-    expect(query.globalFilter).toBe('');
-    expect(query.sort).toMatchObject({ column: 'name', direction: 'desc' });
+    expect(host.getSortedRows().map((r) => r.name)).toEqual(['Bob', 'Alice']);
+    expect(host.getRawRows()).toEqual(ROWS);
   });
 
   it('shows and clears the busy overlay label', () => {

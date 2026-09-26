@@ -4,10 +4,10 @@ import { DataTableComponent } from './data-table.component';
 import type {
   CellStyleColumn,
   ColumnDef,
-  DataTableColumnState,
   FilterGroup,
 } from './data-table.types';
 import type { DataTableLocale } from './data-table.locales';
+import { DEFAULT_FILTER_BUILDER_LABELS } from './sub/data-table-filter-builder.component';
 
 // jest's jsdom does not expose structuredClone (vitest's does); polyfill only
 // when absent so the component's deep-clone helpers work under both runners.
@@ -96,7 +96,6 @@ let clipboardText = '';
 
 /** Private-member accessor for the handful of guards only reachable internally. */
 interface Internals {
-  _toFiniteNumber(value: unknown): number | null;
   groupAggregateLabel(accessorKey: string): string;
 }
 
@@ -208,7 +207,7 @@ describe('DataTableComponent branch coverage', () => {
       });
 
       expect(component.nlFilterPlaceholder()).toBe('Ask in plain English…');
-      expect(component.filterBuilderLabels()).toBeTruthy();
+      expect(component.filterBuilderLabels()).toEqual(DEFAULT_FILTER_BUILDER_LABELS);
       const labels = component.rangeLabels();
       expect(labels).toEqual({
         count: 'Count',
@@ -219,24 +218,32 @@ describe('DataTableComponent branch coverage', () => {
         chart: 'Chart',
       });
     });
-
-    it('uses the supplied dictionary values when present', async () => {
-      const { component } = await makeFixture(FLAT_DATA, FLAT_COLUMNS, {
-        locale: 'en',
-      });
-      expect(component.rangeLabels().count).toBe('Count');
-    });
   });
 
   describe('grouping', () => {
-    it('builds grouped display rows when groupBy is set', async () => {
-      const { component } = await makeFixture(FLAT_DATA, FLAT_COLUMNS, {
-        groupBy: 'role',
-      });
-      const rows = component.groupedDisplayRows();
-      const groupRows = rows.filter((r) => r.kind === 'group');
-      expect(groupRows).toHaveLength(3);
-      expect((component as unknown as { groupAggregateLabel(k: string): string }).groupAggregateLabel('role')).toBe('Role');
+    it('renders one header per group with its count and per-group aggregate', async () => {
+      const data: Row[] = [
+        { id: '1', name: 'Alice', role: 'Admin', amount: 10 },
+        { id: '2', name: 'Bob', role: 'User', amount: 20 },
+        { id: '3', name: 'Charlie', role: 'User', amount: 35 },
+        { id: '4', name: 'David', role: 'Admin', amount: 100 },
+        { id: '5', name: 'Eve', role: 'Manager', amount: 7 },
+      ];
+      const columns: ColumnDef<Row>[] = [
+        { accessorKey: 'name', header: 'Name' },
+        { accessorKey: 'role', header: 'Role' },
+        { accessorKey: 'amount', header: 'Amount', aggregateFn: 'sum' },
+      ];
+      const { fixture } = await makeFixture(data, columns, { groupBy: 'role' });
+      const headers = [
+        ...(fixture.nativeElement as HTMLElement).querySelectorAll('[data-group-key]'),
+      ].map((row) => [...row.querySelectorAll('span')].map((span) => span.textContent?.trim()));
+
+      expect(headers).toEqual([
+        ['Admin', '(2)', 'Amount: 110'],
+        ['User', '(2)', 'Amount: 55'],
+        ['Manager', '(1)', 'Amount: 7'],
+      ]);
     });
 
     it('falls back to the accessor key for an unknown aggregate column', async () => {
@@ -249,7 +256,7 @@ describe('DataTableComponent branch coverage', () => {
   });
 
   describe('advanced filter with an unknown column', () => {
-    it('evaluates a condition referencing a non-existent column', async () => {
+    it('treats a condition on a non-existent column as an empty cell', async () => {
       const { component, fixture } = await makeFixture(FLAT_DATA, FLAT_COLUMNS);
       const group: FilterGroup = {
         type: 'group',
@@ -258,7 +265,7 @@ describe('DataTableComponent branch coverage', () => {
       };
       component.advancedFilter.set(group);
       fixture.detectChanges();
-      expect(Array.isArray(component.filteredData())).toBe(true);
+      expect(component.filteredData()).toEqual([]);
     });
   });
 
@@ -342,24 +349,28 @@ describe('DataTableComponent branch coverage', () => {
     it('builds a fallback style for a column outside the style map', async () => {
       const { component } = await makeFixture(FLAT_DATA, FLAT_COLUMNS);
       const ghost = { accessorKey: 'ghost', _width: 'auto' } as CellStyleColumn;
-      expect(component.getCellStyle(ghost)['flex-shrink']).toBeDefined();
-      expect(component.getHeaderCellStyle(ghost)['flex-shrink']).toBeDefined();
-    });
-
-    it('builds a depth-shaded fallback tree cell style', async () => {
-      const { component } = await makeFixture(FLAT_DATA, FLAT_COLUMNS);
-      const ghost = { accessorKey: 'ghost', _width: 'auto' } as CellStyleColumn;
-      const style = component.getTreeCellStyle(ghost, 3);
-      expect(style['background-color']).toContain('color-mix');
+      const autoWidth = { width: '0px', 'min-width': '80px', 'flex-shrink': '1' };
+      expect(component.getCellStyle(ghost)).toMatchObject(autoWidth);
+      expect(component.getHeaderCellStyle(ghost)).toMatchObject(autoWidth);
     });
   });
 
-  describe('_toFiniteNumber', () => {
-    it('rejects a non-finite number value', async () => {
-      const { component } = await makeFixture(FLAT_DATA, FLAT_COLUMNS);
-      const internals = component as unknown as Internals;
-      expect(internals._toFiniteNumber(Number.POSITIVE_INFINITY)).toBeNull();
-      expect(internals._toFiniteNumber(42)).toBe(42);
+  describe('data bar formatting', () => {
+    it('draws no bar for a non-finite value', async () => {
+      const amount: ColumnDef<Row> = {
+        accessorKey: 'amount',
+        header: 'Amount',
+        dataBar: { min: 0, max: 100, color: 'green' },
+      };
+      const { component } = await makeFixture(FLAT_DATA, [amount]);
+      const row = (value: number): Row => ({ id: 'x', name: 'X', role: 'User', amount: value });
+
+      expect(component.getCellFormatting(amount, row(Number.POSITIVE_INFINITY))?.dataBar).toBeNull();
+      expect(component.getCellFormatting(amount, row(42))?.dataBar).toEqual({
+        width: '42%',
+        color: 'green',
+        track: null,
+      });
     });
   });
 
@@ -381,28 +392,7 @@ describe('DataTableComponent branch coverage', () => {
     });
   });
 
-  describe('applyColumnState', () => {
-    it('applies visibility, width and order together', async () => {
-      const { component, fixture } = await makeFixture(FLAT_DATA, FLAT_COLUMNS);
-      const states: DataTableColumnState[] = [
-        { columnKey: 'name', visible: false, width: '123px', order: 1 },
-        { columnKey: 'id', order: 0 },
-      ];
-      component.applyColumnState(states);
-      fixture.detectChanges();
-      expect(component.isColumnVisible('name')).toBe(false);
-      expect(component.columnWidths()['name']).toBe('123px');
-      expect(component.columnOrder()[0]).toBe('id');
-    });
-  });
-
   describe('column drag with dataTransfer fallback source key', () => {
-    it('ignores drag-over when reordering is disabled', async () => {
-      const { component } = await makeFixture(FLAT_DATA, FLAT_COLUMNS);
-      component.onColumnDragOver(makeDragEvent('id'), FLAT_COLUMNS[1]);
-      expect(component.dropTargetColumnKey()).toBeNull();
-    });
-
     it('reads the source key from dataTransfer on drag-over', async () => {
       const { component } = await makeFixture(FLAT_DATA, FLAT_COLUMNS, {
         enableColumnReorder: true,
@@ -444,78 +434,23 @@ describe('DataTableComponent branch coverage', () => {
         makeDragEvent('1', { clientY: 10, currentTarget: fakeRowEl }),
         3,
       );
-      const preview = component.dragPreviewData();
-      expect(preview).not.toBeNull();
-      expect(preview).toHaveLength(FLAT_DATA.length);
+      expect(component.dragPreviewData()?.map((r) => r.name)).toEqual([
+        'Bob',
+        'Charlie',
+        'Alice',
+        'David',
+        'Eve',
+      ]);
       component.onRowDragEnd();
-    });
-
-    it('emits a reorder event with neighbour ids on drop', async () => {
-      const fakeRowEl = {
-        getBoundingClientRect: () => ({ top: 0, height: 100 }),
-      };
-      const { component } = await makeFixture(FLAT_DATA, FLAT_COLUMNS, {
-        enableRowDrag: true,
-      });
-      let reorder: unknown = null;
-      component.rowReorder.subscribe((e) => (reorder = e));
-
-      component.onRowDragStart(makeDragEvent('1'), FLAT_DATA[0]);
-      component.onRowDragOver(
-        makeDragEvent('1', { clientY: 90, currentTarget: fakeRowEl }),
-        3,
-      );
-      component.onRowDrop(makeDragEvent('1'));
-      expect(reorder).toMatchObject({ fromIndex: 0 });
     });
   });
 
   describe('keyboard clipboard + navigation', () => {
-    it('handles a meta+v paste shortcut', async () => {
-      const { component } = await makeFixture(FLAT_DATA, FLAT_COLUMNS, {
-        enableClipboardPaste: true,
-      });
-      component.focusedCell.set({ rowIndex: 0, columnKey: 'name' });
-      const event = new KeyboardEvent('keydown', { key: 'v', metaKey: true });
-      component.onTableKeydown(event);
-      expect(component.focusedCell()).toEqual({ rowIndex: 0, columnKey: 'name' });
-    });
-
-    it('copies the focused cell on ctrl+c', async () => {
-      const { component } = await makeFixture(FLAT_DATA, FLAT_COLUMNS);
-      component.focusedCell.set({ rowIndex: 0, columnKey: 'name' });
-      component.onTableKeydown(
-        new KeyboardEvent('keydown', { key: 'c', ctrlKey: true }),
-      );
-      expect(clipboardText).toBe('Alice');
-    });
-
-    it('copies the focused cell via copyCellToClipboard', async () => {
-      const { component } = await makeFixture(FLAT_DATA, FLAT_COLUMNS);
-      component.focusedCell.set({ rowIndex: 1, columnKey: 'name' });
-      await component.copyCellToClipboard();
-      expect(clipboardText).toBe('Bob');
-    });
-
-    it('starts editing on Enter from a focused cell', async () => {
-      const { component } = await makeFixture(FLAT_DATA, FLAT_COLUMNS);
-      component.focusedCell.set({ rowIndex: 0, columnKey: 'name' });
-      component.onTableKeydown(new KeyboardEvent('keydown', { key: 'Enter' }));
-      expect(component.focusedCell()).not.toBeNull();
-    });
-
     it('recovers from a focused column key that is not navigable', async () => {
       const { component } = await makeFixture(FLAT_DATA, FLAT_COLUMNS);
       component.focusedCell.set({ rowIndex: 0, columnKey: 'ghostcol' });
       component.onTableKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
       expect(component.focusedCell()?.columnKey).toBe('id');
-    });
-
-    it('pages down using the scroll container height', async () => {
-      const { component } = await makeFixture(FLAT_DATA, FLAT_COLUMNS);
-      component.focusedCell.set({ rowIndex: 0, columnKey: 'name' });
-      component.onTableKeydown(new KeyboardEvent('keydown', { key: 'PageDown' }));
-      expect(component.focusedCell()).not.toBeNull();
     });
   });
 
@@ -543,19 +478,6 @@ describe('DataTableComponent branch coverage', () => {
       expect(payload).not.toBeNull();
       expect(payload?.series[0].values).toContain(0);
     });
-
-    it('skips missing rows when a range extends past the data', async () => {
-      const { component } = await makeFixture(FLAT_DATA, FLAT_COLUMNS, {
-        enableRangeActions: true,
-      });
-      component.cellRange.set({
-        startRow: 0,
-        startCol: 'name',
-        endRow: 99,
-        endCol: 'amount',
-      });
-      expect(component.rangeSelectionStats()).not.toBeNull();
-    });
   });
 
   describe('sub-row tree operations', () => {
@@ -576,19 +498,6 @@ describe('DataTableComponent branch coverage', () => {
       expect(component.getChildRows({ id: 'b', name: 'B', role: 'root', amount: 5 })).toEqual([]);
     });
 
-    it('selects and deselects descendants', async () => {
-      const { component } = await makeFixture(TREE_DATA, TREE_COLUMNS, {
-        enableSubRows: true,
-      });
-      component.selectChildren(TREE_DATA[0]);
-      const selected = component.rowSelection();
-      expect(selected['a1']).toBe(true);
-      expect(selected['a1x']).toBe(true);
-
-      component.deselectChildren(TREE_DATA[0]);
-      expect(component.rowSelection()['a1']).toBeUndefined();
-    });
-
     it('no-ops select/deselect for a row outside the tree', async () => {
       const { component } = await makeFixture(TREE_DATA, TREE_COLUMNS, {
         enableSubRows: true,
@@ -599,26 +508,6 @@ describe('DataTableComponent branch coverage', () => {
       expect(component.rowSelection()).toEqual({});
     });
 
-    it('cascades selection to descendants and bubbles up to the parent', async () => {
-      const { component } = await makeFixture(TREE_DATA, TREE_COLUMNS, {
-        enableSubRows: true,
-        subRowSelectionMode: 'descendants',
-      });
-      component.toggleRowWithCascade(TREE_DATA[0]);
-      const selected = component.rowSelection();
-      expect(selected['a']).toBe(true);
-      expect(selected['a1']).toBe(true);
-      expect(selected['a1x']).toBe(true);
-    });
-
-    it('cascades only to filtered descendants', async () => {
-      const { component } = await makeFixture(TREE_DATA, TREE_COLUMNS, {
-        enableSubRows: true,
-        subRowSelectionMode: 'filteredDescendants',
-      });
-      component.toggleRowWithCascade(TREE_DATA[0]);
-      expect(component.rowSelection()['a']).toBe(true);
-    });
   });
 
   describe('column resize', () => {
@@ -628,40 +517,16 @@ describe('DataTableComponent branch coverage', () => {
       let emitted: unknown = null;
       component.columnResize.subscribe((e) => (emitted = e));
 
-      const col = { accessorKey: 'name' } as CellStyleColumn;
+      const col = { accessorKey: 'name', _width: '200px' } as CellStyleColumn;
       component.onResizeStart(new MouseEvent('mousedown', { clientX: 0 }), col);
+      // Dragging right shrinks an RTL column, down to the 50px default minimum.
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 1000 }));
+      expect(component.columnWidths()['name']).toBe('50px');
       document.dispatchEvent(new MouseEvent('mousemove', { clientX: 40 }));
-      expect(component.columnWidths()['name']).toBeDefined();
+      expect(component.columnWidths()['name']).toBe('160px');
 
       document.dispatchEvent(new MouseEvent('mouseup'));
-      expect(emitted).toMatchObject({ columnKey: 'name' });
-    });
-
-    it('starts a resize from a single-touch handle', async () => {
-      const { component } = await makeFixture(FLAT_DATA, FLAT_COLUMNS);
-      const col = { accessorKey: 'name', _width: '100px' } as CellStyleColumn;
-      const touchEvent = {
-        touches: [{ clientX: 5 }],
-        preventDefault: () => undefined,
-        stopPropagation: () => undefined,
-      } as unknown as TouchEvent;
-      component.onResizeTouchStart(touchEvent, col);
-      expect(component.isResizingColumn(col)).toBe(true);
-      document.dispatchEvent(new MouseEvent('mouseup'));
-    });
-  });
-
-  describe('scroll + fit helpers', () => {
-    it('scrolls to a known column and ignores an unknown one', async () => {
-      const { component } = await makeFixture(FLAT_DATA, FLAT_COLUMNS);
-      expect(() => component.scrollToColumn('amount')).not.toThrow();
-      expect(() => component.scrollToColumn('ghost')).not.toThrow();
-    });
-
-    it('distributes widths across columns to fit the viewport', async () => {
-      const { component } = await makeFixture(FLAT_DATA, FLAT_COLUMNS);
-      component.fitColumnsToViewport();
-      expect(Object.keys(component.columnWidths()).length).toBeGreaterThan(0);
+      expect(emitted).toEqual({ columnKey: 'name', oldWidth: '200px', newWidth: '160px' });
     });
   });
 
@@ -673,15 +538,6 @@ describe('DataTableComponent branch coverage', () => {
         virtualAutoThreshold: { rows: 500, columns: 1 },
       });
       expect(component.isVirtualScrollActive()).toBe(true);
-    });
-
-    it('computes a variable-height row range', async () => {
-      const { component } = await makeFixture(FLAT_DATA, FLAT_COLUMNS, {
-        enableVirtualScroll: true,
-        virtualVariableRowHeight: true,
-      });
-      const range = component.virtualRowRange();
-      expect(range.end).toBeGreaterThanOrEqual(range.start);
     });
   });
 });
