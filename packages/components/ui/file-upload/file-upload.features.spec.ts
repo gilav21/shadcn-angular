@@ -240,8 +240,9 @@ describe('file-upload.utils — cropImageFile', () => {
             [cropImages]="cropImages()"
             [cropAspect]="cropAspect()"
             [accept]="accept()"
+            [maxFiles]="maxFiles()"
             (cropped)="crops.push($event)"
-            (fileError)="errors.push($event.error)"
+            (fileError)="errors.push($event.error); rejected.push($event.file.name)"
         />
     `,
 })
@@ -250,8 +251,10 @@ class FeaturesHostComponent {
     readonly cropImages = signal(false);
     readonly cropAspect = signal<number | null>(null);
     readonly accept = signal('');
+    readonly maxFiles = signal<number | null>(null);
     readonly crops: CropResult[] = [];
     readonly errors: string[] = [];
+    readonly rejected: string[] = [];
 }
 
 describe('FileUploadComponent — directory drop', () => {
@@ -433,6 +436,25 @@ describe('FileUploadComponent — inline crop', () => {
 
         expect(upload.isCropOpen()).toBe(false);
         expect(upload.files().map(f => f.file.name)).toEqual(['a.png', 'b.png']);
+    });
+
+    it('counts images waiting to be cropped against maxFiles', async () => {
+        host.maxFiles.set(2);
+        fixture.detectChanges();
+        const pdf = (name: string) => new File(['%PDF'], name, { type: 'application/pdf' });
+
+        upload.addFiles([await pngFile('a.png'), await pngFile('b.png')]);
+        fixture.detectChanges();
+        const picker: HTMLInputElement = fixture.nativeElement.querySelector('input[type="file"]');
+        expect(picker.disabled).toBe(true);
+
+        upload.addFiles([pdf('c.pdf'), pdf('d.pdf')]);
+        upload.skipCrop();
+        upload.skipCrop();
+        fixture.detectChanges();
+
+        expect(upload.files().map(f => f.file.name)).toEqual(['a.png', 'b.png']);
+        expect(host.rejected).toEqual(['c.pdf', 'd.pdf']);
     });
 
     it('seeds a centred selection honouring cropAspect', async () => {

@@ -6,7 +6,7 @@
   [attr.data-locale]="resolvedLocale()"
   [attr.aria-label]="ariaLabel()"
   [attr.aria-disabled]="isDisabled() || null"
-  (focusout)="onBlur()"
+  (focusout)="onFocusOut($event)"
 >
   @for (segment of segments(); track segment.kind) {
     @if (segment.kind === 'dayPeriod') {

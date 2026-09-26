@@ -213,18 +213,22 @@ describe('CommandComponent', () => {
             expect(activeIndex).toBe(0);
         });
 
-        it('should wrap around from first to last on ArrowUp', () => {
+        it('should land on the last item on ArrowUp, from the first item and from no highlight', () => {
             const input = fixture.nativeElement.querySelector('input');
+            const activeIndex = () => {
+                const itemDivs = Array.from(fixture.nativeElement.querySelectorAll('[data-slot="command-item"]')) as HTMLElement[];
+                return itemDivs.findIndex(el => el.classList.contains('bg-accent'));
+            };
+
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
+            fixture.detectChanges();
+            expect(activeIndex()).toBe(2);
 
             input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
             fixture.detectChanges();
             input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
             fixture.detectChanges();
-
-            const itemDivs = Array.from(fixture.nativeElement.querySelectorAll('[data-slot="command-item"]')) as HTMLElement[];
-            const activeIndex = itemDivs.findIndex(el => el.classList.contains('bg-accent'));
-
-            expect(activeIndex).toBe(2);
+            expect(activeIndex()).toBe(2);
         });
     });
 

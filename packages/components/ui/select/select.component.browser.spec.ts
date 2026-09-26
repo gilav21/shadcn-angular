@@ -1,7 +1,9 @@
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { describe, it, expect } from 'vitest';
+import { userEvent } from 'vitest/browser';
 import {
     SelectComponent,
     SelectTriggerComponent,
@@ -105,5 +107,46 @@ describe('Select content placement (real layout)', () => {
         });
 
         expect(content.bottom).toBeLessThanOrEqual(trigger.top);
+    });
+});
+
+@Component({
+    template: `<ui-select [options]="options" [formControl]="control" (valueChange)="changes.push($event)" />`,
+    imports: [SelectComponent, ReactiveFormsModule],
+})
+class KeyboardHost {
+    readonly options = ['Apple', 'Banana', 'Cherry'];
+    readonly control = new FormControl<string | null>(null);
+    readonly changes: (string | undefined)[] = [];
+    readonly formChanges: (string | null)[] = [];
+
+    constructor() {
+        this.control.valueChanges.subscribe(v => this.formChanges.push(v));
+    }
+}
+
+describe('Select keyboard commit (real keyboard)', () => {
+    it('commits the highlighted option exactly once on Enter, with focus following the highlight', async () => {
+        await TestBed.configureTestingModule({ imports: [KeyboardHost] }).compileComponents();
+        const fixture = TestBed.createComponent(KeyboardHost);
+        fixture.autoDetectChanges();
+        await fixture.whenStable();
+        document.body.appendChild(fixture.nativeElement);
+
+        await userEvent.click(fixture.nativeElement.querySelector('button[role="combobox"]'));
+        await new Promise(resolve => setTimeout(resolve, 0));
+        await fixture.whenStable();
+        expect(document.activeElement?.textContent?.trim()).toBe('Apple');
+
+        await userEvent.keyboard('{ArrowDown}{ArrowDown}');
+        await fixture.whenStable();
+        expect(document.activeElement?.textContent?.trim()).toBe('Cherry');
+
+        await userEvent.keyboard('{Enter}');
+        await fixture.whenStable();
+        expect(fixture.componentInstance.changes).toEqual(['Cherry']);
+        expect(fixture.componentInstance.formChanges).toEqual(['Cherry']);
+
+        fixture.nativeElement.remove();
     });
 });

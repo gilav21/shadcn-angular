@@ -245,7 +245,15 @@ export class TimePickerComponent implements ControlValueAccessor {
     this.commit();
   }
 
-  onBlur(): void {
+  /**
+   * `focusout` handler for the whole control: marks it touched only when focus
+   * lands outside it, since moving from one segment to another also fires
+   * `focusout`.
+   */
+  onFocusOut(event: FocusEvent): void {
+    const control = event.currentTarget;
+    const next = event.relatedTarget;
+    if (control instanceof Node && next instanceof Node && control.contains(next)) return;
     this.onTouched();
   }
 

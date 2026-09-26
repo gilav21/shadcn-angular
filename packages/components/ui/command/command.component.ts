@@ -277,16 +277,16 @@ export class CommandService {
 
   /**
    * Mirror of {@link moveNext} for ArrowUp: steps backwards through the filtered
-   * items and wraps from the first to the last. With nothing active it lands on
-   * the second-to-last item (the no-active index is `-1`, so it steps to `-2`),
-   * not the last.
+   * items and wraps from the first to the last. With nothing active it starts at
+   * the last item.
    */
   movePrev(): void {
     const items = this.filteredItems();
     if (!items.length) return;
     const current = this.activeItemId();
     const idx = current ? items.indexOf(current) : -1;
-    const prevIdx = (idx - 1 + items.length) % items.length;
+    // idx -1 (nothing active) must not step to -2, which wraps to the second-to-last item.
+    const prevIdx = idx <= 0 ? items.length - 1 : idx - 1;
     this.activeItemId.set(items[prevIdx]);
   }
 

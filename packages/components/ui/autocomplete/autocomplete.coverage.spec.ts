@@ -168,10 +168,13 @@ describe('AutocompleteComponent — additional keyboard/input branches', () => {
         return event;
     }
 
-    it('ArrowUp moves the highlight back, wrapping from the first option to the last', async () => {
+    it('ArrowUp lands on the last option, from no highlight and from the first option', async () => {
         cmp.onFocus();
         fixture.detectChanges();
         await fixture.whenStable();
+
+        await press('ArrowUp');
+        expect(highlightedLabel()).toBe('Cherry');
 
         await press('ArrowDown');
         expect(highlightedLabel()).toBe('Apple');

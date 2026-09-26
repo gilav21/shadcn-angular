@@ -450,27 +450,42 @@ describe('AutocompleteComponent', () => {
     });
 
     describe('debounced search', () => {
-        it('debounces searchChange when debounceTime > 0', async () => {
+        it('debounces searchChange by the current debounceTime, emitting once after the quiet window', async () => {
             TestBed.resetTestingModule();
             await TestBed.configureTestingModule({
                 imports: [AutocompleteComponent],
             }).compileComponents();
-            const f = TestBed.createComponent(AutocompleteComponent);
-            f.componentRef.setInput('debounceTime', 10);
-            f.detectChanges();
-            const cmp = f.componentInstance;
-            const spy = vi.fn();
-            cmp.searchChange.subscribe(spy);
+            vi.useFakeTimers();
+            try {
+                const f = TestBed.createComponent(AutocompleteComponent);
+                f.componentRef.setInput('debounceTime', 10);
+                f.detectChanges();
+                const emitted: string[] = [];
+                f.componentInstance.searchChange.subscribe(v => emitted.push(v));
+                const input = f.nativeElement.querySelector('input') as HTMLInputElement;
+                const type = (text: string) => {
+                    input.value = text;
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                };
 
-            const input = f.nativeElement.querySelector('input') as HTMLInputElement;
-            input.value = 'ch';
-            const ev = new Event('input', { bubbles: true });
-            Object.defineProperty(ev, 'target', { value: input });
-            cmp.onInput(ev);
+                type('c');
+                vi.advanceTimersByTime(5);
+                type('ch');
+                vi.advanceTimersByTime(9);
+                expect(emitted).toEqual([]);
+                vi.advanceTimersByTime(1);
+                expect(emitted).toEqual(['ch']);
 
-            expect(spy).not.toHaveBeenCalled();
-            await new Promise(r => setTimeout(r, 40));
-            expect(spy).toHaveBeenCalledWith('ch');
+                f.componentRef.setInput('debounceTime', 30);
+                f.detectChanges();
+                type('che');
+                vi.advanceTimersByTime(29);
+                expect(emitted).toEqual(['ch']);
+                vi.advanceTimersByTime(1);
+                expect(emitted).toEqual(['ch', 'che']);
+            } finally {
+                vi.useRealTimers();
+            }
         });
     });
 

@@ -143,13 +143,18 @@ describe('InputMaskDirective with showMaskTyped', () => {
         fixture.detectChanges();
     });
 
-    it('should show placeholder slot characters when showMaskTyped is true and input is partial', () => {
+    it('should show placeholder slot characters for every unfilled slot, keeping the literals after them', () => {
         const input: HTMLInputElement = fixture.nativeElement.querySelector('input');
         input.value = '123';
         input.dispatchEvent(new Event('input'));
 
-        expect(input.value).toContain('(123');
-        expect(input.value).toContain('_');
+        expect(input.value).toBe('(123) ___-____');
+
+        // Typing into the slotted value: the slot characters already shown are not data.
+        input.value = '(123) 4___-____';
+        input.dispatchEvent(new Event('input'));
+
+        expect(input.value).toBe('(123) 4__-____');
     });
 });
 

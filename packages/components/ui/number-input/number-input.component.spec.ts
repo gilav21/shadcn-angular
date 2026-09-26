@@ -381,19 +381,23 @@ describe('NumberInputComponent — i18n integration', () => {
         return fixture;
     }
 
-    it('defaults resolvedLocale to "en"', async () => {
+    function nativeLang(fixture: ComponentFixture<NumberInputComponent>): string | null {
+        return (fixture.nativeElement.querySelector('input') as HTMLInputElement).getAttribute('lang');
+    }
+
+    it('sets the native input lang to "en" by default', async () => {
         const fixture = await setup();
-        expect(fixture.componentInstance.resolvedLocale()).toBe('en');
+        expect(nativeLang(fixture)).toBe('en');
     });
 
-    it('resolves locale from the per-instance input', async () => {
-        const fixture = await setup({ locale: 'de' });
-        expect(fixture.componentInstance.resolvedLocale()).toBe('de');
+    it('sets the native input lang from the per-instance locale, over UI_LOCALE_ID', async () => {
+        const fixture = await setup({ locale: 'de', providerLocale: 'fr' });
+        expect(nativeLang(fixture)).toBe('de');
     });
 
-    it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
+    it('falls back to UI_LOCALE_ID for the native input lang when no locale input is set', async () => {
         const fixture = await setup({ providerLocale: 'fr' });
-        expect(fixture.componentInstance.resolvedLocale()).toBe('fr');
+        expect(nativeLang(fixture)).toBe('fr');
     });
 });
 

@@ -382,22 +382,29 @@ describe('TimePickerComponent', () => {
         });
 
         /**
-         * A real blur, not a direct call — `blur` does not bubble, so a
-         * handler bound on the wrong element never runs. Three shipped
-         * controls had exactly that bug.
+         * Real focus moves, not a direct call — `blur` does not bubble, so a
+         * handler bound on the wrong element never runs (three shipped
+         * controls had exactly that bug), and `focusout` fires on every move
+         * between segments, which is not leaving the control.
          */
-        it('marks the control touched on a real blur', async () => {
-            const field: HTMLInputElement = reactive.nativeElement.querySelector(
-                '[data-slot="time-picker-segment"]',
-            );
-            expect(reactive.componentInstance.control.touched).toBe(false);
+        it('marks the control touched only when focus leaves the whole control', async () => {
+            const hour: HTMLInputElement = reactive.nativeElement.querySelector('[data-segment="hour"]');
+            const minute: HTMLInputElement = reactive.nativeElement.querySelector('[data-segment="minute"]');
+            const outside = document.createElement('button');
+            document.body.appendChild(outside);
 
-            field.focus();
-            field.blur();
+            hour.focus();
+            minute.focus();
             reactive.detectChanges();
             await reactive.whenStable();
+            expect(reactive.componentInstance.control.touched).toBe(false);
 
+            outside.focus();
+            reactive.detectChanges();
+            await reactive.whenStable();
             expect(reactive.componentInstance.control.touched).toBe(true);
+
+            outside.remove();
         });
     });
 
