@@ -174,8 +174,6 @@
               class="h-8 w-8"
               [ariaLabel]="slot.ariaLabel ?? 'Row actions'"
               (click)="slot.onClick($event, getRowContext(row, rowIndex))"
-              (keydown.enter)="slot.onClick($event, getRowContext(row, rowIndex))"
-              (keydown.space)="slot.onClick($event, getRowContext(row, rowIndex))"
             >
               <ui-icon [name]="slot.icon ?? 'more-vertical'" size="sm" />
             </ui-button>

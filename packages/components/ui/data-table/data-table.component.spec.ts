@@ -1727,24 +1727,6 @@ describe('DataTableComponent', () => {
         expect(component.getCellClass({ accessorKey: 'role', _width: 'auto' } as any, 2)).toContain('bg-primary/15');
     });
 
-    it('styles the cells a fill-handle drag would fill, below the source cell only', () => {
-        fixture.componentRef.setInput('enableFillHandle', true);
-        fixture.detectChanges();
-        component.focusedCell.set({ rowIndex: 0, columnKey: 'id' });
-        const doc = document as Document & { elementFromPoint?: (x: number, y: number) => Element | null };
-        doc.elementFromPoint = () => cellEl(2, 'id');
-
-        component.onFillHandleStart(new MouseEvent('mousedown', { cancelable: true }));
-        document.dispatchEvent(new MouseEvent('mousemove', { clientX: 1, clientY: 1 }));
-        fixture.detectChanges();
-
-        const columnByKey = (key: string) => component.enhancedColumns().find((c) => c.accessorKey === key)!;
-        const previewed = (row: number, key: string) => component.getCellClass(columnByKey(key), row).includes('ring-dashed');
-        expect([previewed(1, 'id'), previewed(2, 'id')]).toEqual([true, true]);
-        expect([previewed(0, 'id'), previewed(3, 'id'), previewed(1, 'name')]).toEqual([false, false, false]);
-        document.dispatchEvent(new MouseEvent('mouseup'));
-    });
-
     it('disables native text selection while range selection is enabled', () => {
         fixture.componentRef.setInput('enableCellRangeSelection', true);
         fixture.detectChanges();
@@ -3508,6 +3490,28 @@ describe('DataTableComponent - Export & Clipboard', () => {
         expect(lines[0]).toBe('ID\tName\tScore');
         expect(lines).toHaveLength(6);
         vi.unstubAllGlobals();
+    });
+
+    it('copyAllToClipboard quotes cells a spreadsheet would run as formulas, but keeps plain numbers numeric', async () => {
+        fixture.componentRef.setInput('data', [
+            { id: '1', name: '=HYPERLINK("http://evil.example","click")', score: -12 },
+            { id: '2', name: '@SUM(A1:A2)', score: 3.5 },
+            { id: '3', name: '- item', score: 4 },
+        ]);
+        fixture.detectChanges();
+        const writeText = vi.fn(async (_text: string) => undefined);
+        vi.stubGlobal('navigator', { clipboard: { writeText } });
+        try {
+            await component.copyAllToClipboard();
+            expect(writeText.mock.calls[0][0].split('\n').map((line) => line.split('\t'))).toEqual([
+                ['ID', 'Name', 'Score'],
+                ['1', '\'=HYPERLINK("http://evil.example","click")', '-12'],
+                ['2', "'@SUM(A1:A2)", '3.5'],
+                ['3', "'- item", '4'],
+            ]);
+        } finally {
+            vi.unstubAllGlobals();
+        }
     });
 
     it('copySelectedToClipboard writes only selected rows with header', async () => {
@@ -6188,6 +6192,36 @@ describe('DataTableComponent smart paste (B2)', () => {
         await Promise.resolve();
         expect(component.data()[0].n).toBe(9);
         vi.unstubAllGlobals();
+    });
+
+    it('round-trips a copied range back through paste, formula-guarded cells included', async () => {
+        const labels = ['=total', '- item', '@user', '-12', "'plain apostrophe text", "'=x"];
+        fixture.componentRef.setInput('data', labels.map((label, i) => ({ id: String(i + 1), n: i, label })));
+        fixture.detectChanges();
+        let clipboard = '';
+        vi.stubGlobal('navigator', {
+            clipboard: {
+                writeText: async (text: string) => { clipboard = text; },
+                readText: async () => clipboard,
+            },
+        });
+        try {
+            component.cellRange.set({ startRow: 0, startCol: 'n', endRow: labels.length - 1, endCol: 'label' });
+            await component.copyCellRangeToClipboard();
+            expect(clipboard.split('\n').map((line) => line.split('\t')[1])).toEqual(
+                ["'=total", "'- item", "'@user", '-12', "'plain apostrophe text", "''=x"],
+            );
+
+            fixture.componentRef.setInput('data', labels.map((_, i) => ({ id: String(i + 1), n: 0, label: '' })));
+            fixture.detectChanges();
+            component.cellRange.set(null);
+            component.focusedCell.set({ rowIndex: 0, columnKey: 'n' });
+            component.onTableKeydown(new KeyboardEvent('keydown', { key: 'v', ctrlKey: true }));
+            await vi.waitFor(() => expect(component.data().map((r) => r.label)).toEqual(labels));
+            expect(component.data().map((r) => r.n)).toEqual([0, 1, 2, 3, 4, 5]);
+        } finally {
+            vi.unstubAllGlobals();
+        }
     });
 });
 

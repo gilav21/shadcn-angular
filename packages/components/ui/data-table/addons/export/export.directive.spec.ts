@@ -213,6 +213,29 @@ describe('DataTableExportDirective', () => {
     vi.restoreAllMocks();
   });
 
+  it('exportToCsv quotes cells a spreadsheet would run as formulas, but keeps plain numbers numeric', async () => {
+    host.rows = [
+      { id: '1', name: '=HYPERLINK("http://evil.example","click")', score: -12 },
+      { id: '2', name: '@SUM(A1:A2)', score: 3 },
+      { id: '3', name: '+cmd', score: 4 },
+      { id: '4', name: '\tindented', score: 5 },
+      { id: '-5', name: "'=already quoted", score: 6 },
+    ];
+    const { directive } = setup(host);
+    const downloads = stubDownload();
+
+    await directive.exportToCsv();
+
+    expect(await blobText(downloads[0].blob)).toBe(
+      '﻿ID,Name,Score\r\n' +
+        '1,"\'=HYPERLINK(""http://evil.example"",""click"")",-12\r\n' +
+        "2,'@SUM(A1:A2),3\r\n" +
+        "3,'+cmd,4\r\n" +
+        "4,'\tindented,5\r\n" +
+        "-5,''=already quoted,6",
+    );
+  });
+
   it('shows the localized busy label during export, then clears it', async () => {
     const { directive } = setup(host);
     stubDownload();

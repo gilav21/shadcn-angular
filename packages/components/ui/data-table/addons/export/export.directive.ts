@@ -1,6 +1,6 @@
 import { Directive, inject, input } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
-import { DataTableAddonHost, type DataTableExportQuery } from '../..';
+import { DataTableAddonHost, guardSpreadsheetFormula, type DataTableExportQuery } from '../..';
 import { generateXlsx } from '../../../../lib/parsers/xlsx';
 import { createLocaleBindings, type LocaleInput } from '../../../../lib/i18n';
 import { DATA_TABLE_EXPORT_LOCALES, type DataTableExportLocale } from './export.locales';
@@ -36,7 +36,11 @@ export class DataTableExportDirective<T = unknown> {
 
   private readonly i18n = createLocaleBindings(this.uiDtExportLocale, DATA_TABLE_EXPORT_LOCALES);
 
-  /** Export the current (or provided) rows to a downloaded CSV file. */
+  /**
+   * Export the current (or provided) rows to a downloaded CSV file. Cells a
+   * spreadsheet would run as a formula are quoted as text; see
+   * {@link guardSpreadsheetFormula}.
+   */
   async exportToCsv(filename?: string, customData?: T[]): Promise<void> {
     this.host.setBusy(this.i18n.t().exporting);
     try {
@@ -93,8 +97,13 @@ export class DataTableExportDirective<T = unknown> {
   }
 }
 
-/** Quote a CSV cell when it contains a delimiter, quote, or newline. */
-function escapeCsvCell(cell: string): string {
+/**
+ * Encode one CSV cell: formula-guard it first (the guard's quote has to sit
+ * inside the CSV quotes, where the spreadsheet reads it), then quote it when it
+ * contains a delimiter, quote, or newline.
+ */
+function escapeCsvCell(value: string): string {
+  const cell = guardSpreadsheetFormula(value);
   if (
     cell.includes(',') ||
     cell.includes('"') ||
