@@ -58,6 +58,7 @@ describe('RichTextMarkdownService - round-trip fixed point', () => {
         ['two ordered lists side by side', '1. a\n\n1) b'],
         ['two bullet lists side by side', '- a\n\n* b'],
         ['code block holding an image', '<pre><code>a<img src="https://e.com/x.png" alt="q">b</code></pre>'],
+        ['raw HTML details block around markdown', '<details>\n<summary>More</summary>\n\nHidden **text**.\n\n</details>'],
     ];
 
     it.each(corpus)('%s is stable after one normalising cycle', (_name, md) => {
@@ -100,6 +101,25 @@ describe('RichTextMarkdownService - shapes the round-trip used to corrupt (fine-
         const body = parse(md);
         expect(body.querySelector('b')).toBeNull();
         expect(body.textContent).toBe('Use the <b> element');
+        // At the start of a line "<!--" opens a raw HTML block the sanitizer
+        // drops as a comment, so text shaped like one must stay text too.
+        expect(parse(service.toMarkdown('<p>&lt;!-- not a comment --&gt;</p>')).textContent).toBe('<!-- not a comment -->');
+    });
+
+    it('saves a raw HTML details block as markdown that renders the same block', () => {
+        // The save writes the element as a :::details block, which reads back
+        // with the same summary and body (and the open attribute that syntax
+        // always carries).
+        const md = '<details>\n<summary>More</summary>\n\nHidden **text**.\n\n</details>';
+        const shape = (body: HTMLElement): string => {
+            const details = body.querySelector(':scope > details');
+            return [
+                body.children.length,
+                details?.querySelector(':scope > summary')?.textContent,
+                details?.querySelector(':scope > p')?.innerHTML,
+            ].join('|');
+        };
+        expect(shape(parse(service.toMarkdown(service.toHtml(md))))).toBe('1|More|Hidden <strong>text</strong>.');
     });
 
     it('wraps prose that directly follows a heading, a quote or a table in a paragraph', () => {
