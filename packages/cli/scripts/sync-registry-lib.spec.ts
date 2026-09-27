@@ -1749,6 +1749,8 @@ describe('collectPortableSpecs & analyzePortableTests', () => {
         write('ui/badge/badge.component.spec.ts', "import { describe, it, expect, vi } from 'vitest';\nvi.fn();\n");
         // A browser-only sibling spec that must be excluded from shipping.
         write('ui/badge/badge.browser.spec.ts', "import { describe } from 'vitest';\n");
+        // A benchmark sibling that must not ship either.
+        write('ui/badge/badge.workload.spec.ts', "import { describe } from 'vitest';\n");
         write('ui/select/select.component.ts', "export class Select {}\n");
         write('ui/select/select.component.spec.ts', "import { describe, it, vi } from 'vitest';\nvi.fn();\n");
     });
@@ -1757,7 +1759,7 @@ describe('collectPortableSpecs & analyzePortableTests', () => {
 
     const uiDir = (): string => path.join(ptRoots.componentsRoot, 'ui');
 
-    it('collects portable specs but excludes *.browser.spec.ts', () => {
+    it('collects portable specs but excludes *.browser.spec.ts and *.workload.spec.ts', () => {
         const specs = collectPortableSpecs(['badge/badge.component.ts'], uiDir());
         expect(specs).toEqual(['badge/badge.component.spec.ts']);
     });

@@ -1464,6 +1464,8 @@ export function detectOrphanBlockFolders(blocks: readonly RegistryEntry[], block
 export const PORTABLE_TESTS_FILENAME = 'portable-tests.json';
 
 const BROWSER_SPEC_SUFFIX = '.browser.spec.ts';
+/** Benchmarks: they measure without asserting, skipped by the default run, so they never ship. */
+const WORKLOAD_SPEC_SUFFIX = '.workload.spec.ts';
 
 /** A lowered line-coverage floor for a component whose remaining lines need a real browser. */
 export interface CoverageFloorException {
@@ -1526,7 +1528,9 @@ function isCoverageException(value: unknown): value is CoverageException {
 }
 
 function isPortableSpecName(fileName: string): boolean {
-    return fileName.endsWith('.spec.ts') && !fileName.endsWith(BROWSER_SPEC_SUFFIX);
+    return fileName.endsWith('.spec.ts')
+        && !fileName.endsWith(BROWSER_SPEC_SUFFIX)
+        && !fileName.endsWith(WORKLOAD_SPEC_SUFFIX);
 }
 
 /**
