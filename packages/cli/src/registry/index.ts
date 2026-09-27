@@ -307,7 +307,7 @@ export const registry = defineRegistry({
     description: 'Sliding content slider with previous/next controls for cycling through items.',
     tags: ['carousel', 'slider', 'slideshow', 'gallery', 'swiper'],
     files: ['carousel/carousel.component.ts', 'carousel/carousel.locales.ts', 'carousel/index.ts', 'carousel/sub/carousel-content.component.ts', 'carousel/sub/carousel-item.component.ts', 'carousel/sub/carousel-next.component.ts', 'carousel/sub/carousel-previous.component.ts'],
-    libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'observers.ts'],
     testFiles: ['carousel/carousel.component.spec.ts'],
   },
   checkbox: {
@@ -343,6 +343,7 @@ export const registry = defineRegistry({
     description: 'Directive that bursts celebratory confetti particles on a triggered event.',
     tags: ['confetti', 'celebration', 'particles', 'animation', 'effect'],
     files: ['confetti.directive.ts'],
+    libFiles: ['media.ts', 'observers.ts'],
     testFiles: ['confetti.directive.spec.ts'],
   },
   command: {
@@ -399,6 +400,7 @@ export const registry = defineRegistry({
     description: 'Renders text that appears progressively, mimicking AI token streaming.',
     tags: ['streaming-text', 'stream', 'typewriter', 'ai', 'animation'],
     files: ['streaming-text/index.ts', 'streaming-text/streaming-text.component.html', 'streaming-text/streaming-text.component.ts'],
+    libFiles: ['media.ts'],
     testFiles: ['streaming-text/streaming-text.component.spec.ts'],
   },
   sparkles: {
@@ -434,6 +436,7 @@ export const registry = defineRegistry({
     description: 'A length of time edited one unit at a time; the value is seconds.',
     tags: ['duration-input', 'duration', 'time', 'segments', 'timer'],
     files: ['duration-input/duration-input.component.css', 'duration-input/duration-input.component.html', 'duration-input/duration-input.component.ts', 'duration-input/duration-input.format.ts', 'duration-input/index.ts'],
+    libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     testFiles: ['duration-input/duration-input.component.spec.ts', 'duration-input/duration-input.format.spec.ts'],
   },
   'currency-input': {
@@ -564,6 +567,7 @@ export const registry = defineRegistry({
     description: 'Infinite pannable, zoomable plane that renders only the items in view.',
     tags: ['infinite-canvas', 'canvas', 'pan', 'zoom', 'virtualization', 'diagram'],
     files: ['infinite-canvas/index.ts', 'infinite-canvas/infinite-canvas-item.directive.ts', 'infinite-canvas/infinite-canvas.component.css', 'infinite-canvas/infinite-canvas.component.html', 'infinite-canvas/infinite-canvas.component.ts', 'infinite-canvas/infinite-canvas.edge-renderer.ts', 'infinite-canvas/infinite-canvas.item-layer.ts', 'infinite-canvas/infinite-canvas.item-pool.ts', 'infinite-canvas/infinite-canvas.pointer.ts', 'infinite-canvas/infinite-canvas.spatial-hash.ts', 'infinite-canvas/infinite-canvas.transform.ts', 'infinite-canvas/infinite-canvas.types.ts'],
+    libFiles: ['observers.ts'],
     addons: ['infinite-canvas/node-editor'],
   },
   'input-mask': {
@@ -736,7 +740,7 @@ export const registry = defineRegistry({
     description: 'Animates a number counting up or down to its target value.',
     tags: ['number-ticker', 'counter', 'count-up', 'animation', 'stats'],
     files: ['number-ticker/index.ts', 'number-ticker/number-ticker.component.html', 'number-ticker/number-ticker.component.ts', 'number-ticker/sub/number-ticker-digit.component.html', 'number-ticker/sub/number-ticker-digit.component.ts'],
-    libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'media.ts'],
     testFiles: ['number-ticker/number-ticker.component.spec.ts'],
   },
   pagination: {
@@ -1019,7 +1023,7 @@ export const registry = defineRegistry({
     },
     files: ['rich-text-editor/index.ts', 'rich-text-editor/rich-text-allow.directive.ts', 'rich-text-editor/rich-text-command-registry.service.ts', 'rich-text-editor/rich-text-editor.api.ts', 'rich-text-editor/rich-text-editor.component.css', 'rich-text-editor/rich-text-editor.component.html', 'rich-text-editor/rich-text-editor.component.ts', 'rich-text-editor/rich-text-editor.fixtures.ts', 'rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-editor.validators.ts', 'rich-text-editor/rich-text-find.utils.ts', 'rich-text-editor/rich-text-input-rules.ts', 'rich-text-editor/rich-text-lines.ts', 'rich-text-editor/rich-text-locales.ts', 'rich-text-editor/rich-text-markdown.service.ts', 'rich-text-editor/rich-text-paste-normalizer.service.ts', 'rich-text-editor/rich-text-prose.ts', 'rich-text-editor/rich-text-resource-policy.ts', 'rich-text-editor/rich-text-sanitizer.service.ts', 'rich-text-editor/sub/rich-text-toolbar.component.css', 'rich-text-editor/sub/rich-text-toolbar.component.html', 'rich-text-editor/sub/rich-text-toolbar.component.ts'],
     dependencies: ['separator'],
-    testFiles: ['rich-text-editor/barrel.spec.ts', 'rich-text-editor/rich-text-command-registry.service.spec.ts', 'rich-text-editor/rich-text-editor.component.spec.ts', 'rich-text-editor/rich-text-editor.properties.spec.ts', 'rich-text-editor/rich-text-editor.validators.spec.ts', 'rich-text-editor/rich-text-find.utils.spec.ts', 'rich-text-editor/rich-text-input-rules.spec.ts', 'rich-text-editor/rich-text-lines.spec.ts', 'rich-text-editor/rich-text-markdown.roundtrip.spec.ts', 'rich-text-editor/rich-text-markdown.service.spec.ts', 'rich-text-editor/rich-text-paste-normalizer.service.spec.ts', 'rich-text-editor/rich-text-resource-policy.spec.ts', 'rich-text-editor/rich-text-sanitizer.service.spec.ts', 'rich-text-editor/sub/rich-text-toolbar.component.spec.ts'],
+    testFiles: ['rich-text-editor/barrel.spec.ts', 'rich-text-editor/rich-text-command-registry.service.spec.ts', 'rich-text-editor/rich-text-editor.component.spec.ts', 'rich-text-editor/rich-text-editor.validators.spec.ts', 'rich-text-editor/rich-text-find.utils.spec.ts', 'rich-text-editor/rich-text-input-rules.spec.ts', 'rich-text-editor/rich-text-lines.spec.ts', 'rich-text-editor/rich-text-markdown.roundtrip.spec.ts', 'rich-text-editor/rich-text-markdown.service.spec.ts', 'rich-text-editor/rich-text-paste-normalizer.service.spec.ts', 'rich-text-editor/rich-text-resource-policy.spec.ts', 'rich-text-editor/rich-text-sanitizer.service.spec.ts', 'rich-text-editor/sub/rich-text-toolbar.component.spec.ts'],
     libFiles: ['addon-slots.ts', 'code-highlight.ts', 'grapheme.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'parsers/image-validator.ts', 'parsers/svg-sanitizer.ts', 'shortcut-binding.service.ts', 'theme-presets.ts'],
     breaking: [
       { kind: 'removal', from: "the 'emoji' toolbar item + [emojiPicker] input on <ui-rich-text-editor>", to: 'the uiRteEmoji directive', note: "The emoji picker moved to the opt-in emoji addon. Run `npx @gilav21/shadcn-angular apply rich-text-editor/emoji`, add `uiRteEmoji` to the editor element, and remove 'emoji' from any custom [toolbarItems] arrays (the button now renders after the built-in items).", codemod: 'none', suggestedAddon: 'rich-text-editor/emoji' },
@@ -1091,7 +1095,7 @@ export const registry = defineRegistry({
     description: 'Bar chart comparing categorical values with horizontal or vertical bars.',
     tags: ['bar-chart', 'bar', 'column', 'chart', 'comparison'],
     files: ['bar-chart/bar-chart.component.html', 'bar-chart/bar-chart.component.ts', 'bar-chart/index.ts'],
-    libFiles: ['chart-responsive.ts', 'chart.types.ts', 'chart.utils.ts'],
+    libFiles: ['chart-responsive.ts', 'chart.types.ts', 'chart.utils.ts', 'observers.ts'],
     testFiles: ['bar-chart/bar-chart.component.spec.ts'],
   },
   'bar-chart-drilldown': {
@@ -1100,7 +1104,7 @@ export const registry = defineRegistry({
     description: 'Interactive bar chart whose bars drill down into nested detail charts.',
     tags: ['bar-chart-drilldown', 'bar', 'drilldown', 'chart', 'interactive'],
     files: ['bar-chart-drilldown/bar-chart-drilldown.component.html', 'bar-chart-drilldown/bar-chart-drilldown.component.ts', 'bar-chart-drilldown/index.ts'],
-    libFiles: ['chart-responsive.ts', 'chart.types.ts', 'chart.utils.ts'],
+    libFiles: ['chart-responsive.ts', 'chart.types.ts', 'chart.utils.ts', 'observers.ts'],
     testFiles: ['bar-chart-drilldown/bar-chart-drilldown.component.spec.ts'],
   },
   'stacked-bar-chart': {
@@ -1109,7 +1113,7 @@ export const registry = defineRegistry({
     description: 'Bar chart that stacks multiple series within each bar to show composition.',
     tags: ['stacked-bar-chart', 'stacked', 'bar', 'chart', 'series'],
     files: ['stacked-bar-chart/index.ts', 'stacked-bar-chart/stacked-bar-chart.component.html', 'stacked-bar-chart/stacked-bar-chart.component.ts'],
-    libFiles: ['chart-responsive.ts', 'chart.types.ts', 'chart.utils.ts'],
+    libFiles: ['chart-responsive.ts', 'chart.types.ts', 'chart.utils.ts', 'observers.ts'],
     testFiles: ['stacked-bar-chart/stacked-bar-chart.component.spec.ts'],
   },
   'column-range-chart': {
@@ -1118,7 +1122,7 @@ export const registry = defineRegistry({
     description: 'Column chart plotting a low-to-high range per category as floating bars.',
     tags: ['column-range-chart', 'range', 'column', 'chart', 'min-max'],
     files: ['column-range-chart/column-range-chart.component.html', 'column-range-chart/column-range-chart.component.ts', 'column-range-chart/index.ts'],
-    libFiles: ['chart-responsive.ts', 'chart.types.ts', 'chart.utils.ts'],
+    libFiles: ['chart-responsive.ts', 'chart.types.ts', 'chart.utils.ts', 'observers.ts'],
     testFiles: ['column-range-chart/column-range-chart.component.spec.ts'],
   },
   'bar-race-chart': {
@@ -1127,7 +1131,7 @@ export const registry = defineRegistry({
     description: 'Animated racing bar chart showing ranked values changing over time.',
     tags: ['bar-race-chart', 'race', 'animated', 'chart', 'ranking'],
     files: ['bar-race-chart/bar-race-chart.component.html', 'bar-race-chart/bar-race-chart.component.ts', 'bar-race-chart/bar-race-chart.locales.ts', 'bar-race-chart/index.ts'],
-    libFiles: ['chart-responsive.ts', 'chart.types.ts', 'chart.utils.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    libFiles: ['chart-responsive.ts', 'chart.types.ts', 'chart.utils.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'observers.ts'],
     testFiles: ['bar-race-chart/bar-race-chart.component.spec.ts'],
   },
   'org-chart': {
@@ -1197,6 +1201,7 @@ export const registry = defineRegistry({
     description: 'Text styled with an animated multi-color gradient fill.',
     tags: ['gradient-text', 'gradient', 'text', 'animation', 'color'],
     files: ['gradient-text/gradient-text.component.html', 'gradient-text/gradient-text.component.ts', 'gradient-text/index.ts'],
+    libFiles: ['media.ts'],
     testFiles: ['gradient-text/gradient-text.component.spec.ts'],
   },
   'flip-text': {
@@ -1205,6 +1210,7 @@ export const registry = defineRegistry({
     description: 'Animates characters flipping into place as the text reveals.',
     tags: ['flip-text', 'flip', 'text', 'animation', 'reveal'],
     files: ['flip-text/flip-text.component.css', 'flip-text/flip-text.component.html', 'flip-text/flip-text.component.ts', 'flip-text/index.ts'],
+    libFiles: ['media.ts'],
     testFiles: ['flip-text/flip-text.component.spec.ts'],
   },
   meteors: {
@@ -1213,6 +1219,7 @@ export const registry = defineRegistry({
     description: 'Animated meteor-shower background effect of streaking light trails.',
     tags: ['meteors', 'meteor', 'background', 'animation', 'effect'],
     files: ['meteors/index.ts', 'meteors/meteors.component.ts'],
+    libFiles: ['media.ts', 'observers.ts'],
     testFiles: ['meteors/meteors.component.spec.ts'],
   },
   'shine-border': {
@@ -1221,6 +1228,7 @@ export const registry = defineRegistry({
     description: 'Wrapper that draws an animated shimmering gradient border around content.',
     tags: ['shine-border', 'border', 'shine', 'glow', 'animation'],
     files: ['shine-border/index.ts', 'shine-border/shine-border.component.html', 'shine-border/shine-border.component.ts'],
+    libFiles: ['media.ts'],
     testFiles: ['shine-border/shine-border.component.spec.ts'],
   },
   'scroll-progress': {
@@ -1237,6 +1245,7 @@ export const registry = defineRegistry({
     description: 'Reveals content with a combined blur and fade-in entrance animation.',
     tags: ['blur-fade', 'blur', 'fade', 'animation', 'reveal'],
     files: ['blur-fade/blur-fade.component.html', 'blur-fade/blur-fade.component.ts', 'blur-fade/index.ts'],
+    libFiles: ['media.ts', 'observers.ts'],
     testFiles: ['blur-fade/blur-fade.component.spec.ts'],
   },
   ripple: {
@@ -1245,6 +1254,7 @@ export const registry = defineRegistry({
     description: 'Directive adding a Material-style click ripple effect to any element.',
     tags: ['ripple', 'click', 'ink', 'animation', 'directive'],
     files: ['ripple.directive.ts'],
+    libFiles: ['media.ts'],
     testFiles: ['ripple.directive.spec.ts'],
   },
   marquee: {
@@ -1253,6 +1263,7 @@ export const registry = defineRegistry({
     description: 'Continuously scrolling row of content, ideal for logo or testimonial strips.',
     tags: ['marquee', 'scroll', 'ticker', 'carousel', 'animation'],
     files: ['marquee/index.ts', 'marquee/marquee.component.html', 'marquee/marquee.component.ts'],
+    libFiles: ['media.ts'],
     testFiles: ['marquee/marquee.component.spec.ts'],
   },
   'word-rotate': {
@@ -1261,6 +1272,7 @@ export const registry = defineRegistry({
     description: 'Cycles through a list of words in place with an animated transition.',
     tags: ['word-rotate', 'rotate', 'words', 'text', 'animation'],
     files: ['word-rotate/index.ts', 'word-rotate/word-rotate.component.css', 'word-rotate/word-rotate.component.html', 'word-rotate/word-rotate.component.ts'],
+    libFiles: ['media.ts'],
     testFiles: ['word-rotate/word-rotate.component.spec.ts'],
   },
   'morphing-text': {
@@ -1269,6 +1281,7 @@ export const registry = defineRegistry({
     description: 'Smoothly morphs one phrase into the next with a fluid blend effect.',
     tags: ['morphing-text', 'morph', 'text', 'transition', 'animation'],
     files: ['morphing-text/index.ts', 'morphing-text/morphing-text.component.css', 'morphing-text/morphing-text.component.html', 'morphing-text/morphing-text.component.ts'],
+    libFiles: ['media.ts'],
     testFiles: ['morphing-text/morphing-text.component.spec.ts'],
   },
   'typing-animation': {
@@ -1277,6 +1290,7 @@ export const registry = defineRegistry({
     description: 'Reveals text character by character with a blinking typewriter cursor.',
     tags: ['typing-animation', 'typewriter', 'typing', 'text', 'animation'],
     files: ['typing-animation/index.ts', 'typing-animation/typing-animation.component.css', 'typing-animation/typing-animation.component.html', 'typing-animation/typing-animation.component.ts'],
+    libFiles: ['media.ts'],
     testFiles: ['typing-animation/typing-animation.component.spec.ts'],
   },
   'wobble-card': {
@@ -1285,6 +1299,7 @@ export const registry = defineRegistry({
     description: 'Card that wobbles and tilts in response to the pointer for a 3D feel.',
     tags: ['wobble-card', 'wobble', 'tilt', 'card', 'animation'],
     files: ['wobble-card/index.ts', 'wobble-card/wobble-card.component.html', 'wobble-card/wobble-card.component.ts'],
+    libFiles: ['media.ts'],
     testFiles: ['wobble-card/wobble-card.component.spec.ts'],
   },
   magnetic: {
@@ -1293,6 +1308,7 @@ export const registry = defineRegistry({
     description: 'Directive that makes an element drift toward the cursor like a magnet.',
     tags: ['magnetic', 'magnet', 'cursor', 'hover', 'directive'],
     files: ['magnetic.directive.ts'],
+    libFiles: ['media.ts'],
     testFiles: ['magnetic.directive.spec.ts'],
   },
   orbit: {
@@ -1301,6 +1317,7 @@ export const registry = defineRegistry({
     description: 'Animates child elements orbiting in circular paths around a center.',
     tags: ['orbit', 'circular', 'rotate', 'animation', 'satellite'],
     files: ['orbit/index.ts', 'orbit/orbit.component.html', 'orbit/orbit.component.ts'],
+    libFiles: ['media.ts'],
     testFiles: ['orbit/orbit.component.spec.ts'],
   },
   'stagger-children': {
@@ -1309,6 +1326,7 @@ export const registry = defineRegistry({
     description: 'Animates child elements into view one after another with a staggered delay.',
     tags: ['stagger-children', 'stagger', 'sequence', 'animation', 'list'],
     files: ['stagger-children/index.ts', 'stagger-children/stagger-children.component.html', 'stagger-children/stagger-children.component.ts'],
+    libFiles: ['media.ts', 'observers.ts'],
     testFiles: ['stagger-children/stagger-children.component.spec.ts'],
   },
   particles: {
@@ -1317,6 +1335,7 @@ export const registry = defineRegistry({
     description: 'Interactive particle-field background that reacts to pointer movement.',
     tags: ['particles', 'background', 'canvas', 'animation', 'interactive'],
     files: ['particles/index.ts', 'particles/particles.component.ts'],
+    libFiles: ['media.ts', 'observers.ts'],
     testFiles: ['particles/particles.component.spec.ts'],
   },
   kanban: {
@@ -1345,7 +1364,7 @@ export const registry = defineRegistry({
     description: 'Guided product tour highlighting elements with step-by-step popovers.',
     tags: ['tour', 'onboarding', 'walkthrough', 'guide', 'coachmark'],
     files: ['tour/index.ts', 'tour/tour.component.html', 'tour/tour.component.ts', 'tour/tour.utils.ts'],
-    libFiles: ['i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    libFiles: ['i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'observers.ts'],
     dependencies: ['button'],
     testFiles: ['tour/tour.component.spec.ts', 'tour/tour.features.spec.ts'],
   },
@@ -1355,7 +1374,7 @@ export const registry = defineRegistry({
     description: 'Before/after slider that wipes between two overlaid images via a handle.',
     tags: ['comparison-slider', 'before-after', 'compare', 'slider', 'image'],
     files: ['comparison-slider/comparison-slider.component.html', 'comparison-slider/comparison-slider.component.ts', 'comparison-slider/comparison-slider.locales.ts', 'comparison-slider/index.ts'],
-    libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'touch.ts'],
+    libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'observers.ts', 'touch.ts'],
     testFiles: ['comparison-slider/comparison-slider.component.spec.ts', 'comparison-slider/comparison-slider.interaction.spec.ts'],
   },
   sortable: {
@@ -1364,7 +1383,7 @@ export const registry = defineRegistry({
     description: 'Drag-and-drop sortable list with reordering, auto-scroll, and FLIP animation.',
     tags: ['sortable', 'drag-drop', 'reorder', 'list', 'dnd'],
     files: ['sortable/index.ts', 'sortable/sortable-locales.ts', 'sortable/sortable.component.html', 'sortable/sortable.component.ts', 'sortable/sortable.types.ts', 'sortable/sub/sortable-ghost.directive.ts', 'sortable/sub/sortable-item.component.html', 'sortable/sub/sortable-item.component.ts', 'sortable/sub/sortable-placeholder.directive.ts'],
-    libFiles: ['auto-scroll.ts', 'flip.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'sortable-aria-live.ts', 'sortable-registry.ts', 'touch.ts'],
+    libFiles: ['auto-scroll.ts', 'flip.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'media.ts', 'sortable-aria-live.ts', 'sortable-registry.ts', 'touch.ts'],
     testFiles: ['sortable/sortable.component.spec.ts', 'sortable/sortable.nested.spec.ts'],
   },
   'context-menu-attach': {
@@ -1566,7 +1585,7 @@ export const registry = defineRegistry({
     description: 'Multi-series line chart with crosshair, hover tooltip, smoothing curves, and a clickable legend that toggles series.',
     tags: ['line-chart', 'line', 'chart', 'time-series', 'trend'],
     files: ['line-chart/index.ts', 'line-chart/line-chart.component.html', 'line-chart/line-chart.component.ts'],
-    libFiles: ['chart-interaction.ts', 'chart-path.ts', 'chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
+    libFiles: ['chart-interaction.ts', 'chart-path.ts', 'chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts', 'observers.ts'],
     dependencies: ['chart-legend', 'chart-tooltip'],
     testFiles: ['line-chart/line-chart.component.spec.ts'],
   },
@@ -1576,7 +1595,7 @@ export const registry = defineRegistry({
     description: 'Area chart with optional stacking (absolute or percent), smoothing curves, crosshair, and an interactive legend.',
     tags: ['area-chart', 'area', 'stacked-area', 'chart', 'trend'],
     files: ['area-chart/area-chart.component.html', 'area-chart/area-chart.component.ts', 'area-chart/index.ts'],
-    libFiles: ['chart-interaction.ts', 'chart-path.ts', 'chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
+    libFiles: ['chart-interaction.ts', 'chart-path.ts', 'chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts', 'observers.ts'],
     dependencies: ['chart-legend', 'chart-tooltip'],
     testFiles: ['area-chart/area-chart.component.spec.ts'],
   },
@@ -1586,7 +1605,7 @@ export const registry = defineRegistry({
     description: 'Combined bar + line chart with a dual axis and optional cumulative Pareto line.',
     tags: ['combo-chart', 'pareto', 'bar', 'line', 'dual-axis', 'chart'],
     files: ['combo-chart/combo-chart.component.html', 'combo-chart/combo-chart.component.ts', 'combo-chart/index.ts'],
-    libFiles: ['chart-interaction.ts', 'chart-path.ts', 'chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
+    libFiles: ['chart-interaction.ts', 'chart-path.ts', 'chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts', 'observers.ts'],
     dependencies: ['chart-legend', 'chart-tooltip'],
     testFiles: ['combo-chart/combo-chart.component.spec.ts'],
   },
@@ -1596,7 +1615,7 @@ export const registry = defineRegistry({
     description: 'Scatter plot over continuous x/y axes with nearest-point hover tooltip and an interactive legend.',
     tags: ['scatter-chart', 'scatter', 'xy', 'correlation', 'chart'],
     files: ['scatter-chart/index.ts', 'scatter-chart/scatter-chart.component.html', 'scatter-chart/scatter-chart.component.ts'],
-    libFiles: ['chart-interaction.ts', 'chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
+    libFiles: ['chart-interaction.ts', 'chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts', 'observers.ts'],
     dependencies: ['chart-legend', 'chart-tooltip'],
     testFiles: ['scatter-chart/scatter-chart.component.spec.ts'],
   },
@@ -1606,7 +1625,7 @@ export const registry = defineRegistry({
     description: 'Scatter plot with a third dimension encoded as area-proportional bubble size.',
     tags: ['bubble-chart', 'bubble', 'xy', 'scatter', 'chart'],
     files: ['bubble-chart/bubble-chart.component.html', 'bubble-chart/bubble-chart.component.ts', 'bubble-chart/index.ts'],
-    libFiles: ['chart-interaction.ts', 'chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
+    libFiles: ['chart-interaction.ts', 'chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts', 'observers.ts'],
     dependencies: ['chart-legend', 'chart-tooltip'],
     testFiles: ['bubble-chart/bubble-chart.component.spec.ts'],
   },
@@ -1625,7 +1644,7 @@ export const registry = defineRegistry({
     description: 'Compact linear KPI bar with qualitative range bands and a target marker.',
     tags: ['bullet-chart', 'bullet', 'kpi', 'target', 'chart'],
     files: ['bullet-chart/bullet-chart.component.html', 'bullet-chart/bullet-chart.component.ts', 'bullet-chart/index.ts'],
-    libFiles: ['chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
+    libFiles: ['chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts', 'observers.ts'],
     testFiles: ['bullet-chart/bullet-chart.component.spec.ts'],
   },
   histogram: {
@@ -1634,7 +1653,7 @@ export const registry = defineRegistry({
     description: 'Distribution of a raw numeric sample, auto-binned with the Sturges rule, or with an explicit bin count or bin edges.',
     tags: ['histogram', 'distribution', 'bins', 'statistics', 'chart'],
     files: ['histogram/histogram.component.html', 'histogram/histogram.component.ts', 'histogram/histogram.types.ts', 'histogram/histogram.utils.ts', 'histogram/index.ts'],
-    libFiles: ['chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
+    libFiles: ['chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts', 'observers.ts'],
     dependencies: ['chart-tooltip'],
   },
   boxplot: {
@@ -1643,7 +1662,7 @@ export const registry = defineRegistry({
     description: 'Quartile summary per group: box, median, 1.5xIQR whiskers and outlier points, from raw values or pre-computed stats.',
     tags: ['boxplot', 'box-plot', 'quartiles', 'distribution', 'statistics', 'chart'],
     files: ['boxplot/boxplot.component.html', 'boxplot/boxplot.component.ts', 'boxplot/boxplot.types.ts', 'boxplot/boxplot.utils.ts', 'boxplot/index.ts'],
-    libFiles: ['chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
+    libFiles: ['chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts', 'observers.ts'],
     dependencies: ['chart-tooltip'],
   },
   candlestick: {
@@ -1652,7 +1671,7 @@ export const registry = defineRegistry({
     description: 'OHLC price chart with bodies and high/low wicks, on an ordinal axis that closes weekend gaps or a continuous time axis.',
     tags: ['candlestick', 'ohlc', 'finance', 'stock', 'chart'],
     files: ['candlestick/candlestick.component.html', 'candlestick/candlestick.component.ts', 'candlestick/candlestick.types.ts', 'candlestick/candlestick.utils.ts', 'candlestick/index.ts'],
-    libFiles: ['chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
+    libFiles: ['chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts', 'observers.ts'],
     dependencies: ['chart-tooltip'],
   },
   treemap: {
@@ -1661,7 +1680,7 @@ export const registry = defineRegistry({
     description: 'Hierarchical part-to-whole as nested area, squarified so rectangles stay near square and labels fit.',
     tags: ['treemap', 'hierarchy', 'part-to-whole', 'squarified', 'chart'],
     files: ['treemap/index.ts', 'treemap/treemap.component.html', 'treemap/treemap.component.ts', 'treemap/treemap.types.ts', 'treemap/treemap.utils.ts'],
-    libFiles: ['chart-responsive.ts', 'chart.types.ts', 'chart.utils.ts'],
+    libFiles: ['chart-responsive.ts', 'chart.types.ts', 'chart.utils.ts', 'observers.ts'],
     dependencies: ['chart-tooltip'],
   },
   'radar-chart': {
@@ -1680,7 +1699,7 @@ export const registry = defineRegistry({
     description: 'Grid heatmap with a sequential color scale, cell tooltips, and a gradient legend.',
     tags: ['heatmap', 'matrix', 'grid', 'chart', 'density'],
     files: ['heatmap/heatmap.component.html', 'heatmap/heatmap.component.ts', 'heatmap/index.ts'],
-    libFiles: ['chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
+    libFiles: ['chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts', 'observers.ts'],
     dependencies: ['chart-tooltip'],
     testFiles: ['heatmap/heatmap.component.spec.ts'],
   },
@@ -1700,7 +1719,7 @@ export const registry = defineRegistry({
     description: 'Conversion funnel of narrowing stages with per-stage percentages and tooltips.',
     tags: ['funnel-chart', 'funnel', 'conversion', 'chart', 'stages'],
     files: ['funnel-chart/funnel-chart.component.html', 'funnel-chart/funnel-chart.component.ts', 'funnel-chart/index.ts'],
-    libFiles: ['chart-responsive.ts', 'chart.types.ts', 'chart.utils.ts'],
+    libFiles: ['chart-responsive.ts', 'chart.types.ts', 'chart.utils.ts', 'observers.ts'],
     dependencies: ['chart-tooltip'],
     testFiles: ['funnel-chart/funnel-chart.component.spec.ts'],
   },
@@ -1710,7 +1729,7 @@ export const registry = defineRegistry({
     description: 'Waterfall chart of running totals with floating bars, connectors, and total columns.',
     tags: ['waterfall-chart', 'waterfall', 'bridge', 'chart', 'running-total'],
     files: ['waterfall-chart/index.ts', 'waterfall-chart/waterfall-chart.component.html', 'waterfall-chart/waterfall-chart.component.ts'],
-    libFiles: ['chart-interaction.ts', 'chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
+    libFiles: ['chart-interaction.ts', 'chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts', 'observers.ts'],
     dependencies: ['chart-tooltip'],
     testFiles: ['waterfall-chart/waterfall-chart.component.spec.ts'],
   },
@@ -1761,7 +1780,7 @@ export const registry = defineRegistry({
     files: ['rich-text-editor/addons/slash-commands/index.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands-menu.component.html', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands-menu.component.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.defaults.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.directive.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.locales.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.utils.ts', 'rich-text-editor/rich-text-lines.ts'],
     libFiles: ['addon-slots.ts', 'caret-context.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'theme-presets.ts'],
     dependencies: ['rich-text-editor'],
-    testFiles: ['rich-text-editor/addons/slash-commands/rich-text-slash-commands-menu.component.spec.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.defaults.spec.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.directive.spec.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.utils.spec.ts', 'rich-text-editor/barrel.spec.ts', 'rich-text-editor/rich-text-command-registry.service.spec.ts', 'rich-text-editor/rich-text-editor.component.spec.ts', 'rich-text-editor/rich-text-editor.properties.spec.ts', 'rich-text-editor/rich-text-editor.validators.spec.ts', 'rich-text-editor/rich-text-find.utils.spec.ts', 'rich-text-editor/rich-text-input-rules.spec.ts', 'rich-text-editor/rich-text-lines.spec.ts', 'rich-text-editor/rich-text-markdown.roundtrip.spec.ts', 'rich-text-editor/rich-text-markdown.service.spec.ts', 'rich-text-editor/rich-text-paste-normalizer.service.spec.ts', 'rich-text-editor/rich-text-resource-policy.spec.ts', 'rich-text-editor/rich-text-sanitizer.service.spec.ts'],
+    testFiles: ['rich-text-editor/addons/slash-commands/rich-text-slash-commands-menu.component.spec.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.defaults.spec.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.directive.spec.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.utils.spec.ts', 'rich-text-editor/barrel.spec.ts', 'rich-text-editor/rich-text-command-registry.service.spec.ts', 'rich-text-editor/rich-text-editor.component.spec.ts', 'rich-text-editor/rich-text-editor.validators.spec.ts', 'rich-text-editor/rich-text-find.utils.spec.ts', 'rich-text-editor/rich-text-input-rules.spec.ts', 'rich-text-editor/rich-text-lines.spec.ts', 'rich-text-editor/rich-text-markdown.roundtrip.spec.ts', 'rich-text-editor/rich-text-markdown.service.spec.ts', 'rich-text-editor/rich-text-paste-normalizer.service.spec.ts', 'rich-text-editor/rich-text-resource-policy.spec.ts', 'rich-text-editor/rich-text-sanitizer.service.spec.ts'],
     requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-command-registry.service.ts'],
     attach: {
       import: "RichTextSlashCommandsDirective from './ui/rich-text-editor/addons/slash-commands'",
@@ -1778,7 +1797,7 @@ export const registry = defineRegistry({
     files: ['rich-text-editor/addons/history/index.ts', 'rich-text-editor/addons/history/rich-text-history-panel.component.html', 'rich-text-editor/addons/history/rich-text-history-panel.component.ts', 'rich-text-editor/addons/history/rich-text-history.directive.ts', 'rich-text-editor/addons/history/rich-text-history.locales.ts', 'rich-text-editor/rich-text-lines.ts', 'rich-text-editor/rich-text-resource-policy.ts', 'rich-text-editor/rich-text-sanitizer.service.ts'],
     libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'parsers/image-validator.ts', 'parsers/svg-sanitizer.ts'],
     dependencies: ['button', 'dialog', 'popover', 'rich-text-editor', 'scroll-area'],
-    testFiles: ['rich-text-editor/addons/history/rich-text-history-panel.component.spec.ts', 'rich-text-editor/addons/history/rich-text-history.directive.spec.ts', 'rich-text-editor/barrel.spec.ts', 'rich-text-editor/rich-text-command-registry.service.spec.ts', 'rich-text-editor/rich-text-editor.component.spec.ts', 'rich-text-editor/rich-text-editor.properties.spec.ts', 'rich-text-editor/rich-text-editor.validators.spec.ts', 'rich-text-editor/rich-text-find.utils.spec.ts', 'rich-text-editor/rich-text-input-rules.spec.ts', 'rich-text-editor/rich-text-lines.spec.ts', 'rich-text-editor/rich-text-markdown.roundtrip.spec.ts', 'rich-text-editor/rich-text-markdown.service.spec.ts', 'rich-text-editor/rich-text-paste-normalizer.service.spec.ts', 'rich-text-editor/rich-text-resource-policy.spec.ts', 'rich-text-editor/rich-text-sanitizer.service.spec.ts'],
+    testFiles: ['rich-text-editor/addons/history/rich-text-history-panel.component.spec.ts', 'rich-text-editor/addons/history/rich-text-history.directive.spec.ts', 'rich-text-editor/barrel.spec.ts', 'rich-text-editor/rich-text-command-registry.service.spec.ts', 'rich-text-editor/rich-text-editor.component.spec.ts', 'rich-text-editor/rich-text-editor.validators.spec.ts', 'rich-text-editor/rich-text-find.utils.spec.ts', 'rich-text-editor/rich-text-input-rules.spec.ts', 'rich-text-editor/rich-text-lines.spec.ts', 'rich-text-editor/rich-text-markdown.roundtrip.spec.ts', 'rich-text-editor/rich-text-markdown.service.spec.ts', 'rich-text-editor/rich-text-paste-normalizer.service.spec.ts', 'rich-text-editor/rich-text-resource-policy.spec.ts', 'rich-text-editor/rich-text-sanitizer.service.spec.ts'],
     requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts'],
     breaking: [
       { kind: 'input', from: '[uiRteHistoryButton] on <ui-rich-text-editor uiRteHistory>', to: '[uiRteHistory]="{ toolbar }"', note: 'The enable attribute now also tunes the addon (RichTextAddonOptions): a bare `uiRteHistory` keeps the defaults, `[uiRteHistory]="false"` turns it off, `[uiRteHistory]="{ toolbar }"` overrides the fields you name.', codemod: 'input-merge', merge: { into: 'uiRteHistory', keys: { uiRteHistoryButton: 'toolbar' } } },
@@ -2017,6 +2036,7 @@ export const registry = defineRegistry({
     description: 'Column-balanced layout for uneven-height items that keeps DOM order equal to visual reading order.',
     tags: ['masonry', 'columns', 'grid', 'layout', 'pinterest'],
     files: ['masonry/index.ts', 'masonry/masonry.component.ts'],
+    libFiles: ['observers.ts'],
   },
   result: {
     name: 'result',
@@ -2161,7 +2181,7 @@ export const registry = defineRegistry({
     description: "The infinite canvas's edit mode: a runnable graph of typed ports, with live dataflow, undo, keyboard and screen-reader support.",
     tags: ['node-editor', 'graph', 'flow', 'ports', 'diagram', 'canvas', 'workflow'],
     files: ['infinite-canvas/addons/node-editor/index.ts', 'infinite-canvas/addons/node-editor/node-editor-node.directive.ts', 'infinite-canvas/addons/node-editor/node-editor.component.css', 'infinite-canvas/addons/node-editor/node-editor.component.html', 'infinite-canvas/addons/node-editor/node-editor.component.ts', 'infinite-canvas/addons/node-editor/node-editor.graph.ts', 'infinite-canvas/addons/node-editor/node-editor.history.ts', 'infinite-canvas/addons/node-editor/node-editor.layout.ts', 'infinite-canvas/addons/node-editor/node-editor.locales.ts', 'infinite-canvas/addons/node-editor/node-editor.materialize.ts', 'infinite-canvas/addons/node-editor/node-editor.runtime.ts', 'infinite-canvas/addons/node-editor/node-editor.runtime.types.ts', 'infinite-canvas/addons/node-editor/node-editor.serialize.ts', 'infinite-canvas/addons/node-editor/node-editor.types.ts', 'infinite-canvas/addons/node-editor/node-editor.validate.ts', 'infinite-canvas/addons/node-editor/sub/node-editor-node.component.html', 'infinite-canvas/addons/node-editor/sub/node-editor-node.component.ts', 'infinite-canvas/addons/node-editor/sub/node-editor-port.component.html', 'infinite-canvas/addons/node-editor/sub/node-editor-port.component.ts'],
-    libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'sortable-aria-live.ts', 'touch.ts'],
+    libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'observers.ts', 'sortable-aria-live.ts', 'touch.ts'],
     dependencies: ['infinite-canvas'],
     attach: {
       import: "NodeEditorComponent from './ui/infinite-canvas/addons/node-editor'",

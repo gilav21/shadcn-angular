@@ -385,7 +385,8 @@
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
-      "i18n/index.ts"
+      "i18n/index.ts",
+      "observers.ts"
     ],
     "testFiles": [
       "carousel/carousel.component.spec.ts"
@@ -490,6 +491,10 @@
     ],
     "files": [
       "confetti.directive.ts"
+    ],
+    "libFiles": [
+      "media.ts",
+      "observers.ts"
     ],
     "testFiles": [
       "confetti.directive.spec.ts"
@@ -664,6 +669,9 @@
       "streaming-text/streaming-text.component.html",
       "streaming-text/streaming-text.component.ts"
     ],
+    "libFiles": [
+      "media.ts"
+    ],
     "testFiles": [
       "streaming-text/streaming-text.component.spec.ts"
     ]
@@ -764,6 +772,12 @@
       "duration-input/duration-input.component.ts",
       "duration-input/duration-input.format.ts",
       "duration-input/index.ts"
+    ],
+    "libFiles": [
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts"
     ],
     "testFiles": [
       "duration-input/duration-input.component.spec.ts",
@@ -1212,6 +1226,9 @@
       "infinite-canvas/infinite-canvas.spatial-hash.ts",
       "infinite-canvas/infinite-canvas.transform.ts",
       "infinite-canvas/infinite-canvas.types.ts"
+    ],
+    "libFiles": [
+      "observers.ts"
     ],
     "addons": [
       "infinite-canvas/node-editor"
@@ -1762,7 +1779,8 @@
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
-      "i18n/index.ts"
+      "i18n/index.ts",
+      "media.ts"
     ],
     "testFiles": [
       "number-ticker/number-ticker.component.spec.ts"
@@ -2686,7 +2704,6 @@
       "rich-text-editor/barrel.spec.ts",
       "rich-text-editor/rich-text-command-registry.service.spec.ts",
       "rich-text-editor/rich-text-editor.component.spec.ts",
-      "rich-text-editor/rich-text-editor.properties.spec.ts",
       "rich-text-editor/rich-text-editor.validators.spec.ts",
       "rich-text-editor/rich-text-find.utils.spec.ts",
       "rich-text-editor/rich-text-input-rules.spec.ts",
@@ -3024,7 +3041,8 @@
     "libFiles": [
       "chart-responsive.ts",
       "chart.types.ts",
-      "chart.utils.ts"
+      "chart.utils.ts",
+      "observers.ts"
     ],
     "testFiles": [
       "bar-chart/bar-chart.component.spec.ts"
@@ -3049,7 +3067,8 @@
     "libFiles": [
       "chart-responsive.ts",
       "chart.types.ts",
-      "chart.utils.ts"
+      "chart.utils.ts",
+      "observers.ts"
     ],
     "testFiles": [
       "bar-chart-drilldown/bar-chart-drilldown.component.spec.ts"
@@ -3074,7 +3093,8 @@
     "libFiles": [
       "chart-responsive.ts",
       "chart.types.ts",
-      "chart.utils.ts"
+      "chart.utils.ts",
+      "observers.ts"
     ],
     "testFiles": [
       "stacked-bar-chart/stacked-bar-chart.component.spec.ts"
@@ -3099,7 +3119,8 @@
     "libFiles": [
       "chart-responsive.ts",
       "chart.types.ts",
-      "chart.utils.ts"
+      "chart.utils.ts",
+      "observers.ts"
     ],
     "testFiles": [
       "column-range-chart/column-range-chart.component.spec.ts"
@@ -3129,7 +3150,8 @@
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
-      "i18n/index.ts"
+      "i18n/index.ts",
+      "observers.ts"
     ],
     "testFiles": [
       "bar-race-chart/bar-race-chart.component.spec.ts"
@@ -3321,6 +3343,9 @@
       "gradient-text/gradient-text.component.ts",
       "gradient-text/index.ts"
     ],
+    "libFiles": [
+      "media.ts"
+    ],
     "testFiles": [
       "gradient-text/gradient-text.component.spec.ts"
     ]
@@ -3342,6 +3367,9 @@
       "flip-text/flip-text.component.ts",
       "flip-text/index.ts"
     ],
+    "libFiles": [
+      "media.ts"
+    ],
     "testFiles": [
       "flip-text/flip-text.component.spec.ts"
     ]
@@ -3360,6 +3388,10 @@
     "files": [
       "meteors/index.ts",
       "meteors/meteors.component.ts"
+    ],
+    "libFiles": [
+      "media.ts",
+      "observers.ts"
     ],
     "testFiles": [
       "meteors/meteors.component.spec.ts"
@@ -3380,6 +3412,9 @@
       "shine-border/index.ts",
       "shine-border/shine-border.component.html",
       "shine-border/shine-border.component.ts"
+    ],
+    "libFiles": [
+      "media.ts"
     ],
     "testFiles": [
       "shine-border/shine-border.component.spec.ts"
@@ -3421,6 +3456,10 @@
       "blur-fade/blur-fade.component.ts",
       "blur-fade/index.ts"
     ],
+    "libFiles": [
+      "media.ts",
+      "observers.ts"
+    ],
     "testFiles": [
       "blur-fade/blur-fade.component.spec.ts"
     ]
@@ -3438,6 +3477,9 @@
     ],
     "files": [
       "ripple.directive.ts"
+    ],
+    "libFiles": [
+      "media.ts"
     ],
     "testFiles": [
       "ripple.directive.spec.ts"
@@ -3458,6 +3500,9 @@
       "marquee/index.ts",
       "marquee/marquee.component.html",
       "marquee/marquee.component.ts"
+    ],
+    "libFiles": [
+      "media.ts"
     ],
     "testFiles": [
       "marquee/marquee.component.spec.ts"
@@ -3480,6 +3525,9 @@
       "word-rotate/word-rotate.component.html",
       "word-rotate/word-rotate.component.ts"
     ],
+    "libFiles": [
+      "media.ts"
+    ],
     "testFiles": [
       "word-rotate/word-rotate.component.spec.ts"
     ]
@@ -3500,6 +3548,9 @@
       "morphing-text/morphing-text.component.css",
       "morphing-text/morphing-text.component.html",
       "morphing-text/morphing-text.component.ts"
+    ],
+    "libFiles": [
+      "media.ts"
     ],
     "testFiles": [
       "morphing-text/morphing-text.component.spec.ts"
@@ -3522,6 +3573,9 @@
       "typing-animation/typing-animation.component.html",
       "typing-animation/typing-animation.component.ts"
     ],
+    "libFiles": [
+      "media.ts"
+    ],
     "testFiles": [
       "typing-animation/typing-animation.component.spec.ts"
     ]
@@ -3542,6 +3596,9 @@
       "wobble-card/wobble-card.component.html",
       "wobble-card/wobble-card.component.ts"
     ],
+    "libFiles": [
+      "media.ts"
+    ],
     "testFiles": [
       "wobble-card/wobble-card.component.spec.ts"
     ]
@@ -3559,6 +3616,9 @@
     ],
     "files": [
       "magnetic.directive.ts"
+    ],
+    "libFiles": [
+      "media.ts"
     ],
     "testFiles": [
       "magnetic.directive.spec.ts"
@@ -3580,6 +3640,9 @@
       "orbit/orbit.component.html",
       "orbit/orbit.component.ts"
     ],
+    "libFiles": [
+      "media.ts"
+    ],
     "testFiles": [
       "orbit/orbit.component.spec.ts"
     ]
@@ -3600,6 +3663,10 @@
       "stagger-children/stagger-children.component.html",
       "stagger-children/stagger-children.component.ts"
     ],
+    "libFiles": [
+      "media.ts",
+      "observers.ts"
+    ],
     "testFiles": [
       "stagger-children/stagger-children.component.spec.ts"
     ]
@@ -3618,6 +3685,10 @@
     "files": [
       "particles/index.ts",
       "particles/particles.component.ts"
+    ],
+    "libFiles": [
+      "media.ts",
+      "observers.ts"
     ],
     "testFiles": [
       "particles/particles.component.spec.ts"
@@ -3732,7 +3803,8 @@
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
-      "i18n/index.ts"
+      "i18n/index.ts",
+      "observers.ts"
     ],
     "dependencies": [
       "button"
@@ -3764,6 +3836,7 @@
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts",
+      "observers.ts",
       "touch.ts"
     ],
     "testFiles": [
@@ -3800,6 +3873,7 @@
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts",
+      "media.ts",
       "sortable-aria-live.ts",
       "sortable-registry.ts",
       "touch.ts"
@@ -4337,7 +4411,8 @@
       "chart-responsive.ts",
       "chart-scale.ts",
       "chart.types.ts",
-      "chart.utils.ts"
+      "chart.utils.ts",
+      "observers.ts"
     ],
     "dependencies": [
       "chart-legend",
@@ -4369,7 +4444,8 @@
       "chart-responsive.ts",
       "chart-scale.ts",
       "chart.types.ts",
-      "chart.utils.ts"
+      "chart.utils.ts",
+      "observers.ts"
     ],
     "dependencies": [
       "chart-legend",
@@ -4402,7 +4478,8 @@
       "chart-responsive.ts",
       "chart-scale.ts",
       "chart.types.ts",
-      "chart.utils.ts"
+      "chart.utils.ts",
+      "observers.ts"
     ],
     "dependencies": [
       "chart-legend",
@@ -4433,7 +4510,8 @@
       "chart-responsive.ts",
       "chart-scale.ts",
       "chart.types.ts",
-      "chart.utils.ts"
+      "chart.utils.ts",
+      "observers.ts"
     ],
     "dependencies": [
       "chart-legend",
@@ -4464,7 +4542,8 @@
       "chart-responsive.ts",
       "chart-scale.ts",
       "chart.types.ts",
-      "chart.utils.ts"
+      "chart.utils.ts",
+      "observers.ts"
     ],
     "dependencies": [
       "chart-legend",
@@ -4518,7 +4597,8 @@
       "chart-responsive.ts",
       "chart-scale.ts",
       "chart.types.ts",
-      "chart.utils.ts"
+      "chart.utils.ts",
+      "observers.ts"
     ],
     "testFiles": [
       "bullet-chart/bullet-chart.component.spec.ts"
@@ -4546,7 +4626,8 @@
       "chart-responsive.ts",
       "chart-scale.ts",
       "chart.types.ts",
-      "chart.utils.ts"
+      "chart.utils.ts",
+      "observers.ts"
     ],
     "dependencies": [
       "chart-tooltip"
@@ -4575,7 +4656,8 @@
       "chart-responsive.ts",
       "chart-scale.ts",
       "chart.types.ts",
-      "chart.utils.ts"
+      "chart.utils.ts",
+      "observers.ts"
     ],
     "dependencies": [
       "chart-tooltip"
@@ -4603,7 +4685,8 @@
       "chart-responsive.ts",
       "chart-scale.ts",
       "chart.types.ts",
-      "chart.utils.ts"
+      "chart.utils.ts",
+      "observers.ts"
     ],
     "dependencies": [
       "chart-tooltip"
@@ -4630,7 +4713,8 @@
     "libFiles": [
       "chart-responsive.ts",
       "chart.types.ts",
-      "chart.utils.ts"
+      "chart.utils.ts",
+      "observers.ts"
     ],
     "dependencies": [
       "chart-tooltip"
@@ -4684,7 +4768,8 @@
       "chart-responsive.ts",
       "chart-scale.ts",
       "chart.types.ts",
-      "chart.utils.ts"
+      "chart.utils.ts",
+      "observers.ts"
     ],
     "dependencies": [
       "chart-tooltip"
@@ -4741,7 +4826,8 @@
     "libFiles": [
       "chart-responsive.ts",
       "chart.types.ts",
-      "chart.utils.ts"
+      "chart.utils.ts",
+      "observers.ts"
     ],
     "dependencies": [
       "chart-tooltip"
@@ -4771,7 +4857,8 @@
       "chart-responsive.ts",
       "chart-scale.ts",
       "chart.types.ts",
-      "chart.utils.ts"
+      "chart.utils.ts",
+      "observers.ts"
     ],
     "dependencies": [
       "chart-tooltip"
@@ -4955,7 +5042,6 @@
       "rich-text-editor/barrel.spec.ts",
       "rich-text-editor/rich-text-command-registry.service.spec.ts",
       "rich-text-editor/rich-text-editor.component.spec.ts",
-      "rich-text-editor/rich-text-editor.properties.spec.ts",
       "rich-text-editor/rich-text-editor.validators.spec.ts",
       "rich-text-editor/rich-text-find.utils.spec.ts",
       "rich-text-editor/rich-text-input-rules.spec.ts",
@@ -5019,7 +5105,6 @@
       "rich-text-editor/barrel.spec.ts",
       "rich-text-editor/rich-text-command-registry.service.spec.ts",
       "rich-text-editor/rich-text-editor.component.spec.ts",
-      "rich-text-editor/rich-text-editor.properties.spec.ts",
       "rich-text-editor/rich-text-editor.validators.spec.ts",
       "rich-text-editor/rich-text-find.utils.spec.ts",
       "rich-text-editor/rich-text-input-rules.spec.ts",
@@ -5796,6 +5881,9 @@
     "files": [
       "masonry/index.ts",
       "masonry/masonry.component.ts"
+    ],
+    "libFiles": [
+      "observers.ts"
     ]
   },
   "result": {
@@ -6160,6 +6248,7 @@
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts",
+      "observers.ts",
       "sortable-aria-live.ts",
       "touch.ts"
     ],
