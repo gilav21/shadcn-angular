@@ -394,6 +394,12 @@ function mod(n: number, m: number): number {
     return ((n % m) + m) % m;
 }
 
+/** The year, month and day of a date-only ISO string (`YYYY-MM-DD`), or `null` for any other string. */
+function dateOnlyParts(v: string): Ymd | null {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+    return match ? { y: +match[1], m: +match[2], d: +match[3] } : null;
+}
+
 function parseDateCell(v: unknown): { ymd: Ymd; kind: 'date' | 'iso' } | null {
     if (v instanceof Date) {
         return Number.isNaN(v.getTime())
@@ -401,10 +407,8 @@ function parseDateCell(v: unknown): { ymd: Ymd; kind: 'date' | 'iso' } | null {
             : { ymd: { y: v.getFullYear(), m: v.getMonth() + 1, d: v.getDate() }, kind: 'date' };
     }
     if (typeof v === 'string') {
-        const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
-        if (match) {
-            return { ymd: { y: +match[1], m: +match[2], d: +match[3] }, kind: 'iso' };
-        }
+        const ymd = dateOnlyParts(v);
+        if (ymd) return { ymd, kind: 'iso' };
     }
     return null;
 }
@@ -741,14 +745,30 @@ export function evaluateAdvancedFilter(
  * an editor that insisted on one of those would be unusable on the other two.
  * Anything that is not a real date reads as `null` rather than as
  * `Invalid Date`, which renders as the string "Invalid Date" if it escapes.
+ *
+ * A date-only string (`YYYY-MM-DD`) names a calendar day, so it reads as
+ * local midnight of that day — the counterpart of {@link toLocalDateString}.
+ * The `Date` parser would read it as UTC midnight: the previous day anywhere
+ * west of Greenwich. Date-time strings and epoch numbers name an instant and
+ * go to the parser.
  */
 export function asEditableDate(value: unknown): Date | null {
     if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+    if (typeof value === 'string') {
+        const ymd = dateOnlyParts(value);
+        if (ymd) return localDay(ymd);
+    }
     if (typeof value === 'string' || typeof value === 'number') {
         const parsed = new Date(value);
         return Number.isNaN(parsed.getTime()) ? null : parsed;
     }
     return null;
+}
+
+/** Local midnight of `ymd`, or `null` when no such day exists (`2026-02-30` would roll into March). */
+function localDay(ymd: Ymd): Date | null {
+    const date = ymdToDate(ymd);
+    return date.getMonth() === ymd.m - 1 && date.getDate() === ymd.d ? date : null;
 }
 
 /**

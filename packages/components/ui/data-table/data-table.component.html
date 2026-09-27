@@ -120,7 +120,7 @@
           @if (!treeRow.isLeaf) {
             <button
               type="button"
-              class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground"
+              class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground pointer-coarse:size-11"
               [attr.aria-label]="
                 treeRow.isExpanded ? 'Collapse sub-rows' : 'Expand sub-rows'
               "
@@ -154,7 +154,7 @@
       } @else if (col.accessorKey === "_expander") {
         <button
           type="button"
-          class="inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground"
+          class="inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground pointer-coarse:size-11"
           [attr.aria-label]="isRowExpanded(row) ? 'Collapse row' : 'Expand row'"
           [attr.aria-expanded]="isRowExpanded(row)"
           (click)="toggleRowExpanded(row, $event)"
@@ -171,7 +171,7 @@
             <ui-button
               variant="ghost"
               size="icon"
-              class="h-8 w-8"
+              class="h-8 w-8 pointer-coarse:size-11"
               [ariaLabel]="slot.ariaLabel ?? 'Row actions'"
               (click)="slot.onClick($event, getRowContext(row, rowIndex))"
             >
@@ -383,7 +383,7 @@
                   <button
                     type="button"
                     data-slot="advanced-filter-trigger"
-                    class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-input bg-background px-3 h-8 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+                    class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-input bg-background px-3 h-8 pointer-coarse:h-11 pointer-coarse:min-w-11 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
                   >
                     <ui-icon name="filter" size="xs" />
                     <span class="hidden sm:inline">{{ filterBuilderLabels().filterButton }}</span>
@@ -505,7 +505,14 @@
             </div>
           </div>
         }
-        <ui-table [role]="enableSubRows() ? 'treegrid' : 'grid'">
+        <!-- #scrollContainer scrolls both axes. If ui-table kept its own
+             overflow-x box (which forces overflow-y to auto too), the sticky
+             header would stick inside it and scroll away, and its horizontal
+             scrollbar would sit under the last row. -->
+        <ui-table
+          class="overflow-visible"
+          [role]="enableSubRows() ? 'treegrid' : 'grid'"
+        >
           <ui-table-header class="bg-background">
             <ui-table-row>
               @for (col of enhancedColumns(); track col.accessorKey) {
@@ -540,10 +547,11 @@
                           ariaLabel="Select all"
                         />
                       } @else if (col._isTreeExpanderHost) {
-                        <div class="flex items-center gap-1">
+                        <!-- gap-2 offsets the sort button's -ms-2, which would otherwise pull it over the expand-all button -->
+                        <div class="flex items-center gap-2">
                           <button
                             type="button"
-                            class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground"
+                            class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground pointer-coarse:size-11"
                             [attr.aria-label]="
                               isAllSubRowsExpanded()
                                 ? 'Collapse all sub-rows'
@@ -582,7 +590,7 @@
                       } @else if (col.accessorKey === "_expander") {
                         <button
                           type="button"
-                          class="inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground"
+                          class="inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground pointer-coarse:size-11"
                           [attr.aria-label]="
                             isAllExpanded()
                               ? 'Collapse all rows'
@@ -607,7 +615,9 @@
                         ></ng-container>
                       } @else if (col.enableSorting !== false) {
                         <div class="flex items-center gap-2">
+                          <!-- min-w-0: a narrow column truncates its title instead of sliding it under the filter and menu buttons -->
                           <ui-data-table-column-header
+                            class="min-w-0"
                             [title]="col.header"
                             [column]="String(col.accessorKey)"
                             [direction]="getSortDirection(col.accessorKey)"
@@ -624,7 +634,7 @@
                             <ui-popover [closeOnScroll]="true">
                               <ui-popover-trigger>
                                 <button
-                                  class="relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8"
+                                  class="relative inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8 pointer-coarse:size-11"
                                   [class.text-primary]="
                                     isColumnFilterActive(col)
                                   "
@@ -662,7 +672,7 @@
                             <ui-popover>
                               <ui-popover-trigger>
                                 <button
-                                  class="relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8"
+                                  class="relative inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8 pointer-coarse:size-11"
                                   [class.text-primary]="
                                     isColumnFilterActive(col)
                                   "
@@ -703,7 +713,7 @@
                       @for (slot of headerActionSlots(); track slot.id) {
                         <button
                           type="button"
-                          class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md opacity-0 group-hover/head:opacity-100 touch-visible hover:bg-accent hover:text-accent-foreground transition-opacity"
+                          class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md opacity-0 group-hover/head:opacity-100 touch-visible pointer-coarse:size-11 hover:bg-accent hover:text-accent-foreground transition-opacity"
                           [attr.aria-label]="'Column menu for ' + col.header"
                           (click)="slot.onClick($event, col)"
                         >
@@ -750,7 +760,7 @@
                   <ui-table-head
                     [role]="hasFloatingFilter(col) ? 'columnheader' : 'presentation'"
                     [style]="getHeaderCellStyle(col)"
-                    class="sticky top-[var(--header-height,41px)] z-20 bg-muted/50 py-1 px-1 overflow-hidden"
+                    class="sticky top-[var(--header-height,41px)] z-20 bg-muted/50 py-1 px-1 overflow-hidden pointer-coarse:h-auto"
                   >
                     @if (
                       col.floatingFilter !== false &&
@@ -827,7 +837,7 @@
                       treeRow.isLeaf ? null : treeRow.isExpanded
                     "
                     [style.height.px]="
-                      virtualVariableRowHeight() ? null : virtualRowHeight()
+                      virtualVariableRowHeight() ? null : effectiveRowHeight()
                     "
                     class="border-0"
                   >
@@ -988,7 +998,7 @@
                     (drop)="onRowDrop($event)"
                     (dragend)="onRowDragEnd()"
                     [style.height.px]="
-                      virtualVariableRowHeight() ? null : virtualRowHeight()
+                      virtualVariableRowHeight() ? null : effectiveRowHeight()
                     "
                     class="border-0 relative"
                   >
@@ -1258,7 +1268,7 @@
                         <div class="flex flex-wrap items-center gap-2">
                           <button
                             type="button"
-                            class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground"
+                            class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground pointer-coarse:size-11"
                             [attr.aria-label]="
                               displayRow.collapsed ? 'Expand group' : 'Collapse group'
                             "
@@ -1491,7 +1501,7 @@
                 <ui-button
                   size="sm"
                   variant="outline"
-                  class="ms-auto h-6 px-2"
+                  class="ms-auto h-6 px-2 pointer-coarse:h-11"
                   [ariaLabel]="rangeLabels().chart"
                   (click)="openRangeChart()"
                 >

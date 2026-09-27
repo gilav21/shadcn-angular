@@ -351,7 +351,7 @@ const meta: Meta<DataTableComponent<User>> = {
             options: [true, false, 'auto'],
             description: '"auto" enables virtual scroll once rows/columns exceed virtualAutoThreshold. Mutually exclusive with pagination.',
         },
-        virtualRowHeight: { control: 'number', min: 10, max: 200, step: 1, description: 'Fixed row height (px) used for virtual scroll math.' },
+        virtualRowHeight: { control: 'number', min: 10, max: 200, step: 1, description: 'Fixed row height (px) used for virtual scroll math. Unset: 40px for a mouse, 60px on a touch screen.' },
         virtualRowBuffer: { control: 'number', min: 0, max: 50, step: 1, description: 'Extra rows rendered above/below the viewport.' },
         virtualColumnBuffer: { control: 'number', min: 0, max: 20, step: 1, description: 'Extra columns rendered left/right of the viewport.' },
         virtualVariableRowHeight: { control: 'boolean', description: 'Measure each row\'s real height instead of using a fixed virtualRowHeight.' },
@@ -415,7 +415,7 @@ const meta: Meta<DataTableComponent<User>> = {
         emptyStateComponentInputs: {},
         filterDebounce: 0,
         enableVirtualScroll: false,
-        virtualRowHeight: 40,
+        virtualRowHeight: undefined,
         virtualRowBuffer: 5,
         virtualColumnBuffer: 3,
         virtualVariableRowHeight: false,
@@ -926,6 +926,72 @@ export const AutoSizing: Story = {
     },
 };
 
+const manyUsers: User[] = Array.from({ length: 60 }, (_, i) => ({
+    id: `${i + 1}`,
+    name: `User ${i + 1}`,
+    email: `user${i + 1}@example.com`,
+    role: ['Admin', 'User', 'Manager'][i % 3],
+}));
+
+/**
+ * 60 rows, pager hidden, in a short, narrow box: the table scrolls inside its own
+ * container on both axes. The header stays at the top, the pinned ID column
+ * stays at the left, and the horizontal scrollbar sits at the bottom of the
+ * box rather than under the last row.
+ */
+export const ScrollingWithStickyHeader: Story = {
+    render: (args) => ({
+        props: args,
+        template: `
+            <div class="h-[350px] w-full sm:w-[520px] p-4">
+                <ui-data-table
+                    [data]="data"
+                    [columns]="columns"
+                    [showPagination]="showPagination"
+                    [showToolbar]="showToolbar"
+                />
+            </div>
+        `,
+    }),
+    args: {
+        data: manyUsers,
+        columns: [
+            { accessorKey: 'id', header: 'ID', pin: 'left', width: '70px' },
+            { accessorKey: 'name', header: 'Name', enableSorting: true, width: '200px' },
+            { accessorKey: 'email', header: 'Email', enableSorting: true, width: '260px' },
+            { accessorKey: 'role', header: 'Role', enableSorting: true, width: '180px' },
+        ],
+        showPagination: false,
+        showToolbar: false,
+    },
+};
+
+/**
+ * Auto-width columns share the free space but never shrink below their
+ * `minWidth` (80px when unset). Narrow the viewport: "Email address" keeps
+ * its full header at 180px, and the table scrolls instead of truncating it.
+ */
+export const ColumnMinWidth: Story = {
+    render: (args) => ({
+        props: args,
+        template: `
+            <div class="h-[400px] w-full sm:w-[420px] p-4">
+                <ui-data-table [data]="data" [columns]="columns" [showToolbar]="showToolbar" />
+            </div>
+        `,
+    }),
+    args: {
+        data: sampleData,
+        columns: [
+            { accessorKey: 'id', header: 'ID', width: '60px' },
+            { accessorKey: 'name', header: 'Name' },
+            { accessorKey: 'email', header: 'Email address', minWidth: '180px' },
+            { accessorKey: 'role', header: 'Role', minWidth: '120px' },
+        ],
+        showToolbar: false,
+    },
+};
+
 export const ResizableColumns: Story = {
     render: (args) => ({
         props: {
@@ -936,7 +1002,7 @@ export const ResizableColumns: Story = {
             <div class="h-[600px] w-full p-4">
                 <p class="text-sm text-muted-foreground mb-4">
                     Drag the right edge of column headers to resize columns.
-                    Minimum width is enforced (50px default, 80px for Name column).
+                    Each column stops at its minWidth (80px when unset).
                 </p>
                 <ui-data-table
                     [data]="data"
@@ -1804,7 +1870,7 @@ export const VirtualScrollPerformance: VirtualStory = {
         showToolbar: true,
         showPagination: false,
         enableVirtualScroll: true,
-        virtualRowHeight: 40,
+        virtualRowHeight: undefined,
         virtualRowBuffer: 5,
         virtualColumnBuffer: 3,
         virtualRecycleComponents: false,

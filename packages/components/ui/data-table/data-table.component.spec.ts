@@ -3589,17 +3589,24 @@ describe('DataTableComponent - getCellStringValue', () => {
         ({ fixture, component } = await makeNumTable());
     });
 
-    it('exports the rendered text of a component-rendered column, not its raw value', () => {
+    it('exports the rendered text of a component-rendered column, not its raw value, whatever characters the row id holds', () => {
         const col: ColumnDef<NumRow> = {
             accessorKey: 'score',
             header: 'Score',
             component: ScoreBadgeComponent,
             componentInputs: (row) => ({ score: row.score }),
         };
+        // ids a selector must quote: a leading digit, a Windows path with quotes, a multi-line key
+        const rows: NumRow[] = [
+            { id: '1', name: 'Alpha', score: 30 },
+            { id: String.raw`C:\exports\"Q1"`, name: 'Path', score: 12 },
+            { id: 'batch 7\nretry', name: 'Multi-line', score: 5 },
+        ];
+        fixture.componentRef.setInput('data', rows);
         fixture.componentRef.setInput('columns', [NUM_COLUMNS[0], col]);
         fixture.detectChanges();
 
-        expect(component.getCellStringValue(NUM_DATA[0], col)).toBe('30 pts');
+        expect(rows.map((row) => component.getCellStringValue(row, col))).toEqual(['30 pts', '12 pts', '5 pts']);
         expect(component.getExportData()[1]).toEqual(['1', '30 pts']);
     });
 
@@ -5418,6 +5425,65 @@ function renderedVirtualRows(fixture: ComponentFixture<unknown>): HTMLElement[] 
     return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[data-virtual-row-index]'));
 }
 
+describe('DataTableComponent - built-in control columns on a touch screen', () => {
+    it('widens the expander column while the pointer is coarse', async () => {
+        const listeners = new Set<(event: MediaQueryListEvent) => void>();
+        const query = {
+            matches: true,
+            addEventListener: (_: string, fn: (event: MediaQueryListEvent) => void) => listeners.add(fn),
+            removeEventListener: (_: string, fn: (event: MediaQueryListEvent) => void) => listeners.delete(fn),
+        };
+        const view = globalThis as { matchMedia?: unknown };
+        const original = view.matchMedia;
+        view.matchMedia = (media: string) => ({ ...query, media });
+        try {
+            await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
+            const fixture = TestBed.createComponent(DataTableComponent<TestData>);
+            fixture.componentRef.setInput('data', TEST_DATA);
+            fixture.componentRef.setInput('columns', TEST_COLUMNS);
+            fixture.componentRef.setInput('enableRowExpansion', true);
+            fixture.componentInstance.registerCellAction({ id: 'menu', onClick: () => undefined });
+            fixture.detectChanges();
+            const widths = (): Record<string, string> => Object.fromEntries(
+                fixture.componentInstance.enhancedColumns()
+                    .filter((col) => String(col.accessorKey).startsWith('_'))
+                    .map((col) => [String(col.accessorKey), col._width]),
+            );
+
+            expect(widths()).toEqual({ _expander: '64px', _actions: '50px' });
+            for (const fn of listeners) fn({ matches: false } as MediaQueryListEvent);
+            expect(widths()).toEqual({ _expander: '40px', _actions: '50px' });
+
+            fixture.destroy();
+            expect(listeners.size).toBe(0);
+        } finally {
+            if (original === undefined) delete view.matchMedia;
+            else view.matchMedia = original;
+        }
+    });
+});
+
+describe('DataTableComponent - where ResizeObserver does not exist', () => {
+    it('windows a variable-height virtual table by the row-height estimate', async () => {
+        // the file-level afterEach puts the original back
+        delete (globalThis as ResizeObserverGlobal).ResizeObserver;
+        await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(DataTableComponent<{ id: number }>);
+        fixture.componentRef.setInput('data', Array.from({ length: 600 }, (_, i) => ({ id: i })));
+        fixture.componentRef.setInput('columns', [{ accessorKey: 'id', header: 'ID', width: '120px' }]);
+        fixture.componentRef.setInput('enableVirtualScroll', true);
+        fixture.componentRef.setInput('virtualVariableRowHeight', true);
+        fixture.detectChanges();
+
+        const { end, paddingBottom } = fixture.componentInstance.virtualRowRange();
+        expect(renderedVirtualRows(fixture).map((row) => Number(row.dataset['virtualRowIndex'])))
+            .toEqual(Array.from({ length: end }, (_, i) => i));
+        // no virtualRowHeight set: the 40px desktop estimate
+        expect(paddingBottom).toBe((600 - end) * 40);
+        expect(() => fixture.destroy()).not.toThrow();
+    });
+});
+
 describe('DataTableComponent - variable row height virtual scroll', () => {
     interface VRow { id: number }
     let fixture: ComponentFixture<DataTableComponent<VRow>>;
@@ -6394,5 +6460,52 @@ describe('DataTableComponent - theme preset', () => {
 
         document.documentElement.classList.add('dark');
         expect(primary()).toBe('oklch(0.929 0.013 255.508)');
+    });
+});
+
+describe('DataTableComponent - paging only what a pager can reach', () => {
+    interface Member {
+        id: string;
+        name: string;
+        team: string;
+        children?: Member[];
+    }
+
+    const COLUMNS: ColumnDef<Member>[] = [
+        { accessorKey: 'name', header: 'Name' },
+        { accessorKey: 'team', header: 'Team' },
+    ];
+    const member = (i: number): Member => ({ id: `m${i}`, name: `Member ${i}`, team: ['Design', 'Platform', 'Sales'][i % 3] });
+    const flatMembers = Array.from({ length: 60 }, (_, i) => member(i));
+    // 30 leads with one report each: 60 rows once every node is expanded
+    const treeMembers = Array.from({ length: 30 }, (_, i) => ({ ...member(i), children: [member(100 + i)] }));
+
+    async function render(data: Member[], inputs: Record<string, unknown>): Promise<ComponentFixture<DataTableComponent<Member>>> {
+        await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(DataTableComponent<Member>);
+        fixture.componentRef.setInput('data', data);
+        fixture.componentRef.setInput('columns', COLUMNS);
+        for (const [name, value] of Object.entries(inputs)) fixture.componentRef.setInput(name, value);
+        fixture.detectChanges();
+        return fixture;
+    }
+
+    it.each([
+        { mode: 'flat', data: flatMembers, inputs: {}, last: 'Member 59' },
+        { mode: 'grouped', data: flatMembers, inputs: { groupBy: 'team' }, last: 'Member 59' },
+        { mode: 'tree', data: treeMembers, inputs: { enableSubRows: true, subRowDefaultExpanded: -1 }, last: 'Member 129' },
+    ])('renders every row when the pagination controls are hidden, in $mode mode', async ({ data, inputs, last }) => {
+        const fixture = await render(data, { ...inputs, showPagination: false });
+
+        const names = [...(fixture.nativeElement as HTMLElement).querySelectorAll('ui-table-body [data-column="name"]')]
+            .map((cell) => cell.textContent?.trim());
+        expect(names).toHaveLength(60);
+        expect(names).toContain(last);
+    });
+
+    it('maps a rendered index to its row across the whole list under virtual scroll, which the pager cannot page', async () => {
+        const fixture = await render(flatMembers, { enableVirtualScroll: true });
+
+        expect(fixture.componentInstance.getRenderedRowAt(59)?.name).toBe('Member 59');
     });
 });

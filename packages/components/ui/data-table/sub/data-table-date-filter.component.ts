@@ -12,7 +12,8 @@ import { CalendarComponent } from '../../calendar';
 import { ButtonComponent } from '../../button';
 import { createLocaleBindings, type LocaleInput } from '../../../lib/i18n';
 import { CALENDAR_LOCALES, type CalendarLocale } from '../../../lib/i18n/calendar.locales';
-import { toDate, toDateOnlyTimestamp } from './data-table-date-utils';
+import { toDateOnlyTimestamp } from './data-table-date-utils';
+import { asEditableDate } from '../data-table.utils';
 
 @Component({
   selector: 'ui-data-table-date-filter',
@@ -106,7 +107,7 @@ export function dateFilterFn<TRow>(
   getValue: (row: TRow) => unknown
 ): boolean {
   if (!filterValue) return true;
-  const cellDate = toDate(getValue(row));
+  const cellDate = asEditableDate(getValue(row));
   if (!cellDate) return false;
   return toDateOnlyTimestamp(cellDate) === toDateOnlyTimestamp(filterValue);
 }

@@ -5,14 +5,16 @@
 // matches — refusing it outright, rather than applying the half that parses.
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
+import { By } from '@angular/platform-browser';
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { DataTableComponent } from './data-table.component';
+import { DatePickerComponent } from '../date-picker';
 import {
     asEditableDate,
     toEditedDateValue,
     toLocalDateString,
 } from './data-table.utils';
-import type { ColumnDef, DataTableViewState, FilterGroup } from './data-table.types';
+import type { CellEditEvent, ColumnDef, DataTableViewState, FilterGroup } from './data-table.types';
 
 interface Row {
     id: number;
@@ -177,8 +179,16 @@ describe('editing a date cell', () => {
             expect(asEditableDate(date)).toBe(date);
         });
 
-        it('reads an ISO string', () => {
-            expect(asEditableDate('2026-03-04')?.getUTCFullYear()).toBe(2026);
+        /*
+         * `new Date('2026-03-04')` is UTC midnight: the previous day anywhere
+         * west of Greenwich, and 03:00 in UTC+3, where the day still looks
+         * right. Local midnight holds in every timezone.
+         */
+        it('reads a date-only ISO string as local midnight of that day, and a date-time one as its instant', () => {
+            const dateOnly = asEditableDate('2026-03-04');
+            expect([dateOnly?.getFullYear(), dateOnly?.getMonth(), dateOnly?.getDate(), dateOnly?.getHours(), dateOnly?.getMinutes()])
+                .toEqual([2026, 2, 4, 0, 0]);
+            expect(asEditableDate('2026-03-04T10:30:00Z')?.getTime()).toBe(Date.UTC(2026, 2, 4, 10, 30));
         });
 
         it('reads an epoch number', () => {
@@ -186,7 +196,7 @@ describe('editing a date cell', () => {
         });
 
         /** "Invalid Date" renders as the literal text if it ever escapes. */
-        it.each([['not a date'], [null], [undefined], [{}], [Number.NaN]])(
+        it.each([['not a date'], ['2026-02-30'], [null], [undefined], [{}], [Number.NaN]])(
             'reads %j as nothing',
             value => {
                 expect(asEditableDate(value)).toBeNull();
@@ -221,6 +231,10 @@ describe('editing a date cell', () => {
         it('clears to null', () => {
             expect(toEditedDateValue(null, '2026-01-01')).toBeNull();
         });
+
+        it('hands a date-only string back as the same day when it is re-picked unchanged', () => {
+            expect(toEditedDateValue(asEditableDate('2026-03-04'), '2026-03-04')).toBe('2026-03-04');
+        });
     });
 
     /*
@@ -238,5 +252,42 @@ describe('editing a date cell', () => {
 
     it('pads a single-digit month and day', () => {
         expect(toLocalDateString(new Date(2026, 0, 5))).toBe('2026-01-05');
+    });
+
+    describe('in the table', () => {
+        let original: typeof globalThis.ResizeObserver | undefined;
+
+        beforeEach(() => {
+            original = globalThis.ResizeObserver;
+            globalThis.ResizeObserver = NoopResizeObserver as unknown as typeof globalThis.ResizeObserver;
+        });
+
+        afterEach(() => {
+            if (original) globalThis.ResizeObserver = original;
+            else delete (globalThis as { ResizeObserver?: unknown }).ResizeObserver;
+        });
+
+        it('opens a date picker on the cell and commits the picked day as the string the column holds', async () => {
+            await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
+            const fixture = TestBed.createComponent(DataTableComponent<Row>);
+            fixture.componentRef.setInput('data', DATA.slice(0, 3));
+            fixture.componentRef.setInput('columns', COLUMNS);
+            fixture.detectChanges();
+            const table = fixture.componentInstance;
+            const edits: CellEditEvent<Row>[] = [];
+            table.cellEdit.subscribe((edit) => edits.push(edit));
+
+            table.startEditing(1, 'due');
+            fixture.detectChanges();
+            const picker = fixture.debugElement.query(By.directive(DatePickerComponent)).componentInstance as DatePickerComponent;
+            expect(picker.date()?.getTime()).toBe(new Date(2026, 2, 4).getTime());
+
+            picker.dateChange.emit(new Date(2026, 2, 10));
+            fixture.detectChanges();
+
+            expect(edits.map(({ rowIndex, oldValue, newValue }) => ({ rowIndex, oldValue, newValue })))
+                .toEqual([{ rowIndex: 1, oldValue: '2026-03-04', newValue: '2026-03-10' }]);
+            expect(table.editingCell()).toBeNull();
+        });
     });
 });

@@ -75,9 +75,9 @@ const VALUELESS: ReadonlySet<FilterOperator> = new Set(['isEmpty', 'isNotEmpty']
         <div class="space-y-2 rounded-md border bg-background p-2" data-slot="filter-group">
             <div class="flex items-center gap-2">
                 <div class="inline-flex shrink-0 overflow-hidden rounded-md border text-xs">
-                    <button type="button" class="px-2 py-1" [class.bg-accent]="group().combinator === 'and'"
+                    <button type="button" class="px-2 py-1 pointer-coarse:min-w-11" [class.bg-accent]="group().combinator === 'and'"
                         (click)="setCombinator('and')">{{ labels().and }}</button>
-                    <button type="button" class="px-2 py-1 border-s" [class.bg-accent]="group().combinator === 'or'"
+                    <button type="button" class="px-2 py-1 border-s pointer-coarse:min-w-11" [class.bg-accent]="group().combinator === 'or'"
                         (click)="setCombinator('or')">{{ labels().or }}</button>
                 </div>
                 <span class="text-xs text-muted-foreground">
@@ -105,7 +105,7 @@ const VALUELESS: ReadonlySet<FilterOperator> = new Set(['isEmpty', 'isNotEmpty']
                                 class="h-8 min-w-0 flex-1 rounded-md border bg-background px-2 text-sm"
                                 [value]="asText(rule.value)" (input)="patch($index, { value: selectValue($event) })" />
                         }
-                        <button type="button" class="ms-auto inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-destructive"
+                        <button type="button" class="ms-auto inline-flex h-7 w-7 pointer-coarse:size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-destructive"
                             [attr.aria-label]="labels().removeCondition" (click)="removeRule($index)">
                             <ui-icon name="x" size="xs" />
                         </button>
@@ -121,8 +121,8 @@ const VALUELESS: ReadonlySet<FilterOperator> = new Set(['isEmpty', 'isNotEmpty']
             }
 
             <div class="flex flex-wrap gap-2">
-                <ui-button size="sm" variant="outline" (click)="addCondition()">{{ labels().addCondition }}</ui-button>
-                <ui-button size="sm" variant="ghost" (click)="addGroup()">{{ labels().addGroup }}</ui-button>
+                <ui-button size="sm" variant="outline" class="pointer-coarse:h-11" (click)="addCondition()">{{ labels().addCondition }}</ui-button>
+                <ui-button size="sm" variant="ghost" class="pointer-coarse:h-11" (click)="addGroup()">{{ labels().addGroup }}</ui-button>
             </div>
         </div>
     `,

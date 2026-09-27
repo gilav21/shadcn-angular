@@ -396,6 +396,20 @@
   </div>
 </section>
 
+<!-- Column Min Width Section -->
+<section class="space-y-4">
+  <h2 id="data-table-min-width" class="text-2xl font-semibold scroll-m-20">Column minimum width</h2>
+  <p class="text-muted-foreground">
+    Columns without a <code class="text-xs bg-muted px-1 rounded">width</code> share the free space, but never
+    shrink below their <code class="text-xs bg-muted px-1 rounded">minWidth</code> (80px when unset). In a
+    narrow box the table scrolls sideways instead of cutting off the long headers.
+  </p>
+  <div class="h-[300px] sm:h-[360px] w-full sm:max-w-[560px]">
+    <ui-data-table [data]="payments()" [columns]="minWidthColumns" [showToolbar]="false" [showPagination]="false" />
+  </div>
+  <pre class="overflow-auto rounded-md bg-muted p-3 text-xs leading-relaxed">{{ minWidthCode }}</pre>
+</section>
+
 <!-- Advanced Filter Builder Demo (A5) -->
 <section class="space-y-4">
   <h2 id="data-table-advanced-filter" class="text-2xl font-semibold scroll-m-20">Advanced filter builder</h2>

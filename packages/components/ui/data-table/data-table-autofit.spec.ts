@@ -93,11 +93,15 @@ describe('DataTableComponent column auto-fit (A8)', () => {
     expect(note).toBeGreaterThan(name);
   });
 
-  it('shrinks a column that is wider than its content', () => {
-    component.columnWidths.set({ name: '600px' });
+  it('shrinks a column that is wider than its content, but not below its minWidth', () => {
+    fixture.componentRef.setInput('columns', COLS.map((c) => (c.accessorKey === 'name' ? { ...c, minWidth: '90px' } : c)));
+    component.columnWidths.set({ name: '600px', note: '600px' });
     fixture.detectChanges();
     component.autoSizeColumn('name');
-    expect(Number.parseInt(component.columnWidths()['name'], 10)).toBeLessThan(600);
+    component.autoSizeColumn('note');
+    // "Al" / "Bo" measure far under 90px; the long note measures between the floor and 600px
+    expect(component.columnWidths()['name']).toBe('90px');
+    expect(Number.parseInt(component.columnWidths()['note'], 10)).toBeLessThan(600);
   });
 
   it('auto-sizes every navigable column', () => {

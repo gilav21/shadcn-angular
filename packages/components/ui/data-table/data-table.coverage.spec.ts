@@ -519,9 +519,9 @@ describe('DataTableComponent branch coverage', () => {
 
       const col = { accessorKey: 'name', _width: '200px' } as CellStyleColumn;
       component.onResizeStart(new MouseEvent('mousedown', { clientX: 0 }), col);
-      // Dragging right shrinks an RTL column, down to the 50px default minimum.
+      // Dragging right shrinks an RTL column, down to the 80px default minimum.
       document.dispatchEvent(new MouseEvent('mousemove', { clientX: 1000 }));
-      expect(component.columnWidths()['name']).toBe('50px');
+      expect(component.columnWidths()['name']).toBe('80px');
       document.dispatchEvent(new MouseEvent('mousemove', { clientX: 40 }));
       expect(component.columnWidths()['name']).toBe('160px');
 

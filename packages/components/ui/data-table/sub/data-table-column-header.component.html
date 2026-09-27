@@ -5,11 +5,11 @@
     <ui-button
       variant="ghost"
       size="sm"
-      class="-ms-3 h-8 data-[state=open]:bg-accent"
+      class="-ms-2 h-8 pointer-coarse:h-11 min-w-0 pointer-coarse:min-w-11 shrink data-[state=open]:bg-accent"
       [ariaLabel]="sortAriaLabel()"
       (click)="toggleSort($event)"
     >
-      <span>{{ title() }}</span>
+      <span class="truncate">{{ title() }}</span>
       @if (direction() === 'desc') {
         <ui-icon name="arrow-down" class="ms-2 h-4 w-4" />
       } @else if (direction() === 'asc') {

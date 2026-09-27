@@ -263,9 +263,10 @@ describe('dateFilterFn', () => {
     expect(dateFilterFn(row, filter, (r: Row) => r.createdAt)).toBe(false);
   });
 
-  it('matches ISO date-time string cell values by their calendar day', () => {
+  it('matches ISO date-only and date-time string cell values by their local calendar day', () => {
     const filter = new Date(2024, 5, 15);
     const createdAt = (r: Row) => r.createdAt;
+    expect(dateFilterFn<Row>({ id: 0, createdAt: '2024-06-15' }, filter, createdAt)).toBe(true);
     expect(dateFilterFn<Row>({ id: 1, createdAt: '2024-06-15T23:59:00' }, filter, createdAt)).toBe(true);
     expect(dateFilterFn<Row>({ id: 2, createdAt: '2024-06-16T00:01:00' }, filter, createdAt)).toBe(false);
     expect(dateFilterFn<Row>({ id: 3, createdAt: '2024-06-14T23:59:00' }, filter, createdAt)).toBe(false);
