@@ -40,6 +40,7 @@ import {
     lintPortableSpec,
     dependencyClosure,
     analyzePortableTests,
+    loadPortableTestsConfig,
     updateEntryArray,
     removeEntryArray,
     type BoundaryContext,
@@ -1798,5 +1799,22 @@ describe('collectPortableSpecs & analyzePortableTests', () => {
         const result = analyzePortableTests(entries, updates, { verified: [] }, ctxFor(entries), ptRoots);
         expect(result.updates.get('badge')?.testFiles).toEqual([]);
         expect(result.hasChanges).toBe(true);
+    });
+
+    it('loads a floor or a barrelOnly coverage exception, and rejects one that would waive coverage by typo', () => {
+        const load = (coverageExceptions: unknown) => {
+            write('portable-tests.json', JSON.stringify({ verified: ['badge'], coverageExceptions }));
+            return () => loadPortableTestsConfig(ptRoots.componentsRoot);
+        };
+        const valid = {
+            select: { lines: 99, reason: '1 layout-only line' },
+            'rich-text-editor/full': { barrelOnly: true, reason: 'ships only a barrel' },
+        };
+        expect(load(valid)().coverageExceptions).toEqual(valid);
+
+        expect(load({ 'rich-text-editor/full': { barrelonly: true, reason: 'typo' } })).toThrow(/rich-text-editor\/full/);
+        expect(load({ select: { lines: 99, barrelOnly: true, reason: 'both' } })).toThrow(/exactly one/);
+        expect(load({ select: { lines: 99 } })).toThrow(/reason/);
+        rmSync(path.join(ptRoots.componentsRoot, 'portable-tests.json'));
     });
 });

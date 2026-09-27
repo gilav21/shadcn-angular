@@ -1465,12 +1465,26 @@ export const PORTABLE_TESTS_FILENAME = 'portable-tests.json';
 
 const BROWSER_SPEC_SUFFIX = '.browser.spec.ts';
 
-export interface CoverageException {
+/** A lowered line-coverage floor for a component whose remaining lines need a real browser. */
+export interface CoverageFloorException {
     /** Line-coverage floor (percent) accepted for this component under jsdom. */
     readonly lines: number;
     /** Why full coverage is unreachable outside a real browser. */
     readonly reason: string;
 }
+
+/**
+ * An entry that ships no measurable source (only a barrel), so a coverage run
+ * measures 0/0 by construction. Its specs must still pass; coverage is waived
+ * only while it really measures nothing.
+ */
+export interface BarrelOnlyException {
+    readonly barrelOnly: true;
+    /** Why the entry has no source of its own to measure. */
+    readonly reason: string;
+}
+
+export type CoverageException = CoverageFloorException | BarrelOnlyException;
 
 export interface PortableTestsConfig {
     readonly verified: readonly string[];
@@ -1488,7 +1502,27 @@ export function loadPortableTestsConfig(componentsRoot: string): PortableTestsCo
         || !record['verified'].every((v: unknown) => typeof v === 'string')) {
         throw new Error(`${PORTABLE_TESTS_FILENAME} must contain a "verified" string array`);
     }
+    const exceptions = record['coverageExceptions'];
+    if (exceptions !== undefined) {
+        if (typeof exceptions !== 'object' || exceptions === null || Array.isArray(exceptions)) {
+            throw new Error(`${PORTABLE_TESTS_FILENAME} "coverageExceptions" must be an object`);
+        }
+        for (const [name, value] of Object.entries(exceptions)) {
+            if (!isCoverageException(value)) {
+                throw new Error(`${PORTABLE_TESTS_FILENAME} coverageExceptions["${name}"] needs a non-empty "reason" and exactly one of "lines" (0-100) or "barrelOnly": true`);
+            }
+        }
+    }
     return parsed as PortableTestsConfig;
+}
+
+/** Exactly one of a numeric floor or the barrel-only flag, always with a reason — a typo must not waive coverage. */
+function isCoverageException(value: unknown): value is CoverageException {
+    if (typeof value !== 'object' || value === null) return false;
+    const { lines, barrelOnly, reason } = value as Record<string, unknown>;
+    if (typeof reason !== 'string' || reason.trim() === '') return false;
+    if (barrelOnly === undefined) return typeof lines === 'number' && lines >= 0 && lines <= 100;
+    return barrelOnly === true && lines === undefined;
 }
 
 function isPortableSpecName(fileName: string): boolean {

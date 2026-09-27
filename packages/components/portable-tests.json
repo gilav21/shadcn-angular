@@ -173,6 +173,22 @@
     "file-upload": {
       "lines": 67,
       "reason": "The inline-crop flow (file-upload.component.ts crop panel, file-upload.utils.ts cropImageFile) needs URL.createObjectURL, createImageBitmap and canvas, none of which jsdom provides. It is tested in file-upload.crop.browser.spec.ts; the shipped specs cover everything else."
+    },
+    "data-table": {
+      "lines": 99,
+      "reason": "3 draw-only lines in data-table.component.ts: fillHandleCell's range branch (2671-2672) only chooses where the fill handle is drawn from getBoundingClientRect, and getCellClass's fill-preview branch (2983) only adds the dashed-outline classes. Both are asserted as rendered geometry / computed outline-style in data-table.component.browser.spec.ts; jsdom has no layout to observe them."
+    },
+    "rich-text-editor/full": {
+      "barrelOnly": true,
+      "reason": "Ships only addons/full/index.ts, the auto-generated barrel that re-exports every addon directive and the RTE_FULL array of them; the portable config excludes index.ts from coverage, so there is no source of its own to measure. Its specs (full-barrel, rich-text-full) must still pass; each addon's source is covered under its own entry."
+    },
+    "rich-text-editor": {
+      "lines": 99.8,
+      "reason": "10 caret-movement lines in rich-text-editor.component.ts: the body of handleVerticalArrowInTaskRow after its guard and caretBesideLineText move the caret one rendered line with Selection.modify. jsdom has no layout and no Selection.modify (the code guards for it, so consumers' jsdom tests fall back to the default), and the behaviour is asserted by the task-row arrow-key tests in rich-text-editor.component.browser.spec.ts."
+    },
+    "signature-pad": {
+      "lines": 89,
+      "reason": "16 lines in signature-pad.component.ts need a real browser: the stroke paint body needs a 2D canvas context (jsdom's getContext returns null) and adopt() needs a real image decode to load a saved signature. Both are asserted in signature-pad.component.browser.spec.ts ('paints the ink onto the canvas and erases it on clear', 'does NOT emit when a value is written in from outside')."
     }
   }
 }
