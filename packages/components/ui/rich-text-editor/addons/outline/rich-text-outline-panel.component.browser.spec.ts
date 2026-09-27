@@ -1,6 +1,7 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { cdp } from 'vitest/browser';
 import { RichTextOutlinePanelComponent } from './rich-text-outline-panel.component';
 import {
     RICH_TEXT_OUTLINE_CONTEXT,
@@ -8,6 +9,15 @@ import {
     type RichTextOutlineContext,
 } from './rich-text-outline.context';
 import { RICH_TEXT_OUTLINE_LOCALES } from './rich-text-outline.locales';
+
+/**
+ * Switches Chromium's touch emulation, which is what flips `(pointer: coarse)`
+ * and `(hover: none)` — `Emulation.setEmulatedMedia` silently ignores the
+ * `pointer` feature.
+ */
+async function emulateTouch(enabled: boolean): Promise<void> {
+    await cdp().send('Emulation.setTouchEmulationEnabled', { enabled, maxTouchPoints: 1 });
+}
 
 /**
  * Browser-only outline-panel case. It asserts each row's indent as the
@@ -43,8 +53,25 @@ describe('RichTextOutlinePanelComponent', () => {
         fixture.detectChanges();
     });
 
-    afterEach(() => {
+    afterEach(async () => {
         fixture.destroy();
+        await emulateTouch(false);
+    });
+
+    /** WCAG 2.5.8: the panel's close button is a 44x44 target on a touch screen and stays 28x28 for a mouse. */
+    it('grows the close button to a 44x44 touch target on a coarse pointer only', async () => {
+        const closeRect = () => (fixture.nativeElement as HTMLElement)
+            .querySelector(`button[aria-label="${RICH_TEXT_OUTLINE_LOCALES['en'].ariaClose}"]`)!.getBoundingClientRect();
+        const fine = closeRect();
+        fixture.destroy();
+        await emulateTouch(true);
+        fixture = TestBed.createComponent(RichTextOutlinePanelComponent);
+        fixture.detectChanges();
+        const coarse = closeRect();
+
+        expect([fine.width, fine.height]).toEqual([28, 28]);
+        expect(coarse.width).toBeGreaterThanOrEqual(44);
+        expect(coarse.height).toBeGreaterThanOrEqual(44);
     });
 
     it('lists headings indented by level and jumps on click', () => {

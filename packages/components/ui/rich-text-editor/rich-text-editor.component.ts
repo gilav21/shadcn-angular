@@ -1116,8 +1116,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     /** The editor as a custom button sees it; every write goes through the history-recording seams. */
     private editorRef(): RichTextEditorRef {
         return {
-            insertText: (text) => this.insertTextAtCaret(text),
-            insertHtml: (html) => this.insertHtmlAtCaret(html),
+            // The public inserts: at the caret the user left in the editor, not
+            // the live selection, which the button click may have moved into
+            // other text on the page -- the insert used to land there -- and
+            // behind the same guards (editable, within maxLength, not empty).
+            insertText: (text) => this.insertText(text),
+            insertHtml: (html) => this.insertHtml(html),
             focus: () => this.focus(),
             getSelectedText: () => this.selection().text,
             getHtmlContent: () => this.htmlOutput(),
@@ -1481,14 +1485,15 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * Insert plain text at the restored caret as one history entry, then focus
      * the editor — the method a page button next to the editor calls.
      *
-     * No-op while readonly or disabled, and for the empty string (an empty
-     * insert would otherwise record a history entry that undoes nothing).
+     * No-op while readonly or disabled, when the text would take the document
+     * past {@link maxLength}, and for the empty string (an empty insert would
+     * otherwise record a history entry that undoes nothing).
      *
      * @publicApi
      */
     insertText(text: string): void {
-        if (text === '' || !this.canEditContent()) return;
-        this.insertAtRestoredCaret(() => this.insertTextNode(text));
+        if (text === '') return;
+        this.insertAtRestoredCaret(text, () => this.insertTextNode(text));
     }
 
     /**
@@ -1496,7 +1501,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * editor. The markup goes through the editor's allow-list sanitizer, so a
      * `<script>` is dropped rather than inserted.
      *
-     * No-op while readonly or disabled, and when nothing survives sanitization.
+     * No-op while readonly or disabled, when nothing survives sanitization, and
+     * when its text would take the document past {@link maxLength}.
      * The single sanitize pass both answers that question and supplies the
      * markup that is inserted — deciding and inserting must not disagree.
      *
@@ -1506,7 +1512,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (!this.canEditContent()) return;
         const sanitized = this.sanitizer.sanitize(html);
         if (sanitized === '') return;
-        this.insertAtRestoredCaret(() => this.insertSanitizedHtml(sanitized));
+        this.insertAtRestoredCaret(this.plainTextOf(sanitized), () => this.insertSanitizedHtml(sanitized));
     }
 
     /**
@@ -2458,17 +2464,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return null;
     }
 
-    private insertNewlineInCodeBlock(range: Range, selection: Selection): void {
-        const textNodeToInsert = this.document.createTextNode('\n');
-        range.deleteContents();
-        range.insertNode(textNodeToInsert);
-        const newRange = this.document.createRange();
-        newRange.setStartAfter(textNodeToInsert);
-        newRange.setEndAfter(textNodeToInsert);
-        selection.removeAllRanges();
-        selection.addRange(newRange);
-    }
-
     private findAncestorByTag(startNode: Node, tagName: string): HTMLElement | null {
         let node: Node | null = startNode;
         while (node && node !== this.editorDiv?.nativeElement) {
@@ -2502,9 +2497,20 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             return;
         }
 
-        if (this.exceedsMaxLength(inputEvent.data ?? '')) {
+        // A drop or a paste carries its text in dataTransfer, not data: read
+        // as empty, it got past the limit whole.
+        if (this.exceedsMaxLength(inputEvent.data ?? this.transferredText(inputEvent.dataTransfer))) {
             event.preventDefault();
         }
+    }
+
+    /**
+     * The text a drop or a paste would add, from the flavour that is inserted:
+     * the HTML when there is some, else the plain text.
+     */
+    private transferredText(data: DataTransfer | null | undefined): string {
+        const html = data?.getData('text/html') ?? '';
+        return html ? this.plainTextOf(html) : data?.getData('text/plain') ?? '';
     }
 
     /**
@@ -2536,21 +2542,23 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
         const html = event.clipboardData?.getData('text/html');
         const text = event.clipboardData?.getData('text/plain') ?? '';
+        const normalized = this.pasteNormalizer.normalize(html ?? null, text);
 
-        if (this.handlePasteMaxLength(text)) {
+        // Budgeted on the flavour that is inserted. The plain flavour alone let
+        // a paste whose HTML says more than its plain text through the limit.
+        if (this.handlePasteMaxLength(this.plainTextOf(normalized))) {
             return;
         }
 
-        const normalized = this.pasteNormalizer.normalize(html ?? null, text);
         this.insertHtmlFragment(normalized);
         this.pushHistory();
     }
 
     /**
      * Enforce `maxLength` on a paste, returning `true` when the paste was fully
-     * handled here. Measures against the plain-text (`text/plain`) clipboard
-     * value rather than parsing the untrusted HTML — the over-limit path inserts
-     * plain text anyway, so the HTML length would be the wrong budget.
+     * handled here. `text` is the visible text of what the paste inserts -- the
+     * normalized HTML flavour when there is one -- and the over-limit path
+     * inserts it, truncated, as plain text.
      */
     /**
      * The visible text an HTML fragment contributes, for budgeting against
@@ -2680,13 +2688,23 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return (this.editorDiv?.nativeElement.textContent ?? '').replaceAll('​', '');
     }
 
+    /**
+     * Whether adding `text` beside the document, replacing nothing, would take
+     * it past {@link maxLength}: an insert that lands after the caret's line
+     * frees none of the selection, which counted as freed let a block through.
+     */
+    private exceedsMaxLengthBeside(text: string): boolean {
+        const max = this.maxLength();
+        return !!max && graphemeLength(this.perceivedText()) + graphemeLength(text) > max;
+    }
+
     private exceedsMaxLength(text: string): boolean {
         const max = this.maxLength();
         if (!max) return false;
         // Graphemes never outnumber UTF-16 units, so when the raw lengths fit
         // the insert cannot exceed the limit and the document need not be
         // segmented at all -- which is the case on nearly every keystroke.
-        const selected = this.document.getSelection()?.toString().length ?? 0;
+        const selected = this.selectedTextInEditor().length;
         if (this.perceivedText().length - selected + text.length <= max) return false;
         return graphemeLength(text) > this.remainingLength();
     }
@@ -2770,6 +2788,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
         if (this.dispatchDropInterceptors(event)) {
             return;
+        }
+        // The browser inserts an unclaimed drop itself, past every insert seam,
+        // so the limit is held here: the drop is cancelled when it would not fit.
+        if (this.maxLength() && this.exceedsMaxLength(this.transferredText(event.dataTransfer))) {
+            event.preventDefault();
         }
     }
 
@@ -3162,8 +3185,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * removes the insert and nothing else.
      */
     insertTextFromOverlay(text: string): void {
-        if (this.exceedsMaxLength(text)) return;
-        this.insertAtRestoredCaret(() => this.insertTextNode(text));
+        this.insertAtRestoredCaret(text, () => this.insertTextNode(text));
     }
 
     /**
@@ -3178,15 +3200,24 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * pinned to `'none'` for ~100ms while focus returns, which stops the mobile
      * software keyboard from flashing open. The caret is re-saved afterwards so
      * consecutive inserts append instead of stacking at the same spot.
+     *
+     * The guards every such insert shares come first: nothing is inserted while
+     * the editor is read-only or disabled, and `plainText` -- what the insert
+     * adds -- must fit {@link maxLength}. The limit is measured once the
+     * editor's caret is restored, against what the insert will replace:
+     * measured before, a selection elsewhere on the page was subtracted from
+     * the document as if the insert would replace it, and the limit gave way.
      */
-    private insertAtRestoredCaret(insert: () => void): void {
+    private insertAtRestoredCaret(plainText: string, insert: () => void): void {
+        if (!this.canEditContent()) return;
+        this.restoreSelection();
+        if (this.exceedsMaxLength(plainText)) return;
         this.flushPendingHistoryPush();
         const editor = this.editorDiv?.nativeElement;
         const prevInputMode = editor?.inputMode;
         if (editor) {
             editor.inputMode = 'none';
         }
-        this.restoreSelection();
         insert();
         this.pushHistory();
         const selection = this.document.getSelection();
@@ -3221,7 +3252,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     /** Insert block markup at the caret's line (addon host surface). */
     insertBlockAtCaret(html: string): void {
         const sanitized = this.sanitizer.sanitize(html);
-        if (this.exceedsMaxLength(this.plainTextOf(sanitized))) return;
+        if (this.exceedsMaxLengthBeside(this.plainTextOf(sanitized))) return;
         const editor = this.editorDiv?.nativeElement;
         if (!editor) return;
         const template = this.document.createElement('template');
@@ -3647,8 +3678,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
         const styled: HTMLElement[] = [];
         if (this.editorDiv?.nativeElement) {
-            const fontElements = this.editorDiv.nativeElement.querySelectorAll(`font[face="${CSS.escape(family)}"]`);
-            for (const font of Array.from(fontElements)) {
+            // Compared as an attribute value rather than through a selector, which
+            // would need CSS.escape -- absent from jsdom, where this threw.
+            const fontElements = Array.from(this.editorDiv.nativeElement.querySelectorAll('font[face]'))
+                .filter((font) => font.getAttribute('face') === family);
+            for (const font of fontElements) {
                 const el = font as HTMLElement;
                 const span = this.document.createElement('span');
                 span.style.fontFamily = family;
@@ -3780,14 +3814,22 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     private getSelectedTextLength(): number {
+        // Graphemes, to match the unit the counter and the budget use — a
+        // mix would let a selection of emoji free up more budget than it
+        // actually occupies.
+        return graphemeLength(this.selectedTextInEditor());
+    }
+
+    /**
+     * The selected text when the selection lies in the editor, else nothing:
+     * only that is what an insert replaces. Text selected elsewhere on the page
+     * freed budget it does not occupy, so an insert got past maxLength.
+     */
+    private selectedTextInEditor(): string {
         const selection = this.document.getSelection();
-        if (selection && !selection.isCollapsed) {
-            // Graphemes, to match the unit the counter and the budget use — a
-            // mix would let a selection of emoji free up more budget than it
-            // actually occupies.
-            return graphemeLength(selection.toString());
-        }
-        return 0;
+        const editor = this.editorDiv?.nativeElement;
+        if (!editor || !selection || selection.isCollapsed || selection.rangeCount === 0) return '';
+        return editor.contains(selection.getRangeAt(0).commonAncestorContainer) ? selection.toString() : '';
     }
 
     private closeTableContextMenu(): void {
@@ -8510,12 +8552,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (entry.keyframe) {
             return entry.html;
         }
+        // The head is always a keyframe (see trimHistoryToLimit), so the walk
+        // back ends there at the latest.
         let keyframeIdx = index;
-        while (keyframeIdx >= 0 && !this.snapshots[keyframeIdx].keyframe) {
+        while (keyframeIdx > 0 && !this.snapshots[keyframeIdx].keyframe) {
             keyframeIdx--;
-        }
-        if (keyframeIdx < 0) {
-            return entry.html;
         }
         let html = this.snapshots[keyframeIdx].html;
         for (let i = keyframeIdx + 1; i <= index; i++) {

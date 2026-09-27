@@ -11,11 +11,11 @@ import { RICH_TEXT_IMAGES_LOCALES } from './rich-text-images.locales';
 import { RichTextEditorAddonHost, RichTextToolbarViewContext } from '../..';
 
 /**
- * Browser-only image-button cases. Picking a file needs a real `FileList`,
- * which only `DataTransfer` can build and jsdom does not implement — and only
- * a file input holding a real pick has a non-empty value to clear. The compact
- * padding is computed style from the Tailwind stylesheet, which jsdom does not
- * load. They run in the real-browser leg only; the portable (jsdom) leg and
+ * Browser-only image-button cases. Only a file input holding a real pick
+ * (a `FileList` built by `DataTransfer`, which jsdom does not implement) has a
+ * non-empty value to clear; the upload-and-close behaviour itself is covered
+ * in the shipped spec. The compact padding is computed style from the Tailwind
+ * stylesheet, which jsdom does not load. They run in the real-browser leg only; the portable (jsdom) leg and
  * the shipped `testFiles` exclude this file.
  */
 interface ButtonInternals {
@@ -65,7 +65,7 @@ describe('RichTextImagesButtonComponent', () => {
         onUploadFile.mockReset();
     });
 
-    it('uploads a chosen file, closes, and clears the input value', async () => {
+    it('clears the file input after a pick, so picking the same file again still fires change', async () => {
         await setup();
         openControls();
         const host = fixture.nativeElement as HTMLElement;
@@ -80,9 +80,7 @@ describe('RichTextImagesButtonComponent', () => {
         fixture.detectChanges();
 
         expect(onUploadFile).toHaveBeenCalledWith(file);
-        // Cleared so picking the same file again still fires `change`.
         expect(input.value).toBe('');
-        expect(host.querySelector('[data-slot="rte-images-file"]')).toBeNull();
     });
 
     it('uses compact padding inside a compact toolbar', async () => {

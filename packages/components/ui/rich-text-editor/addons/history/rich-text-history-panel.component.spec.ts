@@ -8,12 +8,6 @@ import { RichTextEditorAddonHost, RichTextHistoryEntrySnapshot } from '../..';
 const LOCALE_EN = RICH_TEXT_HISTORY_LOCALES['en'];
 
 // ── jsdom API stubs ────────────────────────────────────────────────────
-class ResizeObserverStub {
-    observe(): void { /* no-op */ }
-    unobserve(): void { /* no-op */ }
-    disconnect(): void { /* no-op */ }
-}
-type Globals = { ResizeObserver?: typeof ResizeObserver };
 type PopoverProto = { showPopover?: () => void; hidePopover?: () => void; togglePopover?: () => void };
 const proto = HTMLElement.prototype as unknown as PopoverProto;
 
@@ -25,10 +19,8 @@ const proto = HTMLElement.prototype as unknown as PopoverProto;
  * implementation for everything that follows. Only remove what we added.
  */
 let addedPopoverApi = false;
-const originalResizeObserver = (globalThis as Globals).ResizeObserver;
 
 beforeEach(() => {
-    (globalThis as Globals).ResizeObserver = ResizeObserverStub as unknown as typeof ResizeObserver;
     addedPopoverApi = !('showPopover' in proto);
     proto.showPopover ??= (): void => { /* no-op */ };
     proto.hidePopover ??= (): void => { /* no-op */ };
@@ -36,11 +28,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-    if (originalResizeObserver) {
-        (globalThis as Globals).ResizeObserver = originalResizeObserver;
-    } else {
-        delete (globalThis as Globals).ResizeObserver;
-    }
     if (addedPopoverApi) {
         delete proto.showPopover;
         delete proto.hidePopover;

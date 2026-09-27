@@ -212,7 +212,8 @@ export class RichTextMentionPopoverComponent implements AfterViewInit, OnDestroy
   private scrollToSelected(): void {
     const buttons = this.itemButtons?.toArray();
     const selected = buttons?.[this.selectedIndex()];
-    selected?.nativeElement.scrollIntoView({ block: 'nearest' });
+    // Optional call: jsdom (consumers' unit tests) has no scrollIntoView.
+    selected?.nativeElement.scrollIntoView?.({ block: 'nearest' });
   }
 
   /**

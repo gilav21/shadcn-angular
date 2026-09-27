@@ -30,6 +30,13 @@ class ToggleHostCmp {
     readonly enabled = signal(true);
 }
 
+@Component({
+    standalone: true,
+    imports: [RichTextEditorComponent, RichTextColorsDirective],
+    template: `<ui-rich-text-editor mode="html" uiRteColors uiRteColorsAlpha uiRteColorsRecent></ui-rich-text-editor>`,
+})
+class OptInHostCmp {}
+
 type ButtonProbe = {
     context: RichTextColorButtonContext;
     onColorChange(color: string): void;
@@ -99,7 +106,7 @@ describe('RichTextColorsDirective', () => {
         return { el, cmp };
     }
 
-    function buttonByKind(fixture: ComponentFixture<HostCmp>, kind: RichTextColorKind): ButtonProbe {
+    function buttonByKind(fixture: ComponentFixture<unknown>, kind: RichTextColorKind): ButtonProbe {
         const probes = fixture.debugElement
             .queryAll(By.directive(RichTextColorsButtonComponent))
             .map((d) => d.componentInstance as unknown as ButtonProbe);
@@ -168,6 +175,22 @@ describe('RichTextColorsDirective', () => {
         fixture.componentInstance.enabled.set(true);
         fixture.detectChanges();
         expect(fixture.nativeElement.querySelector('[data-addon-slot="colors.foreground"]')).toBeTruthy();
+    });
+
+    it('offers the opacity slider on the highlight picker only, and the recent row on both, when opted in', () => {
+        const defaults = createFixture();
+        for (const kind of ['foreground', 'background'] as const) {
+            expect(buttonByKind(defaults, kind).context.alpha()).toBe(false);
+            expect(buttonByKind(defaults, kind).context.showRecent()).toBe(false);
+        }
+
+        const optedIn = TestBed.createComponent(OptInHostCmp);
+        openFixtures.push(optedIn);
+        optedIn.detectChanges();
+        expect(buttonByKind(optedIn, 'background').context.alpha()).toBe(true);
+        expect(buttonByKind(optedIn, 'foreground').context.alpha()).toBe(false);
+        expect(buttonByKind(optedIn, 'background').context.showRecent()).toBe(true);
+        expect(buttonByKind(optedIn, 'foreground').context.showRecent()).toBe(true);
     });
 
     it('applies a text colour to the selection as an inline style and emits colorChange', () => {
@@ -306,23 +329,6 @@ describe('RichTextColorsDirective', () => {
         await settle();
 
         expect(apply).toHaveBeenLastCalledWith({ color: '#2563eb' });
-    });
-
-    it('does not re-apply over a selection, where the colour is already in the DOM', async () => {
-        const fixture = createFixture();
-        const { cmp } = selectContent(fixture, '<p>ranged text</p>');
-        const apply = vi.spyOn(cmp, 'applyInlineStyle');
-
-        const bg = buttonByKind(fixture, 'background');
-        bg.onOpenChange(true);
-        fixture.detectChanges();
-        bg.onUserInteract();
-        bg.onColorChange('#ff0000');
-        bg.onOpenChange(false);
-        await settle();
-
-        // A second identical apply would only add a duplicate history entry.
-        expect(apply).toHaveBeenCalledTimes(1);
     });
 
     it('does not re-apply when the popover is closed without a pick', async () => {

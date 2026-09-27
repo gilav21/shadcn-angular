@@ -10,6 +10,7 @@ import { RichTextEditorAddonHost } from '../..';
 type ButtonProbe = {
     onOpenChange(next: boolean): void;
     onSubmit(payload: RichTextLinkSubmit): void;
+    onRemove(): void;
     open: { (): boolean };
 };
 
@@ -38,6 +39,7 @@ describe('RichTextLinksButtonComponent', () => {
         readonly.set(false);
         onOpen.mockClear();
         onSubmit.mockClear();
+        onRemove.mockClear();
 
         await TestBed.configureTestingModule({
             imports: [RichTextLinksButtonComponent],
@@ -92,6 +94,13 @@ describe('RichTextLinksButtonComponent', () => {
         const payload: RichTextLinkSubmit = { text: 'Docs', url: 'https://x.test' };
         probe.onSubmit(payload);
         expect(onSubmit).toHaveBeenCalledWith(payload);
+        expect(probe.open()).toBe(false);
+    });
+
+    it('forwards a remove to the context and closes the popover', () => {
+        probe.onOpenChange(true);
+        probe.onRemove();
+        expect(onRemove).toHaveBeenCalledTimes(1);
         expect(probe.open()).toBe(false);
     });
 

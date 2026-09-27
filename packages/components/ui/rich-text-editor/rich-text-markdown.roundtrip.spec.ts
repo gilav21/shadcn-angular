@@ -59,6 +59,9 @@ describe('RichTextMarkdownService - round-trip fixed point', () => {
         ['two bullet lists side by side', '- a\n\n* b'],
         ['code block holding an image', '<pre><code>a<img src="https://e.com/x.png" alt="q">b</code></pre>'],
         ['raw HTML details block around markdown', '<details>\n<summary>More</summary>\n\nHidden **text**.\n\n</details>'],
+        ['link and image titles', '[t](https://x.com/ "see <b> \\" & (p)") and ![i](https://x.com/a.png (plain))'],
+        ['pipe in a code span in a table cell', '| h |\n| --- |\n| `x \\| y` |'],
+        ['fence opened on a list marker line', '- ```\n  <div>\n  ```\n  after'],
     ];
 
     it.each(corpus)('%s is stable after one normalising cycle', (_name, md) => {
@@ -104,6 +107,18 @@ describe('RichTextMarkdownService - shapes the round-trip used to corrupt (fine-
         // At the start of a line "<!--" opens a raw HTML block the sanitizer
         // drops as a comment, so text shaped like one must stay text too.
         expect(parse(service.toMarkdown('<p>&lt;!-- not a comment --&gt;</p>')).textContent).toBe('<!-- not a comment -->');
+    });
+
+    it('saves a link as the address and title it has, and an anchor with no address as its text', () => {
+        const reloaded = (html: string): HTMLElement => parse(service.toMarkdown(html));
+        const spaced = reloaded('<p><a href="https://x.com/a b" title="t">x</a></p>').querySelector('a');
+        expect([spaced?.getAttribute('href'), spaced?.getAttribute('title')]).toEqual(['https://x.com/a b', 't']);
+        const bracketed = reloaded('<p><a href="https://x.com/(a) <b>" title="t">x</a></p>').querySelector('a');
+        expect([bracketed?.getAttribute('href'), bracketed?.getAttribute('title')]).toEqual(['https://x.com/(a) <b>', 't']);
+        expect(service.toMarkdown('<p><a title="no href">x</a></p>')).toBe('x');
+        const bare = reloaded('<p><a title="no href">x</a></p>');
+        expect(bare.querySelector('a')).toBeNull();
+        expect(bare.textContent).toBe('x');
     });
 
     it('saves a raw HTML details block as markdown that renders the same block', () => {

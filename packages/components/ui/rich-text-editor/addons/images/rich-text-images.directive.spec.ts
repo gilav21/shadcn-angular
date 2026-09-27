@@ -434,30 +434,43 @@ describe('RichTextImagesDirective', () => {
         // An upload is a network round-trip; undo/redo/setContent replace the
         // editable's innerHTML wholesale in that window. Writing the returned
         // URL to the detached node changes nothing on screen, so reporting
-        // success would tell the consumer a swap happened that did not.
+        // success would tell the consumer a swap happened that did not; a
+        // failure has no badge to show and no image to retry.
         const fixture = createFixture();
-        const upload$ = new Subject<string>();
+        const uploads: Subject<string>[] = [];
         fixture.componentInstance.autoUpload.set(true);
-        fixture.componentInstance.uploader.set(() => upload$);
+        fixture.componentInstance.uploader.set(() => {
+            const upload$ = new Subject<string>();
+            uploads.push(upload$);
+            return upload$;
+        });
         fixture.detectChanges();
         const { el } = editorOf(fixture);
 
-        const img = document.createElement('img');
-        img.setAttribute('src', TINY_BASE64);
-        el.appendChild(img);
+        const succeeding = document.createElement('img');
+        succeeding.setAttribute('src', TINY_BASE64);
+        const failing = document.createElement('img');
+        failing.setAttribute('src', TINY_BASE64);
+        el.append(succeeding, failing);
         await wait();
-        expect(img.dataset['autoUploadStatus']).toBe('uploading');
+        expect(succeeding.dataset['autoUploadStatus']).toBe('uploading');
+        expect(failing.dataset['autoUploadStatus']).toBe('uploading');
 
-        el.innerHTML = '<p>replaced while the upload was in flight</p>';
-        expect(img.isConnected).toBe(false);
+        el.innerHTML = '<p>replaced while the uploads were in flight</p>';
+        expect(succeeding.isConnected).toBe(false);
 
-        upload$.next('https://cdn.example.com/uploaded.png');
-        upload$.complete();
+        uploads[0].next('https://cdn.example.com/uploaded.png');
+        uploads[0].complete();
+        uploads[1].error(new Error('Network error'));
         await wait();
+        fixture.detectChanges();
 
-        expect(img.getAttribute('src')).not.toBe('https://cdn.example.com/uploaded.png');
+        expect(succeeding.getAttribute('src')).not.toBe('https://cdn.example.com/uploaded.png');
         expect(fixture.componentInstance.autoComplete).not.toContain('https://cdn.example.com/uploaded.png');
-        expect(el.innerHTML).toContain('replaced while the upload was in flight');
+        expect(fixture.componentInstance.autoError).toEqual(['Network error']);
+        expect(failing.dataset['autoUploadStatus']).toBe('uploading');
+        expect(fixture.nativeElement.querySelector('[data-slot="rte-images-error"]')).toBeNull();
+        expect(el.innerHTML).toContain('replaced while the uploads were in flight');
     });
 
     it('surfaces an auto-upload failure as an error overlay entry', async () => {

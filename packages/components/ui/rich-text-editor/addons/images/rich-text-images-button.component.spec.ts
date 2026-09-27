@@ -194,6 +194,22 @@ describe('RichTextImagesButtonComponent', () => {
         expect(onInsertUrl).not.toHaveBeenCalled();
     });
 
+    it('uploads a picked file and closes the popover', async () => {
+        await setup();
+        openControls();
+        const host = fixture.nativeElement as HTMLElement;
+        const input = host.querySelector<HTMLInputElement>('[data-slot="rte-images-file"]')!;
+        const file = new File(['x'], 'p.png', { type: 'image/png' });
+        // jsdom cannot build a real FileList; an array stands in for the pick.
+        Object.defineProperty(input, 'files', { value: [file], configurable: true });
+
+        input.dispatchEvent(new Event('change'));
+        fixture.detectChanges();
+
+        expect(onUploadFile).toHaveBeenCalledWith(file);
+        expect(host.querySelector('[data-slot="rte-images-file"]')).toBeNull();
+    });
+
     it('ignores a file change with no file', async () => {
         await setup();
         const input = document.createElement('input');

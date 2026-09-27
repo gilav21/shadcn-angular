@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compileFindRegex, FIND_MAX_QUERY_LENGTH } from './index';
+import { buildFindIndex, compileFindRegex, FIND_MAX_QUERY_LENGTH, offsetToPosition } from './index';
 
 const opts = (over: Partial<{ useRegex: boolean; wholeWord: boolean; caseSensitive: boolean }> = {}) => ({
     useRegex: false,
@@ -108,5 +108,20 @@ describe('compileFindRegex', () => {
                 expect(compileFindRegex(p, opts({ useRegex: true }))).not.toBeNull();
             }
         });
+    });
+});
+
+describe('offsetToPosition', () => {
+    it('maps an offset to its text node, and the line break between blocks to none', () => {
+        const root = document.createElement('div');
+        root.innerHTML = '<p>ab</p><p>cd</p>';
+        const index = buildFindIndex(root);
+        const breakAt = index.text.indexOf('\n');
+        expect(breakAt).toBeGreaterThan(0);
+
+        const second = root.querySelectorAll('p')[1].firstChild;
+        expect(offsetToPosition(index.segments, breakAt + 2)).toEqual({ node: second, offset: 1 });
+        expect(offsetToPosition(index.segments, breakAt + 2, true)).toEqual({ node: second, offset: 1 });
+        expect(offsetToPosition(index.segments, breakAt)).toBeNull();
     });
 });

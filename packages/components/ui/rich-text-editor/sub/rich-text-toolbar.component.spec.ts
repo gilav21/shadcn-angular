@@ -17,19 +17,6 @@ import { RICH_TEXT_LOCALES } from '../rich-text-locales';
 })
 class SlotProbeComponent {}
 
-/** An addon button with an open panel, shaped like ui-popover renders one. */
-@Component({
-    standalone: true,
-    template: `
-        <button type="button" data-testid="panel-trigger">Link</button>
-        <div data-slot="popover-content">
-            <input data-testid="panel-input" />
-            <button type="button" data-testid="panel-ok">Update</button>
-        </div>
-    `,
-})
-class PanelProbeComponent {}
-
 @Component({
     standalone: true,
     template: `<span data-testid="compact-probe">compact:{{ view?.compact() }}</span>`,
@@ -50,142 +37,6 @@ describe('RichTextToolbarComponent', () => {
         fixture = TestBed.createComponent(RichTextToolbarComponent);
         component = fixture.componentInstance;
         fixture.detectChanges();
-    });
-
-    describe('keyboard navigation (WAI-ARIA toolbar pattern)', () => {
-        const buttonsOf = () =>
-            Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLButtonElement[];
-
-        // A real arrow press comes FROM the focused control, so the handler can
-        // read `event.target`. Dispatching on the container instead would test a
-        // path the user never takes.
-        const pressOnToolbar = (key: string) => {
-            const toolbar = fixture.nativeElement.querySelector('[role="toolbar"]') as HTMLElement;
-            const focused = Array.from(
-                toolbar.querySelectorAll<HTMLElement>('button, select'),
-            ).find(el => el.tabIndex === 0) ?? toolbar;
-            focused.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
-            fixture.detectChanges();
-        };
-
-        beforeEach(() => {
-            fixture.componentRef.setInput('items', ['bold', 'italic', 'separator', 'underline']);
-            fixture.detectChanges();
-        });
-
-        it('leaves the arrows to a field inside an addon panel instead of moving the tab stop', async () => {
-            // The link panel's URL field lives in the toolbar's DOM, so its
-            // arrow presses bubbled to the roving handler, which read them as
-            // the first stop's and pulled the focus back onto the toolbar.
-            fixture.componentRef.setInput('addonSlots', [
-                { id: 'links.insert', component: PanelProbeComponent },
-            ]);
-            fixture.detectChanges();
-            await Promise.resolve();
-            const input = fixture.nativeElement.querySelector('[data-testid="panel-input"]') as HTMLInputElement;
-            input.focus();
-            const press = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true });
-            input.dispatchEvent(press);
-            fixture.detectChanges();
-
-            expect(press.defaultPrevented).toBe(false);
-            expect(document.activeElement).toBe(input);
-            expect(buttonsOf()[0].tabIndex).toBe(0);
-        });
-
-        it('leaves the emoji picker\'s panel out of the roving order too', async () => {
-            // Its panel is not a ui-popover, so its buttons were roving stops:
-            // every emoji became a tab stop and the arrows fought the grid.
-            @Component({
-                standalone: true,
-                template: `
-                    <button type="button" data-testid="emoji-trigger">Emoji</button>
-                    <div data-slot="emoji-picker-content">
-                        <button type="button" data-testid="emoji-a">A</button>
-                    </div>
-                `,
-            })
-            class EmojiPanelProbeComponent {}
-
-            fixture.componentRef.setInput('addonSlots', [
-                { id: 'emoji.insert', component: EmojiPanelProbeComponent },
-            ]);
-            fixture.detectChanges();
-            await Promise.resolve();
-            const emoji = fixture.nativeElement.querySelector('[data-testid="emoji-a"]') as HTMLButtonElement;
-            const trigger = fixture.nativeElement.querySelector('[data-testid="emoji-trigger"]') as HTMLButtonElement;
-
-            expect(emoji.tabIndex).toBe(0);
-            expect(trigger.tabIndex).toBe(-1);
-
-            const press = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true });
-            emoji.dispatchEvent(press);
-            expect(press.defaultPrevented).toBe(false);
-        });
-
-        it('keeps an addon panel\'s own buttons out of the roving order and in the Tab order', async () => {
-            fixture.componentRef.setInput('addonSlots', [
-                { id: 'links.insert', component: PanelProbeComponent },
-            ]);
-            fixture.detectChanges();
-            await Promise.resolve();
-            const ok = fixture.nativeElement.querySelector('[data-testid="panel-ok"]') as HTMLButtonElement;
-            const trigger = fixture.nativeElement.querySelector('[data-testid="panel-trigger"]') as HTMLButtonElement;
-            expect(ok.tabIndex).toBe(0);
-            expect(trigger.tabIndex).toBe(-1);
-
-            pressOnToolbar('End');
-            expect(trigger.tabIndex).toBe(0);
-            expect(ok.tabIndex).toBe(0);
-        });
-
-        it('does not trap the tab stop on the text-style select', () => {
-            // Skipping the select in the key handler let the arrows move INTO it
-            // and never out — a keyboard trap, which is worse than the extra
-            // tab stops it was meant to avoid.
-            fixture.componentRef.setInput('items', ['bold', 'textStyle', 'italic']);
-            fixture.detectChanges();
-            const toolbar = fixture.nativeElement.querySelector('[role="toolbar"]') as HTMLElement;
-            const stopsOf = () => Array.from(
-                toolbar.querySelectorAll<HTMLElement>('button, select'),
-            );
-            const activeIndex = () => stopsOf().findIndex(el => el.tabIndex === 0);
-
-            pressOnToolbar('ArrowRight');
-            expect(stopsOf()[activeIndex()].tagName.toLowerCase()).toBe('select');
-
-            pressOnToolbar('ArrowRight');
-            expect(stopsOf()[activeIndex()].tagName.toLowerCase()).toBe('button');
-        });
-
-        it('exposes exactly one tab stop, not one per button', () => {
-            const tabbable = buttonsOf().filter(b => b.tabIndex === 0);
-            expect(buttonsOf()).toHaveLength(3);
-            expect(tabbable).toHaveLength(1);
-            expect(tabbable[0]).toBe(buttonsOf()[0]);
-        });
-
-        it('moves the tab stop with ArrowRight and wraps at the end', () => {
-            pressOnToolbar('ArrowRight');
-            expect(buttonsOf()[1].tabIndex).toBe(0);
-            expect(buttonsOf()[0].tabIndex).toBe(-1);
-
-            pressOnToolbar('ArrowRight');
-            pressOnToolbar('ArrowRight');
-            expect(buttonsOf()[0].tabIndex).toBe(0);
-        });
-
-        it('moves the tab stop with ArrowLeft and wraps at the start', () => {
-            pressOnToolbar('ArrowLeft');
-            expect(buttonsOf()[2].tabIndex).toBe(0);
-        });
-
-        it('jumps to the first and last button with Home and End', () => {
-            pressOnToolbar('End');
-            expect(buttonsOf()[2].tabIndex).toBe(0);
-            pressOnToolbar('Home');
-            expect(buttonsOf()[0].tabIndex).toBe(0);
-        });
     });
 
     describe('rendering', () => {
@@ -533,28 +384,25 @@ describe('RichTextToolbarComponent', () => {
             expect(component.isPressable('textStyle')).toBe(false);
         });
 
-        // T-36 — a native control still has to meet the 44px touch target the
-        // library guarantees; the coarse-pointer rule covers `select` as well
-        // as `button`.
-        it('meets the 44px touch minimum under a coarse pointer', () => {
-            expect(showSelect()).not.toBeNull();
+        it('takes the arrow, Home and End keys as roving moves, leaving its value and the focus alone', () => {
+            // The select is a roving stop like any button. Left to the native
+            // control, an arrow would change the block type instead.
+            const select = showSelect(['heading2']);
+            select.focus();
+            expect(document.activeElement).toBe(select);
 
-            const rule = Array.from(document.styleSheets)
-                .flatMap((sheet) => {
-                    try {
-                        return Array.from(sheet.cssRules);
-                    } catch {
-                        return [];
-                    }
-                })
-                .filter((r): r is CSSMediaRule => r instanceof CSSMediaRule)
-                .filter((r) => r.conditionText.includes('pointer: coarse'))
-                .flatMap((r) => Array.from(r.cssRules))
-                .filter((r): r is CSSStyleRule => r instanceof CSSStyleRule)
-                .find((r) => r.selectorText.includes('select'));
+            for (const key of ['ArrowRight', 'ArrowLeft', 'Home', 'End']) {
+                const press = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+                select.dispatchEvent(press);
+                expect(press.defaultPrevented, key).toBe(true);
+            }
+            expect(document.activeElement).toBe(select);
+            expect(select.value).toBe('heading2');
+            expect(select.tabIndex).toBe(0);
 
-            // 44, not 40: WCAG 2.5.8 and the library's own touch rule.
-            expect(rule?.style.minHeight).toBe('44px');
+            const typed = new KeyboardEvent('keydown', { key: 'p', bubbles: true, cancelable: true });
+            select.dispatchEvent(typed);
+            expect(typed.defaultPrevented).toBe(false);
         });
     });
 

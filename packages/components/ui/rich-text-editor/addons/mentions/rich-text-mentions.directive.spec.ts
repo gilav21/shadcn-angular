@@ -1,4 +1,4 @@
-import { Component, signal } from '@angular/core';
+import { Component, ElementRef, inject, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
@@ -11,7 +11,7 @@ import type {
     RichTextEntityRenderOptions,
     RichTextEntitySearchResult,
 } from './rich-text-mentions.types';
-import { RichTextEditorComponent } from '../..';
+import { RichTextEditorAddonHost, RichTextEditorComponent } from '../..';
 
 type Restore = () => void;
 
@@ -35,18 +35,12 @@ function defineTemp(proto: Record<string, unknown>, key: string, value: unknown)
     };
 }
 
-/**
- * jsdom's Range implements neither getBoundingClientRect nor getClientRects, and
- * throws "Not implemented" for Element.prototype.scrollIntoView (the popover
- * scrolls the active candidate into view on arrow navigation).
- */
+/** jsdom's Range implements neither getBoundingClientRect nor getClientRects. */
 function stubRangeRects(): Restore {
     const rangeProto = Range.prototype as unknown as Record<string, unknown>;
-    const elementProto = Element.prototype as unknown as Record<string, unknown>;
     const restores = [
         defineTemp(rangeProto, 'getBoundingClientRect', () => fixedRect()),
         defineTemp(rangeProto, 'getClientRects', () => [fixedRect()]),
-        defineTemp(elementProto, 'scrollIntoView', () => {}),
         stubResizeObserver(),
     ];
     return () => {
@@ -132,6 +126,64 @@ class ToggleHostCmp {
 })
 class SearchHostCmp {
     readonly search = signal<(q: string) => RichTextEntitySearchResult<MentionItem>>(() => USERS);
+}
+
+/**
+ * A minimal editor implementing only the host members the directive reads.
+ * Unlike the real editor it notifies input observers while locked, so the
+ * directive's own readonly/disabled guard is what keeps the popover shut.
+ */
+@Component({
+    standalone: true,
+    selector: 'ui-rich-text-editor',
+    template: '<div data-slot="stub-editable" contenteditable="true"></div><div data-slot="stub-overlay"></div>',
+    providers: [{ provide: RichTextEditorAddonHost, useExisting: StubEditorCmp }],
+})
+class StubEditorCmp {
+    readonly isDisabled = signal(false);
+    readonly readonly = signal(false);
+    readonly selection = signal({ range: null, text: '' });
+    readonly observers: Array<(text: string, caret: number) => void> = [];
+    popupAnnouncements = 0;
+    private readonly el = inject<ElementRef<HTMLElement>>(ElementRef);
+
+    get contentRoot(): HTMLElement {
+        return this.el.nativeElement.querySelector<HTMLElement>('[data-slot="stub-editable"]')!;
+    }
+
+    get overlayAnchor(): HTMLElement {
+        return this.el.nativeElement.querySelector<HTMLElement>('[data-slot="stub-overlay"]')!;
+    }
+
+    registerInputObserver(observer: (text: string, caret: number) => void): () => void {
+        this.observers.push(observer);
+        return () => undefined;
+    }
+
+    registerKeydownInterceptor(): () => void {
+        return () => undefined;
+    }
+
+    setActiveSuggestionPopup(popup: unknown): void {
+        if (popup) this.popupAnnouncements++;
+    }
+
+    restoreSelection(): void { /* the stub keeps the live selection */ }
+
+    mutateContent(): void { /* never reached: nothing is inserted */ }
+}
+
+@Component({
+    standalone: true,
+    imports: [StubEditorCmp, RichTextMentionsDirective],
+    template: '<ui-rich-text-editor uiRteMentions [uiRteMentionsSearch]="search"></ui-rich-text-editor>',
+})
+class StubHostCmp {
+    readonly queries: string[] = [];
+    readonly search = (q: string): MentionItem[] => {
+        this.queries.push(q);
+        return USERS;
+    };
 }
 
 describe('RichTextMentionsDirective', () => {
@@ -331,6 +383,39 @@ describe('RichTextMentionsDirective', () => {
         fixture.detectChanges();
         type(fixture, '@jo');
         expect(popoverOf(fixture)).toBeNull();
+    });
+
+    it('keeps the popover shut and runs no search for input a locked host still reports', async () => {
+        const fixture = TestBed.createComponent(StubHostCmp);
+        fixtures.push(fixture);
+        document.body.appendChild(fixture.nativeElement);
+        fixture.detectChanges();
+        const editor = fixture.debugElement.query(By.directive(StubEditorCmp))
+            .componentInstance as StubEditorCmp;
+        const popoverShown = (): boolean =>
+            fixture.debugElement.queryAll(By.directive(RichTextMentionPopoverComponent)).length > 0;
+        const typeTrigger = (): void => {
+            editor.contentRoot.textContent = '@jo';
+            setCaret(editor.contentRoot.firstChild as Text, 3);
+            for (const observer of editor.observers) observer('@jo', 3);
+            fixture.detectChanges();
+        };
+
+        for (const lock of [editor.readonly, editor.isDisabled]) {
+            lock.set(true);
+            typeTrigger();
+            await wait();
+            expect(popoverShown()).toBe(false);
+            expect(editor.popupAnnouncements).toBe(0);
+            expect(fixture.componentInstance.queries).toEqual([]);
+            lock.set(false);
+        }
+
+        // Control: the same report on an unlocked host does open and search.
+        typeTrigger();
+        await wait();
+        expect(popoverShown()).toBe(true);
+        expect(fixture.componentInstance.queries).toEqual(['jo']);
     });
 
     it('resolves Hebrew popover strings and the RTL flag', () => {

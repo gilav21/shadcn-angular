@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { RichTextSanitizerService } from './index';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /** The `style` attribute the sanitizer kept for a declaration, or null. */
 function sanitizedStyle(service: RichTextSanitizerService, decl: string): string | null {
@@ -235,6 +235,38 @@ describe('RichTextSanitizerService — output the HTML parser reads back unchang
         return { out, holder };
     };
 
+    it('keeps the text of an element whose structure it removes, and only its text', () => {
+        // Foreign content and scope boundaries are flattened: removed whole,
+        // the author's words went with them.
+        expect(service.sanitize('<p>Click <button>Save changes</button> to continue.</p>')).toBe('<p>Click Save changes to continue.</p>');
+        expect(service.sanitize('<p><button><svg/> Download report</button></p>')).toBe('<p> Download report</p>');
+        expect(service.sanitize('<p><math><mi>x</mi><mo>+</mo><mn>1</mn><mo>=</mo><mn>2</mn></math></p>')).toBe('<p>x+1=2</p>');
+        expect(service.sanitize('<marquee>Breaking news</marquee>')).toBe('Breaking news');
+        expect(service.sanitize('<div><button>Accept</button><button>Decline</button></div>')).toBe('<div>Accept Decline</div>');
+        expect(service.sanitize('<svg onload="alert(1)"><script>evil()</script><text>Label</text></svg>')).toBe('Label');
+    });
+
+    it('pushes each inline wrapper into the blocks it holds a bounded number of times, keeping the output linear', () => {
+        // An inline tag left open around every block wrapped each run in every
+        // wrapper above it: output the square of the input. A copy of the same
+        // wrapper adds nothing, and past the nesting cap a run takes no more.
+        const same = readBack('<b><div>x'.repeat(200)).holder;
+        expect(same.querySelectorAll('b')).toHaveLength(200);
+        expect(Array.from(same.querySelectorAll('b'), (b) => b.textContent).every((text) => text === 'x')).toBe(true);
+        // Distinct wrappers each count, up to the cap: the innermost run sits
+        // under 200 of them, and takes 32.
+        const distinct = readBack(Array.from({ length: 200 }, (_, k) => `<b style="color: rgb(${k}, 0, 0)"><div>x`).join('')).holder;
+        const runs = Array.from(distinct.querySelectorAll('b'), (b) => b.querySelector('b') ? null : b).filter((b) => b !== null);
+        const depthOf = (b: Element): number => {
+            let depth = 0;
+            for (let el: Element | null = b; el?.nodeName === 'B'; el = el.parentElement) depth++;
+            return depth;
+        };
+        expect(Math.max(...runs.map(depthOf))).toBe(32);
+        // A copy of the very wrapper around a run already adds nothing.
+        expect(service.sanitize('<b><p><b>x</b></p></b>')).toBe('<p><b>x</b></p>');
+    });
+
     it.each([
         ['a rule between the lines of a quote', '<blockquote><p>above</p><hr><p>below</p></blockquote>'],
         ['a rule beside text in a div', '<div><p>a</p>b<hr>c</div>'],
@@ -248,6 +280,10 @@ describe('RichTextSanitizerService — output the HTML parser reads back unchang
         ['a task row in a plain list', '<ul><li>a</li><li data-task data-checked="true"><input type="checkbox"><span>b</span></li></ul>'],
         ['a stray summary holding a paragraph', '<summary><p>x</p></summary>'],
         ['a task row whose span holds a paragraph', '<ul data-task-list><li data-task><input type="checkbox"><span>a<p>b</p></span></li></ul>'],
+        // Foreign content and scope boundaries change how what is inside them
+        // parses; unwrapped, their table sat inside the paragraph.
+        ['a table in MathML inside a paragraph', '<p>p <math><mtext><table><tbody><tr><td>x</td></tr></tbody></table></mtext></math> q</p>'],
+        ['a table in a button inside a paragraph', '<p>p <button><table><tbody><tr><td>x</td></tr></tbody></table></button> q</p>'],
     ])('reads %s back unchanged, and a second pass changes nothing', (_name, html) => {
         // Each shape was wrapped in a paragraph the parser will not keep, so
         // every pass added empty paragraphs around it, without end.
@@ -280,6 +316,10 @@ describe('RichTextSanitizerService — output the HTML parser reads back unchang
         expect(lists[1].dataset['taskList']).toBe('');
         expect((lists[1].firstElementChild as HTMLElement).dataset['checked']).toBe('true');
         expect(lists[2].getAttribute('start')).toBe('4');
+
+        // Counting from one, the first run needs no start and the next counts on.
+        const fromOne = readBack('<ol start="1"><li>a</li><li data-task data-checked="false"><input type="checkbox"><span>b</span></li><li>c</li></ol>').holder;
+        expect(Array.from(fromOne.children, (list) => list.getAttribute('start'))).toEqual([null, null, '2']);
     });
 
     it.each([
@@ -337,9 +377,13 @@ describe('RichTextSanitizerService — output the HTML parser reads back unchang
         expect(Array.from(holder.children).map((el) => `${el.tagName}:${el.textContent}`)).toEqual(['H2:title', 'DIV:body']);
     });
 
-    it('gives adjacent items loose in a quote one list, keeping their text', () => {
-        const { holder } = readBack('<blockquote><li>x</li><li>y</li></blockquote>');
+    it.each([
+        ['side by side', '<blockquote><li>x</li><li>y</li></blockquote>'],
+        ['with blank text between them', '<blockquote><li>x</li>\n <li>y</li></blockquote>'],
+    ])('gives adjacent items loose in a quote one list, keeping their text: %s', (_name, html) => {
+        const { holder } = readBack(html);
 
+        expect(holder.querySelectorAll('blockquote > ul')).toHaveLength(1);
         expect(Array.from(holder.querySelectorAll('blockquote > ul > li')).map((li) => li.textContent)).toEqual(['x', 'y']);
     });
 
@@ -936,6 +980,17 @@ describe('RichTextSanitizerService', () => {
 
         it('rejects a data:image/png with invalid base64 that throws on decode', () => {
             expect(service.sanitizeImageSrc('data:image/png;base64,@@@@@@@@')).toBeNull();
+            // A valid PNG header is not enough: the rest of the payload must decode too.
+            expect(service.sanitizeImageSrc('data:image/png;base64,iVBORw0KGgoAAAAN!!!')).toBeNull();
+        });
+
+        it('rejects an image type outside the raster and SVG allowlist', () => {
+            expect(service.sanitizeImageSrc('data:image/bmp;base64,Qk0AAAAA')).toBeNull();
+        });
+
+        it('rejects an absolute URL the URL parser cannot read', () => {
+            expect(service.sanitizeImageSrc('https://')).toBeNull();
+            expect(service.sanitizeImageSrc('https://[::1/a.png')).toBeNull();
         });
     });
 
@@ -1153,6 +1208,14 @@ describe('RichTextSanitizerService — structural size ceiling', () => {
             ]) {
                 expect(service.isUrlSafe(url)).toBe(true);
             }
+        });
+
+        it('drops an off-origin shorthand href the URL parser cannot read', () => {
+            const holder = document.createElement('div');
+            holder.innerHTML = service.sanitize('<a href="//[::1/x">click</a>');
+
+            expect(holder.querySelector('a')?.hasAttribute('href')).toBe(false);
+            expect(holder.textContent).toBe('click');
         });
 
         it('rewrites such an href to the explicit absolute URL in a full sanitize pass', () => {
@@ -1684,6 +1747,19 @@ describe('RichTextSanitizerService - style values judged as the browser reads th
         expect(styleOf('background: ' + B + '69mage-set("https://tracker.example/p.png" 1x)')).toBeNull();
         expect(styleOf('background: image-set(url(https://tracker.example/p.png) 1x)')).toBeNull();
         expect(styleOf('background: url(https://cdn.trusted.com/p.png)')).not.toBeNull();
+    });
+
+    it('judges the raw value alone where a stylesheet cannot be constructed', () => {
+        // Safari before 16.4 has CSSStyleSheet but throws "Illegal constructor".
+        vi.stubGlobal('CSSStyleSheet', function IllegalConstructor(): never {
+            throw new TypeError('Illegal constructor');
+        });
+        try {
+            expect(styleOf('color: red')).toBe('color: red');
+            expect(styleOf('background: url(https://tracker.example/p.png)')).toBeNull();
+        } finally {
+            vi.unstubAllGlobals();
+        }
     });
 });
 

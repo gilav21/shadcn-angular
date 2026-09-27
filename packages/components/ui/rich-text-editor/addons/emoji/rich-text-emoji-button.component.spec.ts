@@ -29,14 +29,20 @@ describe('RichTextEmojiButtonComponent', () => {
     let fixture: ComponentFixture<RichTextEmojiButtonComponent>;
     let host: MockHost;
     let ctx: ReturnType<typeof buildContext>;
+    let openNotices: number;
+    let closeFromGroup: () => void;
 
     function render(): HTMLElement {
         const disabledSignal = signal(false);
+        openNotices = 0;
         host = {
             disabled: disabledSignal,
             isDisabled: disabledSignal,
             readonly: signal(false),
-            registerExclusivePopover: () => ({ notifyOpened: () => {}, release: () => {} }),
+            registerExclusivePopover: (close) => {
+                closeFromGroup = close;
+                return { notifyOpened: () => { openNotices++; }, release: () => {} };
+            },
         };
         ctx = buildContext();
         TestBed.configureTestingModule({
@@ -80,5 +86,21 @@ describe('RichTextEmojiButtonComponent', () => {
 
         probe().onEmoji('🎉');
         expect(ctx.onInsert).not.toHaveBeenCalled();
+    });
+
+    it('joins the toolbar single-open group: opening the picker notifies it, and the group closes the picker', () => {
+        const el = render();
+        const picker = fixture.debugElement.query(By.directive(EmojiPickerComponent))
+            .componentInstance as EmojiPickerComponent;
+
+        (el.querySelector('button') as HTMLButtonElement).click();
+        fixture.detectChanges();
+        expect(picker.open()).toBe(true);
+        expect(openNotices).toBe(1);
+
+        closeFromGroup();
+        fixture.detectChanges();
+        expect(picker.open()).toBe(false);
+        expect(openNotices).toBe(1);
     });
 });

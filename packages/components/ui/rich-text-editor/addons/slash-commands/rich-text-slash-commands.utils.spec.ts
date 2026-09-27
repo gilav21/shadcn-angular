@@ -490,6 +490,15 @@ describe('rich-text-slash-commands.utils', () => {
             expect(sel.anchorNode).toBe(block);
             expect(sel.anchorOffset).toBe(2);
         });
+
+        it('places the caret at the end of the last nested block when the block has no line of its own', () => {
+            const root = makeRoot('<blockquote><p>first</p><p>second</p></blockquote>');
+            placeCaretAtEndOfBlock(document, root.querySelector('blockquote')!);
+
+            const sel = document.getSelection()!;
+            expect(sel.anchorNode).toBe(root.querySelectorAll('p')[1].firstChild);
+            expect(sel.anchorOffset).toBe('second'.length);
+        });
     });
 
     describe('placeCaretAtEndOfBlock on an item holding blocks', () => {

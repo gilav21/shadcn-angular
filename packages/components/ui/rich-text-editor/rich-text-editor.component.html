@@ -85,21 +85,21 @@
           class="flex h-7 min-w-0 flex-1 rounded-md border border-input bg-transparent px-2 py-1 text-xs shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         />
         <button type="button"
-                class="inline-flex min-h-7 min-w-7 items-center justify-center rounded-md p-1 text-xs font-medium transition-colors hover:bg-accent"
+                class="inline-flex min-h-7 min-w-7 pointer-coarse:min-h-11 pointer-coarse:min-w-11 items-center justify-center rounded-md p-1 text-xs font-medium transition-colors hover:bg-accent"
                 [class.bg-accent]="findCaseSensitive()"
                 [attr.aria-pressed]="findCaseSensitive()"
                 [attr.aria-label]="resolvedLocale().findReplace.caseSensitive"
                 [title]="resolvedLocale().findReplace.caseSensitive"
                 (click)="toggleFindCaseSensitive()">Aa</button>
         <button type="button"
-                class="inline-flex min-h-7 min-w-7 items-center justify-center rounded-md p-1 text-xs font-medium transition-colors hover:bg-accent"
+                class="inline-flex min-h-7 min-w-7 pointer-coarse:min-h-11 pointer-coarse:min-w-11 items-center justify-center rounded-md p-1 text-xs font-medium transition-colors hover:bg-accent"
                 [class.bg-accent]="findWholeWord()"
                 [attr.aria-pressed]="findWholeWord()"
                 [attr.aria-label]="resolvedLocale().findReplace.wholeWord"
                 [title]="resolvedLocale().findReplace.wholeWord"
                 (click)="toggleFindWholeWord()">ab</button>
         <button type="button"
-                class="inline-flex min-h-7 min-w-7 items-center justify-center rounded-md p-1 text-xs font-medium transition-colors hover:bg-accent"
+                class="inline-flex min-h-7 min-w-7 pointer-coarse:min-h-11 pointer-coarse:min-w-11 items-center justify-center rounded-md p-1 text-xs font-medium transition-colors hover:bg-accent"
                 [class.bg-accent]="findUseRegex()"
                 [attr.aria-pressed]="findUseRegex()"
                 [attr.aria-label]="resolvedLocale().findReplace.useRegex"
@@ -112,19 +112,19 @@
               class="text-xs text-muted-foreground">{{ findCounterText() }}</span>
         <div class="flex gap-1">
           <button type="button"
-                  class="inline-flex min-h-7 min-w-7 items-center justify-center rounded-md p-1 text-xs hover:bg-accent disabled:opacity-50"
+                  class="inline-flex min-h-7 min-w-7 pointer-coarse:min-h-11 pointer-coarse:min-w-11 items-center justify-center rounded-md p-1 text-xs hover:bg-accent disabled:opacity-50"
                   [attr.aria-label]="resolvedLocale().findReplace.previous"
                   [title]="resolvedLocale().findReplace.previous"
                   [disabled]="findMatchCount() === 0"
                   (click)="findPrevious()">&#x25B2;</button>
           <button type="button"
-                  class="inline-flex min-h-7 min-w-7 items-center justify-center rounded-md p-1 text-xs hover:bg-accent disabled:opacity-50"
+                  class="inline-flex min-h-7 min-w-7 pointer-coarse:min-h-11 pointer-coarse:min-w-11 items-center justify-center rounded-md p-1 text-xs hover:bg-accent disabled:opacity-50"
                   [attr.aria-label]="resolvedLocale().findReplace.next"
                   [title]="resolvedLocale().findReplace.next"
                   [disabled]="findMatchCount() === 0"
                   (click)="findNext()">&#x25BC;</button>
           <button type="button"
-                  class="inline-flex min-h-7 min-w-7 items-center justify-center rounded-md p-1 text-xs hover:bg-accent"
+                  class="inline-flex min-h-7 min-w-7 pointer-coarse:min-h-11 pointer-coarse:min-w-11 items-center justify-center rounded-md p-1 text-xs hover:bg-accent"
                   [attr.aria-label]="resolvedLocale().findReplace.close"
                   [title]="resolvedLocale().findReplace.close"
                   (click)="closeFindReplace()">&#x2715;</button>
@@ -215,22 +215,22 @@
       <div class="px-2 py-1.5">
         <div class="text-xs text-muted-foreground mb-1.5">{{ resolvedLocale().table.borders }}</div>
         <div class="flex items-center gap-1">
-          <button type="button" class="flex items-center justify-center w-7 h-7 rounded border border-transparent hover:border-border hover:bg-accent" [title]="resolvedLocale().table.bordersAll" (click)="setTableBorders('all')">
+          <button type="button" class="flex items-center justify-center w-7 h-7 pointer-coarse:size-11 rounded border border-transparent hover:border-border hover:bg-accent" [title]="resolvedLocale().table.bordersAll" (click)="setTableBorders('all')">
             <svg viewBox="0 0 20 20" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5">
               <rect x="1" y="1" width="18" height="18" /><line x1="10" y1="1" x2="10" y2="19" /><line x1="1" y1="10" x2="19" y2="10" />
             </svg>
           </button>
-          <button type="button" class="flex items-center justify-center w-7 h-7 rounded border border-transparent hover:border-border hover:bg-accent" [title]="resolvedLocale().table.bordersNone" (click)="setTableBorders('none')">
+          <button type="button" class="flex items-center justify-center w-7 h-7 pointer-coarse:size-11 rounded border border-transparent hover:border-border hover:bg-accent" [title]="resolvedLocale().table.bordersNone" (click)="setTableBorders('none')">
             <svg viewBox="0 0 20 20" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1" opacity="0.35">
               <rect x="1" y="1" width="18" height="18" stroke-dasharray="2 2" /><line x1="10" y1="1" x2="10" y2="19" stroke-dasharray="2 2" /><line x1="1" y1="10" x2="19" y2="10" stroke-dasharray="2 2" />
             </svg>
           </button>
-          <button type="button" class="flex items-center justify-center w-7 h-7 rounded border border-transparent hover:border-border hover:bg-accent" [title]="resolvedLocale().table.bordersOuter" (click)="setTableBorders('outer')">
+          <button type="button" class="flex items-center justify-center w-7 h-7 pointer-coarse:size-11 rounded border border-transparent hover:border-border hover:bg-accent" [title]="resolvedLocale().table.bordersOuter" (click)="setTableBorders('outer')">
             <svg viewBox="0 0 20 20" class="w-4 h-4" fill="none" stroke="currentColor">
               <rect x="1" y="1" width="18" height="18" stroke-width="1.5" /><line x1="10" y1="1" x2="10" y2="19" stroke-width="1" opacity="0.25" stroke-dasharray="2 2" /><line x1="1" y1="10" x2="19" y2="10" stroke-width="1" opacity="0.25" stroke-dasharray="2 2" />
             </svg>
           </button>
-          <button type="button" class="flex items-center justify-center w-7 h-7 rounded border border-transparent hover:border-border hover:bg-accent" [title]="resolvedLocale().table.bordersHorizontal" (click)="setTableBorders('horizontal')">
+          <button type="button" class="flex items-center justify-center w-7 h-7 pointer-coarse:size-11 rounded border border-transparent hover:border-border hover:bg-accent" [title]="resolvedLocale().table.bordersHorizontal" (click)="setTableBorders('horizontal')">
             <svg viewBox="0 0 20 20" class="w-4 h-4" fill="none" stroke="currentColor">
               <line x1="1" y1="1" x2="19" y2="1" stroke-width="1.5" /><line x1="1" y1="10" x2="19" y2="10" stroke-width="1.5" /><line x1="1" y1="19" x2="19" y2="19" stroke-width="1.5" />
             </svg>
@@ -241,22 +241,22 @@
       <div class="px-2 py-1.5">
         <div class="text-xs text-muted-foreground mb-1.5">{{ resolvedLocale().table.cellAlignLeft }}</div>
         <div class="flex items-center gap-1" dir="ltr">
-          <button type="button" class="flex items-center justify-center w-7 h-7 rounded border border-transparent hover:border-border hover:bg-accent" [title]="resolvedLocale().table.cellAlignLeft" (click)="setCellAlignment('left')">
+          <button type="button" class="flex items-center justify-center w-7 h-7 pointer-coarse:size-11 rounded border border-transparent hover:border-border hover:bg-accent" [title]="resolvedLocale().table.cellAlignLeft" (click)="setCellAlignment('left')">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="15" x2="3" y1="12" y2="12"/><line x1="17" x2="3" y1="18" y2="18"/></svg>
           </button>
-          <button type="button" class="flex items-center justify-center w-7 h-7 rounded border border-transparent hover:border-border hover:bg-accent" [title]="resolvedLocale().table.cellAlignCenter" (click)="setCellAlignment('center')">
+          <button type="button" class="flex items-center justify-center w-7 h-7 pointer-coarse:size-11 rounded border border-transparent hover:border-border hover:bg-accent" [title]="resolvedLocale().table.cellAlignCenter" (click)="setCellAlignment('center')">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="17" x2="7" y1="12" y2="12"/><line x1="19" x2="5" y1="18" y2="18"/></svg>
           </button>
-          <button type="button" class="flex items-center justify-center w-7 h-7 rounded border border-transparent hover:border-border hover:bg-accent" [title]="resolvedLocale().table.cellAlignRight" (click)="setCellAlignment('right')">
+          <button type="button" class="flex items-center justify-center w-7 h-7 pointer-coarse:size-11 rounded border border-transparent hover:border-border hover:bg-accent" [title]="resolvedLocale().table.cellAlignRight" (click)="setCellAlignment('right')">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="21" x2="9" y1="12" y2="12"/><line x1="21" x2="7" y1="18" y2="18"/></svg>
           </button>
         </div>
       </div>
       <div class="px-2 py-1.5">
         <div class="text-xs text-muted-foreground mb-1.5">{{ resolvedLocale().table.cellColor }}</div>
-        <div class="grid grid-cols-8 gap-0.5">
+        <div class="grid grid-cols-8 gap-0.5 pointer-coarse:grid-cols-4 pointer-coarse:gap-1">
           @for (color of tableCellColors; track color) {
-            <button type="button" class="w-4 h-4 rounded border border-border hover:scale-110 transition-transform" [style.background-color]="color" [attr.aria-label]="color" (click)="setCellColor(color)"></button>
+            <button type="button" class="w-4 h-4 pointer-coarse:size-11 rounded border border-border hover:scale-110 transition-transform" [style.background-color]="color" [attr.aria-label]="color" (click)="setCellColor(color)"></button>
           }
         </div>
       </div>

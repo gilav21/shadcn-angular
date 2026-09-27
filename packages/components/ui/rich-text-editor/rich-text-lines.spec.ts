@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     buildLineIndex,
+    flattenIntoRowText,
     lastOwnInlineNode,
     caretPosition,
     holdsNothing,
@@ -13,6 +14,7 @@ import {
     lineOwnNodes,
     lineText,
     lineTagIsFixed,
+    nodeShowsNothing,
     rangeShowsNothing,
     linesBetween,
     linesMayJoin,
@@ -446,6 +448,50 @@ describe('rich text line model — the rules', () => {
         const atTextEnd = document.createRange();
         atTextEnd.setStartAfter(lineOwnNodes(line).at(-1)!);
         expect(range.compareBoundaryPoints(Range.START_TO_START, atTextEnd)).toBe(0);
+    });
+
+    it('a caret on a task row past its text span reads as the end of the row\'s text', () => {
+        // The row's own stop outside its text, where a browser lands the caret
+        // beside the checkbox; the span is the line's holder, the row is not.
+        const root = rootOf(TASK_ROWS);
+        const index = buildLineIndex(root);
+        const row = root.querySelector('li')!;
+        const pastSpan = document.createRange();
+        pastSpan.setStart(row, row.childNodes.length);
+        pastSpan.collapse(true);
+
+        const position = caretPosition(index, pastSpan)!;
+        expect(position.line.owner).toBe(row);
+        expect(position.offset).toBe('first'.length);
+    });
+
+    it('a caret in a line with no text of its own sits at the start of the line', () => {
+        const root = rootOf('<p>above</p><p></p>');
+        const empty = root.querySelectorAll('p')[1];
+        const line = lineOf(empty, root)!;
+
+        const range = placeCaretIn(line, 3);
+
+        expect(range.startContainer).toBe(empty);
+        expect(range.startOffset).toBe(0);
+        expect(caretPosition(buildLineIndex(root), range)).toEqual({ line: expect.objectContaining({ owner: empty }), offset: 0 });
+    });
+
+    it('text shows nothing when it is blank or placeholders only', () => {
+        expect(nodeShowsNothing(document.createTextNode(' \u200B '))).toBe(true);
+        expect(nodeShowsNothing(document.createTextNode('x'))).toBe(false);
+    });
+
+    it('flattens blocks into one row of text, a single space where each block ended', () => {
+        const holder = document.createElement('div');
+        holder.innerHTML = '<p>a</p>\n <pre><code>b\nc</code></pre><p> </p><p>d</p>';
+        const span = document.createElement('span');
+
+        flattenIntoRowText(Array.from(holder.childNodes), span);
+
+        expect(span.textContent).toBe('a b c d');
+        expect(span.children).toHaveLength(1);
+        expect(span.querySelector('code')?.textContent).toBe('b c');
     });
 
     it('two nodes in the same line yield just that line', () => {

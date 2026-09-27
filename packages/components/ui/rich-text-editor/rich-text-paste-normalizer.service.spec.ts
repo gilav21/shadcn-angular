@@ -192,6 +192,11 @@ describe('RichTextPasteNormalizerService', () => {
             expect(result).toContain('Keep');
         });
 
+        it('unwraps a Word <o:p> element, keeping its text', () => {
+            const html = '<p class="MsoNormal">Text<o:p>kept</o:p></p>';
+            expect(service.normalize(html, '')).toBe('<p>Textkept</p>');
+        });
+
         it('should strip XML namespaced elements', () => {
             const html = '<p class="MsoNormal">Text<o:p>&nbsp;</o:p></p>';
             const result = service.normalize(html, '');
@@ -302,6 +307,8 @@ describe('RichTextPasteNormalizerService', () => {
             expect(service.normalize(word, '')).toBe('<p>Hello&nbsp;&nbsp; world</p>');
             expect(service.normalize('<p><b>bold</b><span> </span><i>italic</i></p>', ''))
                 .toBe('<p><strong>bold</strong> <em>italic</em></p>');
+            // A span holding nothing at all separates nothing, and goes.
+            expect(service.normalize('<p>a<span></span>b</p>', '')).toBe('<p>ab</p>');
         });
 
         it('should convert font elements to spans with color', () => {

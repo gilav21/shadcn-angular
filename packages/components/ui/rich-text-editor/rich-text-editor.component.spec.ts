@@ -7,7 +7,7 @@ import { DEFAULT_TOOLBAR_ITEMS, FIND_MAX_PAINTED_RECTS, RichTextEditorComponent,
 import type { RichTextEditorRef } from './index';
 import { isRichTextEmpty } from './index';
 import { EMPTINESS_FIXTURES } from './index';
-import { RichTextEditorAddonHost } from './index';
+import { addonSetting, RichTextEditorAddonHost } from './index';
 import { ShortcutBindingService } from '../../lib/shortcut-binding.service';
 import { provideUiLocale } from '../../lib/i18n/i18n.token';
 import { createLocaleBindings } from '../../lib/i18n/i18n.utils';
@@ -19,8 +19,21 @@ import { RichTextSanitizerService } from './index';
 import { RichTextAllowDirective } from './index';
 import type { ResourcePolicyDecision } from './index';
 
+/**
+ * Focus the editable area `node` sits in, as the click that places a real
+ * caret does. A browser focuses the editing host when a selection lands in it;
+ * jsdom does not, and its first `focus()` then collapses the selection to the
+ * host's start, so a caret placed without this is lost to the editor's own
+ * refocus after a command.
+ */
+const focusEditingHost = (node: Node) => {
+    const start = node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement;
+    start?.closest<HTMLElement>('[contenteditable="true"]')?.focus();
+};
+
 /** Collapse the selection to a caret at the given node/offset. */
 const setCaretAt = (node: Node, offset: number) => {
+    focusEditingHost(node);
     const selection = document.getSelection();
     const range = document.createRange();
     range.setStart(node, offset);
@@ -31,6 +44,7 @@ const setCaretAt = (node: Node, offset: number) => {
 
 /** Select `[start, end)` within one node, as a user's drag would. */
 const selectRangeIn = (node: Node, start: number, end: number) => {
+    focusEditingHost(node);
     const selection = document.getSelection();
     const range = document.createRange();
     range.setStart(node, start);
@@ -63,6 +77,7 @@ const findRects = (fixture: ComponentFixture<RichTextEditorComponent>): HTMLElem
 
 /** Select the full contents of the given node. */
 const selectAllOf = (node: Node) => {
+    focusEditingHost(node);
     const selection = document.getSelection();
     const range = document.createRange();
     range.selectNodeContents(node);
@@ -70,9 +85,21 @@ const selectAllOf = (node: Node) => {
     selection?.addRange(range);
 };
 
+/**
+ * A `paste` event whose clipboard holds `data` (MIME type → content), built
+ * without the `DataTransfer` constructor jsdom does not have.
+ */
+const pasteEvent = (data: Readonly<Record<string, string>>): ClipboardEvent => {
+    const paste = new Event('paste', { bubbles: true, cancelable: true }) as ClipboardEvent;
+    Object.defineProperty(paste, 'clipboardData', {
+        value: { getData: (type: string) => data[type] ?? '', types: Object.keys(data), files: [] },
+    });
+    return paste;
+};
+
 // ── Browser-API stubs for the jsdom / portable leg ────────────────────────
-// jsdom ships no `execCommand`, no `scrollIntoView`, no `elementFromPoint`, no
-// geometry on Elements/Ranges, and no `CSS.escape`. The editor's
+// jsdom ships no `execCommand`, no `scrollIntoView`, no `elementFromPoint` and
+// no geometry on Elements/Ranges. The editor's
 // contentEditable, table-selection and floating-toolbar paths reach for all of
 // these, so we install faithful-enough shims that let those paths run
 // headlessly. Each shim is saved and restored per-test so the ts-jest leg —
@@ -268,14 +295,10 @@ interface StubbableRange {
     getBoundingClientRect?: () => DOMRect;
     getClientRects?: () => DOMRectList;
 }
-interface StubbableGlobal {
-    CSS?: { escape: (value: string) => string };
-}
 
 let originalRangeGetRect: (() => DOMRect) | undefined;
 let originalRangeGetRects: (() => DOMRectList) | undefined;
 let originalElementGetRect: (() => DOMRect) | undefined;
-let cssWasAbsent = false;
 
 /** Map a table cell to a deterministic 100x20 rect from its row/column index. */
 const tableCellRect = (cell: HTMLTableCellElement): DOMRect | null => {
@@ -332,12 +355,6 @@ const installBrowserStubs = (): void => {
                 },
             }) as unknown as DOMRectList;
     }
-
-    const scope = globalThis as StubbableGlobal;
-    cssWasAbsent = scope.CSS === undefined;
-    if (cssWasAbsent) {
-        scope.CSS = { escape: (value: string) => value.replaceAll(/[^\w-]/g, (char) => `\\${char}`) };
-    }
 };
 
 const restoreBrowserStubs = (): void => {
@@ -368,11 +385,6 @@ const restoreBrowserStubs = (): void => {
     }
     originalRangeGetRect = undefined;
     originalRangeGetRects = undefined;
-
-    if (cssWasAbsent) {
-        delete (globalThis as StubbableGlobal).CSS;
-        cssWasAbsent = false;
-    }
 };
 
 beforeEach(() => installBrowserStubs());
@@ -641,11 +653,7 @@ describe('RichTextEditorComponent', () => {
             selection?.removeAllRanges();
             selection?.addRange(range);
 
-            const data = new DataTransfer();
-            data.setData('text/html', '<p>one</p><p>two</p>');
-            editor.dispatchEvent(
-                new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: data }),
-            );
+            editor.dispatchEvent(pasteEvent({ 'text/html': '<p>one</p><p>two</p>' }));
             fixture.detectChanges();
 
             expect(editor.querySelector('p p')).toBeNull();
@@ -796,11 +804,7 @@ describe('RichTextEditorComponent', () => {
             const selection = document.getSelection();
             selection?.removeAllRanges();
             selection?.addRange(range);
-            const data = new DataTransfer();
-            data.setData('text/html', html);
-            editor.dispatchEvent(
-                new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: data }),
-            );
+            editor.dispatchEvent(pasteEvent({ 'text/html': html }));
             fixture.detectChanges();
         }
 
@@ -1045,6 +1049,54 @@ describe('RichTextEditorComponent', () => {
 
         expect(typeOver('XY').defaultPrevented).toBe(false);
         expect(typeOver('XYZ').defaultPrevented).toBe(true);
+    });
+
+    it('budgets a paste or a drop by the text it would insert, on every path that inserts it', () => {
+        fixture.componentRef.setInput('maxLength', 10);
+        fixture.detectChanges();
+        const atEnd = (): void => {
+            component.writeValue('<p>12345678</p>');
+            fixture.detectChanges();
+            setCaretAt(editor.querySelector('p')!.firstChild as Text, 8);
+        };
+        const flavours = (plain: string, html: string): DataTransfer => ({
+            getData: (type: string) => (type === 'text/html' ? html : plain),
+            types: ['text/plain', 'text/html'],
+            files: [],
+        }) as unknown as DataTransfer;
+        // The plain flavour fits, the HTML one -- what is inserted -- does not.
+        const long = flavours('A', '<p>ABCDEFGHIJKLMNOP</p>');
+
+        atEnd();
+        component.onPaste({ preventDefault: vi.fn(), clipboardData: long } as unknown as ClipboardEvent);
+        expect(editor.textContent).toBe('12345678AB');
+
+        atEnd();
+        const nativeDrop = new InputEvent('beforeinput', { bubbles: true, cancelable: true, inputType: 'insertFromDrop' });
+        Object.defineProperty(nativeDrop, 'dataTransfer', { value: long });
+        editor.dispatchEvent(nativeDrop);
+        expect(nativeDrop.defaultPrevented).toBe(true);
+
+        const drop = (data: DataTransfer): Event => {
+            const event = new Event('drop', { cancelable: true });
+            Object.defineProperty(event, 'dataTransfer', { value: data });
+            void component.onEditorDrop(event as DragEvent);
+            return event;
+        };
+        expect(drop(long).defaultPrevented).toBe(true);
+        expect(drop(flavours('AB', '<b>AB</b>')).defaultPrevented).toBe(false);
+    });
+
+    it('counts a selection as freed budget only when the insert replaces it', () => {
+        fixture.componentRef.setInput('maxLength', 10);
+        fixture.detectChanges();
+        component.writeValue('<p>12345678</p>');
+        fixture.detectChanges();
+        selectRangeIn(editor.querySelector('p')!.firstChild as Text, 0, 8);
+
+        // A block goes after the line and replaces nothing.
+        component.insertBlockAtCaret('<p>ABCDEF</p>');
+        expect(editor.textContent).toBe('12345678');
     });
 
     it('supports undo after truncated paste path', () => {
@@ -1868,6 +1920,37 @@ describe('RichTextEditorComponent', () => {
 
             expect(component.currentFontFamily()).toBe('Georgia');
         });
+
+        it('keeps a bare caret as the restore point when a size pick styles no text', () => {
+            component.writeValue('<p>hello</p>');
+            fixture.detectChanges();
+            const text = editor.querySelector('p')!.firstChild as Text;
+            setCaretAt(text, 2);
+            // At a collapsed caret the browser's fontSize sets a typing style
+            // and creates no element.
+            (document as StubbableDocument).execCommand = () => true;
+
+            component.onFontSizeSelect('20');
+            document.getSelection()?.removeAllRanges();
+            component.restoreSelection();
+
+            const selection = document.getSelection()!;
+            expect(selection.anchorNode).toBe(text);
+            expect(selection.anchorOffset).toBe(2);
+        });
+
+        it('styles the chosen font family without CSS.escape, whatever characters its name holds', () => {
+            component.writeValue('<p>hello world</p>');
+            fixture.detectChanges();
+            selectRangeIn(editor.querySelector('p')!.firstChild as Text, 0, 5);
+
+            component.onFontFamilySelect('"Comic Sans MS", cursive');
+
+            const span = editor.querySelector<HTMLElement>('p > span');
+            expect(span?.textContent).toBe('hello');
+            expect(span?.style.fontFamily).toContain('Comic Sans MS');
+            expect(editor.querySelector('font[face]')).toBeNull();
+        });
     });
 
     describe('selection inline style + applyInlineStyle seam', () => {
@@ -2277,11 +2360,7 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         const p = editor.querySelector('p')!;
         setCaretAt(p, 0);
 
-        const data = new DataTransfer();
-        data.setData('text/plain', '\u{1F600}\u{1F601}\u{1F602}\u{1F603}\u{1F604}');
-        editor.dispatchEvent(new ClipboardEvent('paste', {
-            bubbles: true, cancelable: true, clipboardData: data,
-        }));
+        editor.dispatchEvent(pasteEvent({ 'text/plain': '\u{1F600}\u{1F601}\u{1F602}\u{1F603}\u{1F604}' }));
         fixture.detectChanges();
 
         const text = editor.textContent ?? '';
@@ -2483,6 +2562,98 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
             .toEqual(['P:one', 'P:two', 'P:three']);
     });
 
+    it('opens an empty inline code run at a collapsed caret, with the caret inside it', () => {
+        component.writeValue('<p>ab</p>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('p')!.firstChild!, 1);
+
+        component.onFormatCommand('code');
+
+        const code = editor.querySelector('p > code')!;
+        expect(code.textContent).toBe('\u200B');
+        expect(code.contains(document.getSelection()?.anchorNode ?? null)).toBe(true);
+        expect(editor.textContent?.replaceAll('\u200B', '')).toBe('ab');
+    });
+
+    it('lights Bold for weight the browser reports from a stylesheet, outside any heading', () => {
+        // queryCommandState('bold') reads the computed weight; only a heading's
+        // own weight is left unlit.
+        editor.innerHTML = '<p><span class="font-bold">heavy</span></p>';
+        (document as StubbableDocument).queryCommandState = (id) => id === 'bold';
+        caretIn(editor.querySelector('span')!.firstChild!, 2);
+
+        component.onSelectionChange();
+
+        expect(component.activeFormats().has('bold')).toBe(true);
+    });
+
+    it('clears a formatted run holding only an image, leaving the caret after the image', () => {
+        component.writeValue('<p><b><img src="x.png" alt=""></b></p>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('b')!, 1);
+
+        component.onFormatCommand('clear');
+
+        const paragraph = editor.querySelector('p')!;
+        expect(editor.querySelector('b')).toBeNull();
+        expect(paragraph.querySelector(':scope > img')).toBeTruthy();
+        expect(document.getSelection()?.anchorNode).toBe(paragraph);
+        expect(document.getSelection()?.anchorOffset).toBe(paragraph.childNodes.length);
+    });
+
+    it('re-tagging lines keeps the selection start when the node its end sat on is replaced', () => {
+        component.writeValue('<p>one</p><p>two</p>');
+        fixture.detectChanges();
+        editor.focus();
+        const [first, second] = Array.from(editor.querySelectorAll('p'));
+        const range = document.createRange();
+        range.setStart(first.firstChild!, 1);
+        range.setEnd(second, 1);
+        const selection = document.getSelection()!;
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        component.onFormatCommand('heading1');
+
+        expect(Array.from(editor.children, (el) => `${el.tagName}:${el.textContent}`)).toEqual(['H1:one', 'H1:two']);
+        expect(selection.isCollapsed).toBe(true);
+        expect(selection.anchorNode).toBe(editor.querySelector('h1')!.firstChild);
+        expect(selection.anchorOffset).toBe(1);
+    });
+
+    it('a block command on loose inline text beside a paragraph wraps only that text, where it lives', () => {
+        editor.innerHTML = '<div><b>bold</b> tail<p>para</p></div>';
+        caretIn(editor.querySelector('b')!.firstChild!, 2);
+
+        component.onFormatCommand('heading1');
+
+        expect(editor.querySelector('div > h1')?.innerHTML).toBe('<b>bold</b> tail');
+        expect(editor.querySelector('div > p')?.textContent).toBe('para');
+    });
+
+    it('the code block toggle on a numbered list\'s first item leaves the rest counting from one', () => {
+        component.writeValue('<ol><li>one</li><li>two</li><li>three</li></ol>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('li')!.firstChild!, 1);
+
+        component.onFormatCommand('codeBlock');
+
+        expect(Array.from(editor.children, (el) => el.tagName)).toEqual(['PRE', 'OL']);
+        expect(editor.querySelector('pre > code')?.textContent).toBe('one');
+        expect(Array.from(editor.querySelectorAll('ol > li'), (li) => li.textContent)).toEqual(['two', 'three']);
+        expect(editor.querySelector('ol')?.hasAttribute('start')).toBe(false);
+    });
+
+    it('the code block toggle keeps an empty line of code as an empty paragraph', () => {
+        component.writeValue('<pre><code>a\n\nb</code></pre>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('code')!.firstChild!, 0);
+
+        component.onFormatCommand('codeBlock');
+
+        expect(Array.from(editor.children, (el) => `${el.tagName}:${el.innerHTML}`)).toEqual(['P:a', 'P:<br>', 'P:b']);
+    });
+
     it("turns the caret's paragraph into a code block, and back into paragraphs", () => {
         component.writeValue('<p>before</p><p>snippet body</p><p>after</p>');
         fixture.detectChanges();
@@ -2505,6 +2676,7 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
     it('joins several selected lines into one code block and splits it back per line', () => {
         component.writeValue('<p>one</p><p>two</p>');
         fixture.detectChanges();
+        editor.focus();
         const range = document.createRange();
         range.setStart(editor.querySelectorAll('p')[0].firstChild!, 1);
         range.setEnd(editor.querySelectorAll('p')[1].firstChild!, 1);
@@ -3336,6 +3508,7 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         // the paragraph -- <p><ul><li>…</li></ul></p> -- which is not valid HTML.
         component.writeValue('<p>first</p><p>second</p><p>third</p>');
         fixture.detectChanges();
+        editor.focus();
         const range = document.createRange();
         range.setStart(editor.querySelectorAll('p')[0].firstChild!, 0);
         range.setEnd(editor.querySelectorAll('p')[1].firstChild!, 3);
@@ -3898,6 +4071,78 @@ describe('RichTextEditorComponent — toolbar actions (link, image, color, font)
             expect(editor.textContent).not.toContain('INJECTED');
         });
 
+        it('gives the item a ref whose inserts land at the editor caret after focus left it, and whose focus reaches the editor', () => {
+            component.writeValue('<p>ref</p>');
+            fixture.detectChanges();
+            setCaretAt(editor.querySelector('p')!.firstChild as Text, 3);
+            fixture.componentRef.setInput('customToolbarItems', [
+                { id: 'by', icon: 'B', tooltip: 'By', onClick: (ref: RichTextEditorRef) => ref.insertText(' by ') },
+                {
+                    id: 'sign', icon: 'S', tooltip: 'Sign',
+                    onClick: (ref: RichTextEditorRef) => { ref.insertHtml('<b>signed</b>'); ref.focus(); },
+                },
+            ]);
+            fixture.detectChanges();
+            // Before each click focus leaves and the page's selection moves into
+            // other text, as a click elsewhere on the page does.
+            const page = document.body.appendChild(document.createElement('p'));
+            page.textContent = 'page';
+            const clickAfterLeaving = (id: string): void => {
+                (document.activeElement as HTMLElement | null)?.blur();
+                const elsewhere = document.createRange();
+                elsewhere.setStart(page.firstChild!, 2);
+                document.getSelection()?.removeAllRanges();
+                document.getSelection()?.addRange(elsewhere);
+                slotButton(id)!.click();
+                fixture.detectChanges();
+            };
+
+            clickAfterLeaving('by');
+            clickAfterLeaving('sign');
+            page.remove();
+
+            // At the editor's caret, inside its paragraph, one after the other.
+            expect(editor.innerHTML).toBe('<p>ref by <b>signed</b></p>');
+            expect(page.textContent).toBe('page');
+            expect(document.activeElement).toBe(editor);
+        });
+
+        it('keeps the ref\'s inserts within maxLength against the editor caret, and out of a read-only editor', () => {
+            fixture.componentRef.setInput('maxLength', 10);
+            component.writeValue('<p>12345678</p>');
+            fixture.detectChanges();
+            setCaretAt(editor.querySelector('p')!.firstChild as Text, 8);
+            let captured: RichTextEditorRef | null = null;
+            fixture.componentRef.setInput('customToolbarItems', [{
+                id: 'long', icon: 'L', tooltip: 'Long',
+                onClick: (ref: RichTextEditorRef) => { captured = ref; ref.insertHtml('<b>abcdef</b>'); ref.insertText('XYZW'); },
+            }]);
+            fixture.detectChanges();
+            // A long selection elsewhere on the page is not what the insert
+            // replaces, so it frees none of the editor's budget.
+            (document.activeElement as HTMLElement | null)?.blur();
+            const page = document.body.appendChild(document.createElement('p'));
+            page.textContent = 'a long selection of page text';
+            const elsewhere = document.createRange();
+            elsewhere.selectNodeContents(page);
+            document.getSelection()?.removeAllRanges();
+            document.getSelection()?.addRange(elsewhere);
+
+            expect(component.remainingLength()).toBe(2);
+            component.insertTextAtCaret('abcdef');
+            expect(page.textContent).toBe('a long selection of page text');
+            slotButton('long')!.click();
+            fixture.detectChanges();
+            page.remove();
+            expect(editor.textContent).toBe('12345678');
+
+            fixture.componentRef.setInput('readonly', true);
+            fixture.detectChanges();
+            captured!.insertText('ab');
+            captured!.insertHtml('<b>c</b>');
+            expect(editor.textContent).toBe('12345678');
+        });
+
         it('reflects isActive from the formats at the caret', () => {
             component.writeValue('<p><b>bold</b></p>');
             fixture.detectChanges();
@@ -4267,6 +4512,17 @@ describe('RichTextEditorComponent — tables', () => {
 
         expect(component.tableCellSelected().map(c => c.textContent ?? '').sort((a, b) => a.localeCompare(b)))
             .toEqual(['A1', 'A2', 'B1', 'B2']);
+
+        // Shift+click on the anchor itself is a one-cell rectangle.
+        cellMouseDown(cells[0], { shiftKey: true });
+        expect(component.tableCellSelected().map(c => c.textContent)).toEqual(['A1']);
+
+        // With no anchor in this table, Shift+click starts one at the cell.
+        const fresh = Array.from(seedTable().querySelectorAll('td'));
+        cellMouseDown(fresh[3], { shiftKey: true });
+        expect(component.tableCellSelected().map(c => c.textContent)).toEqual(['B2']);
+        cellMouseDown(fresh[0], { shiftKey: true });
+        expect(component.tableCellSelected()).toHaveLength(4);
     });
 
     it('applies an inline format to the selected cells only', () => {
@@ -4768,6 +5024,63 @@ describe('RichTextEditorComponent — find and replace', () => {
         expect(editor.textContent).toBe('dog cat cat');
     });
 
+    it('keeps the highlights on the text as the editor scrolls or resizes, and drops them on close', async () => {
+        let resized: (() => void) | undefined;
+        vi.stubGlobal('ResizeObserver', class {
+            constructor(callback: () => void) { resized = callback; }
+            observe(): void { /* the callback is driven by hand below */ }
+            disconnect(): void { resized = undefined; }
+        });
+        try {
+            const frame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+            // Where the text is on screen; the overlay places each highlight
+            // relative to the editor frame, so only differences are compared.
+            const moveTextTo = (top: number) => {
+                for (const match of component.findMatches()) {
+                    match.getClientRects = () => [makeRect(0, top, 10, 10)] as unknown as DOMRectList;
+                }
+            };
+            const paintedTop = () => Number.parseFloat(findRects(fixture)[0].style.top);
+            component.openFindReplace(false);
+            component.onFindQueryChange('cat');
+            fixture.detectChanges();
+
+            moveTextTo(-40);
+            editor.dispatchEvent(new Event('scroll'));
+            await frame();
+            const afterFirstScroll = paintedTop();
+            moveTextTo(-10);
+            editor.dispatchEvent(new Event('scroll'));
+            await frame();
+            expect(paintedTop() - afterFirstScroll).toBe(30);
+
+            moveTextTo(25);
+            resized?.();
+            await frame();
+            expect(paintedTop() - afterFirstScroll).toBe(65);
+
+            editor.dispatchEvent(new Event('scroll'));
+            component.closeFindReplace();
+            await frame();
+            expect(findRects(fixture)).toHaveLength(0);
+            expect(resized).toBeUndefined();
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
+
+    it('scrolls the editable up, not the page, to a current match above its view', () => {
+        load('<p>cat</p><p>cat</p>');
+        component.onFindQueryChange('cat');
+        for (const match of component.findMatches()) match.getBoundingClientRect = () => makeRect(0, 30, 20, 16);
+        Object.defineProperty(editor, 'scrollTop', { value: 150, writable: true, configurable: true });
+        editor.getBoundingClientRect = () => makeRect(0, 100, 200, 60);
+
+        component.findNext();
+
+        expect(editor.scrollTop).toBe(80);
+    });
+
     it('T-19 findNext/findPrevious wrap and scroll the editor to the current match', () => {
         load('<p>cat</p>' + '<p>filler</p>'.repeat(40) + '<p>cat</p>');
         editor.style.maxHeight = '60px';
@@ -5115,44 +5428,6 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
 
         expect(taskSpans()[0].contains(caretNode())).toBe(true);
         expect(document.getSelection()?.anchorOffset).toBe('first'.length);
-    });
-
-    it('ArrowUp from the start of a task row reaches the row above in one press', () => {
-        // The position before the checkbox counted as a line of its own, so
-        // one press stopped there and a second was needed.
-        twoTasks();
-        fixture.detectChanges();
-        editor.focus();
-        caretIn(taskSpans()[1].firstChild as Text, 0);
-
-        const ev = new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true });
-        component.onKeydown(ev);
-
-        expect(ev.defaultPrevented).toBe(true);
-        expect(taskSpans()[0].contains(caretNode())).toBe(true);
-    });
-
-    it('ArrowDown from a task row lands in the text of the row below', () => {
-        twoTasks();
-        fixture.detectChanges();
-        editor.focus();
-        caretIn(taskSpans()[0].firstChild as Text, 0);
-
-        component.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
-
-        expect(taskSpans()[1].contains(caretNode())).toBe(true);
-    });
-
-    it('ArrowUp from the first task row leaves the list for the block above', () => {
-        component.writeValue(
-            '<p>above</p><ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox"><span>only</span></li></ul>');
-        fixture.detectChanges();
-        editor.focus();
-        caretIn(taskSpans()[0].firstChild as Text, 0);
-
-        component.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));
-
-        expect(editor.querySelector('p')!.contains(caretNode())).toBe(true);
     });
 
     const backspace = () => new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true });
@@ -5645,6 +5920,47 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         expect(editor.textContent).toContain('subtask');
     });
 
+    it('Backspace at the start of an empty task row under another empty one leaves one row that holds a caret', () => {
+        component.writeValue('<ul data-task-list="">' + row(false, '<span>\u00A0</span>') + row(false, '<span>\u00A0</span>') + '</ul>');
+        fixture.detectChanges();
+        caretIn(taskSpans()[1].firstChild as Text, 0);
+
+        component.onKeydown(backspace());
+
+        expect(editor.querySelectorAll('li[data-task]')).toHaveLength(1);
+        expect(taskSpans()[0].textContent).toBe('\u00A0');
+        expect(taskSpans()[0].contains(caretNode())).toBe(true);
+    });
+
+    it('moves a caret after an empty or image-only text span into the span', () => {
+        editor.innerHTML = '<ul data-task-list="">' + row(false, '<span></span>')
+            + row(false, '<span><img src="x.png" alt=""></span>') + '</ul>';
+        const [emptyRow, imageRow] = Array.from(editor.querySelectorAll('li[data-task]'));
+
+        caretIn(emptyRow, emptyRow.childNodes.length);
+        component.onSelectionChange();
+        expect(emptyRow.querySelector(':scope > span')!.contains(caretNode())).toBe(true);
+
+        caretIn(imageRow, imageRow.childNodes.length);
+        component.onSelectionChange();
+        const imageSpan = imageRow.querySelector(':scope > span')!;
+        expect(caretNode()).toBe(imageSpan);
+        expect(document.getSelection()?.anchorOffset).toBe(imageSpan.childNodes.length);
+    });
+
+    it('Tab on an empty list item indents it and keeps the caret in it', () => {
+        editor.innerHTML = '<ul><li>one</li><li></li></ul>';
+        caretIn(editor.querySelectorAll('li')[1], 0);
+
+        const tab = tabKey();
+        component.onKeydown(tab);
+
+        expect(tab.defaultPrevented).toBe(true);
+        const nested = editor.querySelector('li > ul > li')!;
+        expect(nested.textContent?.replaceAll('\u200B', '')).toBe('');
+        expect(nested.contains(caretNode())).toBe(true);
+    });
+
     it('Backspace in the only, empty task row leaves an empty paragraph', () => {
         component.writeValue('<ul data-task-list="">' + row(false, '<span>​</span>') + '</ul>');
         fixture.detectChanges();
@@ -5655,32 +5971,6 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         expect(editor.querySelector('ul')).toBeNull();
         expect(editor.querySelector('p')?.innerHTML).toBe('<br>');
         expect(editor.textContent).toBe('');
-    });
-
-    it('ArrowDown inside a wrapped task row moves one visual line, not two', () => {
-        // The repeat was keyed on "still in the same row", which is exactly
-        // where a row wrapping over several lines legitimately stays.
-        editor.style.width = '150px';
-        component.writeValue('<ul data-task-list="">'
-            + row(false, '<span>alpha bravo charlie delta echo foxtrot golf hotel india juliet</span>') + '</ul>');
-        fixture.detectChanges();
-        editor.focus();
-        const text = editor.querySelector('li[data-task] > span')!.firstChild as Text;
-        const topAt = (offset: number) => {
-            const probe = document.createRange();
-            probe.setStart(text, offset);
-            probe.setEnd(text, Math.min(offset + 1, text.data.length));
-            return Math.round(probe.getBoundingClientRect().top);
-        };
-        const lines = [...new Set(Array.from({ length: text.data.length }, (_, i) => topAt(i)))].sort((a, b) => a - b);
-        expect(lines.length).toBeGreaterThan(2);
-        caretIn(text, 0);
-
-        component.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
-
-        const sel = document.getSelection()!;
-        expect(sel.anchorNode).toBe(text);
-        expect(topAt(sel.anchorOffset)).toBe(lines[1]);
     });
 
     it('leaves a caret in a list nested under a task row alone', () => {
@@ -5987,6 +6277,17 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
 
         expect(ev.defaultPrevented).toBe(true);
         expect(editor.querySelector('code')?.textContent).toBe('line1');
+        expect(editor.querySelector('pre + p')).toBeTruthy();
+    });
+
+    it('Enter after a Shift+Enter break at the end of a code block drops that break as it leaves', () => {
+        editor.innerHTML = '<pre><code>one<br>two<br></code></pre>';
+        const code = editor.querySelector('code')!;
+        caretIn(code, code.childNodes.length);
+
+        component.onKeydown(enterKey());
+
+        expect(code.innerHTML).toBe('one<br>two');
         expect(editor.querySelector('pre + p')).toBeTruthy();
     });
 
@@ -7665,12 +7966,7 @@ describe('RichTextEditorComponent - addon host', () => {
     });
 
     function caretIn(node: Node, offset: number): void {
-        const range = document.createRange();
-        range.setStart(node, offset);
-        range.collapse(true);
-        const sel = window.getSelection()!;
-        sel.removeAllRanges();
-        sel.addRange(range);
+        setCaretAt(node, offset);
     }
 
     it('executeToolbarCommandOnBlock re-tags a block to a heading', () => {
@@ -7837,6 +8133,109 @@ describe('RichTextEditorComponent — addon-host seams & edge coverage', () => {
         expect(host.overlayAnchor).toBeTruthy();
         expect(host.commands).toBeInstanceOf(RichTextCommandRegistry);
         expect(host.globalCommands).toBeInstanceOf(RichTextCommandRegistry);
+    });
+
+    it('reads a uiRte<Addon> attribute: bare or true enables with the defaults, false disables, an object overrides', () => {
+        const setting = addonSetting(40);
+        const defaults = { enabled: true, toolbar: true, slashCommand: true, order: 40 };
+
+        expect(setting('')).toEqual(defaults);
+        expect(setting(true)).toEqual(defaults);
+        expect(setting(false)).toEqual({ ...defaults, enabled: false });
+        expect(setting({ toolbar: false, order: 5 })).toEqual({ ...defaults, toolbar: false, order: 5 });
+    });
+
+    it('reports the image an addon selected until it clears it, and nothing with no selection', () => {
+        document.getSelection()?.removeAllRanges();
+        const none = host.selection();
+        expect(none.kind).toBe('none');
+        expect(none.closestWithAttrs(['href'])).toBeNull();
+
+        component.writeValue('<p>see <img src="x.png" alt="pic"></p>');
+        fixture.detectChanges();
+        const image = editor.querySelector('img')!;
+        caretIn(editor.querySelector('p')!.firstChild!, 2);
+
+        component.setSelectedImage(image);
+        expect(host.selection().kind).toBe('image');
+        expect(host.selection().imageElement).toBe(image);
+
+        component.setSelectedImage(null);
+        expect(host.selection().kind).toBe('none');
+        expect(host.selection().imageElement).toBeNull();
+    });
+
+    it('announces an addon suggestion popup on the textbox, and clears it', () => {
+        host.setActiveSuggestionPopup({ controlsId: 'mentions-list', activeOptionId: 'mention-2' });
+        fixture.detectChanges();
+        expect(editor.getAttribute('aria-expanded')).toBe('true');
+        expect(editor.getAttribute('aria-controls')).toBe('mentions-list');
+        expect(editor.getAttribute('aria-activedescendant')).toBe('mention-2');
+
+        host.setActiveSuggestionPopup(null);
+        fixture.detectChanges();
+        expect(editor.hasAttribute('aria-expanded')).toBe(false);
+        expect(editor.hasAttribute('aria-controls')).toBe(false);
+        expect(editor.hasAttribute('aria-activedescendant')).toBe(false);
+    });
+
+    it('routes an image file to the addon that owns images, and to nobody once it leaves', () => {
+        const file = new File(['x'], 'photo.png', { type: 'image/png' });
+        expect(host.insertImageFile(file)).toBe(false);
+
+        const received: File[] = [];
+        const release = host.registerImageFileHandler((f) => received.push(f));
+        expect(host.hasImageFileHandler()).toBe(true);
+        expect(host.insertImageFile(file)).toBe(true);
+        expect(received).toEqual([file]);
+
+        release();
+        expect(host.hasImageFileHandler()).toBe(false);
+        expect(host.insertImageFile(file)).toBe(false);
+        expect(received).toHaveLength(1);
+    });
+
+    it('leaves a drop every interceptor declines to the browser, and gives it to the first that takes it', async () => {
+        const seen: string[] = [];
+        const offDecline = host.registerDropInterceptor(() => { seen.push('decline'); return false; });
+        const drop = () => ({
+            preventDefault: vi.fn(),
+            dataTransfer: { types: ['Files'], files: [] },
+        }) as unknown as DragEvent;
+
+        const declined = drop();
+        await component.onEditorDrop(declined);
+        expect(seen).toEqual(['decline']);
+        expect(declined.preventDefault).not.toHaveBeenCalled();
+
+        const offTake = host.registerDropInterceptor((event) => { seen.push('take'); event.preventDefault(); return true; });
+        const taken = drop();
+        await component.onEditorDrop(taken);
+        expect(seen).toEqual(['decline', 'decline', 'take']);
+        expect(taken.preventDefault).toHaveBeenCalled();
+        offDecline();
+        offTake();
+    });
+
+    it('appends inserted block markup at the end of the document when the caret is not in the editor', () => {
+        component.writeValue('<p>first</p><p>last</p>');
+        fixture.detectChanges();
+        document.getSelection()?.removeAllRanges();
+
+        host.insertBlockAtCaret('<table><tbody><tr><td>cell</td></tr></tbody></table>');
+
+        expect(Array.from(editor.children, (el) => el.tagName)).toEqual(['P', 'P', 'TABLE']);
+        expect(editor.querySelector('td')?.contains(document.getSelection()?.anchorNode ?? null)).toBe(true);
+    });
+
+    it('runs a block command on a block that holds only other blocks, at the end of its last line', () => {
+        component.writeValue('<p>before</p><blockquote><p>one</p><p>two</p></blockquote>');
+        fixture.detectChanges();
+
+        host.executeToolbarCommandOnBlock('heading1', editor.querySelector('blockquote'));
+
+        expect(Array.from(editor.querySelectorAll('blockquote > *'), (el) => `${el.tagName}:${el.textContent}`))
+            .toEqual(['P:one', 'H1:two']);
     });
 
     it('runs a registered shortcut action on Mod+Shift+H and tears it down', () => {

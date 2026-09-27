@@ -13,6 +13,9 @@ export type PasteSource =
     | 'html'
     | 'plain-text';
 
+/** Word's namespaced wrapper elements, unwrapped so the text they hold stays. */
+const WORD_WRAPPER_TAGS = new Set(['o:p', 'w:sdtcontent', 'w:sdt', 'w:sdtpr', 'w:sdtendpr', 'o:oleobject']);
+
 /**
  * Normalizes pasted content from various sources (Word, Outlook, Google Docs, etc.)
  * into clean, semantic HTML before it reaches the sanitizer.
@@ -302,9 +305,11 @@ export class RichTextPasteNormalizerService {
     }
 
     private removeNamespacedElements(container: HTMLElement): void {
-        const namespaced = container.querySelectorAll(
-            String.raw`o\:p, w\:sdtContent, w\:sdt, w\:sdtPr, w\:sdtEndPr, o\:OLEObject`
-        );
+        // Matched by tag name, not by an escaped `o\:p` selector: jsdom's
+        // selector engine does not match those, and there the wrapper fell
+        // through to the drop of namespaced tags below, taking its text along.
+        const namespaced = Array.from(container.querySelectorAll('*'))
+            .filter((el) => WORD_WRAPPER_TAGS.has(el.tagName.toLowerCase()));
         namespaced.forEach(el => {
             const parent = el.parentNode;
             if (parent) {

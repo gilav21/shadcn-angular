@@ -1,12 +1,14 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { cdp, page } from 'vitest/browser';
 import { DEFAULT_TOOLBAR_ITEMS, RichTextEditorComponent } from './index';
 
 /**
  * Browser-only editor cases. Each asserts what the stylesheet renders — a
  * pseudo-element's computed style, an inherited text decoration, laid-out
- * widths — and jsdom loads no Tailwind CSS and performs no layout, so every one
- * of them would read empty values there. They run in the real-browser leg only;
+ * widths — or moves the caret by rendered line, and jsdom loads no Tailwind
+ * CSS, performs no layout and has no `Selection.modify`, so every one of them
+ * would read empty values there. They run in the real-browser leg only;
  * the portable (jsdom) leg and the shipped `testFiles` exclude this file.
  */
 
@@ -202,3 +204,199 @@ describe('RichTextEditorComponent text style select', () => {
         expect(classicCount - toolbarEl().children.length).toBe(3);
     });
 });
+
+/**
+ * Switches Chromium's touch emulation, which is what flips `(pointer: coarse)`
+ * and `(hover: none)` — `Emulation.setEmulatedMedia` silently ignores the
+ * `pointer` feature.
+ */
+async function emulateTouch(enabled: boolean): Promise<void> {
+    await cdp().send('Emulation.setTouchEmulationEnabled', { enabled, maxTouchPoints: 1 });
+}
+
+describe('RichTextEditorComponent — find panel buttons', () => {
+    afterEach(() => emulateTouch(false));
+
+    async function findPanelButtonRects(): Promise<DOMRect[]> {
+        const { fixture, component } = await createEditor();
+        component.openFindReplace(false);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const locale = component.resolvedLocale().findReplace;
+        const labels = [locale.caseSensitive, locale.wholeWord, locale.useRegex, locale.previous, locale.next, locale.close];
+        const rects = labels.map((label) =>
+            (fixture.nativeElement as HTMLElement).querySelector(`button[aria-label="${label}"]`)!.getBoundingClientRect());
+        fixture.destroy();
+        TestBed.resetTestingModule();
+        return rects;
+    }
+
+    /** WCAG 2.5.8: every icon button in the find panel, close included, is a 44x44 target on a touch screen. */
+    it('makes every find-panel icon button a 44x44 touch target on a coarse pointer only', async () => {
+        await emulateTouch(false);
+        const fine = await findPanelButtonRects();
+        await emulateTouch(true);
+        const coarse = await findPanelButtonRects();
+
+        expect(fine.map((r) => [r.width, r.height])).toEqual(new Array(6).fill([28, 28]));
+        for (const r of coarse) {
+            expect(r.width).toBeGreaterThanOrEqual(44);
+            expect(r.height).toBeGreaterThanOrEqual(44);
+        }
+    });
+});
+
+describe('RichTextEditorComponent — keydown behaviours', () => {
+    // Arrow keys over task rows move the caret by rendered line
+    // (`Selection.modify`), which jsdom neither lays out nor implements.
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    beforeEach(async () => {
+        ({ fixture, component, editor } = await createEditor('html'));
+    });
+
+    const caretIn = (node: Node, offset: number) => {
+        const range = document.createRange();
+        range.setStart(node, offset);
+        range.collapse(true);
+        const selection = document.getSelection()!;
+        selection.removeAllRanges();
+        selection.addRange(range);
+    };
+    const twoTasks = () => component.writeValue(
+        '<ul data-task-list=""><li data-task="" data-checked="true"><input type="checkbox"><span>first</span></li>'
+        + '<li data-task="" data-checked="false"><input type="checkbox"><span>second</span></li></ul>');
+    const taskSpans = () => Array.from(editor.querySelectorAll<HTMLElement>('li[data-task] > span'));
+    const caretNode = () => document.getSelection()?.anchorNode ?? null;
+    const row = (checked: boolean, inner: string) =>
+        `<li data-task="" data-checked="${checked}"><input type="checkbox">${inner}</li>`;
+
+    it('ArrowUp from the start of a task row reaches the row above in one press', () => {
+        // The position before the checkbox counted as a line of its own, so
+        // one press stopped there and a second was needed.
+        twoTasks();
+        fixture.detectChanges();
+        editor.focus();
+        caretIn(taskSpans()[1].firstChild as Text, 0);
+
+        const ev = new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true });
+        component.onKeydown(ev);
+
+        expect(ev.defaultPrevented).toBe(true);
+        expect(taskSpans()[0].contains(caretNode())).toBe(true);
+    });
+
+    it('ArrowDown from a task row lands in the text of the row below', () => {
+        twoTasks();
+        fixture.detectChanges();
+        editor.focus();
+        caretIn(taskSpans()[0].firstChild as Text, 0);
+
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+
+        expect(taskSpans()[1].contains(caretNode())).toBe(true);
+    });
+
+    it('ArrowUp from the first task row leaves the list for the block above', () => {
+        component.writeValue(
+            '<p>above</p><ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox"><span>only</span></li></ul>');
+        fixture.detectChanges();
+        editor.focus();
+        caretIn(taskSpans()[0].firstChild as Text, 0);
+
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));
+
+        expect(editor.querySelector('p')!.contains(caretNode())).toBe(true);
+    });
+
+    it('ArrowDown inside a wrapped task row moves one visual line, not two', () => {
+        // The repeat was keyed on "still in the same row", which is exactly
+        // where a row wrapping over several lines legitimately stays.
+        editor.style.width = '150px';
+        component.writeValue('<ul data-task-list="">'
+            + row(false, '<span>alpha bravo charlie delta echo foxtrot golf hotel india juliet</span>') + '</ul>');
+        fixture.detectChanges();
+        editor.focus();
+        const text = editor.querySelector('li[data-task] > span')!.firstChild as Text;
+        const topAt = (offset: number) => {
+            const probe = document.createRange();
+            probe.setStart(text, offset);
+            probe.setEnd(text, Math.min(offset + 1, text.data.length));
+            return Math.round(probe.getBoundingClientRect().top);
+        };
+        const lines = [...new Set(Array.from({ length: text.data.length }, (_, i) => topAt(i)))].sort((a, b) => a - b);
+        expect(lines.length).toBeGreaterThan(2);
+        caretIn(text, 0);
+
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+
+        const sel = document.getSelection()!;
+        expect(sel.anchorNode).toBe(text);
+        expect(topAt(sel.anchorOffset)).toBe(lines[1]);
+    });
+});
+
+describe('RichTextEditorComponent — table menu controls', () => {
+    let initialSize: readonly [number, number];
+
+    beforeEach(() => {
+        initialSize = [globalThis.innerWidth, globalThis.innerHeight];
+    });
+
+    afterEach(async () => {
+        await emulateTouch(false);
+        await page.viewport(initialSize[0], initialSize[1]);
+    });
+
+    /** Border, alignment and cell-colour controls of the table context menu. */
+    async function tableMenuControlRects(): Promise<{ icons: DOMRect[]; swatches: DOMRect[]; menu: DOMRect }> {
+        const { fixture, component } = await createEditor();
+        component.tableContextMenuOpen.set(true);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const table = component.resolvedLocale().table;
+        // Scoped to the menu: the toolbar has its own "Align left" buttons.
+        const root = (fixture.nativeElement as HTMLElement)
+            .querySelector(`button[title="${table.bordersAll}"]`)!.closest<HTMLElement>('.fixed')!;
+        const titles = [table.bordersAll, table.bordersNone, table.bordersOuter, table.bordersHorizontal,
+            table.cellAlignLeft, table.cellAlignCenter, table.cellAlignRight];
+        const icons = titles.map((title) => root.querySelector(`button[title="${title}"]`)!.getBoundingClientRect());
+        const swatches = component.tableCellColors.map((color) =>
+            root.querySelector(`button[aria-label="${color}"]`)!.getBoundingClientRect());
+        const menu = root.getBoundingClientRect();
+        fixture.destroy();
+        TestBed.resetTestingModule();
+        return { icons, swatches, menu };
+    }
+
+    /**
+     * WCAG 2.5.8: the table menu's border and alignment buttons and its colour
+     * swatches are 44x44 targets on a touch screen, and on a phone every swatch
+     * still fits inside the menu without covering its neighbour. A mouse user keeps the compact 28px buttons
+     * and 16px swatches.
+     */
+    it('grows the border, alignment and colour controls to 44x44 touch targets on a coarse pointer only', async () => {
+        await emulateTouch(false);
+        const fine = await tableMenuControlRects();
+        await emulateTouch(true);
+        await page.viewport(375, 812);
+        const coarse = await tableMenuControlRects();
+
+        expect(fine.icons.map((r) => [r.width, r.height])).toEqual(new Array(7).fill([28, 28]));
+        expect(fine.swatches.map((r) => [r.width, r.height])).toEqual(new Array(fine.swatches.length).fill([16, 16]));
+        for (const r of [...coarse.icons, ...coarse.swatches]) {
+            expect(r.width).toBeGreaterThanOrEqual(44);
+            expect(r.height).toBeGreaterThanOrEqual(44);
+        }
+        for (const r of [...coarse.icons, ...coarse.swatches]) {
+            expect(r.right).toBeLessThanOrEqual(coarse.menu.right);
+        }
+        const overlaps = (a: DOMRect, b: DOMRect) =>
+            a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+        const overlapping = coarse.swatches.filter((a, i) => coarse.swatches.some((b, j) => i !== j && overlaps(a, b)));
+        expect(overlapping).toHaveLength(0);
+    });
+});
+

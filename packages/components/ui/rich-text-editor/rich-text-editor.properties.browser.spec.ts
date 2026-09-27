@@ -19,6 +19,11 @@ import { RichTextEditorComponent, RichTextMarkdownService, RichTextSanitizerServ
  * judged on an attached element by structure, not by selectors a detached tree
  * cannot match; saves are compared with their input; and commands are followed
  * by a second command or a keypress, where half of those defects surfaced.
+ *
+ * Browser-only: the command properties drive the live editor through real
+ * selection, focus and editing, which jsdom does not reproduce (and there they
+ * run for ten minutes). The generator and the measures are shared by every
+ * section, so the file moves whole rather than splitting into two copies.
  */
 
 // ----------------------------------------------------------------- generation

@@ -346,6 +346,23 @@ describe('RichTextFileImportDirective', () => {
         expect(host.completes).toHaveLength(0);
     });
 
+    it('refuses a document over the import size ceiling with the localized message, for DOCX and PDF alike', async () => {
+        const fixture = createFixture();
+        const host = fixture.componentInstance;
+        for (const file of [docxFile(), pdfFile()]) {
+            // Only the reported size matters; a real 100 MB buffer would just slow the run.
+            Object.defineProperty(file, 'size', { value: 100 * 1024 * 1024 + 1 });
+            const errorsBefore = host.errors.length;
+            buttonContext(fixture).onImport(file);
+            await waitUntil(() => host.errors.length > errorsBefore);
+
+            expect(host.starts.at(-1)).toBe(file);
+            expect(host.errors.at(-1)).toBe('That file is too large to import.');
+        }
+        expect(host.completes).toHaveLength(0);
+        expect(editorOf(fixture).el.textContent).not.toContain('Imported');
+    });
+
     it('imports a DOCX dropped onto the editor', async () => {
         const fixture = createFixture();
         const { el, cmp } = editorOf(fixture);
