@@ -773,6 +773,34 @@ export function mergeLibFiles(declared: readonly string[], discovered: readonly 
     return [...new Set([...declared, ...discovered])].sort(byLocale);
 }
 
+/**
+ * `libFiles` plus every lib file they import, transitively.
+ *
+ * A lib file an entry ships is copied as-is, so what it imports must ship with
+ * it or the install does not compile. The walker only follows imports from the
+ * entry's own files, so a lib file kept by the merge (declared by hand) that
+ * later gained an import of a new lib file left the install broken — only the
+ * e2e consumer build noticed.
+ */
+export function closeLibImports(libFiles: readonly string[], componentsRoot: string): string[] {
+    const libDir = path.join(componentsRoot, 'lib');
+    const closed = new Set(libFiles);
+    const pending = [...libFiles];
+    for (let rel = pending.pop(); rel !== undefined; rel = pending.pop()) {
+        const abs = path.join(libDir, rel);
+        if (!existsSync(abs)) continue;
+        for (const match of readFileSync(abs, 'utf-8').matchAll(IMPORT_REGEX)) {
+            const resolved = resolveAbsolute(match[1], abs);
+            if (!resolved || !isUnder(libDir, resolved)) continue;
+            const dep = path.relative(libDir, resolved).replaceAll('\\', '/');
+            if (BASELINE_LIB_FILES.has(dep) || closed.has(dep)) continue;
+            closed.add(dep);
+            pending.push(dep);
+        }
+    }
+    return [...closed].sort(byLocale);
+}
+
 /** Human-readable drift lines for one entry, exactly as the script prints them. */
 export function formatDriftLines(name: string, diff: EntryDiff, isBlock = false): string[] {
     const suffix = isBlock ? ' (block)' : '';
@@ -804,17 +832,18 @@ export function analyzeComponent(
     const entryFile = 'ui/' + getEntryFile(entry.name, entry.files);
     const { ownFiles, discoveredDeps, deepImports, addonViolations } =
         walkTree(entryFile, entry.name, ctx, roots.componentsRoot);
-    const { uiFiles, libFiles: discoveredLibs } = splitFiles(ownFiles);
+    const { uiFiles, libFiles: walkedLibs } = splitFiles(ownFiles);
     const dependencies = [...discoveredDeps].sort(byLocale);
+    const libFiles = closeLibImports(mergeLibFiles(entry.libFiles, walkedLibs), roots.componentsRoot);
 
     return {
         update: {
             name: entry.name,
             files: uiFiles,
-            libFiles: mergeLibFiles(entry.libFiles, discoveredLibs),
+            libFiles,
             dependencies,
         },
-        diff: diffEntry(entry, uiFiles, discoveredLibs, dependencies),
+        diff: diffEntry(entry, uiFiles, libFiles, dependencies),
         deepImports,
         addonViolations,
     };
@@ -843,17 +872,18 @@ export function analyzeBlock(
         walkBlockTree(entryFile, roots.blocksRoot, roots.componentsRoot, ctx);
 
     const files = [...ownFiles].sort(byLocale);
-    const discoveredLibs = [...libFiles].filter(f => !BASELINE_LIB_FILES.has(f)).sort(byLocale);
+    const walkedLibs = [...libFiles].filter(f => !BASELINE_LIB_FILES.has(f)).sort(byLocale);
     const deps = [...dependencies].sort(byLocale);
+    const shippedLibs = closeLibImports(mergeLibFiles(entry.libFiles, walkedLibs), roots.componentsRoot);
 
     return {
         update: {
             name: entry.name,
             files,
-            libFiles: mergeLibFiles(entry.libFiles, discoveredLibs),
+            libFiles: shippedLibs,
             dependencies: deps,
         },
-        diff: diffEntry(entry, files, discoveredLibs, deps),
+        diff: diffEntry(entry, files, shippedLibs, deps),
         deepImports,
     };
 }

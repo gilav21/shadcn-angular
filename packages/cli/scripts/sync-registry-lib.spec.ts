@@ -27,6 +27,7 @@ import {
     formatDriftLines,
     hasDrift,
     mergeLibFiles,
+    closeLibImports,
     parseRegistrySource,
     removeDependencies,
     replaceFilesArray,
@@ -808,6 +809,29 @@ describe('mergeLibFiles', () => {
         // replacing them, so a libFile that has fallen out of the import tree
         // is never auto-pruned. It survives --fix untouched.
         expect(mergeLibFiles(['stale.ts'], ['format.ts'])).toEqual(['format.ts', 'stale.ts']);
+    });
+});
+
+describe('closeLibImports', () => {
+    it('adds every lib file a shipped lib file imports, transitively, never the baseline utils', () => {
+        // calendar-heatmap listed chart-responsive.ts by hand; when that file
+        // began importing observers.ts, the install stopped compiling.
+        const root = mkdtempSync(path.join(tmpdir(), 'lib-closure-'));
+        const lib = (name: string, body: string): void => {
+            mkdirSync(path.dirname(path.join(root, 'lib', name)), { recursive: true });
+            writeFileSync(path.join(root, 'lib', name), body);
+        };
+        lib('chart-responsive.ts', "import { createResizeObserver } from './observers';\nimport { cn } from './utils';\n");
+        lib('observers.ts', "import { hasApi } from './platform/api';\n");
+        lib('platform/api.ts', 'export const hasApi = true;\n');
+        lib('utils.ts', 'export const cn = 1;\n');
+        lib('chart.types.ts', 'export type T = 1;\n');
+        try {
+            expect(closeLibImports(['chart-responsive.ts', 'chart.types.ts'], root))
+                .toEqual(['chart-responsive.ts', 'chart.types.ts', 'observers.ts', 'platform/api.ts']);
+        } finally {
+            rmSync(root, { recursive: true, force: true });
+        }
     });
 });
 
