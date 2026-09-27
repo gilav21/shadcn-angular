@@ -1602,8 +1602,8 @@
       "lines": 6511
     },
     "data-table/data-table.component.ts": {
-      "bytes": 226157,
-      "lines": 6241
+      "bytes": 226191,
+      "lines": 6245
     },
     "data-table/data-table.coverage.spec.ts": {
       "bytes": 19823,
@@ -4946,7 +4946,7 @@
       "lines": 2598
     },
     "rich-text-editor/rich-text-markdown.service.ts": {
-      "bytes": 191252,
+      "bytes": 191251,
       "lines": 4165
     },
     "rich-text-editor/rich-text-paste-normalizer.service.spec.ts": {
@@ -4970,12 +4970,12 @@
       "lines": 374
     },
     "rich-text-editor/rich-text-sanitizer.service.spec.ts": {
-      "bytes": 90079,
-      "lines": 1823
+      "bytes": 90674,
+      "lines": 1831
     },
     "rich-text-editor/rich-text-sanitizer.service.ts": {
-      "bytes": 74940,
-      "lines": 1692
+      "bytes": 74635,
+      "lines": 1686
     },
     "rich-text-editor/rich-text-sanitizer.workload.spec.ts": {
       "bytes": 2949,

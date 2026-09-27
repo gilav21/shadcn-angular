@@ -1709,7 +1709,7 @@ export const registry = defineRegistry({
     description: 'GitHub-style contribution calendar: days as cells colored by value, with tooltips.',
     tags: ['calendar-heatmap', 'calendar', 'contributions', 'heatmap', 'chart'],
     files: ['calendar-heatmap/calendar-heatmap.component.html', 'calendar-heatmap/calendar-heatmap.component.ts', 'calendar-heatmap/index.ts'],
-    libFiles: ['chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
+    libFiles: ['chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts', 'observers.ts'],
     dependencies: ['chart-tooltip'],
     testFiles: ['calendar-heatmap/calendar-heatmap.component.spec.ts'],
   },

@@ -4798,7 +4798,8 @@
       "chart-responsive.ts",
       "chart-scale.ts",
       "chart.types.ts",
-      "chart.utils.ts"
+      "chart.utils.ts",
+      "observers.ts"
     ],
     "dependencies": [
       "chart-tooltip"
