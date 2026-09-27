@@ -45,6 +45,15 @@ function setRect(el: HTMLElement, r: RectShape): void {
   el.getBoundingClientRect = () => makeRect(r);
 }
 
+/**
+ * Gives one element a Popover API so the top-layer path runs where the engine
+ * ships none (jsdom). Instance-level, so it dies with the element.
+ */
+function givePopoverApi(el: HTMLElement): void {
+  Object.defineProperty(el, 'showPopover', { value: () => undefined, configurable: true });
+  Object.defineProperty(el, 'hidePopover', { value: () => undefined, configurable: true });
+}
+
 describe('calculatePopupPosition', () => {
   const created: HTMLElement[] = [];
 
@@ -204,6 +213,27 @@ describe('DatePickerComponent', () => {
     setRect(popup, { left: -100, right: 200, top: 10, bottom: 100 });
     flushRaf(rafQueue);
     expect(component.popupStyles()).toContain('translateX');
+  });
+
+  it('hands the open popup to the top layer and takes it back on close', () => {
+    component.toggleOpen();
+    fixture.detectChanges();
+    const popup = fixture.debugElement.query(By.css('[tabindex="-1"]'))
+      .nativeElement as HTMLElement;
+    givePopoverApi(popup);
+    setRect(popup, { left: -100, right: 200, top: 10, bottom: 100 });
+    flushRaf(rafQueue);
+
+    expect(popup.getAttribute('popover')).toBe('manual');
+    expect(popup.style.position).toBe('fixed');
+    // The top layer places the panel itself; the fallback's shift must not stack on it.
+    expect(component.popupStyles()).toBe('');
+
+    component.toggleOpen();
+    fixture.detectChanges();
+
+    expect(popup.hasAttribute('popover')).toBe(false);
+    expect(popup.style.position).toBe('');
   });
 
   it('does nothing in positionPopup when the popup closes before its frame runs', () => {
@@ -379,6 +409,27 @@ describe('DateRangePickerComponent', () => {
     setRect(popup, { left: -100, right: 200, top: 10, bottom: 100 });
     flushRaf(rafQueue);
     expect(component.popupStyles()).toContain('translateX');
+  });
+
+  it('hands the open popup to the top layer and takes it back on close', () => {
+    component.toggleOpen();
+    fixture.detectChanges();
+    const popup = fixture.debugElement.query(By.css('[tabindex="-1"]'))
+      .nativeElement as HTMLElement;
+    givePopoverApi(popup);
+    setRect(popup, { left: -100, right: 200, top: 10, bottom: 100 });
+    flushRaf(rafQueue);
+
+    expect(popup.getAttribute('popover')).toBe('manual');
+    expect(popup.style.position).toBe('fixed');
+    // The top layer places the panel itself; the fallback's shift must not stack on it.
+    expect(component.popupStyles()).toBe('');
+
+    component.toggleOpen();
+    fixture.detectChanges();
+
+    expect(popup.hasAttribute('popover')).toBe(false);
+    expect(popup.style.position).toBe('');
   });
 
   it('does nothing in positionPopup when the popup closes before its frame runs', () => {

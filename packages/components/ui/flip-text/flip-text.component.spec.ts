@@ -77,6 +77,17 @@ describe('FlipTextComponent', () => {
         expect(inner.nativeElement.className).toContain('text-2xl');
     });
 
+    it('replays by leaving the characters visible where the Web Animations API is missing', () => {
+        host.text.set('Hi');
+        fixture.detectChanges();
+        const flip = fixture.debugElement.query(By.directive(FlipTextComponent));
+        Object.defineProperty(flip.nativeElement, 'animate', { configurable: true, value: undefined });
+
+        (flip.componentInstance as FlipTextComponent).playAnimation();
+
+        const charSpans = fixture.debugElement.queryAll(By.css('[data-slot="flip-text"] span'));
+        expect(charSpans.map(s => s.nativeElement.style.opacity)).toEqual(['1', '1']);
+    });
 });
 
 describe('FlipTextComponent playAnimation', () => {

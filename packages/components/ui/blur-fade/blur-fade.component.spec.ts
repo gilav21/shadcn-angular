@@ -179,6 +179,23 @@ describe('BlurFadeComponent', () => {
         });
     });
 
+    describe('where IntersectionObserver is unavailable', () => {
+        it('shows the content at once instead of leaving it hidden', async () => {
+            vi.stubGlobal('IntersectionObserver', undefined);
+
+            await TestBed.configureTestingModule({
+                imports: [TestHostComponent],
+            }).compileComponents();
+
+            const fixture = TestBed.createComponent(TestHostComponent);
+            fixture.detectChanges();
+
+            const el = fixture.debugElement.query(By.directive(BlurFadeComponent)).nativeElement as HTMLElement;
+            expect(el.style.opacity).toBe('1');
+            expect(el.textContent?.trim()).toBe('Fade content');
+        });
+    });
+
     describe('when inView=false (immediately animated)', () => {
         it('should animate with blur and translate keyframes for direction up', async () => {
             await TestBed.configureTestingModule({

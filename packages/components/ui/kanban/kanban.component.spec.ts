@@ -112,16 +112,6 @@ class KanbanCustomTestHostComponent {}
 class KanbanOrphanColumnHostComponent {}
 
 /**
- * jsdom lacks ResizeObserver, which ScrollAreaComponent constructs in
- * ngAfterViewInit — without this stub every kanban render crashes.
- */
-class ResizeObserverStub {
-    observe(): void { /* noop */ }
-    unobserve(): void { /* noop */ }
-    disconnect(): void { /* noop */ }
-}
-
-/**
  * jsdom does not implement DragEvent. This stub carries the `clientX`/`clientY`
  * and `dataTransfer` fields the kanban drag handlers read.
  */
@@ -137,7 +127,6 @@ class DragEventStub extends Event {
 }
 
 beforeEach(() => {
-    vi.stubGlobal('ResizeObserver', ResizeObserverStub);
     vi.stubGlobal('DragEvent', DragEventStub);
 });
 

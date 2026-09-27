@@ -1,4 +1,5 @@
 import { ElementRef, DestroyRef, WritableSignal, signal } from '@angular/core';
+import { createResizeObserver } from './observers';
 
 /**
  * Tracks an element's content-box width via `ResizeObserver`, returning a signal
@@ -6,7 +7,8 @@ import { ElementRef, DestroyRef, WritableSignal, signal } from '@angular/core';
  * callers can fall back to a default width.
  *
  * The observer is disconnected automatically when the host component is
- * destroyed.
+ * destroyed. Where `ResizeObserver` is unavailable the width is measured once
+ * and stays fixed.
  */
 export function observeChartWidth(
   host: ElementRef<HTMLElement>,
@@ -17,14 +19,14 @@ export function observeChartWidth(
 
   width.set(el.clientWidth || null);
 
-  const observer = new ResizeObserver((entries) => {
+  const observer = createResizeObserver((entries) => {
     const measured = Math.round(entries[0]?.contentRect.width ?? el.clientWidth);
     if (measured > 0) {
       width.set(measured);
     }
   });
-  observer.observe(el);
-  destroyRef.onDestroy(() => observer.disconnect());
+  observer?.observe(el);
+  destroyRef.onDestroy(() => observer?.disconnect());
 
   return width;
 }

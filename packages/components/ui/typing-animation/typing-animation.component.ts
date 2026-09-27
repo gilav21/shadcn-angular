@@ -8,7 +8,8 @@ import {
     OnDestroy,
     output,
 } from '@angular/core';
-import { cn, prefersReducedMotion } from '../../lib/utils';
+import { cn } from '../../lib/utils';
+import { prefersReducedMotion } from '../../lib/media';
 
 type TypingState = 'typing' | 'pausing' | 'deleting' | 'waiting';
 

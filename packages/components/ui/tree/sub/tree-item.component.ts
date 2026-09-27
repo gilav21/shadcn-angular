@@ -62,6 +62,16 @@ export class TreeItemComponent {
                 });
             }
         });
+        effect(() => {
+            if (this.isFocused()) {
+                // The tree navigates by aria-activedescendant, so the browser never
+                // moves the node into view on its own. The header row is the target:
+                // the host is `display: contents` (no box to scroll to) and the
+                // treeitem wrapper spans the whole expanded subtree. Optional call
+                // because jsdom has no scrollIntoView.
+                this.headerElement()?.nativeElement.scrollIntoView?.({ block: 'nearest' });
+            }
+        });
     }
 
     isExpanded = computed(() => this.tree?.isExpanded(this.value()) ?? false);

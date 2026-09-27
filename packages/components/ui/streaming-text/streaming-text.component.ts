@@ -8,7 +8,8 @@ import {
     output,
     OnDestroy,
 } from '@angular/core';
-import { cn, prefersReducedMotion } from '../../lib/utils';
+import { cn } from '../../lib/utils';
+import { prefersReducedMotion } from '../../lib/media';
 
 @Component({
     selector: 'ui-streaming-text',

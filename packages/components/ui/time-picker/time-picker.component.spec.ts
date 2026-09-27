@@ -10,6 +10,21 @@ import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { TimePickerComponent } from './time-picker.component';
 import type { TimeSegmentKind } from './time-picker.format';
 
+/**
+ * The group's accessible description as a screen reader resolves it: the text
+ * of every element its `aria-describedby` points at, in order. Whitespace is
+ * collapsed to plain spaces because `Intl` puts a narrow no-break space before
+ * "PM" in newer ICU versions, and a reader treats it as a space.
+ */
+function describedText(group: HTMLElement): string {
+    const ids = (group.getAttribute('aria-describedby') ?? '').split(/\s+/).filter(Boolean);
+    return ids
+        .map(id => group.ownerDocument.getElementById(id)?.textContent ?? '')
+        .join(' ')
+        .replaceAll(/\s+/g, ' ')
+        .trim();
+}
+
 @Component({
     standalone: true,
     imports: [TimePickerComponent],
@@ -174,6 +189,15 @@ describe('TimePickerComponent', () => {
             await typeInto('minute', '');
 
             expect(host.time()).toBeNull();
+        });
+
+        it('keeps the time when only the seconds are emptied, reading them as zero', async () => {
+            host.withSeconds.set(true);
+            host.time.set('09:05:09');
+            await settle();
+            await typeInto('second', '');
+
+            expect(host.time()).toBe('09:05:00');
         });
     });
 
@@ -414,6 +438,26 @@ describe('TimePickerComponent', () => {
             // A native fieldset, not a div wearing a group role.
             expect(group.tagName).toBe('FIELDSET');
             expect(group.getAttribute('aria-label')).toBe('Time');
+        });
+
+        it('describes the group with the whole current time, following edits', async () => {
+            const group: HTMLElement = fixture.nativeElement.querySelector('[data-slot="time-picker"]');
+            host.time.set('14:30');
+            await settle();
+            expect(describedText(group)).toBe('2:30 PM');
+
+            await typeInto('minute', '5');
+            expect(describedText(group)).toBe('2:05 PM');
+
+            // Danish: a 24-hour clock, zero-padded, with dots between the fields.
+            host.locale.set('da');
+            host.withSeconds.set(true);
+            host.time.set('00:05:09');
+            await settle();
+            expect(describedText(group)).toBe('00.05.09');
+
+            await typeInto('hour', '');
+            expect(describedText(group)).toBe('');
         });
 
         it('makes every numeric segment a spinbutton', () => {

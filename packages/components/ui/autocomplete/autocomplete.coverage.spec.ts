@@ -3,11 +3,6 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { AutocompleteComponent } from './autocomplete.component';
 import { HighlightPipe } from './highlight.pipe';
 
-// jsdom (the portable leg) has no scrollIntoView, which the command item calls on
-// highlight — fill it in only when absent so the real browser keeps its own.
-const elementProto = Element.prototype as Partial<Element>;
-elementProto.scrollIntoView ??= () => undefined;
-
 interface Fruit {
     name: string;
     value: string;

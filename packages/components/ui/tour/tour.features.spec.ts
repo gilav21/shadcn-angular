@@ -10,31 +10,6 @@ import { readTourCompleted, writeTourCompleted } from './tour.utils';
  * backward-compatibility gate.
  */
 
-class ResizeObserverStub {
-    constructor(readonly callback: () => void) { }
-    observe(): void { /* no-op */ }
-    unobserve(): void { /* no-op */ }
-    disconnect(): void { /* no-op */ }
-}
-
-let addedScrollIntoView = false;
-
-function installStubs(): void {
-    vi.stubGlobal('ResizeObserver', ResizeObserverStub);
-    const proto = Element.prototype as unknown as { scrollIntoView?: () => void };
-    if (typeof proto.scrollIntoView !== 'function') {
-        proto.scrollIntoView = () => undefined;
-        addedScrollIntoView = true;
-    }
-}
-
-function restoreStubs(): void {
-    if (addedScrollIntoView) {
-        delete (Element.prototype as unknown as { scrollIntoView?: () => void }).scrollIntoView;
-        addedScrollIntoView = false;
-    }
-    vi.unstubAllGlobals();
-}
 
 const KEY = 'spec-onboarding';
 
@@ -113,7 +88,6 @@ describe('TourComponent — storageKey persistence', () => {
     let host: TourFeaturesHostComponent;
 
     beforeEach(async () => {
-        installStubs();
         globalThis.localStorage?.clear();
         await TestBed.configureTestingModule({ imports: [TourFeaturesHostComponent] }).compileComponents();
         fixture = TestBed.createComponent(TourFeaturesHostComponent);
@@ -124,7 +98,6 @@ describe('TourComponent — storageKey persistence', () => {
     afterEach(() => {
         globalThis.localStorage?.clear();
         TestBed.resetTestingModule();
-        restoreStubs();
     });
 
     it('records completion when the tour finishes', () => {
@@ -240,7 +213,6 @@ describe('TourComponent — branching', () => {
     let host: TourFeaturesHostComponent;
 
     beforeEach(async () => {
-        installStubs();
         globalThis.localStorage?.clear();
         await TestBed.configureTestingModule({ imports: [TourFeaturesHostComponent] }).compileComponents();
         fixture = TestBed.createComponent(TourFeaturesHostComponent);
@@ -251,7 +223,6 @@ describe('TourComponent — branching', () => {
     afterEach(() => {
         globalThis.localStorage?.clear();
         TestBed.resetTestingModule();
-        restoreStubs();
     });
 
     function start(steps: TourStep[]): TourComponent {

@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect } from 'vitest';
+import { cdp } from 'vitest/browser';
 import { FileViewerComponent } from './file-viewer.component';
 
 /**
@@ -51,5 +52,52 @@ describe('FileViewerComponent (browser)', () => {
         expect(pptx.content.scrollTop).toBe(500);
         component.nextPage();
         expect(pptx.content.scrollTop).toBe(0);
+    });
+});
+
+/**
+ * Switches Chromium's touch emulation, which is what flips `(pointer: coarse)`
+ * and `(hover: none)` — `Emulation.setEmulatedMedia` silently ignores the
+ * `pointer` feature.
+ */
+async function emulateTouch(enabled: boolean): Promise<void> {
+    await cdp().send('Emulation.setTouchEmulationEnabled', { enabled, maxTouchPoints: 1 });
+}
+
+describe('FileViewerComponent toolbar (browser)', () => {
+    afterEach(() => emulateTouch(false));
+
+    async function toolbarControlRects(): Promise<DOMRect[]> {
+        const fixture = TestBed.createComponent(FileViewerComponent);
+        const component = fixture.componentInstance;
+        fixture.componentRef.setInput('filename', 'quarterly-report.pdf');
+        fixture.detectChanges();
+        component.state.set('loaded');
+        component.detectedType.set('pdf');
+        (component as unknown as PagedInternals).pdfPages.set([{ html: '<p>one</p>' }, { html: '<p>two</p>' }]);
+        component.downloadUrl.set('data:application/pdf;base64,');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const toolbar = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="file-viewer-toolbar"]')!;
+        const rects = ['Previous page', 'Next page', 'Zoom out', 'Zoom in']
+            .map((label) => toolbar.querySelector(`button[aria-label="${label}"]`)!)
+            .concat(toolbar.querySelector('a[title="Download"]')!)
+            .map((control) => control.getBoundingClientRect());
+        fixture.destroy();
+        return rects;
+    }
+
+    /** WCAG 2.5.8: every toolbar control, the download link included, is a 44x44 target on a touch screen and stays 28x28 for a mouse. */
+    it('grows every toolbar control to a 44x44 touch target on a coarse pointer only', async () => {
+        await emulateTouch(false);
+        const fine = await toolbarControlRects();
+        await emulateTouch(true);
+        const coarse = await toolbarControlRects();
+
+        expect(fine.map((r) => [r.width, r.height])).toEqual(new Array(5).fill([28, 28]));
+        for (const r of coarse) {
+            expect(r.width).toBeGreaterThanOrEqual(44);
+            expect(r.height).toBeGreaterThanOrEqual(44);
+        }
     });
 });

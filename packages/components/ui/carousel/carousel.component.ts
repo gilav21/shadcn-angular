@@ -13,6 +13,7 @@ import {
     forwardRef,
 } from '@angular/core';
 import { cn, isRtl } from '../../lib/utils';
+import { createResizeObserver } from '../../lib/observers';
 
 type CarouselOrientation = 'horizontal' | 'vertical';
 
@@ -89,8 +90,8 @@ export class CarouselComponent implements AfterContentInit, OnDestroy {
                 this.scrollListener = () => this.updateScrollState();
                 this.scrollContainer.addEventListener('scroll', this.scrollListener);
 
-                this.resizeObserver = new ResizeObserver(() => this.updateScrollState());
-                this.resizeObserver.observe(this.scrollContainer);
+                this.resizeObserver = createResizeObserver(() => this.updateScrollState());
+                this.resizeObserver?.observe(this.scrollContainer);
             }
             this.updateRtlState();
         }, 0);
@@ -195,7 +196,8 @@ export class CarouselComponent implements AfterContentInit, OnDestroy {
         const items = this.scrollContainer.querySelectorAll('[data-slot="carousel-item"]');
         const item = items[index] as HTMLElement;
         if (item) {
-            item.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+            // Optional call: jsdom (a consumer's unit tests) has no scrollIntoView.
+            item.scrollIntoView?.({ behavior: 'smooth', block: 'nearest', inline: 'start' });
         }
     }
 

@@ -5,9 +5,14 @@
   [attr.data-variant]="variant()"
   [attr.data-locale]="resolvedLocale()"
   [attr.aria-label]="ariaLabel()"
+  [attr.aria-describedby]="valueTextId"
   [attr.aria-disabled]="isDisabled() || null"
   (focusout)="onFocusOut($event)"
 >
+  <!-- Hidden, not sr-only: a referenced hidden node still feeds the accessible
+       description, and a browse-mode reader does not read the value twice. -->
+  <span [id]="valueTextId" hidden>{{ valueText() }}</span>
+
   @for (segment of segments(); track segment.kind) {
     @if (segment.kind === 'dayPeriod') {
       <button

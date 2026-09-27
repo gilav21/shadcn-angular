@@ -226,6 +226,15 @@ describe('VirtualScrollComponent', () => {
         expect(itemsAfter[0].dataset.index).toBe('35');
     });
 
+    it('adds no X spacers to a vertical list, however far it scrolls', () => {
+        container.scrollTop = 2000;
+        container.dispatchEvent(new Event('scroll'));
+        fixture.detectChanges();
+
+        expect(getVs().paddingStart()).toBe(0);
+        expect(getVs().paddingEnd()).toBe(0);
+    });
+
     it('should render no items when items array is empty', () => {
         host.items.set([]);
         fixture.detectChanges();
@@ -500,5 +509,21 @@ describe('VirtualScrollComponent with an id-less row type', () => {
         const fixture = TestBed.createComponent(NoIdHostComponent);
         fixture.detectChanges();
         expect(fixture.nativeElement.querySelectorAll('.group-item').length).toBeGreaterThan(0);
+    });
+});
+
+describe('VirtualScrollComponent where ResizeObserver does not exist', () => {
+    /** SSR and jsdom — where consumers' own tests run — have no ResizeObserver. */
+    it('still renders its window and tears down cleanly', async () => {
+        // The file-level afterEach restores the saved constructor.
+        globalThis.ResizeObserver = undefined as unknown as typeof ResizeObserver;
+        await TestBed.configureTestingModule({ imports: [TestHostComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(TestHostComponent);
+        fixture.detectChanges();
+
+        const rendered = fixture.nativeElement.querySelectorAll('.test-item');
+        expect(rendered.length).toBeGreaterThan(0);
+        expect(rendered[0].textContent).toBe('Item 0');
+        expect(() => fixture.destroy()).not.toThrow();
     });
 });

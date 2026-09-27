@@ -112,6 +112,26 @@ describe('EmojiPickerComponent', () => {
         expect(contentEl()).toBeNull();
     });
 
+    it('hands the default panel to the top layer and takes it back on close', () => {
+        open();
+        const panel = contentEl();
+        const flowPosition = panel.style.position;
+        // Instance-level Popover API, so the promotion path runs where the engine
+        // ships none (jsdom); it dies with the element.
+        Object.defineProperty(panel, 'showPopover', { value: () => undefined, configurable: true });
+        Object.defineProperty(panel, 'hidePopover', { value: () => undefined, configurable: true });
+        vi.advanceTimersToNextFrame();
+
+        expect(panel.getAttribute('popover')).toBe('manual');
+        expect(panel.style.position).toBe('fixed');
+
+        picker.open.set(false);
+        fixture.detectChanges();
+
+        expect(panel.hasAttribute('popover')).toBe(false);
+        expect(panel.style.position).toBe(flowPosition);
+    });
+
     it('hides on an outside document click but not on an inside click', () => {
         open();
 
@@ -425,94 +445,5 @@ describe('EmojiPickerComponent', () => {
         // direction words the keyword data does not carry; this pins the gain so
         // a regression to single-word names fails here.
         expect(ambiguous).toBeLessThan(200);
-    });
-});
-
-@Component({
-    template: `
-        <div data-testid="clipper" style="overflow: hidden; width: 200px; height: 60px;">
-            <ui-emoji-picker>
-                <ui-emoji-picker-trigger>Open</ui-emoji-picker-trigger>
-                <ui-emoji-picker-content />
-            </ui-emoji-picker>
-        </div>
-    `,
-    imports: [EmojiPickerComponent, EmojiPickerTriggerComponent, EmojiPickerContentComponent],
-})
-class ClippedHostComponent {}
-
-describe('EmojiPickerContentComponent — top layer', () => {
-    let fixture: ComponentFixture<ClippedHostComponent>;
-    let picker: EmojiPickerComponent;
-
-    const globalWithRO = globalThis as unknown as { ResizeObserver: unknown };
-    const protoWithScroll = Element.prototype as unknown as { scrollTo: (arg?: unknown) => void };
-    const originalResizeObserver = globalWithRO.ResizeObserver;
-    const originalScrollTo = protoWithScroll.scrollTo;
-
-    const twoFrames = (): Promise<void> =>
-        new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
-
-    beforeEach(async () => {
-        globalWithRO.ResizeObserver = ResizeObserverStub;
-        protoWithScroll.scrollTo = (): void => {
-            /* the test browser's smooth scroll is irrelevant here */
-        };
-
-        TestBed.resetTestingModule();
-        await TestBed.configureTestingModule({ imports: [ClippedHostComponent] }).compileComponents();
-        fixture = TestBed.createComponent(ClippedHostComponent);
-        document.body.appendChild(fixture.nativeElement);
-        fixture.detectChanges();
-        picker = fixture.debugElement.query(By.directive(EmojiPickerComponent)).componentInstance;
-    });
-
-    afterEach(() => {
-        fixture.destroy();
-        fixture.nativeElement.remove();
-        globalWithRO.ResizeObserver = originalResizeObserver;
-        protoWithScroll.scrollTo = originalScrollTo;
-    });
-
-    it('escapes an overflow:hidden ancestor and leaves nothing behind on close', async () => {
-        picker.show();
-        fixture.detectChanges();
-        await twoFrames();
-        fixture.detectChanges();
-
-        const panel = fixture.nativeElement.querySelector(
-            '[data-slot="emoji-picker-content"]'
-        ) as HTMLElement;
-        expect(panel).toBeTruthy();
-        expect(panel.matches(':popover-open')).toBe(true);
-        expect(panel.style.position).toBe('fixed');
-
-        picker.hide();
-        fixture.detectChanges();
-
-        expect(panel.hasAttribute('popover')).toBe(false);
-        expect(panel.matches(':popover-open')).toBe(false);
-    });
-
-    it('still picks an emoji from the promoted panel', async () => {
-        const picked: string[] = [];
-        picker.emojiSelect.subscribe(value => picked.push(value));
-
-        picker.show();
-        fixture.detectChanges();
-        await twoFrames();
-        fixture.detectChanges();
-
-        const panel = fixture.nativeElement.querySelector(
-            '[data-slot="emoji-picker-content"]'
-        ) as HTMLElement;
-        expect(panel.matches(':popover-open')).toBe(true);
-
-        const firstEmoji = panel.querySelector('.grid button') as HTMLButtonElement;
-        firstEmoji.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-        fixture.detectChanges();
-
-        expect(picked).toHaveLength(1);
-        expect(picker.open()).toBe(false);
     });
 });

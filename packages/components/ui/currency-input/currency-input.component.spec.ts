@@ -314,6 +314,14 @@ describe('CurrencyInputComponent', () => {
             expect(field().getAttribute('lang')).toBe('en-US');
         });
 
+        it('moves focus into the field when focus() is called on the control', () => {
+            const control = fixture.debugElement.children[0]
+                .componentInstance as CurrencyInputComponent;
+            control.focus();
+
+            expect(document.activeElement).toBe(field());
+        });
+
         /*
          * Axe is deliberately not imported here.
          *

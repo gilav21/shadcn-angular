@@ -11,6 +11,7 @@ import {
     numberAttribute,
 } from '@angular/core';
 import { cn } from '../../lib/utils';
+import { createResizeObserver } from '../../lib/observers';
 
 /**
  * Column count per breakpoint. Keys are Tailwind's breakpoint names and are
@@ -105,15 +106,15 @@ export class MasonryComponent {
     private startObserving(): void {
         const el = this.host.nativeElement;
 
-        const resizeObserver = new ResizeObserver(() => this.scheduleLayout());
-        resizeObserver.observe(el);
-        this.observerCount = 1;
+        const resizeObserver = createResizeObserver(() => this.scheduleLayout());
+        resizeObserver?.observe(el);
+        this.observerCount = resizeObserver ? 1 : 0;
 
         const mutationObserver = new MutationObserver(() => this.scheduleLayout());
         mutationObserver.observe(el, { childList: true });
 
         this.destroyRef.onDestroy(() => {
-            resizeObserver.disconnect();
+            resizeObserver?.disconnect();
             mutationObserver.disconnect();
             this.observerCount = 0;
             if (this.frame !== null) globalThis.cancelAnimationFrame(this.frame);

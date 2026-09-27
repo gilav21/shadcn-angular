@@ -203,6 +203,16 @@ class BlankRouteComponent {}
                 >External route</ui-sidebar-menu-link
               >
             </ui-sidebar-menu-item>
+            <ui-sidebar-menu-item>
+              <ui-sidebar-menu-sub>
+                <ui-sidebar-menu-sub-item>
+                  <ui-sidebar-menu-sub-button routerLink="/about">Overview</ui-sidebar-menu-sub-button>
+                </ui-sidebar-menu-sub-item>
+                <ui-sidebar-menu-sub-item>
+                  <ui-sidebar-menu-sub-button [routerLink]="['/about', 'team']">Team</ui-sidebar-menu-sub-button>
+                </ui-sidebar-menu-sub-item>
+              </ui-sidebar-menu-sub>
+            </ui-sidebar-menu-item>
           </ui-sidebar-menu>
         </ui-sidebar-content>
       </ui-sidebar>
@@ -216,6 +226,9 @@ class BlankRouteComponent {}
     SidebarMenuComponent,
     SidebarMenuItemComponent,
     SidebarMenuLinkComponent,
+    SidebarMenuSubComponent,
+    SidebarMenuSubItemComponent,
+    SidebarMenuSubButtonComponent,
     SidebarInsetComponent,
     RouterOutlet,
   ],
@@ -897,6 +910,27 @@ describe('Sidebar', () => {
       expect(linkByText(fixture, 'About').getAttribute('data-active')).toBe('true');
     });
 
+    /**
+     * Nested rows are usually leaves, so they match exactly by default — the
+     * opposite of top-level links. At `/about/team` the top-level About link is
+     * active (see above) while the nested Overview row pointing at the same
+     * `/about` must not be.
+     */
+    it('routes nested rows and matches them exactly by default', async () => {
+      const fixture = await createRouterHost('/about/team');
+      const row = (text: string): HTMLAnchorElement =>
+        fixture.debugElement
+          .queryAll(By.css('a[data-slot="sidebar-menu-sub-button"]'))
+          .find(candidate => (candidate.nativeElement.textContent ?? '').trim() === text)!
+          .nativeElement;
+
+      expect(row('Team').getAttribute('href')).toBe('/about/team');
+      expect(row('Team').getAttribute('data-active')).toBe('true');
+      expect(row('Team').getAttribute('aria-current')).toBe('page');
+      expect(row('Overview').getAttribute('data-active')).toBe('false');
+      expect(linkByText(fixture, 'About').getAttribute('data-active')).toBe('true');
+    });
+
     it('honours exact matching when routerLinkActiveOptions asks for it', async () => {
       const fixture = await createRouterHost('/about/team');
       expect(linkByText(fixture, 'About exact').getAttribute('data-active')).toBe('false');
@@ -1085,6 +1119,19 @@ describe('Sidebar', () => {
       fixture.detectChanges();
 
       expect(globalThis.localStorage.getItem(KEY)).toBe('false');
+    });
+
+    it('setCollapsed() sets the rail state rather than flipping it, and persists it', async () => {
+      const fixture = await createPersistHost();
+      const service = getService(fixture);
+
+      service.setCollapsed(true);
+      fixture.detectChanges();
+      service.setCollapsed(true);
+      fixture.detectChanges();
+
+      expect(collapsedAttr(fixture)).toBe('true');
+      expect(globalThis.localStorage.getItem(KEY)).toBe('true');
     });
 
     /**

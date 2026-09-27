@@ -6,16 +6,37 @@ import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { DurationInputComponent } from './duration-input.component';
 import type { DurationUnit } from './duration-input.format';
 
+/**
+ * The group's accessible description as a screen reader resolves it: the text
+ * of every element its `aria-describedby` points at, in order. Whitespace is
+ * collapsed to plain spaces because `Intl` puts a narrow no-break space before
+ * "PM" in newer ICU versions, and a reader treats it as a space.
+ */
+function describedText(group: HTMLElement): string {
+    const ids = (group.getAttribute('aria-describedby') ?? '').split(/\s+/).filter(Boolean);
+    return ids
+        .map(id => group.ownerDocument.getElementById(id)?.textContent ?? '')
+        .join(' ')
+        .replaceAll(/\s+/g, ' ')
+        .trim();
+}
+
 @Component({
     standalone: true,
     imports: [DurationInputComponent],
     template: `
-    <ui-duration-input [(value)]="duration" [units]="units()" [disabled]="disabled()" />
+    <ui-duration-input
+      [(value)]="duration"
+      [units]="units()"
+      [locale]="locale()"
+      [disabled]="disabled()"
+    />
   `,
 })
 class HostComponent {
     readonly duration = signal<number | null>(null);
     readonly units = signal<readonly DurationUnit[]>(['hours', 'minutes']);
+    readonly locale = signal('en-US');
     readonly disabled = signal(false);
 }
 
@@ -277,12 +298,37 @@ describe('DurationInputComponent', () => {
             expect(segments().every(field => field.getAttribute('role') === 'spinbutton')).toBe(true);
         });
 
+        /**
+         * The segments each announce only their own unit; the group's
+         * description is where the whole value is heard — and it has to follow
+         * the value, zero included (a zero duration is a value, not an empty one).
+         */
+        it('describes the group with the whole current value, following edits', async () => {
+            const group: HTMLElement = fixture.nativeElement.querySelector('[data-slot="duration-input"]');
+            host.duration.set(5400);
+            await settle();
+            expect(describedText(group)).toBe('1 hour, 30 minutes');
+
+            await typeInto('minutes', '5');
+            expect(describedText(group)).toBe('1 hour, 5 minutes');
+
+            host.duration.set(0);
+            await settle();
+            expect(describedText(group)).toBe('0 minutes');
+
+            host.locale.set('fr');
+            host.duration.set(9000);
+            await settle();
+            expect(describedText(group)).toBe('2 heures et 30 minutes');
+        });
+
         /** So a reader says "30 minutes" rather than "30". */
         it('names the unit in each segment’s value text', async () => {
             host.duration.set(5400);
             await settle();
 
             expect(segment('minutes').getAttribute('aria-valuetext')).toBe('30 minutes');
+            expect(segment('hours').getAttribute('aria-valuetext')).toBe('1 hour');
             expect(segment('hours').getAttribute('aria-valuenow')).toBe('1');
         });
 

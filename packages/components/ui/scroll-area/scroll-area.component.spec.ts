@@ -106,6 +106,7 @@ describe('ScrollAreaComponent', () => {
       /* fixture may already be destroyed by a test */
     }
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
     globalThis.ResizeObserver = originalResizeObserver;
     Element.prototype.getBoundingClientRect = originalGetRect;
   });
@@ -184,6 +185,19 @@ describe('ScrollAreaComponent', () => {
     fixture.detectChanges();
 
     expect(getScrollArea().showVertical()).toBe(true);
+  });
+
+  it('sizes the thumbs from scroll events alone where ResizeObserver is unavailable', async () => {
+    fixture.destroy();
+    vi.stubGlobal('ResizeObserver', undefined);
+    fixture = TestBed.createComponent(TestHostComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    applyMetrics({ scrollHeight: 1000, clientHeight: 100, scrollTop: 200, scrollWidth: 100, clientWidth: 100 });
+
+    expect(getScrollArea().showVertical()).toBe(true);
+    expect(getScrollArea().thumbHeightPercent()).toBe(10);
   });
 
   it('scrolls the viewport vertically when dragging the vertical thumb with a mouse', () => {

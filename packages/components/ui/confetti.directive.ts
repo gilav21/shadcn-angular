@@ -8,7 +8,8 @@ import {
     inject,
     input,
 } from '@angular/core';
-import { prefersReducedMotion } from '../lib/utils';
+import { prefersReducedMotion } from '../lib/media';
+import { createResizeObserver } from '../lib/observers';
 
 export interface ConfettiOptions {
     /** Number of particles to launch. Default 50. */
@@ -334,7 +335,7 @@ export class UiConfettiDirective implements OnInit, OnDestroy {
     }
 
     private _initResizeObserver(): void {
-        this._resizeObserver = new ResizeObserver((entries) => {
+        this._resizeObserver = createResizeObserver((entries) => {
             if (!this._canvas) return;
             for (const entry of entries) {
                 const rect = entry.contentRect;
@@ -342,6 +343,6 @@ export class UiConfettiDirective implements OnInit, OnDestroy {
                 this._canvas.height = rect.height;
             }
         });
-        this._resizeObserver.observe(this._el.nativeElement);
+        this._resizeObserver?.observe(this._el.nativeElement);
     }
 }

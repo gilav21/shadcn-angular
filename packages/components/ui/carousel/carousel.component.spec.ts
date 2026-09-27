@@ -4,19 +4,6 @@ import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// ── Shared jsdom stubs ──────────────────────────────────────────────────────
-// jsdom lacks ResizeObserver; the carousel constructs one in ngAfterContentInit.
-// Stub it (via vi.stubGlobal) for the whole file and unstub after each test.
-class ResizeObserverStub {
-    observe(): void { /* no-op */ }
-    unobserve(): void { /* no-op */ }
-    disconnect(): void { /* no-op */ }
-}
-
-beforeEach(() => {
-    vi.stubGlobal('ResizeObserver', ResizeObserverStub);
-});
-
 afterEach(() => {
     document.documentElement.removeAttribute('dir');
     vi.unstubAllGlobals();
@@ -226,8 +213,12 @@ describe('Carousel scroll behaviour (LTR horizontal)', () => {
         expect(into).toHaveBeenCalledWith({ behavior: 'smooth', block: 'nearest', inline: 'start' });
     });
 
-    it('scrollTo is a no-op for an out-of-range index', () => {
+    it('scrollTo never throws: an out-of-range index, or an engine without scrollIntoView', () => {
         expect(() => carousel.scrollTo(99)).not.toThrow();
+
+        const items = getItems(fixture);
+        Object.defineProperty(items[1], 'scrollIntoView', { value: undefined, configurable: true });
+        expect(() => carousel.scrollTo(1)).not.toThrow();
     });
 
     it('ArrowRight triggers next, ArrowLeft triggers prev, other keys are ignored', () => {

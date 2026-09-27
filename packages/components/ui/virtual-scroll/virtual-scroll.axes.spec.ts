@@ -240,6 +240,12 @@ describe('VirtualScrollComponent — horizontal orientation', () => {
         expect(container.scrollTop).toBe(0);
     });
 
+    it('scrollToCell outside grid mode scrolls to the index on the list axis', () => {
+        vs.scrollToCell(20, 7);
+        expect(container.scrollLeft).toBe(2000);
+        expect(container.scrollTop).toBe(0);
+    });
+
     it('records a measured cell WIDTH on the column axis', () => {
         resize(vs, [{ index: 0, inlineSize: 240 }]);
         fixture.detectChanges();

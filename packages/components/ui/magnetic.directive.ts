@@ -7,7 +7,7 @@ import {
     signal,
     NgZone,
 } from '@angular/core';
-import { prefersReducedMotion } from '../lib/utils';
+import { prefersReducedMotion } from '../lib/media';
 
 @Directive({
     selector: '[uiMagnetic]',

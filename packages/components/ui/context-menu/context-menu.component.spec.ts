@@ -435,6 +435,38 @@ describe('ContextMenu disabled sub-trigger', () => {
     });
 });
 
+describe('ContextMenu sub-trigger hover', () => {
+    let fixture: ComponentFixture<SubMenuTestHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [SubMenuTestHostComponent]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(SubMenuTestHostComponent);
+        fixture.detectChanges();
+        fixture.debugElement.query(By.directive(ContextMenuComponent)).componentInstance.show(100, 100);
+        fixture.detectChanges();
+        await fixture.whenStable();
+    });
+
+    afterEach(() => {
+        fixture.destroy();
+        document.querySelectorAll('[data-context-menu-portal], [data-context-menu-sub-portal]').forEach(el => el.remove());
+    });
+
+    it('opens the flyout with its items when the pointer enters an enabled branch', async () => {
+        const row = document.querySelector<HTMLElement>('[data-slot="context-menu-sub-trigger"]')!;
+        row.dispatchEvent(new MouseEvent('mouseenter'));
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(row.getAttribute('aria-expanded')).toBe('true');
+        const flyout = document.querySelector('[data-slot="context-menu-sub-content"]');
+        expect(flyout?.textContent).toContain('Sub Action 1');
+    });
+});
+
 describe('ContextMenu sub timer teardown', () => {
     let fixture: ComponentFixture<SubMenuTestHostComponent>;
 

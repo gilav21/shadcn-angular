@@ -15,6 +15,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { cn } from '../../lib/utils';
+import { createResizeObserver } from '../../lib/observers';
 import {
   InfiniteCanvasItemDirective,
   type CanvasItemContext,
@@ -200,7 +201,7 @@ export class InfiniteCanvasComponent<T extends CanvasItem = CanvasItem> implemen
   private layer?: CanvasItemLayer<T>;
   private pool?: CanvasItemViewPool<CanvasItemContext<T>>;
   private edgeRenderer?: CanvasEdgeRenderer;
-  private resizeObserver?: ResizeObserver;
+  private resizeObserver: ResizeObserver | null = null;
   private frameHandle = 0;
   private settleHandle?: ReturnType<typeof setTimeout>;
   private mounted = false;
@@ -248,13 +249,13 @@ export class InfiniteCanvasComponent<T extends CanvasItem = CanvasItem> implemen
     this.mounted = true;
     this.measure();
 
-    this.resizeObserver = new ResizeObserver(() => {
+    this.resizeObserver = createResizeObserver(() => {
       this.measure();
       this.resizeEdgeCanvas();
       this.layer?.invalidate();
       this.requestFrame();
     });
-    this.resizeObserver.observe(root);
+    this.resizeObserver?.observe(root);
     this.edgeRenderer = new CanvasEdgeRenderer(this.edgeCanvasRef().nativeElement);
     this.resizeEdgeCanvas();
     this.rebuildLayer(this.items());

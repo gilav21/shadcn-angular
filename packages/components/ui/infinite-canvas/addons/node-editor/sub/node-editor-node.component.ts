@@ -15,6 +15,7 @@ import {
 } from '@angular/core';
 import { NgComponentOutlet, NgTemplateOutlet } from '@angular/common';
 import { cn } from '../../../../../lib/utils';
+import { createResizeObserver } from '../../../../../lib/observers';
 import {
   PORT_LIST_PADDING,
   portListTop,
@@ -254,7 +255,9 @@ export class NodeEditorNodeComponent {
        * 200% and half as tall at 50%. The wrapper has no padding or border, so
        * its content box is the whole of it.
        */
-      this.observer ??= new ResizeObserver(entries => {
+      // Without ResizeObserver the body is never measured and the node keeps
+      // its declared size.
+      this.observer ??= createResizeObserver(entries => {
         const entry = entries[0];
         /*
          * A card going back to the view pool is DETACHED, not destroyed, and a
@@ -265,7 +268,7 @@ export class NodeEditorNodeComponent {
          */
         if (entry?.target.isConnected) this.emitBody(this.node().id, entry.contentRect.height);
       });
-      this.observer.observe(element);
+      this.observer?.observe(element);
     });
 
     inject(DestroyRef).onDestroy(() => this.observer?.disconnect());

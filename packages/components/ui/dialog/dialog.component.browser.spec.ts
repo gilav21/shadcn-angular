@@ -3,23 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { afterEach, describe, it, expect } from 'vitest';
 import { cdp } from 'vitest/browser';
-import { SheetComponent, SheetContentComponent } from '../sheet';
-
-/** Real-browser docking checks: side placement is geometry, which jsdom cannot lay out. */
-@Component({
-    template: `
-        <div [dir]="dir()">
-            <ui-sheet>
-                <ui-sheet-content [side]="side()">Panel</ui-sheet-content>
-            </ui-sheet>
-        </div>
-    `,
-    imports: [SheetComponent, SheetContentComponent],
-})
-class DockHost {
-    readonly dir = signal<'ltr' | 'rtl'>('ltr');
-    readonly side = signal<'left' | 'right'>('right');
-}
+import { DialogComponent, DialogContentComponent } from '../dialog';
 
 /**
  * Switches Chromium's touch emulation, which is what flips `(pointer: coarse)`
@@ -30,45 +14,38 @@ async function emulateTouch(enabled: boolean): Promise<void> {
     await cdp().send('Emulation.setTouchEmulationEnabled', { enabled, maxTouchPoints: 1 });
 }
 
-async function openSheet(dir: 'ltr' | 'rtl', side: 'left' | 'right'): Promise<HTMLElement> {
-    TestBed.configureTestingModule({ imports: [DockHost] });
-    const fixture = TestBed.createComponent(DockHost);
-    fixture.componentInstance.dir.set(dir);
-    fixture.componentInstance.side.set(side);
-    fixture.detectChanges();
-    (fixture.debugElement.query(By.directive(SheetComponent)).componentInstance as SheetComponent).show();
-    fixture.detectChanges();
-    await fixture.whenStable();
-    return (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('[data-slot="sheet-content"]')!;
+@Component({
+    template: `
+        <div [dir]="dir()">
+            <ui-dialog>
+                <ui-dialog-content title="Edit profile">Body</ui-dialog-content>
+            </ui-dialog>
+        </div>
+    `,
+    imports: [DialogComponent, DialogContentComponent],
+})
+class CloseHost {
+    readonly dir = signal<'ltr' | 'rtl'>('ltr');
 }
 
-describe('Sheet side docking (browser)', () => {
+/** Real-browser touch-target checks: hit-area size is geometry, which jsdom cannot lay out. */
+describe('Dialog close button (browser)', () => {
     afterEach(async () => {
         await emulateTouch(false);
         document.body.style.overflow = '';
         document.body.style.paddingRight = '';
     });
 
-    async function panelRect(dir: 'ltr' | 'rtl', side: 'left' | 'right'): Promise<DOMRect> {
-        return (await openSheet(dir, side)).getBoundingClientRect();
+    async function openDialog(dir: 'ltr' | 'rtl'): Promise<HTMLElement> {
+        TestBed.configureTestingModule({ imports: [CloseHost] });
+        const fixture = TestBed.createComponent(CloseHost);
+        fixture.componentInstance.dir.set(dir);
+        fixture.detectChanges();
+        (fixture.debugElement.query(By.directive(DialogComponent)).componentInstance as DialogComponent).show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        return (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('[data-slot="dialog-content"]')!;
     }
-
-    const viewportWidth = () => document.documentElement.clientWidth;
-
-    it.each([
-        { dir: 'ltr', side: 'right', edge: 'right' },
-        { dir: 'ltr', side: 'left', edge: 'left' },
-        { dir: 'rtl', side: 'right', edge: 'left' },
-        { dir: 'rtl', side: 'left', edge: 'right' },
-    ] as const)('side="$side" under dir="$dir" docks to the viewport $edge edge', async ({ dir, side, edge }) => {
-        const rect = await panelRect(dir, side);
-        expect(rect.width).toBeLessThan(viewportWidth());
-        if (edge === 'right') {
-            expect(rect.right).toBeCloseTo(viewportWidth(), 0);
-        } else {
-            expect(rect.left).toBeCloseTo(0, 0);
-        }
-    });
 
     /**
      * WCAG 2.5.8: on a touch screen the corner close button must be a 44x44
@@ -79,8 +56,8 @@ describe('Sheet side docking (browser)', () => {
     it.each(['ltr', 'rtl'] as const)(
         'grows the close button to a 44x44 touch target on a coarse pointer only, icon fixed in the %s corner',
         async dir => {
-            const panel = await openSheet(dir, 'right');
-            const button = panel.querySelector<HTMLElement>('button[aria-label]')!;
+            const panel = await openDialog(dir);
+            const button = panel.querySelector<HTMLElement>(':scope > button[aria-label]')!;
             const icon = button.querySelector('svg')!;
             const measure = () => {
                 const p = panel.getBoundingClientRect();

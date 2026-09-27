@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { isTouchDevice, hasHover, onLongPress, onDoubleTap, onPointerDrag } from './touch';
+import { prefersReducedMotion } from './media';
 
 type TouchCallback = (event: TouchEvent) => void;
 type MoveCallback = (clientX: number, clientY: number, event: MouseEvent | TouchEvent) => void;
@@ -43,6 +44,16 @@ function stubMatchMedia(matches: (query: string) => boolean): void {
 }
 
 describe('isTouchDevice / hasHover', () => {
+    // The window is shared by every later file in the worker: put it back.
+    let own: PropertyDescriptor | undefined;
+    beforeEach(() => {
+        own = Object.getOwnPropertyDescriptor(globalThis, 'matchMedia');
+    });
+    afterEach(() => {
+        if (own) Object.defineProperty(globalThis, 'matchMedia', own);
+        else Reflect.deleteProperty(globalThis, 'matchMedia');
+    });
+
     it('reports a touch device when the pointer is coarse', () => {
         stubMatchMedia(q => q.includes('coarse'));
         expect(isTouchDevice()).toBe(true);
@@ -61,6 +72,25 @@ describe('isTouchDevice / hasHover', () => {
     it('reports no hover when the query does not match', () => {
         stubMatchMedia(() => false);
         expect(hasHover()).toBe(false);
+    });
+});
+
+describe('media-query helpers where matchMedia does not exist', () => {
+    /*
+     * jsdom and SSR have no matchMedia; a consumer's own tests run there.
+     * Every helper must answer its documented default instead of throwing.
+     */
+    it('fall back to their defaults', () => {
+        const own = Object.getOwnPropertyDescriptor(globalThis, 'matchMedia');
+        Object.defineProperty(globalThis, 'matchMedia', { configurable: true, value: undefined });
+        try {
+            expect(isTouchDevice()).toBe(false);
+            expect(hasHover()).toBe(true);
+            expect(prefersReducedMotion()).toBe(false);
+        } finally {
+            if (own) Object.defineProperty(globalThis, 'matchMedia', own);
+            else Reflect.deleteProperty(globalThis, 'matchMedia');
+        }
     });
 });
 

@@ -488,6 +488,20 @@ describe('ContextMenuSubContentComponent positioning', () => {
         }
     });
 
+    it('flips to the inline-end side in RTL when the start side has no room', () => {
+        vi.spyOn(menuInstance(fixture), 'isRtl').mockReturnValue(true);
+        const content = openSub();
+        stubRects(makeRect(150, 20, 10, 100), makeRect(200, 100));
+        const restoreViewport = stubViewport(1024, 768);
+        try {
+            calc(content);
+            // 10 - 200 - 4 < 8, so the flyout opens past the trigger's right edge: 160 + 4
+            expect(content.portalPosition()).toEqual({ x: 164, y: 100 });
+        } finally {
+            restoreViewport();
+        }
+    });
+
     it('flips to the left and clamps to 8px in LTR, clamping y to the top', () => {
         const content = openSub();
         stubRects(makeRect(995, 10, 5, 2), makeRect(100, 10));

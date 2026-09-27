@@ -11,7 +11,9 @@ import {
     NgZone,
     output,
 } from '@angular/core';
-import { cn, prefersReducedMotion } from '../../lib/utils';
+import { cn } from '../../lib/utils';
+import { prefersReducedMotion } from '../../lib/media';
+import { createIntersectionObserver } from '../../lib/observers';
 
 @Component({
     selector: 'ui-blur-fade',
@@ -50,7 +52,7 @@ export class BlurFadeComponent implements AfterViewInit, OnDestroy {
     replay = output<void>();
 
     private readonly isVisible = signal(false);
-    private observer?: IntersectionObserver;
+    private observer: IntersectionObserver | null = null;
     private currentAnimation?: Animation;
 
     classes = computed(() => cn('block', this.class()));
@@ -64,22 +66,25 @@ export class BlurFadeComponent implements AfterViewInit, OnDestroy {
             return;
         }
 
-        if (this.inView()) {
-            this.ngZone.runOutsideAngular(() => {
-                this.observer = new IntersectionObserver(
-                    (entries) => {
-                        if (entries[0].isIntersecting) {
-                            this.playAnimation();
-                            this.observer?.disconnect();
-                        }
-                    },
-                    { threshold: 0.1 }
-                );
-                this.observer.observe(host);
-            });
-        } else {
+        if (!this.inView()) {
             this.playAnimation();
+            return;
         }
+
+        this.ngZone.runOutsideAngular(() => {
+            this.observer = createIntersectionObserver(
+                (entries) => {
+                    if (entries[0].isIntersecting) {
+                        this.playAnimation();
+                        this.observer?.disconnect();
+                    }
+                },
+                { threshold: 0.1 }
+            );
+            this.observer?.observe(host);
+        });
+        // No IntersectionObserver: nothing would ever reveal the content, so show it now.
+        if (!this.observer) host.style.opacity = '1';
     }
 
     ngOnDestroy(): void {

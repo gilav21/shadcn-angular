@@ -9,7 +9,8 @@ import {
     NgZone,
     Renderer2,
 } from '@angular/core';
-import { prefersReducedMotion } from '../../lib/utils';
+import { prefersReducedMotion } from '../../lib/media';
+import { createResizeObserver } from '../../lib/observers';
 
 interface Meteor {
     x: number;
@@ -114,11 +115,11 @@ export class MeteorsComponent implements OnInit, OnDestroy {
         this.ctx = this.canvas.getContext('2d');
 
         this.syncCanvasSize();
-        this.resizeObserver = new ResizeObserver(() => {
+        this.resizeObserver = createResizeObserver(() => {
             this.syncCanvasSize();
             if (this.meteors.length === 0) this.createMeteors();
         });
-        this.resizeObserver.observe(host);
+        this.resizeObserver?.observe(host);
     }
 
     private syncCanvasSize(): void {

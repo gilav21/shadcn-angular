@@ -150,3 +150,67 @@ describe('Select keyboard commit (real keyboard)', () => {
         fixture.nativeElement.remove();
     });
 });
+
+interface Country {
+    label: string;
+    value: string;
+}
+
+const COUNTRIES: Country[] = Array.from({ length: 30 }, (_, i) => ({ label: `Country ${i + 1}`, value: `c${i + 1}` }));
+
+@Component({
+    template: `
+        <ui-select [options]="countries" [value]="picked" [displayWith]="label" />
+        <ui-select value="c26" position="popper">
+            <ui-select-trigger class="w-full">
+                <ui-select-value />
+            </ui-select-trigger>
+            <ui-select-content>
+                @for (country of countries; track country.value) {
+                    <ui-select-item [value]="country.value">{{ country.label }}</ui-select-item>
+                }
+            </ui-select-content>
+        </ui-select>
+    `,
+    imports: [SelectComponent, SelectTriggerComponent, SelectContentComponent, SelectValueComponent, SelectItemComponent],
+})
+class LongListHost {
+    readonly countries = COUNTRIES;
+    readonly picked = COUNTRIES[25];
+    readonly label = (c: Country): string => c.label;
+}
+
+/** Real-layout case: whether the selected option is visible depends on the list's scroll position. */
+describe('Select opening on a selection far down a long list (real layout)', () => {
+    it('scrolls the list so the selected option starts in view, in data-driven and projected mode', async () => {
+        await TestBed.configureTestingModule({ imports: [LongListHost] }).compileComponents();
+        const fixture = TestBed.createComponent(LongListHost);
+        document.body.appendChild(fixture.nativeElement);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const root = fixture.nativeElement as HTMLElement;
+        for (const select of Array.from(root.querySelectorAll<HTMLElement>('ui-select'))) {
+            select.querySelector<HTMLElement>('button')!.click();
+            fixture.detectChanges();
+            await new Promise(resolve => setTimeout(resolve, 0));
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            const list = select.querySelector<HTMLElement>('[role="listbox"]')!;
+            const option = list.querySelector<HTMLElement>('[role="option"][data-state="checked"]')!;
+            expect(option.textContent?.trim()).toBe('Country 26');
+            expect(document.activeElement).toBe(option);
+            const view = list.getBoundingClientRect();
+            const rect = option.getBoundingClientRect();
+            expect(rect.top).toBeGreaterThanOrEqual(view.top - 0.5);
+            expect(rect.bottom).toBeLessThanOrEqual(view.bottom + 0.5);
+
+            document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+            fixture.detectChanges();
+        }
+
+        fixture.destroy();
+        fixture.nativeElement.remove();
+    });
+});

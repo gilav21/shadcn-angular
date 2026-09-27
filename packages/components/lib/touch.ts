@@ -52,12 +52,12 @@ export function isSecondaryTouch(event: PointerEvent): boolean {
 }
 
 export function isTouchDevice(): boolean {
-    return globalThis.window?.matchMedia('(pointer: coarse)').matches ?? false;
+    return globalThis.window?.matchMedia?.('(pointer: coarse)').matches ?? false;
 }
 
 /** Detect if the device supports hover (mouse/trackpad) */
 export function hasHover(): boolean {
-    return globalThis.window?.matchMedia('(hover: hover)').matches ?? true;
+    return globalThis.window?.matchMedia?.('(hover: hover)').matches ?? true;
 }
 
 /**

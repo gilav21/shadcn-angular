@@ -14,28 +14,8 @@ import {
     generateId,
 } from '../command';
 import { ShortcutBindingService } from '../../lib/shortcut-binding.service';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { By } from '@angular/platform-browser';
-
-type ScrollIntoView = typeof Element.prototype.scrollIntoView;
-const scrollProto = Element.prototype as unknown as { scrollIntoView?: ScrollIntoView };
-let originalScrollIntoView: ScrollIntoView | undefined;
-let hadScrollIntoView = false;
-
-beforeEach(() => {
-    hadScrollIntoView = 'scrollIntoView' in scrollProto;
-    originalScrollIntoView = scrollProto.scrollIntoView;
-    scrollProto.scrollIntoView = vi.fn();
-});
-
-afterEach(() => {
-    if (hadScrollIntoView) {
-        scrollProto.scrollIntoView = originalScrollIntoView;
-    } else {
-        delete scrollProto.scrollIntoView;
-    }
-    originalScrollIntoView = undefined;
-});
 
 @Component({
     template: `
@@ -229,6 +209,22 @@ describe('CommandComponent', () => {
             input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
             fixture.detectChanges();
             expect(activeIndex()).toBe(2);
+        });
+
+        it('keeps highlighting rows in an engine without scrollIntoView', () => {
+            const rows = Array.from(fixture.nativeElement.querySelectorAll('[data-slot="command-item"]')) as HTMLElement[];
+            for (const row of rows) {
+                Object.defineProperty(row, 'scrollIntoView', { value: undefined, configurable: true });
+            }
+            const input = fixture.nativeElement.querySelector('input');
+
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+            fixture.detectChanges();
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+            fixture.detectChanges();
+
+            const active = rows.filter(row => row.classList.contains('bg-accent'));
+            expect(active.map(row => row.textContent?.trim())).toEqual(['Search']);
         });
     });
 

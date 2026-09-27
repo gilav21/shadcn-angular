@@ -1,16 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ComparisonSliderComponent } from './comparison-slider.component';
-import { describe, it, expect, beforeEach, beforeAll } from 'vitest';
-
-beforeAll(() => {
-    if (!('ResizeObserver' in globalThis)) {
-        (globalThis as unknown as Record<string, unknown>)['ResizeObserver'] = class {
-            observe() {}
-            unobserve() {}
-            disconnect() {}
-        };
-    }
-});
+import { describe, it, expect, beforeEach } from 'vitest';
 
 describe('ComparisonSliderComponent', () => {
     let component: ComparisonSliderComponent;

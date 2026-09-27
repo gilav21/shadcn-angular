@@ -13,7 +13,7 @@ import {
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cva } from 'class-variance-authority';
 import { cn } from '../../lib/utils';
-import { UI_LOCALE_ID } from '../../lib/i18n';
+import { formatDate, UI_LOCALE_ID } from '../../lib/i18n';
 import {
   dayPeriodFor,
   displayHour,
@@ -57,6 +57,9 @@ export interface TimeSegment {
   /** The separator that follows this segment; empty after the last one. */
   readonly separator: string;
 }
+
+/** Gives each instance's value-text element a document-unique id. */
+let timePickerInstances = 0;
 
 /** How a segment is named to a screen reader, in the app's own language. */
 const SEGMENT_LABEL: Record<TimeSegmentKind, string> = {
@@ -146,6 +149,8 @@ export class TimePickerComponent implements ControlValueAccessor {
   readonly disabled = input<boolean>(false);
   /** Accessible name for the group of segments. */
   readonly ariaLabel = input<string>('Time');
+  /** Id of the hidden element holding {@link valueText}; the group's `aria-describedby` points at it. */
+  protected readonly valueTextId = `time-picker-value-${++timePickerInstances}`;
   /** Extra classes merged onto the wrapper. */
   readonly class = input('');
   /** Visual style of the wrapper: `outline`, `underline` or `ghost`. */
@@ -174,13 +179,24 @@ export class TimePickerComponent implements ControlValueAccessor {
     }));
   });
 
-  /** What a screen reader hears for the whole control. */
+  /**
+   * What a screen reader hears for the whole control — the group's accessible
+   * description: the time as the locale writes it ("2:30 PM", "14:30"), on the
+   * same 12/24-hour clock the segments show. Empty while there is no time.
+   *
+   * `timeStyle` rather than `hour: 'numeric'`, which drops the leading zero a
+   * 24-hour locale writes ("0:05" for "00:05"); `hourCycle` rather than
+   * `hour12: false`, which some engines render as "24:05" at midnight.
+   */
   readonly valueText = computed(() => {
-    const time = this.value();
-    if (time === null) return '';
-    return this.segments()
-      .map(segment => segment.text)
-      .join(' ');
+    const parts = parseTimeValue(this.value());
+    if (parts === null) return '';
+    const at = new Date(Date.UTC(1970, 0, 1, parts.hours, parts.minutes, parts.seconds));
+    return formatDate(at, this.resolvedLocale(), {
+      timeStyle: this.withSeconds() ? 'medium' : 'short',
+      hourCycle: this.layout().hour12 ? 'h12' : 'h23',
+      timeZone: 'UTC',
+    });
   });
 
   readonly wrapperClasses = computed(() =>

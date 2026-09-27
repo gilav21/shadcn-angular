@@ -6,11 +6,8 @@ import {
     inject,
 } from '@angular/core';
 import { cn } from '../../../lib/utils';
+import { prefersReducedMotion } from '../../../lib/media';
 import { SortableComponent } from '../sortable.component';
-
-function prefersReducedMotion(): boolean {
-    return globalThis.window?.matchMedia('(prefers-reduced-motion: reduce)').matches ?? false;
-}
 
 /** Wraps one rendered row inside ui-sortable. */
 @Component({

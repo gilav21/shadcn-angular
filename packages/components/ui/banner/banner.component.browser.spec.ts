@@ -1,6 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect } from 'vitest';
+import { cdp } from 'vitest/browser';
 import { BannerComponent } from './banner.component';
 
 @Component({
@@ -42,5 +43,46 @@ describe('BannerComponent layout (browser)', () => {
         const box = banner.getBoundingClientRect();
         expect(msg.left).toBeGreaterThanOrEqual(box.left);
         expect(msg.right).toBeLessThanOrEqual(box.right);
+    });
+});
+
+/**
+ * Switches Chromium's touch emulation, which is what flips `(pointer: coarse)`
+ * and `(hover: none)` — `Emulation.setEmulatedMedia` silently ignores the
+ * `pointer` feature.
+ */
+async function emulateTouch(enabled: boolean): Promise<void> {
+    await cdp().send('Emulation.setTouchEmulationEnabled', { enabled, maxTouchPoints: 1 });
+}
+
+@Component({
+    template: `<ui-banner message="Scheduled maintenance at 02:00 UTC." dismissible />`,
+    imports: [BannerComponent],
+})
+class DismissHost {}
+
+describe('BannerComponent dismiss button (browser)', () => {
+    afterEach(() => emulateTouch(false));
+
+    async function dismissRect(): Promise<DOMRect> {
+        const fixture = TestBed.createComponent(DismissHost);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const rect = (fixture.nativeElement as HTMLElement)
+            .querySelector('[data-slot="banner-dismiss"] button')!.getBoundingClientRect();
+        fixture.destroy();
+        return rect;
+    }
+
+    /** WCAG 2.5.8: the dismiss button is a 44x44 target on a touch screen and keeps its 32x32 size for a mouse. */
+    it('grows the dismiss button to a 44x44 touch target on a coarse pointer only', async () => {
+        await emulateTouch(false);
+        const fine = await dismissRect();
+        await emulateTouch(true);
+        const coarse = await dismissRect();
+
+        expect([fine.width, fine.height]).toEqual([32, 32]);
+        expect(coarse.width).toBeGreaterThanOrEqual(44);
+        expect(coarse.height).toBeGreaterThanOrEqual(44);
     });
 });

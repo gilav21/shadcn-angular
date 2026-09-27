@@ -9,7 +9,8 @@ import {
     NgZone,
     Renderer2,
 } from '@angular/core';
-import { prefersReducedMotion } from '../../lib/utils';
+import { prefersReducedMotion } from '../../lib/media';
+import { createResizeObserver } from '../../lib/observers';
 
 interface Particle {
     x: number;
@@ -136,11 +137,11 @@ export class ParticlesComponent implements OnInit, OnDestroy {
 
         this.syncCanvasSize();
 
-        this.resizeObserver = new ResizeObserver(() => {
+        this.resizeObserver = createResizeObserver(() => {
             this.syncCanvasSize();
             this.layoutParticles();
         });
-        this.resizeObserver.observe(host);
+        this.resizeObserver?.observe(host);
 
         if (this.mouseInteraction()) {
             host.style.pointerEvents = 'auto';

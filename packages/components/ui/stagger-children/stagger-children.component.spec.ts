@@ -212,6 +212,23 @@ describe('StaggerChildrenComponent', () => {
         });
     });
 
+    it('leaves every child visible where IntersectionObserver is unavailable', async () => {
+        fixture.destroy();
+        TestBed.resetTestingModule();
+        vi.stubGlobal('IntersectionObserver', undefined);
+
+        await TestBed.configureTestingModule({ imports: [TestHostComponent] }).compileComponents();
+        const f = TestBed.createComponent(TestHostComponent);
+        f.detectChanges();
+        flushRaf();
+
+        const children = Array.from(
+            f.debugElement.query(By.directive(StaggerChildrenComponent)).nativeElement.querySelectorAll(':scope > div'),
+        ) as HTMLElement[];
+        expect(children.length).toBeGreaterThan(1);
+        expect(children.map((child) => child.style.opacity)).toEqual(children.map(() => ''));
+    });
+
     it('should not animate from playAnimation when reduced motion is preferred', () => {
         const animateSpy = vi
             .spyOn(HTMLElement.prototype, 'animate')

@@ -266,7 +266,7 @@
               />
               <button
                 type="button"
-                class="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
+                class="inline-flex h-8 w-8 pointer-coarse:size-11 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
                 (click)="copy('hex')"
                 [attr.aria-label]="t().copyHex"
               >
@@ -321,7 +321,7 @@
                 <span class="flex-1 truncate text-xs font-mono text-muted-foreground">{{ formatValues().rgb }}</span>
                 <button
                   type="button"
-                  class="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
+                  class="inline-flex h-7 w-7 pointer-coarse:size-11 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
                   (click)="copy('rgb')"
                   [attr.aria-label]="t().copyRgb"
                 >
@@ -377,7 +377,7 @@
                 <span class="flex-1 truncate text-xs font-mono text-muted-foreground">{{ formatValues().hsl }}</span>
                 <button
                   type="button"
-                  class="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
+                  class="inline-flex h-7 w-7 pointer-coarse:size-11 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
                   (click)="copy('hsl')"
                   [attr.aria-label]="t().copyHsl"
                 >
@@ -394,7 +394,7 @@
               <span class="flex-1 truncate text-xs font-mono text-muted-foreground">{{ formatValues().oklch }}</span>
               <button
                 type="button"
-                class="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
+                class="inline-flex h-7 w-7 pointer-coarse:size-11 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
                 (click)="copy('oklch')"
                 [attr.aria-label]="t().copyOklch"
               >

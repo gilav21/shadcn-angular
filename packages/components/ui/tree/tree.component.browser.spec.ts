@@ -40,3 +40,65 @@ describe('Tree RTL rendering (browser)', () => {
         expect(collapsedChevronRotation('rtl')).toBe('180deg');
     });
 });
+
+const explorer: TreeNode[] = [
+    {
+        key: 'src',
+        label: 'src',
+        children: Array.from({ length: 12 }, (_, i) => ({ key: `src/file-${i + 1}.ts`, label: `file-${i + 1}.ts` })),
+    },
+    ...Array.from({ length: 16 }, (_, i) => ({ key: `doc-${i + 1}.md`, label: `doc-${i + 1}.md` })),
+];
+
+@Component({
+    template: `
+        <div data-testid="scroller" style="height: 160px; overflow: auto">
+            <ui-tree [data]="data" [initialExpandDepth]="1" />
+        </div>
+    `,
+    imports: [TreeComponent],
+})
+class ScrollingTreeHost {
+    readonly data = explorer;
+}
+
+/** Real-layout case: the tree navigates by aria-activedescendant, so only real scrolling keeps the node visible. */
+describe('Tree keyboard navigation in a scroll container (browser)', () => {
+    it('keeps the active node inside the scroll viewport going down and back to the top', async () => {
+        const fixture = TestBed.createComponent(ScrollingTreeHost);
+        document.body.appendChild(fixture.nativeElement);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        const root = fixture.nativeElement as HTMLElement;
+        const tree = root.querySelector<HTMLElement>('[role="tree"]')!;
+        const scroller = root.querySelector<HTMLElement>('[data-testid="scroller"]')!;
+        const press = (key: string): void => {
+            tree.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+            fixture.detectChanges();
+        };
+        const activeRow = (): HTMLElement => {
+            const item = document.getElementById(tree.getAttribute('aria-activedescendant')!)!;
+            return item.firstElementChild as HTMLElement;
+        };
+        const expectInView = (label: string): void => {
+            const row = activeRow();
+            expect(row.textContent?.trim()).toBe(label);
+            const view = scroller.getBoundingClientRect();
+            const rect = row.getBoundingClientRect();
+            expect(rect.top).toBeGreaterThanOrEqual(view.top - 0.5);
+            expect(rect.bottom).toBeLessThanOrEqual(view.bottom + 0.5);
+        };
+
+        for (let i = 0; i < 20; i++) press('ArrowDown');
+        expect(scroller.scrollTop).toBeGreaterThan(0);
+        expectInView('doc-7.md');
+
+        press('Home');
+        expectInView('src');
+
+        fixture.destroy();
+        fixture.nativeElement.remove();
+    });
+});

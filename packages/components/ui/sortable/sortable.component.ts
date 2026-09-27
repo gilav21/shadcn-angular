@@ -17,6 +17,7 @@ import {
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { cn } from '../../lib/utils';
+import { prefersReducedMotion } from '../../lib/media';
 import { onPointerDrag } from '../../lib/touch';
 import { createFlip, type FlipHandle } from '../../lib/flip';
 import { startAutoScroll, type AutoScrollController } from '../../lib/auto-scroll';
@@ -238,8 +239,7 @@ const BUILT_IN_LAND_EFFECTS: Record<string, BuiltInLandEffect> = {
 };
 
 function playBuiltInLandEffect(el: HTMLElement, effect: BuiltInLandEffect): void {
-    const reduce = globalThis.window?.matchMedia('(prefers-reduced-motion: reduce)').matches ?? false;
-    if (reduce) return;
+    if (prefersReducedMotion()) return;
     el.animate(effect.keyframes, {
         duration: effect.duration,
         easing: effect.easing,

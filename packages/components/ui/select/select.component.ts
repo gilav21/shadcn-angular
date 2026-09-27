@@ -21,6 +21,19 @@ import { COMMON_LOCALES, type CommonLocale } from '../../lib/i18n/common.locales
 
 export const SELECT = new InjectionToken<SelectComponent<unknown>>('SELECT');
 
+/**
+ * Scrolls `list` — and only `list` — until `option` is no longer hidden below
+ * its bottom edge. Opening focuses the selected option with `preventScroll`
+ * so the page does not jump while the popup is still being placed; without
+ * this, an option further down than the list is tall starts out of sight. The
+ * list is created on open at `scrollTop` 0, so an option can only be hidden
+ * below it, never above.
+ */
+export function revealSelectOption(list: HTMLElement, option: HTMLElement): void {
+    const listBottom = list.getBoundingClientRect().top + list.clientTop + list.clientHeight;
+    list.scrollTop += Math.max(0, option.getBoundingClientRect().bottom - listBottom);
+}
+
 @Component({
     selector: 'ui-select',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -315,6 +328,7 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
 
         if (selectedItem) {
             selectedItem.focus({ preventScroll: true });
+            revealSelectOption(contentEl, selectedItem);
         } else if (firstItem) {
             firstItem.focus({ preventScroll: true });
         } else {
