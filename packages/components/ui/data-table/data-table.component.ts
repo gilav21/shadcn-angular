@@ -170,7 +170,11 @@ function sameQuery(a: DataTableQuery, b: DataTableQuery): boolean {
   );
 }
 
-const CSS_NEWLINE_ESCAPES: Readonly<Record<string, string>> = { "\n": "\\a ", "\r": "\\d ", "\f": "\\c " };
+const CSS_NEWLINE_ESCAPES: Readonly<Record<string, string>> = {
+  "\n": String.raw`\a `,
+  "\r": String.raw`\d `,
+  "\f": String.raw`\c `,
+};
 
 /**
  * `value` as a quoted CSS string, so an attribute selector built from it

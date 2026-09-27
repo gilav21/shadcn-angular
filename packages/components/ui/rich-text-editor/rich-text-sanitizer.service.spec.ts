@@ -128,6 +128,14 @@ describe('RichTextSanitizerService — an element holds a line or holds blocks',
         expect(Array.from(item.children).map((el) => el.tagName)).toEqual(['P', 'BLOCKQUOTE']);
         expect(item.querySelector(':scope > p')?.textContent).toBe('own text');
         expect(Array.from(item.childNodes).every((n) => n.nodeType === Node.ELEMENT_NODE)).toBe(true);
+
+        // A task box is never part of the line it ticks: one leading the text
+        // stays in front of the new paragraph, one met inside the run follows it.
+        const tasks = [
+            '<ul><li><input type="checkbox">Buy milk<blockquote><p>note</p></blockquote></li></ul>',
+            '<ul><li>Buy <input type="checkbox" checked> milk<blockquote><p>note</p></blockquote></li></ul>',
+        ].map((html) => Array.from(clean(html).querySelector('li')!.children).map((el) => el.tagName));
+        expect(tasks).toEqual([['INPUT', 'P', 'BLOCKQUOTE'], ['P', 'INPUT', 'BLOCKQUOTE']]);
     });
 
     it('leaves an item whose only block child is its own sub-list alone', () => {

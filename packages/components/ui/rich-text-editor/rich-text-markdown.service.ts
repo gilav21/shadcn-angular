@@ -802,15 +802,15 @@ function paragraphStillOpen(content: string, tagStore: readonly string[]): boole
         if (!tag || !P_CLOSING_TAGS.has(tag.name)) continue;
         if (tag.name === 'p') {
             open = !tag.closing;
-        } else if (!tag.closing) {
-            open = false;
-            if (tag.name !== 'hr') containers.push(tag.name);
-        } else {
+        } else if (tag.closing) {
             const at = containers.lastIndexOf(tag.name);
             if (at !== -1) {
                 containers.length = at;
                 open = false;
             }
+        } else {
+            open = false;
+            if (tag.name !== 'hr') containers.push(tag.name);
         }
     }
     return open;
