@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import {
   CODE_BLOCK_THEMES,
   CodeBlockComponent,
+  LANGUAGE_PATTERNS,
 } from '../../../../../packages/components/ui';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { CODE_BLOCK_DEMO_LOCALES } from './code-block-demo.locales';
@@ -40,11 +41,14 @@ import { CODE_BLOCK_DEMO_LOCALES } from './code-block-demo.locales';
       <h3 class="mt-4 font-semibold">{{ t().labelBash }}</h3>
       <ui-code-block [code]="codeBlockBash" language="bash" />
 
+      <h3 class="mt-4 font-semibold">{{ t().labelSql }}</h3>
+      <ui-code-block [code]="codeBlockSql" language="sql" />
+
       <h3 class="mt-4 font-semibold text-purple-400">{{ t().labelCustomTheme }}</h3>
       <ui-code-block [code]="codeBlockSample" language="typescript" [theme]="draculaTheme" />
 
       <h3 class="mt-4 font-semibold text-blue-400">{{ t().labelCustomLanguage }}</h3>
-      <ui-code-block [code]="codeBlockSql" language="sql" [customLanguages]="sqlPatterns" />
+      <ui-code-block [code]="codeBlockIni" language="ini" [customLanguages]="iniPatterns" />
 
       <h3 class="mt-8 text-xl font-bold">{{ t().collapsibleHeading }}</h3>
       <p class="text-muted-foreground">{{ t().collapsibleDescription }}</p>
@@ -210,19 +214,35 @@ ng build --prod`;
     attr: 'text-green-300 italic',
   };
 
-  readonly sqlPatterns = {
-    sql: [
-      { type: 'keyword', regex: /\b(SELECT|FROM|WHERE|INSERT|UPDATE|DELETE|JOIN|AND|OR|ON|AS|GROUP|BY|ORDER|LIMIT|create|table|int|varchar|primary|key)\b/i },
-      { type: 'string', regex: /'(?:[^'\\]|\\.)*'/ },
+  readonly iniPatterns = {
+    ini: [
+      { type: 'comment', regex: /[;#].*/ },
+      { type: 'selector', regex: /\[[^\]]{1,256}\]/ },
+      { type: 'property', regex: /[\w.-]{1,256}(?= ?=)/ },
+      { type: 'string', regex: /"(?:[^"\\]|\\.)*"/ },
+      { type: 'keyword', regex: /\b(true|false|on|off|yes|no)\b/i },
       { type: 'number', regex: /\b\d+\b/ },
-      { type: 'comment', regex: /--.*/ },
     ],
   };
 
-  readonly codeBlockSql = `SELECT id, name, email
-FROM users
-WHERE status = 'active'
-ORDER BY created_at DESC;`;
+  readonly codeBlockIni = `; Deployment settings
+[server]
+host = "0.0.0.0"
+port = 8080
+compress = true
+
+[database]
+pool.size = 20`;
+
+  readonly codeBlockSql = `-- Active users with their order count
+SELECT u.id, u."display name", COUNT(o.id) AS orders
+FROM users u
+LEFT JOIN orders o ON o.user_id = u.id
+WHERE u.status = 'active' AND u.bio NOT LIKE 'Test''s %'
+GROUP BY u.id, u."display name"
+having count(o.id) > 2 /* repeat buyers */
+ORDER BY orders DESC
+LIMIT 25;`;
 
   readonly foldableTypescript = `function greet(name: string) {
   const message = "Hello, " + name;
@@ -273,13 +293,8 @@ END;`;
 
   readonly sqlWithScopes = {
     sql: {
-      patterns: [
-        // eslint-disable-next-line sonarjs/regex-complexity -- SQL keyword list for custom language highlighter is intrinsically long
-        { type: 'keyword', regex: /\b(SELECT|FROM|WHERE|INSERT|UPDATE|DELETE|JOIN|AND|OR|ON|AS|GROUP|BY|ORDER|LIMIT|CREATE|PROCEDURE|BEGIN|END|VALUES|INTO|COMMIT|TEXT)\b/i },
-        { type: 'string', regex: /'(?:[^'\\]|\\.)*'/ },
-        { type: 'number', regex: /\b\d+\b/ },
-        { type: 'comment', regex: /--.*/ },
-      ],
+      // Built-in SQL highlighting; only the fold detector is custom.
+      patterns: LANGUAGE_PATTERNS['sql'],
       scopes: (lines: readonly string[]) => {
         const ranges: { startLine: number; endLine: number; depth: number }[] = [];
         let start = -1;

@@ -18,7 +18,7 @@ import {
     LANGUAGE_PATTERNS,
     type CodeToken,
     type LanguagePattern,
-    languagePatternsFor,
+    canonicalLanguage,
     tokenizeLine,
 } from '../../lib/code-highlight';
 import { ButtonComponent } from '../button';
@@ -27,6 +27,7 @@ export type { ScopeDetector, ScopeRange } from '../../lib/code-scopes';
 export { BUILTIN_SCOPE_DETECTORS } from '../../lib/code-scopes';
 
 export type { CodeToken, LanguagePattern } from '../../lib/code-highlight';
+export { LANGUAGE_PATTERNS } from '../../lib/code-highlight';
 
 export type CodeBlockTheme = Record<string, string>;
 export type LanguageConfig = {
@@ -97,7 +98,14 @@ export const CODE_BLOCK_THEMES: Record<string, CodeBlockTheme> = {
 export class CodeBlockComponent {
     /** Source text to display. Split on newlines and tokenized line by line, so highlighting never spans lines — a multi-line string or block comment is coloured per line. */
     readonly code = input('');
-    /** Language key for the highlighter, matched case-insensitively against the built-in set plus {@link customLanguages}. An unknown key silently falls back to TypeScript rules. */
+    /**
+     * Language key for the highlighter, matched case-insensitively against the
+     * built-in set plus {@link customLanguages}. Built in: `typescript`,
+     * `javascript`, `python`, `java`, `csharp`, `html`, `xml`, `css`, `json`,
+     * `yaml`, `bash` and `sql`, and the common fence spellings of them (`ts`,
+     * `js`, `py`, `c#`, `yml`, `sh`, `postgresql`, `mysql`, `sqlite`…). An
+     * unknown key silently falls back to TypeScript rules.
+     */
     readonly language = input('typescript');
     /** Extra classes merged onto the block. The surface is deliberately dark in both themes (`bg-zinc-950`), so override it here if you need a light code block. */
     readonly class = input('');
@@ -108,7 +116,9 @@ export class CodeBlockComponent {
      * A bare pattern array registers highlighting only; a full config may also
      * supply a scope detector for folding. An entry here shadows the built-in
      * language of the same name, but still inherits that language's built-in
-     * fold detector when it does not provide one.
+     * fold detector when it does not provide one. An entry filed under a fence
+     * alias (`sh`) is used for that exact name; an entry filed under the
+     * language (`bash`) also serves its aliases.
      */
     readonly customLanguages = input<Record<string, LanguagePattern | LanguageConfig> | null>(null);
     /** Enables collapsible code folding on brace/indent scopes. Requires a scope detector for the resolved language — languages without one simply render flat. */
@@ -138,6 +148,16 @@ export class CodeBlockComponent {
     });
 
     private readonly collapsed = signal<ReadonlySet<number>>(new Set<number>());
+
+    /**
+     * Extra classes on a chevron that starts a fold. On a coarse pointer the
+     * gutter column is 44px wide, and a pseudo-element stretches the hit area
+     * 12px above and below so it reaches 44px tall without making the 20px line
+     * taller. Only fold chevrons get it: a plain line's empty slot would
+     * otherwise sit over its neighbour's extension and swallow the tap.
+     */
+    protected readonly foldTargetClasses =
+        'relative cursor-pointer hover:text-zinc-300 pointer-coarse:after:absolute pointer-coarse:after:inset-x-0 pointer-coarse:after:-inset-y-3';
 
     readonly classes = computed(() => cn(
         'relative overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 my-4 text-left',
@@ -254,8 +274,13 @@ export class CodeBlockComponent {
     }
 
     private normalizeLanguage(lang: string): { patterns: LanguagePattern; scopes?: ScopeDetector } {
-        const key = lang.toLowerCase();
-        const customEntry = this.customLanguages()?.[key];
+        const requested = lang.toLowerCase();
+        const custom = this.customLanguages();
+        // A custom entry filed under the exact name wins. Otherwise the alias is
+        // resolved once and used for EVERY lookup below: resolving it for the
+        // patterns alone let `yml` colour like YAML but never fold.
+        const key = custom?.[requested] ? requested : canonicalLanguage(requested);
+        const customEntry = custom?.[key];
         if (customEntry) {
             const config = Array.isArray(customEntry) ? { patterns: customEntry } : customEntry;
             const fallbackScopes = config.scopes ?? BUILTIN_SCOPE_DETECTORS[key];
@@ -264,7 +289,7 @@ export class CodeBlockComponent {
         // The documented fallback for a code VIEWER: an unknown key still gets
         // colour rather than a wall of grey. A document does the opposite (see
         // languagePatternsFor), because most of a document is prose.
-        const builtinPatterns = languagePatternsFor(key) ?? LANGUAGE_PATTERNS['typescript'];
+        const builtinPatterns = LANGUAGE_PATTERNS[key] ?? LANGUAGE_PATTERNS['typescript'];
         return { patterns: builtinPatterns, scopes: BUILTIN_SCOPE_DETECTORS[key] };
     }
 }

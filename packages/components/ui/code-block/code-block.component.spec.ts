@@ -375,6 +375,29 @@ describe('CodeBlockComponent', () => {
             expect(chevrons(fixture)).toHaveLength(2);
         });
 
+        it('treats a fence alias exactly like its language, folding included', () => {
+            const render = (language: string) => {
+                fixture.componentRef.setInput('code', yamlCode);
+                fixture.componentRef.setInput('language', language);
+                fixture.componentRef.setInput('collapseScope', true);
+                fixture.detectChanges();
+                return {
+                    chevrons: chevrons(fixture).length,
+                    tokens: component.visibleLines().map(line => line.tokens.map(t => t.type)),
+                };
+            };
+
+            const canonical = render('yaml');
+            expect(canonical.chevrons).toBe(5);
+            expect(render('yml')).toEqual(canonical);
+
+            // A custom definition filed under the language serves its alias too.
+            fixture.componentRef.setInput('customLanguages', { yaml: [{ type: 'keyword', regex: /steps/ }] });
+            const custom = render('yaml');
+            expect(custom.tokens.flat()).toContain('keyword');
+            expect(render('yml')).toEqual(custom);
+        });
+
         it('toggleScope hides interior lines and shows the collapsed marker', () => {
             fixture.componentRef.setInput('code', tsCode);
             fixture.componentRef.setInput('collapseScope', true);
@@ -482,18 +505,23 @@ describe('CodeBlockComponent', () => {
                 return ranges;
             };
 
-            fixture.componentRef.setInput('language', 'mylang');
-            fixture.componentRef.setInput('code', 'BEGIN\nbody1\nbody2\nEND');
-            fixture.componentRef.setInput('collapseScope', true);
-            fixture.componentRef.setInput('customLanguages', {
-                mylang: { patterns: [], scopes: customScopes },
-            });
-            fixture.detectChanges();
+            // A name of its own, and a fence alias (`sh` means bash): a custom
+            // entry filed under the exact name wins over the language it aliases.
+            for (const name of ['mylang', 'sh']) {
+                fixture.componentRef.setInput('language', name);
+                fixture.componentRef.setInput('code', 'BEGIN\nbody1\nbody2\nEND');
+                fixture.componentRef.setInput('collapseScope', true);
+                fixture.componentRef.setInput('customLanguages', {
+                    [name]: { patterns: [], scopes: customScopes },
+                });
+                fixture.detectChanges();
 
-            expect(chevrons(fixture)).toHaveLength(1);
-            component.toggleScope(0);
-            fixture.detectChanges();
-            expect(visibleLineCount(fixture)).toBe(1);
+                expect(chevrons(fixture)).toHaveLength(1);
+                component.toggleScope(0);
+                fixture.detectChanges();
+                expect(visibleLineCount(fixture)).toBe(1);
+                component.toggleScope(0);
+            }
         });
 
         it('renders no chevrons for languages without a detector', () => {

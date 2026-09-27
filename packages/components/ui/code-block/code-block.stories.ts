@@ -1,5 +1,5 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
-import { CodeBlockComponent, CODE_BLOCK_THEMES } from './code-block.component';
+import { CodeBlockComponent, CODE_BLOCK_THEMES, LANGUAGE_PATTERNS } from './code-block.component';
 import { CODE_BLOCK_LOCALES } from './code-block.locales';
 
 const typescriptCode = `import { Component, input, computed } from '@angular/core';
@@ -83,7 +83,7 @@ const meta: Meta<CodeBlockStoryProps> = {
     argTypes: {
         language: {
             control: 'select',
-            options: ['typescript', 'javascript', 'python', 'java', 'html', 'xml', 'css', 'json', 'bash', 'csharp', 'yaml'],
+            options: ['typescript', 'javascript', 'python', 'java', 'html', 'xml', 'css', 'json', 'bash', 'csharp', 'yaml', 'sql'],
             description: 'Language used to tokenize and syntax-highlight `code`. Falls back to `typescript` for unknown keys.',
         },
         code: { control: 'text', description: 'Source code to render.' },
@@ -186,6 +186,33 @@ export const Xml: Story = {
     }),
 };
 
+const sqlQuery = `-- Top customers by revenue this year
+WITH yearly AS (
+  SELECT c.id, c."display name", SUM(o.total) AS revenue
+  FROM customers c
+  INNER JOIN orders o ON o.customer_id = c.id
+  WHERE o.placed_at >= DATE '2026-01-01'
+    AND o.status <> 'cancelled' /* refunds count */
+  GROUP BY c.id, c."display name"
+)
+select "display name", revenue, COUNT(*) OVER () AS total_customers
+from yearly
+where revenue > 1000.50 and "display name" not like 'Test''s %'
+order by revenue desc
+limit 10;`;
+
+/** Built-in SQL: case-insensitive keywords, doubled-quote escapes, quoted identifiers and both comment forms. */
+export const Sql: Story = {
+    args: {
+        code: sqlQuery,
+        language: 'sql',
+    },
+    render: (args) => ({
+        props: args,
+        template: `<ui-code-block [code]="code" [language]="language" />`,
+    }),
+};
+
 export const DraculaTheme: Story = {
     args: {
         code: typescriptCode,
@@ -267,15 +294,10 @@ BEGIN
   COMMIT;
 END;`;
 
+/** The built-in SQL highlighting, plus a fold detector SQL does not ship with. */
 const sqlPatterns = {
     sql: {
-        patterns: [
-            { type: 'keyword', regex: /\b(SELECT|FROM|WHERE|INSERT|UPDATE|DELETE|JOIN|AND|OR|ON)\b/i },
-            { type: 'keyword', regex: /\b(AS|GROUP|BY|ORDER|LIMIT|CREATE|PROCEDURE|BEGIN|END|VALUES|INTO|COMMIT|TEXT)\b/i },
-            { type: 'string', regex: /'(?:[^'\\]|\\.)*'/ },
-            { type: 'number', regex: /\b\d+\b/ },
-            { type: 'comment', regex: /--.*/ },
-        ],
+        patterns: LANGUAGE_PATTERNS['sql'],
         scopes: sqlScopes,
     },
 };

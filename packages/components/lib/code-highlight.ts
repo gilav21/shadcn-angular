@@ -38,14 +38,31 @@ export type LanguagePattern = { type: string; regex: RegExp }[];
  * the (legitimately long) per-language keyword set is a maintainable array
  * rather than one giant, hard-to-read regex literal.
  */
-const keywordPattern = (words: readonly string[]): RegExp =>
-    new RegExp(String.raw`\b(${words.join('|')})\b`);
+const keywordPattern = (words: readonly string[], flags = ''): RegExp =>
+    new RegExp(String.raw`\b(${words.join('|')})\b`, flags);
 
 const TS_KEYWORDS = ['const', 'let', 'var', 'function', 'class', 'import', 'from', 'return', 'if', 'else', 'for', 'while', 'export', 'interface', 'type', 'public', 'private', 'protected', 'implements', 'extends', 'new', 'this', 'true', 'false', 'null', 'undefined', 'void', 'async', 'await'];
 const JS_KEYWORDS = ['const', 'let', 'var', 'function', 'class', 'import', 'from', 'return', 'if', 'else', 'for', 'while', 'export', 'new', 'this', 'true', 'false', 'null', 'undefined', 'void', 'async', 'await'];
 const PYTHON_KEYWORDS = ['def', 'class', 'import', 'from', 'if', 'else', 'elif', 'for', 'while', 'return', 'try', 'except', 'finally', 'with', 'as', 'pass', 'break', 'continue', 'lambda', 'yield', 'async', 'await', 'True', 'False', 'None'];
 const JAVA_KEYWORDS = ['public', 'private', 'protected', 'class', 'interface', 'enum', 'extends', 'implements', 'new', 'this', 'super', 'return', 'if', 'else', 'for', 'while', 'do', 'switch', 'case', 'default', 'break', 'continue', 'try', 'catch', 'finally', 'throw', 'throws', 'import', 'package', 'void', 'int', 'boolean', 'char', 'byte', 'short', 'long', 'float', 'double', 'static', 'final', 'abstract', 'synchronized', 'volatile', 'transient', 'native', 'strictfp', 'instanceof', 'null', 'true', 'false'];
 const CSHARP_KEYWORDS = ['public', 'private', 'protected', 'internal', 'class', 'struct', 'record', 'interface', 'enum', 'delegate', 'event', 'void', 'int', 'string', 'bool', 'var', 'async', 'await', 'Task', 'return', 'if', 'else', 'for', 'foreach', 'while', 'do', 'switch', 'case', 'default', 'break', 'continue', 'try', 'catch', 'finally', 'throw', 'new', 'this', 'base', 'using', 'namespace', 'static', 'readonly', 'const', 'override', 'virtual', 'abstract', 'sealed', 'get', 'set', 'value'];
+/**
+ * The ANSI core plus the clauses and types PostgreSQL, MySQL and SQLite share.
+ * Matched case-insensitively: `select` and `SELECT` are the same keyword.
+ */
+const SQL_KEYWORDS = [
+    'SELECT', 'FROM', 'WHERE', 'JOIN', 'INNER', 'LEFT', 'RIGHT', 'FULL', 'OUTER', 'CROSS', 'NATURAL', 'ON', 'USING',
+    'GROUP', 'ORDER', 'BY', 'HAVING', 'LIMIT', 'OFFSET', 'FETCH', 'FIRST', 'NEXT', 'ROWS', 'ONLY',
+    'INSERT', 'INTO', 'VALUES', 'UPDATE', 'SET', 'DELETE', 'MERGE', 'RETURNING', 'TRUNCATE',
+    'CREATE', 'ALTER', 'DROP', 'TABLE', 'INDEX', 'VIEW', 'SCHEMA', 'DATABASE', 'COLUMN', 'ADD', 'RENAME', 'TO',
+    'CONSTRAINT', 'PRIMARY', 'KEY', 'FOREIGN', 'REFERENCES', 'UNIQUE', 'CHECK', 'DEFAULT', 'CASCADE', 'IF',
+    'AS', 'AND', 'OR', 'NOT', 'NULL', 'IS', 'IN', 'EXISTS', 'BETWEEN', 'LIKE', 'ILIKE', 'ANY', 'SOME',
+    'CASE', 'WHEN', 'THEN', 'ELSE', 'END', 'DISTINCT', 'UNION', 'INTERSECT', 'EXCEPT', 'ALL', 'WITH', 'RECURSIVE',
+    'OVER', 'PARTITION', 'WINDOW', 'ASC', 'DESC', 'NULLS', 'TRUE', 'FALSE',
+    'BEGIN', 'COMMIT', 'ROLLBACK', 'TRANSACTION', 'GRANT', 'REVOKE',
+    'INT', 'INTEGER', 'BIGINT', 'SMALLINT', 'SERIAL', 'DECIMAL', 'NUMERIC', 'REAL', 'FLOAT', 'BOOLEAN',
+    'CHAR', 'VARCHAR', 'TEXT', 'DATE', 'TIME', 'TIMESTAMP', 'INTERVAL', 'JSON', 'JSONB', 'UUID',
+];
 
 /** The built-in language rules, keyed by lowercase language name. */
 export const LANGUAGE_PATTERNS: Readonly<Record<string, LanguagePattern>> = {
@@ -122,6 +139,18 @@ export const LANGUAGE_PATTERNS: Readonly<Record<string, LanguagePattern>> = {
         { type: 'keyword', regex: /\b(true|false|null|yes|no|on|off)\b/ },
         { type: 'number', regex: /\b\d+(\.\d+)?\b/ },
     ],
+    sql: [
+        // A block comment that closes on a later line is coloured to the end of
+        // this one: lines are tokenized alone (rule 1).
+        { type: 'comment', regex: /--.*|\/\*.*?(?:\*\/|$)/ },
+        // A quote inside a string is written twice: 'It''s'.
+        { type: 'string', regex: /'(?:[^']|'')*'/ },
+        // Quoted identifiers: standard "double quotes" and MySQL `backticks`.
+        { type: 'property', regex: /"(?:[^"]|"")*"|`[^`]*`/ },
+        { type: 'keyword', regex: keywordPattern(SQL_KEYWORDS, 'i') },
+        { type: 'number', regex: /\b\d+(?:\.\d+)?\b/ },
+        { type: 'function', regex: /\b[a-zA-Z_]\w*(?=\()/ },
+    ],
     bash: [
         { type: 'comment', regex: /#.*/ },
         { type: 'string', regex: /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/ },
@@ -152,7 +181,23 @@ const LANGUAGE_ALIASES: Readonly<Record<string, string>> = {
     htm: 'html',
     svg: 'xml',
     scss: 'css',
+    postgresql: 'sql',
+    postgres: 'sql',
+    pgsql: 'sql',
+    mysql: 'sql',
+    sqlite: 'sql',
 };
+
+/**
+ * The key a language name is filed under in every per-language table: its
+ * lowercase form, with a fence spelling (`ts`, `py`, `yml`…) mapped to the
+ * language it means. Resolve it once and use it for every lookup, so an alias
+ * gets its language's folding as well as its colours.
+ */
+export function canonicalLanguage(language: string): string {
+    const key = language.toLowerCase();
+    return LANGUAGE_ALIASES[key] ?? key;
+}
 
 /**
  * The rules for a language, or `null` when it is one this module does not know.
@@ -163,8 +208,7 @@ const LANGUAGE_ALIASES: Readonly<Record<string, string>> = {
  */
 export function languagePatternsFor(language: string | null | undefined): LanguagePattern | null {
     if (!language) return null;
-    const key = language.toLowerCase();
-    return LANGUAGE_PATTERNS[LANGUAGE_ALIASES[key] ?? key] ?? null;
+    return LANGUAGE_PATTERNS[canonicalLanguage(language)] ?? null;
 }
 
 /**
