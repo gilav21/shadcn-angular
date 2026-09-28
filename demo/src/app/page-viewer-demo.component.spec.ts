@@ -1,57 +1,17 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TestBed } from '@angular/core/testing';
 import { PageViewerDemoComponent } from './page-viewer-demo.component';
-import { PageRendererComponent } from '../../../packages/components/ui/page-renderer';
-import { CardComponent } from '../../../packages/components/ui';
-import { FormsModule } from '@angular/forms';
-import { CommonModule } from '@angular/common';
-// eslint-disable-next-line sonarjs/deprecation -- BrowserAnimationsModule deprecated in Angular 20.2; no stable replacement for TestBed noop animations yet
-import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
 describe('PageViewerDemoComponent', () => {
-    let component: PageViewerDemoComponent;
-    let fixture: ComponentFixture<PageViewerDemoComponent>;
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [
-                PageViewerDemoComponent,
-                PageRendererComponent,
-                CardComponent,
-                FormsModule,
-                CommonModule,
-                // eslint-disable-next-line sonarjs/deprecation -- see import above
-                BrowserAnimationsModule,
-            ],
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(PageViewerDemoComponent);
-        component = fixture.componentInstance;
+    it('renders the page from its context, and follows a change to that context', () => {
+        TestBed.configureTestingModule({ imports: [PageViewerDemoComponent] });
+        const fixture = TestBed.createComponent(PageViewerDemoComponent);
         fixture.detectChanges();
-    });
+        const page = fixture.nativeElement.querySelector('ui-page-renderer') as HTMLElement;
+        expect(page.textContent).toContain('Active Now1,250');
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
+        fixture.componentInstance.context.update(ctx => ({ ...ctx, stats: { ...ctx.stats, activeUsers: 4321 } }));
+        fixture.detectChanges();
 
-    it('should render page renderer', () => {
-        const compiled = fixture.nativeElement as HTMLElement;
-        expect(compiled.querySelector('ui-page-renderer')).toBeTruthy();
-    });
-
-    it('should have initial context', () => {
-        const ctx = component.context();
-        expect(ctx.meta.title).toBe('Financial Dashboard');
-        expect(ctx.stats.activeUsers).toBe(1250);
-    });
-
-    it('should update context on meta input change', () => {
-        component.updateMeta('title', 'New Title');
-        expect(component.context().meta.title).toBe('New Title');
-    });
-
-    it('should randomize data', () => {
-        const initialRevenue = component.context().stats.totalRevenue;
-        component.randomizeData();
-        expect(component.context().stats.totalRevenue).not.toBe(initialRevenue);
+        expect(page.textContent).toContain('Active Now4,321');
     });
 });

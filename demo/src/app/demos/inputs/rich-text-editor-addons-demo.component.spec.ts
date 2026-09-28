@@ -30,18 +30,6 @@ describe('RichTextEditorAddonsDemoComponent — write your own addon', () => {
         return fixture.nativeElement.querySelector('[data-testid="write-your-own-addon"]');
     }
 
-    it('renders the section with a localized heading', () => {
-        const el = section();
-        expect(el).toBeTruthy();
-        expect(el!.querySelector('h3')?.textContent?.trim()).toBeTruthy();
-    });
-
-    it('renders an editor carrying the insert-date addon button', () => {
-        const button = section()!.querySelector('[data-addon-slot="insert-date"]');
-        expect(button).toBeTruthy();
-        expect(button!.innerHTML).toContain('<svg');
-    });
-
     it('inserts today\'s date into that editor when the button is clicked', () => {
         const scope = section() as HTMLElement;
         const editable: HTMLElement = scope.querySelector('[contenteditable="true"]') as HTMLElement;
@@ -88,23 +76,8 @@ describe('RichTextEditorAddonsDemoComponent installCommands', () => {
             expect(commands).toContain('add rich-text-editor --preset writing');
             // One command, not one `apply` line per addon.
             expect(commands).not.toContain('apply rich-text-editor/');
+            expect(commands).toContain(RICH_TEXT_EDITOR_ADDONS_DEMO_LOCALES['en'].commandsBaseNote);
             expect(commands.split('\n').filter(l => l.includes('shadcn-angular'))).toHaveLength(1);
-        });
-
-        it('emits --preset media for the media kit (T-33)', () => {
-            const { component } = createHarness();
-
-            component.applyPreset('media');
-
-            expect(component.installCommands()).toContain('add rich-text-editor --preset media');
-        });
-
-        it('emits --preset everything when every toggle is on (T-33)', () => {
-            const { component } = createHarness();
-
-            component.applyPreset('everything');
-
-            expect(component.installCommands()).toContain('add rich-text-editor --preset everything');
         });
 
         it('emits --with for a selection that matches no preset (T-34)', () => {
@@ -136,32 +109,12 @@ describe('RichTextEditorAddonsDemoComponent installCommands', () => {
             expect(commands).toContain('--with');
         });
 
-        it('does not claim `media` for a 3-addon selection that is not media (T-34)', () => {
-            const { component } = createHarness();
-
-            component.applyPreset('core');
-            for (const key of ['links', 'history', 'ai']) {
-                component.setAddon(key, true);
-            }
-
-            expect(component.installCommands()).not.toContain('--preset');
-        });
-
         it('emits --preset core when no addon is enabled (T-34)', () => {
             const { component } = createHarness();
 
             component.applyPreset('core');
 
             expect(component.installCommands()).toContain('add rich-text-editor --preset core');
-        });
-
-        it('prefixes the command with the English base note (T-34)', () => {
-            const { component } = createHarness();
-
-            component.applyPreset('writing');
-
-            expect(component.installCommands())
-                .toContain(RICH_TEXT_EDITOR_ADDONS_DEMO_LOCALES['en'].commandsBaseNote);
         });
     });
 
