@@ -191,6 +191,9 @@ describe('RichTextMentionsDirective', () => {
     let restoreRects: Restore;
 
     beforeEach(() => {
+        // Date is faked too because rxjs debounceTime re-arms itself when Date.now
+        // has not advanced. The search debounce is a fixed 200 ms.
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
         restoreRects = stubRangeRects();
     });
 
@@ -232,7 +235,7 @@ describe('RichTextMentionsDirective', () => {
         return ctx;
     }
 
-    const wait = (ms = 260): Promise<void> => new Promise((r) => setTimeout(r, ms));
+    const wait = (ms = 200): Promise<void> => vi.advanceTimersByTimeAsync(ms);
 
     afterEach(() => {
         for (const f of fixtures) {
@@ -241,6 +244,7 @@ describe('RichTextMentionsDirective', () => {
         }
         fixtures.length = 0;
         restoreRects();
+        vi.useRealTimers();
     });
 
     it('closes the popover live when both mention and tag triggers are disabled', () => {

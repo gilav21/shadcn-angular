@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Component, signal } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { InfiniteCanvasComponent } from './infinite-canvas.component';
@@ -38,7 +38,7 @@ function normalizeTransform(value: string): string {
 
 /** Waits for the engine's rAF frame to land. */
 function nextFrame(): Promise<void> {
-  return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+  return new Promise(resolve => requestAnimationFrame(() => resolve()));
 }
 
 describe('InfiniteCanvasComponent (phase 1 — transform, pointer, keyboard)', () => {
@@ -73,6 +73,7 @@ describe('InfiniteCanvasComponent (phase 1 — transform, pointer, keyboard)', (
 
   afterEach(() => {
     fixture.destroy();
+    vi.useRealTimers();
   });
 
   describe('structure', () => {
@@ -355,6 +356,9 @@ describe('InfiniteCanvasComponent (phase 1 — transform, pointer, keyboard)', (
 
   describe('viewportChange output', () => {
     it('does NOT emit per frame — only once the interaction settles', async () => {
+      // The settle is a timeout armed by the first input, so the clock is
+      // faked before it; frames stay real.
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
       const seen: unknown[] = [];
       canvas.viewportChange.subscribe(v => seen.push(v));
 
@@ -365,7 +369,7 @@ describe('InfiniteCanvasComponent (phase 1 — transform, pointer, keyboard)', (
       expect(seen).toHaveLength(0);
 
       pointer('pointerup', { clientX: 100, clientY: 0 });
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await vi.advanceTimersByTimeAsync(200);
 
       expect(seen).toHaveLength(1);
       expect(seen[0]).toEqual({ x: 100, y: 0, zoom: 1 });

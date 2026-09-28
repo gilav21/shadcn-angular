@@ -175,7 +175,21 @@ describe('RichTextImagesDirective', () => {
         } as unknown as DragEvent;
     }
 
-    const wait = (ms = 50): Promise<void> => new Promise((r) => setTimeout(r, ms));
+    /**
+     * A sleep for the negative assertions ("nothing happened") and for work with
+     * no observable completion. 20 ms is ten times what a tiny FileReader or the
+     * mutation-observer hop takes; anything that WAITS for a result uses
+     * `untilImage` instead, which returns the moment it lands.
+     */
+    const wait = (ms = 20): Promise<void> => new Promise((r) => setTimeout(r, ms));
+
+    /** Resolves once an image is in the editor: the FileReader completes on its own clock. */
+    async function untilImage(fixture: ComponentFixture<HostCmp>, el: HTMLElement): Promise<void> {
+        await vi.waitFor(() => {
+            fixture.detectChanges();
+            expect(el.querySelector('img')).toBeTruthy();
+        }, { interval: 2 });
+    }
 
     afterEach(() => {
         for (const f of fixtures) {
@@ -256,8 +270,7 @@ describe('RichTextImagesDirective', () => {
         caretAtEnd(el.querySelector('p')!);
         const file = new File(['paste-image'], 'clip.png', { type: 'image/png' });
         cmp.onPaste(pasteEvent([file]));
-        await wait();
-        fixture.detectChanges();
+        await untilImage(fixture, el);
 
         expect(el.innerHTML).toContain('<img');
         expect(el.innerHTML).toContain('data:image/png;base64');
@@ -334,8 +347,7 @@ describe('RichTextImagesDirective', () => {
         caretAtEnd(el.querySelector('p')!);
 
         cmp.insertImageFile(new File(['img'], 'picked.png', { type: 'image/png' }));
-        await wait();
-        fixture.detectChanges();
+        await untilImage(fixture, el);
 
         const img = el.querySelector('img');
         expect(img?.dataset['align']).toBe('center');
@@ -372,8 +384,7 @@ describe('RichTextImagesDirective', () => {
         const { el, cmp } = setContent(fixture, '<p>x</p>');
         caretAtEnd(el.querySelector('p')!);
         await cmp.onEditorDrop(dropEvent([new File(['img'], 'drop.png', { type: 'image/png' })]));
-        await wait();
-        fixture.detectChanges();
+        await untilImage(fixture, el);
 
         expect(el.querySelector('img')).toBeTruthy();
         expect(fixture.componentInstance.uploadComplete).toHaveLength(1);
@@ -594,12 +605,7 @@ describe('RichTextImagesDirective', () => {
         const fixture = createFixture();
         setContent(fixture, '<p>x</p>');
         buttonContext(fixture).onUploadFile(imageFile());
-        // Poll instead of a fixed wait — the FileReader.onload timing differs
-        // across runners, so a single flush can race the data-URL insert.
-        await vi.waitFor(() => {
-            fixture.detectChanges();
-            expect(editorOf(fixture).el.querySelector('img')).toBeTruthy();
-        });
+        await untilImage(fixture, editorOf(fixture).el);
     });
 
     it('omits the toolbar slot when the toolbar contribution is disabled', () => {

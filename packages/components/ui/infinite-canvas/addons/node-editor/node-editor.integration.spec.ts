@@ -7,7 +7,7 @@
 //   [ text input ] --text--> [ uppercase ] --out--> [ display ]
 //
 // Typing streams through with no Run button, which is the whole claim.
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { NodeEditorComponent } from './node-editor.component';
@@ -106,7 +106,7 @@ class HostComponent {
 
 function nextFrame(): Promise<void> {
     return new Promise(resolve =>
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        requestAnimationFrame(() => resolve()),
     );
 }
 
@@ -181,7 +181,6 @@ function setup() {
         async create(): Promise<void> {
             await TestBed.configureTestingModule({ imports: [HostComponent] }).compileComponents();
             fixture = TestBed.createComponent(HostComponent);
-            await api.settle();
             await api.settle();
         },
         destroy(): void {
@@ -317,8 +316,18 @@ describe('RT-12 controls inside a node are usable', () => {
 describe('the highlight on a node that just ran', () => {
     const ctx = setup();
 
-    beforeEach(() => ctx.create());
-    afterEach(() => ctx.destroy());
+    // Faked before the editor exists: the initial run already lights nodes and
+    // arms a sweep, and a real-timer sweep would outlive the fake clock. The
+    // sweep is a timeout keyed on Date.now(), so both are faked; the frame leg
+    // stays real because `settle` awaits one.
+    beforeEach(() => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+        return ctx.create();
+    });
+    afterEach(() => {
+        ctx.destroy();
+        vi.useRealTimers();
+    });
 
     /*
      * Stepping a graph was unreadable without this: a run that recomputes a
@@ -336,8 +345,18 @@ describe('the highlight on a node that just ran', () => {
         const lit = (): number => ctx.root.querySelectorAll('[data-ran="true"]').length;
         expect(lit()).toBeGreaterThan(0);
 
-        // Longer than the window, and real timers: the sweep is a timeout.
-        await new Promise(resolve => setTimeout(resolve, 1200));
+        // A second run half-way through restarts the window rather than
+        // stacking a second one, so the first run's deadline (900 ms) passing
+        // must not put the light out: the sweep wakes, finds nothing due, and
+        // re-arms for the second run's.
+        await vi.advanceTimersByTimeAsync(500);
+        await ctx.type('hey');
+        await vi.advanceTimersByTimeAsync(500);
+        await ctx.settle();
+        expect(lit()).toBeGreaterThan(0);
+
+        // Longer than the 900 ms window after the LAST run.
+        await vi.advanceTimersByTimeAsync(500);
         await ctx.settle();
 
         expect(lit()).toBe(0);

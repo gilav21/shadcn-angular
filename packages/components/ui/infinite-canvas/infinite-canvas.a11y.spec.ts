@@ -63,7 +63,7 @@ class A11yHostComponent {
 }
 
 function nextFrame(): Promise<void> {
-  return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+  return new Promise(resolve => requestAnimationFrame(() => resolve()));
 }
 
 /** Runs axe over the canvas root and returns a readable violation list. */
