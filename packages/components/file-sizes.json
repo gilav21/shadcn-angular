@@ -4942,12 +4942,12 @@
       "lines": 1468
     },
     "rich-text-editor/rich-text-markdown.service.spec.ts": {
-      "bytes": 136891,
-      "lines": 2598
+      "bytes": 137454,
+      "lines": 2606
     },
     "rich-text-editor/rich-text-markdown.service.ts": {
-      "bytes": 191251,
-      "lines": 4165
+      "bytes": 192025,
+      "lines": 4183
     },
     "rich-text-editor/rich-text-paste-normalizer.service.spec.ts": {
       "bytes": 88823,

@@ -555,7 +555,9 @@ function endsOnMarker(marker: RegExp): HtmlBlockEnd {
  */
 const MARKED_HTML_BLOCKS: ReadonlyArray<readonly [RegExp, HtmlBlockEnd]> = [
     [/^ {0,3}<(?:pre|script|style|textarea)(?:[ \t>]|$)/i, endsOnMarker(/<\/(?:pre|script|style|textarea)>/i)],
-    [/^ {0,3}<!--/, endsOnMarker(/-->/)],
+    // An HTML parser also ends a comment at `--!>`; ending here too keeps the
+    // reader and the page agreeing on what is comment (CommonMark names only -->).
+    [/^ {0,3}<!--/, endsOnMarker(/--!?>/)],
     [/^ {0,3}<\?/, endsOnMarker(/\?>/)],
     [/^ {0,3}<![A-Za-z]/, endsOnMarker(/>/)],
     [/^ {0,3}<!\[CDATA\[/, endsOnMarker(/\]\]>/)],
@@ -653,16 +655,18 @@ function isLoneTagLine(line: string): boolean {
 }
 
 /**
- * The raw HTML forms of CommonMark §6.6 other than tags, each with its closer
- * and where the search for the closer starts: a comment (`<!-->` and `<!--->`
- * are complete ones), a processing instruction, a CDATA section, and a
+ * The raw HTML forms of CommonMark §6.6 other than tags, each with its closers
+ * and where the search for them starts: a comment (`<!-->` and `<!--->` are
+ * complete ones), a processing instruction, a CDATA section, and a
  * declaration. CDATA is tried before a declaration, which it would also match.
+ * A comment also ends at `--!>`, as an HTML parser ends it, so the reader and
+ * the page agree on where it stops.
  */
-const RAW_HTML_SPANS: ReadonlyArray<readonly [RegExp, string, number]> = [
-    [/<!--/y, '-->', 2],
-    [/<\?/y, '?>', 2],
-    [/<!\[CDATA\[/y, ']]>', 9],
-    [/<![A-Za-z]/y, '>', 2],
+const RAW_HTML_SPANS: ReadonlyArray<readonly [RegExp, readonly string[], number]> = [
+    [/<!--/y, ['-->', '--!>'], 2],
+    [/<\?/y, ['?>'], 2],
+    [/<!\[CDATA\[/y, [']]>'], 9],
+    [/<![A-Za-z]/y, ['>'], 2],
 ];
 
 /** What a scan for raw HTML across a document has already learned; see rawHtmlSpanEnd. */
@@ -695,14 +699,28 @@ function nextBlankLine(scan: RawHtmlScan, text: string, at: number): number {
 function rawHtmlSpanEnd(text: string, at: number, scan: RawHtmlScan): number {
     const span = RAW_HTML_SPANS.find(([opener]) => endOfMatchAt(opener, text, at) !== -1);
     if (!span) return -1;
-    const [, closer, searchFrom] = span;
+    const [, closers, searchFrom] = span;
     const from = at + searchFrom;
+    let end = -1;
+    let endAt = Infinity;
+    for (const closer of closers) {
+        const close = firstCloser(scan, text, closer, from);
+        if (close !== -1 && close < endAt) {
+            endAt = close;
+            end = close + closer.length;
+        }
+    }
+    return end !== -1 && endAt < nextBlankLine(scan, text, at) ? end : -1;
+}
+
+/** The first `closer` at or after `from`, or -1, remembered for later searches (see rawHtmlSpanEnd). */
+function firstCloser(scan: RawHtmlScan, text: string, closer: string, from: number): number {
     let close = scan.closers.get(closer);
     if (close === undefined || (close !== -1 && close < from)) {
         close = text.indexOf(closer, from);
         scan.closers.set(closer, close);
     }
-    return close !== -1 && close < nextBlankLine(scan, text, at) ? close + closer.length : -1;
+    return close;
 }
 
 /** The index just past the raw HTML construct (§6.6) starting at the "<" at `at`, or -1. */

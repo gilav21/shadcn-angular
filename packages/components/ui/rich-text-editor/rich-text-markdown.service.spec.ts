@@ -822,6 +822,9 @@ describe('RichTextMarkdownService', () => {
             expect(service.toHtml('foo <!ELEMENT br EMPTY>')).toBe('<p>foo </p>');
             expect(service.toHtml('foo <!-- a --> bar <!-- b --> baz')).toBe('<p>foo  bar  baz</p>');
             expect(service.toHtml('a <!-- c\n\nd --> e')).toBe('<p>a &lt;!-- c</p>\n<p>d --&gt; e</p>');
+            // A comment ends where an HTML parser ends it, at `--!>` too, so the
+            // reader and the page agree on what is comment and what is text.
+            expect(service.toHtml('a <!-- c --!> *em*')).toBe('<p>a  <em>em</em></p>');
         });
 
         it('ends the paragraph written around raw HTML where a parser would: no empty one, and none left open', () => {
@@ -2594,5 +2597,10 @@ describe('RichTextMarkdownService - raw HTML blocks (CommonMark §4.6)', () => {
 
         expect(Array.from(probe.children, (el) => el.outerHTML)).toEqual(['<p>okay</p>']);
         expect(probe.textContent?.trim()).toBe('okay');
+
+        // A comment block ends where an HTML parser ends the comment, at `--!>`
+        // as well as `-->`, so the heading after it is markdown, not comment.
+        const bang = render('<!-- note --!>\n# Heading\n\ntext -->');
+        expect(Array.from(bang.children, (el) => el.tagName)).toEqual(['H1', 'P']);
     });
 });
