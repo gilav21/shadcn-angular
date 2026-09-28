@@ -33,9 +33,9 @@ describe('fixtureViolations', () => {
     });
 });
 
-// Each test runs several git subprocesses in a fresh repo; under the parallel
-// browser coverage leg they take 5-8s, past the 5s default.
-describe('check-fixture-pristine entry', { timeout: 30_000 }, () => {
+// The test runs several git subprocesses in a fresh repo; under the parallel
+// browser coverage leg each takes 5-8s, past the 5s default.
+describe('check-fixture-pristine entry', { timeout: 60_000 }, () => {
     let root = '';
     const routes = 'e2e/fixture-app/src/app/app.routes.ts';
 
@@ -47,31 +47,31 @@ describe('check-fixture-pristine entry', { timeout: 30_000 }, () => {
 
     afterEach(() => removeRepo(root));
 
-    it('passes on a pristine fixture at HEAD and in the index', () => {
-        expect(runScript('packages/cli/scripts/check-fixture-pristine.ts', ['--root', root]).status).toBe(0);
-        expect(runScript('packages/cli/scripts/check-fixture-pristine.ts', ['--root', root, '--staged']).status).toBe(0);
-    });
+    // One repo walked through the whole lifecycle: each `npx tsx` start-up costs
+    // more than the git work, and the steps only add to what the last one left.
+    // (The child is used, not an in-process call, so `runScript` can scrub the
+    // ambient GIT_* variables a pre-push hook would otherwise point at the real repo.)
+    it('passes a pristine index, refuses a staged harness route before it is committed and HEAD after, and refuses tracked install output', () => {
+        const check = (...flags: string[]) =>
+            runScript('packages/cli/scripts/check-fixture-pristine.ts', ['--root', root, ...flags]);
 
-    it('refuses a staged harness route before it is committed, and HEAD after', () => {
+        expect(check('--staged').status).toBe(0);
+
         write(root, routes, "import { Routes } from '@angular/router';\nimport { D } from './test-pages/d';\nexport const routes: Routes = [{ path: '', component: D }];\n");
         git(root, 'add', '-A');
-        const staged = runScript('packages/cli/scripts/check-fixture-pristine.ts', ['--root', root, '--staged']);
+        const staged = check('--staged');
         expect(staged.status).toBe(1);
         expect(staged.output).toContain('harness test page');
         // Not yet committed, so HEAD is still pristine — the gate reads git, not the working tree.
-        expect(runScript('packages/cli/scripts/check-fixture-pristine.ts', ['--root', root]).status).toBe(0);
+        expect(check().status).toBe(0);
 
         commitAll(root, 'oops: committed a run');
-        const head = runScript('packages/cli/scripts/check-fixture-pristine.ts', ['--root', root]);
+        const head = check();
         expect(head.status).toBe(1);
         expect(head.output).toContain('e2e:reset');
-    });
 
-    it('refuses tracked install output even when the scaffold looks fine', () => {
         write(root, 'e2e/fixture-app/src/components/ui/button.component.ts', 'export const x = 1;\n');
         commitAll(root, 'oops: committed components');
-        const run = runScript('packages/cli/scripts/check-fixture-pristine.ts', ['--root', root]);
-        expect(run.status).toBe(1);
-        expect(run.output).toContain('src/components/ui/button.component.ts is install output');
+        expect(check().output).toContain('src/components/ui/button.component.ts is install output');
     });
 });

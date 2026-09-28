@@ -444,12 +444,19 @@ describe('release-cli entry (fixture repo)', () => {
 
     it('--dry-run rehearses a required publish without writing, publishing, tagging or pushing', () => {
         const head = () => git(root, 'rev-parse', 'HEAD');
-        const before = release('cli-logic', ['patch', '--dry-run', '--skip-preflight']);
+        const before = release('cli-logic', ['minor', '--dry-run', '--skip-preflight']);
         const headAfter = head();
 
         expect(before.status).toBe(0);
         expect(before.stdout).toContain('VERDICT: publish REQUIRED');
-        expect(before.stdout).toContain('1.2.3 → 1.2.4 (patch)');
+        expect(before.stdout).toContain('1.2.3 → 1.3.0 (minor)');
+        // The CHANGELOG entry is rendered from the CLI commits since the base.
+        expect(before.stdout).toContain('## 1.3.0');
+        expect(before.stdout).toContain('### Features');
+        expect(before.stdout).toContain('**cli:** add a thing');
+        // The script prints a platform-native relative path (backslashes on Windows).
+        expect(before.stdout).toMatch(/\[dry-run] would write packages[\\/]cli[\\/]package\.json version 1\.3\.0/);
+        expect(before.stdout).toMatch(/\[dry-run] would prepend the block above to packages[\\/]cli[\\/]CHANGELOG\.md/);
         // The publish is only ever PRINTED, prefixed as a rehearsal.
         expect(before.stdout).toContain('[dry-run] npm publish');
         expect(before.stdout).toContain('Dry run complete — nothing was written, published, tagged or pushed.');
@@ -461,18 +468,6 @@ describe('release-cli entry (fixture repo)', () => {
         expect(git(root, 'status', '--porcelain')).toBe('');
         expect(git(root, 'tag', '--list')).toBe('');
         expect(headAfter).toBe(head());
-    }, 60_000);
-
-    it('renders the CHANGELOG entry it would prepend, from the CLI commits since the base', () => {
-        const { stdout } = release('cli-logic', ['minor', '--dry-run', '--skip-preflight']);
-
-        expect(stdout).toContain('1.2.3 → 1.3.0 (minor)');
-        expect(stdout).toContain('## 1.3.0');
-        expect(stdout).toContain('### Features');
-        expect(stdout).toContain('**cli:** add a thing');
-        // The script prints a platform-native relative path (backslashes on Windows).
-        expect(stdout).toMatch(/\[dry-run] would write packages[\\/]cli[\\/]package\.json version 1\.3\.0/);
-        expect(stdout).toMatch(/\[dry-run] would prepend the block above to packages[\\/]cli[\\/]CHANGELOG\.md/);
     }, 60_000);
 
     it('reports publish NOT required when only component source changed', () => {
@@ -509,16 +504,13 @@ describe('release-cli entry (fixture repo)', () => {
         expect(output).not.toContain('VERDICT');
     }, 60_000);
 
-    it.each([
-        { args: [] as string[], message: 'Missing bump level' },
-        { args: ['pre-release'], message: 'Invalid bump level "pre-release"' },
-        { args: ['patch', '--bogus'], message: 'Unknown flag: --bogus' },
-        { args: ['patch', 'minor'], message: 'Too many arguments: patch minor' },
-    ])('exits 1 with usage on bad argv ($message)', ({ args, message }) => {
-        const { status, output } = release('cli-logic', args);
+    // One representative: parseArgs' other rejections are pinned in the unit tests
+    // above; this proves the entry turns an ArgError into usage + exit 1 before any work.
+    it('exits 1 with usage on bad argv', () => {
+        const { status, output } = release('cli-logic', ['patch', '--bogus']);
 
         expect(status).toBe(1);
-        expect(output).toContain(message);
+        expect(output).toContain('Unknown flag: --bogus');
         expect(output).toContain('Usage: npm run release:cli -- <patch|minor|major>');
         // Argv is rejected before any git, npm or filesystem work happens.
         expect(output).not.toContain('VERDICT');

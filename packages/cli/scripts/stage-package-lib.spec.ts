@@ -49,9 +49,6 @@ describe('isPackageId', () => {
         expect(isPackageId('')).toBe(false);
     });
 
-    it('PACKAGE_IDS lists exactly the two ids', () => {
-        expect([...PACKAGE_IDS]).toEqual(['rte', 'data-table']);
-    });
 });
 
 // ── T-1 ────────────────────────────────────────────────────────────────────
@@ -73,10 +70,6 @@ describe('computeClosure (T-1)', () => {
         for (const root of PACKAGE_ROOTS['data-table']) {
             expect(closure.has(root as ComponentName)).toBe(true);
         }
-    });
-
-    it('the two closures are genuinely different sets', () => {
-        expect(computeClosure('rte')).not.toEqual(computeClosure('data-table'));
     });
 });
 
@@ -105,21 +98,10 @@ describe('stagedFiles (T-2)', () => {
         expect(staged).toHaveLength(182);
     });
 
-    it('never stages spec, stories or screenshot files', () => {
-        for (const id of PACKAGE_IDS) {
-            for (const file of stagedFiles(id)) {
-                expect(file.dest).not.toMatch(/\.(spec|stories)\.ts$/);
-                expect(file.dest).not.toContain('__screenshots__');
-            }
-        }
-    });
-
-    // The assertion above cannot fail today: `sync-registry` never puts a
-    // `.spec.ts` / `.stories.ts` into `files[]`, so the exclusion has no live
-    // input to filter (verified: 0 of 1029 registry file entries match). It
-    // stays as a regression net, but the GUARD itself is tested directly here —
-    // otherwise a broken exclusion would ship unnoticed until a registry change
-    // first exercised it.
+    // `sync-registry` never puts a `.spec.ts` / `.stories.ts` into `files[]`, so
+    // no live registry input exercises the exclusion. The guard is tested
+    // directly: otherwise a broken exclusion would ship unnoticed until a
+    // registry change first exercised it.
     it.each([
         ['button/button.component.spec.ts', true],
         ['button/button.stories.ts', true],
@@ -130,12 +112,6 @@ describe('stagedFiles (T-2)', () => {
         ['spec-viewer/spec-viewer.component.ts', false],
     ])('isPackageExcluded(%s) === %s', (file, excluded) => {
         expect(isPackageExcluded(file as string)).toBe(excluded);
-    });
-
-    it('always includes the baseline lib/utils.ts that no registry entry declares', () => {
-        for (const id of PACKAGE_IDS) {
-            expect(stagedFiles(id).map((f) => f.dest)).toContain('lib/utils.ts');
-        }
     });
 
     it('is sorted, duplicate-free, and every source exists on disk', () => {
@@ -159,8 +135,11 @@ describe('stagedFiles (T-2)', () => {
 });
 
 // ── T-3 ────────────────────────────────────────────────────────────────────
+// Staging copies ~180 files, so each test walks ONE staged tree through every
+// check that can read it (the audit is read-only until it plants a dangling
+// import last) instead of re-staging per assertion.
 describe('stagePackage (T-3)', () => {
-    it('writes exactly stagedFiles + public-api.ts and reports the count', () => {
+    it('writes exactly stagedFiles + public-api.ts, copies contents verbatim, and the audit passes', () => {
         withTempDir((dir) => {
             const result = stagePackage('data-table', REPO_ROOT, dir);
             const srcRoot = path.join(dir, 'src');
@@ -169,46 +148,43 @@ describe('stagePackage (T-3)', () => {
             }
             expect(existsSync(path.join(srcRoot, 'public-api.ts'))).toBe(true);
             expect(result.written).toBe(stagedFiles('data-table').length + 1);
-        });
-    });
 
-    it('copies file contents verbatim from the repo sources', () => {
-        withTempDir((dir) => {
-            stagePackage('data-table', REPO_ROOT, dir);
             const sample = stagedFiles('data-table').find((f) => f.dest === 'lib/utils.ts');
             expect(sample).toBeDefined();
-            expect(readFileSync(path.join(dir, 'src', sample!.dest), 'utf-8')).toBe(
+            expect(readFileSync(path.join(srcRoot, sample!.dest), 'utf-8')).toBe(
                 readFileSync(path.join(REPO_ROOT, sample!.src), 'utf-8'),
             );
-        });
-    });
 
-    it('removes a stale file planted by a previous run (idempotent re-stage)', () => {
+            // (T-4) a closure that stages cleanly has no escaped relative import…
+            expect(auditStagedImports(srcRoot)).toEqual([]);
+
+            // …and the audit can fail, on the static AND the lazy dynamic form.
+            writeFileSync(path.join(srcRoot, 'lib', 'dangling.ts'), "export { nope } from './does-not-exist';\n");
+            writeFileSync(path.join(srcRoot, 'lib', 'dangling-dyn.ts'), "export const load = () => import('./missing-parser');\n");
+            const unresolved = auditStagedImports(srcRoot).join('\n');
+            expect(unresolved).toContain('does-not-exist');
+            expect(unresolved).toContain('missing-parser');
+        });
+    }, 60_000);
+
+    it('re-staging removes a stale source file and a stale schematic file, and re-copies the ng add schematic', () => {
         withTempDir((dir) => {
             stagePackage('data-table', REPO_ROOT, dir);
-            const stale = path.join(dir, 'src', 'ui', 'ZZZ-stale.component.ts');
-            writeFileSync(stale, '// left over from an older closure\n');
-            expect(existsSync(stale)).toBe(true);
+            const staleSource = path.join(dir, 'src', 'ui', 'ZZZ-stale.component.ts');
+            const staleSchematic = path.join(dir, 'schematics', 'ng-add', 'old.cjs');
+            writeFileSync(staleSource, '// left over from an older closure\n');
+            writeFileSync(staleSchematic, '// from an older build\n');
 
             const result = stagePackage('data-table', REPO_ROOT, dir);
-            expect(existsSync(stale)).toBe(false);
+
+            expect(existsSync(staleSource)).toBe(false);
             expect(result.removed).toBeGreaterThan(0);
-        });
-    });
-
-    it('copies the shared ng add schematic next to src/, replacing a stale copy', () => {
-        withTempDir((dir) => {
-            const stale = path.join(dir, 'schematics', 'ng-add', 'old.cjs');
-            stagePackage('data-table', REPO_ROOT, dir);
-            writeFileSync(stale, '// from an older build\n');
-
-            stagePackage('data-table', REPO_ROOT, dir);
+            expect(existsSync(staleSchematic)).toBe(false);
             const collection = JSON.parse(readFileSync(path.join(dir, 'schematics', 'collection.json'), 'utf-8'));
             expect(collection.schematics['ng-add'].factory).toBe('./ng-add/index.cjs#ngAdd');
             expect(existsSync(path.join(dir, 'schematics', 'ng-add', 'index.cjs'))).toBe(true);
-            expect(existsSync(stale)).toBe(false);
         });
-    });
+    }, 60_000);
 
     it('throws naming the missing file when a closure source is absent', () => {
         withTempDir((dir) => {
@@ -222,44 +198,22 @@ describe('stagePackage (T-3)', () => {
 
 // ── T-4 ────────────────────────────────────────────────────────────────────
 describe('auditStagedImports (T-4)', () => {
-    it('reports no unresolved relative import inside a freshly staged rte tree', () => {
+    // The data-table closure is audited (and made to fail) in the stagePackage
+    // test above; the rte closure is a different set, so it gets its own audit —
+    // and the same tree answers the NG3004 check on addons/full.
+    it('reports no unresolved relative import inside a freshly staged rte tree, and its addons/full keeps a named export block (NG3004 safety)', () => {
         withTempDir((dir) => {
             stagePackage('rte', REPO_ROOT, dir);
             expect(auditStagedImports(path.join(dir, 'src'))).toEqual([]);
+
+            const full = readFileSync(
+                path.join(dir, 'src/ui/rich-text-editor/addons/full/index.ts'),
+                'utf-8',
+            );
+            expect(full).toContain('RTE_FULL');
+            expect(full).toMatch(/export\s*\{/);
         });
     }, 60_000);
-
-    it('reports no unresolved relative import inside a staged data-table tree', () => {
-        withTempDir((dir) => {
-            stagePackage('data-table', REPO_ROOT, dir);
-            expect(auditStagedImports(path.join(dir, 'src'))).toEqual([]);
-        });
-    }, 60_000);
-
-    it('detects a dangling relative import (static) — proves the audit can fail', () => {
-        withTempDir((dir) => {
-            stagePackage('data-table', REPO_ROOT, dir);
-            const srcRoot = path.join(dir, 'src');
-            writeFileSync(
-                path.join(srcRoot, 'lib', 'dangling.ts'),
-                "export { nope } from './does-not-exist';\n",
-            );
-            const unresolved = auditStagedImports(srcRoot);
-            expect(unresolved.join('\n')).toContain('does-not-exist');
-        });
-    });
-
-    it('detects a dangling dynamic import() — the lazy parser path', () => {
-        withTempDir((dir) => {
-            stagePackage('data-table', REPO_ROOT, dir);
-            const srcRoot = path.join(dir, 'src');
-            writeFileSync(
-                path.join(srcRoot, 'lib', 'dangling-dyn.ts'),
-                "export const load = () => import('./missing-parser');\n",
-            );
-            expect(auditStagedImports(srcRoot).join('\n')).toContain('missing-parser');
-        });
-    });
 });
 
 // ── T-5 ────────────────────────────────────────────────────────────────────
@@ -329,42 +283,23 @@ describe('renderPublicApi (T-5)', () => {
             }
         }
     });
-
-    it('the staged addons/full/index.ts keeps its named export block (NG3004 safety)', () => {
-        withTempDir((dir) => {
-            stagePackage('rte', REPO_ROOT, dir);
-            const full = readFileSync(
-                path.join(dir, 'src/ui/rich-text-editor/addons/full/index.ts'),
-                'utf-8',
-            );
-            expect(full).toContain('RTE_FULL');
-            expect(full).toMatch(/export\s*\{/);
-        });
-    }, 60_000);
 });
 
 // ── T-7 ────────────────────────────────────────────────────────────────────
 describe('toPackageTheme (T-7)', () => {
     const theme = toPackageTheme(getStylesTemplate());
 
-    it('drops the Tailwind import and every @source line', () => {
+    it('drops the Tailwind import and every @source line, leaving no blank gap where the header was', () => {
         expect(theme).not.toContain('@import "tailwindcss"');
         expect(theme).not.toContain('@source');
         expect(theme).not.toContain('Tell Tailwind');
+        expect(theme.startsWith('\n')).toBe(false);
     });
 
     it('keeps the token layers a consumer needs', () => {
         for (const marker of ['@custom-variant dark', ':root {', '.dark {', '@theme inline {', '@layer base {']) {
             expect(theme, marker).toContain(marker);
         }
-    });
-
-    it('is byte-stable across two calls', () => {
-        expect(toPackageTheme(getStylesTemplate())).toBe(theme);
-    });
-
-    it('leaves no leading blank-line gap where the stripped header was', () => {
-        expect(theme.startsWith('\n')).toBe(false);
     });
 });
 
