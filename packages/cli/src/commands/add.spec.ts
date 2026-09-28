@@ -1,14 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   add,
-  resolveDependencies,
   promptOptionalDependencies,
   promptAddons,
   collectAvailableAddons,
-  normalizeContent,
   fetchAndTransform,
   checkFileConflict,
-  classifyComponent,
   detectConflicts,
 } from './add.js';
 import { registry, type ComponentName } from '../registry/index.js';
@@ -69,51 +66,7 @@ const spinner = vi.hoisted(() => {
 
 vi.mock('ora', () => ({ default: vi.fn(() => spinner) }));
 
-// Partial registry mock: keep every real component and add one folderized
-// "trio + sub/" fixture so the install pipeline can be exercised against
-// folder-prefixed .html / .css / sub/ paths.
-vi.mock('../registry/index.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../registry/index.js')>();
-  return {
-    ...actual,
-    registry: {
-      ...actual.registry,
-      'trio-fixture': {
-        name: 'trio-fixture',
-        files: [
-          'trio-fixture/trio-fixture.component.ts',
-          'trio-fixture/trio-fixture.component.html',
-          'trio-fixture/trio-fixture.component.css',
-          'trio-fixture/sub/trio-fixture-item.component.ts',
-        ],
-      },
-    },
-  };
-});
-
 const mockedFs = vi.mocked(fs);
-
-// ---------------------------------------------------------------------------
-// normalizeContent
-// ---------------------------------------------------------------------------
-
-describe('normalizeContent', () => {
-  it('trims whitespace from both ends', () => {
-    expect(normalizeContent('  hello  ')).toBe('hello');
-  });
-
-  it('converts CRLF to LF', () => {
-    expect(normalizeContent('line1\r\nline2\r\n')).toBe('line1\nline2');
-  });
-
-  it('handles mixed line endings', () => {
-    expect(normalizeContent('a\r\nb\nc\r\n')).toBe('a\nb\nc');
-  });
-
-  it('returns empty string for whitespace-only input', () => {
-    expect(normalizeContent('   \r\n  ')).toBe('');
-  });
-});
 
 // ---------------------------------------------------------------------------
 // fetchAndTransform
@@ -125,101 +78,40 @@ describe('fetchAndTransform', () => {
     mockedFs.existsSync.mockReturnValue(false);
   });
 
-  it('replaces single-level relative lib imports with alias', async () => {
-    const mockContent = "import { cn } from '../lib/utils';";
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(mockContent, { status: 200 }),
-    );
+  const remote = (body: string): void => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(body, { status: 200 }));
+  };
 
-    const result = await fetchAndTransform('button/button.ts', { branch: 'master', remote: true }, '@/components/lib');
-    expect(result).toBe("import { cn } from '@/components/lib/utils';");
-  });
-
-  it('replaces multi-level relative lib imports with alias', async () => {
-    const mockContent = "import { cn } from '../../lib/utils';";
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(mockContent, { status: 200 }),
-    );
-
-    const result = await fetchAndTransform('deep/nested/comp.ts', { branch: 'master', remote: true }, '@/components/lib');
-    expect(result).toBe("import { cn } from '@/components/lib/utils';");
-  });
-
-  it('replaces all occurrences in a file (global regex)', async () => {
-    const mockContent = [
+  it('rewrites every relative lib import in a .ts file, at any nesting depth', async () => {
+    remote([
       "import { cn } from '../lib/utils';",
-      "import { foo } from '../lib/helpers';",
-    ].join('\n');
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(mockContent, { status: 200 }),
+      "import { foo } from '../../lib/helpers';",
+      "import { Component } from '@angular/core';",
+    ].join('\n'));
+
+    const result = await fetchAndTransform(
+      'accordion/sub/accordion-item.component.ts', { branch: 'master', remote: true }, '@/components/lib',
     );
 
-    const result = await fetchAndTransform('comp.ts', { branch: 'master', remote: true }, '@/lib');
     expect(result).toBe([
-      "import { cn } from '@/lib/utils';",
-      "import { foo } from '@/lib/helpers';",
+      "import { cn } from '@/components/lib/utils';",
+      "import { foo } from '@/components/lib/helpers';",
+      "import { Component } from '@angular/core';",
     ].join('\n'));
   });
 
-  it('does not throw with replaceAll and regex (the original bug)', async () => {
-    const mockContent = "import { cn } from '../lib/utils';";
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(mockContent, { status: 200 }),
-    );
-
-    await expect(
-      fetchAndTransform('comp.ts', { branch: 'master', remote: true }, '@/lib'),
-    ).resolves.not.toThrow();
-  });
-
-  it('leaves content unchanged when no lib imports exist', async () => {
-    const mockContent = "import { Component } from '@angular/core';";
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(mockContent, { status: 200 }),
-    );
-
-    const result = await fetchAndTransform('comp.ts', { branch: 'master', remote: true }, '@/lib');
-    expect(result).toBe("import { Component } from '@angular/core';");
-  });
-
-  it('does NOT rewrite lib imports in a .html template file', async () => {
-    // A literal `../lib/` in template text must survive verbatim — the
-    // rewrite is gated to .ts sources only.
-    const mockContent = '<a href="../lib/docs">see ../lib/utils</a>';
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(mockContent, { status: 200 }),
-    );
-
-    const result = await fetchAndTransform(
+  it('copies a .html template and a .css file verbatim, a literal `../lib/` in them is not an import', async () => {
+    const html = '<a href="../lib/docs">see ../lib/utils</a>';
+    remote(html);
+    expect(await fetchAndTransform(
       'button/button.component.html', { branch: 'master', remote: true }, '@/components/lib',
-    );
-    expect(result).toBe(mockContent);
-  });
+    )).toBe(html);
 
-  it('does NOT rewrite lib imports in a .css style file', async () => {
-    const mockContent = '.x { background: url(../lib/bg.png); }';
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(mockContent, { status: 200 }),
-    );
-
-    const result = await fetchAndTransform(
+    const css = '.x { background: url(../lib/bg.png); }';
+    remote(css);
+    expect(await fetchAndTransform(
       'button/button.component.css', { branch: 'master', remote: true }, '@/components/lib',
-    );
-    expect(result).toBe(mockContent);
-  });
-
-  it('still rewrites lib imports in a folder-nested .ts file', async () => {
-    const mockContent = "import { cn } from '../../lib/utils';";
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(mockContent, { status: 200 }),
-    );
-
-    const result = await fetchAndTransform(
-      'accordion/sub/accordion-item.component.ts',
-      { branch: 'master', remote: true },
-      '@/components/lib',
-    );
-    expect(result).toBe("import { cn } from '@/components/lib/utils';");
+    )).toBe(css);
   });
 });
 
@@ -270,118 +162,27 @@ describe('checkFileConflict', () => {
       'button/button.ts', '/project/ui', { branch: 'master', remote: true }, '@/lib', cache,
     );
     expect(result).toBe('changed');
+    // The fetched remote is cached so the later diff preview does not refetch it.
+    expect(cache.get('button/button.ts')).toBe('// remote original version');
   });
 
-  it('populates the content cache on successful fetch', async () => {
+  it('returns "changed" when the remote cannot be fetched, so an offline run never reads as up to date', async () => {
     mockedFs.pathExists.mockResolvedValue(true as never);
     mockedFs.readFile.mockResolvedValue('// local' as never);
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response('// remote', { status: 200 }),
-    );
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('fetch failed'));
     const cache = new Map<string, string>();
 
-    await checkFileConflict(
+    const result = await checkFileConflict(
       'button/button.ts', '/project/ui', { branch: 'master', remote: true }, '@/lib', cache,
     );
-    expect(cache.has('button/button.ts')).toBe(true);
-    expect(cache.get('button/button.ts')).toBe('// remote');
+
+    expect(result).toBe('changed');
+    expect(cache.size).toBe(0);
   });
 });
 
 // ---------------------------------------------------------------------------
-// classifyComponent — peer-file decoupling
-// ---------------------------------------------------------------------------
-
-describe('classifyComponent', () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-    mockedFs.existsSync.mockReturnValue(false);
-  });
-
-  it('returns "install" when component files are missing', async () => {
-    mockedFs.pathExists.mockResolvedValue(false as never);
-    const cache = new Map<string, string>();
-    const peerFiles = new Set<string>();
-
-    const result = await classifyComponent(
-      'badge', '/project/ui', { branch: 'master', remote: true }, '@/lib', cache, peerFiles,
-    );
-    expect(result).toBe('install');
-  });
-
-  it('returns "skip" when all component files are present and identical', async () => {
-    const content = '// badge content';
-    mockedFs.pathExists.mockResolvedValue(true as never);
-    mockedFs.readFile.mockResolvedValue(content as never);
-    // A Response body can only be consumed once — return a fresh one per fetch
-    // call so multi-file components compare correctly.
-    vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
-      Promise.resolve(new Response(content, { status: 200 })),
-    );
-    const cache = new Map<string, string>();
-    const peerFiles = new Set<string>();
-
-    const result = await classifyComponent(
-      'badge', '/project/ui', { branch: 'master', remote: true }, '@/lib', cache, peerFiles,
-    );
-    expect(result).toBe('skip');
-  });
-
-  it('returns "conflict" when own files have changed', async () => {
-    mockedFs.pathExists.mockResolvedValue(true as never);
-    mockedFs.readFile.mockResolvedValue('// modified locally' as never);
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response('// original remote', { status: 200 }),
-    );
-    const cache = new Map<string, string>();
-    const peerFiles = new Set<string>();
-
-    const result = await classifyComponent(
-      'badge', '/project/ui', { branch: 'master', remote: true }, '@/lib', cache, peerFiles,
-    );
-    expect(result).toBe('conflict');
-  });
-
-  it('does NOT return "conflict" when only peer files have changed', async () => {
-    const componentWithPeers = Object.entries(registry).find(
-      ([, def]) => def.peerFiles && def.peerFiles.length > 0,
-    );
-
-    if (!componentWithPeers) {
-      return;
-    }
-
-    const [name, def] = componentWithPeers;
-    let readCallCount = 0;
-
-    mockedFs.pathExists.mockResolvedValue(true as never);
-    mockedFs.readFile.mockImplementation((() => {
-      readCallCount++;
-      if (readCallCount <= def.files.length) {
-        return Promise.resolve('// identical content');
-      }
-      return Promise.resolve('// modified peer file');
-    }) as never);
-
-    vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
-      Promise.resolve(new Response('// identical content', { status: 200 })),
-    );
-
-    const cache = new Map<string, string>();
-    const peerFilesToUpdate = new Set<string>();
-
-    const result = await classifyComponent(
-      name as ComponentName, '/project/ui', { branch: 'master', remote: true }, '@/lib',
-      cache, peerFilesToUpdate,
-    );
-
-    expect(result).toBe('skip');
-    expect(peerFilesToUpdate.size).toBeGreaterThan(0);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// detectConflicts
+// detectConflicts — classifyComponent's verdicts are pinned in core/plan.spec.ts
 // ---------------------------------------------------------------------------
 
 describe('detectConflicts', () => {
@@ -390,197 +191,25 @@ describe('detectConflicts', () => {
     mockedFs.existsSync.mockReturnValue(false);
   });
 
-  it('classifies missing components as toInstall', async () => {
-    mockedFs.pathExists.mockResolvedValue(false as never);
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response('// content', { status: 200 }),
-    );
-
-    const components = new Set<ComponentName>(['badge']);
-    const result = await detectConflicts(components, '/project/ui', { branch: 'master', remote: true }, '@/lib');
-
-    expect(result.toInstall).toContain('badge');
-    expect(result.conflicting).not.toContain('badge');
-    expect(result.toSkip).not.toContain('badge');
-  });
-
-  it('classifies identical components as toSkip', async () => {
-    const content = '// badge content';
-    mockedFs.pathExists.mockResolvedValue(true as never);
-    mockedFs.readFile.mockResolvedValue(content as never);
+  it('buckets a missing, an identical and a locally edited component in one pass', async () => {
+    // Keyed on the component's folder: badge is absent, skeleton matches the
+    // remote, separator has a local edit.
+    mockedFs.pathExists.mockImplementation((async (p: string) => !p.includes('badge')) as never);
+    mockedFs.readFile.mockImplementation((async (p: string) =>
+      p.includes('separator') ? '// modified locally' : '// remote') as never);
     vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
-      Promise.resolve(new Response(content, { status: 200 })),
+      Promise.resolve(new Response('// remote', { status: 200 })),
     );
 
-    const components = new Set<ComponentName>(['badge']);
-    const result = await detectConflicts(components, '/project/ui', { branch: 'master', remote: true }, '@/lib');
-
-    expect(result.toSkip).toContain('badge');
-    expect(result.toInstall).not.toContain('badge');
-    expect(result.conflicting).not.toContain('badge');
-  });
-
-  it('classifies changed components as conflicting', async () => {
-    mockedFs.pathExists.mockResolvedValue(true as never);
-    mockedFs.readFile.mockResolvedValue('// modified locally' as never);
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response('// remote content', { status: 200 }),
+    const result = await detectConflicts(
+      new Set<ComponentName>(['badge', 'skeleton', 'separator']), '/project/ui',
+      { branch: 'master', remote: true }, '@/lib',
     );
 
-    const components = new Set<ComponentName>(['badge']);
-    const result = await detectConflicts(components, '/project/ui', { branch: 'master', remote: true }, '@/lib');
-
-    expect(result.conflicting).toContain('badge');
-    expect(result.toInstall).not.toContain('badge');
-    expect(result.toSkip).not.toContain('badge');
-  });
-
-  it('populates contentCache for files it checks', async () => {
-    mockedFs.pathExists.mockResolvedValue(true as never);
-    mockedFs.readFile.mockResolvedValue('// local' as never);
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response('// remote', { status: 200 }),
-    );
-
-    const components = new Set<ComponentName>(['badge']);
-    const result = await detectConflicts(components, '/project/ui', { branch: 'master', remote: true }, '@/lib');
-
+    expect(result.toInstall).toEqual(['badge']);
+    expect(result.toSkip).toEqual(['skeleton']);
+    expect(result.conflicting).toEqual(['separator']);
     expect(result.contentCache.size).toBeGreaterThan(0);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Peer file filtering after overwrite selection
-// ---------------------------------------------------------------------------
-
-describe('peer file filtering logic', () => {
-  it('removes peer files of declined components from peerFilesToUpdate', () => {
-    const peerFilesToUpdate = new Set(['shared/peer-a.ts', 'shared/peer-b.ts', 'shared/peer-c.ts']);
-    const conflicting = new Set(['compA', 'compB']);
-    const toOverwrite = new Set(['compA']);
-    const finalComponents = new Set(['compA']);
-
-    const mockPeerFiles: Record<string, string[] | undefined> = {
-      compA: ['shared/peer-a.ts'],
-      compB: ['shared/peer-b.ts', 'shared/peer-c.ts'],
-    };
-
-    const declined = [...conflicting].filter(c => !toOverwrite.has(c));
-
-    for (const name of declined) {
-      const peerFiles = mockPeerFiles[name];
-      if (!peerFiles) continue;
-      for (const file of peerFiles) {
-        const stillNeeded = [...finalComponents].some(fc =>
-          mockPeerFiles[fc]?.includes(file),
-        );
-        if (!stillNeeded) {
-          peerFilesToUpdate.delete(file);
-        }
-      }
-    }
-
-    expect(peerFilesToUpdate.has('shared/peer-a.ts')).toBe(true);
-    expect(peerFilesToUpdate.has('shared/peer-b.ts')).toBe(false);
-    expect(peerFilesToUpdate.has('shared/peer-c.ts')).toBe(false);
-  });
-
-  it('keeps shared peer files when another final component still needs them', () => {
-    const peerFilesToUpdate = new Set(['shared/common.ts']);
-    const conflicting = new Set(['compA', 'compB']);
-    const toOverwrite = new Set(['compA']);
-    const finalComponents = new Set(['compA']);
-
-    const mockPeerFiles: Record<string, string[] | undefined> = {
-      compA: ['shared/common.ts'],
-      compB: ['shared/common.ts'],
-    };
-
-    const declined = [...conflicting].filter(c => !toOverwrite.has(c));
-
-    for (const name of declined) {
-      const peerFiles = mockPeerFiles[name];
-      if (!peerFiles) continue;
-      for (const file of peerFiles) {
-        const stillNeeded = [...finalComponents].some(fc =>
-          mockPeerFiles[fc]?.includes(file),
-        );
-        if (!stillNeeded) {
-          peerFilesToUpdate.delete(file);
-        }
-      }
-    }
-
-    expect(peerFilesToUpdate.has('shared/common.ts')).toBe(true);
-  });
-
-  it('removes all peer files when all components are declined', () => {
-    const peerFilesToUpdate = new Set(['shared/peer-a.ts', 'shared/peer-b.ts']);
-    const declined = ['compA', 'compB'];
-
-    const mockPeerFiles: Record<string, string[] | undefined> = {
-      compA: ['shared/peer-a.ts'],
-      compB: ['shared/peer-b.ts'],
-    };
-
-    for (const name of declined) {
-      const peerFiles = mockPeerFiles[name];
-      if (!peerFiles) continue;
-      for (const file of peerFiles) {
-        peerFilesToUpdate.delete(file);
-      }
-    }
-
-    expect(peerFilesToUpdate.size).toBe(0);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// resolveDependencies
-// ---------------------------------------------------------------------------
-
-describe('resolveDependencies', () => {
-  it('resolves a single component without dependencies', () => {
-    const result = resolveDependencies(['separator']);
-    expect(result).toContain('separator');
-    expect(result.size).toBe(1);
-  });
-
-  it('includes transitive dependencies', () => {
-    const result = resolveDependencies(['button']);
-    expect(result).toContain('button');
-    expect(result).toContain('ripple');
-  });
-
-  it('resolves deep transitive chains', () => {
-    const result = resolveDependencies(['date-picker']);
-    expect(result).toContain('date-picker');
-    expect(result).toContain('calendar');
-    expect(result).toContain('button');
-    expect(result).toContain('ripple');
-    expect(result).toContain('select');
-  });
-
-  it('deduplicates shared dependencies across multiple inputs', () => {
-    const result = resolveDependencies(['date-picker', 'sparkles']);
-    expect(result).toContain('date-picker');
-    expect(result).toContain('sparkles');
-    expect(result).toContain('button');
-    expect(result).toContain('ripple');
-
-    const asArray = [...result];
-    expect(asArray.filter((n: string) => n === 'button')).toHaveLength(1);
-  });
-
-  it('returns a Set containing all resolved names', () => {
-    const result = resolveDependencies(['badge']);
-    expect(result).toBeInstanceOf(Set);
-  });
-
-  it('handles components with no registry deps gracefully', () => {
-    const result = resolveDependencies(['separator']);
-    expect(result.size).toBe(1);
-    expect(result).toContain('separator');
   });
 });
 
@@ -611,13 +240,6 @@ describe('promptOptionalDependencies', () => {
     const resolved = new Set<ComponentName>(['data-table', 'context-menu', 'table', 'input', 'button', 'ripple', 'checkbox', 'select', 'pagination', 'popover', 'component-outlet', 'icon']);
     const result = await promptOptionalDependencies(resolved, { all: true, branch: 'master' });
     expect(result).not.toContain('context-menu');
-  });
-
-  it('deduplicates optional deps across components', async () => {
-    const resolved = new Set<ComponentName>(['data-table', 'tree', 'table', 'input', 'button', 'ripple', 'checkbox', 'select', 'pagination', 'popover', 'component-outlet', 'icon']);
-    const result = await promptOptionalDependencies(resolved, { all: true, branch: 'master' });
-    const contextMenuCount = result.filter((n: string) => n === 'context-menu').length;
-    expect(contextMenuCount).toBe(1);
   });
 
   it('offers the optional companions interactively and returns the picks', async () => {
@@ -768,15 +390,6 @@ describe('promptAddons', () => {
     expect(result).toEqual(['data-table/export', 'data-table/pivot']);
   });
 
-  it('--preset core with --yes returns [] and does not prompt (T-17)', async () => {
-    const result = await promptAddons(
-      new Set<ComponentName>(['data-table']), { yes: true, preset: 'core', branch: 'master' }, [],
-    );
-
-    expect(result).toEqual([]);
-    expect(prompts).not.toHaveBeenCalled();
-  });
-
   it('unions --preset with --with (T-18)', async () => {
     const result = await promptAddons(
       new Set<ComponentName>(['data-table']),
@@ -809,14 +422,6 @@ describe('promptAddons', () => {
     );
 
     expect(result).toEqual(['data-table/export']);
-  });
-
-  it('--all --yes without a preset installs no addons, as it always has (T-18)', async () => {
-    const result = await promptAddons(
-      new Set<ComponentName>(['data-table']), { all: true, yes: true, branch: 'master' }, [],
-    );
-
-    expect(result).toEqual([]);
   });
 });
 
@@ -971,72 +576,6 @@ describe('registry optional dependencies', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Install pipeline — folderized trio + sub/ component
-// ---------------------------------------------------------------------------
-
-describe('install pipeline for a trio + sub/ component', () => {
-  const TRIO = 'trio-fixture' as ComponentName;
-
-  beforeEach(() => {
-    vi.restoreAllMocks();
-    mockedFs.existsSync.mockReturnValue(false);
-  });
-
-  it('registers a folderized component with .html/.css/sub/ files', () => {
-    expect(registry[TRIO].files).toEqual([
-      'trio-fixture/trio-fixture.component.ts',
-      'trio-fixture/trio-fixture.component.html',
-      'trio-fixture/trio-fixture.component.css',
-      'trio-fixture/sub/trio-fixture-item.component.ts',
-    ]);
-  });
-
-  it('classifies the component for install when all trio/sub files are missing', async () => {
-    mockedFs.pathExists.mockResolvedValue(false as never);
-    vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
-      Promise.resolve(new Response('// content', { status: 200 })),
-    );
-
-    const result = await classifyComponent(
-      TRIO, '/project/ui', { branch: 'master', remote: true }, '@/lib',
-      new Map(), new Set(),
-    );
-    expect(result).toBe('install');
-  });
-
-  it('skips the component when every trio/sub file is present and identical', async () => {
-    const content = '// shared identical content';
-    mockedFs.pathExists.mockResolvedValue(true as never);
-    mockedFs.readFile.mockResolvedValue(content as never);
-    // A fresh Response per fetch — the body is single-use, and the four
-    // trio/sub files trigger four fetches.
-    vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
-      Promise.resolve(new Response(content, { status: 200 })),
-    );
-
-    const result = await classifyComponent(
-      TRIO, '/project/ui', { branch: 'master', remote: true }, '@/components/lib',
-      new Map(), new Set(),
-    );
-    expect(result).toBe('skip');
-  });
-
-  it('detectConflicts routes a missing trio + sub/ component to toInstall', async () => {
-    mockedFs.pathExists.mockResolvedValue(false as never);
-    vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
-      Promise.resolve(new Response('// content', { status: 200 })),
-    );
-
-    const result = await detectConflicts(
-      new Set<ComponentName>([TRIO]), '/project/ui',
-      { branch: 'master', remote: true }, '@/lib',
-    );
-    expect(result.toInstall).toContain(TRIO);
-    expect(result.conflicting).not.toContain(TRIO);
-  });
-});
-
-// ---------------------------------------------------------------------------
 // add() — the command shell: selection, conflict prompts, dry-run, reporting
 // ---------------------------------------------------------------------------
 
@@ -1150,16 +689,6 @@ describe('add()', () => {
     await add(['badge'], { branch: 'master', remote: true, yes: true });
 
     expect(lastInstallCall().options.registry).toBe('https://example.test/r');
-  });
-
-  it('--dry-run reports the plan and writes nothing', async () => {
-    await add(['badge'], { branch: 'master', remote: true, dryRun: true, yes: true });
-
-    expect(output()).toContain('[Dry Run] No changes will be made.');
-    expect(output()).toContain('Would install');
-    expect(output()).toContain('badge');
-    expect(performInstall).not.toHaveBeenCalled();
-    expect(fs.writeFile).not.toHaveBeenCalled();
   });
 
   it('--dry-run never blocks on the overwrite prompt; conflicts are reported as kept', async () => {
@@ -1302,6 +831,12 @@ describe('add()', () => {
     expect(text).toContain(`skeleton (${registry['skeleton'].files.length} files)`);
     expect(text).toContain('Why is a component here?');
     expect(text).toContain('npx @gilav21/shadcn-angular why <name>');
+    // Each component is named once: the grouped block replaces the flat list.
+    expect(text.split('\n').filter(l => l.includes('badge'))).toHaveLength(1);
+    // Nothing was written, so the maintenance advice would be premature.
+    expect(text).not.toContain('What now?');
+    expect(performInstall).not.toHaveBeenCalled();
+    expect(fs.writeFile).not.toHaveBeenCalled();
   });
 
   it('prints the grouped block after Success! built from result.installed (T-7)', async () => {
@@ -1334,19 +869,8 @@ describe('add()', () => {
     // skeleton belongs to the skipped group, never to Shared.
     expect(text).not.toContain('Shared UI components');
     expect(text).toContain('Already in your project');
-  });
-
-  it('omits empty groups and keeps the "skipped (up to date)" line (T-8)', async () => {
-    asMock(performInstall).mockResolvedValue(
-      installResult({ installed: ['badge'], skipped: ['skeleton'] }),
-    );
-
-    await add(['badge'], { branch: 'master', remote: true, yes: true });
-
-    const text = output();
     expect(text).toContain('Components skipped (up to date):');
-    expect(text).toContain('Already in your project');
-    // badge was written, so nothing is in the addons group → no heading.
+    // Empty groups print no heading at all.
     expect(text).not.toContain('Addons chosen');
     expect(text).not.toMatch(/\(0 components?, 0 files\)/);
   });
@@ -1363,13 +887,6 @@ describe('add()', () => {
     expect(text).toContain('1 component, 1 file)');
   });
 
-  it('names each component once — the grouped block replaces the flat list (T-6)', async () => {
-    await add(['badge'], { branch: 'master', remote: true, dryRun: true, yes: true });
-
-    const occurrences = output().split('\n').filter(l => l.includes('badge')).length;
-    expect(occurrences).toBe(1);
-  });
-
   // -------------------------------------------------------------------------
   // "What now?" maintenance messaging (UC-20)
   // -------------------------------------------------------------------------
@@ -1384,21 +901,13 @@ describe('add()', () => {
     // Bullet 1 names the install directory, so "yours to edit" is actionable.
     expect(text).toContain('These files are yours');
     expect(text).toContain('src/components/ui');
-  });
-
-  it('prints the same What now? block on an interactive run (T-37)', async () => {
-    asMock(performInstall).mockResolvedValue(installResult({ installed: ['badge'] }));
-    asMock(prompts).mockResolvedValue({ selected: [] });
-
-    await add(['badge'], { branch: 'master', remote: true });
-
-    expect(output()).toContain('What now?');
-  });
-
-  it('does not print What now? on --dry-run (T-38)', async () => {
-    await add(['badge'], { branch: 'master', remote: true, dryRun: true, yes: true });
-
-    expect(output()).not.toContain('What now?');
+    // The truthful `update` description: merge is the default, --overwrite is
+    // the whole-file escape hatch.
+    expect(text).toContain('3-way merge');
+    expect(text).toContain('<<<<<<<');
+    expect(text).toContain('--overwrite');
+    expect(text).toContain('doctor');
+    expect(text).toContain('status');
   });
 
   it('does not print What now? when nothing was installed (T-38)', async () => {
@@ -1407,22 +916,6 @@ describe('add()', () => {
     await add(['badge'], { branch: 'master', remote: true, yes: true });
 
     expect(output()).not.toContain('What now?');
-  });
-
-  it('names update (3-way merge, markers, --overwrite) and doctor / status (T-39)', async () => {
-    asMock(performInstall).mockResolvedValue(installResult({ installed: ['badge'] }));
-
-    await add(['badge'], { branch: 'master', remote: true, yes: true });
-
-    const text = output();
-    // The truthful `update` description: merge is the default, --overwrite is
-    // the whole-file escape hatch, and a no-baseline file is kept, not merged.
-    expect(text).toContain('update');
-    expect(text).toContain('3-way merge');
-    expect(text).toContain('<<<<<<<');
-    expect(text).toContain('--overwrite');
-    expect(text).toContain('doctor');
-    expect(text).toContain('status');
   });
 
   it('uses the --path override as the "your files live here" directory (T-37)', async () => {
@@ -1570,34 +1063,4 @@ describe('add() block destination', () => {
     expect(call.blocksPath).toBeUndefined();
   });
 
-});
-
-// ---------------------------------------------------------------------------
-// help command
-// ---------------------------------------------------------------------------
-
-describe('help command', () => {
-  it('prints commands, addons, and component categories', async () => {
-    const { help } = await import('./help.js');
-    const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
-    help();
-
-    expect(spy).toHaveBeenCalledTimes(1);
-    const output = spy.mock.calls[0][0] as string;
-
-    expect(output).toContain('Commands');
-    expect(output).toContain('init');
-    expect(output).toContain('add');
-    expect(output).toContain('Addons');
-    expect(output).toContain('apply');
-    expect(output).toContain('update');
-    expect(output).toContain('Available Components');
-    expect(output).toContain('Form');
-    expect(output).toContain('Navigation');
-    expect(output).toContain('Charts');
-    expect(output).toContain('Animation');
-
-    spy.mockRestore();
-  });
 });

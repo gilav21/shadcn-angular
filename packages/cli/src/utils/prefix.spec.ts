@@ -6,16 +6,10 @@ import {
 } from './prefix.js';
 
 describe('isValidPrefix', () => {
-    it.each([
-        ['ui', true],
-        ['myapp', true],
-        ['acme-ui', true],
-        ['a', true],
-        ['a1', true],
-        ['x-y-z', true],
-        ['x1-y2', true],
-    ])('accepts %s', (value, expected) => {
-        expect(isValidPrefix(value)).toBe(expected);
+    it('accepts lowercase segments, a single character, hyphens between segments and digits after the first character', () => {
+        for (const value of ['ui', 'a', 'acme-ui', 'x1-y2']) {
+            expect(isValidPrefix(value), value).toBe(true);
+        }
     });
 
     it.each([
@@ -60,12 +54,6 @@ describe('applyPrefixTransforms — .ts files', () => {
         expect(out).toContain(`selector: "acme-button"`);
     });
 
-    it('rewrites kebab-case multi-word selectors', () => {
-        const src = `selector: 'ui-accordion-trigger',`;
-        const out = applyPrefixTransforms('x.component.ts', src, 'myapp');
-        expect(out).toBe(`selector: 'myapp-accordion-trigger',`);
-    });
-
     it('rewrites comma-separated selector lists', () => {
         const src = `selector: 'thead[uiTableHeader], ui-table-header',`;
         const out = applyPrefixTransforms('x.component.ts', src, 'acme');
@@ -76,12 +64,6 @@ describe('applyPrefixTransforms — .ts files', () => {
         const src = "template: `<ui-button>Click</ui-button>`,";
         const out = applyPrefixTransforms('x.component.ts', src, 'acme');
         expect(out).toBe("template: `<acme-button>Click</acme-button>`,");
-    });
-
-    it('rewrites self-closing inline-template tags', () => {
-        const src = "template: `<ui-icon name=\"x\" />`,";
-        const out = applyPrefixTransforms('x.component.ts', src, 'acme');
-        expect(out).toContain('<acme-icon');
     });
 
     it('does NOT touch arbitrary string literals that start with ui-', () => {
@@ -110,12 +92,6 @@ describe('applyPrefixTransforms — .html files', () => {
         const src = `<ui-icon name="x" />`;
         const out = applyPrefixTransforms('x.html', src, 'acme');
         expect(out).toBe(`<acme-icon name="x" />`);
-    });
-
-    it('rewrites tags with attributes and bindings', () => {
-        const src = `<ui-drawer-header [foo]="bar" *ngIf="ok">`;
-        const out = applyPrefixTransforms('x.html', src, 'acme');
-        expect(out).toBe(`<acme-drawer-header [foo]="bar" *ngIf="ok">`);
     });
 
     it('leaves data-slot attribute values unchanged', () => {

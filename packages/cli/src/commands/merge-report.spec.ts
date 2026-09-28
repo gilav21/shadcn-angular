@@ -18,7 +18,10 @@ describe('reportMergeSummary', () => {
   it('prints the summary and returns false for a clean report', () => {
     const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
     expect(reportMergeSummary(report({ mergedClean: ['a.ts'], overwritten: ['b.ts'] }))).toBe(false);
-    expect(log).toHaveBeenCalled();
+    const text = log.mock.calls.flat().join('\n');
+    expect(text).toContain('Merged cleanly: 1');
+    expect(text).toContain('Overwrote (local edits discarded): 1');
+    expect(text).not.toContain('<<<<<<<');
   });
 
   it('returns true and lists the conflicted file when markers were written', () => {

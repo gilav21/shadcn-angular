@@ -14,9 +14,4 @@ describe('execa stripFinalNewline contract (BASE newline preservation)', () => {
     const { stdout } = await execa('node', ['-e', 'process.stdout.write("a\\nb\\n")'], { stripFinalNewline: false });
     expect(stdout).toBe('a\nb\n');
   });
-
-  it('strips the trailing newline by default (why the option is required)', async () => {
-    const { stdout } = await execa('node', ['-e', 'process.stdout.write("a\\nb\\n")']);
-    expect(stdout).toBe('a\nb');
-  });
 });

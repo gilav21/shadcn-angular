@@ -81,11 +81,6 @@ afterEach(() => {
 });
 
 describe('T-9: why prints size for a component and its dependencies', () => {
-  it('prints an install size for a plain component', async () => {
-    const output = await capture(['button']);
-    expect(SIZE_LINE.test(output)).toBe(true);
-  });
-
   it('reports more than the component\'s own files, because deps are installed too', async () => {
     const output = await capture(['button']);
     const files = /(\d{1,6}) files, including dependencies/.exec(output);
@@ -118,27 +113,16 @@ describe('T-9: why prints size for a component and its dependencies', () => {
 });
 
 describe('T-10: why output stays parseable', () => {
-  it('keeps every section as a two-space-indented "Label:" line', async () => {
+  it('keeps every section a two-space-indented "Label:" line, the size between the files and the dependencies', async () => {
     const output = await capture(['button']);
     for (const label of ['Files (', 'Install size:', 'Direct dependencies:', 'Reverse dependents (']) {
       expect(output).toContain(`  ${label}`);
     }
-  });
-
-  it('puts the size directly after the file list, before the dependencies', async () => {
-    const output = await capture(['button']);
     expect(output.indexOf('Files (')).toBeLessThan(output.indexOf('Install size:'));
     expect(output.indexOf('Install size:')).toBeLessThan(output.indexOf('Direct dependencies:'));
-  });
-
-  it('does not change the pre-existing sections', async () => {
-    const output = await capture(['button']);
-    expect(output).toContain('  Files (6):');
-    expect(output).toContain('  Direct dependencies: alert-dialog, ripple, skeleton, spinner');
-  });
-
-  it('is stable across runs', async () => {
-    expect(await capture(['button'])).toBe(await capture(['button']));
+    // The pre-existing sections are untouched by the size line.
+    expect(output).toContain(`  Files (${registry['button'].files.length}):`);
+    expect(output).toContain(`  Direct dependencies: ${(registry['button'].dependencies ?? []).join(', ')}`);
   });
 
   it('drops only the size line when no manifest can be loaded', async () => {
@@ -155,7 +139,7 @@ describe('T-10: why output stays parseable', () => {
 
     const output = plain(lines.join('\n'));
     expect(output).not.toContain('Install size:');
-    expect(output).toContain('  Files (6):');
+    expect(output).toContain(`  Files (${registry['button'].files.length}):`);
     expect(output).toContain('  Direct dependencies:');
   });
 });

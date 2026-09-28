@@ -111,15 +111,9 @@ describe('customizedAmong', () => {
 
 
 describe('shouldOfferAddonApply', () => {
-  it('offers only on an interactive TTY without --yes', () => {
+  it('offers only on an interactive TTY without --yes — a piped / --yes run cannot be asked', () => {
     expect(shouldOfferAddonApply({ yes: false, isTTY: true })).toBe(true);
-  });
-
-  it('does NOT offer under --yes (a non-interactive run cannot be asked)', () => {
     expect(shouldOfferAddonApply({ yes: true, isTTY: true })).toBe(false);
-  });
-
-  it('does NOT offer on a non-TTY stdin (piped / CI) — would auto-accept otherwise', () => {
     expect(shouldOfferAddonApply({ yes: false, isTTY: false })).toBe(false);
     expect(shouldOfferAddonApply({ yes: true, isTTY: false })).toBe(false);
   });

@@ -6,6 +6,7 @@ import { isPristineLib } from './lib-reconcile.js';
 import { installPackages } from '../utils/package-manager.js';
 import { writeShortcutRegistryIndex } from '../utils/shortcut-registry.js';
 import { fetchAndTransform, fetchLibContent } from './fetch.js';
+import { resolveRef } from './ref.js';
 import { registry, type ComponentName } from '../registry/index.js';
 import type { ConflictCheckResult } from './plan.js';
 
@@ -28,6 +29,9 @@ vi.mock('./fetch.js', () => ({
   fetchLibContent: vi.fn(async (f: string) => `// lib ${f}`),
   normalizeContent: (s: string) => s.replaceAll('\r\n', '\n').trim(),
 }));
+// The ref is a git rev-parse locally and a GitHub API call remotely; left real, whether
+// a component's ref gets recorded would depend on the network answering.
+vi.mock('./ref.js', () => ({ resolveRef: vi.fn(async () => null), fetchAtRef: vi.fn(async () => null) }));
 vi.mock('../utils/package-manager.js', () => ({ installPackages: vi.fn(async () => undefined) }));
 vi.mock('../utils/shortcut-registry.js', () => ({ writeShortcutRegistryIndex: vi.fn(async () => undefined) }));
 // Control baseline recognition for the L5 pre-manifest pristine-lib path.
@@ -103,6 +107,7 @@ function resetMocks(): void {
   asMock(fs.readJsonSync).mockReturnValue({});
   asMock(fetchAndTransform).mockImplementation(async (f: string) => `// ${f}`);
   asMock(fetchLibContent).mockImplementation(async (f: string) => `// lib ${f}`);
+  asMock(resolveRef).mockResolvedValue(null);
   asMock(installPackages).mockResolvedValue(undefined);
   asMock(writeShortcutRegistryIndex).mockResolvedValue(undefined);
 }
@@ -178,15 +183,11 @@ describe('performInstall --include-tests', () => {
 
 describe('planInstall', () => {
   beforeEach(() => vi.clearAllMocks());
-  it('reports a fresh install (no files present)', async () => {
-    const plan = await planInstall({ ...base, components: ['badge'] });
-    expect(plan.toInstall).toContain('badge');
-    expect(plan.conflicting).toEqual([]);
-  });
-
   it('returns the grouped summary: requested vs shared, with file counts (T-9)', async () => {
     const plan = await planInstall({ ...base, components: ['badge'] });
 
+    expect(plan.toInstall).toContain('badge');
+    expect(plan.conflicting).toEqual([]);
     expect(plan.summary.requested.components.map(c => c.name)).toEqual(['badge']);
     expect(plan.summary.requested.files).toBe(registry['badge'].files.length);
     // `skeleton` is pulled in as a dependency, never requested.
@@ -212,25 +213,29 @@ describe('planInstall', () => {
 describe('performInstall', () => {
   beforeEach(() => vi.clearAllMocks());
   it('writes files for a fresh component and reports it installed', async () => {
+    asMock(resolveRef).mockResolvedValueOnce('abc123');
     const result = await performInstall({ ...base, components: ['badge'] });
     expect(result.installed).toContain('badge');
     expect((fs.writeFile as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(0);
     // The merge report is threaded out; newly-created files land in `created`.
     expect(result.mergeReport.created.length).toBeGreaterThan(0);
     expect(result.mergeReport.overwritten).toEqual([]);
-  });
 
-  it('records installed files in components.lock.json with content hashes', async () => {
-    await performInstall({ ...base, components: ['badge'] });
+    // The written files are recorded with content hashes so a later update can 3-way merge.
     const writeJson = fs.writeJson as unknown as ReturnType<typeof vi.fn>;
     const lockCall = writeJson.mock.calls.find(c =>
       String(c[0]).replaceAll('\\', '/').endsWith('components.lock.json'));
     expect(lockCall).toBeDefined();
-    const manifest = lockCall![1] as { files: Record<string, { sha256: string; component: string }> };
+    const manifest = lockCall![1] as {
+      files: Record<string, { sha256: string; component: string }>;
+      components?: Record<string, { ref: string }>;
+    };
     const entries = Object.values(manifest.files);
     expect(entries.length).toBeGreaterThan(0);
     expect(entries[0].sha256).toMatch(/^[a-f0-9]{64}$/);
     expect(entries[0].component).toBe('badge');
+    // The version each component was installed at is its merge base for the next update.
+    expect(manifest.components?.['badge']).toEqual({ ref: 'abc123' });
   });
 
   it('overwrites a changed component only when listed in overwrite, else declines it', async () => {
