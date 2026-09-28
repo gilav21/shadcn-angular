@@ -89,24 +89,14 @@ describe('PageBuilderComponent', () => {
         expect(bentoGrid.componentInstance.rowHeight()).toBe('150px');
     });
 
-    it('should handle selection', () => {
+    it('selecting an item exposes it as the selection, and deleting it clears the selection', () => {
         component.addItem(mockComponents[0]);
         fixture.detectChanges();
 
         const item = component.items()[0];
         component.onSelectionChange([item.id]);
         fixture.detectChanges();
-
         expect(component.selectedItemId()).toBe(item.id);
-    });
-
-    it('should delete selected item', () => {
-        component.addItem(mockComponents[0]);
-        fixture.detectChanges();
-
-        const item = component.items()[0];
-        component.selectedItemId.set(item.id);
-        fixture.detectChanges();
 
         component.onDeleteItem();
         fixture.detectChanges();
@@ -115,25 +105,19 @@ describe('PageBuilderComponent', () => {
         expect(component.selectedItemId()).toBeNull();
     });
 
-    it('should show the Save button by default and hide the Export button', () => {
-        const saveBtn = fixture.debugElement.query(By.css('button[title="Save Layout"]'));
-        const exportBtn = fixture.debugElement.query(By.css('button[title="Export Layout as File"]'));
-        expect(saveBtn).toBeTruthy();
-        expect(exportBtn).toBeNull();
-    });
+    it('shows Save by default with Export hidden, shows Export with enableExport, and hides Save with enableSave off', () => {
+        const saveBtn = (): unknown => fixture.debugElement.query(By.css('button[title="Save Layout"]'));
+        const exportBtn = (): unknown => fixture.debugElement.query(By.css('button[title="Export Layout as File"]'));
+        expect(saveBtn()).toBeTruthy();
+        expect(exportBtn()).toBeNull();
 
-    it('should show the Export button when enableExport is true', () => {
         fixture.componentRef.setInput('enableExport', true);
         fixture.detectChanges();
-        const exportBtn = fixture.debugElement.query(By.css('button[title="Export Layout as File"]'));
-        expect(exportBtn).toBeTruthy();
-    });
+        expect(exportBtn()).toBeTruthy();
 
-    it('should hide the Save button when enableSave is false', () => {
         fixture.componentRef.setInput('enableSave', false);
         fixture.detectChanges();
-        const saveBtn = fixture.debugElement.query(By.css('button[title="Save Layout"]'));
-        expect(saveBtn).toBeNull();
+        expect(saveBtn()).toBeNull();
     });
 
     it('should emit (save) with the current layout when Save is clicked', () => {
@@ -298,7 +282,7 @@ describe('PageBuilderComponent — editor behavior', () => {
     });
 
     describe('onDragStart', () => {
-        it('writes the widget payload onto the drag dataTransfer', () => {
+        it('writes the widget payload onto the drag dataTransfer, and is a no-op without one', () => {
             const setData = vi.fn();
             const dataTransfer = { setData, effectAllowed: '' } as unknown as DataTransfer;
             const event = { dataTransfer } as unknown as DragEvent;
@@ -307,9 +291,7 @@ describe('PageBuilderComponent — editor behavior', () => {
 
             expect(setData).toHaveBeenCalledWith('application/json', JSON.stringify({ type: 'widget', id: 'progress' }));
             expect(dataTransfer.effectAllowed).toBe('all');
-        });
 
-        it('is a no-op when dataTransfer is missing', () => {
             expect(() => component.onDragStart({} as DragEvent, progressMeta)).not.toThrow();
         });
     });
@@ -514,27 +496,22 @@ describe('PageBuilderComponent — editor behavior', () => {
             expect(component.selectedItemId()).toBeNull();
         });
 
-        it('alerts and does not apply a malformed layout file', async () => {
+        it('alerts and applies nothing for a malformed layout, unparseable JSON, or no selected file', async () => {
             const alertSpy = vi.spyOn(globalThis, 'alert').mockImplementation(() => undefined);
             component.addItem(widgetMeta);
 
-            const file = textFile('{"not":"a layout"}');
-            await component.handleFileInput({ target: { files: [file] } } as unknown as Event);
-
+            await component.handleFileInput({ target: { files: [textFile('{"not":"a layout"}')] } } as unknown as Event);
             expect(alertSpy).toHaveBeenCalledWith('Invalid layout file format');
             expect(component.items()).toHaveLength(1);
-        });
 
-        it('alerts on unparseable JSON', async () => {
-            const alertSpy = vi.spyOn(globalThis, 'alert').mockImplementation(() => undefined);
-            const file = textFile('not json at all');
-            await component.handleFileInput({ target: { files: [file] } } as unknown as Event);
+            await component.handleFileInput({ target: { files: [textFile('not json at all')] } } as unknown as Event);
             expect(alertSpy).toHaveBeenCalledWith('Failed to parse layout file');
-        });
+            expect(component.items()).toHaveLength(1);
 
-        it('does nothing when no file is selected', async () => {
+            alertSpy.mockClear();
             await component.handleFileInput({ target: { files: [] } } as unknown as Event);
-            expect(component.items()).toHaveLength(0);
+            expect(alertSpy).not.toHaveBeenCalled();
+            expect(component.items()).toHaveLength(1);
         });
     });
 

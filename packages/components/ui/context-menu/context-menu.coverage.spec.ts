@@ -88,28 +88,18 @@ describe('ContextMenuComponent document listeners', () => {
         removePortals();
     });
 
-    it('closes when Escape is pressed on the document', () => {
+    it('closes on Escape or a scroll on the document, but not on another key', () => {
         const menu = menuInstance(fixture);
         menu.show(100, 100);
+        expect(menu.open()).toBe(true);
+
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
         expect(menu.open()).toBe(true);
 
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
         expect(menu.open()).toBe(false);
-    });
 
-    it('does not close on a non-Escape key', () => {
-        const menu = menuInstance(fixture);
         menu.show(100, 100);
-
-        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
-        expect(menu.open()).toBe(true);
-    });
-
-    it('closes when the document scrolls', () => {
-        const menu = menuInstance(fixture);
-        menu.show(100, 100);
-        expect(menu.open()).toBe(true);
-
         document.dispatchEvent(new Event('scroll'));
         expect(menu.open()).toBe(false);
     });
@@ -135,18 +125,14 @@ describe('ContextMenuItemComponent click handling', () => {
         return Array.from(document.querySelectorAll<HTMLElement>('[data-slot="context-menu-item"]'));
     }
 
-    it('closes the menu when an enabled item is clicked', () => {
+    it('closes the menu when an enabled item is clicked, but not a disabled one', () => {
         const menu = menuInstance(fixture);
-        const [enabled] = openAndGetItems();
+        const [enabled, disabled] = openAndGetItems();
+        disabled.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        expect(menu.open()).toBe(true);
+
         enabled.dispatchEvent(new MouseEvent('click', { bubbles: true }));
         expect(menu.open()).toBe(false);
-    });
-
-    it('keeps the menu open when a disabled item is clicked', () => {
-        const menu = menuInstance(fixture);
-        const items = openAndGetItems();
-        items[1].dispatchEvent(new MouseEvent('click', { bubbles: true }));
-        expect(menu.open()).toBe(true);
     });
 });
 
@@ -388,8 +374,11 @@ describe('ContextMenuSubTriggerComponent keyboard navigation', () => {
         return event;
     }
 
-    it('ArrowRight in LTR opens the sub and focuses its content', () => {
+    it('in LTR ArrowLeft is ignored and ArrowRight opens the sub', () => {
         const sub = fixture.debugElement.query(By.directive(ContextMenuSubComponent)).componentInstance as ContextMenuSubComponent;
+        expect(press('ArrowLeft').defaultPrevented).toBe(false);
+        expect(sub.isOpen()).toBe(false);
+
         vi.useFakeTimers();
         const event = press('ArrowRight');
         vi.advanceTimersByTime(1);
@@ -398,20 +387,14 @@ describe('ContextMenuSubTriggerComponent keyboard navigation', () => {
         expect(sub.isOpen()).toBe(true);
     });
 
-    it('ArrowRight in RTL is ignored', () => {
-        forceRtl();
-        expect(press('ArrowRight').defaultPrevented).toBe(false);
-    });
-
-    it('ArrowLeft in RTL opens the sub', () => {
+    it('in RTL ArrowRight is ignored and ArrowLeft opens the sub', () => {
         const sub = fixture.debugElement.query(By.directive(ContextMenuSubComponent)).componentInstance as ContextMenuSubComponent;
         forceRtl();
+        expect(press('ArrowRight').defaultPrevented).toBe(false);
+        expect(sub.isOpen()).toBe(false);
+
         expect(press('ArrowLeft').defaultPrevented).toBe(true);
         expect(sub.isOpen()).toBe(true);
-    });
-
-    it('ArrowLeft in LTR is ignored', () => {
-        expect(press('ArrowLeft').defaultPrevented).toBe(false);
     });
 
     it('Enter opens the sub', () => {
@@ -509,21 +492,16 @@ describe('ContextMenuSubContentComponent positioning', () => {
         expect(content.portalPosition()).toEqual({ x: 8, y: 8 });
     });
 
-    it('does nothing before the portal is mounted', () => {
-        const content = contentInstance();
-        expect(() => calc(content)).not.toThrow();
-        expect(content.portalPosition()).toEqual({ x: 0, y: 0 });
-    });
+    it('does nothing before the portal is mounted, when the trigger element is missing, or when the content node is missing', () => {
+        calc(contentInstance());
+        expect(contentInstance().portalPosition()).toEqual({ x: 0, y: 0 });
 
-    it('does nothing when the trigger element is missing', () => {
         const content = openSub();
-        vi.spyOn(subInstance(), 'getTriggerElement').mockReturnValue(null);
+        const triggerSpy = vi.spyOn(subInstance(), 'getTriggerElement').mockReturnValue(null);
         calc(content);
         expect(content.portalPosition()).toEqual({ x: 0, y: 0 });
-    });
+        triggerSpy.mockRestore();
 
-    it('does nothing when the content node is missing', () => {
-        const content = openSub();
         const host = (content as unknown as PositionedPortal).portalHost!;
         host.querySelector('[data-slot="context-menu-sub-content"]')?.remove();
         calc(content);

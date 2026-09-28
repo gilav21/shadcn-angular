@@ -55,18 +55,13 @@ describe('SelectComponent data-driven internals', () => {
         component = fixture.componentInstance;
     });
 
-    it('selectedDisplayValue returns empty string when no value', () => {
+    it('selectedDisplayValue is empty without a value, the raw value in composition mode, and String(val) when the option is not found', () => {
         fixture.detectChanges();
         expect(component.selectedDisplayValue()).toBe('');
-    });
 
-    it('selectedDisplayValue returns String(val) in composition (non-data-driven) mode', () => {
-        fixture.detectChanges();
         component.internalValue.set('composed');
         expect(component.selectedDisplayValue()).toBe('composed');
-    });
 
-    it('selectedDisplayValue falls back to String(val) when option not found', () => {
         fixture.componentRef.setInput('options', ['a', 'b']);
         fixture.detectChanges();
         component.internalValue.set('missing');
@@ -91,22 +86,28 @@ describe('SelectComponent data-driven internals', () => {
         expect(focusSpy).toHaveBeenCalledWith({ preventScroll: true });
     });
 
-    it('itemClasses marks disabled options and highlights the focused option', () => {
+    it('disabled options are styled, cannot be selected, and are skipped by the arrow keys', () => {
         fixture.componentRef.setInput('options', ['a', 'b']);
         fixture.componentRef.setInput('disabledWith', (o: string) => o === 'b');
         fixture.detectChanges();
         expect(component.itemClasses('b')).toContain('cursor-not-allowed');
         component.focusedIndex.set(0);
         expect(component.itemClasses('a')).toContain('bg-accent');
-    });
 
-    it('selectOption ignores disabled options', () => {
-        fixture.componentRef.setInput('options', ['a', 'b']);
-        fixture.componentRef.setInput('disabledWith', (o: string) => o === 'b');
-        fixture.detectChanges();
         component.selectOption('b');
         expect(component.internalValue()).toBeUndefined();
         expect(component.open()).toBe(false);
+
+        component.focusedIndex.set(1);
+        component.onContentKeydown(new KeyboardEvent('keydown', { key: 'Enter' }));
+        expect(component.internalValue()).toBeUndefined();
+
+        component.focusedIndex.set(0);
+        component.onContentKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+        expect(component.focusedIndex()).toBe(0); // 'b' disabled, no enabled option, stay
+
+        component.onContentKeydown(new KeyboardEvent('keydown', { key: ' ' }));
+        expect(component.internalValue()).toBe('a');
     });
 
     it('getSelectedItemOffset resolves the registered element, first item, then zero', () => {
@@ -172,28 +173,6 @@ describe('SelectComponent data-driven internals', () => {
 
         component.onContentKeydown(new KeyboardEvent('keydown', { key: 'Enter' }));
         expect(component.internalValue()).toBe('a');
-    });
-
-    it('onContentKeydown selects on Space and stays put when no enabled neighbour exists', () => {
-        fixture.componentRef.setInput('options', ['a', 'b']);
-        fixture.componentRef.setInput('disabledWith', (o: string) => o === 'b');
-        fixture.detectChanges();
-
-        component.focusedIndex.set(0);
-        component.onContentKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
-        expect(component.focusedIndex()).toBe(0); // 'b' disabled, no enabled option, stay
-
-        component.onContentKeydown(new KeyboardEvent('keydown', { key: ' ' }));
-        expect(component.internalValue()).toBe('a');
-    });
-
-    it('onContentKeydown does not select a disabled focused option on Enter', () => {
-        fixture.componentRef.setInput('options', ['a', 'b']);
-        fixture.componentRef.setInput('disabledWith', (o: string) => o === 'b');
-        fixture.detectChanges();
-        component.focusedIndex.set(1);
-        component.onContentKeydown(new KeyboardEvent('keydown', { key: 'Enter' }));
-        expect(component.internalValue()).toBeUndefined();
     });
 
     it('onContentKeydown closes on Escape and on Tab', () => {

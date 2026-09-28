@@ -87,34 +87,23 @@ describe('SplitButtonComponent — coverage', () => {
         }
     });
 
-    it('closes the menu when a document click lands outside the component', () => {
-        component.isOpen.set(true);
-        fixture.detectChanges();
-
-        component['document'].dispatchEvent(
-            new MouseEvent('click', { bubbles: true }),
-        );
-
-        expect(component.isOpen()).toBe(false);
-    });
-
-    it('keeps the menu open when a document click lands inside the component', () => {
+    it('closes the menu on a document click outside the component, keeps it open for one inside, and stops listening once destroyed', () => {
         component.isOpen.set(true);
         fixture.detectChanges();
 
         const inside = fixture.nativeElement.querySelector('[data-slot="split-button"]');
         inside.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-
         expect(component.isOpen()).toBe(true);
-    });
 
-    it('stops listening for outside clicks once destroyed', () => {
+        component['document'].dispatchEvent(
+            new MouseEvent('click', { bubbles: true }),
+        );
+        expect(component.isOpen()).toBe(false);
+
         component.isOpen.set(true);
         fixture.detectChanges();
-
         fixture.destroy();
         document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-
         expect(component.isOpen()).toBe(true);
     });
 
@@ -131,7 +120,13 @@ describe('SplitButtonComponent — coverage', () => {
         expect(component.isOpen()).toBe(true);
     });
 
-    it('opens the menu and focuses the first item on dropdown Enter/Space/ArrowDown', () => {
+    it('opens the menu and focuses the first item on dropdown Enter/Space/ArrowDown, ignoring other keys', () => {
+        component.onDropdownKeydown({
+            key: 'a',
+            preventDefault: () => {},
+        } as unknown as KeyboardEvent);
+        expect(component.isOpen()).toBe(false);
+
         vi.useFakeTimers();
         try {
             for (const key of ['Enter', ' ', 'ArrowDown']) {
@@ -160,14 +155,6 @@ describe('SplitButtonComponent — coverage', () => {
         }
     });
 
-    it('ignores unrelated keys on the dropdown', () => {
-        component.onDropdownKeydown({
-            key: 'a',
-            preventDefault: () => {},
-        } as unknown as KeyboardEvent);
-        expect(component.isOpen()).toBe(false);
-    });
-
     it('wraps ArrowUp from the first item to the last', () => {
         fixture.componentRef.setInput('items', [
             { label: '1' },
@@ -187,12 +174,7 @@ describe('SplitButtonComponent — coverage', () => {
         });
 
         expect(document.activeElement).toBe(items[2].nativeElement);
-    });
 
-    it('ignores unrelated keys on the menu', () => {
-        component.isOpen.set(true);
-        fixture.detectChanges();
-        const menu = fixture.debugElement.query(By.css('[role="menu"]'));
         menu.triggerEventHandler('keydown', {
             key: 'x',
             preventDefault: () => {},
@@ -208,52 +190,30 @@ describe('SplitButtonComponent — coverage', () => {
             host.detectChanges();
         });
 
-        it('emits primaryClick when the projected primary button is clicked', () => {
+        it('projected primary emits primaryClick, an enabled item emits itemClick and closes, and a disabled item does nothing', () => {
             const split = host.debugElement.query(
                 By.directive(SplitButtonComponent),
             ).componentInstance as SplitButtonComponent;
-            const spy = vi.spyOn(split.primaryClick, 'emit');
+            const primarySpy = vi.spyOn(split.primaryClick, 'emit');
+            const itemSpy = vi.spyOn(split.itemClick, 'emit');
 
-            const primaryBtn = host.debugElement.query(
-                By.css('ui-split-button-primary button'),
-            );
-            primaryBtn.nativeElement.click();
+            host.debugElement.query(By.css('ui-split-button-primary button')).nativeElement.click();
+            expect(primarySpy).toHaveBeenCalled();
 
-            expect(spy).toHaveBeenCalled();
-        });
-
-        it('emits itemClick and closes when a projected enabled item is clicked', () => {
-            const split = host.debugElement.query(
-                By.directive(SplitButtonComponent),
-            ).componentInstance as SplitButtonComponent;
             split.isOpen.set(true);
             host.detectChanges();
-
-            const spy = vi.spyOn(split.itemClick, 'emit');
-            const enabledItem = host.debugElement.query(
-                By.css('ui-split-button-item button'),
-            );
-            enabledItem.nativeElement.click();
-
-            expect(spy).toHaveBeenCalledWith({ label: '', value: 'a' });
+            host.debugElement.query(By.css('ui-split-button-item button')).nativeElement.click();
+            expect(itemSpy).toHaveBeenCalledWith({ label: '', value: 'a' });
             expect(split.isOpen()).toBe(false);
-        });
 
-        it('does nothing when a projected disabled item onClick fires', () => {
-            const split = host.debugElement.query(
-                By.directive(SplitButtonComponent),
-            ).componentInstance as SplitButtonComponent;
+            itemSpy.mockClear();
             split.isOpen.set(true);
             host.detectChanges();
-
-            const spy = vi.spyOn(split.itemClick, 'emit');
             const disabledItem = host.debugElement.queryAll(
                 By.directive(SplitButtonItemComponent),
             )[1].componentInstance as SplitButtonItemComponent;
-
             disabledItem.onClick(new MouseEvent('click'));
-
-            expect(spy).not.toHaveBeenCalled();
+            expect(itemSpy).not.toHaveBeenCalled();
             expect(split.isOpen()).toBe(true);
         });
     });

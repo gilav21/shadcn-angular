@@ -10,7 +10,7 @@ import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 function flushMicrotimers(): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, 10));
+    return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 // Host that starts open so DrawerContentComponent.ngAfterViewInit sees an
@@ -254,57 +254,40 @@ describe('DrawerContent Tab focus trap', () => {
         };
     }
 
-    it('wraps to the last element on Shift+Tab from the first element', () => {
+    it('wraps Tab focus at both ends only, and leaves middle positions and other keys alone', () => {
         const first = fixture.nativeElement.querySelector('#first') as HTMLElement;
-        const last = fixture.nativeElement.querySelector('#last') as HTMLElement;
-        const lastFocus = vi.spyOn(last, 'focus');
-        first.focus();
-        expect(document.activeElement).toBe(first);
-
-        const { event, preventDefault } = makeTab(true);
-        content.onKeydown(event);
-
-        expect(preventDefault).toHaveBeenCalledTimes(1);
-        expect(lastFocus).toHaveBeenCalledTimes(1);
-    });
-
-    it('does nothing on Shift+Tab when focus is not on the first element', () => {
         const middle = fixture.nativeElement.querySelector('#middle') as HTMLElement;
-        middle.focus();
-        expect(document.activeElement).toBe(middle);
-
-        const { event, preventDefault } = makeTab(true);
-        content.onKeydown(event);
-
-        expect(preventDefault).not.toHaveBeenCalled();
-    });
-
-    it('wraps to the first element on Tab from the last element', () => {
-        const first = fixture.nativeElement.querySelector('#first') as HTMLElement;
         const last = fixture.nativeElement.querySelector('#last') as HTMLElement;
         const firstFocus = vi.spyOn(first, 'focus');
-        last.focus();
-        expect(document.activeElement).toBe(last);
+        const lastFocus = vi.spyOn(last, 'focus');
 
-        const { event, preventDefault } = makeTab(false);
-        content.onKeydown(event);
-
-        expect(preventDefault).toHaveBeenCalledTimes(1);
-        expect(firstFocus).toHaveBeenCalledTimes(1);
-    });
-
-    it('does nothing on Tab when focus is not on the last element', () => {
-        const first = fixture.nativeElement.querySelector('#first') as HTMLElement;
+        // Shift+Tab from the first element wraps to the last.
         first.focus();
-        expect(document.activeElement).toBe(first);
+        firstFocus.mockClear();
+        const backFromFirst = makeTab(true);
+        content.onKeydown(backFromFirst.event);
+        expect(backFromFirst.preventDefault).toHaveBeenCalledTimes(1);
+        expect(lastFocus).toHaveBeenCalledTimes(1);
 
-        const { event, preventDefault } = makeTab(false);
-        content.onKeydown(event);
+        // Shift+Tab from the middle and Tab from the first are left to the browser.
+        middle.focus();
+        const backFromMiddle = makeTab(true);
+        content.onKeydown(backFromMiddle.event);
+        expect(backFromMiddle.preventDefault).not.toHaveBeenCalled();
 
-        expect(preventDefault).not.toHaveBeenCalled();
-    });
+        first.focus();
+        const forwardFromFirst = makeTab(false);
+        content.onKeydown(forwardFromFirst.event);
+        expect(forwardFromFirst.preventDefault).not.toHaveBeenCalled();
 
-    it('ignores non-Escape, non-Tab keys', () => {
+        // Tab from the last element wraps to the first.
+        last.focus();
+        firstFocus.mockClear();
+        const forwardFromLast = makeTab(false);
+        content.onKeydown(forwardFromLast.event);
+        expect(forwardFromLast.preventDefault).toHaveBeenCalledTimes(1);
+        expect(firstFocus).toHaveBeenCalledTimes(1);
+
         const preventDefault = vi.fn();
         content.onKeydown({ key: 'a', shiftKey: false, preventDefault } as unknown as KeyboardEvent);
         expect(preventDefault).not.toHaveBeenCalled();

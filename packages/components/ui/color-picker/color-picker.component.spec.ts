@@ -98,17 +98,6 @@ describe('ColorPickerComponent', () => {
         });
     });
 
-    describe('Popover', () => {
-        it('opens on trigger click', async () => {
-            const trigger = fixture.debugElement.query(By.css('button'));
-            trigger.nativeElement.click();
-            fixture.detectChanges();
-            await fixture.whenStable();
-            const popoverContent = fixture.debugElement.query(By.css('ui-popover-content'));
-            expect(popoverContent).toBeTruthy();
-        });
-    });
-
     describe('Inline mode', () => {
         it('renders the panel directly with no trigger or popover', () => {
             host.inline.set(true);
@@ -122,32 +111,24 @@ describe('ColorPickerComponent', () => {
     });
 
     describe('Color selection', () => {
-        it('applies a preset color', async () => {
+        it('writes a preset, a hex input and RGB channels to the bound model, and clamps RGB to 0..255', async () => {
             const picker = await openAndGetPicker(fixture);
             picker.selectPreset('#ef4444');
             fixture.detectChanges();
             await fixture.whenStable();
             expect(host.color()).toBe('#ef4444');
-        });
 
-        it('parses hex via onHexInput', async () => {
-            const picker = await openAndGetPicker(fixture);
-            picker.onHexInput('#ff0000');
-            fixture.detectChanges();
-            expect(host.color()).toBe('#ff0000');
-        });
-
-        it('updates color via RGB channel input', async () => {
-            const picker = await openAndGetPicker(fixture);
+            // Red-dominant with green below blue on the way: the hue wraps by 6 sextants.
             picker.onRgbChange('r', 255);
             picker.onRgbChange('g', 0);
             picker.onRgbChange('b', 0);
             fixture.detectChanges();
             expect(host.color()).toBe('#ff0000');
-        });
 
-        it('clamps RGB to 0..255', async () => {
-            const picker = await openAndGetPicker(fixture);
+            picker.onHexInput('#00ff00');
+            fixture.detectChanges();
+            expect(host.color()).toBe('#00ff00');
+
             picker.onRgbChange('r', 500);
             fixture.detectChanges();
             expect(picker.rgb().r).toBeLessThanOrEqual(255);
@@ -169,22 +150,16 @@ describe('ColorPickerComponent', () => {
     });
 
     describe('Keyboard nav on SV area', () => {
-        it('ArrowRight increases saturation', async () => {
+        it('ArrowRight increases saturation, Shift+ArrowDown lowers value by 10, and Home/End clamp saturation to 0 and 100', async () => {
             const picker = await openAndGetPicker(fixture);
             const startS = picker.saturation();
             picker.onAreaKeyDown(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
             expect(picker.saturation()).toBe(Math.min(100, startS + 1));
-        });
 
-        it('Shift+ArrowDown decreases value by 10', async () => {
-            const picker = await openAndGetPicker(fixture);
             const startV = picker.hsvValue();
             picker.onAreaKeyDown(new KeyboardEvent('keydown', { key: 'ArrowDown', shiftKey: true }));
             expect(picker.hsvValue()).toBe(Math.max(0, startV - 10));
-        });
 
-        it('Home and End clamp saturation to 0 and 100', async () => {
-            const picker = await openAndGetPicker(fixture);
             picker.saturation.set(50);
             picker.onAreaKeyDown(new KeyboardEvent('keydown', { key: 'Home' }));
             expect(picker.saturation()).toBe(0);
@@ -201,13 +176,9 @@ describe('ColorPickerComponent', () => {
             await fixture.whenStable();
         });
 
-        it('disables trigger', () => {
+        it('disables the trigger and dims it', () => {
             const trigger = fixture.debugElement.query(By.css('button'));
             expect(trigger.nativeElement.disabled).toBe(true);
-        });
-
-        it('applies opacity class', () => {
-            const trigger = fixture.debugElement.query(By.css('button'));
             expect(trigger.nativeElement.className).toContain('opacity-50');
         });
     });
@@ -228,16 +199,13 @@ describe('ColorPickerComponent', () => {
             await fixture.whenStable();
         });
 
-        it('emits 8-char hex when alpha < 1', async () => {
+        it('emits 8-char hex when alpha < 1 and 6-char hex when alpha === 1', async () => {
             const picker = await openAndGetPicker(fixture);
             picker.setAlpha(0.5);
             fixture.detectChanges();
             await fixture.whenStable();
             expect(host.color()).toMatch(/^#[0-9a-f]{8}$/);
-        });
 
-        it('emits 6-char hex when alpha === 1', async () => {
-            const picker = await openAndGetPicker(fixture);
             picker.setAlpha(1);
             fixture.detectChanges();
             await fixture.whenStable();
@@ -246,28 +214,21 @@ describe('ColorPickerComponent', () => {
     });
 
     describe('Recent colors', () => {
-        it('dedupes recent entries', async () => {
+        it('dedupes recent entries and caps them at maxRecent', async () => {
+            host.maxRecent.set(2);
+            fixture.detectChanges();
             const picker = await openAndGetPicker(fixture);
             picker.selectPreset('#ef4444');
             picker.selectPreset('#22c55e');
             picker.selectPreset('#ef4444');
             fixture.detectChanges();
-            const count = picker.recents().filter(c => c === '#ef4444').length;
-            expect(count).toBe(1);
-            expect(picker.recents()[0]).toBe('#ef4444');
-        });
+            expect(picker.recents()).toEqual(['#ef4444', '#22c55e']);
 
-        it('caps recents at maxRecent', async () => {
-            host.maxRecent.set(2);
-            fixture.detectChanges();
-            const picker = await openAndGetPicker(fixture);
-            picker.selectPreset('#111111');
-            picker.selectPreset('#222222');
             picker.selectPreset('#333333');
             fixture.detectChanges();
             expect(picker.recents()).toHaveLength(2);
             expect(picker.recents()).toContain('#333333');
-            expect(picker.recents()).not.toContain('#111111');
+            expect(picker.recents()).not.toContain('#22c55e');
         });
     });
 
@@ -288,7 +249,7 @@ describe('ColorPickerComponent', () => {
             ]);
         });
 
-        it('Readable row recommends black first for a light color', async () => {
+        it('Readable row recommends black first for a light color and white first for a dark one', async () => {
             host.showHarmonies.set(true);
             fixture.detectChanges();
             const picker = await openAndGetPicker(fixture);
@@ -298,20 +259,14 @@ describe('ColorPickerComponent', () => {
             expect(readable.label).toBe('Readable');
             expect(readable.swatches[0]).toBe('#000000');
             expect(readable.swatches[1]).toBe('#ffffff');
-        });
 
-        it('Readable row recommends white first for a dark color', async () => {
-            host.showHarmonies.set(true);
-            fixture.detectChanges();
-            const picker = await openAndGetPicker(fixture);
             picker.selectPreset('#000080');
             fixture.detectChanges();
-            const readable = picker.harmonyGroups()[0];
-            expect(readable.swatches[0]).toBe('#ffffff');
-            expect(readable.swatches[1]).toBe('#000000');
+            expect(picker.harmonyGroups()[0].swatches[0]).toBe('#ffffff');
+            expect(picker.harmonyGroups()[0].swatches[1]).toBe('#000000');
         });
 
-        it('copyHarmony writes to clipboard and exposes the copied hex', async () => {
+        it('copyHarmony writes to the clipboard and exposes the copied hex without changing the selection', async () => {
             host.showHarmonies.set(true);
             fixture.detectChanges();
             const picker = await openAndGetPicker(fixture);
@@ -320,20 +275,15 @@ describe('ColorPickerComponent', () => {
                 value: { writeText },
                 configurable: true,
             });
-            await picker.copyHarmony('#abcdef');
-            expect(writeText).toHaveBeenCalledWith('#abcdef');
-            expect(picker.copiedHarmony()).toBe('#abcdef');
-        });
-
-        it('copyHarmony does not change the picker selection', async () => {
-            host.showHarmonies.set(true);
-            fixture.detectChanges();
-            const picker = await openAndGetPicker(fixture);
             picker.selectPreset('#112233');
             fixture.detectChanges();
             const before = picker.currentColor();
+
             await picker.copyHarmony('#abcdef');
             fixture.detectChanges();
+
+            expect(writeText).toHaveBeenCalledWith('#abcdef');
+            expect(picker.copiedHarmony()).toBe('#abcdef');
             expect(picker.currentColor()).toBe(before);
         });
     });
@@ -569,21 +519,17 @@ describe('ColorPickerComponent', () => {
     });
 
     describe('ControlValueAccessor', () => {
-        it('parses any color format in writeValue', () => {
-            const picker = fixture.debugElement.query(By.directive(ColorPickerComponent))
-                .componentInstance as ColorPickerComponent;
-            picker.writeValue('rgb(0, 255, 0)');
-            fixture.detectChanges();
-            expect(picker.currentColor()).toBe('#00ff00');
-        });
-
-        it('keeps the current colour when writeValue receives null or an empty string', () => {
+        it('parses any color format in writeValue, and keeps the current colour for null or an empty string', () => {
             const picker = fixture.debugElement.query(By.directive(ColorPickerComponent))
                 .componentInstance as ColorPickerComponent;
             picker.writeValue(null);
             picker.writeValue('');
             fixture.detectChanges();
             expect(picker.currentColor()).toBe('#3b82f6');
+
+            picker.writeValue('rgb(0, 255, 0)');
+            fixture.detectChanges();
+            expect(picker.currentColor()).toBe('#00ff00');
         });
 
         it('does not emit its initial colour before any interaction', async () => {
@@ -598,7 +544,7 @@ describe('ColorPickerComponent', () => {
             expect(changes).toEqual([]);
         });
 
-        it('does not echo a written value back through onChange or colorChange', async () => {
+        it('does not echo a written value back through onChange or colorChange, but still emits a later user pick', async () => {
             const picker = fixture.debugElement.query(By.directive(ColorPickerComponent))
                 .componentInstance as ColorPickerComponent;
             const changes: string[] = [];
@@ -613,17 +559,7 @@ describe('ColorPickerComponent', () => {
             expect(picker.currentColor()).toBe('#00ff00');
             expect(changes).toEqual([]);
             expect(emitted).toEqual([]);
-        });
 
-        it('still emits a user pick made after a write', async () => {
-            const picker = fixture.debugElement.query(By.directive(ColorPickerComponent))
-                .componentInstance as ColorPickerComponent;
-            picker.writeValue('#00ff00');
-            fixture.detectChanges();
-            await fixture.whenStable();
-
-            const changes: string[] = [];
-            picker.registerOnChange((value: string) => { changes.push(value); });
             picker.selectPreset('#ff0000');
             fixture.detectChanges();
             await fixture.whenStable();
@@ -989,42 +925,44 @@ describe('ColorPickerComponent — signal-forms readiness', () => {
         fixture.detectChanges();
     };
 
-    it('T-10: writeValue with the current colour re-emits on neither output', async () => {
+    it('T-10: form and model writes never echo colorChange or valueChange, and keep the value model in step', async () => {
         const fixture = TestBed.createComponent(TwoWayColorHost);
         await settle(fixture);
         const picker = componentOf(fixture);
+        const host = fixture.componentInstance;
+
         picker.writeValue('#ff0000');
+        await settle(fixture);
+        host.valueEmissions.length = 0;
+        host.colorEmissions.length = 0;
+
+        // Re-writing the current colour re-emits on neither output.
+        picker.writeValue('#ff0000');
+        await settle(fixture);
+        expect(host.valueEmissions).toEqual([]);
+        expect(host.colorEmissions).toEqual([]);
+
+        picker.writeValue('#123456');
+        await settle(fixture);
+        expect(picker.value()).toBe('#123456');
+        expect(host.colorEmissions).toEqual([]);
+
+        picker.value.set('#abcdef');
+        await settle(fixture);
+        expect(picker.currentColor()).toBe('#abcdef');
+        expect(host.colorEmissions).toEqual([]);
+    });
+
+    it('T-1 / T-9: a user pick updates the two-way model and emits valueChange exactly once', async () => {
+        const fixture = TestBed.createComponent(TwoWayColorHost);
         await settle(fixture);
         fixture.componentInstance.valueEmissions.length = 0;
-        fixture.componentInstance.colorEmissions.length = 0;
-
-        picker.writeValue('#ff0000');
-        await settle(fixture);
-
-        expect(fixture.componentInstance.valueEmissions).toEqual([]);
-        expect(fixture.componentInstance.colorEmissions).toEqual([]);
-    });
-
-    it('T-10: a form write does not echo back through colorChange', async () => {
-        const fixture = TestBed.createComponent(TwoWayColorHost);
-        await settle(fixture);
-        const picker = componentOf(fixture);
-        fixture.componentInstance.colorEmissions.length = 0;
-
-        picker.writeValue('#00ff00');
-        await settle(fixture);
-
-        expect(fixture.componentInstance.colorEmissions).toEqual([]);
-    });
-
-    it('T-1: two-way [(value)] updates the model on a user pick', async () => {
-        const fixture = TestBed.createComponent(TwoWayColorHost);
-        await settle(fixture);
 
         componentOf(fixture).selectPreset('#0000ff');
         await settle(fixture);
 
         expect(fixture.componentInstance.colour()).toBe('#0000ff');
+        expect(fixture.componentInstance.valueEmissions).toEqual(['#0000ff']);
     });
 
     it('T-2: two-way [(value)] updates the rendered colour when the model changes', async () => {
@@ -1035,38 +973,5 @@ describe('ColorPickerComponent — signal-forms readiness', () => {
         await settle(fixture);
 
         expect(componentOf(fixture).currentColor()).toBe('#00ff00');
-    });
-
-    it('T-9: a user pick emits valueChange exactly once', async () => {
-        const fixture = TestBed.createComponent(TwoWayColorHost);
-        await settle(fixture);
-        fixture.componentInstance.valueEmissions.length = 0;
-
-        componentOf(fixture).selectPreset('#0000ff');
-        await settle(fixture);
-
-        expect(fixture.componentInstance.valueEmissions).toEqual(['#0000ff']);
-    });
-
-    it('keeps the value model in step with a programmatic write', async () => {
-        const fixture = TestBed.createComponent(TwoWayColorHost);
-        await settle(fixture);
-
-        componentOf(fixture).writeValue('#123456');
-        await settle(fixture);
-
-        expect(componentOf(fixture).value()).toBe('#123456');
-    });
-
-    it('T-10: an external write through the value model never echoes colorChange', async () => {
-        const fixture = TestBed.createComponent(TwoWayColorHost);
-        await settle(fixture);
-        fixture.componentInstance.colorEmissions.length = 0;
-
-        componentOf(fixture).value.set('#abcdef');
-        await settle(fixture);
-
-        expect(componentOf(fixture).currentColor()).toBe('#abcdef');
-        expect(fixture.componentInstance.colorEmissions).toEqual([]);
     });
 });

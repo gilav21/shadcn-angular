@@ -174,51 +174,34 @@ describe('EmojiPickerComponent', () => {
         expect(picker.open()).toBe(true);
     });
 
-    it('filters emojis by keyword typed into the search input', () => {
+    it('filters by keyword, category name and glyph, shows the empty state for no match, and returns everything for a blank query', () => {
         open();
+        const content = contentInstance();
         const input = contentEl().querySelector('input') as HTMLInputElement;
         input.value = 'dog';
         input.dispatchEvent(new Event('input', { bubbles: true }));
         fixture.detectChanges();
-
-        const rendered = contentEl().querySelectorAll('.grid button');
-        const glyphs = Array.from(rendered).map(b => b.textContent?.trim());
+        const glyphs = Array.from(contentEl().querySelectorAll('.grid button')).map(b => b.textContent?.trim());
         expect(glyphs).toContain('🐶');
         expect(glyphs).not.toContain('😀');
-    });
 
-    it('filters by matching category name', () => {
-        open();
-        const content = contentInstance();
         content.searchQuery.set('food');
         fixture.detectChanges();
         const ids = content.filteredCategories().map(c => c.id);
         expect(ids).toContain('food');
         expect(ids).not.toContain('flags');
-    });
 
-    it('filters by matching emoji glyph', () => {
-        open();
-        const content = contentInstance();
         content.searchQuery.set('🚀');
         fixture.detectChanges();
-        const glyphs = content.filteredCategories().flatMap(c => c.emojis);
-        expect(glyphs).toContain('🚀');
-        expect(glyphs).toHaveLength(1);
-    });
+        const rocket = content.filteredCategories().flatMap(c => c.emojis);
+        expect(rocket).toContain('🚀');
+        expect(rocket).toHaveLength(1);
 
-    it('shows the empty state when nothing matches', () => {
-        open();
-        const content = contentInstance();
         content.searchQuery.set('zznotarealkeywordzz');
         fixture.detectChanges();
         expect(content.filteredCategories()).toHaveLength(0);
         expect(contentEl().textContent).toContain('No emojis found');
-    });
 
-    it('returns all categories when the query is empty', () => {
-        open();
-        const content = contentInstance();
         content.searchQuery.set('   ');
         fixture.detectChanges();
         expect(content.filteredCategories()).toHaveLength(content.categories.length);
@@ -408,7 +391,7 @@ describe('EmojiPickerComponent', () => {
         expect(picker.open()).toBe(true);
     });
 
-    it('gives every emoji button a spoken name, not just the glyph', () => {
+    it('gives every emoji button a distinct spoken name, not just the glyph, such as "grinning face smile"', () => {
         open();
         const buttons = Array.from(
             contentEl().querySelectorAll<HTMLButtonElement>('[data-category] button'),
@@ -420,24 +403,15 @@ describe('EmojiPickerComponent', () => {
             return !label || label === b.textContent?.trim();
         });
         expect(unnamed).toHaveLength(0);
-    });
 
-    it('names the grinning face from its keyword list', () => {
-        open();
-        const grinning = Array.from(
-            contentEl().querySelectorAll<HTMLButtonElement>('[data-category] button'),
-        ).find((b) => b.textContent?.trim() === '\u{1F600}');
+        const grinning = buttons.find((b) => b.textContent?.trim() === '\u{1F600}');
         expect(grinning?.getAttribute('aria-label')).toBe('grinning face smile');
-    });
-
-    it('keeps emoji names mostly distinct, so different glyphs do not sound alike', () => {
-        open();
-        const labels = Array.from(
-            contentEl().querySelectorAll<HTMLButtonElement>('[data-category] button'),
-        ).map((b) => b.getAttribute('aria-label') ?? '');
 
         const seen = new Map<string, number>();
-        for (const l of labels) seen.set(l, (seen.get(l) ?? 0) + 1);
+        for (const b of buttons) {
+            const l = b.getAttribute('aria-label') ?? '';
+            seen.set(l, (seen.get(l) ?? 0) + 1);
+        }
         const ambiguous = [...seen.values()].filter((n) => n > 1).reduce((a, b) => a + b, 0);
 
         // A leading keyword alone collided ~600 times ("person" led 37 entries).
