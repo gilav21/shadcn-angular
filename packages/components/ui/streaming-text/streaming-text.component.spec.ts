@@ -59,12 +59,6 @@ describe('StreamingTextComponent', () => {
         vi.unstubAllGlobals();
     });
 
-    it('should create', () => {
-        create();
-        fixture.detectChanges();
-        expect(component).toBeTruthy();
-    });
-
     it('reveals text char-by-char and marks typing while active', () => {
         create();
         fixture.componentRef.setInput('text', 'Hi');
@@ -195,8 +189,13 @@ describe('StreamingTextComponent', () => {
         fixture.componentRef.setInput('speed', 10);
         fixture.detectChanges();
 
-        expect(component.isTyping()).toBe(true);
+        vi.advanceTimersByTime(30);
+        const typed = component.displayedText();
+        expect(typed.length).toBeGreaterThan(0);
         destroy();
-        expect(component.isTyping()).toBe(false);
+
+        vi.advanceTimersByTime(500);
+        expect(component.displayedText()).toBe(typed);
+        expect(vi.getTimerCount()).toBe(0);
     });
 });

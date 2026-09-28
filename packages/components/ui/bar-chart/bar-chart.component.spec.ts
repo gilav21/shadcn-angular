@@ -5,7 +5,6 @@ import {
     describe,
     it,
     expect,
-    vi,
     beforeEach,
     afterEach,
 } from 'vitest';
@@ -55,34 +54,15 @@ describe('BarChartComponent', () => {
             originalResizeObserver;
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
-    it('should compute bars from data', () => {
-        expect(component.bars()).toHaveLength(3);
-    });
-
-    it('should default to vertical orientation', () => {
-        expect(component.isVertical()).toBe(true);
-    });
-
-    it('should render an SVG element', () => {
-        const svg = fixture.nativeElement.querySelector('svg');
-        expect(svg).toBeTruthy();
-    });
-
     it('should set aria-label on container', () => {
         const container = fixture.nativeElement.querySelector('[role="group"]');
         expect(container).toBeTruthy();
-        expect(container.getAttribute('aria-label')).toContain('chart');
-    });
-
-    it('should use "Column chart" in aria-label for vertical orientation', () => {
-        expect(component.chartAriaLabel()).toContain('Column chart');
+        expect(container.getAttribute('aria-label')).toContain('Column chart');
     });
 
     it('should switch to horizontal orientation and update aria-label', () => {
+        expect(component.isVertical()).toBe(true);
+
         fixture.componentRef.setInput('orientation', 'horizontal');
         fixture.detectChanges();
 
@@ -225,10 +205,13 @@ describe('BarChartComponent', () => {
     });
 
     it('should hide grid lines when showGrid is false', () => {
+        const gridLines = () => fixture.nativeElement.querySelectorAll('line');
+        expect(component.axisTicks().length).toBeGreaterThan(1);
+        expect(gridLines()).toHaveLength(component.axisTicks().length);
+
         fixture.componentRef.setInput('showGrid', false);
         fixture.detectChanges();
-        const gridLines = fixture.nativeElement.querySelectorAll('line');
-        expect(gridLines).toHaveLength(0);
+        expect(gridLines()).toHaveLength(0);
     });
 
     it('should hide value labels when showValues is false', () => {
@@ -305,18 +288,6 @@ describe('BarChartComponent', () => {
     });
 
     describe('RTL', () => {
-        it('should report isRtl true when dir is rtl', () => {
-            fixture.componentRef.setInput('dir', 'rtl');
-            fixture.detectChanges();
-            expect(component.isRtl()).toBe(true);
-        });
-
-        it('should report isRtl false when dir is ltr', () => {
-            fixture.componentRef.setInput('dir', 'ltr');
-            fixture.detectChanges();
-            expect(component.isRtl()).toBe(false);
-        });
-
         it('should swap left/right padding in RTL', () => {
             fixture.componentRef.setInput('dir', 'ltr');
             fixture.detectChanges();
@@ -361,17 +332,6 @@ describe('BarChartComponent', () => {
                 component.getTickPosition(component.dataRange().max)
             ).toBeCloseTo(area.left);
         });
-    });
-
-    it('should re-check direction on the deferred ngAfterViewInit timer', () => {
-        vi.useFakeTimers();
-        const local = TestBed.createComponent(BarChartComponent);
-        local.componentRef.setInput('data', sampleData);
-        local.detectChanges();
-        vi.advanceTimersByTime(0);
-        vi.useRealTimers();
-        expect(local.componentInstance.isRtl()).toBe(false);
-        local.destroy();
     });
 
     it('should honor a custom bar color', () => {

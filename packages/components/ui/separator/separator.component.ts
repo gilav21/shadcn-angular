@@ -19,10 +19,11 @@ import { cn } from '../../lib/utils';
 })
 export class SeparatorComponent {
     /**
-     * Direction of the rule. `'horizontal'` renders a 1px-tall full-width line;
-     * `'vertical'` renders a 1px-wide full-height line, which only shows up if
-     * the parent gives the host a height (e.g. a flex row with `h-*` or
-     * `items-stretch`). Also mirrored to `aria-orientation`.
+     * Direction of the rule. `'horizontal'` renders a 1px-tall line across the
+     * container's full width; `'vertical'` a 1px-wide line down its full height,
+     * which only shows up if the parent has a definite height (e.g. `h-*`) or
+     * stretches its items. The host is a block box, so both work in plain block
+     * flow as well as in flex layouts. Also mirrored to `aria-orientation`.
      */
     orientation = input<'horizontal' | 'vertical'>('horizontal');
     /**
@@ -33,7 +34,7 @@ export class SeparatorComponent {
 
     classes = computed(() =>
         cn(
-            'bg-border shrink-0',
+            'block bg-border shrink-0',
             this.orientation() === 'horizontal' ? 'h-[1px] w-full' : 'h-full w-[1px]',
             this.class()
         )

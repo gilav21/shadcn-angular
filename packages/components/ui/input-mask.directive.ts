@@ -20,7 +20,11 @@ export class InputMaskDirective implements AfterViewInit, OnDestroy {
     @Input('uiInputMask') mask: string = '';
     /** Placeholder character shown for a slot that has not been filled yet. */
     @Input() slotChar: string = '_';
-    /** Keep the whole mask visible while typing, rather than revealing it as it fills. */
+    /**
+     * Keep the whole mask visible while typing, rather than revealing it as it fills:
+     * every unfilled slot shows {@link slotChar} and every literal is kept, so
+     * `(000) 000-0000` with `123` typed reads `(123) ___-____`.
+     */
     @Input() showMaskTyped: boolean = false;
 
     private readonly el = inject(ElementRef);
@@ -150,12 +154,11 @@ export class InputMaskDirective implements AfterViewInit, OnDestroy {
             }
 
             const result = this.applyMaskChar(matcher, rawValue, rawIndex);
-            if (result.done) {
-                masked += result.char;
-                maskIndex++;
+            masked += result.char;
+            // Out of input: stop at the first empty slot unless the whole mask is to be shown.
+            if (result.done && !this.fillsEmptySlots()) {
                 break;
             }
-            masked += result.char;
             rawIndex = result.rawIndex;
             if (result.advanceMask) {
                 maskIndex++;
@@ -172,9 +175,14 @@ export class InputMaskDirective implements AfterViewInit, OnDestroy {
         return { rawIndex };
     }
 
+    /** Whether unfilled slots render as {@link slotChar} (with the literals after them) instead of ending the value. */
+    private fillsEmptySlots(): boolean {
+        return this.showMaskTyped && this.slotChar !== '';
+    }
+
     private applyMaskChar(matcher: RegExp, rawValue: string, rawIndex: number): { char: string; rawIndex: number; advanceMask: boolean; done: boolean } {
         if (rawIndex >= rawValue.length) {
-            const slotFill = (this.slotChar && this.showMaskTyped) ? this.slotChar : '';
+            const slotFill = this.fillsEmptySlots() ? this.slotChar : '';
             return { char: slotFill, rawIndex, advanceMask: true, done: true };
         }
 

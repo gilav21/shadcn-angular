@@ -797,12 +797,22 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     readonly tableContextMenuPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
     private tableContextMenuTarget: HTMLTableCellElement | null = null;
     private tableContextMenuCloseHandler: (() => void) | null = null;
+    /**
+     * A running column resize: the first-row cells sizing the columns before
+     * and after the dragged border (`after` is null at the table's end edge,
+     * where the table itself grows), their widths when the drag began, and
+     * `direction` 1 in LTR or -1 in RTL, where the column before the border
+     * is the one on the right.
+     */
     private tableResizeState: {
         table: HTMLTableElement;
-        colIndex: number;
+        before: HTMLTableCellElement;
+        after: HTMLTableCellElement | null;
         startX: number;
-        startWidths: number[];
+        beforeWidth: number;
+        afterWidth: number;
         tableWidth: number;
+        direction: 1 | -1;
     } | null = null;
     private readonly tableResizeCursor = signal(false);
     private readonly onTableResizeMoveBound = this.onTableResizeMove.bind(this);
@@ -1106,8 +1116,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     /** The editor as a custom button sees it; every write goes through the history-recording seams. */
     private editorRef(): RichTextEditorRef {
         return {
-            insertText: (text) => this.insertTextAtCaret(text),
-            insertHtml: (html) => this.insertHtmlAtCaret(html),
+            // The public inserts: at the caret the user left in the editor, not
+            // the live selection, which the button click may have moved into
+            // other text on the page -- the insert used to land there -- and
+            // behind the same guards (editable, within maxLength, not empty).
+            insertText: (text) => this.insertText(text),
+            insertHtml: (html) => this.insertHtml(html),
             focus: () => this.focus(),
             getSelectedText: () => this.selection().text,
             getHtmlContent: () => this.htmlOutput(),
@@ -1471,14 +1485,15 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * Insert plain text at the restored caret as one history entry, then focus
      * the editor — the method a page button next to the editor calls.
      *
-     * No-op while readonly or disabled, and for the empty string (an empty
-     * insert would otherwise record a history entry that undoes nothing).
+     * No-op while readonly or disabled, when the text would take the document
+     * past {@link maxLength}, and for the empty string (an empty insert would
+     * otherwise record a history entry that undoes nothing).
      *
      * @publicApi
      */
     insertText(text: string): void {
-        if (text === '' || !this.canEditContent()) return;
-        this.insertAtRestoredCaret(() => this.insertTextNode(text));
+        if (text === '') return;
+        this.insertAtRestoredCaret(text, () => this.insertTextNode(text));
     }
 
     /**
@@ -1486,7 +1501,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * editor. The markup goes through the editor's allow-list sanitizer, so a
      * `<script>` is dropped rather than inserted.
      *
-     * No-op while readonly or disabled, and when nothing survives sanitization.
+     * No-op while readonly or disabled, when nothing survives sanitization, and
+     * when its text would take the document past {@link maxLength}.
      * The single sanitize pass both answers that question and supplies the
      * markup that is inserted — deciding and inserting must not disagree.
      *
@@ -1496,7 +1512,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (!this.canEditContent()) return;
         const sanitized = this.sanitizer.sanitize(html);
         if (sanitized === '') return;
-        this.insertAtRestoredCaret(() => this.insertSanitizedHtml(sanitized));
+        this.insertAtRestoredCaret(this.plainTextOf(sanitized), () => this.insertSanitizedHtml(sanitized));
     }
 
     /**
@@ -2448,17 +2464,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return null;
     }
 
-    private insertNewlineInCodeBlock(range: Range, selection: Selection): void {
-        const textNodeToInsert = this.document.createTextNode('\n');
-        range.deleteContents();
-        range.insertNode(textNodeToInsert);
-        const newRange = this.document.createRange();
-        newRange.setStartAfter(textNodeToInsert);
-        newRange.setEndAfter(textNodeToInsert);
-        selection.removeAllRanges();
-        selection.addRange(newRange);
-    }
-
     private findAncestorByTag(startNode: Node, tagName: string): HTMLElement | null {
         let node: Node | null = startNode;
         while (node && node !== this.editorDiv?.nativeElement) {
@@ -2492,9 +2497,20 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             return;
         }
 
-        if (this.exceedsMaxLength(inputEvent.data ?? '')) {
+        // A drop or a paste carries its text in dataTransfer, not data: read
+        // as empty, it got past the limit whole.
+        if (this.exceedsMaxLength(inputEvent.data ?? this.transferredText(inputEvent.dataTransfer))) {
             event.preventDefault();
         }
+    }
+
+    /**
+     * The text a drop or a paste would add, from the flavour that is inserted:
+     * the HTML when there is some, else the plain text.
+     */
+    private transferredText(data: DataTransfer | null | undefined): string {
+        const html = data?.getData('text/html') ?? '';
+        return html ? this.plainTextOf(html) : data?.getData('text/plain') ?? '';
     }
 
     /**
@@ -2526,21 +2542,23 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
         const html = event.clipboardData?.getData('text/html');
         const text = event.clipboardData?.getData('text/plain') ?? '';
+        const normalized = this.pasteNormalizer.normalize(html ?? null, text);
 
-        if (this.handlePasteMaxLength(text)) {
+        // Budgeted on the flavour that is inserted. The plain flavour alone let
+        // a paste whose HTML says more than its plain text through the limit.
+        if (this.handlePasteMaxLength(this.plainTextOf(normalized))) {
             return;
         }
 
-        const normalized = this.pasteNormalizer.normalize(html ?? null, text);
         this.insertHtmlFragment(normalized);
         this.pushHistory();
     }
 
     /**
      * Enforce `maxLength` on a paste, returning `true` when the paste was fully
-     * handled here. Measures against the plain-text (`text/plain`) clipboard
-     * value rather than parsing the untrusted HTML — the over-limit path inserts
-     * plain text anyway, so the HTML length would be the wrong budget.
+     * handled here. `text` is the visible text of what the paste inserts -- the
+     * normalized HTML flavour when there is one -- and the over-limit path
+     * inserts it, truncated, as plain text.
      */
     /**
      * The visible text an HTML fragment contributes, for budgeting against
@@ -2670,13 +2688,23 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return (this.editorDiv?.nativeElement.textContent ?? '').replaceAll('​', '');
     }
 
+    /**
+     * Whether adding `text` beside the document, replacing nothing, would take
+     * it past {@link maxLength}: an insert that lands after the caret's line
+     * frees none of the selection, which counted as freed let a block through.
+     */
+    private exceedsMaxLengthBeside(text: string): boolean {
+        const max = this.maxLength();
+        return !!max && graphemeLength(this.perceivedText()) + graphemeLength(text) > max;
+    }
+
     private exceedsMaxLength(text: string): boolean {
         const max = this.maxLength();
         if (!max) return false;
         // Graphemes never outnumber UTF-16 units, so when the raw lengths fit
         // the insert cannot exceed the limit and the document need not be
         // segmented at all -- which is the case on nearly every keystroke.
-        const selected = this.document.getSelection()?.toString().length ?? 0;
+        const selected = this.selectedTextInEditor().length;
         if (this.perceivedText().length - selected + text.length <= max) return false;
         return graphemeLength(text) > this.remainingLength();
     }
@@ -2760,6 +2788,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
         if (this.dispatchDropInterceptors(event)) {
             return;
+        }
+        // The browser inserts an unclaimed drop itself, past every insert seam,
+        // so the limit is held here: the drop is cancelled when it would not fit.
+        if (this.maxLength() && this.exceedsMaxLength(this.transferredText(event.dataTransfer))) {
+            event.preventDefault();
         }
     }
 
@@ -3152,8 +3185,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * removes the insert and nothing else.
      */
     insertTextFromOverlay(text: string): void {
-        if (this.exceedsMaxLength(text)) return;
-        this.insertAtRestoredCaret(() => this.insertTextNode(text));
+        this.insertAtRestoredCaret(text, () => this.insertTextNode(text));
     }
 
     /**
@@ -3168,15 +3200,24 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * pinned to `'none'` for ~100ms while focus returns, which stops the mobile
      * software keyboard from flashing open. The caret is re-saved afterwards so
      * consecutive inserts append instead of stacking at the same spot.
+     *
+     * The guards every such insert shares come first: nothing is inserted while
+     * the editor is read-only or disabled, and `plainText` -- what the insert
+     * adds -- must fit {@link maxLength}. The limit is measured once the
+     * editor's caret is restored, against what the insert will replace:
+     * measured before, a selection elsewhere on the page was subtracted from
+     * the document as if the insert would replace it, and the limit gave way.
      */
-    private insertAtRestoredCaret(insert: () => void): void {
+    private insertAtRestoredCaret(plainText: string, insert: () => void): void {
+        if (!this.canEditContent()) return;
+        this.restoreSelection();
+        if (this.exceedsMaxLength(plainText)) return;
         this.flushPendingHistoryPush();
         const editor = this.editorDiv?.nativeElement;
         const prevInputMode = editor?.inputMode;
         if (editor) {
             editor.inputMode = 'none';
         }
-        this.restoreSelection();
         insert();
         this.pushHistory();
         const selection = this.document.getSelection();
@@ -3211,7 +3252,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     /** Insert block markup at the caret's line (addon host surface). */
     insertBlockAtCaret(html: string): void {
         const sanitized = this.sanitizer.sanitize(html);
-        if (this.exceedsMaxLength(this.plainTextOf(sanitized))) return;
+        if (this.exceedsMaxLengthBeside(this.plainTextOf(sanitized))) return;
         const editor = this.editorDiv?.nativeElement;
         if (!editor) return;
         const template = this.document.createElement('template');
@@ -3637,8 +3678,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
         const styled: HTMLElement[] = [];
         if (this.editorDiv?.nativeElement) {
-            const fontElements = this.editorDiv.nativeElement.querySelectorAll(`font[face="${CSS.escape(family)}"]`);
-            for (const font of Array.from(fontElements)) {
+            // Compared as an attribute value rather than through a selector, which
+            // would need CSS.escape -- absent from jsdom, where this threw.
+            const fontElements = Array.from(this.editorDiv.nativeElement.querySelectorAll('font[face]'))
+                .filter((font) => font.getAttribute('face') === family);
+            for (const font of fontElements) {
                 const el = font as HTMLElement;
                 const span = this.document.createElement('span');
                 span.style.fontFamily = family;
@@ -3770,14 +3814,22 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     private getSelectedTextLength(): number {
+        // Graphemes, to match the unit the counter and the budget use — a
+        // mix would let a selection of emoji free up more budget than it
+        // actually occupies.
+        return graphemeLength(this.selectedTextInEditor());
+    }
+
+    /**
+     * The selected text when the selection lies in the editor, else nothing:
+     * only that is what an insert replaces. Text selected elsewhere on the page
+     * freed budget it does not occupy, so an insert got past maxLength.
+     */
+    private selectedTextInEditor(): string {
         const selection = this.document.getSelection();
-        if (selection && !selection.isCollapsed) {
-            // Graphemes, to match the unit the counter and the budget use — a
-            // mix would let a selection of emoji free up more budget than it
-            // actually occupies.
-            return graphemeLength(selection.toString());
-        }
-        return 0;
+        const editor = this.editorDiv?.nativeElement;
+        if (!editor || !selection || selection.isCollapsed || selection.rangeCount === 0) return '';
+        return editor.contains(selection.getRangeAt(0).commonAncestorContainer) ? selection.toString() : '';
     }
 
     private closeTableContextMenu(): void {
@@ -3880,8 +3932,9 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     /**
      * Template-bound `mousemove` handler; its only job is the column-resize
-     * affordance. Within 4px of a cell's right edge — or its left edge, for any
-     * column but the first — it switches the editable area's cursor to
+     * affordance. Within 4px of a column border that can be dragged (see
+     * `resolveResizeBorder`: a cell's end or start edge, mirrored in RTL, never
+     * the table's start edge) it switches the editable area's cursor to
      * `col-resize` and arms the flag {@link onEditorMouseDown} checks to start a
      * drag. Idle while a resize is already running, or when disabled/readonly.
      */
@@ -4030,32 +4083,32 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (!onBorder || !cell) {
             return false;
         }
-        const table = cell.closest<HTMLTableElement>('table');
-        if (!table) {
+        const border = this.resolveResizeBorder(cell, clientX);
+        if (!border) {
             return false;
         }
-        const resizeColIndex = this.getResizeColumnIndex(cell, clientX);
         event.preventDefault();
         event.stopPropagation();
-        const firstRow = table.rows[0];
-        if (!firstRow) {
-            return true;
-        }
 
-        const widths = Array.from(firstRow.cells).map(c => c.getBoundingClientRect().width);
+        const { table, before, after } = border;
+        const firstRowCells = Array.from(table.rows[0].cells);
+        const widths = firstRowCells.map(c => c.getBoundingClientRect().width);
         const tableWidth = table.getBoundingClientRect().width;
         table.style.tableLayout = 'fixed';
         table.style.width = `${tableWidth}px`;
-        for (const [index, tableCell] of Array.from(firstRow.cells).entries()) {
+        for (const [index, tableCell] of firstRowCells.entries()) {
             tableCell.style.width = `${widths[index]}px`;
         }
 
         this.tableResizeState = {
             table,
-            colIndex: resizeColIndex,
+            before,
+            after,
             startX: clientX,
-            startWidths: widths,
+            beforeWidth: before.getBoundingClientRect().width,
+            afterWidth: after?.getBoundingClientRect().width ?? 0,
             tableWidth,
+            direction: this.isRtl() ? -1 : 1,
         };
         this.document.addEventListener('mousemove', this.onTableResizeMoveBound);
         this.document.addEventListener('mouseup', this.onTableResizeUpBound);
@@ -4066,7 +4119,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     /**
      * Whether a pointer at `clientX` is within the column-resize hotspot of a
-     * cell's left or right edge.
+     * border {@link resolveResizeBorder} can move.
      *
      * Shared by the mouse and touch paths. The mouse path also uses it to set
      * the `col-resize` cursor on hover; touch has no hover, so the touch path
@@ -4074,19 +4127,58 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * being shared, a column simply could not be resized on a touch device.
      */
     private isNearResizeBorder(cell: HTMLTableCellElement, clientX: number): boolean {
-        const cellRect = cell.getBoundingClientRect();
-        const colIndex = Array.from((cell.parentElement as HTMLTableRowElement).cells).indexOf(cell);
-        const nearRightBorder = clientX >= cellRect.right - 4;
-        const nearLeftBorder = clientX <= cellRect.left + 4 && colIndex > 0;
-        return nearRightBorder || nearLeftBorder;
+        return this.resolveResizeBorder(cell, clientX) !== null;
     }
 
-    private getResizeColumnIndex(cell: HTMLTableCellElement, clientX: number): number {
-        const row = cell.parentElement as HTMLTableRowElement;
-        const cellRect = cell.getBoundingClientRect();
-        const colIndex = Array.from(row.cells).indexOf(cell);
-        const nearLeftBorder = clientX <= cellRect.left + 4 && colIndex > 0;
-        return nearLeftBorder ? colIndex - 1 : colIndex;
+    /**
+     * The column border a pointer at `clientX` grabs on `cell`, as the
+     * first-row cells that size the rendered columns either side of it.
+     *
+     * Within 4px of the cell's end edge (right, or left in RTL) it is the
+     * border after the cell's last column; within 4px of its start edge, the
+     * border before its first column — none before the table's first column.
+     * Columns come from the cell grid, not the cell's index in its row, which a
+     * rowspan from above shifts. A fixed-layout table takes its column widths
+     * from the first row alone, so the border is only resizable when each
+     * column beside it has a first-row cell of its own (no colspan over it);
+     * `after` is null for the table's end edge, which resizes the table.
+     */
+    private resolveResizeBorder(
+        cell: HTMLTableCellElement,
+        clientX: number,
+    ): { table: HTMLTableElement; before: HTMLTableCellElement; after: HTMLTableCellElement | null } | null {
+        const table = cell.closest<HTMLTableElement>('table');
+        const side = this.resizeEdgeAt(cell, clientX);
+        if (!table || !side) return null;
+
+        const grid = this.buildCellGrid(table);
+        const bounds = this.getCellGridBounds(grid, cell);
+        const column = side === 'end' ? bounds.maxCol : bounds.minCol - 1;
+        const firstRow = grid[0];
+        if (column < 0 || !firstRow) return null;
+
+        const before = this.singleColumnCell(firstRow, column);
+        const atTableEnd = column === firstRow.length - 1;
+        const after = atTableEnd ? null : this.singleColumnCell(firstRow, column + 1);
+        if (!before || (!atTableEnd && !after)) return null;
+        return { table, before, after };
+    }
+
+    /** Which of the cell's inline edges `clientX` is on, if either. */
+    private resizeEdgeAt(cell: HTMLTableCellElement, clientX: number): 'start' | 'end' | null {
+        const rect = cell.getBoundingClientRect();
+        const rtl = this.isRtl();
+        const nearRight = clientX >= rect.right - 4;
+        const nearLeft = clientX <= rect.left + 4;
+        if (rtl ? nearLeft : nearRight) return 'end';
+        if (rtl ? nearRight : nearLeft) return 'start';
+        return null;
+    }
+
+    /** The cell covering `column` of a grid row, when it covers that column alone. */
+    private singleColumnCell(gridRow: (HTMLTableCellElement | null)[], column: number): HTMLTableCellElement | null {
+        const cell = gridRow[column];
+        return cell && (cell.colSpan || 1) === 1 ? cell : null;
     }
 
     private onTableResizeMove(event: MouseEvent): void {
@@ -4106,21 +4198,16 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     private applyTableResizeDelta(clientX: number): void {
-        if (!this.tableResizeState) return;
-        const { table, colIndex, startX, startWidths } = this.tableResizeState;
-        const delta = clientX - startX;
-        const firstRow = table.rows[0];
-        if (!firstRow) return;
-
-        const newLeftWidth = Math.max(60, startWidths[colIndex] + delta);
-        const nextColIndex = colIndex + 1;
-        if (nextColIndex < startWidths.length) {
-            const newRightWidth = Math.max(60, startWidths[nextColIndex] - delta);
-            firstRow.cells[colIndex].style.width = `${newLeftWidth}px`;
-            firstRow.cells[nextColIndex].style.width = `${newRightWidth}px`;
+        const state = this.tableResizeState;
+        if (!state) return;
+        // Positive delta widens the column before the border; in RTL that
+        // column lies to the right, so a leftward drag widens it.
+        const delta = (clientX - state.startX) * state.direction;
+        state.before.style.width = `${Math.max(60, state.beforeWidth + delta)}px`;
+        if (state.after) {
+            state.after.style.width = `${Math.max(60, state.afterWidth - delta)}px`;
         } else {
-            firstRow.cells[colIndex].style.width = `${newLeftWidth}px`;
-            table.style.width = `${this.tableResizeState.tableWidth + delta}px`;
+            state.table.style.width = `${state.tableWidth + delta}px`;
         }
     }
 
@@ -4220,53 +4307,39 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.tableCellSelected.set([]);
     }
 
+    /**
+     * The table as the browser lays it out: one slot per rendered row and
+     * column, each holding the cell that covers it (`null` for a hole in a
+     * ragged table). A cell starts at the first column its row has free after
+     * the rowspans reaching down from above, so the grid is as wide as the
+     * widest row *including* those carried-over columns — a row's own colspan
+     * sum undercounts it and leaves the pushed-right cells out of the grid.
+     */
     private buildCellGrid(table: HTMLTableElement): (HTMLTableCellElement | null)[][] {
-        const rows = Array.from(table.querySelectorAll('tr'));
-        const maxCols = rows.reduce((max, row) => Math.max(max, this.getTotalRowColSpan(row)), 0);
-
-        const grid: (HTMLTableCellElement | null)[][] = rows.map(() => new Array(maxCols).fill(null));
+        const rows = Array.from(table.rows);
+        const grid: (HTMLTableCellElement | null)[][] = rows.map(() => []);
         for (const [ri, row] of rows.entries()) {
-            this.fillCellGridRow(grid, rows.length, maxCols, ri, row);
+            this.fillCellGridRow(grid, ri, row);
+        }
+
+        const width = grid.reduce((max, gridRow) => Math.max(max, gridRow.length), 0);
+        for (const gridRow of grid) {
+            for (let ci = 0; ci < width; ci++) {
+                gridRow[ci] ??= null;
+            }
         }
         return grid;
     }
 
-    private getTotalRowColSpan(row: HTMLTableRowElement): number {
-        let count = 0;
-        for (const cell of Array.from(row.cells)) {
-            count += cell.colSpan;
-        }
-        return count;
-    }
-
-    private fillCellGridRow(
-        grid: (HTMLTableCellElement | null)[][],
-        rowCount: number,
-        maxCols: number,
-        rowIndex: number,
-        row: HTMLTableRowElement
-    ): void {
+    private fillCellGridRow(grid: (HTMLTableCellElement | null)[][], rowIndex: number, row: HTMLTableRowElement): void {
+        const gridRow = grid[rowIndex];
         let colIndex = 0;
         for (const cell of Array.from(row.cells)) {
-            colIndex = this.findNextAvailableColumn(grid, rowIndex, colIndex, maxCols);
-            if (colIndex >= maxCols) {
-                return;
+            while (gridRow[colIndex]) {
+                colIndex++;
             }
-            colIndex = this.placeCellInGrid(grid, cell, rowIndex, colIndex, rowCount, maxCols);
+            colIndex = this.placeCellInGrid(grid, cell, rowIndex, colIndex);
         }
-    }
-
-    private findNextAvailableColumn(
-        grid: (HTMLTableCellElement | null)[][],
-        rowIndex: number,
-        startColIndex: number,
-        maxCols: number
-    ): number {
-        let colIndex = startColIndex;
-        while (colIndex < maxCols && grid[rowIndex][colIndex] !== null) {
-            colIndex++;
-        }
-        return colIndex;
     }
 
     private placeCellInGrid(
@@ -4274,23 +4347,17 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         cell: HTMLTableCellElement,
         rowIndex: number,
         colIndex: number,
-        rowCount: number,
-        maxCols: number
     ): number {
         const rowSpan = cell.rowSpan || 1;
         const colSpan = cell.colSpan || 1;
-        for (let dr = 0; dr < rowSpan; dr++) {
+        // A rowspan past the last row is clamped, as the browser clamps it.
+        const lastRow = Math.min(rowIndex + rowSpan, grid.length);
+        for (let ri = rowIndex; ri < lastRow; ri++) {
             for (let dc = 0; dc < colSpan; dc++) {
-                if (this.isGridPositionInBounds(rowIndex + dr, colIndex + dc, rowCount, maxCols)) {
-                    grid[rowIndex + dr][colIndex + dc] = cell;
-                }
+                grid[ri][colIndex + dc] = cell;
             }
         }
         return colIndex + colSpan;
-    }
-
-    private isGridPositionInBounds(rowIndex: number, colIndex: number, rowCount: number, maxCols: number): boolean {
-        return rowIndex < rowCount && colIndex < maxCols;
     }
 
     private getCellGridBounds(grid: (HTMLTableCellElement | null)[][], cell: HTMLTableCellElement): { minRow: number; minCol: number; maxRow: number; maxCol: number } {
@@ -4529,7 +4596,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         target.removeAttribute('colspan');
         target.removeAttribute('rowspan');
 
-        const rows = Array.from(table.querySelectorAll('tr'));
+        const rows = Array.from(table.rows);
         for (let ri = bounds.minRow; ri <= bounds.maxRow; ri++) {
             const row = rows[ri];
             if (!row) continue;
@@ -4549,7 +4616,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     ): void {
         for (let ci = bounds.minCol; ci <= bounds.maxCol; ci++) {
             if (ri === bounds.minRow && ci === bounds.minCol) continue;
-            const isHeader = row.closest('thead') !== null;
+            const isHeader = row.parentElement?.tagName === 'THEAD';
             const newCell = this.document.createElement(isHeader ? 'th' : 'td');
             newCell.innerHTML = '<br>';
 
@@ -4602,7 +4669,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const table = cell.closest<HTMLTableElement>('table');
         if (!row || !table) return null;
         const colIndex = Array.from(row.cells).indexOf(cell);
-        const allRows = Array.from(table.querySelectorAll('tr'));
+        const allRows = Array.from(table.rows);
         const rowIndex = allRows.indexOf(row);
         return { cell, row, table, colIndex, rowIndex };
     }
@@ -4644,9 +4711,9 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     private insertTableRowAt(table: HTMLTableElement, grid: (HTMLTableCellElement | null)[][], insertAtRow: number): void {
-        const rows = Array.from(table.querySelectorAll('tr'));
+        const rows = Array.from(table.rows);
         const numCols = grid[0]?.length ?? 0;
-        const isHeader = insertAtRow === 0 && table.querySelector('thead') !== null;
+        const isHeader = insertAtRow === 0 && table.tHead !== null;
         const newRow = this.document.createElement('tr');
 
         const processed = new Set<HTMLTableCellElement>();
@@ -4660,7 +4727,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
 
         if (insertAtRow >= rows.length) {
-            const parent = table.querySelector('tbody') ?? table;
+            const parent = table.tBodies.item(0) ?? table;
             parent.appendChild(newRow);
         } else {
             const refRow = rows[insertAtRow];
@@ -4764,7 +4831,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const grid = this.buildCellGrid(info.table);
         const cellBounds = this.getCellGridBounds(grid, info.cell);
         const insertAtCol = position === 'before' ? cellBounds.minCol : cellBounds.maxCol + 1;
-        const rows = Array.from(info.table.querySelectorAll('tr'));
+        const rows = Array.from(info.table.rows);
         const numCols = grid[0]?.length ?? 0;
 
         const processed = new Set<HTMLTableCellElement>();
@@ -4774,7 +4841,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
             const row = rows[ri];
             if (!row) continue;
-            const isHeader = row.closest('thead') !== null;
+            const isHeader = row.parentElement?.tagName === 'THEAD';
             const newCell = this.document.createElement(isHeader ? 'th' : 'td');
             newCell.innerHTML = '<br>';
 
@@ -4881,7 +4948,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.closeTableContextMenu();
         const info = this.getTableCellInfo(this.tableContextMenuTarget);
         if (!info) return;
-        const allRows = Array.from(info.table.querySelectorAll('tr'));
+        const allRows = Array.from(info.table.rows);
         if (allRows.length <= 1) {
             info.table.remove();
         } else {
@@ -5024,9 +5091,9 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.closeTableContextMenu();
         const info = this.getTableCellInfo(this.tableContextMenuTarget);
         if (!info) return;
-        const firstRow = info.table.querySelector('tr');
+        const firstRow = info.table.rows.item(0);
         if (!firstRow) return;
-        const thead = info.table.querySelector('thead');
+        const thead = info.table.tHead;
         if (thead) this.demoteHeaderRow(info.table, firstRow, thead);
         else this.promoteHeaderRow(info.table, firstRow);
         this.applyMutation({ focus: true });
@@ -5034,7 +5101,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     /** Move the header row back into the body, its `<th>` becoming `<td>`. */
     private demoteHeaderRow(table: HTMLTableElement, firstRow: HTMLTableRowElement, thead: Element): void {
-        const existingTbody = table.querySelector('tbody');
+        const existingTbody = table.tBodies.item(0);
         const tbody = existingTbody ?? this.document.createElement('tbody');
         if (!existingTbody) table.appendChild(tbody);
 
@@ -5096,14 +5163,13 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (!info) return;
 
         const table = info.table;
-        const allCells = Array.from(table.querySelectorAll<HTMLElement>('td, th'));
-        const rows = Array.from(table.querySelectorAll('tr'));
+        const allCells = this.ownTableCells(table);
 
         // With cells picked, 'all' and 'none' act on just those; the geometric
         // styles ('outer', 'horizontal') are defined by the table's shape and
         // stay table-wide, since an outer edge of a partial selection is not a
         // meaningful thing to draw.
-        const selected = this.tableCellSelected().filter(c => table.contains(c)) as HTMLElement[];
+        const selected = this.tableCellSelected().filter(c => c.closest('table') === table);
         const scoped = selected.length > 0 && (style === 'all' || style === 'none');
         const cells = scoped ? selected : allCells;
 
@@ -5121,10 +5187,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
                 this.setBorderStyleNone(cells);
                 break;
             case 'outer':
-                this.applyOuterTableBorders(rows, borderVal);
+                this.applyOuterTableBorders(table, borderVal);
                 break;
             case 'horizontal':
-                this.applyHorizontalTableBorders(rows, borderVal);
+                this.applyHorizontalTableBorders(table, borderVal);
                 break;
         }
 
@@ -5150,26 +5216,47 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
-    private applyOuterTableBorders(rows: HTMLTableRowElement[], borderVal: string): void {
-        for (const [ri, row] of rows.entries()) {
-            const rowCells = Array.from(row.cells);
-            for (const [ci, cell] of rowCells.entries()) {
-                cell.style.borderTop = ri === 0 ? borderVal : 'none';
-                cell.style.borderBottom = ri === rows.length - 1 ? borderVal : 'none';
-                cell.style.borderLeft = ci === 0 ? borderVal : 'none';
-                cell.style.borderRight = ci === rowCells.length - 1 ? borderVal : 'none';
-            }
+    /**
+     * The cells of `table` itself — not those of a table nested in one of
+     * them, which `querySelectorAll('td, th')` would also return.
+     */
+    private ownTableCells(table: HTMLTableElement): HTMLTableCellElement[] {
+        return Array.from(table.rows, row => Array.from(row.cells)).flat();
+    }
+
+    /**
+     * Frame the table: a cell gets a border on each side that lies on the
+     * table's edge as rendered — from its grid position, so a cell pushed
+     * right by a rowspan is not taken for the first column, and with the
+     * first column on the right in RTL.
+     */
+    private applyOuterTableBorders(table: HTMLTableElement, borderVal: string): void {
+        const grid = this.buildCellGrid(table);
+        const lastRow = grid.length - 1;
+        const lastCol = (grid[0]?.length ?? 0) - 1;
+        const [startSide, endSide] = this.isRtl()
+            ? (['borderRight', 'borderLeft'] as const)
+            : (['borderLeft', 'borderRight'] as const);
+        const edge = (onEdge: boolean): string => (onEdge ? borderVal : 'none');
+        for (const cell of this.ownTableCells(table)) {
+            const bounds = this.getCellGridBounds(grid, cell);
+            cell.style.borderTop = edge(bounds.minRow === 0);
+            cell.style.borderBottom = edge(bounds.maxRow === lastRow);
+            cell.style[startSide] = edge(bounds.minCol === 0);
+            cell.style[endSide] = edge(bounds.maxCol === lastCol);
         }
     }
 
-    private applyHorizontalTableBorders(rows: HTMLTableRowElement[], borderVal: string): void {
-        for (const [ri, row] of rows.entries()) {
-            for (const cell of Array.from(row.cells)) {
-                cell.style.borderLeft = 'none';
-                cell.style.borderRight = 'none';
-                cell.style.borderTop = ri === 0 ? borderVal : 'none';
-                cell.style.borderBottom = ri < rows.length - 1 ? borderVal : 'none';
-            }
+    /** Rules over the top and between rows; a cell reaching the last row gets none below. */
+    private applyHorizontalTableBorders(table: HTMLTableElement, borderVal: string): void {
+        const grid = this.buildCellGrid(table);
+        const lastRow = grid.length - 1;
+        for (const cell of this.ownTableCells(table)) {
+            const bounds = this.getCellGridBounds(grid, cell);
+            cell.style.borderLeft = 'none';
+            cell.style.borderRight = 'none';
+            cell.style.borderTop = bounds.minRow === 0 ? borderVal : 'none';
+            cell.style.borderBottom = bounds.maxRow < lastRow ? borderVal : 'none';
         }
     }
 
@@ -7057,9 +7144,15 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     /**
      * Apply a built-in toolbar command to a specific block (addon host surface):
-     * the block-transform engine used by the slash-commands addon.
+     * the block-transform engine used by the slash-commands addon. With `null`
+     * the command runs at the current selection. A block that is no longer
+     * inside the editor — one an addon captured before an undo or `writeValue`
+     * rewrote the content — is ignored and nothing changes.
      */
     executeToolbarCommandOnBlock(command: string, anchorBlock: HTMLElement | null): void {
+        // A caret placed in a detached block is outside the editor, and the
+        // format path then falls back to the editor's own last block.
+        if (anchorBlock && !this.isLiveInEditor(anchorBlock)) return;
         if (command === 'code') {
             this.insertInlineCodeFromSlash(anchorBlock);
             return;
@@ -8459,12 +8552,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (entry.keyframe) {
             return entry.html;
         }
+        // The head is always a keyframe (see trimHistoryToLimit), so the walk
+        // back ends there at the latest.
         let keyframeIdx = index;
-        while (keyframeIdx >= 0 && !this.snapshots[keyframeIdx].keyframe) {
+        while (keyframeIdx > 0 && !this.snapshots[keyframeIdx].keyframe) {
             keyframeIdx--;
-        }
-        if (keyframeIdx < 0) {
-            return entry.html;
         }
         let html = this.snapshots[keyframeIdx].html;
         for (let i = keyframeIdx + 1; i <= index; i++) {
@@ -8527,18 +8619,29 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.lastReconstructedIndex = this.historyIndex;
         this.lastReconstructedHtml = currentHtml;
 
+        this.trimHistoryToLimit();
+        this.bumpHistoryVersion();
+    }
+
+    /**
+     * Drop the oldest entries past the history limit. Every entry must still
+     * reconstruct the HTML it was pushed with, so the head is always a
+     * keyframe: a delta about to become the head is rebuilt into a full
+     * snapshot while the base it depends on is still in the stack.
+     */
+    private trimHistoryToLimit(): void {
         const maxEntries = Math.max(10, this.history().limit ?? DEFAULT_HISTORY_LIMIT);
-        if (this.snapshots.length > maxEntries) {
-            if (!this.snapshots[0].keyframe && this.snapshots.length > 1) {
-                this.snapshots[1].html = this.reconstructHtml(1);
-                this.snapshots[1].keyframe = true;
-                this.snapshots[1].delta = null;
+        while (this.snapshots.length > maxEntries) {
+            const nextHead = this.snapshots[1];
+            if (!nextHead.keyframe) {
+                nextHead.html = this.reconstructHtml(1);
+                nextHead.keyframe = true;
+                nextHead.delta = null;
             }
             this.snapshots.shift();
             this.historyIndex--;
             this.lastReconstructedIndex--;
         }
-        this.bumpHistoryVersion();
     }
 
     /**

@@ -10,17 +10,39 @@ import {
   effect,
   contentChild,
   InjectionToken,
+  inject,
+  isSignal,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cn } from '../../lib/utils';
 import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
 import { COMMON_LOCALES, type CommonLocale } from '../../lib/i18n/common.locales';
 import { TreeComponent, TreeNode } from '../tree';
-import { PopoverComponent, PopoverContentComponent, PopoverTriggerComponent } from '../popover';
+import { POPOVER, PopoverComponent, PopoverContentComponent, PopoverTriggerComponent } from '../popover';
 import { TreeSelectTriggerComponent } from './sub/tree-select-trigger.component';
 import { TreeSelectContentComponent } from './sub/tree-select-content.component';
 
 export const TREE_SELECT = new InjectionToken<TreeSelectComponent>('TREE_SELECT');
+
+/**
+ * A POPOVER that forwards every access to the popover `resolve` returns at the
+ * moment of use. Content projected into `ui-tree-select` is created — and
+ * injects POPOVER — before tree-select's own view, so the inner `<ui-popover>`
+ * does not exist yet when it asks.
+ */
+function lazyPopover(resolve: () => PopoverComponent | undefined): PopoverComponent {
+  const shell: PopoverComponent = Object.create(PopoverComponent.prototype);
+  return new Proxy(shell, {
+    get(target, prop) {
+      const popover = resolve();
+      // Before the view exists only introspection (dev-mode injector profiling) reads it.
+      if (!popover) return Reflect.get(target, prop);
+      const value: unknown = Reflect.get(popover, prop);
+      // Methods need their receiver; a signal must pass through untouched, since a bound copy loses `.set`.
+      return typeof value === 'function' && !isSignal(value) ? value.bind(popover) : value;
+    },
+  });
+}
 
 @Component({
   selector: 'ui-tree-select',
@@ -35,7 +57,15 @@ export const TREE_SELECT = new InjectionToken<TreeSelectComponent>('TREE_SELECT'
       provide: TREE_SELECT,
       useExisting: forwardRef(() => TreeSelectComponent),
     },
+    {
+      provide: POPOVER,
+      useFactory: (): PopoverComponent => {
+        const treeSelect = inject(TreeSelectComponent);
+        return lazyPopover(() => treeSelect.popover());
+      },
+    },
   ],
+  host: { '(focusout)': 'onFocusOut()' },
   imports: [
     PopoverComponent,
     PopoverTriggerComponent,
@@ -50,9 +80,10 @@ export class TreeSelectComponent implements ControlValueAccessor {
    * Tree data for the built-in popover. Passing a non-empty array switches the
    * component into data-driven mode: it renders its own combobox trigger and a
    * single-select `ui-tree` in the popover. Leave it empty to fall back to
-   * projected content ({@link TreeSelectTriggerComponent} /
-   * {@link TreeSelectContentComponent}), in which case you drive the selection
-   * yourself via {@link select}.
+   * projected content: a `<ui-popover-trigger>` and a `<ui-popover-content>`
+   * (optionally wrapped in {@link TreeSelectTriggerComponent} /
+   * {@link TreeSelectContentComponent}) drive this component's popover, and you
+   * drive the selection yourself via {@link select}.
    */
   nodes = input<TreeNode[]>([]);
   /** Override for the placeholder. Falls back to the locale's `selectPlaceholder`. */
@@ -97,6 +128,8 @@ export class TreeSelectComponent implements ControlValueAccessor {
   isOpen = signal(false);
 
   tree = viewChild(TreeComponent);
+  /** The popover in this component's view. Both modes open it; projected triggers and content reach it through POPOVER. */
+  readonly popover = viewChild(PopoverComponent);
 
   isDataDriven = computed(() => this.nodes().length > 0);
 
@@ -154,7 +187,11 @@ export class TreeSelectComponent implements ControlValueAccessor {
     this.onChange = fn;
   }
 
-  /** Called by Angular forms, not by consumers. Registers the touched callback. */
+  /**
+   * Called by Angular forms, not by consumers. The control is marked touched
+   * when the user leaves it: when the popover closes (dismissed or after a
+   * pick), or when focus leaves the control while the popover is closed.
+   */
   registerOnTouched(fn: () => void): void {
     this.onTouched = fn;
   }
@@ -180,7 +217,7 @@ export class TreeSelectComponent implements ControlValueAccessor {
     this.internalValue.set(newVal);
     this.onChange(newVal);
     this.selectionChange.emit(selection);
-    this.isOpen.set(false);
+    this.closePopover();
   }
 
   /**
@@ -194,7 +231,31 @@ export class TreeSelectComponent implements ControlValueAccessor {
     this.internalValue.set(value);
     this.onChange(value);
     this.selectionChange.emit(value ? [value] : []);
+    this.closePopover();
+  }
+
+  /** Template handler for the popover's own open/close (trigger, outside click, Escape). */
+  onOpenChange(open: boolean): void {
+    if (open) {
+      this.isOpen.set(true);
+      return;
+    }
+    this.closePopover();
+  }
+
+  /**
+   * Host `focusout` handler: blurring the closed control marks it touched.
+   * While the popover is open focus moves into the panel, which is not
+   * leaving — closing the popover marks the control touched instead.
+   */
+  onFocusOut(): void {
+    if (this.isOpen()) return;
+    this.onTouched();
+  }
+
+  private closePopover(): void {
     this.isOpen.set(false);
+    this.onTouched();
   }
 
   private findNode(nodes: TreeNode[], key: string): TreeNode | null {

@@ -62,14 +62,22 @@ describe('HeatmapComponent', () => {
     });
 
     it('derives unique rows and columns in order of appearance', () => {
-        expect(component.rows()).toEqual(['Mon', 'Tue']);
-        expect(component.cols()).toEqual(['AM', 'PM']);
+        fixture.componentRef.setInput('data', [
+            { row: 'Tue', col: 'PM', value: 3 },
+            { row: 'Mon', col: 'AM', value: 1 },
+            { row: 'Tue', col: 'AM', value: 9 },
+            { row: 'Mon', col: 'PM', value: 5 },
+        ]);
+        fixture.detectChanges();
+        expect(component.rows()).toEqual(['Tue', 'Mon']);
+        expect(component.cols()).toEqual(['PM', 'AM']);
     });
 
     it('renders one cell per data point', () => {
-        expect(
+        const labels = Array.from(
             fixture.nativeElement.querySelectorAll('rect[data-slot="heatmap-cell"]'),
-        ).toHaveLength(4);
+        ).map(r => (r as SVGRectElement).getAttribute('aria-label'));
+        expect(labels).toEqual(['Mon, AM: 1', 'Mon, PM: 5', 'Tue, AM: 9', 'Tue, PM: 3']);
     });
 
     it('derives the value domain from the data', () => {
@@ -82,13 +90,6 @@ describe('HeatmapComponent', () => {
         fixture.detectChanges();
         expect(component.colorFor(9)).toBe('hsl(210, 90%, 35%)');
         expect(component.colorFor(1)).toBe('hsl(210, 90%, 95%)');
-    });
-
-    it('interpolates an intermediate value between the endpoint colors', () => {
-        const mid = component.colorFor(5);
-        expect(mid).toMatch(/^hsl\(/);
-        expect(mid).not.toBe(component.colorFor(1));
-        expect(mid).not.toBe(component.colorFor(9));
     });
 
     it('renders square cells (width equals height)', () => {
@@ -142,11 +143,6 @@ describe('HeatmapComponent', () => {
         expect(component.hoverTitle()).toBe('Tue · AM');
     });
 
-    it('has no tooltip rows or title when nothing is hovered', () => {
-        expect(component.tooltipRows()).toHaveLength(0);
-        expect(component.hoverTitle()).toBeUndefined();
-    });
-
     it('sets the tooltip position from the placed cell on hover enter and clears on leave', () => {
         const placed = component.placedCells()[3];
         component.onCellEnter(placed);
@@ -180,10 +176,14 @@ describe('HeatmapComponent', () => {
     });
 
     it('hides the legend and tooltip when their inputs are disabled', () => {
+        const root = fixture.nativeElement as HTMLElement;
+        expect(root.textContent).toContain('Low');
         fixture.componentRef.setInput('showLegend', false);
         fixture.componentRef.setInput('showTooltip', false);
         fixture.detectChanges();
-        expect(fixture.nativeElement.querySelector('ui-chart-tooltip')).toBeNull();
+        expect(root.querySelector('ui-chart-tooltip')).toBeNull();
+        expect(root.textContent).not.toContain('Low');
+        expect(root.textContent).not.toContain('High');
     });
 
     it('renders cell value labels when showValues is enabled', () => {

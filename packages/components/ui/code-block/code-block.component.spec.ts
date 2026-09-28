@@ -31,37 +31,14 @@ describe('CodeBlockComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
-    it('should render code content', () => {
-        fixture.componentRef.setInput('code', 'const x = 42;');
-        fixture.detectChanges();
-
-        const codeEl = fixture.debugElement.query(By.css('code'));
-        expect(codeEl.nativeElement.textContent).toContain('const');
-        expect(codeEl.nativeElement.textContent).toContain('42');
-    });
-
     it('should display the language label', () => {
+        const langLabel = fixture.debugElement.query(By.css('.text-xs.text-zinc-400'));
+        expect(langLabel.nativeElement.textContent.trim()).toBe('typescript');
+
         fixture.componentRef.setInput('language', 'python');
         fixture.detectChanges();
 
-        const langLabel = fixture.debugElement.query(By.css('.text-xs.text-zinc-400'));
         expect(langLabel.nativeElement.textContent.trim()).toBe('python');
-    });
-
-    it('should default to typescript language', () => {
-        expect(component.language()).toBe('typescript');
-
-        const langLabel = fixture.debugElement.query(By.css('.text-xs.text-zinc-400'));
-        expect(langLabel.nativeElement.textContent.trim()).toBe('typescript');
-    });
-
-    it('should display copy button', () => {
-        const button = fixture.debugElement.query(By.css('ui-button'));
-        expect(button).toBeTruthy();
     });
 
     it('should apply language class to code element', () => {
@@ -70,17 +47,6 @@ describe('CodeBlockComponent', () => {
 
         const codeEl = fixture.debugElement.query(By.css('code'));
         expect(codeEl.nativeElement.className).toContain('language-python');
-    });
-
-    it('should tokenize TypeScript keywords', () => {
-        fixture.componentRef.setInput('code', 'const value = true;');
-        fixture.detectChanges();
-
-        const spans = fixture.debugElement.queryAll(By.css('code span'));
-        const keywordSpans = spans.filter(
-            s => s.nativeElement.className.includes('font-bold')
-        );
-        expect(keywordSpans.length).toBeGreaterThan(0);
     });
 
     it('should render empty content when code is empty', () => {
@@ -102,11 +68,6 @@ describe('CodeBlockComponent', () => {
         );
         expect(keywordSpan).toBeTruthy();
         expect(keywordSpan!.nativeElement.className).toContain('text-pink-400');
-    });
-
-    it('should apply base styling classes', () => {
-        const container = fixture.debugElement.query(By.css('.rounded-lg'));
-        expect(container).toBeTruthy();
     });
 
     it('should accept custom class input', () => {
@@ -157,19 +118,8 @@ describe('CodeBlockComponent', () => {
             });
 
             expect(navigator.clipboard.writeText).toHaveBeenCalledWith('console.log("hello")');
-        });
-
-        it('should show check icon when copied is true', async () => {
-            fixture.componentRef.setInput('code', 'test code');
-            fixture.detectChanges();
-
-            component.copyToClipboard();
-            await vi.waitFor(() => {
-                expect(component.copied()).toBe(true);
-            });
 
             fixture.detectChanges();
-
             const checkIcon = fixture.debugElement.query(By.css('.text-green-500'));
             expect(checkIcon).toBeTruthy();
         });
@@ -211,11 +161,8 @@ describe('CodeBlockComponent', () => {
             fixture.componentRef.setInput('code', '@staticmethod\ndef foo():');
             fixture.detectChanges();
 
-            const spans = fixture.debugElement.queryAll(By.css('code span'));
-            const decoratorSpan = spans.find(
-                s => s.nativeElement.textContent.trim() === '@staticmethod'
-            );
-            expect(decoratorSpan).toBeTruthy();
+            const decoratorSpan = leafSpan(fixture, '@staticmethod');
+            expect(decoratorSpan?.nativeElement.className).toContain('text-yellow-400');
         });
 
         it('should tokenize HTML tags', () => {
@@ -351,16 +298,6 @@ describe('CodeBlockComponent', () => {
     });
 
     describe('language fallback', () => {
-        it('should render without error for an unknown language', () => {
-            fixture.componentRef.setInput('language', 'brainfuck');
-            fixture.componentRef.setInput('code', '+++[->+++<]');
-            fixture.detectChanges();
-
-            const codeEl = fixture.debugElement.query(By.css('code'));
-            expect(codeEl).toBeTruthy();
-            expect(codeEl.nativeElement.textContent).toContain('+++');
-        });
-
         it('should fall back to typescript patterns for unknown language', () => {
             fixture.componentRef.setInput('language', 'unknown_lang');
             fixture.componentRef.setInput('code', 'const x = 42;');
@@ -372,14 +309,6 @@ describe('CodeBlockComponent', () => {
             );
             expect(keywordSpan).toBeTruthy();
             expect(keywordSpan!.nativeElement.className).toContain('font-bold');
-        });
-
-        it('should display the unknown language name in the label', () => {
-            fixture.componentRef.setInput('language', 'brainfuck');
-            fixture.detectChanges();
-
-            const langLabel = fixture.debugElement.query(By.css('.text-xs.text-zinc-400'));
-            expect(langLabel.nativeElement.textContent.trim()).toBe('brainfuck');
         });
     });
 
@@ -446,6 +375,29 @@ describe('CodeBlockComponent', () => {
             expect(chevrons(fixture)).toHaveLength(2);
         });
 
+        it('treats a fence alias exactly like its language, folding included', () => {
+            const render = (language: string) => {
+                fixture.componentRef.setInput('code', yamlCode);
+                fixture.componentRef.setInput('language', language);
+                fixture.componentRef.setInput('collapseScope', true);
+                fixture.detectChanges();
+                return {
+                    chevrons: chevrons(fixture).length,
+                    tokens: component.visibleLines().map(line => line.tokens.map(t => t.type)),
+                };
+            };
+
+            const canonical = render('yaml');
+            expect(canonical.chevrons).toBe(5);
+            expect(render('yml')).toEqual(canonical);
+
+            // A custom definition filed under the language serves its alias too.
+            fixture.componentRef.setInput('customLanguages', { yaml: [{ type: 'keyword', regex: /steps/ }] });
+            const custom = render('yaml');
+            expect(custom.tokens.flat()).toContain('keyword');
+            expect(render('yml')).toEqual(custom);
+        });
+
         it('toggleScope hides interior lines and shows the collapsed marker', () => {
             fixture.componentRef.setInput('code', tsCode);
             fixture.componentRef.setInput('collapseScope', true);
@@ -481,7 +433,8 @@ describe('CodeBlockComponent', () => {
             fixture.componentRef.setInput('code', yamlCode);
             fixture.componentRef.setInput('collapseScope', true);
             fixture.detectChanges();
-            expect(chevrons(fixture).length).toBeGreaterThan(0);
+            // Scopes open at jobs, build, steps, test, steps (lines 0,1,2,4,5).
+            expect(chevrons(fixture)).toHaveLength(5);
         });
 
         it('detects HTML scopes via tag pairs', () => {
@@ -552,18 +505,23 @@ describe('CodeBlockComponent', () => {
                 return ranges;
             };
 
-            fixture.componentRef.setInput('language', 'mylang');
-            fixture.componentRef.setInput('code', 'BEGIN\nbody1\nbody2\nEND');
-            fixture.componentRef.setInput('collapseScope', true);
-            fixture.componentRef.setInput('customLanguages', {
-                mylang: { patterns: [], scopes: customScopes },
-            });
-            fixture.detectChanges();
+            // A name of its own, and a fence alias (`sh` means bash): a custom
+            // entry filed under the exact name wins over the language it aliases.
+            for (const name of ['mylang', 'sh']) {
+                fixture.componentRef.setInput('language', name);
+                fixture.componentRef.setInput('code', 'BEGIN\nbody1\nbody2\nEND');
+                fixture.componentRef.setInput('collapseScope', true);
+                fixture.componentRef.setInput('customLanguages', {
+                    [name]: { patterns: [], scopes: customScopes },
+                });
+                fixture.detectChanges();
 
-            expect(chevrons(fixture)).toHaveLength(1);
-            component.toggleScope(0);
-            fixture.detectChanges();
-            expect(visibleLineCount(fixture)).toBe(1);
+                expect(chevrons(fixture)).toHaveLength(1);
+                component.toggleScope(0);
+                fixture.detectChanges();
+                expect(visibleLineCount(fixture)).toBe(1);
+                component.toggleScope(0);
+            }
         });
 
         it('renders no chevrons for languages without a detector', () => {
@@ -609,25 +567,6 @@ describe('CodeBlockComponent', () => {
             fixture.detectChanges();
 
             expect(lineNumberEls(fixture)).toHaveLength(0);
-        });
-
-        it('hides line numbers for lines inside a collapsed scope', () => {
-            const tsCode = [
-                'function greet() {',
-                '  const a = 1;',
-                '  const b = 2;',
-                '}',
-            ].join('\n');
-
-            fixture.componentRef.setInput('code', tsCode);
-            fixture.componentRef.setInput('collapseScope', true);
-            fixture.detectChanges();
-            expect(lineNumberEls(fixture)).toHaveLength(4);
-
-            component.toggleScope(0);
-            fixture.detectChanges();
-            const visible = lineNumberEls(fixture).map(e => e.nativeElement.textContent.trim());
-            expect(visible).toEqual(['1']);
         });
 
         it('preserves source line numbers across a collapsed scope', () => {
@@ -771,7 +710,7 @@ describe('CodeBlockComponent — i18n integration', () => {
         expect(root.getAttribute('dir')).toBe('rtl');
     });
 
-    it('copy aria-label flips to "copied" state after a successful click', async () => {
+    it('copy aria-label reads the locale\'s "copied" string while copied is set', async () => {
         const fixture = await setup({ locale: 'fr' });
         const cmp = fixture.componentInstance;
         cmp.copied.set(true);

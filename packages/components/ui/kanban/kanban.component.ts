@@ -215,7 +215,7 @@ export const KANBAN = new InjectionToken<KanbanComponent>('KANBAN');
             @if (deleteToastVisible()) {
                 <div class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] w-full max-w-[420px] px-4"
                      data-slot="kanban-delete-toast">
-                    <div class="group pointer-events-auto relative flex w-full items-center justify-between gap-2 overflow-hidden rounded-md border bg-background text-foreground p-4 ltr:pr-6 rtl:pl-6 shadow-lg">
+                    <div class="group pointer-events-auto relative flex w-full items-center justify-between gap-2 overflow-hidden rounded-md border bg-background text-foreground p-4 pe-6 pointer-coarse:pe-11 shadow-lg">
                         <div class="grid gap-1 flex-1">
                             <div class="text-sm font-semibold">{{ resolvedLocale().cardDeleted }}</div>
                             <div class="text-sm opacity-90">"{{ deleteToastCardTitle() }}" {{ resolvedLocale().cardRemovedDescription }}</div>
@@ -226,7 +226,7 @@ export const KANBAN = new InjectionToken<KanbanComponent>('KANBAN');
                             }
                         </ui-button>
                         <button
-                            class="absolute ltr:right-1 rtl:left-1 top-1 rounded-md p-1 text-foreground/50 opacity-0 transition-opacity hover:text-foreground focus:opacity-100 group-hover:opacity-100"
+                            class="absolute end-1 top-1 inline-flex items-center justify-center rounded-md p-1 pointer-coarse:end-0 pointer-coarse:top-0 pointer-coarse:size-11 text-foreground/50 opacity-0 transition-opacity hover:text-foreground focus:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
                             (click)="dismissDeleteToast()"
                             aria-label="Close"
                         >

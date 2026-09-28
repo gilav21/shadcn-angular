@@ -89,7 +89,10 @@ export class ContextMenuSubContentComponent implements OnDestroy {
         this.portalHost = this.document.createElement('div');
         this.portalHost.dataset['contextMenuSubPortal'] = 'true';
         this.document.body.appendChild(this.portalHost);
-        inheritThemeTokens(this.viewContainerRef.element.nativeElement, this.portalHost);
+        const origin: HTMLElement = this.viewContainerRef.element.nativeElement;
+        inheritThemeTokens(origin, this.portalHost);
+        // Portalled to <body>, the panel would take the page's direction; it must lay out in the one its host resolves to.
+        this.portalHost.dir = getComputedStyle(origin).direction;
         this.embeddedViewRef = this.viewContainerRef.createEmbeddedView(this.subContentTemplate);
         this.embeddedViewRef.detectChanges();
 
@@ -157,6 +160,8 @@ export class ContextMenuSubContentComponent implements OnDestroy {
         const y = this.resolveY(triggerRect, contentRect, viewportHeight);
 
         this.portalPosition.set({ x, y });
+        // The signal write alone never re-renders this relocated view: the flyout stayed at 0,0.
+        this.embeddedViewRef?.detectChanges();
     }
 
     ngOnDestroy(): void {

@@ -73,8 +73,7 @@ export class DropdownMenuContentComponent {
      * while open.
      */
     focusFirstItem(): void {
-        const item = (this.el.nativeElement as HTMLElement).querySelector<HTMLElement>('[role="menuitem"]:not([data-disabled])');
-        item?.focus();
+        this.getFocusableItems()[0]?.focus();
     }
 
     /**

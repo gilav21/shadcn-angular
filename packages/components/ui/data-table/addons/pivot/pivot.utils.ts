@@ -1,4 +1,11 @@
-/** Aggregate function applied at each pivot cell. */
+/**
+ * Aggregate function applied at each pivot cell. `count` counts the source rows
+ * that fall in the cell, whatever their values. The others read only numeric
+ * values — numbers and non-blank numeric strings; `null`, `undefined`, blank
+ * strings, booleans and other text are skipped. Over no numeric values `sum` is
+ * `0` and `avg` / `min` / `max` are `null` (a blank cell), so a missing value is
+ * never mistaken for a zero.
+ */
 export type PivotAggregate = 'sum' | 'avg' | 'count' | 'min' | 'max';
 
 /** Config for {@link computePivot}: row dimension(s) x one column dimension x one value. */
@@ -33,13 +40,23 @@ function defaultGetValue(row: unknown, key: string): unknown {
   return (row as Record<string, unknown>)[key];
 }
 
-function aggregateNumbers(values: number[], fn: PivotAggregate): number {
+/**
+ * The cell value as a number, or `null` when it holds no number. `Number()` alone
+ * is not enough: it turns `null`, `''`, whitespace and `false` into `0`.
+ */
+function toAggregatableNumber(value: unknown): number | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value !== 'string' || value.trim() === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function aggregateNumbers(values: number[], fn: PivotAggregate): number | null {
   if (fn === 'count') return values.length;
-  if (values.length === 0) return 0;
   const sum = values.reduce((a, b) => a + b, 0);
+  if (fn === 'sum') return sum;
+  if (values.length === 0) return null;
   switch (fn) {
-    case 'sum':
-      return sum;
     case 'avg':
       return Math.round((sum / values.length) * 100) / 100;
     case 'min':
@@ -55,11 +72,13 @@ function aggregateCell<T>(
   rows: T[],
   config: PivotConfig,
   getValue: (row: T, key: string) => unknown,
-): number {
+): number | null {
   if (config.aggregate === 'count') return rows.length;
-  const nums = rows
-    .map((row) => Number(getValue(row, config.value)))
-    .filter((n) => Number.isFinite(n));
+  const nums: number[] = [];
+  for (const row of rows) {
+    const n = toAggregatableNumber(getValue(row, config.value));
+    if (n !== null) nums.push(n);
+  }
   return aggregateNumbers(nums, config.aggregate);
 }
 
@@ -81,7 +100,9 @@ export function computePivot<T>(
   const groups = new Map<string, { dim: Record<string, unknown>; rows: T[] }>();
   for (const row of data) {
     const dimValues = config.rows.map((key) => getValue(row, key));
-    const groupKey = dimValues.map(String).join(' ');
+    // A joined string is ambiguous ('a b' + 'c' vs 'a' + 'b c'); a JSON array is
+    // not. Values compare as strings, the same equality the column dimension uses.
+    const groupKey = JSON.stringify(dimValues.map(String));
     let group = groups.get(groupKey);
     if (!group) {
       const dim: Record<string, unknown> = {};

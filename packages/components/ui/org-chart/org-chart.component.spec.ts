@@ -24,28 +24,6 @@ describe('OrgChartComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
-    it('should build a tree from data', () => {
-        expect(component.tree()).toBeTruthy();
-        expect(component.tree()!.node.name).toBe('CEO');
-    });
-
-    it('should flatten nodes', () => {
-        expect(component.flatNodes()).toHaveLength(3);
-    });
-
-    it('should compute connections between nodes', () => {
-        expect(component.connections()).toHaveLength(2);
-    });
-
-    it('should render an SVG element', () => {
-        const svg = fixture.nativeElement.querySelector('svg');
-        expect(svg).toBeTruthy();
-    });
-
     it('should return initials for a name', () => {
         expect(component.getInitials('John Doe')).toBe('JD');
     });
@@ -94,34 +72,34 @@ describe('OrgChartComponent', () => {
         expect(tree.children[1].node.name).toBe('CFO');
     });
 
-    it('should assign non-zero positions to flat nodes', () => {
-        const nodes = component.flatNodes();
-        const ceoNode = nodes.find(n => n.node.name === 'CEO')!;
-        const ctoNode = nodes.find(n => n.node.name === 'CTO')!;
+    /** Node positions by name. Defaults: 180x80 nodes, 40px sibling gap, 60px level gap. */
+    function positions(): Record<string, { x: number; y: number }> {
+        return Object.fromEntries(component.flatNodes().map(n => [n.node.name, { x: n.x, y: n.y }]));
+    }
 
-        expect(ceoNode.width).toBeGreaterThan(0);
-        expect(ceoNode.height).toBeGreaterThan(0);
-        expect(ctoNode.y).toBeGreaterThan(0);
+    it('lays children side by side one level down, with the parent centred over them', () => {
+        expect(positions()).toEqual({
+            CEO: { x: 110, y: 0 },
+            CTO: { x: 0, y: 140 },
+            CFO: { x: 220, y: 140 },
+        });
     });
 
-    it('should generate connection paths containing M commands', () => {
-        const connections = component.connections();
-        for (const connection of connections) {
-            expect(connection.path).toContain('M');
-        }
+    it('draws a curved connector from the parent bottom-centre to the child top-centre', () => {
+        const ceoToCto = component.connections().find(c => c.id === '1-2')!;
+        expect(ceoToCto.path).toBe('M 200 80 C 200 110, 90 110, 90 140');
     });
 
-    it('should change node positions when layout is horizontal', () => {
-        const verticalNodes = component.flatNodes().map(n => ({ x: n.x, y: n.y }));
-
+    it('stacks children one level to the right when layout is horizontal', () => {
         fixture.componentRef.setInput('layout', 'horizontal');
         fixture.detectChanges();
 
-        const horizontalNodes = component.flatNodes().map(n => ({ x: n.x, y: n.y }));
-
-        const verticalCTO = verticalNodes[1];
-        const horizontalCTO = horizontalNodes[1];
-        expect(verticalCTO.x).not.toBe(horizontalCTO.x);
+        // Children sit 180 + 40 to the right, 60px apart; the root is centred between them.
+        expect(positions()).toEqual({
+            CEO: { x: 0, y: 70 },
+            CTO: { x: 220, y: 0 },
+            CFO: { x: 220, y: 140 },
+        });
     });
 
     it('should return correct aria label from getNodeAriaLabel', () => {

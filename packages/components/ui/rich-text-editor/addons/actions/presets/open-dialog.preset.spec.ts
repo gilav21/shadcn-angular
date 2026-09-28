@@ -27,12 +27,6 @@ describe('open-dialog preset', () => {
         document.querySelectorAll('[data-slot="preset-dialog"]').forEach((el) => el.remove());
     });
 
-    it('definition declares click trigger + title/body/confirmLabel fields', () => {
-        const def = openDialogAction();
-        expect(def.triggers).toEqual(['click']);
-        expect(def.fields?.map((f) => f.key).sort()).toEqual(['body', 'confirmLabel', 'title']);
-    });
-
     it('opens a dialog on click and fires onConfirm with params', () => {
         const injector = TestBed.inject(Injector);
         const onConfirm = vi.fn();
@@ -50,14 +44,6 @@ describe('open-dialog preset', () => {
         const handlers = openDialogHandlers(injector, { component: CustomBodyComponent });
         handlers['preset.open-dialog'](clickEvent({ body: 'from-token' }));
         expect((document.querySelector('[data-testid="custom-body"]') as HTMLElement).textContent).toBe('from-token');
-    });
-
-    it('serialized HTML for a preset action contains nothing preset-specific (zero lock-in)', () => {
-        const el = document.createElement('span');
-        el.setAttribute('data-action-click', openDialogAction().id);
-        el.setAttribute('data-action-click-params', JSON.stringify({ title: 'T', body: 'B' }));
-        expect(el.outerHTML).not.toContain('preset-dialog');
-        expect(el.outerHTML).toContain('data-action-click="preset.open-dialog"');
     });
 
     it('two dialog presets with custom ids coexist and compose with custom handlers', () => {

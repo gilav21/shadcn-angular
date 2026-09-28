@@ -11,6 +11,7 @@
     class="px-3"
     [disabled]="isDisabled()"
     [placeholder]="placeholder()"
+    [lang]="resolvedLocale()"
     [ngModel]="displayValue()"
     (ngModelChange)="onInputChange($event)"
     (keydown)="onKeydown($event)"

@@ -4,7 +4,7 @@
         <ui-button
             variant="ghost"
             size="icon"
-            class="h-6 w-6 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
+            class="h-6 w-6 pointer-coarse:size-11 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
             (click)="copyToClipboard()"
             (keydown.enter)="copyToClipboard()"
             (keydown.space)="copyToClipboard()"
@@ -25,14 +25,13 @@
     <div dir="ltr" class="p-4 overflow-auto font-mono text-sm bg-zinc-950 text-zinc-50">
         <pre><code [class]="'language-' + language()">@for (line of visibleLines(); track line.index) {<div class="flex items-start"
           >@if (lineNumbers()) {<span
-            class="inline-block me-3 select-none text-zinc-400 leading-5 text-right tabular-nums"
+            class="inline-block shrink-0 me-3 select-none text-zinc-400 leading-5 text-right tabular-nums"
             [style.width]="lineNumberWidth()"
             data-slot="code-block-line-number"
             aria-hidden="true"
           >{{ line.index + 1 }}</span>}@if (collapseScope()) {<span
-            class="inline-block w-4 me-2 select-none text-zinc-500 leading-5 text-center"
-            [class.cursor-pointer]="line.foldStart !== undefined"
-            [class.hover:text-zinc-300]="line.foldStart !== undefined"
+            class="inline-block w-4 pointer-coarse:w-11 shrink-0 me-2 select-none text-zinc-500 leading-5 text-center"
+            [class]="line.foldStart !== undefined ? foldTargetClasses : ''"
             (click)="onChevronClick(line.foldStart)"
             (keydown.enter)="onChevronClick(line.foldStart)"
             (keydown.space)="onChevronClick(line.foldStart)"

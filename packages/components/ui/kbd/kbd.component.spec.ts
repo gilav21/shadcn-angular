@@ -25,22 +25,10 @@ describe('KbdComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create and render kbd elements', () => {
-        const kbds = fixture.debugElement.queryAll(By.directive(KbdComponent));
-        expect(kbds).toHaveLength(2);
-    });
-
     it('should use <kbd> tag', () => {
         const kbd = fixture.debugElement.query(By.css('kbd'));
         expect(kbd).toBeTruthy();
         expect(kbd.nativeElement.textContent).toContain('Ctrl');
-    });
-
-    it('should apply base classes', () => {
-        const kbd = fixture.debugElement.query(By.css('kbd'));
-        expect(kbd.nativeElement.classList.contains('inline-flex')).toBe(true);
-        expect(kbd.nativeElement.classList.contains('bg-muted')).toBe(true);
-        expect(kbd.nativeElement.classList.contains('font-mono')).toBe(true);
     });
 
     it('should apply custom classes', () => {

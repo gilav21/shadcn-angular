@@ -24,6 +24,7 @@ import { HoverCardComponent } from '../hover-card.component';
         [class]="classes()"
         [style]="positionStyles()"
         [attr.data-state]="hoverCard?.open() ? 'open' : 'closed'"
+        [attr.data-side]="actualSide()"
         [attr.data-slot]="'hover-card-content'"
         (mouseenter)="onMouseEnter()"
         (mouseleave)="onMouseLeave()"
@@ -59,7 +60,8 @@ export class HoverCardContentComponent implements AfterViewInit {
     align = input<'start' | 'center' | 'end'>('center');
     /**
      * Preferred vertical side. Flipped automatically to the opposite side when
-     * the card would overflow — the resolved side drives the slide-in animation.
+     * the card would overflow; the resolved side is written to `data-side`,
+     * which drives the slide-in animation.
      */
     side = input<'top' | 'bottom'>('bottom');
     /**
@@ -77,6 +79,9 @@ export class HoverCardContentComponent implements AfterViewInit {
         offsetY: number;
         actualSide: 'top' | 'bottom';
     }>({ offsetX: 0, offsetY: 0, actualSide: 'bottom' });
+
+    /** The side the card actually opened on after flipping, reflected as `data-side` so the `data-[side=…]:` slide-in classes apply. */
+    protected readonly actualSide = computed(() => this.adjustedPosition().actualSide);
 
     constructor() {
         effect(() => {

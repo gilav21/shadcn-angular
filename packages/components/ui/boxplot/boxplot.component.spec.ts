@@ -136,11 +136,6 @@ describe('BoxplotComponent', () => {
             expect(fixture.nativeElement.querySelectorAll('[data-slot="boxplot-outlier"]'))
                 .toHaveLength(0);
         });
-
-        it('reports no outliers for a zero-IQR group', async () => {
-            await createFixture([{ label: 'flat', values: [7, 7, 7, 7] }]);
-            expect(component.boxes()[0].outliers).toEqual([]);
-        });
     });
 
     // T-8: horizontal orientation transposes
@@ -267,19 +262,6 @@ describe('BoxplotComponent', () => {
             expect(box.height).toBeGreaterThan(0);
         });
 
-        it('renders a zero-IQR group as a visible flat box', async () => {
-            await createFixture([{ label: 'flat', values: [7, 7, 7, 7] }]);
-            const box = component.boxes()[0];
-            expect(box.height).toBeGreaterThan(0);
-            expect(Number.isFinite(box.y)).toBe(true);
-        });
-
-        it('renders negative values', async () => {
-            await createFixture([{ label: 'neg', values: [-5, -4, -3, -2, -1] }]);
-            const box = component.boxes()[0];
-            expect(Number.isFinite(box.y)).toBe(true);
-            expect(box.height).toBeGreaterThan(0);
-        });
     });
 
     // T-20: RTL

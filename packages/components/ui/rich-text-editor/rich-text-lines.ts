@@ -114,12 +114,43 @@ const PHRASING_TAGS = new Set([
  */
 export function isPhrasing(node: Node): boolean {
     if (node.nodeType !== Node.ELEMENT_NODE) return true;
-    return PHRASING_TAGS.has(node.nodeName) && Array.from(node.childNodes).every(isPhrasing);
+    return PHRASING_TAGS.has(node.nodeName) && childList(node).every(isPhrasing);
 }
 
-/** An inline element that wraps a block: a shape the parser keeps and nothing downstream can hold. */
-export function isInlineHoldingBlock(node: Node): boolean {
-    return node.nodeType === Node.ELEMENT_NODE && PHRASING_TAGS.has(node.nodeName) && !isPhrasing(node);
+/**
+ * `node`'s children, walked by sibling rather than read from `childNodes`.
+ *
+ * Reading `childNodes` makes some DOM implementations keep that live list up to
+ * date on every later change to the node, a walk of every child per insert or
+ * removal: a pass that read a host holding thousands of lines, and then wrapped
+ * them, took time quadratic in the host.
+ */
+export function childList(node: Node): ChildNode[] {
+    const children: ChildNode[] = [];
+    for (let child = node.firstChild; child; child = child.nextSibling) children.push(child);
+    return children;
+}
+
+/**
+ * Every inline element under `root` that wraps a block -- a shape the parser
+ * keeps and nothing downstream can hold -- innermost first, with
+ * {@link isPhrasing} answered for the whole tree from the same single pass.
+ *
+ * Found from the leaves up in one pass. Asking isPhrasing of each element walks
+ * its whole subtree again, which is quadratic in the nesting depth, and unclosed
+ * inline tags nest thousands deep: three thousand `<b>` took eight seconds.
+ */
+export function inlineElementsHoldingBlocks(root: Element): { holders: Element[]; phrasing: (node: Node) => boolean } {
+    const nonPhrasing = new Set<Node>();
+    const holders: Element[] = [];
+    for (const el of Array.from(root.querySelectorAll('*')).reverse()) {
+        const inline = PHRASING_TAGS.has(el.nodeName);
+        if (inline && nonPhrasing.has(el)) holders.push(el);
+        if (!inline) nonPhrasing.add(el);
+        if (nonPhrasing.has(el) && el.parentElement) nonPhrasing.add(el.parentElement);
+    }
+    const phrasing = (node: Node): boolean => !nonPhrasing.has(node);
+    return { holders, phrasing };
 }
 
 /** A task row's content and the nested lists under it; see rowRunsOf. */

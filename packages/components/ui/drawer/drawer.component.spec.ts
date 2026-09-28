@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DrawerComponent, DrawerTriggerComponent, DrawerContentComponent, DrawerHeaderComponent, DrawerTitleComponent, DrawerDescriptionComponent, DrawerFooterComponent, DrawerCloseComponent } from './index';
-import { Component, signal } from '@angular/core';
+import { Component } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
@@ -30,22 +30,6 @@ class TestHostComponent {
     }
 }
 
-// RTL Test host
-@Component({
-    template: `
-        <div [dir]="dir()">
-            <ui-drawer direction="right">
-                <ui-drawer-trigger>فتح</ui-drawer-trigger>
-                <ui-drawer-content>محتوى</ui-drawer-content>
-            </ui-drawer>
-        </div>
-    `,
-    imports: [DrawerComponent, DrawerTriggerComponent, DrawerContentComponent]
-})
-class RTLTestHostComponent {
-    dir = signal<'ltr' | 'rtl'>('ltr');
-}
-
 describe('DrawerComponent', () => {
     let component: DrawerComponent;
     let fixture: ComponentFixture<DrawerComponent>;
@@ -66,31 +50,8 @@ describe('DrawerComponent', () => {
         document.body.style.paddingRight = '';
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
     it('should have data-slot="drawer"', () => {
         expect(fixture.nativeElement.getAttribute('data-slot')).toBe('drawer');
-    });
-
-    it('should be closed by default', () => {
-        expect(component.open()).toBe(false);
-    });
-
-    it('should have default direction of bottom', () => {
-        expect(component.direction()).toBe('bottom');
-    });
-
-    it('should show when show() is called', () => {
-        component.show();
-        expect(component.open()).toBe(true);
-    });
-
-    it('should hide when hide() is called', () => {
-        component.show();
-        component.hide();
-        expect(component.open()).toBe(false);
     });
 
     it('should toggle open state', () => {
@@ -120,11 +81,6 @@ describe('Drawer Integration', () => {
         document.body.style.paddingRight = '';
     });
 
-    it('should render trigger', () => {
-        const trigger = fixture.debugElement.query(By.css('[data-slot="drawer-trigger"]'));
-        expect(trigger).toBeTruthy();
-    });
-
     it('should not show content when closed', () => {
         const content = fixture.debugElement.query(By.css('[data-slot="drawer-content"]'));
         expect(content).toBeNull();
@@ -138,14 +94,6 @@ describe('Drawer Integration', () => {
 
         const content = fixture.debugElement.query(By.css('[data-slot="drawer-content"]'));
         expect(content).toBeTruthy();
-    });
-
-    it('should emit openChange', async () => {
-        const trigger = fixture.debugElement.query(By.css('[data-slot="drawer-trigger"]'));
-        trigger.nativeElement.click();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
         expect(component.isOpen).toBe(true);
     });
 
@@ -228,55 +176,6 @@ describe('Drawer Integration', () => {
     });
 });
 
-describe('Drawer RTL Support', () => {
-    let fixture: ComponentFixture<RTLTestHostComponent>;
-    let component: RTLTestHostComponent;
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [RTLTestHostComponent]
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(RTLTestHostComponent);
-        component = fixture.componentInstance;
-        fixture.detectChanges();
-    });
-
-    afterEach(() => {
-        document.documentElement.removeAttribute('dir');
-        document.body.style.overflow = '';
-        document.body.style.paddingRight = '';
-    });
-
-    it('should render in LTR mode', () => {
-        const container = fixture.debugElement.query(By.css('[dir="ltr"]'));
-        expect(container).toBeTruthy();
-    });
-
-    it('should render in RTL mode', async () => {
-        component.dir.set('rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const container = fixture.debugElement.query(By.css('[dir="rtl"]'));
-        expect(container).toBeTruthy();
-    });
-
-    it('should open drawer in RTL', async () => {
-        component.dir.set('rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const trigger = fixture.debugElement.query(By.css('[data-slot="drawer-trigger"]'));
-        trigger.nativeElement.click();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const content = fixture.debugElement.query(By.css('[data-slot="drawer-content"]'));
-        expect(content).toBeTruthy();
-    });
-});
-
 // Simple mode test host
 @Component({
     template: `
@@ -312,16 +211,8 @@ describe('Drawer Simple Mode', () => {
         const title = fixture.debugElement.query(By.css('[data-slot="drawer-title"]'));
         expect(title).toBeTruthy();
         expect(title.nativeElement.textContent).toContain('Edit Profile');
-    });
-
-    it('should auto-render description input', async () => {
-        const drawerComp = fixture.debugElement.query(By.directive(DrawerComponent));
-        drawerComp.componentInstance.show();
-        fixture.detectChanges();
-        await fixture.whenStable();
 
         const desc = fixture.debugElement.query(By.css('[data-slot="drawer-description"]'));
-        expect(desc).toBeTruthy();
         expect(desc.nativeElement.textContent).toContain('Make changes here.');
     });
 

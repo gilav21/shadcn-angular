@@ -172,7 +172,11 @@ export class VirtualScrollComponent<T extends object = VirtualItem> implements A
   private readonly rowAxis = new VirtualAxis(this.CHUNK_SIZE);
   private readonly columnAxis = new VirtualAxis(this.CHUNK_SIZE);
 
-  private readonly resizeObserver: ResizeObserver;
+  /**
+   * Null where `ResizeObserver` does not exist (SSR, jsdom): items then keep
+   * their estimated size and the container the size read in ngAfterViewInit.
+   */
+  private readonly resizeObserver: ResizeObserver | null;
   private containerObserver?: ResizeObserver;
   private readonly ngZone = inject(NgZone);
 
@@ -205,9 +209,11 @@ export class VirtualScrollComponent<T extends object = VirtualItem> implements A
   );
 
   constructor() {
-    this.resizeObserver = new ResizeObserver(entries => {
-      this.ngZone.run(() => this.handleResizes(entries));
-    });
+    this.resizeObserver = typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(entries => {
+        this.ngZone.run(() => this.handleResizes(entries));
+      });
 
     effect(() => {
       const { end } = this.viewportRange();
@@ -244,9 +250,9 @@ export class VirtualScrollComponent<T extends object = VirtualItem> implements A
 
     effect((onCleanup) => {
       const els = this.itemElements();
-      els.forEach(el => this.resizeObserver.observe(el.nativeElement));
+      els.forEach(el => this.resizeObserver?.observe(el.nativeElement));
       onCleanup(() => {
-        this.resizeObserver.disconnect();
+        this.resizeObserver?.disconnect();
       });
     });
   }
@@ -256,6 +262,7 @@ export class VirtualScrollComponent<T extends object = VirtualItem> implements A
     if (container) {
       this.containerHeight.set(container.clientHeight);
       this.containerWidth.set(container.clientWidth);
+      if (typeof ResizeObserver === 'undefined') return;
       const onResize = (): void => {
         this.containerHeight.set(container.clientHeight);
         this.containerWidth.set(container.clientWidth);
@@ -266,7 +273,7 @@ export class VirtualScrollComponent<T extends object = VirtualItem> implements A
   }
 
   ngOnDestroy(): void {
-    this.resizeObserver.disconnect();
+    this.resizeObserver?.disconnect();
     this.containerObserver?.disconnect();
   }
 

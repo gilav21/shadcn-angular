@@ -82,7 +82,8 @@ export class DataTableColumnHeaderComponent {
 
   /**
    * Advances the asc → desc → unsorted cycle and emits {@link sort} and
-   * {@link sortMeta}. Bound to click, Enter and Space. Holding shift sets
+   * {@link sortMeta}. Bound to the native button's click only, which Enter and
+   * Space already fire, so one key press sorts once. Holding shift sets
    * `multi` on {@link sortMeta} only — the emitted direction is identical
    * either way, and no local state changes (see {@link direction}).
    */

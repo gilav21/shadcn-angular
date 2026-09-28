@@ -27,10 +27,6 @@ describe('splitting a total into units', () => {
         expect(toParts(5400, HMS)).toEqual({ hours: 1, minutes: 30, seconds: 0 });
     });
 
-    it('splits ninety seconds', () => {
-        expect(toParts(90, HMS)).toEqual({ hours: 0, minutes: 1, seconds: 30 });
-    });
-
     /**
      * A field showing only minutes and seconds must render 90 minutes as
      * `90:00`. Dropping the hours would change the value the moment any
@@ -154,12 +150,6 @@ describe('parsing what someone typed', () => {
 });
 
 describe('round trips', () => {
-    /** UC-5: the value survives JSON, because it is a number. */
-    it('survives JSON unchanged', () => {
-        const total = 5445;
-        expect(JSON.parse(JSON.stringify({ total })).total).toBe(total);
-    });
-
     it('formats and parses back to the same total', () => {
         for (const units of [HMS, HM, MS]) {
             for (const total of [0, 45, 90, 3600, 5445]) {

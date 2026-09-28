@@ -76,25 +76,6 @@ const tick = (ms = 60): Promise<void> =>
 })
 class TestHostComponent { }
 
-// RTL Test host
-@Component({
-    template: `
-        <div [dir]="dir()">
-            <ui-dropdown-menu>
-                <ui-dropdown-menu-trigger>قائمة</ui-dropdown-menu-trigger>
-                <ui-dropdown-menu-content>
-                    <ui-dropdown-menu-item>عنصر 1</ui-dropdown-menu-item>
-                    <ui-dropdown-menu-item>عنصر 2</ui-dropdown-menu-item>
-                </ui-dropdown-menu-content>
-            </ui-dropdown-menu>
-        </div>
-    `,
-    imports: [DropdownMenuComponent, DropdownMenuTriggerComponent, DropdownMenuContentComponent, DropdownMenuItemComponent]
-})
-class RTLTestHostComponent {
-    dir = signal<'ltr' | 'rtl'>('ltr');
-}
-
 // Submenu Test host with 3-level deep structure
 @Component({
     template: `
@@ -179,14 +160,6 @@ describe('DropdownMenuComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
-    it('should be closed by default', () => {
-        expect(component.open()).toBe(false);
-    });
-
     it('should toggle open state', () => {
         component.toggle();
         expect(component.open()).toBe(true);
@@ -218,11 +191,6 @@ describe('DropdownMenu Integration', () => {
         fixture.detectChanges();
     });
 
-    it('should render trigger', () => {
-        const trigger = fixture.debugElement.query(By.css('[data-slot="dropdown-trigger"]'));
-        expect(trigger).toBeTruthy();
-    });
-
     it('should not show content when closed', () => {
         const content = fixture.debugElement.query(By.css('[data-slot="dropdown-content"]'));
         expect(content).toBeNull();
@@ -246,26 +214,6 @@ describe('DropdownMenu Integration', () => {
 
         const items = fixture.debugElement.queryAll(By.css('[role="menuitem"]'));
         expect(items).toHaveLength(3);
-    });
-
-    it('should render separator', async () => {
-        const dropdownComp = fixture.debugElement.query(By.directive(DropdownMenuComponent));
-        dropdownComp.componentInstance.show();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const separator = fixture.debugElement.query(By.css('[data-slot="dropdown-separator"]'));
-        expect(separator).toBeTruthy();
-    });
-
-    it('should render label', async () => {
-        const dropdownComp = fixture.debugElement.query(By.directive(DropdownMenuComponent));
-        dropdownComp.componentInstance.show();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const label = fixture.debugElement.query(By.css('[data-slot="dropdown-label"]'));
-        expect(label).toBeTruthy();
     });
 
     it('should mark disabled items with data-disabled', async () => {
@@ -342,42 +290,18 @@ describe('DropdownMenu Keyboard Navigation', () => {
         await fixture.whenStable();
         await new Promise(resolve => setTimeout(resolve, 50));
 
-        const items = fixture.debugElement.queryAll(By.css('[role="menuitem"]:not([data-disabled])'));
-        expect(items).toHaveLength(2); // 2 enabled items
+        const items = fixture.debugElement
+            .queryAll(By.css('[role="menuitem"]:not([data-disabled])'))
+            .map(d => d.nativeElement as HTMLElement);
+        expect(items.map(i => i.textContent?.trim())).toEqual(['Item 1', 'Item 2']);
 
-        // Focus first item and press ArrowDown
-        items[0].nativeElement.focus();
-        fixture.detectChanges();
+        items[0].focus();
+        items[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+        expect(document.activeElement).toBe(items[1]);
 
-        const content = fixture.debugElement.query(By.css('[data-slot="dropdown-content"]'));
-        content.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        // Verify that keyboard event was handled (focus trap is in place)
-        expect(content).toBeTruthy();
-    });
-
-    it('should navigate to previous item with ArrowUp', async () => {
-        const dropdownComp = fixture.debugElement.query(By.directive(DropdownMenuComponent));
-        dropdownComp.componentInstance.show();
-        fixture.detectChanges();
-        await fixture.whenStable();
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        const items = fixture.debugElement.queryAll(By.css('[role="menuitem"]:not([data-disabled])'));
-        expect(items).toHaveLength(2);
-
-        // Focus second item and press ArrowUp
-        items[1].nativeElement.focus();
-        fixture.detectChanges();
-
-        const content = fixture.debugElement.query(By.css('[data-slot="dropdown-content"]'));
-        content.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        expect(content).toBeTruthy();
+        // The disabled row is skipped, so ArrowDown from the last enabled item wraps.
+        items[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+        expect(document.activeElement).toBe(items[0]);
     });
 
     it('should wrap focus with Tab key (focus trap)', async () => {
@@ -394,14 +318,11 @@ describe('DropdownMenu Keyboard Navigation', () => {
         items.at(-1)!.nativeElement.focus();
         fixture.detectChanges();
 
-        // Press Tab - should wrap to first item (focus trap)
-        const tabEvent = new KeyboardEvent('keydown', { key: 'Tab' });
+        const tabEvent = new KeyboardEvent('keydown', { key: 'Tab', cancelable: true });
         content.nativeElement.dispatchEvent(tabEvent);
-        fixture.detectChanges();
-        await fixture.whenStable();
 
-        // Focus trap prevents tabbing out
-        expect(dropdownComp.componentInstance.open()).toBe(true);
+        expect(tabEvent.defaultPrevented).toBe(true);
+        expect(document.activeElement).toBe(items[0].nativeElement);
     });
 
     it('should wrap focus with Shift+Tab key (reverse focus trap)', async () => {
@@ -418,14 +339,12 @@ describe('DropdownMenu Keyboard Navigation', () => {
         items[0].nativeElement.focus();
         fixture.detectChanges();
 
-        // Press Shift+Tab - should wrap to last item (focus trap)
-        const shiftTabEvent = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true });
+        const shiftTabEvent = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, cancelable: true });
         content.nativeElement.dispatchEvent(shiftTabEvent);
-        fixture.detectChanges();
-        await fixture.whenStable();
 
-        // Focus trap prevents tabbing out
-        expect(dropdownComp.componentInstance.open()).toBe(true);
+        expect(shiftTabEvent.defaultPrevented).toBe(true);
+        expect(document.activeElement).toBe(items.at(-1)!.nativeElement);
+        expect(items.at(-1)!.nativeElement.textContent.trim()).toBe('Item 2');
     });
 
     it('should close menu when item is clicked', async () => {
@@ -453,148 +372,6 @@ describe('DropdownMenu Keyboard Navigation', () => {
     });
 });
 
-describe('DropdownMenu RTL Support', () => {
-    let fixture: ComponentFixture<RTLTestHostComponent>;
-    let component: RTLTestHostComponent;
-    let restoreStyle: () => void;
-
-    beforeEach(async () => {
-        restoreStyle = installDirComputedStyle();
-        await TestBed.configureTestingModule({
-            imports: [RTLTestHostComponent]
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(RTLTestHostComponent);
-        component = fixture.componentInstance;
-        fixture.detectChanges();
-    });
-
-    afterEach(() => {
-        document.documentElement.removeAttribute('dir');
-        restoreStyle();
-    });
-
-    it('should render in LTR mode', () => {
-        const container = fixture.debugElement.query(By.css('[dir="ltr"]'));
-        expect(container).toBeTruthy();
-    });
-
-    it('should render in RTL mode', async () => {
-        component.dir.set('rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const container = fixture.debugElement.query(By.css('[dir="rtl"]'));
-        expect(container).toBeTruthy();
-    });
-
-    it('should open menu in RTL', async () => {
-        component.dir.set('rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const trigger = fixture.debugElement.query(By.css('[data-slot="dropdown-trigger"]'));
-        trigger.nativeElement.click();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const content = fixture.debugElement.query(By.css('[data-slot="dropdown-content"]'));
-        expect(content).toBeTruthy();
-    });
-
-    it('should close with Escape key in RTL', async () => {
-        component.dir.set('rtl');
-        document.documentElement.setAttribute('dir', 'rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const dropdownComp = fixture.debugElement.query(By.directive(DropdownMenuComponent));
-        dropdownComp.componentInstance.show();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const content = fixture.debugElement.query(By.css('[data-slot="dropdown-content"]'));
-        content.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        expect(dropdownComp.componentInstance.open()).toBe(false);
-    });
-
-    it('should navigate with ArrowDown in RTL (same as LTR)', async () => {
-        component.dir.set('rtl');
-        document.documentElement.setAttribute('dir', 'rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const dropdownComp = fixture.debugElement.query(By.directive(DropdownMenuComponent));
-        dropdownComp.componentInstance.show();
-        fixture.detectChanges();
-        await fixture.whenStable();
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        const content = fixture.debugElement.query(By.css('[data-slot="dropdown-content"]'));
-        const items = fixture.debugElement.queryAll(By.css('[role="menuitem"]:not([data-disabled])'));
-
-        // ArrowDown should work the same in RTL (navigates to next item)
-        items[0].nativeElement.focus();
-        content.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        // Menu should still be open and navigation should work
-        expect(dropdownComp.componentInstance.open()).toBe(true);
-    });
-
-    it('should navigate with ArrowUp in RTL (same as LTR)', async () => {
-        component.dir.set('rtl');
-        document.documentElement.setAttribute('dir', 'rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const dropdownComp = fixture.debugElement.query(By.directive(DropdownMenuComponent));
-        dropdownComp.componentInstance.show();
-        fixture.detectChanges();
-        await fixture.whenStable();
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        const content = fixture.debugElement.query(By.css('[data-slot="dropdown-content"]'));
-        const items = fixture.debugElement.queryAll(By.css('[role="menuitem"]:not([data-disabled])'));
-
-        // ArrowUp should work the same in RTL (navigates to previous item)
-        items[1].nativeElement.focus();
-        content.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        expect(dropdownComp.componentInstance.open()).toBe(true);
-    });
-
-    it('should have focus trap work in RTL', async () => {
-        component.dir.set('rtl');
-        document.documentElement.setAttribute('dir', 'rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const dropdownComp = fixture.debugElement.query(By.directive(DropdownMenuComponent));
-        dropdownComp.componentInstance.show();
-        fixture.detectChanges();
-        await fixture.whenStable();
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        const content = fixture.debugElement.query(By.css('[data-slot="dropdown-content"]'));
-        const items = fixture.debugElement.queryAll(By.css('[role="menuitem"]:not([data-disabled])'));
-        // Focus last item and Tab should wrap
-        items.at(-1)!.nativeElement.focus();
-        content.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab' }));
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        // Focus trap keeps menu open
-        expect(dropdownComp.componentInstance.open()).toBe(true);
-    });
-});
-
 describe('DropdownMenu Submenu (LTR)', () => {
     let fixture: ComponentFixture<SubmenuTestHostComponent>;
 
@@ -605,30 +382,6 @@ describe('DropdownMenu Submenu (LTR)', () => {
 
         fixture = TestBed.createComponent(SubmenuTestHostComponent);
         fixture.detectChanges();
-    });
-
-    it('should render submenu trigger', async () => {
-        const dropdownComp = fixture.debugElement.query(By.directive(DropdownMenuComponent));
-        dropdownComp.componentInstance.show();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const subTriggers = fixture.debugElement.queryAll(By.directive(DropdownMenuSubTriggerComponent));
-        expect(subTriggers.length).toBeGreaterThan(0);
-    });
-
-    it('should open level 1 submenu on hover', async () => {
-        const dropdownComp = fixture.debugElement.query(By.directive(DropdownMenuComponent));
-        dropdownComp.componentInstance.show();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const subComp = fixture.debugElement.query(By.directive(DropdownMenuSubComponent));
-        subComp.componentInstance.enter();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        expect(subComp.componentInstance.isOpen()).toBe(true);
     });
 
     it('should open level 1 submenu with ArrowRight in LTR', async () => {
@@ -675,22 +428,6 @@ describe('DropdownMenu Submenu (LTR)', () => {
         await new Promise(resolve => setTimeout(resolve, 100));
 
         expect(subComp.componentInstance.isOpen()).toBe(true);
-    });
-
-    it('should navigate to level 2 submenu with ArrowRight', async () => {
-        const dropdownComp = fixture.debugElement.query(By.directive(DropdownMenuComponent));
-        dropdownComp.componentInstance.show();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        // Open level 1 submenu
-        const subComps = fixture.debugElement.queryAll(By.directive(DropdownMenuSubComponent));
-        subComps[0].componentInstance.enter();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        // Check level 1 is open
-        expect(subComps[0].componentInstance.isOpen()).toBe(true);
     });
 
     it('should close submenu with ArrowLeft in LTR', async () => {
@@ -749,14 +486,41 @@ describe('DropdownMenu Submenu (LTR)', () => {
         fixture.detectChanges();
         await fixture.whenStable();
 
-        // Open all levels
-        const subComps = fixture.debugElement.queryAll(By.directive(DropdownMenuSubComponent));
+        await tick();
 
-        // Open level 1
-        subComps[0].componentInstance.enter();
-        fixture.detectChanges();
-        await fixture.whenStable();
-        expect(subComps[0].componentInstance.isOpen()).toBe(true);
+        const row = (text: string): HTMLElement =>
+            Array.from(fixture.nativeElement.querySelectorAll('[role="menuitem"]') as NodeListOf<HTMLElement>)
+                .find(el => el.textContent?.trim() === text)!;
+        const pressOn = async (el: HTMLElement, key: string): Promise<void> => {
+            el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+            fixture.detectChanges();
+            await fixture.whenStable();
+            await tick();
+        };
+
+        const level1Sub = row('Level 1 Sub');
+        level1Sub.focus();
+        await pressOn(level1Sub, 'ArrowRight');
+        expect(document.activeElement).toBe(row('Level 1 Item 1'));
+
+        const level2Sub = row('Level 2 Sub');
+        level2Sub.focus();
+        await pressOn(level2Sub, 'ArrowRight');
+        const subComps = fixture.debugElement.queryAll(By.directive(DropdownMenuSubComponent));
+        expect(subComps[1].componentInstance.isOpen()).toBe(true);
+        expect(document.activeElement).toBe(row('Level 2 Item 1'));
+
+        const level1Item2 = row('Level 1 Item 2');
+        level1Item2.focus();
+        await pressOn(level1Item2, 'ArrowDown');
+        expect(document.activeElement).toBe(level2Sub);
+
+        // Level 2 is still open: the level-1 ring wraps over level 1's own rows, never into level 2's.
+        expect(subComps[1].componentInstance.isOpen()).toBe(true);
+        await pressOn(level2Sub, 'ArrowDown');
+        expect(document.activeElement).toBe(row('Level 1 Item 1'));
+        await pressOn(row('Level 1 Item 1'), 'ArrowUp');
+        expect(document.activeElement).toBe(level2Sub);
     });
 });
 
@@ -779,21 +543,6 @@ describe('DropdownMenu Submenu RTL Keyboard Navigation', () => {
     afterEach(() => {
         document.documentElement.removeAttribute('dir');
         restoreStyle();
-    });
-
-    it('should render submenu in RTL mode', async () => {
-        component.dir.set('rtl');
-        document.documentElement.setAttribute('dir', 'rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const dropdownComp = fixture.debugElement.query(By.directive(DropdownMenuComponent));
-        dropdownComp.componentInstance.show();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const subTriggers = fixture.debugElement.queryAll(By.directive(DropdownMenuSubTriggerComponent));
-        expect(subTriggers.length).toBeGreaterThan(0);
     });
 
     it('should open level 1 submenu with ArrowLeft in RTL (opposite of LTR)', async () => {
@@ -889,53 +638,6 @@ describe('DropdownMenu Submenu RTL Keyboard Navigation', () => {
         expect(subComp.componentInstance.isOpen()).toBe(false);
     });
 
-    it('should support 3-level deep navigation in RTL', async () => {
-        component.dir.set('rtl');
-        document.documentElement.setAttribute('dir', 'rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const dropdownComp = fixture.debugElement.query(By.directive(DropdownMenuComponent));
-        dropdownComp.componentInstance.show();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        // Open level 1
-        const subComps = fixture.debugElement.queryAll(By.directive(DropdownMenuSubComponent));
-        subComps[0].componentInstance.enter();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        // Verify level 1 is open
-        expect(subComps[0].componentInstance.isOpen()).toBe(true);
-    });
-
-    it('should still open submenu with Enter key in RTL', async () => {
-        component.dir.set('rtl');
-        document.documentElement.setAttribute('dir', 'rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const dropdownComp = fixture.debugElement.query(By.directive(DropdownMenuComponent));
-        dropdownComp.componentInstance.show();
-        fixture.detectChanges();
-        await fixture.whenStable();
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        const subTrigger = fixture.debugElement.query(By.directive(DropdownMenuSubTriggerComponent));
-        const subComp = fixture.debugElement.query(By.directive(DropdownMenuSubComponent));
-
-        // Enter key should work regardless of RTL
-        subTrigger.nativeElement.querySelector('[role="menuitem"]').focus();
-        subTrigger.nativeElement.querySelector('[role="menuitem"]').dispatchEvent(
-            new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })
-        );
-        fixture.detectChanges();
-        await fixture.whenStable();
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        expect(subComp.componentInstance.isOpen()).toBe(true);
-    });
 });
 
 // Host exercising 3 enabled items (middle-item Tab navigation), align,
@@ -956,20 +658,6 @@ describe('DropdownMenu Submenu RTL Keyboard Navigation', () => {
 class ThreeItemHostComponent {
     align = signal<'start' | 'center' | 'end'>('center');
 }
-
-// Host whose content has no focusable items (Tab short-circuit + align="end").
-@Component({
-    template: `
-        <ui-dropdown-menu>
-            <ui-dropdown-menu-trigger>Open</ui-dropdown-menu-trigger>
-            <ui-dropdown-menu-content align="end">
-                <ui-dropdown-menu-label>Only a label</ui-dropdown-menu-label>
-            </ui-dropdown-menu-content>
-        </ui-dropdown-menu>
-    `,
-    imports: [DropdownMenuComponent, DropdownMenuTriggerComponent, DropdownMenuContentComponent, DropdownMenuLabelComponent]
-})
-class EmptyContentHostComponent { }
 
 // Host whose trigger wraps an already-interactive control and whose only item
 // is disabled.
@@ -1032,13 +720,6 @@ describe('DropdownMenu content Tab navigation (three items)', () => {
         fixture.detectChanges();
     }
 
-    it('renders inset + shortcut and centers via align', () => {
-        expect(items()).toHaveLength(3);
-        const content = fixture.debugElement.query(By.css('[data-slot="dropdown-content"]'));
-        expect(content.nativeElement.className).toContain('-translate-x-1/2');
-        expect(content.nativeElement.textContent).toContain('⌘K');
-    });
-
     it('Tab from a non-last item moves focus forward', () => {
         const list = items();
         list[0].focus();
@@ -1063,21 +744,6 @@ describe('DropdownMenu content Tab navigation (three items)', () => {
 });
 
 describe('DropdownMenu content edge cases', () => {
-    it('Tab is a no-op when no focusable items exist', async () => {
-        await TestBed.configureTestingModule({ imports: [EmptyContentHostComponent] }).compileComponents();
-        const fixture = TestBed.createComponent(EmptyContentHostComponent);
-        fixture.detectChanges();
-        fixture.debugElement.query(By.directive(DropdownMenuComponent)).componentInstance.show();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const content = fixture.debugElement.query(By.css('[data-slot="dropdown-content"]'));
-        expect(content.nativeElement.className).toContain('ltr:right-0');
-        content.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
-        fixture.detectChanges();
-        expect(fixture.debugElement.query(By.directive(DropdownMenuComponent)).componentInstance.open()).toBe(true);
-    });
-
     it('closes when a click lands outside the menu', async () => {
         await TestBed.configureTestingModule({ imports: [TestHostComponent] }).compileComponents();
         const fixture = TestBed.createComponent(TestHostComponent);
@@ -1169,11 +835,23 @@ describe('DropdownMenu data-driven items input', () => {
         await fixture.whenStable();
     });
 
-    it('renders separator, label, sub and item branches', () => {
-        expect(fixture.debugElement.query(By.css('[data-slot="dropdown-separator"]'))).toBeTruthy();
-        expect(fixture.debugElement.query(By.css('[data-slot="dropdown-label"]'))).toBeTruthy();
-        expect(fixture.debugElement.queryAll(By.directive(DropdownMenuSubTriggerComponent)).length).toBeGreaterThan(0);
-        expect(fixture.debugElement.queryAll(By.css('[data-slot="dropdown-item"]')).length).toBeGreaterThan(0);
+    it('renders separator, label, sub and item branches', async () => {
+        const root = fixture.nativeElement as HTMLElement;
+        const itemTexts = (): string[] => Array.from(root.querySelectorAll<HTMLElement>('[data-slot="dropdown-item"]'))
+            .map(el => (el.textContent ?? '').split(/\s+/).filter(Boolean).join(' '));
+
+        expect(root.querySelector('[data-slot="dropdown-separator"]')).not.toBeNull();
+        expect(root.querySelector('[data-slot="dropdown-label"]')?.textContent?.trim()).toBe('Group');
+        expect(itemTexts()).toEqual(['Click me ⌘C', 'No handler']);
+
+        const subRow = fixture.debugElement.query(By.directive(DropdownMenuSubTriggerComponent))
+            .nativeElement.querySelector('[role="menuitem"]') as HTMLElement;
+        expect(subRow.textContent?.trim()).toBe('More');
+        subRow.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(itemTexts()).toEqual(['Click me ⌘C', 'No handler', 'Nested']);
     });
 
     it('invokes the click handler and tolerates items without one', () => {

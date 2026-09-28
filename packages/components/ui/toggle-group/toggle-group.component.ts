@@ -66,7 +66,7 @@ function toArray(value: string | string[]): string[] {
 export class ToggleGroupComponent implements OnInit {
     /** `single` keeps at most one item on (and re-pressing it clears the selection); `multiple` accumulates. Also decides whether {@link valueChange} carries a string or a string array. */
     type = input<ToggleGroupType>('single');
-    /** Item styling, read by each item through the group: `outline` adds borders plus a shared shadow on the group. */
+    /** Item styling, read by each item through the group: `outline` adds borders (one per join between items) plus a shared shadow on the group. */
     variant = input<ToggleGroupVariant>('default');
     /** Item height/min-width preset, read by each item through the group and mirrored to `data-size`. */
     size = input<ToggleGroupSize>('default');
@@ -121,10 +121,19 @@ export class ToggleGroupComponent implements OnInit {
         }
     }
 
+    // Items are `display: contents` hosts around the <button> that draws the
+    // box, so the joins are styled from here: `first:`/`last:` on the button
+    // itself would match every item, the button being its host's only child.
+    // The plain-child form keeps a consumer's own element in the group joined.
     classes = computed(() =>
         cn(
             'group/toggle-group flex w-fit items-center rounded-md',
-            this.variant() === 'outline' && 'shadow-xs',
+            '[&>*:not(:first-child)]:rounded-s-none [&>.contents:not(:first-child)>*]:rounded-s-none',
+            '[&>*:not(:last-child)]:rounded-e-none [&>.contents:not(:last-child)>*]:rounded-e-none',
+            this.variant() === 'outline' && [
+                'shadow-xs',
+                '[&>*:not(:first-child)]:border-s-0 [&>.contents:not(:first-child)>*]:border-s-0',
+            ],
             this.class()
         )
     );

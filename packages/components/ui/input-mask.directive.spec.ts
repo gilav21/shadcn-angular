@@ -39,15 +39,6 @@ describe('InputMaskDirective', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(fixture.componentInstance).toBeTruthy();
-    });
-
-    it('should attach to the input element', () => {
-        const inputEl = fixture.nativeElement.querySelector('input');
-        expect(inputEl).toBeTruthy();
-    });
-
     describe('Mask formatting', () => {
         it('should format a full phone number correctly', () => {
             const input: HTMLInputElement = fixture.nativeElement.querySelector('input');
@@ -63,14 +54,6 @@ describe('InputMaskDirective', () => {
             input.dispatchEvent(new Event('input'));
 
             expect(input.value).toBe('(123) ');
-        });
-
-        it('should format a partial input with 6 digits including trailing literal', () => {
-            const input: HTMLInputElement = fixture.nativeElement.querySelector('input');
-            input.value = '123456';
-            input.dispatchEvent(new Event('input'));
-
-            expect(input.value).toBe('(123) 456-');
         });
 
         it('should format a partial input with 1 digit', () => {
@@ -146,14 +129,6 @@ describe('InputMaskDirective with date mask', () => {
 
         expect(input.value).toBe('12/');
     });
-
-    it('should format date input with 4 digits including trailing literal', () => {
-        const input: HTMLInputElement = fixture.nativeElement.querySelector('input');
-        input.value = '1225';
-        input.dispatchEvent(new Event('input'));
-
-        expect(input.value).toBe('12/25/');
-    });
 });
 
 describe('InputMaskDirective with showMaskTyped', () => {
@@ -168,13 +143,18 @@ describe('InputMaskDirective with showMaskTyped', () => {
         fixture.detectChanges();
     });
 
-    it('should show placeholder slot characters when showMaskTyped is true and input is partial', () => {
+    it('should show placeholder slot characters for every unfilled slot, keeping the literals after them', () => {
         const input: HTMLInputElement = fixture.nativeElement.querySelector('input');
         input.value = '123';
         input.dispatchEvent(new Event('input'));
 
-        expect(input.value).toContain('(123');
-        expect(input.value).toContain('_');
+        expect(input.value).toBe('(123) ___-____');
+
+        // Typing into the slotted value: the slot characters already shown are not data.
+        input.value = '(123) 4___-____';
+        input.dispatchEvent(new Event('input'));
+
+        expect(input.value).toBe('(123) 4__-____');
     });
 });
 
@@ -203,7 +183,8 @@ describe('InputMaskDirective with alpha mask', () => {
         input.value = '1231234';
         input.dispatchEvent(new Event('input'));
 
-        expect(input.value).not.toContain('123-1234');
+        // Every digit is skipped by the alpha slots until the raw input runs out.
+        expect(input.value).toBe('');
     });
 
     it('should reject letters in digit-only slots', () => {

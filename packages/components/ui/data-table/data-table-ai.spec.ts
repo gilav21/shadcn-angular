@@ -104,11 +104,12 @@ describe('DataTableComponent AI (table-side)', () => {
 
   it('AI-fills a column via valueSetter for each filtered row', async () => {
     fixture.componentRef.setInput('aiProvider', (req: AiRequest) => `note for ${JSON.parse(req.input).name}`);
-    let done: unknown = null;
-    component.aiFillComplete.subscribe((e) => (done = e));
+    component.globalFilter.set('alice');
+    const done: unknown[] = [];
+    component.aiFillComplete.subscribe((e) => done.push(e));
     await component.aiFillColumn('note', 'write a note');
-    expect(component.data().map((r) => r.note)).toEqual(['note for Alice', 'note for Bob']);
-    expect(done).toEqual({ columnKey: 'note', count: 2 });
+    expect(component.data().map((r) => r.note)).toEqual(['note for Alice', '']);
+    expect(done).toEqual([{ columnKey: 'note', count: 1 }]);
   });
 
   it('no-ops AI-fill for a column without a valueSetter', async () => {

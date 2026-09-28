@@ -20,6 +20,7 @@ import { DOCUMENT } from '@angular/common';
 import { cn } from '../../lib/utils';
 import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
 import { COMMON_LOCALES, type CommonLocale } from '../../lib/i18n/common.locales';
+import { createResizeObserver } from '../../lib/observers';
 import { ButtonComponent } from '../button';
 import { readTourCompleted, writeTourCompleted } from './tour.utils';
 
@@ -828,7 +829,9 @@ export class TourComponent {
         this.applyHighlight(targetEl);
         this.currentTargetEl = targetEl;
 
-        targetEl.scrollIntoView({ block: 'center', inline: 'center', behavior: 'auto' });
+        // Optional call: jsdom (a consumer's unit tests) has no scrollIntoView, and
+        // a step whose target cannot be scrolled must still highlight it.
+        targetEl.scrollIntoView?.({ block: 'center', inline: 'center', behavior: 'auto' });
         this.readAndSetRect(targetEl);
         this.setupObservers(targetEl);
 
@@ -904,8 +907,8 @@ export class TourComponent {
                 this.zone.run(() => this.reposition(targetEl));
             };
 
-            this.resizeObserver = new ResizeObserver(onReposition);
-            this.resizeObserver.observe(targetEl);
+            this.resizeObserver = createResizeObserver(onReposition);
+            this.resizeObserver?.observe(targetEl);
 
             globalThis.window?.addEventListener('scroll', onReposition, { passive: true, capture: true });
             globalThis.window?.addEventListener('resize', onReposition, { passive: true });

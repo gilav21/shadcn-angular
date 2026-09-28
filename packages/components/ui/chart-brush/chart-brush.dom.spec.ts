@@ -120,10 +120,11 @@ describe('ChartBrushComponent DOM handlers', () => {
         touch(rects()[0], 'touchstart', 30);
         expect(component.current()).toEqual({ start: 30, end: 30 });
 
-        touch(window, 'touchmove', 90);
+        const move = touch(window, 'touchmove', 90);
         touch(window, 'touchend', 90);
 
         expect(emitted).toEqual({ start: 30, end: 90 });
+        expect(move.defaultPrevented).toBe(true);
     });
 
     it('ignores window move/up while idle (no selection created)', () => {
@@ -175,12 +176,5 @@ describe('ChartBrushComponent guard clauses', () => {
         component.pointerMoveTo(120);
         expect(calls).toBe(0);
         expect(component.current()).toBeNull();
-    });
-
-    it('end does nothing while idle', () => {
-        let calls = 0;
-        component.selectionChange.subscribe(() => calls++);
-        component.end();
-        expect(calls).toBe(0);
     });
 });

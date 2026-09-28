@@ -47,10 +47,6 @@ describe('DataListComponent', () => {
 
     // T-10 — UC-10, UC-13
     describe('T-10: simple mode renders items array as dl/dt/dd', () => {
-        it('renders exactly one dl', () => {
-            expect(host.querySelectorAll('dl')).toHaveLength(1);
-        });
-
         it('renders one dt/dd pair per item, in order', () => {
             const dl = host.querySelector('dl')!;
             expect(dl.querySelectorAll('dt')).toHaveLength(ITEMS.length);
@@ -92,38 +88,8 @@ describe('DataListComponent', () => {
         });
     });
 
-    // T-12 — UC-12
-    describe('T-12: horizontal orientation collapses to stacked at 640px', () => {
-        it('defaults to vertical', () => {
-            expect(fixture.componentInstance.orientation()).toBe('vertical');
-        });
-
-        it('uses a single column below the sm breakpoint when horizontal', () => {
-            fixture.componentRef.setInput('orientation', 'horizontal');
-            fixture.detectChanges();
-            const dl = host.querySelector<HTMLElement>('dl')!;
-            expect(dl.className).toContain('grid-cols-1');
-            expect(dl.className).toMatch(/sm:grid-cols-/);
-        });
-
-        it('reflects the orientation on a data attribute', () => {
-            fixture.componentRef.setInput('orientation', 'horizontal');
-            fixture.detectChanges();
-            expect(host.dataset['orientation']).toBe('horizontal');
-        });
-
-        it('computes a two-track grid only from the sm breakpoint up', () => {
-            fixture.componentRef.setInput('orientation', 'horizontal');
-            fixture.detectChanges();
-            const dl = host.querySelector<HTMLElement>('dl')!;
-            const tracks = globalThis
-                .getComputedStyle(dl)
-                .gridTemplateColumns.split(' ')
-                .filter(Boolean).length;
-            const isDesktop = globalThis.matchMedia('(min-width: 640px)').matches;
-            expect(tracks).toBe(isDesktop ? 2 : 1);
-        });
-    });
+    // T-12 (breakpoint tracks), long-value wrapping and custom-mode orientation
+    // are layout, asserted in data-list.component.browser.spec.ts.
 
     // Edge cases — 2.2
     describe('edge cases', () => {
@@ -132,23 +98,6 @@ describe('DataListComponent', () => {
             fixture.detectChanges();
             const dl = host.querySelector('dl')!;
             expect(dl.querySelectorAll('dt')).toHaveLength(0);
-        });
-
-        it('renders a single item without a trailing separator artefact', () => {
-            fixture.componentRef.setInput('items', [ITEMS[0]]);
-            fixture.detectChanges();
-            expect(host.querySelectorAll('dt')).toHaveLength(1);
-            expect(host.querySelectorAll('dd')).toHaveLength(1);
-        });
-
-        it('wraps an extremely long unbroken value instead of overflowing', () => {
-            fixture.componentRef.setInput('items', [{ label: 'x'.repeat(200), value: 'y'.repeat(400) }]);
-            fixture.detectChanges();
-            const dd = host.querySelector<HTMLElement>('dd')!;
-            const dt = host.querySelector<HTMLElement>('dt')!;
-            expect(dd.className).toContain('break-words');
-            expect(dt.className).toContain('break-words');
-            expect(dd.scrollWidth).toBeLessThanOrEqual(dd.clientWidth + 1);
         });
     });
 });
@@ -204,15 +153,5 @@ describe('DataListComponent custom mode (T-11)', () => {
         for (const cell of dl.querySelectorAll('dt, dd')) {
             expect(cell.parentElement).toBe(dl);
         }
-    });
-
-    it('inherits the list orientation rather than styling each row separately', async () => {
-        const fixture = await setup();
-        fixture.componentInstance.orientation.set('horizontal');
-        fixture.detectChanges();
-
-        const list = fixture.debugElement.query(By.directive(DataListComponent)).nativeElement as HTMLElement;
-        expect(list.dataset['orientation']).toBe('horizontal');
-        expect(list.querySelector<HTMLElement>('dl')!.className).toContain('grid-cols-1');
     });
 });

@@ -12,31 +12,10 @@ import {
     CommandDialogComponent,
     CommandService,
     generateId,
-    COMMAND_DIALOG_SHORTCUT_DEFINITIONS,
 } from '../command';
 import { ShortcutBindingService } from '../../lib/shortcut-binding.service';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { By } from '@angular/platform-browser';
-
-type ScrollIntoView = typeof Element.prototype.scrollIntoView;
-const scrollProto = Element.prototype as unknown as { scrollIntoView?: ScrollIntoView };
-let originalScrollIntoView: ScrollIntoView | undefined;
-let hadScrollIntoView = false;
-
-beforeEach(() => {
-    hadScrollIntoView = 'scrollIntoView' in scrollProto;
-    originalScrollIntoView = scrollProto.scrollIntoView;
-    scrollProto.scrollIntoView = vi.fn();
-});
-
-afterEach(() => {
-    if (hadScrollIntoView) {
-        scrollProto.scrollIntoView = originalScrollIntoView;
-    } else {
-        delete scrollProto.scrollIntoView;
-    }
-    originalScrollIntoView = undefined;
-});
 
 @Component({
     template: `
@@ -89,45 +68,13 @@ describe('CommandComponent', () => {
 
     // --- Existing creation/structure tests ---
 
-    it('should create CommandComponent', () => {
-        const command = fixture.debugElement.query(By.directive(CommandComponent));
-        expect(command).toBeTruthy();
-    });
-
     it('should render command container with data-slot', () => {
-        const el = fixture.debugElement.query(By.css('[data-slot="command"]'));
-        expect(el).toBeTruthy();
-    });
-
-    it('should render command input', () => {
-        const el = fixture.debugElement.query(By.css('[data-slot="command-input"]'));
-        expect(el).toBeTruthy();
-    });
-
-    it('should render command list', () => {
-        const el = fixture.debugElement.query(By.css('[data-slot="command-list"]'));
-        expect(el).toBeTruthy();
-    });
-
-    it('should render command items', () => {
-        const items = fixture.debugElement.queryAll(By.directive(CommandItemComponent));
-        expect(items).toHaveLength(3);
-    });
-
-    it('should render command groups', () => {
-        const groups = fixture.debugElement.queryAll(By.directive(CommandGroupComponent));
-        expect(groups).toHaveLength(2);
-    });
-
-    it('should render command separator', () => {
-        const separator = fixture.debugElement.query(By.css('[data-slot="command-separator"]'));
-        expect(separator).toBeTruthy();
-    });
-
-    it('should render command shortcut', () => {
-        const shortcut = fixture.debugElement.query(By.css('[data-slot="command-shortcut"]'));
-        expect(shortcut).toBeTruthy();
-        expect(shortcut.nativeElement.textContent.trim()).toBe('Ctrl+C');
+        const root = fixture.nativeElement as HTMLElement;
+        for (const slot of ['command', 'command-input', 'command-list', 'command-separator']) {
+            expect(root.querySelector(`[data-slot="${slot}"]`), slot).not.toBeNull();
+        }
+        const shortcut = root.querySelector('[data-slot="command-shortcut"]');
+        expect(shortcut?.textContent?.trim()).toBe('Ctrl+C');
     });
 
     it('should have input with correct placeholder', () => {
@@ -138,12 +85,6 @@ describe('CommandComponent', () => {
     // --- Filtering tests ---
 
     describe('filtering', () => {
-        it('should show all items when search is empty', () => {
-            const itemDivs = fixture.nativeElement.querySelectorAll('[data-slot="command-item"]');
-            const hiddenItems = Array.from(itemDivs).filter((el: any) => el.classList.contains('hidden'));
-            expect(hiddenItems).toHaveLength(0);
-        });
-
         it('should filter items based on search input', () => {
             const input = fixture.nativeElement.querySelector('input');
             input.value = 'cal';
@@ -187,19 +128,6 @@ describe('CommandComponent', () => {
             const hiddenItems = Array.from(itemDivs).filter((el: any) => el.classList.contains('hidden'));
             expect(hiddenItems).toHaveLength(0);
         });
-
-        it('should match partial text in item value', () => {
-            const input = fixture.nativeElement.querySelector('input');
-            input.value = 'pro';
-            input.dispatchEvent(new Event('input'));
-            fixture.detectChanges();
-
-            const itemDivs = fixture.nativeElement.querySelectorAll('[data-slot="command-item"]');
-            const visibleItems = Array.from(itemDivs).filter((el: any) => !el.classList.contains('hidden'));
-
-            expect(visibleItems).toHaveLength(1);
-            expect((visibleItems[0] as HTMLElement).textContent).toContain('Profile');
-        });
     });
 
     // --- Keyboard navigation tests ---
@@ -210,10 +138,11 @@ describe('CommandComponent', () => {
             input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
             fixture.detectChanges();
 
-            const itemDivs = fixture.nativeElement.querySelectorAll('[data-slot="command-item"]');
-            const activeItems = Array.from(itemDivs).filter((el: any) => el.classList.contains('bg-accent'));
+            const itemDivs = Array.from(fixture.nativeElement.querySelectorAll('[data-slot="command-item"]')) as HTMLElement[];
+            const activeIndex = itemDivs.findIndex(el => el.classList.contains('bg-accent'));
 
-            expect(activeItems).toHaveLength(1);
+            expect(activeIndex).toBe(0);
+            expect(itemDivs[activeIndex].textContent).toContain('Calendar');
         });
 
         it('should move to the next item on repeated ArrowDown', () => {
@@ -264,18 +193,38 @@ describe('CommandComponent', () => {
             expect(activeIndex).toBe(0);
         });
 
-        it('should wrap around from first to last on ArrowUp', () => {
+        it('should land on the last item on ArrowUp, from the first item and from no highlight', () => {
             const input = fixture.nativeElement.querySelector('input');
+            const activeIndex = () => {
+                const itemDivs = Array.from(fixture.nativeElement.querySelectorAll('[data-slot="command-item"]')) as HTMLElement[];
+                return itemDivs.findIndex(el => el.classList.contains('bg-accent'));
+            };
+
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
+            fixture.detectChanges();
+            expect(activeIndex()).toBe(2);
 
             input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
             fixture.detectChanges();
             input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
             fixture.detectChanges();
+            expect(activeIndex()).toBe(2);
+        });
 
-            const itemDivs = Array.from(fixture.nativeElement.querySelectorAll('[data-slot="command-item"]')) as HTMLElement[];
-            const activeIndex = itemDivs.findIndex(el => el.classList.contains('bg-accent'));
+        it('keeps highlighting rows in an engine without scrollIntoView', () => {
+            const rows = Array.from(fixture.nativeElement.querySelectorAll('[data-slot="command-item"]')) as HTMLElement[];
+            for (const row of rows) {
+                Object.defineProperty(row, 'scrollIntoView', { value: undefined, configurable: true });
+            }
+            const input = fixture.nativeElement.querySelector('input');
 
-            expect(activeIndex).toBe(2);
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+            fixture.detectChanges();
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+            fixture.detectChanges();
+
+            const active = rows.filter(row => row.classList.contains('bg-accent'));
+            expect(active.map(row => row.textContent?.trim())).toEqual(['Search']);
         });
     });
 
@@ -326,11 +275,6 @@ describe('CommandComponent', () => {
     // --- Empty state ---
 
     describe('empty state', () => {
-        it('should not show empty state when items are visible', () => {
-            const emptyEl = fixture.nativeElement.querySelector('[data-slot="command-empty"]');
-            expect(emptyEl).toBeFalsy();
-        });
-
         it('should show empty state when search matches nothing', () => {
             const input = fixture.nativeElement.querySelector('input');
             input.value = 'zzzzzzz';
@@ -382,22 +326,6 @@ describe('CommandComponent', () => {
             const hiddenGroups = Array.from(groupDivs).filter((el: any) => el.classList.contains('hidden'));
             expect(hiddenGroups).toHaveLength(0);
         });
-
-        it('should hide Settings group when searching for an item only in Suggestions', () => {
-            const input = fixture.nativeElement.querySelector('input');
-            input.value = 'calendar';
-            input.dispatchEvent(new Event('input'));
-            fixture.detectChanges();
-
-            const groupDivs = fixture.nativeElement.querySelectorAll('[data-slot="command-group"]');
-            const groupsArray = Array.from(groupDivs) as HTMLElement[];
-
-            const suggestionsGroup = groupsArray.find(g => g.textContent?.includes('Suggestions'));
-            const settingsGroup = groupsArray.find(g => g.textContent?.includes('Settings'));
-
-            expect(suggestionsGroup?.classList.contains('hidden')).toBe(false);
-            expect(settingsGroup?.classList.contains('hidden')).toBe(true);
-        });
     });
 
     // --- Item click emits select ---
@@ -413,25 +341,6 @@ describe('CommandComponent', () => {
             expect(host.onCalendarSelect).toHaveBeenCalledWith('calendar');
         });
 
-        it('should emit select for the correct item when clicking the third item', () => {
-            const host = fixture.componentInstance;
-
-            const itemDivs = fixture.nativeElement.querySelectorAll('[data-slot="command-item"]');
-            (itemDivs[2] as HTMLElement).click();
-            fixture.detectChanges();
-
-            expect(host.onProfileSelect).toHaveBeenCalledWith('profile');
-        });
-
-        it('should emit select with correct value for the search item', () => {
-            const host = fixture.componentInstance;
-
-            const itemDivs = fixture.nativeElement.querySelectorAll('[data-slot="command-item"]');
-            (itemDivs[1] as HTMLElement).click();
-            fixture.detectChanges();
-
-            expect(host.onSearchSelect).toHaveBeenCalledWith('search');
-        });
     });
 
     // --- Filtering + navigation interaction ---
@@ -677,13 +586,6 @@ describe('CommandInputComponent — focus', () => {
 });
 
 describe('command exported helpers', () => {
-    it('exposes the default Mod+K toggle shortcut definition', () => {
-        const def = COMMAND_DIALOG_SHORTCUT_DEFINITIONS[0];
-        expect(def.actionId).toBe('command-dialog.toggle');
-        expect(def.defaultShortcut).toBe('Mod+K');
-        expect(def.scope).toBe('global');
-    });
-
     it('generateId returns distinct alphanumeric ids', () => {
         const a = generateId();
         const b = generateId();

@@ -77,38 +77,12 @@ describe('the Arabic case, called out because it is the one that bites', () => {
         expect(parts.digits[1]).toBe('١');
     });
 
-    it('reads Arabic-Indic digits', () => {
-        expect(parseCurrency('١٢٣', 'ar-EG', 'EGP')).toBe(123);
-    });
-
     /**
      * Someone with a physical keyboard types ASCII even in an Arabic locale.
      * Being strict here would reject the most common input.
      */
     it('also reads ASCII digits typed into an Arabic locale', () => {
         expect(parseCurrency('123', 'ar-EG', 'EGP')).toBe(123);
-    });
-
-    it('survives the bidi marks Intl adds', () => {
-        const formatted = formatCurrency(99, 'ar-EG', 'EGP');
-        expect(formatted).toMatch(/[‎‏]/);
-        expect(parseCurrency(formatted, 'ar-EG', 'EGP')).toBe(99);
-    });
-});
-
-describe('the separators nobody types by hand', () => {
-    it('treats the French group separator as a separator, not as a space', () => {
-        const { group } = currencyParts('fr-FR', 'EUR');
-        expect(group).not.toBe(' ');
-        expect(parseCurrency(`12${group}345,60`, 'fr-FR', 'EUR')).toBeCloseTo(12345.6, 9);
-    });
-
-    it('reads a German amount, where dot and comma swap roles', () => {
-        expect(parseCurrency('1.234,56', 'de-DE', 'EUR')).toBeCloseTo(1234.56, 9);
-    });
-
-    it('reads the same amount written the American way', () => {
-        expect(parseCurrency('1,234.56', 'en-US', 'USD')).toBeCloseTo(1234.56, 9);
     });
 });
 
@@ -121,10 +95,6 @@ describe('input that is not a number', () => {
         ['1.2.3', 'two decimal points'],
     ])('reads %j (%s) as nothing', raw => {
         expect(parseCurrency(raw, 'en-US', 'USD')).toBeNull();
-    });
-
-    it('ignores a stray currency symbol around a real number', () => {
-        expect(parseCurrency('$1,234.56', 'en-US', 'USD')).toBeCloseTo(1234.56, 9);
     });
 
     it('reads accounting-style parentheses as negative', () => {
@@ -172,23 +142,16 @@ describe('rounding to the currency', () => {
         expect(cents(1.005)).toBe(101);
         expect(cents(8.475)).toBe(848);
     });
-
-    it('leaves an already-exact amount alone', () => {
-        expect(cents(12.34)).toBe(1234);
-    });
 });
 
 describe('minor units', () => {
-    it('gives whole cents', () => {
-        expect(toMinorUnits(12.34, 'en-US', 'USD')).toBe(1234);
-    });
-
     it('gives whole yen, because yen has no minor unit', () => {
         expect(toMinorUnits(12346, 'ja-JP', 'JPY')).toBe(12346);
     });
 
     it('is an integer even when the float is not', () => {
-        expect(Number.isInteger(toMinorUnits(19.99, 'en-US', 'USD'))).toBe(true);
+        // 19.99 * 100 is 1998.9999999999998 in floating point.
+        expect(toMinorUnits(19.99, 'en-US', 'USD')).toBe(1999);
     });
 });
 

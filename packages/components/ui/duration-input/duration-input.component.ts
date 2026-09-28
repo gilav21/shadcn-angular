@@ -4,6 +4,7 @@ import {
   computed,
   effect,
   forwardRef,
+  inject,
   input,
   model,
   signal,
@@ -11,6 +12,7 @@ import {
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cva } from 'class-variance-authority';
 import { cn } from '../../lib/utils';
+import { formatList, formatNumber, UI_LOCALE_ID } from '../../lib/i18n';
 import {
   LEADING_WIDTH,
   SEGMENT_WIDTH,
@@ -46,6 +48,8 @@ export interface DurationSegment {
   readonly isLeading: boolean;
   readonly max: number;
   readonly label: string;
+  /** The segment's amount as its locale says it — "1 hour", "2 heures". */
+  readonly valueText: string;
   /** Width in `ch`, sized to this segment's own digits. */
   readonly width: number;
 }
@@ -78,12 +82,27 @@ function stepFor(key: string): number {
   return 0;
 }
 
+/** Gives each instance's value-text element a document-unique id. */
+let durationInputInstances = 0;
+
 /** How a unit is named to a screen reader. */
 const UNIT_LABEL: Record<DurationUnit, string> = {
   hours: 'hours',
   minutes: 'minutes',
   seconds: 'seconds',
 };
+
+/** The `Intl` unit each segment is spoken in, so plurals and words come from the locale. */
+const INTL_UNIT: Record<DurationUnit, string> = {
+  hours: 'hour',
+  minutes: 'minute',
+  seconds: 'second',
+};
+
+/** "1 hour", "30 minutes", "2 Stunden" — the amount with its unit, pluralised by the locale. */
+function spokenAmount(value: number, unit: DurationUnit, locale: string): string {
+  return formatNumber(value, locale, { style: 'unit', unit: INTL_UNIT[unit], unitDisplay: 'long' });
+}
 
 /**
  * A length of time, edited one unit at a time.
@@ -151,8 +170,12 @@ export class DurationInputComponent implements ControlValueAccessor {
   readonly units = input<readonly DurationUnit[]>(['hours', 'minutes']);
   /** OR-ed with the state a reactive form pushes via `setDisabledState`. */
   readonly disabled = input<boolean>(false);
+  /** BCP-47 tag the value is spoken in. Falls back to the app-wide `UI_LOCALE_ID`. */
+  readonly locale = input<string>();
   /** Accessible name for the group of segments. */
   readonly ariaLabel = input<string>('Duration');
+  /** Id of the hidden element holding {@link valueText}; the group's `aria-describedby` points at it. */
+  protected readonly valueTextId = `duration-input-value-${++durationInputInstances}`;
   /** Extra classes merged onto the wrapper. */
   readonly class = input('');
   /** Visual style of the wrapper: `outline`, `underline` or `ghost`. */
@@ -160,6 +183,9 @@ export class DurationInputComponent implements ControlValueAccessor {
 
   private readonly _currentValue = signal<number | null>(null);
   private readonly _formDisabled = signal(false);
+  private readonly globalLocale = inject(UI_LOCALE_ID);
+
+  readonly resolvedLocale = computed(() => this.locale() ?? this.globalLocale());
 
   readonly isDisabled = computed(() => this.disabled() || this._formDisabled());
 
@@ -167,6 +193,7 @@ export class DurationInputComponent implements ControlValueAccessor {
     const units = this.units();
     const current = this._currentValue();
     const parts = toParts(current ?? 0, units);
+    const locale = this.resolvedLocale();
 
     return units.map((unit, index) => {
       const text = current === null ? '' : segmentText(parts[unit], widthFor(index));
@@ -179,19 +206,27 @@ export class DurationInputComponent implements ControlValueAccessor {
         isLeading: index === 0,
         max: segmentMax(unit, index === 0),
         label: UNIT_LABEL[unit],
+        valueText: spokenAmount(parts[unit], unit, locale),
         width: boxWidth(text, placeholder),
       };
     });
   });
 
-  /** What a screen reader hears for the whole control. */
+  /**
+   * What a screen reader hears for the whole control — the group's accessible
+   * description. Zero-valued units are left out; a zero duration is still a
+   * value, so it reads as zero of the smallest unit rather than as nothing.
+   */
   readonly valueText = computed(() => {
-    const current = this._currentValue();
-    if (current === null) return '';
-    return this.segments()
-      .filter(segment => segment.value > 0)
-      .map(segment => `${segment.value} ${segment.label}`)
-      .join(', ');
+    if (this._currentValue() === null) return '';
+    const segments = this.segments();
+    const nonZero = segments.filter(segment => segment.value > 0);
+    const spoken = nonZero.length > 0 ? nonZero : segments.slice(-1);
+    return formatList(
+      spoken.map(segment => segment.valueText),
+      this.resolvedLocale(),
+      { style: 'long', type: 'unit' },
+    );
   });
 
   readonly wrapperClasses = computed(() =>

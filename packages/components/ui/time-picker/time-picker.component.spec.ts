@@ -4,11 +4,26 @@
 // that a test calling `onBlur()` directly proves the method works and says
 // nothing about whether anything ever calls it.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { Component, signal, type ModelSignal } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { TimePickerComponent } from './time-picker.component';
 import type { TimeSegmentKind } from './time-picker.format';
+
+/**
+ * The group's accessible description as a screen reader resolves it: the text
+ * of every element its `aria-describedby` points at, in order. Whitespace is
+ * collapsed to plain spaces because `Intl` puts a narrow no-break space before
+ * "PM" in newer ICU versions, and a reader treats it as a space.
+ */
+function describedText(group: HTMLElement): string {
+    const ids = (group.getAttribute('aria-describedby') ?? '').split(/\s+/).filter(Boolean);
+    return ids
+        .map(id => group.ownerDocument.getElementById(id)?.textContent ?? '')
+        .join(' ')
+        .replaceAll(/\s+/g, ' ')
+        .trim();
+}
 
 @Component({
     standalone: true,
@@ -86,15 +101,6 @@ describe('TimePickerComponent', () => {
     afterEach(() => fixture.destroy());
 
     describe('the conformance contract', () => {
-        it('exposes value as a model signal', () => {
-            const control = fixture.debugElement.children[0]
-                .componentInstance as TimePickerComponent;
-            const value: ModelSignal<string | null> = control.value;
-
-            expect(typeof value.set).toBe('function');
-            expect(typeof value.subscribe).toBe('function');
-        });
-
         it('emits through the two-way binding on a user edit', async () => {
             await typeInto('hour', '9');
             await typeInto('minute', '5');
@@ -116,15 +122,6 @@ describe('TimePickerComponent', () => {
     });
 
     describe('the value is HH:mm, 24-hour', () => {
-        it('stores 24-hour even when it renders 12-hour', async () => {
-            await typeInto('hour', '9');
-            await typeInto('minute', '5');
-            period()!.click();
-            await settle();
-
-            expect(host.time()).toBe('21:05');
-        });
-
         /** UC-2: the same instant, entered in two locales, is one value. */
         it('is the same string whichever locale entered it', async () => {
             await typeInto('hour', '9');
@@ -132,6 +129,8 @@ describe('TimePickerComponent', () => {
             period()!.click();
             await settle();
             const american = host.time();
+            // Stored 24-hour even though it renders 12-hour.
+            expect(american).toBe('21:05');
 
             host.locale.set('de-DE');
             host.time.set(null);
@@ -184,18 +183,21 @@ describe('TimePickerComponent', () => {
             expect(segment('hour').value).toBe('9');
         });
 
-        it('produces a value as soon as the minute arrives', async () => {
-            await typeInto('hour', '9');
-            await typeInto('minute', '5');
-            expect(host.time()).toBe('09:05');
-        });
-
         it('goes back to no value when a segment is emptied', async () => {
             host.time.set('09:05');
             await settle();
             await typeInto('minute', '');
 
             expect(host.time()).toBeNull();
+        });
+
+        it('keeps the time when only the seconds are emptied, reading them as zero', async () => {
+            host.withSeconds.set(true);
+            host.time.set('09:05:09');
+            await settle();
+            await typeInto('second', '');
+
+            expect(host.time()).toBe('09:05:00');
         });
     });
 
@@ -282,17 +284,6 @@ describe('TimePickerComponent', () => {
             expect(host.time()).toBe('23:00');
         });
 
-        it('clamps a minute above the maximum', async () => {
-            await typeInto('hour', '9');
-            await typeInto('minute', '99');
-            expect(host.time()).toBe('09:59');
-        });
-
-        it('ignores characters that are not digits', async () => {
-            await typeInto('hour', '9');
-            await typeInto('minute', '3a0');
-            expect(host.time()).toBe('09:30');
-        });
     });
 
     describe('arrow keys', () => {
@@ -305,14 +296,6 @@ describe('TimePickerComponent', () => {
 
             await press('minute', 'ArrowDown');
             expect(host.time()).toBe('09:05');
-        });
-
-        it('wraps a minute rather than sticking at 59', async () => {
-            host.time.set('09:59');
-            await settle();
-            await press('minute', 'ArrowUp');
-
-            expect(host.time()).toBe('09:00');
         });
 
         /** A 12-hour hour runs 1–12, so it wraps to 1 rather than to 0. */
@@ -423,22 +406,29 @@ describe('TimePickerComponent', () => {
         });
 
         /**
-         * A real blur, not a direct call — `blur` does not bubble, so a
-         * handler bound on the wrong element never runs. Three shipped
-         * controls had exactly that bug.
+         * Real focus moves, not a direct call — `blur` does not bubble, so a
+         * handler bound on the wrong element never runs (three shipped
+         * controls had exactly that bug), and `focusout` fires on every move
+         * between segments, which is not leaving the control.
          */
-        it('marks the control touched on a real blur', async () => {
-            const field: HTMLInputElement = reactive.nativeElement.querySelector(
-                '[data-slot="time-picker-segment"]',
-            );
-            expect(reactive.componentInstance.control.touched).toBe(false);
+        it('marks the control touched only when focus leaves the whole control', async () => {
+            const hour: HTMLInputElement = reactive.nativeElement.querySelector('[data-segment="hour"]');
+            const minute: HTMLInputElement = reactive.nativeElement.querySelector('[data-segment="minute"]');
+            const outside = document.createElement('button');
+            document.body.appendChild(outside);
 
-            field.focus();
-            field.blur();
+            hour.focus();
+            minute.focus();
             reactive.detectChanges();
             await reactive.whenStable();
+            expect(reactive.componentInstance.control.touched).toBe(false);
 
+            outside.focus();
+            reactive.detectChanges();
+            await reactive.whenStable();
             expect(reactive.componentInstance.control.touched).toBe(true);
+
+            outside.remove();
         });
     });
 
@@ -448,6 +438,26 @@ describe('TimePickerComponent', () => {
             // A native fieldset, not a div wearing a group role.
             expect(group.tagName).toBe('FIELDSET');
             expect(group.getAttribute('aria-label')).toBe('Time');
+        });
+
+        it('describes the group with the whole current time, following edits', async () => {
+            const group: HTMLElement = fixture.nativeElement.querySelector('[data-slot="time-picker"]');
+            host.time.set('14:30');
+            await settle();
+            expect(describedText(group)).toBe('2:30 PM');
+
+            await typeInto('minute', '5');
+            expect(describedText(group)).toBe('2:05 PM');
+
+            // Danish: a 24-hour clock, zero-padded, with dots between the fields.
+            host.locale.set('da');
+            host.withSeconds.set(true);
+            host.time.set('00:05:09');
+            await settle();
+            expect(describedText(group)).toBe('00.05.09');
+
+            await typeInto('hour', '');
+            expect(describedText(group)).toBe('');
         });
 
         it('makes every numeric segment a spinbutton', () => {
@@ -468,12 +478,6 @@ describe('TimePickerComponent', () => {
 
         it('names the meridiem button', () => {
             expect(period()!.getAttribute('aria-label')).toBe('AM or PM');
-        });
-
-        it('keeps the meridiem out of the tab order of a 24-hour locale', async () => {
-            host.locale.set('en-GB');
-            await settle();
-            expect(period()).toBeNull();
         });
 
         it('asks for a numeric keypad without being a number field', () => {

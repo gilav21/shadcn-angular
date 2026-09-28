@@ -249,11 +249,9 @@ export class SignaturePadComponent implements ControlValueAccessor {
   }
 
   onPointerMove(event: PointerEvent): void {
+    // Only the pointer that began the stroke draws; a second finger never
+    // becomes it, because onPointerDown abandons the stroke instead.
     if (this.activePointerId !== event.pointerId) return;
-    if (isSecondaryTouch(event)) {
-      this.abandon();
-      return;
-    }
 
     event.preventDefault();
     const point = this.pointOf(event);
@@ -373,8 +371,11 @@ export class SignaturePadComponent implements ControlValueAccessor {
    * R-4: a canvas whose backing store is not `devicePixelRatio` times its CSS
    * size renders a signature soft on every retina display. Re-measuring on
    * resize and re-painting from the strokes is what makes that fixable at all.
+   * Where `ResizeObserver` does not exist (SSR, jsdom) the pad keeps the size
+   * measured on its first paint instead of failing to set up.
    */
   private watchSize(): void {
+    if (typeof ResizeObserver === 'undefined') return;
     const canvas = this.canvasRef().nativeElement;
     const observer = new ResizeObserver(() => {
       this.measure();

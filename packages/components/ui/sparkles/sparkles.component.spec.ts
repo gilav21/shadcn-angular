@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { SparklesComponent } from './sparkles.component';
 import { SparklesButtonComponent } from './sub/sparkles-button.component';
+import { ButtonComponent } from '../button';
 
 describe('Sparkles Components', () => {
   describe('SparklesComponent', () => {
@@ -18,11 +20,8 @@ describe('Sparkles Components', () => {
       fixture.detectChanges();
     });
 
-    it('should render the sparkle svg with base classes', () => {
+    it('should render the sparkle svg hidden from assistive technology', () => {
       const svg = fixture.nativeElement.querySelector('svg') as SVGElement;
-      expect(svg).toBeTruthy();
-      expect(component.classes()).toContain('pointer-events-none');
-      expect(component.classes()).toContain('absolute');
       expect(svg.getAttribute('aria-hidden')).toBe('true');
     });
 
@@ -51,40 +50,32 @@ describe('Sparkles Components', () => {
       fixture.detectChanges();
     });
 
-    it('should not render sparkles until hovering', () => {
-      const element = fixture.nativeElement as HTMLElement;
-      expect(component.hovering()).toBe(false);
-      expect(element.querySelector('ui-sparkles')).toBeNull();
+    function hover(type: 'mouseenter' | 'mouseleave'): void {
+      (fixture.nativeElement as HTMLElement).querySelector('ui-button')!.dispatchEvent(new MouseEvent(type));
+      fixture.detectChanges();
+    }
+
+    it('should spawn three sparkles when the pointer enters the button', () => {
+      hover('mouseenter');
+
+      expect((fixture.nativeElement as HTMLElement).querySelectorAll('ui-sparkles')).toHaveLength(3);
     });
 
-    it('should spawn three sparkles when hovering starts', () => {
-      component.startSparkles();
-      fixture.detectChanges();
+    it('should remove sparkles when the pointer leaves the button', () => {
+      hover('mouseenter');
+      hover('mouseleave');
 
-      const element = fixture.nativeElement as HTMLElement;
-      expect(component.hovering()).toBe(true);
-      expect(element.querySelectorAll('ui-sparkles')).toHaveLength(3);
+      expect((fixture.nativeElement as HTMLElement).querySelector('ui-sparkles')).toBeNull();
     });
 
-    it('should remove sparkles when hovering stops', () => {
-      component.startSparkles();
-      fixture.detectChanges();
-      component.stopSparkles();
-      fixture.detectChanges();
-
-      const element = fixture.nativeElement as HTMLElement;
-      expect(component.hovering()).toBe(false);
-      expect(element.querySelector('ui-sparkles')).toBeNull();
-    });
-
-    it('should reflect variant and size inputs onto the inner button', () => {
+    it('should pass variant and size to the inner button', () => {
       fixture.componentRef.setInput('variant', 'destructive');
       fixture.componentRef.setInput('size', 'lg');
       fixture.detectChanges();
 
-      expect(component.variant()).toBe('destructive');
-      expect(component.size()).toBe('lg');
-      expect(fixture.nativeElement.querySelector('ui-button')).toBeTruthy();
+      const button = fixture.debugElement.query(By.directive(ButtonComponent)).componentInstance as ButtonComponent;
+      expect(button.variant()).toBe('destructive');
+      expect(button.size()).toBe('lg');
     });
 
     it('should merge a custom class into the computed button classes', () => {

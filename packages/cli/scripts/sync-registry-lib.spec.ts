@@ -27,6 +27,7 @@ import {
     formatDriftLines,
     hasDrift,
     mergeLibFiles,
+    closeLibImports,
     parseRegistrySource,
     removeDependencies,
     replaceFilesArray,
@@ -40,6 +41,7 @@ import {
     lintPortableSpec,
     dependencyClosure,
     analyzePortableTests,
+    loadPortableTestsConfig,
     updateEntryArray,
     removeEntryArray,
     type BoundaryContext,
@@ -807,6 +809,29 @@ describe('mergeLibFiles', () => {
         // replacing them, so a libFile that has fallen out of the import tree
         // is never auto-pruned. It survives --fix untouched.
         expect(mergeLibFiles(['stale.ts'], ['format.ts'])).toEqual(['format.ts', 'stale.ts']);
+    });
+});
+
+describe('closeLibImports', () => {
+    it('adds every lib file a shipped lib file imports, transitively, never the baseline utils', () => {
+        // calendar-heatmap listed chart-responsive.ts by hand; when that file
+        // began importing observers.ts, the install stopped compiling.
+        const root = mkdtempSync(path.join(tmpdir(), 'lib-closure-'));
+        const lib = (name: string, body: string): void => {
+            mkdirSync(path.dirname(path.join(root, 'lib', name)), { recursive: true });
+            writeFileSync(path.join(root, 'lib', name), body);
+        };
+        lib('chart-responsive.ts', "import { createResizeObserver } from './observers';\nimport { cn } from './utils';\n");
+        lib('observers.ts', "import { hasApi } from './platform/api';\n");
+        lib('platform/api.ts', 'export const hasApi = true;\n');
+        lib('utils.ts', 'export const cn = 1;\n');
+        lib('chart.types.ts', 'export type T = 1;\n');
+        try {
+            expect(closeLibImports(['chart-responsive.ts', 'chart.types.ts'], root))
+                .toEqual(['chart-responsive.ts', 'chart.types.ts', 'observers.ts', 'platform/api.ts']);
+        } finally {
+            rmSync(root, { recursive: true, force: true });
+        }
     });
 });
 
@@ -1748,6 +1773,8 @@ describe('collectPortableSpecs & analyzePortableTests', () => {
         write('ui/badge/badge.component.spec.ts', "import { describe, it, expect, vi } from 'vitest';\nvi.fn();\n");
         // A browser-only sibling spec that must be excluded from shipping.
         write('ui/badge/badge.browser.spec.ts', "import { describe } from 'vitest';\n");
+        // A benchmark sibling that must not ship either.
+        write('ui/badge/badge.workload.spec.ts', "import { describe } from 'vitest';\n");
         write('ui/select/select.component.ts', "export class Select {}\n");
         write('ui/select/select.component.spec.ts', "import { describe, it, vi } from 'vitest';\nvi.fn();\n");
     });
@@ -1756,7 +1783,7 @@ describe('collectPortableSpecs & analyzePortableTests', () => {
 
     const uiDir = (): string => path.join(ptRoots.componentsRoot, 'ui');
 
-    it('collects portable specs but excludes *.browser.spec.ts', () => {
+    it('collects portable specs but excludes *.browser.spec.ts and *.workload.spec.ts', () => {
         const specs = collectPortableSpecs(['badge/badge.component.ts'], uiDir());
         expect(specs).toEqual(['badge/badge.component.spec.ts']);
     });
@@ -1798,5 +1825,22 @@ describe('collectPortableSpecs & analyzePortableTests', () => {
         const result = analyzePortableTests(entries, updates, { verified: [] }, ctxFor(entries), ptRoots);
         expect(result.updates.get('badge')?.testFiles).toEqual([]);
         expect(result.hasChanges).toBe(true);
+    });
+
+    it('loads a floor or a barrelOnly coverage exception, and rejects one that would waive coverage by typo', () => {
+        const load = (coverageExceptions: unknown) => {
+            write('portable-tests.json', JSON.stringify({ verified: ['badge'], coverageExceptions }));
+            return () => loadPortableTestsConfig(ptRoots.componentsRoot);
+        };
+        const valid = {
+            select: { lines: 99, reason: '1 layout-only line' },
+            'rich-text-editor/full': { barrelOnly: true, reason: 'ships only a barrel' },
+        };
+        expect(load(valid)().coverageExceptions).toEqual(valid);
+
+        expect(load({ 'rich-text-editor/full': { barrelonly: true, reason: 'typo' } })).toThrow(/rich-text-editor\/full/);
+        expect(load({ select: { lines: 99, barrelOnly: true, reason: 'both' } })).toThrow(/exactly one/);
+        expect(load({ select: { lines: 99 } })).toThrow(/reason/);
+        rmSync(path.join(ptRoots.componentsRoot, 'portable-tests.json'));
     });
 });

@@ -12,7 +12,7 @@ import { COMMON_LOCALES, type CommonLocale } from '../../lib/i18n/common.locales
 import { cva, type VariantProps } from 'class-variance-authority';
 
 const toastVariants = cva(
-  'group pointer-events-auto relative flex w-full items-center justify-between ltr:space-x-2 rtl:space-x-reverse overflow-hidden rounded-md border p-4 ltr:pr-6 rtl:pl-6 shadow-lg transition-all',
+  'group pointer-events-auto relative flex w-full items-center justify-between ltr:space-x-2 rtl:space-x-reverse overflow-hidden rounded-md border p-4 pe-6 pointer-coarse:pe-11 shadow-lg transition-all',
   {
     variants: {
       variant: {

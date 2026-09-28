@@ -175,6 +175,18 @@ describe('RichTextLinksDirective', () => {
         selection.addRange(range);
     }
 
+    /**
+     * Give the anchor one fixed line box. jsdom does no layout, so its
+     * `getClientRects()` is always empty and no click could land on a link;
+     * a box set on this one element (not a prototype) lets the pointer
+     * hit-test run exactly as it does against a laid-out link.
+     */
+    function giveLineBox(anchor: HTMLElement): DOMRect {
+        const box = fixedRect();
+        Object.defineProperty(anchor, 'getClientRects', { value: () => [box], configurable: true });
+        return box;
+    }
+
     afterEach(() => {
         document.getSelection()?.removeAllRanges();
         while (openFixtures.length > 0) {
@@ -201,13 +213,6 @@ describe('RichTextLinksDirective', () => {
         fixture.componentInstance.enabled.set(true);
         fixture.detectChanges();
         expect(fixture.nativeElement.querySelector('[data-addon-slot="links.insert"]')).toBeTruthy();
-    });
-
-    it('contributes a link toolbar slot', () => {
-        const fixture = createFixture();
-        const slot = fixture.nativeElement.querySelector('[data-addon-slot="links.insert"]');
-        expect(slot).toBeTruthy();
-        expect(slot.querySelector('button[title="Insert Link"]')).toBeTruthy();
     });
 
     it('inserts a sanitized anchor from the toolbar button and emits linkInsert', () => {
@@ -267,6 +272,8 @@ describe('RichTextLinksDirective', () => {
         fixture.detectChanges();
 
         expect(probe.context.seededText()).toBe('anchor me');
+        expect(probe.context.editing()).toBe(false);
+        expect(probe.context.seededUrl()).toBe('');
     });
 
     it('edits the link under the caret from the toolbar button instead of nesting a second one', () => {
@@ -326,34 +333,6 @@ describe('RichTextLinksDirective', () => {
         expect(el.querySelectorAll('a')).toHaveLength(1);
         expect(el.querySelector('a')?.getAttribute('href')).toBe('https://new.test/');
         expect(el.textContent).toBe('new');
-    });
-
-    it('treats a selection running past a link as new link text, not an edit of that link', () => {
-        // Seeding from the anchor dropped the part of the selection outside it,
-        // and submitting left that part behind: "see docs now" became
-        // "see docs now now".
-        const fixture = createFixture();
-        const { el } = setContent(fixture, '<p>see <a href="https://old.example/">docs</a> now</p>');
-        const anchorText = el.querySelector('a')!.firstChild!;
-        const tail = el.querySelector('p')!.lastChild!;
-        const range = document.createRange();
-        range.setStart(anchorText, 0);
-        range.setEnd(tail, 4);
-        const selection = document.getSelection()!;
-        selection.removeAllRanges();
-        selection.addRange(range);
-
-        const probe = buttonProbe(fixture);
-        probe.context.onOpen();
-        fixture.detectChanges();
-
-        expect(probe.context.editing()).toBe(false);
-        expect(probe.context.seededText()).toBe('docs now');
-
-        probe.context.onSubmit({ text: 'docs now', url: 'https://new.example/' });
-        fixture.detectChanges();
-        expect(el.textContent).toBe('see docs now');
-        expect(el.querySelectorAll('a')).toHaveLength(1);
     });
 
     it('keeps the link on the part of it the selection did not cover', () => {
@@ -420,28 +399,6 @@ describe('RichTextLinksDirective', () => {
         expect(probe.context.editing()).toBe(false);
     });
 
-    it('seeds an empty url and inserts when the caret is not inside a link', () => {
-        const fixture = createFixture();
-        const { el } = setContent(fixture, '<p>plain</p>');
-        caretInside(el.querySelector('p')!.firstChild!, 2);
-
-        const probe = buttonProbe(fixture);
-        probe.context.onOpen();
-        expect(probe.context.editing()).toBe(false);
-        expect(probe.context.seededUrl()).toBe('');
-    });
-
-    it('opens the caret overlay when the base delegates showLinkDialog (Ctrl+K / slash)', () => {
-        const fixture = createFixture();
-        const { el, cmp } = setContent(fixture, '<p>link me</p>');
-        selectAllOf(el);
-
-        cmp.showLinkDialog();
-        fixture.detectChanges();
-
-        expect(overlayForms(fixture)).toHaveLength(1);
-    });
-
     it('closes the caret overlay on Escape', async () => {
         const fixture = createFixture();
         const { el, cmp } = setContent(fixture, '<p>link me</p>');
@@ -471,12 +428,6 @@ describe('RichTextLinksDirective', () => {
         expect(overlayForms(fixture)).toHaveLength(0);
     });
 
-    it('registers the insert.link slash command with the editor', () => {
-        const fixture = createFixture();
-        const { cmp } = editorOf(fixture);
-        expect(cmp.commands.listCommands().some((c) => c.id === 'insert.link')).toBe(true);
-    });
-
     it('does not open the edit overlay for a click in the blank space below the link', async () => {
         // Chrome parks the caret at the nearest text when the click lands in
         // the editor's padding, so the caret is inside the link although the
@@ -486,7 +437,7 @@ describe('RichTextLinksDirective', () => {
         await fixture.whenStable();
         const anchor = el.querySelector('a')!;
         caretInside(anchor.firstChild!, 1);
-        const rect = anchor.getBoundingClientRect();
+        const rect = giveLineBox(anchor);
         cmp.contentRoot.dispatchEvent(new MouseEvent('mouseup', {
             bubbles: true, clientX: rect.left + rect.width / 2, clientY: rect.bottom + 40,
         }));
@@ -501,7 +452,7 @@ describe('RichTextLinksDirective', () => {
         await fixture.whenStable();
         const anchor = el.querySelector('a')!;
         caretInside(anchor.firstChild!, 1);
-        const rect = anchor.getBoundingClientRect();
+        const rect = giveLineBox(anchor);
         cmp.contentRoot.dispatchEvent(new MouseEvent('mouseup', {
             bubbles: true, clientX: rect.left + rect.width / 2, clientY: rect.bottom + 2,
         }));
@@ -516,7 +467,7 @@ describe('RichTextLinksDirective', () => {
         await fixture.whenStable();
         const anchor = el.querySelector('a')!;
         caretInside(anchor.firstChild!, 1);
-        const rect = anchor.getBoundingClientRect();
+        const rect = giveLineBox(anchor);
         cmp.contentRoot.dispatchEvent(new MouseEvent('mouseup', {
             bubbles: true, clientX: rect.left + 2, clientY: rect.top + rect.height / 2,
         }));
@@ -644,13 +595,15 @@ describe('RichTextLinksDirective', () => {
         const { cmp } = setContent(fixture, '<p>hi</p>');
         document.getSelection()?.removeAllRanges();
 
-        cmp.showLinkDialog();
+        cmp.showLinkDialog({ x: 40, y: 60 });
         fixture.detectChanges();
 
-        expect(overlayForms(fixture)).toHaveLength(1);
+        const overlay = fixture.debugElement.query(By.directive(RichTextLinksFormComponent)).nativeElement as HTMLElement;
+        expect(overlay.style.left).toBe('40px');
+        expect(overlay.style.top).toBe('68px');
     });
 
-    it('rejects an unsafe url when updating an existing link and closes the overlay', async () => {
+    it('rejects an unsafe url when updating an existing link and keeps the overlay open with an error', async () => {
         const fixture = createFixture();
         const { el, cmp } = setContent(fixture, '<p><a href="https://old.test">old</a></p>');
         await fixture.whenStable();

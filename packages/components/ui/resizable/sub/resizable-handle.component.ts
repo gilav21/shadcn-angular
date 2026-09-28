@@ -10,7 +10,8 @@ import {
   AfterViewInit,
   OnDestroy,
 } from '@angular/core';
-import { cn } from '../../../lib/utils';
+import { cn, isRtl } from '../../../lib/utils';
+import { ResizablePanelGroupComponent } from '../resizable.component';
 import { ResizablePanelComponent } from './resizable-panel.component';
 
 const DEFAULT_MIN_SIZE = 10;
@@ -75,6 +76,7 @@ interface AdjacentPanels {
 })
 export class ResizableHandleComponent implements AfterViewInit, OnDestroy {
   private readonly el = inject(ElementRef);
+  private readonly group = inject(ResizablePanelGroupComponent, { optional: true });
 
   /** Extra classes merged onto the divider. Its width/height comes from {@link handleSize} as an inline style, so use that rather than a `w-*` utility. */
   class = input('');
@@ -99,7 +101,12 @@ export class ResizableHandleComponent implements AfterViewInit, OnDestroy {
 
 
   private readonly isDragging = signal(false);
-  private readonly detectedDirection = signal<'horizontal' | 'vertical'>('horizontal');
+  /**
+   * The enclosing group's current axis — a computed over its `direction` input,
+   * so styles, ARIA, the arrow-key axis and the grip all follow a direction
+   * change after init. Horizontal when the handle sits outside any group.
+   */
+  private readonly direction = computed(() => this.group?.direction() ?? 'horizontal');
   private readonly adjacent = signal<AdjacentPanels | null>(null);
 
   // Store cleanup functions
@@ -118,15 +125,11 @@ export class ResizableHandleComponent implements AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit(): void {
-    const handleEl = this.el.nativeElement as HTMLElement;
-    const groupEl = handleEl.closest('[data-slot="resizable-panel-group"]');
-    const dir = ((groupEl as HTMLElement | null)?.dataset['direction'] as 'horizontal' | 'vertical') ?? 'horizontal';
-    this.detectedDirection.set(dir);
     this.adjacent.set(this.resolveAdjacentPanels());
   }
 
   handleStyles = computed(() => {
-    const isHorizontal = this.detectedDirection() === 'horizontal';
+    const isHorizontal = this.direction() === 'horizontal';
     const size = this.handleSize();
     if (isHorizontal) {
       return `width: ${size}px; min-width: ${size}px; touch-action: none;`;
@@ -136,7 +139,7 @@ export class ResizableHandleComponent implements AfterViewInit, OnDestroy {
 
   /** `'vertical'` for a divider in a horizontal group and vice versa — the separator's own orientation, which is the axis it moves along inverted. */
   readonly ariaOrientation = computed(() =>
-    this.detectedDirection() === 'horizontal' ? 'vertical' : 'horizontal');
+    this.direction() === 'horizontal' ? 'vertical' : 'horizontal');
 
   /** The panel-before-the-handle's current size in percent, rounded — kept in step with drags and arrow keys because it reads the panel's `size` signal. */
   readonly ariaValueNow = computed(() =>
@@ -151,7 +154,7 @@ export class ResizableHandleComponent implements AfterViewInit, OnDestroy {
     this.adjacent()?.before?.maxSize() ?? DEFAULT_MAX_SIZE);
 
   classes = computed(() => {
-    const isHorizontal = this.detectedDirection() === 'horizontal';
+    const isHorizontal = this.direction() === 'horizontal';
     return cn(
       'relative flex items-center justify-center select-none shrink-0',
       'focus-visible:ring-ring focus-visible:ring-1 focus-visible:ring-offset-1 focus-visible:outline-none',
@@ -163,7 +166,7 @@ export class ResizableHandleComponent implements AfterViewInit, OnDestroy {
   });
 
   gripClasses = computed(() => {
-    const isHorizontal = this.detectedDirection() === 'horizontal';
+    const isHorizontal = this.direction() === 'horizontal';
     return cn(
       'bg-border z-10 flex items-center justify-center rounded-sm border',
       isHorizontal ? 'h-4 w-3' : 'h-3 w-4'
@@ -171,7 +174,7 @@ export class ResizableHandleComponent implements AfterViewInit, OnDestroy {
   });
 
   svgClasses = computed(() => {
-    const isHorizontal = this.detectedDirection() === 'horizontal';
+    const isHorizontal = this.direction() === 'horizontal';
     return cn(
       'h-2.5 w-2.5 text-muted-foreground',
       !isHorizontal && 'rotate-90'
@@ -190,8 +193,8 @@ export class ResizableHandleComponent implements AfterViewInit, OnDestroy {
    * Begins a mouse resize of the nearest panel on each side, which need not be
    * immediate siblings. Each panel is clamped to its own `minSize`/`maxSize`
    * (10–90% by default) and the move is dropped outright when either would leave
-   * its range, so a fast drag stops dead at the limit. Direction is read from the
-   * group's `data-direction`, and the delta is mirrored in RTL. Listeners are on
+   * its range, so a fast drag stops dead at the limit. The axis is the group's
+   * current `direction`, and the delta is mirrored in RTL. Listeners are on
    * `document`, so the drag survives the pointer leaving the handle and ends on
    * mouseup anywhere.
    */
@@ -215,12 +218,12 @@ export class ResizableHandleComponent implements AfterViewInit, OnDestroy {
   }
 
   private keyboardStepFor(key: string): number {
-    if (this.detectedDirection() === 'vertical') {
+    if (this.direction() === 'vertical') {
       if (key === 'ArrowUp') return -KEYBOARD_STEP;
       if (key === 'ArrowDown') return KEYBOARD_STEP;
       return 0;
     }
-    const sign = this.isRtl() ? -1 : 1;
+    const sign = this.isOwnDirectionRtl() ? -1 : 1;
     if (key === 'ArrowLeft') return -KEYBOARD_STEP * sign;
     if (key === 'ArrowRight') return KEYBOARD_STEP * sign;
     return 0;
@@ -242,8 +245,9 @@ export class ResizableHandleComponent implements AfterViewInit, OnDestroy {
     this.resized.emit({ delta: 0, sizes: [Math.round(beforeSize), Math.round(afterSize)] });
   }
 
-  private isRtl(): boolean {
-    return getComputedStyle(document.documentElement).direction === 'rtl';
+  /** The handle's own resolved direction — a local `dir="rtl"` container mirrors it even on an LTR page. */
+  private isOwnDirectionRtl(): boolean {
+    return isRtl(this.el.nativeElement);
   }
 
   private findAdjacentPanels(
@@ -306,16 +310,16 @@ export class ResizableHandleComponent implements AfterViewInit, OnDestroy {
   }
 
   private buildMoveHandler(
-    ctx: { isHorizontal: boolean; isRtl: boolean; containerSize: number; startX: number; startY: number },
+    ctx: { isHorizontal: boolean; rtl: boolean; containerSize: number; startX: number; startY: number },
     beforeEl: HTMLElement, afterEl: HTMLElement,
     startSizeBefore: number, startSizeAfter: number
   ): (clientX: number, clientY: number) => void {
-    const { isHorizontal, isRtl, containerSize, startX, startY } = ctx;
+    const { isHorizontal, rtl, containerSize, startX, startY } = ctx;
     const beforeLimits = this.limitsOf(beforeEl);
     const afterLimits = this.limitsOf(afterEl);
     return (clientX: number, clientY: number): void => {
       let delta = isHorizontal ? clientX - startX : clientY - startY;
-      if (isHorizontal && isRtl) delta = -delta;
+      if (isHorizontal && rtl) delta = -delta;
       const newPercentBefore = ((startSizeBefore + delta) / containerSize) * 100;
       const newPercentAfter = ((startSizeAfter - delta) / containerSize) * 100;
       if (newPercentBefore >= beforeLimits.min && newPercentAfter >= afterLimits.min &&
@@ -358,8 +362,7 @@ export class ResizableHandleComponent implements AfterViewInit, OnDestroy {
     const groupEl = handleEl.closest<HTMLElement>('[data-slot="resizable-panel-group"]');
     if (!groupEl) return;
 
-    const groupDirection = (groupEl.dataset['direction'] as 'horizontal' | 'vertical') ?? 'horizontal';
-    const isHorizontal = groupDirection === 'horizontal';
+    const isHorizontal = this.direction() === 'horizontal';
     const containerSize = isHorizontal ? groupEl.offsetWidth : groupEl.offsetHeight;
 
     const panels = this.resolveAdjacentPanels();
@@ -370,7 +373,7 @@ export class ResizableHandleComponent implements AfterViewInit, OnDestroy {
     const startSizeBefore = isHorizontal ? beforeEl.offsetWidth : beforeEl.offsetHeight;
     const startSizeAfter = isHorizontal ? afterEl.offsetWidth : afterEl.offsetHeight;
     const onMove = this.buildMoveHandler(
-      { isHorizontal, isRtl: this.isRtl(), containerSize, startX, startY },
+      { isHorizontal, rtl: this.isOwnDirectionRtl(), containerSize, startX, startY },
       beforeEl, afterEl, startSizeBefore, startSizeAfter);
     this.attachListeners(isTouch, isHorizontal, onMove);
   }

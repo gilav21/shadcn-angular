@@ -20,38 +20,47 @@ describe('DataTablePaginationComponent', () => {
     fixture.detectChanges();
   });
 
-  it('should never emit negative page index on last page', () => {
-    let emitted: any = null;
-    component.paginationChange.subscribe(value => {
-      emitted = value;
-    });
+  it('last page is the final partial page, and page 0 (never negative) when there are no rows', () => {
+    const emitted: PaginationState[] = [];
+    component.paginationChange.subscribe((value) => emitted.push(value));
 
     component.onLastPage();
+    fixture.componentRef.setInput('total', 95);
+    fixture.detectChanges();
+    component.onLastPage();
 
-    expect(emitted).not.toBeNull();
-    expect(emitted.pageIndex).toBe(0);
+    expect(emitted).toEqual([
+      { pageIndex: 0, pageSize: 10 },
+      { pageIndex: 9, pageSize: 10 },
+    ]);
   });
 
-  it('should clamp previous page at zero', () => {
-    let emitted: any = null;
-    component.paginationChange.subscribe(value => {
-      emitted = value;
-    });
+  it('previous page steps back one page keeping the size, clamped at zero', () => {
+    const emitted: PaginationState[] = [];
+    component.paginationChange.subscribe((value) => emitted.push(value));
 
     component.onPreviousPage();
+    fixture.componentRef.setInput('state', { pageIndex: 3, pageSize: 20 });
+    fixture.componentRef.setInput('total', 200);
+    fixture.detectChanges();
+    component.onPreviousPage();
 
-    expect(emitted.pageIndex).toBe(0);
+    expect(emitted).toEqual([
+      { pageIndex: 0, pageSize: 10 },
+      { pageIndex: 2, pageSize: 20 },
+    ]);
   });
 
-  it('should render custom pageSizeOptions', () => {
+  it('offers the custom pageSizeOptions in the opened page-size select', async () => {
     fixture.componentRef.setInput('pageSizeOptions', [25, 50, 100]);
     fixture.detectChanges();
 
-    expect(component.pageSizeOptions()).toEqual([25, 50, 100]);
-  });
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('[data-slot="select-trigger"]')?.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
 
-  it('should default showPageSizeSelector to true', () => {
-    expect(component.showPageSizeSelector()).toBe(true);
+    const options = Array.from(document.querySelectorAll('[data-slot="select-content"] [role="option"]'));
+    expect(options.map((o) => o.textContent?.trim())).toEqual(['25', '50', '100']);
   });
 
   it('should hide rows per page section when showPageSizeSelector is false', () => {

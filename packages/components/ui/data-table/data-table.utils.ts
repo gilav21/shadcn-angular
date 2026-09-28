@@ -62,6 +62,12 @@ export interface VariableRowRange {
     readonly paddingBottom: number;
 }
 
+/**
+ * The window of fixed-height rows to render: every row that intersects
+ * `[scroll, scroll + viewport)` — `end` is the first row whose leading edge is at
+ * or past `scroll + viewport` — widened by `buffer` rows on each side and clamped
+ * to `[0, total]`.
+ */
 export function computeRowRange(
     scrollTop: number,
     viewportHeight: number,
@@ -73,15 +79,21 @@ export function computeRowRange(
         return { start: 0, end: 0 };
     }
     const startRow = Math.floor(scrollTop / rowHeight);
-    const visibleCount = Math.ceil(viewportHeight / rowHeight);
-    const endRow = startRow + visibleCount;
+    // Measured from scrollTop, not from startRow's top edge: a partly hidden first
+    // row would otherwise use up viewport height and drop the last visible row.
+    const endRow = Math.ceil((scrollTop + viewportHeight) / rowHeight);
 
     return {
-        start: Math.max(0, startRow - buffer),
+        start: Math.min(totalRows, Math.max(0, startRow - buffer)),
         end: Math.min(totalRows, endRow + buffer),
     };
 }
 
+/**
+ * The window of columns to render, with the same contract as
+ * {@link computeRowRange}; the paddings are the widths of the columns left out on
+ * each side.
+ */
 export function computeColumnRange(
     scrollLeft: number,
     viewportWidth: number,
@@ -105,14 +117,15 @@ export function computeColumnRange(
         }
     }
 
+    // `offset` is startCol's left edge; walking edges up to scrollLeft + viewportWidth
+    // (rather than summing whole widths against viewportWidth) keeps the part of
+    // startCol scrolled out of view from displacing the last visible column.
+    const viewportEnd = scrollLeft + viewportWidth;
     let endCol = startCol;
-    let widthAccum = 0;
-    for (let i = startCol; i < columnWidths.length; i++) {
-        widthAccum += columnWidths[i];
-        endCol = i + 1;
-        if (widthAccum >= viewportWidth) {
-            break;
-        }
+    let edge = offset;
+    while (endCol < columnWidths.length && edge < viewportEnd) {
+        edge += columnWidths[endCol];
+        endCol++;
     }
 
     const bufferedStart = Math.max(0, startCol - buffer);
@@ -161,6 +174,11 @@ function binarySearchPrefix(prefixSums: Float64Array, target: number, totalRows:
     return Math.min(lo, totalRows);
 }
 
+/**
+ * The window of variable-height rows to render, with the same contract as
+ * {@link computeRowRange}. Uses `prefixSums` (see {@link buildPrefixSums}) when it
+ * matches `totalRows`, otherwise walks `getRowHeight`.
+ */
 export function computeVariableRowRange(
     scrollTop: number,
     viewportHeight: number,
@@ -230,14 +248,14 @@ function computeVariableRowRangeLinear(
         }
     }
 
+    // `offset` is startRow's top edge — see computeColumnRange for why the walk
+    // runs to scrollTop + viewportHeight instead of summing whole heights.
+    const viewportEnd = scrollTop + viewportHeight;
     let endRow = startRow;
-    let viewAccum = 0;
-    for (let i = startRow; i < totalRows; i++) {
-        viewAccum += getRowHeight(i);
-        endRow = i + 1;
-        if (viewAccum >= viewportHeight) {
-            break;
-        }
+    let edge = offset;
+    while (endRow < totalRows && edge < viewportEnd) {
+        edge += getRowHeight(endRow);
+        endRow++;
     }
 
     const bufferedStart = Math.max(0, startRow - buffer);
@@ -376,6 +394,12 @@ function mod(n: number, m: number): number {
     return ((n % m) + m) % m;
 }
 
+/** The year, month and day of a date-only ISO string (`YYYY-MM-DD`), or `null` for any other string. */
+function dateOnlyParts(v: string): Ymd | null {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+    return match ? { y: +match[1], m: +match[2], d: +match[3] } : null;
+}
+
 function parseDateCell(v: unknown): { ymd: Ymd; kind: 'date' | 'iso' } | null {
     if (v instanceof Date) {
         return Number.isNaN(v.getTime())
@@ -383,10 +407,8 @@ function parseDateCell(v: unknown): { ymd: Ymd; kind: 'date' | 'iso' } | null {
             : { ymd: { y: v.getFullYear(), m: v.getMonth() + 1, d: v.getDate() }, kind: 'date' };
     }
     if (typeof v === 'string') {
-        const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
-        if (match) {
-            return { ymd: { y: +match[1], m: +match[2], d: +match[3] }, kind: 'iso' };
-        }
+        const ymd = dateOnlyParts(v);
+        if (ymd) return { ymd, kind: 'iso' };
     }
     return null;
 }
@@ -723,14 +745,30 @@ export function evaluateAdvancedFilter(
  * an editor that insisted on one of those would be unusable on the other two.
  * Anything that is not a real date reads as `null` rather than as
  * `Invalid Date`, which renders as the string "Invalid Date" if it escapes.
+ *
+ * A date-only string (`YYYY-MM-DD`) names a calendar day, so it reads as
+ * local midnight of that day — the counterpart of {@link toLocalDateString}.
+ * The `Date` parser would read it as UTC midnight: the previous day anywhere
+ * west of Greenwich. Date-time strings and epoch numbers name an instant and
+ * go to the parser.
  */
 export function asEditableDate(value: unknown): Date | null {
     if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+    if (typeof value === 'string') {
+        const ymd = dateOnlyParts(value);
+        if (ymd) return localDay(ymd);
+    }
     if (typeof value === 'string' || typeof value === 'number') {
         const parsed = new Date(value);
         return Number.isNaN(parsed.getTime()) ? null : parsed;
     }
     return null;
+}
+
+/** Local midnight of `ymd`, or `null` when no such day exists (`2026-02-30` would roll into March). */
+function localDay(ymd: Ymd): Date | null {
+    const date = ymdToDate(ymd);
+    return date.getMonth() === ymd.m - 1 && date.getDate() === ymd.d ? date : null;
 }
 
 /**

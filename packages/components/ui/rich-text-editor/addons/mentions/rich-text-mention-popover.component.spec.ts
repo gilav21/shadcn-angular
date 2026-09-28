@@ -5,7 +5,7 @@ import type { MentionItem, TagItem } from './rich-text-mentions.types';
 
 type Restore = () => void;
 
-/** jsdom lacks ResizeObserver (ui-scroll-area) and throws on scrollIntoView. */
+/** jsdom lacks ResizeObserver, which `ui-scroll-area` (the popover list) constructs. */
 function installStubs(): Restore {
     const globals = globalThis as { ResizeObserver?: unknown };
     const hadRo = 'ResizeObserver' in globals;
@@ -17,16 +17,9 @@ function installStubs(): Restore {
     }
     globals.ResizeObserver = StubResizeObserver;
 
-    const proto = Element.prototype as unknown as Record<string, unknown>;
-    const hadScroll = 'scrollIntoView' in proto;
-    const originalScroll = Object.getOwnPropertyDescriptor(proto, 'scrollIntoView');
-    Object.defineProperty(proto, 'scrollIntoView', { value: () => {}, configurable: true, writable: true });
-
     return () => {
         if (hadRo) globals.ResizeObserver = originalRo;
         else delete globals.ResizeObserver;
-        if (hadScroll && originalScroll) Object.defineProperty(proto, 'scrollIntoView', originalScroll);
-        else delete proto['scrollIntoView'];
     };
 }
 
@@ -163,13 +156,14 @@ describe('RichTextMentionPopoverComponent', () => {
         expect(selected).toHaveBeenCalledWith(USERS[0]);
     });
 
-    it('renders a tag row via the tag accessor', () => {
+    it('renders a tag row as its color dot and label', () => {
         fixture.componentRef.setInput('type', 'tag');
         fixture.componentRef.setInput('items', TAGS);
         fixture.detectChanges();
-        const dot = (fixture.nativeElement as HTMLElement).querySelector('[style*="background-color"]');
-        expect(dot).toBeTruthy();
-        expect(component.asTag(TAGS[0]).color).toBe('#f00');
+        const row = (fixture.nativeElement as HTMLElement).querySelector('button[role="option"]')!;
+        const dot = row.querySelector('.rounded-full')!;
+        expect(getComputedStyle(dot).backgroundColor).toBe('rgb(255, 0, 0)');
+        expect(row.textContent?.trim()).toBe('UX');
     });
 });
 

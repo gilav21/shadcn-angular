@@ -39,6 +39,14 @@ export interface ColumnDef<T> {
     sticky?: boolean;
     pin?: 'left' | 'right';
     width?: string;
+    /**
+     * The narrowest the column may be, as a CSS length. A column without a
+     * `width` shares the free space but never renders narrower than this, and
+     * dragging or auto-fitting a column never takes it below it either (those
+     * two read the value as pixels, so give it in `px` when the column is
+     * resizable). Defaults to `80px`; a column with an explicit `width` keeps
+     * exactly that width.
+     */
     minWidth?: string;
     enableHiding?: boolean;
     enableReordering?: boolean;

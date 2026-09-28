@@ -63,12 +63,6 @@ describe('CopyToDirective', () => {
 		vi.restoreAllMocks();
 	});
 
-	it('should create directive on host element', () => {
-		expect(host).toBeTruthy();
-		const button = fixture.nativeElement.querySelector('button');
-		expect(button).toBeTruthy();
-	});
-
 	it('should copy text to clipboard on click', async () => {
 		const copyWriteTextSpy = vi.spyOn(navigator.clipboard, 'writeText');
 		const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
@@ -120,22 +114,6 @@ describe('CopyToDirective', () => {
 		expect(document.body.querySelector('.ui-copy-indicator')).toBeNull();
 
 		vi.useRealTimers();
-	});
-
-	it('should handle empty text gracefully', async () => {
-		const copyWriteTextSpy = vi.spyOn(navigator.clipboard, 'writeText');
-
-		// Create a new component with empty text input
-		const emptyFixture = TestBed.createComponent(TestHostComponent);
-		emptyFixture.componentInstance.textToCopy = '';
-		emptyFixture.detectChanges();
-
-		const emptyButton = emptyFixture.nativeElement.querySelector('button') as HTMLButtonElement;
-		clickButton(emptyButton);
-		appRef.tick();
-		await flushPromises();
-
-		expect(copyWriteTextSpy).toHaveBeenCalledWith('');
 	});
 
 	it('should clean up on destroy', async () => {

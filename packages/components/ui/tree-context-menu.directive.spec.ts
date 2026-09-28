@@ -4,20 +4,27 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { TreeContextMenuDirective, type TreeContextMenuEvent } from './tree-context-menu.directive';
 import { ContextMenuComponent } from './context-menu';
+import { TreeComponent, TreeItemComponent, TreeLabelComponent } from './tree';
 
+// `[id]` is bound, not a static attribute: a static `id` would also land on the
+// `<ui-tree-item>` host and `#item-…` would match the host instead of the row.
 @Component({
   selector: 'ui-tct-host',
   standalone: true,
-  imports: [TreeContextMenuDirective],
+  imports: [TreeContextMenuDirective, TreeComponent, TreeItemComponent, TreeLabelComponent],
   template: `
-    <ui-tree [uiTreeContextMenu]="menu" [contextMenuDisabled]="disabled()" (nodeContextMenu)="onCtx($event)">
-      <div data-slot="tree-item" data-key="a" data-expanded="true" data-selected="false">
-        <span data-slot="tree-label">Alpha</span>
-      </div>
-      <div data-slot="tree-item" data-key="b">
-        <span data-slot="tree-label">  Beta  </span>
-      </div>
-      <div data-slot="tree-item" data-key="c"></div>
+    <ui-tree selectable="single" [uiTreeContextMenu]="menu" [contextMenuDisabled]="disabled()" (nodeContextMenu)="onCtx($event)">
+      <ui-tree-item value="src" [id]="'item-src'">
+        <ui-tree-label>Source</ui-tree-label>
+        <ui-tree-item value="main" [id]="'item-main'">
+          <ui-tree-label>  main.ts  </ui-tree-label>
+        </ui-tree-item>
+      </ui-tree-item>
+      <ui-tree-item value="assets" [id]="'item-assets'">
+        <ui-tree-item value="logo" [id]="'item-logo'">
+          <ui-tree-label>logo.svg</ui-tree-label>
+        </ui-tree-item>
+      </ui-tree-item>
       <div class="not-an-item">
         <span>Ignore me</span>
       </div>
@@ -38,6 +45,7 @@ function setup(): {
   fixture: ComponentFixture<TestHostComponent>;
   comp: TestHostComponent;
   treeEl: HTMLElement;
+  item: (id: string) => HTMLElement;
 } {
   TestBed.configureTestingModule({ imports: [TestHostComponent] });
   const fixture = TestBed.createComponent(TestHostComponent);
@@ -45,18 +53,19 @@ function setup(): {
   fixture.detectChanges();
   const treeEl = fixture.debugElement.query(By.directive(TreeContextMenuDirective))
     .nativeElement as HTMLElement;
-  return { fixture, comp, treeEl };
+  const item = (id: string): HTMLElement => treeEl.querySelector<HTMLElement>(`#item-${id}`) as HTMLElement;
+  return { fixture, comp, treeEl, item };
 }
 
 @Component({
   selector: 'ui-tct-no-menu-host',
   standalone: true,
-  imports: [TreeContextMenuDirective],
+  imports: [TreeContextMenuDirective, TreeComponent, TreeItemComponent, TreeLabelComponent],
   template: `
     <ui-tree [uiTreeContextMenu]="menu" (nodeContextMenu)="onCtx($event)">
-      <div data-slot="tree-item" data-key="a">
-        <span data-slot="tree-label">Alpha</span>
-      </div>
+      <ui-tree-item value="a" [id]="'item-a'">
+        <ui-tree-label>Alpha</ui-tree-label>
+      </ui-tree-item>
     </ui-tree>
   `,
 })
@@ -86,80 +95,61 @@ describe('TreeContextMenuDirective', () => {
   });
 
   it('emits node data and opens the menu at the cursor on right-click of a tree item', () => {
-    const { comp, treeEl } = setup();
-    const item = treeEl.querySelector<HTMLElement>('[data-key="a"]') as HTMLElement;
-    const label = item.querySelector('[data-slot="tree-label"]') as HTMLElement;
+    const { comp, fixture, item } = setup();
+    const src = item('src');
+    const srcHeader = src.firstElementChild as HTMLElement;
+    srcHeader.querySelector<HTMLButtonElement>('button')?.click();
+    srcHeader.click();
+    fixture.detectChanges();
 
-    contextMenuEventAt(label, 111, 222);
+    contextMenuEventAt(src.querySelector('[data-slot="tree-label"]') as HTMLElement, 111, 222);
+    contextMenuEventAt(item('main'), 5, 6);
 
-    expect(comp.events).toHaveLength(1);
+    expect(comp.events.map(e => e.node)).toEqual([
+      { key: 'src', label: 'Source', expanded: true, selected: true, element: src },
+      { key: 'main', label: 'main.ts', expanded: false, selected: false, element: item('main') },
+    ]);
     const [emitted] = comp.events;
-    expect(emitted.node).toEqual({
-      key: 'a',
-      label: 'Alpha',
-      expanded: true,
-      selected: false,
-      element: item,
-    });
     expect(emitted.event.clientX).toBe(111);
     expect(emitted.event.clientY).toBe(222);
     expect(comp.menu.show).toHaveBeenCalledWith(111, 222, emitted.node);
   });
 
-  it('trims label text and defaults expanded/selected to false when data attrs are absent', () => {
-    const { comp, treeEl } = setup();
-    const item = treeEl.querySelector<HTMLElement>('[data-key="b"]') as HTMLElement;
-
-    contextMenuEventAt(item, 5, 6);
-
-    expect(comp.events).toHaveLength(1);
-    expect(comp.events[0].node).toEqual({
-      key: 'b',
-      label: 'Beta',
-      expanded: false,
-      selected: false,
-      element: item,
-    });
-  });
-
   it('prevents default and stops propagation for a tree-item right-click', () => {
-    const { treeEl } = setup();
-    const item = treeEl.querySelector<HTMLElement>('[data-key="a"]') as HTMLElement;
+    const { item } = setup();
     const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
     const preventDefault = vi.spyOn(event, 'preventDefault');
     const stopPropagation = vi.spyOn(event, 'stopPropagation');
 
-    item.dispatchEvent(event);
+    item('src').dispatchEvent(event);
 
     expect(preventDefault).toHaveBeenCalledTimes(1);
     expect(stopPropagation).toHaveBeenCalledTimes(1);
   });
 
   it('does nothing when the context menu is disabled', () => {
-    const { comp, fixture, treeEl } = setup();
+    const { comp, fixture, item } = setup();
     comp.disabled.set(true);
     fixture.detectChanges();
-    const item = treeEl.querySelector<HTMLElement>('[data-key="a"]') as HTMLElement;
 
-    contextMenuEventAt(item, 1, 2);
+    contextMenuEventAt(item('src'), 1, 2);
 
     expect(comp.events).toHaveLength(0);
     expect(comp.menu.show).not.toHaveBeenCalled();
   });
 
-  it('defaults label to empty string when the tree item has no tree-label child', () => {
-    const { comp, treeEl } = setup();
-    const item = treeEl.querySelector<HTMLElement>('[data-key="c"]') as HTMLElement;
+  it('reports an empty label for an item without its own label, never a descendant label', () => {
+    const { comp, item } = setup();
 
-    contextMenuEventAt(item, 3, 4);
+    contextMenuEventAt(item('assets'), 3, 4);
 
     expect(comp.events).toHaveLength(1);
     expect(comp.events[0].node).toEqual({
-      key: 'c',
+      key: 'assets',
       label: '',
       expanded: false,
       selected: false,
-      element: item,
+      element: item('assets'),
     });
   });
 
@@ -170,7 +160,7 @@ describe('TreeContextMenuDirective', () => {
     fixture.detectChanges();
     const treeEl = fixture.debugElement.query(By.directive(TreeContextMenuDirective))
       .nativeElement as HTMLElement;
-    const item = treeEl.querySelector<HTMLElement>('[data-key="a"]') as HTMLElement;
+    const item = treeEl.querySelector<HTMLElement>('#item-a') as HTMLElement;
 
     expect(() => contextMenuEventAt(item, 1, 2)).not.toThrow();
 
@@ -195,11 +185,11 @@ describe('TreeContextMenuDirective', () => {
   });
 
   it('removes the contextmenu listener on destroy', () => {
-    const { comp, fixture, treeEl } = setup();
-    const item = treeEl.querySelector<HTMLElement>('[data-key="a"]') as HTMLElement;
+    const { comp, fixture, item } = setup();
+    const src = item('src');
 
     fixture.destroy();
-    contextMenuEventAt(item, 1, 2);
+    contextMenuEventAt(src, 1, 2);
 
     expect(comp.events).toHaveLength(0);
     expect(comp.menu.show).not.toHaveBeenCalled();

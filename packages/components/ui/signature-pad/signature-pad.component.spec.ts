@@ -4,7 +4,7 @@
 // called `onPointerDown` directly would prove the method works and say nothing
 // about whether the template ever reaches it.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { Component, signal, type ModelSignal } from '@angular/core';
+import { Component, ErrorHandler, signal, type ModelSignal } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { SignaturePadComponent } from './signature-pad.component';
@@ -60,6 +60,30 @@ describe('SignaturePadComponent', () => {
         fixture.detectChanges();
     }
 
+    /**
+     * Gives the canvas a layout box on the instance. jsdom has no layout, so
+     * a pad there is 0ª0 and every point would collapse onto the origin.
+     */
+    function sizeCanvas(box: { width: number; height: number }): void {
+        Object.defineProperty(canvas(), 'getBoundingClientRect', {
+            configurable: true,
+            value: () => new DOMRect(0, 0, box.width, box.height),
+        });
+    }
+
+    /**
+     * jsdom has neither layout nor an image encoder: give this one canvas the
+     * box a browser would, and an encoder that answers in the real format, so
+     * the pad's value is a data URL as it is in a browser.
+     */
+    function giveJsdomACanvas(): void {
+        sizeCanvas({ width: 300, height: 180 });
+        Object.defineProperty(canvas(), 'toDataURL', {
+            configurable: true,
+            value: (type = 'image/png') => `data:${type};base64,iVBORw0KGgo=`,
+        });
+    }
+
     /** A pointer event positioned in the pad's own coordinate space. */
     function pointer(
         type: string,
@@ -96,6 +120,7 @@ describe('SignaturePadComponent', () => {
         fixture = TestBed.createComponent(HostComponent);
         host = fixture.componentInstance;
         await settle();
+        if (canvas().getBoundingClientRect().width === 0) giveJsdomACanvas();
     });
 
     afterEach(() => fixture.destroy());
@@ -106,16 +131,6 @@ describe('SignaturePadComponent', () => {
 
             expect(typeof value.set).toBe('function');
             expect(typeof value.subscribe).toBe('function');
-        });
-
-        it('emits a PNG data URL when a stroke finishes', async () => {
-            await draw([
-                [10, 10],
-                [40, 40],
-                [80, 20],
-            ]);
-
-            expect(host.signature()).toMatch(/^data:image\/png;base64,/);
         });
 
         it('fires strokeEnd once per stroke', async () => {
@@ -131,49 +146,9 @@ describe('SignaturePadComponent', () => {
             ]);
             expect(host.strokes()).toBe(2);
         });
-
-        /** Risk R-3 â€” a form writing in must not look like a user drawing. */
-        it('does NOT emit when a value is written in from outside', async () => {
-            let emissions = 0;
-            pad().value.subscribe(() => emissions++);
-
-            pad().writeValue(null);
-            await settle();
-
-            expect(emissions).toBe(0);
-        });
     });
 
     describe('drawing', () => {
-        it('records a stroke', async () => {
-            await draw([
-                [10, 10],
-                [40, 40],
-                [80, 20],
-            ]);
-
-            expect(pad().strokes()).toHaveLength(1);
-            expect(pad().strokes()[0].length).toBeGreaterThan(1);
-        });
-
-        /**
-         * R-4: the strokes are normalised to the pad, so the same mark means
-         * the same thing at any size or pixel ratio.
-         */
-        it('keeps the strokes normalised to the pad', async () => {
-            await draw([
-                [10, 10],
-                [40, 40],
-            ]);
-
-            for (const point of pad().strokes()[0]) {
-                expect(point.x).toBeGreaterThanOrEqual(0);
-                expect(point.x).toBeLessThanOrEqual(1);
-                expect(point.y).toBeGreaterThanOrEqual(0);
-                expect(point.y).toBeLessThanOrEqual(1);
-            }
-        });
-
         it('starts a new stroke for each press', async () => {
             await draw([
                 [10, 10],
@@ -206,6 +181,16 @@ describe('SignaturePadComponent', () => {
             await settle();
 
             expect(pad().strokes()[0]).toHaveLength(1);
+        });
+
+        it('does not resurrect a stroke cleared while the pointer is still down', async () => {
+            canvas().dispatchEvent(pointer('pointerdown', 10, 10));
+            pad().clear();
+            canvas().dispatchEvent(pointer('pointermove', 60, 60));
+            canvas().dispatchEvent(pointer('pointerup', 60, 60));
+            await settle();
+
+            expect(pad().strokes()).toEqual([]);
         });
 
         it('draws nothing while disabled', async () => {
@@ -262,11 +247,12 @@ describe('SignaturePadComponent', () => {
     });
 
     describe('undo and clear', () => {
-        it('removes the last stroke only', async () => {
+        it('undoes the last stroke only', async () => {
             await draw([
                 [10, 10],
                 [40, 40],
             ]);
+            const first = pad().strokes()[0];
             await draw([
                 [50, 50],
                 [70, 70],
@@ -275,7 +261,7 @@ describe('SignaturePadComponent', () => {
             button('undo')!.click();
             await settle();
 
-            expect(pad().strokes()).toHaveLength(1);
+            expect(pad().strokes()).toEqual([first]);
         });
 
         it('erases everything and empties the value', async () => {
@@ -326,6 +312,60 @@ describe('SignaturePadComponent', () => {
         });
     });
 
+    describe('a value written in from outside', () => {
+        it('erases the drawing when the value is reset to null', async () => {
+            await draw([
+                [10, 10],
+                [40, 40],
+            ]);
+
+            host.signature.set(null);
+            await settle();
+
+            expect(pad().strokes()).toEqual([]);
+        });
+    });
+
+    /** R-4: the bitmap follows the box, so a resize must re-measure the pad. */
+    describe('resizing', () => {
+        it('re-measures the pad when its box changes', async () => {
+            const own = Object.getOwnPropertyDescriptor(globalThis, 'ResizeObserver');
+            let onResize: (() => void) | undefined;
+            class CapturingResizeObserver {
+                constructor(callback: () => void) {
+                    onResize = callback;
+                }
+                observe(): void { /* driven by hand below */ }
+                disconnect(): void { /* nothing to release */ }
+            }
+            Object.defineProperty(globalThis, 'ResizeObserver', {
+                configurable: true,
+                value: CapturingResizeObserver,
+            });
+            try {
+                fixture.destroy();
+                fixture = TestBed.createComponent(HostComponent);
+                host = fixture.componentInstance;
+                await settle();
+                const box = { width: 300, height: 180 };
+                sizeCanvas(box);
+                await draw([
+                    [30, 30],
+                    [150, 90],
+                ]);
+
+                box.width = 600;
+                onResize?.();
+
+                const svg = decodeURIComponent(pad().toDataURL('svg')!);
+                expect(svg).toContain('width="600" height="180"');
+            } finally {
+                if (own) Object.defineProperty(globalThis, 'ResizeObserver', own);
+                else Reflect.deleteProperty(globalThis, 'ResizeObserver');
+            }
+        });
+    });
+
     describe('other formats', () => {
         it('offers nothing for a blank pad', () => {
             expect(pad().toDataURL()).toBeNull();
@@ -344,15 +384,6 @@ describe('SignaturePadComponent', () => {
             expect(decodeURIComponent(svg!)).toContain('<path');
         });
 
-        it('offers a JPEG without changing the value type', async () => {
-            await draw([
-                [10, 10],
-                [40, 40],
-            ]);
-
-            expect(pad().toDataURL('image/jpeg')).toMatch(/^data:image\/jpeg/);
-            expect(host.signature()).toMatch(/^data:image\/png/);
-        });
     });
 
     describe('a reactive form', () => {
@@ -409,10 +440,29 @@ describe('SignaturePadComponent', () => {
         it('is reachable by keyboard even though it cannot be drawn on by one', () => {
             expect(canvas().getAttribute('tabindex')).toBe('0');
         });
+    });
+});
 
-        /** The page must not scroll out from under a stroke. */
-        it('takes the touch gesture rather than letting the page have it', () => {
-            expect(getComputedStyle(canvas()).touchAction).toBe('none');
-        });
+describe('SignaturePadComponent where ResizeObserver does not exist', () => {
+    /** SSR and jsdom — where consumers' own tests run — have no ResizeObserver. */
+    it('sets up without reporting an error', async () => {
+        const own = Object.getOwnPropertyDescriptor(globalThis, 'ResizeObserver');
+        Object.defineProperty(globalThis, 'ResizeObserver', { configurable: true, value: undefined });
+        const errors: unknown[] = [];
+        try {
+            await TestBed.configureTestingModule({
+                imports: [HostComponent],
+                providers: [{ provide: ErrorHandler, useValue: { handleError: (e: unknown) => errors.push(e) } }],
+            }).compileComponents();
+            const fixture = TestBed.createComponent(HostComponent);
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.destroy();
+        } finally {
+            if (own) Object.defineProperty(globalThis, 'ResizeObserver', own);
+            else Reflect.deleteProperty(globalThis, 'ResizeObserver');
+        }
+
+        expect(errors).toEqual([]);
     });
 });

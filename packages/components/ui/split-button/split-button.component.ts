@@ -11,6 +11,7 @@ import {
     forwardRef,
     booleanAttribute,
     OnDestroy,
+    viewChild,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { cn } from '../../lib/utils';
@@ -51,6 +52,7 @@ export interface SplitButtonItem {
     imports: [ButtonComponent],
     template: `
     <div 
+      #group
       [class]="containerClasses()"
       [attr.data-slot]="'split-button'"
       role="group"
@@ -134,6 +136,8 @@ export interface SplitButtonItem {
 export class SplitButtonComponent implements OnDestroy {
     private readonly el = inject(ElementRef);
     private readonly document = inject(DOCUMENT);
+    /** The group box; the host is `display: contents`, so its own rect is all zeros and cannot be measured. */
+    private readonly group = viewChild.required<ElementRef<HTMLElement>>('group');
 
     /**
      * Text of the primary (left) half. Setting it selects simple mode: any
@@ -274,7 +278,7 @@ export class SplitButtonComponent implements OnDestroy {
 
     /**
      * Click handler of the dropdown half: toggles the menu open/closed. On the
-     * way open it measures the host's viewport rect and flips the menu above
+     * way open it measures the button group's viewport rect and flips the menu above
      * the button when fewer than 150px remain below, so the popup direction is
      * decided once per open, not tracked while scrolling. Stops propagation so
      * the document listener that closes on outside clicks does not immediately
@@ -284,7 +288,7 @@ export class SplitButtonComponent implements OnDestroy {
         event.stopPropagation();
         const opening = !this.isOpen();
         if (opening) {
-            const rect = this.el.nativeElement.getBoundingClientRect();
+            const rect = this.group().nativeElement.getBoundingClientRect();
             const spaceBelow = globalThis.innerHeight - rect.bottom;
             this.menuPosition.set(spaceBelow < 150 ? 'above' : 'below');
         }

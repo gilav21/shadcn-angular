@@ -3,9 +3,14 @@
   [attr.data-slot]="'duration-input'"
   [attr.data-variant]="variant()"
   [attr.aria-label]="ariaLabel()"
+  [attr.aria-describedby]="valueTextId"
   [attr.aria-disabled]="isDisabled() || null"
   (focusout)="onBlur()"
 >
+  <!-- Hidden, not sr-only: a referenced hidden node still feeds the accessible
+       description, and a browse-mode reader does not read the value twice. -->
+  <span [id]="valueTextId" hidden>{{ valueText() }}</span>
+
   @for (segment of segments(); track segment.unit; let last = $last) {
     <input
       type="text"
@@ -23,7 +28,7 @@
       [attr.aria-valuenow]="segment.value"
       [attr.aria-valuemin]="0"
       [attr.aria-valuemax]="segment.max"
-      [attr.aria-valuetext]="segment.value + ' ' + segment.label"
+      [attr.aria-valuetext]="segment.valueText"
       [attr.placeholder]="segment.isLeading ? '0' : '00'"
       (input)="onSegmentInput(segment.unit, $any($event.target).value)"
       (keydown)="onSegmentKeydown(segment.unit, $event)"

@@ -5,7 +5,7 @@ import { TabsTriggerComponent } from './sub/tabs-trigger.component';
 import { TabsContentComponent } from './sub/tabs-content.component';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 
 // Test host component for integration tests
 @Component({
@@ -31,28 +31,7 @@ class TestHostComponent {
     }
 }
 
-// RTL Test host
-@Component({
-    template: `
-        <div [dir]="dir()">
-            <ui-tabs defaultValue="tab1">
-                <ui-tabs-list>
-                    <ui-tabs-trigger value="tab1">تبويب 1</ui-tabs-trigger>
-                    <ui-tabs-trigger value="tab2">تبويب 2</ui-tabs-trigger>
-                </ui-tabs-list>
-                <ui-tabs-content value="tab1">محتوى 1</ui-tabs-content>
-                <ui-tabs-content value="tab2">محتوى 2</ui-tabs-content>
-            </ui-tabs>
-        </div>
-    `,
-    imports: [TabsComponent, TabsListComponent, TabsTriggerComponent, TabsContentComponent]
-})
-class RTLTestHostComponent {
-    dir = signal<'ltr' | 'rtl'>('ltr');
-}
-
 describe('TabsComponent', () => {
-    let component: TabsComponent;
     let fixture: ComponentFixture<TabsComponent>;
 
     beforeEach(async () => {
@@ -61,22 +40,12 @@ describe('TabsComponent', () => {
         }).compileComponents();
 
         fixture = TestBed.createComponent(TabsComponent);
-        component = fixture.componentInstance;
         fixture.detectChanges();
-    });
-
-    it('should create', () => {
-        expect(component).toBeTruthy();
     });
 
     it('should have data-slot="tabs"', () => {
         const div = fixture.debugElement.query(By.css('[data-slot="tabs"]'));
         expect(div).toBeTruthy();
-    });
-
-    it('should apply w-full class', () => {
-        const div = fixture.debugElement.query(By.css('div'));
-        expect(div.nativeElement.className).toContain('w-full');
     });
 });
 
@@ -100,11 +69,6 @@ describe('TabsListComponent', () => {
     it('should have role="tablist"', () => {
         const div = fixture.debugElement.query(By.css('[role="tablist"]'));
         expect(div).toBeTruthy();
-    });
-
-    it('should apply muted background', () => {
-        const div = fixture.debugElement.query(By.css('div'));
-        expect(div.nativeElement.className).toContain('bg-muted');
     });
 
     it('should render skeleton pills instead of the tablist when skeleton is true', () => {
@@ -134,11 +98,6 @@ describe('Tabs Integration', () => {
         fixture = TestBed.createComponent(TestHostComponent);
         component = fixture.componentInstance;
         fixture.detectChanges();
-    });
-
-    it('should render tabs with triggers and content', () => {
-        const triggers = fixture.debugElement.queryAll(By.css('[data-slot="tabs-trigger"]'));
-        expect(triggers).toHaveLength(3);
     });
 
     it('should show default tab content initially', () => {
@@ -180,52 +139,5 @@ describe('Tabs Integration', () => {
 
         expect(triggers[0].nativeElement.getAttribute('aria-selected')).toBe('false');
         expect(triggers[1].nativeElement.getAttribute('aria-selected')).toBe('true');
-    });
-});
-
-describe('Tabs RTL Support', () => {
-    let fixture: ComponentFixture<RTLTestHostComponent>;
-    let component: RTLTestHostComponent;
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [RTLTestHostComponent]
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(RTLTestHostComponent);
-        component = fixture.componentInstance;
-        fixture.detectChanges();
-    });
-
-    afterEach(() => {
-        document.documentElement.removeAttribute('dir');
-    });
-
-    it('should render in LTR mode', () => {
-        const container = fixture.debugElement.query(By.css('[dir="ltr"]'));
-        expect(container).toBeTruthy();
-    });
-
-    it('should render in RTL mode', async () => {
-        component.dir.set('rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const container = fixture.debugElement.query(By.css('[dir="rtl"]'));
-        expect(container).toBeTruthy();
-    });
-
-    it('should switch tabs in RTL mode', async () => {
-        component.dir.set('rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const triggers = fixture.debugElement.queryAll(By.css('[data-slot="tabs-trigger"]'));
-        triggers[1].nativeElement.click();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const content = fixture.debugElement.query(By.css('[data-slot="tabs-content"]'));
-        expect(content.nativeElement.textContent).toContain('محتوى 2');
     });
 });

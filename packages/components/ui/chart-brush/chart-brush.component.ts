@@ -7,7 +7,10 @@ import {
     signal,
     viewChild,
     ElementRef,
+    DestroyRef,
+    inject,
 } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
 import { cn } from '../../lib/utils';
 import { pointerToSvg } from '../../lib/chart-interaction';
 
@@ -31,9 +34,9 @@ type BrushMode = 'idle' | 'create' | 'move' | 'resize-start' | 'resize-end';
     host: {
         class: 'block',
         '(window:mousemove)': 'onWindowMove($event)',
-        '(window:touchmove)': 'onWindowMove($event)',
         '(window:mouseup)': 'onWindowUp()',
         '(window:touchend)': 'onWindowUp()',
+        '(window:touchcancel)': 'onWindowUp()',
     },
 })
 export class ChartBrushComponent {
@@ -78,6 +81,12 @@ export class ChartBrushComponent {
     private moveAnchor = 0;
     private moveOrigin: BrushSelection = { start: 0, end: 0 };
     private createAnchor = 0;
+    private readonly _window = inject(DOCUMENT).defaultView;
+    private readonly _onTouchMove = (evt: TouchEvent): void => this.onWindowMove(evt);
+
+    constructor() {
+        inject(DestroyRef).onDestroy(() => this.stopTouchTracking());
+    }
 
     readonly classes = computed(() => cn('block w-full select-none', this.class()));
     readonly viewBox = computed(() => `0 0 ${this.width()} ${this.height()}`);
@@ -210,6 +219,22 @@ export class ChartBrushComponent {
         this.selectionChange.emit(null);
     }
 
+    /**
+     * A touch drag listens for `touchmove` on the window itself, non-passive,
+     * and only for the length of the gesture. A host `(window:touchmove)`
+     * binding is registered passive by Chromium, so its `preventDefault()` could
+     * not stop the page scrolling; and a permanent non-passive window listener
+     * would make every touch scroll on the page wait on the main thread.
+     */
+    private startTouchTracking(evt: MouseEvent | TouchEvent): void {
+        if (!('touches' in evt)) return;
+        this._window?.addEventListener('touchmove', this._onTouchMove, { passive: false });
+    }
+
+    private stopTouchTracking(): void {
+        this._window?.removeEventListener('touchmove', this._onTouchMove);
+    }
+
     private localX(evt: MouseEvent | TouchEvent): number {
         const svg = this._svg()?.nativeElement;
         return svg ? pointerToSvg(evt, svg).x : 0;
@@ -223,6 +248,7 @@ export class ChartBrushComponent {
      */
     onCreateDown(evt: MouseEvent | TouchEvent): void {
         evt.preventDefault();
+        this.startTouchTracking(evt);
         this.beginCreate(this.localX(evt));
     }
 
@@ -234,6 +260,7 @@ export class ChartBrushComponent {
     onMoveDown(evt: MouseEvent | TouchEvent): void {
         evt.preventDefault();
         evt.stopPropagation();
+        this.startTouchTracking(evt);
         this.beginMove(this.localX(evt));
     }
 
@@ -245,6 +272,7 @@ export class ChartBrushComponent {
     onResizeDown(evt: MouseEvent | TouchEvent, edge: 'start' | 'end'): void {
         evt.preventDefault();
         evt.stopPropagation();
+        this.startTouchTracking(evt);
         this.beginResize(edge, this.localX(evt));
     }
 
@@ -252,7 +280,8 @@ export class ChartBrushComponent {
      * Window-level `mousemove`/`touchmove` handler — listening on the window
      * rather than the SVG keeps a drag alive when the pointer leaves the strip.
      * Returns immediately unless a gesture is active; for touch it also
-     * suppresses the default so the drag does not scroll the page.
+     * suppresses the default so the drag does not scroll the page, which works
+     * because the touch listener is registered non-passive for the drag.
      */
     onWindowMove(evt: MouseEvent | TouchEvent): void {
         if (this.mode === 'idle') return;
@@ -262,6 +291,7 @@ export class ChartBrushComponent {
 
     /** Window-level `mouseup`/`touchend` handler; finishes any active drag via {@link end}, wherever the pointer was released. */
     onWindowUp(): void {
+        this.stopTouchTracking();
         this.end();
     }
 }

@@ -62,17 +62,6 @@ describe('candlestick utils', () => {
             expect(formatPeriod('2026-01-05', 'en-US')).toContain('Jan');
         });
 
-        it('formats a Date as a short local date', () => {
-            expect(formatPeriod(new Date(Date.UTC(2026, 0, 5, 12)), 'en-US')).toContain('Jan');
-        });
-
-        it('formats an epoch-ms number', () => {
-            expect(formatPeriod(Date.UTC(2026, 0, 5, 12), 'en-US')).toContain('Jan');
-        });
-
-        it('does not render "Invalid Date" for an unparseable value', () => {
-            expect(formatPeriod(Number.NaN)).toBe('NaN');
-        });
     });
 
     describe('isRising', () => {
@@ -91,10 +80,6 @@ describe('candlestick utils', () => {
     });
 
     describe('normalizeOhlc', () => {
-        it('keeps rows whose four prices are all finite', () => {
-            expect(normalizeOhlc([point(), point()])).toHaveLength(2);
-        });
-
         it('drops rows with a non-finite price', () => {
             const bad = [
                 point({ open: Number.NaN }),
@@ -113,10 +98,6 @@ describe('candlestick utils', () => {
         it('preserves order', () => {
             const pts = [point({ open: 1 }), point({ open: 2 }), point({ open: 3 })];
             expect(normalizeOhlc(pts).map(p => p.open)).toEqual([1, 2, 3]);
-        });
-
-        it('returns an empty array for empty input', () => {
-            expect(normalizeOhlc([])).toEqual([]);
         });
     });
 

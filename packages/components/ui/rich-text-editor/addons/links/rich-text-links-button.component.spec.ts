@@ -10,8 +10,8 @@ import { RichTextEditorAddonHost } from '../..';
 type ButtonProbe = {
     onOpenChange(next: boolean): void;
     onSubmit(payload: RichTextLinkSubmit): void;
+    onRemove(): void;
     open: { (): boolean };
-    interactionDisabled(): boolean;
 };
 
 describe('RichTextLinksButtonComponent', () => {
@@ -39,6 +39,7 @@ describe('RichTextLinksButtonComponent', () => {
         readonly.set(false);
         onOpen.mockClear();
         onSubmit.mockClear();
+        onRemove.mockClear();
 
         await TestBed.configureTestingModule({
             imports: [RichTextLinksButtonComponent],
@@ -96,17 +97,24 @@ describe('RichTextLinksButtonComponent', () => {
         expect(probe.open()).toBe(false);
     });
 
-    it('disables interaction while the editor is disabled or readonly', () => {
-        expect(probe.interactionDisabled()).toBe(false);
+    it('forwards a remove to the context and closes the popover', () => {
+        probe.onOpenChange(true);
+        probe.onRemove();
+        expect(onRemove).toHaveBeenCalledTimes(1);
+        expect(probe.open()).toBe(false);
+    });
+
+    it('disables the trigger button while the editor is disabled or readonly', () => {
+        const button = (fixture.nativeElement as HTMLElement).querySelector('button')!;
+        expect(button.disabled).toBe(false);
+
         readonly.set(true);
         fixture.detectChanges();
-        expect(probe.interactionDisabled()).toBe(true);
+        expect(button.disabled).toBe(true);
 
         readonly.set(false);
         disabled.set(true);
         fixture.detectChanges();
-        expect(probe.interactionDisabled()).toBe(true);
-        const button = (fixture.nativeElement as HTMLElement).querySelector('button');
-        expect(button?.disabled).toBe(true);
+        expect(button.disabled).toBe(true);
     });
 });

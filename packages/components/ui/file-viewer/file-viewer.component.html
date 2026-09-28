@@ -11,7 +11,7 @@
       </div>
       <div class="flex items-center gap-1 shrink-0">
         @if (isPaginated()) {
-          <button class="inline-flex items-center justify-center h-7 w-7 rounded hover:bg-muted disabled:opacity-50"
+          <button class="inline-flex items-center justify-center h-7 w-7 pointer-coarse:size-11 rounded hover:bg-muted disabled:opacity-50"
                   [attr.aria-label]="'Previous page'"
                   [disabled]="currentPage() <= 1"
                   (click)="prevPage()">
@@ -20,7 +20,7 @@
           <span class="text-xs text-muted-foreground tabular-nums min-w-[60px] text-center">
             {{ currentPage() }} / {{ totalPages() }}
           </span>
-          <button class="inline-flex items-center justify-center h-7 w-7 rounded hover:bg-muted disabled:opacity-50"
+          <button class="inline-flex items-center justify-center h-7 w-7 pointer-coarse:size-11 rounded hover:bg-muted disabled:opacity-50"
                   [attr.aria-label]="'Next page'"
                   [disabled]="currentPage() >= totalPages()"
                   (click)="nextPage()">
@@ -28,7 +28,7 @@
           </button>
         }
         @if (isZoomable()) {
-          <button class="inline-flex items-center justify-center h-7 w-7 rounded hover:bg-muted disabled:opacity-50"
+          <button class="inline-flex items-center justify-center h-7 w-7 pointer-coarse:size-11 rounded hover:bg-muted disabled:opacity-50"
                   [attr.aria-label]="'Zoom out'"
                   [disabled]="currentZoom() <= 0.25"
                   (click)="zoomOut()">
@@ -37,7 +37,7 @@
           <span class="text-xs text-muted-foreground tabular-nums min-w-[40px] text-center">
             {{ zoomPercent() }}%
           </span>
-          <button class="inline-flex items-center justify-center h-7 w-7 rounded hover:bg-muted disabled:opacity-50"
+          <button class="inline-flex items-center justify-center h-7 w-7 pointer-coarse:size-11 rounded hover:bg-muted disabled:opacity-50"
                   [attr.aria-label]="'Zoom in'"
                   [disabled]="currentZoom() >= 3"
                   (click)="zoomIn()">
@@ -47,7 +47,7 @@
         @if (downloadUrl()) {
           <a [href]="downloadUrl()"
              [download]="displayFilename()"
-             class="inline-flex items-center justify-center h-7 w-7 rounded hover:bg-muted"
+             class="inline-flex items-center justify-center h-7 w-7 pointer-coarse:size-11 rounded hover:bg-muted"
              title="Download">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
           </a>

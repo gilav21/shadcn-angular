@@ -1,23 +1,20 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChipListComponent } from './chip-list.component';
 import { BadgeComponent } from '../badge';
-import { Component, signal } from '@angular/core';
+import { Component } from '@angular/core';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 @Component({
     template: `
-    <div [dir]="dir()">
-      <ui-chip-list [(ngModel)]="chips" [placeholder]="placeholder"></ui-chip-list>
-    </div>
+    <ui-chip-list [(ngModel)]="chips" [placeholder]="placeholder"></ui-chip-list>
   `,
     imports: [ChipListComponent, FormsModule]
 })
 class TestHostComponent {
     chips: string[] = ['React', 'Angular'];
     placeholder = 'Add tech...';
-    dir = signal<'ltr' | 'rtl'>('ltr');
 }
 
 describe('ChipListComponent', () => {
@@ -38,11 +35,6 @@ describe('ChipListComponent', () => {
         const chipList = fixture.debugElement.query(By.directive(ChipListComponent)).componentInstance;
         chipList.writeValue(host.chips);
         fixture.detectChanges();
-    });
-
-    it('should create', () => {
-        const chipList = fixture.debugElement.query(By.directive(ChipListComponent));
-        expect(chipList).toBeTruthy();
     });
 
     it('should render initial chips', () => {
@@ -119,26 +111,6 @@ describe('ChipListComponent', () => {
         expect(host.chips).toHaveLength(1);
         // Should remove 'Angular' (last one)
         expect(host.chips).toEqual(['React']);
-    });
-
-    it('should apply correct padding in RTL mode', async () => {
-        // Switch to RTL
-        host.dir.set('rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const chips = fixture.debugElement.queryAll(By.directive(BadgeComponent));
-        // Check first chip
-        const chipClass = chips[0].nativeElement.className;
-
-        // In the component: 'ltr:pr-1 rtl:pl-1'
-        // We verify that these classes are present. 
-        // Note: Tailwind classes are static strings in class attribute usually, so we just check existence.
-        expect(chipClass).toContain('ltr:pr-1');
-        expect(chipClass).toContain('rtl:pl-1');
-
-        // Check that the container inherits/respects direction effectively implies styles would apply
-        // Specifically, we can check if the input direction is affected if relevant, but the badge classes are the main RTL feature here.
     });
 });
 
@@ -262,11 +234,15 @@ describe('ChipListComponent (standalone unit)', () => {
         expect(component.inputValue()).toBe('hello');
     });
 
-    it('chipForeground returns a readable colour for painted chips and null otherwise', () => {
-        fixture.componentRef.setInput('chipColors', { React: '#ffffff' });
+    it('paints chip text black on a light colour, white on a dark one, and leaves unpainted chips alone', () => {
+        fixture.componentRef.setInput('chipColors', { React: '#ffffff', Go: '#1e293b' });
+        component.writeValue(['React', 'Go', 'Angular']);
         fixture.detectChanges();
-        expect(component.chipForeground('React')).toBeTruthy();
-        expect(component.chipForeground('Angular')).toBeNull();
+        const colors = Array.from(
+            (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('ui-badge'),
+            chip => chip.style.color,
+        );
+        expect(colors).toEqual(['rgb(0, 0, 0)', 'rgb(255, 255, 255)', '']);
     });
 
     it('removeChip removes the chip, emits, stops propagation, and re-focuses after the timeout', () => {
@@ -325,15 +301,6 @@ describe('ChipListComponent (standalone unit)', () => {
         component.setDisabledState(false);
         fixture.detectChanges();
         expect(component.isDisabled()).toBe(true);
-    });
-
-    it('default onChange/onTouched are safe before registration', () => {
-        // No registerOnChange/registerOnTouched here: exercises the default arrows.
-        expect(() => {
-            component.addChip('solo');
-            component.onBlur();
-        }).not.toThrow();
-        expect(component.chips()).toEqual(['solo']);
     });
 });
 

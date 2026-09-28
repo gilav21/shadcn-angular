@@ -5,10 +5,10 @@
     </div>
   }
   <div class="flex items-center gap-1 px-3 pb-2">
-    <ui-button variant="outline" size="sm" class="h-7 text-xs" (clicked)="selectToday()">
+    <ui-button variant="outline" size="sm" class="h-7 pointer-coarse:h-11 text-xs" (clicked)="selectToday()">
       {{ todayLabel() }}
     </ui-button>
-    <ui-button variant="ghost" size="sm" class="h-7 text-xs" (clicked)="clear()">
+    <ui-button variant="ghost" size="sm" class="h-7 pointer-coarse:h-11 text-xs" (clicked)="clear()">
       {{ clearLabel() }}
     </ui-button>
   </div>

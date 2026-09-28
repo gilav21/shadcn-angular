@@ -1,11 +1,11 @@
-import { signal, type Provider, type WritableSignal } from '@angular/core';
+import { signal, type WritableSignal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { EmojiPickerComponent } from '../../../emoji-picker';
 import { RichTextEmojiButtonComponent } from './rich-text-emoji-button.component';
 import { RICH_TEXT_EMOJI_CONTEXT, type RichTextEmojiContext } from './rich-text-emoji.context';
-import { RichTextEditorAddonHost, RichTextToolbarViewContext } from '../..';
+import { RichTextEditorAddonHost } from '../..';
 
 interface MockHost {
     disabled: WritableSignal<boolean>;
@@ -29,27 +29,28 @@ describe('RichTextEmojiButtonComponent', () => {
     let fixture: ComponentFixture<RichTextEmojiButtonComponent>;
     let host: MockHost;
     let ctx: ReturnType<typeof buildContext>;
+    let openNotices: number;
+    let closeFromGroup: () => void;
 
-    function render(compact?: boolean): HTMLElement {
+    function render(): HTMLElement {
         const disabledSignal = signal(false);
+        openNotices = 0;
         host = {
             disabled: disabledSignal,
             isDisabled: disabledSignal,
             readonly: signal(false),
-            registerExclusivePopover: () => ({ notifyOpened: () => {}, release: () => {} }),
+            registerExclusivePopover: (close) => {
+                closeFromGroup = close;
+                return { notifyOpened: () => { openNotices++; }, release: () => {} };
+            },
         };
         ctx = buildContext();
-        const providers: Provider[] = [
-            { provide: RichTextEditorAddonHost, useValue: host },
-            { provide: RICH_TEXT_EMOJI_CONTEXT, useValue: ctx },
-        ];
-        if (compact !== undefined) {
-            providers.push({
-                provide: RichTextToolbarViewContext,
-                useValue: { compact: signal(compact) },
-            });
-        }
-        TestBed.configureTestingModule({ providers });
+        TestBed.configureTestingModule({
+            providers: [
+                { provide: RichTextEditorAddonHost, useValue: host },
+                { provide: RICH_TEXT_EMOJI_CONTEXT, useValue: ctx },
+            ],
+        });
         fixture = TestBed.createComponent(RichTextEmojiButtonComponent);
         fixture.detectChanges();
         return fixture.nativeElement as HTMLElement;
@@ -68,13 +69,7 @@ describe('RichTextEmojiButtonComponent', () => {
         const button = el.querySelector('button') as HTMLButtonElement;
         expect(button.title).toBe('Insert Emoji');
         expect(button.querySelector('svg')).toBeTruthy();
-        expect(button.className).toContain('p-1.5');
         expect(fixture.debugElement.query(By.directive(EmojiPickerComponent))).toBeTruthy();
-    });
-
-    it('uses compact padding inside a compact toolbar view', () => {
-        const el = render(true);
-        expect((el.querySelector('button') as HTMLButtonElement).className).toContain('p-1');
     });
 
     it('inserts a picked emoji through the context callback', () => {
@@ -91,5 +86,21 @@ describe('RichTextEmojiButtonComponent', () => {
 
         probe().onEmoji('🎉');
         expect(ctx.onInsert).not.toHaveBeenCalled();
+    });
+
+    it('joins the toolbar single-open group: opening the picker notifies it, and the group closes the picker', () => {
+        const el = render();
+        const picker = fixture.debugElement.query(By.directive(EmojiPickerComponent))
+            .componentInstance as EmojiPickerComponent;
+
+        (el.querySelector('button') as HTMLButtonElement).click();
+        fixture.detectChanges();
+        expect(picker.open()).toBe(true);
+        expect(openNotices).toBe(1);
+
+        closeFromGroup();
+        fixture.detectChanges();
+        expect(picker.open()).toBe(false);
+        expect(openNotices).toBe(1);
     });
 });

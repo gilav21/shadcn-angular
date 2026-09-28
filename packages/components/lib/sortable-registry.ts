@@ -40,7 +40,10 @@ export interface SortableRegistryEntry {
     /** Stable identifier — appears in reorder/itemEnter/itemLeave payloads. */
     readonly listId: string;
 
-    /** Group key — peers share the same string to be linked. */
+    /**
+     * Group key — peers share the same string to be linked. Read once, at
+     * {@link registerSortable}; to change group, unsubscribe and register again.
+     */
     readonly group: string;
 
     /**
@@ -91,12 +94,18 @@ export interface SortableRegistryEntry {
 
 const groups = new Map<string, Set<SortableRegistryEntry>>();
 
-/** Add an entry to its group. Returns an unsubscribe; safe to call multiple times. */
+/**
+ * Add an entry to its current group. Returns an unsubscribe that removes it
+ * from that same group; safe to call multiple times.
+ */
 export function registerSortable(entry: SortableRegistryEntry): () => void {
-    let bucket = groups.get(entry.group);
+    // Captured, not re-read: `entry.group` may be a live getter that already
+    // names the NEXT group by the time the caller unsubscribes.
+    const group = entry.group;
+    let bucket = groups.get(group);
     if (bucket === undefined) {
         bucket = new Set<SortableRegistryEntry>();
-        groups.set(entry.group, bucket);
+        groups.set(group, bucket);
     }
     bucket.add(entry);
 
@@ -104,10 +113,10 @@ export function registerSortable(entry: SortableRegistryEntry): () => void {
     return (): void => {
         if (unsubscribed) return;
         unsubscribed = true;
-        const current = groups.get(entry.group);
+        const current = groups.get(group);
         if (current === undefined) return;
         current.delete(entry);
-        if (current.size === 0) groups.delete(entry.group);
+        if (current.size === 0) groups.delete(group);
     };
 }
 

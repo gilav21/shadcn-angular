@@ -246,8 +246,15 @@ describe('MenubarService', () => {
 
     it('evaluates the root element direction once a root is registered', () => {
         const svc = new MenubarService();
-        svc.registerRoot(document.createElement('div'));
-        expect(svc.isRtl()).toBe(false);
+        const root = document.createElement('div');
+        root.dir = 'rtl';
+        document.body.appendChild(root);
+        try {
+            svc.registerRoot(root);
+            expect(svc.isRtl()).toBe(true);
+        } finally {
+            root.remove();
+        }
     });
 
     it('registers, activates and unregisters menus', () => {
@@ -290,12 +297,6 @@ describe('MenubarComponent', () => {
         expect(el.className).toContain('custom-menubar');
     });
 
-    it('ignores document clicks when no menu is active', () => {
-        const component = fixture.componentInstance;
-        component.onClick({ target: document.body } as unknown as MouseEvent);
-        expect(component.service.activeMenuId()).toBeNull();
-    });
-
     it('closes the active menu on an outside document click', () => {
         const component = fixture.componentInstance;
         component.service.setActive('menu-x');
@@ -324,11 +325,6 @@ describe('Menubar rendering and menu open/close', () => {
         restoreStubs();
     });
 
-    it('renders both triggers and hides content while closed', () => {
-        expect(fixture.debugElement.queryAll(By.css('[data-slot="menubar-trigger"]'))).toHaveLength(2);
-        expect(fixture.debugElement.query(By.css('[data-slot="menubar-content"]'))).toBeNull();
-    });
-
     it('opens a menu on trigger click and toggles it closed again', () => {
         const trigger = fixture.debugElement.query(By.css('[data-slot="menubar-trigger"]')).nativeElement as HTMLElement;
         fireClick(trigger);
@@ -348,11 +344,6 @@ describe('Menubar rendering and menu open/close', () => {
         expect(inlineShortcut.textContent).toContain('⌘O');
     });
 
-    it('marks disabled items with data-disabled', () => {
-        openFirstMenu(fixture);
-        expect(fixture.debugElement.query(By.css('[data-disabled]'))).toBeTruthy();
-    });
-
     it('closes the menu when a non-disabled item is clicked', () => {
         const menu = openFirstMenu(fixture);
         const item = fixture.debugElement.query(By.css('[data-slot="menubar-item"]:not([data-disabled])')).nativeElement as HTMLElement;
@@ -361,18 +352,16 @@ describe('Menubar rendering and menu open/close', () => {
         expect(menu.isOpen()).toBe(false);
     });
 
-    it('menu.toggle() closes an already open menu', () => {
-        const menu = openFirstMenu(fixture);
-        expect(menu.isOpen()).toBe(true);
-        menu.toggle();
+    it('menu.close() on a closed menu leaves a sibling menu open', () => {
+        const [file, edit] = fixture.debugElement.queryAll(By.directive(MenubarMenuComponent))
+            .map(de => de.componentInstance as MenubarMenuComponent);
+        edit.open();
         fixture.detectChanges();
-        expect(menu.isOpen()).toBe(false);
-    });
 
-    it('menu.close() is a no-op when the menu is already closed', () => {
-        const menu = menuInstance(fixture);
-        menu.close();
-        expect(menu.isOpen()).toBe(false);
+        file.close();
+        fixture.detectChanges();
+
+        expect(edit.isOpen()).toBe(true);
     });
 });
 
@@ -405,9 +394,6 @@ describe('Menubar item edge cases', () => {
         loose.selected.subscribe(spy);
         loose.onClick();
         expect(spy).toHaveBeenCalledTimes(1);
-        const el = items[1].nativeElement.querySelector('[data-slot="menubar-item"]') as HTMLElement;
-        expect(el.className).toContain('rtl:pr-8');
-        expect((items[1].nativeElement.querySelector('.ms-auto') as HTMLElement).textContent).toContain('⌘X');
     });
 });
 
@@ -474,7 +460,9 @@ describe('Menubar trigger interactions', () => {
         keydown(triggers[0].nativeElement, 'ArrowRight');
         fixture.detectChanges();
         expect(document.activeElement).toBe(triggers[1].nativeElement);
-        expect(serviceInstance(fixture).activeMenuId()).toBeTruthy();
+        const edit = fixture.debugElement.queryAll(By.directive(MenubarMenuComponent))[1].componentInstance as MenubarMenuComponent;
+        expect(serviceInstance(fixture).activeMenuId()).toBe(edit.id);
+        expect(edit.isOpen()).toBe(true);
     });
 
     it('opens the hovered trigger only while another menu is active on a non-touch device', () => {
@@ -671,6 +659,7 @@ describe('Menubar submenu', () => {
         vi.advanceTimersByTime(100);
         fixture.detectChanges();
         expect(sub.isOpen()).toBe(false);
+        expect(document.activeElement).toBe(subTrigger.triggerEl.nativeElement);
     });
 
     it('closes the submenu with ArrowRight from content in RTL', () => {
@@ -733,7 +722,7 @@ describe('Menubar submenu', () => {
         fixture.detectChanges();
         const triggerEl = fixture.debugElement.query(By.directive(MenubarSubTriggerComponent)).nativeElement.querySelector('[data-slot="menubar-sub-trigger"]') as HTMLElement;
         expect(triggerEl.className).toContain('bg-accent');
-        expect(triggerEl.className).toContain('rtl:pr-8');
+        expect(triggerEl.getAttribute('aria-expanded')).toBe('true');
     });
 });
 

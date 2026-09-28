@@ -36,25 +36,6 @@ describe('CollapsibleComponent', () => {
         }).compileComponents();
     });
 
-    it('should create', () => {
-        fixture = TestBed.createComponent(TestHostComponent);
-        component = fixture.componentInstance;
-        fixture.detectChanges();
-        expect(component).toBeTruthy();
-    });
-
-    it('should be closed by default', () => {
-        fixture = TestBed.createComponent(TestHostComponent);
-        component = fixture.componentInstance;
-        component.defaultOpen = false;
-        fixture.detectChanges();
-
-        const contentHost = fixture.debugElement.query(By.directive(CollapsibleContentComponent));
-        // Check if INNER div exists
-        const innerDiv = contentHost.query(By.css('[data-slot="collapsible-content"]'));
-        expect(innerDiv).toBeFalsy();
-    });
-
     it('should respect defaultOpen=true', () => {
         fixture = TestBed.createComponent(TestHostComponent);
         component = fixture.componentInstance;
@@ -92,7 +73,7 @@ describe('CollapsibleComponent', () => {
         expect(innerDiv).toBeFalsy();
     });
 
-    it('should have correct accessibility attributes', () => {
+    it('reflects the open state on data-state of the root and the trigger', () => {
         fixture = TestBed.createComponent(TestHostComponent);
         component = fixture.componentInstance;
         fixture.detectChanges();

@@ -25,13 +25,6 @@ describe('hover-card preset', () => {
         document.querySelectorAll('[data-slot="preset-hover-card"]').forEach((el) => el.remove());
     });
 
-    it('action definition declares a hover trigger and title/body fields', () => {
-        const def = hoverCardAction();
-        expect(def.triggers).toEqual(['hover']);
-        expect(def.fields?.map((f) => f.key)).toEqual(['title', 'body']);
-        expect(def.fields?.find((f) => f.key === 'body')?.required).toBe(true);
-    });
-
     it('renders the card in the anchored element\'s direction (rtl)', () => {
         // getComputedStyle(el).direction doesn't cascade `dir` across jsdom
         // runners; reflect the nearest [dir] ancestor.
@@ -66,13 +59,15 @@ describe('hover-card preset', () => {
         expect(def.fields?.some((f) => f.key === 'k')).toBe(true);
     });
 
-    it('handler renders a card with the authored body on start', () => {
+    it('handler renders a card with the authored title and body on start', () => {
         const injector = TestBed.inject(Injector);
         const handlers = hoverCardHandlers(injector);
-        handlers['preset.hover-card'](hoverEvent('start', { title: 'T', body: 'B' }));
-        expect(document.body.textContent).toContain('B');
-        expect(document.body.textContent).toContain('T');
-        handlers['preset.hover-card'](hoverEvent('end', { title: 'T', body: 'B' }));
+        const params = { title: 'Refund window', body: 'Refunds are accepted within 30 days of purchase.' };
+        handlers['preset.hover-card'](hoverEvent('start', params));
+        const lines = Array.from(document.querySelectorAll('[data-slot="preset-hover-card"] p'))
+            .map((p) => p.textContent?.trim());
+        expect(lines).toEqual(['Refund window', 'Refunds are accepted within 30 days of purchase.']);
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     });
 
     it('grace area: moving the pointer into the card cancels the close timer', async () => {

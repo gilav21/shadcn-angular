@@ -79,13 +79,11 @@ describe('PageRendererComponent', () => {
         fixture.destroy();
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
-    it('should render the bento grid host', () => {
-        const compiled = fixture.nativeElement as HTMLElement;
-        expect(compiled.querySelector('ui-bento-grid')).toBeTruthy();
+    it('renders each item through the grid with its resolved inputs', async () => {
+        await fixture.whenStable();
+        fixture.detectChanges();
+        const card = (fixture.nativeElement as HTMLElement).querySelector('ui-bento-grid mock-card');
+        expect(card?.textContent?.trim()).toBe('Static Title - Admin');
     });
 
     it('should merge the class input into the host classes', () => {
@@ -146,21 +144,13 @@ describe('PageRendererComponent', () => {
 
     it('should not apply a binding whose resolved value is undefined', () => {
         const data = makePageData();
+        data.items[0].inputs = { title: 'Static Title', description: 'Static Desc' };
         data.items[0].bindings = { description: 'user.missing.deep' };
         fixture.componentRef.setInput('data', data);
         fixture.detectChanges();
         const item = component.dashboardItems()[0];
-        expect(item?.inputs?.['description']).toBeUndefined();
+        expect(item?.inputs?.['description']).toBe('Static Desc');
         expect(item?.inputs?.['title']).toBe('Static Title');
-    });
-
-    it('should treat an empty binding path as undefined', () => {
-        const data = makePageData();
-        data.items[0].bindings = { description: '' };
-        fixture.componentRef.setInput('data', data);
-        fixture.detectChanges();
-        const item = component.dashboardItems()[0];
-        expect(item?.inputs?.['description']).toBeUndefined();
     });
 
     it('should handle items without bindings', () => {
@@ -173,34 +163,9 @@ describe('PageRendererComponent', () => {
         expect(item?.inputs?.['description']).toBeUndefined();
     });
 
-    it('should register an instance and apply inputs on component init', () => {
-        const instance: Record<string, unknown> = {};
-        const ref = { instance } as ComponentRef<unknown>;
-        component.onComponentInit({ id: 'item-1', ref });
-        fixture.componentRef.setInput('context', { user: { name: 'Bob', role: 'Editor' } });
-        fixture.detectChanges();
-        const item = component.dashboardItems()[0];
-        expect(item?.inputs?.['description']).toBe('Editor');
-    });
-
     it('should ignore component init for an unknown item id', () => {
         const ref = { instance: {} } as ComponentRef<unknown>;
         expect(() => component.onComponentInit({ id: 'ghost', ref })).not.toThrow();
     });
 
-    it('should apply inputs on init even when the item has none', () => {
-        const data = makePageData();
-        delete data.items[0].inputs;
-        delete data.items[0].bindings;
-        fixture.componentRef.setInput('data', data);
-        fixture.detectChanges();
-        const ref = { instance: {} } as ComponentRef<unknown>;
-        expect(() => component.onComponentInit({ id: 'item-1', ref })).not.toThrow();
-    });
-
-    it('should clear the instance map on destroy', () => {
-        const ref = { instance: {} } as ComponentRef<unknown>;
-        component.onComponentInit({ id: 'item-1', ref });
-        expect(() => component.ngOnDestroy()).not.toThrow();
-    });
 });

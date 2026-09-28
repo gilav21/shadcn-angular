@@ -42,36 +42,6 @@ class TestHostComponent {
   readonly actionClicks = signal(0);
 }
 
-describe('CardAccordionComponent', () => {
-  let fixture: ComponentFixture<CardAccordionComponent>;
-
-  beforeEach(async () => {
-    await TestBed.configureTestingModule({ imports: [CardAccordionComponent] }).compileComponents();
-    fixture = TestBed.createComponent(CardAccordionComponent);
-    fixture.detectChanges();
-  });
-
-  it('should create and expose the card-accordion data-slot', () => {
-    const root = fixture.debugElement.query(By.css('[data-slot="card-accordion"]'));
-    expect(root).toBeTruthy();
-  });
-
-  it('should default to single type and apply layout classes', () => {
-    expect(fixture.componentInstance.type()).toBe('single');
-    const root = fixture.debugElement.query(By.css('[data-slot="card-accordion"]'));
-    expect(root.nativeElement.className).toContain('flex');
-    expect(root.nativeElement.className).toContain('flex-col');
-  });
-
-  it('should toggle open state via the inherited engine', () => {
-    const component = fixture.componentInstance;
-    component.toggle('item-1');
-    expect(component.isOpen('item-1')).toBe(true);
-    component.toggle('item-1');
-    expect(component.isOpen('item-1')).toBe(false);
-  });
-});
-
 describe('CardAccordion integration', () => {
   let fixture: ComponentFixture<TestHostComponent>;
   let host: TestHostComponent;
@@ -85,11 +55,6 @@ describe('CardAccordion integration', () => {
 
   const triggers = () => fixture.debugElement.queryAll(By.css('[data-slot="card-accordion-trigger"]'));
   const contents = () => fixture.debugElement.queryAll(By.css('[data-slot="card-accordion-content"]'));
-
-  it('should render all items closed initially', () => {
-    const open = triggers().filter((t) => t.nativeElement.getAttribute('aria-expanded') === 'true');
-    expect(open).toHaveLength(0);
-  });
 
   it('should open content and rotate the chevron on trigger click', async () => {
     triggers()[0].nativeElement.click();

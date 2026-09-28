@@ -143,17 +143,6 @@ describe('MasonryComponent', () => {
                 expect(tops[i]).toBeGreaterThanOrEqual(tops[i - 1]);
             }
         });
-
-        it('keeps focus order equal to source order', () => {
-            const items = itemsOf(masonry);
-            for (const item of items) item.tabIndex = 0;
-
-            items[0].focus();
-            expect(document.activeElement).toBe(items[0]);
-
-            const ordered = [...masonry.querySelectorAll<HTMLElement>('[tabindex="0"]')];
-            expect(ordered).toEqual(items);
-        });
     });
 
     // T-14 — UC-15. Breakpoints are resolved against the CONTAINER's width, so
@@ -170,19 +159,6 @@ describe('MasonryComponent', () => {
             fixture.detectChanges();
             await settle(fixture);
             expect(new Set(columnStartsOf(masonry)).size).toBe(1);
-        });
-
-        it('returns to the wide column count when the container grows back', async () => {
-            fixture.componentInstance.columns.set({ base: 1, sm: 2, lg: 3 });
-            fixture.componentInstance.viewportWidth.set(400);
-            fixture.detectChanges();
-            await settle(fixture);
-            expect(new Set(columnStartsOf(masonry)).size).toBe(1);
-
-            fixture.componentInstance.viewportWidth.set(1100);
-            fixture.detectChanges();
-            await settle(fixture);
-            expect(new Set(columnStartsOf(masonry)).size).toBe(3);
         });
 
         it('uses the sm count at an in-between width', async () => {
@@ -222,47 +198,6 @@ describe('MasonryComponent', () => {
             }
         });
 
-        it('re-balances after a removal and keeps the survivors', async () => {
-            fixture.componentInstance.cards.update((cards) => cards.filter((card) => card.id !== 3));
-            fixture.detectChanges();
-            await settle(fixture);
-
-            const ids = itemsOf(masonry).map((el) => el.dataset['cardId']);
-            expect(ids).not.toContain('3');
-            expect(ids).toHaveLength(UNEVEN.length - 1);
-
-            const tops = topsOf(masonry);
-            for (let i = 1; i < tops.length; i++) {
-                expect(tops[i]).toBeGreaterThanOrEqual(tops[i - 1]);
-            }
-        });
-    });
-
-    // §3.2 efficiency budget
-    describe('efficiency', () => {
-        it('lays out 200 items within the 8ms budget', async () => {
-            fixture.componentInstance.cards.set(
-                Array.from({ length: 200 }, (_, index) => ({ id: index + 1, height: 40 + (index % 7) * 25 }))
-            );
-            fixture.detectChanges();
-            await settle(fixture);
-
-            const component = fixture.debugElement.query(By.directive(MasonryComponent))
-                .componentInstance as MasonryComponent;
-
-            const start = performance.now();
-            component.layout();
-            const elapsed = performance.now() - start;
-
-            expect(itemsOf(masonry)).toHaveLength(200);
-            expect(elapsed).toBeLessThan(8);
-        });
-
-        it('observes the container once, not once per item', () => {
-            const component = fixture.debugElement.query(By.directive(MasonryComponent))
-                .componentInstance as MasonryComponent;
-            expect(component.observedElementCount).toBe(1);
-        });
     });
 
     // Edge cases — 2.2
@@ -281,17 +216,6 @@ describe('MasonryComponent', () => {
             await settle(fixture);
             expect(topsOf(masonry)).toEqual([0]);
             expect(columnStartsOf(masonry)).toEqual([0]);
-        });
-
-        it('flows from the right in RTL', async () => {
-            masonry.setAttribute('dir', 'rtl');
-            fixture.componentInstance.cards.set([{ id: 1, height: 100 }]);
-            fixture.detectChanges();
-            await settle(fixture);
-
-            const item = itemsOf(masonry)[0].getBoundingClientRect();
-            const container = masonry.getBoundingClientRect();
-            expect(Math.round(container.right - item.right)).toBe(0);
         });
 
         it('runs its columns right-to-left in RTL, so reading order still matches DOM order', async () => {

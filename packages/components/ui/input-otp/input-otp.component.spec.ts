@@ -36,12 +36,20 @@ describe('InputOTPComponent', () => {
         // Manual detectChanges
     });
 
-    it('should create and render slots', () => {
-        fixture.detectChanges();
-        otpComponent = fixture.debugElement.query(By.directive(InputOTPComponent)).componentInstance;
+    it('renders one slot per maxLength, six when it is unset', () => {
+        const otp = TestBed.createComponent(InputOTPComponent);
+        const slotCount = (): number =>
+            otp.nativeElement.querySelectorAll('[data-slot="input-otp-slot"]').length;
+        otp.detectChanges();
+        expect(slotCount()).toBe(6);
 
-        const slots = fixture.debugElement.queryAll(By.css('[class*="border-y"]')); // Slot class selector approximation
-        expect(slots).toHaveLength(6);
+        otp.componentRef.setInput('maxLength', 4);
+        otp.detectChanges();
+        expect(slotCount()).toBe(4);
+
+        otp.componentRef.setInput('maxLength', undefined);
+        otp.detectChanges();
+        expect(slotCount()).toBe(6);
     });
 
     it('should display value in slots', () => {
@@ -53,17 +61,6 @@ describe('InputOTPComponent', () => {
         expect(slots[1].nativeElement.textContent.trim()).toBe('2');
         expect(slots[2].nativeElement.textContent.trim()).toBe('3');
         expect(slots[3].nativeElement.textContent.trim()).toBe('');
-    });
-
-    it('should update on input', async () => {
-        fixture.detectChanges();
-        const hiddenInput = fixture.debugElement.query(By.css('input'));
-
-        hiddenInput.nativeElement.value = '456';
-        hiddenInput.nativeElement.dispatchEvent(new Event('input'));
-        fixture.detectChanges();
-
-        expect(host.otpValue()).toBe('456');
     });
 
     it('should navigation with arrows', () => {
@@ -201,19 +198,6 @@ describe('InputOTPComponent', () => {
         expect(host.otpValue()).toBe('');
     });
 
-    it('should handle Backspace when the hidden input ref is unavailable', () => {
-        host.otpValue.set('123');
-        fixture.detectChanges();
-        otpComponent = fixture.debugElement.query(By.directive(InputOTPComponent)).componentInstance;
-
-        // Force the optional-chaining false branch on the hidden input ref.
-        (otpComponent as unknown as { hiddenInput: undefined }).hiddenInput = undefined;
-        otpComponent.onKeydown(new KeyboardEvent('keydown', { key: 'Backspace' }));
-
-        expect(host.otpValue()).toBe('12');
-        expect(otpComponent.focusedIndex()).toBe(2);
-    });
-
     it('should sanitize, upper-case and clamp input to maxLength', () => {
         fixture.detectChanges();
         const hiddenInput = fixture.debugElement.query(By.css('input'));
@@ -242,24 +226,35 @@ describe('InputOTPComponent', () => {
     });
 });
 
-describe('InputOTP sub-components', () => {
-    it('should create the group component', () => {
-        const fixture = TestBed.createComponent(InputOTPGroupComponent);
-        fixture.detectChanges();
-        expect(fixture.componentInstance).toBeTruthy();
-    });
+@Component({
+    template: `
+        <ui-input-otp [maxLength]="4" [(value)]="code">
+            <ui-input-otp-group>
+                <ui-input-otp-slot [index]="0" />
+                <ui-input-otp-slot [index]="1" />
+            </ui-input-otp-group>
+            <ui-input-otp-separator />
+            <ui-input-otp-group>
+                <ui-input-otp-slot [index]="2" />
+                <ui-input-otp-slot [index]="3" />
+            </ui-input-otp-group>
+        </ui-input-otp>
+    `,
+    imports: [InputOTPComponent, InputOTPGroupComponent, InputOTPSlotComponent, InputOTPSeparatorComponent],
+})
+class ShadcnMarkupOtpHost {
+    readonly code = signal('12');
+}
 
-    it('should create the separator component', () => {
-        const fixture = TestBed.createComponent(InputOTPSeparatorComponent);
+describe('InputOTP shadcn-style markup', () => {
+    it('accepts group/slot/separator children and still renders exactly maxLength slots from its own state', () => {
+        const fixture = TestBed.createComponent(ShadcnMarkupOtpHost);
         fixture.detectChanges();
-        expect(fixture.componentInstance).toBeTruthy();
-    });
 
-    it('should create the slot component with a default index input', () => {
-        const fixture = TestBed.createComponent(InputOTPSlotComponent);
-        fixture.detectChanges();
-        expect(fixture.componentInstance).toBeTruthy();
-        expect(fixture.componentInstance.index()).toBe(0);
+        const slots: HTMLElement[] = Array.from(
+            fixture.nativeElement.querySelectorAll('[data-slot="input-otp-slot"]'),
+        );
+        expect(slots.map(slot => slot.textContent?.trim())).toEqual(['1', '2', '', '']);
     });
 });
 

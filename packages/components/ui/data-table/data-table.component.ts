@@ -26,6 +26,7 @@ import { onPointerDrag, onLongPress } from "../../lib/touch";
 import type { ThemeName } from "../../lib/theme-presets";
 import { createLocaleBindings, interpolate, provideComponentLocale, type LocaleInput } from "../../lib/i18n";
 import { DATA_TABLE_LOCALES, type DataTableLocale } from "./data-table.locales";
+import { guardSpreadsheetFormula, restoreSpreadsheetText } from "./data-table.spreadsheet";
 import {
   DataTableAddonHost,
   AddonSlotRegistry,
@@ -138,6 +139,15 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
 };
 
 /**
+ * Serialises a grid as the TSV every copy path writes: one line per row, cells
+ * formula-guarded so pasting into a spreadsheet never runs a cell as a formula.
+ * The paste path undoes the guard with `restoreSpreadsheetText`.
+ */
+function toClipboardText(grid: readonly (readonly string[])[]): string {
+  return grid.map((cells) => cells.map(guardSpreadsheetFormula).join("\t")).join("\n");
+}
+
+/**
  * Whether two requests describe the same page of data.
  *
  * Compared field by field rather than with a deep clone or `JSON.stringify`:
@@ -158,6 +168,69 @@ function sameQuery(a: DataTableQuery, b: DataTableQuery): boolean {
     a.sortStates.length === b.sortStates.length &&
     a.sortStates.every((sort, i) => sameSort(sort, b.sortStates[i]))
   );
+}
+
+const CSS_NEWLINE_ESCAPES: Readonly<Record<string, string>> = {
+  "\n": String.raw`\a `,
+  "\r": String.raw`\d `,
+  "\f": String.raw`\c `,
+};
+
+/**
+ * `value` as a quoted CSS string, so an attribute selector built from it
+ * matches exactly that value whatever characters it holds. A quoted string
+ * needs only quotes, backslashes and line breaks escaped; unlike
+ * `CSS.escape`, this works where the `CSS` global is missing (jsdom, SSR).
+ */
+function cssString(value: string): string {
+  const escaped = value
+    .replaceAll(/["\\]/g, (ch) => `\\${ch}`)
+    .replaceAll(/[\n\r\f]/g, (ch) => CSS_NEWLINE_ESCAPES[ch]);
+  return `"${escaped}"`;
+}
+
+/**
+ * Width of the built-in expander column on a coarse pointer: its 44px toggle
+ * plus the cell's padding and border. A fine pointer keeps the 40px desktop
+ * width. (The 50px actions column already holds a centred 44px button.)
+ */
+const TOUCH_EXPANDER_COLUMN_WIDTH = "64px";
+
+/** Fixed virtual row height for a mouse when {@link DataTableComponent.virtualRowHeight} is unset. */
+const DEFAULT_VIRTUAL_ROW_HEIGHT = 40;
+
+/**
+ * Fixed virtual row height on a coarse pointer when `virtualRowHeight` is
+ * unset: a 44px control, the cell's 8px padding above and below, and its border.
+ */
+const TOUCH_VIRTUAL_ROW_HEIGHT = 60;
+
+/** Whether this environment has `ResizeObserver`; jsdom and some SSR shims do not. */
+function hasResizeObserver(): boolean {
+  return typeof globalThis.ResizeObserver === "function";
+}
+
+/**
+ * The floor for a data column that sets no `minWidth`: an auto-width column
+ * never shrinks below it, and resizing or auto-fit never go under it.
+ */
+const DEFAULT_COLUMN_MIN_WIDTH = "80px";
+
+/**
+ * The column's `minWidth`, else the default floor. The built-in selection,
+ * expander and actions columns get no floor — they carry their own width.
+ */
+function resolveColumnMinWidth(col: { accessorKey?: PropertyKey; minWidth?: string }): string {
+  if (col.minWidth) return col.minWidth;
+  const key = col.accessorKey;
+  const isSpecial = key === "_selection" || key === "_expander" || key === "_actions";
+  return isSpecial ? "0px" : DEFAULT_COLUMN_MIN_WIDTH;
+}
+
+/** The pixel floor resize and auto-fit clamp to — `minWidth` is read as pixels. */
+function columnMinWidthPx(col: CellStyleColumn): number {
+  const px = Number.parseFloat(col._minWidth ?? resolveColumnMinWidth(col));
+  return Number.isFinite(px) ? px : Number.parseFloat(DEFAULT_COLUMN_MIN_WIDTH);
 }
 
 @Component({
@@ -237,9 +310,10 @@ export class DataTableComponent<T>
   /** Hides the columns popover in the toolbar; only shown when at least one column is hideable. */
   readonly showColumnVisibilityToggle = input(true);
   /**
-   * Renders the pagination footer. Also acts as a mode switch: with
-   * {@link localPagination} on, `enableVirtualScroll: "auto"` declines to
-   * virtualize while pagination is showing.
+   * Renders the pagination footer. With {@link localPagination} on it is also
+   * what pages the rows: hide it and every row renders, since no control
+   * could reach a later page. It is a mode switch for virtual scroll too:
+   * `enableVirtualScroll: "auto"` declines to virtualize while it shows.
    */
   readonly showPagination = input(true);
   /** Adds the horizontal rule under each row/header cell. Purely cosmetic. */
@@ -254,9 +328,11 @@ export class DataTableComponent<T>
    */
   readonly localSorting = input(true);
   /**
-   * Slice the rows in the browser. Set false for server-side paging: supply only
-   * the current page in {@link data}, set {@link total} to the full row count,
-   * and re-fetch from {@link pageChange}.
+   * Slice the rows in the browser, while the footer ({@link showPagination})
+   * is shown and virtual scroll is off. Set false for server-side paging, or
+   * to drive paging from your own controls: supply only the current page in
+   * {@link data}, set {@link total} to the full row count, and re-fetch from
+   * {@link pageChange}.
    */
   readonly localPagination = input(true);
   /**
@@ -415,7 +491,9 @@ export class DataTableComponent<T>
   /**
    * Enables the clipboard paths: `Ctrl/Cmd+C` and the
    * `copy*ToClipboard` methods, all of which return early when false. The
-   * selection, expander and actions columns are never copied.
+   * selection, expander and actions columns are never copied. A copied cell a
+   * spreadsheet would run as a formula (`=`, `+`, `-`, `@`, tab, CR) is written
+   * with a leading `'`; see `guardSpreadsheetFormula`.
    */
   readonly enableCopy = input(true);
   /**
@@ -604,7 +682,9 @@ export class DataTableComponent<T>
   readonly fillSeries = output<FillSeriesEvent>();
   /**
    * Allow pasting a clipboard grid (TSV/CSV) into cells starting at the focused
-   * cell (`Ctrl/Cmd+V`). Only columns with a `valueSetter` are written.
+   * cell (`Ctrl/Cmd+V`). Only columns with a `valueSetter` are written. The
+   * formula guard's leading `'` is dropped, as a spreadsheet does, so a range
+   * copied out of the table pastes back unchanged.
    */
   readonly enableClipboardPaste = input(false);
   /** Emitted after a clipboard grid is pasted into cells. */
@@ -689,8 +769,18 @@ export class DataTableComponent<T>
    * Row height in pixels assumed by the virtual-scroll maths, and the fallback
    * for unmeasured rows under {@link virtualVariableRowHeight}. If your CSS row
    * height differs, the scrollbar and the rows drift apart.
+   *
+   * Unset, it follows the pointer: 40px for a mouse, 60px on a touch screen,
+   * where every in-row control is a 44px target plus the cell's padding and a
+   * fixed-height row would clip it. A value you set applies on every pointer,
+   * so keep it at 60 or more if touch users should reach in-row controls.
    */
-  readonly virtualRowHeight = input(40);
+  readonly virtualRowHeight = input<number | undefined>(undefined);
+
+  /** The row height the virtual-scroll maths use: {@link virtualRowHeight}, or the pointer's default when unset. */
+  readonly effectiveRowHeight = computed(
+    () => this.virtualRowHeight() ?? (this.coarsePointer() ? TOUCH_VIRTUAL_ROW_HEIGHT : DEFAULT_VIRTUAL_ROW_HEIGHT),
+  );
   /** Extra rows rendered above and below the viewport to hide scroll tearing. */
   readonly virtualRowBuffer = input(5);
   /** Extra columns rendered either side of the viewport during horizontal virtualization. */
@@ -698,7 +788,9 @@ export class DataTableComponent<T>
   /**
    * Measures each rendered row and uses prefix sums instead of a fixed row
    * height — needed for wrapping content, at the cost of a `ResizeObserver` per
-   * row and re-measurement as rows scroll in.
+   * row and re-measurement as rows scroll in. Where `ResizeObserver` is
+   * missing (jsdom, some SSR shims), rows keep the {@link virtualRowHeight}
+   * estimate and the viewport keeps the size it had at first render.
    */
   readonly virtualVariableRowHeight = input(false);
   /**
@@ -809,15 +901,14 @@ export class DataTableComponent<T>
     });
   });
 
+  /** A row's measured height, or the {@link virtualRowHeight} estimate until it has been measured. */
+  private readonly rowHeightAt = (index: number): number =>
+    this.rowHeightCache.get(index) ?? this.effectiveRowHeight();
+
   private readonly _prefixSums = computed(() => {
     if (!this.virtualVariableRowHeight()) return undefined;
     this.measurementVersion();
-    const totalRows = this.virtualTotalRows();
-    const defaultHeight = this.virtualRowHeight();
-    return buildPrefixSums(
-      (index: number) => this.rowHeightCache.get(index) ?? defaultHeight,
-      totalRows,
-    );
+    return buildPrefixSums(this.rowHeightAt, this.virtualTotalRows());
   });
 
   readonly virtualRowRange = computed(() => {
@@ -829,20 +920,17 @@ export class DataTableComponent<T>
     const buffer = this.virtualRowBuffer();
 
     if (this.virtualVariableRowHeight()) {
-      const defaultHeight = this.virtualRowHeight();
-      const getHeight = (index: number): number =>
-        this.rowHeightCache.get(index) ?? defaultHeight;
       return computeVariableRowRange(
         this.virtualScrollTop(),
         this.viewportHeight(),
-        getHeight,
+        this.rowHeightAt,
         totalRows,
         buffer,
         this._prefixSums(),
       );
     }
 
-    const rowHeight = this.virtualRowHeight();
+    const rowHeight = this.effectiveRowHeight();
     const range = computeRowRange(
       this.virtualScrollTop(),
       this.viewportHeight(),
@@ -1047,6 +1135,10 @@ export class DataTableComponent<T>
   /**
    * Current page index and size. Two-way: the table resets `pageIndex` to 0
    * whenever a filter changes, so don't assume it stays where you put it.
+   * It slices the rows only while the table pages them itself
+   * ({@link localPagination} with the footer shown); setting it with the
+   * footer hidden does not page, so page from your own controls with
+   * `localPagination` off.
    */
   readonly paginationState = model<PaginationState>({ pageIndex: 0, pageSize: 10 });
   /** Choices offered in the footer's page-size select. */
@@ -1420,48 +1512,47 @@ export class DataTableComponent<T>
     return data.sort(this.buildSortComparator(sorts));
   });
 
+  /**
+   * Whether the table slices its rows into pages itself. Only while the user
+   * can page them: with the pager hidden, or a virtual list rendering every
+   * row, a slice would leave rows no control can reach.
+   */
+  readonly pagesLocally = computed(
+    () => this.localPagination() && this.showPagination() && !this.isVirtualScrollActive(),
+  );
+
+  /** The current page of `rows`, per {@link paginationState}. */
+  private slicePage<R>(rows: R[]): R[] {
+    const { pageIndex, pageSize } = this.paginationState();
+    const start = pageIndex * pageSize;
+    return rows.slice(start, start + pageSize);
+  }
+
   readonly processedData = computed(() => {
     if (this.enableSubRows()) {
       const visible = this.visibleTreeRows();
-      if (!this.localPagination()) return visible.map((tr) => tr.row);
+      if (!this.pagesLocally()) return visible.map((tr) => tr.row);
 
       if (this.subRowsPaginated()) {
-        const { pageIndex, pageSize } = this.paginationState();
-        const start = pageIndex * pageSize;
-        return visible.slice(start, start + pageSize).map((tr) => tr.row);
+        return this.slicePage(visible).map((tr) => tr.row);
       }
-
-      const treeData = this.sortedTreeData();
-      const { pageIndex, pageSize } = this.paginationState();
-      const start = pageIndex * pageSize;
-      const rootSlice = treeData.slice(start, start + pageSize);
-      return this.flattenTreeRowsForPage(rootSlice);
+      return this.flattenTreeRowsForPage(this.slicePage(this.sortedTreeData()));
     }
 
     const data = this.sortedData();
-    if (!this.localPagination()) return data;
-
-    const { pageIndex, pageSize } = this.paginationState();
-    const start = pageIndex * pageSize;
-    return data.slice(start, start + pageSize);
+    if (!this.pagesLocally()) return data;
+    return this.slicePage(data);
   });
 
   readonly processedTreeRows = computed<FlattenedTreeRow<T>[]>(() => {
     if (!this.enableSubRows()) return [];
     const visible = this.visibleTreeRows();
-    if (!this.localPagination()) return visible;
+    if (!this.pagesLocally()) return visible;
 
     if (this.subRowsPaginated()) {
-      const { pageIndex, pageSize } = this.paginationState();
-      const start = pageIndex * pageSize;
-      return visible.slice(start, start + pageSize);
+      return this.slicePage(visible);
     }
-
-    const treeData = this.sortedTreeData();
-    const { pageIndex, pageSize } = this.paginationState();
-    const start = pageIndex * pageSize;
-    const rootSlice = treeData.slice(start, start + pageSize);
-    return this.flattenTreeRowsForPageFull(rootSlice);
+    return this.flattenTreeRowsForPageFull(this.slicePage(this.sortedTreeData()));
   });
 
   readonly activeTotalItems = computed(() => {
@@ -1561,15 +1652,13 @@ export class DataTableComponent<T>
   protected readonly keepGroupAggregateOrder = (): number => 0;
 
   /**
-   * `groupedDisplayRows()` sliced for the current page when local pagination
-   * is enabled. Group header rows count toward the page size.
+   * `groupedDisplayRows()` sliced for the current page when the table
+   * {@link pagesLocally}. Group header rows count toward the page size.
    */
   readonly pagedGroupedDisplayRows = computed<DataTableDisplayRow<T>[]>(() => {
     const rows = this.groupedDisplayRows();
-    if (!this.localPagination()) return rows;
-    const { pageIndex, pageSize } = this.paginationState();
-    const start = pageIndex * pageSize;
-    return rows.slice(start, start + pageSize);
+    if (!this.pagesLocally()) return rows;
+    return this.slicePage(rows);
   });
 
   private readonly filteredRowIds = computed(() => {
@@ -1716,10 +1805,12 @@ export class DataTableComponent<T>
   constructor() {
     this.setupCellFlashEffect();
     this.setupPaginationEffect();
+    this.setupCoarsePointerQuery();
 
-    this.rowResizeObserver = new ResizeObserver((entries) => {
-      this.handleRowResizes(entries);
-    });
+    // Without the API (jsdom, some SSR shims) rows keep the height estimate.
+    this.rowResizeObserver = hasResizeObserver()
+      ? new ResizeObserver((entries) => this.handleRowResizes(entries))
+      : undefined;
 
     effect(() => {
       if (!this.isVirtualScrollActive() || !this.virtualVariableRowHeight())
@@ -1748,6 +1839,24 @@ export class DataTableComponent<T>
   }
 
   private _longPressCleanup: (() => void) | null = null;
+
+  /**
+   * Whether the primary pointer is coarse (a touch screen). The built-in
+   * expander column widens with it, so its 44px toggles fit the cell and the
+   * sticky offsets computed from that width stay right.
+   */
+  private readonly coarsePointer = signal(false);
+  private _coarsePointerCleanup: (() => void) | null = null;
+
+  private setupCoarsePointerQuery(): void {
+    // Missing in jsdom and on the server: the desktop widths apply there.
+    const query = this._document.defaultView?.matchMedia?.("(pointer: coarse)");
+    if (!query) return;
+    this.coarsePointer.set(query.matches);
+    const onChange = (event: MediaQueryListEvent): void => this.coarsePointer.set(event.matches);
+    query.addEventListener("change", onChange);
+    this._coarsePointerCleanup = () => query.removeEventListener("change", onChange);
+  }
 
   /** Touch: long-press a cell to enter range-selection, then drag to extend. */
   private setupTouchRangeSelection(): void {
@@ -1957,6 +2066,7 @@ export class DataTableComponent<T>
     this._document.removeEventListener('touchend', this._onFillEnd);
     this._rangeDragCleanup?.();
     this._longPressCleanup?.();
+    this._coarsePointerCleanup?.();
     this.viewportObserver?.disconnect();
     this.rowResizeObserver?.disconnect();
   }
@@ -1967,6 +2077,7 @@ export class DataTableComponent<T>
 
     this.viewportHeight.set(container.clientHeight);
     this.viewportWidth.set(container.clientWidth);
+    if (!hasResizeObserver()) return;
 
     this.viewportObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
@@ -2005,9 +2116,7 @@ export class DataTableComponent<T>
 
       const index = Number.parseInt(indexStr, 10);
       const newHeight = entry.borderBoxSize[0].blockSize;
-      const oldHeight =
-        this.rowHeightCache.get(index) ?? this.virtualRowHeight();
-      const diff = newHeight - oldHeight;
+      const diff = newHeight - this.rowHeightAt(index);
 
       if (Math.abs(diff) < 0.5) continue;
 
@@ -2216,7 +2325,8 @@ export class DataTableComponent<T>
     }
 
     if (this.enableRowExpansion()) {
-      result = [{ accessorKey: '_expander', header: '', sticky: true, width: '40px', enableSorting: false }, ...result];
+      const width = this.coarsePointer() ? TOUCH_EXPANDER_COLUMN_WIDTH : '40px';
+      result = [{ accessorKey: '_expander', header: '', sticky: true, width, enableSorting: false }, ...result];
     }
 
     if (this.cellActionSlots().length > 0) {
@@ -2277,7 +2387,7 @@ export class DataTableComponent<T>
       _stickyRight: isPinnedRight ? (rightOffsets.get(index) ?? 0) : undefined,
       _pin: pin,
       _width: widthStr,
-      _minWidth: col.minWidth ?? "50px",
+      _minWidth: resolveColumnMinWidth(col),
     };
 
     return { column, nextLeft: isStickyLeft ? currentLeft + widthVal : currentLeft };
@@ -2609,7 +2719,7 @@ export class DataTableComponent<T>
 
   private async pasteFromClipboard(startRow: number, startColumn: string): Promise<void> {
     const text = await navigator.clipboard.readText();
-    const grid = parseClipboardGrid(text);
+    const grid = parseClipboardGrid(text).map((line) => line.map(restoreSpreadsheetText));
     if (grid.length > 0) this.pasteGridAt(startRow, startColumn, grid);
   }
 
@@ -2865,6 +2975,8 @@ export class DataTableComponent<T>
     ),
   }));
 
+  // `pointer-coarse:h-auto`: a header cell grows to hold its 44px touch controls
+  // instead of clipping them at the fixed desktop header height.
   private readonly _headerClassMap = computed(() => {
     const showColBorders = this.showColumnBorders();
     const enableResize = this.enableColumnResize();
@@ -2873,7 +2985,7 @@ export class DataTableComponent<T>
       map.set(
         String(col.accessorKey),
         cn(
-          "sticky top-0 bg-background shadow-sm whitespace-nowrap overflow-hidden text-ellipsis",
+          "sticky top-0 bg-background shadow-sm whitespace-nowrap overflow-hidden text-ellipsis pointer-coarse:h-auto",
           col.sticky ? "z-30" : "z-20",
           showColBorders && "border-r",
           enableResize && "relative",
@@ -2885,7 +2997,7 @@ export class DataTableComponent<T>
 
   private readonly _fillerHeaderClass = computed(() =>
     cn(
-      "sticky top-0 bg-background shadow-sm whitespace-nowrap overflow-hidden text-ellipsis",
+      "sticky top-0 bg-background shadow-sm whitespace-nowrap overflow-hidden text-ellipsis pointer-coarse:h-auto",
       "z-20",
       this.showColumnBorders() && "border-r",
     ),
@@ -2929,7 +3041,8 @@ export class DataTableComponent<T>
       return base + " bg-primary/15";
     }
     if (rowIndex !== undefined && this.isCellInFillPreview(rowIndex, key)) {
-      return base + " bg-primary/5 ring-1 ring-dashed ring-primary/40 ring-inset";
+      // An outline, not a ring: a ring is a box-shadow and cannot be dashed.
+      return base + " bg-primary/5 outline-1 outline-dashed outline-primary/40 -outline-offset-1";
     }
     return base;
   }
@@ -2989,8 +3102,7 @@ export class DataTableComponent<T>
   private _buildCellStyle(col: CellStyleColumn, isHeader: boolean): Record<string, string> {
     const width = col._width;
     const isAuto = width === "auto";
-    const isSpecial = col.accessorKey === "_selection" || col.accessorKey === "_expander" || col.accessorKey === "_actions";
-    const minColWidth = isSpecial ? "0px" : "80px";
+    const minColWidth = col._minWidth ?? resolveColumnMinWidth(col);
 
     const style: Record<string, string> = {
       width: isAuto ? "0px" : width,
@@ -3860,15 +3972,9 @@ export class DataTableComponent<T>
     const host = this._el.nativeElement as HTMLElement | undefined;
     if (typeof host?.querySelector !== "function") return null;
 
-    const rowId = CSS.escape(String(this.getRowId()(row)));
-    const key = CSS.escape(String(column.accessorKey));
-
-    let cell: Element | null;
-    try {
-      cell = host.querySelector(`[data-row-id=${rowId}] [data-column=${key}]`);
-    } catch {
-      return null;
-    }
+    const rowId = cssString(String(this.getRowId()(row)));
+    const key = cssString(String(column.accessorKey));
+    const cell = host.querySelector(`[data-row-id=${rowId}] [data-column=${key}]`);
     if (!cell) return null;
 
     return (cell.textContent ?? "").trim();
@@ -4004,7 +4110,7 @@ export class DataTableComponent<T>
       (c) => String(c.accessorKey) === focused.columnKey,
     );
     if (row && col) {
-      await navigator.clipboard.writeText(this.getCellStringValue(row, col));
+      await navigator.clipboard.writeText(toClipboardText([[this.getCellStringValue(row, col)]]));
     }
   }
 
@@ -4021,7 +4127,7 @@ export class DataTableComponent<T>
         col.accessorKey !== "_actions",
     );
     const values = columns.map((col) => this.getCellStringValue(row, col));
-    await navigator.clipboard.writeText(values.join("\t"));
+    await navigator.clipboard.writeText(toClipboardText([values]));
   }
 
   /**
@@ -4043,11 +4149,11 @@ export class DataTableComponent<T>
     );
     if (rows.length === 0) return;
 
-    const headerLine = columns.map((col) => col.header).join("\t");
-    const dataLines = rows.map((row) =>
-      columns.map((col) => this.getCellStringValue(row, col)).join("\t"),
+    const header = columns.map((col) => col.header);
+    const body = rows.map((row) =>
+      columns.map((col) => this.getCellStringValue(row, col)),
     );
-    await navigator.clipboard.writeText([headerLine, ...dataLines].join("\n"));
+    await navigator.clipboard.writeText(toClipboardText([header, ...body]));
   }
 
   /**
@@ -4056,9 +4162,7 @@ export class DataTableComponent<T>
    */
   async copyAllToClipboard(): Promise<void> {
     if (!this.enableCopy()) return;
-    const data = this.getExportData();
-    const text = data.map((row) => row.join("\t")).join("\n");
-    await navigator.clipboard.writeText(text);
+    await navigator.clipboard.writeText(toClipboardText(this.getExportData()));
   }
 
   /**
@@ -4287,7 +4391,7 @@ export class DataTableComponent<T>
       );
       if (row && col) {
         event.preventDefault();
-        navigator.clipboard.writeText(this.getCellStringValue(row, col));
+        navigator.clipboard.writeText(toClipboardText([[this.getCellStringValue(row, col)]]));
         return true;
       }
     }
@@ -4316,17 +4420,16 @@ export class DataTableComponent<T>
     const data = this.processedData();
     const columns = this.enhancedColumns();
 
-    const lines: string[] = [];
+    const grid: string[][] = [];
     for (let r = range.minRow; r <= range.maxRow; r++) {
       const row = data[r];
       if (!row) continue;
-      const values = rangeCols.map((key) => {
+      grid.push(rangeCols.map((key) => {
         const col = columns.find((c) => String(c.accessorKey) === key);
         return col ? this.getCellStringValue(row, col) : "";
-      });
-      lines.push(values.join("\t"));
+      }));
     }
-    await navigator.clipboard.writeText(lines.join("\n"));
+    await navigator.clipboard.writeText(toClipboardText(grid));
   }
 
   private computeNextCell(
@@ -4375,7 +4478,7 @@ export class DataTableComponent<T>
 
   private getPageSize(): number {
     const container = this.scrollContainerRef()?.nativeElement;
-    return container ? Math.floor(container.clientHeight / this.virtualRowHeight()) : 10;
+    return container ? Math.floor(container.clientHeight / this.effectiveRowHeight()) : 10;
   }
 
   private handleNavigationKeydown(event: KeyboardEvent): void {
@@ -5967,8 +6070,7 @@ export class DataTableComponent<T>
 
     const delta = clientX - this.resizeStartX;
     const effectiveDelta = this._isRtlResize ? -delta : delta;
-    const minWidth = Number.parseInt(resizing._minWidth || "50", 10) || 50;
-    const newWidth = Math.max(minWidth, this.resizeStartWidth + effectiveDelta);
+    const newWidth = Math.max(columnMinWidthPx(resizing), this.resizeStartWidth + effectiveDelta);
     const key = String(resizing.accessorKey);
 
     this.columnWidths.update((widths) => ({
@@ -6050,7 +6152,7 @@ export class DataTableComponent<T>
     const content = this.measureColumnContent(columnKey);
     if (content <= 0) return;
     const col = this.enhancedColumns().find((c) => String(c.accessorKey) === columnKey);
-    const minWidth = Number.parseInt(col?._minWidth ?? "50", 10) || 50;
+    const minWidth = col ? columnMinWidthPx(col) : 0;
     const newWidth = `${Math.max(minWidth, Math.ceil(content) + 24)}px`;
     const oldWidth = this.columnWidths()[columnKey] ?? col?._width ?? "auto";
     this.columnWidths.update((widths) => ({ ...widths, [columnKey]: newWidth }));
@@ -6105,7 +6207,7 @@ export class DataTableComponent<T>
       }
     }
 
-    container.scrollTop = index * this.virtualRowHeight();
+    container.scrollTop = index * this.effectiveRowHeight();
   }
 
   /**

@@ -16,20 +16,8 @@ describe('BadgeComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
     it('should have data-slot="badge"', () => {
         expect(fixture.nativeElement.dataset['slot']).toBe('badge');
-    });
-
-    it('should apply base classes', () => {
-        expect(fixture.nativeElement.className).toContain('inline-flex');
-        expect(fixture.nativeElement.className).toContain('items-center');
-        expect(fixture.nativeElement.className).toContain('rounded-md');
-        expect(fixture.nativeElement.className).toContain('text-xs');
-        expect(fixture.nativeElement.className).toContain('font-semibold');
     });
 
     it('should apply default variant classes', () => {
@@ -90,9 +78,5 @@ describe('BadgeComponent', () => {
         fixture.detectChanges();
 
         expect(component.toString()).toBe('Beta');
-    });
-
-    it('toString() returns empty string for default (empty) label', () => {
-        expect(component.toString()).toBe('');
     });
 });

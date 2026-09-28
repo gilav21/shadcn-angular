@@ -1,13 +1,13 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TreeSelectComponent, TREE_SELECT } from './tree-select.component';
+import { TreeSelectTriggerComponent } from './sub/tree-select-trigger.component';
+import { TreeSelectContentComponent } from './sub/tree-select-content.component';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { TreeComponent, TreeNode } from '../tree';
 import { PopoverTriggerComponent, PopoverContentComponent } from '../popover';
-import { TreeSelectTriggerComponent } from './sub/tree-select-trigger.component';
-import { TreeSelectContentComponent } from './sub/tree-select-content.component';
 
 const SAMPLE_NODES: TreeNode[] = [
     {
@@ -69,6 +69,7 @@ class TestHostComponent {
             [nodes]="nodes"
             [formControl]="control"
         />
+        <button type="button" id="elsewhere">Elsewhere</button>
     `,
     imports: [TreeSelectComponent, ReactiveFormsModule]
 })
@@ -117,21 +118,6 @@ class CustomModeTestHostComponent {
     }
 }
 
-@Component({
-    template: `
-        <ui-tree-select>
-            <ui-tree-select-trigger class="custom-trigger">Trigger</ui-tree-select-trigger>
-            <ui-tree-select-content class="custom-content">Content</ui-tree-select-content>
-        </ui-tree-select>
-    `,
-    imports: [
-        TreeSelectComponent,
-        TreeSelectTriggerComponent,
-        TreeSelectContentComponent,
-    ]
-})
-class SubComponentHost {}
-
 describe('TreeSelectComponent', () => {
     let component: TreeSelectComponent;
     let fixture: ComponentFixture<TreeSelectComponent>;
@@ -145,14 +131,6 @@ describe('TreeSelectComponent', () => {
         component = fixture.componentInstance;
         fixture.componentRef.setInput('nodes', SAMPLE_NODES);
         fixture.detectChanges();
-    });
-
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
-    it('should be closed by default', () => {
-        expect(component.isOpen()).toBe(false);
     });
 
     it('should have correct placeholder', () => {
@@ -171,21 +149,6 @@ describe('TreeSelectComponent', () => {
         trigger.nativeElement.click();
         fixture.detectChanges();
         expect(component.isOpen()).toBe(false);
-    });
-
-    it('should be data-driven when nodes are provided', () => {
-        expect(component.isDataDriven()).toBe(true);
-    });
-
-    it('should not be data-driven when nodes are empty', () => {
-        fixture.componentRef.setInput('nodes', []);
-        fixture.detectChanges();
-        expect(component.isDataDriven()).toBe(false);
-    });
-
-    it('should have data-slot attribute on popover', () => {
-        const popover = fixture.debugElement.query(By.css('[data-slot="tree-select"]'));
-        expect(popover).toBeTruthy();
     });
 
     it('should emit selectionChange when selection changes', () => {
@@ -219,8 +182,9 @@ describe('TreeSelect Integration', () => {
 
         fixture.detectChanges();
 
-        const tree = fixture.debugElement.query(By.css('ui-tree'));
-        expect(tree).toBeTruthy();
+        const panel = document.querySelector('#tree-select-popup');
+        expect(panel?.querySelector('ui-tree')?.textContent).toContain('Documents');
+        expect(panel?.querySelector('ui-tree')?.textContent).toContain('Images');
     });
 
     it('should update value when selection changes', async () => {
@@ -234,60 +198,6 @@ describe('TreeSelect Integration', () => {
         expect(treeSelect.isOpen()).toBe(false);
     });
 
-    it('should navigate to child on Right Arrow when expanded', async () => {
-        const trigger = fixture.debugElement.query(By.css('button[role="combobox"]'));
-        trigger.nativeElement.click();
-        fixture.detectChanges();
-        await fixture.whenStable();
-        fixture.detectChanges();
-
-        const tree = fixture.debugElement.query(By.directive(TreeComponent));
-        const treeInstance = tree.componentInstance as TreeComponent;
-
-        treeInstance.focus('documents');
-        fixture.detectChanges();
-
-        const arrowRight = new KeyboardEvent('keydown', { key: 'ArrowRight' });
-        treeInstance.onKeydown(arrowRight);
-        fixture.detectChanges();
-
-        expect(treeInstance.isExpanded('documents')).toBe(true);
-
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        treeInstance.onKeydown(arrowRight);
-        fixture.detectChanges();
-
-        expect(treeInstance.focusedKey()).toBe('work');
-    });
-
-    it('should collapse folder on Left Arrow when expanded', async () => {
-        const trigger = fixture.debugElement.query(By.css('button[role="combobox"]'));
-        trigger.nativeElement.click();
-
-        fixture.detectChanges();
-        await fixture.whenStable();
-        fixture.detectChanges();
-
-        const tree = fixture.debugElement.query(By.directive(TreeComponent));
-        const treeInstance = tree.componentInstance as TreeComponent;
-
-        treeInstance.toggleExpanded('documents');
-        treeInstance.focus('documents');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        expect(treeInstance.isExpanded('documents')).toBe(true);
-        expect(treeInstance.focusedKey()).toBe('documents');
-
-        const arrowLeft = new KeyboardEvent('keydown', { key: 'ArrowLeft' });
-        treeInstance.onKeydown(arrowLeft);
-        fixture.detectChanges();
-
-        expect(treeInstance.isExpanded('documents')).toBe(false);
-        expect(treeInstance.focusedKey()).toBe('documents');
-    });
 });
 
 describe('TreeSelect ControlValueAccessor', () => {
@@ -304,6 +214,21 @@ describe('TreeSelect ControlValueAccessor', () => {
         fixture.detectChanges();
     });
 
+    /**
+     * A value written before the first render must survive the value-input
+     * effect, which runs once at init with `value` still undefined.
+     */
+    it('does not overwrite internalValue when value input stays undefined', async () => {
+        const seeded = TestBed.createComponent(CVATestHostComponent);
+        seeded.componentInstance.control.setValue('personal');
+        seeded.detectChanges();
+        await seeded.whenStable();
+
+        const trigger = seeded.debugElement.query(By.css('button[role="combobox"]'));
+        expect(trigger.nativeElement.textContent).toContain('Personal');
+        seeded.destroy();
+    });
+
     it('should write value from model', async () => {
         component.control.setValue('personal');
         fixture.detectChanges();
@@ -313,20 +238,44 @@ describe('TreeSelect ControlValueAccessor', () => {
         expect(trigger.nativeElement.textContent).toContain('Personal');
     });
 
-    it('should update model from view', () => {
-        const treeSelect = fixture.debugElement.query(By.directive(TreeSelectComponent)).componentInstance as TreeSelectComponent;
-        treeSelect.onSelectionChange(['vacation']);
-        fixture.detectChanges();
-
-        expect(component.control.value).toBe('vacation');
-    });
-
     it('should handle disabled state', async () => {
         component.control.disable();
         fixture.detectChanges();
 
         const trigger = fixture.debugElement.query(By.css('button[role="combobox"]'));
         expect(trigger.nativeElement.disabled).toBe(true);
+    });
+
+    it('marks the control touched when the user leaves it: closing the popover (dismiss or pick) or blurring the closed trigger', async () => {
+        const trigger = fixture.debugElement.query(By.css('button[role="combobox"]')).nativeElement as HTMLButtonElement;
+        const elsewhere = (fixture.nativeElement as HTMLElement).querySelector('#elsewhere') as HTMLButtonElement;
+        const open = async (): Promise<void> => {
+            trigger.click();
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+        };
+
+        await open();
+        trigger.focus();
+        elsewhere.focus();
+        expect(component.control.touched).toBe(false);
+        trigger.click();
+        fixture.detectChanges();
+        expect(component.control.touched).toBe(true);
+
+        component.control.markAsUntouched();
+        await open();
+        const node = document.querySelector<HTMLElement>('#tree-select-popup [data-key="images"] > div');
+        node?.click();
+        fixture.detectChanges();
+        expect(component.control.value).toBe('images');
+        expect(component.control.touched).toBe(true);
+
+        component.control.markAsUntouched();
+        trigger.focus();
+        elsewhere.focus();
+        expect(component.control.touched).toBe(true);
     });
 });
 
@@ -349,28 +298,38 @@ describe('TreeSelect Custom Mode', () => {
     });
 
     it('should not render default tree in custom mode', () => {
-        const treeSelect = fixture.debugElement.query(By.directive(TreeSelectComponent)).componentInstance as TreeSelectComponent;
-        expect(treeSelect.isDataDriven()).toBe(false);
+        expect(fixture.nativeElement.querySelector('[data-slot="tree-select-trigger"]')).toBeNull();
+        expect(document.querySelector('#tree-select-popup')).toBeNull();
     });
 
-    it('should render projected popover trigger', () => {
-        const trigger = fixture.debugElement.query(By.directive(PopoverTriggerComponent));
-        expect(trigger).toBeTruthy();
-    });
+    const panelText = (): string | undefined =>
+        document.querySelector('#tree-select-custom-popup [data-slot="popover-content"]')?.textContent ?? undefined;
 
-    it('should open popover in custom mode programmatically', async () => {
+    it('renders the projected content when opened programmatically', async () => {
         const treeSelect = fixture.debugElement.query(By.directive(TreeSelectComponent)).componentInstance as TreeSelectComponent;
         treeSelect.isOpen.set(true);
         fixture.detectChanges();
         await fixture.whenStable();
         fixture.detectChanges();
 
-        expect(treeSelect.isOpen()).toBe(true);
+        expect(panelText()).toContain('Documents');
     });
 
-    it('should still expose TREE_SELECT injection token', () => {
-        const treeSelect = fixture.debugElement.query(By.directive(TreeSelectComponent));
-        expect(treeSelect).toBeTruthy();
+    it('toggles the popover from the projected trigger', async () => {
+        const treeSelect = fixture.debugElement.query(By.directive(TreeSelectComponent)).componentInstance as TreeSelectComponent;
+        const button = fixture.debugElement.query(By.css('button[role="combobox"]')).nativeElement as HTMLButtonElement;
+
+        button.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(treeSelect.isOpen()).toBe(true);
+        expect(panelText()).toContain('Documents');
+
+        button.click();
+        fixture.detectChanges();
+        expect(treeSelect.isOpen()).toBe(false);
+        expect(panelText()).toBeUndefined();
     });
 });
 
@@ -391,16 +350,12 @@ describe('TreeSelect select method', () => {
 
     it('should set value and close when select is called', () => {
         component.isOpen.set(true);
-        component.select('report');
-        expect(component.internalValue()).toBe('report');
-        expect(component.isOpen()).toBe(false);
-    });
-
-    it('should emit selectionChange when select is called', () => {
         let emitted: string[] = [];
         component.selectionChange.subscribe((val: string[]) => emitted = val);
         component.select('report');
+        expect(component.internalValue()).toBe('report');
         expect(emitted).toEqual(['report']);
+        expect(component.isOpen()).toBe(false);
     });
 
     it('should emit empty array when select is called with null', () => {
@@ -434,13 +389,6 @@ describe('TreeSelect value input + onSelectionChange edge cases', () => {
         expect(component.selectedNode()?.label).toBe('Report.docx');
     });
 
-    it('does not overwrite internalValue when value input stays undefined', () => {
-        component.internalValue.set('expenses');
-        fixture.detectChanges();
-
-        expect(component.internalValue()).toBe('expenses');
-    });
-
     it('resolves the value input null branch to a null internal value', () => {
         fixture.componentRef.setInput('value', 'report');
         fixture.detectChanges();
@@ -463,16 +411,6 @@ describe('TreeSelect value input + onSelectionChange edge cases', () => {
         expect(emitted).toEqual([]);
         expect(component.isOpen()).toBe(false);
     });
-
-    it('exposes the default onTouched no-op until registerOnTouched replaces it', () => {
-        const withTouched = component as unknown as { onTouched: () => void };
-        expect(() => withTouched.onTouched()).not.toThrow();
-
-        let touched = false;
-        component.registerOnTouched(() => { touched = true; });
-        withTouched.onTouched();
-        expect(touched).toBe(true);
-    });
 });
 
 describe('TreeSelect TREE_SELECT injection token', () => {
@@ -490,16 +428,25 @@ describe('TreeSelect TREE_SELECT injection token', () => {
     });
 });
 
+@Component({
+    template: `
+        <ui-tree-select>
+            <ui-tree-select-trigger class="custom-trigger"><button type="button">Trigger</button></ui-tree-select-trigger>
+            <ui-tree-select-content class="custom-content"><p>Content</p></ui-tree-select-content>
+        </ui-tree-select>
+    `,
+    imports: [TreeSelectComponent, TreeSelectTriggerComponent, TreeSelectContentComponent],
+})
+class SubComponentHost {}
+
 describe('TreeSelect sub components', () => {
-    it('instantiates projected trigger and content sub-components', () => {
-        TestBed.configureTestingModule({ imports: [SubComponentHost] });
+    it('project their children verbatim in custom mode', () => {
         const fixture = TestBed.createComponent(SubComponentHost);
         fixture.detectChanges();
 
-        const trigger = fixture.debugElement.query(By.directive(TreeSelectTriggerComponent));
-        const content = fixture.debugElement.query(By.directive(TreeSelectContentComponent));
-        expect(trigger.componentInstance.class()).toBe('custom-trigger');
-        expect(content.componentInstance.class()).toBe('custom-content');
+        const root = fixture.nativeElement as HTMLElement;
+        expect(root.querySelector('ui-tree-select-trigger > button')?.textContent).toBe('Trigger');
+        expect(root.querySelector('ui-tree-select-content > p')?.textContent).toBe('Content');
     });
 });
 
@@ -536,79 +483,13 @@ describe('TreeSelectComponent — i18n integration', () => {
         fixture.detectChanges();
         await fixture.whenStable();
         fixture.detectChanges();
-        const dropdownWrappers = Array.from(document.querySelectorAll('div[dir="rtl"]'));
-        expect(dropdownWrappers.length).toBeGreaterThan(0);
+        const tree = document.querySelector('#tree-select-popup ui-tree');
+        expect(tree?.closest('div[dir]')?.getAttribute('dir')).toBe('rtl');
     });
 
     it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
         const fixture = await setup(undefined, 'es');
         const placeholderEl = fixture.nativeElement.querySelector('.text-muted-foreground');
         expect(placeholderEl.textContent.trim()).toBe('Seleccionar...');
-    });
-});
-
-@Component({
-    template: `
-    <div style="overflow: hidden; width: 220px; height: 40px">
-        <ui-tree-select [nodes]="nodes" />
-    </div>
-  `,
-    imports: [TreeSelectComponent]
-})
-class ClippedTreeSelectHostComponent {
-    nodes = SAMPLE_NODES;
-}
-
-function waitFrames(count: number): Promise<void> {
-    return new Promise<void>(resolve => {
-        const step = (left: number) => {
-            if (left === 0) {
-                resolve();
-                return;
-            }
-            requestAnimationFrame(() => step(left - 1));
-        };
-        step(count);
-    });
-}
-
-describe('TreeSelect top-layer escape', () => {
-    let fixture: ComponentFixture<ClippedTreeSelectHostComponent>;
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [ClippedTreeSelectHostComponent]
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(ClippedTreeSelectHostComponent);
-        fixture.detectChanges();
-    });
-
-    async function openPanel(): Promise<HTMLElement> {
-        const trigger = fixture.debugElement.query(By.css('button[role="combobox"]'));
-        trigger.nativeElement.click();
-        fixture.detectChanges();
-        await waitFrames(6);
-        fixture.detectChanges();
-        return fixture.nativeElement.querySelector('[data-slot="popover-content"]')
-            ?? document.querySelector('[data-slot="popover-content"]');
-    }
-
-    it('promotes the tree panel out of an overflow-hidden ancestor', async () => {
-        const panel = await openPanel();
-        expect(panel).toBeTruthy();
-        expect(panel.matches(':popover-open')).toBe(true);
-    });
-
-    it('releases the tree panel from the top layer on close', async () => {
-        const panel = await openPanel();
-        expect(panel.hasAttribute('popover')).toBe(true);
-
-        const treeSelect = fixture.debugElement.query(By.directive(TreeSelectComponent)).componentInstance as TreeSelectComponent;
-        treeSelect.isOpen.set(false);
-        fixture.detectChanges();
-        await waitFrames(2);
-
-        expect(panel.hasAttribute('popover')).toBe(false);
     });
 });

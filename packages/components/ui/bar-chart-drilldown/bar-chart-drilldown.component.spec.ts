@@ -121,23 +121,6 @@ describe('BarChartDrilldownComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
-    it('should compute bars from data', () => {
-        expect(component.bars()).toHaveLength(2);
-    });
-
-    it('should not be drilled down initially', () => {
-        expect(component.isDrilledDown()).toBe(false);
-    });
-
-    it('should render an SVG element', () => {
-        const svg = fixture.nativeElement.querySelector('svg');
-        expect(svg).toBeTruthy();
-    });
-
     describe('onBarClick with drillable bar', () => {
         it('should drill down when clicking a bar with a drilldown property', () => {
             const drillableBar = component.bars()[0];
@@ -153,14 +136,6 @@ describe('BarChartDrilldownComponent', () => {
                 seriesId: 'a-detail',
                 parentPoint: sampleData[0],
             });
-        });
-
-        it('should switch currentData to the drilldown series data', () => {
-            const drillableBar = component.bars()[0];
-            component.onBarClick(new MouseEvent('click'), drillableBar);
-
-            expect(component.currentData()).toEqual(sampleDrilldownSeries[0].data);
-            expect(component.currentData()).toHaveLength(3);
         });
 
         it('should update currentSeriesName to the drilldown series name', () => {
@@ -211,19 +186,6 @@ describe('BarChartDrilldownComponent', () => {
     });
 
     describe('barClick output', () => {
-        it('should always emit barClick regardless of drilldown capability', () => {
-            const clickEvents: unknown[] = [];
-            component.barClick.subscribe(event => clickEvents.push(event));
-
-            const drillableBar = component.bars()[0];
-            component.onBarClick(new MouseEvent('click'), drillableBar);
-
-            const nonDrillableBar = component.bars()[1];
-            component.onBarClick(new MouseEvent('click'), nonDrillableBar);
-
-            expect(clickEvents).toHaveLength(2);
-        });
-
         it('should include the MouseEvent in the emitted click event', () => {
             const clickEvents: { event?: MouseEvent }[] = [];
             component.barClick.subscribe(event => clickEvents.push(event));
@@ -281,6 +243,16 @@ describe('BarChartDrilldownComponent', () => {
 
     describe('onBarClick when already drilled down', () => {
         it('should not drill down further if already in drilled-down state', () => {
+            // Sub A1 is itself drillable into a real series, so only the
+            // one-level guard can stop the second drill.
+            fixture.componentRef.setInput('drilldownSeries', [
+                {
+                    ...sampleDrilldownSeries[0],
+                    data: [{ name: 'Sub A1', value: 20, drilldown: 'a1-detail' }],
+                },
+                { id: 'a1-detail', name: 'Sub A1 Details', data: [{ name: 'Leaf', value: 5 }] },
+            ]);
+            fixture.detectChanges();
             const drillableBar = component.bars()[0];
             component.onBarClick(new MouseEvent('click'), drillableBar);
             expect(component.isDrilledDown()).toBe(true);
@@ -297,13 +269,6 @@ describe('BarChartDrilldownComponent', () => {
     });
 
     describe('hover behavior', () => {
-        it('should set hoveredIndex when onBarHover is called', () => {
-            const bar = component.bars()[0];
-            component.onBarHover(bar);
-
-            expect(component.hoveredIndex()).toBe(0);
-        });
-
         it('should emit barHover with the bar data on hover', () => {
             const hoverEvents: unknown[] = [];
             component.barHover.subscribe(event => hoverEvents.push(event));
@@ -379,20 +344,6 @@ describe('BarChartDrilldownComponent', () => {
             expect(backButton).toBeNull();
         });
 
-        it('should show breadcrumb when drilled down and showBreadcrumb is true', () => {
-            const drillableBar = component.bars()[0];
-            component.onBarClick(new MouseEvent('click'), drillableBar);
-            fixture.detectChanges();
-
-            const buttons = fixture.nativeElement.querySelectorAll(
-                'button[type="button"]',
-            );
-            const backButton = Array.from(buttons).find(
-                (btn: unknown) => (btn as HTMLElement).textContent?.includes('Back'),
-            ) as HTMLElement | undefined;
-            expect(backButton).toBeTruthy();
-        });
-
         it('should display the drilldown series name in the breadcrumb', () => {
             const drillableBar = component.bars()[0];
             component.onBarClick(new MouseEvent('click'), drillableBar);
@@ -440,31 +391,30 @@ describe('BarChartDrilldownComponent', () => {
     describe('bars computed', () => {
         it('should generate bar rects with correct data references', () => {
             const bars = component.bars();
+            expect(bars).toHaveLength(2);
             expect(bars[0].data.name).toBe('Category A');
             expect(bars[0].value).toBe(50);
             expect(bars[1].data.name).toBe('Category B');
             expect(bars[1].value).toBe(30);
         });
 
-        it('should assign sequential indices to bars', () => {
-            const bars = component.bars();
-            expect(bars[0].index).toBe(0);
-            expect(bars[1].index).toBe(1);
-        });
+        it('should size bars from the plot area and mirror their x under rtl', () => {
+            // Plot = width - 90 (70 axis + 20 edge) wide, 300 - 55 = 245 tall;
+            // domain max 55 (50 * 1.1); two bars share the width minus one 8px
+            // gap. The width is the measured host width (500 in jsdom).
+            const width = component.svgWidth();
+            const barWidth = (width - 90 - 8) / 2;
+            const geometry = () =>
+                component.bars().map(b => ({ x: b.x, width: b.width, height: b.height }));
+            expect(geometry()).toEqual([
+                { x: 70, width: barWidth, height: expect.closeTo(222.727, 3) },
+                { x: 70 + barWidth + 8, width: barWidth, height: expect.closeTo(133.636, 3) },
+            ]);
 
-        it('should return empty array when data is empty', () => {
-            fixture.componentRef.setInput('data', []);
+            fixture.componentRef.setInput('dir', 'rtl');
             fixture.detectChanges();
-
-            expect(component.bars()).toHaveLength(0);
-        });
-
-        it('should assign positive width and height to bars with positive values', () => {
-            const bars = component.bars();
-            for (const bar of bars) {
-                expect(bar.width).toBeGreaterThan(0);
-                expect(bar.height).toBeGreaterThan(0);
-            }
+            // RTL moves the axis to the right edge and runs bars right-to-left.
+            expect(geometry().map(b => b.x)).toEqual([width - 70 - barWidth, 20]);
         });
     });
 

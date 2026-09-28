@@ -43,19 +43,6 @@ class HostCmp {
     readonly emojiInserted: string[] = [];
 }
 
-function hasNgDir(type: unknown): boolean {
-    return typeof type === 'function' && 'ɵdir' in type;
-}
-
-describe('RTE_FULL composition array', () => {
-    it('is non-empty and every element is a directive class', () => {
-        expect(RTE_FULL.length).toBeGreaterThan(0);
-        for (const directive of RTE_FULL) {
-            expect(hasNgDir(directive)).toBe(true);
-        }
-    });
-});
-
 type GlobalWithObservers = {
     ResizeObserver?: unknown;
     matchMedia?: unknown;

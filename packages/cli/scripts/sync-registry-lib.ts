@@ -773,6 +773,34 @@ export function mergeLibFiles(declared: readonly string[], discovered: readonly 
     return [...new Set([...declared, ...discovered])].sort(byLocale);
 }
 
+/**
+ * `libFiles` plus every lib file they import, transitively.
+ *
+ * A lib file an entry ships is copied as-is, so what it imports must ship with
+ * it or the install does not compile. The walker only follows imports from the
+ * entry's own files, so a lib file kept by the merge (declared by hand) that
+ * later gained an import of a new lib file left the install broken — only the
+ * e2e consumer build noticed.
+ */
+export function closeLibImports(libFiles: readonly string[], componentsRoot: string): string[] {
+    const libDir = path.join(componentsRoot, 'lib');
+    const closed = new Set(libFiles);
+    const pending = [...libFiles];
+    for (let rel = pending.pop(); rel !== undefined; rel = pending.pop()) {
+        const abs = path.join(libDir, rel);
+        if (!existsSync(abs)) continue;
+        for (const match of readFileSync(abs, 'utf-8').matchAll(IMPORT_REGEX)) {
+            const resolved = resolveAbsolute(match[1], abs);
+            if (!resolved || !isUnder(libDir, resolved)) continue;
+            const dep = path.relative(libDir, resolved).replaceAll('\\', '/');
+            if (BASELINE_LIB_FILES.has(dep) || closed.has(dep)) continue;
+            closed.add(dep);
+            pending.push(dep);
+        }
+    }
+    return [...closed].sort(byLocale);
+}
+
 /** Human-readable drift lines for one entry, exactly as the script prints them. */
 export function formatDriftLines(name: string, diff: EntryDiff, isBlock = false): string[] {
     const suffix = isBlock ? ' (block)' : '';
@@ -804,17 +832,18 @@ export function analyzeComponent(
     const entryFile = 'ui/' + getEntryFile(entry.name, entry.files);
     const { ownFiles, discoveredDeps, deepImports, addonViolations } =
         walkTree(entryFile, entry.name, ctx, roots.componentsRoot);
-    const { uiFiles, libFiles: discoveredLibs } = splitFiles(ownFiles);
+    const { uiFiles, libFiles: walkedLibs } = splitFiles(ownFiles);
     const dependencies = [...discoveredDeps].sort(byLocale);
+    const libFiles = closeLibImports(mergeLibFiles(entry.libFiles, walkedLibs), roots.componentsRoot);
 
     return {
         update: {
             name: entry.name,
             files: uiFiles,
-            libFiles: mergeLibFiles(entry.libFiles, discoveredLibs),
+            libFiles,
             dependencies,
         },
-        diff: diffEntry(entry, uiFiles, discoveredLibs, dependencies),
+        diff: diffEntry(entry, uiFiles, libFiles, dependencies),
         deepImports,
         addonViolations,
     };
@@ -843,17 +872,18 @@ export function analyzeBlock(
         walkBlockTree(entryFile, roots.blocksRoot, roots.componentsRoot, ctx);
 
     const files = [...ownFiles].sort(byLocale);
-    const discoveredLibs = [...libFiles].filter(f => !BASELINE_LIB_FILES.has(f)).sort(byLocale);
+    const walkedLibs = [...libFiles].filter(f => !BASELINE_LIB_FILES.has(f)).sort(byLocale);
     const deps = [...dependencies].sort(byLocale);
+    const shippedLibs = closeLibImports(mergeLibFiles(entry.libFiles, walkedLibs), roots.componentsRoot);
 
     return {
         update: {
             name: entry.name,
             files,
-            libFiles: mergeLibFiles(entry.libFiles, discoveredLibs),
+            libFiles: shippedLibs,
             dependencies: deps,
         },
-        diff: diffEntry(entry, files, discoveredLibs, deps),
+        diff: diffEntry(entry, files, shippedLibs, deps),
         deepImports,
     };
 }
@@ -1464,13 +1494,29 @@ export function detectOrphanBlockFolders(blocks: readonly RegistryEntry[], block
 export const PORTABLE_TESTS_FILENAME = 'portable-tests.json';
 
 const BROWSER_SPEC_SUFFIX = '.browser.spec.ts';
+/** Benchmarks: they measure without asserting, skipped by the default run, so they never ship. */
+const WORKLOAD_SPEC_SUFFIX = '.workload.spec.ts';
 
-export interface CoverageException {
+/** A lowered line-coverage floor for a component whose remaining lines need a real browser. */
+export interface CoverageFloorException {
     /** Line-coverage floor (percent) accepted for this component under jsdom. */
     readonly lines: number;
     /** Why full coverage is unreachable outside a real browser. */
     readonly reason: string;
 }
+
+/**
+ * An entry that ships no measurable source (only a barrel), so a coverage run
+ * measures 0/0 by construction. Its specs must still pass; coverage is waived
+ * only while it really measures nothing.
+ */
+export interface BarrelOnlyException {
+    readonly barrelOnly: true;
+    /** Why the entry has no source of its own to measure. */
+    readonly reason: string;
+}
+
+export type CoverageException = CoverageFloorException | BarrelOnlyException;
 
 export interface PortableTestsConfig {
     readonly verified: readonly string[];
@@ -1488,11 +1534,33 @@ export function loadPortableTestsConfig(componentsRoot: string): PortableTestsCo
         || !record['verified'].every((v: unknown) => typeof v === 'string')) {
         throw new Error(`${PORTABLE_TESTS_FILENAME} must contain a "verified" string array`);
     }
+    const exceptions = record['coverageExceptions'];
+    if (exceptions !== undefined) {
+        if (typeof exceptions !== 'object' || exceptions === null || Array.isArray(exceptions)) {
+            throw new Error(`${PORTABLE_TESTS_FILENAME} "coverageExceptions" must be an object`);
+        }
+        for (const [name, value] of Object.entries(exceptions)) {
+            if (!isCoverageException(value)) {
+                throw new Error(`${PORTABLE_TESTS_FILENAME} coverageExceptions["${name}"] needs a non-empty "reason" and exactly one of "lines" (0-100) or "barrelOnly": true`);
+            }
+        }
+    }
     return parsed as PortableTestsConfig;
 }
 
+/** Exactly one of a numeric floor or the barrel-only flag, always with a reason — a typo must not waive coverage. */
+function isCoverageException(value: unknown): value is CoverageException {
+    if (typeof value !== 'object' || value === null) return false;
+    const { lines, barrelOnly, reason } = value as Record<string, unknown>;
+    if (typeof reason !== 'string' || reason.trim() === '') return false;
+    if (barrelOnly === undefined) return typeof lines === 'number' && lines >= 0 && lines <= 100;
+    return barrelOnly === true && lines === undefined;
+}
+
 function isPortableSpecName(fileName: string): boolean {
-    return fileName.endsWith('.spec.ts') && !fileName.endsWith(BROWSER_SPEC_SUFFIX);
+    return fileName.endsWith('.spec.ts')
+        && !fileName.endsWith(BROWSER_SPEC_SUFFIX)
+        && !fileName.endsWith(WORKLOAD_SPEC_SUFFIX);
 }
 
 /**

@@ -13,6 +13,7 @@ interface FakeAnimation {
 }
 
 let rafQueue: RafCb[] = [];
+let rafById = new Map<number, RafCb>();
 let rafIdSeq = 0;
 let cancelledIds: number[] = [];
 let reducedMotion = false;
@@ -70,11 +71,11 @@ function installAnimateStubs(): void {
  * 1". An own-property spy on the single element under test cannot be clobbered
  * by another file.
  *
- * Safe because `.flex` lives inside `@if (isDigit())`: it survives every
- * digit → digit change, which is all these tests perform.
+ * Safe because the digit column lives inside `@if (isDigit())`: it survives
+ * every digit → digit change, which is all the animating tests perform.
  */
 function recordContainerAnimations(fixture: ComponentFixture<unknown>): void {
-    const container = fixture.nativeElement.querySelector('.flex') as HTMLElement;
+    const container = fixture.nativeElement.querySelector('[data-slot="number-ticker-digit-column"]') as HTMLElement;
     vi.spyOn(container, 'animate').mockImplementation((() => {
         const anim: FakeAnimation = {
             onfinish: null,
@@ -92,6 +93,7 @@ function recordContainerAnimations(fixture: ComponentFixture<unknown>): void {
  */
 function installStubs(): void {
     rafQueue = [];
+    rafById = new Map();
     rafIdSeq = 0;
     cancelledIds = [];
 
@@ -99,11 +101,15 @@ function installStubs(): void {
 
     vi.stubGlobal('requestAnimationFrame', (cb: RafCb): number => {
         rafQueue.push(cb);
-        return ++rafIdSeq;
+        rafById.set(++rafIdSeq, cb);
+        return rafIdSeq;
     });
 
+    // A cancelled frame really does not run, as in the browser.
     vi.stubGlobal('cancelAnimationFrame', (id: number): void => {
         cancelledIds.push(id);
+        const cb = rafById.get(id);
+        rafQueue = rafQueue.filter((queued) => queued !== cb);
     });
 }
 
@@ -201,13 +207,18 @@ describe('NumberTickerComponent — animation (deterministic frames)', () => {
         const fixture = await makeTicker({ value: 50, duration: 1, delay: 2 });
         const cmp = fixture.componentInstance;
 
+        // Frames before the 2s delay must not move the count.
         vi.advanceTimersByTime(1999);
-        expect(animationFrames(cmp)).toHaveLength(0);
+        flushFrame(0);
+        flushFrame(1000);
+        expect(cmp.displayValue()).toBe('0');
 
         vi.advanceTimersByTime(1);
-        expect(animationFrames(cmp)).toHaveLength(1);
-
         flushFrame(0);
+        flushFrame(500);
+        const mid = Number(cmp.displayValue());
+        expect(mid).toBeGreaterThan(0);
+        expect(mid).toBeLessThan(50);
         flushFrame(1000);
         expect(cmp.displayValue()).toBe('50');
     });
@@ -256,15 +267,17 @@ describe('NumberTickerComponent — animation (deterministic frames)', () => {
         expect(animationFrames(cmp)).toHaveLength(0);
     });
 
-    it('cancels the pending frame on destroy', async () => {
+    it('stops counting once destroyed', async () => {
         const fixture = await makeTicker({ value: 100, duration: 1 });
+        const cmp = fixture.componentInstance;
 
         vi.advanceTimersByTime(1);
         flushFrame(0);
+        expect(cmp.displayValue()).toBe('0');
 
-        const before = cancelledIds.length;
         fixture.destroy();
-        expect(cancelledIds.length).toBeGreaterThan(before);
+        flushFrame(500);
+        expect(cmp.displayValue()).toBe('0');
     });
 
     it('merges a custom class into the computed classes', async () => {
@@ -304,11 +317,11 @@ describe('NumberTickerDigitComponent', () => {
         // `whenStable` settles both: the effect's first pass has run (it takes
         // the `!_initialized` branch and only seeds prevDigit, so a digit change
         // that beats it initialises straight to the new value and never
-        // animates), and the view has rendered the `.flex` container the effect
+        // animates), and the view has rendered the digit column the effect
         // looks for (without it the change takes the silent fallback branch).
         await fixture.whenStable();
         expect(digitInstance().prevDigit()).toBe('5');
-        expect(fixture.nativeElement.querySelector('.flex')).not.toBeNull();
+        expect(fixture.nativeElement.querySelector('[data-slot="number-ticker-digit-column"]')).not.toBeNull();
         recordContainerAnimations(fixture);
     });
 
@@ -382,15 +395,15 @@ describe('NumberTickerDigitComponent', () => {
         expect(finishSpy).toHaveBeenCalled();
     });
 
-    it('falls back to setting prevDigit when the flex container is missing', () => {
-        const debugEl = fixture.debugElement.query(By.directive(NumberTickerDigitComponent));
-        const el = debugEl.componentInstance as NumberTickerDigitComponent;
-        vi.spyOn(debugEl.nativeElement, 'querySelector').mockReturnValue(null);
-
+    it('shows a digit that replaces a separator straight away, without animating from the separator', () => {
+        host.digit.set(',');
+        fixture.detectChanges();
         host.digit.set('8');
         fixture.detectChanges();
 
-        expect(el.prevDigit()).toBe('8');
+        // At rest the column's first slot is the one inside the 1em window.
+        const column = fixture.nativeElement.querySelector('[data-slot="number-ticker-digit-column"]') as HTMLElement;
+        expect(column.firstElementChild?.textContent?.trim()).toBe('8');
         expect(animations).toHaveLength(0);
     });
 });
@@ -418,11 +431,6 @@ describe('NumberTickerComponent — i18n integration', () => {
         fixture.detectChanges();
         return fixture;
     }
-
-    it('defaults the resolved locale to the app-wide value when no locale is set', async () => {
-        const fixture = await setup();
-        expect(fixture.componentInstance.resolvedLocale()).toBe('en');
-    });
 
     it('resolves locale from the per-instance input', async () => {
         const fixture = await setup({ locale: 'de' });

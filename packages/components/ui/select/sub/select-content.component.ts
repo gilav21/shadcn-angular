@@ -12,7 +12,7 @@ import {
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { cn, getClippingRect } from '../../../lib/utils';
-import { SELECT } from '../select.component';
+import { SELECT, revealSelectOption } from '../select.component';
 
 @Component({
     selector: 'ui-select-content',
@@ -164,6 +164,7 @@ export class SelectContentComponent implements AfterViewInit {
 
         if (selectedItem) {
             selectedItem.focus({ preventScroll: true });
+            revealSelectOption(content, selectedItem);
         } else {
             content.focus({ preventScroll: true });
         }

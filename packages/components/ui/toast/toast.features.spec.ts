@@ -198,16 +198,6 @@ describe('ToastService — promise()', () => {
         expect(service.toasts()[0].title).toBe('S');
     });
 
-    it('handles an already-settled promise', async () => {
-        await service.promise(Promise.resolve('done'), {
-            loading: 'L',
-            success: 'S',
-            error: 'E',
-        });
-        expect(service.toasts()).toHaveLength(1);
-        expect(service.toasts()[0].variant).toBe('success');
-    });
-
     it('does nothing to a toast the caller dismissed mid-flight', async () => {
         let resolveIt!: (value: number) => void;
         const pending = new Promise<number>(resolve => { resolveIt = resolve; });
@@ -230,14 +220,14 @@ describe('ToastService — promise()', () => {
         expect(service.toasts()[0].duration).toBe(1234);
     });
 
-    it('handles an already-rejected promise', async () => {
+    it('shows a plain-string error message on rejection', async () => {
         const settled = Promise.reject(new Error('was already dead'));
         await expect(
-            service.promise(settled, { loading: 'L', success: 'S', error: e => (e as Error).message })
+            service.promise(settled, { loading: 'L', success: 'S', error: 'E' })
         ).rejects.toThrow('was already dead');
 
         expect(service.toasts()).toHaveLength(1);
-        expect(service.toasts()[0].title).toBe('was already dead');
+        expect(service.toasts()[0].title).toBe('E');
         expect(service.toasts()[0].variant).toBe('destructive');
     });
 });

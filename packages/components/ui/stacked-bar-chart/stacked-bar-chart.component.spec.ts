@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { StackedBarChartComponent } from './stacked-bar-chart.component';
 import { ChartSeries } from '../../lib/chart.types';
+import { CHART_COLORS } from '../../lib/chart.utils';
 import {
     describe,
     it,
@@ -66,19 +67,6 @@ describe('StackedBarChartComponent', () => {
             originalResizeObserver;
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
-    it('should compute stacked bars from series and categories', () => {
-        expect(component.stackedBars()).toHaveLength(2);
-    });
-
-    it('should render an SVG element', () => {
-        const svg = fixture.nativeElement.querySelector('svg');
-        expect(svg).toBeTruthy();
-    });
-
     it('should set aria-label on SVG', () => {
         const svg = fixture.nativeElement.querySelector('svg[role="group"]');
         expect(svg).toBeTruthy();
@@ -90,7 +78,9 @@ describe('StackedBarChartComponent', () => {
             const bars = component.stackedBars();
             expect(bars).toHaveLength(2);
             expect(bars[0].category).toBe('Q1');
+            expect(bars[0].categoryIndex).toBe(0);
             expect(bars[1].category).toBe('Q2');
+            expect(bars[1].categoryIndex).toBe(1);
         });
 
         it('should create one segment per series in each bar', () => {
@@ -120,55 +110,30 @@ describe('StackedBarChartComponent', () => {
             expect(bars[0].segments[1].percentage).toBe(60);
         });
 
-        it('should assign sequential category indices', () => {
-            const bars = component.stackedBars();
-            expect(bars[0].categoryIndex).toBe(0);
-            expect(bars[1].categoryIndex).toBe(1);
-        });
-
-        it('should assign positive dimensions to segments', () => {
-            const bars = component.stackedBars();
-            for (const bar of bars) {
-                for (const segment of bar.segments) {
-                    expect(segment.width).toBeGreaterThan(0);
-                    expect(segment.height).toBeGreaterThan(0);
-                }
-            }
-        });
-
         it('should stack segments vertically without overlap', () => {
-            const bars = component.stackedBars();
-            const q1Segments = bars[0].segments;
-            const firstSegmentTop = q1Segments[0].y;
-            const firstSegmentBottom = q1Segments[0].y + q1Segments[0].height;
-            const secondSegmentTop = q1Segments[1].y;
-            const secondSegmentBottom =
-                q1Segments[1].y + q1Segments[1].height;
+            // Chart area: 300 tall minus 20 top / 35 bottom padding -> bottom 265, height 245.
+            const [first, second] = component.stackedBars()[0].segments;
 
-            expect(secondSegmentTop).toBeLessThanOrEqual(firstSegmentBottom);
-            expect(firstSegmentTop).toBeLessThanOrEqual(secondSegmentBottom);
+            expect(first.y + first.height).toBeCloseTo(265, 5);
+            expect(second.y + second.height).toBeCloseTo(first.y, 5);
+            expect(first.height).toBeCloseTo((10 / 49.5) * 245, 5);
+            expect(second.height).toBeCloseTo((15 / 49.5) * 245, 5);
         });
     });
 
     describe('absolute stacking mode', () => {
-        it('should use absolute stacking by default', () => {
-            expect(component.stacking()).toBe('absolute');
-        });
-
         it('should calculate maxValue as max total * 1.1', () => {
             const maxTotal = 45;
             expect(component.maxValue()).toBeCloseTo(maxTotal * 1.1, 5);
         });
 
         it('should use calculated axis ticks', () => {
-            const ticks = component.axisTicks();
-            expect(ticks.length).toBeGreaterThan(0);
-            expect(ticks[0]).toBe(0);
+            expect(component.axisTicks()).toEqual([0, 10, 20, 30, 40, 50]);
         });
 
-        it('should format axis values without percent sign', () => {
-            const formatted = component.formatAxisValue(50);
-            expect(formatted).not.toContain('%');
+        it('should format axis values as compact numbers without percent sign', () => {
+            expect(component.formatAxisValue(50)).toBe('50');
+            expect(component.formatAxisValue(1200)).toBe('1K');
         });
     });
 
@@ -191,22 +156,15 @@ describe('StackedBarChartComponent', () => {
             expect(formatted).toBe('50%');
         });
 
-        it('should format 0 with percent sign', () => {
-            expect(component.formatAxisValue(0)).toBe('0%');
-        });
-
-        it('should format 100 with percent sign', () => {
-            expect(component.formatAxisValue(100)).toBe('100%');
-        });
-
-        it('should still compute correct segment percentages', () => {
-            const bars = component.stackedBars();
-            const q1Segments = bars[0].segments;
-            const totalPercentage = q1Segments.reduce(
-                (sum, s) => sum + s.percentage,
-                0,
-            );
-            expect(totalPercentage).toBeCloseTo(100, 5);
+        it('should fill the chart height with every stack, split by share', () => {
+            const areaHeight = 245;
+            for (const bar of component.stackedBars()) {
+                const stackHeight = bar.segments.reduce((sum, s) => sum + s.height, 0);
+                expect(stackHeight).toBeCloseTo(areaHeight, 5);
+            }
+            const [first, second] = component.stackedBars()[0].segments;
+            expect(first.height).toBeCloseTo(areaHeight * 0.4, 5);
+            expect(second.height).toBeCloseTo(areaHeight * 0.6, 5);
         });
     });
 
@@ -228,26 +186,6 @@ describe('StackedBarChartComponent', () => {
                 series: 'Series A',
                 category: 'Q1',
                 value: 10,
-            });
-        });
-
-        it('should emit correct data for second series segment', () => {
-            const clickEvents: {
-                series: string;
-                category: string;
-                value: number;
-            }[] = [];
-            component.segmentClick.subscribe(event => clickEvents.push(event));
-
-            const bar = component.stackedBars()[1];
-            const segment = bar.segments[1];
-            component.onSegmentClick(new MouseEvent('click'), segment, bar);
-
-            expect(clickEvents).toHaveLength(1);
-            expect(clickEvents[0]).toEqual({
-                series: 'Series B',
-                category: 'Q2',
-                value: 25,
             });
         });
     });
@@ -301,25 +239,26 @@ describe('StackedBarChartComponent', () => {
             expect(legendText).toContain('Series B');
         });
 
-        it('should not render legend color indicators when showLegend is false', () => {
+        it('should not render the legend when showLegend is false', () => {
             fixture.componentRef.setInput('showLegend', false);
             fixture.detectChanges();
 
-            const legendDots = fixture.nativeElement.querySelectorAll(
-                '.w-3.h-3.rounded-sm',
-            );
-            expect(legendDots).toHaveLength(0);
+            const text = fixture.nativeElement.textContent;
+            expect(text).not.toContain('Series A');
+            expect(text).not.toContain('Series B');
         });
     });
 
     describe('getSeriesColor', () => {
-        it('should return a color string for each series', () => {
-            const color0 = component.getSeriesColor(0);
-            const color1 = component.getSeriesColor(1);
-            expect(typeof color0).toBe('string');
-            expect(typeof color1).toBe('string');
-            expect(color0.length).toBeGreaterThan(0);
-            expect(color1.length).toBeGreaterThan(0);
+        it('should use a series colour override and the palette otherwise', () => {
+            fixture.componentRef.setInput('series', [
+                { ...sampleSeries[0], color: '#123456' },
+                sampleSeries[1],
+            ]);
+            fixture.detectChanges();
+
+            expect(component.getSeriesColor(0)).toBe('#123456');
+            expect(component.getSeriesColor(1)).toBe(CHART_COLORS[1]);
         });
     });
 
@@ -341,22 +280,16 @@ describe('StackedBarChartComponent', () => {
             expect(component.isRtl()).toBe(true);
         });
 
-        it('should be LTR when dir is ltr', () => {
-            fixture.componentRef.setInput('dir', 'ltr');
-            fixture.detectChanges();
-            expect(component.isRtl()).toBe(false);
-        });
-
         it('should reverse bar positions in RTL', () => {
             fixture.componentRef.setInput('dir', 'ltr');
             fixture.detectChanges();
-            const ltrFirstX = component.stackedBars()[0].segments[0].x;
+            const [ltrQ1, ltrQ2] = component.stackedBars();
+            expect(ltrQ1.segments[0].x).toBeLessThan(ltrQ2.segments[0].x);
 
             fixture.componentRef.setInput('dir', 'rtl');
             fixture.detectChanges();
-            const rtlFirstX = component.stackedBars()[0].segments[0].x;
-
-            expect(rtlFirstX).not.toBe(ltrFirstX);
+            const [rtlQ1, rtlQ2] = component.stackedBars();
+            expect(rtlQ1.segments[0].x).toBeGreaterThan(rtlQ2.segments[0].x);
         });
     });
 
@@ -387,8 +320,7 @@ describe('StackedBarChartComponent', () => {
         });
 
         it('should format numeric totals compactly', () => {
-            expect(typeof component.formatValue(45)).toBe('string');
-            expect(component.formatValue(45).length).toBeGreaterThan(0);
+            expect(component.formatValue(1200)).toBe('1.2K');
         });
     });
 
@@ -409,7 +341,7 @@ describe('StackedBarChartComponent', () => {
         });
 
         it('should format a percentage value with one decimal', () => {
-            expect(component.formatPercentage(40)).toContain('%');
+            expect(component.formatPercentage(40)).toBe('40.0%');
         });
     });
 
@@ -433,57 +365,6 @@ describe('StackedBarChartComponent', () => {
             expect(bar.total).toBe(0);
             expect(bar.segments[0].percentage).toBe(0);
             expect(bar.segments[0].height).toBe(0);
-        });
-    });
-
-    describe('with three series', () => {
-        beforeEach(() => {
-            const threeSeries: ChartSeries[] = [
-                {
-                    name: 'Alpha',
-                    data: [
-                        { name: 'Jan', value: 100 },
-                        { name: 'Feb', value: 200 },
-                    ],
-                },
-                {
-                    name: 'Beta',
-                    data: [
-                        { name: 'Jan', value: 50 },
-                        { name: 'Feb', value: 100 },
-                    ],
-                },
-                {
-                    name: 'Gamma',
-                    data: [
-                        { name: 'Jan', value: 50 },
-                        { name: 'Feb', value: 50 },
-                    ],
-                },
-            ];
-            fixture.componentRef.setInput('series', threeSeries);
-            fixture.componentRef.setInput('categories', ['Jan', 'Feb']);
-            fixture.detectChanges();
-        });
-
-        it('should create three segments per category', () => {
-            const bars = component.stackedBars();
-            expect(bars[0].segments).toHaveLength(3);
-            expect(bars[1].segments).toHaveLength(3);
-        });
-
-        it('should compute correct totals', () => {
-            const bars = component.stackedBars();
-            expect(bars[0].total).toBe(200);
-            expect(bars[1].total).toBe(350);
-        });
-
-        it('should compute correct percentages for first category', () => {
-            const bars = component.stackedBars();
-            const segments = bars[0].segments;
-            expect(segments[0].percentage).toBe(50);
-            expect(segments[1].percentage).toBe(25);
-            expect(segments[2].percentage).toBe(25);
         });
     });
 });

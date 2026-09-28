@@ -532,6 +532,523 @@ function pairToggleBlocks(lines: readonly string[]): Map<number, number> {
 }
 
 /**
+ * The end condition of a raw HTML block: whether line `at` of the block is its
+ * last. CommonMark 0.31.2 §4.6.
+ */
+type HtmlBlockEnd = (lines: readonly string[], at: number) => boolean;
+
+/** A line holding nothing but spaces and tabs. */
+const BLANK_LINE = /^[ \t]*$/;
+
+/** Conditions 6 and 7: the block's last line is the one before a blank line. */
+const endsBeforeBlankLine: HtmlBlockEnd = (lines, at) => BLANK_LINE.test(lines[at + 1] ?? '');
+
+/** Conditions 1-5: the block's last line is the first, its own first included, holding `marker`. */
+function endsOnMarker(marker: RegExp): HtmlBlockEnd {
+    return (lines, at) => marker.test(lines[at]);
+}
+
+/**
+ * Start conditions 1-5, in the spec's order, each with its end. These blocks
+ * hold literal content -- code, a script, a comment -- so they run past blank
+ * lines to their end marker rather than stopping at the first one.
+ */
+const MARKED_HTML_BLOCKS: ReadonlyArray<readonly [RegExp, HtmlBlockEnd]> = [
+    [/^ {0,3}<(?:pre|script|style|textarea)(?:[ \t>]|$)/i, endsOnMarker(/<\/(?:pre|script|style|textarea)>/i)],
+    // An HTML parser also ends a comment at `--!>`; ending here too keeps the
+    // reader and the page agreeing on what is comment (CommonMark names only -->).
+    [/^ {0,3}<!--/, endsOnMarker(/--!?>/)],
+    [/^ {0,3}<\?/, endsOnMarker(/\?>/)],
+    [/^ {0,3}<![A-Za-z]/, endsOnMarker(/>/)],
+    [/^ {0,3}<!\[CDATA\[/, endsOnMarker(/\]\]>/)],
+];
+
+/** Start condition 6: an opening or closing tag of one of HTML_BLOCK_TAGS at the start of the line. */
+const HTML_BLOCK_TAG_START = /^ {0,3}<\/?([A-Za-z][A-Za-z\d]*)(?:[ \t>]|\/>|$)/;
+
+/** The tag names of start condition 6, as the spec lists them. */
+const HTML_BLOCK_TAGS = new Set([
+    'address', 'article', 'aside', 'base', 'basefont', 'blockquote', 'body', 'caption', 'center', 'col',
+    'colgroup', 'dd', 'details', 'dialog', 'dir', 'div', 'dl', 'dt', 'fieldset', 'figcaption', 'figure',
+    'footer', 'form', 'frame', 'frameset', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'head', 'header', 'hr',
+    'html', 'iframe', 'legend', 'li', 'link', 'main', 'menu', 'menuitem', 'nav', 'noframes', 'ol',
+    'optgroup', 'option', 'p', 'param', 'search', 'section', 'summary', 'table', 'tbody', 'td', 'tfoot',
+    'th', 'thead', 'title', 'tr', 'track', 'ul',
+]);
+
+/** The tags of start condition 1, which condition 7 leaves to it. */
+const LITERAL_CONTENT_TAGS = new Set(['pre', 'script', 'style', 'textarea']);
+
+/**
+ * Pieces of a complete tag (CommonMark §6.6), matched in place. A tag's
+ * whitespace, and a quoted value, may hold one line ending, so an inline tag
+ * can wrap; which lines it may wrap across is checked apart (see
+ * staysInParagraph). A value is capped: an unclosed quote otherwise scanned to
+ * the end of the document from every "<" before it, which is quadratic in a
+ * run of them.
+ */
+const TAG_NAME = /[A-Za-z][A-Za-z\d-]*/y;
+const ATTRIBUTE_NAME = /[A-Za-z_:][\w.:-]*/y;
+/** An attribute value: unquoted, single-quoted or double-quoted. */
+const ATTRIBUTE_VALUES: readonly RegExp[] = [
+    /[^ \t\n"'=<>`]{1,4096}/y,
+    /'[^'\n]{0,4096}(?:\n[^'\n]{0,4096})?'/y,
+    /"[^"\n]{0,4096}(?:\n[^"\n]{0,4096})?"/y,
+];
+const BLANKS = /[ \t]*(?:\n[ \t]*)?/y;
+const BLOCK_INDENT = / {0,3}/y;
+
+/** The index just past `pattern` matched at `at` in `text`, or -1. `pattern` must be sticky. */
+function endOfMatchAt(pattern: RegExp, text: string, at: number): number {
+    pattern.lastIndex = at;
+    return pattern.exec(text) ? pattern.lastIndex : -1;
+}
+
+/** Past an attribute's optional `= value`, from the end of its name; -1 when the value is malformed. */
+function attributeValueEnd(line: string, nameEnd: number): number {
+    const equals = endOfMatchAt(BLANKS, line, nameEnd);
+    if (line[equals] !== '=') return nameEnd;
+    const valueStart = endOfMatchAt(BLANKS, line, equals + 1);
+    for (const value of ATTRIBUTE_VALUES) {
+        const end = endOfMatchAt(value, line, valueStart);
+        if (end !== -1) return end;
+    }
+    return -1;
+}
+
+/** The index just past a complete open tag whose name starts at `at`, or -1. */
+function openTagEnd(line: string, at: number): number {
+    let cursor = endOfMatchAt(TAG_NAME, line, at);
+    while (cursor !== -1) {
+        const next = endOfMatchAt(BLANKS, line, cursor);
+        if (line.startsWith('/>', next)) return next + 2;
+        if (line[next] === '>') return next + 1;
+        // An attribute is separated from what precedes it by whitespace.
+        if (next === cursor) return -1;
+        const attributeEnd = endOfMatchAt(ATTRIBUTE_NAME, line, next);
+        cursor = attributeEnd === -1 ? -1 : attributeValueEnd(line, attributeEnd);
+    }
+    return -1;
+}
+
+/** The index just past a complete closing tag whose name starts at `at`, or -1. */
+function closingTagEnd(line: string, at: number): number {
+    const nameEnd = endOfMatchAt(TAG_NAME, line, at);
+    if (nameEnd === -1) return -1;
+    const close = endOfMatchAt(BLANKS, line, nameEnd);
+    return line[close] === '>' ? close + 1 : -1;
+}
+
+/**
+ * Start condition 7: a complete open or closing tag, alone on its line. An
+ * open tag of a literal-content element is refused: that line is condition 1.
+ */
+function isLoneTagLine(line: string): boolean {
+    const at = endOfMatchAt(BLOCK_INDENT, line, 0);
+    if (line[at] !== '<') return false;
+    const closing = line[at + 1] === '/';
+    const nameStart = closing ? at + 2 : at + 1;
+    const name = line.slice(nameStart, endOfMatchAt(TAG_NAME, line, nameStart)).toLowerCase();
+    if (!closing && LITERAL_CONTENT_TAGS.has(name)) return false;
+    const end = closing ? closingTagEnd(line, nameStart) : openTagEnd(line, nameStart);
+    return end !== -1 && BLANK_LINE.test(line.slice(end));
+}
+
+/**
+ * The raw HTML forms of CommonMark §6.6 other than tags, each with its closers
+ * and where the search for them starts: a comment (`<!-->` and `<!--->` are
+ * complete ones), a processing instruction, a CDATA section, and a
+ * declaration. CDATA is tried before a declaration, which it would also match.
+ * A comment also ends at `--!>`, as an HTML parser ends it, so the reader and
+ * the page agree on where it stops.
+ */
+const RAW_HTML_SPANS: ReadonlyArray<readonly [RegExp, readonly string[], number]> = [
+    [/<!--/y, ['-->', '--!>'], 2],
+    [/<\?/y, ['?>'], 2],
+    [/<!\[CDATA\[/y, [']]>'], 9],
+    [/<![A-Za-z]/y, ['>'], 2],
+];
+
+/** What a scan for raw HTML across a document has already learned; see rawHtmlSpanEnd. */
+interface RawHtmlScan {
+    /** The first position of each closer found at or after an earlier search, or -1 for none. */
+    readonly closers: Map<string, number>;
+    /** The next blank line at or after the scan position: no construct crosses one. */
+    blankLine: number;
+}
+
+/** The index of the next blank line at or after `at`, or the end of `text`. */
+function nextBlankLine(scan: RawHtmlScan, text: string, at: number): number {
+    if (scan.blankLine < at) {
+        const blank = /\n[ \t]*\n/g;
+        blank.lastIndex = at;
+        scan.blankLine = blank.exec(text)?.index ?? text.length;
+    }
+    return scan.blankLine;
+}
+
+/**
+ * The index just past the comment, processing instruction, CDATA section or
+ * declaration starting at `at`, or -1.
+ *
+ * The scan position only moves forward, so the first closer found after an
+ * earlier position is still the first after a later one, until it is passed:
+ * remembering it keeps a block of openers that all reach for one closer, or
+ * for none, from being searched once per opener.
+ */
+function rawHtmlSpanEnd(text: string, at: number, scan: RawHtmlScan): number {
+    const span = RAW_HTML_SPANS.find(([opener]) => endOfMatchAt(opener, text, at) !== -1);
+    if (!span) return -1;
+    const [, closers, searchFrom] = span;
+    const from = at + searchFrom;
+    let end = -1;
+    let endAt = Infinity;
+    for (const closer of closers) {
+        const close = firstCloser(scan, text, closer, from);
+        if (close !== -1 && close < endAt) {
+            endAt = close;
+            end = close + closer.length;
+        }
+    }
+    return end !== -1 && endAt < nextBlankLine(scan, text, at) ? end : -1;
+}
+
+/** The first `closer` at or after `from`, or -1, remembered for later searches (see rawHtmlSpanEnd). */
+function firstCloser(scan: RawHtmlScan, text: string, closer: string, from: number): number {
+    let close = scan.closers.get(closer);
+    if (close === undefined || (close !== -1 && close < from)) {
+        close = text.indexOf(closer, from);
+        scan.closers.set(closer, close);
+    }
+    return close;
+}
+
+/** The index just past the raw HTML construct (§6.6) starting at the "<" at `at`, or -1. */
+function rawHtmlEnd(text: string, at: number, scan: RawHtmlScan): number {
+    const end = rawHtmlConstructEnd(text, at, scan);
+    return end !== -1 && staysInParagraph(text, at, end) ? end : -1;
+}
+
+/** Where the construct starting at `at` would end by its own syntax alone, or -1. */
+function rawHtmlConstructEnd(text: string, at: number, scan: RawHtmlScan): number {
+    if (text[at + 1] === '/') return closingTagEnd(text, at + 2);
+    if (/[A-Za-z]/.test(text[at + 1] ?? '')) return openTagEnd(text, at + 1);
+    return rawHtmlSpanEnd(text, at, scan);
+}
+
+/** A line that is a block of its own: an ATX heading, a details marker or a fence. */
+const SELF_CONTAINED_LINE = /^ {0,3}(?:#{1,6}(?:[ \t]|$)|:::|`{3}|~{3})/;
+
+/** A list item's marker line. */
+const LIST_ITEM_START = /^[ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]/;
+
+/**
+ * Whether `line` ends the paragraph above it: a quote marker, a heading, a
+ * details marker, a fence or a list item.
+ */
+function endsParagraph(line: string): boolean {
+    return QUOTE_LINE.test(line) || SELF_CONTAINED_LINE.test(line) || LIST_ITEM_START.test(line);
+}
+
+/**
+ * Whether the raw HTML from `at` to `end` stays inside one paragraph: this
+ * scan sees the whole document before any block is read, and inline HTML is a
+ * paragraph's content, so it may wrap only onto a line that continues the
+ * paragraph. Taken across such a line, "# Title <a" swallowed the next
+ * paragraph into the tag, and a tag left open before ":::" swallowed the
+ * closer and the details block with it.
+ */
+function staysInParagraph(text: string, at: number, end: number): boolean {
+    const lines = text.slice(text.lastIndexOf('\n', at) + 1, end).split('\n');
+    if (lines.length === 1) return true;
+    return !SELF_CONTAINED_LINE.test(lines[0]) && lines.slice(1).every((line) => !endsParagraph(line));
+}
+
+/**
+ * Copy the code span opening at the backtick run at `at` WHOLE, so a backslash
+ * or a "<" inside it stays literal as CommonMark requires -- `\\d+` and
+ * `C:\\temp` are the common case. Returns the index after what was copied: the
+ * span, or only the run when nothing closes it.
+ *
+ * The delimiter is a RUN closed by a run of the SAME length, the rule
+ * protectInlineCode uses. indexOf on a single backtick copied only the first
+ * two ticks of a ``-delimited span and then scanned its BODY as prose, so a
+ * backslash inside a multi-tick span was parked and dropped -- exactly the
+ * spans that hold a backtick, like a regex or a shell snippet.
+ */
+function copyCodeSpan(source: string, at: number, out: string[]): number {
+    let i = at;
+    while (source[i] === '`') i++;
+    const runLength = i - at;
+    const closeIndex = findClosingTickRun(source, i, runLength);
+    const end = closeIndex === -1 ? i : closeIndex + runLength;
+    out.push(source.slice(at, end));
+    return end;
+}
+
+/**
+ * Elements whose start tag closes an open `<p>` (HTML's "close a p element"),
+ * `p` itself included.
+ */
+const P_CLOSING_TAGS = new Set([
+    'address', 'article', 'aside', 'blockquote', 'center', 'details', 'dialog', 'dir', 'div', 'dl', 'dd', 'dt',
+    'fieldset', 'figcaption', 'figure', 'footer', 'form', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'header', 'hgroup',
+    'hr', 'li', 'listing', 'main', 'menu', 'nav', 'ol', 'p', 'plaintext', 'pre', 'search', 'section', 'summary',
+    'table', 'ul', 'xmp',
+]);
+
+/** A parked raw tag's name, lowercased, and whether it is a closing tag; null for a comment and the like. */
+function parkedTagName(token: string, tagStore: readonly string[]): { name: string; closing: boolean } | null {
+    return tagNameOf(tagStore[Number(token)] ?? '');
+}
+
+/**
+ * Whether a paragraph this reader wrote is still open where its own end tag
+ * stands, given the author's raw tags parked inside it, read as an HTML parser
+ * reads them: a `<p>` opens one; any other p-closing start tag closes it and,
+ * unless void, opens a container; a `</p>` closes whatever paragraph is open;
+ * and a container's end tag closes the paragraph inside it -- but only a
+ * container actually open. A stray end tag is ignored by the parser, so it
+ * closes nothing here either: counted, "a </div> b" lost its end tag and the
+ * next block merged into it.
+ */
+function paragraphStillOpen(content: string, tagStore: readonly string[]): boolean {
+    let open = true;
+    const containers: string[] = [];
+    for (const [, token] of content.matchAll(PARKED_RAW_TAG)) {
+        const tag = parkedTagName(token, tagStore);
+        if (!tag || !P_CLOSING_TAGS.has(tag.name)) continue;
+        if (tag.name === 'p') {
+            open = !tag.closing;
+        } else if (tag.closing) {
+            const at = containers.lastIndexOf(tag.name);
+            if (at !== -1) {
+                containers.length = at;
+                open = false;
+            }
+        } else {
+            open = false;
+            if (tag.name !== 'hr') containers.push(tag.name);
+        }
+    }
+    return open;
+}
+
+/**
+ * The end condition of the raw HTML block `line` starts, or null when it
+ * starts none. Condition 7 cannot interrupt a paragraph -- a long tag wrapped
+ * onto its own line inside prose stays inline.
+ */
+function htmlBlockStart(line: string, paragraphOpen: boolean): HtmlBlockEnd | null {
+    const marked = MARKED_HTML_BLOCKS.find(([start]) => start.test(line));
+    if (marked) return marked[1];
+    const tag = HTML_BLOCK_TAG_START.exec(line)?.[1];
+    if (tag && HTML_BLOCK_TAGS.has(tag.toLowerCase())) return endsBeforeBlankLine;
+    return !paragraphOpen && isLoneTagLine(line) ? endsBeforeBlankLine : null;
+}
+
+/**
+ * A fenced code block's opening line, read as FENCE_PATTERN reads it: the
+ * prefix that puts it in a quote or a list item, the fence run, a language.
+ */
+const FENCE_OPENER_LINE = /^([ \t]*(?:>[ \t]*)*)(`{3,}|~{3,})[\w+#.-]*$/;
+
+/** A line inside a block quote, and the marker a quote strips from it (§5.1). */
+const QUOTE_LINE = /^ {0,3}>/;
+const QUOTE_MARKER = /^ {0,3}> ?/;
+
+/** Whether `line` is a block of its own, which no following line continues as a paragraph. */
+function closesItsOwnLine(line: string): boolean {
+    return /^ {0,3}#{1,6}(?:[ \t]|$)/.test(line)
+        || THEMATIC_BREAK.test(line)
+        || FENCE_OPENER_LINE.test(line)
+        || toggleOpener(line) !== null
+        || line.trimEnd() === ':::';
+}
+
+/**
+ * The closing line of the fenced code block `lines[at]` opens, by the rule
+ * FENCE_PATTERN applies later, or -1 when it opens none.
+ *
+ * `unclosed` remembers the fences already found to have no closer: searching
+ * again from a later line can only fail again, and without it a document of
+ * unclosed fences was searched to its end once per line.
+ */
+function fenceCloserOf(lines: readonly string[], at: number, unclosed: Set<string>): number {
+    const open = FENCE_OPENER_LINE.exec(lines[at]);
+    if (!open) return -1;
+    const [, prefix, run] = open;
+    const key = `${prefix}\n${run}`;
+    if (unclosed.has(key)) return -1;
+    for (let line = at + 1; line < lines.length; line++) {
+        if (lines[line].startsWith(run) || lines[line].startsWith(prefix + run)) return line;
+    }
+    unclosed.add(key);
+    return -1;
+}
+
+/**
+ * The last line of the HTML block starting at `start`: where its end condition
+ * holds, where its container's lines end, or before the `:::` closing the
+ * details block it sits in -- a container's end ends the blocks inside it (§4.6).
+ */
+function htmlBlockLastLine(lines: readonly string[], start: number, end: HtmlBlockEnd, openerOf: ReadonlyMap<number, number>): number {
+    const closesContainer = (at: number): boolean => (openerOf.get(at) ?? start) < start;
+    let at = start;
+    while (at + 1 < lines.length && !end(lines, at) && !closesContainer(at + 1)) at++;
+    return at;
+}
+
+/** One container's lines being scanned for HTML blocks, and what the scan has written. */
+interface HtmlBlockLift {
+    readonly lines: readonly string[];
+    readonly park: (block: string) => string;
+    readonly depth: number;
+    readonly openerOf: ReadonlyMap<number, number>;
+    readonly unclosedFences: Set<string>;
+    readonly out: string[];
+    /** A paragraph continues onto the next line unless something ends it. */
+    paragraphOpen: boolean;
+    /** Whether any block was parked, so an untouched container keeps its lines as written. */
+    lifted: boolean;
+}
+
+/**
+ * Every raw HTML block in `lines` -- the content of one container, its own
+ * markers already stripped -- replaced by the token `park` returns for it, by
+ * the CommonMark 0.31.2 §4.6 start and end conditions.
+ *
+ * Fenced code and HTML blocks are read in one pass, in document order, because
+ * whichever starts first holds the other: a fence line inside an HTML block is
+ * raw HTML (example 161), and a tag inside a fence is code. A quote or a list
+ * item is read the same way inside its markers (examples 174, 175), up to
+ * MAX_NESTING_DEPTH: past it the lines are kept as written, as every nested
+ * pass does.
+ */
+function liftHtmlBlocksIn(lines: readonly string[], park: (block: string) => string, depth: number): HtmlBlockLift {
+    const lift: HtmlBlockLift = {
+        lines,
+        park,
+        depth,
+        openerOf: new Map(Array.from(pairToggleBlocks(lines), ([opener, closer]) => [closer, opener])),
+        unclosedFences: new Set<string>(),
+        out: [],
+        paragraphOpen: false,
+        lifted: false,
+    };
+    let at = 0;
+    while (at < lines.length) at = liftStep(lift, at);
+    return lift;
+}
+
+/** Scan the construct starting at line `at`; returns the line after it. */
+function liftStep(lift: HtmlBlockLift, at: number): number {
+    const line = lift.lines[at];
+    if (lift.depth < MAX_NESTING_DEPTH && QUOTE_LINE.test(line)) return liftQuote(lift, at);
+    const item = lift.depth < MAX_NESTING_DEPTH && indentOf(expandLineIndent(line)) < 4
+        ? parseListLine(expandLineIndent(line))
+        : null;
+    if (item) return liftListItem(lift, at, item.column);
+    const fenceEnd = fenceCloserOf(lift.lines, at, lift.unclosedFences);
+    if (fenceEnd !== -1) {
+        lift.out.push(...lift.lines.slice(at, fenceEnd + 1));
+        lift.paragraphOpen = false;
+        return fenceEnd + 1;
+    }
+    const end = htmlBlockStart(line, lift.paragraphOpen);
+    if (end) return liftHtmlBlock(lift, at, end);
+    lift.out.push(line);
+    lift.paragraphOpen = !BLANK_LINE.test(line) && !closesItsOwnLine(line);
+    return at + 1;
+}
+
+/**
+ * Park the HTML block starting at `at`. The token is set apart by blank lines
+ * where its neighbours are not blank already: conditions 1-6 end a paragraph
+ * they interrupt, a condition 1-5 block needs no blank line after it, and every
+ * later pass splits blocks at blank lines.
+ */
+function liftHtmlBlock(lift: HtmlBlockLift, at: number, end: HtmlBlockEnd): number {
+    const last = htmlBlockLastLine(lift.lines, at, end, lift.openerOf);
+    if (!BLANK_LINE.test(lift.out.at(-1) ?? '')) lift.out.push('');
+    lift.out.push(lift.park(lift.lines.slice(at, last + 1).join('\n')));
+    if (!BLANK_LINE.test(lift.lines[last + 1] ?? '')) lift.out.push('');
+    lift.paragraphOpen = false;
+    lift.lifted = true;
+    return last + 1;
+}
+
+/**
+ * Write a container's lines back: as written when nothing in it was parked,
+ * else the scanned content under `prefix` -- `first` on its opening line.
+ */
+function emitContainer(
+    lift: HtmlBlockLift,
+    original: readonly string[],
+    inner: Pick<HtmlBlockLift, 'out' | 'lifted' | 'paragraphOpen'>,
+    first: string,
+    prefix: string,
+): void {
+    lift.paragraphOpen = inner.paragraphOpen;
+    if (!inner.lifted) {
+        lift.out.push(...original);
+        return;
+    }
+    lift.lifted = true;
+    inner.out.forEach((line, index) => {
+        const marker = index === 0 ? first : prefix;
+        lift.out.push(line === '' ? marker.trimEnd() : marker + line);
+    });
+}
+
+/** A block quote's lines from `at`: every consecutive line carrying its marker. */
+function liftQuote(lift: HtmlBlockLift, at: number): number {
+    let end = at;
+    while (end < lift.lines.length && QUOTE_LINE.test(lift.lines[end])) end++;
+    const original = lift.lines.slice(at, end);
+    const inner = liftHtmlBlocksIn(original.map((line) => line.replace(QUOTE_MARKER, '')), lift.park, lift.depth + 1);
+    emitContainer(lift, original, inner, '> ', '> ');
+    return end;
+}
+
+/**
+ * A list item's lines from `at`: its marker line and every line after it that
+ * is blank or indented to its content column. A trailing blank line is left to
+ * whatever follows, and a lazy line at the margin to the level above.
+ */
+function liftListItem(lift: HtmlBlockLift, at: number, column: number): number {
+    let last = at;
+    for (let next = at + 1; next < lift.lines.length; next++) {
+        const line = lift.lines[next];
+        if (BLANK_LINE.test(line)) continue;
+        if (indentOf(expandLineIndent(line)) < column) break;
+        last = next;
+    }
+    const original = lift.lines.slice(at, last + 1);
+    const content = original.map((line) => expandLineIndent(line).slice(column));
+    const inner = liftHtmlBlocksIn(content, lift.park, lift.depth + 1);
+    const marker = expandLineIndent(original[0]).slice(0, column).padEnd(column);
+    // A fence opened on the marker line moves to the line below it, the place
+    // the fence pass reads a fence in an item from. Left there, the fence was
+    // not read at all: its backticks showed as text and its body, raw HTML
+    // included, was read as the item's markdown.
+    if (fenceCloserOf(content, 0, new Set<string>()) === -1) {
+        emitContainer(lift, original, inner, marker, ' '.repeat(column));
+    } else {
+        emitContainer(lift, original, { ...inner, out: ['', ...inner.out], lifted: true }, marker, ' '.repeat(column));
+    }
+    return last + 1;
+}
+
+/**
+ * Every raw HTML block in `markdown` replaced by the token `park` returns for
+ * it; see {@link liftHtmlBlocksIn}.
+ */
+function liftHtmlBlocks(markdown: string, park: (block: string) => string): string {
+    return liftHtmlBlocksIn(markdown.split('\n'), park, 0).out.join('\n');
+}
+
+/**
  * `inner` between two delimiters, with its edge whitespace kept outside them.
  *
  * Markdown opens emphasis only before a non-space and closes it only after
@@ -687,6 +1204,21 @@ function onMarkerLine(child: Node, before: readonly string[]): boolean {
  */
 function escapeInlineSyntax(text: string): string {
     return text.replaceAll(/[\\`*_~[\]!]/g, String.raw`\$&`);
+}
+
+/** How a code element's tag form writes its text and images, for the reader that reads them back. */
+interface CodeTagWriter {
+    readonly text: (text: string) => string;
+    readonly image: (image: HTMLElement) => string;
+}
+
+/**
+ * Whether a block element is written at the start of a markdown line, where
+ * the reader takes a raw HTML block (see liftHtmlBlocks): not in a list item, a
+ * quote or a table cell, whose lines begin with their own markers.
+ */
+function writtenAtMargin(element: Element): boolean {
+    return !element.parentElement?.closest('li, blockquote, td, th');
 }
 
 /**
@@ -938,6 +1470,71 @@ function markdownTarget(target: string): string {
 }
 
 /**
+ * A link or image address as markdown source, in angle brackets when it is
+ * empty or holds a space or an angle bracket: bare, the reader could not tell
+ * where such an address ends and a title begins, and the title was saved
+ * into the address. The brackets and parentheses in it are escaped.
+ */
+function markdownDestination(target: string): string {
+    if (target !== '' && !/[\s<>]/.test(target)) return markdownTarget(target);
+    const escaped = target.replaceAll(/[\\<>()]/g, String.raw`\$&`);
+    return `<${escaped}>`;
+}
+
+/**
+ * A link or image title as markdown source: a space and the title in double
+ * quotes, or nothing when there is none. What the reader would take as syntax
+ * inside it is escaped -- the quote that would end it, a parenthesis the target
+ * grammar cannot carry, the backslash, and an "&" that would start a
+ * character reference -- and it is kept to one line.
+ */
+function markdownTitle(element: Element): string {
+    const title = element.getAttribute('title');
+    if (!title) return '';
+    const escaped = title.replaceAll(/\s+/g, ' ').replaceAll(/[\\"()&]/g, String.raw`\$&`);
+    return ` "${escaped}"`;
+}
+
+/** What follows a link destination: whitespace and a title in "…", '…' or (…) (CommonMark §6.3). */
+const LINK_TITLE = /^\s+(?:"([^"]*)"|'([^']*)'|\(([^()]*)\))\s*$/;
+
+/**
+ * The ends of a destination in angle brackets, which may hold spaces. The
+ * reader has escaped a "<" by now, and maybe the ">".
+ */
+const POINTY_OPEN = /^(?:<|&lt;)/;
+const POINTY_CLOSE = /[\n<]|>|&gt;/;
+
+/** A link target's parts: its destination, whether it was in angle brackets, and its title, if any. */
+interface TargetParts {
+    readonly destination: string;
+    readonly pointy: boolean;
+    readonly title: string | null;
+}
+
+/**
+ * A link or image target split into its destination and its optional title,
+ * or null when it is neither shape -- a destination and a title, a destination
+ * alone -- and is read whole as before.
+ */
+function splitTarget(target: string): TargetParts | null {
+    const open = POINTY_OPEN.exec(target)?.[0].length ?? 0;
+    let destination = /^\S*/.exec(target)?.[0] ?? '';
+    let end = destination.length;
+    if (open) {
+        const close = POINTY_CLOSE.exec(target.slice(open));
+        // A line ending or another "<" ends no destination.
+        if (!close || (close[0] !== '>' && close[0] !== '&gt;')) return null;
+        destination = target.slice(open, open + close.index);
+        end = open + close.index + close[0].length;
+    }
+    const rest = target.slice(end);
+    if (rest.trim() === '') return { destination, pointy: open > 0, title: null };
+    const title = LINK_TITLE.exec(rest);
+    return title ? { destination, pointy: open > 0, title: title[1] ?? title[2] ?? title[3] } : null;
+}
+
+/**
  * Marker standing in for a character with Markdown meaning while the emphasis
  * passes run. Those passes regex over the WHOLE string, attribute values
  * included, so a `*` in a query string became `<em>` and the link silently
@@ -987,14 +1584,22 @@ function isEmptyWrapper(tagName: string, inner: string, element: HTMLElement): b
         && (element.textContent ?? '') === '';
 }
 
-const PASSTHROUGH_TAG_PATTERN = /<\/?([a-zA-Z][a-zA-Z0-9]*)\b[^<>]{0,4096}>/g;
-
 /** Private-use delimiters parking a backslash-escaped punctuation character. */
 /** ASCII punctuation a backslash may escape, per CommonMark. */
 const ESCAPABLE_PUNCTUATION = new Set("!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~".split(''));
 
 const ESCAPED_OPEN = '';
 const ESCAPED_CLOSE = '';
+
+/**
+ * Private-use delimiters parking a raw HTML block until the fences are parked;
+ * it then moves to the fence store (see toHtml).
+ */
+const HTML_BLOCK_OPEN = '';
+const HTML_BLOCK_CLOSE = '';
+
+/** Every pass's parking delimiters: raw tags U+E000-E001, fences, inline code, escapes and HTML blocks U+E110-E117. */
+const PARKING_DELIMITERS = /[-]/gu;
 
 /** Private-use delimiters parking an inline code span; distinct from the fence pair so a lone span is not read as a block. */
 const INLINE_CODE_OPEN = '';
@@ -1003,6 +1608,9 @@ const INLINE_CODE_CLOSE = '';
 /** Private-use delimiters parking a fenced code block during the inline passes. */
 /** A block whose first token is a parked raw tag: already markup, not prose. */
 const RAW_TAG_ONLY_BLOCK = /^(\d{1,9})/;
+
+/** Every parked raw tag token. */
+const PARKED_RAW_TAG = /(\d{1,9})/g;
 
 /** Opening and closing block tags, counted to track nesting depth across lines. */
 const BLOCK_OPEN_TAG = /<(?:h[1-6]|ul|ol|li|blockquote|pre|div|p|table|thead|tbody|tr|th|td|details|summary|figure)\b[^>]*>/gi;
@@ -1058,13 +1666,6 @@ const RAW_TAG_CLOSE = '';
 
 const CODE_FENCE_OPEN = '';
 const CODE_FENCE_CLOSE = '';
-
-/**
- * Tags the sanitizer removes together with everything inside them. They are
- * passed through the escape untouched so it is the sanitizer, not the reader,
- * that sees them.
- */
-const CONTENT_BEARING_UNSAFE_TAGS = new Set(['script', 'style', 'iframe', 'object', 'embed', 'template', 'noscript', 'title', 'textarea']);
 
 /**
  * Index of the closing backtick run of exactly `runLength`, or -1. A run that
@@ -1128,7 +1729,9 @@ function escapeMarkdownText(text: string): string {
         .replaceAll(/&(?=[A-Za-z#])/g, String.raw`\&`)
         // A literal "<b>" in prose (an author writing ABOUT markup) became a
         // real element on reload. Only a tag-shaped "<" is escaped.
-        .replaceAll(/<(?=[a-z/])/gi, String.raw`\<`));
+        // With "!" and "?": at the start of a line "<!--", "<!x" and "<?" open a
+        // raw HTML block, and the sanitizer would drop the words as a comment.
+        .replaceAll(/<(?=[a-z/!?])/gi, String.raw`\<`));
 }
 
 /**
@@ -1310,6 +1913,26 @@ export class RichTextMarkdownService {
     private readonly sanitizer = inject(RichTextSanitizerService);
     private readonly spanSerializers: MarkdownSpanSerializer[] = [];
 
+    /** A code tag form the inline passes read back: their syntax escaped, an image as markdown. */
+    private readonly inlineCodeTag: CodeTagWriter = {
+        text: (text) => this.escapeHtml(escapeInlineSyntax(text)),
+        image: (image) => this.handleImageTag(image),
+    };
+
+    /**
+     * A code tag form that opens a raw HTML block, read back verbatim: nothing
+     * in it is markdown, so its text is only HTML-escaped and an image is its tag.
+     * Written as markdown there, the image came back as the characters of its
+     * syntax, and every escaped asterisk as a visible backslash.
+     */
+    private readonly rawCodeTag: CodeTagWriter = {
+        text: (text) => this.escapeHtml(text),
+        image: (image) => {
+            const alt = (image.getAttribute('alt') ?? '').replaceAll(/[ \t\n\r\f]+/g, ' ');
+            return `<img src="${this.escapeHtml(imageTarget(image))}" alt="${this.escapeHtml(alt)}">`;
+        },
+    };
+
     /**
      * Register a span serializer consulted before the built-in mention/tag
      * handling in {@link toMarkdown}. Returns a teardown that unregisters it.
@@ -1325,6 +1948,15 @@ export class RichTextMarkdownService {
     /**
      * Convert Markdown to sanitized HTML. Block constructs are parsed before
      * inline ones — the order of the passes below is load-bearing.
+     *
+     * Raw HTML follows CommonMark 0.31.2. A raw HTML block (§4.6), at the top
+     * level or inside a quote, a list item or a details body, passes through
+     * verbatim to its end condition -- a blank line after a block tag or a lone
+     * tag, the closing tag of `<pre>`/`<script>`/`<style>`/`<textarea>`, the end
+     * of a comment -- so `<details>`, a blank line, markdown, a blank line and
+     * `</details>` renders the markdown inside the element. Inside a paragraph
+     * every well-formed tag, comment or declaration is raw HTML (§6.6), paired
+     * or not. The sanitizer still judges the whole output.
      */
     toHtml(markdown: string): string {
         if (!markdown) return '';
@@ -1333,7 +1965,14 @@ export class RichTextMarkdownService {
 
         html = html.replaceAll('\r\n', '\n');
 
-        // Fenced code is lifted out FIRST -- before raw-tag protection and
+        // Raw HTML blocks before every pass that rewrites text, fences included:
+        // a block reaches the sanitizer exactly as written, and a fence line
+        // inside one is part of it. The scan knows the fences, so a tag shown
+        // inside a fence stays code.
+        const htmlBlocks: string[] = [];
+        html = this.protectHtmlBlocks(html, htmlBlocks);
+
+        // Fenced code is lifted out next -- before raw-tag protection and
         // before any escaping. A fence is inert text by definition: what is
         // inside it must reach the reader as characters, never as markup. While
         // it stayed inline, protectRawTags lifted <span> out of fence bodies and
@@ -1343,6 +1982,10 @@ export class RichTextMarkdownService {
         // -- rendering "</div>" as visible "&lt;/div&gt;".
         const protectedCode: string[] = [];
         html = this.protectCodeFences(html, protectedCode);
+        // Into the fence store, whose tokens every block pass already treats as
+        // one opaque block, restored verbatim.
+        html = restoreParked(html, HTML_BLOCK_OPEN, HTML_BLOCK_CLOSE, htmlBlocks, (block) =>
+            `${CODE_FENCE_OPEN}${protectedCode.push(block) - 1}${CODE_FENCE_CLOSE}`);
         // AFTER the fences are parked, so a tab inside code is never rewritten,
         // and BEFORE every block pass, all of which measure indentation in
         // characters. See expandLeadingTabs.
@@ -1355,16 +1998,14 @@ export class RichTextMarkdownService {
         // BEFORE inline code: "\`" is a literal backtick and must not open a
         // code span (CommonMark). A backslash inside a real code span is left
         // alone because the span is parked whole, tokens and all, and restored
-        // verbatim.
+        // verbatim. Inline raw HTML is parked in the same scan, because escapes,
+        // code spans and raw HTML take precedence by position.
         const protectedEscapes: string[] = [];
-        html = this.protectEscapes(html, protectedEscapes);
+        const protectedTags: string[] = [];
+        html = this.protectEscapes(html, protectedEscapes, protectedTags);
 
         const inlineSources: string[] = [];
         html = this.protectInlineCode(html, protectedInline, inlineSources);
-
-
-        const protectedTags: string[] = [];
-        html = this.protectRawTags(html, protectedTags);
 
         html = this.escapeHtmlInContent(html);
         html = this.parseToggleBlocks(html);
@@ -1386,6 +2027,7 @@ export class RichTextMarkdownService {
 
         html = this.parseImages(html, protectedInline, inlineSources, protectedTags, protectedEscapes);
         html = this.parseLinks(html, inlineSources, protectedTags, protectedEscapes);
+        html = this.dropEmptiedParagraphs(html);
         html = this.parseBoldItalic(html);
         html = this.parseStrikethrough(html);
 
@@ -1393,56 +2035,15 @@ export class RichTextMarkdownService {
         // targets come back exactly as the author typed them.
         html = this.unshieldUrls(html);
 
+        html = closeInlineTagsInTheirBlocks(html, protectedTags, protectedCode);
+        html = closeParagraphsLeftOpen(html, protectedTags);
+        unescapePipesInCellCode(html, protectedInline);
         html = this.restoreRawTags(html, protectedTags);
         html = this.restoreCodeFences(html, protectedCode);
         html = this.restoreInlineCode(html, protectedInline);
         html = this.restoreEscapes(html, protectedEscapes);
 
         return this.sanitizer.sanitize(html);
-    }
-
-    /**
-     * Replace every raw `<span …>` / `</span>` tag and `data-action-*` image
-     * tag with a placeholder token the markdown pipeline treats as opaque
-     * text, so escaping and block parsing leave the tag intact while its inner
-     * content is still processed. The restored tags are re-sanitized, so
-     * protecting non-action spans (rare in markdown) is harmless. Any private-
-     * use delimiter chars already in the input are stripped first so user
-     * content can never spoof a token.
-     */
-    /**
-     * Whether a tag written in the source is markup or prose about markup.
-     *
-     * An author writing "the <table> element has <tr> children" means those as
-     * words; treating them as markup turned the sentence into a real table with
-     * the prose swallowed into a cell. Real markup comes in matched pairs, so an
-     * unpaired non-void tag is text.
-     */
-    private isMarkupTag(tagName: string, offset: number, paired: ReadonlySet<number>): boolean {
-        if (!this.sanitizer.isAllowedTag(tagName)) return false;
-        return paired.has(offset) || VOID_TAGS.has(tagName.toLowerCase());
-    }
-
-    private protectRawTags(markdown: string, store: string[]): string {
-        const cleaned = markdown.replaceAll(/[]/g, '');
-        const push = (match: string): string => {
-            const token = `${store.length}`;
-            store.push(match);
-            return token;
-        };
-        return perBlock(cleaned, (block, paired) => block
-            // Inline formatting tags Markdown has no syntax for (u, sub, sup,
-            // mark...) are emitted verbatim by toMarkdown, so toHtml must return
-            // them unchanged. Protecting the CLOSING tag matters as much as the
-            // opening one: escapeHtmlInContent let "<u>" through (u matches \w)
-            // but escaped "</u>" (/ does not), so every round-trip appended
-            // another visible "</u>" and the damage compounded per save/load.
-            .replaceAll(PASSTHROUGH_TAG_PATTERN, (match: string, tagName: string, offset: number) =>
-                this.isMarkupTag(tagName, offset, paired) ? push(match) : match,
-            )
-            .replaceAll(/<span\b[^>]{0,4096}>/gi, push)
-            .replaceAll(/<\/span>/gi, push)
-            .replaceAll(/<img\b[^>]{0,4096}\bdata-action-[\w-]{1,64}[^>]{0,4096}>/gi, push));
     }
 
     /**
@@ -1453,7 +2054,7 @@ export class RichTextMarkdownService {
      */
     private protectCodeFences(markdown: string, store: string[]): string {
         // Strip our own delimiters from the input first, exactly as
-        // protectRawTags does for its pair. Without this a document could carry
+        // protectEscapes does for the raw-tag pair. Without this a document could carry
         // U+E110/U+E111 itself and forge a token: restoreCodeFences would expand
         // it, so a fence body the author wrote once rendered twice, and an
         // out-of-range index silently erased surrounding text.
@@ -1476,26 +2077,57 @@ export class RichTextMarkdownService {
     }
 
     /**
+     * Park every top-level raw HTML block (CommonMark 0.31.2 §4.6) whole: like a
+     * fence it is one opaque block that no markdown pass may rewrite, restored
+     * verbatim for the sanitizer to judge.
+     *
+     * Every pass's delimiters are stripped from the block, not only this pass's
+     * own: it runs before the others strip theirs, and a restored block is
+     * scanned again by the restores after it, so a delimiter typed inside it
+     * would forge another pass's token.
+     */
+    private protectHtmlBlocks(markdown: string, store: string[]): string {
+        const source = markdown.replaceAll(HTML_BLOCK_OPEN, '').replaceAll(HTML_BLOCK_CLOSE, '');
+        return liftHtmlBlocks(source, (block) => {
+            store.push(block.replaceAll(PARKING_DELIMITERS, ''));
+            return `${HTML_BLOCK_OPEN}${store.length - 1}${HTML_BLOCK_CLOSE}`;
+        });
+    }
+
+    /**
      * Park a backslash-escaped punctuation character so no later pass reads it
-     * as syntax.
+     * as syntax, and every inline raw HTML construct of CommonMark 0.31.2 §6.6
+     * -- an open or closing tag, a comment, a processing instruction, a
+     * declaration, a CDATA section -- in `tagStore`.
      *
      * CommonMark: a backslash before any ASCII punctuation makes that character
      * literal. Neither half of that worked -- "2 \\* 3 \\* 4" came out as
      * "2 \\ 3 \\ 4" in italics, so the escape was ignored AND the backslash
      * rendered. Others (\\#, \\-, \\[) left a visible backslash.
      *
-     * Runs after protectInlineCode, so a backslash inside `code` stays literal
-     * as the spec requires, and before every syntax pass.
+     * One left-to-right scan, because escapes, code spans and raw HTML take
+     * precedence by position: a backslash inside `code` or inside a tag stays
+     * literal (example 631), and a backtick inside a tag opens no code span.
+     *
+     * Raw HTML is any well-formed construct, paired or not, known or not; the
+     * sanitizer, not this reader, decides what survives. Text that only mentions
+     * a tag is written with its "<" escaped, as toMarkdown does for every
+     * tag-shaped "<" in prose. Closing tags are parked like opening ones:
+     * escaping "</u>" but not "<u>" appended another visible "</u>" on every
+     * save. Every pass's delimiters are stripped first, so user content can
+     * never spoof a token.
      */
-    private protectEscapes(markdown: string, store: string[]): string {
+    private protectEscapes(markdown: string, store: string[], tagStore: string[]): string {
         const source = markdown
             .replaceAll(ESCAPED_OPEN, '')
-            .replaceAll(ESCAPED_CLOSE, '');
+            .replaceAll(ESCAPED_CLOSE, '')
+            .replaceAll(/[\uE000\uE001]/gu, '');
         const out: string[] = [];
+        const scan: RawHtmlScan = { closers: new Map(), blankLine: -1 };
 
-        // A while loop with an explicit cursor: both branches consume more than
-        // one character, and mutating a for-loop counter to do that is a code
-        // smell the linter rightly flags.
+        // A while loop with an explicit cursor: every branch but the last
+        // consumes more than one character, and mutating a for-loop counter to
+        // do that is a code smell the linter rightly flags.
         let i = 0;
         while (i < source.length) {
             const ch = source[i];
@@ -1507,30 +2139,16 @@ export class RichTextMarkdownService {
                 continue;
             }
 
-            // A code span is copied WHOLE, so a backslash inside it stays literal
-            // as CommonMark requires -- `\\d+` and `C:\\temp` are the common
-            // case and must not be touched. Scanning here rather than parking
-            // escapes in a separate pass is what lets both rules hold at once:
-            // outside a span \\` is an escape and must not open one, inside a span
-            // it is not an escape at all.
+            const rawEnd = ch === '<' ? rawHtmlEnd(source, i, scan) : -1;
+            if (rawEnd !== -1) {
+                out.push(`${RAW_TAG_OPEN}${tagStore.length}${RAW_TAG_CLOSE}`);
+                tagStore.push(source.slice(i, rawEnd));
+                i = rawEnd;
+                continue;
+            }
+
             if (ch === '`') {
-                // The delimiter is a RUN closed by a run of the SAME length, the
-                // same rule protectInlineCode uses. indexOf on a single backtick
-                // contradicted the comment above: for a ``-delimited span it
-                // copied only the two opening ticks and then scanned the BODY as
-                // prose, so a backslash inside a multi-tick span was parked and
-                // dropped -- exactly the spans that hold a backtick, like a regex
-                // or a shell snippet.
-                const openStart = i;
-                while (source[i] === '`') i++;
-                const runLength = i - openStart;
-                const closeIndex = findClosingTickRun(source, i, runLength);
-                if (closeIndex !== -1) {
-                    out.push(source.slice(openStart, closeIndex + runLength));
-                    i = closeIndex + runLength;
-                    continue;
-                }
-                out.push(source.slice(openStart, i));
+                i = copyCodeSpan(source, i, out);
                 continue;
             }
 
@@ -1612,25 +2230,13 @@ export class RichTextMarkdownService {
     }
 
     /**
-     * Escape HTML entities but preserve Markdown syntax. Only `<`/`>` that look
-     * like HTML tags are escaped, so characters carrying Markdown meaning survive.
+     * Escape the angle brackets left in the text. Every raw HTML construct is
+     * parked by now (see protectEscapes), so a "<" left is text; a ">" is kept
+     * where it can be a quote marker.
      */
     private escapeHtmlInContent(text: string): string {
-
-        return perBlock(text, (block, paired) => block
-            .replaceAll(/<\/?([a-zA-Z][a-zA-Z0-9]*)\b[^<>]{0,4096}>|</g, (match: string, tagName: string | undefined, offset: number) => {
-                if (!tagName) return '&lt;';
-                if (this.isMarkupTag(tagName, offset, paired)) {
-                    return match;
-                }
-                // Tags whose CONTENT must not survive are left intact so the
-                // sanitizer removes the whole subtree. Escaping them here would
-                // turn a stripped <script> body into visible page text -- safe
-                // to look at, but the payload would still be sitting in the
-                // user's document.
-                if (CONTENT_BEARING_UNSAFE_TAGS.has(tagName.toLowerCase())) return match;
-                return '&lt;' + match.slice(1);
-            })
+        return text
+            .replaceAll('<', '&lt;')
             // `^` alongside the lookbehind: at index 0 there is no preceding
             // character for the lookbehind to test, so a document that OPENS with
             // a blockquote had its ">" escaped to text before parseBlockquotes
@@ -1642,7 +2248,7 @@ export class RichTextMarkdownService {
             // form never reached the parser as markdown -- it collapsed to one
             // level and drifted on every save. CommonMark treats ">>>" as three
             // nested quotes, the same as "> > >".
-            .replaceAll(/(?<!^)(?<![\s\w*`~[\]!#>-])>/gm, '&gt;'));
+            .replaceAll(/(?<!^)(?<![\s\w*`~[\]!#>-])>/gm, '&gt;');
     }
 
     /**
@@ -2000,31 +2606,14 @@ export class RichTextMarkdownService {
         return this.splitTableRow(trimmed).every(cell => /^:?-+:?$/.test(cell.trim()));
     }
 
-    /** Cells of one row, honouring `\\|` escapes inside cell text. */
+    /**
+     * Cells of one row. Every pipe here is a cell boundary: an escaped `\|` in
+     * cell text never reaches this pass, because protectEscapes parks it before
+     * any block is parsed.
+     */
     private splitTableRow(line: string): string[] {
         const trimmed = line.trim().replace(/^\|/, '').replace(/\|$/, '');
-        const cells: string[] = [];
-        let current = '';
-        for (let i = 0; i < trimmed.length; i++) {
-            const ch = trimmed[i];
-            // A single backslash. The comparison was against a TWO-character
-            // string that no single character can equal, so the escape never
-            // fired: "x\|y" split into two cells and left the backslash
-            // visible, giving a body row wider than its own header.
-            if (ch === '\\' && trimmed[i + 1] === '|') {
-                current += '|';
-                i++;
-                continue;
-            }
-            if (ch === '|') {
-                cells.push(current.trim());
-                current = '';
-                continue;
-            }
-            current += ch;
-        }
-        cells.push(current.trim());
-        return cells;
+        return trimmed.split('|').map((cell) => cell.trim());
     }
 
     /**
@@ -2066,7 +2655,11 @@ export class RichTextMarkdownService {
         return blocks.map(block => {
             const trimmed = block.trim();
 
-            if (/^<(h[1-6]|ul|ol|li|blockquote|pre|div|p|hr|table|details|figure)/i.test(trimmed)) {
+            // On ANY line, not only the first: a quote or a list may interrupt a
+            // paragraph, and wrapped whole the prose and the block shared one
+            // <p>, which a parser splits around the block, leaving an empty
+            // paragraph behind it.
+            if (/^<(h[1-6]|ul|ol|li|blockquote|pre|div|p|hr|table|details|figure)/im.test(trimmed)) {
                 return this.wrapLooseLines(trimmed);
             }
 
@@ -2154,15 +2747,6 @@ export class RichTextMarkdownService {
         return this.shieldUrl(this.escapeHtml(value));
     }
 
-    /**
-     * An attribute value made of document text, which escapeHtmlInContent has
-     * already escaped: only a quote is escaped here. Escaped again, a "<" in alt
-     * text came back as the characters "&lt;", one more layer on every save.
-     */
-    private textAttr(value: string): string {
-        return this.shieldUrl(value.replaceAll('"', '&quot;'));
-    }
-
     /** Restore the characters {@link shieldUrl} hid, once those passes are done. */
     private unshieldUrls(html: string): string {
         return URL_SHIELD.reduce((acc, [ch, code]) => acc.replaceAll(code, ch), html);
@@ -2188,22 +2772,29 @@ export class RichTextMarkdownService {
      * parenthesis the target grammar cannot carry (see markdownTarget): the real
      * character reaches the sanitizer and the attribute, rather than the parked
      * token, which sanitizeImageSrc percent-encoded into the address.
+     *
+     * A title after the destination is split off and returned apart, typed the
+     * same way.
      */
     private targetSource(
         target: string,
         inlineSources: readonly string[],
         tagStore: readonly string[],
         escapes: readonly string[],
-    ): string | null {
-        const typed = restoreParked(
-            decodeCharacterReferences(
-                restoreParked(restoreParked(target, INLINE_CODE_OPEN, INLINE_CODE_CLOSE, inlineSources), RAW_TAG_OPEN, RAW_TAG_CLOSE, tagStore),
-            ),
-            ESCAPED_OPEN,
-            ESCAPED_CLOSE,
-            escapes,
-        );
-        return holdsParkedToken(target) && /\s/.test(typed) ? null : typed;
+    ): { url: string; title: string } | null {
+        const written = restoreParked(restoreParked(target, INLINE_CODE_OPEN, INLINE_CODE_CLOSE, inlineSources), RAW_TAG_OPEN, RAW_TAG_CLOSE, tagStore);
+        const typed = (raw: string): string => restoreParked(decodeCharacterReferences(raw), ESCAPED_OPEN, ESCAPED_CLOSE, escapes);
+        // A title is part of the link, read as text: a tag or a code span in it
+        // comes back as the characters written. Left in the target, a tag in the
+        // title broke the link and a plain title landed in the address.
+        const parts = splitTarget(written);
+        if (!parts) {
+            const url = typed(written);
+            return holdsParkedToken(target) && /\s/.test(url) ? null : { url, title: '' };
+        }
+        const url = typed(parts.destination);
+        if (!parts.pointy && holdsParkedToken(target) && /\s/.test(url)) return null;
+        return { url, title: parts.title === null ? '' : typed(parts.title) };
     }
 
     /**
@@ -2237,8 +2828,9 @@ export class RichTextMarkdownService {
      * escaped, so only the quote is escaped again here -- escaping it twice
      * brought a "<" back as the characters "&lt;", one more layer per save.
      */
-    private imageTag(attribute: 'src' | 'data-blocked-src', target: string, alt: string): string {
-        return `<img ${attribute}="${this.escapeHtml(target)}" alt="${alt.replaceAll('"', '&quot;')}">`;
+    private imageTag(attribute: 'src' | 'data-blocked-src', target: string, alt: string, title: string): string {
+        const titleAttr = title ? ` title="${this.escapeHtml(title)}"` : '';
+        return `<img ${attribute}="${this.escapeHtml(target)}" alt="${alt.replaceAll('"', '&quot;')}"${titleAttr}>`;
     }
 
     /**
@@ -2253,9 +2845,9 @@ export class RichTextMarkdownService {
      */
     private parseImages(html: string, inlineStore: readonly string[], inlineSources: readonly string[], tagStore: string[], escapes: readonly string[]): string {
         return html.replaceAll(MEDIA_TARGET_PATTERN.image, (match, alt, target) => {
-            const src = this.targetSource(target, inlineSources, tagStore, escapes);
-            if (src === null) return match;
-            const safeSrc = this.sanitizer.sanitizeImageSrc(src);
+            const source = this.targetSource(target, inlineSources, tagStore, escapes);
+            if (source === null) return match;
+            const safeSrc = this.sanitizer.sanitizeImageSrc(source.url);
             // An alt attribute is plain text: a parked code span restored in
             // there would land as the literal string "<code>x</code>". Resolve
             // it back to the text the author typed instead.
@@ -2268,9 +2860,9 @@ export class RichTextMarkdownService {
                 // DEFAULT -- silently deleted blocked images instead.
                 const blocked = this.sanitizer.takeBlockedByPolicy();
                 if (blocked === null) return '';
-                return this.parkWrittenTag(this.imageTag('data-blocked-src', blocked, plainAlt), tagStore);
+                return this.parkWrittenTag(this.imageTag('data-blocked-src', blocked, plainAlt, source.title), tagStore);
             }
-            return this.parkWrittenTag(this.imageTag('src', safeSrc, plainAlt), tagStore);
+            return this.parkWrittenTag(this.imageTag('src', safeSrc, plainAlt, source.title), tagStore);
         });
     }
 
@@ -2279,12 +2871,31 @@ export class RichTextMarkdownService {
      */
     private parseLinks(html: string, inlineSources: readonly string[], tagStore: readonly string[], escapes: readonly string[]): string {
         return html.replaceAll(MEDIA_TARGET_PATTERN.link, (match, text, target) => {
-            const url = this.targetSource(target, inlineSources, tagStore, escapes);
-            if (url === null) return match;
-            const safeUrl = this.sanitizer.sanitizeUrl(url);
+            const source = this.targetSource(target, inlineSources, tagStore, escapes);
+            if (source === null) return match;
+            const safeUrl = this.sanitizer.sanitizeUrl(source.url);
             if (!safeUrl) return text;
-            return `<a href="${this.attr(safeUrl)}" rel="noopener noreferrer">${text}</a>`;
+            const title = source.title ? ` title="${this.attr(source.title)}"` : '';
+            return `<a href="${this.attr(safeUrl)}"${title} rel="noopener noreferrer">${text}</a>`;
         });
+    }
+
+    /**
+     * Remove a paragraph whose only content the media passes rejected.
+     *
+     * parseParagraphs must wrap lines before parseImages runs (the order is
+     * load-bearing), so a line holding only an unsafe image was wrapped first
+     * and then emptied, leaving a `<p></p>` the author never wrote -- visible
+     * spacing under prose margins. A paragraph is the parser's wrapper for
+     * content, so with its content gone it goes too; a heading or list item the
+     * author marked keeps its structure. Only parser-written `<p>` is literal at
+     * this point: an author's raw `<p></p>` is still parked and survives. One
+     * separating newline goes with the paragraph, so its neighbours keep the
+     * single newline between them.
+     */
+    private dropEmptiedParagraphs(html: string): string {
+        return html.replaceAll(/\n?<p>\s*<\/p>\n?/g, (match: string) =>
+            match.startsWith('\n') && match.endsWith('\n') ? '\n' : '');
     }
 
     /**
@@ -2405,10 +3016,7 @@ export class RichTextMarkdownService {
         const inlineResult = this.inlineTagToMarkdown(tagName, inner, element);
         if (inlineResult !== null) return inlineResult;
 
-        const blockResult = this.blockTagToMarkdown(tagName, inner, element);
-        if (blockResult !== null) return blockResult;
-
-        return inner;
+        return this.blockTagToMarkdown(tagName, inner, element) ?? inner;
     }
 
     private headingTagLevel(tagName: string): number {
@@ -2434,7 +3042,7 @@ export class RichTextMarkdownService {
         if (isEmptyWrapper(tagName, inner, element)) return '';
 
         // Markdown has no syntax for these, so they are emitted verbatim --
-        // protectRawTags already carries such tags back through toHtml unchanged.
+        // protectEscapes already carries such tags back through toHtml unchanged.
         // Only <u> used to be handled, so its five siblings (all in the
         // sanitizer's ALLOWED_TAGS) were flattened to bare text on EVERY save in
         // the default markdown mode: <mark>X</mark> became X, unrecoverably.
@@ -2457,7 +3065,7 @@ export class RichTextMarkdownService {
                 // back as struck "a " followed by literal tildes.
                 return this.insideEmphasis(element, STRIKE_TAGS) ? inner : delimit(inner, '~~');
             // Markdown has no syntax for these, so they are emitted verbatim --
-            // protectRawTags already carries such tags back through toHtml
+            // protectEscapes already carries such tags back through toHtml
             // unchanged. Only <u> was listed, so its five siblings (all in the
             // sanitizer's ALLOWED_TAGS) were flattened to bare text on EVERY
             // save in the default markdown mode: <mark>X</mark> became X.
@@ -2490,10 +3098,11 @@ export class RichTextMarkdownService {
      * asterisks around plain text: bold inside bold is still just bold.
      */
     private insideEmphasis(element: HTMLElement, tags: readonly string[]): boolean {
-        for (let parent = element.parentElement; parent; parent = parent.parentElement) {
-            const tag = parent.tagName.toLowerCase();
-            if (tags.includes(tag)) return true;
-            if (!INLINE_ANCESTORS.has(tag)) return false;
+        // Every emphasis tag is itself an inline ancestor, so the walk ends at
+        // the first ancestor that is not inline formatting.
+        for (let parent = element.parentElement; parent && INLINE_ANCESTORS.has(parent.tagName.toLowerCase());
+            parent = parent.parentElement) {
+            if (tags.includes(parent.tagName.toLowerCase())) return true;
         }
         return false;
     }
@@ -2545,7 +3154,7 @@ export class RichTextMarkdownService {
         const showsWithoutText = codeShowsWithoutText(element);
         if (content === '' && !showsWithoutText) return '';
         if (showsWithoutText || content.includes('\n') || abutsCode('previousSibling') || abutsCode('nextSibling')) {
-            return `<code>${this.codeTagContent(element)}</code>`;
+            return `<code>${this.codeTagContent(element, this.inlineCodeTag)}</code>`;
         }
 
         const longestRun = Math.max(
@@ -2567,17 +3176,17 @@ export class RichTextMarkdownService {
     }
 
     /**
-     * A code element's content for its tag form: its text escaped, each break as
-     * the tag, each image as markdown, and newlines as character references -- a
-     * raw one ended a heading or a task row the tag sat in, a blank line split the
-     * tag pair, and the break rewrite changed the code's own spaces.
+     * A code element's content for its tag form: its text and images as `writer`
+     * writes them, each break as the tag, and newlines as character references --
+     * a raw one ended a heading or a task row the tag sat in, a blank line split
+     * the tag pair, and the break rewrite changed the code's own spaces.
      */
-    private codeTagContent(node: Node): string {
+    private codeTagContent(node: Node, writer: CodeTagWriter): string {
         return Array.from(node.childNodes, (child) => {
             if (child.nodeName === 'BR') return '<br>';
-            if (child.nodeName === 'IMG') return this.handleImageTag(child as HTMLElement);
-            if (child.nodeType === Node.ELEMENT_NODE) return this.codeTagContent(child);
-            return this.escapeHtml(escapeInlineSyntax(child.textContent ?? '')).replaceAll('\n', '&#10;');
+            if (child.nodeName === 'IMG') return writer.image(child as HTMLElement);
+            if (child.nodeType === Node.ELEMENT_NODE) return this.codeTagContent(child, writer);
+            return writer.text(child.textContent ?? '').replaceAll('\n', '&#10;');
         }).join('');
     }
 
@@ -2588,7 +3197,10 @@ export class RichTextMarkdownService {
         // a break -- is written after the tag: dropped, the words on either side
         // of the link fused.
         if (inner.trim() === '') return `<a href="${this.escapeHtml(href)}"></a>${inner}`;
-        return `[${inner}](${markdownTarget(href)})`;
+        // An anchor with no address is no link: written as a link, it came back
+        // as one pointing at its own title.
+        if (!element.hasAttribute('href')) return inner;
+        return `[${inner}](${markdownDestination(href)}${markdownTitle(element)})`;
     }
 
     private handleImageTag(element: HTMLElement): string {
@@ -2606,7 +3218,7 @@ export class RichTextMarkdownService {
         // the paragraph inside the attribute, backticks or asterisks were read as
         // syntax, and "&copy;" or "<i>" came back as a character or a tag.
         const text = escapeMarkdownText(alt.replaceAll(/[ \t\n\r\f]+/g, ' '));
-        return `![${text}](${markdownTarget(src)})`;
+        return `![${text}](${markdownDestination(src)}${markdownTitle(element)})`;
     }
 
     /**
@@ -2738,17 +3350,20 @@ export class RichTextMarkdownService {
     /**
      * A code block as its tag pair, on one markdown line.
      *
-     * One line, with every newline written as a character reference, because a
-     * raw newline inside the pair would let the block passes split it: the
-     * `<pre>` and `</pre>` are parked separately and the lines between them are
-     * read as markdown. The reference decodes to the newline when the sanitizer
-     * parses the restored tag, so the code keeps its own line breaks.
+     * One line, with every newline written as a character reference. At the
+     * margin the pair opens a raw HTML block and is read back verbatim; inside a
+     * list item or a quote it is read inline, where a raw newline would let the
+     * block passes split it: the `<pre>` and `</pre>` are parked separately and
+     * the lines between them are read as markdown. The reference decodes to the
+     * newline when the sanitizer parses the restored tag, so the code keeps its
+     * own line breaks.
      */
     private preTagForm(element: HTMLElement, language: string, inListItem: boolean): string {
         const code = element.querySelector('code') ?? element;
         const lang = language ? ` data-language="${this.escapeHtml(language)}"` : '';
         const indent = inListItem ? '  ' : '';
-        return `\n${indent}<pre><code${lang}>${this.codeTagContent(code)}</code></pre>\n`;
+        const writer = writtenAtMargin(element) ? this.rawCodeTag : this.inlineCodeTag;
+        return `\n${indent}<pre><code${lang}>${this.codeTagContent(code, writer)}</code></pre>\n`;
     }
 
     private handleUlTag(element: HTMLElement): string {
@@ -3224,81 +3839,237 @@ const MAX_TABLE_COLUMNS = 1000;
 /** HTML's own limit for a column span. */
 const MAX_COLSPAN = 1000;
 
-/** Blank-line boundary between blocks, captured so joining restores the text. */
-const BLOCK_SEPARATOR = /(\n\s*\n)/;
+/**
+ * Author tags this reader closes where the author left them open in prose: the
+ * inline elements, less the void ones. An HTML parser keeps the formatting
+ * ones open across blocks.
+ */
+const AUTHOR_INLINE_TAGS = new Set([
+    'a', 'abbr', 'b', 'bdi', 'bdo', 'big', 'cite', 'code', 'data', 'del', 'dfn', 'em', 'font', 'i', 'ins', 'kbd',
+    'mark', 'nobr', 'q', 's', 'samp', 'small', 'span', 'strike', 'strong', 'sub', 'sup', 'time', 'tt', 'u', 'var',
+]);
 
-const VOID_TAGS = new Set(['br', 'hr', 'img', 'input', 'col']);
+/** Void elements: a start tag that opens nothing. */
+const VOID_TAG_NAMES = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'source', 'track', 'wbr']);
+
+/** Inline elements this reader writes in a line: around author content, a break, a task's box. */
+const READER_INLINE_TAGS = new Set(['a', 'strong', 'em', 'del', 'span', 'br', 'input']);
 
 /**
- * Tag names that appear as a matched open/close pair in `text`.
- *
- * Used to tell markup from prose about markup: "<b>x</b>" is markup, while
- * "the <table> element" is a sentence. Counting rather than matching positions
- * is deliberate -- it is cheap, and a document with mismatched nesting is not
- * something this pass should try to repair.
+ * In the reader's output before the author's tags are restored: an author tag's
+ * token, a fence or raw HTML block's token, or a tag the reader wrote.
  */
-/**
- * Run `transform` over each block with only THAT block's paired tag names.
- *
- * An earlier version computed the sets per block and then unioned them into
- * one document-wide set, which threw the locality away again: a genuine
- * `<b>bold</b>` anywhere re-promoted every prose mention of `<b>` to markup and
- * the words were silently deleted. The set has to stay with its block all the
- * way to the point of use.
- */
-function perBlock(
-    text: string,
-    transform: (block: string, paired: ReadonlySet<number>) => string,
-): string {
-    return text
-        .split(BLOCK_SEPARATOR)
-        .map((part, index) => (index % 2 === 1 ? part : transform(part, pairedTagOffsets(part))))
-        .join('');
+const TAG_SCOPE_TOKEN = /(\d{1,9})|(\d{1,9})|<(\/?)([a-z][a-z\d]*)\b[^>]*>/g;
+
+/** A tag's name, lowercased, and whether it is an end tag; null for a comment and the like. */
+function tagNameOf(tag: string): { name: string; closing: boolean } | null {
+    const match = /^<(\/?)([A-Za-z][A-Za-z\d-]*)/.exec(tag);
+    return match ? { name: match[2].toLowerCase(), closing: match[1] === '/' } : null;
 }
 
 /**
- * Byte offsets of the tags in `block` that form a matched open/close pair.
- *
- * Pairing is resolved by POSITION, with a stack, not by counting names. Name
- * counting could not tell the first `<b>` in "Use <b> to bold. Like <b>x</b>"
- * from the second: it saw one open and one close, called the name paired, and
- * promoted BOTH -- deleting the prose mention and fabricating a stray closing
- * tag. Only the opener a closer actually matches is markup.
+ * An element open at a point of the reader's output, as an HTML parser would
+ * have it open: its name, whether the author wrote it, and whether this pass
+ * ends it where the author left it open -- an inline tag in prose.
  */
-/**
- * Pop back to the nearest unclosed opener of `name` and return its offset, or
- * null when nothing matches. Unwinding discards openers left dangling inside
- * it, which is what a browser's own parser does.
- */
-function takeMatchingOpener(stack: { name: string; index: number }[], name: string): number | null {
-    for (let k = stack.length - 1; k >= 0; k--) {
-        if (stack[k].name !== name) continue;
-        const index = stack[k].index;
-        stack.length = k;
-        return index;
-    }
-    return null;
+interface OpenElement {
+    readonly name: string;
+    readonly author: boolean;
+    readonly closable: boolean;
 }
 
-function pairedTagOffsets(block: string): ReadonlySet<number> {
-    const paired = new Set<number>();
-    const openStack: { name: string; index: number }[] = [];
-    const pattern = /<(\/?)([a-zA-Z][a-zA-Z0-9]*)\b[^<>]{0,4096}>/g;
-    let match: RegExpExecArray | null;
+/** The index of the innermost open element `matches` accepts, or -1. */
+function innermostOpen(open: readonly OpenElement[], matches: (el: OpenElement) => boolean): number {
+    for (let at = open.length - 1; at >= 0; at--) {
+        if (matches(open[at])) return at;
+    }
+    return -1;
+}
 
-    while ((match = pattern.exec(block)) !== null) {
-        const name = match[2].toLowerCase();
-        if (!match[1]) {
-            openStack.push({ name, index: match.index });
-            continue;
+/**
+ * End tags for the closable elements open at `depth` and above, innermost
+ * first, with `open` cut back to `depth`: everything above it ends there, and
+ * the ones the author left open in prose end in the output too.
+ */
+function closeFrom(open: OpenElement[], depth: number): string {
+    const closers = open.slice(depth).reverse()
+        .filter((el) => el.closable)
+        .map((el) => `</${el.name}>`);
+    open.length = depth;
+    return closers.join('');
+}
+
+/**
+ * The paragraph a p-closing start tag ends, as the parser ends it: the
+ * innermost open `<p>`, the author's or the reader's.
+ */
+function closeOpenParagraph(open: OpenElement[]): string {
+    const at = innermostOpen(open, (el) => el.name === 'p');
+    return at === -1 ? '' : closeFrom(open, at);
+}
+
+/** How many elements the author has open: what MAX_NESTING_DEPTH caps. */
+function authorDepth(open: readonly OpenElement[]): number {
+    return open.reduce((count, el) => (el.author ? count + 1 : count), 0);
+}
+
+/**
+ * A start tag at a point of the output, tracked in `open`: what goes before it
+ * -- the end tags it implies -- or null when it stays text.
+ *
+ * An author element opened past MAX_NESTING_DEPTH stays text, as every nested
+ * construct of this reader does past the cap. Uncapped, author tags nested as
+ * deep as they were written -- thirty thousand `<b>`, or one unclosed `<div>`
+ * per paragraph -- and an HTML parser that does not cap depth itself took time
+ * quadratic in the document.
+ */
+function startTag(open: OpenElement[], name: string, author: boolean, closable: boolean): string | null {
+    const implied = P_CLOSING_TAGS.has(name) ? closeOpenParagraph(open) : '';
+    if (VOID_TAG_NAMES.has(name)) return implied;
+    if (author && authorDepth(open) >= MAX_NESTING_DEPTH) return null;
+    open.push({ name, author, closable });
+    return implied;
+}
+
+/**
+ * An end tag at a point of the output, tracked in `open`: what goes before it.
+ * It ends the innermost element of its name, whoever wrote it, and everything
+ * open inside that; a stray end tag is ignored by the parser and here.
+ */
+function endTag(open: OpenElement[], name: string): string {
+    const at = innermostOpen(open, (el) => el.name === name);
+    if (at === -1) return '';
+    const closers = closeFrom(open, at + 1);
+    open.length = at;
+    return closers;
+}
+
+/** An author tag as the text it is written as, for a tag that stays text. */
+function tagAsText(tag: string): string {
+    return tag.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+}
+
+/** The author's inline tag, parked as `token`, at a point of the output; returns what stands there. */
+function authorTagScope(open: OpenElement[], token: string, source: string): string {
+    const tag = tagNameOf(source);
+    if (!tag) return token;
+    if (tag.closing) return endTag(open, tag.name) + token;
+    const implied = startTag(open, tag.name, true, AUTHOR_INLINE_TAGS.has(tag.name));
+    return implied === null ? tagAsText(source) : implied + token;
+}
+
+/** A tag the reader wrote, tracked in `open`; returns what goes before it. */
+function readerTagScope(open: OpenElement[], name: string, closing: boolean): string {
+    if (closing) return endTag(open, name);
+    // Entering a block of its own, the reader ends what the author left open
+    // in the prose before it.
+    const trailing = READER_INLINE_TAGS.has(name) ? '' : closeTrailingProse(open);
+    return trailing + (startTag(open, name, false, false) ?? '');
+}
+
+/** End tags for the author's prose tags open at the top of `open`, innermost first. */
+function closeTrailingProse(open: OpenElement[]): string {
+    let at = open.length;
+    while (at > 0 && open[at - 1].closable) at--;
+    return closeFrom(open, at);
+}
+
+/**
+ * A fence's or raw HTML block's stored markup, its tags tracked in `open` as
+ * the parser meets them, and any tag past the nesting cap made text. Nothing
+ * in it is closed: a raw block is verbatim, and CommonMark lets its tags wrap
+ * the markdown that follows.
+ */
+function scopeRawBlock(open: OpenElement[], block: string): string {
+    const scan: RawHtmlScan = { closers: new Map(), blankLine: -1 };
+    const out: string[] = [];
+    let from = 0;
+    let at = block.indexOf('<');
+    while (at !== -1) {
+        const end = rawHtmlConstructEnd(block, at, scan);
+        const tag = end === -1 ? null : tagNameOf(block.slice(at, end));
+        if (tag?.closing) {
+            endTag(open, tag.name);
+        } else if (tag && startTag(open, tag.name, true, false) === null) {
+            out.push(block.slice(from, at), tagAsText(block.slice(at, end)));
+            from = end;
         }
-        const opener = takeMatchingOpener(openStack, name);
-        if (opener !== null) {
-            paired.add(opener);
-            paired.add(match.index);
+        at = block.indexOf('<', tag ? end : at + 1);
+    }
+    out.push(block.slice(from));
+    return out.join('');
+}
+
+/**
+ * `html` with every inline element the author left open in prose ended inside
+ * the block -- paragraph, heading, cell, the reader's link or emphasis, or the
+ * author's own block element -- it was opened in, and no author element nested
+ * past MAX_NESTING_DEPTH. Every tag is read as an HTML parser reads it, the raw
+ * blocks' included, so the count is of what is really open.
+ *
+ * An HTML parser keeps an unclosed `<b>` or `<a>` open across blocks and
+ * rebuilds it inside every later paragraph and heading, so "use the <b> tag" in
+ * prose made the rest of the document bold, and the save wrote that bold into
+ * every block. With one such tag per paragraph each block rebuilt all the
+ * earlier ones: output quadratic in the document, and seconds to render.
+ */
+function closeInlineTagsInTheirBlocks(html: string, tagStore: readonly string[], blockStore: string[]): string {
+    const open: OpenElement[] = [];
+    const scoped = html.replaceAll(
+        TAG_SCOPE_TOKEN,
+        (token: string, parked: string | undefined, block: string | undefined, slash: string, reader: string) => {
+            if (parked !== undefined) return authorTagScope(open, token, tagStore[Number(parked)] ?? '');
+            if (block !== undefined) {
+                const at = Number(block);
+                blockStore[at] = scopeRawBlock(open, blockStore[at] ?? '');
+                return token;
+            }
+            return readerTagScope(open, reader, slash === '/') + token;
+        },
+    );
+    return scoped + closeFrom(open, 0);
+}
+
+/** A table cell this reader wrote, with its content. */
+const READER_TABLE_CELL = /<(t[dh])>([\s\S]*?)<\/\1>/g;
+
+/** A parked inline code span's token. */
+const PARKED_INLINE_CODE = /\ue112(\d{1,9})\ue113/g;
+
+/**
+ * Read an escaped pipe inside a code span in a table cell as a pipe, as GFM
+ * does: a pipe in a cell is escaped, inside a span too. The writer escapes
+ * every pipe in a cell, so a code span holding one came back with the
+ * backslash inside the code and gained another on every save.
+ *
+ * Runs while the author's own tags are still parked, so every cell here is one
+ * this reader wrote from a GFM row -- a raw HTML table's code keeps its
+ * backslashes, as CommonMark says it must.
+ */
+function unescapePipesInCellCode(html: string, inlineStore: string[]): void {
+    for (const [, , cell] of html.matchAll(READER_TABLE_CELL)) {
+        for (const [, index] of cell.matchAll(PARKED_INLINE_CODE)) {
+            const at = Number(index);
+            inlineStore[at] = inlineStore[at].replaceAll(String.raw`\|`, '|');
         }
     }
-    return paired;
+}
+
+/**
+ * `html` with each paragraph this reader wrote ended only where it is still
+ * open. The author's raw tags are still parked, so every literal `<p>` here is
+ * the reader's own.
+ *
+ * CommonMark wraps a line holding raw block HTML in a paragraph all the same:
+ * "a <p>x</p>" is `<p>a <p>x</p></p>`. An HTML parser closes the outer
+ * paragraph at the inner `<p>`, and then reads the stray `</p>` as an EMPTY
+ * paragraph -- a block the author never wrote. Leaving out an end tag that
+ * closes nothing gives the DOM the parser builds from CommonMark's output
+ * without it.
+ */
+function closeParagraphsLeftOpen(html: string, tagStore: readonly string[]): string {
+    return html.replaceAll(/<p>([\s\S]*?)<\/p>/g, (match: string, content: string) =>
+        paragraphStillOpen(content, tagStore) ? match : `<p>${content}`);
 }
 
 /**

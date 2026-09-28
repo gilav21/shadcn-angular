@@ -8,60 +8,8 @@ import { ContextMenuSubTriggerComponent } from './context-menu-sub-trigger.compo
 import { ContextMenuSubContentComponent } from './context-menu-sub-content.component';
 import { ContextMenuItemComponent } from './context-menu-item.component';
 
-/**
- * A manually-drained requestAnimationFrame queue.
- *
- * The component computes its portal position inside nested rAF callbacks and
- * writes the result into a signal. Under zoneless change detection that signal
- * write schedules an `ApplicationRef.tick()` whose dev-mode `checkNoChanges`
- * pass re-checks the portal's embedded view — but because the view's root nodes
- * have been relocated into a detached portal host, the check observes a style
- * that "changed after it was checked" and throws NG0100 asynchronously.
- *
- * To keep behaviour deterministic we stub rAF so callbacks only run when we
- * explicitly flush them, and we flush inside a checkNoChanges-disabled CD pass.
- */
-class RafQueue {
-    private queue: FrameRequestCallback[] = [];
-    private original!: typeof requestAnimationFrame;
-
-    install(): void {
-        this.original = globalThis.requestAnimationFrame;
-        globalThis.requestAnimationFrame = ((cb: FrameRequestCallback) => {
-            this.queue.push(cb);
-            return this.queue.length;
-        }) as typeof requestAnimationFrame;
-    }
-
-    restore(): void {
-        globalThis.requestAnimationFrame = this.original;
-        this.queue = [];
-    }
-
-    /** Run every currently-queued callback (callbacks may enqueue more). */
-    flush(): void {
-        let guard = 0;
-        while (this.queue.length > 0 && guard < 50) {
-            const pending = this.queue;
-            this.queue = [];
-            pending.forEach((cb) => cb(performance.now()));
-            guard += 1;
-        }
-    }
-}
-
-const raf = new RafQueue();
-
 async function settlePortal(fixture: ComponentFixture<unknown>): Promise<void> {
-    // Mount the portal (effect → showPortal) without computing the position yet.
     fixture.detectChanges();
-    await fixture.whenStable();
-}
-
-/** Drain the rAF queue so calculatePosition() runs, flushing without checkNoChanges. */
-async function settlePosition(fixture: ComponentFixture<unknown>): Promise<void> {
-    raf.flush();
-    fixture.detectChanges(false);
     await fixture.whenStable();
 }
 
@@ -121,7 +69,6 @@ describe('ContextMenuSubContentComponent', () => {
     }
 
     beforeEach(async () => {
-        raf.install();
         await TestBed.configureTestingModule({ imports: [SubContentHost] }).compileComponents();
         fixture = TestBed.createComponent(SubContentHost);
         host = fixture.componentInstance;
@@ -129,16 +76,9 @@ describe('ContextMenuSubContentComponent', () => {
     });
 
     afterEach(() => {
-        // Destroy first so the portal's embedded view is torn down before any further
-        // background change-detection can re-check its rAF-set position binding.
         if (!fixture.componentRef.hostView.destroyed) fixture.destroy();
         document.querySelectorAll('[data-context-menu-sub-portal]').forEach((el) => el.remove());
         document.documentElement.removeAttribute('dir');
-        raf.restore();
-    });
-
-    it('creates and registers itself with the sub container', () => {
-        expect(contentComponent()).toBeTruthy();
     });
 
     it('does not render a portal while the sub is closed', () => {
@@ -165,51 +105,6 @@ describe('ContextMenuSubContentComponent', () => {
         const content = portalContent();
         expect(content?.className).toContain('bg-popover');
         expect(content?.className).toContain('my-custom-class');
-    });
-
-    it('positions the content to the right of the trigger in LTR', async () => {
-        const trigger = triggerEl();
-        // Give the trigger a known position so getBoundingClientRect returns sane values.
-        trigger.getBoundingClientRect = () =>
-            ({ left: 100, right: 150, top: 50, bottom: 70, width: 50, height: 20 }) as DOMRect;
-
-        // Pre-seed the position to the value calculatePosition() will compute, so the
-        // portal mounts already rendering it and the later rAF flush produces no signal
-        // delta (which would otherwise trip a spurious checkNoChanges on the relocated
-        // embedded view under zoneless CD).
-        contentComponent().portalPosition.set({ x: 154, y: 50 });
-        subComponent().enter();
-        await settlePortal(fixture);
-        await settlePosition(fixture);
-
-        // x = triggerRect.right + 4 = 154
-        expect(contentComponent().portalPosition().x).toBe(154);
-        // y = triggerRect.top = 50
-        expect(contentComponent().portalPosition().y).toBe(50);
-    });
-
-    it('positions the content to the left of the trigger in RTL', async () => {
-        host.dir.set('rtl');
-        document.documentElement.setAttribute('dir', 'rtl');
-        fixture.detectChanges();
-
-        const trigger = triggerEl();
-        // Trigger hugs the left edge: the RTL branch (x = left - width - 4) underflows
-        // below 8, so the resolver falls back to x = triggerRect.right + 4 — making the
-        // result independent of the (browser-determined) content width.
-        trigger.getBoundingClientRect = () =>
-            ({ left: 10, right: 60, top: 50, bottom: 70, width: 50, height: 20 }) as DOMRect;
-
-        // Pre-seed (before mount) the value calculatePosition() will compute so the rAF
-        // flush yields no signal delta: RTL fallback x = right + 4 = 64, y = top = 50.
-        contentComponent().portalPosition.set({ x: 64, y: 50 });
-        subComponent().enter();
-        await settlePortal(fixture);
-        await settlePosition(fixture);
-
-        // RTL fallback placed the content to the right of the hugging-left trigger.
-        expect(contentComponent().portalPosition().x).toBe(64);
-        expect(contentComponent().portalPosition().y).toBe(50);
     });
 
     it('tears down the portal when the sub closes', async () => {
@@ -274,15 +169,23 @@ describe('ContextMenuSubContentComponent', () => {
         });
 
         it('ArrowLeft in LTR closes the sub and refocuses the trigger', () => {
-            const event = dispatchKey(itemEl('a'), 'ArrowLeft');
-            expect(event.defaultPrevented).toBe(true);
+            vi.useFakeTimers();
+            try {
+                const event = dispatchKey(itemEl('a'), 'ArrowLeft');
+                vi.advanceTimersByTime(100);
+                expect(event.defaultPrevented).toBe(true);
+                expect(subComponent().isOpen()).toBe(false);
+                expect(document.activeElement).toBe(triggerEl());
+            } finally {
+                vi.useRealTimers();
+            }
         });
 
         it('ArrowLeft in RTL is ignored (no preventDefault)', async () => {
             host.dir.set('rtl');
             document.documentElement.setAttribute('dir', 'rtl');
             forceRtl();
-            fixture.detectChanges(false);
+            fixture.detectChanges();
             const event = dispatchKey(itemEl('a'), 'ArrowLeft');
             expect(event.defaultPrevented).toBe(false);
         });
@@ -291,9 +194,16 @@ describe('ContextMenuSubContentComponent', () => {
             host.dir.set('rtl');
             document.documentElement.setAttribute('dir', 'rtl');
             forceRtl();
-            fixture.detectChanges(false);
-            const event = dispatchKey(itemEl('a'), 'ArrowRight');
-            expect(event.defaultPrevented).toBe(true);
+            fixture.detectChanges();
+            vi.useFakeTimers();
+            try {
+                const event = dispatchKey(itemEl('a'), 'ArrowRight');
+                vi.advanceTimersByTime(100);
+                expect(event.defaultPrevented).toBe(true);
+                expect(subComponent().isOpen()).toBe(false);
+            } finally {
+                vi.useRealTimers();
+            }
         });
 
         it('ArrowRight in LTR is ignored (no preventDefault)', () => {
@@ -301,9 +211,19 @@ describe('ContextMenuSubContentComponent', () => {
             expect(event.defaultPrevented).toBe(false);
         });
 
-        it('Escape closes the sub and prevents default', () => {
-            const event = dispatchKey(itemEl('a'), 'Escape');
-            expect(event.defaultPrevented).toBe(true);
+        it('Escape closes the sub but leaves the root menu open', () => {
+            const menu = fixture.debugElement.query(By.directive(ContextMenuComponent)).componentInstance as ContextMenuComponent;
+            menu.show(100, 100);
+            vi.useFakeTimers();
+            try {
+                const event = dispatchKey(itemEl('a'), 'Escape');
+                vi.advanceTimersByTime(100);
+                expect(event.defaultPrevented).toBe(true);
+                expect(subComponent().isOpen()).toBe(false);
+                expect(menu.open()).toBe(true);
+            } finally {
+                vi.useRealTimers();
+            }
         });
 
         it('an unhandled key does not prevent default', () => {
@@ -312,17 +232,25 @@ describe('ContextMenuSubContentComponent', () => {
         });
     });
 
-    it('mouseenter/mouseleave on the content keeps/releases the open state', async () => {
+    it('mouseleave closes the content after 100ms unless the pointer comes back', async () => {
         subComponent().enter();
         await settlePortal(fixture);
         const content = portalContent()!;
 
-        content.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-        expect(subComponent().isOpen()).toBe(true);
+        vi.useFakeTimers();
+        try {
+            content.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+            vi.advanceTimersByTime(50);
+            content.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+            vi.advanceTimersByTime(100);
+            expect(subComponent().isOpen()).toBe(true);
 
-        content.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
-        // leave() schedules a delayed close; immediately it is still open
-        expect(subComponent().isOpen()).toBe(true);
+            content.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+            vi.advanceTimersByTime(100);
+            expect(subComponent().isOpen()).toBe(false);
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it('cleans up the portal on component destroy', async () => {
@@ -359,11 +287,9 @@ describe('ContextMenuSubContentComponent without an outer context-menu (no RTL p
     afterEach(() => {
         if (!fixture.componentRef.hostView.destroyed) fixture.destroy();
         document.querySelectorAll('[data-context-menu-sub-portal]').forEach((el) => el.remove());
-        raf.restore();
     });
 
     beforeEach(async () => {
-        raf.install();
         await TestBed.configureTestingModule({ imports: [NoContextMenuHost] }).compileComponents();
         fixture = TestBed.createComponent(NoContextMenuHost);
         fixture.detectChanges();

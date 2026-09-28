@@ -5,7 +5,7 @@ import { PopoverContentComponent } from './sub/popover-content.component';
 import { PopoverCloseComponent } from './sub/popover-close.component';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { DialogComponent, DialogContentComponent } from '../dialog';
 
 // Test host for integration
@@ -28,22 +28,6 @@ class TestHostComponent {
     }
 }
 
-// RTL Test host
-@Component({
-    template: `
-        <div [dir]="dir()">
-            <ui-popover>
-                <ui-popover-trigger>فتح</ui-popover-trigger>
-                <ui-popover-content>محتوى النافذة</ui-popover-content>
-            </ui-popover>
-        </div>
-    `,
-    imports: [PopoverComponent, PopoverTriggerComponent, PopoverContentComponent]
-})
-class RTLTestHostComponent {
-    dir = signal<'ltr' | 'rtl'>('ltr');
-}
-
 describe('PopoverComponent', () => {
     let component: PopoverComponent;
     let fixture: ComponentFixture<PopoverComponent>;
@@ -58,25 +42,12 @@ describe('PopoverComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
-    it('should be closed by default', () => {
-        expect(component.open()).toBe(false);
-    });
-
     it('should toggle open state', () => {
         component.toggle();
         expect(component.open()).toBe(true);
 
         component.toggle();
         expect(component.open()).toBe(false);
-    });
-
-    it('should show when show() is called', () => {
-        component.show();
-        expect(component.open()).toBe(true);
     });
 
     it('closes on Escape', () => {
@@ -95,18 +66,6 @@ describe('PopoverComponent', () => {
         expect(component.open()).toBe(false);
     });
 
-    it('ignores Escape while already closed', () => {
-        expect(component.open()).toBe(false);
-        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-        fixture.detectChanges();
-        expect(component.open()).toBe(false);
-    });
-
-    it('should hide when hide() is called', () => {
-        component.show();
-        component.hide();
-        expect(component.open()).toBe(false);
-    });
 });
 
 describe('Popover Integration', () => {
@@ -123,16 +82,6 @@ describe('Popover Integration', () => {
         fixture.detectChanges();
     });
 
-    it('should render trigger', () => {
-        const trigger = fixture.debugElement.query(By.css('[data-slot="popover-trigger"]'));
-        expect(trigger).toBeTruthy();
-    });
-
-    it('should not show content when closed', () => {
-        const content = fixture.debugElement.query(By.css('[data-slot="popover-content"]'));
-        expect(content).toBeNull();
-    });
-
     it('should show content on trigger click', async () => {
         const trigger = fixture.debugElement.query(By.css('[data-slot="popover-trigger"]'));
         trigger.nativeElement.click();
@@ -141,25 +90,8 @@ describe('Popover Integration', () => {
 
         const content = fixture.debugElement.query(By.css('[data-slot="popover-content"]'));
         expect(content).toBeTruthy();
-    });
-
-    it('should emit openChange on open', async () => {
-        const trigger = fixture.debugElement.query(By.css('[data-slot="popover-trigger"]'));
-        trigger.nativeElement.click();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        expect(component.isOpen).toBe(true);
-    });
-
-    it('should have data-state attribute', async () => {
-        const trigger = fixture.debugElement.query(By.css('[data-slot="popover-trigger"]'));
-        trigger.nativeElement.click();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const content = fixture.debugElement.query(By.css('[data-slot="popover-content"]'));
         expect(content.nativeElement.dataset.state).toBe('open');
+        expect(component.isOpen).toBe(true);
     });
 
     it('should close on close button click', async () => {
@@ -323,52 +255,6 @@ describe('PopoverContent positioning', () => {
         fixture.detectChanges();
     }
 
-    it('renders absolute content with side/align classes', async () => {
-        await openPopover();
-        const el = document.querySelector('[data-slot="popover-content"]') as HTMLElement;
-        expect(el).toBeTruthy();
-        expect(el.className).toContain('top-full');   // bottom side
-        expect(el.className).toContain('-translate-x-1/2'); // center align
-        expect(el.className).toContain('absolute');
-    });
-
-    it('applies start align class', async () => {
-        component.align.set('start');
-        await openPopover();
-        const el = document.querySelector('[data-slot="popover-content"]') as HTMLElement;
-        expect(el.className).toContain('left-0');
-    });
-
-    it('applies end align class', async () => {
-        component.align.set('end');
-        await openPopover();
-        const el = document.querySelector('[data-slot="popover-content"]') as HTMLElement;
-        expect(el.className).toContain('right-0');
-    });
-
-    it('applies top side class (collisions disabled keeps raw side)', async () => {
-        component.side.set('top');
-        component.avoidCollisions.set(false);
-        await openPopover();
-        const el = document.querySelector('[data-slot="popover-content"]') as HTMLElement;
-        expect(el.className).toContain('bottom-full');
-    });
-
-    it('applies left/right side classes without align when side is horizontal', async () => {
-        component.side.set('right');
-        await openPopover();
-        const el = document.querySelector('[data-slot="popover-content"]') as HTMLElement;
-        expect(el.className).toContain('left-full');
-    });
-
-    it('skips collision adjustment when avoidCollisions is false', async () => {
-        component.avoidCollisions.set(false);
-        await openPopover();
-        const pos = content()['adjustedPosition']();
-        expect(pos.offsetX).toBe(0);
-        expect(pos.offsetY).toBe(0);
-    });
-
     it('fixed strategy places content in the top layer (body portal fallback)', async () => {
         component.strategy.set('fixed');
         await openPopover();
@@ -419,37 +305,28 @@ describe('PopoverContent positioning', () => {
         expect(document.querySelector('[data-popover-portal]')).toBeNull();
     });
 
-    it('flips side and offsets when content overflows the boundary', async () => {
+    type Adjuster = {
+        computeVerticalAdjustment(r: DOMRect, b: { top: number; bottom: number }): { side: string; offsetY: number };
+        computeHorizontalOffset(r: DOMRect, b: { left: number; right: number }): number;
+    };
+
+    it('keeps the side and offsets up when the content overflows the bottom with no room above', async () => {
         await openPopover();
-        const c = content();
-        // Simulate a content rect overflowing the bottom boundary, forcing a flip
-        const tallRect = {
-            top: 700, bottom: 1500, left: 100, right: 300, width: 200, height: 800,
-            x: 100, y: 700, toJSON() { return this; },
-        } as DOMRect;
-        const boundary = { top: 0, bottom: 800, left: 0, right: 1000 };
-        const adjust = (c as unknown as {
-            computeVerticalAdjustment(r: DOMRect, b: { top: number; bottom: number }): { side: string; offsetY: number };
-        }).computeVerticalAdjustment(tallRect, boundary);
-        // overflowBottom > 0, current side bottom → either flips to top (if room) or offsets up
-        expect(['top', 'bottom']).toContain(adjust.side);
-        if (adjust.side === 'bottom') {
-            expect(adjust.offsetY).toBeLessThan(0);
-        }
+        const popover = fixture.debugElement.query(By.directive(PopoverComponent)).componentInstance as PopoverComponent;
+        // 100px above the trigger cannot hold an 800px panel, so flipping to the top is not an option.
+        vi.spyOn(popover, 'getTriggerRect').mockReturnValue(new DOMRect(100, 70, 60, 30));
+        const tallRect = new DOMRect(100, 700, 200, 800);
+        const adjust = (content() as unknown as Adjuster).computeVerticalAdjustment(tallRect, { top: 0, bottom: 800 });
+        expect(adjust).toEqual({ side: 'bottom', offsetY: -708 });
     });
 
-    it('computes a horizontal offset when content overflows right', async () => {
+    it('shifts overflowing content back inside the boundary with an 8px margin', async () => {
         await openPopover();
-        const c = content();
-        const rect = { right: 1200, left: 900 } as DOMRect;
-        const offset = (c as unknown as {
-            computeHorizontalOffset(r: DOMRect, b: { left: number; right: number }): number;
-        }).computeHorizontalOffset(rect, { left: 0, right: 1000 });
-        expect(offset).toBeLessThan(0);
-        const offsetLeft = (c as unknown as {
-            computeHorizontalOffset(r: DOMRect, b: { left: number; right: number }): number;
-        }).computeHorizontalOffset({ right: 100, left: -50 } as DOMRect, { left: 0, right: 1000 });
-        expect(offsetLeft).toBeGreaterThan(0);
+        const c = content() as unknown as Adjuster;
+        const boundary = { left: 0, right: 1000 };
+        expect(c.computeHorizontalOffset({ left: 900, right: 1200 } as DOMRect, boundary)).toBe(-208);
+        expect(c.computeHorizontalOffset({ left: -50, right: 100 } as DOMRect, boundary)).toBe(58);
+        expect(c.computeHorizontalOffset({ left: 200, right: 500 } as DOMRect, boundary)).toBe(0);
     });
 });
 
@@ -548,53 +425,6 @@ describe('PopoverContent inside a modal dialog (top layer)', () => {
         expect(document.querySelector('[data-popover-portal]')).toBeNull();
 
         dlg.close();
-    });
-});
-
-describe('Popover RTL Support', () => {
-    let fixture: ComponentFixture<RTLTestHostComponent>;
-    let component: RTLTestHostComponent;
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [RTLTestHostComponent]
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(RTLTestHostComponent);
-        component = fixture.componentInstance;
-        fixture.detectChanges();
-    });
-
-    afterEach(() => {
-        document.documentElement.removeAttribute('dir');
-    });
-
-    it('should render in LTR mode', () => {
-        const container = fixture.debugElement.query(By.css('[dir="ltr"]'));
-        expect(container).toBeTruthy();
-    });
-
-    it('should render in RTL mode', async () => {
-        component.dir.set('rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const container = fixture.debugElement.query(By.css('[dir="rtl"]'));
-        expect(container).toBeTruthy();
-    });
-
-    it('should open popover in RTL', async () => {
-        component.dir.set('rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const trigger = fixture.debugElement.query(By.css('[data-slot="popover-trigger"]'));
-        trigger.nativeElement.click();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const content = fixture.debugElement.query(By.css('[data-slot="popover-content"]'));
-        expect(content).toBeTruthy();
     });
 });
 

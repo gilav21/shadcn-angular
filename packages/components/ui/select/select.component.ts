@@ -21,6 +21,19 @@ import { COMMON_LOCALES, type CommonLocale } from '../../lib/i18n/common.locales
 
 export const SELECT = new InjectionToken<SelectComponent<unknown>>('SELECT');
 
+/**
+ * Scrolls `list` — and only `list` — until `option` is no longer hidden below
+ * its bottom edge. Opening focuses the selected option with `preventScroll`
+ * so the page does not jump while the popup is still being placed; without
+ * this, an option further down than the list is tall starts out of sight. The
+ * list is created on open at `scrollTop` 0, so an option can only be hidden
+ * below it, never above.
+ */
+export function revealSelectOption(list: HTMLElement, option: HTMLElement): void {
+    const listBottom = list.getBoundingClientRect().top + list.clientTop + list.clientHeight;
+    list.scrollTop += Math.max(0, option.getBoundingClientRect().bottom - listBottom);
+}
+
 @Component({
     selector: 'ui-select',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -67,6 +80,7 @@ export const SELECT = new InjectionToken<SelectComponent<unknown>>('SELECT');
                         [class]="contentClasses()"
                         role="listbox"
                         tabindex="-1"
+                        (click)="onContentClick($event)"
                         (keydown)="onContentKeydown($event)"
                     >
                         <div class="p-1">
@@ -79,9 +93,7 @@ export const SELECT = new InjectionToken<SelectComponent<unknown>>('SELECT');
                                     [attr.aria-selected]="isSelected(option)"
                                     [attr.data-state]="isSelected(option) ? 'checked' : 'unchecked'"
                                     [attr.data-index]="i"
-                                    (click)="selectOption(option)"
-                                    (keydown.enter)="selectOption(option)"
-                                    (mouseenter)="focusedIndex.set(i)"
+                                    (mouseenter)="highlight(i, { preventScroll: true })"
                                 >
                                     <span class="flex-1">{{ getDisplayValue(option) }}</span>
                                     <span class="absolute flex size-3.5 items-center justify-center ltr:right-2 rtl:left-2">
@@ -316,6 +328,7 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
 
         if (selectedItem) {
             selectedItem.focus({ preventScroll: true });
+            revealSelectOption(contentEl, selectedItem);
         } else if (firstItem) {
             firstItem.focus({ preventScroll: true });
         } else {
@@ -517,10 +530,34 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
     }
 
     /**
-     * Listbox key handler for data-driven mode: arrows move the focused row
-     * (skipping {@link disabledWith} options and stopping at the ends rather
-     * than wrapping), Enter/Space commit it, Escape and Tab close. A no-op when
-     * {@link options} is empty.
+     * Moves the data-driven highlight ({@link focusedIndex}) to an option row and
+     * DOM focus with it, so the row a screen reader announces is always the row
+     * Enter/Space commits.
+     */
+    highlight(index: number, focusOptions?: FocusOptions): void {
+        this.focusedIndex.set(index);
+        this.contentEl?.nativeElement.querySelector<HTMLElement>(`[data-index="${index}"]`)?.focus(focusOptions);
+    }
+
+    /**
+     * Listbox click handler for data-driven mode: commits the clicked option row.
+     * Delegated from the listbox so pointer and keyboard commits share one owner,
+     * as {@link onContentKeydown} does for Enter/Space.
+     */
+    onContentClick(event: MouseEvent): void {
+        if (!(event.target instanceof Element)) return;
+        const row = event.target.closest<HTMLElement>('[role="option"]');
+        const index = Number(row?.dataset['index']);
+        const option = this.options()[index];
+        if (option !== undefined) this.selectOption(option);
+    }
+
+    /**
+     * Listbox key handler for data-driven mode: arrows move the highlighted row
+     * and focus with it ({@link highlight}; skipping {@link disabledWith}
+     * options and stopping at the ends rather than wrapping), Enter/Space commit
+     * it, Escape and Tab close. The only Enter/Space handler, so one key press
+     * commits exactly once. A no-op when {@link options} is empty.
      */
     onContentKeydown(event: KeyboardEvent): void {
         const opts = this.options();
@@ -531,11 +568,11 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
         switch (event.key) {
             case 'ArrowDown':
                 event.preventDefault();
-                this.focusedIndex.set(this.findNextEnabledIndex(currentIndex, 1));
+                this.highlight(this.findNextEnabledIndex(currentIndex, 1));
                 break;
             case 'ArrowUp':
                 event.preventDefault();
-                this.focusedIndex.set(this.findNextEnabledIndex(currentIndex, -1));
+                this.highlight(this.findNextEnabledIndex(currentIndex, -1));
                 break;
             case 'Enter':
             case ' ':

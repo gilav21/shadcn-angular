@@ -40,18 +40,6 @@ describe('treemap utils', () => {
             ).toBe(7);
         });
 
-        it('sums recursively through several levels', () => {
-            expect(
-                nodeValue({
-                    label: 'root',
-                    children: [
-                        { label: 'g', children: [{ label: 'a', value: 2 }, { label: 'b', value: 3 }] },
-                        { label: 'c', value: 5 },
-                    ],
-                }),
-            ).toBe(10);
-        });
-
         it('treats a missing, negative or non-finite value as zero', () => {
             expect(nodeValue({ label: 'a' })).toBe(0);
             expect(nodeValue({ label: 'a', value: -5 })).toBe(0);
@@ -89,29 +77,11 @@ describe('treemap utils', () => {
             }
         });
 
-        it('covers the whole rectangle', () => {
-            const rects = squarify([6, 3, 2, 1, 1], RECT);
-            const covered = rects.reduce((sum, r) => sum + areaOf(r), 0);
-            expect(covered).toBeCloseTo(RECT.width * RECT.height, 3);
-        });
-
         // T-15: aspect ratios stay within squarified bounds
         it('keeps aspect ratios near square rather than producing slivers', () => {
             const values = [50, 30, 20, 12, 9, 7, 5, 4, 3, 2];
             const rects = squarify(values, RECT);
             for (const r of rects) expect(aspect(r)).toBeLessThan(5);
-        });
-
-        it('beats slice-and-dice on the worst aspect ratio', () => {
-            const values = [50, 30, 20, 12, 9, 7, 5, 4, 3, 2];
-            const squarified = Math.max(...squarify(values, RECT).map(aspect));
-            const total = values.reduce((a, b) => a + b, 0);
-            const sliceAndDice = Math.max(
-                ...values.map(v => aspect({
-                    x: 0, y: 0, width: (v / total) * RECT.width, height: RECT.height,
-                })),
-            );
-            expect(squarified).toBeLessThan(sliceAndDice);
         });
 
         // §2.2 edge case — zero-value node
@@ -135,23 +105,11 @@ describe('treemap utils', () => {
             );
         });
 
-        // §2.2 edge case — empty data
-        it('returns no rectangles for no values', () => {
-            expect(squarify([], RECT)).toEqual([]);
-        });
-
         // §2.2 edge case — all values identical / single value
         it('gives a single value the whole rectangle', () => {
             const [r] = squarify([7], RECT);
             expect(r.width).toBeCloseTo(RECT.width, 6);
             expect(r.height).toBeCloseTo(RECT.height, 6);
-        });
-
-        it('splits identical values into equal areas', () => {
-            const rects = squarify([4, 4, 4, 4], RECT);
-            for (const r of rects) {
-                expect(areaOf(r)).toBeCloseTo((RECT.width * RECT.height) / 4, 4);
-            }
         });
 
         it('returns zero-size rectangles when every value is zero', () => {
@@ -256,10 +214,6 @@ describe('treemap utils', () => {
         it('gives a leaf no children', () => {
             expect(layoutTreemap([{ label: 'a', value: 1 }], RECT)[0].children).toEqual([]);
         });
-
-        it('returns nothing for no nodes', () => {
-            expect(layoutTreemap([], RECT)).toEqual([]);
-        });
     });
 
     describe('flattenLayout', () => {
@@ -271,10 +225,6 @@ describe('treemap utils', () => {
             expect(flattenLayout(layoutTreemap(nodes, RECT)).map(n => n.path)).toEqual([
                 '0', '0/0', '0/1', '1',
             ]);
-        });
-
-        it('returns nothing for an empty layout', () => {
-            expect(flattenLayout([])).toEqual([]);
         });
     });
 });

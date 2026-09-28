@@ -880,6 +880,23 @@ export class DataTableDemoComponent {
     ];
   });
 
+  /** Auto-width columns with a floor: they share the space but scroll rather than squeeze below `minWidth`. */
+  readonly minWidthColumns: ColumnDef<Payment>[] = [
+    { accessorKey: 'id', header: 'ID', width: '80px' },
+    { accessorKey: 'clientName', header: 'Client' },
+    { accessorKey: 'email', header: 'Billing email address', minWidth: '200px' },
+    { accessorKey: 'status', header: 'Payment status', minWidth: '140px' },
+  ];
+
+  readonly minWidthCode = [
+    "columns: ColumnDef<Payment>[] = [",
+    "  { accessorKey: 'id', header: 'ID', width: '80px' },       // fixed width",
+    "  { accessorKey: 'clientName', header: 'Client' },          // auto, 80px floor",
+    "  { accessorKey: 'email', header: 'Billing email address', minWidth: '200px' },",
+    "  { accessorKey: 'status', header: 'Payment status', minWidth: '140px' },",
+    "];",
+  ].join('\n');
+
   onColumnResize(_event: ColumnResizeEvent): void {
     // Column resize handled by data table internally
   }

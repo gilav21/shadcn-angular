@@ -70,8 +70,10 @@ describe('CandlestickComponent', () => {
         it('spans the body between open and close', async () => {
             await createFixture([{ date: 'A', open: 100, high: 110, low: 90, close: 105 }]);
             const c = component.candles()[0];
-            expect(c.height).toBeGreaterThan(1);
-            expect(c.y).toBeLessThan(c.y + c.height);
+            const span = c.wickBottom - c.wickTop;
+            // Close 105 sits 5/20 below the high; the body covers the 5-point open→close move.
+            expect((c.y - c.wickTop) / span).toBeCloseTo(5 / 20, 5);
+            expect(c.height / span).toBeCloseTo(5 / 20, 5);
         });
 
         it('draws the wick from high to low, enclosing the body', async () => {

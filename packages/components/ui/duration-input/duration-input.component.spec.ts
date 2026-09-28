@@ -1,21 +1,42 @@
 // `duration-input` — `specs/form-controls-small-spec.md` T-2.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { Component, signal, type ModelSignal } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { DurationInputComponent } from './duration-input.component';
 import type { DurationUnit } from './duration-input.format';
 
+/**
+ * The group's accessible description as a screen reader resolves it: the text
+ * of every element its `aria-describedby` points at, in order. Whitespace is
+ * collapsed to plain spaces because `Intl` puts a narrow no-break space before
+ * "PM" in newer ICU versions, and a reader treats it as a space.
+ */
+function describedText(group: HTMLElement): string {
+    const ids = (group.getAttribute('aria-describedby') ?? '').split(/\s+/).filter(Boolean);
+    return ids
+        .map(id => group.ownerDocument.getElementById(id)?.textContent ?? '')
+        .join(' ')
+        .replaceAll(/\s+/g, ' ')
+        .trim();
+}
+
 @Component({
     standalone: true,
     imports: [DurationInputComponent],
     template: `
-    <ui-duration-input [(value)]="duration" [units]="units()" [disabled]="disabled()" />
+    <ui-duration-input
+      [(value)]="duration"
+      [units]="units()"
+      [locale]="locale()"
+      [disabled]="disabled()"
+    />
   `,
 })
 class HostComponent {
     readonly duration = signal<number | null>(null);
     readonly units = signal<readonly DurationUnit[]>(['hours', 'minutes']);
+    readonly locale = signal('en-US');
     readonly disabled = signal(false);
 }
 
@@ -70,15 +91,6 @@ describe('DurationInputComponent', () => {
     afterEach(() => fixture.destroy());
 
     describe('the conformance contract', () => {
-        it('exposes value as a model signal', () => {
-            const control = fixture.debugElement.children[0]
-                .componentInstance as DurationInputComponent;
-            const value: ModelSignal<number | null> = control.value;
-
-            expect(typeof value.set).toBe('function');
-            expect(typeof value.subscribe).toBe('function');
-        });
-
         it('emits through the two-way binding on a user edit', async () => {
             await typeInto('minutes', '30');
             expect(host.duration()).toBe(1800);
@@ -106,7 +118,7 @@ describe('DurationInputComponent', () => {
         it('shows the units it was asked for', async () => {
             host.units.set(['hours', 'minutes', 'seconds']);
             await settle();
-            expect(segments()).toHaveLength(3);
+            expect(segments().map(field => field.dataset['unit'])).toEqual(['hours', 'minutes', 'seconds']);
         });
 
         it('starts empty for a null value', () => {
@@ -145,11 +157,6 @@ describe('DurationInputComponent', () => {
     });
 
     describe('typing', () => {
-        it('reads digits into the segment they were typed in', async () => {
-            await typeInto('hours', '2');
-            expect(host.duration()).toBe(7200);
-        });
-
         it('adds up across segments', async () => {
             await typeInto('hours', '1');
             await typeInto('minutes', '30');
@@ -197,8 +204,16 @@ describe('DurationInputComponent', () => {
         it('does not take a key it does not handle', async () => {
             host.duration.set(3600);
             await settle();
-            await press('minutes', 'a');
+            const control = fixture.debugElement.children[0].componentInstance as DurationInputComponent;
+            let emissions = 0;
+            control.value.subscribe(() => emissions++);
 
+            const key = new KeyboardEvent('keydown', { key: 'a', bubbles: true, cancelable: true });
+            const notCancelled = segment('minutes').dispatchEvent(key);
+            await settle();
+
+            expect(notCancelled).toBe(true);
+            expect(emissions).toBe(0);
             expect(host.duration()).toBe(3600);
         });
 
@@ -283,12 +298,37 @@ describe('DurationInputComponent', () => {
             expect(segments().every(field => field.getAttribute('role') === 'spinbutton')).toBe(true);
         });
 
+        /**
+         * The segments each announce only their own unit; the group's
+         * description is where the whole value is heard — and it has to follow
+         * the value, zero included (a zero duration is a value, not an empty one).
+         */
+        it('describes the group with the whole current value, following edits', async () => {
+            const group: HTMLElement = fixture.nativeElement.querySelector('[data-slot="duration-input"]');
+            host.duration.set(5400);
+            await settle();
+            expect(describedText(group)).toBe('1 hour, 30 minutes');
+
+            await typeInto('minutes', '5');
+            expect(describedText(group)).toBe('1 hour, 5 minutes');
+
+            host.duration.set(0);
+            await settle();
+            expect(describedText(group)).toBe('0 minutes');
+
+            host.locale.set('fr');
+            host.duration.set(9000);
+            await settle();
+            expect(describedText(group)).toBe('2 heures et 30 minutes');
+        });
+
         /** So a reader says "30 minutes" rather than "30". */
         it('names the unit in each segment’s value text', async () => {
             host.duration.set(5400);
             await settle();
 
             expect(segment('minutes').getAttribute('aria-valuetext')).toBe('30 minutes');
+            expect(segment('hours').getAttribute('aria-valuetext')).toBe('1 hour');
             expect(segment('hours').getAttribute('aria-valuenow')).toBe('1');
         });
 

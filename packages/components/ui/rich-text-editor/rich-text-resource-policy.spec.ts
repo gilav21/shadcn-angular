@@ -116,9 +116,10 @@ describe('hostOf', () => {
 });
 
 describe('decodeCssEscapes', () => {
-    it('resolves hex escapes to their characters', () => {
+    it('resolves hex and character escapes to their characters', () => {
         // \75 is "u" -- this is the whole bypass in one line.
         expect(decodeCssEscapes(String.raw`\75rl(x)`)).toBe('url(x)');
+        expect(decodeCssEscapes(String.raw`u\rl(x)`)).toBe('url(x)');
         expect(decodeCssEscapes(String.raw`\000075rl(x)`)).toBe('url(x)');
         expect(decodeCssEscapes(String.raw`u\72 l(x)`)).toBe('url(x)');
         expect(decodeCssEscapes(String.raw`ur\6c(x)`)).toBe('url(x)');

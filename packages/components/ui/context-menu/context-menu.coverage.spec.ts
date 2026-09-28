@@ -113,10 +113,6 @@ describe('ContextMenuComponent document listeners', () => {
         document.dispatchEvent(new Event('scroll'));
         expect(menu.open()).toBe(false);
     });
-
-    it('exposes isRtl() reflecting the resolved direction (ltr by default)', () => {
-        expect(menuInstance(fixture).isRtl()).toBe(false);
-    });
 });
 
 describe('ContextMenuItemComponent click handling', () => {
@@ -408,8 +404,10 @@ describe('ContextMenuSubTriggerComponent keyboard navigation', () => {
     });
 
     it('ArrowLeft in RTL opens the sub', () => {
+        const sub = fixture.debugElement.query(By.directive(ContextMenuSubComponent)).componentInstance as ContextMenuSubComponent;
         forceRtl();
         expect(press('ArrowLeft').defaultPrevented).toBe(true);
+        expect(sub.isOpen()).toBe(true);
     });
 
     it('ArrowLeft in LTR is ignored', () => {
@@ -417,7 +415,9 @@ describe('ContextMenuSubTriggerComponent keyboard navigation', () => {
     });
 
     it('Enter opens the sub', () => {
+        const sub = fixture.debugElement.query(By.directive(ContextMenuSubComponent)).componentInstance as ContextMenuSubComponent;
         expect(press('Enter').defaultPrevented).toBe(true);
+        expect(sub.isOpen()).toBe(true);
     });
 });
 
@@ -474,15 +474,6 @@ describe('ContextMenuSubContentComponent positioning', () => {
         (content as unknown as PositionedPortal).calculatePosition();
     }
 
-    it('places to the left in RTL, falling back to the right when it underflows', () => {
-        vi.spyOn(menuInstance(fixture), 'isRtl').mockReturnValue(true);
-        const content = openSub();
-        // left-hugging trigger: RTL x underflows below 8 → fallback x = right + 4
-        stubRects(makeRect(50, 20, 5, 100), makeRect(100, 50));
-        calc(content);
-        expect(content.portalPosition()).toEqual({ x: 59, y: 100 });
-    });
-
     it('clamps RTL x and y to the far edges when the content overflows', () => {
         vi.spyOn(menuInstance(fixture), 'isRtl').mockReturnValue(true);
         const content = openSub();
@@ -492,6 +483,20 @@ describe('ContextMenuSubContentComponent positioning', () => {
             calc(content);
             // x = 1024 - 200 - 8, y = 768 - 100 - 8
             expect(content.portalPosition()).toEqual({ x: 816, y: 660 });
+        } finally {
+            restoreViewport();
+        }
+    });
+
+    it('flips to the inline-end side in RTL when the start side has no room', () => {
+        vi.spyOn(menuInstance(fixture), 'isRtl').mockReturnValue(true);
+        const content = openSub();
+        stubRects(makeRect(150, 20, 10, 100), makeRect(200, 100));
+        const restoreViewport = stubViewport(1024, 768);
+        try {
+            calc(content);
+            // 10 - 200 - 4 < 8, so the flyout opens past the trigger's right edge: 160 + 4
+            expect(content.portalPosition()).toEqual({ x: 164, y: 100 });
         } finally {
             restoreViewport();
         }

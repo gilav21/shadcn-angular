@@ -20,12 +20,17 @@
  *   tsx packages/cli/scripts/verify-portable.ts --all
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { registry } from '../src/registry/index.js';
-import { loadPortableTestsConfig, PORTABLE_TESTS_FILENAME, type CoverageException } from './sync-registry-lib';
+import {
+    loadPortableTestsConfig,
+    PORTABLE_TESTS_FILENAME,
+    type BarrelOnlyException,
+    type CoverageException,
+} from './sync-registry-lib';
 
 // `vitest/vitest.mjs` is the bin but is not in the package `exports` map, so
 // resolve the (exported) package.json and join the bin path beside it.
@@ -48,10 +53,65 @@ interface ComponentTarget {
     readonly name: string;
     readonly testFiles: readonly string[];
     readonly files: readonly string[];
+    readonly exception?: CoverageException;
 }
 
-interface CoverageTotals {
-    readonly lines: { readonly pct: number };
+/** A `coverage-summary.json` line total; istanbul writes `pct: 'Unknown'` when nothing was measured. */
+export interface LineTotals {
+    readonly total: number;
+    readonly covered: number;
+    readonly pct: number | 'Unknown';
+}
+
+/**
+ * The coverage include paths for an entry: exactly the `.ts` sources it ships
+ * (its registry `files[]`), never its specs or stories. Derived from the files,
+ * not the name — an addon's name (`rich-text-editor/colors`) is not its folder
+ * (`rich-text-editor/addons/colors/`), and a flat directive has no folder at all.
+ */
+export function coverageIncludes(files: readonly string[]): string[] {
+    return files
+        .filter(f => f.endsWith('.ts') && !f.endsWith('.spec.ts') && !f.endsWith('.stories.ts'))
+        .map(f => `packages/components/ui/${f}`);
+}
+
+const NOTHING_MEASURED = 'coverage measured 0/0 lines — the scope matched no source, so nothing was verified';
+const NO_LINES: LineTotals = { total: 0, covered: 0, pct: 'Unknown' };
+
+export function isBarrelOnly(exception: CoverageException | undefined): exception is BarrelOnlyException {
+    return exception !== undefined && 'barrelOnly' in exception;
+}
+
+/**
+ * Why a measured line total fails the entry's coverage requirement, or
+ * `undefined` when it clears it. An empty measurement (0/0) always fails — a
+ * scope that matched no source verified nothing, whatever the floor says —
+ * unless the entry is declared `barrelOnly`, and then ONLY while it still
+ * measures nothing: a barrel-only entry that gains source must be covered.
+ */
+export function coverageFailure(lines: LineTotals, exception: CoverageException | undefined): string | undefined {
+    if (isBarrelOnly(exception)) {
+        return lines.total === 0
+            ? undefined
+            : `marked barrelOnly but ships ${lines.total} measurable line(s) — drop the flag and cover them`;
+    }
+    const floor = exception?.lines ?? DEFAULT_LINE_TARGET;
+    const pct = measuredPct(lines);
+    if (pct === undefined) return NOTHING_MEASURED;
+    return pct < floor ? `line coverage ${pct}% < ${floor}% floor` : undefined;
+}
+
+function describeLines(lines: LineTotals): string {
+    return lines.total === 0 ? 'no source to measure' : `${lines.pct}% lines (${lines.covered}/${lines.total})`;
+}
+
+function describeRequirement(exception: CoverageException | undefined): string {
+    return isBarrelOnly(exception) ? 'barrel-only, coverage waived' : `floor ${exception?.lines ?? DEFAULT_LINE_TARGET}% lines`;
+}
+
+/** The measured line percentage, or `undefined` when the run measured no lines at all. */
+function measuredPct(lines: LineTotals): number | undefined {
+    return lines.total > 0 && typeof lines.pct === 'number' ? lines.pct : undefined;
 }
 
 /** Resolve the components to verify from argv (`--all` → every verified entry). */
@@ -66,25 +126,33 @@ function resolveTargets(argv: string[]): ComponentTarget[] {
         if (!entry) throw new Error(`Unknown component "${name}".`);
         const testFiles = entry.testFiles ?? [];
         if (testFiles.length === 0) throw new Error(`"${name}" has no testFiles — run sync-registry after verifying it portable.`);
-        return { name, testFiles, files: entry.files };
+        const exception = config.coverageExceptions?.[name];
+        if (coverageIncludes(entry.files).length === 0 && !isBarrelOnly(exception)) {
+            throw new Error(`"${name}" ships no .ts source to measure coverage over — declare it barrelOnly in ${PORTABLE_TESTS_FILENAME} if that is intended.`);
+        }
+        return { name, testFiles, files: entry.files, exception };
     });
-}
-
-/** The line-coverage floor this component must clear (an exception lowers it, with a reason). */
-function coverageFloor(name: string, exceptions: Readonly<Record<string, CoverageException>> | undefined): number {
-    return exceptions?.[name]?.lines ?? DEFAULT_LINE_TARGET;
 }
 
 /** Run the component's specs under the portable config with scoped coverage; true when they pass. */
 function runSpecs(target: ComponentTarget): boolean {
     const specPaths = target.testFiles.map(f => path.join('packages/components/ui', f));
+    const includes = coverageIncludes(target.files);
+    // An empty include would fall back to the config's library-wide scope, so
+    // a no-source (barrel-only) entry runs its specs without coverage at all.
+    const coverageArgs = includes.length === 0 ? [] : ['--coverage', ...includes.map(f => `--coverage.include=${f}`)];
+    // A summary left by the previous component must never be read as this one's.
+    rmSync(COVERAGE_SUMMARY, { force: true });
     const result = spawnSync(process.execPath, [
         VITEST_BIN, 'run',
         '--config', 'vitest.portable.config.ts',
-        '--coverage',
-        `--coverage.include=packages/components/ui/${target.name}/**/*.ts`,
+        ...coverageArgs,
         ...specPaths,
     ], { cwd: REPO_ROOT, stdio: 'inherit', timeout: PER_COMPONENT_TIMEOUT_MS });
+    // A killed run (timeout, signal) prints no summary; say so, or it reads as a spec failure.
+    if (result.error || result.signal) {
+        console.error(`vitest did not finish for ${target.name}: ${result.error?.message ?? result.signal}`);
+    }
     return result.status === 0;
 }
 
@@ -99,13 +167,18 @@ function runJestLeg(name: string): boolean {
     return result.status === 0;
 }
 
-/** Read the total line-coverage percentage from the last portable run. */
-function readLineCoverage(): number {
+/** The line total the last run measured for this target (none when it ships no .ts source). */
+function measure(target: ComponentTarget): LineTotals {
+    return coverageIncludes(target.files).length === 0 ? NO_LINES : readLineCoverage();
+}
+
+/** Read the total line coverage from the last portable run. */
+function readLineCoverage(): LineTotals {
     if (!existsSync(COVERAGE_SUMMARY)) {
         throw new Error(`No coverage summary at ${COVERAGE_SUMMARY} — did the vitest run emit json-summary?`);
     }
-    const summary = JSON.parse(readFileSync(COVERAGE_SUMMARY, 'utf-8')) as { total: CoverageTotals };
-    return summary.total.lines.pct;
+    const summary = JSON.parse(readFileSync(COVERAGE_SUMMARY, 'utf-8')) as { total: { lines: LineTotals } };
+    return summary.total.lines;
 }
 
 interface VerifyOutcome {
@@ -114,26 +187,25 @@ interface VerifyOutcome {
     readonly detail: string;
 }
 
-function verifyOne(target: ComponentTarget, floor: number, withJest: boolean): VerifyOutcome {
-    console.log(`\n▶ Verifying ${target.name} (${target.testFiles.length} spec file(s), floor ${floor}% lines${withJest ? ', +jest leg' : ''})…`);
+function verifyOne(target: ComponentTarget, withJest: boolean): VerifyOutcome {
+    console.log(`\n▶ Verifying ${target.name} (${target.testFiles.length} spec file(s), ${describeRequirement(target.exception)}${withJest ? ', +jest leg' : ''})…`);
     if (!runSpecs(target)) {
         return { name: target.name, passed: false, detail: 'specs failed under the portable (jsdom) config' };
     }
-    const lines = readLineCoverage();
-    if (lines < floor) {
-        return { name: target.name, passed: false, detail: `line coverage ${lines}% < ${floor}% floor` };
+    const lines = measure(target);
+    const failure = coverageFailure(lines, target.exception);
+    if (failure) {
+        return { name: target.name, passed: false, detail: failure };
     }
     if (withJest && !runJestLeg(target.name)) {
-        return { name: target.name, passed: false, detail: `vitest jsdom green (${lines}% lines) but the jest leg failed` };
+        return { name: target.name, passed: false, detail: `vitest jsdom green (${describeLines(lines)}) but the jest leg failed` };
     }
-    return { name: target.name, passed: true, detail: `specs green, ${lines}% lines${withJest ? ', jest leg green' : ''}` };
+    return { name: target.name, passed: true, detail: `specs green, ${describeLines(lines)}${withJest ? ', jest leg green' : ''}` };
 }
 
 function verifyMain(argv: string[]): void {
     const withJest = argv.includes('--jest');
-    const targets = resolveTargets(argv);
-    const exceptions = loadPortableTestsConfig(COMPONENTS_ROOT).coverageExceptions;
-    const outcomes = targets.map(t => verifyOne(t, coverageFloor(t.name, exceptions), withJest));
+    const outcomes = resolveTargets(argv).map(t => verifyOne(t, withJest));
 
     console.log('\n── Portable verification ──');
     for (const o of outcomes) {
@@ -152,7 +224,7 @@ const CEILING_REASON = 'jsdom ceiling — remaining lines require a real browser
 interface SweepOutcome {
     readonly name: string;
     readonly kept: boolean;
-    readonly floor?: number;
+    readonly exception?: CoverageException;
     readonly detail: string;
 }
 
@@ -162,12 +234,23 @@ function sweepOne(target: ComponentTarget): SweepOutcome {
     if (!runSpecs(target)) {
         return { name: target.name, kept: false, detail: 'dropped: specs fail under the jsdom config' };
     }
-    const lines = readLineCoverage();
-    if (!runJestLeg(target.name)) {
-        return { name: target.name, kept: false, detail: `dropped: jest leg fails (jsdom ${lines}% lines)` };
+    const lines = measure(target);
+    // --record measures a floor rather than enforcing one: judged against a 0%
+    // floor, only an empty run (or a barrel-only entry that gained source) drops.
+    const failure = coverageFailure(lines, isBarrelOnly(target.exception) ? target.exception : { lines: 0, reason: CEILING_REASON });
+    if (failure) {
+        return { name: target.name, kept: false, detail: `dropped: ${failure}` };
     }
-    const floor = Math.floor(lines);
-    return { name: target.name, kept: true, floor, detail: `ship at ${floor}% floor (measured ${lines}%)` };
+    if (!runJestLeg(target.name)) {
+        return { name: target.name, kept: false, detail: `dropped: jest leg fails (jsdom ${describeLines(lines)})` };
+    }
+    const pct = measuredPct(lines);
+    if (pct === undefined) {
+        return { name: target.name, kept: true, exception: target.exception, detail: 'ship barrel-only (no source to measure)' };
+    }
+    const floor = Math.floor(pct);
+    const exception = floor < DEFAULT_LINE_TARGET ? { lines: floor, reason: CEILING_REASON } : undefined;
+    return { name: target.name, kept: true, exception, detail: `ship at ${floor}% floor (measured ${pct}%)` };
 }
 
 /**
@@ -183,9 +266,7 @@ function recordMain(argv: string[]): void {
     const verified = outcomes.filter(o => o.kept).map(o => o.name).sort((a, b) => a.localeCompare(b));
     const coverageExceptions: Record<string, CoverageException> = {};
     for (const o of outcomes) {
-        if (o.kept && o.floor !== undefined && o.floor < DEFAULT_LINE_TARGET) {
-            coverageExceptions[o.name] = { lines: o.floor, reason: CEILING_REASON };
-        }
+        if (o.kept && o.exception) coverageExceptions[o.name] = o.exception;
     }
     // Preserve exceptions for components not in this sweep (e.g. hand-authored floors).
     for (const [name, exc] of Object.entries(config.coverageExceptions ?? {})) {

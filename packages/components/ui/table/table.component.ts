@@ -36,7 +36,14 @@ export const UI_TABLE_ROLE = new InjectionToken<Signal<TableRole>>('UI_TABLE_ROL
     ],
 })
 export class TableComponent {
-    /** Extra classes merged onto the table wrapper. It is a flex column that scrolls horizontally, so give it a bounded height here when the body should scroll rather than the page. */
+    /**
+     * Extra classes merged onto the table wrapper. It is a flex column that
+     * scrolls horizontally, so give it a bounded height here when the body
+     * should scroll rather than the page. Inside a container that already
+     * scrolls, pass `overflow-visible`: the wrapper then stops being a scroll
+     * container, so the sticky header and horizontal scrollbar belong to the
+     * outer one.
+     */
     class = input('');
 
     /**

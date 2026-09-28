@@ -110,10 +110,6 @@ describe('HoverCardComponent', () => {
         restoreStubs();
     });
 
-    it('should be closed by default', () => {
-        expect(component.open()).toBe(false);
-    });
-
     it('opens after the open delay via show()', () => {
         component.show();
         expect(component.open()).toBe(false);
@@ -177,11 +173,6 @@ describe('HoverCardComponent', () => {
         expect(component.open()).toBe(true);
     });
 
-    it('cancelClose() is a no-op when nothing is pending', () => {
-        component.cancelClose();
-        expect(component.open()).toBe(false);
-    });
-
     it('stays open when an inside click bubbles to the outside listener', () => {
         component.toggle();
         fixture.nativeElement.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -227,7 +218,7 @@ describe('HoverCardComponent', () => {
             <ui-hover-card-trigger>
                 <button>Hover me</button>
             </ui-hover-card-trigger>
-            <ui-hover-card-content [side]="side()" [align]="align()" [class]="cls()">
+            <ui-hover-card-content [side]="side()">
                 <div class="body">Some description here.</div>
             </ui-hover-card-content>
         </ui-hover-card>
@@ -236,8 +227,6 @@ describe('HoverCardComponent', () => {
 })
 class TestHostComponent {
     readonly side = signal<'top' | 'bottom'>('bottom');
-    readonly align = signal<'start' | 'center' | 'end'>('center');
-    readonly cls = signal('');
 }
 
 function contentEl(fixture: ComponentFixture<unknown>): HTMLElement | null {
@@ -307,10 +296,6 @@ describe('HoverCard integration', () => {
         flushFrames();
         fixture.detectChanges();
     }
-
-    it('does not render content initially', () => {
-        expect(contentEl(fixture)).toBeNull();
-    });
 
     it('shows content after mouse enter and the open delay (mouse device)', () => {
         openViaTrigger();
@@ -395,64 +380,76 @@ describe('HoverCard integration', () => {
         expect(style).toContain('translateX(58px)');
     });
 
-    it('flips a bottom card to top when it overflows the bottom boundary', () => {
-        currentRect = { x: 100, y: 800, w: 200, h: 50 };
-        openAndPosition(fixture);
-        expect(contentEl(fixture)?.className).toContain('bottom-full');
+    it('opens on the opposite side when the measured card overflows its preferred side, and only then', () => {
+        const resolvedSide = (side: 'top' | 'bottom', rect: RectShape): string | undefined => {
+            hoverCardOf(fixture).open.set(false);
+            fixture.componentInstance.side.set(side);
+            fixture.detectChanges();
+            currentRect = rect;
+            openAndPosition(fixture);
+            return contentEl(fixture)?.dataset['side'];
+        };
+
+        expect(resolvedSide('bottom', { x: 100, y: 740, w: 200, h: 50 })).toBe('top');
+        expect(resolvedSide('top', { x: 100, y: -10, w: 200, h: 50 })).toBe('bottom');
+        expect(resolvedSide('top', { x: 100, y: 300, w: 200, h: 50 })).toBe('top');
     });
 
-    it('flips a top card to bottom when it overflows the top boundary', () => {
-        fixture.componentInstance.side.set('top');
-        fixture.detectChanges();
-        currentRect = { x: 100, y: -10, w: 200, h: 50 };
-        openAndPosition(fixture);
-        expect(contentEl(fixture)?.className).toContain('top-full');
-    });
-
-    it('keeps a top card on top when it fits', () => {
-        fixture.componentInstance.side.set('top');
-        fixture.detectChanges();
-        currentRect = { x: 100, y: 300, w: 200, h: 50 };
-        openAndPosition(fixture);
-        expect(contentEl(fixture)?.className).toContain('bottom-full');
-    });
-
-    it('applies start alignment class', () => {
-        fixture.componentInstance.align.set('start');
-        fixture.detectChanges();
+    it('guards position calculation when the card closes before its frames run', () => {
         hoverCardOf(fixture).open.set(true);
         fixture.detectChanges();
-        expect(contentEl(fixture)?.className).toContain('start-0');
+        hoverCardOf(fixture).open.set(false);
+        fixture.detectChanges();
+
+        expect(() => flushFrames()).not.toThrow();
+        expect(contentEl(fixture)).toBeNull();
+    });
+});
+
+@Component({
+    template: `
+        <ui-hover-card>
+            <ui-hover-card-trigger>
+                <button>Hover me</button>
+            </ui-hover-card-trigger>
+            @if (showContent()) {
+                <ui-hover-card-content>Late content</ui-hover-card-content>
+            }
+        </ui-hover-card>
+    `,
+    imports: [HoverCardComponent, HoverCardTriggerComponent, HoverCardContentComponent],
+})
+class LateContentHostComponent {
+    readonly showContent = signal(false);
+}
+
+describe('HoverCard content mounted while already open', () => {
+    let fixture: ComponentFixture<LateContentHostComponent>;
+
+    beforeEach(async () => {
+        installStubs();
+        await TestBed.configureTestingModule({ imports: [LateContentHostComponent] }).compileComponents();
+        fixture = TestBed.createComponent(LateContentHostComponent);
+        document.body.appendChild(fixture.nativeElement);
+        fixture.detectChanges();
     });
 
-    it('applies end alignment class and custom class', () => {
-        fixture.componentInstance.align.set('end');
-        fixture.componentInstance.cls.set('my-extra');
-        fixture.detectChanges();
-        hoverCardOf(fixture).open.set(true);
-        fixture.detectChanges();
-        expect(contentEl(fixture)?.className).toContain('end-0');
-        expect(contentEl(fixture)?.className).toContain('my-extra');
+    afterEach(() => {
+        fixture.destroy();
+        fixture.nativeElement.remove();
+        restoreStubs();
     });
 
-    it('recalculates position from ngAfterViewInit when already open', () => {
+    it('positions content that mounts after the card opened, without waiting a frame', () => {
         currentRect = { x: 900, y: 100, w: 200, h: 50 };
         hoverCardOf(fixture).open.set(true);
         fixture.detectChanges();
-        const content = fixture.debugElement.query(By.directive(HoverCardContentComponent))
-            .componentInstance as HoverCardContentComponent;
-        pinContentRect(fixture);
-        content.ngAfterViewInit();
+
+        fixture.componentInstance.showContent.set(true);
         fixture.detectChanges();
+
         const style = contentEl(fixture)?.getAttribute('style') ?? '';
         expect(style).toContain('translateX(-84px)');
-    });
-
-    it('guards position calculation when the content element is absent', () => {
-        const content = fixture.debugElement.query(By.directive(HoverCardContentComponent))
-            .componentInstance as unknown as { calculatePosition: () => void };
-        expect(() => content.calculatePosition()).not.toThrow();
-        expect(contentEl(fixture)).toBeNull();
     });
 });
 

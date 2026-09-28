@@ -44,22 +44,23 @@ describe('computePivot', () => {
     expect(result.rows[1]).toMatchObject({ region: 'EU', [pa]: 1, [pb]: 0 });
   });
 
-  it('averages cell values', () => {
-    const result = computePivot(DATA, { rows: ['region'], column: 'product', value: 'sales', aggregate: 'avg' });
-    const [pa] = result.pivotColumnKeys;
-    expect(result.rows[0][pa]).toBe(60);
-  });
-
   it('supports multiple row dimensions', () => {
     const data = [
       { region: 'NA', tier: 'Gold', product: 'A', sales: 10 },
       { region: 'NA', tier: 'Gold', product: 'A', sales: 5 },
       { region: 'NA', tier: 'Silver', product: 'A', sales: 7 },
+      { region: 'a b', tier: 'c', product: 'A', sales: 1 },
+      { region: 'a', tier: 'b c', product: 'A', sales: 2 },
     ];
     const result = computePivot(data, { rows: ['region', 'tier'], column: 'product', value: 'sales', aggregate: 'sum' });
-    expect(result.columns.slice(0, 2).map((c) => c.key)).toEqual(['region', 'tier']);
-    expect(result.rows).toHaveLength(2);
-    expect(result.rows[0]).toMatchObject({ region: 'NA', tier: 'Gold' });
+    const [pa] = result.pivotColumnKeys;
+    expect(result.columns.map((c) => c.key)).toEqual(['region', 'tier', pa]);
+    expect(result.rows).toEqual([
+      { region: 'NA', tier: 'Gold', [pa]: 15 },
+      { region: 'NA', tier: 'Silver', [pa]: 7 },
+      { region: 'a b', tier: 'c', [pa]: 1 },
+      { region: 'a', tier: 'b c', [pa]: 2 },
+    ]);
   });
 
   it('returns no rows for empty data', () => {
@@ -80,15 +81,28 @@ describe('computePivot', () => {
     expect(result.rows[0][pa]).toBe(100);
   });
 
-  it('ignores non-numeric values when aggregating', () => {
+  it('aggregates only numeric values, leaving a cell with none blank', () => {
     const data = [
       { region: 'NA', product: 'A', sales: 'oops' },
       { region: 'NA', product: 'A', sales: 30 },
+      { region: 'NA', product: 'A', sales: '12' },
       { region: 'NA', product: 'A', sales: null },
+      { region: 'NA', product: 'A', sales: '' },
+      { region: 'NA', product: 'A', sales: false },
+      { region: 'EU', product: 'A', sales: null },
+      { region: 'EU', product: 'A', sales: ' ' },
     ];
-    const result = computePivot(data, { rows: ['region'], column: 'product', value: 'sales', aggregate: 'sum' });
-    const [pa] = result.pivotColumnKeys;
-    expect(result.rows[0][pa]).toBe(30);
+    const pivot = (aggregate: 'avg' | 'min') =>
+      computePivot(data, { rows: ['region'], column: 'product', value: 'sales', aggregate });
+    const [pa] = pivot('avg').pivotColumnKeys;
+    expect(pivot('avg').rows).toEqual([
+      { region: 'NA', [pa]: 21 },
+      { region: 'EU', [pa]: null },
+    ]);
+    expect(pivot('min').rows).toEqual([
+      { region: 'NA', [pa]: 12 },
+      { region: 'EU', [pa]: null },
+    ]);
   });
 
   it('rounds averages to two decimals', () => {
@@ -99,7 +113,8 @@ describe('computePivot', () => {
     ];
     const result = computePivot(data, { rows: ['region'], column: 'product', value: 'sales', aggregate: 'avg' });
     const [pa] = result.pivotColumnKeys;
-    expect(result.rows[0][pa] as number).toBeCloseTo(10.33, 2);
+    // 5 digits, not 2: the unrounded 10.3333 must fail this.
+    expect(result.rows[0][pa]).toBeCloseTo(10.33, 5);
   });
 
   it('returns 0 from an unknown aggregate over non-empty values', () => {

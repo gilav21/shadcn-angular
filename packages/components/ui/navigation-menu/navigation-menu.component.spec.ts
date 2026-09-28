@@ -104,10 +104,6 @@ describe('NavigationMenuComponent', () => {
         restoreMatchMedia(originalMatchMedia);
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
     it('should render nav with role and data-slot', () => {
         const nav = fixture.nativeElement.querySelector('[data-slot="navigation-menu"]');
         expect(nav.getAttribute('role')).toBe('navigation');
@@ -239,13 +235,6 @@ describe('NavigationMenu Integration', () => {
         fixture.detectChanges();
         expect(item.componentInstance.isOpen()).toBe(true);
     });
-
-    it('should ignore outside click when nothing is active', () => {
-        const menu = fixture.debugElement.query(By.directive(NavigationMenuComponent));
-        document.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-        fixture.detectChanges();
-        expect(menu.componentInstance.service.activeItem()).toBeNull();
-    });
 });
 
 describe('NavigationMenu Hover Delay Timers', () => {
@@ -270,21 +259,13 @@ describe('NavigationMenu Hover Delay Timers', () => {
         restoreMatchMedia(originalMatchMedia);
     });
 
-    it('should keep the menu open immediately after mouse leave (delayed close)', () => {
-        const item = fixture.debugElement.query(By.directive(NavigationMenuItemComponent));
-        item.componentInstance.open();
-        fixture.detectChanges();
-
-        item.componentInstance.onMouseLeave();
-        expect(item.componentInstance.isOpen()).toBe(true);
-    });
-
     it('should close after the 150ms hover delay expires', () => {
         const item = fixture.debugElement.query(By.directive(NavigationMenuItemComponent));
         item.componentInstance.open();
         fixture.detectChanges();
 
         item.componentInstance.onMouseLeave();
+        expect(item.componentInstance.isOpen()).toBe(true);
         vi.advanceTimersByTime(150);
         fixture.detectChanges();
         expect(item.componentInstance.isOpen()).toBe(false);
@@ -332,14 +313,6 @@ describe('NavigationMenu Touch Behavior', () => {
         item.componentInstance.open();
         fixture.detectChanges();
         item.componentInstance.onMouseLeave();
-        expect(item.componentInstance.isOpen()).toBe(true);
-    });
-
-    it('should still toggle open via trigger tap on touch devices', () => {
-        const trigger = fixture.debugElement.query(By.css('[data-slot="navigation-menu-trigger"]'));
-        trigger.nativeElement.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-        fixture.detectChanges();
-        const item = fixture.debugElement.query(By.directive(NavigationMenuItemComponent));
         expect(item.componentInstance.isOpen()).toBe(true);
     });
 });

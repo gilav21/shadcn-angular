@@ -15,6 +15,7 @@ import { cn } from '../../lib/utils';
 import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
 import { COMPARISON_SLIDER_LOCALES, type ComparisonSliderLocale } from './comparison-slider.locales';
 import { onPointerDrag } from '../../lib/touch';
+import { createResizeObserver } from '../../lib/observers';
 
 export type ComparisonSliderOrientation = 'horizontal' | 'vertical';
 
@@ -115,13 +116,13 @@ export class ComparisonSliderComponent implements AfterViewInit {
 
     private setupResizeObserver(): void {
         const el = this.rootRef().nativeElement;
-        this.resizeObserver = new ResizeObserver((entries) => {
+        this.resizeObserver = createResizeObserver((entries) => {
             for (const entry of entries) {
                 this._rootWidth.set(entry.contentRect.width);
                 this._rootHeight.set(entry.contentRect.height);
             }
         });
-        this.resizeObserver.observe(el);
+        this.resizeObserver?.observe(el);
         this._rootWidth.set(el.clientWidth);
         this._rootHeight.set(el.clientHeight);
 

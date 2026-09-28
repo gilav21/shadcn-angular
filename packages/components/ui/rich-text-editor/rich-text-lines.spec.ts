@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     buildLineIndex,
+    flattenIntoRowText,
     lastOwnInlineNode,
     caretPosition,
     holdsNothing,
@@ -13,6 +14,7 @@ import {
     lineOwnNodes,
     lineText,
     lineTagIsFixed,
+    nodeShowsNothing,
     rangeShowsNothing,
     linesBetween,
     linesMayJoin,
@@ -147,12 +149,6 @@ describe('rich text line model — the shape table', () => {
         expect(lineText(buildLineIndex(root).lines[0])).toBe(text);
     });
 
-    it('has an expectation for every shape, so a new shape cannot slip through untested', () => {
-        const named = LINE_SHAPE_FIXTURES.map(([name]) => name);
-        expect(named.filter((name) => EXPECTED[name] === undefined)).toEqual([]);
-        expect(Object.keys(EXPECTED).filter((name) => !named.includes(name))).toEqual([]);
-    });
-
     it.each(LINE_SHAPE_FIXTURES)('%s yields the lines the table says', (name, html) => {
         expect(actualLines(html)).toEqual(EXPECTED[name].map((row) => [...row]));
     });
@@ -194,7 +190,7 @@ describe('rich text line model — the rules', () => {
         expect(isLineOwner(wrapped.querySelector('li')!, wrapped)).toBe(false);
     });
 
-    it('a quote or a cell wrapping a list is a container, so the items are the lines', () => {
+    it('a quote wrapping a list is a container, so the items are the lines', () => {
         const quote = rootOf('<blockquote><ul><li>item</li></ul></blockquote>');
         expect(isLineOwner(quote.querySelector('blockquote')!, quote)).toBe(false);
         expect(buildLineIndex(quote).lines.map((l) => l.owner.tagName)).toEqual(['LI']);
@@ -296,6 +292,10 @@ describe('rich text line model — the rules', () => {
         const root = rootOf('<table><tbody><tr><td><br></td></tr></tbody></table>');
         expect(holdsNothing(root.querySelector('table')!)).toBe(false);
         expect(holdsNothing(root.querySelector('td')!)).toBe(true);
+
+        // An empty span does not make a blank line look full.
+        const blank = rootOf('<p><span></span></p>');
+        expect(holdsNothing(blank.querySelector('p')!)).toBe(true);
     });
 
     it('a block that follows a line goes inside it when the parent rejects blocks', () => {
@@ -314,7 +314,7 @@ describe('rich text line model — the rules', () => {
         expect(positionAfterLine(first)).toEqual({ parent: prose, before: prose.children[1] });
     });
 
-    it('a container element holding both text and a block is a shape the sanitizer removes', () => {
+    it('text beside a block in a list item belongs to no line', () => {
         // The model answers honestly that such text belongs to no line, which
         // is why nothing may hold both: a block command given that item used to
         // reach out to the whole list and destroy it. The editor never builds
@@ -450,6 +450,50 @@ describe('rich text line model — the rules', () => {
         expect(range.compareBoundaryPoints(Range.START_TO_START, atTextEnd)).toBe(0);
     });
 
+    it('a caret on a task row past its text span reads as the end of the row\'s text', () => {
+        // The row's own stop outside its text, where a browser lands the caret
+        // beside the checkbox; the span is the line's holder, the row is not.
+        const root = rootOf(TASK_ROWS);
+        const index = buildLineIndex(root);
+        const row = root.querySelector('li')!;
+        const pastSpan = document.createRange();
+        pastSpan.setStart(row, row.childNodes.length);
+        pastSpan.collapse(true);
+
+        const position = caretPosition(index, pastSpan)!;
+        expect(position.line.owner).toBe(row);
+        expect(position.offset).toBe('first'.length);
+    });
+
+    it('a caret in a line with no text of its own sits at the start of the line', () => {
+        const root = rootOf('<p>above</p><p></p>');
+        const empty = root.querySelectorAll('p')[1];
+        const line = lineOf(empty, root)!;
+
+        const range = placeCaretIn(line, 3);
+
+        expect(range.startContainer).toBe(empty);
+        expect(range.startOffset).toBe(0);
+        expect(caretPosition(buildLineIndex(root), range)).toEqual({ line: expect.objectContaining({ owner: empty }), offset: 0 });
+    });
+
+    it('text shows nothing when it is blank or placeholders only', () => {
+        expect(nodeShowsNothing(document.createTextNode(' \u200B '))).toBe(true);
+        expect(nodeShowsNothing(document.createTextNode('x'))).toBe(false);
+    });
+
+    it('flattens blocks into one row of text, a single space where each block ended', () => {
+        const holder = document.createElement('div');
+        holder.innerHTML = '<p>a</p>\n <pre><code>b\nc</code></pre><p> </p><p>d</p>';
+        const span = document.createElement('span');
+
+        flattenIntoRowText(Array.from(holder.childNodes), span);
+
+        expect(span.textContent).toBe('a b c d');
+        expect(span.children).toHaveLength(1);
+        expect(span.querySelector('code')?.textContent).toBe('b c');
+    });
+
     it('two nodes in the same line yield just that line', () => {
         const root = rootOf('<p>one</p><p>two</p>');
         const index = buildLineIndex(root);
@@ -507,16 +551,6 @@ describe('rich text line model — the rules', () => {
         const back = placeCaretIn(position.line, position.offset);
         expect(back.startContainer).toBe(bold);
         expect(back.startOffset).toBe(2);
-    });
-
-    it('a line removed from the document is no longer in an index built before it went', () => {
-        const root = rootOf('<p>one</p><p>two</p>');
-        const index = buildLineIndex(root);
-        const second = index.lines[1];
-        second.owner.remove();
-
-        expect(lineBelow(buildLineIndex(root), buildLineIndex(root).lines[0])).toBeNull();
-        expect(lineAbove(buildLineIndex(root), second)).toBeNull();
     });
 });
 

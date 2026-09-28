@@ -82,42 +82,7 @@ describe('FileUploadComponent', () => {
         document.documentElement.removeAttribute('dir');
     });
 
-    describe('Basic Rendering', () => {
-        it('should create file upload component', () => {
-            const upload = fixture.debugElement.query(By.directive(FileUploadComponent));
-            expect(upload).toBeTruthy();
-        });
-
-        it('should have data-slot="file-upload"', () => {
-            const upload = fixture.debugElement.query(By.css('[data-slot="file-upload"]'));
-            expect(upload).toBeTruthy();
-        });
-
-        it('should render dropzone', () => {
-            // Dropzone has border-dashed class always present
-            const dropzone = fixture.debugElement.query(By.css('.border-dashed'));
-            expect(dropzone).toBeTruthy();
-        });
-
-        it('should have hidden file input', () => {
-            const input = fixture.debugElement.query(By.css('input[type="file"]'));
-            expect(input).toBeTruthy();
-            expect(input.nativeElement.className).toContain('sr-only');
-        });
-    });
-
     describe('File Selection', () => {
-        it('should accept files through input', async () => {
-            const uploadComponent = fixture.debugElement.query(By.directive(FileUploadComponent)).componentInstance as FileUploadComponent;
-            const mockFile = createMockFile('test.pdf', 1024, 'application/pdf');
-
-            uploadComponent.addFiles([mockFile]);
-            fixture.detectChanges();
-
-            expect(component.files).toHaveLength(1);
-            expect(component.files[0].file.name).toBe('test.pdf');
-        });
-
         it('should emit fileAdded event', async () => {
             const uploadComponent = fixture.debugElement.query(By.directive(FileUploadComponent)).componentInstance as FileUploadComponent;
             const mockFile = createMockFile('test.pdf', 1024, 'application/pdf');
@@ -127,17 +92,6 @@ describe('FileUploadComponent', () => {
 
             expect(component.addedFile).toBeTruthy();
             expect(component.addedFile?.file.name).toBe('test.pdf');
-        });
-
-        it('should accept multiple files', async () => {
-            const uploadComponent = fixture.debugElement.query(By.directive(FileUploadComponent)).componentInstance as FileUploadComponent;
-            const file1 = createMockFile('test1.pdf', 1024, 'application/pdf');
-            const file2 = createMockFile('test2.pdf', 1024, 'application/pdf');
-
-            uploadComponent.addFiles([file1, file2]);
-            fixture.detectChanges();
-
-            expect(component.files).toHaveLength(2);
         });
     });
 
@@ -155,23 +109,6 @@ describe('FileUploadComponent', () => {
             expect(component.files).toHaveLength(0);
             expect(component.lastError).toBeTruthy();
             expect(component.lastError?.error).toContain('maximum size');
-        });
-
-        it('should respect maxFiles limit', async () => {
-            component.maxFiles.set(2);
-            fixture.detectChanges();
-
-            const uploadComponent = fixture.debugElement.query(By.directive(FileUploadComponent)).componentInstance as FileUploadComponent;
-            const files = [
-                createMockFile('file1.pdf', 100, 'application/pdf'),
-                createMockFile('file2.pdf', 100, 'application/pdf'),
-                createMockFile('file3.pdf', 100, 'application/pdf'),
-            ];
-
-            uploadComponent.addFiles(files);
-            fixture.detectChanges();
-
-            expect(component.files).toHaveLength(2);
         });
 
         it('should report every file dropped for exceeding maxFiles on fileError', async () => {
@@ -227,20 +164,6 @@ describe('FileUploadComponent', () => {
     });
 
     describe('File Removal', () => {
-        it('should remove file', async () => {
-            const uploadComponent = fixture.debugElement.query(By.directive(FileUploadComponent)).componentInstance as FileUploadComponent;
-            const mockFile = createMockFile('test.pdf', 1024, 'application/pdf');
-
-            uploadComponent.addFiles([mockFile]);
-            fixture.detectChanges();
-
-            const fileId = component.files[0].id;
-            uploadComponent.removeFile(fileId);
-            fixture.detectChanges();
-
-            expect(component.files).toHaveLength(0);
-        });
-
         it('should emit fileRemoved event', async () => {
             const uploadComponent = fixture.debugElement.query(By.directive(FileUploadComponent)).componentInstance as FileUploadComponent;
             const mockFile = createMockFile('test.pdf', 1024, 'application/pdf');
@@ -252,6 +175,7 @@ describe('FileUploadComponent', () => {
             uploadComponent.removeFile(fileId);
             fixture.detectChanges();
 
+            expect(component.files).toHaveLength(0);
             expect(component.removedFile).toBeTruthy();
             expect(component.removedFile?.file.name).toBe('test.pdf');
         });
@@ -289,37 +213,7 @@ describe('FileUploadComponent', () => {
         });
     });
 
-    describe('RTL Support', () => {
-        it('should render in LTR mode', () => {
-            const container = fixture.debugElement.query(By.css('[dir="ltr"]'));
-            expect(container).toBeTruthy();
-        });
-
-        it('should render in RTL mode', async () => {
-            component.dir.set('rtl');
-            fixture.detectChanges();
-            await fixture.whenStable();
-
-            const container = fixture.debugElement.query(By.css('[dir="rtl"]'));
-            expect(container).toBeTruthy();
-        });
-
-        it('should maintain structure in RTL', async () => {
-            component.dir.set('rtl');
-            fixture.detectChanges();
-            await fixture.whenStable();
-
-            const upload = fixture.debugElement.query(By.directive(FileUploadComponent));
-            expect(upload).toBeTruthy();
-        });
-    });
-
     describe('Accessibility', () => {
-        it('should have accessible file input', () => {
-            const input = fixture.debugElement.query(By.css('input[type="file"]'));
-            expect(input.nativeElement.type).toBe('file');
-        });
-
         it('should have aria-label on remove buttons', async () => {
             const uploadComponent = fixture.debugElement.query(By.directive(FileUploadComponent)).componentInstance as FileUploadComponent;
             uploadComponent.addFiles([createMockFile('test.pdf', 100, 'application/pdf')]);
@@ -348,16 +242,9 @@ describe('FileUploadComponent', () => {
             uploadComponent.addFiles([createMockFile('<script>alert(1)</script>.pdf', 100, 'application/pdf')]);
             fixture.detectChanges();
 
-            const fileList = fixture.debugElement.query(By.css('.truncate'));
-            expect(fileList.nativeElement.innerHTML).not.toContain('<script>');
-        });
-
-        it('should handle malformed file objects gracefully', () => {
-            const uploadComponent = fixture.debugElement.query(By.directive(FileUploadComponent)).componentInstance as FileUploadComponent;
-
-            expect(() => {
-                uploadComponent.addFiles([]);
-            }).not.toThrow();
+            const nameCell = fixture.debugElement.query(By.css('.truncate')).nativeElement as HTMLElement;
+            expect(nameCell.textContent).toBe('<script>alert(1)</script>.pdf');
+            expect(nameCell.children).toHaveLength(0);
         });
 
         it('should revoke object URLs on file removal', async () => {

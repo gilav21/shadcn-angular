@@ -47,6 +47,70 @@ export class FileViewerContentDirective {}
 
 const TWIPS_PER_PT = 20;
 
+/*
+ * DOCX, DOC and PPT/PPTX files are rendered by building markup from parsed
+ * document values and handing it to `bypassSecurityTrustHtml`. Angular's own
+ * sanitizer cannot be used instead: it strips every `style` attribute, and the
+ * rendering is made of inline styles. So every document-controlled value is made
+ * safe here, for the context it lands in, before it reaches the markup.
+ */
+
+/** Hex, functional `rgb()/rgba()/hsl()/hsla()` with numeric arguments, or a bare keyword. */
+const CSS_COLOR = /^(?:#[\da-f]{3,8}|(?:rgba?|hsla?)\([\d\s.,%/+-]*\)|[a-z]+)$/i;
+const IMAGE_DATA_URL = /^data:image\/[\w.+-]+;base64,[\w+/=]*$/;
+const SAFE_LINK_PROTOCOLS: ReadonlySet<string> = new Set(['http:', 'https:', 'mailto:']);
+
+/**
+ * A document colour when it is plain colour syntax, else `undefined`. The syntax
+ * admits no `;`, quote or `url(`, so the value cannot add a declaration or fetch.
+ */
+function cssColor(value: string | undefined): string | undefined {
+    return value && CSS_COLOR.test(value) ? value : undefined;
+}
+
+/**
+ * A document font name as a quoted CSS string plus a generic fallback. Quotes and
+ * backslashes are escaped and control characters dropped, because any of them
+ * could end the string and let the name write further declarations.
+ */
+function cssFontFamily(name: string): string {
+    let quoted = '';
+    for (const ch of name) {
+        const code = ch.codePointAt(0) ?? 0;
+        if (code < 0x20 || code === 0x7f) continue;
+        quoted += ch === '\\' || ch === "'" ? `\\${ch}` : ch;
+    }
+    return `'${quoted}',sans-serif`;
+}
+
+/** The value when it is a base64 image data URL — the only image source the parsers produce — else `undefined`. */
+function imageDataUrl(value: string | undefined): string | undefined {
+    return value && IMAGE_DATA_URL.test(value) ? value : undefined;
+}
+
+/**
+ * A link target the viewer may render: an in-document `#fragment`, or an absolute
+ * http, https or mailto URL (returned as the browser will parse it, so the scheme
+ * checked is the scheme followed). Anything else — `javascript:`, `data:`, relative
+ * paths — yields `undefined` and the text renders unlinked.
+ */
+function safeLinkHref(href: string): string | undefined {
+    if (href.startsWith('#')) return href;
+    try {
+        const url = new URL(href);
+        return SAFE_LINK_PROTOCOLS.has(url.protocol) ? url.href : undefined;
+    } catch {
+        // Not an absolute URL; relative targets are not rendered as links.
+        return undefined;
+    }
+}
+
+/** A border shorthand; an unusable document colour falls back to `currentColor`. */
+function cssBorder(side: string, size: number, color: string): string {
+    const safeColor = cssColor(color);
+    return safeColor ? `border-${side}:${size}pt solid ${safeColor}` : `border-${side}:${size}pt solid`;
+}
+
 const HEADING_CLASSES: Record<number, string> = {
     1: 'text-4xl font-bold mt-6 mb-3',
     2: 'text-3xl font-bold mt-5 mb-3',
@@ -596,12 +660,12 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         const styles = this.buildRunStyles(run.style);
         const dirAttr = run.style.rtl ? ' dir="rtl"' : '';
         if (styles || dirAttr) {
-            const styleAttr = styles ? ` style="${styles}"` : '';
-            text = `<span${dirAttr}${styleAttr}>${text}</span>`;
+            text = `<span${dirAttr}${this.styleAttr(styles)}>${text}</span>`;
         }
 
-        if (run.href) {
-            text = `<a href="${this.escapeHtml(run.href)}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+        const href = run.href ? safeLinkHref(run.href) : undefined;
+        if (href) {
+            text = `<a href="${this.escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${text}</a>`;
         }
 
         return text;
@@ -633,11 +697,12 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         charSpacing?: number;
     }): string {
         const parts: string[] = [];
-        if (style.color) parts.push(`color:${style.color}`);
+        const color = cssColor(style.color);
+        if (color) parts.push(`color:${color}`);
         if (style.fontSize) parts.push(`font-size:${style.fontSize}pt`);
-        if (style.fontFamily) parts.push(`font-family:'${style.fontFamily}',sans-serif`);
-        if (style.highlight) parts.push(`background-color:${style.highlight}`);
-        if (style.backgroundColor && !style.highlight) parts.push(`background-color:${style.backgroundColor}`);
+        if (style.fontFamily) parts.push(`font-family:${cssFontFamily(style.fontFamily)}`);
+        const background = cssColor(style.highlight) ?? cssColor(style.backgroundColor);
+        if (background) parts.push(`background-color:${background}`);
         if (style.doubleStrikethrough) parts.push('text-decoration-style:double');
         if (style.caps) parts.push('text-transform:uppercase');
         if (style.smallCaps) parts.push('font-variant:small-caps');
@@ -662,7 +727,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         if (para.rtl) attrs.push('dir="rtl"');
 
         const styles = this.buildParagraphStyles(para);
-        if (styles) attrs.push(`style="${styles}"`);
+        if (styles) attrs.push(this.styleAttr(styles).trimStart());
 
         return attrs.join(' ');
     }
@@ -689,7 +754,8 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         if (para.indentHanging) parts.push(`text-indent:-${para.indentHanging}pt`);
         if (para.indentFirstLine) parts.push(`text-indent:${para.indentFirstLine}pt`);
         if (para.listLevel !== undefined) parts.push(`margin-left:${(para.listLevel) * 24}px`);
-        if (para.shading) parts.push(`background-color:${para.shading};padding:4px 8px`);
+        const shading = cssColor(para.shading);
+        if (shading) parts.push(`background-color:${shading};padding:4px 8px`);
         if (para.borders) {
             this.appendBorderStyles(parts, para.borders);
         }
@@ -702,10 +768,10 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         left?: { style: string; color: string; size: number };
         right?: { style: string; color: string; size: number };
     }): void {
-        if (borders.top) parts.push(`border-top:${borders.top.size}pt solid ${borders.top.color}`);
-        if (borders.bottom) parts.push(`border-bottom:${borders.bottom.size}pt solid ${borders.bottom.color}`);
-        if (borders.left) parts.push(`border-left:${borders.left.size}pt solid ${borders.left.color}`);
-        if (borders.right) parts.push(`border-right:${borders.right.size}pt solid ${borders.right.color}`);
+        if (borders.top) parts.push(cssBorder('top', borders.top.size, borders.top.color));
+        if (borders.bottom) parts.push(cssBorder('bottom', borders.bottom.size, borders.bottom.color));
+        if (borders.left) parts.push(cssBorder('left', borders.left.size, borders.left.color));
+        if (borders.right) parts.push(cssBorder('right', borders.right.size, borders.right.color));
         if (borders.top || borders.bottom || borders.left || borders.right) {
             parts.push('padding:4px 8px');
         }
@@ -850,12 +916,13 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     }): string {
         if (!cellStyle) return '';
         const parts: string[] = [];
-        if (cellStyle.backgroundColor) parts.push(`background-color:${cellStyle.backgroundColor}`);
+        const background = cssColor(cellStyle.backgroundColor);
+        if (background) parts.push(`background-color:${background}`);
         if (cellStyle.verticalAlign) parts.push(`vertical-align:${this.mapVerticalAlign(cellStyle.verticalAlign)}`);
         this.appendCellWidth(cellStyle, parts);
         this.appendCellBorders(cellStyle.borders, parts);
         this.appendCellPaddings(cellStyle.paddings, parts);
-        return parts.length > 0 ? ` style="${parts.join(';')}"` : '';
+        return this.styleAttr(parts.join(';'));
     }
 
     private appendCellWidth(cellStyle: { width?: number; widthUnit?: string }, parts: string[]): void {
@@ -872,10 +939,10 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         left?: { size: number; color: string }; right?: { size: number; color: string };
     } | undefined, parts: string[]): void {
         if (!borders) return;
-        if (borders.top) parts.push(`border-top:${borders.top.size}pt solid ${borders.top.color}`);
-        if (borders.bottom) parts.push(`border-bottom:${borders.bottom.size}pt solid ${borders.bottom.color}`);
-        if (borders.left) parts.push(`border-left:${borders.left.size}pt solid ${borders.left.color}`);
-        if (borders.right) parts.push(`border-right:${borders.right.size}pt solid ${borders.right.color}`);
+        if (borders.top) parts.push(cssBorder('top', borders.top.size, borders.top.color));
+        if (borders.bottom) parts.push(cssBorder('bottom', borders.bottom.size, borders.bottom.color));
+        if (borders.left) parts.push(cssBorder('left', borders.left.size, borders.left.color));
+        if (borders.right) parts.push(cssBorder('right', borders.right.size, borders.right.color));
     }
 
     private appendCellPaddings(paddings: {
@@ -896,7 +963,9 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
 
     private renderDocxImage(el: unknown): string {
         const img = el as { dataUrl: string; width: number; height: number; altText: string };
-        return `<img src="${img.dataUrl}" width="${img.width}" height="${img.height}" alt="${this.escapeHtml(img.altText)}" class="my-2 max-w-full" />`;
+        const src = imageDataUrl(img.dataUrl);
+        if (!src) return '';
+        return `<img src="${src}" width="${img.width}" height="${img.height}" alt="${this.escapeHtml(img.altText)}" class="my-2 max-w-full" />`;
     }
 
     private renderDocxFootnotes(
@@ -985,11 +1054,12 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         backgroundImage?: string;
     }): string {
         const bgStyles = ['position:relative', 'width:100%', 'height:100%'];
-        bgStyles.push(`background-color:${slide.backgroundColor ?? '#fff'}`);
-        if (slide.backgroundImage) {
-            bgStyles.push(`background-image:url(${slide.backgroundImage})`, 'background-size:cover', 'background-position:center');
+        bgStyles.push(`background-color:${cssColor(slide.backgroundColor) ?? '#fff'}`);
+        const backgroundImage = imageDataUrl(slide.backgroundImage);
+        if (backgroundImage) {
+            bgStyles.push(`background-image:url(${backgroundImage})`, 'background-size:cover', 'background-position:center');
         }
-        let html = `<div style="${bgStyles.join(';')}">`;
+        let html = `<div${this.styleAttr(bgStyles.join(';'))}>`;
         for (const el of slide.elements) {
             html += this.renderSlideElement(el);
         }
@@ -1003,7 +1073,9 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         }
         if (el.type === 'image') {
             const img = el as unknown as { dataUrl: string; x: number; y: number; width: number; height: number };
-            return `<img src="${img.dataUrl}" style="position:absolute;left:${img.x}px;top:${img.y}px;width:${img.width}px;height:${img.height}px;object-fit:contain;z-index:2" />`;
+            const src = imageDataUrl(img.dataUrl);
+            if (!src) return '';
+            return `<img src="${src}" style="position:absolute;left:${img.x}px;top:${img.y}px;width:${img.width}px;height:${img.height}px;object-fit:contain;z-index:2" />`;
         }
         if (el.type === 'table') {
             return this.renderSlideTable(el as unknown as PptxTableElement);
@@ -1032,9 +1104,9 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         if (tf.fontScale && tf.fontScale < 1) {
             const invScale = Math.round(100 / tf.fontScale);
             const innerStyle = `transform:scale(${tf.fontScale});transform-origin:top left;width:${invScale}%`;
-            return `<div style="${styles.join(';')}"><div style="${innerStyle}">${content}</div></div>`;
+            return `<div${this.styleAttr(styles.join(';'))}><div style="${innerStyle}">${content}</div></div>`;
         }
-        return `<div style="${styles.join(';')}">${content}</div>`;
+        return `<div${this.styleAttr(styles.join(';'))}>${content}</div>`;
     }
 
     private renderSlideParagraph(para: PptxParagraph, autoNumCounter: number): string {
@@ -1057,7 +1129,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         if (!content) content = '<br/>';
         const styles = this.buildSlideParagraphStyles(para);
         const dirAttr = para.rtl ? ' dir="rtl"' : '';
-        return `<div style="${styles.join(';')}"${dirAttr}>${content}</div>`;
+        return `<div${this.styleAttr(styles.join(';'))}${dirAttr}>${content}</div>`;
     }
 
     private renderSlideRun(run: PptxTextRun): string {
@@ -1065,7 +1137,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
 
         const styles: string[] = [];
         if (run.fontSize) styles.push(`font-size:${run.fontSize}pt`);
-        if (run.fontFamily) styles.push(`font-family:'${run.fontFamily}',sans-serif`);
+        if (run.fontFamily) styles.push(`font-family:${cssFontFamily(run.fontFamily)}`);
 
         this.applyRunFillStyles(run, styles);
         this.applyRunDecorationStyles(run, styles);
@@ -1078,7 +1150,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         }
 
         const attrs: string[] = [];
-        if (styles.length > 0) attrs.push(`style="${styles.join(';')}"`);
+        if (styles.length > 0) attrs.push(this.styleAttr(styles.join(';')).trimStart());
         if (run.hoverTooltip) attrs.push(`title="${this.escapeHtml(run.hoverTooltip)}"`);
 
         if (attrs.length > 0) text = `<span ${attrs.join(' ')}>${text}</span>`;
@@ -1116,28 +1188,32 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
             styles.push(`background:${this.buildGradientCss(run.gradientFill)}`, '-webkit-background-clip:text', 'background-clip:text', 'color:transparent');
             return;
         }
-        if (run.imageFill) {
-            styles.push(`background-image:url(${run.imageFill})`, 'background-size:cover', '-webkit-background-clip:text', 'background-clip:text', 'color:transparent');
+        const imageFill = imageDataUrl(run.imageFill);
+        if (imageFill) {
+            styles.push(`background-image:url(${imageFill})`, 'background-size:cover', '-webkit-background-clip:text', 'background-clip:text', 'color:transparent');
             return;
         }
         if (run.patternFill) {
             styles.push(this.buildPatternCss(run.patternFill), '-webkit-background-clip:text', 'background-clip:text', 'color:transparent');
             return;
         }
-        if (run.color) styles.push(`color:${run.color}`);
+        const color = cssColor(run.color);
+        if (color) styles.push(`color:${color}`);
     }
 
     private applyRunDecorationStyles(run: PptxTextRun, styles: string[]): void {
         if (run.cap === 'all') styles.push('text-transform:uppercase');
         if (run.cap === 'small') styles.push('font-variant:small-caps');
         if (run.spc != null) styles.push(`letter-spacing:${run.spc}pt`);
-        if (run.highlight) styles.push(`background-color:${run.highlight}`);
+        const highlight = cssColor(run.highlight);
+        if (highlight) styles.push(`background-color:${highlight}`);
     }
 
     private applyRunTextEffects(run: PptxTextRun, styles: string[]): void {
         if (run.textOutline) {
             styles.push(`-webkit-text-stroke-width:${run.textOutline.width}pt`);
-            if (run.textOutline.color) styles.push(`-webkit-text-stroke-color:${run.textOutline.color}`);
+            const outlineColor = cssColor(run.textOutline.color);
+            if (outlineColor) styles.push(`-webkit-text-stroke-color:${outlineColor}`);
             styles.push('paint-order:stroke fill');
         }
         if (run.effects) styles.push(...this.buildEffectsCss(run.effects, 'text'));
@@ -1145,8 +1221,9 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
 
     private renderBulletPrefix(bullet: PptxBullet, autoNumCounter: number): string {
         // Image bullet
-        if (bullet.imageDataUrl) {
-            return `<img src="${bullet.imageDataUrl}" style="height:1em;vertical-align:middle;margin-right:0.25em;display:inline-block" />`;
+        const bulletImage = imageDataUrl(bullet.imageDataUrl);
+        if (bulletImage) {
+            return `<img src="${bulletImage}" style="height:1em;vertical-align:middle;margin-right:0.25em;display:inline-block" />`;
         }
 
         let text = '';
@@ -1158,11 +1235,12 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         }
 
         const styles: string[] = ['display:inline-block', 'min-width:1.5em', 'margin-right:0.25em'];
-        if (bullet.color) styles.push(`color:${bullet.color}`);
-        if (bullet.fontFamily) styles.push(`font-family:'${bullet.fontFamily}',sans-serif`);
+        const color = cssColor(bullet.color);
+        if (color) styles.push(`color:${color}`);
+        if (bullet.fontFamily) styles.push(`font-family:${cssFontFamily(bullet.fontFamily)}`);
         if (bullet.sizePoints) styles.push(`font-size:${bullet.sizePoints}pt`);
 
-        return `<span style="${styles.join(';')}">${this.escapeHtml(text)}</span>`;
+        return `<span${this.styleAttr(styles.join(';'))}>${this.escapeHtml(text)}</span>`;
     }
 
     private formatAutoNumber(scheme: string, counter: number, startAt: number): string {
@@ -1216,8 +1294,10 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
             'padding:4px', 'box-sizing:border-box',
             'z-index:4',
         ];
-        if (tf.fillColor) styles.push(`background-color:${tf.fillColor}`);
-        if (tf.borderColor) styles.push(`border:${tf.borderWidth ?? 1}px solid ${tf.borderColor}`);
+        const fillColor = cssColor(tf.fillColor);
+        if (fillColor) styles.push(`background-color:${fillColor}`);
+        const borderColor = cssColor(tf.borderColor);
+        if (borderColor) styles.push(`border:${tf.borderWidth ?? 1}px solid ${borderColor}`);
         if (tf.rotation) styles.push(`transform:rotate(${tf.rotation}deg)`);
         return styles;
     }
@@ -1248,9 +1328,10 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
 
         this.applyShapeFillStyles(shape, styles);
 
-        if (shape.borderColor) {
+        const borderColor = cssColor(shape.borderColor);
+        if (borderColor) {
             const borderStyle = this.mapDashStyleToCss(shape.dashStyle);
-            styles.push(`border:${shape.borderWidth ?? 1}px ${borderStyle} ${shape.borderColor}`);
+            styles.push(`border:${shape.borderWidth ?? 1}px ${borderStyle} ${borderColor}`);
         }
         if (shape.rotation) styles.push(`transform:rotate(${shape.rotation}deg)`);
 
@@ -1262,18 +1343,20 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
 
         if (shape.effects) styles.push(...this.buildEffectsCss(shape.effects, 'shape'));
 
-        return `<div style="${styles.join(';')}"></div>`;
+        return `<div${this.styleAttr(styles.join(';'))}></div>`;
     }
 
     private applyShapeFillStyles(shape: PptxShapeElement, styles: string[]): void {
+        const imageFill = imageDataUrl(shape.imageFill);
+        const fillColor = cssColor(shape.fillColor);
         if (shape.gradientFill) {
             styles.push(`background:${this.buildGradientCss(shape.gradientFill)}`);
-        } else if (shape.imageFill) {
-            styles.push(`background-image:url(${shape.imageFill})`, 'background-size:cover');
+        } else if (imageFill) {
+            styles.push(`background-image:url(${imageFill})`, 'background-size:cover');
         } else if (shape.patternFill) {
             styles.push(this.buildPatternCss(shape.patternFill));
-        } else if (shape.fillColor) {
-            styles.push(`background-color:${shape.fillColor}`);
+        } else if (fillColor) {
+            styles.push(`background-color:${fillColor}`);
         }
     }
 
@@ -1327,7 +1410,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     }
 
     private renderSlideConnector(conn: PptxConnectorElement): string {
-        const color = conn.color ?? '#000';
+        const color = cssColor(conn.color) ?? '#000';
         const lw = conn.lineWidth ?? 1;
         const pad = lw + 2;
         const w = Math.max(conn.width, 0);
@@ -1457,9 +1540,11 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
                 const text = this.escapeHtml(cell.text);
                 const content = cell.bold ? `<strong>${text}</strong>` : text;
                 const cellStyles: string[] = ['border:1px solid #ccc', 'padding:2px 4px'];
-                if (cell.fillColor) cellStyles.push(`background:${cell.fillColor}`);
-                if (cell.color) cellStyles.push(`color:${cell.color}`);
-                html += `<td style="${cellStyles.join(';')}">${content}</td>`;
+                const fillColor = cssColor(cell.fillColor);
+                if (fillColor) cellStyles.push(`background:${fillColor}`);
+                const color = cssColor(cell.color);
+                if (color) cellStyles.push(`color:${color}`);
+                html += `<td${this.styleAttr(cellStyles.join(';'))}>${content}</td>`;
             }
             html += '</tr>';
         }
@@ -1468,7 +1553,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     }
 
     private buildGradientCss(grad: PptxGradientFill): string {
-        const stopStr = grad.stops.map(s => `${s.color} ${s.position}%`).join(', ');
+        const stopStr = grad.stops.map(s => `${cssColor(s.color) ?? 'transparent'} ${s.position}%`).join(', ');
         if (grad.type === 'linear') {
             return `linear-gradient(${grad.angle ?? 0}deg, ${stopStr})`;
         }
@@ -1476,8 +1561,8 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     }
 
     private buildPatternCss(pat: PptxPatternFill): string {
-        const fg = pat.fgColor;
-        const bg = pat.bgColor;
+        const fg = cssColor(pat.fgColor) ?? '#000000';
+        const bg = cssColor(pat.bgColor) ?? '#FFFFFF';
         const preset = pat.preset;
 
         if (preset.startsWith('pct')) {
@@ -1529,23 +1614,25 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
 
         if (effects.outerShadow) {
             const s = effects.outerShadow;
+            const color = cssColor(s.color) ?? 'transparent';
             if (context === 'text') {
-                result.push(`text-shadow:${s.offsetX}px ${s.offsetY}px ${s.blur}px ${s.color}`);
+                result.push(`text-shadow:${s.offsetX}px ${s.offsetY}px ${s.blur}px ${color}`);
             } else {
-                result.push(`box-shadow:${s.offsetX}px ${s.offsetY}px ${s.blur}px ${s.color}`);
+                result.push(`box-shadow:${s.offsetX}px ${s.offsetY}px ${s.blur}px ${color}`);
             }
         }
 
         if (effects.innerShadow && context === 'shape') {
             const s = effects.innerShadow;
-            result.push(`box-shadow:inset ${s.offsetX}px ${s.offsetY}px ${s.blur}px ${s.color}`);
+            result.push(`box-shadow:inset ${s.offsetX}px ${s.offsetY}px ${s.blur}px ${cssColor(s.color) ?? 'transparent'}`);
         }
 
         if (effects.glow) {
+            const color = cssColor(effects.glow.color) ?? 'transparent';
             if (context === 'text') {
-                filters.push(`drop-shadow(0 0 ${effects.glow.radius}px ${effects.glow.color})`);
+                filters.push(`drop-shadow(0 0 ${effects.glow.radius}px ${color})`);
             } else {
-                result.push(`box-shadow:0 0 ${effects.glow.radius}px ${effects.glow.color}`);
+                result.push(`box-shadow:0 0 ${effects.glow.radius}px ${color}`);
             }
         }
 
@@ -1564,7 +1651,8 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
 
     private buildUnderlineCss(uStyle: PptxUnderlineStyle): string[] {
         const result: string[] = ['text-decoration-line:underline'];
-        if (uStyle.color) result.push(`text-decoration-color:${uStyle.color}`);
+        const color = cssColor(uStyle.color);
+        if (color) result.push(`text-decoration-color:${color}`);
         if (uStyle.width) result.push(`text-decoration-thickness:${uStyle.width}pt`);
 
         if (uStyle.compound === 'dbl' || uStyle.compound === 'tri') {
@@ -1639,11 +1727,20 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         this.loadError.emit({ type: this.detectedType(), message });
     }
 
+    /** Escapes text for element content or for a double-quoted attribute value — the only attribute quoting this file emits. */
     private escapeHtml(str: string): string {
         return str
             .replaceAll('&', '&amp;')
             .replaceAll('<', '&lt;')
             .replaceAll('>', '&gt;')
             .replaceAll('"', '&quot;');
+    }
+
+    /**
+     * ` style="…"` for a declaration list, attribute-escaped so no value inside it can
+     * end the attribute; `''` when there are no declarations.
+     */
+    private styleAttr(css: string): string {
+        return css ? ` style="${this.escapeHtml(css)}"` : '';
     }
 }

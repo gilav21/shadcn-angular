@@ -98,10 +98,10 @@ describe('rich-text-slash-commands.utils', () => {
             expect(matchSlashTriggerWithinCurrentBlock(document, root)).toBeNull();
         });
 
-        it('matches from the block start to the caret', () => {
-            const root = makeRoot('<p>/head</p>');
-            const text = root.querySelector('p')!.firstChild as Text;
-            setCaret(text, 5);
+        it('matches from the block start to the caret, across inline formatting', () => {
+            const root = makeRoot('<p>/he<b>ad</b></p>');
+            const text = root.querySelector('b')!.firstChild as Text;
+            setCaret(text, 2);
             expect(matchSlashTriggerWithinCurrentBlock(document, root)![1]).toBe('head');
         });
 
@@ -171,13 +171,19 @@ describe('rich-text-slash-commands.utils', () => {
             expect(captureSlashTriggerRange(document, root)).toBeNull();
         });
 
-        it('clones the in-editor range', () => {
-            const root = makeRoot('<p>hi</p>');
+        it('captures the in-editor caret as a copy that edits to the live selection range do not move', () => {
+            const root = makeRoot('<p>hi /go</p>');
             const text = root.querySelector('p')!.firstChild as Text;
-            setCaret(text, 2);
-            const range = captureSlashTriggerRange(document, root);
-            expect(range).not.toBeNull();
-            expect(range!.startContainer).toBe(text);
+            setCaret(text, 6);
+            const range = captureSlashTriggerRange(document, root)!;
+
+            // Caret code edits the selection's own range in place (the live-caret
+            // trigger removal does), which must not drag the captured trigger along.
+            document.getSelection()!.getRangeAt(0).setStart(text, 0);
+
+            expect(range.startContainer).toBe(text);
+            expect(range.startOffset).toBe(6);
+            expect(range.collapsed).toBe(true);
         });
     });
 
@@ -313,6 +319,14 @@ describe('rich-text-slash-commands.utils', () => {
             expect(findClosestEditableBlock(document, root, comment)).toBe(span);
         });
 
+        it('returns null for a node outside the root', () => {
+            const root = makeRoot('<p>inside</p>');
+            const outside = makeRoot('<p>outside</p>');
+            const text = outside.querySelector('p')!.firstChild as Text;
+
+            expect(findClosestEditableBlock(document, root, text)).toBeNull();
+        });
+
         it('returns null when the root holds no element to anchor to', () => {
             const root = makeRoot('');
             const comment = document.createComment('only');
@@ -335,18 +349,6 @@ describe('rich-text-slash-commands.utils', () => {
 
             expect(block).toBe(root.querySelector('td'));
             expect(root.querySelector('td')!.textContent).toBe('first ');
-        });
-
-        it('removes the trigger through the captured range', () => {
-            const root = makeRoot('<p>hi /go</p>');
-            const text = root.querySelector('p')!.firstChild as Text;
-            const range = document.createRange();
-            range.setStart(text, text.data.length);
-            range.collapse(true);
-            setCaret(text, text.data.length);
-            const block = removeSlashTriggerText(document, root, 'go', range, null);
-            expect(block).toBe(root.querySelector('p'));
-            expect(root.textContent).toBe('hi ');
         });
 
         it('ignores a captured range whose node the editor no longer contains', () => {
@@ -374,7 +376,7 @@ describe('rich-text-slash-commands.utils', () => {
             expect(text.data).toBe('hi /go');
         });
 
-        it('removes the trigger from the anchor block when the range does not match', () => {
+        it('removes the trigger from the anchor block when there is no captured range', () => {
             const root = makeRoot('<p>keep</p><p>type /cmd here</p>');
             const anchor = root.querySelectorAll('p')[1] as HTMLElement;
             setCaret(anchor.firstChild as Text, 1);
@@ -392,13 +394,15 @@ describe('rich-text-slash-commands.utils', () => {
             expect(root.textContent).toContain('find  now');
         });
 
-        it('falls back to the live caret when the trigger lives outside the root', () => {
+        it('leaves a trigger outside the root untouched and anchors nothing', () => {
             const root = makeRoot('<p>plain</p>');
             const outside = makeRoot('<p>run /live cmd</p>');
             const text = outside.querySelector('p')!.firstChild as Text;
             setCaret(text, 9);
-            removeSlashTriggerText(document, root, 'live', null, null);
-            expect(outside.textContent).toContain('run  cmd');
+
+            expect(removeSlashTriggerText(document, root, 'live', null, null)).toBeNull();
+            expect(outside.textContent).toBe('run /live cmd');
+            expect(root.textContent).toBe('plain');
         });
 
         it('returns null when nothing matches anywhere', () => {
@@ -418,11 +422,6 @@ describe('rich-text-slash-commands.utils', () => {
             expect(root.textContent).toBe('abc def');
         });
 
-        it('returns null when the live caret sits on a non-text node', () => {
-            const root = makeRoot('<p>abc</p>');
-            setCaret(root, 0);
-            expect(removeSlashTriggerText(document, root, 'no', null, null)).toBeNull();
-        });
 
         it('skips the captured-range path when the selection is unavailable', () => {
             const root = makeRoot('<p>use /go now</p>');
@@ -491,6 +490,15 @@ describe('rich-text-slash-commands.utils', () => {
             expect(sel.anchorNode).toBe(block);
             expect(sel.anchorOffset).toBe(2);
         });
+
+        it('places the caret at the end of the last nested block when the block has no line of its own', () => {
+            const root = makeRoot('<blockquote><p>first</p><p>second</p></blockquote>');
+            placeCaretAtEndOfBlock(document, root.querySelector('blockquote')!);
+
+            const sel = document.getSelection()!;
+            expect(sel.anchorNode).toBe(root.querySelectorAll('p')[1].firstChild);
+            expect(sel.anchorOffset).toBe('second'.length);
+        });
     });
 
     describe('placeCaretAtEndOfBlock on an item holding blocks', () => {
@@ -530,14 +538,6 @@ describe('rich-text-slash-commands.utils', () => {
             const root = makeRoot('<p>x</p>');
             setCaret(root, 0);
             expect(() => removeCaretSentinelAtSelection(document)).not.toThrow();
-        });
-
-        it('does nothing when the caret text has no sentinel', () => {
-            const root = makeRoot('<p>clean</p>');
-            const text = root.querySelector('p')!.firstChild as Text;
-            setCaret(text, 2);
-            removeCaretSentinelAtSelection(document);
-            expect(text.data).toBe('clean');
         });
 
         it('strips sentinels and keeps the caret at the visible offset', () => {

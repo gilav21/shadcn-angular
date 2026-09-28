@@ -164,34 +164,6 @@ describe('VirtualScrollComponent', () => {
         fixture.destroy();
     });
 
-    it('should create', () => {
-        expect(fixture.componentInstance).toBeTruthy();
-    });
-
-    it('should accept items input', () => {
-        expect(host.items()).toHaveLength(100);
-    });
-
-    it('should render the virtual scroll container', () => {
-        expect(container).toBeTruthy();
-    });
-
-    it('should render only a subset of items (not all 100)', () => {
-        const renderedItems = fixture.nativeElement.querySelectorAll('.test-item');
-        expect(renderedItems.length).toBeLessThan(100);
-        expect(renderedItems.length).toBeGreaterThan(0);
-    });
-
-    it('should update when items change', async () => {
-        host.items.set(createItems(50));
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const renderedItems = fixture.nativeElement.querySelectorAll('.test-item');
-        expect(renderedItems.length).toBeGreaterThan(0);
-        expect(renderedItems.length).toBeLessThanOrEqual(50);
-    });
-
     it('should show loading indicator when loading is true', async () => {
         host.loading.set(true);
         fixture.detectChanges();
@@ -249,9 +221,18 @@ describe('VirtualScrollComponent', () => {
         container.dispatchEvent(new Event('scroll'));
         fixture.detectChanges();
 
+        // 2000px / 50px rows = row 40, minus the 5-row buffer.
         const itemsAfter = fixture.nativeElement.querySelectorAll('.virtual-item');
-        const firstIndexAfter = Number.parseInt(itemsAfter[0].dataset.index, 10);
-        expect(firstIndexAfter).toBeGreaterThan(0);
+        expect(itemsAfter[0].dataset.index).toBe('35');
+    });
+
+    it('adds no X spacers to a vertical list, however far it scrolls', () => {
+        container.scrollTop = 2000;
+        container.dispatchEvent(new Event('scroll'));
+        fixture.detectChanges();
+
+        expect(getVs().paddingStart()).toBe(0);
+        expect(getVs().paddingEnd()).toBe(0);
     });
 
     it('should render no items when items array is empty', () => {
@@ -269,11 +250,10 @@ describe('VirtualScrollComponent', () => {
         container.dispatchEvent(new Event('scroll'));
         fixture.detectChanges();
 
-        expect(host.windowChangeEvents.length).toBeGreaterThan(0);
         const lastEvent = host.windowChangeEvents.at(-1)!;
-        expect(lastEvent).toHaveProperty('start');
-        expect(lastEvent).toHaveProperty('end');
-        expect(lastEvent.start).toBeGreaterThan(0);
+        expect(lastEvent.start).toBe(15); // 1000 / 50 - 5
+        expect(lastEvent.end).toBe(getVs().renderRange().end);
+        expect(lastEvent.end).toBe(getVs().viewportRange().end + 5);
     });
 
     it('should emit scrollEnd when near the bottom of the list', async () => {
@@ -331,65 +311,43 @@ describe('VirtualScrollComponent', () => {
         container.dispatchEvent(new Event('scroll'));
         fixture.detectChanges();
 
-        const paddingTopValue = vsComponent.paddingTop();
-        expect(paddingTopValue).toBeGreaterThan(0);
-
-        const contentWrapper = container.querySelector('.flex.flex-col') as HTMLElement | null;
-        if (contentWrapper) {
-            expect(Number.parseInt(contentWrapper.style.paddingTop, 10)).toBeGreaterThan(0);
-        }
+        // The 35 rows above the rendered window, at 50px each.
+        expect(vsComponent.paddingTop()).toBe(1750);
+        const contentWrapper = container.firstElementChild as HTMLElement;
+        expect(contentWrapper.style.paddingTop).toBe('1750px');
     });
 
-    it('should emit scrollState output with correct shape', () => {
+    it('should emit scrollState with the window, total and scroll progress', () => {
         host.scrollStateEvents = [];
 
         container.scrollTop = 500;
         container.dispatchEvent(new Event('scroll'));
         fixture.detectChanges();
 
-        expect(host.scrollStateEvents.length).toBeGreaterThan(0);
-        const lastState = host.scrollStateEvents.at(-1) as Record<string, unknown>;
-        expect(lastState).toHaveProperty('windowStart');
-        expect(lastState).toHaveProperty('windowEnd');
-        expect(lastState).toHaveProperty('windowSize');
-        expect(lastState).toHaveProperty('totalItems');
-        expect(lastState).toHaveProperty('scrollProgress');
+        const lastState = host.scrollStateEvents.at(-1) as Record<string, number>;
+        expect(lastState['windowStart']).toBe(5); // 500 / 50 - 5
+        expect(lastState['windowEnd']).toBe(getVs().renderRange().end);
+        expect(lastState['windowSize']).toBe(lastState['windowEnd'] - lastState['windowStart']);
         expect(lastState['totalItems']).toBe(100);
-    });
-
-    it('should compute viewportRange as {start: 0, end: 0} when items is empty', () => {
-        host.items.set([]);
-        fixture.detectChanges();
-
-        const vsComponent = getVs();
-        expect(vsComponent.viewportRange()).toEqual({ start: 0, end: 0 });
+        expect(lastState['scrollProgress']).toBeCloseTo(500 / (5000 - 300), 5);
     });
 
     it('should compute renderRange that adds buffer to viewportRange', () => {
         const vsComponent = getVs();
+        container.scrollTop = 2000;
+        container.dispatchEvent(new Event('scroll'));
+        fixture.detectChanges();
+
         const viewport = vsComponent.viewportRange();
-        const render = vsComponent.renderRange();
-
-        expect(render.start).toBeLessThanOrEqual(viewport.start);
-        expect(render.end).toBeGreaterThanOrEqual(viewport.end);
-        expect(viewport.start - render.start).toBeLessThanOrEqual(5);
-        expect(render.end - viewport.end).toBeLessThanOrEqual(5);
+        expect(viewport.start).toBe(40);
+        expect(vsComponent.renderRange()).toEqual({ start: viewport.start - 5, end: viewport.end + 5 });
     });
 
-    it('should include _virtualIndex property on visibleItems', () => {
+    it('should pad the bottom by the unrendered rows below the window', () => {
         const vsComponent = getVs();
-        const visible = vsComponent.visibleItems();
-
-        expect(visible.length).toBeGreaterThan(0);
-        for (const item of visible) {
-            expect(item).toHaveProperty('_virtualIndex');
-            expect(typeof item._virtualIndex).toBe('number');
-        }
-    });
-
-    it('should compute paddingBottom greater than zero when not scrolled to end', () => {
-        const vsComponent = getVs();
-        expect(vsComponent.paddingBottom()).toBeGreaterThan(0);
+        const end = vsComponent.renderRange().end;
+        expect(end).toBeLessThan(100);
+        expect(vsComponent.paddingBottom()).toBe((100 - end) * 50);
     });
 
     it('should scroll to top via scrollToTop', () => {
@@ -402,19 +360,6 @@ describe('VirtualScrollComponent', () => {
         vsComponent.scrollToTop();
         fixture.detectChanges();
         expect(vsComponent.scrollTop()).toBe(0);
-    });
-
-    it('should compute offsets across chunk boundaries for far indices', () => {
-        const priv = asPrivate(getVs());
-        // Chunk size is 500 items * 50px = 25000px per full chunk.
-        expect(priv.getOffsetForIndex(600)).toBe(25000 + 100 * 50);
-        expect(priv.getOffsetForIndex(0)).toBe(0);
-    });
-
-    it('should clamp the index when scrolling past the end of the content', () => {
-        const priv = asPrivate(getVs());
-        // Total content is 100 * 50 = 5000px; scrolling far beyond clamps to last.
-        expect(priv.getIndexForOffset(999999)).toBe(99);
     });
 
     it('should recompute container height when the container ResizeObserver fires', () => {
@@ -487,23 +432,15 @@ describe('VirtualScrollComponent', () => {
         expect(asPrivate(vsComponent).calculateScrollProgress()).toBe(0);
     });
 
-    it('should report a fractional scroll progress when scrolled within tall content', () => {
-        const vsComponent = getVs();
-        vsComponent.containerRef = signal({
-            nativeElement: { scrollTop: 2000, scrollHeight: 5000, clientHeight: 300 },
-        } as unknown as never).asReadonly();
-
-        const progress = asPrivate(vsComponent).calculateScrollProgress();
-        expect(progress).toBeCloseTo(2000 / (5000 - 300), 5);
-    });
-
-    it('should disconnect observers on destroy', () => {
-        expect(() => fixture.destroy()).not.toThrow();
+    it('should clamp the index when scrolling past the end of the content (white-box: getIndexForOffset has no caller in the component)', () => {
+        const priv = asPrivate(getVs());
+        // Total content is 100 * 50 = 5000px; scrolling far beyond clamps to last.
+        expect(priv.getIndexForOffset(999999)).toBe(99);
     });
 });
 
 describe('VirtualItemDirective', () => {
-    it('narrows the template context via its static ngTemplateContextGuard', () => {
+    it('narrows the template context via its static ngTemplateContextGuard (white-box: a compile-time type guard with no runtime caller)', () => {
         const dir = new VirtualItemDirective();
         expect(
             VirtualItemDirective.ngTemplateContextGuard(dir, { $implicit: { id: 1 }, index: 0 }),
@@ -572,5 +509,21 @@ describe('VirtualScrollComponent with an id-less row type', () => {
         const fixture = TestBed.createComponent(NoIdHostComponent);
         fixture.detectChanges();
         expect(fixture.nativeElement.querySelectorAll('.group-item').length).toBeGreaterThan(0);
+    });
+});
+
+describe('VirtualScrollComponent where ResizeObserver does not exist', () => {
+    /** SSR and jsdom — where consumers' own tests run — have no ResizeObserver. */
+    it('still renders its window and tears down cleanly', async () => {
+        // The file-level afterEach restores the saved constructor.
+        globalThis.ResizeObserver = undefined as unknown as typeof ResizeObserver;
+        await TestBed.configureTestingModule({ imports: [TestHostComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(TestHostComponent);
+        fixture.detectChanges();
+
+        const rendered = fixture.nativeElement.querySelectorAll('.test-item');
+        expect(rendered.length).toBeGreaterThan(0);
+        expect(rendered[0].textContent).toBe('Item 0');
+        expect(() => fixture.destroy()).not.toThrow();
     });
 });

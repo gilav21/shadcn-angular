@@ -34,19 +34,6 @@ const DEFAULT_TARGET_RECT = makeRect(100, 100, 200, 50);
 const CARD_OFFSET_WIDTH = 300;
 const CARD_OFFSET_HEIGHT = 150;
 
-class ResizeObserverStub {
-    constructor(readonly callback: () => void) { }
-    observe(): void { /* no-op */ }
-    unobserve(): void { /* no-op */ }
-    disconnect(): void { /* no-op */ }
-}
-
-interface StubbableElementProto {
-    scrollIntoView?: (arg?: unknown) => void;
-}
-
-let rectSpy: ReturnType<typeof vi.spyOn>;
-let addedScrollIntoView = false;
 const VIEWPORT_WIDTH = 1024;
 const VIEWPORT_HEIGHT = 768;
 let savedInnerWidth: PropertyDescriptor | undefined;
@@ -63,15 +50,8 @@ function installBrowserStubs(): void {
         removeEventListener: () => undefined,
         dispatchEvent: () => false,
     }));
-    vi.stubGlobal('ResizeObserver', ResizeObserverStub);
 
-    const proto = Element.prototype as unknown as StubbableElementProto;
-    if (typeof proto.scrollIntoView !== 'function') {
-        proto.scrollIntoView = () => undefined;
-        addedScrollIntoView = true;
-    }
-
-    rectSpy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue(DEFAULT_TARGET_RECT);
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue(DEFAULT_TARGET_RECT);
     vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(CARD_OFFSET_WIDTH);
     vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(CARD_OFFSET_HEIGHT);
 
@@ -84,10 +64,6 @@ function installBrowserStubs(): void {
 }
 
 function restoreBrowserStubs(): void {
-    if (addedScrollIntoView) {
-        delete (Element.prototype as unknown as StubbableElementProto).scrollIntoView;
-        addedScrollIntoView = false;
-    }
     if (savedInnerWidth) Object.defineProperty(globalThis.window, 'innerWidth', savedInnerWidth);
     if (savedInnerHeight) Object.defineProperty(globalThis.window, 'innerHeight', savedInnerHeight);
     vi.unstubAllGlobals();
@@ -198,18 +174,6 @@ describe('TourComponent', () => {
         expect(spotlight).not.toBeNull();
     });
 
-    it('should expose isReady as false before activation', () => {
-        const tour = getTour(fixture);
-        expect(tour.isReady()).toBe(false);
-    });
-
-    it('should become ready after async readiness pass', async () => {
-        host.active.set(true);
-        await flush(fixture);
-        const tour = getTour(fixture);
-        expect(tour.isReady()).toBe(true);
-    });
-
     it('should show step title and description', async () => {
         host.active.set(true);
         await flush(fixture);
@@ -270,6 +234,24 @@ describe('TourComponent', () => {
 
         expect(host.active()).toBe(false);
         expect(host.doneCount).toBe(1);
+    });
+
+    it('restart() returns to the first step without closing the tour', async () => {
+        host.active.set(true);
+        await flush(fixture);
+        const tour = getTour(fixture);
+        tour.next();
+        await flush(fixture);
+        expect(tour.currentIndex()).toBe(1);
+
+        tour.restart();
+        await flush(fixture);
+
+        expect(tour.currentIndex()).toBe(0);
+        expect(host.lastStepChange).toBe(0);
+        expect(host.active()).toBe(true);
+        expect(host.doneCount).toBe(0);
+        expect(fixture.nativeElement.querySelector('[data-slot="tour-card"]').textContent).toContain('Step 1');
     });
 
     it('should NOT emit done when parent externally sets active=false', () => {
@@ -372,26 +354,24 @@ describe('TourComponent', () => {
         expect(tour.currentIndex()).toBe(0);
     });
 
-    it('should highlight target while active (data attribute + outline)', async () => {
-        host.active.set(true);
-        await flush(fixture);
-
-        const target = document.getElementById('step1');
-        expect(target?.hasAttribute('data-ui-tour-highlight')).toBe(true);
-        expect(target?.style.outline).toContain('2px');
-    });
-
     it('should re-read the target rect on scroll and resize reposition', async () => {
+        const target = document.getElementById('step1') as HTMLElement;
+        let rect = DEFAULT_TARGET_RECT;
+        Object.defineProperty(target, 'getBoundingClientRect', { configurable: true, value: () => rect });
         host.active.set(true);
         await flush(fixture);
+        const spotlight = () => fixture.nativeElement.querySelector('[data-slot="tour-spotlight"]') as HTMLElement;
+        expect(spotlight().style.top).toBe(`${100 - 6}px`);
 
-        rectSpy.mockReturnValue(makeRect(250, 150, 200, 50));
+        rect = makeRect(250, 150, 200, 50);
         globalThis.window.dispatchEvent(new Event('scroll'));
-        globalThis.window.dispatchEvent(new Event('resize'));
-        await flush(fixture);
+        fixture.detectChanges();
+        expect(spotlight().style.top).toBe(`${250 - 6}px`);
 
-        const tour = getTour(fixture);
-        expect(tour.isReady()).toBe(true);
+        rect = makeRect(400, 150, 200, 50);
+        globalThis.window.dispatchEvent(new Event('resize'));
+        fixture.detectChanges();
+        expect(spotlight().style.top).toBe(`${400 - 6}px`);
     });
 
     it('should move highlight from previous target when advancing', async () => {
@@ -424,20 +404,9 @@ describe('TourComponent', () => {
         host.active.set(false);
         fixture.detectChanges();
 
+        expect(target?.hasAttribute('data-ui-tour-highlight')).toBe(false);
         expect(target?.style.outline).toBe(savedOutline);
         expect(target?.style.borderRadius).toBe(savedRadius);
-    });
-
-    it('should remove highlight on teardown', async () => {
-        host.active.set(true);
-        await flush(fixture);
-
-        host.active.set(false);
-        fixture.detectChanges();
-
-        const target = document.getElementById('step1');
-        expect(target?.hasAttribute('data-ui-tour-highlight')).toBe(false);
-        expect(target?.style.outline).toBe('');
     });
 
     it('should clean up highlight when the component is destroyed', async () => {
@@ -564,7 +533,7 @@ describe('TourComponent — positioning', () => {
 
     it('places the card above a bottom-anchored target', async () => {
         const tour = await activateWithRect(makeRect(600, 400, 100, 100));
-        expect(tour.cardPos().top).toBeLessThan(600);
+        expect(tour.cardPos().top).toBe(600 - CARD_OFFSET_HEIGHT - 12);
     });
 
     it('places the card to the right when there is horizontal room only', async () => {
@@ -576,7 +545,7 @@ describe('TourComponent — positioning', () => {
     it('places the card to the left when only left room remains', async () => {
         const target = makeRect(100, 800, 100, 600);
         const tour = await activateWithRect(target);
-        expect(tour.cardPos().left).toBeLessThan(target.left);
+        expect(tour.cardPos().left).toBe(target.left - CARD_OFFSET_WIDTH - 12);
     });
 
     it('clamps into the viewport when the target fills the screen', async () => {
@@ -587,11 +556,12 @@ describe('TourComponent — positioning', () => {
     });
 
     it('honours an explicit side override on the step', async () => {
-        host.steps.set([{ target: '#pt', title: 'Pos', side: 'bottom' }]);
+        // Auto-placement picks 'bottom' for this rect (418px free below).
+        host.steps.set([{ target: '#pt', title: 'Pos', side: 'top' }]);
         fixture.detectChanges();
-        const target = makeRect(100, 100, 200, 50);
+        const target = makeRect(300, 100, 200, 50);
         const tour = await activateWithRect(target);
-        expect(tour.cardPos().top).toBeGreaterThan(target.bottom - CARD_OFFSET_HEIGHT);
+        expect(tour.cardPos().top).toBe(target.top - CARD_OFFSET_HEIGHT - 12);
     });
 
     it('applies position:relative to a statically-positioned target', async () => {
@@ -611,8 +581,9 @@ describe('TourComponent — positioning', () => {
 })
 class TestHostSkipAheadComponent {
     readonly steps: TourStep[] = [
-        { target: '#absent', title: 'Missing First' },
-        { target: '#present', title: 'Present Second' },
+        { target: 'div[', title: 'Invalid Selector' },
+        { target: '#absent', title: 'Missing Second' },
+        { target: '#present', title: 'Present Third' },
     ];
     readonly active = signal(false);
     lastStepChange = -1;
@@ -637,10 +608,12 @@ describe('TourComponent — skip missing target', () => {
         await flush(fixture);
 
         const tour = getTour(fixture);
-        expect(tour.currentIndex()).toBe(1);
-        expect(host.lastStepChange).toBe(1);
+        expect(tour.currentIndex()).toBe(2);
+        expect(host.lastStepChange).toBe(2);
         expect(host.active()).toBe(true);
-        expect(warnSpy).toHaveBeenCalled();
+        const warnings = warnSpy.mock.calls.map(call => String(call[0]));
+        expect(warnings).toContainEqual(expect.stringContaining('invalid target selector: "div["'));
+        expect(warnings).toContainEqual(expect.stringContaining('target not found: "#absent"'));
     });
 });
 
@@ -746,18 +719,29 @@ describe('TourComponent — skipping a missing step backwards', () => {
     });
 
     it('does not end the tour when a backwards move finds nothing earlier', async () => {
-        host.steps.splice(0, 1);
+        host.showMiddle.set(true);
         host.active.set(true);
         await flush(fixture);
         const tour = getTour(fixture);
-        expect(tour.currentIndex()).toBe(1);
+        tour.goTo(2);
+        await flush(fixture);
+
+        // Both earlier targets vanish after they were shown, so Back is still offered.
+        host.showMiddle.set(false);
+        document.getElementById('gap-first')!.style.display = 'none';
+        fixture.detectChanges();
+        expect(tour.canGoBack()).toBe(true);
 
         tour.previous();
         await flush(fixture);
 
         expect(host.active()).toBe(true);
         expect(host.lastDone).toBeNull();
-        expect(tour.currentIndex()).toBe(1);
+        expect(tour.currentIndex()).toBe(2);
+        expect(host.skipped).toEqual([
+            { index: 1, reason: 'missing-target' },
+            { index: 0, reason: 'missing-target' },
+        ]);
     });
 
     it('hides the Back button once every earlier step is known unreachable', async () => {
@@ -821,6 +805,24 @@ describe('TourComponent — skipping a missing step backwards', () => {
         // Step 1 turned out to be missing — it stops counting.
         expect(tour.currentIndex()).toBe(2);
         expect(tour.reachableCount()).toBe(2);
+        expect(tour.reachablePosition()).toBe(2);
+    });
+
+    it('counts a skipped step again once it is reached later in the same run', async () => {
+        host.active.set(true);
+        await flush(fixture);
+        const tour = getTour(fixture);
+        tour.next();
+        await flush(fixture);
+        expect(tour.reachableCount()).toBe(2);
+
+        host.showMiddle.set(true);
+        fixture.detectChanges();
+        tour.goTo(1);
+        await flush(fixture);
+
+        expect(tour.currentIndex()).toBe(1);
+        expect(tour.reachableCount()).toBe(3);
         expect(tour.reachablePosition()).toBe(2);
     });
 
@@ -922,6 +924,7 @@ class TestHostHooksComponent {
     readonly log: string[] = [];
     includePanel = true;
     holdHook = false;
+    exitError: Error | null = null;
     hookError: Error | null = null;
     private release: (() => void) | null = null;
 
@@ -936,6 +939,7 @@ class TestHostHooksComponent {
             title: 'First',
             afterDeactivate: ctx => {
                 this.log.push(`after:0:${ctx.direction}`);
+                if (this.exitError) throw this.exitError;
             },
         },
         {
@@ -960,9 +964,10 @@ class TestHostHooksComponent {
 describe('TourComponent — async step hooks', () => {
     let fixture: ComponentFixture<TestHostHooksComponent>;
     let host: TestHostHooksComponent;
+    let warnSpy: ReturnType<typeof vi.spyOn>;
 
     beforeEach(async () => {
-        vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
         await TestBed.configureTestingModule({ imports: [TestHostHooksComponent] }).compileComponents();
         fixture = TestBed.createComponent(TestHostHooksComponent);
         host = fixture.componentInstance;
@@ -1012,6 +1017,40 @@ describe('TourComponent — async step hooks', () => {
         await advance(tour);
 
         expect(host.log).toEqual(['after:0:forward', 'before:1:forward']);
+    });
+
+    it('still advances when afterDeactivate throws, reporting the failure', async () => {
+        host.exitError = new Error('exit boom');
+        const tour = await activate();
+
+        await advance(tour);
+
+        expect(tour.currentIndex()).toBe(1);
+        expect(host.panelOpen()).toBe(true);
+        expect(warnSpy).toHaveBeenCalledWith(
+            expect.stringContaining('step 0 hook failed'),
+            host.exitError,
+        );
+    });
+
+    it('stays on the current step when a backwards move finds the earlier target gone', async () => {
+        const tour = await activate();
+        await advance(tour);
+        expect(tour.currentIndex()).toBe(1);
+
+        host.steps[0] = { ...host.steps[0], targetTimeout: 0 };
+        document.getElementById('hook-first')!.style.display = 'none';
+        host.log.length = 0;
+
+        tour.previous();
+        await settle(tour);
+
+        expect(tour.currentIndex()).toBe(1);
+        expect(host.active()).toBe(true);
+        expect(host.panelOpen()).toBe(true);
+        expect(host.skipped).toContainEqual({ index: 0, reason: 'missing-target' });
+        // The panel step is left backwards, then re-entered forwards as the fallback.
+        expect(host.log).toEqual(['after:1:backward', 'before:1:forward']);
     });
 
     it('marks itself pending while the hook runs', async () => {
@@ -1168,6 +1207,29 @@ describe('TourComponent — target lost mid-step', () => {
 
         expect(tour.currentIndex()).toBe(1);
         expect(host.active()).toBe(true);
+    });
+
+    it('follows the selector to a re-rendered element instead of skipping the step', async () => {
+        await TestBed.configureTestingModule({ imports: [TestHostShrinkComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(TestHostShrinkComponent);
+        const host = fixture.componentInstance;
+        fixture.detectChanges();
+
+        host.active.set(true);
+        await flush(fixture);
+        const tour = getTour(fixture);
+
+        document.getElementById('shrink-a')!.remove();
+        const reloaded = document.createElement('div');
+        reloaded.id = 'shrink-a';
+        reloaded.textContent = 'A again';
+        fixture.nativeElement.appendChild(reloaded);
+        globalThis.window.dispatchEvent(new Event('scroll'));
+        await flush(fixture);
+
+        expect(tour.currentIndex()).toBe(0);
+        expect(host.active()).toBe(true);
+        expect(reloaded.hasAttribute('data-ui-tour-highlight')).toBe(true);
     });
 });
 

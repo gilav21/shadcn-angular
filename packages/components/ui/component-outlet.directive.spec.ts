@@ -60,20 +60,6 @@ describe('UiComponentOutletDirective', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(fixture.componentInstance).toBeTruthy();
-    });
-
-    it('should render the dynamic component', () => {
-        const rendered = fixture.nativeElement.querySelector('mock-dynamic');
-        expect(rendered).toBeTruthy();
-    });
-
-    it('should render default content when no inputs provided', () => {
-        const span = fixture.nativeElement.querySelector('mock-dynamic span');
-        expect(span.textContent).toBe('default');
-    });
-
     it('should pass inputs to the dynamic component', async () => {
         host.inputs.set({ label: 'Hello World' });
         fixture.detectChanges();
@@ -104,17 +90,6 @@ describe('UiComponentOutletDirective', () => {
 
             const div = fixture.nativeElement.querySelector('.alternate');
             expect(div.textContent).toBe('switched content');
-        });
-
-        it('should destroy previous component when switching', async () => {
-            const firstRendered = fixture.nativeElement.querySelector('mock-dynamic');
-            expect(firstRendered).toBeTruthy();
-
-            host.component.set(MockAlternateComponent);
-            fixture.detectChanges();
-            await fixture.whenStable();
-
-            expect(fixture.nativeElement.querySelector('mock-dynamic')).toBeFalsy();
         });
     });
 
@@ -157,6 +132,7 @@ describe('UiComponentOutletDirective', () => {
             button.click();
             fixture.detectChanges();
             expect(secondHandler).toHaveBeenCalledTimes(1);
+            expect(firstHandler).toHaveBeenCalledTimes(1);
         });
     });
 

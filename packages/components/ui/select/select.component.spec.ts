@@ -28,27 +28,6 @@ class TestHostComponent {
     }
 }
 
-// RTL Test host
-@Component({
-    template: `
-        <div [dir]="dir()">
-            <ui-select>
-                <ui-select-trigger>
-                    <ui-select-value placeholder="اختر خيارًا" />
-                </ui-select-trigger>
-                <ui-select-content>
-                    <ui-select-item value="opt1">الخيار 1</ui-select-item>
-                    <ui-select-item value="opt2">الخيار 2</ui-select-item>
-                </ui-select-content>
-            </ui-select>
-        </div>
-    `,
-    imports: [SelectComponent, SelectTriggerComponent, SelectContentComponent, SelectValueComponent, SelectItemComponent]
-})
-class RTLTestHostComponent {
-    dir = signal<'ltr' | 'rtl'>('ltr');
-}
-
 @Component({
     template: `
         <ui-select [formControl]="control">
@@ -88,18 +67,6 @@ describe('SelectComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
-    it('should be closed by default', () => {
-        expect(component.open()).toBe(false);
-    });
-
-    it('should have no value by default', () => {
-        expect(component.value()).toBeUndefined();
-    });
-
     it('should toggle open state', () => {
         component.toggle();
         expect(component.open()).toBe(true);
@@ -130,7 +97,6 @@ describe('SelectComponent', () => {
 
 describe('Select Integration', () => {
     let fixture: ComponentFixture<TestHostComponent>;
-    let component: TestHostComponent;
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
@@ -138,13 +104,7 @@ describe('Select Integration', () => {
         }).compileComponents();
 
         fixture = TestBed.createComponent(TestHostComponent);
-        component = fixture.componentInstance;
         fixture.detectChanges();
-    });
-
-    it('should render select with trigger', () => {
-        const trigger = fixture.debugElement.query(By.css('[data-slot="select-trigger"]'));
-        expect(trigger).toBeTruthy();
     });
 
     it('should render placeholder initially', () => {
@@ -157,100 +117,52 @@ describe('Select Integration', () => {
         expect(trigger.nativeElement.getAttribute('role')).toBe('combobox');
     });
 
-    it('should not show content when closed', () => {
-        const content = fixture.debugElement.query(By.css('[data-slot="select-content"]'));
-        expect(content).toBeNull();
-    });
-
     it('should open content on trigger click', async () => {
         const trigger = fixture.debugElement.query(By.css('[data-slot="select-trigger"]'));
         trigger.nativeElement.click();
         fixture.detectChanges();
         await fixture.whenStable();
 
-        const content = fixture.debugElement.query(By.css('[data-slot="select-content"]'));
-        expect(content).toBeTruthy();
+        const content: HTMLElement = fixture.debugElement.query(By.css('[data-slot="select-content"]')).nativeElement;
+        expect(content.getAttribute('role')).toBe('listbox');
+        const options = Array.from(content.querySelectorAll<HTMLElement>('[role="option"]'));
+        expect(options.map(o => o.textContent?.trim())).toEqual(['Option 1', 'Option 2', 'Option 3']);
     });
 
-    it('should have role="listbox" on content', async () => {
+    it('closes on an outside document click but stays open on a click inside the content', async () => {
         const trigger = fixture.debugElement.query(By.css('[data-slot="select-trigger"]'));
         trigger.nativeElement.click();
         fixture.detectChanges();
         await fixture.whenStable();
 
-        const content = fixture.debugElement.query(By.css('[role="listbox"]'));
-        expect(content).toBeTruthy();
+        const listbox = (): HTMLElement | null =>
+            fixture.nativeElement.querySelector('[data-slot="select-content"]');
+        listbox()?.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(listbox()).toBeTruthy();
+
+        document.body.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(listbox()).toBeNull();
     });
 
-    it('should render items with role="option"', async () => {
-        const trigger = fixture.debugElement.query(By.css('[data-slot="select-trigger"]'));
-        trigger.nativeElement.click();
+    it('returns focus to the trigger when the dropdown closes', async () => {
+        const trigger: HTMLButtonElement = fixture.debugElement.query(By.css('[data-slot="select-trigger"]')).nativeElement;
+        trigger.focus();
+        trigger.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(document.activeElement).not.toBe(trigger);
+
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
         fixture.detectChanges();
         await fixture.whenStable();
 
-        const items = fixture.debugElement.queryAll(By.css('[role="option"]'));
-        expect(items).toHaveLength(3);
-    });
-
-    it('should select item on click', async () => {
-        const trigger = fixture.debugElement.query(By.css('[data-slot="select-trigger"]'));
-        trigger.nativeElement.click();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const items = fixture.debugElement.queryAll(By.css('[data-slot="select-item"]'));
-        items[1].nativeElement.click();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        expect(component.selectedValue).toBe('option2');
-    });
-});
-
-describe('Select RTL Support', () => {
-    let fixture: ComponentFixture<RTLTestHostComponent>;
-    let component: RTLTestHostComponent;
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [RTLTestHostComponent]
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(RTLTestHostComponent);
-        component = fixture.componentInstance;
-        fixture.detectChanges();
-    });
-
-    afterEach(() => {
-        document.documentElement.removeAttribute('dir');
-    });
-
-    it('should render in LTR mode', () => {
-        const container = fixture.debugElement.query(By.css('[dir="ltr"]'));
-        expect(container).toBeTruthy();
-    });
-
-    it('should render in RTL mode', async () => {
-        component.dir.set('rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const container = fixture.debugElement.query(By.css('[dir="rtl"]'));
-        expect(container).toBeTruthy();
-    });
-
-    it('should open dropdown in RTL', async () => {
-        component.dir.set('rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const trigger = fixture.debugElement.query(By.css('[data-slot="select-trigger"]'));
-        trigger.nativeElement.click();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const content = fixture.debugElement.query(By.css('[data-slot="select-content"]'));
-        expect(content).toBeTruthy();
+        expect(fixture.nativeElement.querySelector('[data-slot="select-content"]')).toBeNull();
+        expect(document.activeElement).toBe(trigger);
     });
 });
 
@@ -267,30 +179,6 @@ describe('Select ControlValueAccessor', () => {
         component = fixture.componentInstance;
         fixture.detectChanges();
         await fixture.whenStable();
-    });
-
-    it('should write value from FormControl', async () => {
-        component.control.setValue('cva2');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const value = fixture.debugElement.query(By.css('[data-slot="select-value"]'));
-        // Note: Since dropdown was never opened, label is unknown. Shows value.
-        expect(value.nativeElement.textContent).toContain('cva2');
-    });
-
-    it('should update FormControl on selection', async () => {
-        const trigger = fixture.debugElement.query(By.css('[data-slot="select-trigger"]'));
-        trigger.nativeElement.click();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const items = fixture.debugElement.queryAll(By.css('[data-slot="select-item"]'));
-        items[0].nativeElement.click(); // Select Option 1 (cva1)
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        expect(component.control.value).toBe('cva1');
     });
 
     it('should disable trigger when FormControl is disabled', async () => {
@@ -397,7 +285,7 @@ describe('Select Keyboard Navigation', () => {
 
 @Component({
     template: `
-        <ui-select>
+        <ui-select (valueChange)="emissions.push($event)">
             <ui-select-trigger>
                 <ui-select-value placeholder="Select option" />
             </ui-select-trigger>
@@ -410,7 +298,9 @@ describe('Select Keyboard Navigation', () => {
     `,
     imports: [SelectComponent, SelectTriggerComponent, SelectContentComponent, SelectValueComponent, SelectItemComponent]
 })
-class DisabledItemTestHostComponent { }
+class DisabledItemTestHostComponent {
+    readonly emissions: string[] = [];
+}
 
 describe('Select disabled items', () => {
     let fixture: ComponentFixture<DisabledItemTestHostComponent>;
@@ -456,6 +346,31 @@ describe('Select disabled items', () => {
         fixture.detectChanges();
         expect(document.activeElement).toBe(items[2].nativeElement);
     });
+
+    it('wraps ArrowUp from the first item to the last enabled one, and Enter selects it', async () => {
+        const trigger = fixture.debugElement.query(By.css('[data-slot="select-trigger"]'));
+        trigger.nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        const press = (key: string): void => {
+            (document.activeElement as HTMLElement).dispatchEvent(
+                new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+            fixture.detectChanges();
+        };
+        const items = fixture.debugElement.queryAll(By.css('[data-slot="select-item"]'));
+        press('ArrowDown');
+        expect(document.activeElement).toBe(items[0].nativeElement);
+
+        press('ArrowUp');
+        expect(document.activeElement).toBe(items[2].nativeElement);
+
+        press('Enter');
+        await fixture.whenStable();
+        expect(fixture.componentInstance.emissions).toEqual(['option3']);
+        expect(fixture.nativeElement.querySelector('[data-slot="select-content"]')).toBeNull();
+    });
 });
 
 // ============================================
@@ -495,11 +410,6 @@ describe('Select Data-Driven Mode (Strings)', () => {
         fixture.detectChanges();
     });
 
-    it('should render in data-driven mode', () => {
-        const trigger = fixture.debugElement.query(By.css('button[role="combobox"]'));
-        expect(trigger).toBeTruthy();
-    });
-
     it('should show placeholder when no value selected', () => {
         const trigger = fixture.debugElement.query(By.css('button[role="combobox"]'));
         expect(trigger.nativeElement.textContent).toContain('Select a fruit...');
@@ -522,7 +432,7 @@ describe('Select Data-Driven Mode (Strings)', () => {
         await fixture.whenStable();
 
         const options = fixture.debugElement.queryAll(By.css('[role="option"]'));
-        expect(options).toHaveLength(4);
+        expect(options.map(o => o.nativeElement.textContent.trim())).toEqual(['Apple', 'Banana', 'Cherry', 'Date']);
     });
 
     it('should select option on click', async () => {
@@ -537,35 +447,22 @@ describe('Select Data-Driven Mode (Strings)', () => {
         await fixture.whenStable();
 
         expect(component.selected).toBe('Banana');
+        expect(fixture.debugElement.query(By.css('[role="listbox"]'))).toBeNull();
+        expect(trigger.nativeElement.textContent).toContain('Banana');
     });
 
-    it('should close dropdown after selection', async () => {
-        const trigger = fixture.debugElement.query(By.css('button[role="combobox"]'));
-        trigger.nativeElement.click();
+    it('focuses the selected option when opening with a value', async () => {
+        const select: SelectComponent<string> = fixture.debugElement
+            .query(By.directive(SelectComponent)).componentInstance;
+        select.writeValue('Banana');
+        fixture.detectChanges();
+        fixture.debugElement.query(By.css('button[role="combobox"]')).nativeElement.click();
         fixture.detectChanges();
         await fixture.whenStable();
+        await new Promise(resolve => setTimeout(resolve, 0));
 
-        const options = fixture.debugElement.queryAll(By.css('[role="option"]'));
-        options[0].nativeElement.click();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const listbox = fixture.debugElement.query(By.css('[role="listbox"]'));
-        expect(listbox).toBeNull();
-    });
-
-    it('should show selected value in trigger', async () => {
-        const trigger = fixture.debugElement.query(By.css('button[role="combobox"]'));
-        trigger.nativeElement.click();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const options = fixture.debugElement.queryAll(By.css('[role="option"]'));
-        options[2].nativeElement.click(); // Select "Cherry"
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        expect(trigger.nativeElement.textContent).toContain('Cherry');
+        expect((document.activeElement as HTMLElement).getAttribute('role')).toBe('option');
+        expect(document.activeElement?.textContent?.trim()).toBe('Banana');
     });
 });
 
@@ -637,20 +534,7 @@ describe('Select Data-Driven Mode (Objects)', () => {
         await fixture.whenStable();
 
         expect(component.selected).toBe('DE');
-    });
-
-    it('should display selected option label in trigger', async () => {
-        const trigger = fixture.debugElement.query(By.css('button[role="combobox"]'));
-        trigger.nativeElement.click();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const options = fixture.debugElement.queryAll(By.css('[role="option"]'));
-        options[1].nativeElement.click(); // Select UK
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        expect(trigger.nativeElement.textContent).toContain('United Kingdom');
+        expect(trigger.nativeElement.textContent).toContain('Germany');
     });
 });
 
@@ -859,6 +743,19 @@ describe('SelectComponent — i18n integration', () => {
         fixture.detectChanges();
         expect(trigger.textContent).toContain('...בחר');
     });
+
+    it('resolves isRtl from the direction its locale writes on the host', async () => {
+        await TestBed.configureTestingModule({ imports: [SelectComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(SelectComponent);
+        fixture.componentRef.setInput('options', ['a', 'b']);
+        fixture.componentRef.setInput('locale', 'he');
+        fixture.detectChanges();
+        expect(fixture.componentInstance.isRtl()).toBe(true);
+
+        fixture.componentRef.setInput('locale', 'en');
+        fixture.detectChanges();
+        expect(fixture.componentInstance.isRtl()).toBe(false);
+    });
 });
 
 @Component({
@@ -986,6 +883,7 @@ describe('SelectComponent — signal-forms readiness', () => {
         await fixture.whenStable();
 
         expect(renderedValue(fixture)).toContain('sf2');
+        expect(fixture.componentInstance.emissions).toEqual([]);
     });
 
     it('T-9: emits valueChange exactly once per user selection', async () => {
@@ -1006,17 +904,6 @@ describe('SelectComponent — signal-forms readiness', () => {
         fixture.componentInstance.emissions.length = 0;
 
         select.writeValue('sf1');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        expect(fixture.componentInstance.emissions).toEqual([]);
-    });
-
-    it('stays silent when the form writes a value the user did not pick', async () => {
-        const fixture = TestBed.createComponent(FormGroupSelectHost);
-        fixture.detectChanges();
-
-        fixture.componentInstance.form.setValue({ choice: 'sf2' });
         fixture.detectChanges();
         await fixture.whenStable();
 

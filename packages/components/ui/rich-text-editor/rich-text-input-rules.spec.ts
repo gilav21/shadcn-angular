@@ -46,11 +46,8 @@ describe('matchBlockInputRule', () => {
 
     // T-3 — blockquote and the two task-list markers.
     describe('blockquote and task items', () => {
-        it('maps ">" to a blockquote one level deep', () => {
-            expect(matchBlockInputRule('>', ' ')).toEqual({ kind: 'blockquote', markerLength: 2, depth: 1 });
-        });
-
         it('maps a run of ">" to that many levels', () => {
+            expect(matchBlockInputRule('>', ' ')).toEqual({ kind: 'blockquote', markerLength: 2, depth: 1 });
             expect(matchBlockInputRule('>>', ' ')).toEqual({ kind: 'blockquote', markerLength: 3, depth: 2 });
             expect(matchBlockInputRule('>>>', ' ')).toEqual({ kind: 'blockquote', markerLength: 4, depth: 3 });
             expect(matchBlockInputRule('>'.repeat(12), ' ')).toEqual({ kind: 'blockquote', markerLength: 13, depth: 12 });
@@ -176,6 +173,17 @@ describe('matchInlineInputRule', () => {
                 end: 10,
                 text: 'hi',
             });
+
+            // A paragraph longer than the lookbehind window is matched on its
+            // tail only; the offsets must still index the whole paragraph.
+            const paragraph = 'The quick brown fox jumps over the lazy dog. '.repeat(6);
+            expect(paragraph.length).toBeGreaterThan(INLINE_RULE_LOOKBEHIND);
+            expect(matchInlineInputRule(paragraph + '**hi**')).toEqual({
+                kind: 'strong',
+                start: paragraph.length,
+                end: paragraph.length + 6,
+                text: 'hi',
+            });
         });
 
         it('does not match a whitespace-only body or a bare "***"', () => {
@@ -241,9 +249,5 @@ describe('matchInlineInputRule', () => {
         expect(matchInlineInputRule('plain text')).toBeNull();
         expect(matchInlineInputRule('')).toBeNull();
         expect(matchInlineInputRule('**bold** trailing')).toBeNull();
-    });
-
-    it('prefers strong over emphasis when both could read the same tail', () => {
-        expect(matchInlineInputRule('**x**')?.kind).toBe('strong');
     });
 });

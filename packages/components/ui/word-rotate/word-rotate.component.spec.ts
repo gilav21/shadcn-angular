@@ -57,23 +57,9 @@ describe('WordRotateComponent', () => {
             originalMatchMedia;
     });
 
-    it('should render a span for each word', () => {
-        expect(wordSpans(fixture)).toHaveLength(3);
-    });
-
     it('should contain the text of each word in separate spans', () => {
         const texts = wordSpans(fixture).map(s => s.nativeElement.textContent.trim());
-        expect(texts).toContain('Hello');
-        expect(texts).toContain('World');
-        expect(texts).toContain('Angular');
-    });
-
-    it('should show first word initially (index 0 is current)', () => {
-        expect(comp(fixture).currentIndex()).toBe(0);
-
-        const spans = wordSpans(fixture);
-        expect(spans[0].nativeElement.className).toContain('opacity-100');
-        expect(spans[1].nativeElement.className).toContain('opacity-0');
+        expect(texts).toEqual(['Hello', 'World', 'Angular']);
     });
 
     it('should mark the previous word with the outgoing (-translate-y-full) class', () => {
@@ -116,15 +102,12 @@ describe('WordRotateComponent', () => {
         expect((container.nativeElement as HTMLElement).className).toContain('text-4xl');
     });
 
-    it('should set data-slot attribute', () => {
-        expect(fixture.debugElement.query(By.css('[data-slot="word-rotate"]'))).toBeTruthy();
-    });
-
     it('should update rendered words when words input changes', () => {
         host.words.set(['Foo', 'Bar']);
         fixture.detectChanges();
 
-        expect(wordSpans(fixture)).toHaveLength(2);
+        const texts = wordSpans(fixture).map(s => s.nativeElement.textContent.trim());
+        expect(texts).toEqual(['Foo', 'Bar']);
     });
 
     it('should not schedule rotation when reduced motion is preferred', () => {

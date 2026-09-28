@@ -31,27 +31,9 @@ describe('DockLabelComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(fixture.componentInstance).toBeTruthy();
-    });
-
-    it('should render with data-slot attribute', () => {
-        const el = fixture.debugElement.query(By.css('[data-slot="dock-label"]'));
-        expect(el).toBeTruthy();
-    });
-
     it('should project label text', () => {
         const el = fixture.debugElement.query(By.css('[data-slot="dock-label"]'));
         expect(el.nativeElement.textContent.trim()).toBe('Home');
-    });
-
-    it('should update projected text content', async () => {
-        host.labelText.set('Settings');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const el = fixture.debugElement.query(By.css('[data-slot="dock-label"]'));
-        expect(el.nativeElement.textContent.trim()).toBe('Settings');
     });
 
     it('should apply custom class', async () => {
@@ -61,11 +43,6 @@ describe('DockLabelComponent', () => {
 
         const el = fixture.debugElement.query(By.css('[data-slot="dock-label"]'));
         expect(el.nativeElement.className).toContain('text-red-500');
-    });
-
-    it('should have positioning classes', () => {
-        const el = fixture.debugElement.query(By.css('[data-slot="dock-label"]'));
-        expect(el.nativeElement.className).toContain('absolute');
     });
 
     it('should have group-hover visibility class', () => {

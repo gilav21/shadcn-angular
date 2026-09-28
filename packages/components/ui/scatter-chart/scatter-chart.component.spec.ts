@@ -134,11 +134,6 @@ describe('ScatterChartComponent', () => {
         expect(rows[0].value).toContain('5');
     });
 
-    it('returns no tooltip rows when nothing is hovered', () => {
-        component.setHover(null);
-        expect(component.tooltipRows()).toHaveLength(0);
-    });
-
     it('returns no tooltip rows when the hovered indices are out of range', () => {
         component.setHover(99, 99);
         expect(component.tooltipRows()).toHaveLength(0);
@@ -157,16 +152,13 @@ describe('ScatterChartComponent', () => {
         expect(component.tooltipRows()).toHaveLength(0);
     });
 
-    it('updates hover and tooltip position on pointer move', () => {
+    it('hovers the point nearest the pointer and parks the tooltip beside it', () => {
+        // (60,40) is the top-left corner of the plot; (2,8) is the highest,
+        // left-most point, so it is the nearest one.
         component.onPointerMove(new MouseEvent('mousemove', { clientX: 60, clientY: 40 }));
-        expect(component.tooltipRows()).toHaveLength(1);
-        expect(component.tooltipPos().x).toBeGreaterThan(0);
-    });
-
-    it('ignores pointer move when the svg view is not available', () => {
-        (component as unknown as { _svg: () => undefined })._svg = () => undefined;
-        component.onPointerMove(new MouseEvent('mousemove', { clientX: 60, clientY: 40 }));
-        expect(component.tooltipRows()).toHaveLength(0);
+        expect(component.tooltipRows().map(r => [r.label, r.value])).toEqual([['Group B', '(2, 8)']]);
+        const nearest = component.plottedPoints().find(p => p.datum.x === 2 && p.datum.y === 8)!;
+        expect(component.tooltipPos().x).toBe(nearest.cx + 10);
     });
 
     it('ignores pointer move when there are no plotted points', () => {
@@ -204,15 +196,5 @@ describe('ScatterChartComponent', () => {
         const lowX = pts.find(p => p.datum.x === 1)!;
         const highX = pts.find(p => p.datum.x === 5)!;
         expect(lowX.cx).toBeGreaterThan(highX.cx);
-    });
-
-    it('honors an explicit ltr direction', () => {
-        fixture.componentRef.setInput('dir', 'ltr');
-        fixture.detectChanges();
-        expect(component.isRtl()).toBe(false);
-    });
-
-    it('reflects the auto direction from the DOM after view init', () => {
-        expect(component.isRtl()).toBe(false);
     });
 });

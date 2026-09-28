@@ -65,9 +65,10 @@ export class FileUploadComponent {
    */
   readonly multiple = input(true);
   /**
-   * Cap on total queued files (`null` = unlimited). Extra files in a batch are
-   * discarded once the cap is reached, each reported on {@link fileError}, and the
-   * dropzone disables itself while the list is full.
+   * Cap on total queued files (`null` = unlimited). Images waiting in the crop step
+   * count against it too. Extra files in a batch are discarded once the cap is
+   * reached, each reported on {@link fileError}, and the dropzone disables itself
+   * while the list is full.
    */
   readonly maxFiles = input<number | null>(null);
   /**
@@ -174,10 +175,18 @@ export class FileUploadComponent {
 
   readonly fileInput = viewChild<ElementRef<HTMLInputElement>>('fileInput');
 
+  /**
+   * Slots already spoken for against {@link maxFiles}: the queued files plus every
+   * image still waiting to be cropped, since each of those becomes a file.
+   */
+  private readonly claimedSlots = computed(
+    () => this.files().length + this.cropQueue().length + (this._cropFile() === null ? 0 : 1),
+  );
+
   readonly isDisabled = computed(() => {
     if (this.disabled()) return true;
     const max = this.maxFiles();
-    return max !== null && this.files().length >= max;
+    return max !== null && this.claimedSlots() >= max;
   });
 
   readonly classes = computed(() => cn('w-full', this.class()));
@@ -284,12 +293,11 @@ export class FileUploadComponent {
    * {@link fileError}, and {@link filesChange} is emitted once at the end.
    */
   addFiles(newFiles: File[]): void {
-    const currentFiles = this.files();
     const maxFiles = this.maxFiles();
     const maxSize = this.maxSize();
     const accept = this.accept();
 
-    let available = maxFiles === null ? newFiles.length : maxFiles - currentFiles.length;
+    let available = maxFiles === null ? newFiles.length : maxFiles - this.claimedSlots();
 
     for (const file of newFiles) {
       if (available <= 0) {

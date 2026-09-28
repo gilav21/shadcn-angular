@@ -276,6 +276,40 @@ function escapeHtml(str: string): string {
         .replaceAll('"', '&quot;');
 }
 
+/**
+ * A font name taken from the PDF as a quoted CSS string. The CSS is emitted inside
+ * a `<style>` element, so quotes and backslashes are escaped, control characters
+ * dropped and `<` hex-escaped: nothing in the name can end the string, the rule or
+ * the style element.
+ */
+function cssQuotedFontName(name: string): string {
+    let quoted = '';
+    for (const ch of name) {
+        const code = ch.codePointAt(0) ?? 0;
+        if (code < 0x20 || code === 0x7f) continue;
+        if (ch === '\\' || ch === "'") quoted += `\\${ch}`;
+        else if (ch === '<') quoted += String.raw`\3c `;
+        else quoted += ch;
+    }
+    return `'${quoted}'`;
+}
+
+const SAFE_LINK_PROTOCOLS: ReadonlySet<string> = new Set(['http:', 'https:', 'mailto:']);
+
+/**
+ * The link annotation's URI as the browser will parse it when it is an absolute
+ * http, https or mailto URL; `undefined` for any other scheme or a relative URI.
+ */
+function safeLinkUri(uri: string): string | undefined {
+    try {
+        const url = new URL(uri);
+        return SAFE_LINK_PROTOCOLS.has(url.protocol) ? url.href : undefined;
+    } catch {
+        // Not an absolute URL; a relative URI has no page to resolve against here.
+        return undefined;
+    }
+}
+
 // ── Font Extraction & Registry ────────────────────────────────────────
 
 type FontFormat = 'truetype' | 'cff' | 'opentype' | 'type1';
@@ -664,7 +698,7 @@ function getSystemFontFamily(baseFontName: string): string {
     if (SERIF_KEYWORDS.some(k => lower.includes(k))) generic = 'serif';
     else if (MONO_KEYWORDS.some(k => lower.includes(k))) generic = 'monospace';
 
-    return `'${name}', ${generic}`;
+    return `${cssQuotedFontName(name)}, ${generic}`;
 }
 
 function usesSystemFallback(entry: FontRegistryEntry): boolean {
@@ -753,7 +787,7 @@ function fallbackChainFor(entry: FontRegistryEntry): string {
     let generic = 'sans-serif';
     if (FAMILY_MONO_HINT.test(name)) generic = 'monospace';
     else if (FAMILY_SERIF_HINT.test(name)) generic = 'serif';
-    const original = entry.familyName ? `'${entry.familyName.replaceAll(/['";]/g, '')}',` : '';
+    const original = entry.familyName ? `${cssQuotedFontName(entry.familyName)},` : '';
     return `${original}${generic}`;
 }
 
@@ -768,7 +802,7 @@ function resolveFontFamily(entry: FontRegistryEntry, isSymbolFont: boolean, fami
     if (entry.fontData && fontFormatToMime(entry.fontData.format)) {
         return `${embeddedId},${fallbackChainFor(entry)}`;
     }
-    return entry.familyName || 'serif';
+    return entry.familyName ? cssQuotedFontName(entry.familyName) : 'serif';
 }
 
 export class FontRegistry {
@@ -3279,15 +3313,17 @@ function renderImage(img: ImageItem, z: number): string {
     const w = round(img.renderWidth * z);
     const h = round(img.renderHeight * z);
     return `<img class="bi" style="position:absolute;left:${left}px;bottom:${bottom}px;` +
-        `width:${w}px;height:${h}px;" src="${img.dataUrl}"/>`;
+        `width:${w}px;height:${h}px;" src="${escapeHtml(img.dataUrl)}"/>`;
 }
 
 function renderAnnotation(ann: PdfAnnotation, z: number): string {
+    const href = safeLinkUri(ann.uri);
+    if (!href) return '';
     const left = round(ann.x * z);
     const bottom = round(ann.y * z);
     const w = round(ann.width * z);
     const h = round(ann.height * z);
-    return `<a class="l" href="${escapeHtml(ann.uri)}">` +
+    return `<a class="l" href="${escapeHtml(href)}">` +
         `<div style="position:absolute;left:${left}px;bottom:${bottom}px;` +
         `width:${w}px;height:${h}px;background-color:rgba(255,255,255,0.000001);border-style:none;"></div></a>`;
 }

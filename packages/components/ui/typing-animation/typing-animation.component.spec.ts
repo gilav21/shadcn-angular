@@ -79,24 +79,19 @@ describe('TypingAnimationComponent', () => {
         restoreMatchMedia();
     });
 
-    it('should start typing immediately (first char typed on init)', () => {
-        expect(getComp(fixture).displayText()).toBe('H');
-    });
-
     it('should type additional characters after each typeSpeed interval', () => {
+        fixture.destroy();
+        fixture = TestBed.createComponent(TestHostComponent);
+        fixture.componentInstance.typeSpeed.set(120);
+        fixture.detectChanges();
         const comp = getComp(fixture);
         expect(comp.displayText()).toBe('H');
 
-        vi.advanceTimersByTime(50);
+        vi.advanceTimersByTime(119);
+        expect(comp.displayText()).toBe('H');
+        vi.advanceTimersByTime(1);
         fixture.detectChanges();
         expect(comp.displayText()).toBe('He');
-    });
-
-    it('should type all characters of the first string after sufficient time', () => {
-        const comp = getComp(fixture);
-        vi.advanceTimersByTime(50 * 4);
-        fixture.detectChanges();
-        expect(comp.displayText()).toBe('Hello');
     });
 
     it('should render the cursor span when cursor input is true', () => {
@@ -129,11 +124,6 @@ describe('TypingAnimationComponent', () => {
         expect(getComp(fixture).accessibleText()).toBe('Hello, World');
     });
 
-    it('should set data-slot attribute', () => {
-        const el = fixture.debugElement.query(By.css('[data-slot="typing-animation"]'));
-        expect(el).toBeTruthy();
-    });
-
     it('should apply custom class', () => {
         host.cls.set('text-xl');
         fixture.detectChanges();
@@ -149,13 +139,6 @@ describe('TypingAnimationComponent', () => {
         vi.advanceTimersByTime(50 * 5);
         fixture.detectChanges();
         expect(comp.blinkClass()).toBe('cursor-blink');
-    });
-
-    it('should begin deleting after typing completes and pause duration elapses', () => {
-        const comp = getComp(fixture);
-        vi.advanceTimersByTime(50 * 4 + 2000);
-        fixture.detectChanges();
-        expect(comp.displayText().length).toBeLessThan(5);
     });
 
     it('should cycle to the next string after deleting completes', () => {
@@ -185,7 +168,7 @@ describe('TypingAnimationComponent completion (no loop)', () => {
 
         fixture = TestBed.createComponent(TestHostComponent);
         host = fixture.componentInstance;
-        host.strings.set(['Hi']);
+        host.strings.set(['Hi', 'Yo']);
         host.loop.set(false);
         fixture.detectChanges();
     });
@@ -200,9 +183,16 @@ describe('TypingAnimationComponent completion (no loop)', () => {
     it('should emit complete once the last string is fully typed', () => {
         const comp = getComp(fixture);
         vi.advanceTimersByTime(50 * 2);
-        fixture.detectChanges();
-
         expect(comp.displayText()).toBe('Hi');
+        expect(host.completeCount).toBe(0);
+
+        // pause 1500, delete 2 x 30, wait 300, type 2 x 50, then the final check.
+        vi.advanceTimersByTime(1500 + 30 * 3 + 300 + 50 * 3);
+        fixture.detectChanges();
+        expect(comp.displayText()).toBe('Yo');
+        expect(host.completeCount).toBe(1);
+
+        vi.advanceTimersByTime(10_000);
         expect(host.completeCount).toBe(1);
     });
 });

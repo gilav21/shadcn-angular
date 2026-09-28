@@ -48,10 +48,6 @@ describe('SplitButtonComponent', () => {
             fixture.detectChanges();
         });
 
-        it('should create', () => {
-            expect(component).toBeTruthy();
-        });
-
         it('should render primary label', () => {
             const primaryBtn = fixture.debugElement.query(By.css('ui-button:first-child'));
             expect(primaryBtn.nativeElement.textContent).toContain('Save');
@@ -213,7 +209,7 @@ describe('SplitButtonComponent', () => {
             expect(items[0].nativeElement.textContent).toContain('Item 1');
         });
 
-        it('should respond to inputs on host', () => {
+        it('propagates the parent variant to the projected primary button', () => {
             // Test variant propagation
             const primaryBtn = hostFixture.debugElement.query(By.css('ui-split-button-primary ui-button'));
             // Default variant

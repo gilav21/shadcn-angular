@@ -44,8 +44,18 @@ describe('GaugeChartComponent', () => {
     });
 
     it('renders a track arc and a value arc', () => {
-        expect(fixture.nativeElement.querySelector('path[data-slot="gauge-track"]')).toBeTruthy();
-        expect(fixture.nativeElement.querySelector('path[data-slot="gauge-value"]')).toBeTruthy();
+        const root = fixture.nativeElement as HTMLElement;
+        const track = root.querySelector('path[data-slot="gauge-track"]')!;
+        const value = root.querySelector('path[data-slot="gauge-value"]')!;
+        expect(value.getAttribute('fill')).toBe(component.activeColor());
+        expect(value.getAttribute('d')).toMatch(/^M/);
+        expect(value.getAttribute('d')).not.toBe(track.getAttribute('d'));
+
+        // At the minimum there is nothing to fill: the value arc goes, the track stays.
+        fixture.componentRef.setInput('value', 0);
+        fixture.detectChanges();
+        expect(root.querySelector('path[data-slot="gauge-value"]')).toBeNull();
+        expect(root.querySelector('path[data-slot="gauge-track"]')?.getAttribute('d')).toBe(track.getAttribute('d'));
     });
 
     it('selects the active threshold color for the value', () => {

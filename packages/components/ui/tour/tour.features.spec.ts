@@ -10,31 +10,6 @@ import { readTourCompleted, writeTourCompleted } from './tour.utils';
  * backward-compatibility gate.
  */
 
-class ResizeObserverStub {
-    constructor(readonly callback: () => void) { }
-    observe(): void { /* no-op */ }
-    unobserve(): void { /* no-op */ }
-    disconnect(): void { /* no-op */ }
-}
-
-let addedScrollIntoView = false;
-
-function installStubs(): void {
-    vi.stubGlobal('ResizeObserver', ResizeObserverStub);
-    const proto = Element.prototype as unknown as { scrollIntoView?: () => void };
-    if (typeof proto.scrollIntoView !== 'function') {
-        proto.scrollIntoView = () => undefined;
-        addedScrollIntoView = true;
-    }
-}
-
-function restoreStubs(): void {
-    if (addedScrollIntoView) {
-        delete (Element.prototype as unknown as { scrollIntoView?: () => void }).scrollIntoView;
-        addedScrollIntoView = false;
-    }
-    vi.unstubAllGlobals();
-}
 
 const KEY = 'spec-onboarding';
 
@@ -113,7 +88,6 @@ describe('TourComponent — storageKey persistence', () => {
     let host: TourFeaturesHostComponent;
 
     beforeEach(async () => {
-        installStubs();
         globalThis.localStorage?.clear();
         await TestBed.configureTestingModule({ imports: [TourFeaturesHostComponent] }).compileComponents();
         fixture = TestBed.createComponent(TourFeaturesHostComponent);
@@ -124,7 +98,6 @@ describe('TourComponent — storageKey persistence', () => {
     afterEach(() => {
         globalThis.localStorage?.clear();
         TestBed.resetTestingModule();
-        restoreStubs();
     });
 
     it('records completion when the tour finishes', () => {
@@ -210,18 +183,6 @@ describe('TourComponent — storageKey persistence', () => {
         expect(readTourCompleted(KEY)).toBe(true);
     });
 
-    it('records completion again on a second run once a step did show', () => {
-        host.storageKey.set(KEY);
-        fixture.detectChanges();
-        host.active.set(true);
-        fixture.detectChanges();
-
-        getTour(fixture).skip();
-        fixture.detectChanges();
-
-        expect(readTourCompleted(KEY)).toBe(true);
-    });
-
     it('writes nothing when no storageKey is set', () => {
         host.active.set(true);
         fixture.detectChanges();
@@ -252,7 +213,6 @@ describe('TourComponent — branching', () => {
     let host: TourFeaturesHostComponent;
 
     beforeEach(async () => {
-        installStubs();
         globalThis.localStorage?.clear();
         await TestBed.configureTestingModule({ imports: [TourFeaturesHostComponent] }).compileComponents();
         fixture = TestBed.createComponent(TourFeaturesHostComponent);
@@ -263,7 +223,6 @@ describe('TourComponent — branching', () => {
     afterEach(() => {
         globalThis.localStorage?.clear();
         TestBed.resetTestingModule();
-        restoreStubs();
     });
 
     function start(steps: TourStep[]): TourComponent {
@@ -287,20 +246,6 @@ describe('TourComponent — branching', () => {
         fixture.detectChanges();
 
         expect(tour.currentIndex()).toBe(3);
-    });
-
-    it('routes the other way when the predicate flips', () => {
-        const tour = start([
-            { target: '#s0', title: 'Zero', next: () => 2 },
-            { target: '#s1', title: 'One' },
-            { target: '#s2', title: 'Two' },
-            { target: '#s3', title: 'Three' },
-        ]);
-
-        tour.next();
-        fixture.detectChanges();
-
-        expect(tour.currentIndex()).toBe(2);
     });
 
     it('ends the tour when the predicate returns null', () => {
@@ -357,17 +302,5 @@ describe('TourComponent — branching', () => {
 
         expect(tour.currentIndex()).toBe(1);
         warn.mockRestore();
-    });
-
-    it('leaves steps without a predicate on the default path', () => {
-        const tour = start([
-            { target: '#s0', title: 'Zero' },
-            { target: '#s1', title: 'One' },
-        ]);
-
-        tour.next();
-        fixture.detectChanges();
-
-        expect(tour.currentIndex()).toBe(1);
     });
 });

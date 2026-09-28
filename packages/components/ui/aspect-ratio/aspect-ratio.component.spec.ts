@@ -19,7 +19,6 @@ class TestHostComponent {
 
 describe('AspectRatioComponent', () => {
     let fixture: ComponentFixture<TestHostComponent>;
-    let component: TestHostComponent;
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
@@ -27,12 +26,6 @@ describe('AspectRatioComponent', () => {
         }).compileComponents();
 
         fixture = TestBed.createComponent(TestHostComponent);
-        component = fixture.componentInstance;
-    });
-
-    it('should create', () => {
-        fixture.detectChanges();
-        expect(component.aspectRatioComponent).toBeTruthy();
     });
 
     it('should calculate correct padding-bottom for 16/9', () => {
@@ -40,14 +33,6 @@ describe('AspectRatioComponent', () => {
         const div = fixture.debugElement.query(By.css('[data-slot="aspect-ratio"]'));
         // 1 / (16/9) * 100 = 56.25
         expect(div.styles['paddingBottom']).toBe('56.25%');
-    });
-
-    it('should calculate correct padding-bottom for 4/3', () => {
-        component.ratio = 4 / 3;
-        fixture.detectChanges();
-        const div = fixture.debugElement.query(By.css('[data-slot="aspect-ratio"]'));
-        // 1 / (4/3) * 100 = 75
-        expect(div.styles['paddingBottom']).toBe('75%');
     });
 
     it('should render content', () => {

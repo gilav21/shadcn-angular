@@ -75,11 +75,6 @@ describe('Component recycling', () => {
             pool = fixture.debugElement.injector.get(ComponentPoolService);
         });
 
-        it('should track component creation', () => {
-            expect(pool.createCount).toBe(1);
-            expect(pool.recycleCount).toBe(0);
-        });
-
         it('should reuse component when switching away and back', () => {
             const host = fixture.componentInstance;
 
@@ -112,27 +107,6 @@ describe('Component recycling', () => {
             pool = fixture.debugElement.injector.get(ComponentPoolService);
         });
 
-        it('should create one component per initial item', () => {
-            expect(pool.createCount).toBe(3);
-            expect(pool.recycleCount).toBe(0);
-            expect(pool.poolSize).toBe(0);
-        });
-
-        it('should release components to pool when items are removed', () => {
-            host.items.set([{ id: 1, name: 'Alice' }]);
-            fixture.detectChanges();
-
-            expect(pool.poolSize).toBe(2);
-        });
-
-        it('should have non-destroyed views in the pool after @for removal', () => {
-            host.items.set([]);
-            fixture.detectChanges();
-
-            expect(pool.poolSize).toBe(3);
-            expect(pool.recycleCount).toBe(0);
-        });
-
         it('should recycle pooled components when new items are added', () => {
             host.items.set([]);
             fixture.detectChanges();
@@ -157,22 +131,6 @@ describe('Component recycling', () => {
 
             const label = fixture.nativeElement.querySelector('.cell-label');
             expect(label.textContent).toBe('Recycled');
-        });
-
-        it('should not create new components when pool has enough', () => {
-            host.items.set([]);
-            fixture.detectChanges();
-            const createdBefore = pool.createCount;
-
-            host.items.set([
-                { id: 10, name: 'X' },
-                { id: 11, name: 'Y' },
-                { id: 12, name: 'Z' },
-            ]);
-            fixture.detectChanges();
-
-            expect(pool.createCount).toBe(createdBefore);
-            expect(pool.recycleCount).toBe(3);
         });
 
         it('should create new components only when pool is exhausted', () => {

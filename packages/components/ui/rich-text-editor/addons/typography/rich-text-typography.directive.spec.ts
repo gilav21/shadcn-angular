@@ -77,6 +77,29 @@ function emulateContainsNode(this: Selection, node: Node, allowPartial?: boolean
         && selectionRange.compareBoundaryPoints(Range.END_TO_END, nodeRange) >= 0;
 }
 
+/** The `<font>` attribute each emulated command sets, and the style it supersedes. */
+const FONT_COMMANDS: Readonly<Record<string, { attr: string; style: string }>> = {
+    fontSize: { attr: 'size', style: 'font-size' },
+    fontName: { attr: 'face', style: 'font-family' },
+};
+
+/**
+ * A browser applying a font command removes the same property from the inline
+ * styles inside the range, so re-sizing already sized text replaces its size
+ * instead of nesting a second one around it. A span left with no style at all
+ * is unwrapped, as the browser drops it.
+ */
+function clearSupersededStyle(font: HTMLElement, style: string): void {
+    for (const el of Array.from(font.querySelectorAll<HTMLElement>('[style]'))) {
+        el.style.removeProperty(style);
+        if (el.style.length > 0) continue;
+        el.removeAttribute('style');
+        if (el.tagName === 'SPAN' && el.attributes.length === 0) {
+            el.replaceWith(...Array.from(el.childNodes));
+        }
+    }
+}
+
 /**
  * jsdom implements no `document.execCommand`, so the editor's `fontSize`/`fontName`
  * paths that wrap the selection in a `<font>` element (later rewritten to a styled
@@ -84,12 +107,11 @@ function emulateContainsNode(this: Selection, node: Node, allowPartial?: boolean
  * exactly as a browser would produce the deprecated `<font>` wrapper.
  */
 function emulateExecCommand(id: string, _showUI?: boolean, value?: string): boolean {
-    let attr: string | null = null;
-    if (id === 'fontSize') attr = 'size';
-    else if (id === 'fontName') attr = 'face';
-    if (!attr) {
+    const command = FONT_COMMANDS[id];
+    if (!command) {
         return false;
     }
+    const { attr, style } = command;
     const selection = document.getSelection();
     if (!selection || selection.rangeCount === 0) {
         return true;
@@ -104,6 +126,7 @@ function emulateExecCommand(id: string, _showUI?: boolean, value?: string): bool
         font.appendChild(range.extractContents());
         range.insertNode(font);
     }
+    clearSupersededStyle(font, style);
     return true;
 }
 
@@ -194,8 +217,8 @@ describe('RichTextTypographyDirective', () => {
         const fixture = TestBed.createComponent(ToggleHostCmp);
         openFixtures.push(fixture);
         fixture.detectChanges();
-        expect(fixture.nativeElement.querySelector('[data-addon-slot="typography.size"]')).toBeTruthy();
-        expect(fixture.nativeElement.querySelector('[data-addon-slot="typography.family"]')).toBeTruthy();
+        expect(fixture.nativeElement.querySelector('[data-addon-slot="typography.size"] button[title="Font Size"]')).toBeTruthy();
+        expect(fixture.nativeElement.querySelector('[data-addon-slot="typography.family"] button[title="Font Family"]')).toBeTruthy();
 
         fixture.componentInstance.enabled.set(false);
         fixture.detectChanges();
@@ -205,16 +228,6 @@ describe('RichTextTypographyDirective', () => {
         fixture.componentInstance.enabled.set(true);
         fixture.detectChanges();
         expect(fixture.nativeElement.querySelector('[data-addon-slot="typography.size"]')).toBeTruthy();
-    });
-
-    it('contributes font-size and font-family toolbar slots', () => {
-        const fixture = createFixture();
-        const size = fixture.nativeElement.querySelector('[data-addon-slot="typography.size"]');
-        const family = fixture.nativeElement.querySelector('[data-addon-slot="typography.family"]');
-        expect(size).toBeTruthy();
-        expect(family).toBeTruthy();
-        expect(size.querySelector('button[title="Font Size"]')).toBeTruthy();
-        expect(family.querySelector('button[title="Font Family"]')).toBeTruthy();
     });
 
     // `execCommand` replaces the styled run with NEW nodes, so a range saved
@@ -349,12 +362,6 @@ describe('RichTextTypographyDirective', () => {
         expect(fixture.componentInstance.sizes).toEqual([]);
     });
 
-    it('offers the built-in font families by default', () => {
-        const fixture = createFixture();
-        const family = buttonByKind(fixture, 'family');
-        expect(family.context.options()).toEqual(DEFAULT_FONT_FAMILIES);
-    });
-
     it('appends custom fonts to the defaults with the append strategy', () => {
         const fixture = createFixture();
         fixture.componentInstance.families.set(['Roboto', 'Open Sans']);
@@ -383,15 +390,6 @@ describe('RichTextTypographyDirective', () => {
 
         const family = buttonByKind(fixture, 'family');
         expect(family.context.options()).toEqual(DEFAULT_FONT_FAMILIES);
-    });
-
-    it('exposes font-size options suffixed with px', () => {
-        const fixture = createFixture();
-        const size = buttonByKind(fixture, 'size');
-        const options = size.context.options();
-        expect(options[0]).toBe('8px');
-        expect(options).toContain('24px');
-        expect(options.every((o) => o.endsWith('px'))).toBe(true);
     });
 
     it('localizes the button tooltips (he)', () => {

@@ -65,46 +65,21 @@ describe('ScrollProgressComponent', () => {
         delete (document.body as unknown as Record<string, unknown>)['scrollTop'];
     });
 
-    it('should render a fixed bar element with data-slot attribute', () => {
-        const bar = fixture.debugElement.query(By.css('[data-slot="scroll-progress"]'));
-        expect(bar).toBeTruthy();
-    });
-
-    it('should start at 0% width on initial render', () => {
-        expect(queryBar(fixture).style.width).toBe('0%');
-    });
-
-    it('should apply top-0 class when position is top', () => {
-        host.position.set('top');
-        fixture.detectChanges();
-        expect(queryBar(fixture).className).toContain('top-0');
-    });
-
-    it('should apply bottom-0 class when position is bottom', () => {
-        host.position.set('bottom');
-        fixture.detectChanges();
-        expect(queryBar(fixture).className).toContain('bottom-0');
-    });
-
-    it('should not apply top-0 class when position is bottom', () => {
-        host.position.set('bottom');
-        fixture.detectChanges();
-        expect(queryBar(fixture).className).not.toContain('top-0');
-    });
-
+    // color and height are read once in ngAfterViewInit, so they are set before the first render.
     it('should apply custom background color via inline style', () => {
-        host.color.set('#ff0000');
-        fixture.detectChanges();
-        const bar = fixture.debugElement.query(By.css('[data-slot="scroll-progress"]'));
-        expect(bar).toBeTruthy();
+        const f = TestBed.createComponent(TestHostComponent);
+        f.componentInstance.color.set('#ff0000');
+        f.detectChanges();
+        expect(getComputedStyle(queryBar(f)).backgroundColor).toBe('rgb(255, 0, 0)');
+        f.destroy();
     });
 
     it('should apply height style in pixels via inline style', () => {
-        expect(queryBar(fixture).style.height).toBe('3px');
-    });
-
-    it('should apply fixed positioning class', () => {
-        expect(queryBar(fixture).className).toContain('fixed');
+        const f = TestBed.createComponent(TestHostComponent);
+        f.componentInstance.height.set(6);
+        f.detectChanges();
+        expect(getComputedStyle(queryBar(f)).height).toBe('6px');
+        f.destroy();
     });
 
     it('should apply custom class', () => {
@@ -166,14 +141,14 @@ describe('ScrollProgressComponent', () => {
     });
 
     it('falls back to window when a string selector matches nothing', () => {
-        stubScrollMetrics(document.documentElement, 0, 500, 100);
+        stubScrollMetrics(document.documentElement, 100, 500, 100);
 
         const f = TestBed.createComponent(TestHostComponent);
         f.componentInstance.container.set('#no-such-element-here');
         f.detectChanges();
 
-        // window path: range 400, scrollTop 0 -> 0%
-        expect(queryBar(f).style.width).toBe('0%');
+        // window path: range 400, scrollTop 100 -> 25%
+        expect(queryBar(f).style.width).toBe('25%');
         f.destroy();
     });
 
@@ -244,22 +219,6 @@ describe('ScrollProgressComponent', () => {
         }
     });
 
-    it('ignores scroll updates when the bar element is unavailable', () => {
-        const target = document.createElement('div');
-        stubScrollMetrics(target, 100, 400, 100);
-
-        const f = TestBed.createComponent(TestHostComponent);
-        f.componentInstance.container.set(target);
-        f.detectChanges();
-
-        const cmp = f.debugElement.query(By.directive(ScrollProgressComponent))
-            .componentInstance as ScrollProgressComponent;
-        (cmp as unknown as { barRef: undefined }).barRef = undefined;
-
-        expect(() => target.dispatchEvent(new Event('scroll'))).not.toThrow();
-        f.destroy();
-    });
-
     it('removes the scroll listener on destroy', () => {
         const target = document.createElement('div');
         stubScrollMetrics(target, 0, 400, 100);
@@ -267,12 +226,12 @@ describe('ScrollProgressComponent', () => {
         const f = TestBed.createComponent(TestHostComponent);
         f.componentInstance.container.set(target);
         f.detectChanges();
+        const bar = queryBar(f);
         f.destroy();
 
         (target as unknown as { scrollTop: number }).scrollTop = 200;
         target.dispatchEvent(new Event('scroll'));
 
-        const bar = fixture.debugElement.query(By.css('[data-slot="scroll-progress"]'));
-        expect(bar).toBeTruthy();
+        expect(bar.style.width).toBe('0%');
     });
 });

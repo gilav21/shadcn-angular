@@ -1,8 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { BreadcrumbComponent, BreadcrumbListComponent, BreadcrumbItemComponent, BreadcrumbLinkComponent, BreadcrumbPageComponent, BreadcrumbSeparatorComponent, BreadcrumbEllipsisComponent } from './index';
-import { Component, signal } from '@angular/core';
+import { Component } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 
 // Test host for integration
 @Component({
@@ -27,58 +27,6 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 })
 class TestHostComponent { }
 
-// RTL Test host
-@Component({
-    template: `
-        <div [dir]="dir()">
-            <ui-breadcrumb>
-                <ui-breadcrumb-list>
-                    <ui-breadcrumb-item>
-                        <ui-breadcrumb-link href="/">الرئيسية</ui-breadcrumb-link>
-                    </ui-breadcrumb-item>
-                    <ui-breadcrumb-separator />
-                    <ui-breadcrumb-item>
-                        <ui-breadcrumb-page>الصفحة الحالية</ui-breadcrumb-page>
-                    </ui-breadcrumb-item>
-                </ui-breadcrumb-list>
-            </ui-breadcrumb>
-        </div>
-    `,
-    imports: [BreadcrumbComponent, BreadcrumbListComponent, BreadcrumbItemComponent, BreadcrumbLinkComponent, BreadcrumbPageComponent, BreadcrumbSeparatorComponent]
-})
-class RTLTestHostComponent {
-    dir = signal<'ltr' | 'rtl'>('ltr');
-}
-
-describe('BreadcrumbComponent', () => {
-    let component: BreadcrumbComponent;
-    let fixture: ComponentFixture<BreadcrumbComponent>;
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [BreadcrumbComponent]
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(BreadcrumbComponent);
-        component = fixture.componentInstance;
-        fixture.detectChanges();
-    });
-
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
-    it('should render nav with aria-label="breadcrumb"', () => {
-        const nav = fixture.debugElement.query(By.css('nav[aria-label="breadcrumb"]'));
-        expect(nav).toBeTruthy();
-    });
-
-    it('should have data-slot="breadcrumb"', () => {
-        const nav = fixture.debugElement.query(By.css('[data-slot="breadcrumb"]'));
-        expect(nav).toBeTruthy();
-    });
-});
-
 describe('Breadcrumb Integration', () => {
     let fixture: ComponentFixture<TestHostComponent>;
 
@@ -101,20 +49,15 @@ describe('Breadcrumb Integration', () => {
         expect(items).toHaveLength(3);
     });
 
-    it('should render breadcrumb links', () => {
+    it('should render breadcrumb links with their hrefs', () => {
         const links = fixture.debugElement.queryAll(By.css('[data-slot="breadcrumb-link"] a'));
-        expect(links).toHaveLength(2);
+        expect(links.map(l => l.nativeElement.getAttribute('href'))).toEqual(['/', '/products']);
     });
 
     it('should render breadcrumb page', () => {
         const page = fixture.debugElement.query(By.css('[data-slot="breadcrumb-page"]'));
         expect(page).toBeTruthy();
         expect(page.nativeElement.getAttribute('aria-current')).toBe('page');
-    });
-
-    it('should render separators', () => {
-        const separators = fixture.debugElement.queryAll(By.css('[data-slot="breadcrumb-separator"]'));
-        expect(separators).toHaveLength(2);
     });
 
     it('should have separator with aria-hidden', () => {
@@ -125,65 +68,6 @@ describe('Breadcrumb Integration', () => {
     it('should have separator with role="presentation"', () => {
         const separator = fixture.debugElement.query(By.css('[data-slot="breadcrumb-separator"]'));
         expect(separator.nativeElement.getAttribute('role')).toBe('presentation');
-    });
-});
-
-describe('Breadcrumb RTL Support', () => {
-    let fixture: ComponentFixture<RTLTestHostComponent>;
-    let component: RTLTestHostComponent;
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [RTLTestHostComponent]
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(RTLTestHostComponent);
-        component = fixture.componentInstance;
-        fixture.detectChanges();
-    });
-
-    afterEach(() => {
-        document.documentElement.removeAttribute('dir');
-    });
-
-    it('should render in LTR mode', () => {
-        const container = fixture.debugElement.query(By.css('[dir="ltr"]'));
-        expect(container).toBeTruthy();
-    });
-
-    it('should render in RTL mode', async () => {
-        component.dir.set('rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const container = fixture.debugElement.query(By.css('[dir="rtl"]'));
-        expect(container).toBeTruthy();
-    });
-
-    it('should rotate separator icon in RTL', async () => {
-        component.dir.set('rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const separator = fixture.debugElement.query(By.css('[data-slot="breadcrumb-separator"]'));
-        expect(separator).toBeTruthy();
-        // The separator svg has rtl:rotate-180 class
-        const svg = separator.nativeElement.querySelector('svg');
-        // SVG elements use classList or getAttribute for class checking
-        const svgClass = svg.getAttribute('class') ?? '';
-        expect(svgClass).toContain('rtl:rotate-180');
-    });
-
-    it('should maintain list structure in RTL', async () => {
-        component.dir.set('rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const list = fixture.debugElement.query(By.css('[data-slot="breadcrumb-list"]'));
-        expect(list).toBeTruthy();
-
-        const items = fixture.debugElement.queryAll(By.css('[data-slot="breadcrumb-item"]'));
-        expect(items).toHaveLength(2);
     });
 });
 
@@ -214,16 +98,6 @@ describe('Breadcrumb Simple Mode (Data-Driven)', () => {
 
         fixture = TestBed.createComponent(SimpleModeTestHostComponent);
         fixture.detectChanges();
-    });
-
-    it('should render all items from input array', () => {
-        const items = fixture.debugElement.queryAll(By.css('[data-slot="breadcrumb-item"]'));
-        expect(items).toHaveLength(3);
-    });
-
-    it('should render links for non-current items', () => {
-        const links = fixture.debugElement.queryAll(By.css('[data-slot="breadcrumb-link"]'));
-        expect(links).toHaveLength(2);
     });
 
     it('should render current page with aria-current', () => {

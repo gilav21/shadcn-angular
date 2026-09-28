@@ -12,7 +12,8 @@ import { CalendarComponent, DateRange } from '../../calendar';
 import { ButtonComponent } from '../../button';
 import { createLocaleBindings, type LocaleInput } from '../../../lib/i18n';
 import { CALENDAR_LOCALES, type CalendarLocale } from '../../../lib/i18n/calendar.locales';
-import { toDate, toDateOnlyTimestamp } from './data-table-date-utils';
+import { toDateOnlyTimestamp } from './data-table-date-utils';
+import { asEditableDate } from '../data-table.utils';
 
 export interface DateRangePreset {
   readonly label: string;
@@ -166,7 +167,7 @@ export function dateRangeFilterFn<TRow>(
   if (!filterValue) return true;
   if (!filterValue.start && !filterValue.end) return true;
 
-  const cellDate = toDate(getValue(row));
+  const cellDate = asEditableDate(getValue(row));
   if (!cellDate) return false;
   const cellTs = toDateOnlyTimestamp(cellDate);
 

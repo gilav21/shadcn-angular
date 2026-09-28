@@ -116,9 +116,6 @@ describe('BlurFadeComponent', () => {
         it('should start with opacity 0 before intersection fires', () => {
             const el = fixture.debugElement.query(By.directive(BlurFadeComponent));
             expect((el.nativeElement as HTMLElement).style.opacity).toBe('0');
-        });
-
-        it('should not call element.animate() before intersection fires', () => {
             expect(animateSpy).not.toHaveBeenCalled();
         });
 
@@ -126,9 +123,6 @@ describe('BlurFadeComponent', () => {
             expect(FakeIntersectionObserver.instances).toHaveLength(1);
             const el = fixture.debugElement.query(By.directive(BlurFadeComponent)).nativeElement as HTMLElement;
             expect(FakeIntersectionObserver.instances[0].observe).toHaveBeenCalledWith(el);
-        });
-
-        it('should use a 0.1 threshold for the observer', () => {
             expect(FakeIntersectionObserver.instances[0].options).toEqual({ threshold: 0.1 });
         });
 
@@ -161,11 +155,6 @@ describe('BlurFadeComponent', () => {
             expect((el.nativeElement as HTMLElement).className).toContain('my-fade');
         });
 
-        it('should include block class on host', () => {
-            const el = fixture.debugElement.query(By.directive(BlurFadeComponent));
-            expect((el.nativeElement as HTMLElement).className).toContain('block');
-        });
-
         it('should project content', () => {
             const el = fixture.debugElement.query(By.directive(BlurFadeComponent));
             expect(el.nativeElement.textContent.trim()).toBe('Fade content');
@@ -190,18 +179,24 @@ describe('BlurFadeComponent', () => {
         });
     });
 
-    describe('when inView=false (immediately animated)', () => {
-        it('should call element.animate() immediately', async () => {
+    describe('where IntersectionObserver is unavailable', () => {
+        it('shows the content at once instead of leaving it hidden', async () => {
+            vi.stubGlobal('IntersectionObserver', undefined);
+
             await TestBed.configureTestingModule({
-                imports: [InViewFalseHostComponent],
+                imports: [TestHostComponent],
             }).compileComponents();
 
-            const fixture = TestBed.createComponent(InViewFalseHostComponent);
+            const fixture = TestBed.createComponent(TestHostComponent);
             fixture.detectChanges();
 
-            expect(animateSpy).toHaveBeenCalledTimes(1);
+            const el = fixture.debugElement.query(By.directive(BlurFadeComponent)).nativeElement as HTMLElement;
+            expect(el.style.opacity).toBe('1');
+            expect(el.textContent?.trim()).toBe('Fade content');
         });
+    });
 
+    describe('when inView=false (immediately animated)', () => {
         it('should animate with blur and translate keyframes for direction up', async () => {
             await TestBed.configureTestingModule({
                 imports: [InViewFalseHostComponent],
@@ -259,11 +254,11 @@ describe('BlurFadeComponent', () => {
             }
         });
 
-        it('should pass delay to the animation options', async () => {
+        it('should pass delay and duration to the animation options', async () => {
             TestBed.resetTestingModule();
 
             @Component({
-                template: `<ui-blur-fade [inView]="false" [direction]="'up'" [delay]="200" />`,
+                template: `<ui-blur-fade [inView]="false" [direction]="'up'" [delay]="200" [duration]="800" />`,
                 imports: [BlurFadeComponent],
             })
             class DelayHost {}
@@ -277,45 +272,7 @@ describe('BlurFadeComponent', () => {
 
             expect(animateSpy).toHaveBeenCalledWith(
                 expect.any(Array),
-                expect.objectContaining({ delay: 200 })
-            );
-        });
-
-        it('should pass duration to the animation options', async () => {
-            TestBed.resetTestingModule();
-
-            @Component({
-                template: `<ui-blur-fade [inView]="false" [direction]="'up'" [duration]="800" />`,
-                imports: [BlurFadeComponent],
-            })
-            class DurationHost {}
-
-            await TestBed.configureTestingModule({
-                imports: [DurationHost],
-            }).compileComponents();
-
-            const fixture = TestBed.createComponent(DurationHost);
-            fixture.detectChanges();
-
-            expect(animateSpy).toHaveBeenCalledWith(
-                expect.any(Array),
-                expect.objectContaining({ duration: 800 })
-            );
-        });
-
-        it('should use cubic-bezier easing', async () => {
-            await TestBed.configureTestingModule({
-                imports: [InViewFalseHostComponent],
-            }).compileComponents();
-
-            const fixture = TestBed.createComponent(InViewFalseHostComponent);
-            fixture.detectChanges();
-
-            expect(animateSpy).toHaveBeenCalledWith(
-                expect.any(Array),
-                expect.objectContaining({
-                    easing: 'cubic-bezier(0.2, 0.6, 0.35, 1)',
-                })
+                expect.objectContaining({ delay: 200, duration: 800 })
             );
         });
     });

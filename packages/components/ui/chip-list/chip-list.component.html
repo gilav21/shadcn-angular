@@ -32,7 +32,7 @@
       @if (!isDisabled()) {
         <button
           type="button"
-          class="inline-flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 hover:bg-black/10 dark:hover:bg-white/10"
+          class="inline-flex h-4 w-4 pointer-coarse:size-11 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 hover:bg-black/10 dark:hover:bg-white/10"
           data-slot="chip-remove"
           [attr.aria-label]="'Remove ' + chip"
           (click)="removeChip(i, $event)"

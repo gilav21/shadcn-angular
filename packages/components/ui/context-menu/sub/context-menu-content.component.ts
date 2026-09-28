@@ -48,9 +48,11 @@ export class ContextMenuContentComponent implements OnDestroy {
      * (`min-w-[8rem]`, popover colours, `max-w-[calc(100vw-16px)]` /
      * `max-h-[calc(100vh-16px)]` scroll clamps, enter animation). The panel is
      * portalled to `document.body` with `position: fixed` and `z-index: 9999`,
-     * so it inherits nothing from the host — width, padding and colours must be
-     * set here rather than on an ancestor. Avoid overriding `position`/`left`/
-     * `top`: they are re-applied from the clamped coordinates on every open.
+     * so apart from the theme tokens and the host's resolved `dir`, which are
+     * copied onto the portal, it inherits nothing from the host — width,
+     * padding and colours must be set here rather than on an ancestor. Avoid
+     * overriding `position`/`left`/`top`: they are re-applied from the clamped
+     * coordinates on every open.
      */
     class = input('');
 
@@ -86,7 +88,10 @@ export class ContextMenuContentComponent implements OnDestroy {
         this.portalHost = this.document.createElement('div');
         this.portalHost.dataset['contextMenuPortal'] = 'true';
         this.document.body.appendChild(this.portalHost);
-        inheritThemeTokens(this.viewContainerRef.element.nativeElement, this.portalHost);
+        const origin: HTMLElement = this.viewContainerRef.element.nativeElement;
+        inheritThemeTokens(origin, this.portalHost);
+        // Portalled to <body>, the panel would take the page's direction; it must lay out in the one its host resolves to.
+        this.portalHost.dir = getComputedStyle(origin).direction;
         this.embeddedViewRef = this.viewContainerRef.createEmbeddedView(this.contentTemplate);
         this.embeddedViewRef.detectChanges();
 
@@ -135,6 +140,8 @@ export class ContextMenuContentComponent implements OnDestroy {
         }
 
         this.adjustedPosition.set({ x, y });
+        // The signal write alone never re-renders this relocated view: the clamp never reached the panel.
+        this.embeddedViewRef?.detectChanges();
     }
 
     classes = computed(() => cn(

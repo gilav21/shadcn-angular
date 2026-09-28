@@ -213,6 +213,13 @@ describe('readZip', () => {
         const zip = buildZip([stored('a.txt', 'abcdefghij')]);
         expect(() => readZip(zip, { maxUncompressedSize: 5 })).toThrow(/Total uncompressed size too large/);
     });
+
+    it('rejects traversal and absolute entry paths', () => {
+        const traversal = buildZip([stored('ok.txt', 'y'), stored('docs/../../escape.txt', 'x')]);
+        expect(() => readZip(traversal)).toThrow(/Path traversal rejected/);
+        const absolute = buildZip([stored('/etc/passwd', 'x')]);
+        expect(() => readZip(absolute)).toThrow(/Absolute path rejected/);
+    });
 });
 
 function u64(n: number): number[] {

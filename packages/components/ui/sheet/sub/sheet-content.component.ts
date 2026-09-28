@@ -58,7 +58,7 @@ import { SheetDescriptionComponent } from './sheet-description.component';
           <ng-content />
           <button
             type="button"
-            class="absolute ltr:right-4 rtl:left-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
+            class="absolute end-4 top-4 inline-flex items-center justify-center rounded-sm opacity-70 pointer-coarse:end-0.5 pointer-coarse:top-0.5 pointer-coarse:size-11 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
             (click)="close()"
             [attr.aria-label]="t().close"
           >

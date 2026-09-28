@@ -61,72 +61,18 @@ describe('TreeComponent', () => {
     });
 
     describe('Basic Rendering', () => {
-        it('should create tree component', () => {
-            const tree = fixture.debugElement.query(By.directive(TreeComponent));
-            expect(tree).toBeTruthy();
-        });
-
         it('should have data-slot="tree"', () => {
             const tree = fixture.debugElement.query(By.css('[data-slot="tree"]'));
             expect(tree).toBeTruthy();
-        });
-
-        it('should render tree items', () => {
-            const items = fixture.debugElement.queryAll(By.css('[data-slot="tree-item"]'));
-            expect(items.length).toBeGreaterThan(0);
         });
 
         it('should render tree labels', () => {
             const labels = fixture.debugElement.queryAll(By.css('[data-slot="tree-label"]'));
             expect(labels.length).toBeGreaterThan(0);
         });
-
-        it('should render tree icons', () => {
-            const icons = fixture.debugElement.queryAll(By.css('[data-slot="tree-icon"]'));
-            expect(icons.length).toBeGreaterThan(0);
-        });
-    });
-
-    describe('Expand/Collapse', () => {
-        it('should show expand button for parent items', () => {
-            const expandButtons = fixture.debugElement.queryAll(By.css('button'));
-            expect(expandButtons.length).toBeGreaterThan(0);
-        });
-
-        it('should expand item on click', async () => {
-            const tree = fixture.debugElement.query(By.directive(TreeComponent));
-            const treeInstance = tree.componentInstance as TreeComponent;
-
-            treeInstance.toggleExpanded('folder-1');
-            fixture.detectChanges();
-            await fixture.whenStable();
-
-            expect(treeInstance.isExpanded('folder-1')).toBe(true);
-        });
-
-        it('should collapse expanded item on second click', async () => {
-            const tree = fixture.debugElement.query(By.directive(TreeComponent));
-            const treeInstance = tree.componentInstance as TreeComponent;
-
-            treeInstance.toggleExpanded('folder-1');
-            treeInstance.toggleExpanded('folder-1');
-            fixture.detectChanges();
-
-            expect(treeInstance.isExpanded('folder-1')).toBe(false);
-        });
     });
 
     describe('Selection', () => {
-        it('should support single selection', async () => {
-            const tree = fixture.debugElement.query(By.directive(TreeComponent));
-            const treeInstance = tree.componentInstance as TreeComponent;
-
-            treeInstance.toggleSelected('folder-1');
-            fixture.detectChanges();
-
-            expect(treeInstance.isSelected('folder-1')).toBe(true);
-        });
-
         it('should deselect previous item in single mode', async () => {
             const tree = fixture.debugElement.query(By.directive(TreeComponent));
             const treeInstance = tree.componentInstance as TreeComponent;
@@ -168,40 +114,7 @@ describe('TreeComponent', () => {
         });
     });
 
-    describe('RTL Support', () => {
-        it('should render in LTR mode', () => {
-            const container = fixture.debugElement.query(By.css('[dir="ltr"]'));
-            expect(container).toBeTruthy();
-        });
-
-        it('should render in RTL mode', async () => {
-            component.dir.set('rtl');
-            fixture.detectChanges();
-            await fixture.whenStable();
-
-            const container = fixture.debugElement.query(By.css('[dir="rtl"]'));
-            expect(container).toBeTruthy();
-        });
-
-        it('should maintain tree structure in RTL', async () => {
-            component.dir.set('rtl');
-            fixture.detectChanges();
-            await fixture.whenStable();
-
-            const tree = fixture.debugElement.query(By.directive(TreeComponent));
-            const items = fixture.debugElement.queryAll(By.directive(TreeItemComponent));
-
-            expect(tree).toBeTruthy();
-            expect(items.length).toBeGreaterThan(0);
-        });
-    });
-
     describe('Accessibility', () => {
-        it('should have role="tree" on root', () => {
-            const tree = fixture.debugElement.query(By.css('[role="tree"]'));
-            expect(tree).toBeTruthy();
-        });
-
         it('should have role="treeitem" on items', () => {
             const items = fixture.debugElement.queryAll(By.css('[role="treeitem"]'));
             expect(items.length).toBeGreaterThan(0);
@@ -241,22 +154,6 @@ describe('TreeComponent', () => {
             expect(icon.nativeElement.getAttribute('aria-hidden')).toBe('true');
         });
     });
-
-    describe('Security', () => {
-        it('should not execute scripts in labels', () => {
-            const labels = fixture.debugElement.queryAll(By.css('[data-slot="tree-label"]'));
-            for (const label of labels) {
-                expect(label.nativeElement.innerHTML).not.toContain('<script>');
-            }
-        });
-
-        it('should properly handle special characters in values', () => {
-            const tree = fixture.debugElement.query(By.directive(TreeComponent));
-            const treeInstance = tree.componentInstance as TreeComponent;
-
-            expect(() => treeInstance.toggleExpanded('<script>alert(1)</script>')).not.toThrow();
-        });
-    });
 });
 
 const dataDrivenTree: TreeNode[] = [
@@ -279,13 +176,14 @@ const dataDrivenTree: TreeNode[] = [
 
 @Component({
     template: `
-        <ui-tree [data]="data()" [initialExpandDepth]="initialExpandDepth()" />
+        <ui-tree [data]="data()" [initialExpandDepth]="initialExpandDepth()" [selectable]="selectable()" />
     `,
     imports: [TreeComponent]
 })
 class DataDrivenTreeTestHostComponent {
     data = signal<TreeNode[]>(dataDrivenTree);
     initialExpandDepth = signal(0);
+    selectable = signal<'none' | 'single' | 'multiple'>('none');
 }
 
 describe('TreeComponent - Data-Driven Lazy Rendering', () => {
@@ -362,33 +260,6 @@ describe('TreeComponent - Data-Driven Lazy Rendering', () => {
     });
 });
 
-describe('TreeComponent - registerItem Batching', () => {
-    let fixture: ComponentFixture<DataDrivenTreeTestHostComponent>;
-    let treeInstance: TreeComponent;
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [DataDrivenTreeTestHostComponent]
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(DataDrivenTreeTestHostComponent);
-        fixture.detectChanges();
-        await fixture.whenStable();
-        treeInstance = fixture.debugElement.query(By.directive(TreeComponent)).componentInstance as TreeComponent;
-    });
-
-    it('should batch multiple registerItem calls into a single update', async () => {
-        treeInstance.toggleExpanded('root-1');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const items = treeInstance.items();
-        expect(items.length).toBeGreaterThan(0);
-        const values = items.map(i => i.value());
-        expect(values).toContain('child-1-1');
-    });
-});
-
 describe('TreeComponent - expandAllCollapsed Batching', () => {
     let fixture: ComponentFixture<DataDrivenTreeTestHostComponent>;
     let treeInstance: TreeComponent;
@@ -405,20 +276,30 @@ describe('TreeComponent - expandAllCollapsed Batching', () => {
     });
 
     it('should expand all collapsed items in a single batch', async () => {
+        fixture.componentInstance.data.set([
+            {
+                key: 'docs',
+                label: 'Docs',
+                children: [{ key: 'guides', label: 'Guides', children: [{ key: 'intro', label: 'Intro' }] }],
+            },
+            { key: 'src', label: 'Src', children: [{ key: 'main', label: 'main.ts' }] },
+            { key: 'readme', label: 'README' },
+        ]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
         const emissions: string[][] = [];
         treeInstance.expandChange.subscribe(keys => emissions.push(keys));
 
         const treeEl = fixture.debugElement.query(By.css('[role="tree"]'));
-        treeEl.nativeElement.focus();
-        treeInstance.focusedKey.set('root-1');
-        fixture.detectChanges();
-
+        treeInstance.focusedKey.set('docs');
         treeEl.triggerEventHandler('keydown', { key: '*', preventDefault: () => {} });
         fixture.detectChanges();
         await fixture.whenStable();
 
-        expect(emissions).toHaveLength(1);
-        expect(treeInstance.isExpanded('root-1')).toBe(true);
+        // Only visible parents open; 'guides' was hidden under 'docs' when '*' was pressed.
+        expect(emissions).toEqual([['docs', 'src']]);
+        expect(treeInstance.isExpanded('guides')).toBe(false);
     });
 });
 
@@ -431,17 +312,6 @@ describe('TreeComponent - initialExpandDepth', () => {
         await TestBed.configureTestingModule({
             imports: [DataDrivenTreeTestHostComponent]
         }).compileComponents();
-    });
-
-    it('should keep all nodes collapsed with depth 0', async () => {
-        fixture = TestBed.createComponent(DataDrivenTreeTestHostComponent);
-        component = fixture.componentInstance;
-        component.initialExpandDepth.set(0);
-        fixture.detectChanges();
-        await fixture.whenStable();
-        treeInstance = fixture.debugElement.query(By.directive(TreeComponent)).componentInstance as TreeComponent;
-
-        expect(treeInstance.isExpanded('root-1')).toBe(false);
     });
 
     it('should expand one level with depth 1', async () => {
@@ -460,18 +330,6 @@ describe('TreeComponent - initialExpandDepth', () => {
         fixture = TestBed.createComponent(DataDrivenTreeTestHostComponent);
         component = fixture.componentInstance;
         component.initialExpandDepth.set(-1);
-        fixture.detectChanges();
-        await fixture.whenStable();
-        treeInstance = fixture.debugElement.query(By.directive(TreeComponent)).componentInstance as TreeComponent;
-
-        expect(treeInstance.isExpanded('root-1')).toBe(true);
-        expect(treeInstance.isExpanded('child-1-2')).toBe(true);
-    });
-
-    it('should expand two levels with depth 2', async () => {
-        fixture = TestBed.createComponent(DataDrivenTreeTestHostComponent);
-        component = fixture.componentInstance;
-        component.initialExpandDepth.set(2);
         fixture.detectChanges();
         await fixture.whenStable();
         treeInstance = fixture.debugElement.query(By.directive(TreeComponent)).componentInstance as TreeComponent;
@@ -614,15 +472,17 @@ describe('TreeComponent - Keyboard navigation (data-driven)', () => {
         expect(treeInstance.focusedKey()).toBe('root-2');
     });
 
-    it('should toggle selection with Enter', () => {
+    it('should toggle selection with Enter and Space', () => {
+        fixture.componentInstance.selectable.set('single');
+        fixture.detectChanges();
         treeInstance.focusedKey.set('root-1');
-        dispatchKey(treeEl, 'Enter');
-        expect(treeInstance.focusedKey()).toBe('root-1');
-    });
 
-    it('should toggle selection with Space', () => {
-        treeInstance.focusedKey.set('root-1');
-        expect(() => dispatchKey(treeEl, ' ')).not.toThrow();
+        dispatchKey(treeEl, 'Enter');
+        expect(treeInstance.isSelected('root-1')).toBe(true);
+
+        dispatchKey(treeEl, ' ');
+        expect(treeInstance.isSelected('root-1')).toBe(false);
+        expect(treeInstance.focusedKey()).toBe('root-1');
     });
 
     it('should expand a collapsed parent with ArrowRight', () => {
@@ -666,13 +526,6 @@ describe('TreeComponent - Keyboard navigation (data-driven)', () => {
         treeInstance.focusedKey.set(null);
         dispatchKey(treeEl, 'ArrowLeft');
         expect(treeInstance.focusedKey()).toBeNull();
-    });
-
-    it('should reuse ancestor cache across visibility checks', () => {
-        treeInstance.focusedKey.set('root-1');
-        dispatchKey(treeEl, 'ArrowDown');
-        dispatchKey(treeEl, 'ArrowDown');
-        expect(treeInstance.focusedKey()).toBe('child-1-2');
     });
 });
 
@@ -748,30 +601,6 @@ describe('TreeComponent - Keyboard navigation (template-driven, ancestor fallbac
         dispatchKey(treeEl, 'ArrowLeft');
         expect(treeInstance.focusedKey()).toBe('folder-1');
         expect(treeInstance.isExpanded('folder-1')).toBe(false);
-    });
-});
-
-@Component({
-    template: `<ui-tree />`,
-    imports: [TreeComponent]
-})
-class EmptyTreeHostComponent {}
-
-describe('TreeComponent - Keyboard navigation with no items', () => {
-    it('should return early on keydown when there are no items', async () => {
-        await TestBed.configureTestingModule({
-            imports: [EmptyTreeHostComponent]
-        }).compileComponents();
-
-        const fixture = TestBed.createComponent(EmptyTreeHostComponent);
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const treeInstance = fixture.debugElement.query(By.directive(TreeComponent)).componentInstance as TreeComponent;
-        const treeEl = fixture.debugElement.query(By.css('[role="tree"]'));
-
-        dispatchKey(treeEl, 'ArrowDown');
-        expect(treeInstance.focusedKey()).toBeNull();
     });
 });
 

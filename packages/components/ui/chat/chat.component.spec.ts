@@ -1,8 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ChatMessageComponent, ChatInputComponent, ChatListComponent } from './index';
+import { ScrollAreaComponent } from '../scroll-area';
 
 type Role = 'user' | 'assistant' | 'system';
 
@@ -67,26 +68,21 @@ describe('Chat Components', () => {
             expect(bubble.nativeElement.textContent).toContain('Hello from input');
         });
 
-        it('should apply user role styles and mirror avatar to end side', () => {
+        // Row alignment per role is asserted on geometry in chat.component.browser.spec.ts.
+        it('should apply user role bubble styles', () => {
             host.role = 'user';
             host.content = 'User message';
             fixture.detectChanges();
 
-            const root = fixture.debugElement.query(By.css('[data-slot="chat-message"]'));
-            expect(root.nativeElement.className).toContain('justify-end');
-            expect(root.nativeElement.className).toContain('[&>ui-avatar]:order-last');
             const bubble = fixture.debugElement.query(By.css('[data-slot="chat-bubble"]'));
             expect(bubble.nativeElement.className).toContain('bg-primary');
         });
 
-        it('should apply assistant role styles without reordering avatar', () => {
+        it('should apply assistant role bubble styles', () => {
             host.role = 'assistant';
             host.content = 'Assistant message';
             fixture.detectChanges();
 
-            const root = fixture.debugElement.query(By.css('[data-slot="chat-message"]'));
-            expect(root.nativeElement.className).toContain('justify-start');
-            expect(root.nativeElement.className).not.toContain('order-last');
             const bubble = fixture.debugElement.query(By.css('[data-slot="chat-bubble"]'));
             expect(bubble.nativeElement.className).toContain('bg-muted');
         });
@@ -96,8 +92,6 @@ describe('Chat Components', () => {
             host.content = 'System message';
             fixture.detectChanges();
 
-            const root = fixture.debugElement.query(By.css('[data-slot="chat-message"]'));
-            expect(root.nativeElement.className).toContain('justify-center');
             const avatar = fixture.debugElement.query(By.css('ui-avatar'));
             expect(avatar).toBeFalsy();
             const bubble = fixture.debugElement.query(By.css('[data-slot="chat-bubble"]'));
@@ -183,17 +177,6 @@ describe('Chat Components', () => {
             expect(el).toBeTruthy();
             const textarea = fixture.nativeElement.querySelector('textarea') as HTMLTextAreaElement;
             expect(textarea.getAttribute('placeholder')).toBe('Type a message...');
-        });
-
-        it('should emit send event and clear input on submit', () => {
-            let emittedMessage = '';
-            component.send.subscribe((msg: string) => (emittedMessage = msg));
-
-            component.inputValue.set('Hello AI');
-            component.onSubmit();
-
-            expect(emittedMessage).toBe('Hello AI');
-            expect(component.inputValue()).toBe('');
         });
 
         it('should send when the send button is clicked', () => {
@@ -336,58 +319,55 @@ describe('Chat Components', () => {
             expect(f.nativeElement.querySelectorAll('[data-slot="chat-message"]')).toHaveLength(1);
         });
 
-        it('should not observe mutations when autoScroll is disabled', async () => {
-            const f = await createList();
-            f.detectChanges();
+        const spyOnScroll = (f: ComponentFixture<ListHostComponent>) => {
+            const scrollArea = f.debugElement.query(By.directive(ScrollAreaComponent))
+                .componentInstance as ScrollAreaComponent;
+            const content = (f.nativeElement as HTMLElement).querySelector('ui-chat-message')!
+                .parentElement!;
+            return { content, scroll: vi.spyOn(scrollArea, 'scrollToBottom') };
+        };
 
-            const list = f.debugElement.query(By.directive(ChatListComponent))
-                .componentInstance as ChatListComponent;
-            const observer = (list as unknown as { observer?: MutationObserver }).observer;
-            expect(observer).toBeUndefined();
-        });
-
-        it('should observe mutations and scroll to bottom when autoScroll is enabled', async () => {
-            const f = await createList();
-            f.componentInstance.autoScroll = true;
-            f.detectChanges();
-
-            const list = f.debugElement.query(By.directive(ChatListComponent))
-                .componentInstance as ChatListComponent;
-            const observer = (list as unknown as { observer?: MutationObserver }).observer;
-            expect(observer).toBeDefined();
-
-            const contentEl = (list as unknown as { contentRef?: { nativeElement: HTMLElement } })
-                .contentRef?.nativeElement;
-            expect(contentEl).toBeDefined();
-
+        const appendStreamed = (content: HTMLElement) => {
             const added = document.createElement('div');
             added.textContent = 'streamed';
-            contentEl?.appendChild(added);
+            content.appendChild(added);
+        };
 
+        it('should not scroll to bottom on new content when autoScroll is disabled', async () => {
+            const f = await createList();
+            f.detectChanges();
+            const { content, scroll } = spyOnScroll(f);
+
+            appendStreamed(content);
             await flushMicrotasks();
-            expect(contentEl?.querySelector('div')).toBeTruthy();
+
+            expect(scroll).not.toHaveBeenCalled();
         });
 
-        it('should disconnect the observer on destroy', async () => {
+        it('should scroll to bottom on new content when autoScroll is enabled', async () => {
             const f = await createList();
             f.componentInstance.autoScroll = true;
             f.detectChanges();
+            const { content, scroll } = spyOnScroll(f);
 
-            const list = f.debugElement.query(By.directive(ChatListComponent))
-                .componentInstance as ChatListComponent;
-            const observer = (list as unknown as { observer?: MutationObserver }).observer;
-            expect(observer).toBeDefined();
+            appendStreamed(content);
+            await flushMicrotasks();
 
-            let disconnected = false;
-            const original = observer!.disconnect.bind(observer);
-            observer!.disconnect = () => {
-                disconnected = true;
-                original();
-            };
+            expect(scroll).toHaveBeenCalled();
+        });
+
+        it('should stop following new content after destroy', async () => {
+            const f = await createList();
+            f.componentInstance.autoScroll = true;
+            f.detectChanges();
+            const { content, scroll } = spyOnScroll(f);
 
             f.destroy();
             fixture = undefined;
-            expect(disconnected).toBe(true);
+            appendStreamed(content);
+            await flushMicrotasks();
+
+            expect(scroll).not.toHaveBeenCalled();
         });
     });
 });

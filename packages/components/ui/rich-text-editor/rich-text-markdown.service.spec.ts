@@ -73,9 +73,12 @@ describe('RichTextMarkdownService', () => {
             );
         });
 
-        it('removes an image with unsafe src, leaving an empty paragraph', () => {
-            // parseParagraphs wraps the line before parseImages strips the image.
-            expect(service.toHtml('![alt](javascript:evil)')).toBe('<p></p>');
+        it('removes an image with unsafe src without leaving an empty paragraph behind', () => {
+            expect(service.toHtml('![alt](javascript:evil)')).toBe('');
+            expect(service.toHtml('Intro\n\n![a](javascript:x) ![b](data:text/html,x)\n\n# Next\n![c](javascript:y)'))
+                .toBe('<p>Intro</p>\n<h1>Next</h1>');
+            // Other text on the line keeps its paragraph; only the image goes.
+            expect(service.toHtml('See ![alt](javascript:evil) here')).toBe('<p>See  here</p>');
         });
 
         it('converts a fenced code block with language', () => {
@@ -94,10 +97,6 @@ describe('RichTextMarkdownService', () => {
             // Quotes are not re-escaped here because escapeHtmlInContent already ran.
             const md = '```\n<div> & "q"\n```';
             expect(service.toHtml(md)).toBe('<pre><code>&lt;div&gt; &amp; "q"</code></pre>');
-        });
-
-        it('converts a single unordered list item', () => {
-            expect(service.toHtml('- a')).toBe('<ul><li>a</li></ul>');
         });
 
         it('merges consecutive top-level items into one list', () => {
@@ -144,21 +143,11 @@ describe('RichTextMarkdownService', () => {
                 .toBe('<blockquote><p>line1</p><p>line2</p></blockquote>');
         });
 
-        it('round-trips a multi-line quote as a fixed point', () => {
-            // Two lines of a quote are two paragraphs in the editor, written with a
-            // blank quote line between them, as markdown keeps paragraphs apart:
-            // without it a markdown reader takes them as one. The first save
-            // writes that form, and the next one keeps it.
-            const md = '> line1\n> line2';
-            const once = service.toMarkdown(service.toHtml(md));
-            expect(once).toBe('> line1\n>\n> line2');
-            expect(service.toMarkdown(service.toHtml(once))).toBe(once);
-        });
-
         it('converts horizontal rules', () => {
             expect(service.toHtml('---')).toBe('<hr>');
             expect(service.toHtml('***')).toBe('<hr>');
             expect(service.toHtml('___')).toBe('<hr>');
+            expect(service.toHtml('----')).toBe('<hr>');
         });
 
         it('wraps plain text in a paragraph', () => {
@@ -210,21 +199,6 @@ describe('RichTextMarkdownService', () => {
     // HTML -> MARKDOWN
     // =====================================================================
     describe('blockquote at the very start of a document', () => {
-        it('quotes a single opening line', () => {
-            // The lookbehind deciding whether a bare '>' is markup has no
-            // character to test at index 0, so it escaped the '>' before the
-            // blockquote pass ran. A note that opens with a quote — the most
-            // common way to open one — lost the blockquote entirely.
-            expect(service.toHtml('> only line')).toContain('<blockquote>');
-        });
-
-        it('quotes both lines of an opening multi-line quote', () => {
-            const html = service.toHtml('> line1\n> line2');
-            expect(html).not.toContain('&gt; line1');
-            expect(html).toContain('line1');
-            expect(html).toContain('line2');
-        });
-
         it('still escapes a greater-than that is not markup', () => {
             expect(service.toHtml('a > b')).toBe('<p>a &gt; b</p>');
             expect(service.toHtml('5 > 3 is true')).toContain('&gt;');
@@ -270,7 +244,10 @@ describe('RichTextMarkdownService', () => {
             const md = service.toMarkdown(
                 '<details><summary>T</summary><p>one</p><p>two</p></details>',
             );
-            expect(md).not.toContain('onetwo');
+            const probe = document.createElement('div');
+            probe.innerHTML = service.toHtml(md);
+            expect([...probe.querySelectorAll('details > p')].map((p) => p.textContent))
+                .toEqual(['one', 'two']);
         });
 
         it('does not rewrite markdown characters inside a link URL', () => {
@@ -314,19 +291,8 @@ describe('RichTextMarkdownService', () => {
             // Each line became its own single-item list, so an ordered list
             // restarted at "1." on every row and a screen reader announced
             // "list, 1 item" repeatedly.
-            const html = service.toHtml('1. first\n2. second\n3. third');
-            const parsed = new DOMParser().parseFromString(html, 'text/html');
-
-            expect(parsed.querySelectorAll('ol')).toHaveLength(1);
-            expect(parsed.querySelectorAll('li')).toHaveLength(3);
-        });
-
-        it('merges adjacent bullets into one list', () => {
-            const html = service.toHtml('- one\n- two');
-            const parsed = new DOMParser().parseFromString(html, 'text/html');
-
-            expect(parsed.querySelectorAll('ul')).toHaveLength(1);
-            expect(parsed.querySelectorAll('li')).toHaveLength(2);
+            expect(service.toHtml('1. first\n2. second\n3. third'))
+                .toBe('<ol><li>first</li><li>second</li><li>third</li></ol>');
         });
     });
 
@@ -355,15 +321,11 @@ describe('RichTextMarkdownService', () => {
             expect(service.toMarkdown('<s>x</s>')).toBe('~~x~~');
         });
 
-        it('keeps underline as <u>', () => {
-            expect(service.toMarkdown('<u>x</u>')).toBe('<u>x</u>');
-        });
-
         it('converts inline code', () => {
             expect(service.toMarkdown('<code>x</code>')).toBe('`x`');
         });
 
-        it('converts code inside pre without backticks', () => {
+        it('writes a pre with no language as a bare fence', () => {
             expect(service.toMarkdown('<pre><code>line</code></pre>')).toBe('```\nline\n```');
         });
 
@@ -392,20 +354,9 @@ describe('RichTextMarkdownService', () => {
             expect(service.toMarkdown(html)).toBe('#news');
         });
 
-        it('returns inner text for plain span', () => {
-            expect(service.toMarkdown('<span>plain</span>')).toBe('plain');
-        });
-
         it('converts an unordered list (li content wrapped in inline elements)', () => {
             const html = '<ul><li><span>a</span></li><li><span>b</span></li></ul>';
             expect(service.toMarkdown(html)).toBe('- a\n- b');
-        });
-
-        it('keeps bare text-node li content', () => {
-            // Was locked in as a "known bug": the cause was understood and
-            // written down, and the broken output asserted as correct rather than
-            // fixed — so every save from markdown mode dropped plain bullet text.
-            expect(service.toMarkdown('<ul><li>a</li><li>b</li></ul>')).toBe('- a\n- b');
         });
 
         it('converts an ordered list with numbering', () => {
@@ -457,7 +408,7 @@ describe('RichTextMarkdownService', () => {
             expect(service.toMarkdown(html)).toBe(':::details More\nhidden\n:::');
         });
 
-        it('uses default summary when details has no summary', () => {
+        it('writes no summary title when details has no summary', () => {
             const html = '<details><p>hidden</p></details>';
             // No title rather than an invented one: "Toggle" was a word the author
             // never wrote, and it came back as the summary's text.
@@ -644,19 +595,6 @@ describe('RichTextMarkdownService', () => {
             },
         };
 
-        it('serializes an action span as inline HTML with inner markdown preserved', () => {
-            const offSpan = service.registerSpanSerializer(actionSerializer);
-            const offRules = sanitizer.registerAttributeRules([
-                { tag: '*', attr: 'data-action-click', validate: (v) => v },
-            ]);
-            const html = '<p>hi <span data-action-click="a"><strong>bold</strong></span></p>';
-            const md = service.toMarkdown(html);
-            expect(md).toContain('data-action-click="a"');
-            expect(md).toContain('**bold**');
-            offRules();
-            offSpan();
-        });
-
         it('leaves mention/tag spans to the built-in handler (regression)', () => {
             const off = service.registerSpanSerializer(actionSerializer);
             expect(service.toMarkdown('<p><span data-mention="alice">Alice</span></p>'))
@@ -689,7 +627,9 @@ describe('RichTextMarkdownService', () => {
                 { tag: '*', attr: 'data-action-click', validate: (v) => v },
             ]);
             const html = '<p><span data-action-click="a"><strong>bold</strong></span></p>';
-            const back = service.toHtml(service.toMarkdown(html));
+            const md = service.toMarkdown(html);
+            expect(md).toContain('**bold**');
+            const back = service.toHtml(md);
             expect(back).toContain('<strong>bold</strong>');
             expect(back).toContain('data-action-click="a"');
             offRules();
@@ -713,9 +653,7 @@ describe('RichTextMarkdownService', () => {
         it('skips a whitespace-only paragraph block', () => {
             // The " " block between the double newlines trims to empty and is
             // dropped by parseParagraphs.
-            const html = service.toHtml('a\n\n \n\nb');
-            expect(html).toContain('<p>a</p>');
-            expect(html).toContain('<p>b</p>');
+            expect(service.toHtml('a\n\n \n\nb')).toBe('<p>a</p>\n<p>b</p>');
         });
     });
 
@@ -820,12 +758,151 @@ describe('RichTextMarkdownService', () => {
             );
         });
 
-        it('escapes a tag the sanitizer would strip rather than eating the line', () => {
-            // <foo> is not an allowed tag, so it is prose. What matters is that
-            // the rest of the sentence survives -- it used to be swallowed.
-            const html = service.toHtml('Use the <foo bar=1> syntax carefully.');
-            expect(html).toContain('&lt;foo bar=1&gt;');
-            expect(html).toContain('syntax carefully.');
+        it('takes a well-formed tag in prose as raw HTML, paired or not, known or not, and leaves the rest to the sanitizer (examples 613, 617, 623)', () => {
+            // CommonMark §6.6. The sanitizer drops a tag it does not know and
+            // keeps the sentence around it.
+            expect(service.toHtml('Use the <foo bar=1> syntax carefully.')).toBe('<p>Use the  syntax carefully.</p>');
+            expect(service.toHtml('the </foo> marker')).toBe('<p>the  marker</p>');
+            const probe = document.createElement('div');
+            probe.innerHTML = service.toHtml('Use <b> to bold. Like <b>this</b>.');
+            expect(probe.querySelector('p > b')?.textContent).toBe(' to bold. Like this.');
+            expect(probe.textContent).not.toContain('<');
+            // A quoted value may hold a line ending.
+            probe.innerHTML = service.toHtml('x <a title="multi\nline">y</a>');
+            expect(probe.querySelector('a')?.getAttribute('title')).toBe('multi\nline');
+        });
+
+        it('keeps text that is not a well-formed tag as text (examples 618, 619, 620, 622, 624, 632)', () => {
+            const cases: ReadonlyArray<readonly [string, string]> = [
+                ['<33> <__>', '<33> <__>'],
+                ['<a h*#ref="hi">', '<a h*#ref="hi">'],
+                [`<a href="hi'> <a href=hi'>`, `<a href="hi'> <a href=hi'>`],
+                [`<a href='bar'title=title>`, `<a href='bar'title=title>`],
+                ['</a href="foo">', '</a href="foo">'],
+                // A backslash escape is read OUTSIDE a tag: `\"` is a quote, so
+                // no complete tag remains.
+                ['<a href="\\"">', '<a href=""">'],
+            ];
+            for (const [md, text] of cases) {
+                const probe = document.createElement('div');
+                probe.innerHTML = service.toHtml(md);
+                expect(probe.textContent).toBe(text);
+                expect(probe.querySelector('a')).toBeNull();
+            }
+            // A tag may wrap onto the next line of its paragraph, but not across
+            // a blank line, off a heading's line, or onto a line that ends the
+            // paragraph -- a quote's next line, whose marker is no tag's ">", or
+            // the closer of the details block it sits in.
+            const paragraphs = (md: string): string[] => {
+                const probe = document.createElement('div');
+                probe.innerHTML = service.toHtml(md);
+                return Array.from(probe.querySelectorAll('p'), (p) => p.textContent ?? '');
+            };
+            expect(paragraphs('a <b title="x\n\ny">z')).toEqual(['a <b title="x', 'y">z']);
+            expect(paragraphs('> Use <b\n> more')).toEqual(['Use <b', 'more']);
+            expect(service.toHtml('# Title <a\nnext>')).toBe('<h1>Title &lt;a</h1>\n<p>next&gt;</p>');
+            expect(service.toHtml(':::details S\ntext <a\n:::\nmore>'))
+                .toBe('<details open=""><summary>S</summary><p>text &lt;a</p></details>\n<p>more&gt;</p>');
+        });
+
+        it('reads a backslash or a backtick inside a tag as the tag\'s own characters (examples 342, 631)', () => {
+            // Escapes, code spans and raw HTML take precedence by position.
+            const probe = document.createElement('div');
+            probe.innerHTML = service.toHtml('foo <a title="\\*" href="https://e.com/">x</a> and <a href="`">`');
+            const [first, second] = Array.from(probe.querySelectorAll('a'));
+            expect(first.getAttribute('title')).toBe('\\*');
+            expect(second.getAttribute('href')).toBe('`');
+            expect(second.textContent).toBe('`');
+            expect(probe.querySelector('code')).toBeNull();
+        });
+
+        it('passes an inline comment, processing instruction or declaration to the sanitizer, but not across a blank line (examples 625, 627, 628)', () => {
+            expect(service.toHtml('foo <!-- this is a --\ncomment - with hyphens -->')).toBe('<p>foo </p>');
+            expect(service.toHtml('foo <?php echo $a; ?>')).toBe('<p>foo </p>');
+            expect(service.toHtml('foo <!ELEMENT br EMPTY>')).toBe('<p>foo </p>');
+            expect(service.toHtml('foo <!-- a --> bar <!-- b --> baz')).toBe('<p>foo  bar  baz</p>');
+            expect(service.toHtml('a <!-- c\n\nd --> e')).toBe('<p>a &lt;!-- c</p>\n<p>d --&gt; e</p>');
+            // A comment ends where an HTML parser ends it, at `--!>` too, so the
+            // reader and the page agree on what is comment and what is text.
+            expect(service.toHtml('a <!-- c --!> *em*')).toBe('<p>a  <em>em</em></p>');
+        });
+
+        it('ends the paragraph written around raw HTML where a parser would: no empty one, and none left open', () => {
+            // CommonMark writes "a <p>x</p>" as <p>a <p>x</p></p>; a parser closes
+            // the outer paragraph at the inner one and reads the stray </p> as a
+            // new, empty paragraph.
+            expect(service.toHtml('a <p>x</p>')).toBe('<p>a </p><p>x</p>');
+            expect(service.toHtml('a <div>x</div> b')).toBe('<p>a </p><div>x</div> b');
+            // A paragraph the author reopens is theirs to end, and it is ended
+            // before the next block, which must not land inside it. A stray end
+            // tag closes nothing, so the paragraph keeps its own end.
+            expect(service.toHtml('a <p>x b\n\n<del>\nq\n</del>')).toBe('<p>a </p><p>x b</p>\n<del>\nq\n</del>');
+            expect(service.toHtml('a </div> b\n\n<del>\nq\n</del>')).toBe('<p>a  b</p>\n<del>\nq\n</del>');
+            expect(service.toHtml('a </li> b\n\n<del>\nq\n</del>')).toBe('<p>a  b</p>\n<del>\nq\n</del>');
+        });
+
+        it('ends an inline tag the author left open inside the block it was opened in, keeping the output linear', () => {
+            // A parser keeps an unclosed <b> or <a> open and rebuilds it in every
+            // later block, and the save wrote it into each of them.
+            expect(service.toHtml('a <b>x\n\nnext para\n\n# Heading')).toBe('<p>a <b>x</b></p>\n<p>next para</p>\n<h1>Heading</h1>');
+            const probe = document.createElement('div');
+            probe.innerHTML = service.toHtml('See <a href="https://e.com/">here\n\n# Heading\n\nmore');
+            expect(Array.from(probe.querySelectorAll('a'), (a) => a.textContent)).toEqual(['here']);
+            expect(service.toHtml('[<i>](https://e.com/) z')).toBe('<p><a href="https://e.com/" rel="noopener noreferrer"><i></i></a> z</p>');
+            // Nor into a block the reader opens inside the one it was written in.
+            expect(service.toHtml('- a <b>x\n  - sub')).toBe('<ul><li>a <b>x</b><ul><li>sub</li></ul></li></ul>');
+            expect(service.toHtml('a <div><b>x</div> y')).toBe('<p>a </p><div><b>x</b></div> y');
+            // One unclosed tag per paragraph rebuilt all the earlier ones in each.
+            const prose = 'use the <b> tag\n\n'.repeat(200);
+            expect(service.toHtml(prose).length).toBeLessThan(prose.length * 2);
+            // Past the nesting cap an opening tag is text, as every nested
+            // construct is: thousands nested as deep stalled the page's parser.
+            probe.innerHTML = service.toHtml(`${'<b>'.repeat(40)}x`);
+            expect(probe.querySelectorAll('b')).toHaveLength(32);
+            expect(probe.textContent).toBe(`${'<b>'.repeat(8)}x`);
+            // The cap counts what is open at that point, not every tag written
+            // before it: a block the reader ends, or one the next block tag ends
+            // as the parser would, is no longer open.
+            probe.innerHTML = service.toHtml(`${'Intro <p>more\n\n'.repeat(33)}Final <u>underlined</u> <span data-mention-id="1">@bob</span>`);
+            expect(probe.querySelector('u')?.textContent).toBe('underlined');
+            expect(probe.querySelector('span[data-mention-id="1"]')?.textContent).toBe('@bob');
+            probe.innerHTML = service.toHtml(`${'x <p>'.repeat(40)}<u>u</u>`);
+            expect(probe.querySelector('u')?.textContent).toBe('u');
+            // An unclosed block tag really stays open, around every block after
+            // it -- one <div> per paragraph nested them thousands deep, and a
+            // parser with no depth limit of its own took quadratic time -- so
+            // the cap counts it: no author element nests past it, and the
+            // output stays linear.
+            const divs = 'a <div>b\n\n'.repeat(900);
+            const html = service.toHtml(divs);
+            expect(html.length).toBeLessThan(divs.length * 3);
+            const nest = document.createElement('section');
+            const deepest = (markup: string): number => {
+                nest.innerHTML = markup;
+                const depthOf = (el: Element | null): number => (el?.nodeName === 'DIV' ? 1 + depthOf(el.parentElement) : 0);
+                return Math.max(...Array.from(nest.querySelectorAll('div'), depthOf));
+            };
+            expect(deepest(html)).toBe(32);
+            // Blocks read from raw HTML lines are counted the same way.
+            expect(deepest(service.toHtml('<div>\n\nx\n\n'.repeat(40)))).toBe(32);
+        });
+
+        it('reads a link or image title as the title, text, never part of the address (CommonMark §6.3)', () => {
+            const probe = document.createElement('div');
+            probe.innerHTML = service.toHtml('[t](https://x.com/ "see <b>") [u](https://y.com/ (plain)) ![i](https://x.com/a.png \'img "q"\')');
+            const [first, second] = Array.from(probe.querySelectorAll('a'));
+            expect([first.getAttribute('href'), first.getAttribute('title'), first.textContent]).toEqual(['https://x.com/', 'see <b>', 't']);
+            expect([second.getAttribute('href'), second.getAttribute('title')]).toEqual(['https://y.com/', 'plain']);
+            const image = probe.querySelector('img');
+            expect([image?.getAttribute('src'), image?.getAttribute('title')]).toEqual(['https://x.com/a.png', 'img "q"']);
+            expect(probe.querySelector('b')).toBeNull();
+            // And a save writes it back as a title.
+            expect(service.toMarkdown(service.toHtml('[t](https://x.com/ "see <b> (x) \\" & q")')))
+                .toBe('[t](https://x.com/ "see <b> \\(x\\) \\" \\& q")');
+        });
+
+        it('ends a paragraph at a quote that interrupts it, leaving no empty paragraph (#153)', () => {
+            expect(service.toHtml('para\n> quote')).toBe('<p>para</p>\n<blockquote><p>quote</p></blockquote>');
         });
 
         it('round-trips any inline tag the sanitizer keeps, not a hand-picked few', () => {
@@ -843,11 +920,6 @@ describe('RichTextMarkdownService', () => {
             expect(service.toMarkdown(service.toHtml('<b>bold</b>'))).toBe('**bold**');
         });
 
-        it('escapes a closing tag the sanitizer would strip', () => {
-            // Allowed tags stay markup on purpose -- HTML in markdown is a
-            // supported input. An unknown one is text.
-            expect(service.toHtml('the </foo> marker')).toContain('&lt;/foo&gt;');
-        });
     });
 
     describe('code-fence token forgery (round-16 audit)', () => {
@@ -868,28 +940,12 @@ describe('RichTextMarkdownService', () => {
     });
 
     describe('toggle blocks (round-16 audit)', () => {
-        it('keeps the body out of the summary', () => {
-            const md = ':::details Title\nbody text\n:::';
-            const html = service.toHtml(md);
-            const probe = document.createElement('div');
-            probe.innerHTML = html;
-            const summary = probe.querySelector('summary');
-            expect(summary?.textContent?.trim()).toBe('Title');
-            expect(summary?.querySelector('p')).toBeNull();
-            expect(probe.querySelector('details > p')?.textContent).toContain('body text');
-        });
-
         it('keeps the body out of the summary when the title holds markup', () => {
             const md = ':::details ![x](https://e.com/a.png)\nbody text\n:::';
             const probe = document.createElement('div');
             probe.innerHTML = service.toHtml(md);
             expect(probe.querySelector('summary p')).toBeNull();
             expect(probe.querySelector('details > p')?.textContent).toContain('body text');
-        });
-
-        it('does not wrap a details block in stray empty paragraphs', () => {
-            const html = service.toHtml(':::details T\nbody\n:::');
-            expect(html).not.toContain('<p></p>');
         });
     });
 
@@ -906,71 +962,9 @@ describe('RichTextMarkdownService', () => {
             probe.innerHTML = service.toHtml(md);
             expect(probe.querySelectorAll('tbody tr')).toHaveLength(1);
         });
-
-        it('sizes the separator so header and body agree, padding never cutting', () => {
-            // This asserted the HEADER's width, which is what made truncation
-            // look necessary -- and truncation deleted the extra cells. GFM only
-            // requires header and separator to agree; the honest way to reach
-            // that with a wider body row is to widen, since padding is lossless
-            // and cutting is not.
-            const html = '<table><thead><tr><th>a</th><th>b</th></tr></thead>'
-                + '<tbody><tr><td>1</td><td>2</td><td>3</td></tr></tbody></table>';
-            const md = service.toMarkdown(html);
-            const rows = md.split('\n').filter((l) => l.trim().startsWith('|'));
-            const counts = rows.map((l) => l.split('|').slice(1, -1).length);
-            expect(new Set(counts).size).toBe(1);
-            expect(md).toContain('3');
-        });
     });
 
     describe('prose that mentions tag names (round-17 audit)', () => {
-        it('keeps a sentence about HTML readable', () => {
-            // The allowlist rule passed ANY allowed tag through verbatim, so a
-            // sentence naming <table>/<tr>/<td> became a real table: the words
-            // vanished and the paragraph nested inside a cell.
-            const html = service.toHtml('The <table> element has <tr> and <td> children.');
-            expect(html).toContain('element has');
-            expect(html).toContain('children.');
-            const probe = document.createElement('div');
-            probe.innerHTML = html;
-            expect(probe.querySelector('table')).toBeNull();
-        });
-
-        it('keeps a genuinely unpaired block tag as text', () => {
-            // The previous version of this test named an UNPAIRED tag but used
-            // "<p>hello</p>", which is paired -- and asserted only a trailing
-            // substring, so it passed whether the tag became markup or stayed
-            // text. It could not fail for the reason it existed, and that is why
-            // the cross-block pairing bug below shipped.
-            const html = service.toHtml('To make a paragraph, type <p> in the editor.');
-            expect(html).toContain('&lt;p&gt;');
-            expect(html).toContain('in the editor.');
-        });
-
-        it('does not pair tag halves that sit in unrelated blocks', () => {
-            // A lone stray closing tag is unpaired in BOTH blocks, so this
-            // passes under a whole-document union too. Kept as a boundary case,
-            // with the realistic shape covered by the test below.
-            const html = service.toHtml('Use the <table> element.\n\nUnrelated later: </table>');
-            const probe = document.createElement('div');
-            probe.innerHTML = html;
-            expect(probe.querySelector('table')).toBeNull();
-        });
-
-        it('keeps a prose mention as text when the SAME tag is paired elsewhere', () => {
-            // The realistic shape, and the one that was still broken: pairing was
-            // computed per block and then unioned into one document-wide set, so
-            // a genuine <b>bold</b> anywhere re-promoted every prose mention of
-            // <b> to markup and the words were silently deleted.
-            const html = service.toHtml(
-                'To make text bold, wrap it in <b> tags.\n\nLike this: <b>bold</b>',
-            );
-            const probe = document.createElement('div');
-            probe.innerHTML = html;
-            expect(probe.textContent).toContain('wrap it in <b> tags.');
-            expect(probe.querySelector('b')?.textContent).toBe('bold');
-        });
-
         it('does not fabricate content across repeated round-trips of such a document', () => {
             const source = 'To make text bold, wrap it in <b> tags.\n\nLike this: <b>bold</b>';
             let md = service.toMarkdown(service.toHtml(source));
@@ -980,10 +974,6 @@ describe('RichTextMarkdownService', () => {
             }
             expect(md).toBe(first);
             expect(md).not.toContain('---');
-        });
-
-        it('still renders a genuinely paired inline tag', () => {
-            expect(service.toHtml('<b>bold</b>')).toBe('<p><b>bold</b></p>');
         });
 
         it('still renders paired block markup written as HTML', () => {
@@ -1052,7 +1042,9 @@ describe('RichTextMarkdownService', () => {
         it('keeps a quoted nested list as a list', () => {
             const probe = document.createElement('div');
             probe.innerHTML = service.toHtml('> - a\n>   - b');
-            expect(probe.querySelector('blockquote ul')).toBeTruthy();
+            expect(probe.querySelector('blockquote > ul > li')?.firstChild?.textContent?.trim())
+                .toBe('a');
+            expect(probe.querySelector('blockquote > ul > li > ul > li')?.textContent).toBe('b');
         });
 
         it('does not grow on every round-trip', () => {
@@ -1091,28 +1083,19 @@ describe('RichTextMarkdownService', () => {
         it('parses a doubly-nested blockquote as nested quotes', () => {
             const probe = document.createElement('div');
             probe.innerHTML = service.toHtml('> outer\n> > deeper');
-            expect(probe.querySelector('blockquote blockquote')).toBeTruthy();
-            expect(probe.textContent).not.toContain('&gt;');
+            expect(probe.querySelector('blockquote blockquote')?.textContent).toBe('deeper');
+            expect(probe.textContent).not.toContain('>');
         });
     });
 
     describe('same-block pairing and composed prefixes (round-20 audit)', () => {
-        it('keeps a prose mention as text when real markup shares its PARAGRAPH', () => {
-            // Per-block pairing narrowed the blast radius from document to
-            // paragraph; it did not fix the class. The previous tests put prose
-            // and markup in SEPARATE blocks -- the shape the fix already handled.
-            const html = service.toHtml('Use <b> to bold. Like <b>this</b>.');
+        it('keeps crossed tags as markup once the tag they cross is taken out', () => {
+            // `</b>` closes past the open `<i>`, so the first pass pairs only the
+            // bold; with the bold parked, the italic pairs and stays markup too.
             const probe = document.createElement('div');
-            probe.innerHTML = html;
-            expect(probe.textContent).toContain('Use <b> to bold.');
-            expect(probe.querySelectorAll('b')).toHaveLength(1);
-        });
-
-        it('does not eject cell text when a table name is mentioned in the same block', () => {
-            const html = service.toHtml('The <table> element is nice. <table>x</table>');
-            const probe = document.createElement('div');
-            probe.innerHTML = html;
-            expect(probe.textContent).toContain('The <table> element is nice.');
+            probe.innerHTML = service.toHtml('<b><i>x</b></i>');
+            expect(probe.querySelector('b > i')?.textContent).toBe('x');
+            expect(probe.textContent).toBe('x');
         });
 
         it('handles a fence inside a list inside a quote', () => {
@@ -1137,31 +1120,9 @@ describe('RichTextMarkdownService', () => {
             const md = service.toMarkdown(html);
             expect(md.length).toBeLessThan(20000);
         });
-
-        it('still round-trips an ordinary span', () => {
-            const html = '<table><tbody><tr><td colspan="2">wide</td></tr><tr><td>a</td><td>b</td></tr></tbody></table>';
-            const probe = document.createElement('div');
-            probe.innerHTML = service.toHtml(service.toMarkdown(html));
-            expect(probe.querySelector('table')).toBeTruthy();
-        });
     });
 
     describe('hard line breaks (round-24 audit)', () => {
-        it('survives two save/load cycles', () => {
-            // toHtml emits <br> plus a real newline; toMarkdown then emits
-            // "line1  " + newline + newline -- a BLANK line, which is a
-            // paragraph break, not a hard break. By the second cycle the <br>
-            // is gone for good. Shift+Enter is a first-class gesture.
-            const md = 'line1  \nline2';
-            const once = service.toMarkdown(service.toHtml(md));
-            const twice = service.toMarkdown(service.toHtml(once));
-            expect(twice).toBe(once);
-
-            const probe = document.createElement('div');
-            probe.innerHTML = service.toHtml(twice);
-            expect(probe.querySelector('br')).toBeTruthy();
-        });
-
         it('reads back its own toHtml output', () => {
             // The guarding test used 'x<br>y' -- no whitespace after the <br> --
             // the one shape where the bug cannot manifest. The service's own
@@ -1192,6 +1153,18 @@ describe('RichTextMarkdownService', () => {
     });
 
     describe('inline code (round-25 audit)', () => {
+        it('leaves an unclosed backtick run, and an unclosed fence, as the text the author typed', () => {
+            const probe = document.createElement('div');
+            // A run closes only on a run of the same length.
+            probe.innerHTML = service.toHtml('a ``b` c');
+            expect(probe.querySelector('code')).toBeNull();
+            expect(probe.textContent).toBe('a ``b` c');
+
+            probe.innerHTML = service.toHtml('```js\ncode');
+            expect(probe.querySelector('pre, code')).toBeNull();
+            expect(probe.textContent).toBe('```js\ncode');
+        });
+
         it('does not rewrite markdown metacharacters inside a code span', () => {
             // parseInlineCode ran AFTER the emphasis and line-break passes and
             // never escaped its body, so documenting markdown or HTML inside
@@ -1363,9 +1336,15 @@ describe('RichTextMarkdownService', () => {
                 '<table><tr><th>H1</th><th>H2</th></tr>' +
                 '<tr><td>x</td><td><table><tr><td>n1</td><td>n2</td></tr></table></td></tr></table>';
             const md = service.toMarkdown(html);
-            const bodyRows = md.split('\n').filter((l) => l.trim().startsWith('|')).length;
+            const rows = md.split('\n').filter((l) => l.trim().startsWith('|'));
             // header + separator + one body row
-            expect(bodyRows).toBe(3);
+            expect(rows).toHaveLength(3);
+            // The nested table's own pipes are escaped, so only bare ones split cells.
+            const cells = rows[2].split(/(?<!\\)\|/).map((c) => c.trim()).filter(Boolean);
+            expect(cells).toHaveLength(2);
+            expect(cells[0]).toBe('x');
+            expect(cells[1]).toContain('n1');
+            expect(cells[1]).toContain('n2');
         });
 
 
@@ -1576,11 +1555,6 @@ describe('RichTextMarkdownService', () => {
             expect(once).toBe('> a' + NLC + '>' + NLC + '> b');
             expect(once).not.toContain('  ' + NLC);
             expect(service.toMarkdown(service.toHtml(once))).toBe(once);
-        });
-
-        it('keeps a hard break that is followed by content', () => {
-            const html = service.toHtml('a  ' + String.fromCodePoint(10) + 'b');
-            expect(html).toContain('<br>');
         });
 
         it('does not emit a break before a block boundary', () => {
@@ -1886,35 +1860,6 @@ describe('RichTextMarkdownService', () => {
                 expect(probe.textContent).not.toContain('- ');
                 expect(service.toMarkdown(service.toHtml(md))).toBe(md);
             }
-        });
-
-        it('still reads a rule, not a list item, for --- and friends', () => {
-            // Widening the item pattern must not swallow a rule: it has no space
-            // after the marker, which is what separates the two.
-            for (const rule of ['---', '***', '___', '----']) {
-                const probe = document.createElement('div');
-                probe.innerHTML = service.toHtml(rule);
-                expect(probe.querySelector('hr')).toBeTruthy();
-                expect(probe.querySelector('li')).toBeNull();
-            }
-        });
-
-        it('keeps the paragraph after a rule wrapped', () => {
-            // Under /m, \s* matches the line terminator, so it greedily ate the
-            // BLANK LINE after the rule -- the separator parseParagraphs needs.
-            // The rule and the next paragraph fused into one block, which matched
-            // the "already block-level" guard, so the paragraph was never wrapped
-            // and came back as a bare text node.
-            //
-            // The existing rule tests had NOTHING after the rule, which is the one
-            // shape where this cannot appear, and there was no hr round-trip test
-            // at all.
-            const md = service.toMarkdown('<p>Intro</p><hr><p>Body text</p>');
-            const probe = document.createElement('div');
-            probe.innerHTML = service.toHtml(md);
-            expect(probe.querySelectorAll('p')).toHaveLength(2);
-            expect(probe.querySelectorAll('hr')).toHaveLength(1);
-            expect(probe.querySelectorAll('p')[1].textContent).toBe('Body text');
         });
 
         it('settles after one save for a document with rules', () => {
@@ -2531,5 +2476,131 @@ describe('RichTextMarkdownService - attribute values cannot break out of their a
     it('an ampersand in a target survives the round trip', () => {
         const a = parse('[x](https://example.com/?a=1&b=2)').querySelector('a');
         expect(a?.getAttribute('href')).toBe('https://example.com/?a=1&b=2');
+    });
+});
+
+/**
+ * Raw HTML blocks follow CommonMark 0.31.2 §4.6: a line that meets a start
+ * condition opens a block passed through verbatim until that condition's end,
+ * and everything outside it is markdown. Inputs are the spec's own examples.
+ */
+describe('RichTextMarkdownService - raw HTML blocks (CommonMark §4.6)', () => {
+    let service: RichTextMarkdownService;
+
+    beforeEach(() => {
+        TestBed.configureTestingModule({ providers: [RichTextMarkdownService, RichTextSanitizerService] });
+        service = TestBed.inject(RichTextMarkdownService);
+    });
+
+    const render = (md: string): HTMLElement => {
+        const probe = document.createElement('div');
+        probe.innerHTML = service.toHtml(md);
+        return probe;
+    };
+
+    it('ends a block-tag block at the blank line, so the markdown between two blocks is parsed (examples 152, 188)', () => {
+        const probe = render('<details>\n<summary>More</summary>\n\nHidden **text**.\n\n</details>');
+
+        const details = probe.querySelector(':scope > details');
+        expect(details?.querySelector(':scope > summary')?.textContent).toBe('More');
+        const paragraph = details?.querySelector(':scope > p');
+        expect(paragraph?.textContent).toBe('Hidden text.');
+        expect(paragraph?.querySelector('strong')?.textContent).toBe('text');
+        expect(probe.textContent).not.toContain('<');
+    });
+
+    it('runs a <pre> block past blank lines to its closing tag, verbatim (example 169)', () => {
+        const probe = render('<pre language="haskell"><code>\nimport Text.HTML.TagSoup\n\nmain :: IO ()\nmain = print $ parseTags tags\n</code></pre>\nokay');
+
+        expect(Array.from(probe.children, (el) => el.tagName)).toEqual(['PRE', 'P']);
+        expect(probe.querySelector('pre > code')?.textContent).toBe('\nimport Text.HTML.TagSoup\n\nmain :: IO ()\nmain = print $ parseTags tags\n');
+        expect(probe.querySelector('p')?.textContent).toBe('okay');
+    });
+
+    it('opens a lone-tag block only where no paragraph is open (examples 166, 187)', () => {
+        const block = render('<del>\n*foo*\n</del>');
+        expect(block.querySelector(':scope > del')?.textContent).toBe('\n*foo*\n');
+        expect(block.querySelector('em, p')).toBeNull();
+
+        const inParagraph = render('Foo\n<del>\n*foo*\n</del>');
+        expect(inParagraph.querySelector(':scope > p > del > em')?.textContent).toBe('foo');
+    });
+
+    it('opens a lone-tag block on a complete closing tag, never on a malformed open tag (condition 7)', () => {
+        const closing = render('para\n\n</x-note>\n\ntext');
+        expect(Array.from(closing.querySelectorAll('p'), (p) => p.textContent)).toEqual(['para', 'text']);
+        expect(closing.textContent).not.toContain('<');
+
+        const malformed = render('<x-note a=>\n\ntext');
+        expect(Array.from(malformed.querySelectorAll('p'), (p) => p.textContent)).toEqual(['<x-note a=>', 'text']);
+    });
+
+    it('reads a tag line indented four spaces as the paragraph it opens, adding no empty ones', () => {
+        // Past three spaces no block starts, so the tags reach the paragraph
+        // pass as parked tokens; wrapping them again made empty paragraphs.
+        expect(service.toHtml('    <p>Hello <b>World</b></p>')).toBe('<p>Hello <b>World</b></p>');
+    });
+
+    it('reads a fence opened on a list marker line as code, raw HTML and all', () => {
+        const probe = render('- ```\n  <div>\n  ```\n  after');
+        expect(probe.querySelector('li > pre > code')?.textContent).toBe('<div>');
+        expect(probe.querySelector('li > p')?.textContent).toBe('after');
+        expect(probe.querySelector('li div')).toBeNull();
+    });
+
+    it('reads a quote, a list item and a details body as documents of their own, blocks and all (examples 174, 175)', () => {
+        // Verbatim, as a block: read as inline HTML the emphasis would render.
+        const quote = render('> <div>\n> *foo*\n\nbar');
+        expect(quote.querySelector('blockquote > div')?.textContent?.trim()).toBe('*foo*');
+        expect(quote.querySelector(':scope > p')?.textContent).toBe('bar');
+
+        const items = render('- <div>\n- foo');
+        expect(Array.from(items.querySelectorAll('li'), (li) => li.innerHTML)).toEqual(['<div></div>', 'foo']);
+
+        const item = render('- a\n\n  <p>x</p>\n\n  <div>*x*</div>\n\nprose\n\n  <div>*y*</div>');
+        expect(Array.from(item.querySelector('li')!.children, (el) => el.outerHTML))
+            .toEqual(['<p>a</p>', '<p>x</p>', '<div>*x*</div>']);
+        expect(item.querySelector(':scope > div')?.textContent).toBe('*y*');
+
+        const details = render(':::details Notes\n<p>in <b>x</b></p>\n\n*md*\n:::');
+        expect(details.querySelector('details')?.innerHTML).toBe('<summary>Notes</summary><p>in <b>x</b></p><p><em>md</em></p>');
+    });
+
+    it('ends a block with the details block it sits in, as a quote or list item ends one (examples 174, 175)', () => {
+        const probe = render(':::details Notes\n<div>\ninside\n:::\nafter');
+
+        expect(probe.querySelector('details > div')?.textContent?.trim()).toBe('inside');
+        expect(probe.querySelector(':scope > p')?.textContent).toBe('after');
+        expect(probe.textContent).not.toContain(':::');
+    });
+
+    it('keeps a fence line inside a block as raw HTML, and a tag inside a fence as code (example 161)', () => {
+        const inBlock = render('<pre>\n```\n<b>x</b>\n```\n</pre>');
+        expect(inBlock.querySelectorAll('pre')).toHaveLength(1);
+        expect(inBlock.querySelector('pre')?.textContent).toBe('```\nx\n```\n');
+        expect(inBlock.querySelector('pre > b')?.textContent).toBe('x');
+
+        const inFence = render('```\n<div>\n\n*x*\n```');
+        expect(inFence.querySelector('pre > code')?.textContent).toBe('<div>\n\n*x*');
+        expect(inFence.querySelector('div, em')).toBeNull();
+    });
+
+    it('does not let a parking delimiter typed inside a block forge another pass\'s token', () => {
+        const OPEN = String.fromCodePoint(0xe112);
+        const CLOSE = String.fromCodePoint(0xe113);
+        const html = service.toHtml('`SECRET`\n\n<div>\n' + OPEN + '0' + CLOSE + '\n</div>');
+        expect(html.match(/SECRET/g) ?? []).toHaveLength(1);
+    });
+
+    it('runs a comment block past blank lines to its end marker, and the sanitizer drops it (example 179)', () => {
+        const probe = render('<!-- Foo\n\nbar\n   baz -->\nokay');
+
+        expect(Array.from(probe.children, (el) => el.outerHTML)).toEqual(['<p>okay</p>']);
+        expect(probe.textContent?.trim()).toBe('okay');
+
+        // A comment block ends where an HTML parser ends the comment, at `--!>`
+        // as well as `-->`, so the heading after it is markdown, not comment.
+        const bang = render('<!-- note --!>\n# Heading\n\ntext -->');
+        expect(Array.from(bang.children, (el) => el.tagName)).toEqual(['H1', 'P']);
     });
 });

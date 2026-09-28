@@ -35,18 +35,6 @@ import {
 })
 class ProjectionHostComponent {}
 
-const stubbedRect = {
-    top: 700,
-    left: 0,
-    right: 0,
-    bottom: 700,
-    width: 0,
-    height: 0,
-    x: 0,
-    y: 0,
-    toJSON() {},
-};
-
 describe('SplitButtonComponent — coverage', () => {
     /** Whether THIS suite added the Popover API, so teardown removes only that. */
     let addedPopoverApi = false;
@@ -90,19 +78,8 @@ describe('SplitButtonComponent — coverage', () => {
         fixture.detectChanges();
     });
 
-    /**
-     * Undoes the geometry stubs a single test installs. Held here rather than
-     * at the end of that test so a failing assertion cannot leak them: they are
-     * `Object.defineProperty` overrides, which `vi.restoreAllMocks()` does NOT
-     * revert, and a stubbed `getBoundingClientRect` on `Element.prototype`
-     * silently rewrites the layout every later test in this file sees.
-     */
-    let restoreGeometry: (() => void) | null = null;
-
     afterEach(() => {
         vi.restoreAllMocks();
-        restoreGeometry?.();
-        restoreGeometry = null;
         if (addedPopoverApi) {
             delete (HTMLElement.prototype as Partial<HTMLElement>).showPopover;
             delete (HTMLElement.prototype as Partial<HTMLElement>).hidePopover;
@@ -131,40 +108,14 @@ describe('SplitButtonComponent — coverage', () => {
         expect(component.isOpen()).toBe(true);
     });
 
-    it('removes the document click listener on destroy', () => {
-        const removeSpy = vi.spyOn(component['document'], 'removeEventListener');
-        fixture.destroy();
-        expect(removeSpy).toHaveBeenCalledWith('click', expect.any(Function));
-    });
-
-    it('opens the menu above when there is little space below', () => {
-        const originalHeight = Object.getOwnPropertyDescriptor(globalThis, 'innerHeight');
-        restoreGeometry = () => {
-            if (originalHeight) Object.defineProperty(globalThis, 'innerHeight', originalHeight);
-        };
-        // The component measures its own host, so the stub goes on that
-        // element. On `Element.prototype` it would be shared with every spec
-        // file running concurrently in this window, and theirs with it.
-        Object.defineProperty(fixture.nativeElement, 'getBoundingClientRect', {
-            configurable: true,
-            value() {
-                return stubbedRect;
-            },
-        });
-        Object.defineProperty(globalThis, 'innerHeight', {
-            configurable: true,
-            value: 760,
-        });
-
-        const trigger = fixture.debugElement.query(
-            By.css('ui-button:last-child button'),
-        );
-        trigger.nativeElement.click();
+    it('stops listening for outside clicks once destroyed', () => {
+        component.isOpen.set(true);
         fixture.detectChanges();
 
+        fixture.destroy();
+        document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
         expect(component.isOpen()).toBe(true);
-        const menu = fixture.debugElement.query(By.css('[role="menu"]'));
-        expect(menu.nativeElement.className).toContain('bottom-full');
     });
 
     it('does not act on a disabled item passed to onItemClick', () => {

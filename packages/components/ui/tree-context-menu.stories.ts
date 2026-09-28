@@ -14,12 +14,11 @@ import { TreeContextMenuDirective, TreeContextMenuEvent } from './tree-context-m
  * Shape of the node data the directive extracts from the DOM and hands to both
  * `nodeContextMenu` and `ContextMenuComponent.data()`.
  *
- * Note: `key` is read from the tree item's `data-key` attribute. The current
- * `ui-tree-item` template does not render that attribute, so `key` is
- * `undefined` in practice — identify nodes by `label` or by `element`.
+ * `key` is the hit item's `value` (rendered as its `data-key`); on a
+ * data-driven tree that is the node's `key`.
  */
 interface TreeContextNode {
-    key?: string;
+    key: string;
     label: string;
     expanded: boolean;
     selected: boolean;
@@ -181,7 +180,7 @@ export const Playground: Story = {
                         @if (log.last) {
                             <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
                                 <dt class="text-muted-foreground">label</dt><dd class="truncate">{{ nodeName(log.last) }}</dd>
-                                <dt class="text-muted-foreground">key</dt><dd>{{ log.last.key ?? 'undefined' }}</dd>
+                                <dt class="text-muted-foreground">key</dt><dd class="truncate">{{ log.last.key }}</dd>
                                 <dt class="text-muted-foreground">expanded</dt><dd>{{ log.last.expanded }}</dd>
                                 <dt class="text-muted-foreground">selected</dt><dd>{{ log.last.selected }}</dd>
                             </dl>
@@ -283,7 +282,7 @@ export const EventPayload: Story = {
                     <p class="font-medium mb-2 text-sm">TreeContextMenuEvent</p>
                     @if (state.node) {
                         <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-                            <dt class="text-muted-foreground">node.key</dt><dd>{{ state.node.key ?? 'undefined (tree-item renders no data-key)' }}</dd>
+                            <dt class="text-muted-foreground">node.key</dt><dd class="truncate">{{ state.node.key }}</dd>
                             <dt class="text-muted-foreground">node.label</dt><dd class="truncate">{{ nodeName(state.node) }}</dd>
                             <dt class="text-muted-foreground">node.expanded</dt><dd>{{ state.node.expanded }}</dd>
                             <dt class="text-muted-foreground">node.selected</dt><dd>{{ state.node.selected }}</dd>
@@ -388,7 +387,7 @@ const DATA_NODES: TreeNode[] = [
 /** The directive works the same on a data-driven `[data]` tree. */
 export const DataDrivenTree: Story = {
     render: () => {
-        const picked = { label: '' };
+        const picked = { label: '', key: '' };
         return {
         props: {
             nodes: DATA_NODES,
@@ -396,6 +395,7 @@ export const DataDrivenTree: Story = {
             picked,
             onEvent: (event: TreeContextMenuEvent<TreeContextNode>): void => {
                 picked.label = nodeName(event.node);
+                picked.key = event.node.key;
             },
         },
         template: `
@@ -415,7 +415,7 @@ export const DataDrivenTree: Story = {
                         </ui-context-menu-content>
                     </ui-context-menu>
                 </div>
-                <p class="text-xs text-muted-foreground">Hit node: {{ picked.label || '—' }}</p>
+                <p class="text-xs text-muted-foreground">Hit node: {{ picked.label || '—' }}@if (picked.key) { (key: {{ picked.key }}) }</p>
             </div>
         `,
         };

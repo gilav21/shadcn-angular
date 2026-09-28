@@ -13,7 +13,8 @@ import {
     type ComponentRef,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
-import { firstValueFrom, from, type Observable, type Subscription } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { first, firstValueFrom, type Observable, type Subscription } from 'rxjs';
 import { addonSetting, type RichTextAddonSetting, type RichTextAddonState,
     RichTextEditorAddonHost,
     RichTextSanitizerService,
@@ -71,7 +72,7 @@ let autoUploadStyleUsers = 0;
 
 interface AutoUploadPending {
     readonly subscription: Subscription;
-    readonly dataUrl: string;
+    readonly img: HTMLImageElement;
 }
 
 /**
@@ -151,6 +152,7 @@ export class RichTextImagesDirective {
     private readonly injector = inject(Injector);
     private readonly vcr = inject(ViewContainerRef);
     private readonly document = inject(DOCUMENT);
+    private readonly destroyRef = inject(DestroyRef);
 
     /** Locale for the addon UI: a registry key (`'en'`/`'he'`/…) or a full dictionary. */
     readonly uiRteImagesLocale = input<LocaleInput<RichTextImagesLocale>>();
@@ -197,8 +199,15 @@ export class RichTextImagesDirective {
         signal<Map<string, { dataUrl: string; imgElement: HTMLImageElement }>>(new Map());
 
     private readonly autoUploadMap = new Map<string, AutoUploadPending>();
+    /**
+     * The src this directive last wrote to each image (placeholder or upload
+     * result). An image whose src is still that value is never auto-uploaded.
+     * The observer sees the directive's own edits too -- its records arrive as a
+     * microtask, after any flag set around the edit is cleared -- so eligibility,
+     * not timing, keeps a placeholder or a data-URL result from being sent.
+     */
+    private readonly writtenSources = new WeakMap<HTMLImageElement, string>();
     private autoUploadCounter = 0;
-    private autoUploadMutating = false;
     private autoUploadObserver: MutationObserver | null = null;
 
     private overlayRef?: ComponentRef<RichTextImagesOverlayComponent>;
@@ -206,10 +215,11 @@ export class RichTextImagesDirective {
      * Whether this directive has been torn down.
      *
      * An upload is a network round-trip the user can easily outlive — routing
-     * away, closing a dialog, toggling a tab. The auto-upload path already
-     * unsubscribes on destroy, but the manual insert/drop/paste path awaited its
-     * promise with nothing watching, then committed into a dead editor and
-     * emitted outputs whose owning directive no longer exists (NG0953).
+     * away, closing a dialog, toggling a tab. Teardown cancels every in-flight
+     * upload, which settles the manual insert/drop/paste promise; this flag
+     * stops that settled promise, and a file read still in progress, from
+     * committing into a dead editor or emitting outputs whose owning directive
+     * no longer exists (NG0953).
      */
     private destroyed = false;
 
@@ -255,7 +265,7 @@ export class RichTextImagesDirective {
         this.registerClickProbe();
         this.registerAutoUpload();
         this.mountOverlay();
-        inject(DestroyRef).onDestroy(() => this.teardown());
+        this.destroyRef.onDestroy(() => this.teardown());
     }
 
 
@@ -408,7 +418,7 @@ export class RichTextImagesDirective {
         this.uploading.set(true);
         this.imageUploadStart.emit(file);
         try {
-            const uploadedUrl = await firstValueFrom(uploader(file));
+            const uploadedUrl = await firstValueFrom(uploader(file).pipe(takeUntilDestroyed(this.destroyRef)));
             if (this.destroyed) return;
             const safeSrc = this.sanitizer.sanitizeImageSrc(uploadedUrl);
             if (!safeSrc) {
@@ -468,7 +478,7 @@ export class RichTextImagesDirective {
             onCleanup(() => this.releaseAutoUploadStyles());
             const editor = this.host.contentRoot;
             const observer = new MutationObserver(() => {
-                if (this.autoUploadMutating) return;
+                this.cancelDetachedUploads();
                 this.scanForBase64Images();
             });
             observer.observe(editor, {
@@ -516,11 +526,42 @@ export class RichTextImagesDirective {
         const editor = this.host.contentRoot;
         if (!editor) return;
         for (const img of Array.from(editor.querySelectorAll('img'))) {
-            const src = img.getAttribute('src') ?? '';
-            if (src.startsWith('data:image/') && img.dataset['autoUploadId'] === undefined) {
-                this.processAutoUploadImage(img);
-            }
+            if (this.isAutoUploadCandidate(img)) this.processAutoUploadImage(img);
         }
+    }
+
+    /**
+     * A base64 image that is not already uploading and whose src this directive
+     * did not write. The placeholder pixel is also refused by value, because
+     * undo or setContent restore a rejected image as a new element that
+     * {@link writtenSources} has never seen.
+     */
+    private isAutoUploadCandidate(img: HTMLImageElement): boolean {
+        const src = img.getAttribute('src') ?? '';
+        return src.startsWith('data:image/')
+            && src !== TRANSPARENT_PIXEL
+            && this.writtenSources.get(img) !== src
+            && img.dataset['autoUploadId'] === undefined;
+    }
+
+    /**
+     * Cancel every upload whose image has left the editor -- deleted, inside a
+     * removed subtree, or replaced by undo/setContent. Checked against the
+     * document when the records arrive, so an image moved within the editor
+     * (removed and re-added in one batch) keeps its upload.
+     */
+    private cancelDetachedUploads(): void {
+        const root = this.host.contentRoot;
+        for (const [uploadId, pending] of this.autoUploadMap) {
+            if (root.contains(pending.img)) continue;
+            pending.subscription.unsubscribe();
+            this.autoUploadMap.delete(uploadId);
+        }
+    }
+
+    private writeSrc(img: HTMLImageElement, src: string): void {
+        img.setAttribute('src', src);
+        this.writtenSources.set(img, src);
     }
 
     private processAutoUploadImage(img: HTMLImageElement): void {
@@ -540,21 +581,17 @@ export class RichTextImagesDirective {
     private markImageAsUploading(img: HTMLImageElement, uploadId: string): void {
         const width = img.naturalWidth || img.width || Number.parseInt(img.getAttribute('width') ?? '0', 10) || 200;
         const height = img.naturalHeight || img.height || Number.parseInt(img.getAttribute('height') ?? '0', 10) || 150;
-        this.autoUploadMutating = true;
         img.dataset['autoUploadId'] = uploadId;
         img.dataset['autoUploadStatus'] = 'uploading';
         if (!img.getAttribute('width')) img.setAttribute('width', String(width));
         if (!img.getAttribute('height')) img.setAttribute('height', String(height));
-        img.setAttribute('src', TRANSPARENT_PIXEL);
-        this.autoUploadMutating = false;
+        this.writeSrc(img, TRANSPARENT_PIXEL);
     }
 
     private revertInvalidUploadImage(img: HTMLImageElement): void {
-        this.autoUploadMutating = true;
         delete img.dataset['autoUploadId'];
         delete img.dataset['autoUploadStatus'];
-        img.setAttribute('src', TRANSPARENT_PIXEL);
-        this.autoUploadMutating = false;
+        this.writeSrc(img, TRANSPARENT_PIXEL);
         this.host.commitContent();
         this.autoImageUploadError.emit(this.i18n.t().uploadNotImage);
     }
@@ -567,14 +604,16 @@ export class RichTextImagesDirective {
     ): void {
         const ext = (/data:image\/([\w+]+)/.exec(dataUrl)?.[1] ?? 'png').replace('+xml', '');
         const file = dataUrlToFile(dataUrl, `pasted-image-${uploadId}.${ext}`);
-        const subscription = from(firstValueFrom(uploader(file))).subscribe({
+        // Subscribed directly, not through a promise: unsubscribing must reach the
+        // uploader so teardown or removing the image cancels the request itself.
+        const subscription = uploader(file).pipe(first()).subscribe({
             next: (uploadedUrl) => this.onAutoUploadSuccess(img, uploadId, dataUrl, uploadedUrl),
             error: (err: unknown) => {
                 const message = err instanceof Error ? err.message : 'Auto image upload failed.';
                 this.handleAutoUploadError(uploadId, img, dataUrl, message);
             },
         });
-        this.autoUploadMap.set(uploadId, { subscription, dataUrl });
+        this.autoUploadMap.set(uploadId, { subscription, img });
     }
 
     private onAutoUploadSuccess(img: HTMLImageElement, uploadId: string, dataUrl: string, uploadedUrl: string): void {
@@ -591,11 +630,9 @@ export class RichTextImagesDirective {
             this.handleAutoUploadError(uploadId, img, dataUrl, 'Uploaded image URL is not allowed by sanitizer policy.');
             return;
         }
-        this.autoUploadMutating = true;
-        img.setAttribute('src', safeSrc);
+        this.writeSrc(img, safeSrc);
         delete img.dataset['autoUploadId'];
         delete img.dataset['autoUploadStatus'];
-        this.autoUploadMutating = false;
         this.autoUploadMap.delete(uploadId);
         this.host.mutateContent(() => { /* src swapped live; record one entry */ });
         this.autoImageUploadComplete.emit(safeSrc);
@@ -609,9 +646,7 @@ export class RichTextImagesDirective {
             this.autoImageUploadError.emit(message);
             return;
         }
-        this.autoUploadMutating = true;
         img.dataset['autoUploadStatus'] = 'error';
-        this.autoUploadMutating = false;
         this.autoUploadMap.delete(uploadId);
         const errors = new Map(this.autoUploadErrors());
         errors.set(uploadId, { dataUrl, imgElement: img });
@@ -628,11 +663,9 @@ export class RichTextImagesDirective {
         errors.delete(uploadId);
         this.autoUploadErrors.set(errors);
         if (!img.isConnected) return;
-        this.autoUploadMutating = true;
         delete img.dataset['autoUploadId'];
         delete img.dataset['autoUploadStatus'];
         img.setAttribute('src', entry.dataUrl);
-        this.autoUploadMutating = false;
         this.processAutoUploadImage(img);
     }
 
@@ -644,11 +677,6 @@ export class RichTextImagesDirective {
         }
         errors.delete(uploadId);
         this.autoUploadErrors.set(errors);
-        const pending = this.autoUploadMap.get(uploadId);
-        if (pending) {
-            pending.subscription.unsubscribe();
-            this.autoUploadMap.delete(uploadId);
-        }
         this.host.mutateContent(() => { /* element already removed */ });
     }
 

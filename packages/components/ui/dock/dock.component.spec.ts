@@ -7,12 +7,6 @@ import { DockLabelComponent } from './sub/dock-label.component';
 import { Component, ViewChild, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 
-type DockInternals = {
-    _itemCenters: number[];
-    _rafId: number | null;
-    _pointerOffset: number;
-};
-
 function makeRect(x: number): DOMRect {
     return {
         x, y: 0, width: 40, height: 40,
@@ -34,10 +28,6 @@ function makeVerticalRect(y: number): DOMRect {
 function nextFrame(): Promise<void> {
     return new Promise(resolve =>
         requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
-}
-
-function internals(dock: DockComponent): DockInternals {
-    return dock as unknown as DockInternals;
 }
 
 @Component({
@@ -123,27 +113,14 @@ describe('DockComponent', () => {
             dockComponent.recalculateItemCenters();
         });
 
-        it('should create', () => {
-            expect(component).toBeTruthy();
-            expect(dockComponent).toBeTruthy();
-        });
-
         it('should detect custom content', () => {
             expect(dockComponent.hasCustomContent()).toBe(true);
         });
 
         it('should render projected dock items', () => {
-            expect(itemEls).toHaveLength(2);
-        });
-
-        it('should have data-slot on dock root', () => {
-            const el = fixture.debugElement.query(By.css('[data-slot="dock"]'));
-            expect(el).toBeTruthy();
-        });
-
-        it('should have default inputs', () => {
-            expect(dockComponent.magnification()).toBe(80);
-            expect(dockComponent.distance()).toBe(100);
+            const bar = fixture.debugElement.query(By.css('[data-slot="dock"]')).nativeElement as HTMLElement;
+            expect(bar.textContent).toContain('Icon 1');
+            expect(bar.textContent).toContain('Icon 2');
         });
 
         it('should magnify item under the pointer via a real mousemove event', async () => {
@@ -172,12 +149,15 @@ describe('DockComponent', () => {
         });
 
         it('should coalesce rapid mousemoves into a single frame', async () => {
-            dockComponent.onMouseMove(new MouseEvent('mousemove', { clientX: 20 }));
-            expect(internals(dockComponent)._rafId).not.toBeNull();
-            dockComponent.onMouseMove(new MouseEvent('mousemove', { clientX: 70 }));
-            expect(internals(dockComponent)._pointerOffset).toBe(70);
-            await nextFrame();
-            expect(internals(dockComponent)._rafId).toBeNull();
+            const rafSpy = vi.spyOn(globalThis, 'requestAnimationFrame');
+            dockEl.dispatchEvent(new MouseEvent('mousemove', { clientX: 20, bubbles: true }));
+            dockEl.dispatchEvent(new MouseEvent('mousemove', { clientX: 70, bubbles: true }));
+            expect(rafSpy).toHaveBeenCalledTimes(1);
+
+            // The one frame uses the last pointer position: item 1 (centre 70) peaks.
+            await vi.waitFor(() =>
+                expect(Number.parseFloat(itemEls[1].style.width)).toBeCloseTo(80, 5));
+            expect(Number.parseFloat(itemEls[0].style.width)).toBeLessThan(80);
         });
 
         it('should reset item widths on mouseleave', () => {
@@ -186,33 +166,40 @@ describe('DockComponent', () => {
             expect(itemEls[0].style.width).toBe('40px');
         });
 
-        it('should cancel a pending frame on mouseleave', () => {
+        it('should cancel a pending frame on mouseleave', async () => {
+            // A stale frame would recompute with the pointer already gone, so it
+            // leaves no trace in the widths; the cancellation is the contract.
+            const rafSpy = vi.spyOn(globalThis, 'requestAnimationFrame');
             const cancelSpy = vi.spyOn(globalThis, 'cancelAnimationFrame');
-            dockComponent.onMouseMove(new MouseEvent('mousemove', { clientX: 20 }));
-            dockComponent.onMouseLeave();
-            expect(cancelSpy).toHaveBeenCalled();
-            expect(internals(dockComponent)._rafId).toBeNull();
-        });
+            dockEl.dispatchEvent(new MouseEvent('mousemove', { clientX: 20, bubbles: true }));
+            const pending = rafSpy.mock.results[0].value;
+            dockEl.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
 
-        it('should recalculate centers on mouseenter', () => {
-            const spy = vi.spyOn(dockComponent, 'recalculateItemCenters');
-            dockComponent.onMouseEnter();
-            expect(spy).toHaveBeenCalled();
-        });
-
-        it('should skip items without a matching center', () => {
-            internals(dockComponent)._itemCenters = [];
-            internals(dockComponent)._pointerOffset = 20;
-            dockComponent.updateItems();
+            expect(cancelSpy).toHaveBeenCalledWith(pending);
+            await nextFrame();
             expect(itemEls[0].style.width).toBe('40px');
+            expect(itemEls[1].style.width).toBe('40px');
         });
 
-        it('should cancel a pending frame on destroy', () => {
-            const cancelSpy = vi.spyOn(globalThis, 'cancelAnimationFrame');
-            dockComponent.onMouseMove(new MouseEvent('mousemove', { clientX: 20 }));
-            expect(internals(dockComponent)._rafId).not.toBeNull();
+        it('should recalculate centers on mouseenter', async () => {
+            // Item 0 has moved since the dock last measured it.
+            const moved = makeRect(500);
+            Object.defineProperty(itemEls[0], 'getBoundingClientRect', { configurable: true, value: () => moved });
+
+            dockEl.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+            dockEl.dispatchEvent(new MouseEvent('mousemove', { clientX: 520, bubbles: true }));
+
+            await vi.waitFor(() =>
+                expect(Number.parseFloat(itemEls[0].style.width)).toBeCloseTo(80, 5));
+        });
+
+        it('should cancel a pending frame on destroy', async () => {
+            dockEl.dispatchEvent(new MouseEvent('mousemove', { clientX: 20, bubbles: true }));
             fixture.destroy();
-            expect(cancelSpy).toHaveBeenCalled();
+            await nextFrame();
+
+            expect(itemEls[0].style.width).toBe('40px');
+            expect(itemEls[1].style.width).toBe('40px');
         });
     });
 
@@ -230,15 +217,6 @@ describe('DockComponent', () => {
             component = fixture.componentInstance;
             fixture.detectChanges();
             dockComponent = component.dockComponent;
-        });
-
-        it('should not detect custom content', () => {
-            expect(dockComponent.hasCustomContent()).toBe(false);
-        });
-
-        it('should render items from data input', () => {
-            const items = fixture.debugElement.queryAll(By.directive(DockItemComponent));
-            expect(items).toHaveLength(3);
         });
 
         it('should render labels from item data', () => {
@@ -263,30 +241,6 @@ describe('DockComponent', () => {
         it('should apply custom class from item data', () => {
             const items = fixture.debugElement.queryAll(By.directive(DockItemComponent));
             expect(items[2].nativeElement.className).toContain('custom-class');
-        });
-
-        it('should render the bottom position variant by default', () => {
-            const dockEl = fixture.debugElement.query(By.css('[data-slot="dock"]'));
-            expect(dockEl.nativeElement.className).toContain('items-end');
-        });
-
-        it('should render the top position variant', () => {
-            component.position.set('top');
-            fixture.detectChanges();
-            const dockEl = fixture.debugElement.query(By.css('[data-slot="dock"]'));
-            expect(dockEl.nativeElement.className).toContain('items-start');
-        });
-
-        it('should render vertical (left/right) position variants as a column', () => {
-            component.position.set('left');
-            fixture.detectChanges();
-            let dockEl = fixture.debugElement.query(By.css('[data-slot="dock"]'));
-            expect(dockEl.nativeElement.className).toContain('flex-col');
-
-            component.position.set('right');
-            fixture.detectChanges();
-            dockEl = fixture.debugElement.query(By.css('[data-slot="dock"]'));
-            expect(dockEl.nativeElement.className).toContain('flex-col');
         });
 
         it('should magnify along the column in a vertical dock', async () => {
@@ -347,6 +301,29 @@ describe('DockComponent', () => {
 
             expect(fixture.debugElement.query(By.css('[data-slot="dock-item-link"]'))).toBeNull();
             expect(fixture.debugElement.query(By.css('[data-slot="dock-item-button"]'))).toBeNull();
+        });
+
+        it('should skip items without a matching center', async () => {
+            const itemEls = () => fixture.debugElement
+                .queryAll(By.directive(DockItemComponent))
+                .map(d => d.nativeElement as HTMLElement);
+            itemEls().forEach((el, index) => {
+                const rect = makeRect(index * 50);
+                Object.defineProperty(el, 'getBoundingClientRect', { configurable: true, value: () => rect });
+            });
+            dockComponent.recalculateItemCenters();
+
+            // Added after the last measurement, with no mouseenter to re-measure.
+            component.items.update(items => [...items, { label: 'Late', icon: 'L' }]);
+            fixture.detectChanges();
+            const late = itemEls()[3];
+
+            const dockEl = fixture.debugElement.query(By.directive(DockComponent)).nativeElement as HTMLElement;
+            dockEl.dispatchEvent(new MouseEvent('mousemove', { clientX: 120, bubbles: true }));
+
+            await vi.waitFor(() =>
+                expect(Number.parseFloat(itemEls()[2].style.width)).toBeCloseTo(60, 5));
+            expect(late.style.width).toBe('40px');
         });
 
         it('should no-op updateItems when there are no items', () => {

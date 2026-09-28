@@ -86,7 +86,8 @@ export class RichTextSlashCommandsMenuComponent {
         const itemTop = selected.offsetTop;
         const itemBottom = itemTop + selected.offsetHeight;
         if (itemTop < listTop || itemBottom > listBottom) {
-            selected.scrollIntoView({ block: 'nearest' });
+            // Optional call: jsdom (consumers' unit tests) has no scrollIntoView.
+            selected.scrollIntoView?.({ block: 'nearest' });
         }
     }
 }

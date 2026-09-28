@@ -10,11 +10,6 @@ interface TestRow {
 }
 
 describe('columnHelper', () => {
-    it('should build empty column list', () => {
-        const columns = columnHelper<TestRow>().build();
-        expect(columns).toEqual([]);
-    });
-
     it('should create accessor columns', () => {
         const columns = columnHelper<TestRow>()
             .accessor('name', 'Name')

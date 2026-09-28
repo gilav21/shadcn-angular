@@ -61,7 +61,7 @@ export const KANBAN_COLUMN = new InjectionToken<KanbanColumnComponent>('KANBAN_C
                     <div class="flex items-center gap-1">
                         <button
                             type="button"
-                            class="h-6 w-6 flex items-center justify-center rounded hover:bg-accent"
+                            class="h-6 w-6 pointer-coarse:size-11 flex items-center justify-center rounded hover:bg-accent"
                             (click)="onAddCard()"
                             aria-label="Add card"
                             data-slot="kanban-add-card-button"
@@ -75,7 +75,7 @@ export const KANBAN_COLUMN = new InjectionToken<KanbanColumnComponent>('KANBAN_C
                         @if (collapsible()) {
                             <button
                                 type="button"
-                                class="h-6 w-6 flex items-center justify-center rounded hover:bg-accent"
+                                class="h-6 w-6 pointer-coarse:size-11 flex items-center justify-center rounded hover:bg-accent"
                                 (click)="toggleCollapse()"
                                 [attr.aria-label]="collapsed() ? 'Expand column' : 'Collapse column'"
                                 [attr.aria-expanded]="!collapsed()"

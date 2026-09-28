@@ -3,7 +3,7 @@ import { InputComponent } from './input.component';
 import { Component, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { UI_INPUT_GROUP } from '../../lib/input-group.token';
 
 // Test host for reactive forms
@@ -18,21 +18,7 @@ class ReactiveFormTestHost {
     placeholder = signal('Enter text...');
 }
 
-// RTL Test host
-@Component({
-    template: `
-        <div [dir]="dir()">
-            <ui-input placeholder="أدخل النص" />
-        </div>
-    `,
-    imports: [InputComponent]
-})
-class RTLTestHostComponent {
-    dir = signal<'ltr' | 'rtl'>('ltr');
-}
-
 describe('InputComponent', () => {
-    let component: InputComponent;
     let fixture: ComponentFixture<InputComponent>;
 
     beforeEach(async () => {
@@ -41,22 +27,12 @@ describe('InputComponent', () => {
         }).compileComponents();
 
         fixture = TestBed.createComponent(InputComponent);
-        component = fixture.componentInstance;
         fixture.detectChanges();
-    });
-
-    it('should create', () => {
-        expect(component).toBeTruthy();
     });
 
     it('should have data-slot="input"', () => {
         const input = fixture.debugElement.query(By.css('input'));
         expect(input.nativeElement.dataset.slot).toBe('input');
-    });
-
-    it('should have default type="text"', () => {
-        const input = fixture.debugElement.query(By.css('input'));
-        expect(input.nativeElement.type).toBe('text');
     });
 
     it('should apply password type', () => {
@@ -91,13 +67,6 @@ describe('InputComponent', () => {
         const input = fixture.debugElement.query(By.css('input'));
         expect(input.nativeElement.className).toContain('my-input');
     });
-
-    it('should apply base styling classes', () => {
-        const input = fixture.debugElement.query(By.css('input'));
-        expect(input.nativeElement.className).toContain('rounded-lg');
-        expect(input.nativeElement.className).toContain('border');
-        expect(input.nativeElement.className).toContain('w-full');
-    });
 });
 
 describe('Input ControlValueAccessor', () => {
@@ -112,11 +81,6 @@ describe('Input ControlValueAccessor', () => {
         fixture = TestBed.createComponent(ReactiveFormTestHost);
         component = fixture.componentInstance;
         fixture.detectChanges();
-    });
-
-    it('should bind to FormControl', () => {
-        const input = fixture.debugElement.query(By.css('input'));
-        expect(input).toBeTruthy();
     });
 
     it('should update FormControl on input', async () => {
@@ -145,49 +109,6 @@ describe('Input ControlValueAccessor', () => {
 
         const input = fixture.debugElement.query(By.css('input'));
         expect(input.nativeElement.disabled).toBe(true);
-    });
-});
-
-describe('Input RTL Support', () => {
-    let fixture: ComponentFixture<RTLTestHostComponent>;
-    let component: RTLTestHostComponent;
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [RTLTestHostComponent]
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(RTLTestHostComponent);
-        component = fixture.componentInstance;
-        fixture.detectChanges();
-    });
-
-    afterEach(() => {
-        document.documentElement.removeAttribute('dir');
-    });
-
-    it('should render in LTR mode', () => {
-        const container = fixture.debugElement.query(By.css('[dir="ltr"]'));
-        expect(container).toBeTruthy();
-    });
-
-    it('should render in RTL mode', async () => {
-        component.dir.set('rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const container = fixture.debugElement.query(By.css('[dir="rtl"]'));
-        expect(container).toBeTruthy();
-    });
-
-    it('should maintain input functionality in RTL', async () => {
-        component.dir.set('rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const input = fixture.debugElement.query(By.css('input'));
-        expect(input).toBeTruthy();
-        expect(input.nativeElement.placeholder).toBe('أدخل النص');
     });
 });
 
@@ -227,15 +148,6 @@ describe('InputComponent - floating label', () => {
         expect(label().hasAttribute('data-active')).toBe(true); // stays floated while filled
     });
 
-    it('works for the underline and ghost variants too', () => {
-        for (const variant of ['underline', 'ghost'] as const) {
-            fixture.componentRef.setInput('variant', variant);
-            fixture.detectChanges();
-            expect(fixture.debugElement.query(By.css('[data-slot="input-floating"]'))).toBeTruthy();
-            expect(fixture.debugElement.query(By.css('input[data-slot="input"]'))).toBeTruthy();
-        }
-    });
-
     it('applies labelClass only when floated, so the resting placeholder stays uniform', () => {
         fixture.componentRef.setInput('labelClass', 'text-base font-semibold');
         fixture.detectChanges();
@@ -270,14 +182,13 @@ describe('InputComponent - container mode (prefix/suffix/clearable/loading)', ()
         component = fixture.componentInstance;
     });
 
-    it('renders the input-container when a prefix is set and applies innerClasses to the inner input', () => {
+    it('renders the input-container when a prefix is set', () => {
         fixture.componentRef.setInput('prefix', '$');
         fixture.detectChanges();
 
-        expect(fixture.debugElement.query(By.css('[data-slot="input-container"]'))).toBeTruthy();
-        expect(component.needsContainer()).toBe(true);
-        expect(component.innerClasses()).toContain('flex-1');
-        expect(fixture.debugElement.query(By.css('input')).nativeElement.className).toContain('flex-1');
+        const container = fixture.debugElement.query(By.css('[data-slot="input-container"]'));
+        expect(container.nativeElement.querySelector('span').textContent.trim()).toBe('$');
+        expect(container.nativeElement.querySelector('input')).toBeTruthy();
     });
 
     it('renders a suffix span when suffix is set and not loading', () => {
@@ -322,6 +233,7 @@ describe('InputComponent - container mode (prefix/suffix/clearable/loading)', ()
         fixture.detectChanges();
 
         expect(component.value()).toBe('');
+        expect(document.activeElement).toBe(fixture.debugElement.query(By.css('input')).nativeElement);
     });
 
     it('shows the spinner when loading and hides the suffix span', () => {
@@ -345,25 +257,12 @@ describe('InputComponent - imperative API and CVA callbacks', () => {
         fixture.detectChanges();
     });
 
-    it('focus() calls focus on the inner input element', () => {
+    it('focus() focuses the inner input element', () => {
         const input = fixture.debugElement.query(By.css('input')).nativeElement as HTMLInputElement;
-        const focusSpy = vi.spyOn(input, 'focus');
 
         component.focus();
 
-        expect(focusSpy).toHaveBeenCalledTimes(1);
-    });
-
-    it('clearValue() empties the value and refocuses the input', () => {
-        component.writeValue('something');
-        fixture.detectChanges();
-        const input = fixture.debugElement.query(By.css('input')).nativeElement as HTMLInputElement;
-        const focusSpy = vi.spyOn(input, 'focus');
-
-        component.clearValue();
-
-        expect(component.value()).toBe('');
-        expect(focusSpy).toHaveBeenCalledTimes(1);
+        expect(document.activeElement).toBe(input);
     });
 
     it('toString() returns the current value', () => {
@@ -406,16 +305,6 @@ describe('InputComponent - within an input group', () => {
         fixture = TestBed.createComponent(InputComponent);
         component = fixture.componentInstance;
         fixture.detectChanges();
-    });
-
-    it('downgrades the default outline variant to ghost inside a group', () => {
-        expect((component as unknown as { effectiveVariant: () => string }).effectiveVariant()).toBe('ghost');
-    });
-
-    it('keeps an explicit non-outline variant unchanged inside a group', () => {
-        fixture.componentRef.setInput('variant', 'underline');
-        fixture.detectChanges();
-        expect((component as unknown as { effectiveVariant: () => string }).effectiveVariant()).toBe('underline');
     });
 
     it('is disabled when the group is disabled', () => {

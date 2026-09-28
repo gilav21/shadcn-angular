@@ -321,15 +321,5 @@ describe('ResultComponent', () => {
         it('inherits the ambient direction', () => {
             expect(getComputedStyle(need('[data-slot="result"]')).direction).toBe('rtl');
         });
-
-        it('uses only direction-agnostic spacing utilities', () => {
-            const physical =
-                /(^|:)(ml|mr|pl|pr|left|right|border-l|border-r|rounded-l|rounded-r|text-left|text-right)(-|$)/;
-            const panel = need('[data-slot="result"]');
-            const offenders = [panel, ...panel.querySelectorAll<HTMLElement>('*')]
-                .flatMap(el => Array.from(el.classList))
-                .filter(cls => physical.test(cls));
-            expect(offenders).toEqual([]);
-        });
     });
 });

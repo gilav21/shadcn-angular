@@ -6,7 +6,8 @@ import {
     ElementRef,
     inject,
 } from '@angular/core';
-import { cn, prefersReducedMotion } from '../../lib/utils';
+import { cn } from '../../lib/utils';
+import { prefersReducedMotion } from '../../lib/media';
 
 @Component({
     selector: 'ui-flip-text',
@@ -48,13 +49,20 @@ export class FlipTextComponent {
      * this cancels any running animations and re-drives the same keyframes
      * imperatively via the Web Animations API. Honours `prefers-reduced-motion`
      * exactly as the CSS path does: under that preference the characters are
-     * simply left visible and nothing animates.
+     * simply left visible and nothing animates. Where the Web Animations API
+     * does not exist (SSR, jsdom) the characters are likewise left visible
+     * rather than hidden with nothing to reveal them.
      */
     playAnimation(): void {
         const host = this.el.nativeElement as HTMLElement;
         const chars = host.querySelectorAll<HTMLElement>('.animate-flip-in');
         const reducedMotion = prefersReducedMotion();
+        const webAnimations = typeof host.animate === 'function';
         chars.forEach((el, i) => {
+            if (!webAnimations) {
+                el.style.opacity = '1';
+                return;
+            }
             el.getAnimations().forEach(a => a.cancel());
             if (reducedMotion) {
                 el.style.opacity = '1';

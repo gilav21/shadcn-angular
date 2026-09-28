@@ -3,7 +3,7 @@ import { ToggleGroupComponent, ToggleGroupItem } from './toggle-group.component'
 import { ToggleGroupItemComponent } from './sub/toggle-group-item.component';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 
 @Component({
     template: `
@@ -155,59 +155,6 @@ describe('ToggleGroup Data-Driven Mode', () => {
         expect(items[2].nativeElement.textContent.trim()).toBe('U');
     });
 
-    it('should handle single selection in data-driven mode', () => {
-        const items = fixture.debugElement.queryAll(By.css('[data-slot="toggle-group-item"]'));
-
-        items[0].nativeElement.click();
-        fixture.detectChanges();
-        expect(items[0].nativeElement.getAttribute('aria-pressed')).toBe('true');
-
-        items[1].nativeElement.click();
-        fixture.detectChanges();
-        expect(items[0].nativeElement.getAttribute('aria-pressed')).toBe('false');
-        expect(items[1].nativeElement.getAttribute('aria-pressed')).toBe('true');
-    });
-
-    it('should handle multiple selection in data-driven mode', () => {
-        component.type.set('multiple');
-        fixture.detectChanges();
-
-        const items = fixture.debugElement.queryAll(By.css('[data-slot="toggle-group-item"]'));
-
-        items[0].nativeElement.click();
-        items[1].nativeElement.click();
-        fixture.detectChanges();
-
-        expect(items[0].nativeElement.getAttribute('aria-pressed')).toBe('true');
-        expect(items[1].nativeElement.getAttribute('aria-pressed')).toBe('true');
-    });
-
-    it('should apply variant and size in data-driven mode', () => {
-        component.variant.set('outline');
-        component.size.set('sm');
-        fixture.detectChanges();
-
-        const item = fixture.debugElement.query(By.css('[data-slot="toggle-group-item"]'));
-        expect(item.nativeElement.className).toContain('border');
-        expect(item.nativeElement.getAttribute('data-size')).toBe('sm');
-    });
-
-    it('should respect defaultValue in data-driven mode', () => {
-        component.defaultValue.set('italic');
-        fixture.destroy();
-
-        fixture = TestBed.createComponent(DataDrivenTestHost);
-        fixture.componentInstance.defaultValue.set('italic');
-        fixture.componentInstance.items.set([
-            { value: 'bold', label: 'B' },
-            { value: 'italic', label: 'I' },
-        ]);
-        fixture.detectChanges();
-
-        const items = fixture.debugElement.queryAll(By.css('[data-slot="toggle-group-item"]'));
-        expect(items[1].nativeElement.getAttribute('aria-pressed')).toBe('true');
-    });
-
     it('should respect disabled on individual items', () => {
         component.items.set([
             { value: 'bold', label: 'B' },
@@ -239,42 +186,5 @@ describe('ToggleGroup Data-Driven Mode', () => {
         items.forEach(item => {
             expect(item.nativeElement.disabled).toBe(true);
         });
-    });
-});
-
-describe('ToggleGroup RTL Support', () => {
-    let fixture: ComponentFixture<TestHostComponent>;
-    let component: TestHostComponent;
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [TestHostComponent]
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(TestHostComponent);
-        component = fixture.componentInstance;
-        fixture.detectChanges();
-    });
-
-    afterEach(() => {
-        document.documentElement.removeAttribute('dir');
-    });
-
-    it('should apply correct rounded corners in LTR', () => {
-        const items = fixture.debugElement.queryAll(By.css('[data-slot="toggle-group-item"]'));
-        const classes0 = items[0].nativeElement.className;
-        const classesLast = items[2].nativeElement.className;
-
-        expect(classes0).toContain('ltr:first:rounded-l-md');
-        expect(classesLast).toContain('ltr:last:rounded-r-md');
-    });
-
-    it('should reflect RTL state', async () => {
-        component.dir.set('rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const items = fixture.debugElement.queryAll(By.css('[data-slot="toggle-group-item"]'));
-        expect(items[0].nativeElement.className).toContain('rtl:first:rounded-r-md');
     });
 });

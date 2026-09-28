@@ -15,7 +15,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
-import { Subject, debounceTime as rxDebounceTime } from 'rxjs';
+import { Subject, debounce, timer } from 'rxjs';
 import { cn, getClippingRect } from '../../lib/utils';
 import { anchorToTopLayer, type TopLayerHandle } from '../../lib/top-layer';
 import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
@@ -127,9 +127,8 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
      * is avoided. Defaults to `0` (emit synchronously from {@link onInput}).
      * Only the outgoing event is delayed — {@link searchTerm} and therefore the
      * highlight and the client-side {@link filter} update immediately.
-     * NOTE: the debounce window is captured once in the constructor, before
-     * inputs are set, so any value passed in behaves as `0` (asynchronous but
-     * not actually delayed).
+     * The window is read on every keystroke, so changing it takes effect on
+     * the next one.
      */
     debounceTime = input(0);
     /**
@@ -259,7 +258,8 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
 
     constructor() {
         this.searchSubject.pipe(
-            rxDebounceTime(this.debounceTime()),
+            // Read per value, not once here: inputs are not set yet in the constructor.
+            debounce(() => timer(this.debounceTime())),
             takeUntilDestroyed(this.destroyRef)
         ).subscribe(val => this.searchChange.emit(val));
 
@@ -479,7 +479,8 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
      * Keyboard contract for the text box; a no-op while {@link isDisabled}.
      * - `ArrowDown` / `ArrowUp` — open the list when closed, otherwise move the
      *   highlight one visible row down/up. The highlight **wraps** at both ends,
-     *   and only walks options that survived the {@link filter}.
+     *   and only walks options that survived the {@link filter}. With nothing
+     *   highlighted, `ArrowDown` starts at the first row and `ArrowUp` at the last.
      * - `Enter` — selects the highlighted row ({@link onSelect}) when the list is
      *   open; with nothing highlighted it does nothing. Always `preventDefault`s,
      *   so Enter never submits the surrounding form while focus is here.

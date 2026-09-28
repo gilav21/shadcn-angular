@@ -49,6 +49,28 @@ describe('tokenizeLine', () => {
     });
 });
 
+describe('the built-in SQL rules', () => {
+    it('colours keywords in any case, strings with doubled quotes, quoted identifiers, comments, numbers and calls', () => {
+        const query = [
+            'SELECT u.name, COUNT(o.id) AS "order count"',
+            'FROM users u',
+            'left join orders o ON o.user_id = u.id',
+            "WHERE u.bio = 'It''s -- me' AND o.total > 100 -- big spenders only",
+            'GROUP BY u.name /* per user */ ORDER BY 2 DESC;',
+        ];
+        const lines = query.map((line) => tokenizeLine(line, LANGUAGE_PATTERNS['sql']));
+
+        expect(lines.map((tokens) => tokens.map((t) => t.text).join(''))).toEqual(query);
+        expect(lines.map((tokens) => tokens.filter((t) => t.type !== 'text').map((t) => [t.type, t.text]))).toEqual([
+            [['keyword', 'SELECT'], ['function', 'COUNT'], ['keyword', 'AS'], ['property', '"order count"']],
+            [['keyword', 'FROM']],
+            [['keyword', 'left'], ['keyword', 'join'], ['keyword', 'ON']],
+            [['keyword', 'WHERE'], ['string', "'It''s -- me'"], ['keyword', 'AND'], ['number', '100'], ['comment', '-- big spenders only']],
+            [['keyword', 'GROUP'], ['keyword', 'BY'], ['comment', '/* per user */'], ['keyword', 'ORDER'], ['keyword', 'BY'], ['number', '2'], ['keyword', 'DESC']],
+        ]);
+    });
+});
+
 describe('languagePatternsFor', () => {
     it('resolves a built-in language', () => {
         expect(languagePatternsFor('python')).toBe(LANGUAGE_PATTERNS['python']);
@@ -59,6 +81,7 @@ describe('languagePatternsFor', () => {
         expect(languagePatternsFor('py')).toBe(LANGUAGE_PATTERNS['python']);
         expect(languagePatternsFor('sh')).toBe(LANGUAGE_PATTERNS['bash']);
         expect(languagePatternsFor('c#')).toBe(LANGUAGE_PATTERNS['csharp']);
+        expect(languagePatternsFor('postgresql')).toBe(LANGUAGE_PATTERNS['sql']);
     });
 
     it('is case-insensitive', () => {

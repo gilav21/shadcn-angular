@@ -5,19 +5,16 @@
 // matches — refusing it outright, rather than applying the half that parses.
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
+import { By } from '@angular/platform-browser';
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { DataTableComponent } from './data-table.component';
+import { DatePickerComponent } from '../date-picker';
 import {
     asEditableDate,
     toEditedDateValue,
     toLocalDateString,
 } from './data-table.utils';
-import {
-    DATA_TABLE_VIEW_STATE_VERSION,
-    type ColumnDef,
-    type DataTableViewState,
-    type FilterGroup,
-} from './data-table.types';
+import type { CellEditEvent, ColumnDef, DataTableViewState, FilterGroup } from './data-table.types';
 
 interface Row {
     id: number;
@@ -94,21 +91,6 @@ describe('saved views', () => {
         await settle();
     }
 
-    it('captures more than the column layout', async () => {
-        await arrangeAView();
-        const view = table().getViewState();
-
-        expect(view.sort).toEqual({ column: 'name', direction: 'desc' });
-        expect(view.columnFilters).toEqual({ name: 'Person 1' });
-        expect(view.globalFilter).toBe('person');
-        expect(view.pagination).toEqual({ pageIndex: 2, pageSize: 10 });
-        expect(view.columns.length).toBeGreaterThan(0);
-    });
-
-    it('stamps the schema version', async () => {
-        expect(table().getViewState().version).toBe(DATA_TABLE_VIEW_STATE_VERSION);
-    });
-
     /** UC-3: arrange, save, wander off, come back to exactly that. */
     it('restores everything it captured', async () => {
         await arrangeAView();
@@ -120,12 +102,15 @@ describe('saved views', () => {
         t.columnFilters.set({});
         t.globalFilter.set('');
         t.paginationState.set({ pageIndex: 0, pageSize: 10 });
+        t.columnVisibility.set({});
         await settle();
 
         expect(t.applyViewState(saved)).toBe(true);
         await settle();
 
         expect(t.sortState()).toEqual({ column: 'name', direction: 'desc' });
+        expect(t.multiSortState()).toEqual([{ column: 'name', direction: 'desc' }]);
+        expect(t.columnVisibility()['id']).toBe(false);
         expect(t.columnFilters()).toEqual({ name: 'Person 1' });
         expect(t.globalFilter()).toBe('person');
         expect(t.paginationState()).toEqual({ pageIndex: 2, pageSize: 10 });
@@ -146,25 +131,19 @@ describe('saved views', () => {
      * which is worse than not restoring at all.
      */
     describe('a token it cannot read', () => {
-        it('refuses a future version outright', async () => {
-            await arrangeAView();
-            const saved = table().getViewState();
-            const future = { ...saved, version: saved.version + 1, globalFilter: 'zzz' };
-
-            expect(table().applyViewState(future)).toBe(false);
-        });
-
         it('changes nothing at all when it refuses', async () => {
             await arrangeAView();
             const before = JSON.stringify(table().getViewState());
 
-            table().applyViewState({
+            const refused = table().applyViewState({
                 ...table().getViewState(),
                 version: 99,
                 globalFilter: 'zzz',
                 sort: { column: 'id', direction: 'asc' },
             });
             await settle();
+
+            expect(refused).toBe(false);
 
             expect(JSON.stringify(table().getViewState())).toBe(before);
         });
@@ -200,8 +179,16 @@ describe('editing a date cell', () => {
             expect(asEditableDate(date)).toBe(date);
         });
 
-        it('reads an ISO string', () => {
-            expect(asEditableDate('2026-03-04')?.getUTCFullYear()).toBe(2026);
+        /*
+         * `new Date('2026-03-04')` is UTC midnight: the previous day anywhere
+         * west of Greenwich, and 03:00 in UTC+3, where the day still looks
+         * right. Local midnight holds in every timezone.
+         */
+        it('reads a date-only ISO string as local midnight of that day, and a date-time one as its instant', () => {
+            const dateOnly = asEditableDate('2026-03-04');
+            expect([dateOnly?.getFullYear(), dateOnly?.getMonth(), dateOnly?.getDate(), dateOnly?.getHours(), dateOnly?.getMinutes()])
+                .toEqual([2026, 2, 4, 0, 0]);
+            expect(asEditableDate('2026-03-04T10:30:00Z')?.getTime()).toBe(Date.UTC(2026, 2, 4, 10, 30));
         });
 
         it('reads an epoch number', () => {
@@ -209,7 +196,7 @@ describe('editing a date cell', () => {
         });
 
         /** "Invalid Date" renders as the literal text if it ever escapes. */
-        it.each([['not a date'], [null], [undefined], [{}], [Number.NaN]])(
+        it.each([['not a date'], ['2026-02-30'], [null], [undefined], [{}], [Number.NaN]])(
             'reads %j as nothing',
             value => {
                 expect(asEditableDate(value)).toBeNull();
@@ -244,6 +231,10 @@ describe('editing a date cell', () => {
         it('clears to null', () => {
             expect(toEditedDateValue(null, '2026-01-01')).toBeNull();
         });
+
+        it('hands a date-only string back as the same day when it is re-picked unchanged', () => {
+            expect(toEditedDateValue(asEditableDate('2026-03-04'), '2026-03-04')).toBe('2026-03-04');
+        });
     });
 
     /*
@@ -253,11 +244,50 @@ describe('editing a date cell', () => {
      * the wrong timezone looks.
      */
     it('formats in the local calendar, not UTC', () => {
+        const localMidnight = new Date(2026, 2, 4);
         const lateEvening = new Date(2026, 2, 4, 23, 30);
+        expect(toLocalDateString(localMidnight)).toBe('2026-03-04');
         expect(toLocalDateString(lateEvening)).toBe('2026-03-04');
     });
 
     it('pads a single-digit month and day', () => {
         expect(toLocalDateString(new Date(2026, 0, 5))).toBe('2026-01-05');
+    });
+
+    describe('in the table', () => {
+        let original: typeof globalThis.ResizeObserver | undefined;
+
+        beforeEach(() => {
+            original = globalThis.ResizeObserver;
+            globalThis.ResizeObserver = NoopResizeObserver as unknown as typeof globalThis.ResizeObserver;
+        });
+
+        afterEach(() => {
+            if (original) globalThis.ResizeObserver = original;
+            else delete (globalThis as { ResizeObserver?: unknown }).ResizeObserver;
+        });
+
+        it('opens a date picker on the cell and commits the picked day as the string the column holds', async () => {
+            await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
+            const fixture = TestBed.createComponent(DataTableComponent<Row>);
+            fixture.componentRef.setInput('data', DATA.slice(0, 3));
+            fixture.componentRef.setInput('columns', COLUMNS);
+            fixture.detectChanges();
+            const table = fixture.componentInstance;
+            const edits: CellEditEvent<Row>[] = [];
+            table.cellEdit.subscribe((edit) => edits.push(edit));
+
+            table.startEditing(1, 'due');
+            fixture.detectChanges();
+            const picker = fixture.debugElement.query(By.directive(DatePickerComponent)).componentInstance as DatePickerComponent;
+            expect(picker.date()?.getTime()).toBe(new Date(2026, 2, 4).getTime());
+
+            picker.dateChange.emit(new Date(2026, 2, 10));
+            fixture.detectChanges();
+
+            expect(edits.map(({ rowIndex, oldValue, newValue }) => ({ rowIndex, oldValue, newValue })))
+                .toEqual([{ rowIndex: 1, oldValue: '2026-03-04', newValue: '2026-03-10' }]);
+            expect(table.editingCell()).toBeNull();
+        });
     });
 });

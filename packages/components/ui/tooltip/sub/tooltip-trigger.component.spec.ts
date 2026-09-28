@@ -28,13 +28,16 @@ function setTouchDevice(isTouch: boolean): () => void {
 @Component({
     template: `
         <ui-tooltip [delayDuration]="delay()">
-            <ui-tooltip-trigger>Hover me</ui-tooltip-trigger>
+            @if (showTrigger()) {
+                <ui-tooltip-trigger>Hover me</ui-tooltip-trigger>
+            }
         </ui-tooltip>
     `,
     imports: [TooltipComponent, TooltipTriggerComponent],
 })
 class TriggerHost {
     delay = signal(200);
+    showTrigger = signal(true);
 }
 
 /** A trigger with NO ui-tooltip parent — exercises the `tooltip?.` null paths. */
@@ -83,19 +86,12 @@ describe('TooltipTriggerComponent', () => {
         restoreTouch?.();
     });
 
-    it('creates the trigger', () => {
-        expect(fixture.debugElement.query(By.directive(TooltipTriggerComponent))).toBeTruthy();
-    });
-
     describe('mouse (hover) interactions', () => {
-        it('does not show immediately on mouseenter (delay pending)', () => {
-            fire('mouseenter');
-            expect(tooltip().open()).toBe(false);
-        });
-
         it('shows after the default 200ms delay', () => {
             fire('mouseenter');
-            vi.advanceTimersByTime(200);
+            vi.advanceTimersByTime(199);
+            expect(tooltip().open()).toBe(false);
+            vi.advanceTimersByTime(1);
             expect(tooltip().open()).toBe(true);
         });
 
@@ -134,11 +130,6 @@ describe('TooltipTriggerComponent', () => {
     });
 
     describe('focus interactions', () => {
-        it('shows on focus', () => {
-            fire('focus');
-            expect(tooltip().open()).toBe(true);
-        });
-
         it('hides on blur', () => {
             fire('focus');
             expect(tooltip().open()).toBe(true);
@@ -159,8 +150,10 @@ describe('TooltipTriggerComponent', () => {
             expect(tooltip().open()).toBe(false);
         });
 
-        it('mouseleave is a no-op on touch (does not throw)', () => {
-            expect(() => fire('mouseleave')).not.toThrow();
+        it('keeps a tapped-open tooltip through the emulated mouseleave', () => {
+            fireTouchStart();
+            fire('mouseleave');
+            expect(tooltip().open()).toBe(true);
         });
 
         it('shows on touchstart and preventDefaults', () => {
@@ -191,20 +184,29 @@ describe('TooltipTriggerComponent', () => {
         });
     });
 
+    function removeTrigger(): void {
+        host.showTrigger.set(false);
+        fixture.detectChanges();
+    }
+
     it('clears timers and the document listener on destroy', () => {
         restoreTouch?.();
         restoreTouch = setTouchDevice(true);
         fireTouchStart();
+        removeTrigger();
+        tooltip().show();
+        // A leaked listener or auto-dismiss timer would close the still-live tooltip.
+        document.dispatchEvent(new Event('touchstart', { bubbles: true }));
+        vi.advanceTimersByTime(2500);
         expect(tooltip().open()).toBe(true);
-        fixture.destroy();
-        expect(() => document.dispatchEvent(new Event('touchstart', { bubbles: true }))).not.toThrow();
     });
 
     it('clears a pending hover delay timeout on destroy', () => {
         fire('mouseenter');
         vi.advanceTimersByTime(100);
-        expect(() => fixture.destroy()).not.toThrow();
+        removeTrigger();
         vi.advanceTimersByTime(500);
+        expect(tooltip().open()).toBe(false);
     });
 });
 

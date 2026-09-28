@@ -1,7 +1,21 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { Component } from '@angular/core';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { FunnelChartComponent } from './funnel-chart.component';
 import { ChartDataPoint, ChartClickEvent } from '../../lib/chart.types';
+
+@Component({
+    template: `<div style="width: 440px"><ui-funnel-chart [data]="data" /></div>`,
+    imports: [FunnelChartComponent],
+})
+class SizedFunnelHost {
+    readonly data: ChartDataPoint[] = [
+        { name: 'Visits', value: 1000 },
+        { name: 'Signups', value: 600 },
+        { name: 'Trials', value: 300 },
+        { name: 'Paid', value: 120 },
+    ];
+}
 
 interface Restorable {
     proto: object;
@@ -75,16 +89,11 @@ describe('FunnelChartComponent', () => {
         }
     });
 
-    it('renders with an accessible Funnel chart label', () => {
-        const c = fixture.nativeElement.querySelector('[role="group"]');
-        expect(c.getAttribute('aria-label')).toContain('Funnel chart');
-    });
-
     it('includes the title in the aria label when provided', () => {
         fixture.componentRef.setInput('title', 'Conversion');
         fixture.detectChanges();
         const c = fixture.nativeElement.querySelector('[role="group"]');
-        expect(c.getAttribute('aria-label')).toContain('Conversion');
+        expect(c.getAttribute('aria-label')).toBe('Conversion. Funnel chart with 4 data points.');
     });
 
     it('renders one trapezoid per stage', () => {
@@ -92,20 +101,25 @@ describe('FunnelChartComponent', () => {
     });
 
     it('builds a 4-point trapezoid polygon per stage', () => {
-        const points = component.stages()[0].points.trim().split(' ');
-        expect(points).toHaveLength(4);
-        for (const p of points) {
-            const [x, y] = p.split(',').map(Number);
-            expect(Number.isFinite(x)).toBe(true);
-            expect(Number.isFinite(y)).toBe(true);
-        }
-    });
+        const sized = TestBed.createComponent(SizedFunnelHost);
+        sized.detectChanges();
+        expect(sized.nativeElement.querySelector('svg').getAttribute('viewBox')).toBe('0 0 440 300');
 
-    it('centers every stage on the same horizontal center', () => {
-        const stages = component.stages();
-        const centers = new Set(stages.map(s => s.centerX));
-        expect(centers.size).toBe(1);
-        expect(stages[0].centerX).toBeCloseTo(component.svgWidth() / 2, 5);
+        const polygons = [...sized.nativeElement.querySelectorAll('polygon[data-slot="funnel-stage"]')] as SVGPolygonElement[];
+        const actual = polygons.map(p => (p.getAttribute('points') ?? '').trim().split(' ').map(pt => pt.split(',').map(Number)));
+        // width 440 / height 300 / gap 2: inner width 424 centred on 220, stage height 69.5.
+        // The max stage spans the full inner width; each bottom edge is the next stage's top.
+        const expected = [
+            [[8, 8], [432, 8], [347.2, 77.5], [92.8, 77.5]],
+            [[92.8, 79.5], [347.2, 79.5], [283.6, 149], [156.4, 149]],
+            [[156.4, 151], [283.6, 151], [245.44, 220.5], [194.56, 220.5]],
+            [[194.56, 222.5], [245.44, 222.5], [245.44, 292], [194.56, 292]],
+        ];
+        expect(actual).toHaveLength(expected.length);
+        expected.forEach((stage, i) => stage.forEach(([x, y], j) => {
+            expect(actual[i][j][0]).toBeCloseTo(x, 6);
+            expect(actual[i][j][1]).toBeCloseTo(y, 6);
+        }));
     });
 
     it('stacks stages vertically with increasing midY', () => {
@@ -154,11 +168,6 @@ describe('FunnelChartComponent', () => {
         expect(stages[1].percent).toBe(0);
     });
 
-    it('makes earlier (larger) stages wider than later stages', () => {
-        const stages = component.stages();
-        expect(stages[0].topWidth).toBeGreaterThan(stages[3].topWidth);
-    });
-
     it('returns no stages for empty data', () => {
         fixture.componentRef.setInput('data', []);
         fixture.detectChanges();
@@ -167,7 +176,8 @@ describe('FunnelChartComponent', () => {
     });
 
     it('renders stage value labels when showValues is true and hides them when false', () => {
-        expect(fixture.nativeElement.querySelectorAll('text')).toHaveLength(4);
+        const labels = [...fixture.nativeElement.querySelectorAll('text')].map(t => (t as SVGTextElement).textContent?.trim());
+        expect(labels).toEqual(['Visits · 100.0%', 'Signups · 60.0%', 'Trials · 30.0%', 'Paid · 12.0%']);
         fixture.componentRef.setInput('showValues', false);
         fixture.detectChanges();
         expect(fixture.nativeElement.querySelectorAll('text')).toHaveLength(0);
@@ -191,11 +201,6 @@ describe('FunnelChartComponent', () => {
         expect(rows[0].value).toContain('600');
         expect(rows[1].value).toContain('%');
         expect(component.hoverTitle()).toContain('Signups');
-    });
-
-    it('returns no tooltip rows and no title when nothing is hovered', () => {
-        expect(component.tooltipRows()).toEqual([]);
-        expect(component.hoverTitle()).toBeUndefined();
     });
 
     it('returns no tooltip rows when the hovered index has no data point', () => {
@@ -240,14 +245,6 @@ describe('FunnelChartComponent', () => {
         component.stageClick.subscribe((e: ChartClickEvent) => (emitted = e));
         component.onStageClick(99);
         expect(emitted).toBeUndefined();
-    });
-
-    it('uses the measured width from ResizeObserver when available', () => {
-        const measured = component['_measuredWidth'];
-        measured.set(720);
-        fixture.detectChanges();
-        expect(component.svgWidth()).toBe(720);
-        expect(component.viewBox()).toBe(`0 0 720 ${component.height()}`);
     });
 
     it('falls back to the width input when no measured width is present', () => {

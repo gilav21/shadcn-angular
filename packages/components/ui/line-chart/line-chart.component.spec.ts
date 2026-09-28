@@ -89,16 +89,10 @@ describe('LineChartComponent', () => {
         expect(component.categories()).toEqual(['Q1', 'Q2', 'Q3']);
     });
 
-    it('computes one path per visible series', () => {
-        expect(component.seriesPaths()).toHaveLength(2);
-        const paths = fixture.nativeElement.querySelectorAll('path[data-slot="line-series"]');
-        expect(paths).toHaveLength(2);
-    });
-
-    it('builds a non-empty path string for each series', () => {
-        for (const sp of component.seriesPaths()) {
-            expect(sp.path.startsWith('M')).toBe(true);
-        }
+    it('draws one path per visible series from its computed path data', () => {
+        const paths = Array.from(fixture.nativeElement.querySelectorAll('path[data-slot="line-series"]')) as SVGPathElement[];
+        expect(paths.map(p => p.getAttribute('d'))).toEqual(component.seriesPaths().map(s => s.path));
+        expect(component.seriesPaths().map(s => s.name)).toEqual(['Revenue', 'Cost']);
     });
 
     it('maps the maximum value near the top of the plot area', () => {
@@ -165,7 +159,7 @@ describe('LineChartComponent', () => {
     it('exposes crosshair position and hover title while hovering', () => {
         component.setHover(2);
         expect(component.hoverTitle()).toBe('Q3');
-        expect(component.crosshairX()).not.toBeNull();
+        expect(component.crosshairX()).toBe(component.categoryTicks()[2].x);
     });
 
     it('falls back to zero when a series lacks a value at the hovered index', () => {
@@ -215,8 +209,8 @@ describe('LineChartComponent', () => {
         const evt = new MouseEvent('mousemove', { clientX: 250, clientY: 120 });
         Object.defineProperty(evt, 'target', { value: svg });
         component.onPointerMove(evt);
-        expect(component.hoveredIndex()).not.toBeNull();
-        expect(component.tooltipPos().x).toBeGreaterThan(0);
+        expect(component.hoveredIndex()).toBe(1);
+        expect(component.tooltipPos().x).toBe(component.categoryTicks()[1].x + 12);
         component.onPointerLeave();
         expect(component.hoveredIndex()).toBeNull();
     });
@@ -239,8 +233,7 @@ describe('LineChartComponent', () => {
     });
 
     it('computes a nice y-axis tick set', () => {
-        expect(component.yTicks().length).toBeGreaterThan(1);
-        expect(component.yTicks()[0]).toBe(0);
+        expect(component.yTicks()).toEqual([0, 50, 100, 150, 200]);
     });
 
     it('falls back to a default y-domain when every series is hidden', () => {
@@ -262,12 +255,6 @@ describe('LineChartComponent', () => {
         expect(component.isRtl()).toBe(false);
         const ltrLeft = component.seriesPaths()[0].points[0].x;
         expect(rtlLeft).not.toBe(ltrLeft);
-    });
-
-    it('resolves direction from the DOM when set to auto', () => {
-        fixture.componentRef.setInput('dir', 'auto');
-        fixture.detectChanges();
-        expect(component.isRtl()).toBe(false);
     });
 
     it('drops grid lines when showGrid is false', () => {
@@ -295,6 +282,8 @@ describe('LineChartComponent', () => {
     it('reflects a custom class on the root element', () => {
         fixture.componentRef.setInput('class', 'my-chart');
         fixture.detectChanges();
-        expect(component.classes()).toContain('my-chart');
+        const root = fixture.nativeElement.querySelector('[data-slot="line-chart"]') as HTMLElement;
+        expect(root.classList).toContain('my-chart');
+        expect(root.classList).toContain('w-full');
     });
 });

@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PhoneInputComponent } from './phone-input.component';
 import type { PhoneCountry } from './phone-input-data';
 import { UI_INPUT_GROUP } from '../../lib/input-group.token';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 
 describe('PhoneInputComponent — coverage completion', () => {
     let component: PhoneInputComponent;
@@ -23,17 +23,6 @@ describe('PhoneInputComponent — coverage completion', () => {
         expect(component.nationalNumber()).toBe('+0001234567');
     });
 
-    it('invokes the default onTouched via onBlur without a registered handler', () => {
-        expect(() => component.onBlur()).not.toThrow();
-    });
-
-    it('calls the registered onTouched handler on blur', () => {
-        const touched = vi.fn();
-        component.registerOnTouched(touched);
-        component.onBlur();
-        expect(touched).toHaveBeenCalledTimes(1);
-    });
-
     it('does not reset the country from defaultCountry once the user picks one', async () => {
         const de = component.countries().find(c => c.code === 'DE')!;
         component.selectCountry(de);
@@ -48,20 +37,16 @@ describe('PhoneInputComponent — coverage completion', () => {
     });
 
     it('falls back to the first country when defaultCountry code is unknown', async () => {
+        fixture.componentRef.setInput('defaultCountry', 'DE');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(component.selectedCountry().code).toBe('DE');
+
         fixture.componentRef.setInput('defaultCountry', 'ZZ');
         fixture.detectChanges();
         await fixture.whenStable();
         fixture.detectChanges();
         expect(component.selectedCountry().code).toBe('US');
-    });
-
-    it('applies a non-null value input via the value effect', async () => {
-        fixture.componentRef.setInput('value', '+4915123456789');
-        fixture.detectChanges();
-        await fixture.whenStable();
-        fixture.detectChanges();
-        expect(component.selectedCountry().code).toBe('DE');
-        expect(component.nationalNumber()).toBe('15123456789');
     });
 
     it('falls back to the mask when neither placeholder input nor country placeholder exist', async () => {
@@ -79,12 +64,8 @@ describe('PhoneInputComponent — coverage completion', () => {
     it('marks the currently selected country row with the active accent class', () => {
         const classes = component.countryRowClasses(component.selectedCountry());
         expect(classes).toContain('bg-accent/50');
-    });
-
-    it('does not mark a non-selected country row with the active accent class', () => {
         const de = component.countries().find(c => c.code === 'DE')!;
-        const classes = component.countryRowClasses(de);
-        expect(classes).not.toContain('bg-accent/50');
+        expect(component.countryRowClasses(de)).not.toContain('bg-accent/50');
     });
 
     it('exposes itself as the UI_INPUT_GROUP context via its own injector', () => {

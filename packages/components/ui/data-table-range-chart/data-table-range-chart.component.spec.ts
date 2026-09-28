@@ -137,16 +137,6 @@ describe('DataTableRangeChartComponent', () => {
     ]);
   });
 
-  it('switches chart type', () => {
-    expect(component.chartType()).toBe('bar');
-    component.selectChartType('pie');
-    expect(component.chartType()).toBe('pie');
-  });
-
-  it('exposes the available chart types', () => {
-    expect(component.chartTypes).toEqual(['bar', 'pie', 'stacked']);
-  });
-
   it('composes the custom class into the container classes', () => {
     fixture.componentRef.setInput('class', 'my-custom-class');
     fixture.detectChanges();
@@ -184,8 +174,17 @@ describe('DataTableRangeChartComponent', () => {
 
   it('renders the bar chart by default and swaps to pie on selection', () => {
     expect(fixture.debugElement.query(By.css('ui-bar-chart'))).toBeTruthy();
-    component.selectChartType('pie');
+    const switches = fixture.debugElement
+      .queryAll(By.css('[data-slot="range-chart-switcher"] ui-button'))
+      .map((b) => b.nativeElement as HTMLElement);
+    const pie = switches.find((b) => b.textContent?.trim() === 'pie')!;
+    expect(pie.getAttribute('aria-pressed')).toBe('false');
+
+    pie.querySelector('button')!.click();
     fixture.detectChanges();
+
+    expect(pie.getAttribute('aria-pressed')).toBe('true');
+    expect(switches.find((b) => b.textContent?.trim() === 'bar')!.getAttribute('aria-pressed')).toBe('false');
     expect(fixture.debugElement.query(By.css('ui-pie-chart'))).toBeTruthy();
     expect(fixture.debugElement.query(By.css('ui-bar-chart'))).toBeNull();
   });

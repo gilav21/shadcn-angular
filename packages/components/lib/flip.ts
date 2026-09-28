@@ -44,7 +44,7 @@ interface Snapshot {
 }
 
 function prefersReducedMotion(): boolean {
-    return globalThis.window?.matchMedia('(prefers-reduced-motion: reduce)').matches ?? false;
+    return globalThis.window?.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 }
 
 function snapshot(elements: HTMLElement[]): Snapshot[] {

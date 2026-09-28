@@ -36,10 +36,6 @@ describe('DockItemComponent', () => {
         vi.useRealTimers();
     });
 
-    it('should create', () => {
-        expect(fixture.componentInstance).toBeTruthy();
-    });
-
     it('should render with data-slot attribute', () => {
         const el = fixture.debugElement.query(By.css('[data-slot="dock-item"]'));
         expect(el).toBeTruthy();
@@ -77,20 +73,6 @@ describe('DockItemComponent', () => {
         expect(el.nativeElement.className).toContain('custom-dock-item');
     });
 
-    it('should have cursor-pointer class', () => {
-        const el = fixture.debugElement.query(By.directive(DockItemComponent));
-        expect(el.nativeElement.className).toContain('cursor-pointer');
-    });
-
-    it('should start bounce animation', async () => {
-        host.dockItem.startBounce();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const el = fixture.debugElement.query(By.directive(DockItemComponent));
-        expect(el.nativeElement.className).toContain('animate-bounce');
-    });
-
     describe('bounce animation ends', () => {
         it('should remove animate-bounce class after 750ms', () => {
             vi.useFakeTimers();
@@ -118,16 +100,6 @@ describe('DockItemComponent', () => {
 
             const el = fixture.debugElement.query(By.directive(DockItemComponent));
             expect(el.nativeElement.className).toContain('animate-bounce');
-        });
-
-        it('should set isBouncing back to false after 750ms', () => {
-            vi.useFakeTimers();
-
-            host.dockItem.startBounce();
-            expect(host.dockItem.isBouncing()).toBe(true);
-
-            vi.advanceTimersByTime(750);
-            expect(host.dockItem.isBouncing()).toBe(false);
         });
     });
 

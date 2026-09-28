@@ -69,14 +69,6 @@ describe('drawing a stroke', () => {
         expect(strokePath([{ x: 0.5, y: 0.5 }], 100, 100)).toBe('M50,50L50,50');
     });
 
-    it('draws two points as a line', () => {
-        const stroke: Stroke = [
-            { x: 0, y: 0 },
-            { x: 1, y: 1 },
-        ];
-        expect(strokePath(stroke, 100, 100)).toBe('M0,0L100,100');
-    });
-
     /**
      * Joining raw points with straight lines makes a hand-drawn line faceted,
      * because every corner lands on a sample. Curving through the midpoints

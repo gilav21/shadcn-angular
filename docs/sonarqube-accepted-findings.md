@@ -84,7 +84,8 @@ analyzer can't see through the custom tag, so it reports a missing keyboard
 handler; **adding one would make the action fire twice on Enter** (once from
 ui-button's native activation, once from the redundant `(keydown)`). Raw-element
 cases (e.g. the drawer backdrop above) are still fixed with a native `<button>`,
-not suppressed — this exemption is scoped to the `ui-button` primitive only.
+not suppressed — this exemption is scoped to the `ui-button` and
+`ui-pagination-link` primitives, both of which render a native `<button>`.
 
 | File | Instances |
 | --- | --- |
@@ -96,6 +97,8 @@ not suppressed — this exemption is scoped to the `ui-button` primitive only.
 | `rich-text-editor/addons/links/rich-text-links-form.component.html` | Remove/Cancel/Insert are `<ui-button (click)>` — native `<button>` underneath, Enter/Space already fire click. |
 | `rich-text-editor/addons/ai/rich-text-ai-panel.component.html` | Go/Accept/Discard/Retry are `<ui-button (click)>` — native `<button>` underneath, Enter/Space already fire click. |
 | `signature-pad/signature-pad.component.html` | Undo/Clear are `<ui-button (click)>` — native `<button>` underneath, Enter/Space already fire click. |
+| `data-table/sub/data-table-column-header.component.html` | The sort `<ui-button (click)>`. It also bound Enter/Space, which made one key press sort twice (#165); native activation alone is correct. |
+| `data-table/sub/data-table-pagination.component.html` | First/previous/next/last `<ui-pagination-link (click)>` — native `<button>` underneath. The redundant Enter/Space bindings paged twice per press (#165). |
 
 **The one raw-`<div>` exception — the `file-upload` dropzone.** It is
 `role="presentation"` and its `(click)`/drag handlers are a *pointer convenience*,

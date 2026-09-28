@@ -14,8 +14,24 @@ class FakeAnimation {
     readonly finished: Promise<void> = Promise.resolve();
 }
 
+/**
+ * Undo functions for the stubs below. The window and prototypes are shared by
+ * every later file in the worker, so each stub is put back after each test,
+ * newest first.
+ */
+let restoreStubs: Array<() => void> = [];
+
+function replaceOwn(target: object, key: string, value: unknown): void {
+    const own = Object.getOwnPropertyDescriptor(target, key);
+    Object.defineProperty(target, key, { configurable: true, writable: true, value });
+    restoreStubs.unshift(() => {
+        if (own) Object.defineProperty(target, key, own);
+        else Reflect.deleteProperty(target, key);
+    });
+}
+
 function installAnimateStub(): void {
-    HTMLElement.prototype.animate = function (
+    replaceOwn(HTMLElement.prototype, 'animate', function (
         this: HTMLElement,
         keyframes: Keyframe[] | PropertyIndexedKeyframes | null,
         options: number | KeyframeAnimationOptions,
@@ -26,11 +42,11 @@ function installAnimateStub(): void {
             options: typeof options === 'number' ? { duration: options } : options,
         });
         return new FakeAnimation() as unknown as Animation;
-    };
+    });
 }
 
 function installMatchMediaStub(): void {
-    globalThis.window.matchMedia = (query: string): MediaQueryList => ({
+    replaceOwn(globalThis, 'matchMedia', (query: string): MediaQueryList => ({
         matches: query.includes('reduce') && reduceMotion,
         media: query,
         onchange: null,
@@ -39,7 +55,7 @@ function installMatchMediaStub(): void {
         addEventListener: () => undefined,
         removeEventListener: () => undefined,
         dispatchEvent: () => false,
-    });
+    }));
 }
 
 function makeItem(rects: DOMRect[]): HTMLElement {
@@ -63,6 +79,8 @@ describe('createFlip', () => {
 
     afterEach(() => {
         vi.restoreAllMocks();
+        for (const restore of restoreStubs) restore();
+        restoreStubs = [];
     });
 
     it('animates elements that moved between measure and play', async () => {

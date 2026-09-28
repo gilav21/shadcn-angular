@@ -95,38 +95,44 @@ describe('BulletChartComponent', () => {
 
     it('derives the max from ranges, value, and target', () => {
         expect(component.maxValue()).toBe(100);
+
+        fixture.componentRef.setInput('value', 500);
+        fixture.detectChanges();
+        expect(component.maxValue()).toBe(500);
+
+        fixture.componentRef.setInput('value', 70);
+        fixture.componentRef.setInput('target', 150);
+        fixture.detectChanges();
+        expect(component.maxValue()).toBe(150);
     });
 
-    it('renders one qualitative band per range with increasing opacity', () => {
-        const bands = fixture.nativeElement.querySelectorAll('rect[data-slot="bullet-range"]');
-        expect(bands).toHaveLength(3);
-        const model = component.rangeBands();
-        expect(model).toHaveLength(3);
-        expect(model[0].opacity).toBeLessThan(model[2].opacity);
-        expect(model[0].width).toBeGreaterThan(0);
+    it('renders one qualitative band per range, sorted, each spanning from the previous range', () => {
+        fixture.componentRef.setInput('ranges', [100, 50, 75]);
+        fixture.detectChanges();
+        const track = component.trackWidth();
+        const bands = [...fixture.nativeElement.querySelectorAll('rect[data-slot="bullet-range"]')] as SVGRectElement[];
+
+        const spans = bands.map(b => [Number(b.getAttribute('x')) / track, Number(b.getAttribute('width')) / track]);
+        expect(spans).toHaveLength(3);
+        [[0, 0.5], [0.5, 0.25], [0.75, 0.25]].forEach(([x, w], i) => {
+            expect(spans[i][0]).toBeCloseTo(x, 5);
+            expect(spans[i][1]).toBeCloseTo(w, 5);
+        });
+        const opacities = bands.map(b => Number(b.getAttribute('fill-opacity')));
+        expect(opacities[0]).toBeLessThan(opacities[1]);
+        expect(opacities[1]).toBeLessThan(opacities[2]);
     });
 
     it('renders a measure bar whose width reflects the value', () => {
-        const measure = fixture.nativeElement.querySelector('rect[data-slot="bullet-measure"]');
-        expect(measure).toBeTruthy();
-        expect(component.measureWidth()).toBeGreaterThan(0);
-        expect(component.measureHeight()).toBeCloseTo(component.height() / 3, 5);
-        expect(component.barY()).toBeCloseTo(component.height() / 2 - component.measureHeight() / 2, 5);
+        const measure = fixture.nativeElement.querySelector('rect[data-slot="bullet-measure"]') as SVGRectElement;
+        expect(Number(measure.getAttribute('width'))).toBeCloseTo(0.7 * component.trackWidth(), 5);
     });
 
     it('positions the target marker proportionally to the target value', () => {
         const expected = (80 / 100) * component.trackWidth();
         expect(component.targetX()).toBeCloseTo(expected, 0);
-    });
-
-    it('renders a target marker element', () => {
-        expect(fixture.nativeElement.querySelector('[data-slot="bullet-target"]')).toBeTruthy();
-    });
-
-    it('caps the measure width at the track width when value exceeds max', () => {
-        fixture.componentRef.setInput('value', 500);
-        fixture.detectChanges();
-        expect(component.measureWidth()).toBeLessThanOrEqual(component.trackWidth() + 0.001);
+        const line = fixture.nativeElement.querySelector('[data-slot="bullet-target"]') as SVGLineElement;
+        expect(Number(line.getAttribute('x1'))).toBeCloseTo(expected, 5);
     });
 
     it('falls back to the width input for viewBox / svgWidth when unmeasured', () => {

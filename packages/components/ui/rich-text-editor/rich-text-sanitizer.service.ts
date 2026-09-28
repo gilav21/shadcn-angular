@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
-import { flattenIntoRowText, isInlineHoldingBlock, isNestedList, isPhrasing, rowRunsOf, separateListKinds } from './rich-text-lines';
+import { MAX_NESTING_DEPTH, childList, flattenIntoRowText, inlineElementsHoldingBlocks, isNestedList, isPhrasing, rowRunsOf, separateListKinds } from './rich-text-lines';
 import { isValidImageMagicBytes } from '../../lib/parsers/image-validator';
 import { sanitizeSvg } from '../../lib/parsers/svg-sanitizer';
 
@@ -163,15 +163,6 @@ export class RichTextSanitizerService {
     private readonly document = inject(DOCUMENT);
 
     /** Allowlisted elements - only these can appear in sanitized output */
-    /**
-     * Whether `tagName` survives {@link sanitize}. The markdown service asks so
-     * it can decide whether a `<` in the source opens a real tag or is just a
-     * less-than sign the author typed.
-     */
-    isAllowedTag(tagName: string): boolean {
-        return this.ALLOWED_TAGS.has(tagName.toLowerCase());
-    }
-
     private readonly ALLOWED_TAGS = new Set([
         // Block elements
         'p', 'div', 'br', 'hr',
@@ -272,13 +263,6 @@ export class RichTextSanitizerService {
         /^hljs(-\w+)?$/,       // hljs, hljs-keyword, etc.
         /^token(-\w+)?$/,      // Prism.js tokens
     ];
-
-    /** Dangerous URL protocols to block */
-    private readonly DANGEROUS_PROTOCOLS = new Set([
-        'javascript:',
-        'vbscript:',
-        'data:',  // Block data: except for images
-    ]);
 
     /** Event handler attributes pattern */
     private readonly EVENT_HANDLER_PATTERN = /^on\w+$/i;
@@ -406,30 +390,47 @@ export class RichTextSanitizerService {
      * the next read took apart, so the document gained an empty paragraph on
      * every pass. The wrapper moves inside instead, around each inline run, so
      * its formatting survives: `<b><p>x</p></b>` becomes `<p><b>x</b></p>`.
+     *
+     * Innermost wrapper first, so each one finds the ones inside it already
+     * pushed down and descends only to the runs, never through them again:
+     * outermost first re-walked every wrapper nested below, and unclosed inline
+     * tags nest thousands deep. It also keeps the wrappers in their written
+     * order around each run. The moves keep every holder in the tree, and
+     * holding its block, so the holders are found once, up front.
+     *
+     * Each run takes each wrapper around it once, so the output is the runs
+     * times the wrappers -- quadratic when a wrapper is left open around every
+     * block. It is bounded, block by block: a block is not walked again for a
+     * copy of a wrapper already walked through it, which adds nothing, nor past
+     * MAX_NESTING_DEPTH wrappers, as every nested construct is capped. A copy of
+     * the very wrapper already around a run is skipped for the same reason.
      */
     private pushInlineWrappersIntoBlocks(root: HTMLElement): void {
-        for (const el of Array.from(root.querySelectorAll('*'))) {
-            // `root` is detached, so `isConnected` is false for everything in
-            // it; containment is what says an earlier move has not taken `el` out.
-            if (!root.contains(el) || !isInlineHoldingBlock(el)) continue;
-            for (const child of Array.from(el.childNodes)) this.wrapInlineRuns(child, el);
-            el.replaceWith(...Array.from(el.childNodes));
+        const { holders, phrasing } = inlineElementsHoldingBlocks(root);
+        const wrap: InlineWrap = { phrasing, covered: new WeakMap<Node, Element[]>() };
+        for (const el of holders) {
+            for (const child of childList(el)) this.wrapInlineRuns(child, el, wrap);
+            el.replaceWith(...childList(el));
         }
     }
 
     /** Wrap each inline piece of `node` in a copy of `wrapper`, descending through blocks. */
-    private wrapInlineRuns(node: Node, wrapper: Element): void {
+    private wrapInlineRuns(node: Node, wrapper: Element, wrap: InlineWrap): void {
         // Blank formatting text and a row's checkbox are not content to format:
         // wrapping the checkbox would take it out of its row.
         if (node.nodeName === 'INPUT') return;
         if (node.nodeType === Node.TEXT_NODE && (node.textContent ?? '').trim() === '') return;
-        if (isPhrasing(node)) {
+        if (wrap.phrasing(node)) {
+            if (sameElement(node, wrapper)) return;
             const copy = wrapper.cloneNode(false);
             node.parentNode?.insertBefore(copy, node);
             copy.appendChild(node);
             return;
         }
-        for (const child of Array.from(node.childNodes)) this.wrapInlineRuns(child, wrapper);
+        const covered = wrap.covered.get(node) ?? [];
+        if (covered.length >= MAX_NESTING_DEPTH || covered.some((el) => sameElement(el, wrapper))) return;
+        for (const child of childList(node)) this.wrapInlineRuns(child, wrapper, wrap);
+        wrap.covered.set(node, [...covered, wrapper]);
     }
 
     /**
@@ -443,7 +444,7 @@ export class RichTextSanitizerService {
      */
     private liftBlocksOutOfLines(root: HTMLElement): void {
         for (const line of Array.from(root.querySelectorAll('h1, h2, h3, h4, h5, h6'))) {
-            if (Array.from(line.childNodes).every(isPhrasing)) continue;
+            if (childList(line).every(isPhrasing)) continue;
             line.replaceWith(...this.splitAroundBlocks(line));
         }
     }
@@ -452,7 +453,7 @@ export class RichTextSanitizerService {
     private splitAroundBlocks(line: Element): Node[] {
         const pieces: Node[] = [];
         let run: Element | null = null;
-        for (const child of Array.from(line.childNodes)) {
+        for (const child of childList(line)) {
             if (isPhrasing(child)) {
                 run ??= line.cloneNode(false) as Element;
                 run.appendChild(child);
@@ -497,7 +498,7 @@ export class RichTextSanitizerService {
         for (const summary of Array.from(root.querySelectorAll('summary'))) {
             if (summary.parentElement?.nodeName === 'DETAILS') continue;
             const paragraph = this.document.createElement('p');
-            paragraph.append(...Array.from(summary.childNodes));
+            paragraph.append(...childList(summary));
             // A block the summary held goes beside its paragraph, not inside:
             // `<p><p>x</p></p>` came apart on every read.
             summary.replaceWith(...this.splitAroundBlocks(paragraph));
@@ -594,7 +595,7 @@ export class RichTextSanitizerService {
         flattenIntoRowText(content, span);
         // The row's own nested list renders under its text, so the span
         // goes before it.
-        row.insertBefore(span, Array.from(row.childNodes).find((node) => isNestedList(node)) ?? null);
+        row.insertBefore(span, childList(row).find((node) => isNestedList(node)) ?? null);
     }
 
     /** A new task row in the state of `row`, for the content after its nested list (see rowRunsOf). */
@@ -617,40 +618,54 @@ export class RichTextSanitizerService {
      */
     private normalizeStrayLines(root: HTMLElement): void {
         for (const el of Array.from(root.querySelectorAll(STRAY_LINE_HOSTS))) {
-            if (!Array.from(el.children).some((child) => this.needsItsOwnLine(child, el))) continue;
-            for (const run of this.strayRunsOf(el)) {
-                const paragraph = this.document.createElement('p');
-                run[0].before(paragraph);
-                for (const node of run) paragraph.appendChild(node);
-            }
+            const children = childList(el);
+            // Only a host with a run to wrap is rebuilt: moving a block holding
+            // the rest of the document is not free in every DOM implementation.
+            if (!children.some((child) => this.needsItsOwnLine(child, el)) || !children.some(isStrayContent)) continue;
+            for (const node of this.withStrayRunsWrapped(detachChildren(el))) el.appendChild(node);
         }
     }
 
     /**
-     * Runs of inline content between the block children of `el`.
+     * `children` with each run of inline content between the blocks in a
+     * paragraph of its own, everything else in place.
      *
      * A block ENDS a run and is never part of one. Letting a nested list stay
      * in the run — because the sub-list exception says it does not make its
      * item a container — moved the list into the new paragraph, producing a
      * `<ul>` inside a `<p>` and one more empty paragraph on every save.
      */
-    private strayRunsOf(el: Element): ChildNode[][] {
-        const runs: ChildNode[][] = [];
+    private withStrayRunsWrapped(children: readonly ChildNode[]): Node[] {
+        const out: Node[] = [];
         let run: ChildNode[] = [];
-        for (const node of Array.from(el.childNodes)) {
-            if (!isPhrasing(node)) {
-                if (run.length > 0) runs.push(run);
-                run = [];
-                continue;
+        // A task box met inside a run stays out of the paragraph, after it.
+        let after: ChildNode[] = [];
+        const flush = (): void => {
+            if (run.length > 0) {
+                const paragraph = this.document.createElement('p');
+                paragraph.append(...run);
+                out.push(paragraph);
             }
-            // Blank text between two of the run's nodes is the space between
-            // their words: left outside the paragraph, "<b>a</b> <i>b</i>" read "ab".
-            if (run.length === 0 && node.nodeType === Node.TEXT_NODE && (node.textContent ?? '').trim() === '') continue;
-            if (node.nodeName === 'INPUT') continue;
-            run.push(node);
+            out.push(...after);
+            run = [];
+            after = [];
+        };
+        for (const node of children) {
+            if (!isPhrasing(node)) {
+                flush();
+                out.push(node);
+            } else if (node.nodeName === 'INPUT') {
+                (run.length > 0 ? after : out).push(node);
+            } else if (run.length === 0 && node.nodeType === Node.TEXT_NODE && (node.textContent ?? '').trim() === '') {
+                // Blank text between two of the run's nodes is the space between
+                // their words: left outside the paragraph, "<b>a</b> <i>b</i>" read "ab".
+                out.push(node);
+            } else {
+                run.push(node);
+            }
         }
-        if (run.length > 0) runs.push(run);
-        return runs;
+        flush();
+        return out;
     }
 
     /**
@@ -681,9 +696,9 @@ export class RichTextSanitizerService {
      */
     private normalizeQuoteLines(root: HTMLElement): void {
         for (const quote of Array.from(root.querySelectorAll('blockquote'))) {
-            const bare = Array.from(quote.childNodes).some((node) => !this.isQuoteLineBlock(node));
+            const bare = childList(quote).some((node) => !this.isQuoteLineBlock(node));
             if (!bare) continue;
-            quote.replaceChildren(...this.groupQuoteLines(Array.from(quote.childNodes)));
+            quote.replaceChildren(...this.groupQuoteLines(childList(quote)));
         }
     }
 
@@ -786,26 +801,16 @@ export class RichTextSanitizerService {
         // unnamed passed -- blob:, filesystem:, view-source:, about:, ws: and
         // file: all reached a live href. Only the schemes ordinary links use are
         // accepted; a URL with no scheme at all is relative, and fine.
+        //
+        // javascript:, vbscript: and every data: URL are in FORBIDDEN_LINK_SCHEMES,
+        // which no consumer allowlist widens. No legitimate link target is a
+        // data: URL, and `data:image/svg+xml` was once waved through here,
+        // letting a link carry an SVG document with an onload handler. Image
+        // sources keep their own, stricter route (sanitizeImageSrc ->
+        // sanitizeSvgDataUrl), which scrubs the SVG rather than trusting the
+        // MIME label.
         const scheme = /^([a-z][a-z0-9+.-]*):/.exec(probe)?.[1];
-        if (scheme && !this.isLinkSchemeAllowed(scheme)) {
-            return false;
-        }
-
-        for (const protocol of this.DANGEROUS_PROTOCOLS) {
-            if (probe.startsWith(protocol)) {
-                // Every data: URL is refused here. This is the href path, and no
-                // legitimate link target is a data: URL, while
-                // `data:image/svg+xml` was previously waved through
-                // unconditionally by isAllowedDataUrl -- letting a link carry an
-                // SVG document with an onload handler into the content. Image
-                // sources keep their own, stricter route
-                // (sanitizeImageSrc -> sanitizeSvgDataUrl), which scrubs the SVG
-                // rather than trusting the MIME label.
-                return false;
-            }
-        }
-
-        return true;
+        return !scheme || this.isLinkSchemeAllowed(scheme);
     }
 
     /**
@@ -1115,7 +1120,10 @@ export class RichTextSanitizerService {
             return null;
         }
 
-        if (probe.startsWith('/') || probe.startsWith('./') || probe.startsWith('../')) {
+        // Any schemeless target is same-origin once the authority forms above
+        // are refused. Only "/", "./" and "../" were accepted, so a bare
+        // "images/a.png" was judged unsafe, and an unsafe image is dropped.
+        if (probe && !/^[a-z][a-z0-9+.-]*:/i.test(probe)) {
             return trimmed;
         }
 
@@ -1162,36 +1170,104 @@ export class RichTextSanitizerService {
 
     /** Tags that should be removed entirely (including content) */
     private readonly TAGS_TO_REMOVE = new Set([
-        'script', 'style', 'iframe', 'object', 'embed', 'noscript', 'template'
+        'script', 'style', 'iframe', 'object', 'embed', 'noscript', 'template',
     ]);
 
-    private processElementNode(element: HTMLElement, target: HTMLElement): void {
+    /**
+     * Elements that change how the markup INSIDE them is parsed: MathML and SVG
+     * are foreign content, and the rest are scope boundaries a `<table>` does
+     * not close a paragraph across. Unwrapped, their content kept a shape the
+     * parser never builds -- `<p>a <math><mtext><table>` left a table inside a
+     * paragraph -- so the output read back as a different document, the
+     * instability mutation XSS is built on. Removed whole, the author's text
+     * went with them: "Click <button>Save</button> to continue" lost a word.
+     * They become their text alone, which keeps the words and none of the
+     * structure.
+     */
+    private readonly TAGS_TO_FLATTEN = new Set(['math', 'svg', 'button', 'applet', 'marquee']);
+
+    /**
+     * Copy one element, or what of it is safe, into `target`. Returns whether
+     * anything in it was removed rather than copied, so a paragraph can tell an
+     * emptiness sanitising caused from one the author wrote.
+     */
+    private processElementNode(element: HTMLElement, target: HTMLElement): boolean {
         const tagName = element.tagName.toLowerCase();
-        if (this.ALLOWED_TAGS.has(tagName)) {
-            if (tagName === 'input' && element.getAttribute('type') !== 'checkbox') {
-                return;
+        if (!this.ALLOWED_TAGS.has(tagName)) {
+            if (this.TAGS_TO_FLATTEN.has(tagName)) {
+                this.flattenToText(element, target);
+                return true;
             }
-            const cleanElement = this.document.createElement(tagName);
-            this.sanitizeAttributes(element, cleanElement, tagName);
-            this.processNodes(element, cleanElement);
-            target.appendChild(cleanElement);
-        } else if (!this.TAGS_TO_REMOVE.has(tagName)) {
-            this.processNodes(element, target);
+            return this.TAGS_TO_REMOVE.has(tagName) || this.processNodes(element, target);
         }
+        if (tagName === 'input' && element.getAttribute('type') !== 'checkbox') return true;
+        const cleanElement = this.document.createElement(tagName);
+        this.sanitizeAttributes(element, cleanElement, tagName);
+        // Kept without its source, an unsafe image was an empty frame the
+        // author never asked for; a policy-blocked one keeps its marker and stays.
+        if (tagName === 'img' && this.lostItsSource(element, cleanElement)) return true;
+        const removed = this.processNodes(element, cleanElement);
+        if (removed && tagName === 'p' && this.showsNothingAtAll(cleanElement)) return true;
+        target.appendChild(cleanElement);
+        return removed;
+    }
+
+    /**
+     * Copy `element` into `target` as one text node of the text it shows --
+     * without the script or style text a removed tag holds. Walked with a
+     * stack: foreign content nests as deep as the parser allows.
+     *
+     * The element was a box of its own, so its text is set apart from text
+     * right before it: two buttons side by side read "Accept Decline", not
+     * one fused word.
+     */
+    private flattenToText(element: Element, target: HTMLElement): void {
+        const parts: string[] = [];
+        const pending: Node[] = [element];
+        for (let node = pending.pop(); node; node = pending.pop()) {
+            if (node.nodeType === Node.TEXT_NODE) {
+                parts.push(node.textContent ?? '');
+            } else if (node === element || !this.TAGS_TO_REMOVE.has(node.nodeName.toLowerCase())) {
+                pending.push(...childList(node).reverse());
+            }
+        }
+        const text = parts.join('');
+        if (!text) return;
+        const before = target.lastChild?.textContent ?? '';
+        const apart = before !== '' && /\S$/.test(before) && /^\S/.test(text);
+        target.appendChild(this.document.createTextNode(apart ? ` ${text}` : text));
+    }
+
+    /** Whether an image that named a source was left with neither a `src` nor a blocked-source marker. */
+    private lostItsSource(source: HTMLElement, clean: HTMLElement): boolean {
+        const named = source.hasAttribute('src') || 'blockedSrc' in source.dataset;
+        return named && !clean.hasAttribute('src') && !('blockedSrc' in clean.dataset);
+    }
+
+    /**
+     * Whether a block renders nothing: no element that draws, and no text but
+     * collapsible whitespace. A non-breaking space is the author's blank line
+     * and counts as content.
+     */
+    private showsNothingAtAll(el: HTMLElement): boolean {
+        return /^[ \t\n\r\f]*$/.test(el.textContent ?? '') && !el.querySelector('img, br, hr, input, table');
     }
 
     /**
      * Process nodes recursively, copying safe content to clean container.
+     * Returns whether any of them was removed rather than copied.
      */
-    private processNodes(source: Node, target: HTMLElement): void {
+    private processNodes(source: Node, target: HTMLElement): boolean {
+        let removed = false;
         for (const node of Array.from(source.childNodes)) {
             if (node.nodeType === Node.TEXT_NODE) {
                 target.appendChild(this.document.createTextNode(node.textContent ?? ''));
             } else if (node.nodeType === Node.ELEMENT_NODE) {
-                this.processElementNode(node as HTMLElement, target);
+                removed = this.processElementNode(node as HTMLElement, target) || removed;
             }
             // Ignore comments, processing instructions, etc.
         }
+        return removed;
     }
 
     /**
@@ -1544,6 +1620,41 @@ export class RichTextSanitizerService {
  * Counting the delimiter run is the general rule.
  */
 /** The three values `dir` accepts. */
+/** Whether `node` is inline content that belongs in a line: not blank text, and not a task's box. */
+function isStrayContent(node: Node): boolean {
+    if (node.nodeType === Node.TEXT_NODE) return (node.textContent ?? '').trim() !== '';
+    return node.nodeName !== 'INPUT' && isPhrasing(node);
+}
+
+/**
+ * `el`'s children, removed from it front first. Rebuilding a host from its
+ * detached children and appending them back keeps a pass linear: moving a
+ * node out of the middle of a long child list, or inserting there, costs a walk
+ * of that list in some DOM implementations -- quadratic in a host holding
+ * thousands of lines.
+ */
+function detachChildren(el: Element): ChildNode[] {
+    const children: ChildNode[] = [];
+    for (let child = el.firstChild; child; child = el.firstChild) {
+        child.remove();
+        children.push(child);
+    }
+    return children;
+}
+
+/** What pushing inline wrappers into blocks knows: which nodes are inline, and which wrappers each block was walked for. */
+interface InlineWrap {
+    readonly phrasing: (node: Node) => boolean;
+    readonly covered: WeakMap<Node, Element[]>;
+}
+
+/** Whether `node` is an element of `element`'s tag with the same attributes: a copy of it would add nothing. */
+function sameElement(node: Node, element: Element): boolean {
+    if (!(node instanceof Element) || node.nodeName !== element.nodeName) return false;
+    if (node.attributes.length !== element.attributes.length) return false;
+    return Array.from(element.attributes).every((attr) => node.getAttribute(attr.name) === attr.value);
+}
+
 function isTextDirection(value: string): boolean {
     return value === 'rtl' || value === 'ltr' || value === 'auto';
 }

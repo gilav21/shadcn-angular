@@ -9,6 +9,7 @@ import {
   OnDestroy,
   OnInit,
   output,
+  viewChild,
 } from '@angular/core';
 import { cn } from '../../../lib/utils';
 import { CommandService, generateId } from '../command.component';
@@ -19,6 +20,7 @@ import { COMMAND_GROUP } from './command-group.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div
+      #row
       [class]="classes()"
       [attr.id]="id"
       [attr.data-slot]="'command-item'"
@@ -77,14 +79,21 @@ export class CommandItemComponent implements OnInit, OnDestroy {
   readonly id = generateId();
   readonly cmdService = inject(CommandService);
   readonly group = inject(COMMAND_GROUP, { optional: true });
-  readonly el = inject(ElementRef);
+  /**
+   * The rendered row. Scrolling targets it rather than the host, because the
+   * host is `display: contents` — it has no box, so `scrollIntoView()` on it is a
+   * no-op and the highlight would slide out of the list's scroll viewport.
+   */
+  private readonly row = viewChild.required<ElementRef<HTMLElement>>('row');
 
   isActive = computed(() => this.cmdService.activeItemId() === this.id);
 
   constructor() {
     effect(() => {
       if (this.isActive()) {
-        this.el.nativeElement.scrollIntoView({ block: 'nearest' });
+        // Optional call: jsdom (a consumer's unit tests) has no scrollIntoView,
+        // and a missing scroll must not break keyboard highlighting.
+        this.row().nativeElement.scrollIntoView?.({ block: 'nearest' });
       }
     });
   }

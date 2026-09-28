@@ -6,11 +6,11 @@
   }
   <div class="flex flex-wrap items-center gap-1 px-3 pb-2">
     @for (preset of effectivePresets(); track preset.label) {
-      <ui-button variant="outline" size="sm" class="h-7 text-xs" (clicked)="applyPreset(preset)">
+      <ui-button variant="outline" size="sm" class="h-7 pointer-coarse:h-11 text-xs" (clicked)="applyPreset(preset)">
         {{ preset.label }}
       </ui-button>
     }
-    <ui-button variant="ghost" size="sm" class="h-7 text-xs" (clicked)="clear()">
+    <ui-button variant="ghost" size="sm" class="h-7 pointer-coarse:h-11 text-xs" (clicked)="clear()">
       {{ clearLabel() }}
     </ui-button>
   </div>

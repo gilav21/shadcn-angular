@@ -1,4 +1,5 @@
 import type { AbstractControl, ValidationErrors, ValidatorFn } from '@angular/forms';
+import { graphemeLength } from '../../lib/grapheme';
 
 /**
  * A value is HTML when it carries a tag other than the ones the editor's
@@ -205,15 +206,18 @@ export function richTextRequired(): ValidatorFn {
 /**
  * Cap the number of *visible* characters, so `<strong>` tags and `**` markers
  * do not eat a 280-character budget. Line breaks and block boundaries are not
- * characters. Emoji count in UTF-16 units, matching Angular's `maxLength` and
- * the editor's own character counter.
+ * characters. A character is what a reader sees as one (a grapheme cluster),
+ * counted by the same helper as the editor's own counter, so an emoji is one
+ * character here and there — unlike Angular's `maxLength`, which counts UTF-16
+ * units.
  *
  * @returns Angular's `{ maxlength: { requiredLength, actualLength } }`, so
  * `ui-field-auto-errors` renders its existing message with no configuration.
+ * `actualLength` is in the same characters.
  */
 export function richTextMaxLength(max: number): ValidatorFn {
     return (control: AbstractControl): ValidationErrors | null => {
-        const actualLength = richTextVisibleText(control.value).replaceAll('\n', '').length;
+        const actualLength = graphemeLength(richTextVisibleText(control.value).replaceAll('\n', ''));
         return actualLength > max
             ? { maxlength: { requiredLength: max, actualLength } }
             : null;

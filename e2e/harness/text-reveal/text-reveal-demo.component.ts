@@ -12,7 +12,7 @@ import { TextRevealComponent } from '@/components/ui/text-reveal';
     imports: [TextRevealComponent],
     template: `
         <main class="p-8">
-            <ui-text-reveal data-testid="root"></ui-text-reveal>
+            <ui-text-reveal data-testid="root" text="Reveal every word in turn"></ui-text-reveal>
         </main>
     `,
 })

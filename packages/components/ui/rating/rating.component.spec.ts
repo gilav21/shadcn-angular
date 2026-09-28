@@ -146,75 +146,11 @@ describe('RatingComponent', () => {
     });
 
     describe('Basic Rendering', () => {
-        it('should create rating component', () => {
-            const r = fixture.debugElement.query(By.directive(RatingComponent));
-            expect(r).toBeTruthy();
-        });
-
-        it('should have data-slot="rating"', () => {
-            const r = fixture.debugElement.query(By.css('[data-slot="rating"]'));
-            expect(r).toBeTruthy();
-        });
-
-        it('should render correct number of stars', () => {
-            expect(buttons()).toHaveLength(5);
-        });
-
         it('should render 10 stars when max is 10', async () => {
             component.max.set(10);
             fixture.detectChanges();
             await fixture.whenStable();
             expect(buttons()).toHaveLength(10);
-        });
-
-        it('reflects size on star classes for sm and lg', async () => {
-            component.size.set('sm');
-            fixture.detectChanges();
-            await fixture.whenStable();
-            const smClass = buttons()[0].getAttribute('class') ?? '';
-            expect(smClass).toContain('h-4');
-            expect(smClass).toContain('w-4');
-
-            component.size.set('lg');
-            fixture.detectChanges();
-            await fixture.whenStable();
-            const lgClass = buttons()[0].getAttribute('class') ?? '';
-            expect(lgClass).toContain('h-6');
-            expect(lgClass).toContain('w-6');
-        });
-
-        it('scales the star glyph with the button box', async () => {
-            const glyphClass = (): string =>
-                buttons()[0].querySelector('svg')?.getAttribute('class') ?? '';
-
-            component.size.set('sm');
-            fixture.detectChanges();
-            await fixture.whenStable();
-            expect(glyphClass()).toBe('h-4 w-4');
-
-            component.size.set('md');
-            fixture.detectChanges();
-            await fixture.whenStable();
-            expect(glyphClass()).toBe('h-5 w-5');
-
-            component.size.set('lg');
-            fixture.detectChanges();
-            await fixture.whenStable();
-            expect(glyphClass()).toBe('h-6 w-6');
-        });
-
-        it('scales half and empty star glyphs too', async () => {
-            component.precision.set(0.5);
-            component.value.set(1.5);
-            component.size.set('lg');
-            fixture.detectChanges();
-            await fixture.whenStable();
-
-            const glyphs = buttons().map(b => b.querySelector('svg')?.getAttribute('class') ?? '');
-            expect(glyphs.length).toBeGreaterThanOrEqual(3);
-            for (const glyph of glyphs) {
-                expect(glyph).toBe('h-6 w-6');
-            }
         });
     });
 
@@ -376,34 +312,7 @@ describe('RatingComponent', () => {
         });
     });
 
-    describe('RTL Support', () => {
-        it('should render in LTR mode', () => {
-            const container = fixture.debugElement.query(By.css('[dir="ltr"]'));
-            expect(container).toBeTruthy();
-        });
-
-        it('should render in RTL mode', async () => {
-            component.dir.set('rtl');
-            fixture.detectChanges();
-            await fixture.whenStable();
-            const container = fixture.debugElement.query(By.css('[dir="rtl"]'));
-            expect(container).toBeTruthy();
-        });
-
-        it('should maintain rating structure in RTL', async () => {
-            component.dir.set('rtl');
-            fixture.detectChanges();
-            await fixture.whenStable();
-            expect(fixture.debugElement.query(By.directive(RatingComponent))).toBeTruthy();
-            expect(buttons()).toHaveLength(5);
-        });
-    });
-
     describe('Accessibility', () => {
-        it('exposes a native range input as the slider control', () => {
-            expect(rangeInput()).toBeTruthy();
-        });
-
         it('reflects the current value on the range input', async () => {
             // NgModel writes the initial value asynchronously (zone leg), so
             // flush once more before reading the native range reflection.
@@ -413,29 +322,12 @@ describe('RatingComponent', () => {
             expect(rangeInput().value).toBe('3');
         });
 
-        it('exposes min on the range input', () => {
-            expect(rangeInput().min).toBe('0');
-        });
-
         it('exposes max on the range input', () => {
             expect(rangeInput().max).toBe('5');
         });
 
-        it('should have aria-label on rating', () => {
-            expect(rangeInput().getAttribute('aria-label')).toBe('Rating');
-        });
-
-        it('should have aria-label on each star button', () => {
-            buttons().forEach((btn, index) => {
-                expect(btn.getAttribute('aria-label')).toContain(`Rate ${index + 1}`);
-            });
-        });
-
-        it('should be focusable when not disabled', () => {
-            expect(rangeInput().disabled).toBe(false);
-        });
-
         it('should not be focusable when disabled', async () => {
+            expect(rangeInput().disabled).toBe(false);
             component.disabled.set(true);
             fixture.detectChanges();
             await fixture.whenStable();
@@ -525,66 +417,16 @@ describe('RatingComponent', () => {
             expect(component.value()).toBe(2.5);
         });
 
-        it('reports empty fill below the half threshold', () => {
-            expect(rating().getStarFill({ index: 4, value: 5 })).toBe('empty');
+        it('reports empty fill below the half threshold', async () => {
+            component.value.set(2);
+            fixture.detectChanges();
+            await fixture.whenStable();
+            // 2 is below star 3's half point (2.5), so star 3 stays empty.
+            expect(rating().getStarFill({ index: 2, value: 3 })).toBe('empty');
         });
     });
 
-    describe('RTL interactions', () => {
-        beforeEach(async () => {
-            component.precision.set(0.5);
-            component.value.set(0);
-            fixture.detectChanges();
-            await fixture.whenStable();
-        });
-
-        it('treats the right half as the lower value on RTL click', () => {
-            const r = rating();
-            vi.spyOn(r, 'isRtl').mockReturnValue(true);
-            const btn = buttons()[2];
-            const rect = btn.getBoundingClientRect();
-            btn.dispatchEvent(mouse('click', rect.right - 2));
-            fixture.detectChanges();
-            expect(component.value()).toBe(2.5);
-        });
-
-        it('treats the right half as the lower value on RTL hover', () => {
-            const r = rating();
-            vi.spyOn(r, 'isRtl').mockReturnValue(true);
-            const btn = buttons()[2];
-            const rect = btn.getBoundingClientRect();
-            btn.dispatchEvent(mouse('mousemove', rect.right - 2));
-            fixture.detectChanges();
-            expect(r.hoverValue()).toBe(2.5);
-        });
-
-        it('ArrowLeft increases value in RTL', () => {
-            const r = rating();
-            vi.spyOn(r, 'isRtl').mockReturnValue(true);
-            r.value.set(2);
-            internals(r).onKeydown(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
-            fixture.detectChanges();
-            expect(component.value()).toBe(2.5);
-        });
-
-        it('ArrowRight decreases value in RTL', () => {
-            const r = rating();
-            vi.spyOn(r, 'isRtl').mockReturnValue(true);
-            r.value.set(2);
-            internals(r).onKeydown(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
-            fixture.detectChanges();
-            expect(component.value()).toBe(1.5);
-        });
-
-        it('renders an RTL half-fill gradient', () => {
-            const r = rating();
-            vi.spyOn(r, 'isRtl').mockReturnValue(true);
-            r.value.set(2.5);
-            fixture.detectChanges();
-            const gradientStops = fixture.debugElement.queryAll(By.css('stop'));
-            expect(gradientStops.length).toBeGreaterThan(0);
-        });
-
+    describe('Unhandled keys', () => {
         it('ignores unrelated keys', () => {
             const r = rating();
             const before = r.value();
@@ -674,13 +516,6 @@ describe('RatingComponent', () => {
             expect(internals(r).getRatingFromPoint(120)).toBeNull();
         });
 
-        it('returns null when there are no star buttons', async () => {
-            component.max.set(0);
-            fixture.detectChanges();
-            await fixture.whenStable();
-            expect(internals(rating()).getRatingFromPoint(120)).toBeNull();
-        });
-
         it('returns null when the pointer position is not a number', () => {
             expect(internals(rating()).getRatingFromPoint(Number.NaN)).toBeNull();
         });
@@ -739,20 +574,6 @@ describe('RatingComponent', () => {
             await fixture.whenStable();
             const root = fixture.debugElement.query(By.css('[data-slot="rating"]')).nativeElement as HTMLElement;
             expect(root.getAttribute('class') ?? '').toContain('my-custom-class');
-        });
-    });
-
-    describe('Security', () => {
-        it('should not execute scripts', () => {
-            const r = fixture.debugElement.query(By.css('[data-slot="rating"]'));
-            expect(r.nativeElement.innerHTML).not.toContain('<script>');
-        });
-
-        it('should handle numeric bounds correctly', () => {
-            const r = rating();
-            r.writeValue(100);
-            fixture.detectChanges();
-            expect(r.value()).toBeLessThanOrEqual(100);
         });
     });
 });

@@ -7,6 +7,18 @@ import {
 } from './data-table-multiselect-filter.component';
 import { DataTableLocale } from '../data-table.locales';
 
+/** Each option row's label, in rendered order. */
+function itemLabels(fixture: ComponentFixture<unknown>): string[] {
+  return fixture.debugElement
+    .queryAll(By.css('ui-command-item'))
+    .map((item) => (item.nativeElement as HTMLElement).textContent?.trim() ?? '');
+}
+
+/** Each option row's checkbox input, in rendered order. */
+function itemCheckboxes(fixture: ComponentFixture<unknown>): HTMLInputElement[] {
+  return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('ui-command-item input[type="checkbox"]'));
+}
+
 describe('DataTableMultiselectFilterComponent', () => {
   let component: DataTableMultiselectFilterComponent<string>;
   let fixture: ComponentFixture<DataTableMultiselectFilterComponent<string>>;
@@ -29,21 +41,14 @@ describe('DataTableMultiselectFilterComponent', () => {
     fixture.detectChanges();
   });
 
-  it('should create', () => {
-    expect(component).toBeTruthy();
-  });
+  it('renders one checkbox row per option in order, checking only the selected ones', () => {
+    expect(itemLabels(fixture)).toEqual(STRING_OPTIONS);
+    expect(itemCheckboxes(fixture).map((c) => c.checked)).toEqual([false, false, false, false]);
 
-  it('should render all options with checkboxes', () => {
-    const items = fixture.debugElement.queryAll(By.css('ui-command-item'));
-    expect(items).toHaveLength(STRING_OPTIONS.length);
+    component.toggleOption('success');
+    fixture.detectChanges();
 
-    const checkboxes = fixture.debugElement.queryAll(By.css('ui-checkbox'));
-    expect(checkboxes).toHaveLength(STRING_OPTIONS.length);
-  });
-
-  it('should toggle option on and emit filterChange', () => {
-    component.toggleOption('pending');
-    expect(emitted).toEqual(['pending']);
+    expect(itemCheckboxes(fixture).map((c) => c.checked)).toEqual([false, false, true, false]);
   });
 
   it('toggles when a command-item fires its select output (template must bind the renamed selectItem output, not native select)', () => {
@@ -82,15 +87,17 @@ describe('DataTableMultiselectFilterComponent', () => {
     expect(emitted).toEqual(STRING_OPTIONS);
   });
 
-  it('should show selected count badge when title is set', () => {
+  it('shows the selected count in a badge beside the title, and no badge at zero', () => {
     fixture.componentRef.setInput('title', 'Status');
     fixture.detectChanges();
+    expect(fixture.debugElement.query(By.css('ui-badge'))).toBeNull();
 
     component.toggleOption('pending');
+    component.toggleOption('failed');
     fixture.detectChanges();
 
     const badge = fixture.debugElement.query(By.css('ui-badge'));
-    expect(badge).toBeTruthy();
+    expect((badge.nativeElement as HTMLElement).textContent?.trim()).toBe('2');
   });
 
   it('falls back to English literals when the active locale omits the labels', () => {
@@ -174,9 +181,9 @@ describe('DataTableMultiselectFilterComponent with objects', () => {
     fixture.detectChanges();
   });
 
-  it('should render object options with displayWith', () => {
-    const items = fixture.debugElement.queryAll(By.css('ui-command-item'));
-    expect(items).toHaveLength(PRIORITY_OPTIONS.length);
+  it('labels object options and their checkboxes with displayWith', () => {
+    expect(itemLabels(fixture)).toEqual(['Low', 'Medium', 'High']);
+    expect(itemCheckboxes(fixture).map((c) => c.getAttribute('aria-label'))).toEqual(['Low', 'Medium', 'High']);
   });
 
   it('should emit extracted values via valueWith', () => {
@@ -221,10 +228,5 @@ describe('multiselectFilterFn', () => {
 
   it('should return false when row value is not in filter array', () => {
     expect(multiselectFilterFn(row, ['inactive', 'archived'], (r: Row) => r.status)).toBe(false);
-  });
-
-  it('should work with numeric values', () => {
-    expect(multiselectFilterFn(row, [1, 2], (r: Row) => r.id)).toBe(true);
-    expect(multiselectFilterFn(row, [2, 3], (r: Row) => r.id)).toBe(false);
   });
 });

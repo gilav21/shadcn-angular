@@ -10,10 +10,10 @@
   <ui-command [shouldFilter]="true" [attr.dir]="dir()">
     <ui-command-input [placeholder]="resolvedPlaceholder()" />
     <div class="flex items-center gap-1 px-2 py-1.5">
-      <ui-button variant="ghost" size="sm" class="h-7 text-xs" (clicked)="selectAll()">
+      <ui-button variant="ghost" size="sm" class="h-7 pointer-coarse:h-11 text-xs" (clicked)="selectAll()">
         {{ selectAllLabel() }}
       </ui-button>
-      <ui-button variant="ghost" size="sm" class="h-7 text-xs" (clicked)="clearAll()">
+      <ui-button variant="ghost" size="sm" class="h-7 pointer-coarse:h-11 text-xs" (clicked)="clearAll()">
         {{ clearAllLabel() }}
       </ui-button>
     </div>

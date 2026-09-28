@@ -16,8 +16,8 @@ import { cn } from '../../../lib/utils';
     },
 })
 export class AlertDescriptionComponent {
-    /** Extra classes merged onto the description host. Any nested `<p>` already gets relaxed leading, so multi-paragraph bodies need no extra styling. */
+    /** Extra classes merged onto the description host, a block under the title that keeps the leading-icon indent on every wrapped line. Any nested `<p>` already gets relaxed leading, so multi-paragraph bodies need no extra styling. */
     class = input('');
 
-    classes = computed(() => cn('text-sm [&_p]:leading-relaxed', this.class()));
+    classes = computed(() => cn('block text-sm [&_p]:leading-relaxed', this.class()));
 }

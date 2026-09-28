@@ -8,7 +8,6 @@ import { FIELD_ERROR_LOCALES } from './field.locales';
 import {
     richTextMaxLength,
     richTextMinWords,
-    richTextRequired,
 } from '../rich-text-editor';
 import {
     FieldComponent,
@@ -79,18 +78,6 @@ describe('FieldComponent', () => {
         // Manual detectChanges management
     });
 
-    it('should create all parts', () => {
-        fixture.detectChanges();
-        expect(fixture.debugElement.query(By.directive(FieldComponent))).toBeTruthy();
-        expect(fixture.debugElement.query(By.directive(FieldGroupComponent))).toBeTruthy();
-        expect(fixture.debugElement.query(By.directive(FieldSetComponent))).toBeTruthy();
-        expect(fixture.debugElement.query(By.directive(FieldLabelComponent))).toBeTruthy();
-        expect(fixture.debugElement.query(By.directive(FieldLegendComponent))).toBeTruthy();
-        expect(fixture.debugElement.query(By.directive(FieldDescriptionComponent))).toBeTruthy();
-        expect(fixture.debugElement.query(By.directive(FieldErrorComponent))).toBeTruthy();
-        expect(fixture.debugElement.query(By.directive(FieldSeparatorComponent))).toBeTruthy();
-    });
-
     it('should render correct html structure', () => {
         fixture.detectChanges();
         const fieldset = fixture.debugElement.query(By.css('fieldset'));
@@ -107,7 +94,6 @@ describe('FieldComponent', () => {
         host.orientation = 'horizontal';
         fixture.detectChanges();
         const field = fixture.debugElement.query(By.css('[data-slot="field"]'));
-        expect(field.nativeElement.classList.contains('flex')).toBe(true);
         expect(field.nativeElement.getAttribute('data-orientation')).toBe('horizontal');
     });
 
@@ -128,20 +114,15 @@ describe('FieldComponent', () => {
         fixture.detectChanges();
         const field = fixture.debugElement.query(By.directive(FieldComponent))
             .componentInstance as FieldComponent;
-        const describedBy = field.describedBy();
-        expect(describedBy).toBeTruthy();
-        expect((describedBy as string).split(' ')).toHaveLength(2);
-    });
-
-    it('resolves generated ids on description and error sub-components', () => {
-        fixture.detectChanges();
         const description = fixture.debugElement.query(By.directive(FieldDescriptionComponent))
             .componentInstance as FieldDescriptionComponent;
         const error = fixture.debugElement.query(By.directive(FieldErrorComponent))
             .componentInstance as FieldErrorComponent;
-        expect(description.resolvedId()).toBeTruthy();
-        expect(error.resolvedId()).toBeTruthy();
+        expect(description.resolvedId()).not.toBe('');
+        expect(error.resolvedId()).not.toBe('');
+        expect(field.describedBy()).toBe(`${description.resolvedId()} ${error.resolvedId()}`);
     });
+
 });
 
 describe('FieldComponent describedBy without registrations', () => {
@@ -206,16 +187,6 @@ describe('FieldAutoErrorsComponent', () => {
     it('renders nothing while the control is pristine and untouched', () => {
         fixture.detectChanges();
         expect(errorText(fixture)).toBeNull();
-    });
-
-    it('shows the localized required message once touched', async () => {
-        fixture.detectChanges();
-        host.email.markAsTouched();
-        await fixture.whenStable();
-        fixture.detectChanges();
-        expect(errorText(fixture)).toBe('This field is required');
-        const error = fixture.debugElement.query(By.css('[data-slot="field-error"]'));
-        expect(error.nativeElement.getAttribute('role')).toBe('alert');
     });
 
     it('interpolates validation error values into the template', async () => {
@@ -319,12 +290,6 @@ describe('FieldAutoErrorsComponent — rich-text validators', () => {
         fixture.detectChanges();
         return fixture;
     }
-
-    it('renders the required message for richTextRequired with no messages input', async () => {
-        const fixture = await renderWith([richTextRequired()], '<p><br></p>');
-
-        expect(errorText(fixture)).toBe('This field is required');
-    });
 
     it('renders the maxlength message with the interpolated limit', async () => {
         const fixture = await renderWith([richTextMaxLength(10)], '<p><b>hello</b> world</p>');

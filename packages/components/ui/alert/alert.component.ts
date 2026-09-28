@@ -6,8 +6,10 @@ import {
 } from '@angular/core';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../../lib/utils';
-export { AlertTitleComponent } from './sub/alert-title.component';
-export { AlertDescriptionComponent } from './sub/alert-description.component';
+import { AlertTitleComponent } from './sub/alert-title.component';
+import { AlertDescriptionComponent } from './sub/alert-description.component';
+
+export { AlertTitleComponent, AlertDescriptionComponent };
 
 const alertVariants = cva(
     'relative w-full rounded-lg border px-4 py-3 text-sm [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:start-4 [&>svg]:top-4 [&>svg]:text-foreground [&>svg~*]:ps-7',
@@ -30,6 +32,7 @@ export type AlertVariant = VariantProps<typeof alertVariants>['variant'];
 @Component({
     selector: 'ui-alert',
     changeDetection: ChangeDetectionStrategy.OnPush,
+    imports: [AlertTitleComponent, AlertDescriptionComponent],
     templateUrl: './alert.component.html',
     host: {
         class: 'block',
@@ -50,9 +53,10 @@ export class AlertComponent {
     /** Extra classes merged onto the host. The variants set colour and layout only; note the built-in `[&>svg]` rules already absolutely position a leading icon and indent the text past it. */
     class = input('');
     /**
-     * Simple-mode heading. Supplying it switches the alert to the generated
-     * layout — title, optional {@link description}, then any projected content —
-     * instead of pure projection. Leave it empty to compose
+     * Simple-mode heading. Supplying it renders a `ui-alert-title` (and the
+     * optional {@link description} as a `ui-alert-description`) ahead of any
+     * other projected content, so both modes lay out identically. A projected
+     * top-level `<svg>` icon is always placed first. Leave it empty to compose
      * `ui-alert-title` / `ui-alert-description` yourself.
      */
     title = input('');

@@ -91,22 +91,6 @@ describe('GradientTextComponent', () => {
         expect(styles['background']).toContain('#4ecdc4');
     });
 
-    it('should set backgroundSize to 200% 200%', async () => {
-        await createFixture();
-        const comp = fixture.debugElement.query(By.directive(GradientTextComponent)).componentInstance as GradientTextComponent;
-        const styles = comp.styles() as Record<string, string>;
-        expect(styles['backgroundSize']).toBe('200% 200%');
-    });
-
-    it('should set backgroundClip to text for text masking', async () => {
-        await createFixture();
-        const comp = fixture.debugElement.query(By.directive(GradientTextComponent)).componentInstance as GradientTextComponent;
-        const styles = comp.styles() as Record<string, string>;
-        expect(styles['backgroundClip']).toBe('text');
-        expect(styles['WebkitBackgroundClip']).toBe('text');
-        expect(styles['WebkitTextFillColor']).toBe('transparent');
-    });
-
     it('should update gradient when colors input changes', async () => {
         await createFixture();
         host.colors.set(['#000000', '#ffffff']);
@@ -114,18 +98,7 @@ describe('GradientTextComponent', () => {
 
         const comp = fixture.debugElement.query(By.directive(GradientTextComponent)).componentInstance as GradientTextComponent;
         const styles = comp.styles() as Record<string, string>;
-        expect(styles['background']).toContain('#000000');
-        expect(styles['background']).toContain('#ffffff');
-    });
-
-    it('should support a single color entry', async () => {
-        await createFixture();
-        host.colors.set(['#123456']);
-        fixture.detectChanges();
-
-        const comp = fixture.debugElement.query(By.directive(GradientTextComponent)).componentInstance as GradientTextComponent;
-        const styles = comp.styles() as Record<string, string>;
-        expect(styles['background']).toBe('linear-gradient(to right, #123456)');
+        expect(styles['background']).toBe('linear-gradient(to right, #000000, #ffffff)');
     });
 
     it('should include the direction in the gradient', async () => {
@@ -148,23 +121,21 @@ describe('GradientTextComponent', () => {
         expect((el.nativeElement as HTMLElement).className).toContain('font-bold');
     });
 
-    it('should always include inline-block class', async () => {
-        await createFixture();
-        const el = fixture.debugElement.query(By.directive(GradientTextComponent));
-        expect((el.nativeElement as HTMLElement).className).toContain('inline-block');
-    });
+    function hostEl(): HTMLElement {
+        return fixture.debugElement.query(By.directive(GradientTextComponent)).nativeElement as HTMLElement;
+    }
 
-    it('should start RAF animation loop on afterViewInit', async () => {
+    it('should start the animation on afterViewInit, at the gradient midpoint', async () => {
+        vi.spyOn(performance, 'now').mockReturnValue(0);
         await createFixture();
-        expect(rafSpy).toHaveBeenCalled();
+        expect(hostEl().style.backgroundPosition).toBe('50% 50%');
     });
 
     it('should NOT start the animation loop when reduced motion is preferred', async () => {
         stubMatchMedia(true);
         await createFixture();
-        const comp = fixture.debugElement.query(By.directive(GradientTextComponent))
-            .componentInstance as unknown as { animationFrameId: number | null };
-        expect(comp.animationFrameId).toBeNull();
+        // The animation writes 'X% 50%'; the background shorthand alone leaves its own default.
+        expect(hostEl().style.backgroundPosition).not.toMatch(/% 50%$/);
     });
 
     it('should set data-slot attribute', async () => {
@@ -180,23 +151,21 @@ describe('GradientTextComponent', () => {
         expect(cancelSpy).toHaveBeenCalledWith(1);
     });
 
-    it('should NOT cancel animation frame on destroy when no frame was scheduled', async () => {
-        stubMatchMedia(true);
-        await createFixture();
-        const cancelSpy = vi.spyOn(globalThis, 'cancelAnimationFrame');
-        fixture.destroy();
-        expect(cancelSpy).not.toHaveBeenCalled();
-    });
-
     it('should update backgroundPosition via the RAF callback honoring speed', async () => {
-        host.speed.set(2);
-        await createFixture();
-        const rafCallback = (rafSpy.mock.calls[0] as unknown[])[0] as () => void;
-        const el = fixture.debugElement.query(By.directive(GradientTextComponent)).nativeElement as HTMLElement;
+        const now = vi.spyOn(performance, 'now').mockReturnValue(0);
+        await TestBed.configureTestingModule({ imports: [TestHostComponent] }).compileComponents();
+        fixture = TestBed.createComponent(TestHostComponent);
+        fixture.componentInstance.speed.set(2);
+        fixture.detectChanges();
+        // The zoneless scheduler also requests frames; pick the component's own loop.
+        const rafCallback = (rafSpy.mock.calls as unknown[][])
+            .map((call: unknown[]) => call[0] as () => void)
+            .find((fn: () => void) => String(fn).includes('backgroundPosition'))!;
 
-        vi.spyOn(performance, 'now').mockReturnValue(1500);
+        // A quarter of the 2s cycle: sin(pi/2) puts the gradient at its far edge.
+        now.mockReturnValue(500);
         rafCallback();
 
-        expect(el.style.backgroundPosition).toMatch(/^\d+(?:\.\d+)?% 50%$/);
+        expect(hostEl().style.backgroundPosition).toBe('100% 50%');
     });
 });

@@ -8,7 +8,8 @@ import {
     input,
     signal,
 } from '@angular/core';
-import { cn, prefersReducedMotion } from '../../lib/utils';
+import { cn } from '../../lib/utils';
+import { prefersReducedMotion } from '../../lib/media';
 import { UI_LOCALE_ID } from '../../lib/i18n';
 import { NumberTickerDigitComponent } from './sub/number-ticker-digit.component';
 export { NumberTickerDigitComponent };

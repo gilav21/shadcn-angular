@@ -9,7 +9,9 @@ import {
     inject,
     NgZone,
 } from '@angular/core';
-import { cn, prefersReducedMotion } from '../../lib/utils';
+import { cn } from '../../lib/utils';
+import { prefersReducedMotion } from '../../lib/media';
+import { createIntersectionObserver } from '../../lib/observers';
 
 @Component({
     selector: 'ui-stagger-children',
@@ -45,17 +47,19 @@ export class StaggerChildrenComponent implements AfterViewInit, OnDestroy {
 
     classes = computed(() => cn('block', this.class()));
 
-    private observer?: IntersectionObserver;
+    private observer: IntersectionObserver | null = null;
     private animations: Animation[] = [];
 
     ngAfterViewInit(): void {
-        if (prefersReducedMotion()) return;
+        // Without IntersectionObserver nothing would ever start the cascade, so
+        // the children stay as they are: visible, as under reduced motion.
+        if (prefersReducedMotion() || typeof globalThis.IntersectionObserver !== 'function') return;
 
         this.hideChildren();
 
         this.ngZone.runOutsideAngular(() => {
             requestAnimationFrame(() => {
-                this.observer = new IntersectionObserver(
+                this.observer = createIntersectionObserver(
                     (entries) => {
                         if (entries[0].isIntersecting) {
                             this.animateChildren();
@@ -64,7 +68,7 @@ export class StaggerChildrenComponent implements AfterViewInit, OnDestroy {
                     },
                     { threshold: 0.1 }
                 );
-                this.observer.observe(this.el.nativeElement);
+                this.observer?.observe(this.el.nativeElement);
             });
         });
     }

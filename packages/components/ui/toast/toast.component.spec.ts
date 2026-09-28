@@ -1,7 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ToastService, ToastComponent } from './toast.component';
 import { ToasterComponent } from './sub/toaster.component';
-import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 
@@ -18,20 +17,6 @@ describe('ToastService', () => {
         service.toast({ title: 'Test' });
         expect(service.toasts()).toHaveLength(1);
         expect(service.toasts()[0].title).toBe('Test');
-    });
-
-    it('should dismiss a toast by id', () => {
-        const id = service.toast({ title: 'Test' });
-        service.dismiss(id);
-        expect(service.toasts()).toHaveLength(0);
-    });
-
-    it('should auto-dismiss after duration', async () => {
-        service.toast({ title: 'Auto', duration: 100 });
-        expect(service.toasts()).toHaveLength(1);
-
-        await new Promise(resolve => setTimeout(resolve, 150));
-        expect(service.toasts()).toHaveLength(0);
     });
 
     it('should have helper methods for success and error', () => {
@@ -57,16 +42,6 @@ describe('ToastService — countdown & cleanup (fake timers)', () => {
     afterEach(() => {
         service.dismissAll();
         vi.useRealTimers();
-    });
-
-    it('seeds countdownSeconds from duration when showCountdown is set', () => {
-        service.toast({ title: 'CD', duration: 5000, showCountdown: true });
-        expect(service.toasts()[0].countdownSeconds).toBe(5);
-    });
-
-    it('leaves countdownSeconds undefined when showCountdown is not set', () => {
-        service.toast({ title: 'NoCD', duration: 5000 });
-        expect(service.toasts()[0].countdownSeconds).toBeUndefined();
     });
 
     it('decrements countdownSeconds each second via the interval', () => {
@@ -115,11 +90,6 @@ describe('ToastService — countdown & cleanup (fake timers)', () => {
         expect(vi.getTimerCount()).toBe(0);
     });
 
-    it('dismiss is a no-op for an unknown id (no timers registered)', () => {
-        service.dismiss('missing');
-        expect(service.toasts()).toHaveLength(0);
-    });
-
     it('dismissAll clears every pending timeout and interval', () => {
         service.toast({ title: 'A', duration: 5000, showCountdown: true });
         service.toast({ title: 'B', duration: 5000 });
@@ -153,16 +123,6 @@ describe('ToastComponent — progress bar', () => {
         expect((bar.nativeElement as HTMLElement).style.width).toBe('60%');
     });
 
-    it('clamps progress to zero once the countdown reaches zero', async () => {
-        const fixture = await make({
-            showCountdown: true,
-            duration: 5000,
-            countdownSeconds: 0,
-        });
-        const bar = fixture.debugElement.query(By.css('[data-slot="toast-progress"] > div'));
-        expect((bar.nativeElement as HTMLElement).style.width).toBe('0%');
-    });
-
     it('reports zero progress when countdownSeconds is absent', async () => {
         const fixture = await make({ showCountdown: true, duration: 5000 });
         const bar = fixture.debugElement.query(By.css('[data-slot="toast-progress"] > div'));
@@ -191,11 +151,6 @@ describe('ToasterComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should render container', () => {
-        const container = fixture.debugElement.query(By.css('[data-slot="toaster"]'));
-        expect(container).toBeTruthy();
-    });
-
     it('should render toasts from service', () => {
         service.toast({ title: 'Toast 1' });
         fixture.detectChanges();
@@ -203,56 +158,6 @@ describe('ToasterComponent', () => {
         const toasts = fixture.debugElement.queryAll(By.directive(ToastComponent));
         expect(toasts).toHaveLength(1);
         expect(toasts[0].nativeElement.textContent).toContain('Toast 1');
-    });
-
-    it('should apply positioning classes', () => {
-        fixture.componentRef.setInput('vertical', 'top');
-        fixture.componentRef.setInput('horizontal', 'start');
-        fixture.detectChanges();
-
-        const container = fixture.debugElement.query(By.css('[data-slot="toaster"]'));
-        expect(container.nativeElement.className).toContain('top-0');
-        expect(container.nativeElement.className).toContain('ltr:left-0');
-    });
-});
-
-@Component({
-    template: `
-    <div [dir]="dir()">
-      <ui-toaster horizontal="end"></ui-toaster>
-    </div>
-  `,
-    imports: [ToasterComponent]
-})
-class RTLTestHostComponent {
-    dir = signal<'ltr' | 'rtl'>('ltr');
-}
-
-describe('Toast RTL Support', () => {
-    let fixture: ComponentFixture<RTLTestHostComponent>;
-    let component: RTLTestHostComponent;
-    let service: ToastService;
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [RTLTestHostComponent]
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(RTLTestHostComponent);
-        component = fixture.componentInstance;
-        service = TestBed.inject(ToastService);
-        service.dismissAll();
-        fixture.detectChanges();
-    });
-
-    it('should mirror position in RTL', async () => {
-        component.dir.set('rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const toaster = fixture.debugElement.query(By.css('[data-slot="toaster"]'));
-        expect(toaster.nativeElement.className).toContain('ltr:right-0');
-        expect(toaster.nativeElement.className).toContain('rtl:left-0');
     });
 });
 

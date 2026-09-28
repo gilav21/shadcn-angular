@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compileFindRegex, FIND_MAX_QUERY_LENGTH } from './index';
+import { buildFindIndex, compileFindRegex, FIND_MAX_QUERY_LENGTH, offsetToPosition } from './index';
 
 const opts = (over: Partial<{ useRegex: boolean; wholeWord: boolean; caseSensitive: boolean }> = {}) => ({
     useRegex: false,
@@ -43,7 +43,7 @@ describe('compileFindRegex', () => {
         }
 
         it('still accepts ordinary quantified patterns', () => {
-            for (const safe of ['a+', String.raw`\d{2,4}`, 'c[ao]t+', '^start', 'end$', '(foo|bar)']) {
+            for (const safe of ['a+', String.raw`\d{2,4}`, 'c[ao]t+', '^start', 'end$', '(foo|bar)', '(?:foo)', '[a-z]+']) {
                 expect(compileFindRegex(safe, opts({ useRegex: true }))).not.toBeNull();
             }
         });
@@ -94,16 +94,6 @@ describe('compileFindRegex', () => {
             expect(compileFindRegex('colou?r', opts({ useRegex: true }))).not.toBeNull();
         });
 
-        it('still rejects the capturing form', () => {
-            expect(compileFindRegex('(a+)+$', opts({ useRegex: true }))).toBeNull();
-        });
-
-        it('still accepts ordinary patterns', () => {
-            for (const p of ['hello', 'a+b', '(foo|bar)', '(?:foo)', '[a-z]+', '^start', 'end$']) {
-                expect(compileFindRegex(p, opts({ useRegex: true }))).not.toBeNull();
-            }
-        });
-
         it('rejects the nested quantifier under a NAMED group (fine-comb review)', () => {
             // "(?<n>" was skipped as if it were a lookaround. It is a plain
             // group that quantifies like any other, so "(?<n>a+)+$" hung the
@@ -118,5 +108,20 @@ describe('compileFindRegex', () => {
                 expect(compileFindRegex(p, opts({ useRegex: true }))).not.toBeNull();
             }
         });
+    });
+});
+
+describe('offsetToPosition', () => {
+    it('maps an offset to its text node, and the line break between blocks to none', () => {
+        const root = document.createElement('div');
+        root.innerHTML = '<p>ab</p><p>cd</p>';
+        const index = buildFindIndex(root);
+        const breakAt = index.text.indexOf('\n');
+        expect(breakAt).toBeGreaterThan(0);
+
+        const second = root.querySelectorAll('p')[1].firstChild;
+        expect(offsetToPosition(index.segments, breakAt + 2)).toEqual({ node: second, offset: 1 });
+        expect(offsetToPosition(index.segments, breakAt + 2, true)).toEqual({ node: second, offset: 1 });
+        expect(offsetToPosition(index.segments, breakAt)).toBeNull();
     });
 });

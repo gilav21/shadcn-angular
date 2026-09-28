@@ -308,7 +308,9 @@ export abstract class RichTextEditorAddonHost {
     /**
      * Apply a built-in toolbar command to a specific block (its block-transform
      * engine): re-tag/list-wrap the block or run the formatting command, place
-     * the caret, and record one history entry.
+     * the caret, and record one history entry. `null` runs the command at the
+     * current selection; a block no longer inside the editor (detached by an
+     * undo since it was captured) is ignored and nothing changes.
      */
     abstract executeToolbarCommandOnBlock(command: string, anchorBlock: HTMLElement | null): void;
     /**

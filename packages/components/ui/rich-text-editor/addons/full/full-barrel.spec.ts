@@ -24,10 +24,7 @@ describe('rich-text-editor addons/full barrel', () => {
         // 13 sibling addons today; the array is generated, so this guards a
         // silently-shrinking barrel rather than pinning a magic number.
         expect(RTE_FULL.length).toBeGreaterThanOrEqual(13);
-        expect(RTE_FULL.every(d => typeof d === 'function')).toBe(true);
-    });
-
-    it('exports RTE_FULL itself alongside the classes', () => {
-        expect(exportedNames.has('RTE_FULL')).toBe(true);
+        const notDirectives = RTE_FULL.filter(d => !(typeof d === 'function' && 'ɵdir' in d));
+        expect(notDirectives).toEqual([]);
     });
 });

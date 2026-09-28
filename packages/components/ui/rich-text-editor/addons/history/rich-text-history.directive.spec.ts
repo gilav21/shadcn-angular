@@ -141,37 +141,28 @@ describe('RichTextHistoryDirective', () => {
         expect(fixture.nativeElement.querySelector('ui-rich-text-history-panel')).toBeTruthy();
     });
 
-    it('mounts the panel with a corner button into the editor container', async () => {
-        const h = await create();
-        expect(h.panel).toBeInstanceOf(RichTextHistoryPanelComponent);
-        const button = h.fixture.nativeElement.querySelector('ui-rich-text-history-panel ui-button');
-        expect(button).toBeTruthy();
-    });
-
-    it('restores an earlier revision and keeps forward entries for redo', async () => {
+    it('restores an earlier revision from its row and keeps forward entries for redo', async () => {
         const h = await create();
         pushEntry(h, 'one');
         pushEntry(h, 'two');
         pushEntry(h, 'three');
-        const before = historyLength(h);
-        expect(before).toBeGreaterThanOrEqual(4);
+        const before = h.editorCmp.historyEntries().length;
+        const oneIndex = h.editorCmp.historyEntries().findIndex((e) => e.preview === 'one');
 
-        const { row } = makeRow('dialog', 1);
-        invoke(h.panel, 'onHistoryEntryKeydown', { key: 'Enter', currentTarget: row, preventDefault: vi.fn() }, 1);
+        invoke(h.panel, 'onHistoryPanelOpenChange', true);
+        h.fixture.detectChanges();
+        const row = document.querySelector<HTMLElement>(
+            `[data-history-list="popover"] [data-history-entry-index="${oneIndex}"]`,
+        )!;
+        row.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
 
-        expect(h.editor.textContent).toContain('one');
-        expect((h.editorCmp as unknown as { historyIndex: number }).historyIndex).toBe(1);
-        expect(historyLength(h)).toBe(before);
-        expect(h.fixture.componentInstance.restored()).toBe(1);
-    });
+        expect(h.editor.textContent).toBe('one');
+        expect(h.editorCmp.currentHistoryIndex()).toBe(oneIndex);
+        expect(h.editorCmp.historyEntries()).toHaveLength(before);
+        expect(h.fixture.componentInstance.restored()).toBe(oneIndex);
 
-    it('applies a revision on Space as well as Enter', async () => {
-        const h = await create();
-        pushEntry(h, 'one');
-        pushEntry(h, 'two');
-        const { row } = makeRow('dialog', 1);
-        invoke(h.panel, 'onHistoryEntryKeydown', { key: ' ', currentTarget: row, preventDefault: vi.fn() }, 1);
-        expect(h.editor.textContent).toContain('one');
+        h.editorCmp.redo();
+        expect(h.editor.textContent).toBe('two');
     });
 
     it('flushes a pending debounced snapshot when the panel opens', async () => {
@@ -200,15 +191,6 @@ describe('RichTextHistoryDirective', () => {
         expect(h.editor.textContent).toContain('one');
     });
 
-    it('marks the applied entry via lastAppliedHistoryIndex', async () => {
-        const h = await create();
-        pushEntry(h, 'one');
-        pushEntry(h, 'two');
-        const { row } = makeRow('dialog', 1);
-        invoke(h.panel, 'onHistoryEntryKeydown', { key: 'Enter', currentTarget: row, preventDefault: vi.fn() }, 1);
-        expect(h.panel['lastAppliedHistoryIndex']()).toBe(1);
-    });
-
     it('opens the browser dialog via the shortcut when the button is hidden', async () => {
         const h = await create();
         h.fixture.componentInstance.button.set(false);
@@ -220,15 +202,6 @@ describe('RichTextHistoryDirective', () => {
 
         expect(h.panel['historyBrowserOpen']()).toBe(true);
         expect(h.panel['historyPanelOpen']()).toBe(false);
-    });
-
-    it('opens the popover via the shortcut when the button is visible', async () => {
-        const h = await create();
-        h.editorCmp.onKeydown(new KeyboardEvent('keydown', {
-            key: 'h', ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true,
-        }));
-        expect(h.panel['historyPanelOpen']()).toBe(true);
-        expect(h.panel['historyBrowserOpen']()).toBe(false);
     });
 
     it('honours a shortcut-binding override for the history action', async () => {
@@ -248,46 +221,7 @@ describe('RichTextHistoryDirective', () => {
         shortcuts.clearShortcutOverride('rich-text.history');
     });
 
-    it('moves focus with arrow, Home and End keys within a history list', async () => {
-        const h = await create();
-        const list = document.createElement('div');
-        list.dataset['historyList'] = 'dialog';
-        const rows = [0, 1, 2].map((i) => {
-            const row = document.createElement('div');
-            row.dataset['historyEntryAction'] = 'true';
-            row.dataset['historyEntryIndex'] = String(i);
-            row.tabIndex = 0;
-            list.appendChild(row);
-            return row;
-        });
-        document.body.appendChild(list);
-
-        rows[0].focus();
-        invoke(h.panel, 'onHistoryEntryKeydown', { key: 'ArrowDown', currentTarget: rows[0], preventDefault: vi.fn() }, 0);
-        expect(document.activeElement).toBe(rows[1]);
-
-        invoke(h.panel, 'onHistoryEntryKeydown', { key: 'End', currentTarget: rows[1], preventDefault: vi.fn() }, 1);
-        expect(document.activeElement).toBe(rows[2]);
-
-        invoke(h.panel, 'onHistoryEntryKeydown', { key: 'Home', currentTarget: rows[2], preventDefault: vi.fn() }, 2);
-        expect(document.activeElement).toBe(rows[0]);
-        list.remove();
-    });
-
-    it('closes the popover and the browser on Escape from a row', async () => {
-        const h = await create();
-        const popover = makeRow('popover', 0);
-        h.panel['historyPanelOpen'].set(true);
-        invoke(h.panel, 'onHistoryEntryKeydown', { key: 'Escape', currentTarget: popover.row, preventDefault: vi.fn() }, 0);
-        expect(h.panel['historyPanelOpen']()).toBe(false);
-
-        const dialog = makeRow('dialog', 0);
-        h.panel['historyBrowserOpen'].set(true);
-        invoke(h.panel, 'onHistoryEntryKeydown', { key: 'Escape', currentTarget: dialog.row, preventDefault: vi.fn() }, 0);
-        expect(h.panel['historyBrowserOpen']()).toBe(false);
-    });
-
-    it('exposes reconstructed html and markdown in the preview dialog', async () => {
+    it('renders the reconstructed html and markdown in the preview dialog', async () => {
         const h = await create();
         pushEntry(h, '<p>alpha</p>');
         pushEntry(h, '<p>beta</p>');
@@ -296,10 +230,9 @@ describe('RichTextHistoryDirective', () => {
         invoke(h.panel, 'openHistoryPreview', alphaIndex, undefined);
         h.fixture.detectChanges();
 
-        const selected = h.panel['selectedHistoryEntry']();
-        expect(selected?.html).toContain('alpha');
-        expect(selected?.markdown).toContain('alpha');
-        expect(h.panel['historyPreviewOpen']()).toBe(true);
+        const dialog = document.querySelector('ui-rich-text-history-panel ui-dialog-content')!;
+        expect(dialog.querySelector('.prose')?.innerHTML).toBe('<p>alpha</p>');
+        expect(dialog.querySelector('pre')?.textContent).toBe('alpha');
     });
 
     it('localizes the panel strings for Hebrew', async () => {

@@ -119,7 +119,10 @@ export class ScrollAreaComponent implements AfterViewInit, OnDestroy {
   ngAfterViewInit(): void {
     this.updateScrollMetrics();
 
-    if (this.viewportRef?.nativeElement) {
+    // Without ResizeObserver (jsdom, which consumers' own component tests run
+    // in) the thumbs are sized from scroll events alone instead of the whole
+    // view failing to render.
+    if (this.viewportRef?.nativeElement && typeof globalThis.ResizeObserver === 'function') {
       this.resizeObserver = new ResizeObserver(() => {
         this.updateScrollMetrics();
       });

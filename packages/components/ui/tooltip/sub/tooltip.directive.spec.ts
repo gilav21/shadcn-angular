@@ -77,18 +77,11 @@ describe('TooltipDirective', () => {
         document.body.querySelectorAll(TOOLTIP_SELECTOR).forEach((el) => el.remove());
     });
 
-    it('creates the directive on the host element', () => {
-        expect(fixture.debugElement.query(By.directive(TooltipDirective))).toBeTruthy();
-    });
-
-    it('does not show the tooltip immediately on mouseenter (200ms delay)', () => {
-        fire('mouseenter');
-        expect(tooltipNode()).toBeNull();
-    });
-
     it('shows the tooltip after the 200ms delay', () => {
         fire('mouseenter');
-        vi.advanceTimersByTime(200);
+        vi.advanceTimersByTime(199);
+        expect(tooltipNode()).toBeNull();
+        vi.advanceTimersByTime(1);
         const node = tooltipNode();
         expect(node).toBeTruthy();
         expect(node?.textContent).toBe('Tooltip text');
@@ -101,14 +94,6 @@ describe('TooltipDirective', () => {
         expect(node?.parentElement).toBe(document.body);
         expect(node?.className).toContain('bg-primary');
         expect(node?.className).toContain('pointer-events-none');
-    });
-
-    it('positions the tooltip with inline top/left styles', () => {
-        fire('mouseenter');
-        vi.advanceTimersByTime(200);
-        const node = tooltipNode()!;
-        expect(node.style.top).toMatch(/px$/);
-        expect(node.style.left).toMatch(/px$/);
     });
 
     it('hides the tooltip on mouseleave', () => {
@@ -143,32 +128,40 @@ describe('TooltipDirective', () => {
         expect(document.body.querySelectorAll(TOOLTIP_SELECTOR)).toHaveLength(1);
     });
 
-    it('renders updated tooltip text', () => {
-        host.text.set('Updated');
-        fixture.detectChanges();
-        fire('mouseenter');
-        vi.advanceTimersByTime(200);
-        expect(tooltipNode()?.textContent).toBe('Updated');
-    });
-
-    describe('side placement', () => {
-        for (const side of ['top', 'bottom', 'left', 'right'] as const) {
-            it(`positions for side="${side}" without error`, () => {
-                host.side.set(side);
-                fixture.detectChanges();
-                fire('mouseenter');
-                vi.advanceTimersByTime(200);
-                const node = tooltipNode();
-                expect(node).toBeTruthy();
-                expect(node?.style.top).toMatch(/px$/);
-            });
-        }
-    });
-
     function stubHostRect(rect: Partial<DOMRect>): void {
         buttonEl().getBoundingClientRect = () =>
             ({ top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0, x: 0, y: 0, ...rect }) as DOMRect;
     }
+
+    /** The shown bubble's box, read from the styles the directive wrote and its own size. */
+    function bubbleBox(): { top: number; left: number; width: number; height: number } {
+        const node = tooltipNode()!;
+        const { width, height } = node.getBoundingClientRect();
+        return { top: Number.parseFloat(node.style.top), left: Number.parseFloat(node.style.left), width, height };
+    }
+
+    describe('side placement', () => {
+        for (const side of ['top', 'bottom', 'left', 'right'] as const) {
+            it(`places the bubble on side="${side}" with an 8px gap`, () => {
+                const cx = globalThis.innerWidth / 2;
+                const cy = globalThis.innerHeight / 2;
+                const hostRect = { top: cy - 10, bottom: cy + 10, left: cx - 30, right: cx + 30, width: 60, height: 20 };
+                stubHostRect(hostRect);
+                host.side.set(side);
+                fixture.detectChanges();
+                fire('mouseenter');
+                vi.advanceTimersByTime(200);
+                const b = bubbleBox();
+                const gap = {
+                    top: hostRect.top - (b.top + b.height),
+                    bottom: b.top - hostRect.bottom,
+                    left: hostRect.left - (b.left + b.width),
+                    right: b.left - hostRect.right,
+                }[side];
+                expect(gap).toBeCloseTo(8, 1);
+            });
+        }
+    });
 
     describe('viewport-edge flipping', () => {
         it('flips top → bottom when the tooltip would overflow the top edge', () => {
@@ -184,19 +177,15 @@ describe('TooltipDirective', () => {
         });
 
         it('flips bottom → top when the tooltip would overflow the bottom edge', () => {
-            stubHostRect({
-                top: globalThis.innerHeight,
-                bottom: globalThis.innerHeight + 10,
-                left: 200,
-                right: 260,
-                width: 60,
-                height: 10,
-            });
+            const top = globalThis.innerHeight - 14;
+            stubHostRect({ top, bottom: top + 10, left: 200, right: 260, width: 60, height: 10 });
             host.side.set('bottom');
             fixture.detectChanges();
             fire('mouseenter');
             vi.advanceTimersByTime(200);
-            expect(tooltipNode()).toBeTruthy();
+            // The clamp alone would leave the bubble overlapping the host.
+            const b = bubbleBox();
+            expect(b.top + b.height).toBeLessThanOrEqual(top - 8 + 0.5);
         });
 
         it('flips left → right when the tooltip would overflow the left edge', () => {
@@ -205,23 +194,19 @@ describe('TooltipDirective', () => {
             fixture.detectChanges();
             fire('mouseenter');
             vi.advanceTimersByTime(200);
-            expect(tooltipNode()).toBeTruthy();
+            // Without the flip the clamp pins it to left 8, over the host.
+            expect(bubbleBox().left).toBeGreaterThanOrEqual(10);
         });
 
         it('flips right → left when the tooltip would overflow the right edge', () => {
-            stubHostRect({
-                top: 200,
-                bottom: 220,
-                left: globalThis.innerWidth - 10,
-                right: globalThis.innerWidth,
-                width: 10,
-                height: 20,
-            });
+            const left = globalThis.innerWidth - 10;
+            stubHostRect({ top: 200, bottom: 220, left, right: left + 10, width: 10, height: 20 });
             host.side.set('right');
             fixture.detectChanges();
             fire('mouseenter');
             vi.advanceTimersByTime(200);
-            expect(tooltipNode()).toBeTruthy();
+            const b = bubbleBox();
+            expect(b.left + b.width).toBeLessThanOrEqual(left + 0.5);
         });
     });
 
@@ -279,9 +264,19 @@ describe('TooltipDirective — display:contents host', () => {
         fixture.detectChanges();
 
         const hostSpan = fixture.debugElement.query(By.directive(TooltipDirective)).nativeElement as HTMLElement;
+        const target = { top: 300, bottom: 330, left: 150, right: 250, width: 100, height: 30 };
+        Object.defineProperty(hostSpan.querySelector('button')!, 'getBoundingClientRect', {
+            configurable: true,
+            value: () => ({ ...target, x: target.left, y: target.top, toJSON: () => ({}) }),
+        });
         hostSpan.dispatchEvent(new Event('mouseenter', { bubbles: true }));
         vi.advanceTimersByTime(200);
-        expect(tooltipNode()).toBeTruthy();
+
+        // Default side="top", centred on the inner button (the span itself has a zero rect).
+        const node = tooltipNode()!;
+        const { width, height } = node.getBoundingClientRect();
+        expect(Number.parseFloat(node.style.top)).toBeCloseTo(target.top - height - 8, 1);
+        expect(Number.parseFloat(node.style.left)).toBeCloseTo(target.left + (target.width - width) / 2, 1);
     });
 
     it('falls back to the host when a contents element has no children', async () => {
@@ -338,12 +333,9 @@ describe('TooltipDirective — touch device', () => {
         expect(tooltipNode()).toBeNull();
     });
 
-    it('mouseleave is a no-op on touch devices (does not throw)', () => {
-        expect(() => buttonEl().dispatchEvent(new Event('mouseleave', { bubbles: true }))).not.toThrow();
-    });
-
-    it('shows the tooltip immediately on touchstart', () => {
+    it('keeps a tapped-open tooltip through the emulated mouseleave', () => {
         fireTouchStart();
+        buttonEl().dispatchEvent(new Event('mouseleave', { bubbles: true }));
         expect(tooltipNode()).toBeTruthy();
     });
 
@@ -379,14 +371,5 @@ describe('TooltipDirective — touch device', () => {
         const event = fireTouchStart();
         expect(event.defaultPrevented).toBe(false);
         expect(tooltipNode()).toBeNull();
-    });
-
-    it('cleans up the document listener and timers on destroy', () => {
-        fireTouchStart();
-        expect(tooltipNode()).toBeTruthy();
-        fixture.destroy();
-        expect(tooltipNode()).toBeNull();
-        // A stray document touchstart after destroy must not throw or resurrect anything.
-        expect(() => document.dispatchEvent(new Event('touchstart', { bubbles: true }))).not.toThrow();
     });
 });

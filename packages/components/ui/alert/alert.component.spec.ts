@@ -1,7 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { AlertComponent, AlertTitleComponent, AlertDescriptionComponent } from './alert.component';
 import { Component, signal } from '@angular/core';
-import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach } from 'vitest';
 
 // Test host component for integration tests
@@ -19,7 +18,6 @@ class TestHostComponent {
 }
 
 describe('AlertComponent', () => {
-    let component: AlertComponent;
     let fixture: ComponentFixture<AlertComponent>;
 
     beforeEach(async () => {
@@ -28,12 +26,7 @@ describe('AlertComponent', () => {
         }).compileComponents();
 
         fixture = TestBed.createComponent(AlertComponent);
-        component = fixture.componentInstance;
         fixture.detectChanges();
-    });
-
-    it('should create', () => {
-        expect(component).toBeTruthy();
     });
 
     it('should have role="status" + aria-live="polite" for the default variant', () => {
@@ -50,12 +43,6 @@ describe('AlertComponent', () => {
 
     it('should have data-slot="alert"', () => {
         expect(fixture.nativeElement.dataset.slot).toBe('alert');
-    });
-
-    it('should apply base classes', () => {
-        expect(fixture.nativeElement.className).toContain('w-full');
-        expect(fixture.nativeElement.className).toContain('rounded-lg');
-        expect(fixture.nativeElement.className).toContain('border');
     });
 
     it('should apply default variant classes', () => {
@@ -79,7 +66,6 @@ describe('AlertComponent', () => {
 });
 
 describe('AlertTitleComponent', () => {
-    let component: AlertTitleComponent;
     let fixture: ComponentFixture<AlertTitleComponent>;
 
     beforeEach(async () => {
@@ -88,26 +74,15 @@ describe('AlertTitleComponent', () => {
         }).compileComponents();
 
         fixture = TestBed.createComponent(AlertTitleComponent);
-        component = fixture.componentInstance;
         fixture.detectChanges();
-    });
-
-    it('should create', () => {
-        expect(component).toBeTruthy();
     });
 
     it('should have data-slot="alert-title"', () => {
         expect(fixture.nativeElement.dataset.slot).toBe('alert-title');
     });
-
-    it('should apply default classes', () => {
-        expect(fixture.nativeElement.className).toContain('font-medium');
-        expect(fixture.nativeElement.className).toContain('leading-none');
-    });
 });
 
 describe('AlertDescriptionComponent', () => {
-    let component: AlertDescriptionComponent;
     let fixture: ComponentFixture<AlertDescriptionComponent>;
 
     beforeEach(async () => {
@@ -116,20 +91,11 @@ describe('AlertDescriptionComponent', () => {
         }).compileComponents();
 
         fixture = TestBed.createComponent(AlertDescriptionComponent);
-        component = fixture.componentInstance;
         fixture.detectChanges();
-    });
-
-    it('should create', () => {
-        expect(component).toBeTruthy();
     });
 
     it('should have data-slot="alert-description"', () => {
         expect(fixture.nativeElement.dataset.slot).toBe('alert-description');
-    });
-
-    it('should apply default classes', () => {
-        expect(fixture.nativeElement.className).toContain('text-sm');
     });
 });
 
@@ -146,21 +112,27 @@ describe('Alert Integration', () => {
     });
 
     it('should render alert with title and description', () => {
-        const alert = fixture.debugElement.query(By.directive(AlertComponent));
-        const title = fixture.debugElement.query(By.directive(AlertTitleComponent));
-        const description = fixture.debugElement.query(By.directive(AlertDescriptionComponent));
+        const parts = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('ui-alert-title, ui-alert-description'))
+            .map(el => el.textContent?.trim());
+        expect(parts).toEqual(['Alert Title', 'Alert Description']);
 
-        expect(alert).toBeTruthy();
-        expect(title).toBeTruthy();
-        expect(description).toBeTruthy();
-    });
+        const simple = TestBed.createComponent(AlertComponent);
+        const root = simple.nativeElement as HTMLElement;
+        const slotText = (slot: string): string | undefined =>
+            root.querySelector(`[data-slot="${slot}"]`)?.textContent?.trim();
+        simple.componentRef.setInput('description', 'Your session expires in 5 minutes.');
+        simple.detectChanges();
+        // The description renders only under a title.
+        expect(slotText('alert-description')).toBeUndefined();
 
-    it('should switch variant correctly', async () => {
-        fixture.componentInstance.variant.set('destructive');
-        fixture.detectChanges();
-        await fixture.whenStable();
+        simple.componentRef.setInput('description', '');
+        simple.componentRef.setInput('title', 'Heads up!');
+        simple.detectChanges();
+        expect(slotText('alert-title')).toBe('Heads up!');
+        expect(root.querySelector('[data-slot="alert-description"]')).toBeNull();
 
-        const alert = fixture.debugElement.query(By.directive(AlertComponent));
-        expect(alert.nativeElement.className).toContain('text-destructive');
+        simple.componentRef.setInput('description', 'Your session expires in 5 minutes.');
+        simple.detectChanges();
+        expect(slotText('alert-description')).toBe('Your session expires in 5 minutes.');
     });
 });

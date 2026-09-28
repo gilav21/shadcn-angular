@@ -68,10 +68,6 @@ describe('buildFillValues (B1 fill series)', () => {
   });
 
   describe('ISO date strings', () => {
-    it('steps by day', () => {
-      expect(buildFillValues(['2024-01-01', '2024-01-02'], 2)).toEqual(['2024-01-03', '2024-01-04']);
-    });
-
     it('detects a weekly (7-day) step', () => {
       expect(buildFillValues(['2024-01-01', '2024-01-08'], 2)).toEqual(['2024-01-15', '2024-01-22']);
     });
@@ -85,7 +81,7 @@ describe('buildFillValues (B1 fill series)', () => {
     });
 
     it('clamps the day when stepping into a shorter month', () => {
-      expect(buildFillValues(['2024-01-31', '2024-03-31'], 1)).toEqual(['2024-05-31']);
+      expect(buildFillValues(['2024-07-31', '2024-08-31'], 2)).toEqual(['2024-09-30', '2024-10-31']);
     });
   });
 

@@ -13,6 +13,9 @@ export type PasteSource =
     | 'html'
     | 'plain-text';
 
+/** Word's namespaced wrapper elements, unwrapped so the text they hold stays. */
+const WORD_WRAPPER_TAGS = new Set(['o:p', 'w:sdtcontent', 'w:sdt', 'w:sdtpr', 'w:sdtendpr', 'o:oleobject']);
+
 /**
  * Normalizes pasted content from various sources (Word, Outlook, Google Docs, etc.)
  * into clean, semantic HTML before it reaches the sanitizer.
@@ -162,10 +165,13 @@ export class RichTextPasteNormalizerService {
         this.convertFontElements(container);
         this.convertWordHeadings(container);
         this.convertWordLists(container);
+        // Before mapOfficeStyles, which drops every unmapped mso-* property:
+        // afterwards nothing marks a spacerun any more.
+        const spaceruns = this.collectSpacerunText(container);
         this.mapOfficeStyles(container);
         this.convertStylesToSemanticElements(container);
         this.removeEmptyElements(container);
-        this.normalizeWhitespace(container);
+        this.normalizeWhitespace(container, spaceruns);
 
         if (source === 'outlook') {
             this.normalizeOutlookSpecific(container);
@@ -299,9 +305,11 @@ export class RichTextPasteNormalizerService {
     }
 
     private removeNamespacedElements(container: HTMLElement): void {
-        const namespaced = container.querySelectorAll(
-            String.raw`o\:p, w\:sdtContent, w\:sdt, w\:sdtPr, w\:sdtEndPr, o\:OLEObject`
-        );
+        // Matched by tag name, not by an escaped `o\:p` selector: jsdom's
+        // selector engine does not match those, and there the wrapper fell
+        // through to the drop of namespaced tags below, taking its text along.
+        const namespaced = Array.from(container.querySelectorAll('*'))
+            .filter((el) => WORD_WRAPPER_TAGS.has(el.tagName.toLowerCase()));
         namespaced.forEach(el => {
             const parent = el.parentNode;
             if (parent) {
@@ -430,6 +438,11 @@ export class RichTextPasteNormalizerService {
         }
     }
 
+    /**
+     * Nest a run of Word list paragraphs by their mso-list level: consecutive
+     * items at one level share one list under the same parent item, and an item
+     * at a shallower level closes every deeper list.
+     */
     private buildNestedList(
         items: { el: HTMLElement; level: number; isOrdered: boolean }[],
         isOrdered: boolean
@@ -438,7 +451,10 @@ export class RichTextPasteNormalizerService {
         const stack: { list: HTMLElement; level: number }[] = [{ list: root, level: 1 }];
 
         for (const item of items) {
-            while (stack.length > 1 && (stack.at(-1)?.level ?? 0) >= item.level) {
+            // Strictly deeper only: popping an equal level closed a sibling's
+            // list, and ensureNestedListParent then opened a one-item list for
+            // every entry.
+            while (stack.length > 1 && (stack.at(-1)?.level ?? 0) > item.level) {
                 stack.pop();
             }
 
@@ -1117,9 +1133,21 @@ export class RichTextPasteNormalizerService {
         return true;
     }
 
+    /**
+     * Drop wrappers that carry nothing: an attribute-less span with no visible
+     * content and a whitespace-only paragraph that has siblings.
+     *
+     * A span holding only whitespace is unwrapped, never deleted -- that
+     * whitespace is often the only thing separating two words
+     * (`<b>a</b><span> </span><i>b</i>`, or a Word spacerun), and deleting it
+     * glued them together.
+     */
     private removeEmptyElements(container: HTMLElement): void {
         this.walkElements(container, el => {
-            if (el.tagName === 'SPAN' && this.isEffectivelyEmpty(el) && !el.hasAttributes()) {
+            if (el.tagName !== 'SPAN' || el.hasAttributes() || !this.isEffectivelyEmpty(el)) return;
+            if (el.textContent) {
+                this.unwrapElement(el);
+            } else {
                 el.remove();
             }
         });
@@ -1134,32 +1162,35 @@ export class RichTextPasteNormalizerService {
         });
     }
 
-    private normalizeWhitespace(container: HTMLElement): void {
-        const spacerunElements = new Set<HTMLElement>();
-
-        this.walkElements(container, el => {
-            if (el.tagName === 'PRE' || el.tagName === 'CODE') return;
-
-            const style = el.getAttribute('style') ?? '';
-            if (/mso-spacerun\s*:\s*yes/i.test(style)) {
-                spacerunElements.add(el);
-                const styles = this.parseStyles(style);
-                styles.delete('mso-spacerun');
-                const serialized = this.serializeStyles(styles);
-                if (serialized) {
-                    el.setAttribute('style', serialized);
-                } else {
-                    el.removeAttribute('style');
-                }
+    /**
+     * The text nodes inside Word's `mso-spacerun:yes` runs: spaces the author
+     * typed, written as nbsp so they keep their width. Collected as nodes rather
+     * than elements because removeEmptyElements unwraps the whitespace-only run
+     * span, while the text node itself survives.
+     */
+    private collectSpacerunText(container: HTMLElement): ReadonlySet<Node> {
+        const spacerunText = new Set<Node>();
+        for (const el of Array.from(container.querySelectorAll('[style]'))) {
+            if (!/mso-spacerun\s*:\s*yes/i.test(el.getAttribute('style') ?? '')) continue;
+            const walker = this.document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+            for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+                spacerunText.add(node);
             }
-        });
+        }
+        return spacerunText;
+    }
 
+    /**
+     * Collapse each run of two or more nbsp into one space, leaving code and
+     * spacerun text (see {@link collectSpacerunText}) as written.
+     */
+    private normalizeWhitespace(container: HTMLElement, spacerunText: ReadonlySet<Node>): void {
         const walker = this.document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
         let node: Text | null;
         while ((node = walker.nextNode() as Text | null)) {
             const parent = node.parentElement;
             if (parent && (parent.tagName === 'PRE' || parent.tagName === 'CODE')) continue;
-            if (parent && spacerunElements.has(parent)) continue;
+            if (spacerunText.has(node)) continue;
 
             const text = node.textContent ?? '';
             if (/\u00A0{2,}/.test(text)) {

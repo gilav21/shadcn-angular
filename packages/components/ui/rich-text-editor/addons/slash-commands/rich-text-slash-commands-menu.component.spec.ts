@@ -1,9 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { RichTextSlashCommandsMenuComponent } from './rich-text-slash-commands-menu.component';
 import { RichTextSlashCommand } from '../..';
-
-type WithScroll = { scrollIntoView?: (arg?: unknown) => void };
 
 const CMDS: RichTextSlashCommand[] = [
     { id: 'a', label: 'Alpha', description: 'first', run: () => undefined },
@@ -29,25 +27,11 @@ describe('RichTextSlashCommandsMenuComponent', () => {
 
     const flush = (): Promise<void> => Promise.resolve().then(() => Promise.resolve());
 
-    let hadScroll = false;
-    beforeEach(() => {
-        hadScroll = 'scrollIntoView' in HTMLElement.prototype;
-        if (!hadScroll) {
-            (HTMLElement.prototype as WithScroll).scrollIntoView = () => undefined;
-        }
-    });
-
     afterEach(async () => {
-        // These specs spy on HTMLElement.prototype, and the component schedules
-        // its scroll through queueMicrotask — so a pending callback from THIS
-        // test would otherwise land after the next one installs its own spy and
-        // be counted against it. Drain, then destroy, then restore.
+        // The component schedules its scroll through queueMicrotask; drain it
+        // so a pending callback from this test cannot land in the next one.
         await Promise.resolve();
         fixture?.destroy();
-        vi.restoreAllMocks();
-        if (!hadScroll) {
-            delete (HTMLElement.prototype as WithScroll).scrollIntoView;
-        }
     });
 
     it('exposes the aria-label and listbox role on the host', () => {
@@ -104,37 +88,72 @@ describe('RichTextSlashCommandsMenuComponent', () => {
         expect(event.defaultPrevented).toBe(true);
     });
 
-    it('scrolls the active option into view when it sits outside the list viewport', async () => {
-        const scrollSpy = vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(() => undefined);
-        create(CMDS, 2);
+    /** Put option `index` below a 40px-tall list viewport. */
+    function placeBelowViewport(index: number): HTMLElement {
         const list = fixture.nativeElement.querySelector('.overflow-y-auto') as HTMLElement;
-        const selected = options()[2];
+        const option = options()[index];
         Object.defineProperty(list, 'clientHeight', { value: 40, configurable: true });
         Object.defineProperty(list, 'scrollTop', { value: 0, configurable: true });
-        Object.defineProperty(selected, 'offsetTop', { value: 200, configurable: true });
-        Object.defineProperty(selected, 'offsetHeight', { value: 30, configurable: true });
+        Object.defineProperty(option, 'offsetTop', { value: 200, configurable: true });
+        Object.defineProperty(option, 'offsetHeight', { value: 30, configurable: true });
+        return option;
+    }
 
-        fixture.componentRef.setInput('selectedIndex', 2);
+    /** Spy each rendered option's own scrollIntoView (instance, not prototype). */
+    function spyOnOptionScrolls(): ReturnType<typeof vi.fn>[] {
+        return options().map((option) => {
+            const spy = vi.fn();
+            Object.defineProperty(option, 'scrollIntoView', { value: spy, configurable: true });
+            return spy;
+        });
+    }
+
+    function reselect(index: number): void {
+        fixture.componentRef.setInput('selectedIndex', index);
         fixture.componentRef.setInput('commands', [...CMDS]);
         fixture.detectChanges();
+    }
+
+    it('scrolls the active option into view when it sits outside the list viewport', async () => {
+        create(CMDS, 2);
+        placeBelowViewport(2);
+        const scrolls = spyOnOptionScrolls();
+
+        reselect(2);
         await flush();
 
-        expect(scrollSpy).toHaveBeenCalled();
+        expect(scrolls[2]).toHaveBeenCalledWith({ block: 'nearest' });
+    });
+
+    it('keeps navigating without scrolling where the platform has no scrollIntoView (jsdom)', async () => {
+        create(CMDS, 0);
+        const offscreen = placeBelowViewport(2);
+        Object.defineProperty(offscreen, 'scrollIntoView', { value: undefined, configurable: true });
+        const errors: unknown[] = [];
+        const onError = (event: ErrorEvent): void => { errors.push(event.error); };
+        globalThis.addEventListener('error', onError);
+
+        reselect(2);
+        await flush();
+        globalThis.removeEventListener('error', onError);
+
+        expect(errors).toEqual([]);
+        expect(offscreen.getAttribute('aria-selected')).toBe('true');
     });
 
     it('does not scroll when the active option is already visible', async () => {
-        const scrollSpy = vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(() => undefined);
         create(CMDS, 0);
+        const scrolls = spyOnOptionScrolls();
+        reselect(0);
         await flush();
-        expect(scrollSpy).not.toHaveBeenCalled();
+        for (const scroll of scrolls) expect(scroll).not.toHaveBeenCalled();
     });
 
     it('no-ops the scroll effect when the selected index has no option', async () => {
-        const scrollSpy = vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(() => undefined);
         create(CMDS, 0);
-        fixture.componentRef.setInput('selectedIndex', 99);
-        fixture.detectChanges();
+        const scrolls = spyOnOptionScrolls();
+        reselect(99);
         await flush();
-        expect(scrollSpy).not.toHaveBeenCalled();
+        for (const scroll of scrolls) expect(scroll).not.toHaveBeenCalled();
     });
 });

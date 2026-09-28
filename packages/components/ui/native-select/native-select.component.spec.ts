@@ -34,10 +34,6 @@ describe('NativeSelectComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(fixture.debugElement.query(By.directive(NativeSelectComponent))).toBeTruthy();
-    });
-
     it('should apply initial value from FormControl', async () => {
         await fixture.whenStable(); // Wait for CVA writeValue
         fixture.detectChanges();
