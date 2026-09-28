@@ -879,6 +879,20 @@ describe('ColorPickerComponent — persisted recents', () => {
         fixture.detectChanges();
         expect(globalThis.localStorage.getItem('ui-color-picker:swatches')).toContain('#333333');
     });
+
+    it('starts with no recents when nothing is stored under its key, and stores the first pick', async () => {
+        await TestBed.configureTestingModule({ imports: [ColorPickerComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(ColorPickerComponent);
+        fixture.componentRef.setInput('storageKey', 'fresh');
+        fixture.componentRef.setInput('presets', ['#333333']);
+        fixture.detectChanges();
+        const picker = fixture.componentInstance;
+        expect(picker.recents()).toEqual([]);
+        picker.selectPreset('#333333');
+        fixture.detectChanges();
+        expect(picker.recents()).toEqual(['#333333']);
+        expect(globalThis.localStorage.getItem('ui-color-picker:fresh')).toContain('#333333');
+    });
 });
 
 describe('color-picker.utils', () => {

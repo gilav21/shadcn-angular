@@ -58,6 +58,14 @@ describe('histogram utils', () => {
             expect(totalCount(bins)).toBe(100);
         });
 
+        it('spans the range of unsorted values, wherever the extremes sit', () => {
+            const bins = computeBins([5, 9, 1, 3, 7, 2, 8], { binCount: 2 });
+            // Edges may be rounded outward; what matters is that no value falls outside them.
+            expect(bins[0].start).toBeLessThanOrEqual(1);
+            expect(bins.at(-1)!.end).toBeGreaterThanOrEqual(9);
+            expect(totalCount(bins)).toBe(7);
+        });
+
         it('produces contiguous bins with no gaps or overlaps', () => {
             const bins = computeBins(range(50), { binCount: 5 });
             for (let i = 1; i < bins.length; i++) {

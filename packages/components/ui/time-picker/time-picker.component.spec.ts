@@ -496,3 +496,23 @@ describe('TimePickerComponent', () => {
         });
     });
 });
+
+describe('TimePickerComponent without a locale input', () => {
+    it('follows the app-wide UI locale', async () => {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [TimePickerComponent],
+            providers: [provideUiLocale('en-GB')],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(TimePickerComponent);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        const group: HTMLElement = fixture.nativeElement.querySelector('[data-slot="time-picker"]');
+        expect(group.dataset['locale']).toBe('en-GB');
+        // en-GB is a 24-hour locale, so no meridiem toggle.
+        expect(fixture.nativeElement.querySelector('[data-slot="time-picker-period"]')).toBeNull();
+        fixture.destroy();
+    });
+});

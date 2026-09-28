@@ -22,6 +22,12 @@ describe('GaugeChartComponent', () => {
         expect(c.getAttribute('aria-label')).toContain('70');
     });
 
+    it('names the label in the accessible label when one is given', () => {
+        fixture.componentRef.setInput('label', 'CPU');
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('[role="img"]').getAttribute('aria-label')).toContain('CPU: 70');
+    });
+
     it('computes the fill ratio from value within min/max', () => {
         expect(component.ratio()).toBeCloseTo(0.7, 5);
     });

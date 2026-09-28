@@ -245,6 +245,11 @@ describe('TreemapComponent', () => {
             const mirrored = ltr.map(c => component.svgWidth() - c.x - c.width);
             rtl.forEach((x, i) => expect(x).toBeCloseTo(mirrored[i], 6));
             expect(component.labelAnchor()).toBe('end');
+
+            fixture.componentRef.setInput('dir', 'ltr');
+            fixture.detectChanges();
+            expect(component.cells().map(c => c.x)).toEqual(ltr.map(c => c.x));
+            expect(component.labelAnchor()).toBe('start');
         });
     });
 
