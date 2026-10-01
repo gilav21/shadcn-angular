@@ -137,6 +137,19 @@ function expectLinesOnHandles(fixture: ComponentFixture<Host>, links: readonly F
 }
 
 describe('FieldMapperComponent (browser)', () => {
+    it('anchors every absolutely positioned part, hidden helpers included, inside itself', async () => {
+        // Anchored to the page instead, an sr-only helper sits at its place in
+        // a scrolled-away layout and stretches the whole document — the demo
+        // page grew a second scrollbar and blank space below the content.
+        const fixture = await mount();
+        const el = root(fixture);
+        const escaped = Array.from(el.querySelectorAll<HTMLElement>('*'))
+            .filter(part => part instanceof HTMLElement && getComputedStyle(part).position === 'absolute')
+            .filter(part => !el.contains(part.offsetParent))
+            .map(part => part.dataset['slot'] ?? part.className);
+        expect(escaped).toEqual([]);
+    });
+
     it('produces the same links by pointer drag, tap-tap and keyboard, from either list', async () => {
         const expected = [
             { startId: 'customer_id', endId: 'id' },

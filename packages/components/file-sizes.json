@@ -2182,8 +2182,8 @@
       "lines": 249
     },
     "field-mapper/field-mapper.component.browser.spec.ts": {
-      "bytes": 16389,
-      "lines": 345
+      "bytes": 17156,
+      "lines": 358
     },
     "field-mapper/field-mapper.component.css": {
       "bytes": 3925,
@@ -2198,8 +2198,8 @@
       "lines": 189
     },
     "field-mapper/field-mapper.component.ts": {
-      "bytes": 35322,
-      "lines": 865
+      "bytes": 35554,
+      "lines": 868
     },
     "field-mapper/field-mapper.stories.ts": {
       "bytes": 7439,

@@ -329,7 +329,10 @@ export class FieldMapperComponent {
     });
 
     protected readonly classes = computed(() =>
-        cn('flex w-full min-w-0 flex-col gap-2 text-sm', this.class()),
+        // `relative` keeps the absolutely positioned sr-only helpers inside this
+        // box: anchored to the page instead, they sat at their place in a
+        // scrolled-away layout and stretched the whole document.
+        cn('relative flex w-full min-w-0 flex-col gap-2 text-sm', this.class()),
     );
 
     private readonly flip = createFlip(() => this.endItemElements());
