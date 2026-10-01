@@ -43,6 +43,8 @@ const buttonVariants = cva(
 
 export type ButtonVariant = VariantProps<typeof buttonVariants>['variant'];
 export type ButtonSize = VariantProps<typeof buttonVariants>['size'];
+/** Values `aria-haspopup` accepts. */
+export type ButtonAriaHaspopup = boolean | 'true' | 'false' | 'menu' | 'listbox' | 'tree' | 'grid' | 'dialog';
 
 @Component({
     selector: 'ui-button',
@@ -64,6 +66,7 @@ export type ButtonSize = VariantProps<typeof buttonVariants>['size'];
         '[attr.aria-expanded]': 'null',
         '[attr.aria-pressed]': 'null',
         '[attr.aria-controls]': 'null',
+        '[attr.aria-haspopup]': 'null',
     },
 })
 /**
@@ -111,6 +114,8 @@ export class ButtonComponent {
      * or `'mixed'`. Lands on the inner `<button>`. Unset leaves it off.
      */
     readonly ariaPressed = input<boolean | 'true' | 'false' | 'mixed' | undefined>(undefined, { alias: 'aria-pressed' });
+    /** Kind of popup a menu button opens: `aria-haspopup="menu"`. Lands on the inner `<button>`. */
+    readonly ariaHaspopup = input<ButtonAriaHaspopup | undefined>(undefined, { alias: 'aria-haspopup' });
     /** Id of the element this button shows, hides or drives: `aria-controls="panel-id"`. Lands on the inner `<button>`. */
     readonly ariaControls = input<string | undefined>(undefined, { alias: 'aria-controls' });
     /**

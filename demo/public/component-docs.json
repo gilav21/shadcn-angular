@@ -1980,6 +1980,12 @@
               "default": "undefined, { alias: 'aria-expanded' }"
             },
             {
+              "name": "ariaHaspopup",
+              "type": "ButtonAriaHaspopup | undefined",
+              "description": "Kind of popup a menu button opens: `aria-haspopup=\"menu\"`. Lands on the inner `<button>`.",
+              "default": "undefined, { alias: 'aria-haspopup' }"
+            },
+            {
               "name": "ariaLabel",
               "type": "string | undefined",
               "description": "Accessible name, camelCase form: `[ariaLabel]=\"'Copy'\"`."

@@ -104,9 +104,9 @@ describe('ButtonComponent', () => {
         expect(clickedSpy).toHaveBeenCalledWith(expect.any(MouseEvent));
     });
 
-    it('puts aria-expanded, aria-pressed and aria-controls on the inner button, never on the host', () => {
+    it('puts aria-expanded, aria-pressed, aria-haspopup and aria-controls on the inner button, never on the host', () => {
         @Component({
-            template: `<ui-button [aria-expanded]="open()" [aria-pressed]="pressed()" aria-controls="column-list">Match on different columns</ui-button>`,
+            template: `<ui-button [aria-expanded]="open()" [aria-pressed]="pressed()" aria-haspopup="menu" aria-controls="column-list">Match on different columns</ui-button>`,
             imports: [ButtonComponent],
         })
         class DisclosureHost {
@@ -118,14 +118,15 @@ describe('ButtonComponent', () => {
         host.detectChanges();
         const element = host.nativeElement.querySelector('ui-button') as HTMLElement;
         const inner = element.querySelector('button')!;
-        const state = (): (string | null)[] => ['aria-expanded', 'aria-pressed', 'aria-controls'].map(name => inner.getAttribute(name));
+        const names = ['aria-expanded', 'aria-pressed', 'aria-haspopup', 'aria-controls'];
+        const state = (): (string | null)[] => names.map(name => inner.getAttribute(name));
 
-        expect(state()).toEqual(['false', 'mixed', 'column-list']);
-        expect(['aria-expanded', 'aria-pressed', 'aria-controls'].filter(name => element.hasAttribute(name))).toEqual([]);
+        expect(state()).toEqual(['false', 'mixed', 'menu', 'column-list']);
+        expect(names.filter(name => element.hasAttribute(name))).toEqual([]);
 
         host.componentInstance.open.set(true);
         host.componentInstance.pressed.set(true);
         host.detectChanges();
-        expect(state()).toEqual(['true', 'true', 'column-list']);
+        expect(state()).toEqual(['true', 'true', 'menu', 'column-list']);
     });
 });

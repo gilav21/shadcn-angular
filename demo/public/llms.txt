@@ -2660,7 +2660,7 @@ Clickable button with variants (default, destructive, outline, ghost, link) and 
 - Category: navigation
 - Depends on: `alert-dialog`, `ripple`, `skeleton`, `spinner`
 - npm dependencies: none
-- Inputs: `ariaControls: string | undefined = undefined, { alias: 'aria-controls' }`, `ariaExpanded: boolean | 'true' | 'false' | undefined = undefined, { alias: 'aria-expanded' }`, `ariaLabel: string | undefined`, `ariaPressed: boolean | 'true' | 'false' | 'mixed' | undefined = undefined, { alias: 'aria-pressed' }`, `class: string = ''`, `disabled: boolean = false`, `label: string = ''`, `loading: boolean = false`, `ripple: boolean = false`, `rippleColor: string = 'color-mix(in srgb, currentColor 35%, transparent)'`, `size: ButtonSize = 'default'`, `skeleton: boolean = false`, `type: "button" | "submit" | "reset" = 'button'`, `variant: ButtonVariant = 'default'`
+- Inputs: `ariaControls: string | undefined = undefined, { alias: 'aria-controls' }`, `ariaExpanded: boolean | 'true' | 'false' | undefined = undefined, { alias: 'aria-expanded' }`, `ariaHaspopup: ButtonAriaHaspopup | undefined = undefined, { alias: 'aria-haspopup' }`, `ariaLabel: string | undefined`, `ariaPressed: boolean | 'true' | 'false' | 'mixed' | undefined = undefined, { alias: 'aria-pressed' }`, `class: string = ''`, `disabled: boolean = false`, `label: string = ''`, `loading: boolean = false`, `ripple: boolean = false`, `rippleColor: string = 'color-mix(in srgb, currentColor 35%, transparent)'`, `size: ButtonSize = 'default'`, `skeleton: boolean = false`, `type: "button" | "submit" | "reset" = 'button'`, `variant: ButtonVariant = 'default'`
 - Outputs: `clicked: MouseEvent`
 
 ```html

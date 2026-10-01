@@ -626,16 +626,16 @@
       "lines": 32
     },
     "button/button.component.html": {
-      "bytes": 775,
-      "lines": 29
+      "bytes": 825,
+      "lines": 30
     },
     "button/button.component.spec.ts": {
-      "bytes": 5347,
-      "lines": 131
+      "bytes": 5400,
+      "lines": 132
     },
     "button/button.component.ts": {
-      "bytes": 6826,
-      "lines": 141
+      "bytes": 7223,
+      "lines": 146
     },
     "button/button.stories.ts": {
       "bytes": 4058,
@@ -1478,11 +1478,11 @@
       "lines": 248
     },
     "data-table-range-chart/data-table-range-chart.component.html": {
-      "bytes": 1294,
+      "bytes": 1289,
       "lines": 38
     },
     "data-table-range-chart/data-table-range-chart.component.spec.ts": {
-      "bytes": 6713,
+      "bytes": 6695,
       "lines": 198
     },
     "data-table-range-chart/data-table-range-chart.component.ts": {
@@ -5730,11 +5730,11 @@
       "lines": 38
     },
     "split-button/split-button.component.spec.ts": {
-      "bytes": 11472,
-      "lines": 256
+      "bytes": 10483,
+      "lines": 244
     },
     "split-button/split-button.component.ts": {
-      "bytes": 13802,
+      "bytes": 13797,
       "lines": 372
     },
     "split-button/split-button.coverage.spec.ts": {
