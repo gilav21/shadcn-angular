@@ -12,6 +12,11 @@
     grid-auto-rows: auto;
 }
 
+/* The header band spans the whole grid and reuses its three columns. */
+.field-mapper-header {
+    grid-template-columns: subgrid;
+}
+
 .field-mapper-scroll {
     max-height: var(--field-mapper-max-height, min(70vh, 36rem));
 }

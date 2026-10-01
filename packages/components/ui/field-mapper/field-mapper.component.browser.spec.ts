@@ -192,6 +192,14 @@ describe('FieldMapperComponent (browser)', () => {
         await settle(fixture);
         expect(scroller.scrollTop).toBeGreaterThan(0);
         expectLinesOnHandles(fixture, links);
+        // What scrolls under the sticky headings is hidden across the full
+        // width, gutter included, not just under the two heading cells.
+        const [startHeading, endHeading] = Array.from(root(fixture).querySelectorAll('[data-slot="field-mapper-heading"]'))
+            .map(heading => heading.getBoundingClientRect());
+        const gutterX = (startHeading.right + endHeading.left) / 2;
+        const underHeader = document.elementFromPoint(gutterX, startHeading.top + startHeading.height / 2);
+        expect(underHeader?.closest('[data-slot="field-mapper-header"]')).not.toBeNull();
+        expect(getComputedStyle(underHeader!).backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
 
         fixture.componentInstance.width.set(1100);
         await settle(fixture);

@@ -2182,23 +2182,23 @@
       "lines": 249
     },
     "field-mapper/field-mapper.component.browser.spec.ts": {
-      "bytes": 15683,
-      "lines": 337
+      "bytes": 16389,
+      "lines": 345
     },
     "field-mapper/field-mapper.component.css": {
-      "bytes": 3790,
-      "lines": 153
+      "bytes": 3925,
+      "lines": 158
     },
     "field-mapper/field-mapper.component.html": {
-      "bytes": 12066,
-      "lines": 273
+      "bytes": 12518,
+      "lines": 284
     },
     "field-mapper/field-mapper.component.spec.ts": {
       "bytes": 8619,
       "lines": 189
     },
     "field-mapper/field-mapper.component.ts": {
-      "bytes": 35298,
+      "bytes": 35322,
       "lines": 865
     },
     "field-mapper/field-mapper.stories.ts": {
