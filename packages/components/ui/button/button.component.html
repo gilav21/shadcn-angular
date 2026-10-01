@@ -10,6 +10,9 @@
     [type]="type()"
     [attr.data-slot]="'button'"
     [attr.aria-label]="resolvedAriaLabel()"
+    [attr.aria-expanded]="ariaExpanded() ?? null"
+    [attr.aria-pressed]="ariaPressed() ?? null"
+    [attr.aria-controls]="ariaControls() || null"
     (click)="clicked.emit($event)"
   >
     @if (loading()) {

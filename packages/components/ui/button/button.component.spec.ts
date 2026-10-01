@@ -1,3 +1,4 @@
+import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ButtonComponent } from './button.component';
 import { By } from '@angular/platform-browser';
@@ -101,5 +102,30 @@ describe('ButtonComponent', () => {
 
         expect(clickedSpy).toHaveBeenCalledTimes(1);
         expect(clickedSpy).toHaveBeenCalledWith(expect.any(MouseEvent));
+    });
+
+    it('puts aria-expanded, aria-pressed and aria-controls on the inner button, never on the host', () => {
+        @Component({
+            template: `<ui-button [aria-expanded]="open()" [aria-pressed]="pressed()" aria-controls="column-list">Match on different columns</ui-button>`,
+            imports: [ButtonComponent],
+        })
+        class DisclosureHost {
+            readonly open = signal(false);
+            readonly pressed = signal<boolean | 'mixed'>('mixed');
+        }
+
+        const host = TestBed.createComponent(DisclosureHost);
+        host.detectChanges();
+        const element = host.nativeElement.querySelector('ui-button') as HTMLElement;
+        const inner = element.querySelector('button')!;
+        const state = (): (string | null)[] => ['aria-expanded', 'aria-pressed', 'aria-controls'].map(name => inner.getAttribute(name));
+
+        expect(state()).toEqual(['false', 'mixed', 'column-list']);
+        expect(['aria-expanded', 'aria-pressed', 'aria-controls'].filter(name => element.hasAttribute(name))).toEqual([]);
+
+        host.componentInstance.open.set(true);
+        host.componentInstance.pressed.set(true);
+        host.detectChanges();
+        expect(state()).toEqual(['true', 'true', 'column-list']);
     });
 });

@@ -58,6 +58,12 @@ export type ButtonSize = VariantProps<typeof buttonVariants>['size'];
         // the inner <button>, leaving it nameless (axe `button-name`). Consume it
         // via the `aria-label` aliased input below and strip it from the host.
         '[attr.aria-label]': 'null',
+        // Same for the state attributes: a static `aria-controls="menu"` on the
+        // host also initialises the aliased input below, so strip the copy the
+        // host would otherwise keep.
+        '[attr.aria-expanded]': 'null',
+        '[attr.aria-pressed]': 'null',
+        '[attr.aria-controls]': 'null',
     },
 })
 /**
@@ -94,6 +100,19 @@ export class ButtonComponent {
         inject<ElementRef<HTMLElement>>(ElementRef).nativeElement.getAttribute('aria-label') ?? undefined;
     /** The name actually applied to the inner `<button>`, from either spelling. */
     readonly resolvedAriaLabel = computed(() => this.ariaLabel() ?? this.hostAriaLabel);
+    /**
+     * Disclosure state for a button that shows and hides something:
+     * `[aria-expanded]="open()"`. Lands on the inner `<button>`, where
+     * assistive technology reads it. Unset leaves the attribute off.
+     */
+    readonly ariaExpanded = input<boolean | 'true' | 'false' | undefined>(undefined, { alias: 'aria-expanded' });
+    /**
+     * Toggle state for a button that stays pressed: `[aria-pressed]="on()"`,
+     * or `'mixed'`. Lands on the inner `<button>`. Unset leaves it off.
+     */
+    readonly ariaPressed = input<boolean | 'true' | 'false' | 'mixed' | undefined>(undefined, { alias: 'aria-pressed' });
+    /** Id of the element this button shows, hides or drives: `aria-controls="panel-id"`. Lands on the inner `<button>`. */
+    readonly ariaControls = input<string | undefined>(undefined, { alias: 'aria-controls' });
     /**
      * Convenience text label. When set it replaces projected content — pass
      * either this or `<ng-content>`, not both.
