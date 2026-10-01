@@ -1,0 +1,16 @@
+/*
+ * The projected row follows the data-driven one: density-scaled, and at least
+ * 44px on a touch screen. `--_d` is inherited from the enclosing `<ui-select>`;
+ * the fallback keeps a stray item outside one at the default size.
+ */
+@layer components {
+    :host {
+        min-height: calc(2rem * var(--_d, 1));
+    }
+
+    @media (pointer: coarse) {
+        :host {
+            min-height: max(2.75rem, calc(2rem * var(--_d, 1)));
+        }
+    }
+}

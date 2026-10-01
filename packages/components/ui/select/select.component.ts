@@ -93,6 +93,7 @@ export function revealSelectOption(list: HTMLElement, option: HTMLElement): void
                                     [attr.aria-selected]="isSelected(option)"
                                     [attr.data-state]="isSelected(option) ? 'checked' : 'unchecked'"
                                     [attr.data-index]="i"
+                                    [attr.data-slot]="'select-option'"
                                     (mouseenter)="highlight(i, { preventScroll: true })"
                                 >
                                     <span class="flex-1">{{ getDisplayValue(option) }}</span>
@@ -246,8 +247,11 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
         if (val == null) return '';
 
         if (this.isDataDriven()) {
-            const option = this.options().find(opt => this.getValue(opt) === val);
-            return option ? this.getDisplayValue(option) : String(val);
+            // Found-ness is the index, never the option's truthiness: `''`,
+            // `0` and `false` are options too, and must show their label.
+            const options = this.options();
+            const index = options.findIndex(opt => this.getValue(opt) === val);
+            return index >= 0 ? this.getDisplayValue(options[index]) : String(val);
         }
         return String(val);
     });
@@ -577,7 +581,7 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
             case 'Enter':
             case ' ':
                 event.preventDefault();
-                if (opts[currentIndex] && !this.isOptionDisabled(opts[currentIndex])) {
+                if (currentIndex >= 0 && currentIndex < opts.length) {
                     this.selectOption(opts[currentIndex]);
                 }
                 break;

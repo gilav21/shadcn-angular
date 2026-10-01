@@ -14,6 +14,7 @@ import { SELECT } from '../select.component';
 @Component({
     selector: 'ui-select-item',
     changeDetection: ChangeDetectionStrategy.OnPush,
+    styleUrl: './select-item.component.css',
     template: `
     <ng-content />
     <span [class]="checkmarkClasses()">

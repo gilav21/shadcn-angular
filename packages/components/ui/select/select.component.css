@@ -9,3 +9,20 @@
         gap: calc(0.5rem * var(--_d));
     }
 }
+
+/*
+ * Option rows scale with the same density as the trigger, and never drop below
+ * the 44px touch minimum (WCAG 2.5.8) on a touch screen. 2rem keeps a mouse
+ * user's rows exactly as they were at density 1.
+ */
+@layer components {
+    [data-slot="select-option"] {
+        min-height: calc(2rem * var(--_d));
+    }
+
+    @media (pointer: coarse) {
+        [data-slot="select-option"] {
+            min-height: max(2.75rem, calc(2rem * var(--_d)));
+        }
+    }
+}
