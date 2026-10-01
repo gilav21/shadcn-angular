@@ -626,16 +626,16 @@
       "lines": 32
     },
     "button/button.component.html": {
-      "bytes": 627,
-      "lines": 26
+      "bytes": 775,
+      "lines": 29
     },
     "button/button.component.spec.ts": {
-      "bytes": 4043,
-      "lines": 105
+      "bytes": 5347,
+      "lines": 131
     },
     "button/button.component.ts": {
-      "bytes": 5660,
-      "lines": 122
+      "bytes": 6826,
+      "lines": 141
     },
     "button/button.stories.ts": {
       "bytes": 4058,
@@ -2176,6 +2176,58 @@
     "eyedropper/index.ts": {
       "bytes": 78,
       "lines": 2
+    },
+    "field-mapper/field-mapper-locales.ts": {
+      "bytes": 14452,
+      "lines": 249
+    },
+    "field-mapper/field-mapper.component.browser.spec.ts": {
+      "bytes": 15683,
+      "lines": 337
+    },
+    "field-mapper/field-mapper.component.css": {
+      "bytes": 3790,
+      "lines": 153
+    },
+    "field-mapper/field-mapper.component.html": {
+      "bytes": 12066,
+      "lines": 273
+    },
+    "field-mapper/field-mapper.component.spec.ts": {
+      "bytes": 8619,
+      "lines": 189
+    },
+    "field-mapper/field-mapper.component.ts": {
+      "bytes": 35298,
+      "lines": 865
+    },
+    "field-mapper/field-mapper.stories.ts": {
+      "bytes": 7439,
+      "lines": 177
+    },
+    "field-mapper/field-mapper.types.ts": {
+      "bytes": 1769,
+      "lines": 51
+    },
+    "field-mapper/field-mapper.utils.spec.ts": {
+      "bytes": 3956,
+      "lines": 79
+    },
+    "field-mapper/field-mapper.utils.ts": {
+      "bytes": 6490,
+      "lines": 174
+    },
+    "field-mapper/index.ts": {
+      "bytes": 228,
+      "lines": 5
+    },
+    "field-mapper/sub/field-mapper-item.directive.ts": {
+      "bytes": 880,
+      "lines": 28
+    },
+    "field-mapper/sub/field-mapper-link-label.directive.ts": {
+      "bytes": 863,
+      "lines": 26
     },
     "field/field.component.browser.spec.ts": {
       "bytes": 783,
@@ -5122,20 +5174,20 @@
       "lines": 8
     },
     "select/select.component.browser.spec.ts": {
-      "bytes": 9422,
-      "lines": 216
+      "bytes": 12111,
+      "lines": 278
     },
     "select/select.component.css": {
-      "bytes": 307,
-      "lines": 11
+      "bytes": 776,
+      "lines": 28
     },
     "select/select.component.spec.ts": {
-      "bytes": 35566,
-      "lines": 921
+      "bytes": 37460,
+      "lines": 963
     },
     "select/select.component.ts": {
-      "bytes": 24862,
-      "lines": 621
+      "bytes": 25121,
+      "lines": 625
     },
     "select/select.coverage.spec.ts": {
       "bytes": 14111,
@@ -5153,9 +5205,13 @@
       "bytes": 386,
       "lines": 16
     },
+    "select/sub/select-item.component.css": {
+      "bytes": 451,
+      "lines": 16
+    },
     "select/sub/select-item.component.ts": {
-      "bytes": 3327,
-      "lines": 94
+      "bytes": 3372,
+      "lines": 95
     },
     "select/sub/select-label.component.ts": {
       "bytes": 375,

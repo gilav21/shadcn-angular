@@ -42,6 +42,7 @@ export { FileUploadDemoComponent } from './inputs/file-upload-demo.component';
 export { ColorPickerDemoComponent } from './inputs/color-picker-demo.component';
 export { EyedropperDemoComponent } from './inputs/eyedropper-demo.component';
 export { ImageExtractDemoComponent } from './inputs/image-extract-demo.component';
+export { FieldMapperDemoComponent } from './inputs/field-mapper-demo.component';
 
 // Overlay
 export { DialogDemoComponent } from './overlay/dialog-demo.component';

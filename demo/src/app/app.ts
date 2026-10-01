@@ -183,6 +183,7 @@ export class AppComponent {
     { id: 'date-picker', name: 'Date Picker', category: 'Inputs', icon: '📅' },
     { id: 'emoji-picker', name: 'Emoji Picker', category: 'Inputs', icon: '😀' },
     { id: 'field', name: 'Field', category: 'Inputs', icon: '📝' },
+    { id: 'field-mapper', name: 'Field Mapper', category: 'Inputs', icon: '🔗' },
     { id: 'file-upload', name: 'File Upload', category: 'Inputs', icon: '📤' },
     { id: 'form', name: 'Form', category: 'Inputs', icon: '📋' },
     { id: 'input', name: 'Input', category: 'Inputs', icon: '✏️' },
