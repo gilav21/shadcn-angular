@@ -229,21 +229,9 @@ describe('SplitButtonComponent', () => {
             fixture.detectChanges();
         });
 
-        it('should set aria-expanded and aria-haspopup', () => {
-            const trigger = fixture.debugElement.query(By.css('ui-button:last-child'));
-            // aria-haspopup is static 'menu' on ui-button? No, passed as attr
-            // The template has aria-haspopup="menu" on the ui-button component tag.
-            // But ui-button might not reflect all attrs to its internal button unless specified.
-            // Wait, ui-button uses host classes but maybe not attrs propagation?
-            // Let's check ButtonComponent implementation if needed, but assuming standard behavior or attr binding on host.
-            // Actually, in split-button template:
-            // <ui-button ... aria-haspopup="menu" [attr.aria-expanded]="isOpen()">
-            // If ui-button does not explicitly inputs for these, they fall through to the host element of ui-button?
-            // UI Button selector is 'ui-button'. It normally wraps a <button>.
-            // If attrs are on the component tag, they are on the component host.
-            // The accessibility tools check the functional button.
-            // If SplitButton uses ui-button, the trigger IS the ui-button host?
-            // Let's assume correct checks involves seeing these attrs on the rendered DOM.
+        it('puts aria-haspopup and aria-expanded on the dropdown’s real button', () => {
+            // The ui-button host is display: contents; assistive technology reads the inner <button>.
+            const trigger = fixture.debugElement.query(By.css('ui-button:last-child button'));
 
             expect(trigger.nativeElement.getAttribute('aria-haspopup')).toBe('menu');
             expect(trigger.nativeElement.getAttribute('aria-expanded')).toBe('false');

@@ -2,8 +2,8 @@ import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { describe, it, expect } from 'vitest';
-import { userEvent } from 'vitest/browser';
+import { afterEach, describe, it, expect } from 'vitest';
+import { cdp, userEvent } from 'vitest/browser';
 import {
     SelectComponent,
     SelectTriggerComponent,
@@ -212,5 +212,67 @@ describe('Select opening on a selection far down a long list (real layout)', () 
 
         fixture.destroy();
         fixture.nativeElement.remove();
+    });
+});
+
+@Component({
+    template: `
+        <div [style]="density()">
+            <ui-select [options]="sizes" />
+            <ui-select>
+                <ui-select-trigger><ui-select-value /></ui-select-trigger>
+                <ui-select-content>
+                    <ui-select-item value="s">Small</ui-select-item>
+                    <ui-select-item value="m">Medium</ui-select-item>
+                </ui-select-content>
+            </ui-select>
+        </div>
+    `,
+    imports: [SelectComponent, SelectTriggerComponent, SelectContentComponent, SelectValueComponent, SelectItemComponent],
+})
+class RowHeightHost {
+    readonly sizes = ['Small', 'Medium', 'Large'];
+    readonly density = signal('');
+}
+
+/** Switches Chromium's touch emulation, which is what flips `(pointer: coarse)`. */
+async function emulateTouch(enabled: boolean): Promise<void> {
+    await cdp().send('Emulation.setTouchEmulationEnabled', { enabled, maxTouchPoints: 1 });
+}
+
+describe('Select option row height (real layout)', () => {
+    afterEach(() => emulateTouch(false));
+
+    /** Heights of the open option rows of both selects: data-driven first, then projected. */
+    async function rowHeights(density: string): Promise<number[]> {
+        const fixture = TestBed.createComponent(RowHeightHost);
+        fixture.componentInstance.density.set(density);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const heights: number[] = [];
+        for (const trigger of fixture.nativeElement.querySelectorAll('[data-slot="select-trigger"]')) {
+            (trigger as HTMLElement).click();
+            fixture.detectChanges();
+            await fixture.whenStable();
+            const rows = Array.from<HTMLElement>(fixture.nativeElement.querySelectorAll('[role="option"]'));
+            heights.push(...rows.slice(0, 1).map(row => row.getBoundingClientRect().height));
+            (trigger as HTMLElement).click();
+            fixture.detectChanges();
+            await fixture.whenStable();
+        }
+        fixture.destroy();
+        return heights;
+    }
+
+    /** WCAG 2.5.8: 44px rows on a touch screen; a mouse keeps 32px rows, and both scale with density. */
+    it('gives every option row 44px on a coarse pointer, keeps 32px for a mouse, and follows the select density', async () => {
+        await emulateTouch(false);
+        expect(await rowHeights('')).toEqual([32, 32]);
+        expect(await rowHeights('--density-select: 1.5')).toEqual([48, 48]);
+
+        await emulateTouch(true);
+        const coarse = await rowHeights('');
+        expect(coarse).toHaveLength(2);
+        for (const height of coarse) expect(height).toBeGreaterThanOrEqual(44);
     });
 });

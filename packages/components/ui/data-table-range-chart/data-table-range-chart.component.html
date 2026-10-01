@@ -11,7 +11,7 @@
             <ui-button
               size="sm"
               [variant]="chartType() === type ? 'default' : 'outline'"
-              [attr.aria-pressed]="chartType() === type"
+              [aria-pressed]="chartType() === type"
               (click)="selectChartType(type)"
             >
               {{ type }}

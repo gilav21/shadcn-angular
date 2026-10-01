@@ -25,7 +25,7 @@ Rules that hold for every component:
 - Inputs marked `(required)` must be bound or the template will not compile.
 - A section without a snippet says so explicitly; do not invent one.
 
-## Index (181 components)
+## Index (182 components)
 
 - [accordion](#accordion): Vertically stacked, collapsible sections that expand one or more panels to reveal content.
 - [alert](#alert): Inline callout banner for important messages with title, description, and variants.
@@ -90,6 +90,7 @@ Rules that hold for every component:
 - [error-page](#error-page): Full-page 404/403/500 state with localised copy, illustration slot and recovery actions.
 - [eyedropper](#eyedropper): Tool for sampling a color from anywhere on screen via the EyeDropper API.
 - [field](#field): Form field wrapper grouping label, control, description, and error messages.
+- [field-mapper](#field-mapper): Two lists side by side joined by lines: map import fields, schemas, or columns across two tables. Drag, tap-tap or keyboard.
 - [file-upload](#file-upload): Drag-and-drop file upload zone with previews and per-file progress.
 - [file-viewer](#file-viewer): In-browser viewer rendering PDF, DOCX, XLSX, images, and other documents.
 - [flip-text](#flip-text): Animates characters flipping into place as the text reveals.
@@ -1070,7 +1071,7 @@ Feature-rich table with sorting, filtering, pagination, and column tools.
 - Category: data-display
 - Depends on: `badge`, `button`, `calendar`, `checkbox`, `command`, `component-outlet`, `date-picker`, `icon`, `input`, `pagination`, `popover`, `select`, `skeleton`, `table`
 - npm dependencies: none
-- Inputs: `advancedFilter: FilterGroup | null = null`, `aiProvider: AiProvider | undefined`, `cellFlashDuration: number = 500`, `collapsedGroups: Record<string, boolean> = {}`, `columnFilters: Record<string, unknown> = {}`, `columnOrder: string[] = []`, `columns: ColumnDef<T>[]` (required), `columnVisibility: Record<string, boolean> = {}`, `columnWidths: Record<string, string> = {}`, `data: T[]` (required), `disabledRowIds: ReadonlySet<string> | readonly string[] = []`, `emptyStateComponent: Type<unknown>`, `emptyStateComponentInputs: Record<string, unknown> = {}`, `enableAdvancedFilter: boolean = false`, `enableCellFlash: boolean = false`, `enableCellRangeSelection: boolean = false`, `enableClipboardPaste: boolean = false`, `enableColumnReorder: boolean = false`, `enableColumnResize: boolean = false`, `enableCopy: boolean = true`, `enableEditHistory: boolean = false`, `enableFillHandle: boolean = false`, `enableFloatingFilters: boolean = false`, `enableMultiSort: boolean = false`, `enableNlFilter: boolean = true`, `enableRangeActions: boolean = false`, `enableRowDrag: boolean = false`, `enableRowExpansion: boolean = false`, `enableRowSelection: boolean = false`, `enableSubRows: boolean = false`, `enableSubRowSorting: boolean = true`, `enableVirtualScroll: boolean | "auto" = false`, `expandedRows: Record<string, boolean> = {}`, `filterDebounce: number = 0`, `fullWidthRowComponent: Type<unknown>`, `fullWidthRowTemplate: TemplateRef<unknown>`, `getChildren: (row: T) => T[] | undefined = (row: T) => (row as Record<string, unknown>)['children'] as T[] | undefined`, `getRowId: (row: T) => string = DEFAULT_GET_ROW_ID`, `globalFilter: string = ""`, `groupAggregates: boolean = true`, `groupBy: string | undefined`, `loaderComponent: Type<unknown>`, `loaderComponentInputs: Record<string, unknown> = {}`, `loaderTemplate: TemplateRef<unknown>`, `loading: boolean = false`, `loadingVisibility: DataTableLoadingVisibility = {    initial: true,    pagination: true,    sorting: true,    filtering: true,  }`, `locale: LocaleInput<DataTableLocale>`, `localFiltering: boolean = true`, `localPagination: boolean = true`, `localReorder: boolean = true`, `localSorting: boolean = true`, `maxMultiSortColumns: number = 3`, `multiSortState: SortState[] = []`, `pageSizeOptions: number[] = [10, 20, 30, 40, 50]`, `paginationState: PaginationState = { pageIndex: 0, pageSize: 10 }`, `rowDetailComponent: Type<unknown>`, `rowDetailTemplate: TemplateRef<unknown>`, `rowDragMode: "flat" | "tree" = 'flat'`, `rowSelection: Record<string, boolean> = {}`, `setChildren: (row: T, children: T[]) => T =     (row: T, children: T[]) => ({ ...row, children }),  `, `showColumnBorders: boolean = true`, `showColumnVisibilityToggle: boolean = true`, `showFooter: boolean | "auto" = "auto"`, `showPageSizeSelector: boolean = true`, `showPagination: boolean = true`, `showRowBorders: boolean = true`, `showToolbar: boolean = true`, `skeleton: boolean = false`, `skeletonRows: number = 5`, `sortState: SortState = { column: "", direction: null }`, `subRowDefaultExpanded: number = 0`, `subRowExpandedRows: Record<string, boolean> = {}`, `subRowFilterMode: SubRowFilterMode = "includeParentOnChildMatch"`, `subRowIndentSize: number = 20`, `subRowSelectionMode: SubRowSelectionMode = "self"`, `subRowsPaginated: boolean = false`, `theme: ThemeName`, `total: number = 0`, `virtualAutoColumnWidth: number = 150`, `virtualAutoThreshold: VirtualAutoThreshold = {    rows: 500,    columns: 20,  }`, `virtualColumnBuffer: number = 3`, `virtualRecycleComponents: boolean = false`, `virtualRowBuffer: number = 5`, `virtualRowHeight: number = 40`, `virtualVariableRowHeight: boolean = false`
+- Inputs: `advancedFilter: FilterGroup | null = null`, `aiProvider: AiProvider | undefined`, `cellFlashDuration: number = 500`, `collapsedGroups: Record<string, boolean> = {}`, `columnFilters: Record<string, unknown> = {}`, `columnOrder: string[] = []`, `columns: ColumnDef<T>[]` (required), `columnVisibility: Record<string, boolean> = {}`, `columnWidths: Record<string, string> = {}`, `data: T[]` (required), `disabledRowIds: ReadonlySet<string> | readonly string[] = []`, `emptyStateComponent: Type<unknown>`, `emptyStateComponentInputs: Record<string, unknown> = {}`, `enableAdvancedFilter: boolean = false`, `enableCellFlash: boolean = false`, `enableCellRangeSelection: boolean = false`, `enableClipboardPaste: boolean = false`, `enableColumnReorder: boolean = false`, `enableColumnResize: boolean = false`, `enableCopy: boolean = true`, `enableEditHistory: boolean = false`, `enableFillHandle: boolean = false`, `enableFloatingFilters: boolean = false`, `enableMultiSort: boolean = false`, `enableNlFilter: boolean = true`, `enableRangeActions: boolean = false`, `enableRowDrag: boolean = false`, `enableRowExpansion: boolean = false`, `enableRowSelection: boolean = false`, `enableSubRows: boolean = false`, `enableSubRowSorting: boolean = true`, `enableVirtualScroll: boolean | "auto" = false`, `expandedRows: Record<string, boolean> = {}`, `filterDebounce: number = 0`, `fullWidthRowComponent: Type<unknown>`, `fullWidthRowTemplate: TemplateRef<unknown>`, `getChildren: (row: T) => T[] | undefined = (row: T) => (row as Record<string, unknown>)['children'] as T[] | undefined`, `getRowId: (row: T) => string = DEFAULT_GET_ROW_ID`, `globalFilter: string = ""`, `groupAggregates: boolean = true`, `groupBy: string | undefined`, `loaderComponent: Type<unknown>`, `loaderComponentInputs: Record<string, unknown> = {}`, `loaderTemplate: TemplateRef<unknown>`, `loading: boolean = false`, `loadingVisibility: DataTableLoadingVisibility = {    initial: true,    pagination: true,    sorting: true,    filtering: true,  }`, `locale: LocaleInput<DataTableLocale>`, `localFiltering: boolean = true`, `localPagination: boolean = true`, `localReorder: boolean = true`, `localSorting: boolean = true`, `maxMultiSortColumns: number = 3`, `multiSortState: SortState[] = []`, `pageSizeOptions: number[] = [10, 20, 30, 40, 50]`, `paginationState: PaginationState = { pageIndex: 0, pageSize: 10 }`, `rowDetailComponent: Type<unknown>`, `rowDetailTemplate: TemplateRef<unknown>`, `rowDragMode: "flat" | "tree" = 'flat'`, `rowSelection: Record<string, boolean> = {}`, `setChildren: (row: T, children: T[]) => T =     (row: T, children: T[]) => ({ ...row, children }),  `, `showColumnBorders: boolean = true`, `showColumnVisibilityToggle: boolean = true`, `showFooter: boolean | "auto" = "auto"`, `showPageSizeSelector: boolean = true`, `showPagination: boolean = true`, `showRowBorders: boolean = true`, `showToolbar: boolean = true`, `skeleton: boolean = false`, `skeletonRows: number = 5`, `sortState: SortState = { column: "", direction: null }`, `subRowDefaultExpanded: number = 0`, `subRowExpandedRows: Record<string, boolean> = {}`, `subRowFilterMode: SubRowFilterMode = "includeParentOnChildMatch"`, `subRowIndentSize: number = 20`, `subRowSelectionMode: SubRowSelectionMode = "self"`, `subRowsPaginated: boolean = false`, `theme: ThemeName`, `total: number = 0`, `virtualAutoColumnWidth: number = 150`, `virtualAutoThreshold: VirtualAutoThreshold = {    rows: 500,    columns: 20,  }`, `virtualColumnBuffer: number = 3`, `virtualRecycleComponents: boolean = false`, `virtualRowBuffer: number = 5`, `virtualRowHeight: number | undefined`, `virtualVariableRowHeight: boolean = false`
 - Outputs: `advancedFilter: FilterGroup | null`, `aiFillComplete: { columnKey: string; count: number }`, `cellEdit: CellEditEvent<T>`, `cellsPaste: CellsPasteEvent`, `collapsedGroups: Record<string, boolean>`, `columnFilters: Record<string, unknown>`, `columnOrder: string[]`, `columnResize: ColumnResizeEvent`, `columnVisibility: Record<string, boolean>`, `columnWidths: Record<string, string>`, `data: T[]`, `editError: CellEditErrorEvent<T>`, `editRedo: void`, `editUndo: void`, `expandedRows: Record<string, boolean>`, `fillSeries: FillSeriesEvent`, `filterChange: string`, `globalFilter: string`, `multiSortChange: SortState[]`, `multiSortState: SortState[]`, `nlFilter: { query: string; spec: NlFilterSpec }`, `pageChange: PaginationState`, `paginationState: PaginationState`, `query: DataTableQuery`, `rangeChartOpen: RangeChartPayload`, `rowReorder: RowReorderEvent<T>`, `rowSelection: Record<string, boolean>`, `sortChange: SortState`, `sortState: SortState`, `subRowExpandedRows: Record<string, boolean>`
 
 ```html
@@ -1864,7 +1865,7 @@ A length of time edited one unit at a time; the value is seconds.
 - Category: form
 - Depends on: none
 - npm dependencies: none
-- Inputs: `ariaLabel: string = 'Duration'`, `class: string = ''`, `disabled: boolean = false`, `units: readonly DurationUnit[] = ['hours', 'minutes']`, `value: number | null = null`, `variant: DurationInputVariant = 'outline'`
+- Inputs: `ariaLabel: string = 'Duration'`, `class: string = ''`, `disabled: boolean = false`, `locale: string`, `units: readonly DurationUnit[] = ['hours', 'minutes']`, `value: number | null = null`, `variant: DurationInputVariant = 'outline'`
 - Outputs: `value: number | null`
 
 ```html
@@ -1902,6 +1903,23 @@ Form field wrapper grouping label, control, description, and error messages.
 
 ```html
 <ui-field />
+```
+
+### field-mapper
+
+Two lists side by side joined by lines: map import fields, schemas, or columns across two tables. Drag, tap-tap or keyboard.
+
+- Install: `npx @gilav21/shadcn-angular@latest add field-mapper`
+- Import: `import { FieldMapperComponent } from '@/components/ui/field-mapper';`
+- Selector: `ui-field-mapper`
+- Category: form
+- Depends on: `button`, `icon`, `input`, `native-select`
+- npm dependencies: none
+- Inputs: `align: boolean = true`, `class: string = ''`, `end: readonly FieldMapperItem[] = []`, `endHeading: string`, `layout: FieldMapperLayout = 'auto'`, `links: readonly FieldMapperLink[] = []`, `locale: LocaleInput<FieldMapperLocale>`, `maxLinks: FieldMapperMaxLinks = { start: 1, end: 1 }`, `searchable: boolean = false`, `start: readonly FieldMapperItem[] = []`, `startHeading: string`
+- Outputs: `links: readonly FieldMapperLink[]`, `linkSelect: FieldMapperLink | null`
+
+```html
+<ui-field-mapper />
 ```
 
 ### file-upload
@@ -2642,7 +2660,7 @@ Clickable button with variants (default, destructive, outline, ghost, link) and 
 - Category: navigation
 - Depends on: `alert-dialog`, `ripple`, `skeleton`, `spinner`
 - npm dependencies: none
-- Inputs: `ariaLabel: string | undefined`, `class: string = ''`, `disabled: boolean = false`, `label: string = ''`, `loading: boolean = false`, `ripple: boolean = false`, `rippleColor: string = 'color-mix(in srgb, currentColor 35%, transparent)'`, `size: ButtonSize = 'default'`, `skeleton: boolean = false`, `type: "button" | "submit" | "reset" = 'button'`, `variant: ButtonVariant = 'default'`
+- Inputs: `ariaControls: string | undefined = undefined, { alias: 'aria-controls' }`, `ariaExpanded: boolean | 'true' | 'false' | undefined = undefined, { alias: 'aria-expanded' }`, `ariaHaspopup: ButtonAriaHaspopup | undefined = undefined, { alias: 'aria-haspopup' }`, `ariaLabel: string | undefined`, `ariaPressed: boolean | 'true' | 'false' | 'mixed' | undefined = undefined, { alias: 'aria-pressed' }`, `class: string = ''`, `disabled: boolean = false`, `label: string = ''`, `loading: boolean = false`, `ripple: boolean = false`, `rippleColor: string = 'color-mix(in srgb, currentColor 35%, transparent)'`, `size: ButtonSize = 'default'`, `skeleton: boolean = false`, `type: "button" | "submit" | "reset" = 'button'`, `variant: ButtonVariant = 'default'`
 - Outputs: `clicked: MouseEvent`
 
 ```html

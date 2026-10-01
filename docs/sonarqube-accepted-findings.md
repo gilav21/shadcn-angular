@@ -28,6 +28,7 @@ Kept only where a native element is impossible:
 | `data-table` column resize handle | `separator` | This is an **interactive splitter** (mouse + touch drag) and it **contains** a child resize-line element. `<hr>` is a void element (no children) and isn't interactive — `role="separator"` is the correct splitter widget role. |
 | `rich-text-editor` editable surface | `textbox` | A `contenteditable` rich-text region. `<input>`/`<textarea>` are plain-text only and can't host rich formatting. `role="textbox"` + `aria-multiline` is the WAI-ARIA-endorsed pattern. |
 | `rich-text-editor` / `rich-text-mention` / `rich-text-editor/slash-commands` menu (listbox + option) | `listbox`, `option` | Custom, fully-templated mention / slash-command popups. `<select>`/`<datalist>` can't render templated option content (each option is a two-line label + description block). |
+| `field-mapper` start and end lists (listbox + option) | `listbox`, `option` | Each list is one tab stop walked with the arrow keys, with `aria-selected` marking the item that waits for a partner. The options are consumer templates carrying a drag handle, placed in a CSS grid shared with the other list so the lines between them can be drawn. `<select>`/`<datalist>` can render none of that. |
 | `tree-select` trigger | `combobox` | A custom templated tree-dropdown. `<select>` can't render a tree of templated options. |
 | `color-picker` saturation/value area | `slider` | A **two-dimensional** picker (x = saturation, y = value). `<input type="range">` is one-dimensional and cannot represent a 2-D control, so `role="slider"` with `aria-valuetext` is the correct ARIA. (The 1-D hue/alpha sliders use native range inputs.) |
 
@@ -354,3 +355,14 @@ that fails when the binding is reverted.
 
 The general lesson for this rule: check what the custom element *does with the
 keyboard*, not merely whether it is a custom element.
+
+## `Web:MouseEventWithoutKeyboardEquivalentCheck` — field-mapper line hit area
+
+`field-mapper.component.html` puts `(click)` on the invisible 44px-wide stroke
+that sits under each drawn line, inside an `aria-hidden` `<svg>`. It is a
+pointer and touch target only, so it is not focusable and should not be. The
+keyboard reaches the same action from the items, which are focusable options:
+the arrow key pointing toward the other list (mirrored in RTL) selects the
+item's lines in turn, and Delete removes the selected one. Both are pinned by
+`field-mapper.component.spec.ts` (portable) and the RTL case by
+`field-mapper.component.browser.spec.ts`. Scoped to that one file.

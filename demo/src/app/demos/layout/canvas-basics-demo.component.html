@@ -20,7 +20,7 @@
       <ui-button size="sm" variant="outline" (click)="zoomOut()">{{ text.zoomOut }}</ui-button>
       <ui-button size="sm" variant="outline" (click)="goToOrigin()">{{ text.origin }}</ui-button>
       <ui-button size="sm" variant="outline" (click)="reset()">{{ text.reset }}</ui-button>
-      <ui-button size="sm" variant="outline" [attr.aria-pressed]="showGrid()" (click)="toggleGrid()">
+      <ui-button size="sm" variant="outline" [aria-pressed]="showGrid()" (click)="toggleGrid()">
         {{ text.grid }}
       </ui-button>
       <ui-button size="sm" [variant]="large() ? 'outline' : 'default'" (click)="useSmallGraph()">

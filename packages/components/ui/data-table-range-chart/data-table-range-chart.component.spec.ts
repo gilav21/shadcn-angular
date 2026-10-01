@@ -175,12 +175,12 @@ describe('DataTableRangeChartComponent', () => {
   it('renders the bar chart by default and swaps to pie on selection', () => {
     expect(fixture.debugElement.query(By.css('ui-bar-chart'))).toBeTruthy();
     const switches = fixture.debugElement
-      .queryAll(By.css('[data-slot="range-chart-switcher"] ui-button'))
+      .queryAll(By.css('[data-slot="range-chart-switcher"] ui-button button'))
       .map((b) => b.nativeElement as HTMLElement);
     const pie = switches.find((b) => b.textContent?.trim() === 'pie')!;
     expect(pie.getAttribute('aria-pressed')).toBe('false');
 
-    pie.querySelector('button')!.click();
+    pie.click();
     fixture.detectChanges();
 
     expect(pie.getAttribute('aria-pressed')).toBe('true');

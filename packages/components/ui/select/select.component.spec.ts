@@ -396,6 +396,48 @@ class DataDrivenStringTestHost {
     }
 }
 
+// Priority levels where 0 is a real choice — the falsy class `''` / `0` / `false`.
+@Component({
+    template: `<ui-select [options]="levels" [displayWith]="levelName" (valueChange)="picked = $event" placeholder="Priority" />`,
+    imports: [SelectComponent],
+})
+class FalsyOptionHost {
+    readonly levels = [0, 1, 2];
+    readonly levelName = (n: number): string => ['none', 'one', 'two'][n];
+    picked: number | undefined;
+}
+
+describe('Select Data-Driven Mode (falsy option values)', () => {
+    it('picks and shows a 0 option like any other, by click and by Enter', async () => {
+        await TestBed.configureTestingModule({ imports: [FalsyOptionHost] }).compileComponents();
+        const fixture = TestBed.createComponent(FalsyOptionHost);
+        fixture.detectChanges();
+        const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('button[role="combobox"]');
+        const open = async (): Promise<HTMLElement[]> => {
+            trigger.click();
+            fixture.detectChanges();
+            await fixture.whenStable();
+            return Array.from(fixture.nativeElement.querySelectorAll('[role="option"]'));
+        };
+
+        (await open())[0].click();
+        fixture.detectChanges();
+        expect(fixture.componentInstance.picked).toBe(0);
+        expect(trigger.textContent?.trim()).toBe('none');
+
+        (await open())[1].click();
+        fixture.detectChanges();
+        expect(trigger.textContent?.trim()).toBe('one');
+
+        const listbox = (await open())[0].parentElement!.parentElement!;
+        listbox.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+        listbox.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        fixture.detectChanges();
+        expect(fixture.componentInstance.picked).toBe(0);
+        expect(trigger.textContent?.trim()).toBe('none');
+    });
+});
+
 describe('Select Data-Driven Mode (Strings)', () => {
     let fixture: ComponentFixture<DataDrivenStringTestHost>;
     let component: DataDrivenStringTestHost;

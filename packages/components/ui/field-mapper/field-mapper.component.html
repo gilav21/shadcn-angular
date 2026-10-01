@@ -1,0 +1,284 @@
+<div #root [class]="classes()" [attr.data-slot]="'field-mapper'" [attr.dir]="dir()" [attr.data-layout]="narrow() ? 'rows' : 'columns'">
+  @if (narrow()) {
+    <div class="flex flex-col gap-2" [attr.data-slot]="'field-mapper-rows'">
+      <div class="flex flex-col gap-2">
+        <div [id]="ids.startHeading" class="font-medium" dir="auto">{{ startHeadingText() }}</div>
+        @if (searchable()) {
+          <ui-input
+            class="h-11"
+            [(value)]="startQuery"
+            [placeholder]="t().filterPlaceholder"
+            [ariaLabel]="t().filterLabel(startHeadingText())"
+          />
+        }
+      </div>
+      <ul class="flex flex-col gap-2" [attr.aria-labelledby]="ids.startHeading">
+        @for (item of startVisible(); track item.id) {
+          <li
+            class="flex min-w-0 flex-col gap-2 rounded-md border bg-card p-3"
+            [attr.data-slot]="'field-mapper-row'"
+            [attr.data-id]="item.id"
+          >
+            <div class="min-w-0" [attr.aria-disabled]="item.disabled || null">
+              <ng-container *ngTemplateOutlet="itemTemplate() ?? defaultItem; context: itemContext('start', item)" />
+            </div>
+            <span class="text-muted-foreground -mb-1 text-xs" dir="auto" aria-hidden="true">{{ endHeadingText() }}</span>
+            @if (limits().start === 1) {
+              <ui-native-select
+                class="h-11 w-full"
+                [ngModel]="partnerOf(item.id)"
+                (ngModelChange)="onPartnerPicked(item.id, $event)"
+                [disabled]="!!item.disabled"
+                [ariaLabel]="t().pickerLabel(item.label)"
+              >
+                <option value="">{{ t().notLinked }}</option>
+                @for (option of end(); track option.id) {
+                  <option [value]="option.id" [disabled]="!!option.disabled" dir="auto">{{ option.label }}</option>
+                }
+              </ui-native-select>
+            } @else {
+              @if (partnerIds('start', item.id).length > 0) {
+                <ul class="flex flex-wrap gap-2" [attr.aria-label]="itemName('start', item)">
+                  @for (endId of partnerIds('start', item.id); track endId) {
+                    <li class="flex min-w-0 max-w-full items-center gap-1 rounded-md bg-muted ps-3">
+                      <span class="truncate" dir="auto">{{ labelOf('end', endId) }}</span>
+                      <ui-button
+                        variant="ghost"
+                        size="icon"
+                        class="size-11 shrink-0"
+                        [ariaLabel]="t().removeLinkTo(labelOf('end', endId))"
+                        (clicked)="unlink({ startId: item.id, endId })"
+                      >
+                        <ui-icon name="x" size="sm" />
+                      </ui-button>
+                    </li>
+                  }
+                </ul>
+              }
+              <ui-native-select
+                class="h-11 w-full"
+                [ngModel]="''"
+                (ngModelChange)="onPartnerPicked(item.id, $event)"
+                [disabled]="!!item.disabled"
+                [ariaLabel]="t().pickerLabel(item.label)"
+              >
+                <option value="">{{ t().addLink }}</option>
+                @for (option of unlinkedEnds(item.id); track option.id) {
+                  <option [value]="option.id" [disabled]="!!option.disabled" dir="auto">{{ option.label }}</option>
+                }
+              </ui-native-select>
+            }
+          </li>
+        }
+      </ul>
+      @if (hiddenLinked().start > 0) {
+        <p class="text-muted-foreground text-xs">{{ t().hiddenLinked(hiddenLinked().start) }}</p>
+      }
+    </div>
+  } @else {
+    <div class="field-mapper-scroll relative overflow-auto overscroll-contain" [attr.data-slot]="'field-mapper-scroll'" (scroll)="onScroll()">
+      <div
+        #grid
+        class="field-mapper-grid relative grid p-1"
+        [attr.data-slot]="'field-mapper-grid'"
+        [attr.data-dragging]="dragging() ? '' : null"
+      >
+        <!--
+          One sticky band across all three columns, gutter included: lines and
+          the half of each handle that overhangs into the gutter must scroll
+          under it, not show through beside the headings.
+        -->
+        <div
+          class="field-mapper-header bg-background sticky top-0 z-20 grid pb-2"
+          [style.grid-column]="'1 / -1'"
+          [style.grid-row]="1"
+          [attr.data-slot]="'field-mapper-header'"
+        >
+          @for (side of ['start', 'end']; track side) {
+            <div
+              class="flex min-w-0 flex-col gap-2"
+              [style.grid-column]="side === 'start' ? 1 : 3"
+              [attr.data-slot]="'field-mapper-heading'"
+              [attr.data-side]="side"
+            >
+              <div
+                class="truncate font-medium"
+                dir="auto"
+                [id]="side === 'start' ? ids.startHeading : ids.endHeading"
+              >{{ side === 'start' ? startHeadingText() : endHeadingText() }}</div>
+              @if (searchable()) {
+                @if (side === 'start') {
+                  <ui-input [(value)]="startQuery" [placeholder]="t().filterPlaceholder" [ariaLabel]="t().filterLabel(startHeadingText())" />
+                } @else {
+                  <ui-input [(value)]="endQuery" [placeholder]="t().filterPlaceholder" [ariaLabel]="t().filterLabel(endHeadingText())" />
+                }
+              }
+            </div>
+          }
+        </div>
+
+        <svg
+          class="pointer-events-none absolute left-0 top-0 z-0 overflow-visible"
+          [attr.width]="geometry().width"
+          [attr.height]="geometry().height"
+          [attr.data-slot]="'field-mapper-lines'"
+          aria-hidden="true"
+        >
+          @for (line of geometry().lines; track line.key) {
+            <path
+              class="field-mapper-hit"
+              [attr.d]="line.path"
+              [attr.data-slot]="'field-mapper-line-hit'"
+              (click)="onLineClick(line.link)"
+            />
+            <path
+              class="field-mapper-line"
+              [attr.d]="line.path"
+              [attr.data-slot]="'field-mapper-line'"
+              [attr.data-tone]="line.tone"
+              [attr.data-to-edge]="line.toEdge ? '' : null"
+              [attr.data-selected]="isSelectedLink(line.link) ? '' : null"
+            />
+          }
+          @if (geometry().rubberBand; as band) {
+            <path class="field-mapper-line" data-tone="strong" [attr.d]="band" [attr.data-slot]="'field-mapper-rubber-band'" />
+          }
+        </svg>
+
+        <div
+          role="listbox"
+          class="contents"
+          [attr.aria-labelledby]="ids.startHeading"
+          [attr.aria-describedby]="ids.instructions"
+          [attr.data-slot]="'field-mapper-list'"
+          [attr.data-side]="'start'"
+        >
+          @for (item of startVisible(); track item.id; let i = $index) {
+            <div
+              role="option"
+              class="field-mapper-item relative z-[1] flex min-h-11 min-w-0 items-center rounded-md border bg-card"
+              [style.grid-column]="1"
+              [style.grid-row]="i + 2"
+              [attr.tabindex]="tabIndexOf('start', item.id)"
+              [attr.aria-label]="itemName('start', item)"
+              [attr.aria-selected]="itemState('start', item.id) === 'choosing'"
+              [attr.aria-disabled]="item.disabled || null"
+              [attr.data-slot]="'field-mapper-item'"
+              [attr.data-side]="'start'"
+              [attr.data-id]="item.id"
+              [attr.data-state]="itemState('start', item.id)"
+              [attr.data-linked]="isLinked('start', item.id) ? '' : null"
+              (click)="onItemClick('start', item)"
+              (focus)="setActive('start', item.id)"
+              (keydown)="onItemKeydown($event, 'start', item)"
+            >
+              <div class="min-w-0 flex-1">
+                <ng-container *ngTemplateOutlet="itemTemplate() ?? defaultItem; context: itemContext('start', item)" />
+              </div>
+              <span
+                class="field-mapper-handle"
+                [attr.data-slot]="'field-mapper-handle'"
+                [attr.data-side]="'start'"
+                [attr.data-id]="item.id"
+                (pointerdown)="onHandlePointerDown($event, 'start', item)"
+              ><span class="field-mapper-dot"></span></span>
+            </div>
+          }
+        </div>
+
+        <div
+          role="listbox"
+          class="contents"
+          [attr.aria-labelledby]="ids.endHeading"
+          [attr.aria-describedby]="ids.instructions"
+          [attr.data-slot]="'field-mapper-list'"
+          [attr.data-side]="'end'"
+        >
+          @for (item of endVisible(); track item.id) {
+            <div
+              role="option"
+              class="field-mapper-item relative z-[1] flex min-h-11 min-w-0 items-center rounded-md border bg-card"
+              [style.grid-column]="3"
+              [style.grid-row]="endRow(item.id)"
+              [attr.tabindex]="tabIndexOf('end', item.id)"
+              [attr.aria-label]="itemName('end', item)"
+              [attr.aria-selected]="itemState('end', item.id) === 'choosing'"
+              [attr.aria-disabled]="item.disabled || null"
+              [attr.aria-posinset]="endPosition(item.id)"
+              [attr.aria-setsize]="endVisible().length"
+              [attr.data-slot]="'field-mapper-item'"
+              [attr.data-side]="'end'"
+              [attr.data-id]="item.id"
+              [attr.data-state]="itemState('end', item.id)"
+              [attr.data-linked]="isLinked('end', item.id) ? '' : null"
+              (click)="onItemClick('end', item)"
+              (focus)="setActive('end', item.id)"
+              (keydown)="onItemKeydown($event, 'end', item)"
+            >
+              <span
+                class="field-mapper-handle"
+                [attr.data-slot]="'field-mapper-handle'"
+                [attr.data-side]="'end'"
+                [attr.data-id]="item.id"
+                (pointerdown)="onHandlePointerDown($event, 'end', item)"
+              ><span class="field-mapper-dot"></span></span>
+              <div class="min-w-0 flex-1">
+                <ng-container *ngTemplateOutlet="itemTemplate() ?? defaultItem; context: itemContext('end', item)" />
+              </div>
+            </div>
+          }
+        </div>
+
+        @for (side of ['start', 'end']; track side) {
+          @if (side === 'start' ? hiddenLinked().start : hiddenLinked().end; as count) {
+            <p
+              class="text-muted-foreground px-1 text-xs"
+              [style.grid-column]="side === 'start' ? 1 : 3"
+              [style.grid-row]="rowCount() + 2"
+              [attr.data-slot]="'field-mapper-hidden-note'"
+              [attr.data-side]="side"
+            >{{ t().hiddenLinked(count) }}</p>
+          }
+        }
+
+        @for (line of geometry().lines; track line.key) {
+          @if (linkLabelTemplate() || isSelectedLink(line.link)) {
+            <div
+              class="field-mapper-label pointer-events-none absolute z-10 flex flex-col items-center gap-1"
+              [style.left.px]="line.midX"
+              [style.top.px]="line.midY"
+              [style.max-width.px]="geometry().gutter"
+              [attr.data-slot]="'field-mapper-link-label'"
+            >
+              @if (linkLabelTemplate(); as labelTemplate) {
+                @if (labelContext(line.link); as context) {
+                  <div class="bg-background text-muted-foreground max-w-full truncate rounded px-1 text-xs" dir="auto">
+                    <ng-container *ngTemplateOutlet="labelTemplate; context: context" />
+                  </div>
+                }
+              }
+              @if (isSelectedLink(line.link)) {
+                <ui-button
+                  variant="outline"
+                  size="icon"
+                  class="pointer-events-auto size-11 rounded-full"
+                  [ariaLabel]="t().removeLink"
+                  (clicked)="removeSelected()"
+                >
+                  <ui-icon name="x" size="sm" />
+                </ui-button>
+              }
+            </div>
+          }
+        }
+      </div>
+    </div>
+  }
+
+  <p class="sr-only" [id]="ids.instructions">{{ t().instructions }}</p>
+  <div class="sr-only" aria-live="polite" aria-atomic="true" [attr.data-slot]="'field-mapper-live'">{{ liveMessage() }}</div>
+</div>
+
+<ng-template #defaultItem let-item>
+  <span class="block truncate" dir="auto">{{ item.label }}</span>
+</ng-template>

@@ -306,7 +306,7 @@
         {
           "name": "title",
           "type": "string",
-          "description": "Simple-mode heading. Supplying it switches the alert to the generated layout — title, optional {@link description}, then any projected content — instead of pure projection. Leave it empty to compose `ui-alert-title` / `ui-alert-description` yourself.",
+          "description": "Simple-mode heading. Supplying it renders a `ui-alert-title` (and the optional {@link description} as a `ui-alert-description`) ahead of any other projected content, so both modes lay out identically. A projected top-level `<svg>` icon is always placed first. Leave it empty to compose `ui-alert-title` / `ui-alert-description` yourself.",
           "default": "''"
         },
         {
@@ -330,7 +330,7 @@
         {
           "name": "class",
           "type": "string",
-          "description": "Extra classes merged onto the description host. Any nested `<p>` already gets relaxed leading, so multi-paragraph bodies need no extra styling.",
+          "description": "Extra classes merged onto the description host, a block under the title that keeps the leading-icon indent on every wrapped line. Any nested `<p>` already gets relaxed leading, so multi-paragraph bodies need no extra styling.",
           "default": "''"
         }
       ],
@@ -348,7 +348,7 @@
         {
           "name": "class",
           "type": "string",
-          "description": "Extra classes merged onto the title host. Renders as a plain styled `<div>`, not a heading element — add your own `<h2>`/`<h3>` inside if the alert needs to appear in the document outline.",
+          "description": "Extra classes merged onto the title host. The host is a block (like a plain styled `<div>`), not a heading element — add your own `<h2>`/`<h3>` inside if the alert needs to appear in the document outline.",
           "default": "''"
         }
       ],
@@ -491,7 +491,7 @@
         {
           "name": "debounceTime",
           "type": "number",
-          "description": "Milliseconds to delay {@link searchChange} by, so a request per keystroke is avoided. Defaults to `0` (emit synchronously from {@link onInput}). Only the outgoing event is delayed — {@link searchTerm} and therefore the highlight and the client-side {@link filter} update immediately. NOTE: the debounce window is captured once in the constructor, before inputs are set, so any value passed in behaves as `0` (asynchronous but not actually delayed).",
+          "description": "Milliseconds to delay {@link searchChange} by, so a request per keystroke is avoided. Defaults to `0` (emit synchronously from {@link onInput}). Only the outgoing event is delayed — {@link searchTerm} and therefore the highlight and the client-side {@link filter} update immediately. The window is read on every keystroke, so changing it takes effect on the next one.",
           "default": "0"
         },
         {
@@ -1112,7 +1112,7 @@
         {
           "name": "editable",
           "type": "boolean",
-          "description": "Master switch for every edit affordance: drag, resize handles, selection, context menus and drops. Turning it off also clears the current selection (and emits an empty {@link selectionChange}) and hides the cell grid overlay.",
+          "description": "Master switch for every edit affordance: drag, resize handles, selection, context menus and drops. Turning it off also clears a non-empty selection (and emits an empty {@link selectionChange}) and hides the cell grid overlay.",
           "default": "true"
         },
         {
@@ -1171,7 +1171,7 @@
         {
           "name": "selectionChange",
           "type": "string[]",
-          "description": "The ids currently selected, after every {@link toggleSelection} / {@link clearSelection} and whenever {@link editable} goes false."
+          "description": "The ids currently selected, after every {@link toggleSelection} / {@link clearSelection} and whenever {@link editable} going false clears a non-empty selection."
         }
       ],
       "methods": []
@@ -1714,7 +1714,7 @@
         {
           "name": "orientation",
           "type": "\"horizontal\" | \"vertical\"",
-          "description": "Stacking axis. Drives which corner radii and adjoining borders are stripped from the children so they read as one control: the horizontal form uses logical `-s`/`-e` sides and therefore flips correctly in RTL. Set the matching `orientation` on any {@link ButtonGroupSeparatorComponent} inside.",
+          "description": "Stacking axis. Drives which corner radii and adjoining borders are stripped from the children so they read as one control — only the outer corners stay rounded and each join shows a single border. The rules reach through `display: contents` hosts (`<ui-button>`) to the element that draws the box, and apply to a plain `<button>` child directly. The horizontal form uses logical `-s`/`-e` sides and therefore flips correctly in RTL. Set the matching `orientation` on any {@link ButtonGroupSeparatorComponent} inside.",
           "default": "'horizontal'"
         }
       ],
@@ -1772,9 +1772,33 @@
       "projectsContent": true,
       "inputs": [
         {
+          "name": "ariaControls",
+          "type": "string | undefined",
+          "description": "Id of the element this button shows, hides or drives: `aria-controls=\"panel-id\"`. Lands on the inner `<button>`.",
+          "default": "undefined, { alias: 'aria-controls' }"
+        },
+        {
+          "name": "ariaExpanded",
+          "type": "boolean | 'true' | 'false' | undefined",
+          "description": "Disclosure state for a button that shows and hides something: `[aria-expanded]=\"open()\"`. Lands on the inner `<button>`, where assistive technology reads it. Unset leaves the attribute off.",
+          "default": "undefined, { alias: 'aria-expanded' }"
+        },
+        {
+          "name": "ariaHaspopup",
+          "type": "ButtonAriaHaspopup | undefined",
+          "description": "Kind of popup a menu button opens: `aria-haspopup=\"menu\"`. Lands on the inner `<button>`.",
+          "default": "undefined, { alias: 'aria-haspopup' }"
+        },
+        {
           "name": "ariaLabel",
           "type": "string | undefined",
           "description": "Accessible name, camelCase form: `[ariaLabel]=\"'Copy'\"`."
+        },
+        {
+          "name": "ariaPressed",
+          "type": "boolean | 'true' | 'false' | 'mixed' | undefined",
+          "description": "Toggle state for a button that stays pressed: `[aria-pressed]=\"on()\"`, or `'mixed'`. Lands on the inner `<button>`. Unset leaves it off.",
+          "default": "undefined, { alias: 'aria-pressed' }"
         },
         {
           "name": "class",
@@ -2997,7 +3021,7 @@
         {
           "name": "customLanguages",
           "type": "Record<string, LanguagePattern | LanguageConfig> | null",
-          "description": "Extra or replacement language definitions keyed by lowercase language name. A bare pattern array registers highlighting only; a full config may also supply a scope detector for folding. An entry here shadows the built-in language of the same name, but still inherits that language's built-in fold detector when it does not provide one.",
+          "description": "Extra or replacement language definitions keyed by lowercase language name. A bare pattern array registers highlighting only; a full config may also supply a scope detector for folding. An entry here shadows the built-in language of the same name, but still inherits that language's built-in fold detector when it does not provide one. An entry filed under a fence alias (`sh`) is used for that exact name; an entry filed under the language (`bash`) also serves its aliases.",
           "default": "null"
         },
         {
@@ -3008,7 +3032,7 @@
         {
           "name": "language",
           "type": "string",
-          "description": "Language key for the highlighter, matched case-insensitively against the built-in set plus {@link customLanguages}. An unknown key silently falls back to TypeScript rules.",
+          "description": "Language key for the highlighter, matched case-insensitively against the built-in set plus {@link customLanguages}. Built in: `typescript`, `javascript`, `python`, `java`, `csharp`, `html`, `xml`, `css`, `json`, `yaml`, `bash` and `sql`, and the common fence spellings of them (`ts`, `js`, `py`, `c#`, `yml`, `sh`, `postgresql`, `mysql`, `sqlite`…). An unknown key silently falls back to TypeScript rules.",
           "default": "'typescript'"
         },
         {
@@ -4035,7 +4059,7 @@
         {
           "name": "class",
           "type": "string",
-          "description": "Extra classes for the floating panel, merged after the defaults (`min-w-[8rem]`, popover colours, `max-w-[calc(100vw-16px)]` / `max-h-[calc(100vh-16px)]` scroll clamps, enter animation). The panel is portalled to `document.body` with `position: fixed` and `z-index: 9999`, so it inherits nothing from the host — width, padding and colours must be set here rather than on an ancestor. Avoid overriding `position`/`left`/ `top`: they are re-applied from the clamped coordinates on every open.",
+          "description": "Extra classes for the floating panel, merged after the defaults (`min-w-[8rem]`, popover colours, `max-w-[calc(100vw-16px)]` / `max-h-[calc(100vh-16px)]` scroll clamps, enter animation). The panel is portalled to `document.body` with `position: fixed` and `z-index: 9999`, so apart from the theme tokens and the host's resolved `dir`, which are copied onto the portal, it inherits nothing from the host — width, padding and colours must be set here rather than on an ancestor. Avoid overriding `position`/`left`/`top`: they are re-applied from the clamped coordinates on every open.",
           "default": "''"
         }
       ],
@@ -4616,7 +4640,7 @@
         {
           "name": "enableClipboardPaste",
           "type": "boolean",
-          "description": "Allow pasting a clipboard grid (TSV/CSV) into cells starting at the focused cell (`Ctrl/Cmd+V`). Only columns with a `valueSetter` are written.",
+          "description": "Allow pasting a clipboard grid (TSV/CSV) into cells starting at the focused cell (`Ctrl/Cmd+V`). Only columns with a `valueSetter` are written. The formula guard's leading `'` is dropped, as a spreadsheet does, so a range copied out of the table pastes back unchanged.",
           "default": "false"
         },
         {
@@ -4634,7 +4658,7 @@
         {
           "name": "enableCopy",
           "type": "boolean",
-          "description": "Enables the clipboard paths: `Ctrl/Cmd+C` and the `copy*ToClipboard` methods, all of which return early when false. The selection, expander and actions columns are never copied.",
+          "description": "Enables the clipboard paths: `Ctrl/Cmd+C` and the `copy*ToClipboard` methods, all of which return early when false. The selection, expander and actions columns are never copied. A copied cell a spreadsheet would run as a formula (`=`, `+`, `-`, `@`, tab, CR) is written with a leading `'`; see `guardSpreadsheetFormula`.",
           "default": "true"
         },
         {
@@ -4802,7 +4826,7 @@
         {
           "name": "localPagination",
           "type": "boolean",
-          "description": "Slice the rows in the browser. Set false for server-side paging: supply only the current page in {@link data}, set {@link total} to the full row count, and re-fetch from {@link pageChange}.",
+          "description": "Slice the rows in the browser, while the footer ({@link showPagination}) is shown and virtual scroll is off. Set false for server-side paging, or to drive paging from your own controls: supply only the current page in {@link data}, set {@link total} to the full row count, and re-fetch from {@link pageChange}.",
           "default": "true"
         },
         {
@@ -4838,7 +4862,7 @@
         {
           "name": "paginationState",
           "type": "PaginationState",
-          "description": "Current page index and size. Two-way: the table resets `pageIndex` to 0 whenever a filter changes, so don't assume it stays where you put it.",
+          "description": "Current page index and size. Two-way: the table resets `pageIndex` to 0 whenever a filter changes, so don't assume it stays where you put it. It slices the rows only while the table pages them itself ({@link localPagination} with the footer shown); setting it with the footer hidden does not page, so page from your own controls with `localPagination` off.",
           "default": "{ pageIndex: 0, pageSize: 10 }"
         },
         {
@@ -4896,7 +4920,7 @@
         {
           "name": "showPagination",
           "type": "boolean",
-          "description": "Renders the pagination footer. Also acts as a mode switch: with {@link localPagination} on, `enableVirtualScroll: \"auto\"` declines to virtualize while pagination is showing.",
+          "description": "Renders the pagination footer. With {@link localPagination} on it is also what pages the rows: hide it and every row renders, since no control could reach a later page. It is a mode switch for virtual scroll too: `enableVirtualScroll: \"auto\"` declines to virtualize while it shows.",
           "default": "true"
         },
         {
@@ -5008,14 +5032,13 @@
         },
         {
           "name": "virtualRowHeight",
-          "type": "number",
-          "description": "Row height in pixels assumed by the virtual-scroll maths, and the fallback for unmeasured rows under {@link virtualVariableRowHeight}. If your CSS row height differs, the scrollbar and the rows drift apart.",
-          "default": "40"
+          "type": "number | undefined",
+          "description": "Row height in pixels assumed by the virtual-scroll maths, and the fallback for unmeasured rows under {@link virtualVariableRowHeight}. If your CSS row height differs, the scrollbar and the rows drift apart. Unset, it follows the pointer: 40px for a mouse, 60px on a touch screen, where every in-row control is a 44px target plus the cell's padding and a fixed-height row would clip it. A value you set applies on every pointer, so keep it at 60 or more if touch users should reach in-row controls."
         },
         {
           "name": "virtualVariableRowHeight",
           "type": "boolean",
-          "description": "Measures each rendered row and uses prefix sums instead of a fixed row height — needed for wrapping content, at the cost of a `ResizeObserver` per row and re-measurement as rows scroll in.",
+          "description": "Measures each rendered row and uses prefix sums instead of a fixed row height — needed for wrapping content, at the cost of a `ResizeObserver` per row and re-measurement as rows scroll in. Where `ResizeObserver` is missing (jsdom, some SSR shims), rows keep the {@link virtualRowHeight} estimate and the viewport keeps the size it had at first render.",
           "default": "false"
         }
       ],
@@ -5143,7 +5166,7 @@
         {
           "name": "paginationState",
           "type": "PaginationState",
-          "description": "Current page index and size. Two-way: the table resets `pageIndex` to 0 whenever a filter changes, so don't assume it stays where you put it.",
+          "description": "Current page index and size. Two-way: the table resets `pageIndex` to 0 whenever a filter changes, so don't assume it stays where you put it. It slices the rows only while the table pages them itself ({@link localPagination} with the footer shown); setting it with the footer hidden does not page, so page from your own controls with `localPagination` off.",
           "default": "{ pageIndex: 0, pageSize: 10 }"
         },
         {
@@ -6352,6 +6375,11 @@
           "default": "false"
         },
         {
+          "name": "locale",
+          "type": "string",
+          "description": "BCP-47 tag the value is spoken in. Falls back to the app-wide `UI_LOCALE_ID`."
+        },
+        {
           "name": "units",
           "type": "readonly DurationUnit[]",
           "description": "Which units to show, largest first. The largest one absorbs everything above it, so `['minutes','seconds']` renders 90 minutes as `90:00` rather than silently dropping an hour.",
@@ -6777,6 +6805,115 @@
       "methods": []
     },
     {
+      "name": "FieldMapperComponent",
+      "file": "packages/components/ui/field-mapper/field-mapper.component.ts",
+      "kind": "component",
+      "selector": "ui-field-mapper",
+      "description": "Field Mapper — two lists side by side, joined by lines that say which goes with which: import field mapping, schema mapping, pairing columns across two tables. Lists are `start` and `end`, never left and right: in a right-to-left document the start list is on the right and the whole component mirrors. A line can be drawn three ways, each complete on its own — drag from an item's dot, tap one item then one in the other list, or the keyboard — and every change is announced in a polite live region. Both lists sit in one CSS grid inside one scroll container, so the lines (an SVG in the same scrolled content) can never drift from their items. Below about 28rem of its own width the component switches to stacked rows, each start item with a picker for its partner. ```html <ui-field-mapper [start]=\"fileColumns\" [end]=\"fields\" [(links)]=\"mapping\" /> ```",
+      "projectsContent": false,
+      "inputs": [
+        {
+          "name": "align",
+          "type": "boolean",
+          "description": "Orders the end list so each linked item sits level with its partner and lines run straight across; unlinked items keep their order in the rows left free. Re-alignment animates unless reduced motion is preferred.",
+          "default": "true"
+        },
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the root element.",
+          "default": "''"
+        },
+        {
+          "name": "end",
+          "type": "readonly FieldMapperItem[]",
+          "description": "Items of the end list.",
+          "default": "[]"
+        },
+        {
+          "name": "endHeading",
+          "type": "string",
+          "description": "Heading over the end list. Falls back to the locale's."
+        },
+        {
+          "name": "layout",
+          "type": "FieldMapperLayout",
+          "description": "`auto` shows the two lists side by side and switches to stacked rows when the component is narrower than about 28rem; `columns` and `rows` force one layout whatever the width.",
+          "default": "'auto'"
+        },
+        {
+          "name": "links",
+          "type": "readonly FieldMapperLink[]",
+          "description": "The links, as a two-way `model()`. The component never invents one: every change comes from the user and is emitted through `linksChange`.",
+          "default": "[]"
+        },
+        {
+          "name": "locale",
+          "type": "LocaleInput<FieldMapperLocale>",
+          "description": "Locale code or dictionary for every built-in string. Falls back to `UI_LOCALE_ID`, then English."
+        },
+        {
+          "name": "maxLinks",
+          "type": "FieldMapperMaxLinks",
+          "description": "How many links one item may hold, per side; default 1 on each. Going over moves the item's oldest link rather than doubling up: drawing `b → x` while `a → x` exists removes `a → x` when `end` is 1. Pass `Infinity` to allow any number.",
+          "default": "{ start: 1, end: 1 }"
+        },
+        {
+          "name": "searchable",
+          "type": "boolean",
+          "description": "Adds a filter box over each list. A line to a filtered-out item runs to that list's edge.",
+          "default": "false"
+        },
+        {
+          "name": "start",
+          "type": "readonly FieldMapperItem[]",
+          "description": "Items of the start list — on the left in LTR, on the right in RTL.",
+          "default": "[]"
+        },
+        {
+          "name": "startHeading",
+          "type": "string",
+          "description": "Heading over the start list. Falls back to the locale's."
+        }
+      ],
+      "outputs": [
+        {
+          "name": "links",
+          "type": "readonly FieldMapperLink[]",
+          "description": "The links, as a two-way `model()`. The component never invents one: every change comes from the user and is emitted through `linksChange`.",
+          "default": "[]"
+        },
+        {
+          "name": "linkSelect",
+          "type": "FieldMapperLink | null",
+          "description": "Emits the line the user selected (click, tap, or a key from its item), or `null` when cleared."
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "FieldMapperItemDirective",
+      "file": "packages/components/ui/field-mapper/sub/field-mapper-item.directive.ts",
+      "kind": "directive",
+      "selector": "[uiFieldMapperItem]",
+      "description": "Marks the `<ng-template>` that renders each item of a `<ui-field-mapper>`, in place of its plain label. The item stays the hit target and keeps its handle; the template only fills it. Template context: {@link FieldMapperItemContext} — `let-item` is the item, `let-side=\"side\"` its list, `let-linked=\"linked\"` whether it holds a link. ```html <ng-template uiFieldMapperItem let-item let-side=\"side\"> <span dir=\"auto\">{{ item.label }}</span> </ng-template> ```",
+      "projectsContent": false,
+      "inputs": [],
+      "outputs": [],
+      "methods": []
+    },
+    {
+      "name": "FieldMapperLinkLabelDirective",
+      "file": "packages/components/ui/field-mapper/sub/field-mapper-link-label.directive.ts",
+      "kind": "directive",
+      "selector": "[uiFieldMapperLinkLabel]",
+      "description": "Marks the `<ng-template>` that renders a short label beside each line of a `<ui-field-mapper>`, placed in the gutter at the line's midpoint. Keep it short: it has the gutter's width to fit in. Template context: {@link FieldMapperLinkLabelContext} — `let-link` is the link, `let-start=\"start\"` and `let-end=\"end\"` the items it joins. ```html <ng-template uiFieldMapperLinkLabel let-link>{{ coverage(link) }}</ng-template> ```",
+      "projectsContent": false,
+      "inputs": [],
+      "outputs": [],
+      "methods": []
+    },
+    {
       "name": "FieldComponent",
       "file": "packages/components/ui/field/field.component.ts",
       "kind": "component",
@@ -7031,7 +7168,7 @@
         {
           "name": "maxFiles",
           "type": "number | null",
-          "description": "Cap on total queued files (`null` = unlimited). Extra files in a batch are discarded once the cap is reached, each reported on {@link fileError}, and the dropzone disables itself while the list is full.",
+          "description": "Cap on total queued files (`null` = unlimited). Images waiting in the crop step count against it too. Extra files in a batch are discarded once the cap is reached, each reported on {@link fileError}, and the dropzone disables itself while the list is full.",
           "default": "null"
         },
         {
@@ -7648,7 +7785,7 @@
         {
           "name": "side",
           "type": "\"top\" | \"bottom\"",
-          "description": "Preferred vertical side. Flipped automatically to the opposite side when the card would overflow — the resolved side drives the slide-in animation.",
+          "description": "Preferred vertical side. Flipped automatically to the opposite side when the card would overflow; the resolved side is written to `data-side`, which drives the slide-in animation.",
           "default": "'bottom'"
         },
         {
@@ -8129,7 +8266,7 @@
       "file": "packages/components/ui/infinite-canvas/addons/node-editor/node-editor-node.directive.ts",
       "kind": "directive",
       "selector": "[uiNodeEditorNode]",
-      "description": "Marks the template that replaces a node card's default header. A `TemplateRef` rather than static content projection, for the same reason the canvas engine uses one: nodes are instantiated per *visible* node and recycled as the viewport moves, so there is no single place to project into. The template replaces the card's **body**. Ports keep being rendered and wired by the editor — see `NodeEditorNodeComponent`. ```html <ui-node-editor [nodes]=\"nodes()\" [connections]=\"connections()\"> <ng-template uiNodeEditorNode [ofType]=\"nodes()\" let-node> <my-fancy-node [data]=\"node\" /> </ng-template> </ui-node-editor> ```",
+      "description": "Marks the template that replaces a node card's default header. A `TemplateRef` rather than static content projection, for the same reason the canvas engine uses one: nodes are instantiated per *visible* node and recycled as the viewport moves, so there is no single place to project into. The template replaces the card's **body**. Ports keep being rendered and wired by the editor — see `NodeEditorNodeComponent`. ### How tall the node gets The editor MEASURES the rendered body and grows the node to fit it, so a projected template needs no height declared for it and none passed in. Do not call `withDerivedHeights` on the nodes first — the editor derives every node's height from its own `nodes()` regardless, so a height computed outside is replaced on the way in. Size the template by its content and give it its own padding. Filling the card with `h-full` does not work, deliberately: the body area is as tall as its content, because a body that filled the card would measure the card's own spare room and could then grow but never shrink back. No padding is imposed either — a projected body is yours, and a table usually wants to run edge to edge. Set `bodyHeight` on a node as a FLOOR, for a body that should keep a minimum size even when its content is smaller. The node takes whichever is larger. ```html <ui-node-editor [nodes]=\"nodes()\" [connections]=\"connections()\"> <ng-template uiNodeEditorNode [ofType]=\"nodes()\" let-node> <my-fancy-node [data]=\"node\" /> </ng-template> </ui-node-editor> ```",
       "projectsContent": false,
       "inputs": [
         {
@@ -8430,7 +8567,13 @@
           "default": "null"
         }
       ],
-      "outputs": [],
+      "outputs": [
+        {
+          "name": "bodyMeasured",
+          "type": "{ node: NodeId; height: number }",
+          "description": "The rendered height of a projected body, in CSS pixels. An OUTPUT rather than an input because a consumer cannot know it: the height depends on the font, the density, the locale and on content that changes at runtime — a title wrapping to a second line is enough to move it. The declared `node.bodyHeight` is only a minimum; this is what the body actually took. Emitted per node id rather than per card because the canvas RECYCLES these views: the same component instance renders a different node as one scrolls past, so a height remembered on the instance would be attributed to the wrong node."
+        }
+      ],
       "methods": []
     },
     {
@@ -8732,7 +8875,7 @@
         {
           "name": "showMaskTyped",
           "type": "boolean",
-          "description": "Keep the whole mask visible while typing, rather than revealing it as it fills.",
+          "description": "Keep the whole mask visible while typing, rather than revealing it as it fills: every unfilled slot shows {@link slotChar} and every literal is kept, so `(000) 000-0000` with `123` typed reads `(123) ___-____`.",
           "default": "false"
         },
         {
@@ -10155,7 +10298,7 @@
         {
           "name": "digit",
           "type": "string",
-          "description": "One character of the formatted number. Digits `0-9` roll over with a vertical slide from the previous character; anything else (group separators, decimal point, minus sign) is swapped instantly. The first value sets the initial state without animating.",
+          "description": "One character of the formatted number. A digit that replaces a digit rolls over with a vertical slide from the previous one; every other change (to a separator, decimal point or minus sign, or from one to a digit) is swapped instantly. The first value sets the initial state without animating.",
           "required": true
         }
       ],
@@ -10730,7 +10873,7 @@
         {
           "name": "count",
           "type": "number",
-          "description": "Number of particles seeded across the canvas. Cost is roughly quadratic because every pair is tested for a connecting line each frame, so keep it modest on large surfaces. Read when the field is created (init, or the first resize that gives the host a non-zero size).",
+          "description": "Number of particles seeded across the canvas. Cost is roughly quadratic because every pair is tested for a connecting line each frame, so keep it modest on large surfaces. Read when the field is created (init, or the first resize that gives the host a non-zero size); later resizes scale the existing particles to the new size instead of reseeding them.",
           "default": "50"
         },
         {
@@ -11413,7 +11556,7 @@
         {
           "name": "direction",
           "type": "\"horizontal\" | \"vertical\"",
-          "description": "Axis the panels are laid out and resized along. It is published as `data-direction` on the container and each handle reads it from the DOM at `ngAfterViewInit` to pick its cursor and drag axis — so changing this input after init does not re-orient handles already created.",
+          "description": "Axis the panels are laid out and resized along, published as `data-direction` on the container. Each handle derives its orientation — size, cursor, grip, `aria-orientation`, drag and arrow-key axis — from this input reactively, so changing it after init re-orients existing handles.",
           "default": "'horizontal'"
         }
       ],
@@ -11879,7 +12022,7 @@
         {
           "name": "actionAttached",
           "type": "{        actionId: string; trigger: RichTextActionTrigger; params: ActionParams; targetKind: ActionTargetKind;    }",
-          "description": "An action was written to the document (attach or edit). A combined action emits twice — once for `'click'`, once for `'hover'` — with the params each trigger received. Not emitted when the flow aborts because the target selection was lost."
+          "description": "An action was written to the document (attach or edit). A combined action emits twice — once for `'click'`, once for `'hover'` — with the params each trigger received. Not emitted when the target was lost — the text selection could not be restored, or the captured image or action element left the editor while the dialog was open (setContent, undo): nothing is written and a dialog awaiting confirm stays open."
         },
         {
           "name": "actionRemoved",
@@ -13146,7 +13289,7 @@
           "name": "insertHtml",
           "signature": "insertHtml(html: string)",
           "returns": "void",
-          "description": "Insert HTML at the restored caret as one history entry, then focus the editor. The markup goes through the editor's allow-list sanitizer, so a `<script>` is dropped rather than inserted. No-op while readonly or disabled, and when nothing survives sanitization. The single sanitize pass both answers that question and supplies the markup that is inserted — deciding and inserting must not disagree.",
+          "description": "Insert HTML at the restored caret as one history entry, then focus the editor. The markup goes through the editor's allow-list sanitizer, so a `<script>` is dropped rather than inserted. No-op while readonly or disabled, when nothing survives sanitization, and when its text would take the document past {@link maxLength}. The single sanitize pass both answers that question and supplies the markup that is inserted — deciding and inserting must not disagree.",
           "params": [
             {
               "name": "html",
@@ -13159,7 +13302,7 @@
           "name": "insertText",
           "signature": "insertText(text: string)",
           "returns": "void",
-          "description": "Insert plain text at the restored caret as one history entry, then focus the editor — the method a page button next to the editor calls. No-op while readonly or disabled, and for the empty string (an empty insert would otherwise record a history entry that undoes nothing).",
+          "description": "Insert plain text at the restored caret as one history entry, then focus the editor — the method a page button next to the editor calls. No-op while readonly or disabled, when the text would take the document past {@link maxLength}, and for the empty string (an empty insert would otherwise record a history entry that undoes nothing).",
           "params": [
             {
               "name": "text",
@@ -13886,7 +14029,7 @@
         {
           "name": "orientation",
           "type": "\"horizontal\" | \"vertical\"",
-          "description": "Direction of the rule. `'horizontal'` renders a 1px-tall full-width line; `'vertical'` renders a 1px-wide full-height line, which only shows up if the parent gives the host a height (e.g. a flex row with `h-*` or `items-stretch`). Also mirrored to `aria-orientation`.",
+          "description": "Direction of the rule. `'horizontal'` renders a 1px-tall line across the container's full width; `'vertical'` a 1px-wide line down its full height, which only shows up if the parent has a definite height (e.g. `h-*`) or stretches its items. The host is a block box, so both work in plain block flow as well as in flex layouts. Also mirrored to `aria-orientation`.",
           "default": "'horizontal'"
         }
       ],
@@ -16314,7 +16457,7 @@
         {
           "name": "class",
           "type": "string",
-          "description": "Extra classes merged onto the table wrapper. It is a flex column that scrolls horizontally, so give it a bounded height here when the body should scroll rather than the page.",
+          "description": "Extra classes merged onto the table wrapper. It is a flex column that scrolls horizontally, so give it a bounded height here when the body should scroll rather than the page. Inside a container that already scrolls, pass `overflow-visible`: the wrapper then stops being a scroll container, so the sticky header and horizontal scrollbar belong to the outer one.",
           "default": "''"
         },
         {
@@ -16469,7 +16612,7 @@
         {
           "name": "text",
           "type": "string",
-          "description": "Sentence to reveal. Split on single spaces into words, each animated as its own inline block — so line breaks can fall between any two words but never inside one. Plain text only; markup is escaped.",
+          "description": "Sentence to reveal. Split into words at runs of whitespace (spaces, tabs, newlines — the characters HTML collapses), each animated as its own inline block, so line breaks can fall between any two words but never inside one. Leading, trailing and repeated whitespace produce no empty words, and empty text renders none; a no-break space keeps its two words together. Plain text only; markup is escaped.",
           "default": "''"
         }
       ],
@@ -17028,7 +17171,7 @@
         {
           "name": "variant",
           "type": "ToggleGroupVariant",
-          "description": "Item styling, read by each item through the group: `outline` adds borders plus a shared shadow on the group.",
+          "description": "Item styling, read by each item through the group: `outline` adds borders (one per join between items) plus a shared shadow on the group.",
           "default": "'default'"
         }
       ],
@@ -17393,7 +17536,7 @@
       "file": "packages/components/ui/tree-context-menu.directive.ts",
       "kind": "directive",
       "selector": "ui-tree[uiTreeContextMenu]",
-      "description": "Attach a context menu to a `<ui-tree>` element. Right-clicking a tree item opens the provided {@link ContextMenuComponent} at the cursor position and emits {@link TreeContextMenuEvent} with the node data extracted from the DOM.",
+      "description": "Attach a context menu to a `<ui-tree>` element. Right-clicking a tree item opens the provided {@link ContextMenuComponent} at the cursor position and emits {@link TreeContextMenuEvent} with the node data extracted from the DOM: `{ key, label, expanded, selected, element }`, where `key` is the item's `value` (its `data-key`), `label` its own `<ui-tree-label>` text, and `expanded` / `selected` its current state.",
       "projectsContent": false,
       "inputs": [
         {
@@ -17482,7 +17625,7 @@
         {
           "name": "nodes",
           "type": "TreeNode[]",
-          "description": "Tree data for the built-in popover. Passing a non-empty array switches the component into data-driven mode: it renders its own combobox trigger and a single-select `ui-tree` in the popover. Leave it empty to fall back to projected content ({@link TreeSelectTriggerComponent} / {@link TreeSelectContentComponent}), in which case you drive the selection yourself via {@link select}.",
+          "description": "Tree data for the built-in popover. Passing a non-empty array switches the component into data-driven mode: it renders its own combobox trigger and a single-select `ui-tree` in the popover. Leave it empty to fall back to projected content: a `<ui-popover-trigger>` and a `<ui-popover-content>` (optionally wrapped in {@link TreeSelectTriggerComponent} / {@link TreeSelectContentComponent}) drive this component's popover, and you drive the selection yourself via {@link select}.",
           "default": "[]"
         },
         {

@@ -653,6 +653,49 @@
       "chat/chat.component.spec.ts"
     ]
   },
+  "field-mapper": {
+    "name": "field-mapper",
+    "category": "form",
+    "description": "Two lists side by side joined by lines: map import fields, schemas, or columns across two tables. Drag, tap-tap or keyboard.",
+    "tags": [
+      "mapping",
+      "link",
+      "schema",
+      "columns",
+      "import",
+      "match"
+    ],
+    "files": [
+      "field-mapper/field-mapper-locales.ts",
+      "field-mapper/field-mapper.component.css",
+      "field-mapper/field-mapper.component.html",
+      "field-mapper/field-mapper.component.ts",
+      "field-mapper/field-mapper.types.ts",
+      "field-mapper/field-mapper.utils.ts",
+      "field-mapper/index.ts",
+      "field-mapper/sub/field-mapper-item.directive.ts",
+      "field-mapper/sub/field-mapper-link-label.directive.ts"
+    ],
+    "libFiles": [
+      "auto-scroll.ts",
+      "flip.ts",
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts",
+      "observers.ts"
+    ],
+    "dependencies": [
+      "button",
+      "icon",
+      "input",
+      "native-select"
+    ],
+    "testFiles": [
+      "field-mapper/field-mapper.component.spec.ts",
+      "field-mapper/field-mapper.utils.spec.ts"
+    ]
+  },
   "streaming-text": {
     "name": "streaming-text",
     "category": "animation",
@@ -2027,6 +2070,7 @@
       "select/select.component.ts",
       "select/sub/select-content.component.ts",
       "select/sub/select-group.component.ts",
+      "select/sub/select-item.component.css",
       "select/sub/select-item.component.ts",
       "select/sub/select-label.component.ts",
       "select/sub/select-separator.component.ts",

@@ -74,7 +74,7 @@ import { THEME_NAMES } from './theme-tokens';
                   type="button"
                   size="sm"
                   [variant]="settings().theme === name ? 'default' : 'outline'"
-                  [attr.aria-pressed]="settings().theme === name"
+                  [aria-pressed]="settings().theme === name"
                   [attr.data-theme-option]="name"
                   (clicked)="setTheme(name)">
                   {{ name }}
@@ -91,7 +91,7 @@ import { THEME_NAMES } from './theme-tokens';
                   type="button"
                   size="sm"
                   [variant]="settings().baseColor === name ? 'secondary' : 'ghost'"
-                  [attr.aria-pressed]="settings().baseColor === name"
+                  [aria-pressed]="settings().baseColor === name"
                   (clicked)="setBaseColor(name)">
                   {{ name }}
                 </ui-button>
@@ -110,7 +110,7 @@ import { THEME_NAMES } from './theme-tokens';
                   type="button"
                   size="sm"
                   [variant]="settings().density === level ? 'default' : 'outline'"
-                  [attr.aria-pressed]="settings().density === level"
+                  [aria-pressed]="settings().density === level"
                   [attr.data-density-option]="level"
                   (clicked)="setDensityLevel(level)">
                   {{ level }}
@@ -127,7 +127,7 @@ import { THEME_NAMES } from './theme-tokens';
                   type="button"
                   size="sm"
                   [variant]="settings().radius === name ? 'default' : 'outline'"
-                  [attr.aria-pressed]="settings().radius === name"
+                  [aria-pressed]="settings().radius === name"
                   [attr.data-radius-option]="name"
                   (clicked)="setRadius(name)">
                   {{ name }}
@@ -154,7 +154,7 @@ import { THEME_NAMES } from './theme-tokens';
                   type="button"
                   size="sm"
                   [variant]="settings().motion === level ? 'default' : 'outline'"
-                  [attr.aria-pressed]="settings().motion === level"
+                  [aria-pressed]="settings().motion === level"
                   [attr.data-motion-option]="level"
                   (clicked)="setMotion(level)">
                   {{ motionLabel(level) }}

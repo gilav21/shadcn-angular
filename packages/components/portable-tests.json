@@ -57,6 +57,7 @@
     "empty",
     "eyedropper",
     "field",
+    "field-mapper",
     "file-upload",
     "file-viewer",
     "flip-text",
@@ -189,6 +190,10 @@
     "signature-pad": {
       "lines": 89,
       "reason": "16 lines in signature-pad.component.ts need a real browser: the stroke paint body needs a 2D canvas context (jsdom's getContext returns null) and adopt() needs a real image decode to load a saved signature. Both are asserted in signature-pad.component.browser.spec.ts ('paints the ink onto the canvas and erases it on clear', 'does NOT emit when a value is written in from outside')."
+    },
+    "field-mapper": {
+      "lines": 68,
+      "reason": "The pointer drag (elementFromPoint drop target, rubber band, auto-scroll), the line geometry measured from handle rects, the FLIP re-align and the width observer that picks the layout all need real layout; jsdom has none. They are asserted as rendered geometry in field-mapper.component.browser.spec.ts."
     }
   }
 }

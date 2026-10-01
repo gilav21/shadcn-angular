@@ -82,7 +82,7 @@ export interface SplitButtonItem {
         type="button"
         aria-haspopup="menu"
         [ariaLabel]="dropdownAriaLabel()"
-        [attr.aria-expanded]="isOpen()"
+        [aria-expanded]="isOpen()"
       >
         <svg 
           xmlns="http://www.w3.org/2000/svg" 

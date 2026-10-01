@@ -58,6 +58,7 @@ export const DEMO_ROUTES: Routes = [
   { path: 'rich-text-editor-addons', loadComponent: () => import('./demos/inputs/rich-text-editor-addons-demo.component').then(m => m.RichTextEditorAddonsDemoComponent) },
   { path: 'rich-text-actions', loadComponent: () => import('./demos/inputs/rich-text-actions-demo.component').then(m => m.RichTextActionsDemoComponent) },
   { path: 'rich-text-view', loadComponent: () => import('./demos/inputs/rich-text-view-demo.component').then(m => m.RichTextViewDemoComponent) },
+  { path: 'field-mapper', loadComponent: () => import('./demos/inputs/field-mapper-demo.component').then(m => m.FieldMapperDemoComponent) },
 
   // Overlay
   { path: 'dialog', loadComponent: () => import('./demos/overlay/dialog-demo.component').then(m => m.DialogDemoComponent) },
