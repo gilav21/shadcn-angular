@@ -789,7 +789,7 @@ export class FieldMapperComponent {
     private readFrame(grid: HTMLElement): Frame {
         const origin = grid.getBoundingClientRect();
         const handles = new Map<string, Point>();
-        for (const handle of grid.querySelectorAll<HTMLElement>('[data-slot="field-mapper-handle"]')) {
+        for (const handle of Array.from(grid.querySelectorAll<HTMLElement>('[data-slot="field-mapper-handle"]'))) {
             const { side, id } = handle.dataset;
             if (side && id !== undefined) handles.set(handleKey(side as FieldMapperSide, id), centerOf(handle.getBoundingClientRect(), origin));
         }
@@ -852,7 +852,7 @@ export class FieldMapperComponent {
     private itemElement(side: FieldMapperSide, id: string): HTMLElement | null {
         const grid = this.grid()?.nativeElement;
         if (!grid) return null;
-        for (const el of grid.querySelectorAll<HTMLElement>(`[data-slot="field-mapper-item"][data-side="${side}"]`)) {
+        for (const el of Array.from(grid.querySelectorAll<HTMLElement>(`[data-slot="field-mapper-item"][data-side="${side}"]`))) {
             if (el.dataset['id'] === id) return el;
         }
         return null;

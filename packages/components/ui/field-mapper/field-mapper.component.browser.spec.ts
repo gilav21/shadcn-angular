@@ -327,7 +327,7 @@ describe('FieldMapperComponent (browser)', () => {
         expect(el.dataset['layout']).toBe('rows');
         expect(el.scrollWidth).toBeLessThanOrEqual(el.clientWidth);
         const box = el.getBoundingClientRect();
-        for (const control of el.querySelectorAll<HTMLElement>('button, select, input')) {
+        for (const control of Array.from(el.querySelectorAll<HTMLElement>('button, select, input'))) {
             const rect = control.getBoundingClientRect();
             expect(rect.height).toBeGreaterThanOrEqual(44);
             expect(rect.width).toBeGreaterThanOrEqual(44);
