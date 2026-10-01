@@ -193,7 +193,7 @@ describe('RichTextMentionsDirective', () => {
     beforeEach(() => {
         // Date is faked too because rxjs debounceTime re-arms itself when Date.now
         // has not advanced. The search debounce is a fixed 200 ms.
-        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
+        vi.useFakeTimers();
         restoreRects = stubRangeRects();
     });
 

@@ -389,7 +389,7 @@ describe('PopoverContent fixed strategy (Popover API path)', () => {
     }
 
     it('opened while detached, waits for attachment and then promotes the panel to the top layer in place', () => {
-        vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame'] });
+        vi.useFakeTimers();
         fixture.nativeElement.remove();
         host.open.set(true);
         fixture.detectChanges();
@@ -405,7 +405,7 @@ describe('PopoverContent fixed strategy (Popover API path)', () => {
     });
 
     it('falls back to a body portal when the panel is still detached once its retries run out', () => {
-        vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame'] });
+        vi.useFakeTimers();
         fixture.nativeElement.remove();
         host.open.set(true);
         fixture.detectChanges();
