@@ -235,7 +235,9 @@ describe('RichTextMentionsDirective', () => {
         return ctx;
     }
 
-    const wait = (ms = 200): Promise<void> => vi.advanceTimersByTimeAsync(ms);
+    const wait = async (ms = 200): Promise<void> => {
+        await vi.advanceTimersByTimeAsync(ms);
+    };
 
     afterEach(() => {
         for (const f of fixtures) {
