@@ -13,11 +13,10 @@ test('data-table-range-chart opens a dialog charting the range and switches char
 
     // Two series -> the stacked switcher is offered alongside bar and pie.
     const switcher = page.locator('[data-slot="range-chart-switcher"]');
-    const pie = switcher.locator('ui-button', { hasText: 'pie' });
-    await expect(switcher.locator('ui-button', { hasText: 'stacked' })).toBeVisible();
+    const pie = switcher.getByRole('button', { name: 'pie' });
+    await expect(switcher.getByRole('button', { name: 'stacked' })).toBeVisible();
 
-    // NOTE: the component binds `aria-pressed` on the `<ui-button>` host, not on
-    // the inner native <button>, so the state is asserted on the host element.
+    // The pressed state is on the real <button>, where assistive technology reads it.
     await expect(pie).toHaveAttribute('aria-pressed', 'false');
     await pie.click();
     await expect(pie).toHaveAttribute('aria-pressed', 'true');
