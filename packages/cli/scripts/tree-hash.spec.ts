@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { treeHash } from '../../../scripts/tree-hash.mjs';
+import { git as fixtureGit } from './repo-fixtures.js';
 
 /**
  * The fingerprint `npm run coverage` writes and `npm run sonar` checks. Its
@@ -13,10 +13,22 @@ import { treeHash } from '../../../scripts/tree-hash.mjs';
  */
 describe('treeHash', () => {
     let repo: string;
-    const git = (...args: string[]) =>
-        execFileSync('git', args, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    // Through repo-fixtures, which drops GIT_DIR and friends: under the pre-push
+    // hook a bare `git init` here re-initialised the real repository as bare and
+    // wrote this fixture's identity into its .git/config.
+    const git = (...args: string[]) => fixtureGit(repo, ...args);
+    // treeHash spawns git itself and, rightly, follows an inherited GIT_DIR (under
+    // the hook that IS the repo to hash); the fixture is a different repo, so the
+    // hook's GIT_* variables are set aside while it is measured.
+    const hookGitEnv = new Map<string, string>();
 
     beforeEach(() => {
+        for (const [key, value] of Object.entries(process.env)) {
+            if (key.startsWith('GIT_') && value !== undefined) {
+                hookGitEnv.set(key, value);
+                delete process.env[key];
+            }
+        }
         repo = mkdtempSync(join(tmpdir(), 'tree-hash-'));
         git('init', '-q');
         git('config', 'user.email', 't@example.com');
@@ -27,7 +39,11 @@ describe('treeHash', () => {
         git('commit', '-q', '-m', 'init');
     });
 
-    afterEach(() => rmSync(repo, { recursive: true, force: true }));
+    afterEach(() => {
+        rmSync(repo, { recursive: true, force: true });
+        for (const [key, value] of hookGitEnv) process.env[key] = value;
+        hookGitEnv.clear();
+    });
 
     it('is stable for an unchanged tree', () => {
         expect(treeHash(repo)).toBe(treeHash(repo));
