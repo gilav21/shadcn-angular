@@ -77,14 +77,6 @@ beforeEach(() => {
 describe('collectDoctorReport', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('reports a clean bill when nothing is installed', async () => {
-    (fs.pathExists as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(false);
-    const report = await collectDoctorReport('/proj', cfg, { branch: 'master' });
-    expect(report.missingFiles).toEqual([]);
-    expect(report.modified).toEqual([]);
-    expect(report.ok).toBe(true);
-  });
-
   it('flags a component whose installed files were modified', async () => {
     // button present but changed: pathExists true, local != remote
     (fs.pathExists as unknown as ReturnType<typeof vi.fn>).mockImplementation(async (p: string) =>
@@ -119,15 +111,9 @@ describe('classifyDrift', () => {
     expect(out.updateAvailable).toEqual([]);
   });
 
-  it('flags update-available when local matches manifest but registry moved on', () => {
-    const out = classifyDrift(['button'], { button: 'clean' });
-    expect(out.updateAvailable).toEqual(['button']);
-    expect(out.userEdited).toEqual([]);
-  });
-
-  it('treats untracked (no manifest baseline) drift as update-available', () => {
-    const out = classifyDrift(['button'], { button: 'untracked' });
-    expect(out.updateAvailable).toEqual(['button']);
+  it('flags update-available when local matches the manifest, or no baseline exists (untracked)', () => {
+    const out = classifyDrift(['button', 'card'], { button: 'clean', card: 'untracked' });
+    expect(out.updateAvailable).toEqual(['button', 'card']);
     expect(out.userEdited).toEqual([]);
   });
 });

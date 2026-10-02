@@ -53,40 +53,24 @@ describe('recipes.json', () => {
 });
 
 describe('RecipesComponent', () => {
-    it('renders every recipe in the payload', async () => {
+    it('renders every recipe with its title, summary, source, one install command and a copy control', async () => {
         const fixture = await render();
         const payload = await loadPayload();
-        expect((fixture.nativeElement as HTMLElement).querySelectorAll('[data-slot="recipe"]'))
-            .toHaveLength(payload.recipes.length);
-    });
+        const host = fixture.nativeElement as HTMLElement;
+        const text = host.textContent ?? '';
 
-    it('shows each recipe\'s title, summary and source', async () => {
-        const fixture = await render();
-        const payload = await loadPayload();
-        const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+        expect(host.querySelectorAll('[data-slot="recipe"]')).toHaveLength(payload.recipes.length);
+        const commands = [...host.querySelectorAll('[data-slot="recipe-install"]')]
+            .map(node => node.textContent?.trim());
         for (const recipe of payload.recipes) {
             expect(text).toContain(recipe.title);
             expect(text).toContain(recipe.summary);
-        }
-    });
-
-    it('shows one install command covering all of a recipe\'s components', async () => {
-        const fixture = await render();
-        const payload = await loadPayload();
-        const commands = [...(fixture.nativeElement as HTMLElement)
-            .querySelectorAll('[data-slot="recipe-install"]')]
-            .map(node => node.textContent?.trim());
-        for (const recipe of payload.recipes) {
+            // The source, not a paraphrase of it.
+            expect(text).toContain(recipe.code.split('\n')[0]);
+            // One command covering all of the recipe's components.
             expect(commands).toContain(recipe.install);
         }
-    });
-
-    it('offers a copy control per recipe', async () => {
-        const fixture = await render();
-        const payload = await loadPayload();
-        expect((fixture.nativeElement as HTMLElement)
-            .querySelectorAll('[data-slot="copy-recipe-install"]'))
-            .toHaveLength(payload.recipes.length);
+        expect(host.querySelectorAll('[data-slot="copy-recipe-install"]')).toHaveLength(payload.recipes.length);
     });
 
     it('links each component badge to that component\'s docs page', async () => {
@@ -94,13 +78,6 @@ describe('RecipesComponent', () => {
         const link = (fixture.nativeElement as HTMLElement)
             .querySelector('[data-slot="recipe"] a');
         expect(link?.getAttribute('href')).toMatch(/^\/docs\//);
-    });
-
-    it('renders the recipe source, not a paraphrase of it', async () => {
-        const fixture = await render();
-        const payload = await loadPayload();
-        const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
-        expect(text).toContain(payload.recipes[0].code.split('\n')[0]);
     });
 
     it('translates its own labels', async () => {

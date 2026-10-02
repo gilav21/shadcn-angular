@@ -18,33 +18,23 @@ import { REPO_ROOT, runScript } from './repo-fixtures.js';
 const SCRIPT = path.join(REPO_ROOT, 'packages/cli/scripts/stage-package.ts');
 
 describe('stage-package entry contract (T-24)', () => {
-    it('exits 1 with usage when no package id is given', () => {
-        const run = runScript(SCRIPT, []);
-        expect(run.status).toBe(1);
-        expect(run.output).toMatch(/usage/i);
-        expect(run.output).toContain('rte');
-        expect(run.output).toContain('data-table');
-    });
-
+    // Missing id, typo and the audit failure are decided by runStage and pinned in
+    // stage-package-cli.spec.ts; one refusal here proves the entry prints stderr
+    // and turns the decision into the exit code.
     it('exits 1 with usage on an unknown package id', () => {
         const run = runScript(SCRIPT, ['rtee']);
         expect(run.status).toBe(1);
         expect(run.output).toMatch(/unknown package/i);
         expect(run.output).toContain('rtee');
+        expect(run.output).toMatch(/usage/i);
     });
 
-    // The printed count is what was WRITTEN: the staged sources plus the
-    // generated public-api.ts (273 + 1 / 176 + 1).
+    // The exact file count is pinned against the registry in stage-package-lib.spec.ts;
+    // here only that the real staging runs end to end through the entry. One id is
+    // enough: the entry does not branch on which package it stages.
     it('stages rte successfully and prints the file count', () => {
         const run = runScript(SCRIPT, ['rte']);
         expect(run.status).toBe(0);
-        expect(run.output).toContain('staged 290 files');
-        expect(run.output).toContain('rte');
-    }, 120_000);
-
-    it('stages data-table successfully and prints its file count', () => {
-        const run = runScript(SCRIPT, ['data-table']);
-        expect(run.status).toBe(0);
-        expect(run.output).toContain('staged 183 files');
+        expect(run.output).toMatch(/rte: staged \d+ files/);
     }, 120_000);
 });

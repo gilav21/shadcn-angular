@@ -395,6 +395,18 @@ describe('NumberTickerDigitComponent', () => {
         expect(finishSpy).toHaveBeenCalled();
     });
 
+    it('keeps tracking the newest animation when a replaced one reports finished late', async () => {
+        await applyDigit('7', 1);
+        await applyDigit('3', 2);
+
+        // The replaced animation finishing must not drop the handle on the live one.
+        animations[0].onfinish?.();
+        const finishSpy = vi.spyOn(animations[1], 'finish');
+        await applyDigit('9', 3);
+
+        expect(finishSpy).toHaveBeenCalled();
+    });
+
     it('shows a digit that replaces a separator straight away, without animating from the separator', () => {
         host.digit.set(',');
         fixture.detectChanges();

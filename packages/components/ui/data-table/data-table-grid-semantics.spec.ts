@@ -42,7 +42,7 @@ class NoopResizeObserver {
     template: `
     <ui-data-table
       [data]="data()"
-      [columns]="columns"
+      [columns]="columns()"
       [enableVirtualScroll]="virtual()"
       [virtualRowHeight]="40"
       [paginationState]="{ pageIndex: 0, pageSize: 10000 }"
@@ -51,7 +51,7 @@ class NoopResizeObserver {
 })
 class HostComponent {
     readonly data = signal<Row[]>(rows(5));
-    readonly columns = COLUMNS;
+    readonly columns = signal<ColumnDef<Row>[]>(COLUMNS);
     readonly virtual = signal<boolean | 'auto'>(false);
 }
 
@@ -187,6 +187,31 @@ describe('data-table grid semantics', () => {
 
         it('counts the whole dataset, not the rendered window', () => {
             expect(grid().getAttribute('aria-rowcount')).toBe('5001');
+        });
+
+        /*
+         * With the middle columns windowed, DOM order is no longer absolute, so a
+         * cell's position would be published as its column number. A missing
+         * aria-colindex is a gap; a wrong one sends the user to the wrong column.
+         */
+        it('leaves aria-colindex off rather than publishing a wrong one when columns are windowed', async () => {
+            const wide = Array.from({ length: 30 }, (_, i) => ({ accessorKey: 'name', header: `Column ${i}` }));
+            // A fresh table: cells the first render stamped would otherwise keep their old index.
+            fixture.destroy();
+            fixture = TestBed.createComponent(HostComponent);
+            fixture.componentInstance.columns.set(wide);
+            fixture.componentInstance.data.set(rows(5000));
+            fixture.componentInstance.virtual.set(true);
+            await settle();
+
+            const table = fixture.debugElement.query(By.directive(DataTableComponent))
+                .componentInstance as DataTableComponent<Row>;
+            expect(table.virtualVisibleMiddleColumns().length).toBeLessThan(table.scrollableColumns().length);
+
+            const cells = [...bodyRows()[0].children];
+            expect(cells.length).toBeGreaterThan(0);
+            expect(cells.filter(c => c.hasAttribute('aria-colindex'))).toEqual([]);
+            expect(grid().getAttribute('aria-colcount')).toBe('30');
         });
 
         it('numbers rows by their absolute position, not their DOM position', async () => {

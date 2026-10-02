@@ -79,59 +79,41 @@ describe('calculatePopupPosition', () => {
     return child;
   }
 
-  it('returns no offset and bottom side when fully inside the boundary', () => {
-    const el = detachedEl({ left: 10, right: 200, top: 10, bottom: 300 });
-    const pos = calculatePopupPosition(el);
-    expect(pos.offsetX).toBe(0);
-    expect(pos.actualSide).toBe('bottom');
+  it('offsets horizontally only when the popup overflows an edge, shifting away from it', () => {
+    const inside = calculatePopupPosition(detachedEl({ left: 10, right: 200, top: 10, bottom: 300 }));
+    expect(inside.offsetX).toBe(0);
+    expect(inside.actualSide).toBe('bottom');
+
+    const overRight = calculatePopupPosition(detachedEl({ left: 10, right: 5000, top: 10, bottom: 100 }));
+    expect(overRight.offsetX).toBeLessThan(0);
+
+    const overLeft = calculatePopupPosition(detachedEl({ left: -50, right: 200, top: 10, bottom: 100 }));
+    expect(overLeft.offsetX).toBe(58);
   });
 
-  it('shifts left with a negative offset when overflowing the right edge', () => {
-    const el = detachedEl({ left: 10, right: 5000, top: 10, bottom: 100 });
-    const pos = calculatePopupPosition(el);
-    expect(pos.offsetX).toBeLessThan(0);
-  });
-
-  it('shifts right with a positive offset when overflowing the left edge', () => {
-    const el = detachedEl({ left: -50, right: 200, top: 10, bottom: 100 });
-    const pos = calculatePopupPosition(el);
-    expect(pos.offsetX).toBe(58);
-  });
-
-  it('flips to the top side when there is more space above than below', () => {
-    const el = attachedEl(
+  it('flips to the top side only when there is more space above than below', () => {
+    const flipped = calculatePopupPosition(attachedEl(
       { left: 10, right: 200, top: 700, bottom: 5000 },
       { left: 10, right: 200, top: 700, bottom: 760 }
-    );
-    const pos = calculatePopupPosition(el);
-    expect(pos.actualSide).toBe('top');
-  });
+    ));
+    expect(flipped.actualSide).toBe('top');
 
-  it('stays on the bottom side when there is more space below than above', () => {
-    const el = attachedEl(
+    const stays = calculatePopupPosition(attachedEl(
       { left: 10, right: 200, top: 10, bottom: 5000 },
       { left: 10, right: 200, top: 10, bottom: 20 }
-    );
-    const pos = calculatePopupPosition(el);
-    expect(pos.actualSide).toBe('bottom');
-  });
+    ));
+    expect(stays.actualSide).toBe('bottom');
 
-  it('handles a detached element with no parent rect and vertical overflow', () => {
-    const el = detachedEl({ left: 10, right: 200, top: 10, bottom: 5000 });
-    const pos = calculatePopupPosition(el);
-    expect(pos.actualSide).toBe('bottom');
-    expect(pos.offsetX).toBe(0);
+    // No parent rect to measure against: stays below.
+    const orphan = calculatePopupPosition(detachedEl({ left: 10, right: 200, top: 10, bottom: 5000 }));
+    expect(orphan.actualSide).toBe('bottom');
+    expect(orphan.offsetX).toBe(0);
   });
 });
 
 describe('computePopupStyles', () => {
-  it('emits a translateX transform when there is a horizontal offset', () => {
-    expect(computePopupStyles({ offsetX: 12, actualSide: 'bottom' })).toBe(
-      'transform: translateX(12px);'
-    );
-  });
-
-  it('emits an empty string when there is no horizontal offset', () => {
+  it('emits a translateX transform only when there is a horizontal offset', () => {
+    expect(computePopupStyles({ offsetX: 12, actualSide: 'bottom' })).toBe('transform: translateX(12px);');
     expect(computePopupStyles({ offsetX: 0, actualSide: 'bottom' })).toBe('');
   });
 });
@@ -165,17 +147,12 @@ describe('DatePickerComponent', () => {
     vi.restoreAllMocks();
   });
 
-  it('mirrors the date input into the internal value via effect', () => {
+  it('mirrors the date input into the internal value, and clears it when the input is set to null', () => {
     const d = new Date(2023, 5, 10);
     fixture.componentRef.setInput('date', d);
     fixture.detectChanges();
     expect(component.internalValue()).toBe(d);
-  });
 
-  it('clears the internal value when the date input is set to null', () => {
-    const d = new Date(2023, 5, 10);
-    fixture.componentRef.setInput('date', d);
-    fixture.detectChanges();
     fixture.componentRef.setInput('date', null);
     fixture.detectChanges();
     expect(component.internalValue()).toBeNull();
@@ -464,16 +441,13 @@ describe('DateRangePickerComponent', () => {
     expect(component.isOpen()).toBe(false);
   });
 
-  it('keeps the popup open for a partial range', () => {
+  it('keeps the popup open for a partial range, and for a full range when time is shown', () => {
     component.toggleOpen();
     component.onRangeSelect({ start: new Date(2024, 0, 1), end: null });
     expect(component.isOpen()).toBe(true);
-  });
 
-  it('keeps the popup open for a full range when time is shown', () => {
     fixture.componentRef.setInput('showTime', true);
     fixture.detectChanges();
-    component.toggleOpen();
     component.onRangeSelect({
       start: new Date(2024, 0, 1),
       end: new Date(2024, 0, 5),
@@ -511,15 +485,12 @@ describe('DateRangePickerComponent', () => {
     expect(component.isOpen()).toBe(false);
   });
 
-  it('formats a date without time by default', () => {
+  it('formats a date without time by default, and with time when showTime is enabled', () => {
     expect(component.formatDate(new Date(2023, 0, 15))).toBe('Jan 15, 2023');
-  });
 
-  it('formats a date with time when showTime is enabled', () => {
     fixture.componentRef.setInput('showTime', true);
     fixture.detectChanges();
-    const formatted = component.formatDate(new Date(2023, 0, 15, 13, 45));
-    expect(formatted).toMatch(/\d{2}:\d{2}/);
+    expect(component.formatDate(new Date(2023, 0, 15, 13, 45))).toMatch(/\d{2}:\d{2}/);
   });
 
   it('writes a range value and clears it when null', () => {
@@ -534,7 +505,7 @@ describe('DateRangePickerComponent', () => {
     expect(component.rangeValue()).toEqual({ start: null, end: null });
   });
 
-  it('renders the full range label in the button', () => {
+  it('renders the full range label in the button, and a partial one with an ellipsis', () => {
     component.writeValue({
       start: new Date(2024, 0, 1),
       end: new Date(2024, 0, 5),
@@ -542,12 +513,9 @@ describe('DateRangePickerComponent', () => {
     fixture.detectChanges();
     const btn = fixture.debugElement.query(By.css('button')).nativeElement;
     expect(btn.textContent).toContain('Jan 1, 2024 - Jan 5, 2024');
-  });
 
-  it('renders the partial range label in the button', () => {
     component.writeValue({ start: new Date(2024, 0, 1), end: null });
     fixture.detectChanges();
-    const btn = fixture.debugElement.query(By.css('button')).nativeElement;
     expect(btn.textContent).toContain('...');
   });
 });

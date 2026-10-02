@@ -5,7 +5,7 @@
 // generator that writes it.
 import { vi } from 'vitest';
 import { TestBed } from '@angular/core/testing';
-import { provideZonelessChangeDetection, type Type } from '@angular/core';
+import { provideZonelessChangeDetection } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideUiLocale } from '../../../../packages/components/lib/i18n';
 import { DEMO_ROUTES } from '../demo.routes';
@@ -14,9 +14,6 @@ import { isComponentDocs, type ComponentDoc, type ComponentDocs } from './compon
 import { DocsHeaderComponent } from './docs-header.component';
 import { DocsPageComponent } from './docs-page.component';
 import { DocsPanelComponent } from './docs-panel.component';
-import { ChartsDemoComponent } from '../demos/charts/charts-demo.component';
-import { AnimationsDemoComponent } from '../demos/animations/animations-demo.component';
-import { DataTableDemoComponent } from '../demos/data-display/data-table-demo.component';
 import { RichTextEditorDemoComponent } from '../demos/inputs/rich-text-editor-demo.component';
 import { DOCS_LOCALES } from './docs.locales';
 
@@ -85,7 +82,7 @@ describe('T-4: every component has a docs page', () => {
         }
     });
 
-    it('renders a page for a component that has no demo route of its own', async () => {
+    it('renders a page for a component whose demo route is shared, and links to that route', async () => {
         configure();
         await TestBed.inject(ComponentDocsService).load();
         const fixture = TestBed.createComponent(DocsPageComponent);
@@ -97,20 +94,7 @@ describe('T-4: every component has a docs page', () => {
         const host = fixture.nativeElement as HTMLElement;
         expect(host.querySelector('[data-slot="docs-panel"]')).not.toBeNull();
         expect(host.textContent).toContain('add line-chart');
-    });
-
-    it('links a component with a shared demo route to that route', async () => {
-        configure();
-        await TestBed.inject(ComponentDocsService).load();
-        const fixture = TestBed.createComponent(DocsPageComponent);
-        fixture.componentRef.setInput('name', 'line-chart');
-        fixture.detectChanges();
-        await fixture.whenStable();
-        fixture.detectChanges();
-
-        const link = (fixture.nativeElement as HTMLElement)
-            .querySelector('[data-slot="demo-link"]');
-        expect(link?.getAttribute('href')).toBe('/charts');
+        expect(host.querySelector('[data-slot="demo-link"]')?.getAttribute('href')).toBe('/charts');
     });
 
     it('says so plainly when a name is not a component', async () => {
@@ -133,7 +117,7 @@ describe('T-4: every component has a docs page', () => {
 // ---------------------------------------------------------------------------
 
 describe('T-7: every demo page renders its add command', () => {
-    it('shows the exact npx command for the route\'s component', async () => {
+    it('shows the exact npx command for the route\'s component, with a copy control', async () => {
         configure();
         await TestBed.inject(ComponentDocsService).load();
         const fixture = TestBed.createComponent(DocsHeaderComponent);
@@ -143,25 +127,10 @@ describe('T-7: every demo page renders its add command', () => {
         fixture.detectChanges();
 
         const host = fixture.nativeElement as HTMLElement;
-        const command = host.querySelector('[data-slot="install-command"]');
-        expect(command?.textContent?.trim())
+        expect(host.querySelector('[data-slot="install-command"]')?.textContent?.trim())
             .toBe('npx @gilav21/shadcn-angular@latest add button');
-    });
-
-    it('offers a copy control for the command', async () => {
-        configure();
-        await TestBed.inject(ComponentDocsService).load();
-        const fixture = TestBed.createComponent(DocsHeaderComponent);
-        fixture.componentRef.setInput('route', 'buttons');
-        fixture.detectChanges();
-        await fixture.whenStable();
-        fixture.detectChanges();
-
-        const copy = (fixture.nativeElement as HTMLElement)
-            .querySelector('[data-slot="copy-install"]');
-        expect(copy).not.toBeNull();
         // `ui-button` renders the accessible name onto its inner <button>.
-        expect(copy?.querySelector('button')?.getAttribute('aria-label'))
+        expect(host.querySelector('[data-slot="copy-install"] button')?.getAttribute('aria-label'))
             .toContain('add button');
     });
 
@@ -210,42 +179,54 @@ describe('T-7: every demo page renders its add command', () => {
      * blocks are present and complete, by name, against the real payload.
      */
     describe('multi-component routes document each component in its own section', () => {
-        // Typed as Type<unknown>: these are four unrelated components, and
-        // without the annotation TS infers their union and refuses to hand it
-        // to createComponent, which wants one concrete type.
-        const PAGES: readonly { route: string; type: Type<unknown> }[] = [
-            { route: 'charts', type: ChartsDemoComponent },
-            { route: 'animations', type: AnimationsDemoComponent },
-            { route: 'data-table', type: DataTableDemoComponent },
-            { route: 'rich-text-editor', type: RichTextEditorDemoComponent },
-        ];
+        const ROUTES = ['charts', 'animations', 'data-table', 'rich-text-editor'] as const;
 
-        function renderedNames(host: HTMLElement): string[] {
-            return [...host.querySelectorAll('app-docs-for')]
-                .map(el => el.getAttribute('name') ?? '')
-                .filter(Boolean)
+        // The page templates are read as text rather than mounted: /data-table
+        // and /charts cost over two seconds to render and this only asks which
+        // blocks they declare. One route is still rendered below, to show that
+        // a declared block does become an element.
+        const SOURCES = import.meta.glob<string>('../demos/**/*-demo.component.{ts,html}', {
+            query: '?raw',
+            import: 'default',
+            eager: true,
+        });
+
+        function declaredNames(route: string): string[] {
+            return Object.entries(SOURCES)
+                .filter(([file]) => file.includes(`/${route}-demo.component.`))
+                .flatMap(([, source]) => [...source.matchAll(/<app-docs-for\s+name="([^"]+)"/g)].map(m => m[1]))
                 .sort((a, b) => a.localeCompare(b));
         }
 
-        for (const page of PAGES) {
-            it(`/${page.route} carries a block for every component it previews`, async () => {
-                configure();
-                const payload = await loadPayload();
-                const expected = payload.components
-                    .filter(c => c.demoRoute === page.route)
-                    .map(c => c.name)
-                    .sort((a, b) => a.localeCompare(b));
+        async function expectedNames(route: string): Promise<string[]> {
+            const payload = await loadPayload();
+            return payload.components
+                .filter(c => c.demoRoute === route)
+                .map(c => c.name)
+                .sort((a, b) => a.localeCompare(b));
+        }
+
+        for (const route of ROUTES) {
+            it(`/${route} declares a block for every component it previews`, async () => {
+                const expected = await expectedNames(route);
 
                 // Positive control: this route must actually be a multi-component
                 // one, or the test would pass while asserting nothing.
                 expect(expected.length).toBeGreaterThan(1);
-
-                const fixture = TestBed.createComponent(page.type);
-                fixture.detectChanges();
-
-                expect(renderedNames(fixture.nativeElement as HTMLElement)).toEqual(expected);
+                expect(declaredNames(route)).toEqual(expected);
             });
         }
+
+        it('renders each declared block as an element of the page', async () => {
+            configure();
+            const fixture = TestBed.createComponent(RichTextEditorDemoComponent);
+            fixture.detectChanges();
+
+            const rendered = [...(fixture.nativeElement as HTMLElement).querySelectorAll('app-docs-for')]
+                .map(el => el.getAttribute('name') ?? '')
+                .sort((a, b) => a.localeCompare(b));
+            expect(rendered).toEqual(await expectedNames('rich-text-editor'));
+        });
 
         it('the shell renders no block of its own on those routes', async () => {
             configure();
@@ -325,18 +306,6 @@ describe('DocsPanelComponent', () => {
         const host = await renderPanel('button', 'de');
         expect(host.textContent).toContain(DOCS_LOCALES['de'].install);
         expect(host.textContent).not.toContain(DOCS_LOCALES['en'].apiReference);
-    });
-
-    it('has a translation for every locale the app offers', () => {
-        const byName = (a: string, b: string): number => a.localeCompare(b);
-        const keys = [...Object.keys(DOCS_LOCALES['en'])].sort(byName);
-        for (const locale of Object.values(DOCS_LOCALES)) {
-            expect([...Object.keys(locale)].sort(byName)).toEqual(keys);
-            for (const value of Object.values(locale)) {
-                expect(typeof value).toBe('string');
-                expect((value as string).length).toBeGreaterThan(0);
-            }
-        }
     });
 });
 

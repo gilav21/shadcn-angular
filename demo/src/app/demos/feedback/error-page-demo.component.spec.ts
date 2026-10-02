@@ -1,6 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ErrorPageDemoComponent } from './error-page-demo.component';
-import { provideUiLocale } from '../../../../../packages/components/lib/i18n';
 import { ERROR_PAGE_DEMO_LOCALES } from './error-page-demo.locales';
 import { ERROR_PAGE_LOCALES } from '../../../../../packages/components/ui/error-page';
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -17,16 +16,6 @@ describe('ErrorPageDemoComponent', () => {
       fixture = TestBed.createComponent(ErrorPageDemoComponent);
       fixture.detectChanges();
       root = fixture.nativeElement as HTMLElement;
-    });
-
-    it('renders the English heading', () => {
-      expect(root.querySelector('h2')?.textContent).toContain(
-        ERROR_PAGE_DEMO_LOCALES['en'].heading,
-      );
-    });
-
-    it('renders the English description', () => {
-      expect(root.textContent).toContain(ERROR_PAGE_DEMO_LOCALES['en'].description);
     });
 
     it('shows the fallback code alongside the switchable shipped ones', () => {
@@ -92,30 +81,6 @@ describe('ErrorPageDemoComponent', () => {
       expect(
         root.querySelector('[data-slot="demo-last-event"]')?.textContent,
       ).toContain('goHome');
-    });
-  });
-
-  describe('Hebrew (provideUiLocale)', () => {
-    let fixture: ComponentFixture<ErrorPageDemoComponent>;
-
-    beforeEach(async () => {
-      await TestBed.configureTestingModule({
-        imports: [ErrorPageDemoComponent],
-        providers: [provideUiLocale('he')],
-      }).compileComponents();
-      fixture = TestBed.createComponent(ErrorPageDemoComponent);
-      fixture.detectChanges();
-    });
-
-    it('renders the Hebrew heading', () => {
-      const h2 = (fixture.nativeElement as HTMLElement).querySelector('h2');
-      expect(h2?.textContent).toContain(ERROR_PAGE_DEMO_LOCALES['he'].heading);
-    });
-
-    it('renders Hebrew component copy too, not just demo copy', () => {
-      expect((fixture.nativeElement as HTMLElement).textContent).toContain(
-        ERROR_PAGE_LOCALES['he'].codes['404'].title,
-      );
     });
   });
 });

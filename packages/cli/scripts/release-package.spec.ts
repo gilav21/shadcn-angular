@@ -192,22 +192,11 @@ describe('release-package entry (fixture repo)', () => {
     }, 90_000);
 
     // ── T-16 ───────────────────────────────────────────────────────────────
-    // The refusal is asserted on stderr specifically: a maintainer piping stdout
+    // The one refusal driven end to end: it proves the real `git status` reading,
+    // the exit code and that the reason reaches stderr — a maintainer piping stdout
     // to a release log must still see on the terminal why nothing was released.
-    it('exits 1 when the verdict is NOT required and --force is absent', () => {
-        const run = release('unrelated', ['rte', 'patch', '--skip-preflight', '--no-push']);
-        expect(run.status).toBe(1);
-        expect(run.stdout).toContain('VERDICT: release NOT required');
-        expect(run.stderr).toContain('--force');
-        expect(git(root, 'tag', '--list')).toBe('');
-    }, 60_000);
-
-    it('--force overrides a NOT-required verdict', () => {
-        const run = release('unrelated', ['rte', 'patch', '--skip-preflight', '--no-push', '--force']);
-        expect(run.status).toBe(0);
-        expect(git(root, 'tag', '--list')).toBe('rte-v0.1.1');
-    }, 90_000);
-
+    // The other refusals (branch, NOT-required verdict, --force, bad argv) are
+    // decided by runRelease and pinned in release-package-flow.spec.ts.
     it('refuses a dirty tree without --allow-dirty', () => {
         root = seedFixture('closure');
         write(root, 'packages/components/ui/rich-text-editor/rich-text-editor.component.ts', 'export const A = 3;\n');
@@ -216,22 +205,9 @@ describe('release-package entry (fixture repo)', () => {
             'rte', 'patch', '--dry-run', '--skip-preflight',
         ]);
         expect(run.status).toBe(1);
-        expect(run.output).toContain('dirty');
-        expect(run.output).toContain('--allow-dirty');
-        expect(run.output).not.toContain('VERDICT');
-    }, 60_000);
-
-    it('refuses a non-master branch without --allow-branch', () => {
-        root = seedFixture('closure');
-        git(root, 'checkout', '-q', '-b', 'feat/whatever');
-
-        const run = runScript(fixtureScript(root, 'release-package.ts'), [
-            'rte', 'patch', '--dry-run', '--skip-preflight',
-        ]);
-        expect(run.status).toBe(1);
-        expect(run.output).toContain('feat/whatever');
-        expect(run.output).toContain('--allow-branch');
-        expect(run.output).not.toContain('VERDICT');
+        expect(run.stderr).toContain('dirty');
+        expect(run.stderr).toContain('--allow-dirty');
+        expect(run.stdout).not.toContain('VERDICT');
     }, 60_000);
 
     // Regression: the revert used to be a blanket `git checkout -- <both
@@ -264,17 +240,5 @@ describe('release-package entry (fixture repo)', () => {
         // ...and nothing was committed, tagged, or left dirty.
         expect(git(root, 'status', '--porcelain')).toBe('');
         expect(git(root, 'tag', '--list')).toBe('');
-    }, 90_000);
-
-    it('exits 1 with usage on a bad package id or bump level', () => {
-        const bad = release('closure', ['rtee', 'patch', '--dry-run', '--skip-preflight']);
-        expect(bad.status).toBe(1);
-        expect(bad.output).toContain('rtee');
-
-        root = seedFixture('closure');
-        const badLevel = runScript(fixtureScript(root, 'release-package.ts'), [
-            'rte', 'huge', '--dry-run', '--skip-preflight',
-        ]);
-        expect(badLevel.status).toBe(1);
     }, 90_000);
 });

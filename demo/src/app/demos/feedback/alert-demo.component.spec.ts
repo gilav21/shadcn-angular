@@ -1,52 +1,32 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { AlertDemoComponent } from './alert-demo.component';
+import type { Provider } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
 import { provideUiLocale } from '../../../../../packages/components/lib/i18n';
+import { AlertDemoComponent } from './alert-demo.component';
 import { ALERT_DEMO_LOCALES } from './alert-demo.locales';
-import { describe, it, expect, beforeEach } from 'vitest';
 
-describe('AlertDemoComponent', () => {
-  describe('English (default)', () => {
-    let fixture: ComponentFixture<AlertDemoComponent>;
+/**
+ * Stands for every demo page: they all read their strings from the injected
+ * locale in the same way, and `locales.spec.ts` checks the dictionaries they
+ * read. One mount per locale is enough to show that wiring is live.
+ */
+describe('demo pages read the injected locale', () => {
+  function mount(providers: Provider[]): HTMLElement {
+    TestBed.configureTestingModule({ imports: [AlertDemoComponent], providers });
+    const fixture = TestBed.createComponent(AlertDemoComponent);
+    fixture.detectChanges();
+    return fixture.nativeElement as HTMLElement;
+  }
 
-    beforeEach(async () => {
-      await TestBed.configureTestingModule({
-        imports: [AlertDemoComponent],
-      }).compileComponents();
-      fixture = TestBed.createComponent(AlertDemoComponent);
-      fixture.detectChanges();
-    });
-
-    it('renders the English heading', () => {
-      const h2 = fixture.nativeElement.querySelector('h2');
-      expect(h2.textContent).toContain(ALERT_DEMO_LOCALES['en'].heading);
-    });
-
-    it('renders the English info alert title', () => {
-      const text = fixture.nativeElement.textContent as string;
-      expect(text).toContain(ALERT_DEMO_LOCALES['en'].infoTitle);
-    });
+  it('renders English by default', () => {
+    const el = mount([]);
+    expect(el.querySelector('h2')?.textContent?.trim()).toBe(ALERT_DEMO_LOCALES['en'].heading);
+    expect(el.textContent).toContain(ALERT_DEMO_LOCALES['en'].infoTitle);
   });
 
-  describe('Hebrew (provideUiLocale)', () => {
-    let fixture: ComponentFixture<AlertDemoComponent>;
-
-    beforeEach(async () => {
-      await TestBed.configureTestingModule({
-        imports: [AlertDemoComponent],
-        providers: [provideUiLocale('he')],
-      }).compileComponents();
-      fixture = TestBed.createComponent(AlertDemoComponent);
-      fixture.detectChanges();
-    });
-
-    it('renders the Hebrew heading', () => {
-      const h2 = fixture.nativeElement.querySelector('h2');
-      expect(h2.textContent).toContain(ALERT_DEMO_LOCALES['he'].heading);
-    });
-
-    it('renders the Hebrew info alert title', () => {
-      const text = fixture.nativeElement.textContent as string;
-      expect(text).toContain(ALERT_DEMO_LOCALES['he'].infoTitle);
-    });
+  it('renders Hebrew under provideUiLocale("he") and none of the English', () => {
+    const el = mount([provideUiLocale('he')]);
+    expect(el.querySelector('h2')?.textContent?.trim()).toBe(ALERT_DEMO_LOCALES['he'].heading);
+    expect(el.textContent).toContain(ALERT_DEMO_LOCALES['he'].infoTitle);
+    expect(el.textContent).not.toContain(ALERT_DEMO_LOCALES['en'].infoTitle);
   });
 });

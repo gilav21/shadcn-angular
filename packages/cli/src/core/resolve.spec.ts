@@ -16,10 +16,12 @@ describe('resolveDependencies', () => {
     }
   });
 
-  it('is idempotent for diamond dependencies', () => {
-    const set = resolveDependencies(['autocomplete']); // -> badge, command, popover
-    expect(set.has('autocomplete')).toBe(true);
-    expect(set.has('command')).toBe(true);
+  it('follows a multi-level chain, across several requested components', () => {
+    // date-picker -> calendar -> button -> ripple
+    const set = resolveDependencies(['date-picker', 'sparkles']);
+    for (const name of ['date-picker', 'calendar', 'select', 'button', 'ripple', 'sparkles']) {
+      expect(set.has(name as never), name).toBe(true);
+    }
   });
 
   // Addon resolution invariants (the one-directional boundary).

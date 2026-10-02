@@ -225,8 +225,8 @@ describe('insertRegistryEntry', () => {
     });
 });
 
-// The CLI surface: these run the real script against the real repo, so they must
-// not write anything (--dry-run) or must fail before writing (existing name).
+// The one real-repo run: it must not write anything (--dry-run), which also proves
+// the script still finds its anchors in the real registry, routes and demo barrel.
 describe('new-component CLI', () => {
     function run(args: readonly string[]): { status: number; out: string } {
         try {
@@ -243,48 +243,22 @@ describe('new-component CLI', () => {
         }
     }
 
-    it('--dry-run writes nothing', () => {
+    // Also the compound wiring: the fixture-repo happy path is non-compound, and the
+    // dry-run lists the sub/ files the compound branch adds without a second full chain.
+    it('--dry-run --compound plans the sub-components and writes nothing', () => {
         const before = readFileSync(path.join(REPO_ROOT, 'demo/src/app/demo.routes.ts'), 'utf-8');
         const { status, out } = run([
-            'dry-run-probe', '--dry-run', '--category', 'layout',
+            'dry-run-probe', '--dry-run', '--compound', '--category', 'layout',
             '--description', 'probe', '--tags', 'probe',
         ]);
         expect(status).toBe(0);
         expect(out).toContain('nothing written');
         expect(out).toContain('packages/components/ui/dry-run-probe/dry-run-probe.component.ts');
+        expect(out).toContain('packages/components/ui/dry-run-probe/sub/dry-run-probe-item.component.ts');
         expect(existsSync(path.join(REPO_ROOT, 'packages/components/ui/dry-run-probe'))).toBe(false);
         expect(readFileSync(path.join(REPO_ROOT, 'demo/src/app/demo.routes.ts'), 'utf-8')).toBe(before);
     }, 60_000);
 
-    it('refuses to overwrite an existing component', () => {
-        const { status, out } = run(['button', '--category', 'layout', '--description', 'x', '--tags', 'x']);
-        expect(status).toBe(1);
-        expect(out).toContain('already exists');
-    }, 60_000);
-
-    it('rejects a non-kebab-case name', () => {
-        const { status, out } = run(['MyWidget', '--category', 'layout', '--description', 'x', '--tags', 'x']);
-        expect(status).toBe(1);
-        expect(out).toContain('kebab-case');
-    }, 60_000);
-
-    // Regression (review finding #9): `confetti` has a demo page but NO
-    // packages/components/ui/confetti/ folder, so the old ui/-only guard let the
-    // generator silently overwrite the existing demo page.
-    it('refuses to overwrite an existing demo page whose ui/ folder does not exist', () => {
-        expect(existsSync(path.join(REPO_ROOT, 'packages/components/ui/confetti'))).toBe(false);
-        const demoPage = path.join(REPO_ROOT, 'demo/src/app/demos/animations/confetti-demo.component.ts');
-        const before = readFileSync(demoPage, 'utf-8');
-
-        const { status, out } = run([
-            'confetti', '--category', 'animation', '--description', 'x', '--tags', 'x',
-        ]);
-
-        expect(status).toBe(1);
-        expect(out).toContain('refusing to overwrite');
-        expect(out).toContain('demo/src/app/demos/animations/confetti-demo.component.ts');
-        expect(readFileSync(demoPage, 'utf-8')).toBe(before);
-    }, 60_000);
 });
 
 // Regression (review finding #5): the description is free text and every slot it
@@ -491,20 +465,6 @@ describe('new-component entry (fixture repo)', () => {
         expect(read('e2e/orchestrator/scaffolded.txt')).toBe('widget');
     }, 120_000);
 
-    it('emits the dual-mode sub-components under --compound', () => {
-        const { status } = fixtureRun([
-            'stack', '--compound', '--category', 'layout', '--description', 'A stack.', '--tags', 'stack',
-        ]);
-
-        expect(status).toBe(0);
-        expect(read('packages/components/ui/stack/sub/stack-item.component.ts'))
-            .toContain("selector: 'ui-stack-item'");
-        expect(read('packages/components/ui/stack/sub/stack-content.component.ts'))
-            .toContain("selector: 'ui-stack-content'");
-        expect(read('packages/components/ui/stack/index.ts')).toContain('./sub/stack-item.component');
-        expect(read('demo/src/app/demo.routes.ts')).toContain("{ path: 'stack'");
-    }, 120_000);
-
     it('exits 1 with a usage line when no name is given, and writes nothing', () => {
         const { status, output } = fixtureRun([]);
 
@@ -514,15 +474,27 @@ describe('new-component entry (fixture repo)', () => {
         expect(read('packages/cli/src/registry/index.ts')).toBe(FIXTURE_REGISTRY);
     }, 60_000);
 
-    it('exits 1 on an unknown category, listing the valid ones, and writes nothing', () => {
+    // Driven on the fixture, never the real repo: were the guard broken, the run
+    // would scaffold over the existing component.
+    it('refuses to overwrite an existing component', () => {
+        const { status, output } = fixtureRun(['alpha', '--category', 'utility', '--description', 'x', '--tags', 'x']);
+
+        expect(status).toBe(1);
+        expect(output).toContain('already exists');
+        expect(read('packages/cli/src/registry/index.ts')).toBe(FIXTURE_REGISTRY);
+    }, 60_000);
+
+    // Regression (review finding #9): a demo page can exist without a ui/ folder,
+    // and the old ui/-only guard let the generator silently overwrite it.
+    it('refuses to overwrite an existing demo page whose ui/ folder does not exist, and writes nothing', () => {
         const { status, output } = fixtureRun([
-            'widget', '--category', 'nonsense', '--description', 'x', '--tags', 'x',
+            'box', '--category', 'layout', '--description', 'x', '--tags', 'x',
         ]);
 
         expect(status).toBe(1);
-        expect(output).toContain('unknown category "nonsense"');
-        expect(output).toContain('data-display');
-        expect(exists('packages/components/ui/widget')).toBe(false);
+        expect(output).toContain('refusing to overwrite');
+        expect(output).toContain('demo/src/app/demos/layout/box-demo.component.ts');
+        expect(exists('packages/components/ui/box')).toBe(false);
         expect(read('packages/cli/src/registry/index.ts')).toBe(FIXTURE_REGISTRY);
     }, 60_000);
 });

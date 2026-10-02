@@ -415,6 +415,10 @@ describe('BarChartDrilldownComponent', () => {
             fixture.detectChanges();
             // RTL moves the axis to the right edge and runs bars right-to-left.
             expect(geometry().map(b => b.x)).toEqual([width - 70 - barWidth, 20]);
+
+            fixture.componentRef.setInput('dir', 'ltr');
+            fixture.detectChanges();
+            expect(geometry().map(b => b.x)).toEqual([70, 70 + barWidth + 8]);
         });
     });
 

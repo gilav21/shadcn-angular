@@ -32,19 +32,12 @@ function click(host: HTMLElement, selector: string): void {
 }
 
 describe('ThemePlaygroundComponent', () => {
-    it('starts from the same defaults the token module declares', async () => {
-        const fixture = await render();
-        expect(fixture.componentInstance.settings()).toEqual(DEFAULT_THEME_SETTINGS);
-    });
-
-    it('shows the CSS the token module builds for the current settings', async () => {
-        const fixture = await render();
-        expect(fixture.componentInstance.css()).toBe(buildThemeCss(DEFAULT_THEME_SETTINGS));
-    });
-
-    it('renders that CSS on the page so it can be read and copied', async () => {
+    it('starts from the token defaults and renders their CSS where it can be read and copied', async () => {
         const fixture = await render();
         const host = fixture.nativeElement as HTMLElement;
+
+        expect(fixture.componentInstance.settings()).toEqual(DEFAULT_THEME_SETTINGS);
+        expect(fixture.componentInstance.css()).toBe(buildThemeCss(DEFAULT_THEME_SETTINGS));
         expect(host.querySelector('[data-slot="generated-css"]')).not.toBeNull();
         expect(host.querySelector('[data-slot="copy-css"]')).not.toBeNull();
     });

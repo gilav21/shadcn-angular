@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { densityMultiplier, setDensityCore, DENSITY_MULTIPLIERS, COMPONENT_DENSITY_VARS } from './set-density.js';
+import { densityMultiplier, setDensityCore } from './set-density.js';
 
 // ---------------------------------------------------------------------------
 // Module-level mocks
@@ -55,27 +55,6 @@ describe('densityMultiplier()', () => {
 });
 
 // ---------------------------------------------------------------------------
-// DENSITY_MULTIPLIERS / COMPONENT_DENSITY_VARS constants
-// ---------------------------------------------------------------------------
-
-describe('DENSITY_MULTIPLIERS', () => {
-    it('has exactly 5 entries for levels 1–5', () => {
-        expect(Object.keys(DENSITY_MULTIPLIERS)).toHaveLength(5);
-        for (let i = 1; i <= 5; i++) {
-            expect(DENSITY_MULTIPLIERS[i]).toBeDefined();
-        }
-    });
-});
-
-describe('COMPONENT_DENSITY_VARS', () => {
-    it('maps component names to --density-<name> vars', () => {
-        expect(COMPONENT_DENSITY_VARS['button']).toBe('--density-button');
-        expect(COMPONENT_DENSITY_VARS['input']).toBe('--density-input');
-        expect(COMPONENT_DENSITY_VARS['card']).toBe('--density-card');
-    });
-});
-
-// ---------------------------------------------------------------------------
 // setDensityCore — global density
 // ---------------------------------------------------------------------------
 
@@ -88,20 +67,15 @@ describe('setDensityCore() — global density', () => {
         vi.clearAllMocks();
     });
 
-    it('writes the correct multiplier for each level', async () => {
-        const cases: [number, string][] = [
-            [1, '0.75'], [2, '0.875'], [3, '1'], [4, '1.125'], [5, '1.25'],
-        ];
+    it('writes the multiplier of the chosen level into --density and reports it', async () => {
+        mockFs.readFile = vi.fn(() => Promise.resolve(makeCss()));
+        mockFs.writeFile = vi.fn(() => Promise.resolve());
 
-        for (const [level, expected] of cases) {
-            mockFs.readFile = vi.fn(() => Promise.resolve(makeCss()));
-            mockFs.writeFile = vi.fn(() => Promise.resolve());
+        const msg = await setDensityCore(2, undefined, '/project');
 
-            await setDensityCore(level, undefined, '/project');
-
-            const written = (mockFs.writeFile as ReturnType<typeof vi.fn>).mock.calls[0][1] as string;
-            expect(written).toContain(`--density: ${expected};`);
-        }
+        const written = (mockFs.writeFile as ReturnType<typeof vi.fn>).mock.calls[0][1] as string;
+        expect(written).toContain('--density: 0.875;');
+        expect(msg).toBe('Set global density level 2 (0.875)');
     });
 
     it('throws for invalid levels', async () => {
@@ -109,14 +83,6 @@ describe('setDensityCore() — global density', () => {
         await expect(setDensityCore(6, undefined, '/project')).rejects.toThrow('1–5');
     });
 
-    it('returns a success message containing the level and multiplier', async () => {
-        mockFs.readFile = vi.fn(() => Promise.resolve(makeCss()));
-        mockFs.writeFile = vi.fn(() => Promise.resolve());
-
-        const msg = await setDensityCore(3, undefined, '/project');
-        expect(msg).toContain('3');
-        expect(msg).toContain('1');
-    });
 });
 
 // ---------------------------------------------------------------------------

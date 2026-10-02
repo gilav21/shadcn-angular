@@ -32,20 +32,16 @@ function runReportMode(): Run {
 // do), so a broken wire-up in the entry is caught even though the logic it
 // delegates to is unit-tested in sync-registry-lib.spec.ts.
 describe('sync-registry entry (report mode)', () => {
-    it('runs the real registry to completion and prints the scan banner', () => {
+    it('runs the real registry to completion, prints the scan banner and never writes without --fix', () => {
+        const tsBefore = readFileSync(REGISTRY_TS, 'utf-8');
+        const jsonBefore = readFileSync(REGISTRY_JSON, 'utf-8');
+
         const { status, stdout } = runReportMode();
+
         // 0 = in sync, 1 = drift reported. Anything else is a crash.
         expect([0, 1]).toContain(status);
         expect(stdout).toMatch(/Scanning \d+ components and \d+ blocks/);
         expect(stdout).not.toContain('Aborting before write');
-    }, 60_000);
-
-    it('is strictly read-only — it must never write the registry without --fix', () => {
-        const tsBefore = readFileSync(REGISTRY_TS, 'utf-8');
-        const jsonBefore = readFileSync(REGISTRY_JSON, 'utf-8');
-
-        runReportMode();
-
         expect(readFileSync(REGISTRY_TS, 'utf-8')).toBe(tsBefore);
         expect(readFileSync(REGISTRY_JSON, 'utf-8')).toBe(jsonBefore);
     }, 60_000);
@@ -104,13 +100,14 @@ describe('sync-registry entry (fixture repo)', () => {
         expect(readFileSync(registry, 'utf-8')).toBe(before);
     }, 60_000);
 
-    it('--fix writes the missing file into the registry and emits registry.json', () => {
+    it('--fix writes the missing file into the registry, emits registry.json, and a second run is in sync', () => {
         root = seedFixture();
         const registry = path.join(root, 'packages/cli/src/registry/index.ts');
         const manifest = path.join(root, 'packages/components/registry.json');
+        const script = fixtureScript(root, 'sync-registry.ts');
         expect(existsSync(manifest)).toBe(false);
 
-        const { status, stdout } = runScript(fixtureScript(root, 'sync-registry.ts'), ['--fix']);
+        const { status, stdout } = runScript(script, ['--fix']);
 
         expect(status).toBe(0);
         expect(stdout).toContain('Registry updated.');
@@ -118,17 +115,11 @@ describe('sync-registry entry (fixture repo)', () => {
 
         const json = JSON.parse(readFileSync(manifest, 'utf-8')) as Record<string, { files: string[] }>;
         expect(json['alpha'].files).toContain('alpha/alpha.utils.ts');
-    }, 60_000);
 
-    it('is idempotent — a second --fix reports the registry as already in sync', () => {
-        root = seedFixture();
-        const script = fixtureScript(root, 'sync-registry.ts');
-        expect(runScript(script, ['--fix']).status).toBe(0);
-
-        const { status, stdout } = runScript(script);
-
-        expect(status).toBe(0);
-        expect(stdout).toContain('All components and blocks are in sync.');
+        // Idempotent: what --fix wrote must read back as no drift.
+        const again = runScript(script);
+        expect(again.status).toBe(0);
+        expect(again.stdout).toContain('All components and blocks are in sync.');
     }, 60_000);
 });
 
@@ -203,15 +194,10 @@ describe('rich-text-editor base/addon boundary (real tree)', () => {
     return walkTree('ui/rich-text-editor/index.ts', 'rich-text-editor', ctx, COMPONENTS_ROOT);
   }
 
-  it('reaches no addon file from the base barrel', () => {
+  it('reaches no addon file from the base barrel, yet still reaches the toolbar (the walk really ran)', () => {
     const { ownFiles, addonViolations } = realWalk();
     expect(addonViolations).toEqual([]);
     expect([...ownFiles].filter((f) => f.includes('/addons/'))).toEqual([]);
-  });
-
-  it('still reaches the toolbar sub-component, so the walk really ran', () => {
-    expect([...realWalk().ownFiles]).toContain(
-      'ui/rich-text-editor/sub/rich-text-toolbar.component.ts',
-    );
+    expect([...ownFiles]).toContain('ui/rich-text-editor/sub/rich-text-toolbar.component.ts');
   });
 });

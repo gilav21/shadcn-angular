@@ -70,6 +70,21 @@ describe('anchorToTopLayer', () => {
         handle.release();
     });
 
+    it('lines the panel up with the anchor edge the alignment names', () => {
+        const anchor = make();
+        anchor.style.cssText = 'position:absolute;left:300px;top:80px;width:100px;height:20px';
+        const panel = make();
+        panel.style.cssText = 'width:60px;height:40px';
+
+        const start = anchorToTopLayer(panel, anchor, { gap: 4, align: 'start' });
+        expect(panel.getBoundingClientRect().left).toBe(anchor.getBoundingClientRect().left);
+        start.release();
+
+        const end = anchorToTopLayer(panel, anchor, { gap: 4, align: 'end' });
+        expect(panel.getBoundingClientRect().right).toBe(anchor.getBoundingClientRect().right);
+        end.release();
+    });
+
     it('escapes an overflow-hidden ancestor — the reason this exists', () => {
         const clipper = make();
         clipper.style.cssText = 'overflow:hidden;width:50px;height:20px';

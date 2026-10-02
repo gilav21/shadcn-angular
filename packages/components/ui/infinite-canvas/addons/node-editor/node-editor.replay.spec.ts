@@ -77,7 +77,7 @@ const PAST: ReplayFrame = {
 
 function nextFrame(): Promise<void> {
     return new Promise(resolve =>
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        requestAnimationFrame(() => resolve()),
     );
 }
 
@@ -111,7 +111,6 @@ describe('replay', () => {
         host = fixture.componentInstance;
         await settle();
         editor = fixture.debugElement.children[0].componentInstance as NodeEditorComponent;
-        await settle();
     });
 
     afterEach(() => fixture.destroy());

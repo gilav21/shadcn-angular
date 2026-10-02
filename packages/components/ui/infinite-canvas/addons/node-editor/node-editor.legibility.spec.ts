@@ -58,7 +58,7 @@ class HostComponent {
 
 function nextFrame(): Promise<void> {
     return new Promise(resolve =>
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        requestAnimationFrame(() => resolve()),
     );
 }
 
@@ -115,7 +115,6 @@ describe('RT-13 a refused connection explains itself', () => {
         fixture = TestBed.createComponent(HostComponent);
         await settle();
         root = fixture.nativeElement.querySelector('[data-slot="node-editor"]') as HTMLElement;
-        await settle();
     });
 
     afterEach(() => fixture.destroy());

@@ -290,5 +290,8 @@ describe('AreaChartComponent', () => {
         fixture.componentRef.setInput('dir', 'rtl');
         fixture.detectChanges();
         expect(labelX('Q1')).toBeGreaterThan(labelX('Q2'));
+        fixture.componentRef.setInput('dir', 'ltr');
+        fixture.detectChanges();
+        expect(labelX('Q1')).toBeLessThan(labelX('Q2'));
     });
 });

@@ -84,134 +84,76 @@ describe('FileViewerComponent', () => {
         component = fixture.componentInstance;
     });
 
-    it('should show correct default height', () => {
+    it('renders at the default 600px height, and names the file after the input filename over the File name', () => {
         fixture.detectChanges();
         const el = fixture.nativeElement.querySelector('[data-slot="file-viewer"]');
         expect(el.style.height).toBe('600px');
-    });
 
-    it('should display filename from File object', () => {
-        const file = createTextBlob('hello');
-        fixture.componentRef.setInput('file', file);
+        fixture.componentRef.setInput('file', createTextBlob('hello'));
         fixture.detectChanges();
         expect(component.displayFilename()).toBe('test.txt');
-    });
+        expect(component.state()).toBe('loading');
 
-    it('should use provided filename over File name', () => {
         fixture.componentRef.setInput('filename', 'custom-name.txt');
-        fixture.componentRef.setInput('file', createTextBlob('hello'));
         fixture.detectChanges();
         expect(component.displayFilename()).toBe('custom-name.txt');
     });
 
-    it('should set loading state when processing file', () => {
-        fixture.componentRef.setInput('file', createTextBlob('hello'));
+    it('zooms in steps of 0.25 within 0.25 to 3, and reports the percent', () => {
         fixture.detectChanges();
-        expect(component.state()).toBe('loading');
+        component.zoomIn();
+        expect(component.currentZoom()).toBe(1.25);
+        component.zoomOut();
+        component.zoomOut();
+        expect(component.currentZoom()).toBe(0.75);
+
+        component.currentZoom.set(0.25);
+        component.zoomOut();
+        expect(component.currentZoom()).toBe(0.25);
+
+        component.currentZoom.set(3);
+        component.zoomIn();
+        expect(component.currentZoom()).toBe(3);
+
+        component.currentZoom.set(1.5);
+        expect(component.zoomPercent()).toBe(150);
     });
 
-    describe('zoom controls', () => {
-        beforeEach(() => {
-            fixture.detectChanges();
-        });
+    it('steps between pages without leaving 1 to totalPages', () => {
+        fixture.detectChanges();
+        component.totalPages.set(5);
+        component.nextPage();
+        expect(component.currentPage()).toBe(2);
 
-        it('should zoom in', () => {
-            component.zoomIn();
-            expect(component.currentZoom()).toBe(1.25);
-        });
+        component.currentPage.set(3);
+        component.prevPage();
+        expect(component.currentPage()).toBe(2);
 
-        it('should zoom out', () => {
-            component.zoomOut();
-            expect(component.currentZoom()).toBe(0.75);
-        });
+        component.currentPage.set(1);
+        component.prevPage();
+        expect(component.currentPage()).toBe(1);
 
-        it('should not zoom below 0.25', () => {
-            component.currentZoom.set(0.25);
-            component.zoomOut();
-            expect(component.currentZoom()).toBe(0.25);
-        });
-
-        it('should not zoom above 3', () => {
-            component.currentZoom.set(3);
-            component.zoomIn();
-            expect(component.currentZoom()).toBe(3);
-        });
-
-        it('should calculate correct zoom percent', () => {
-            component.currentZoom.set(1.5);
-            expect(component.zoomPercent()).toBe(150);
-        });
+        component.currentPage.set(5);
+        component.nextPage();
+        expect(component.currentPage()).toBe(5);
     });
 
-    describe('page navigation', () => {
-        beforeEach(() => {
-            fixture.detectChanges();
-            component.totalPages.set(5);
-        });
+    it('is paginated for PDF and PPTX, zoomable for image and PDF, and neither for audio', () => {
+        fixture.detectChanges();
+        component.detectedType.set('pdf');
+        expect(component.isPaginated()).toBe(true);
+        expect(component.isZoomable()).toBe(true);
 
-        it('should go to next page', () => {
-            component.nextPage();
-            expect(component.currentPage()).toBe(2);
-        });
+        component.detectedType.set('pptx');
+        expect(component.isPaginated()).toBe(true);
 
-        it('should go to previous page', () => {
-            component.currentPage.set(3);
-            component.prevPage();
-            expect(component.currentPage()).toBe(2);
-        });
+        component.detectedType.set('image');
+        expect(component.isPaginated()).toBe(false);
+        expect(component.isZoomable()).toBe(true);
 
-        it('should not go below page 1', () => {
-            component.prevPage();
-            expect(component.currentPage()).toBe(1);
-        });
-
-        it('should not go beyond total pages', () => {
-            component.currentPage.set(5);
-            component.nextPage();
-            expect(component.currentPage()).toBe(5);
-        });
-    });
-
-    describe('isPaginated', () => {
-        beforeEach(() => {
-            fixture.detectChanges();
-        });
-
-        it('should be true for PDF (paginated rendering)', () => {
-            component.detectedType.set('pdf');
-            expect(component.isPaginated()).toBe(true);
-        });
-
-        it('should be true for PPTX', () => {
-            component.detectedType.set('pptx');
-            expect(component.isPaginated()).toBe(true);
-        });
-
-        it('should be false for image', () => {
-            component.detectedType.set('image');
-            expect(component.isPaginated()).toBe(false);
-        });
-    });
-
-    describe('isZoomable', () => {
-        beforeEach(() => {
-            fixture.detectChanges();
-        });
-
-        it('should be true for image', () => {
-            component.detectedType.set('image');
-            expect(component.isZoomable()).toBe(true);
-        });
-
-        it('should be true for PDF (paginated rendering)', () => {
-            component.detectedType.set('pdf');
-            expect(component.isZoomable()).toBe(true);
-        });
-
-        it('should be false for audio', () => {
-            component.detectedType.set('audio');
-            expect(component.isZoomable()).toBe(false);
-        });
+        component.detectedType.set('audio');
+        expect(component.isPaginated()).toBe(false);
+        expect(component.isZoomable()).toBe(false);
     });
 
     describe('custom mode (content projection)', () => {
@@ -374,23 +316,13 @@ describe('FileViewerComponent rendering internals', () => {
     });
 
     describe('SVG detection', () => {
-        it('detects <svg root', () => {
-            const bytes = new TextEncoder().encode('  <svg xmlns="x"></svg>');
-            expect(api.checkIfSvg(bytes)).toBe(true);
-        });
+        it('detects an <svg root, an <?xml prolog and a UTF-8 BOM, and rejects plain text', () => {
+            expect(api.checkIfSvg(new TextEncoder().encode('  <svg xmlns="x"></svg>'))).toBe(true);
+            expect(api.checkIfSvg(new TextEncoder().encode('<?xml version="1.0"?><svg/>'))).toBe(true);
 
-        it('detects <?xml prolog', () => {
-            const bytes = new TextEncoder().encode('<?xml version="1.0"?><svg/>');
-            expect(api.checkIfSvg(bytes)).toBe(true);
-        });
-
-        it('skips UTF-8 BOM', () => {
             const svg = new TextEncoder().encode('<svg/>');
-            const bytes = new Uint8Array([0xEF, 0xBB, 0xBF, ...svg]);
-            expect(api.checkIfSvg(bytes)).toBe(true);
-        });
+            expect(api.checkIfSvg(new Uint8Array([0xEF, 0xBB, 0xBF, ...svg]))).toBe(true);
 
-        it('returns false for non-svg', () => {
             expect(api.checkIfSvg(new TextEncoder().encode('plain text'))).toBe(false);
         });
     });
@@ -422,11 +354,8 @@ describe('FileViewerComponent rendering internals', () => {
     });
 
     describe('extractFilename', () => {
-        it('extracts the name from a url path', () => {
+        it('extracts the name from a url path, falling back to "file" for a trailing slash', () => {
             expect(api.extractFilename('https://x.com/a/b/report.pdf')).toBe('report.pdf');
-        });
-
-        it('falls back to "file" for trailing slash', () => {
             expect(api.extractFilename('https://x.com/')).toBe('file');
         });
     });
