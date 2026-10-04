@@ -19,6 +19,8 @@ describe('numeric-step', () => {
         [{ min: -0.5, max: 10, step: 1 }, -1, -0.5],
         [{ min: 0.5, max: 4, step: 0.1 }, 2.3000000000000003, 2.3],
         [{ min: 0.5, max: 4, step: 0.1 }, 4, 4],
+        // (0.3 - 0) / 0.1 is 2.9999999999999996: a raw floor would put top at 0.2.
+        [{ min: 0, max: 0.3, step: 0.1 }, 0.3, 0.3],
         [{ min: 0, max: 2, step: 0.1 }, 1.15, 1.2],
         [{ min: 0, max: 1, step: 0.05 }, 0.625, 0.65],
         [{ min: 0, max: 1, step: 0.05 }, 0.35, 0.35],

@@ -9,7 +9,10 @@ import {
     linkedSignal,
     OnInit,
     DestroyRef,
+    forwardRef,
+    signal,
 } from '@angular/core';
+import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cn, isRtl } from '../../lib/utils';
 import { UI_LOCALE_ID, formatNumber } from '../../lib/i18n';
 import { snapToStep, stepFrom, type StepGrid } from '../../lib/numeric-step';
@@ -25,12 +28,25 @@ const PAGE_STEPS = 10;
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './slider.component.html',
     styleUrl: './slider.component.css',
+    providers: [
+        {
+            provide: NG_VALUE_ACCESSOR,
+            useExisting: forwardRef(() => SliderComponent),
+            multi: true,
+        },
+    ],
     host: {
         class: 'contents',
     },
 })
-export class SliderComponent implements OnInit {
+export class SliderComponent implements OnInit, ControlValueAccessor {
     private readonly el = inject(ElementRef);
+    /** Listeners of the drag in progress; aborting removes every one of them at once. */
+    private drag: AbortController | null = null;
+    /** Set by the first {@link writeValue}, so a form's value wins over {@link defaultValue} whichever runs first. */
+    private written = false;
+    private onChange: (value: number) => void = () => { };
+    private onTouched: () => void = () => { };
 
     /** Lower bound of the range. Must be less than {@link max}, otherwise the fill percentage logs an error and falls back to 0. */
     min = input<number | undefined>(DEFAULT_MIN);
@@ -48,8 +64,15 @@ export class SliderComponent implements OnInit {
     readonly resolvedMax = computed(() => this.max() ?? DEFAULT_MAX);
     /** Granularity that pointer, arrow-key and Page-key changes snap to; Page Up/Down move ten steps at once. */
     step = input(1);
-    /** Dims the slider and blocks pointer events, and short-circuits every keyboard and drag handler. */
+    /**
+     * Dims the slider and blocks pointer events, and short-circuits every
+     * keyboard and drag handler. OR-ed with the state a form pushes through
+     * {@link setDisabledState}, so a reactive-forms `disable()` also wins.
+     */
     disabled = input(false);
+    private readonly formDisabled = signal(false);
+    /** Either the {@link disabled} input or the form's disabled state. */
+    readonly isDisabled = computed(() => this.disabled() || this.formDisabled());
     /**
      * Starting value for an uncontrolled slider, applied once on init and
      * snapped to the grid — later changes to this input do not move the thumb.
@@ -83,6 +106,10 @@ export class SliderComponent implements OnInit {
      * Being a `ModelSignal` is what makes this component a valid Signal Forms
      * `FormValueControl`, and it doubles as the `valueChange` output: Angular
      * derives the output from the model, so there is no separate declaration.
+     * A write from outside — `writeValue` from a form, or the
+     * {@link defaultValue} seed — stays silent; only a user change emits.
+     * Note that after a `writeValue` from a reactive form this still reads
+     * the pre-write value — the rendered value is {@link rendered}.
      */
     value = model(0);
 
@@ -125,7 +152,7 @@ export class SliderComponent implements OnInit {
      */
     ngOnInit(): void {
         const seed = this.defaultValue();
-        if (seed !== undefined && this.value() === 0) {
+        if (seed !== undefined && !this.written && this.value() === 0) {
             this.current.set(seed);
         }
     }
@@ -145,14 +172,14 @@ export class SliderComponent implements OnInit {
     classes = computed(() =>
         cn(
             'relative flex w-full touch-none select-none items-center',
-            this.disabled() && 'opacity-50 pointer-events-none',
+            this.isDisabled() && 'opacity-50 pointer-events-none',
             this.class()
         )
     );
 
     /** Jumps the value to the clicked position, begins a document-level drag and focuses the hidden range input so the keyboard keeps working. */
     onTrackMouseDown(event: MouseEvent): void {
-        if (this.disabled()) return;
+        if (this.isDisabled()) return;
 
         event.preventDefault();
         this.updateValueFromEvent(event);
@@ -164,7 +191,7 @@ export class SliderComponent implements OnInit {
 
     /** Starts a drag from the thumb, stopping propagation so {@link onTrackMouseDown} does not also jump the value on grab. */
     onThumbMouseDown(event: MouseEvent): void {
-        if (this.disabled()) return;
+        if (this.isDisabled()) return;
 
         event.preventDefault();
         event.stopPropagation();
@@ -177,7 +204,7 @@ export class SliderComponent implements OnInit {
      * `touchcancel` (an incoming call, an OS gesture).
      */
     onTouchStart(event: TouchEvent): void {
-        if (this.disabled()) return;
+        if (this.isDisabled()) return;
 
         event.preventDefault();
         if (event.touches.length > 0) {
@@ -202,18 +229,41 @@ export class SliderComponent implements OnInit {
      * prevents the default of every key it handles.
      */
     onNativeInput(event: Event): void {
-        if (this.disabled()) return;
+        if (this.isDisabled()) return;
         const input = event.target as HTMLInputElement;
         this.commit(snapToStep(input.valueAsNumber, this.grid()));
     }
-
-    /** Listeners of the drag in progress; aborting removes every one of them at once. */
-    private drag: AbortController | null = null;
 
     private beginDrag(): AbortSignal {
         this.cancelDrag();
         this.drag = new AbortController();
         return this.drag.signal;
+    }
+
+    /** Marks the form control touched when the user leaves the hidden range input. */
+    onBlur(): void {
+        this.onTouched();
+    }
+
+    /** Renders a form value without emitting; `null` renders {@link min}. Shown snapped, never rewritten back. */
+    writeValue(value: number | null): void {
+        this.written = true;
+        this.current.set(value ?? this.resolvedMin());
+    }
+
+    /** Stores the form's change callback, invoked once per user-driven change. */
+    registerOnChange(fn: (value: number) => void): void {
+        this.onChange = fn;
+    }
+
+    /** Stores the form's touched callback, raised on blur and at the end of a pointer drag. */
+    registerOnTouched(fn: () => void): void {
+        this.onTouched = fn;
+    }
+
+    /** Records the form's disabled state separately from the {@link disabled} input; either one disables the slider. */
+    setDisabledState(isDisabled: boolean): void {
+        this.formDisabled.set(isDisabled);
     }
 
     private cancelDrag(): void {
@@ -223,6 +273,7 @@ export class SliderComponent implements OnInit {
 
     private endDrag(): void {
         this.cancelDrag();
+        this.onTouched();
     }
 
     private startDragging(): void {
@@ -240,7 +291,7 @@ export class SliderComponent implements OnInit {
      * only when the value really moved.
      */
     onKeyDown(event: KeyboardEvent): void {
-        if (this.disabled()) return;
+        if (this.isDisabled()) return;
 
         const next = this.keyTarget(event.key);
         if (next === null) return;
@@ -283,6 +334,7 @@ export class SliderComponent implements OnInit {
     private commit(next: number): void {
         if (next === this.rendered()) return;
         this.current.set(next);
+        this.onChange(next);
         this.value.set(next);
     }
 

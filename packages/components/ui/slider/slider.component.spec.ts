@@ -638,24 +638,26 @@ describe('SliderComponent — the grid and every way in', () => {
             fixture.detectChanges();
             return fixture.componentInstance.control.touched;
         };
-        const drag = (fixture: ComponentFixture<FormSliderHost>, by: 'mouse' | 'touch'): void => {
+        const drag = (fixture: ComponentFixture<FormSliderHost>, by: 'mouse' | 'touch', pointer: 'held' | 'released'): void => {
             const { track, rect } = trackBox(fixture);
             const middle = rect.left + rect.width / 2;
             if (by === 'mouse') {
                 track.dispatchEvent(new MouseEvent('mousedown', { clientX: middle, bubbles: true, cancelable: true }));
-                document.dispatchEvent(new MouseEvent('mouseup'));
+                if (pointer === 'released') document.dispatchEvent(new MouseEvent('mouseup'));
             } else {
                 track.dispatchEvent(touch('touchstart', middle));
-                document.dispatchEvent(touch('touchend', 0));
+                if (pointer === 'released') document.dispatchEvent(touch('touchend', 0));
             }
         };
 
         expect([
             await touchedAfter(fixture => range(fixture).dispatchEvent(new FocusEvent('focus'))),
+            await touchedAfter(fixture => drag(fixture, 'mouse', 'held')),
+            await touchedAfter(fixture => drag(fixture, 'touch', 'held')),
             await touchedAfter(fixture => range(fixture).dispatchEvent(new FocusEvent('blur'))),
-            await touchedAfter(fixture => drag(fixture, 'mouse')),
-            await touchedAfter(fixture => drag(fixture, 'touch')),
-        ]).toEqual([false, true, true, true]);
+            await touchedAfter(fixture => drag(fixture, 'mouse', 'released')),
+            await touchedAfter(fixture => drag(fixture, 'touch', 'released')),
+        ]).toEqual([false, false, false, true, true, true]);
     });
 
     it('form.disable() disables the range input and blocks keyboard and pointer', async () => {
