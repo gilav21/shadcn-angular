@@ -424,7 +424,7 @@ assertion at another layer); proves text, not projection.
 | # | Task | Proves | Status | Completed | Score | Retrospective |
 |---|------|--------|--------|-----------|-------|---------------|
 | 1 | Write failing tests T-1…T-13 (POP, ACT, CHAT, PFX, GUARD — create `selector-references.ts` with exported, unimplemented function signatures so the spec compiles and fails on assertions) and the e2e skeleton T-14 (§F.6). Record pre-change coverage of every touched file. Confirm each test is red for the intended reason. | all UC | ✅ Done (red-first) | 2026-10-04 10:38 | 92 | Every test is red for its stated reason (§G 6–9), including a real prefix simulation for chat via `overrideComponent`. Sonar was scan-only because red tests fail the coverage leg by design. Next time: write the order-insensitive assertions from the start. |
-| 2 | Mention popover: replace the `closest` query with `ElementRef.contains` (§F.1); update the `closed` JSDoc (`:83-88`) to say "outside this popover". T-1, T-2 green in both legs. | UC-1 | ⬜ Not started | — | — | — |
+| 2 | Mention popover: replace the `closest` query with `ElementRef.contains` (§F.1); update the `closed` JSDoc (`:83-88`) to say "outside this popover". T-1, T-2 green in both legs. | UC-1 | ✅ Done | 2026-10-04 11:05 | 93 | A one-line `contains` fixed the prefix bug and the A/B sibling-popover bug together (§G 10). Both mutation checks were killed. Sonar was deferred to the integration run (§G 11). |
 | 3 | Actions stylesheet + chat: retarget at `data-slot` (§F.2). T-3, T-4 green in the **browser** leg; `rte-actions` and `chat` e2e green. | UC-2, UC-3 | ⬜ Not started | — | — | — |
 | 4 | CLI: `select` rewrite in `applyPrefixTransforms` (§F.3); JSDoc on `neutralizePrefix` per E-1 (§F.4); README section (UC-8). T-5, T-6 green; existing `prefix.spec.ts`, `baseline.spec.ts`, `clean-reinstall.spec.ts` green. | UC-4, UC-8 | ⬜ Not started | — | — | — |
 | 5 | Guard: implement `selector-references.ts` (§F.5) and its allowlist; T-7…T-13 green on the real repo. | UC-5, UC-6, UC-7 | ⬜ Not started | — | — | — |
@@ -659,6 +659,19 @@ list reverse dependents to include in e2e.
    `chat.component.ts` 15/15 (100%); `rich-text-actions.directive.ts` 271/272
    (99.63%, line 339 uncovered); `rich-text-mention-popover.component.ts` 59/59
    (100%); `packages/cli/src/utils/prefix.ts` 22/25 (88%, lines 30, 31, 131).
+10. (Task 2) §G 7 is fixed under the same invariant: "a popover's identity
+    check never depends on the host tag name". `ElementRef.contains` makes
+    each popover's inside its own subtree, so a click in popover A now
+    closes B. Rendering was checked before choosing `contains` over
+    `composedPath`: the directive appends the host to `overlayAnchor` (no
+    top layer, portal or shadow root). Mutation checks: (a) the base
+    `closest('ui-…')` turns T-1 (acme) and T-2 (both tags) red; (b) the
+    plausible wrong fix `closest(host.localName)` turns T-2 red under both
+    tags.
+11. (process, 2026-10-04) On the human's instruction, relayed by the
+    coordinator, per-task SonarQube runs were dropped from this worktree. One
+    `sonar:gate` runs on the merged integration branch, and findings are
+    routed back. DoD item 4 is therefore deferred to that run for Tasks 2–7.
 
 ---
 
@@ -667,3 +680,4 @@ list reverse dependents to include in e2e.
 | Row | Date | Task | Reviewer score | Notes |
 |---|---|---|---|---|
 | 1 | 2026-10-04 10:38 | Failing tests T-1…T-14 | 92 (round 1: 89) | All red for the intended reason; reviewer confirmed that the CLI leg fails as reported and that §G 6–9 document the deviations. Sonar round 1: 14 open = master's accepted set, 0 in changed files. |
+| 2 | 2026-10-04 11:05 | Popover containment via ElementRef.contains | 93 | Matches §F.1; `contains` is right for the overlayAnchor mount; the A/B case kills `closest(tag)`/`closest(localName)`/shared-attribute fixes. Portable 61/61; browser RTE+view 3275/3276 (T-3 = Task 3). |
