@@ -459,11 +459,13 @@ export class RichTextActionsDirective {
         const style = doc.createElement('style');
         style.dataset['rteActionsStyle'] = '';
         style.dataset['refcount'] = '1';
+        // Scoped by the editable's data-slot, never the editor's selector: a CLI
+        // `--prefix` or a selector rename changes the tag, not the data-slot.
         style.textContent =
-            'ui-rich-text-editor [data-action-click],ui-rich-text-editor [data-action-hover]{' +
+            '[data-slot="rich-text-editor"] [data-action-click],[data-slot="rich-text-editor"] [data-action-hover]{' +
             'border-bottom:1px dotted currentColor;' +
             'background:color-mix(in srgb,currentColor 6%,transparent);}' +
-            'ui-rich-text-editor img[data-action-click],ui-rich-text-editor img[data-action-hover]{' +
+            '[data-slot="rich-text-editor"] img[data-action-click],[data-slot="rich-text-editor"] img[data-action-hover]{' +
             'outline:2px dashed currentColor;outline-offset:2px;}';
         doc.head.appendChild(style);
         return () => this.releaseVisualizationStyles(doc);
