@@ -62,8 +62,7 @@ const byText = (a: string, b: string) => a.localeCompare(b);
 const CODE_FILE = /\.(?:ts|mts|cts|mjs|cjs|js)$/;
 
 describe('declared imports', () => {
-    // RED until Task 2 — flip to it() there.
-    it.fails('findUndeclaredImports reports a bare import no manifest declares, and ignores relative, node:, @/ alias and builtin specifiers', () => {
+    it('findUndeclaredImports reports a bare import no manifest declares, and ignores relative, node:, @/ alias and builtin specifiers', () => {
         const files: SourceFile[] = [
             {
                 path: 'packages/components/lib/testing/axe.ts',
@@ -93,7 +92,8 @@ describe('declared imports', () => {
                 text: "import fs from 'node:fs';\nimport path from 'path';\nimport { treeHash } from './tree-hash.mjs';\n",
             },
         ];
-        const declared = new Set(['@angular/core', 'class-variance-authority']);
+        // @types/d3-scale declares only the typings, never the d3-scale package itself.
+        const declared = new Set(['@angular/core', 'class-variance-authority', '@types/d3-scale']);
 
         expect(findUndeclaredImports(files, declared)).toEqual([
             { file: 'packages/components/lib/testing/axe.ts', pkg: 'axe-core' },
@@ -148,8 +148,7 @@ const DEAD_ARTIFACTS = [
 ];
 
 describe('dead and stray files', () => {
-    // RED until Task 2 — flip to it() there.
-    it.fails('findStrayShippedFiles flags anything but .ts/.html/.css that the allowlist does not name', () => {
+    it('findStrayShippedFiles flags anything but .ts/.html/.css that the allowlist does not name', () => {
         const paths = [
             'packages/components/ui/card/card.component.ts',
             'packages/components/ui/card/card.component.html',
@@ -175,8 +174,7 @@ describe('dead and stray files', () => {
         for (const asset of Object.keys(SHIPPED_ASSET_ALLOWLIST)) expect(TRACKED).toContain(asset);
     });
 
-    // RED until Task 2 — flip to it() there.
-    it.fails('dead artifacts are absent and the generated ones are git-ignored', () => {
+    it('dead artifacts are absent and the generated ones are git-ignored', () => {
         expect(DEAD_ARTIFACTS.filter((p) => TRACKED.includes(p))).toEqual([]);
         expect(readJson<Manifest>('demo/package.json').scripts?.['docs:json']).toBeUndefined();
         for (const generated of ['demo/documentation.json', 'demo/build-log.txt']) {
@@ -196,12 +194,12 @@ const CONSUMER_DOC_PATHS: Readonly<Record<string, string>> = {
 };
 
 describe('docs name only what exists', () => {
-    // RED until Task 2 — flip to it() there.
-    it.fails('extractDocReferences resolves rooted, suffix and bare-name paths and npm scripts', () => {
+    it('extractDocReferences resolves rooted, suffix and bare-name paths and npm scripts', () => {
         const tracked = [
             'packages/cli/src/registry/load.ts',
             'packages/components/lib/touch.ts',
             'packages/components/ui/tour/tour.component.ts',
+            'demo/.postcssrc.json',
         ];
         const markdown = [
             'Read `packages/x/y.ts`, then `registry/load.ts` and `touch.ts` from `lib/`.',
@@ -209,23 +207,26 @@ describe('docs name only what exists', () => {
             'The touch rule lives in `tailwind.css`; the server is `http://localhost:9000`;',
             'name files `<name>.component.ts`, tests `*.spec.ts`, fetched from `…/{branch}/packages/components/ui/<file>`.',
             'The compiler hint is `ts(6133)` and the flag `noUnusedLocals`.',
-            'Generated and secret files: `coverage/.tree-hash`, `packages/.env`.',
+            'Generated and secret files: `coverage/.tree-hash`, `packages/.env`; stories end in `.stories.ts`;',
+            'the demo PostCSS config is `demo/.postcssrc.json`, not `demo/.postcssrc.yml`.',
             '',
             '```bash',
             'npm run test:cli -- --run',
             'npm run nope',
+            'echo `packages/z.ts` is shell, not a doc path',
             'npm run e2e -- <name>',
             '```',
         ].join('\n');
 
         const { missingPaths, unknownScripts } = extractDocReferences(markdown, tracked, new Set(['test:cli', 'e2e']));
         expect({ missingPaths: [...missingPaths].sort(byText), unknownScripts }).toEqual({
-            missingPaths: ['packages/x/y.ts', 'tailwind.css', 'ui/tour.component.ts'],
+            missingPaths: ['demo/.postcssrc.yml', 'packages/x/y.ts', 'tailwind.css', 'ui/tour.component.ts'],
             unknownScripts: ['nope'],
         });
     });
 
-    it('every path and npm script named in .claude/CLAUDE.md and e2e/README.md resolves', () => {
+    // RED until Task 10 — flip to it() there.
+    it.fails('every path and npm script named in .claude/CLAUDE.md and e2e/README.md resolves', () => {
         const scripts = new Set(Object.keys(ROOT_SCRIPTS));
         const reports = ['.claude/CLAUDE.md', 'e2e/README.md'].map((doc) => {
             const { missingPaths, unknownScripts } = extractDocReferences(read(doc), TRACKED, scripts);
@@ -325,20 +326,27 @@ describe('sonar helpers', () => {
 });
 
 describe('scripts are reachable', () => {
-    // RED until Task 2 — flip to it() there.
-    it.fails('findUnreachableScripts counts a script reached only when another document names or imports it', () => {
+    it('findUnreachableScripts counts a script reached only when another document names or imports it', () => {
         const corpus: SourceFile[] = [
-            { path: 'package.json', text: '{ "scripts": { "used": "node scripts/used.mjs" } }' },
+            { path: 'package.json', text: '{ "scripts": { "used": "node scripts/used.mjs", "restore": "cp scripts/orphan.mjs.bak scripts/x.mjs" } }' },
             { path: 'packages/cli/scripts/tool.spec.ts', text: "import { helper } from './helper';\n" },
             { path: 'scripts/self-named.mjs', text: '// Usage: node scripts/self-named.mjs\n' },
             { path: 'scripts/orphan.mjs', text: 'console.log(1);\n' },
+            { path: 'docs/pdfs.md', text: 'The example PDFs are regenerated by scripts/gen-pdfs.mjs.\n' },
         ];
-        const entries = ['scripts/used.mjs', 'scripts/orphan.mjs', 'packages/cli/scripts/helper.ts', 'scripts/self-named.mjs'];
+        const entries = [
+            'scripts/used.mjs',
+            'scripts/orphan.mjs',
+            'packages/cli/scripts/helper.ts',
+            'scripts/self-named.mjs',
+            'scripts/gen-pdfs.mjs',
+        ];
 
-        expect(findUnreachableScripts(entries, corpus)).toEqual(['scripts/orphan.mjs', 'scripts/self-named.mjs']);
+        expect(findUnreachableScripts(entries, corpus).sort(byText)).toEqual(['scripts/orphan.mjs', 'scripts/self-named.mjs']);
     });
 
-    it('every script entry point is reachable', () => {
+    // RED until Task 7 — flip to it() there.
+    it.fails('every script entry point is reachable', () => {
         const isEntry = (p: string) => {
             const dir = path.posix.dirname(p);
             return (dir === 'scripts' || dir === 'packages/cli/scripts')
@@ -394,11 +402,10 @@ describe('one runner, one regeneration path', () => {
         }).toEqual({ testScript: undefined, testTarget: undefined, orphans: [], testTooling: [] });
     });
 
-    // RED until Task 2 — flip to it() there.
-    it.fails('regenGaps follows npm-run chains to find each generator docs:check verifies', () => {
+    it('regenGaps follows npm-run chains to find each generator docs:check verifies', () => {
         const scripts = {
-            'docs:check': 'tsx s/gen-llms.ts --check && tsx s/gen-readme.ts --check && tsx s/gen-theme-presets.ts --check',
-            'docs:regen': 'npm run docs:llms && npm run docs:all-readmes',
+            'docs:check': 'tsx s/gen-llms.ts --check && tsx s/gen-readme.ts --verbose --check && tsx s/gen-theme-presets.ts --strict --check',
+            'docs:regen': 'npm run docs:llms && npm run docs:all-readmes && npm run docs:check',
             'docs:llms': 'tsx s/gen-llms.ts',
             'docs:all-readmes': 'npm run docs:readme && npm run docs:regen',
             'docs:readme': 'tsx s/gen-readme.ts',
@@ -427,8 +434,7 @@ describe('one runner, one regeneration path', () => {
 });
 
 describe('ui layout', () => {
-    // RED until Task 2 — flip to it() there.
-    it.fails('uiBarrelGaps follows one level of re-export files from ui/index.ts', () => {
+    it('uiBarrelGaps follows one level of re-export files from ui/index.ts', () => {
         const files: Record<string, string> = {
             'index.ts': [
                 "export * from './button';",
@@ -437,7 +443,11 @@ describe('ui layout', () => {
                 "export * from './integrations';",
                 "export * from '../lib/chart.utils';",
             ].join('\n'),
-            'integrations.ts': "export { ContextMenuAttachDirective } from './context-menu-attach.directive';\n",
+            'integrations.ts': [
+                "export { ContextMenuAttachDirective } from './context-menu-attach.directive';",
+                "import { CopyToDirective } from './copy-to.directive';",
+                'export const ALL = [CopyToDirective];',
+            ].join('\n'),
         };
         const uiPaths = [
             'index.ts',

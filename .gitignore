@@ -9,6 +9,11 @@ playwright-report
 
 # Debug logs
 *storybook.log
+*build-log*.txt
+
+# Storybook reads the ROOT documentation.json (.storybook/preview.ts); a
+# compodoc run inside demo/ writes this stray copy.
+/demo/documentation.json
 
 # Claude Code local settings
 .claude/settings.local.json
