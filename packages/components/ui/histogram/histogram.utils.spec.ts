@@ -6,6 +6,60 @@ const range = (n: number): number[] => Array.from({ length: n }, (_, i) => i);
 const totalCount = (bins: { count: number }[]): number =>
     bins.reduce((sum, b) => sum + b.count, 0);
 
+/** Seeded PRNG (mulberry32) so a failing property prints a reproducible input. */
+function mulberry32(seed: number): () => number {
+    let a = seed >>> 0;
+    return () => {
+        a = (a + 0x6d2b79f5) >>> 0;
+        let t = Math.imul(a ^ (a >>> 15), a | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
+const SEED = 20261003;
+
+/** One sample per class the binning treats differently, each drawn from the seeded PRNG. */
+function sampleClasses(rng: () => number): [string, number[]][] {
+    const draw = (n: number, f: () => number): number[] => Array.from({ length: n }, f);
+    const twoDecimals = (lo: number, hi: number): number => Math.round((lo + rng() * (hi - lo)) * 100) / 100;
+    return [
+        ['narrow fractional (reported)', [1.97, 2.2, 2.4, 2.69]],
+        ['narrow fractional', draw(40, () => twoDecimals(1.97, 2.69))],
+        // Edges built as `lo + i·width` can end a hair below the domain's top.
+        ['max on a nice bound', [0, 0.23, 0.46]],
+        ...draw(5, () => twoDecimals(0.1, 1)).map((top): [string, number[]] =>
+            ['narrow from zero', [0, ...draw(10, () => twoDecimals(0, top)), top]]),
+        ['integer', draw(100, () => Math.round(rng() * 300))],
+        ['negative', draw(60, () => -twoDecimals(0.01, 10))],
+        ['mixed-sign', draw(60, () => twoDecimals(-10, 10))],
+        ['all-equal', [7, 7, 7, 7]],
+        ['single value', [42]],
+        ['non-finite mixed in', [...draw(30, () => twoDecimals(0, 1)), Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]],
+        ['large magnitude', [1e12, 1.5e12, 2e12]],
+        ['200,000 samples', draw(200_000, () => twoDecimals(-50, 50))],
+    ];
+}
+
+/** What, if anything, breaks the binning contract for one sample. */
+function binningProblem(values: number[], finite: number[], binCount: number | undefined): string | undefined {
+    const bins = computeBins(values, { binCount });
+    if (binCount !== undefined && bins.length !== binCount) return `${bins.length} bins, expected ${binCount}`;
+    if (totalCount(bins) !== finite.length) {
+        return `counts sum to ${totalCount(bins)} of ${finite.length}; edges ${bins[0]?.start}..${bins.at(-1)?.end}`;
+    }
+    if (bins.some(bin => !Number.isFinite(bin.start) || !Number.isFinite(bin.end) || bin.end <= bin.start)) return 'a bin is non-finite or empty-width';
+    for (let i = 1; i < bins.length; i++) {
+        if (bins[i].start !== bins[i - 1].end) return `gap between bins ${i - 1} and ${i}`;
+    }
+    // Each bin holds exactly the samples inside its own edges ([start, end),
+    // the last one closed), so an out-of-range value cannot be clamped in.
+    const lastIndex = bins.length - 1;
+    const misplaced = bins.findIndex((bin, i) => bin.count !== finite.filter(v =>
+        v >= bin.start && (v < bin.end || (i === lastIndex && v === bin.end))).length);
+    return misplaced === -1 ? undefined : `bin ${misplaced} holds samples outside its edges`;
+}
+
 describe('histogram utils', () => {
     describe('sturgesBinCount', () => {
         it('derives a bin count from the sample size', () => {
@@ -112,15 +166,18 @@ describe('histogram utils', () => {
             expect(computeBins([])).toEqual([]);
         });
 
-        // §2.2 edge case — single data point
-        it('bins a single data point without producing NaN', () => {
-            const bins = computeBins([42]);
-            expect(totalCount(bins)).toBe(1);
-            for (const bin of bins) {
-                expect(Number.isFinite(bin.start)).toBe(true);
-                expect(Number.isFinite(bin.end)).toBe(true);
-                expect(bin.end).toBeGreaterThan(bin.start);
+        // T-4 (UC-4, UC-8): every sample class, auto and explicit bin counts.
+        it('computeBins counts every finite sample exactly once', () => {
+            const rng = mulberry32(SEED);
+            const violations: string[] = [];
+            for (const [cls, values] of sampleClasses(rng)) {
+                const finite = values.filter(v => Number.isFinite(v));
+                for (const binCount of [undefined, 1, 3, 7, 50]) {
+                    const problem = binningProblem(values, finite, binCount);
+                    if (problem) violations.push(`${cls} (n=${values.length}, binCount=${binCount}): ${problem}`);
+                }
             }
+            expect(violations, `seed ${SEED}`).toEqual([]);
         });
 
         // §2.2 edge case — zero variance must not divide by zero
@@ -135,47 +192,8 @@ describe('histogram utils', () => {
             }
         });
 
-        // §2.2 edge case — negative values
-        it('bins negative values', () => {
-            const bins = computeBins([-10, -5, 0, 5, 10]);
-            expect(totalCount(bins)).toBe(5);
-            expect(bins[0].start).toBeLessThanOrEqual(-10);
-            expect(bins.at(-1)!.end).toBeGreaterThanOrEqual(10);
-        });
-
-        // §2.2 edge case — very large values
-        it('bins very large values without losing precision to Infinity', () => {
-            const bins = computeBins([1e12, 1.5e12, 2e12]);
-            expect(totalCount(bins)).toBe(3);
-            for (const bin of bins) {
-                expect(Number.isFinite(bin.start)).toBe(true);
-                expect(Number.isFinite(bin.end)).toBe(true);
-            }
-        });
-
-        it('ignores non-finite samples', () => {
-            const bins = computeBins([1, 2, Number.NaN, Number.POSITIVE_INFINITY, 3]);
-            expect(totalCount(bins)).toBe(3);
-        });
-
         it('returns no bins when every sample is non-finite', () => {
             expect(computeBins([Number.NaN, Number.NEGATIVE_INFINITY])).toEqual([]);
-        });
-
-        // Regression: `Math.min(...values)` passes one argument per element and
-        // V8 throws `RangeError: Maximum call stack size exceeded` past ~100k, so
-        // the domain is computed in a single pass instead.
-        it('bins a sample far larger than the argument-count limit', () => {
-            const values = Array.from({ length: 200_000 }, (_, i) => i % 5000);
-            const bins = computeBins(values);
-            expect(totalCount(bins)).toBe(200_000);
-            expect(Number.isFinite(bins[0].start)).toBe(true);
-        });
-
-        it('places the maximum sample in the last bin, not past it', () => {
-            const bins = computeBins([0, 100], { binCount: 4 });
-            expect(bins.at(-1)!.count).toBeGreaterThanOrEqual(1);
-            expect(totalCount(bins)).toBe(2);
         });
     });
 });
