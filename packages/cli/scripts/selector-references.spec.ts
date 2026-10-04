@@ -34,6 +34,8 @@ const RESULT_SOURCES = new Map([
         "    template: '<ng-content />',",
         '})',
         'export class ResultDetailComponent {}',
+        // A `selector` key outside decorator metadata declares nothing.
+        "const LEGACY_OPTIONS = { selector: 'ui-result-legacy' };",
     ].join('\n')],
 ]);
 
@@ -80,6 +82,9 @@ describe('selector-references scanner', () => {
             '}',
             ':host .ui-select-trigger, ui-select-trigger > span { color: red; }',
             '@keyframes ui-x-fade { from { opacity: 0; } }',
+            // Positions the CLI's lookbehind does not rewrite are not positions here either.
+            '.a{color:red}ui-select-triggr{}',
+            '/* note */ui-select-triggr {}',
         ].join('\n');
         const refs = findSelectorReferences(file, css, declared);
 
@@ -90,6 +95,8 @@ describe('selector-references scanner', () => {
         expect(checkReferences(refs, declared, [])).toEqual([
             `  STALE   ${file}:2  css-element token "ui-select-triggr" names no declared selector`,
         ]);
+        // Only the three shipped source types have positions; prose is never scanned.
+        expect(findSelectorReferences('packages/components/ui/calendar/README.md', css, declared)).toEqual([]);
     });
 
     it('reports a declared selector token in a TS string that is not a selector position', () => {
@@ -108,10 +115,20 @@ describe('selector-references scanner', () => {
             "    readonly order = '[&>ui-result]:order-last';",
             "    readonly longer = 'ui-result-foo';",
             '    readonly built = `ui-result-${this.n}`;',
+            "    readonly descendant = '[&_ui-result]:order-last';",
+            "    readonly isHost = this.el.tagName === 'UI-RESULT';",
+            '    readonly pattern = /^ui-result$/;',
+            '    readonly nested = { selector: `ui-result` };',
             '}',
+            `@Directive({ selector: 'ui-result[data-kind="summary"]' })`,
+            'export class SummaryDirective {}',
         ].join('\n');
         const refs = findSelectorReferences(file, ts, declared);
 
+        // Lines 13–16 and 18 are the same class in other spellings: a Tailwind
+        // descendant variant (`_` is a space there), an upper-cased tagName
+        // comparison, a regex literal, and two selectors the CLI never rewrites
+        // — a backtick value and a value holding a quote character.
         expect(brief(refs)).toEqual([
             'selector-metadata 4 ui-result',
             'tag 5 ui-result',
@@ -120,10 +137,15 @@ describe('selector-references scanner', () => {
             'other-string 8 ui-result',
             'other-string 9 ui-result',
             'other-string 10 ui-result',
+            'other-string 13 ui-result',
+            'other-string 14 ui-result',
+            'other-string 15 ui-result',
+            'other-string 16 ui-result',
+            'other-string 18 ui-result',
         ].sort(byText));
         const runtime = (line: number) =>
             `  RUNTIME ${file}:${line}  "ui-result" in a string literal — use ElementRef / data-slot, or allowlist it with a reason`;
-        expect(checkReferences(refs, declared, [])).toEqual([runtime(8), runtime(9), runtime(10)]);
+        expect(checkReferences(refs, declared, [])).toEqual([8, 9, 10, 13, 14, 15, 16, 18].map(runtime));
 
         const html = [
             '<!-- <ui-result> used to wrap this -->',
@@ -135,24 +157,36 @@ describe('selector-references scanner', () => {
         ].sort(byText));
     });
 
-    it('honours an allowlist entry only for its exact file and token, and fails on a stale allowlist entry', () => {
+    it('honours an allowlist entry only for its exact file, token and count, and fails on a stale allowlist entry', () => {
         const service = 'packages/components/ui/sidebar/sidebar.service.ts';
         const component = 'packages/components/ui/sidebar/sidebar.component.ts';
+        const tour = 'packages/components/ui/tour/tour.component.ts';
         const declared = new Set(['ui-sidebar', 'ui-tour']);
         const refs: SelectorReference[] = [
             { file: service, line: 12, token: 'ui-sidebar', kind: 'other-string' },
             { file: service, line: 30, token: 'ui-tour', kind: 'other-string' },
             { file: component, line: 40, token: 'ui-sidebar', kind: 'other-string' },
+            // Two log labels were allowlisted; a third use — a DOM query — slipped in.
+            { file: tour, line: 741, token: 'ui-tour', kind: 'other-string' },
+            { file: tour, line: 760, token: 'ui-tour', kind: 'other-string' },
+            { file: tour, line: 900, token: 'ui-tour', kind: 'other-string' },
         ];
         const allow = [
-            { file: service, token: 'ui-sidebar', reason: 'persisted localStorage key prefix' },
-            { file: component, token: 'ui-command', reason: 'no longer present' },
+            { file: service, token: 'ui-sidebar', occurrences: 1, reason: 'persisted localStorage key prefix' },
+            { file: component, token: 'ui-command', occurrences: 1, reason: 'no longer present' },
+            { file: tour, token: 'ui-tour', occurrences: 2, reason: 'console log label' },
         ];
+        const runtime = (where: string, token: string) =>
+            `  RUNTIME ${where}  "${token}" in a string literal — use ElementRef / data-slot, or allowlist it with a reason`;
 
         expect(checkReferences(refs, declared, allow)).toEqual([
-            `  RUNTIME ${service}:30  "ui-tour" in a string literal — use ElementRef / data-slot, or allowlist it with a reason`,
-            `  RUNTIME ${component}:40  "ui-sidebar" in a string literal — use ElementRef / data-slot, or allowlist it with a reason`,
+            runtime(`${service}:30`, 'ui-tour'),
+            runtime(`${component}:40`, 'ui-sidebar'),
+            runtime(`${tour}:741`, 'ui-tour'),
+            runtime(`${tour}:760`, 'ui-tour'),
+            runtime(`${tour}:900`, 'ui-tour'),
             `  ALLOW-STALE ${component}  allowlist entry for "ui-command" matches nothing — remove it`,
+            `  ALLOW-COUNT ${tour}  "ui-tour" occurs 3 time(s), allowlist expects 2 — review the new use, then update the entry`,
         ]);
     });
 });
