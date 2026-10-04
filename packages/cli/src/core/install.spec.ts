@@ -11,6 +11,7 @@ import { fetchAndTransform, fetchLibContent } from './fetch.js';
 import { registry, type ComponentName } from '../registry/index.js';
 import type { ConflictCheckResult } from './plan.js';
 import { hashContent } from './manifest.js';
+import { applyPrefixTransforms } from '../utils/prefix.js';
 
 vi.mock('fs-extra', () => ({
   default: {
@@ -330,6 +331,11 @@ describe('performInstall prunes obsolete files (B7)', () => {
   );
   const EDITED = PUBLISHED.replace('Columns (Width)', 'Width in columns');
   const keptUntracked = `Kept ${OBSOLETE}: it differs from every version we shipped (delete it manually if intended).`;
+  // How a consumer with `prefix: acme` and CRLF endings really holds that same
+  // published file: proving it ours must canonicalize with THEIR config.
+  const ACME = getDefaultConfig();
+  ACME.prefix = 'acme';
+  const PUBLISHED_ACME_CRLF = applyPrefixTransforms(OBSOLETE, PUBLISHED, 'acme').replaceAll('\n', '\r\n');
   const keptModified = `Kept ${OBSOLETE}: it differs from the version we installed (delete it manually if intended).`;
 
   // Same path, same status, different content is the only pair that tells the
@@ -338,8 +344,9 @@ describe('performInstall prunes obsolete files (B7)', () => {
     { label: 'clean against the lockfile', content: EDITED, recorded: EDITED, pruned: true, warning: null },
     { label: 'untracked and byte-identical to a published version', content: PUBLISHED, recorded: null, pruned: true, warning: null },
     { label: 'untracked and edited before the lockfile existed', content: EDITED, recorded: null, pruned: false, warning: keptUntracked },
+    { label: 'untracked, published, but installed with another prefix and CRLF', content: PUBLISHED_ACME_CRLF, recorded: null, pruned: true, warning: null, config: ACME },
     { label: 'modified from the lockfile baseline', content: PUBLISHED, recorded: EDITED, pruned: false, warning: keptModified },
-  ])('prunes an obsolete file only when it is provably ours and unedited: $label', async ({ content, recorded, pruned, warning }) => {
+  ])('prunes an obsolete file only when it is provably ours and unedited: $label', async ({ content, recorded, pruned, warning, config = base.config }) => {
     asMock(fs.pathExists).mockImplementation(async (p: string) => {
       const norm = String(p).replaceAll('\\', '/');
       return norm.endsWith(OBSOLETE) || (recorded !== null && norm.endsWith('components.lock.json'));
@@ -350,7 +357,7 @@ describe('performInstall prunes obsolete files (B7)', () => {
     });
     asMock(fs.readFile).mockResolvedValue(content);
 
-    const result = await performInstall({ ...base, components: ['page-builder'], options: { branch: 'master', overwrite: true } });
+    const result = await performInstall({ ...base, config, components: ['page-builder'], options: { branch: 'master', overwrite: true } });
 
     const removed = asMock(fs.remove).mock.calls.map(c => String(c[0]).replaceAll('\\', '/'));
     expect(result.pruned.includes(OBSOLETE)).toBe(pruned);
