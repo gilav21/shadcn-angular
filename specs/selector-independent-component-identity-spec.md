@@ -423,7 +423,7 @@ assertion at another layer); proves text, not projection.
 
 | # | Task | Proves | Status | Completed | Score | Retrospective |
 |---|------|--------|--------|-----------|-------|---------------|
-| 1 | Write failing tests T-1…T-13 (POP, ACT, CHAT, PFX, GUARD — create `selector-references.ts` with exported, unimplemented function signatures so the spec compiles and fails on assertions) and the e2e skeleton T-14 (§F.6). Record pre-change coverage of every touched file. Confirm each test is red for the intended reason. | all UC | ⬜ Not started | — | — | — |
+| 1 | Write failing tests T-1…T-13 (POP, ACT, CHAT, PFX, GUARD — create `selector-references.ts` with exported, unimplemented function signatures so the spec compiles and fails on assertions) and the e2e skeleton T-14 (§F.6). Record pre-change coverage of every touched file. Confirm each test is red for the intended reason. | all UC | ✅ Done (red-first) | 2026-10-04 10:38 | 92 | Every test is red for its stated reason (§G 6–9), including a real prefix simulation for chat via `overrideComponent`. Sonar was scan-only because red tests fail the coverage leg by design. Next time: write the order-insensitive assertions from the start. |
 | 2 | Mention popover: replace the `closest` query with `ElementRef.contains` (§F.1); update the `closed` JSDoc (`:83-88`) to say "outside this popover". T-1, T-2 green in both legs. | UC-1 | ⬜ Not started | — | — | — |
 | 3 | Actions stylesheet + chat: retarget at `data-slot` (§F.2). T-3, T-4 green in the **browser** leg; `rte-actions` and `chat` e2e green. | UC-2, UC-3 | ⬜ Not started | — | — | — |
 | 4 | CLI: `select` rewrite in `applyPrefixTransforms` (§F.3); JSDoc on `neutralizePrefix` per E-1 (§F.4); README section (UC-8). T-5, T-6 green; existing `prefix.spec.ts`, `baseline.spec.ts`, `clean-reinstall.spec.ts` green. | UC-4, UC-8 | ⬜ Not started | — | — | — |
@@ -632,7 +632,33 @@ list reverse dependents to include in e2e.
 
 **Corrections found while executing this spec (append-only):**
 
-_(none yet)_
+6. ⚠️ (Task 1) "Chat avatar order: no test asserts the avatar's rendered
+   position" (§0) is false — `chat.component.browser.spec.ts` already asserted
+   the LTR user/assistant avatar position. T-4 therefore **extends** that test
+   (case 2): RTL rows, plus a prefixed variant that renames `AvatarComponent`'s
+   selector to `acme-avatar` and rewrites the chat template's tags via
+   `TestBed.overrideComponent` — the runtime shape of a `--prefix acme`
+   install. That variant is red before Task 3, so T-4 is a red-first test.
+7. ⚠️ (Task 1) T-2's two-popover case is red **under the `ui-` tag too**: B's
+   `closest('ui-rich-text-mention-popover')` matches A's host, so a click
+   inside A never closes B. A pre-existing bug in the same class, fixed by A-1.
+8. (Task 1) Guard contract pinned by the tests, beyond §F.5's wording:
+   (a) `findSelectorReferences` returns `other-string` refs **only for declared
+   tokens** (it takes `declared` for that reason); tag/select/css-element/
+   selector-metadata refs are returned whatever the token, for the STALE check.
+   (b) In `.css` the guard looks only at rule **preludes** (selectors) — a
+   declaration value such as `animation: ui-x-fade 1s` is not a position,
+   although `rewriteCssSelectors` would rewrite it. This is deliberately
+   stricter than the CLI: T-13 needs guard positions ⊆ CLI positions, never
+   the reverse. (c) Finding lines are column-aligned: `kind.padEnd(7) + ' '`
+   (`STALE   …`, `RUNTIME …`), where §D.1 showed two spaces after STALE.
+   (d) The order `findSelectorReferences` returns references in is not part of
+   the contract; the tests compare them sorted. `checkReferences` does keep
+   its input order (RUNTIME/STALE lines first, ALLOW-STALE last).
+9. (Task 1) Pre-change line coverage (`npm run coverage` at 14216e9b sources):
+   `chat.component.ts` 15/15 (100%); `rich-text-actions.directive.ts` 271/272
+   (99.63%, line 339 uncovered); `rich-text-mention-popover.component.ts` 59/59
+   (100%); `packages/cli/src/utils/prefix.ts` 22/25 (88%, lines 30, 31, 131).
 
 ---
 
@@ -640,4 +666,4 @@ _(none yet)_
 
 | Row | Date | Task | Reviewer score | Notes |
 |---|---|---|---|---|
-| — | — | — | — | — |
+| 1 | 2026-10-04 10:38 | Failing tests T-1…T-14 | 92 (round 1: 89) | All red for the intended reason; reviewer confirmed that the CLI leg fails as reported and that §G 6–9 document the deviations. Sonar round 1: 14 open = master's accepted set, 0 in changed files. |
