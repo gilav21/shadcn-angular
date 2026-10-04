@@ -1,5 +1,7 @@
 import { registry, type ComponentName } from '../registry/index.js';
 
+export class UnknownComponentError extends Error {}
+
 export function resolveDependencies(names: ComponentName[]): Set<ComponentName> {
     const all = new Set<ComponentName>();
     const walk = (name: ComponentName): void => {

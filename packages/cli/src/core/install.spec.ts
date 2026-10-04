@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import fs from 'fs-extra';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { performInstall, planInstall, previewComponentMerges, expandForTests } from './install.js';
 import { getDefaultConfig } from '../utils/config.js';
 import { isPristineLib } from './lib-reconcile.js';
@@ -8,6 +10,7 @@ import { writeShortcutRegistryIndex } from '../utils/shortcut-registry.js';
 import { fetchAndTransform, fetchLibContent } from './fetch.js';
 import { registry, type ComponentName } from '../registry/index.js';
 import type { ConflictCheckResult } from './plan.js';
+import { hashContent } from './manifest.js';
 
 vi.mock('fs-extra', () => ({
   default: {
@@ -316,41 +319,43 @@ describe('performInstall', () => {
 describe('performInstall prunes obsolete files (B7)', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('deletes a reinstalled component\'s obsolete old-layout file', async () => {
-    // page-builder declares `page-builder/property-editor.component.ts` obsolete
-    // (replaced by sub/). Present on disk + untracked (no manifest) => pruned.
-    const OBSOLETE = 'page-builder/property-editor.component.ts';
-    (fs.pathExists as unknown as ReturnType<typeof vi.fn>).mockImplementation(
-      async (p: string) => String(p).replaceAll('\\', '/').endsWith(OBSOLETE),
-    );
+  // page-builder declares this file obsolete (replaced by sub/). PUBLISHED is
+  // the real source we shipped before that move (`git show
+  // e57aa555^:packages/components/ui/page-builder/property-editor.component.ts`,
+  // stored LF; the historical blob is CRLF, which the baseline hash normalizes
+  // away). EDITED is the same file with one line changed by its user.
+  const OBSOLETE = 'page-builder/property-editor.component.ts';
+  const PUBLISHED = readFileSync(
+    fileURLToPath(new URL('./__fixtures__/property-editor.component.pre-e57aa555.txt', import.meta.url)), 'utf-8',
+  );
+  const EDITED = PUBLISHED.replace('Columns (Width)', 'Width in columns');
+  const keptUntracked = `Kept ${OBSOLETE}: it differs from every version we shipped (delete it manually if intended).`;
+  const keptModified = `Kept ${OBSOLETE}: it differs from the version we installed (delete it manually if intended).`;
 
-    const result = await performInstall({ ...base, components: ['page-builder'], options: { branch: 'master', overwrite: true } });
-
-    expect(result.pruned).toContain(OBSOLETE);
-    const removed = (fs.remove as unknown as ReturnType<typeof vi.fn>).mock.calls
-      .map(c => String(c[0]).replaceAll('\\', '/'));
-    expect(removed.some(p => p.endsWith(OBSOLETE))).toBe(true);
-  });
-
-  it('keeps an obsolete file the user modified from baseline', async () => {
-    const OBSOLETE = 'page-builder/property-editor.component.ts';
-    (fs.pathExists as unknown as ReturnType<typeof vi.fn>).mockImplementation(
-      async (p: string) => {
-        const norm = String(p).replaceAll('\\', '/');
-        return norm.endsWith(OBSOLETE) || norm.endsWith('components.lock.json');
-      },
-    );
-    // Manifest records a DIFFERENT baseline for the obsolete file => "modified" => protected.
-    (fs.readJson as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-      version: 1,
-      files: { [OBSOLETE]: { sha256: 'deadbeef', component: 'page-builder' } },
+  // Same path, same status, different content is the only pair that tells the
+  // content rule apart from a status-only rule — hence both untracked rows.
+  it.each([
+    { label: 'clean against the lockfile', content: EDITED, recorded: EDITED, pruned: true, warning: null },
+    { label: 'untracked and byte-identical to a published version', content: PUBLISHED, recorded: null, pruned: true, warning: null },
+    { label: 'untracked and edited before the lockfile existed', content: EDITED, recorded: null, pruned: false, warning: keptUntracked },
+    { label: 'modified from the lockfile baseline', content: PUBLISHED, recorded: EDITED, pruned: false, warning: keptModified },
+  ])('prunes an obsolete file only when it is provably ours and unedited: $label', async ({ content, recorded, pruned, warning }) => {
+    asMock(fs.pathExists).mockImplementation(async (p: string) => {
+      const norm = String(p).replaceAll('\\', '/');
+      return norm.endsWith(OBSOLETE) || (recorded !== null && norm.endsWith('components.lock.json'));
     });
-    (fs.readFile as unknown as ReturnType<typeof vi.fn>).mockResolvedValue('USER EDITED');
+    asMock(fs.readJson).mockResolvedValue({
+      version: 1,
+      files: recorded === null ? {} : { [OBSOLETE]: { sha256: hashContent(recorded), component: 'page-builder' } },
+    });
+    asMock(fs.readFile).mockResolvedValue(content);
 
     const result = await performInstall({ ...base, components: ['page-builder'], options: { branch: 'master', overwrite: true } });
 
-    expect(result.pruned).not.toContain(OBSOLETE);
-    expect(result.warnings.some(w => w.includes(OBSOLETE))).toBe(true);
+    const removed = asMock(fs.remove).mock.calls.map(c => String(c[0]).replaceAll('\\', '/'));
+    expect(result.pruned.includes(OBSOLETE)).toBe(pruned);
+    expect(removed.some(p => p.endsWith(OBSOLETE))).toBe(pruned);
+    expect(result.warnings.filter(w => w.startsWith(`Kept ${OBSOLETE}`))).toEqual(warning === null ? [] : [warning]);
   });
 });
 

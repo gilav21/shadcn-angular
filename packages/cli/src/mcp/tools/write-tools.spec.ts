@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import fs from 'fs-extra';
 import path from 'node:path';
 import { registerWriteTools } from './write-tools.js';
@@ -23,7 +23,7 @@ import { changeThemeCore } from '../../commands/change-theme.js';
 import { getConfig, getDefaultConfig, type Config } from '../../utils/config.js';
 import { emptyMergeReport, type MergeReport } from '../../core/merge.js';
 import { DEFAULT_BRANCH, aliasToProjectPath, resolveProjectPath } from '../../utils/paths.js';
-import type { ComponentName } from '../../registry/index.js';
+import { registry, type ComponentDefinition, type ComponentName } from '../../registry/index.js';
 
 vi.mock('fs-extra', () => ({ default: { pathExists: vi.fn() } }));
 vi.mock('../../core/install.js', () => ({ performInstall: vi.fn() }));
@@ -255,11 +255,43 @@ describe('add_component', () => {
     expect(performInstall).not.toHaveBeenCalled();
   });
 
-  it('rejects unknown component names before installing anything', async () => {
-    const res = await call('add_component', { names: ['button', 'nope', 'also-nope'] });
+  // Every name list the agent supplies reaches performInstall's resolver, so
+  // each is validated — `constructor` is the inherited-name class.
+  it.each([
+    { label: 'names', args: { names: ['button', 'nope', 'constructor'] } },
+    { label: 'optionalDeps', args: { names: ['button'], optionalDeps: ['ripple', 'nope', 'constructor'] } },
+    { label: 'overwrite', args: { names: ['button'], overwrite: ['card', 'nope', 'constructor'] } },
+  ])('rejects unknown component names in $label before installing anything', async ({ args }) => {
+    const res = await call('add_component', args);
     expect(res.isError).toBe(true);
-    expect(text(res)).toBe('Unknown component(s): nope, also-nope');
+    expect(text(res)).toBe('Unknown component(s): nope, constructor');
     expect(performInstall).not.toHaveBeenCalled();
+  });
+
+  describe('with a preset that names an addon the applied manifest lacks', () => {
+    const mutable = registry as unknown as Record<string, ComponentDefinition>;
+    let original: ComponentDefinition;
+
+    beforeEach(() => {
+      original = mutable['rich-text-editor'];
+      mutable['rich-text-editor'] = {
+        ...original,
+        presets: { ...original.presets, writing: ['rich-text-editor/links', 'rich-text-editor/gone'] },
+      };
+    });
+
+    afterEach(() => {
+      mutable['rich-text-editor'] = original;
+    });
+
+    it('skips the undefined key with the CLI warning and installs the rest', async () => {
+      const res = await call('add_component', { names: ['rich-text-editor'], preset: 'writing' });
+
+      expect(vi.mocked(performInstall).mock.calls[0][0].optionalDeps).toEqual(['rich-text-editor/links']);
+      expect(parsed<InstallResult>(res).warnings).toContain(
+        'Preset "writing" lists rich-text-editor/gone, which this registry does not offer — skipping.',
+      );
+    });
   });
 
   it('delegates to performInstall with the names, overwrite set, optional deps and path', async () => {

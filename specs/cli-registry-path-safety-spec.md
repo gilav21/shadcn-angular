@@ -368,11 +368,12 @@ budget needed.
 
 | Situation | Text |
 | --- | --- |
-| manifest rejected | `⚠ Could not use the registry manifest from <url>: <entry>.<field> contains "<value>" (<reason>); using the bundled copy, which may be stale.` — when there are several violations, the first three are listed, then `(+N more)` |
+| manifest rejected | `⚠ Could not use the registry manifest from <url>: <entry>.<field> contains "<value>" (<reason>); using the bundled copy, which may be stale.` — when there are several violations, the first three are listed, then `(+N more)` (decided in Task 1: violations joined with `, `, the count appended after the third, before the `;`) |
+| `<field>` labels (decided in Task 1) | the manifest field name (`files`, `obsoleteFiles`, `dependencies`, `npmDependencies`, `parent`); an element of an object list is indexed (`shortcutDefinitions[0].sourceFile`, `optionalDependencies[2].name`); a preset value is `presets.<preset>`; an addon attach is `attach.import` / `attach.selector`; a bad key is `key`, a key ≠ name mismatch is `name` |
 | R1 reason | `path leaves its install directory` |
 | R2 reasons | `not a component key` · `key does not match its name "<name>"` · `refers to "<name>", which this registry does not define` |
 | R3 reason | `not a plain registry package spec (name or name@range)` |
-| R4 reasons | `not a JavaScript identifier` · `not a selector token` |
+| R4 reasons | `not a JavaScript identifier` · `not a selector token` · a shortcut `componentName` is a component key, so it gets R2's `not a component key` |
 | sink refused | `Path must stay inside the project directory: <path>` (existing `resolveProjectPath` text) |
 | inherited name | existing `Invalid component(s): …` / `Unknown component(s): …` |
 | prune kept (untracked, no baseline) | `Kept <file>: it differs from every version we shipped (delete it manually if intended).` |
@@ -496,7 +497,7 @@ lead's job, not this spec's.
 
 | # | Task | Proves | Status | Completed | Score | Retrospective |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Write failing tests T-1 … T-17 (T-17 by **fixing** the bug-asserting case at `install.spec.ts:319-330`; commit the historical `property-editor.component.ts` blob as a fixture). Confirm each fails for the right reason. | UC-1 … UC-9 | ⬜ Not started | — | — | — |
+| 1 | Write failing tests T-1 … T-17 (T-17 by **fixing** the bug-asserting case at `install.spec.ts:319-330`; commit the historical `property-editor.component.ts` blob as a fixture). Confirm each fails for the right reason. | UC-1 … UC-9 | ✅ Done | 2026-10-04 10:35 | 92 | 59 cases red for the stated reason (0 pre-existing failures at 14216e9b). Reviewers caught potency gaps a happy-path pass missed: no inherited-name reference row, and a T-7 sentinel that the Task 5 content rule would have kept anyway. Both fixed by sampling the class, not adding tests. Later: decide message formats in the spec before pinning them in tests. |
 | 2 | `registry/manifest-rules.ts` (R1–R4 + `findManifestViolations`); wire into `isValidRegistryShape` / `loadRegistry` so the fallback warning names the first violations (§D.3) | UC-1, UC-3, UC-7, UC-8, UC-10 | ⬜ Not started | — | — | — |
 | 3 | Own-key lookups: `isComponentName` → `Object.hasOwn`; `add.ts:69` and `diff.ts:56` → `isComponentName`; `presets.ts:55` → `Object.hasOwn`; `UnknownComponentError` in `resolve.ts`; MCP `add_component` validates `optionalDeps` + `overwrite` and filters preset keys like the CLI's `offeredPreselection` | UC-4, UC-5, UC-6 | ⬜ Not started | — | — | — |
 | 4 | Sink guards via `resolveProjectPath` in `merge.ts`, `install.ts` (`installLibFiles`, `pruneObsoleteFiles`), `lib-reconcile.ts` (`classifyLibFile`, `refreshLibFiles`), `migrate-core.ts` (`deleteLegacyFiles`, `rollbackPartialNewFolders`) | UC-2 | ⬜ Not started | — | — | — |
@@ -551,3 +552,4 @@ Marking a row Done without all five is a process violation, not a shortcut.
 
 | Row | Date | Task | Reviewer score | Notes |
 | --- | --- | --- | --- | --- |
+| 1 | 2026-10-04 10:35 | Failing tests T-1 … T-17 | 92 (rounds: 88, 89, 92) | Reviewer: every §C.5 mutation turns a test red. T-7 puts a byte-exact published file outside the ui dir, so the prune guard is visible even after the content rule lands. T-17's row pairing separates the status-only, content-only and clean-only rules. Deviations, all recorded: the `<field>` labels and the multi-violation layout are fixed in §D.3. T-9b uses the real installer with an empty write set (no I/O) instead of mocks. T-11 asserts that no `fetch` happened, standing in for "`detectConflicts` not reached". Extra rows: `constructor` in T-13/T-14 and in a T-3 reference, R3 leading `.`/`_`/>214 chars, empty lists. Plus one extra load test for `(+N more)`. **Task 6 verification done early** (it needs no code): `-- --registry=http://127.0.0.1:9` is rejected as a package spec by npm 11.5.1 (ENOENT), pnpm 9.15.9 (`ERR_PNPM_SPEC_NOT_SUPPORTED_BY_ANY_RESOLVER`), yarn 1.22.22 (fetches it as a package name → 405), yarn 4.18.1 ("didn't match the required format") and bun 1.2.23 ("unrecognised dependency format"). `-D -- is-number@7.0.0` installs normally on all five. Sonar scan 1 (tests only): 14 open, exactly master's 14 manual Won't-Fix findings, 0 in changed files. Verdict rule escalated to the human. |
