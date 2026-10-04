@@ -2253,7 +2253,7 @@ export const registry = defineRegistry({
 export type ComponentName = keyof typeof registry;
 
 export function isComponentName(name: string): name is ComponentName {
-    return name in registry;
+    return Object.hasOwn(registry, name);
 }
 
 export function getComponentNames(): ComponentName[] {

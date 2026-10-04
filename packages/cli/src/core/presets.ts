@@ -52,7 +52,7 @@ export function resolvePreset(
 
     if (declaring.length === 0) throw noPresetsError(requested);
 
-    const matching = declaring.filter(d => preset in d.presets);
+    const matching = declaring.filter(d => Object.hasOwn(d.presets, preset));
     if (matching.length === 0) throw unknownPresetError(preset, declaring);
 
     const addons = new Set<string>();

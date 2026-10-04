@@ -4,7 +4,7 @@ import prompts from 'prompts';
 import chalk from 'chalk';
 import ora, { type Ora } from 'ora';
 import { getConfig, getPrefix, getBlocksAlias, type Config } from '../utils/config.js';
-import { registry, getComponentNames, type ComponentName } from '../registry/index.js';
+import { registry, getComponentNames, isComponentName, type ComponentName } from '../registry/index.js';
 import {
     resolveProjectPath,
     aliasToProjectPath,
@@ -66,7 +66,7 @@ async function selectComponents(components: string[], options: AddOptions): Prom
 }
 
 function validateComponents(names: ComponentName[]): void {
-    const invalid = names.filter(c => !(c in registry));
+    const invalid = names.filter(c => !isComponentName(c));
     if (invalid.length > 0) {
         console.log(chalk.red(`Invalid component(s): ${invalid.join(', ')}`));
         console.log(chalk.dim('Available components: ' + selectableComponentNames().join(', ')));
