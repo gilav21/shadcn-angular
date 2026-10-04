@@ -121,19 +121,23 @@ describe('registry-fed write and delete sinks', () => {
             survives();
         });
 
-        it('rollback never removes outside the ui dir', async () => {
+        // A name that escapes, and a name that resolves to the ui dir itself:
+        // a recursive delete of the latter wipes every installed component.
+        it.each(['../outside', '.'])('rollback never removes outside the ui dir, nor the ui dir itself: %s', async (name) => {
+            fs.writeFileSync(path.join(ui, 'installed.ts'), '// installed\n');
             // An empty write set installs nothing, so every structural name is
             // "not installed" and reaches the rollback's recursive delete. With
             // nothing to write, the real installer and conflict scan touch
             // neither disk nor network, so they need no mock here.
             const plan: MigrationPlan = {
-                structural: ['../outside' as ComponentName],
+                structural: [name as ComponentName],
                 customized: [], blocked: [], writeSet: [], newDeps: [], refreshed: [], untouched: [],
             };
 
             await expect(runMigration(plan, project, ui, getDefaultConfig(), { branch: 'master' }))
-                .rejects.toThrow(`${GUARD}: ../outside`);
+                .rejects.toThrow(`${GUARD}: ${name}`);
             survives();
+            expect(read(path.join(ui, 'installed.ts'))).toBe('// installed\n');
         });
     });
 });

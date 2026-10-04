@@ -9,7 +9,7 @@ import { transformSpecForRunner, VITEST_COMPAT_LIB_FILE } from '../utils/test-tr
 import { hasJestGlobals } from '../utils/test-runner.js';
 import { writeShortcutRegistryIndex, type ShortcutRegistryEntry } from '../utils/shortcut-registry.js';
 import { registry, type ComponentDefinition, type ComponentName } from '../registry/index.js';
-import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
+import { resolveProjectPath, resolveInside, aliasToProjectPath } from '../utils/paths.js';
 import { readManifest, writeManifest, recordFile, recordComponentRef, fileStatus, removeFiles, type Manifest } from './manifest.js';
 import { resolveRef } from './ref.js';
 import { mergeWriteFile, previewMergeFile, emptyMergeReport, shouldAdvanceRef, type MergeReport, type MergeOutcome, type MergeWriteContext } from './merge.js';
@@ -200,7 +200,14 @@ async function installLibFiles(
     if (required.size === 0) return;
     await fs.ensureDir(libDir);
     for (const libFile of required) {
-        await installSingleLibFile(libFile, path.join(libDir, libFile), options, warnings, manifest);
+        let targetPath: string;
+        try {
+            targetPath = resolveInside(libDir, libFile);
+        } catch (err: unknown) {
+            warnings.push(`Could not install lib file ${libFile}: ${err instanceof Error ? err.message : String(err)}`);
+            continue;
+        }
+        await installSingleLibFile(libFile, targetPath, options, warnings, manifest);
     }
 }
 
@@ -455,18 +462,38 @@ async function pruneObsoleteFiles(
     const pruned: string[] = [];
     for (const name of finalComponents) {
         for (const rel of registry[name].obsoleteFiles ?? []) {
-            const abs = path.join(targetDir, rel);
-            if (!await fs.pathExists(abs)) continue;
-            if (fileStatus(manifest, rel, await fs.readFile(abs, 'utf-8')) === 'modified') {
-                warnings.push(`Kept ${rel}: it differs from the version we installed (delete it manually if intended).`);
-                continue;
-            }
-            await fs.remove(abs);
-            removeFiles(manifest, [rel]);
-            pruned.push(rel);
+            if (await tryPruneObsoleteFile(rel, targetDir, manifest, warnings)) pruned.push(rel);
         }
     }
     return pruned;
+}
+
+/** {@link pruneObsoleteFile}, with any refusal or I/O error reported as a warning. */
+async function tryPruneObsoleteFile(
+    rel: string, targetDir: string, manifest: Manifest, warnings: string[],
+): Promise<boolean> {
+    try {
+        return await pruneObsoleteFile(rel, targetDir, manifest, warnings);
+    } catch (err: unknown) {
+        warnings.push(`Could not prune ${rel}: ${err instanceof Error ? err.message : String(err)}`);
+        return false;
+    }
+}
+
+/** Delete one obsolete file unless the user's edits protect it; `true` when deleted. */
+async function pruneObsoleteFile(
+    rel: string, targetDir: string, manifest: Manifest, warnings: string[],
+): Promise<boolean> {
+    // `rel` comes from registry data; refuse any path that leaves the target dir.
+    const abs = resolveInside(targetDir, rel);
+    if (!await fs.pathExists(abs)) return false;
+    if (fileStatus(manifest, rel, await fs.readFile(abs, 'utf-8')) === 'modified') {
+        warnings.push(`Kept ${rel}: it differs from the version we installed (delete it manually if intended).`);
+        return false;
+    }
+    await fs.remove(abs);
+    removeFiles(manifest, [rel]);
+    return true;
 }
 
 /** One file's predicted merge outcome for `update --dry-run` (no write, no record). */
