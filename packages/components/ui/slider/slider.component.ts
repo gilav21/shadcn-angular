@@ -7,6 +7,8 @@ import {
     ElementRef,
     inject,
     linkedSignal,
+    OnInit,
+    DestroyRef,
 } from '@angular/core';
 import { cn, isRtl } from '../../lib/utils';
 import { UI_LOCALE_ID, formatNumber } from '../../lib/i18n';
@@ -27,7 +29,7 @@ const PAGE_STEPS = 10;
         class: 'contents',
     },
 })
-export class SliderComponent {
+export class SliderComponent implements OnInit {
     private readonly el = inject(ElementRef);
 
     /** Lower bound of the range. Must be less than {@link max}, otherwise the fill percentage logs an error and falls back to 0. */
@@ -48,8 +50,15 @@ export class SliderComponent {
     step = input(1);
     /** Dims the slider and blocks pointer events, and short-circuits every keyboard and drag handler. */
     disabled = input(false);
-    /** Starting value, read once in the constructor — later changes to this input do not move the thumb. */
-    defaultValue = input(0);
+    /**
+     * Starting value for an uncontrolled slider, applied once on init and
+     * snapped to the grid — later changes to this input do not move the thumb.
+     * Silent: it neither emits {@link value} nor dirties a form. A value
+     * supplied by `[value]` / `[(value)]` or by a form wins over it; a bound
+     * `[value]` of exactly `0` is indistinguishable from "unset" and lets the
+     * default apply.
+     */
+    defaultValue = input<number | undefined>(undefined);
     /** Extra classes merged onto the outer track wrapper, not onto the fill or the thumb. */
     class = input('');
     /** `aria-label` for the visually hidden `<input type="range">` that carries the slider's accessibility semantics. */
@@ -105,9 +114,19 @@ export class SliderComponent {
     }
 
     constructor() {
-        const defaultVal = this.defaultValue();
-        if (defaultVal !== undefined) {
-            this.value.set(defaultVal);
+        // A slider destroyed mid-drag (navigating away with the button held)
+        // would otherwise keep its document listeners writing into a dead view.
+        inject(DestroyRef).onDestroy(() => this.cancelDrag());
+    }
+
+    /**
+     * Seeds {@link defaultValue}. Signal inputs are not bound yet in the
+     * constructor, which is why a constructor read always saw the default.
+     */
+    ngOnInit(): void {
+        const seed = this.defaultValue();
+        if (seed !== undefined && this.value() === 0) {
+            this.current.set(seed);
         }
     }
 
@@ -152,7 +171,11 @@ export class SliderComponent {
         this.startDragging();
     }
 
-    /** Touch counterpart of {@link onTrackMouseDown}: seeks to the first touch point and tracks `touchmove` on the document until `touchend`. */
+    /**
+     * Touch counterpart of {@link onTrackMouseDown}: seeks to the first touch
+     * point and tracks `touchmove` on the document until `touchend` or
+     * `touchcancel` (an incoming call, an OS gesture).
+     */
     onTouchStart(event: TouchEvent): void {
         if (this.disabled()) return;
 
@@ -161,33 +184,51 @@ export class SliderComponent {
             this.updateValueFromTouch(event.touches[0]);
         }
 
-        const onTouchMove = (e: TouchEvent): void => {
+        const signal = this.beginDrag();
+        document.addEventListener('touchmove', (e: TouchEvent) => {
             if (e.touches.length > 0) {
                 this.updateValueFromTouch(e.touches[0]);
             }
-        };
+        }, { signal, passive: false });
+        document.addEventListener('touchend', () => this.endDrag(), { signal });
+        document.addEventListener('touchcancel', () => this.cancelDrag(), { signal });
+    }
 
-        const onTouchEnd = (): void => {
-            document.removeEventListener('touchmove', onTouchMove);
-            document.removeEventListener('touchend', onTouchEnd);
-        };
+    /**
+     * A value set on the hidden range input from outside the keyboard
+     * handler — the increment/decrement gesture of a mobile screen reader,
+     * which sets the value and fires `input`. Goes through the grid like any
+     * other user change. Keys never arrive here twice: {@link onKeyDown}
+     * prevents the default of every key it handles.
+     */
+    onNativeInput(event: Event): void {
+        if (this.disabled()) return;
+        const input = event.target as HTMLInputElement;
+        this.commit(snapToStep(input.valueAsNumber, this.grid()));
+    }
 
-        document.addEventListener('touchmove', onTouchMove, { passive: false });
-        document.addEventListener('touchend', onTouchEnd);
+    /** Listeners of the drag in progress; aborting removes every one of them at once. */
+    private drag: AbortController | null = null;
+
+    private beginDrag(): AbortSignal {
+        this.cancelDrag();
+        this.drag = new AbortController();
+        return this.drag.signal;
+    }
+
+    private cancelDrag(): void {
+        this.drag?.abort();
+        this.drag = null;
+    }
+
+    private endDrag(): void {
+        this.cancelDrag();
     }
 
     private startDragging(): void {
-        const onMouseMove = (e: MouseEvent): void => {
-            this.updateValueFromEvent(e);
-        };
-
-        const onMouseUp = (): void => {
-            document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseup', onMouseUp);
-        };
-
-        document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup', onMouseUp);
+        const signal = this.beginDrag();
+        document.addEventListener('mousemove', (e: MouseEvent) => this.updateValueFromEvent(e), { signal });
+        document.addEventListener('mouseup', () => this.endDrag(), { signal });
     }
 
     /**
