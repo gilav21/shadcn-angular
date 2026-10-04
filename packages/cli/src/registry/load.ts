@@ -14,6 +14,7 @@
 import fs from 'fs-extra';
 import { registry, __resetRegistryCaches, type ComponentDefinition } from './index.js';
 import { getRegistryManifestUrl, getLocalRegistryJson, DEFAULT_BRANCH } from '../utils/paths.js';
+import { findManifestViolations, type ManifestViolation } from './manifest-rules.js';
 
 export interface LoadRegistryOptions {
     branch?: string;
@@ -44,14 +45,25 @@ function isPresetMap(value: unknown): boolean {
     return Object.values(value).every(isStringArray);
 }
 
+/** Optional fields every consumer iterates as a list of strings. */
+const STRING_LIST_FIELDS = [
+    'addons', 'testFiles', 'testDependencies', 'peerFiles', 'libFiles', 'obsoleteFiles',
+    'requiresBaseFiles', 'dependencies', 'npmDependencies',
+] as const;
+/** Optional fields every consumer iterates as a list of objects. */
+const OBJECT_LIST_FIELDS = ['optionalDependencies', 'shortcutDefinitions'] as const;
+
+function isObjectArray(value: unknown): boolean {
+    return Array.isArray(value) && value.every((item) => typeof item === 'object' && item !== null);
+}
+
 function isValidRegistryEntry(entry: unknown): boolean {
     if (typeof entry !== 'object' || entry === null) return false;
     const e = entry as Record<string, unknown>;
-    if (typeof e['name'] !== 'string' || !Array.isArray(e['files'])) return false;
-    if (e['addons'] !== undefined && !isStringArray(e['addons'])) return false;
+    if (typeof e['name'] !== 'string' || !isStringArray(e['files'])) return false;
+    if (STRING_LIST_FIELDS.some((f) => e[f] !== undefined && !isStringArray(e[f]))) return false;
+    if (OBJECT_LIST_FIELDS.some((f) => e[f] !== undefined && !isObjectArray(e[f]))) return false;
     if (e['presets'] !== undefined && !isPresetMap(e['presets'])) return false;
-    if (e['testFiles'] !== undefined && !isStringArray(e['testFiles'])) return false;
-    if (e['testDependencies'] !== undefined && !isStringArray(e['testDependencies'])) return false;
     if (e['type'] === 'addon') return isValidAddonEntry(e);
     return true;
 }
@@ -86,6 +98,40 @@ async function fetchManifest(options: LoadRegistryOptions): Promise<string> {
         throw new Error(`${response.status} ${response.statusText} from ${url}`);
     }
     return response.text();
+}
+
+/** Where {@link fetchManifest} reads the manifest from, for messages — keep the two in sync. */
+function manifestLocation(options: LoadRegistryOptions): string {
+    const local = getLocalRegistryJson();
+    if (local && !wantsRemoteManifest(options)) return local;
+    return getRegistryManifestUrl(options.branch ?? DEFAULT_BRANCH, options.registry);
+}
+
+const LISTED_VIOLATIONS = 3;
+
+/**
+ * Escape C0/C1 control characters the way JSON does. Keys, preset names and the
+ * reasons quoting them come from the untrusted manifest, and an ESC sequence
+ * printed raw would drive the developer's terminal.
+ */
+function printable(text: string): string {
+    let out = '';
+    for (const ch of text) {
+        const code = ch.codePointAt(0) ?? 0;
+        const control = code < 0x20 || (code >= 0x7f && code < 0xa0);
+        out += control ? `\\u${code.toString(16).padStart(4, '0')}` : ch;
+    }
+    return out;
+}
+
+/** The warning for a manifest that parsed but breaks R1–R4 (see manifest-rules.ts). */
+function rejectionMessage(location: string, violations: readonly ManifestViolation[]): string {
+    const listed = violations.slice(0, LISTED_VIOLATIONS)
+        .map((v) => printable(`${v.entry}.${v.field} contains ${JSON.stringify(v.value)} (${v.reason})`))
+        .join(', ');
+    const more = violations.length > LISTED_VIOLATIONS ? ` (+${violations.length - LISTED_VIOLATIONS} more)` : '';
+    return `⚠ Could not use the registry manifest from ${location}: ${listed}${more}; ` +
+        `using the bundled copy, which may be stale.`;
 }
 
 type Manifest = Record<string, ComponentDefinition>;
@@ -145,6 +191,12 @@ export async function loadRegistry(options: LoadRegistryOptions = {}): Promise<b
         const data: unknown = JSON.parse(raw);
         if (!isValidRegistryShape(data)) {
             throw new Error('registry manifest has an unexpected shape');
+        }
+        const violations = findManifestViolations(data);
+        if (violations.length > 0) {
+            console.warn(rejectionMessage(manifestLocation(options), violations));
+            applyManifest(BUNDLED, null);
+            return false;
         }
         manifestCache.set(key, data);
         applyManifest(data, key);

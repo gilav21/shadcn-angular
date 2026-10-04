@@ -181,6 +181,27 @@ describe('loadRegistry', () => {
         expect(message).not.toContain('../4.ts');
     });
 
+    it('never prints a control character from the manifest into the terminal', async () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        // Hostile keys carrying a C0 ESC and a C1 CSI: keys are printed outside
+        // the JSON-quoted value, so they need escaping of their own.
+        stubFetch({
+            ok: true,
+            text: async () => JSON.stringify({
+                'x\u001b[2J': { name: 'x\u001b[2J', files: [] },
+                'y\u009b2J': { name: 'y\u009b2J', files: [] },
+            }),
+        });
+
+        await loadRegistry({ remote: true, branch: 'master' });
+
+        const message = String(warn.mock.calls[0][0]);
+        expect(message).not.toContain('\u001b');
+        expect(message).not.toContain('\u009b');
+        expect(message).toContain(String.raw`x\u001b[2J.key`);
+        expect(message).toContain(String.raw`y\u009b2J.key`);
+    });
+
     it('keeps the bundled snapshot and warns on malformed JSON', async () => {
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
         stubFetch({ ok: true, text: async () => 'not json at all' });
