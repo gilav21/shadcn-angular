@@ -393,6 +393,45 @@ describe('TimePickerComponent', () => {
             expect(hour.value).toBe('14');
         });
 
+        /**
+         * A write from the form is never an echo of our own commit, so it
+         * renders even when it matches the `null` a half-typed time adds up to.
+         */
+        it('form reset clears a half-typed time', async () => {
+            const settle = async (host: ComponentFixture<ReactiveHostComponent>): Promise<void> => {
+                host.detectChanges();
+                await host.whenStable();
+                host.detectChanges();
+            };
+            /** Types into one segment of a fresh form, lets the form write, and reads every segment back. */
+            const typeThenWrite = async (
+                kind: TimeSegmentKind,
+                text: string,
+                write: (control: FormControl<string | null>) => void,
+            ): Promise<string[]> => {
+                const host = TestBed.createComponent(ReactiveHostComponent);
+                await settle(host);
+                const field: HTMLInputElement = host.nativeElement.querySelector(`[data-segment="${kind}"]`);
+                field.value = text;
+                field.dispatchEvent(new Event('input', { bubbles: true }));
+                await settle(host);
+                write(host.componentInstance.control);
+                await settle(host);
+                const segments: HTMLInputElement[] = [
+                    ...host.nativeElement.querySelectorAll('[data-slot="time-picker-segment"]'),
+                ];
+                const shown = segments.map(segment => segment.value);
+                host.destroy();
+                return shown;
+            };
+
+            expect([
+                await typeThenWrite('hour', '9', control => control.reset()),
+                await typeThenWrite('minute', '7', control => control.setValue(null)),
+                await typeThenWrite('hour', '9', control => control.setValue('09:15')),
+            ]).toEqual([['', ''], ['', ''], ['09', '15']]);
+        });
+
         it('disables every segment when the form disables the control', async () => {
             reactive.componentInstance.control.disable();
             reactive.detectChanges();

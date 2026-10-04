@@ -875,7 +875,7 @@ export const registry = defineRegistry({
     description: 'Draggable slider for selecting a value or range from a numeric scale.',
     tags: ['slider', 'range', 'track', 'thumb', 'input'],
     files: ['slider/index.ts', 'slider/slider.component.css', 'slider/slider.component.html', 'slider/slider.component.ts'],
-    libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'numeric-step.ts'],
     testFiles: ['slider/slider.component.spec.ts'],
   },
   spinner: {
