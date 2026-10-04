@@ -426,7 +426,7 @@ assertion at another layer); proves text, not projection.
 | 1 | Write failing tests T-1…T-13 (POP, ACT, CHAT, PFX, GUARD — create `selector-references.ts` with exported, unimplemented function signatures so the spec compiles and fails on assertions) and the e2e skeleton T-14 (§F.6). Record pre-change coverage of every touched file. Confirm each test is red for the intended reason. | all UC | ✅ Done (red-first) | 2026-10-04 10:38 | 92 | Every test is red for its stated reason (§G 6–9), including a real prefix simulation for chat via `overrideComponent`. Sonar was scan-only because red tests fail the coverage leg by design. Next time: write the order-insensitive assertions from the start. |
 | 2 | Mention popover: replace the `closest` query with `ElementRef.contains` (§F.1); update the `closed` JSDoc (`:83-88`) to say "outside this popover". T-1, T-2 green in both legs. | UC-1 | ✅ Done | 2026-10-04 11:05 | 93 | A one-line `contains` fixed the prefix bug and the A/B sibling-popover bug together (§G 10). Both mutation checks were killed. Sonar was deferred to the integration run (§G 11). |
 | 3 | Actions stylesheet + chat: retarget at `data-slot` (§F.2). T-3, T-4 green in the **browser** leg; `rte-actions` and `chat` e2e green. | UC-2, UC-3 | ✅ Done | 2026-10-04 20:28 | 92 | Two string edits onto existing `data-slot` hooks. T-3 now also pins the scope: dropping it turns the test red. The first rte-actions e2e attempt died on infrastructure (ng serve timeout); a clean rerun was green. Sonar deferred (§G 11). |
-| 4 | CLI: `select` rewrite in `applyPrefixTransforms` (§F.3); JSDoc on `neutralizePrefix` per E-1 (§F.4); README section (UC-8). T-5, T-6 green; existing `prefix.spec.ts`, `baseline.spec.ts`, `clean-reinstall.spec.ts` green. | UC-4, UC-8 | ⬜ Not started | — | — | — |
+| 4 | CLI: `select` rewrite in `applyPrefixTransforms` (§F.3); JSDoc on `neutralizePrefix` per E-1 (§F.4); README section (UC-8). T-5, T-6 green; existing `prefix.spec.ts`, `baseline.spec.ts`, `clean-reinstall.spec.ts` green. | UC-4, UC-8 | ✅ Done | 2026-10-04 20:38 | 91 (rounds: 90, 90) | The anchored select rewrite is right on all 9 real sites. Reviewers found three regex-shape gaps (`data-select`, `#id`, mixed quotes); each is now pinned by a T-5 input (§G 12). Next time: probe neighbouring attribute and token classes before the first review. Sonar deferred (§G 11). |
 | 5 | Guard: implement `selector-references.ts` (§F.5) and its allowlist; T-7…T-13 green on the real repo. | UC-5, UC-6, UC-7 | ⬜ Not started | — | — | — |
 | 6 | e2e: `prefix-projection` explicit spec + harness (§F.6); `npm run e2e -- prefix-projection` green; `npm run e2e -- prefix-button` still green. | UC-9 | ⬜ Not started | — | — | — |
 | 7 | Gates: `npm run lint`, `npm run typecheck`, `npm run test-visual` (zero failures, pre-existing included), `npm run test:portable`, `npm run test:cli`, `npm run e2e:impact -- --base origin/master` then every listed spec, `npm run check:registry`, `npm run sonar:gate` (four-point verification, CLAUDE.md §4); run `release-cli` and `release-package` verdicts and record them; add this PR to the pending-releases memory (CLI logic change). | all | ⬜ Not started | — | — | — |
@@ -672,6 +672,17 @@ list reverse dependents to include in e2e.
     coordinator, per-task SonarQube runs were dropped from this worktree. One
     `sonar:gate` runs on the merged integration branch, and findings are
     routed back. DoD item 4 is therefore deferred to that run for Tasks 2–7.
+12. (Task 4) §F.3's regex shape was adjusted, each change pinned by a T-5
+    input: (a) the value is matched as `"…"` or `'…'` alternatives, not
+    `(["'])([^"']*)\2`, so a value can contain the other quote; (b) `select`
+    must not follow `[\w-]` (`(?<![\w-])select`), so `data-select="ui-x"` on
+    an `<ng-content>` is left alone (`\bselect` matched it); (c) `#` joins
+    the element-token lookahead, so `ui-x#id` is rewritten. (a) is pinned by
+    `select="ui-x[data-kind='summary']"`. Mutations: going back to `\bselect`
+    or to the backreference shape turns T-5 red. Known limit, no real site: a
+    `>` inside an earlier attribute value on the same `<ng-content`
+    (`[class]="a > b"`) ends the match before `select`; T-13 is the backstop
+    for shipped sources.
 
 ---
 
@@ -682,3 +693,4 @@ list reverse dependents to include in e2e.
 | 1 | 2026-10-04 10:38 | Failing tests T-1…T-14 | 92 (round 1: 89) | All red for the intended reason; reviewer confirmed that the CLI leg fails as reported and that §G 6–9 document the deviations. Sonar round 1: 14 open = master's accepted set, 0 in changed files. |
 | 2 | 2026-10-04 11:05 | Popover containment via ElementRef.contains | 93 | Matches §F.1; `contains` is right for the overlayAnchor mount; the A/B case kills `closest(tag)`/`closest(localName)`/shared-attribute fixes. Portable 61/61; browser RTE+view 3275/3276 (T-3 = Task 3). |
 | 3 | 2026-10-04 20:28 | Actions stylesheet + chat retargeted at data-slot | 92 | Matches §F.2 C-1; both anchors verified; browser RTE+view+chat 3298/3298; e2e chat ✓, rte-actions ✓ (rerun after ng-serve timeout). |
+| 4 | 2026-10-04 20:38 | CLI `<ng-content select>` rewrite + neutralizePrefix JSDoc + README | 91 | All 9 V-3 sites correct; deviations pinned by T-5 inputs (§G 12); JSDoc accurate with behaviour unchanged (E-1); README lists four positions + `--include-tests` caveat (T-15). prefix/baseline/clean-reinstall 53/53. |

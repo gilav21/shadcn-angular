@@ -168,9 +168,11 @@ describe('applyPrefixTransforms — .html files', () => {
     });
 
     it('rewrites element tokens inside <ng-content select>', () => {
-        // Each line is one input class: a single element, the page-header list
-        // verbatim (only the element token is a selector), a single-quoted value,
-        // an element inside :not(), and two selects with no ui- element at all.
+        // Each line is one input class: a single element; the page-header list
+        // verbatim (only the element token is a selector); a single-quoted value;
+        // an element inside :not(); three selects with no ui- element (attribute
+        // value, empty, class); an element with an #id; a `data-select` sibling
+        // attribute that is not the slot; and a value holding the other quote.
         const src = [
             '<ng-content select="ui-result-detail" />',
             '<ng-content select="ui-breadcrumb, nav[data-slot=breadcrumb], [slot=breadcrumb]" />',
@@ -179,6 +181,9 @@ describe('applyPrefixTransforms — .html files', () => {
             '<ng-content select="[slot=ui-result-detail]" />',
             '<ng-content select="" />',
             '<ng-content select=".ui-icon" />',
+            '<ng-content select="ui-result-detail#primary" />',
+            '<ng-content data-select="ui-result" select="ui-result-detail" />',
+            `<ng-content select="ui-result-detail[data-kind='summary']" />`,
         ].join('\n');
         expect(applyPrefixTransforms('result.component.html', src, 'acme-ui')).toBe([
             '<ng-content select="acme-ui-result-detail" />',
@@ -188,6 +193,9 @@ describe('applyPrefixTransforms — .html files', () => {
             '<ng-content select="[slot=ui-result-detail]" />',
             '<ng-content select="" />',
             '<ng-content select=".ui-icon" />',
+            '<ng-content select="acme-ui-result-detail#primary" />',
+            '<ng-content data-select="ui-result" select="acme-ui-result-detail" />',
+            `<ng-content select="acme-ui-result-detail[data-kind='summary']" />`,
         ].join('\n'));
     });
 });
