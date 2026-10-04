@@ -1791,7 +1791,8 @@
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts",
-      "input-group.token.ts"
+      "input-group.token.ts",
+      "numeric-step.ts"
     ],
     "dependencies": [
       "input"
@@ -2002,6 +2003,7 @@
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts",
+      "numeric-step.ts",
       "touch.ts"
     ],
     "testFiles": [

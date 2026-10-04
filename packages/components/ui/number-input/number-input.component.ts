@@ -17,6 +17,7 @@ import { cn } from '../../lib/utils';
 import { UI_LOCALE_ID } from '../../lib/i18n';
 import { InputComponent } from '../input';
 import { UI_INPUT_GROUP } from '../../lib/input-group.token';
+import { stepFrom } from '../../lib/numeric-step';
 
 const numberInputWrapperVariants = cva(
     'relative flex items-center border-input bg-transparent transition-colors focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px] aria-disabled:pointer-events-none aria-disabled:opacity-50',
@@ -86,7 +87,16 @@ export class NumberInputComponent implements ControlValueAccessor {
     readonly min = input<number | undefined>(undefined);
     /** Upper bound applied by the steppers, arrow keys and wheel, and enforced on blur. Typing above it is allowed until the field loses focus. */
     readonly max = input<number | undefined>(undefined);
-    /** Increment used by {@link increment}/{@link decrement}; its decimal count also sets the rounding precision, avoiding float drift like `0.30000000000000004`. */
+    /**
+     * Grid spacing for {@link increment}/{@link decrement}, the arrow keys and
+     * the wheel. Steps follow native `<input type=number>` `stepUp`/`stepDown`:
+     * the grid is `min + k·step` (based at 0 when {@link min} is unset), an
+     * off-grid value moves to the next grid point in that direction
+     * (`2.4` ↑ `3`, `2.4` ↓ `2`), an on-grid one moves a whole step, and
+     * results are exact decimals at the precision of `min` and `step` — no
+     * `0.30000000000000004`. Typed text is never snapped. One deviation from
+     * native: stepping from an out-of-range typed value clamps into range.
+     */
     readonly step = input<number>(1);
     /**
      * Disables the control. OR-ed with the state pushed by
@@ -175,18 +185,19 @@ export class NumberInputComponent implements ControlValueAccessor {
         }
     }
 
-    /** Adds one {@link step}, treating a `null` value as `0`, then rounds to the step's precision and clamps to {@link max}. Also bound to the wheel and ArrowUp. */
+    /** Steps up to the next grid point of {@link step} (see there), treating a `null` value as `0`, within {@link min}/{@link max}. Also bound to the wheel and ArrowUp. */
     increment(): void {
-        const current = this._currentValue() ?? 0;
-        const next = this.clamp(this.roundStep(current + this.step()));
-        this.updateValue(next);
+        this.stepBy(1);
     }
 
-    /** Subtracts one {@link step}, treating a `null` value as `0`, then rounds to the step's precision and clamps to {@link min}. Also bound to the wheel and ArrowDown. */
+    /** Steps down to the previous grid point of {@link step} (see there), treating a `null` value as `0`, within {@link min}/{@link max}. Also bound to the wheel and ArrowDown. */
     decrement(): void {
-        const current = this._currentValue() ?? 0;
-        const next = this.clamp(this.roundStep(current - this.step()));
-        this.updateValue(next);
+        this.stepBy(-1);
+    }
+
+    private stepBy(direction: 1 | -1): void {
+        const grid = { min: this.min(), max: this.max(), step: this.step() };
+        this.updateValue(stepFrom(this._currentValue() ?? 0, direction, 1, grid));
     }
 
     /** Pushes a form value in as-is — `null` empties the field — without clamping to {@link min}/{@link max} and without emitting {@link valueChange}. */
@@ -228,12 +239,6 @@ export class NumberInputComponent implements ControlValueAccessor {
         if (minVal !== undefined) result = Math.max(result, minVal);
         if (maxVal !== undefined) result = Math.min(result, maxVal);
         return result;
-    }
-
-    private roundStep(value: number): number {
-        const step = this.step();
-        const decimals = (step.toString().split('.')[1] ?? '').length;
-        return Number.parseFloat(value.toFixed(decimals));
     }
 
     private updateValue(value: number | null): void {

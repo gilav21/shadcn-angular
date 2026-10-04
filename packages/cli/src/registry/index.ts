@@ -740,7 +740,7 @@ export const registry = defineRegistry({
     description: 'Numeric input with stepper buttons, min/max, and locale-aware formatting.',
     tags: ['number-input', 'number', 'stepper', 'spinner', 'quantity'],
     files: ['number-input/index.ts', 'number-input/number-input.component.css', 'number-input/number-input.component.html', 'number-input/number-input.component.ts'],
-    libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'input-group.token.ts'],
+    libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'input-group.token.ts', 'numeric-step.ts'],
     dependencies: ['input'],
     testFiles: ['number-input/number-input.component.spec.ts'],
   },
@@ -805,7 +805,7 @@ export const registry = defineRegistry({
     description: 'Star rating input for capturing or displaying a score with half-step support.',
     tags: ['rating', 'stars', 'review', 'score', 'feedback'],
     files: ['rating/index.ts', 'rating/rating.component.html', 'rating/rating.component.ts', 'rating/rating.locales.ts'],
-    libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'touch.ts'],
+    libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'numeric-step.ts', 'touch.ts'],
     testFiles: ['rating/rating.component.spec.ts'],
   },
   resizable: {
