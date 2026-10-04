@@ -108,8 +108,11 @@ export class SliderComponent implements OnInit, ControlValueAccessor {
      * derives the output from the model, so there is no separate declaration.
      * A write from outside — `writeValue` from a form, or the
      * {@link defaultValue} seed — stays silent; only a user change emits.
-     * Note that after a `writeValue` from a reactive form this still reads
-     * the pre-write value — the rendered value is {@link rendered}.
+     * Note that after a `writeValue` from a reactive form, or a
+     * {@link defaultValue} seed, this still reads the earlier value — the
+     * rendered value is {@link rendered}. A consequence: a user change back
+     * to exactly that earlier value reaches the form but emits no
+     * `valueChange`, because the model already holds it.
      */
     value = model(0);
 
@@ -157,7 +160,7 @@ export class SliderComponent implements OnInit, ControlValueAccessor {
         }
     }
 
-    percentage = computed(() => {
+    readonly percentage = computed(() => {
         const min = this.resolvedMin();
         const max = this.resolvedMax();
         if (min >= max) {
@@ -169,7 +172,7 @@ export class SliderComponent implements OnInit, ControlValueAccessor {
         return Math.max(0, Math.min(100, ((val - min) / range) * 100));
     });
 
-    classes = computed(() =>
+    readonly classes = computed(() =>
         cn(
             'relative flex w-full touch-none select-none items-center',
             this.isDisabled() && 'opacity-50 pointer-events-none',
@@ -185,8 +188,8 @@ export class SliderComponent implements OnInit, ControlValueAccessor {
         this.updateValueFromEvent(event);
         this.startDragging();
 
-        const input = this.el.nativeElement.querySelector('input[type="range"]');
-        input?.focus();
+        const rangeInput = this.el.nativeElement.querySelector('input[type="range"]');
+        rangeInput?.focus();
     }
 
     /** Starts a drag from the thumb, stopping propagation so {@link onTrackMouseDown} does not also jump the value on grab. */
@@ -211,14 +214,14 @@ export class SliderComponent implements OnInit, ControlValueAccessor {
             this.updateValueFromTouch(event.touches[0]);
         }
 
-        const signal = this.beginDrag();
+        const dragSignal = this.beginDrag();
         document.addEventListener('touchmove', (e: TouchEvent) => {
             if (e.touches.length > 0) {
                 this.updateValueFromTouch(e.touches[0]);
             }
-        }, { signal, passive: false });
-        document.addEventListener('touchend', () => this.endDrag(), { signal });
-        document.addEventListener('touchcancel', () => this.cancelDrag(), { signal });
+        }, { signal: dragSignal, passive: false });
+        document.addEventListener('touchend', () => this.endDrag(), { signal: dragSignal });
+        document.addEventListener('touchcancel', () => this.cancelDrag(), { signal: dragSignal });
     }
 
     /**
@@ -230,8 +233,8 @@ export class SliderComponent implements OnInit, ControlValueAccessor {
      */
     onNativeInput(event: Event): void {
         if (this.isDisabled()) return;
-        const input = event.target as HTMLInputElement;
-        this.commit(snapToStep(input.valueAsNumber, this.grid()));
+        const rangeInput = event.target as HTMLInputElement;
+        this.commit(snapToStep(rangeInput.valueAsNumber, this.grid()));
     }
 
     private beginDrag(): AbortSignal {
@@ -277,9 +280,9 @@ export class SliderComponent implements OnInit, ControlValueAccessor {
     }
 
     private startDragging(): void {
-        const signal = this.beginDrag();
-        document.addEventListener('mousemove', (e: MouseEvent) => this.updateValueFromEvent(e), { signal });
-        document.addEventListener('mouseup', () => this.endDrag(), { signal });
+        const dragSignal = this.beginDrag();
+        document.addEventListener('mousemove', (e: MouseEvent) => this.updateValueFromEvent(e), { signal: dragSignal });
+        document.addEventListener('mouseup', () => this.endDrag(), { signal: dragSignal });
     }
 
     /**

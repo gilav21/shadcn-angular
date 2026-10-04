@@ -22,8 +22,11 @@ export interface StepGrid {
 interface ResolvedGrid {
     readonly base: number;
     readonly step: number;
+    /** Decimals every produced value is written at. */
     readonly precision: number;
+    /** Lowest grid *index* `k` allowed (`-∞` when `min` is unset). */
     readonly lowest: number;
+    /** Highest grid *index* `k` allowed — the index of *top* (`+∞` when `max` is unset). */
     readonly highest: number;
 }
 

@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component } from '@angular/core';
-import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { SliderComponent } from './slider.component';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -384,17 +384,20 @@ type SliderSetup = Readonly<Partial<Record<'min' | 'max' | 'step' | 'value' | 'd
 
 @Component({
     template: `
-        <ui-slider
-            [formControl]="control"
-            [defaultValue]="40"
-            ariaLabel="Level"
-            (valueChange)="emissions.push($event)"
-        />
+        <form [formGroup]="form">
+            <ui-slider
+                formControlName="level"
+                [defaultValue]="40"
+                ariaLabel="Level"
+                (valueChange)="emissions.push($event)"
+            />
+        </form>
     `,
     imports: [SliderComponent, ReactiveFormsModule],
 })
 class FormSliderHost {
     readonly control = new FormControl<number | null>(30);
+    readonly form = new FormGroup({ level: this.control });
     readonly emissions: number[] = [];
 }
 
@@ -555,28 +558,41 @@ describe('SliderComponent — the grid and every way in', () => {
         const snapped = mount({ defaultValue: 45, step: 10 });
         const bound = mount({ value: 20, defaultValue: 40 });
 
-        expect([shown(seeded.fixture), shown(snapped.fixture), shown(bound.fixture)]).toEqual([
+        // A form that writes before the slider's own init (a Signal Forms
+        // binding, say) must still win over the seed.
+        const writtenFirst = TestBed.createComponent(SliderComponent);
+        mounted.push(writtenFirst);
+        writtenFirst.componentRef.setInput('defaultValue', 40);
+        writtenFirst.componentInstance.writeValue(70);
+        writtenFirst.detectChanges();
+
+        expect([shown(seeded.fixture), shown(snapped.fixture), shown(bound.fixture), shown(writtenFirst)]).toEqual([
             ['40', '40'],
             ['50', '50'],
             ['20', '20'],
+            ['70', '70'],
         ]);
         expect([seeded.emissions, snapped.emissions, bound.emissions]).toEqual([[], [], []]);
     });
 
     it('a value set on the hidden range input by assistive tech commits the snapped value', () => {
-        const commit = (setup: SliderSetup, text: string): number[] => {
+        const commit = (setup: SliderSetup, delivered: number): number[] => {
             const { fixture, emissions } = mount(setup);
             const input = range(fixture);
-            input.value = text;
+            input.value = String(delivered);
+            // Browsers sanitise a range value onto their own step grid before
+            // `input` fires, which would hide whether the slider snaps at all;
+            // pin the number as delivered, on this element only.
+            Object.defineProperty(input, 'valueAsNumber', { value: delivered, configurable: true });
             input.dispatchEvent(new Event('input', { bubbles: true }));
             fixture.detectChanges();
             return emissions;
         };
 
         expect([
-            commit({ min: 1, max: 10, step: 2, value: 1 }, '6'),
-            commit({ min: 0, max: 1, step: 0.1, value: 0 }, '0.7'),
-        ]).toEqual([[7], [0.7]]);
+            commit({ min: 1, max: 10, step: 2, value: 1 }, 6),
+            commit({ min: 0, max: 1, step: 0.1, value: 0 }, 0.30000000000000004),
+        ]).toEqual([[7], [0.3]]);
     });
 
     it('a drag in progress stops affecting the slider once it is destroyed or the touch is cancelled', () => {
@@ -671,6 +687,14 @@ describe('SliderComponent — the grid and every way in', () => {
         press(fixture, 'ArrowRight');
         track.dispatchEvent(new MouseEvent('mousedown', { clientX: rect.right, bubbles: true, cancelable: true }));
         document.dispatchEvent(new MouseEvent('mouseup'));
+        track.dispatchEvent(touch('touchstart', rect.right));
+        document.dispatchEvent(touch('touchend', 0));
+        const thumb: HTMLElement = fixture.nativeElement.querySelector('[data-slot="slider-thumb"]');
+        thumb.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: rect.right }));
+        document.dispatchEvent(new MouseEvent('mouseup'));
+        range(fixture).value = '80';
+        range(fixture).dispatchEvent(new Event('input', { bubbles: true }));
         fixture.detectChanges();
 
         expect(range(fixture).disabled).toBe(true);
