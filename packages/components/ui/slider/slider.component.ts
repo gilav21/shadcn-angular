@@ -6,13 +6,17 @@ import {
     computed,
     ElementRef,
     inject,
+    linkedSignal,
 } from '@angular/core';
 import { cn, isRtl } from '../../lib/utils';
 import { UI_LOCALE_ID, formatNumber } from '../../lib/i18n';
+import { snapToStep, stepFrom, type StepGrid } from '../../lib/numeric-step';
 
 /** Track bounds used when {@link SliderComponent.min} / {@link SliderComponent.max} are left unset. */
 const DEFAULT_MIN = 0;
 const DEFAULT_MAX = 100;
+/** Steps Page Up / Page Down move at once. */
+const PAGE_STEPS = 10;
 
 @Component({
     selector: 'ui-slider',
@@ -61,7 +65,7 @@ export class SliderComponent {
     locale = input<string>();
     private readonly globalLocale = inject(UI_LOCALE_ID);
     /** Locale-formatted value text, e.g. `'1,234.5'` in en or `'1.234,5'` in de. */
-    readonly valueText = computed(() => formatNumber(this.value(), this.locale() ?? this.globalLocale()));
+    readonly valueText = computed(() => formatNumber(this.rendered(), this.locale() ?? this.globalLocale()));
     /**
      * The slider position, as a two-way `model()`. Emits on every value change
      * from dragging, tapping the track or keyboard input — including each
@@ -72,6 +76,28 @@ export class SliderComponent {
      * derives the output from the model, so there is no separate declaration.
      */
     value = model(0);
+
+    /**
+     * What the slider holds: follows every {@link value} change, and is also
+     * written locally — silently — by a seed or a form write.
+     */
+    private readonly current = linkedSignal(() => this.value());
+
+    private readonly grid = computed<StepGrid>(() => ({
+        min: this.resolvedMin(),
+        max: this.resolvedMax(),
+        step: this.step(),
+    }));
+
+    /**
+     * The value on the grid — `min + k·step` inside `[min, top]`, where *top*
+     * is the largest grid point ≤ `max`. The only value the template,
+     * keyboard and pointer read. Snapped here rather than where the value is
+     * stored, so a later `min`/`max`/`step` change re-snaps what is held, and
+     * an off-grid value written from outside is shown on the grid without
+     * being rewritten (and echoed) back to whoever wrote it.
+     */
+    readonly rendered = computed(() => snapToStep(this.current(), this.grid()));
 
     /** Whether the host resolves to a right-to-left direction; flips the fill/thumb positioning and the arrow-key direction. */
     rtl(): boolean {
@@ -92,7 +118,7 @@ export class SliderComponent {
             console.error('[ui-slider] min should be less than max');
             return 0;
         }
-        const val = this.value();
+        const val = this.rendered();
         const range = max - min;
         return Math.max(0, Math.min(100, ((val - min) / range) * 100));
     });
@@ -167,52 +193,56 @@ export class SliderComponent {
     /**
      * Keyboard interaction on the hidden range input: arrows move one
      * {@link step} (horizontal arrows are mirrored in RTL), Page Up/Down move
-     * ten, Home/End jump to {@link min}/{@link max}. Other keys pass through
-     * untouched, and {@link valueChange} fires only when the value really moved.
+     * ten, Home/End jump to {@link min} and to the largest grid value ≤
+     * {@link max}. Every key lands on the grid, stepping from the rendered
+     * value. Other keys pass through untouched, and {@link valueChange} fires
+     * only when the value really moved.
      */
     onKeyDown(event: KeyboardEvent): void {
         if (this.disabled()) return;
 
-        const step = this.step();
-        const min = this.resolvedMin();
-        const max = this.resolvedMax();
-        let newValue = this.value();
-        const isRtl = this.rtl();
+        const next = this.keyTarget(event.key);
+        if (next === null) return;
 
-        switch (event.key) {
-            case 'ArrowRight':
+        event.preventDefault();
+        this.commit(next);
+    }
+
+    private keyTarget(key: string): number | null {
+        const grid = this.grid();
+        const from = this.rendered();
+        const forward = this.rtl() ? -1 : 1;
+        switch (key) {
             case 'ArrowUp':
-                newValue = Math.min(max, newValue + (isRtl && event.key === 'ArrowRight' ? -step : step));
-                event.preventDefault();
-                break;
-            case 'ArrowLeft':
+                return stepFrom(from, 1, 1, grid);
             case 'ArrowDown':
-                newValue = Math.max(min, newValue - (isRtl && event.key === 'ArrowLeft' ? -step : step));
-                event.preventDefault();
-                break;
-            case 'Home':
-                newValue = min;
-                event.preventDefault();
-                break;
-            case 'End':
-                newValue = max;
-                event.preventDefault();
-                break;
+                return stepFrom(from, -1, 1, grid);
+            case 'ArrowRight':
+                return stepFrom(from, forward, 1, grid);
+            case 'ArrowLeft':
+                return stepFrom(from, forward === 1 ? -1 : 1, 1, grid);
             case 'PageUp':
-                newValue = Math.min(max, newValue + step * 10);
-                event.preventDefault();
-                break;
+                return stepFrom(from, 1, PAGE_STEPS, grid);
             case 'PageDown':
-                newValue = Math.max(min, newValue - step * 10);
-                event.preventDefault();
-                break;
+                return stepFrom(from, -1, PAGE_STEPS, grid);
+            case 'Home':
+                return snapToStep(Number.NEGATIVE_INFINITY, grid);
+            case 'End':
+                return snapToStep(Number.POSITIVE_INFINITY, grid);
             default:
-                return;
+                return null;
         }
+    }
 
-        if (newValue !== this.value()) {
-            this.value.set(newValue);
-        }
+    /**
+     * The one path a user-driven change takes. A move inside the same grid
+     * cell changes nothing and emits nothing; otherwise the value is stored
+     * and published through the {@link value} model, which emits once.
+     */
+    private commit(next: number): void {
+        if (next === this.rendered()) return;
+        this.current.set(next);
+        this.value.set(next);
     }
 
     private updateValueFromEvent(event: MouseEvent): void {
@@ -237,17 +267,12 @@ export class SliderComponent {
         percent = Math.max(0, Math.min(1, percent));
         const min = this.resolvedMin();
         const max = this.resolvedMax();
-        const step = this.step();
 
-        let newValue = min + percent * (max - min);
-        newValue = Math.round(newValue / step) * step;
-        newValue = Math.max(min, Math.min(max, newValue));
-
-        this.value.set(newValue);
+        this.commit(snapToStep(min + percent * (max - min), this.grid()));
     }
 
-    /** Current value as a string, handy for template interpolation and test assertions. */
+    /** Rendered (on-grid) value as a string, handy for template interpolation and test assertions. */
     toString(): string {
-        return String(this.value());
+        return String(this.rendered());
     }
 }
