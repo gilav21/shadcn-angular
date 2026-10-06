@@ -3,7 +3,7 @@ import fs from 'fs-extra';
 import path from 'node:path';
 import { registry, type ComponentName } from '../registry/index.js';
 import { getPrefix, type Config } from '../utils/config.js';
-import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
+import { resolveProjectPath, resolveInside, aliasToProjectPath } from '../utils/paths.js';
 import { resolveDependencies } from './resolve.js';
 import { scanLayouts, type LayoutScan } from './layout.js';
 import { rewriteImports } from './import-rewrite.js';
@@ -138,7 +138,8 @@ export async function deleteLegacyFiles(
     for (const name of structural) {
         for (const suffix of LEGACY_SUFFIXES) {
             const rel = `${name}${suffix}`;
-            const abs = path.join(uiDir, rel);
+            // Names come from the registry; a key like `../src` must not delete outside uiDir.
+            const abs = resolveInside(uiDir, rel);
             if (await fs.pathExists(abs)) {
                 await fs.remove(abs);
                 deleted.push(rel);
@@ -244,7 +245,8 @@ async function rollbackPartialNewFolders(
     uiDir: string, plan: MigrationPlan, installed: Set<ComponentName>,
 ): Promise<void> {
     for (const name of new Set<ComponentName>([...plan.structural, ...plan.newDeps])) {
-        if (!installed.has(name)) await fs.remove(path.join(uiDir, name));
+        // A recursive delete keyed by a registry name: refuse anything outside uiDir.
+        if (!installed.has(name)) await fs.remove(resolveInside(uiDir, name));
     }
 }
 

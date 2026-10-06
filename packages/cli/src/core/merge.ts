@@ -6,6 +6,7 @@ import { type FetchOptions, type SourceKind } from './fetch.js';
 import {
     fileStatus, recordFile, getComponentRef, hashContent, type Manifest,
 } from './manifest.js';
+import { resolveInside } from '../utils/paths.js';
 
 /**
  * The per-file write decision at the heart of non-destructive update. Each file
@@ -179,6 +180,8 @@ interface FileDecision {
     readonly decision: MergeDecision;
     /** Current on-disk content (THEIRS-independent), needed to restore OURS's EOL on write. */
     readonly ours: string | null;
+    /** The file's absolute path, already proven to stay inside `targetDir`. */
+    readonly targetPath: string;
 }
 
 /**
@@ -187,7 +190,8 @@ interface FileDecision {
  * run {@link classifyMerge} — with NO write and NO manifest/report mutation.
  */
 async function decideMergeFile(file: string, ctx: MergeWriteContext): Promise<FileDecision> {
-    const targetPath = path.join(ctx.targetDir, file);
+    // `file` comes from registry data; refuse any path that leaves the target dir.
+    const targetPath = resolveInside(ctx.targetDir, file);
     const exists = await fs.pathExists(targetPath);
     const ours = exists ? await fs.readFile(targetPath, 'utf-8') : null;
     const isClean = ours !== null && fileStatus(ctx.manifest, file, ours) === 'clean';
@@ -200,7 +204,7 @@ async function decideMergeFile(file: string, ctx: MergeWriteContext): Promise<Fi
     const base = needsBase ? await resolveBase(file, ctx) : null;
 
     const decision = classifyMerge({ ours, theirs: ctx.theirs, base, isClean, forceWholeFile: ctx.forceWholeFile });
-    return { decision, ours };
+    return { decision, ours, targetPath };
 }
 
 /**
@@ -218,8 +222,7 @@ export async function previewMergeFile(file: string, ctx: MergeWriteContext): Pr
  * manifest updates. Returns the outcome (also tallied into `ctx.report`).
  */
 export async function mergeWriteFile(file: string, ctx: MergeWriteContext): Promise<MergeOutcome> {
-    const targetPath = path.join(ctx.targetDir, file);
-    const { decision, ours } = await decideMergeFile(file, ctx);
+    const { decision, ours, targetPath } = await decideMergeFile(file, ctx);
 
     if (decision.content !== null) {
         await fs.ensureDir(path.dirname(targetPath));

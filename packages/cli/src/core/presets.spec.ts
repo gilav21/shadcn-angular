@@ -36,10 +36,12 @@ describe('resolvePreset', () => {
         expect(resolution.declaredBy).toEqual(['rich-text-editor']);
     });
 
-    it('throws PresetError listing the available names for an unknown preset (T-12)', () => {
-        expect(() => resolvePreset(['rich-text-editor'], 'wrting')).toThrow(PresetError);
-        expect(() => resolvePreset(['rich-text-editor'], 'wrting')).toThrow(
-            'Unknown preset "wrting" for rich-text-editor. Available: core, writing, media, styling, everything',
+    // `constructor` is the inherited-name class: an `in` check finds it on
+    // Object.prototype and then crashes iterating it.
+    it.each(['wrting', 'constructor'])('throws PresetError listing the available names for an unknown preset: %s (T-12)', (preset) => {
+        expect(() => resolvePreset(['rich-text-editor'], preset)).toThrow(PresetError);
+        expect(() => resolvePreset(['rich-text-editor'], preset)).toThrow(
+            `Unknown preset "${preset}" for rich-text-editor. Available: core, writing, media, styling, everything`,
         );
     });
 

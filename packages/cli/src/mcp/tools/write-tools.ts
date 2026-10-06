@@ -33,6 +33,26 @@ function validateNames(names: string[]): string[] {
     return names.filter(n => !isComponentName(n));
 }
 
+interface OfferedPreset {
+    readonly addons: ComponentName[];
+    readonly warnings: string[];
+}
+
+/**
+ * The preset's addon keys this registry defines. The applied manifest can
+ * differ from the one that declared the preset, so an undefined key is skipped
+ * with the CLI's warning rather than crashing the resolver.
+ */
+function offeredPresetAddons(names: string[], presetName: string): OfferedPreset {
+    const addons: ComponentName[] = [];
+    const warnings: string[] = [];
+    for (const key of resolvePreset(names, presetName).addons) {
+        if (isComponentName(key)) addons.push(key);
+        else warnings.push(`Preset "${presetName}" lists ${key}, which this registry does not offer — skipping.`);
+    }
+    return { addons, warnings };
+}
+
 const initInputSchema = {
     prefix: z.string().optional().describe('Component selector prefix (default "ui").'),
     baseColor: z.enum(['neutral', 'slate', 'stone', 'gray', 'zinc']).optional(),
@@ -136,12 +156,13 @@ function registerAddTool(server: ToolHost, cwd: string): void {
         const config = await getConfig(cwd);
         if (!config) return err('Project not initialized — run init_project first.');
         const options = await resolveSource(args, config);
-        const invalid = validateNames(args.names);
+        // Every list the agent supplies reaches the resolver, not just `names`.
+        const invalid = validateNames([...args.names, ...(args.optionalDeps ?? []), ...(args.overwrite ?? [])]);
         if (invalid.length) return err(`Unknown component(s): ${invalid.join(', ')}`);
-        let presetAddons: ComponentName[] = [];
+        let preset: OfferedPreset = { addons: [], warnings: [] };
         if (args.preset !== undefined) {
             try {
-                presetAddons = resolvePreset(args.names, args.preset).addons;
+                preset = offeredPresetAddons(args.names, args.preset);
             } catch (error) {
                 if (!(error instanceof PresetError)) throw error;
                 return err(error.message);
@@ -150,12 +171,12 @@ function registerAddTool(server: ToolHost, cwd: string): void {
         const tests = await resolveTestInstall(config, { includeTests: args.includeTests, runner: args.testRunner, yes: true }, cwd);
         const result = await performInstall({
             components: args.names as ComponentName[],
-            optionalDeps: [...(args.optionalDeps ?? []), ...presetAddons] as ComponentName[],
+            optionalDeps: [...(args.optionalDeps ?? []), ...preset.addons] as ComponentName[],
             overwrite: (args.overwrite ?? []) as ComponentName[],
             cwd, config, options, path: args.path,
             includeTests: tests.includeTests, testRunner: tests.runner,
         });
-        return json(result);
+        return json({ ...result, warnings: [...preset.warnings, ...result.warnings] });
     });
 }
 

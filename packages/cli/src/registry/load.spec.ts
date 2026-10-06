@@ -1,8 +1,14 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
 import { loadRegistry, isValidRegistryShape, __resetRegistryManifestCache } from './load.js';
 import { registry, __resetRegistryCaches, getReverseDependents, type ComponentDefinition } from './index.js';
 
 const mutable = registry as unknown as Record<string, ComponentDefinition>;
+const REGISTRY_JSON = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)), '../../../components/registry.json',
+);
 
 function stubFetch(response: Partial<Response>): void {
     vi.stubGlobal('fetch', vi.fn(async () => response as Response));
@@ -138,6 +144,62 @@ describe('loadRegistry', () => {
         expect(applied).toBe(false);
         expect(registry['accordion' as never]).toBeDefined();
         expect(warn).toHaveBeenCalledOnce();
+    });
+
+    it('loadRegistry warns with the violation and applies the bundled snapshot', async () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        const bundledObsolete = structuredClone(registry['page-builder'].obsoleteFiles);
+        const live = JSON.parse(fs.readFileSync(REGISTRY_JSON, 'utf-8')) as Record<string, ComponentDefinition>;
+        live['page-builder'] = { ...live['page-builder'], obsoleteFiles: ['../../../.env'] };
+        stubFetch({ ok: true, text: async () => JSON.stringify(live) });
+
+        const applied = await loadRegistry({ remote: true, branch: 'master' });
+
+        expect(applied).toBe(false);
+        expect(warn).toHaveBeenCalledWith(
+            '⚠ Could not use the registry manifest from '
+            + 'https://raw.githubusercontent.com/gilav21/shadcn-angular/master/packages/components/registry.json: '
+            + 'page-builder.obsoleteFiles contains "../../../.env" (path leaves its install directory); '
+            + 'using the bundled copy, which may be stale.',
+        );
+        expect(registry['page-builder'].obsoleteFiles).toEqual(bundledObsolete);
+    });
+
+    it('lists the first three violations and counts the rest', async () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        stubFetch({
+            ok: true,
+            text: async () => JSON.stringify({
+                a: { name: 'a', files: ['../1.ts', '../2.ts', '../3.ts', '../4.ts', '../5.ts'] },
+            }),
+        });
+
+        await loadRegistry({ remote: true, branch: 'master' });
+
+        const message = String(warn.mock.calls[0][0]);
+        expect(message).toContain('a.files contains "../3.ts" (path leaves its install directory) (+2 more);');
+        expect(message).not.toContain('../4.ts');
+    });
+
+    it('never prints a control character from the manifest into the terminal', async () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        // Hostile keys carrying a C0 ESC and a C1 CSI: keys are printed outside
+        // the JSON-quoted value, so they need escaping of their own.
+        stubFetch({
+            ok: true,
+            text: async () => JSON.stringify({
+                'x\u001b[2J': { name: 'x\u001b[2J', files: [] },
+                'y\u009b2J': { name: 'y\u009b2J', files: [] },
+            }),
+        });
+
+        await loadRegistry({ remote: true, branch: 'master' });
+
+        const message = String(warn.mock.calls[0][0]);
+        expect(message).not.toContain('\u001b');
+        expect(message).not.toContain('\u009b');
+        expect(message).toContain(String.raw`x\u001b[2J.key`);
+        expect(message).toContain(String.raw`y\u009b2J.key`);
     });
 
     it('keeps the bundled snapshot and warns on malformed JSON', async () => {

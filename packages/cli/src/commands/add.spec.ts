@@ -1116,9 +1116,13 @@ describe('add()', () => {
     expect(performInstall).not.toHaveBeenCalled();
   });
 
-  it('exits 1 on an unknown component name and lists the valid ones', async () => {
-    await expect(add(['definitely-not-a-component'], { branch: 'master', remote: true })).rejects.toMatchObject({ code: 1 });
-    expect(output()).toContain('Invalid component(s): definitely-not-a-component');
+  // `constructor` is the inherited-name class: `in` finds it on Object.prototype,
+  // so it used to pass validation and crash later in the conflict scan.
+  it.each(['definitely-not-a-component', 'constructor'])('exits 1 on an unknown component name and lists the valid ones: %s', async (name) => {
+    await expect(add([name], { branch: 'master', remote: true })).rejects.toMatchObject({ code: 1 });
+    expect(output()).toContain(`Invalid component(s): ${name}`);
+    // The conflict scan fetches every remote file; no fetch means it never ran.
+    expect(globalThis.fetch).not.toHaveBeenCalled();
     expect(output()).toContain('Available components:');
     expect(performInstall).not.toHaveBeenCalled();
   });
