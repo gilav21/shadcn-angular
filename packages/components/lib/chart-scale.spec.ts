@@ -55,6 +55,15 @@ const FINITE_CLASSES: BoundsClass[] = [
         draw: rng => [-twoDecimals(rng, 10) - 0.01, twoDecimals(rng, 10) + 0.01],
     },
     {
+        // Arithmetic results sit an ulp off a step multiple (0.1 + 0.2).
+        name: 'float-sum',
+        fixed: [[-0.045000000000000005, 0.004999999999999998], [0.010000000000000002, 0.060000000000000005], [-82 * 0.1, 62 * 0.1]],
+        draw: rng => {
+            const s = [0.1, 0.2, 0.3, 0.7][Math.floor(rng() * 4)];
+            return ordered(Math.round(rng() * 200 - 100) * s, Math.round(rng() * 200 - 100) * s);
+        },
+    },
+    {
         name: 'all-equal',
         fixed: [[0, 0], [-3, -3], [2.69, 2.69]],
         draw: rng => {
@@ -64,7 +73,7 @@ const FINITE_CLASSES: BoundsClass[] = [
     },
     {
         name: 'tiny',
-        fixed: [[0, 1e-9], [3e-10, 7e-10]],
+        fixed: [[0, 1e-9], [3e-10, 7e-10], [5.2e-316, 5.21e-316]],
         draw: rng => ordered(rng() * 1e-9, rng() * 1e-9),
     },
     {
@@ -193,6 +202,7 @@ describe('niceDomain', () => {
         [-1e308, 1e308],
         [1.7e308, 1.7e308],
         [0, 1e-200],
+        [5.2e-316, 5.21e-316],
     ])('degenerate bounds niceDomain(%s, %s) yield a finite non-collapsed domain', (a, b) => {
         const [d0, d1] = niceDomain(a, b, 5);
         expect(Number.isFinite(d0) && Number.isFinite(d1)).toBe(true);
@@ -240,6 +250,7 @@ describe('scale helpers return a bounded tick list in bounded time', () => {
     it.each<[number, number, number]>([
         [0, 8.64e15, 5],
         [0, 8.64e15, 1e9],
+        [-Number.MAX_VALUE, Number.MAX_VALUE, 5],
         [Date.UTC(2026, 0, 1), Date.UTC(2026, 0, 1) + 3.1536e13, 10],
     ])('niceTimeTicks(%s, %s, %s) over a finite range', (min, max, count) => {
         const ticks = niceTimeTicks(min, max, count);

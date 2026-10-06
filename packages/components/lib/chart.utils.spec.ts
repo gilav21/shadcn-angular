@@ -48,6 +48,25 @@ describe('calculateAxisTicks', () => {
         { name: 'negative', fixed: [[-0.06, 0], [-2.69, -1.97]], draw: rng => distinctPair(() => -twoDecimals(rng, 10) - 0.01) },
         { name: 'mixed-sign', fixed: [[-0.07, 0.13]], draw: rng => [-twoDecimals(rng, 10) - 0.01, twoDecimals(rng, 10) + 0.01] },
         { name: 'tiny', fixed: [[0, 1e-9], [3e-10, 7e-10]], draw: rng => [rng() * 5e-10, 5e-10 + rng() * 5e-10] },
+        // Bounds produced by float arithmetic sit an ulp off a step multiple,
+        // where `floor(min / step)` can land on either side of the true index.
+        {
+            name: 'float-sum',
+            fixed: [
+                [-0.045000000000000005, 0.004999999999999998],
+                [0.010000000000000002, 0.060000000000000005],
+                [0.1 + 0.2, 0.7 + 0.1],
+                [-82 * 0.1, 62 * 0.1],
+                [812.8, 813.2],
+                [-639.5, -639.3],
+            ],
+            draw: rng => {
+                // A step multiple computed as k·s, the way chart data often is.
+                const s = [0.1, 0.2, 0.3, 0.7][Math.floor(rng() * 4)];
+                const min = Math.round(rng() * 200 - 100) * s;
+                return [min, min + (Math.round(rng() * 50) + 1) * s];
+            },
+        },
         { name: 'giant', fixed: [[-1e307, 1e307]], draw: rng => [-rng() * 1e307, rng() * 1e307 + 1e306] },
     ];
 
@@ -93,16 +112,24 @@ describe('calculateAxisTicks', () => {
         const ticks = calculateAxisTicks(min, max, count);
         if (ticks.length < 2 || ticks.length > 2 * count + 3) return `bad length ${ticks.length}`;
         if (ticks[0] > min || (ticks.at(-1) ?? Number.NaN) < max) return `does not cover: ${ticks.join(',')}`;
+        // Tight: the step multiple floor(min/step) starts the list, not one below it.
+        if (ticks[1] <= min || (ticks.at(-2) ?? Number.NaN) >= max) return `wider than needed: ${ticks.join(',')}`;
         const step = nearestNiceStep(ticks[1] - ticks[0]);
         if (Math.abs(ticks[1] - ticks[0] - step) > step * 1e-6) return `gap ${ticks[1] - ticks[0]} is not 1, 2 or 5 × 10ⁿ`;
         const stepDigits = fractionDigits(step);
         for (let i = 0; i < ticks.length; i++) {
-            const tick = ticks[i];
-            if (Number(tick.toFixed(stepDigits)) !== tick) return `tick ${tick} is not rounded to step ${step}`;
-            if (!Number.isInteger(Number((tick / step).toFixed(6)))) return `tick ${tick} is not a multiple of step ${step}`;
-            if (Math.abs(tick) < 1e15 && fractionDigits(tick) > stepDigits) return `noisy tick ${tick}`;
-            if (i > 0 && !evenGap(tick - ticks[i - 1], step, stepDigits, tick)) return `uneven gap at ${tick}`;
+            const problem = singleTickProblem(ticks[i], step, stepDigits);
+            if (problem) return problem;
+            if (i > 0 && !evenGap(ticks[i] - ticks[i - 1], step, stepDigits, ticks[i])) return `uneven gap at ${ticks[i]}`;
         }
+        return undefined;
+    }
+
+    /** What, if anything, makes one tick other than a clean multiple of the step. */
+    function singleTickProblem(tick: number, step: number, stepDigits: number): string | undefined {
+        if (Number(tick.toFixed(stepDigits)) !== tick) return `tick ${tick} is not rounded to step ${step}`;
+        if (!Number.isInteger(Number((tick / step).toFixed(6)))) return `tick ${tick} is not a multiple of step ${step}`;
+        if (Math.abs(tick) < 1e15 && fractionDigits(tick) > stepDigits) return `noisy tick ${tick}`;
         return undefined;
     }
 
