@@ -3,6 +3,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideUiLocale } from '../../../../../packages/components/lib/i18n';
 import { FieldDemoComponent } from './field-demo.component';
 import { FIELD_DEMO_LOCALES } from './field-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('FieldDemoComponent', () => {
   it('renders English title under default locale', () => {

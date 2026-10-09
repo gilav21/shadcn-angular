@@ -3,6 +3,7 @@ import { signal } from '@angular/core';
 import { MasonryDemoComponent } from './masonry-demo.component';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { MASONRY_DEMO_LOCALES } from './masonry-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('MasonryDemoComponent', () => {
   let fixture: ComponentFixture<MasonryDemoComponent>;

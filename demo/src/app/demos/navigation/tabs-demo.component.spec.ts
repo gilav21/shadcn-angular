@@ -3,6 +3,7 @@ import { signal } from '@angular/core';
 import { TabsDemoComponent } from './tabs-demo.component';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { TABS_DEMO_LOCALES } from './tabs-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('TabsDemoComponent', () => {
   let fixture: ComponentFixture<TabsDemoComponent>;

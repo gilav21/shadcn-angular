@@ -4,6 +4,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideUiLocale } from '../../../../../packages/components/lib/i18n';
 import { PaginationDemoComponent } from './pagination-demo.component';
 import { PAGINATION_DEMO_LOCALES } from './pagination-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('PaginationDemoComponent', () => {
   it('renders English title under default locale', () => {

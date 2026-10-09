@@ -3,6 +3,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideUiLocale } from '../../../../../packages/components/lib/i18n';
 import { AnimationsDemoComponent } from './animations-demo.component';
 import { ANIMATIONS_DEMO_LOCALES } from './animations-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('AnimationsDemoComponent', () => {
   it('renders English title under default locale', () => {

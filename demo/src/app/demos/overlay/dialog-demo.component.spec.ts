@@ -4,6 +4,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideUiLocale } from '../../../../../packages/components/lib/i18n';
 import { DialogDemoComponent } from './dialog-demo.component';
 import { DIALOG_DEMO_LOCALES } from './dialog-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('DialogDemoComponent', () => {
   it('renders English title under default locale', () => {

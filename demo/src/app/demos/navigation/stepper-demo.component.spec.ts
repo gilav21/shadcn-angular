@@ -3,6 +3,7 @@ import { signal } from '@angular/core';
 import { StepperDemoComponent } from './stepper-demo.component';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { STEPPER_DEMO_LOCALES } from './stepper-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('StepperDemoComponent', () => {
   let fixture: ComponentFixture<StepperDemoComponent>;

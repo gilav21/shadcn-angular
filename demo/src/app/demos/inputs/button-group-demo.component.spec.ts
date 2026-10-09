@@ -3,6 +3,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideUiLocale } from '../../../../../packages/components/lib/i18n';
 import { ButtonGroupDemoComponent } from './button-group-demo.component';
 import { BUTTON_GROUP_DEMO_LOCALES } from './button-group-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('ButtonGroupDemoComponent', () => {
   it('renders English labels under default locale', () => {

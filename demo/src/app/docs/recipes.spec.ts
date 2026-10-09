@@ -11,6 +11,7 @@ import { DEMO_ROUTES } from '../demo.routes';
 import { DOCS_LOCALES } from './docs.locales';
 import { RecipesComponent, RECIPES_URL } from './recipes.component';
 import { isRecipes, type Recipes } from './recipes.types';
+import { describe, it, expect } from 'vitest';
 
 const TEST_RECIPES_URL = '/demo/public/recipes.json';
 

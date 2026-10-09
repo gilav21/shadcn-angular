@@ -3,6 +3,7 @@ import { signal } from '@angular/core';
 import { BentoGridDemoComponent } from './bento-grid-demo.component';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { BENTO_GRID_DEMO_LOCALES } from './bento-grid-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('BentoGridDemoComponent', () => {
   let fixture: ComponentFixture<BentoGridDemoComponent>;

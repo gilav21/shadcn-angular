@@ -3,6 +3,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideUiLocale } from '../../../../../packages/components/lib/i18n';
 import { ChatDemoComponent } from './chat-demo.component';
 import { CHAT_DEMO_LOCALES } from './chat-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('ChatDemoComponent', () => {
   it('renders English title under default locale', () => {

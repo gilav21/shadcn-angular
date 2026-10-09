@@ -3,6 +3,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideUiLocale } from '../../../../../packages/components/lib/i18n';
 import { FormDemoComponent } from './form-demo.component';
 import { FORM_DEMO_LOCALES } from './form-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('FormDemoComponent', () => {
   it('renders English title under default locale', () => {

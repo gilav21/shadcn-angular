@@ -3,7 +3,7 @@
 // T-4, T-7 and T-8 from `specs/dx-distribution-spec.md` §2.1, plus the guard
 // that keeps the demo app's view of `component-docs.json` in step with the
 // generator that writes it.
-import { vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection, type Type } from '@angular/core';
 import { provideRouter } from '@angular/router';

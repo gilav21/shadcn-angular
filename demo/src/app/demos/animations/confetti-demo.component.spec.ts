@@ -3,6 +3,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideUiLocale } from '../../../../../packages/components/lib/i18n';
 import { ConfettiDemoComponent } from './confetti-demo.component';
 import { CONFETTI_DEMO_LOCALES } from './confetti-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('ConfettiDemoComponent', () => {
   it('renders English title under default locale', () => {

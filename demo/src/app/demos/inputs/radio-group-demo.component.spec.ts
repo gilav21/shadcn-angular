@@ -4,6 +4,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideUiLocale } from '../../../../../packages/components/lib/i18n';
 import { RadioGroupDemoComponent } from './radio-group-demo.component';
 import { RADIO_GROUP_DEMO_LOCALES } from './radio-group-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('RadioGroupDemoComponent', () => {
   it('renders English title under default locale', () => {

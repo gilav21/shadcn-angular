@@ -4,6 +4,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideUiLocale } from '../../../../../packages/components/lib/i18n';
 import { SwitchDemoComponent } from './switch-demo.component';
 import { SWITCH_DEMO_LOCALES } from './switch-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('SwitchDemoComponent', () => {
   it('renders English title under default locale', () => {

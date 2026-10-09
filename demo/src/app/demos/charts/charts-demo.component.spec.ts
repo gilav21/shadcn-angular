@@ -3,6 +3,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideUiLocale } from '../../../../../packages/components/lib/i18n';
 import { ChartsDemoComponent } from './charts-demo.component';
 import { CHARTS_DEMO_LOCALES } from './charts-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('ChartsDemoComponent', () => {
   it('renders English title under default locale', () => {

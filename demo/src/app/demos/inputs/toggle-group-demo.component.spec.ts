@@ -3,6 +3,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideUiLocale } from '../../../../../packages/components/lib/i18n';
 import { ToggleGroupDemoComponent } from './toggle-group-demo.component';
 import { TOGGLE_GROUP_DEMO_LOCALES } from './toggle-group-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('ToggleGroupDemoComponent', () => {
   it('renders English title under default locale', () => {

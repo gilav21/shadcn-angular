@@ -3,6 +3,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideUiLocale } from '../../../../../packages/components/lib/i18n';
 import { FileUploadDemoComponent } from './file-upload-demo.component';
 import { FILE_UPLOAD_DEMO_LOCALES } from './file-upload-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('FileUploadDemoComponent', () => {
   it('renders English title under default locale', () => {

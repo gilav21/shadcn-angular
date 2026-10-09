@@ -3,6 +3,7 @@ import { By } from '@angular/platform-browser';
 import { CheckboxDemoComponent } from './checkbox-demo.component';
 import { provideUiLocale } from '../../../../../packages/components/lib/i18n';
 import { CHECKBOX_DEMO_LOCALES } from './checkbox-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('CheckboxDemoComponent', () => {
   it('renders English strings by default', async () => {

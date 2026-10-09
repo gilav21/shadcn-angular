@@ -6,6 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 // eslint-disable-next-line sonarjs/deprecation -- BrowserAnimationsModule deprecated in Angular 20.2; no stable replacement for TestBed noop animations yet
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { describe, it, expect, beforeEach } from 'vitest';
 
 describe('PageViewerDemoComponent', () => {
     let component: PageViewerDemoComponent;

@@ -3,6 +3,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideUiLocale } from '../../../../../packages/components/lib/i18n';
 import { DockDemoComponent } from './dock-demo.component';
 import { DOCK_DEMO_LOCALES } from './dock-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('DockDemoComponent', () => {
   it('renders English title under default locale', () => {

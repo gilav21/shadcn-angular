@@ -4,6 +4,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideUiLocale } from '../../../../../packages/components/lib/i18n';
 import { EditorInDialogDemoComponent } from './editor-in-dialog-demo.component';
 import { EDITOR_IN_DIALOG_DEMO_LOCALES } from './editor-in-dialog-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('EditorInDialogDemoComponent', () => {
   it('renders English title under default locale', () => {

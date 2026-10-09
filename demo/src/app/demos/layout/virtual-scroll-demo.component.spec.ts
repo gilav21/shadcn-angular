@@ -3,6 +3,7 @@ import { signal } from '@angular/core';
 import { VirtualScrollDemoComponent } from './virtual-scroll-demo.component';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { VIRTUAL_SCROLL_DEMO_LOCALES } from './virtual-scroll-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('VirtualScrollDemoComponent', () => {
   let fixture: ComponentFixture<VirtualScrollDemoComponent>;

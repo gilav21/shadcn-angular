@@ -3,6 +3,7 @@ import { signal } from '@angular/core';
 import { AspectRatioDemoComponent } from './aspect-ratio-demo.component';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { ASPECT_RATIO_DEMO_LOCALES } from './aspect-ratio-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('AspectRatioDemoComponent', () => {
   let fixture: ComponentFixture<AspectRatioDemoComponent>;

@@ -4,6 +4,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideUiLocale } from '../../../../../packages/components/lib/i18n';
 import { SheetDemoComponent } from './sheet-demo.component';
 import { SHEET_DEMO_LOCALES } from './sheet-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('SheetDemoComponent', () => {
   it('renders English title under default locale', () => {

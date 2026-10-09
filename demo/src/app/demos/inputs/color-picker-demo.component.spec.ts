@@ -3,6 +3,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideUiLocale } from '../../../../../packages/components/lib/i18n';
 import { ColorPickerDemoComponent } from './color-picker-demo.component';
 import { COLOR_PICKER_DEMO_LOCALES } from './color-picker-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('ColorPickerDemoComponent', () => {
   it('renders English title under default locale', () => {

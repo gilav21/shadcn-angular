@@ -3,6 +3,7 @@ import { signal } from '@angular/core';
 import { ScrollAreaDemoComponent } from './scroll-area-demo.component';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { SCROLL_AREA_DEMO_LOCALES } from './scroll-area-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('ScrollAreaDemoComponent', () => {
   let fixture: ComponentFixture<ScrollAreaDemoComponent>;

@@ -3,6 +3,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideUiLocale } from '../../../../../packages/components/lib/i18n';
 import { AutocompleteDemoComponent } from './autocomplete-demo.component';
 import { AUTOCOMPLETE_DEMO_LOCALES } from './autocomplete-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('AutocompleteDemoComponent', () => {
   it('renders English title under default locale', () => {

@@ -3,6 +3,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideUiLocale } from '../../../../../packages/components/lib/i18n';
 import { TourDemoComponent } from './tour-demo.component';
 import { TOUR_DEMO_LOCALES } from './tour-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('TourDemoComponent', () => {
   it('renders English title under default locale', () => {

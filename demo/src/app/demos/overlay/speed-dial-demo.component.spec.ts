@@ -4,6 +4,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideUiLocale } from '../../../../../packages/components/lib/i18n';
 import { SpeedDialDemoComponent } from './speed-dial-demo.component';
 import { SPEED_DIAL_DEMO_LOCALES } from './speed-dial-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('SpeedDialDemoComponent', () => {
   it('renders English title under default locale', () => {

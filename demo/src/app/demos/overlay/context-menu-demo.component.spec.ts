@@ -4,6 +4,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideUiLocale } from '../../../../../packages/components/lib/i18n';
 import { ContextMenuDemoComponent } from './context-menu-demo.component';
 import { CONTEXT_MENU_DEMO_LOCALES } from './context-menu-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('ContextMenuDemoComponent', () => {
   it('renders English title under default locale', () => {

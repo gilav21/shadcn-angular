@@ -3,6 +3,7 @@ import { signal } from '@angular/core';
 import { BannerDemoComponent } from './banner-demo.component';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { BANNER_DEMO_LOCALES } from './banner-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('BannerDemoComponent', () => {
   let fixture: ComponentFixture<BannerDemoComponent>;

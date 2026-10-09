@@ -3,6 +3,7 @@ import { signal } from '@angular/core';
 import { DataListDemoComponent } from './data-list-demo.component';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { DATA_LIST_DEMO_LOCALES } from './data-list-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('DataListDemoComponent', () => {
   let fixture: ComponentFixture<DataListDemoComponent>;

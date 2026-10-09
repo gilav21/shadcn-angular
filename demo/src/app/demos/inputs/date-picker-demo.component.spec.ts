@@ -3,6 +3,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideUiLocale } from '../../../../../packages/components/lib/i18n';
 import { DatePickerDemoComponent } from './date-picker-demo.component';
 import { DATE_PICKER_DEMO_LOCALES } from './date-picker-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('DatePickerDemoComponent', () => {
   it('renders English title under default locale', () => {

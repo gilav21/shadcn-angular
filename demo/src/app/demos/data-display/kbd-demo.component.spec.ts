@@ -3,6 +3,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideUiLocale } from '../../../../../packages/components/lib/i18n';
 import { KbdDemoComponent } from './kbd-demo.component';
 import { KBD_DEMO_LOCALES } from './kbd-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('KbdDemoComponent', () => {
   it('renders English title under default locale', () => {

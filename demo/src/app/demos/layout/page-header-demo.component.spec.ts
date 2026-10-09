@@ -3,6 +3,7 @@ import { signal } from '@angular/core';
 import { PageHeaderDemoComponent } from './page-header-demo.component';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { PAGE_HEADER_DEMO_LOCALES } from './page-header-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('PageHeaderDemoComponent', () => {
   let fixture: ComponentFixture<PageHeaderDemoComponent>;

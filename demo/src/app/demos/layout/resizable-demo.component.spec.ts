@@ -3,6 +3,7 @@ import { signal } from '@angular/core';
 import { ResizableDemoComponent } from './resizable-demo.component';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { RESIZABLE_DEMO_LOCALES } from './resizable-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('ResizableDemoComponent', () => {
   let fixture: ComponentFixture<ResizableDemoComponent>;

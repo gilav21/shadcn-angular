@@ -4,6 +4,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideUiLocale } from '../../../../../packages/components/lib/i18n';
 import { PopoverDemoComponent } from './popover-demo.component';
 import { POPOVER_DEMO_LOCALES } from './popover-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('PopoverDemoComponent', () => {
   it('renders English title under default locale', () => {

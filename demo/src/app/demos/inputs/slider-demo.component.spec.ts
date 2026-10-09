@@ -4,6 +4,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideUiLocale } from '../../../../../packages/components/lib/i18n';
 import { SliderDemoComponent } from './slider-demo.component';
 import { SLIDER_DEMO_LOCALES } from './slider-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('SliderDemoComponent', () => {
   it('renders English title under default locale', () => {

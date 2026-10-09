@@ -4,6 +4,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideUiLocale } from '../../../../../packages/components/lib/i18n';
 import { LabelDemoComponent } from './label-demo.component';
 import { LABEL_DEMO_LOCALES } from './label-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('LabelDemoComponent', () => {
   it('renders English title under default locale', () => {

@@ -3,6 +3,7 @@ import { signal } from '@angular/core';
 import { ComparisonSliderDemoComponent } from './comparison-slider-demo.component';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { COMPARISON_SLIDER_DEMO_LOCALES } from './comparison-slider-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('ComparisonSliderDemoComponent', () => {
   let fixture: ComponentFixture<ComparisonSliderDemoComponent>;

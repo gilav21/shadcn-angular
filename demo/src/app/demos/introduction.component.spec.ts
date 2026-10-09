@@ -4,6 +4,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideUiLocale } from '../../../../packages/components/lib/i18n';
 import { IntroductionComponent } from './introduction.component';
 import { INTRODUCTION_LOCALES } from './introduction.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('IntroductionComponent', () => {
   it('renders English body under default locale', () => {

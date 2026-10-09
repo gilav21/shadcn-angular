@@ -3,6 +3,7 @@ import { signal } from '@angular/core';
 import { MenubarDemoComponent } from './menubar-demo.component';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { MENUBAR_DEMO_LOCALES } from './menubar-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('MenubarDemoComponent', () => {
   let fixture: ComponentFixture<MenubarDemoComponent>;

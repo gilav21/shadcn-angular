@@ -387,8 +387,7 @@ interface AngularJson {
 }
 
 describe('one runner, one regeneration path', () => {
-    // RED until Task 4 — flip to it() there.
-    it.fails('demo specs have one runner', () => {
+    it('demo specs have one runner', () => {
         const demo = readJson<Manifest>('demo/package.json');
         const angular = readJson<AngularJson>('angular.json');
         const testTooling = Object.keys(demo.dependencies ?? {}).filter((d) => /^@(?:types|analogjs)\//.test(d));

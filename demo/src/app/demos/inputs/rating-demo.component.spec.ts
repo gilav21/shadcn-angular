@@ -3,6 +3,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideUiLocale } from '../../../../../packages/components/lib/i18n';
 import { RatingDemoComponent } from './rating-demo.component';
 import { RATING_DEMO_LOCALES } from './rating-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('RatingDemoComponent', () => {
   it('renders English title under default locale', () => {

@@ -3,6 +3,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideUiLocale } from '../../../../../packages/components/lib/i18n';
 import { PageBuilderDemoComponent } from './page-builder-demo.component';
 import { PAGE_BUILDER_DEMO_LOCALES } from './page-builder-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('PageBuilderDemoComponent', () => {
   it('renders English panel label under default locale', () => {

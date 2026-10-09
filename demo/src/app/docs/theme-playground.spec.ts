@@ -9,6 +9,7 @@ import { provideUiLocale } from '../../../../packages/components/lib/i18n';
 import { DOCS_LOCALES } from './docs.locales';
 import { ThemePlaygroundComponent } from './theme-playground.component';
 import { buildThemeCss, DEFAULT_THEME_SETTINGS, RADIUS_SCALE } from './theme-tokens';
+import { describe, it, expect } from 'vitest';
 
 async function render(locale?: string) {
     TestBed.configureTestingModule({

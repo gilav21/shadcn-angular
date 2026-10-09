@@ -3,6 +3,7 @@ import { signal } from '@angular/core';
 import { SidebarDemoComponent } from './sidebar-demo.component';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { SIDEBAR_DEMO_LOCALES } from './sidebar-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('SidebarDemoComponent', () => {
   let fixture: ComponentFixture<SidebarDemoComponent>;

@@ -3,6 +3,7 @@ import { signal } from '@angular/core';
 import { NavigationMenuDemoComponent } from './navigation-menu-demo.component';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { NAVIGATION_MENU_DEMO_LOCALES } from './navigation-menu-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('NavigationMenuDemoComponent', () => {
   let fixture: ComponentFixture<NavigationMenuDemoComponent>;

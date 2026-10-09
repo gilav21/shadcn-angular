@@ -3,6 +3,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideUiLocale } from '../../../../../packages/components/lib/i18n';
 import { ChipListDemoComponent } from './chip-list-demo.component';
 import { CHIP_LIST_DEMO_LOCALES } from './chip-list-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('ChipListDemoComponent', () => {
   it('renders English title under default locale', () => {

@@ -3,6 +3,7 @@ import { signal } from '@angular/core';
 import { CollapsibleDemoComponent } from './collapsible-demo.component';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { COLLAPSIBLE_DEMO_LOCALES } from './collapsible-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('CollapsibleDemoComponent', () => {
   let fixture: ComponentFixture<CollapsibleDemoComponent>;
