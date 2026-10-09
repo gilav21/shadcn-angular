@@ -92,8 +92,9 @@ describe('ContextMenuComponent document listeners', () => {
         const menu = menuInstance(fixture);
         menu.show(100, 100);
         expect(menu.open()).toBe(true);
+        fixture.detectChanges();
 
-        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
         expect(menu.open()).toBe(false);
     });
 

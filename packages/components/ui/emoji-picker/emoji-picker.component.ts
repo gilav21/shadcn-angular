@@ -11,6 +11,7 @@ import {
     DestroyRef,
     effect,
 } from '@angular/core';
+import { bindOverlayLayer } from '../../lib/overlay-stack.service';
 
 export const EMOJI_PICKER = new InjectionToken<EmojiPickerComponent>('EMOJI_PICKER');
 
@@ -289,6 +290,15 @@ export class EmojiPickerComponent {
     private scrollCleanup: (() => void) | null = null;
 
     constructor() {
+        // Non-modal layer: the stack gives Escape to the innermost open layer.
+        bindOverlayLayer(() => this.open(), {
+            modal: false,
+            dismiss: () => {
+                this.el.nativeElement.querySelector('[data-slot="emoji-picker-trigger"]')?.focus();
+                this.hide();
+            },
+        });
+
         effect(() => {
             const isOpen = this.open();
             const shouldClose = this.closeOnScroll();

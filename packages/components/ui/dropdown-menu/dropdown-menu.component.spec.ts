@@ -276,7 +276,7 @@ describe('DropdownMenu Keyboard Navigation', () => {
         await fixture.whenStable();
 
         const content = fixture.debugElement.query(By.css('[data-slot="dropdown-content"]'));
-        content.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        content.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
         fixture.detectChanges();
         await fixture.whenStable();
 

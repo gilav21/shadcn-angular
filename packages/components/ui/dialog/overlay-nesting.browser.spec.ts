@@ -64,18 +64,6 @@ import { TabsComponent } from '../tabs';
  * the rows it fixes; the set is deleted with the last of them.
  */
 const PENDING = new Set<string>([
-    'T-8 select in sheet',
-    'T-8 projected select in dialog',
-    'T-8 dropdown-menu in drawer',
-    'T-8 dropdown-menu in alert-dialog (rtl)',
-    'T-8 menubar in dialog',
-    'T-8 context-menu in alert-dialog',
-    'T-8 date-picker in dialog',
-    'T-8 date-range-picker in drawer',
-    'T-8 split-button in dialog',
-    'T-8 emoji-picker in sheet',
-    'T-8 eyedropper in dialog',
-    'T-9 context-menu submenu',
     'T-10 alert-dialog, disabled last control',
     'T-10 alert-dialog, disabled last control (rtl)',
     'T-10 drawer, disabled last control',
@@ -86,10 +74,6 @@ const PENDING = new Set<string>([
     'T-11 sheet, first control disabled',
     'T-11 drawer, first control disabled',
     'T-11 drawer, only disabled controls',
-    'T-13 select option committed with Enter',
-    'T-13 dropdown item activated with Enter',
-    'T-13 menubar item activated with Enter',
-    'T-13 split-button menu closed with Escape',
 ]);
 
 function testFor(label: string): typeof it | typeof it.fails {

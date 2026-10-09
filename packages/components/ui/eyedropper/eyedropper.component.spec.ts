@@ -299,7 +299,7 @@ describe('EyedropperComponent — canvas fallback sampler', () => {
     it('cancels when Escape is pressed during sampling', () => {
         setupWithTarget(canvas);
         clickTrigger();
-        globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
         expect(host.cancelled()).toBe(1);
         expect(host.picked()).toBeNull();
     });

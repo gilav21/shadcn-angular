@@ -136,12 +136,6 @@ describe('computePopupStyles', () => {
   });
 });
 
-/**
- * Task-1 scaffolding, removed by Task 7: vitest runs the test as an expected
- * failure; the jest leg this spec also ships to has no `it.fails`, so skips it.
- */
-const pendingUntilTask7 = (it as unknown as { fails?: typeof it }).fails ?? it.skip;
-
 describe('DatePickerComponent', () => {
   let fixture: ComponentFixture<DatePickerComponent>;
   let component: DatePickerComponent;
@@ -285,7 +279,7 @@ describe('DatePickerComponent', () => {
     expect(component.internalValue()).toBeNull();
   });
 
-  pendingUntilTask7('stays open for clicks on its own trigger and closes for a click on another date picker', () => {
+  it('stays open for clicks on its own trigger and closes for a click on another date picker', () => {
     const other = TestBed.createComponent(DatePickerComponent);
     other.detectChanges();
     component.toggleOpen();
@@ -504,7 +498,7 @@ describe('DateRangePickerComponent', () => {
     expect(emitted).toBe(range);
   });
 
-  pendingUntilTask7('stays open for clicks on its own trigger and closes for a click on another range picker', () => {
+  it('stays open for clicks on its own trigger and closes for a click on another range picker', () => {
     const other = TestBed.createComponent(DateRangePickerComponent);
     other.detectChanges();
     component.toggleOpen();

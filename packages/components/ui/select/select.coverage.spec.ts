@@ -196,12 +196,13 @@ describe('SelectComponent data-driven internals', () => {
         expect(component.internalValue()).toBeUndefined();
     });
 
-    it('onContentKeydown closes on Escape and on Tab', () => {
+    it('closes on Escape through the overlay stack and on Tab', () => {
         fixture.componentRef.setInput('options', ['a', 'b']);
         fixture.detectChanges();
 
         component.open.set(true);
-        component.onContentKeydown(new KeyboardEvent('keydown', { key: 'Escape' }));
+        fixture.detectChanges();
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
         expect(component.open()).toBe(false);
 
         component.open.set(true);

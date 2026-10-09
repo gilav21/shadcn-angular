@@ -15,6 +15,7 @@ import { ContextMenuContentComponent } from './sub/context-menu-content.componen
 import { ContextMenuItemComponent } from './sub/context-menu-item.component';
 import { ContextMenuLabelComponent } from './sub/context-menu-label.component';
 import { ContextMenuSeparatorComponent } from './sub/context-menu-separator.component';
+import { bindOverlayLayer } from '../../lib/overlay-stack.service';
 import { ContextMenuSubComponent } from './sub/context-menu-sub.component';
 import { ContextMenuSubTriggerComponent } from './sub/context-menu-sub-trigger.component';
 import { ContextMenuSubContentComponent } from './sub/context-menu-sub-content.component';
@@ -114,25 +115,19 @@ export class ContextMenuComponent implements OnDestroy {
         this.close();
     };
 
-    private readonly escListener = (event: KeyboardEvent): void => {
-        if (event.key === 'Escape') {
-            this.close();
-        }
-    };
-
     private readonly scrollListener = (): void => {
         this.close();
     };
 
     constructor() {
         this.document.addEventListener('click', this.clickListener, true);
-        this.document.addEventListener('keydown', this.escListener);
+        // Non-modal layer: the stack gives Escape to the innermost open layer.
+        bindOverlayLayer(() => this.open(), { modal: false, dismiss: () => this.close() });
         this.document.addEventListener('scroll', this.scrollListener, true);
     }
 
     ngOnDestroy(): void {
         this.document.removeEventListener('click', this.clickListener, true);
-        this.document.removeEventListener('keydown', this.escListener);
         this.document.removeEventListener('scroll', this.scrollListener, true);
     }
 

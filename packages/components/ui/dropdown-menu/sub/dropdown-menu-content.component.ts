@@ -77,8 +77,8 @@ export class DropdownMenuContentComponent {
     }
 
     /**
-     * Menu key handler: arrows move focus with wraparound, Escape closes and
-     * returns focus to the trigger, and Tab is trapped — it cycles within the
+     * Menu key handler: arrows move focus with wraparound, Escape is the overlay
+     * stack's (it closes the menu and returns focus to the trigger), and Tab is trapped — it cycles within the
      * menu instead of leaving it, so the menu must be closed to tab onwards.
      */
     onKeydown(event: KeyboardEvent): void {
@@ -88,10 +88,6 @@ export class DropdownMenuContentComponent {
         } else if (event.key === 'ArrowUp') {
             event.preventDefault();
             this.focusPrevItem(event.target as HTMLElement);
-        } else if (event.key === 'Escape') {
-            event.preventDefault();
-            this.menu?.hide();
-            this.service.focusTrigger();
         } else if (event.key === 'Tab') {
             event.preventDefault();
             const items = this.getFocusableItems();

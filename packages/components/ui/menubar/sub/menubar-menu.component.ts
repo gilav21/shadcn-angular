@@ -60,4 +60,24 @@ export class MenubarMenuComponent {
       this.service.setActive(null);
     }
   }
+
+  /**
+   * {@link close}, handing focus back to this menu's trigger first: the panel
+   * leaves the DOM on close, and focus inside it would fall to `<body>`.
+   */
+  closeAndFocusTrigger(): void {
+    this.service.menus.get(this.id)?.trigger?.focus();
+    this.close();
+  }
+
+  /**
+   * {@link closeAndFocusTrigger} for an item activation. Focus is handed back
+   * after the key event: Enter's default action would otherwise click the
+   * trigger focus just landed on and reopen the menu.
+   */
+  closeAfterActivation(): void {
+    const trigger = this.service.menus.get(this.id)?.trigger;
+    setTimeout(() => trigger?.focus());
+    this.close();
+  }
 }

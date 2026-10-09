@@ -996,12 +996,6 @@ class TouchedStateHost {
     readonly form = new FormGroup({ country: new FormControl<string | null>(null, Validators.required) });
 }
 
-/**
- * Task-1 scaffolding, removed by Task 6: vitest runs the test as an expected
- * failure; the jest leg this spec also ships to has no `it.fails`, so skips it.
- */
-const pendingUntilTask6 = (it as unknown as { fails?: typeof it }).fails ?? it.skip;
-
 describe('Select touched state', () => {
     async function settle(fixture: ComponentFixture<TouchedStateHost>): Promise<void> {
         fixture.detectChanges();
@@ -1010,7 +1004,7 @@ describe('Select touched state', () => {
         fixture.detectChanges();
     }
 
-    pendingUntilTask6.each([
+    it.each([
         { mode: 'data-driven', projected: false, trigger: 'button[role="combobox"]', option: '[role="option"]' },
         { mode: 'projected', projected: true, trigger: '[data-slot="select-trigger"]', option: '[data-slot="select-item"]' },
     ])('marks the form control touched only after the user closed the popup ($mode)', async ({ projected, trigger, option }) => {

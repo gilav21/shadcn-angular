@@ -8,10 +8,12 @@ import {
   forwardRef,
   effect,
   ElementRef,
+  inject,
   ViewChild,
   OnDestroy,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
+import { bindOverlayLayer } from '../../lib/overlay-stack.service';
 import { cn, getClippingRect } from '../../lib/utils';
 import { anchorToTopLayer, type TopLayerAlign, type TopLayerHandle } from '../../lib/top-layer';
 import { CalendarComponent } from '../calendar';
@@ -144,6 +146,8 @@ export class DatePickerComponent implements ControlValueAccessor, OnDestroy {
   private onChange: (value: Date | null) => void = () => { };
   private onTouched: () => void = () => { };
 
+  private readonly el = inject(ElementRef);
+
   @ViewChild('popupEl') popupEl?: ElementRef<HTMLElement>;
   @ViewChild('triggerEl') triggerEl?: ElementRef<HTMLElement>;
 
@@ -154,6 +158,14 @@ export class DatePickerComponent implements ControlValueAccessor, OnDestroy {
   private isFirstDateInput = true;
 
   constructor() {
+    // Non-modal layer: the stack gives Escape to the innermost open layer.
+    bindOverlayLayer(() => this.isOpen(), {
+      modal: false,
+      dismiss: () => {
+        this.triggerEl?.nativeElement.focus();
+        this.isOpen.set(false);
+      },
+    });
     effect(() => {
       const dateInput = this.date();
       const isInitialRun = this.isFirstDateInput;
@@ -251,8 +263,8 @@ export class DatePickerComponent implements ControlValueAccessor, OnDestroy {
    * way does not touch the selected value.
    */
   onDocumentClick(event: MouseEvent): void {
-    const target = event.target as HTMLElement;
-    if (!target.closest('[data-slot="date-picker"]')) {
+    // This picker's own wrapper, not any picker's: a click inside another picker is outside this one.
+    if (!this.el.nativeElement.contains(event.target)) {
       this.isOpen.set(false);
     }
   }

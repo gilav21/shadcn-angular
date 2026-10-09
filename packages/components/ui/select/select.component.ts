@@ -14,6 +14,7 @@ import {
     ViewChild,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
+import { bindOverlayLayer } from '../../lib/overlay-stack.service';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cn, isRtl } from '../../lib/utils';
 import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
@@ -261,13 +262,9 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
     @ViewChild('contentEl') contentEl?: ElementRef<HTMLElement>;
 
     private readonly clickListener = (event: MouseEvent): void => {
-        if (!this.el.nativeElement.contains(event.target)) {
-            this.close();
-        }
-    };
-
-    private readonly keydownListener = (event: KeyboardEvent): void => {
-        if (event.key === 'Escape' && this.open()) {
+        // Only an open select reacts: closing marks the control touched, and a
+        // click elsewhere must not do that to a select nobody opened.
+        if (this.open() && !this.el.nativeElement.contains(event.target)) {
             this.close();
         }
     };
@@ -289,7 +286,15 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
 
     constructor() {
         this.document.addEventListener('click', this.clickListener);
-        this.document.addEventListener('keydown', this.keydownListener);
+
+        // Non-modal layer: the stack gives Escape to the innermost open layer.
+        bindOverlayLayer(() => this.open(), {
+            modal: false,
+            dismiss: () => {
+                this.restoreFocusFromPanel();
+                this.close();
+            },
+        });
 
         effect(() => {
             const defaultVal = this.defaultValue();
@@ -342,7 +347,6 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
 
     ngOnDestroy(): void {
         this.document.removeEventListener('click', this.clickListener);
-        this.document.removeEventListener('keydown', this.keydownListener);
     }
 
     /** Label shown for an option, via {@link displayWith}. */
@@ -448,7 +452,20 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
         this.internalValue.set(val);
         this.value.set(val);
         this._onChange(val);
+        this.restoreFocusFromPanel();
         this.close();
+    }
+
+    /**
+     * Hands focus back to the trigger when it sits inside the popup that is
+     * about to close: that panel is removed from the DOM, and focus would fall
+     * to `<body>`. A close from an outside click leaves focus where the user put it.
+     */
+    private restoreFocusFromPanel(): void {
+        const host: HTMLElement = this.el.nativeElement;
+        const trigger = host.querySelector<HTMLElement>('[data-slot="select-trigger"]');
+        const active = this.document.activeElement;
+        if (trigger && active !== trigger && active && host.contains(active)) trigger.focus();
     }
 
     /**
@@ -584,10 +601,6 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
                 if (currentIndex >= 0 && currentIndex < opts.length) {
                     this.selectOption(opts[currentIndex]);
                 }
-                break;
-            case 'Escape':
-                event.preventDefault();
-                this.close();
                 break;
             case 'Tab':
                 this.close();

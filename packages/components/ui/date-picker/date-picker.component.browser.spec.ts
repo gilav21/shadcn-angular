@@ -168,9 +168,6 @@ class TwoPickersHost {
     readonly second = signal<PickerKind>('single');
 }
 
-/** Task-1 scaffolding: the same-kind pairs fail until Task 7 and run as expected failures until then. */
-const PENDING_PAIRS = new Set(['single → single', 'range → range']);
-
 const PAIRS: ReadonlyArray<{ readonly first: PickerKind; readonly second: PickerKind }> = [
     { first: 'single', second: 'single' },
     { first: 'range', second: 'range' },
@@ -181,8 +178,7 @@ const PAIRS: ReadonlyArray<{ readonly first: PickerKind; readonly second: Picker
 describe('Date pickers on one page', () => {
     for (const { first, second } of PAIRS) {
         const pair = `${first} → ${second}`;
-        const test = PENDING_PAIRS.has(pair) ? it.fails : it;
-        test(`opening one picker closes every other open picker (${pair})`, async () => {
+        it(`opening one picker closes every other open picker (${pair})`, async () => {
             const fixture = TestBed.createComponent(TwoPickersHost);
             fixture.componentInstance.first.set(first);
             fixture.componentInstance.second.set(second);

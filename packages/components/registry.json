@@ -121,7 +121,8 @@
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
-      "i18n/index.ts"
+      "i18n/index.ts",
+      "overlay-stack.service.ts"
     ],
     "testFiles": [
       "alert-dialog/alert-dialog.component.spec.ts"
@@ -576,6 +577,7 @@
       "context-menu/sub/context-menu-trigger.directive.ts"
     ],
     "libFiles": [
+      "overlay-stack.service.ts",
       "theme-presets.ts",
       "touch.ts"
     ],
@@ -615,6 +617,7 @@
       "date-picker/sub/date-range-picker.component.ts"
     ],
     "libFiles": [
+      "overlay-stack.service.ts",
       "top-layer.ts"
     ],
     "dependencies": [
@@ -1356,6 +1359,7 @@
     ],
     "libFiles": [
       "a11y.ts",
+      "overlay-stack.service.ts",
       "touch.ts"
     ],
     "testFiles": [
@@ -1712,6 +1716,7 @@
       "menubar/sub/menubar-trigger.component.ts"
     ],
     "libFiles": [
+      "overlay-stack.service.ts",
       "touch.ts"
     ],
     "testFiles": [
@@ -2088,7 +2093,8 @@
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
-      "i18n/index.ts"
+      "i18n/index.ts",
+      "overlay-stack.service.ts"
     ],
     "dependencies": [
       "skeleton",
@@ -2649,6 +2655,7 @@
     ],
     "libFiles": [
       "a11y.ts",
+      "overlay-stack.service.ts",
       "top-layer.ts"
     ],
     "dependencies": [
@@ -3372,6 +3379,9 @@
       "split-button/sub/split-button-menu.component.ts",
       "split-button/sub/split-button-primary.component.ts"
     ],
+    "libFiles": [
+      "overlay-stack.service.ts"
+    ],
     "dependencies": [
       "button"
     ],
@@ -4054,6 +4064,7 @@
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts",
+      "overlay-stack.service.ts",
       "touch.ts"
     ],
     "dependencies": [
