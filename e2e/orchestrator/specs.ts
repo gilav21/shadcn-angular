@@ -117,6 +117,12 @@ const EXPLICIT_SPECS: readonly ComponentSpec[] = [
         names: ['dialog', 'dropdown-menu', 'select'],
         label: 'rtl',
     },
+    // overlay stack: a modal form holding a select, a date picker and a nested
+    // alert dialog - Escape, Tab and scroll-lock across layers in a real install.
+    {
+        names: ['dialog', 'alert-dialog', 'select', 'date-picker'],
+        label: 'overlay-stack',
+    },
     // addon system: install the lean data-table base AND its opt-in
     // `context-menu` addon together, then prove they auto-wire via DI
     // (the ⋮ row button + right-click menu) with `uiDtContextMenu`.
