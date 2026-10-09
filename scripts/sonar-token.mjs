@@ -37,11 +37,13 @@ export function resolveSonarToken() {
 
 /**
  * Host-side SonarQube URL for helper scripts that call the web API.
- * Stub — implemented in Task 6 of specs/repo-hygiene-and-docs-drift-spec.md.
+ * `SONAR_HOST_URL` is deliberately ignored: it is the scanner container's view
+ * (host.docker.internal) and only `sonar.mjs` may read it; from the host that
+ * name does not resolve.
  *
  * @param {Record<string, string | undefined>} [env]
  * @returns {string}
  */
 export function resolveSonarHost(env = process.env) {
-  return env.SONAR_HOST_URL ?? 'http://localhost:9000';
+  return (env.SONAR_HOST_URL_LOCAL ?? 'http://localhost:9000').replace(/\/$/, '');
 }

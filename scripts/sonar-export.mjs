@@ -5,11 +5,11 @@
 //   Windows (PowerShell):  $env:SONAR_TOKEN="<token>"; npm run sonar:export
 //   macOS / Linux:         SONAR_TOKEN=<token> npm run sonar:export
 import { writeFileSync } from 'node:fs';
-import { resolveSonarToken } from './sonar-token.mjs';
+import { resolveSonarHost, resolveSonarToken } from './sonar-token.mjs';
 
 const token = resolveSonarToken();
 
-const host = (process.env.SONAR_HOST_URL_LOCAL ?? 'http://localhost:9000').replace(/\/$/, '');
+const host = resolveSonarHost();
 const project = process.env.SONAR_PROJECT ?? 'shadcn-angular';
 const headers = { Authorization: `Bearer ${token}` };
 

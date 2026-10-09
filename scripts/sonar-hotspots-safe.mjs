@@ -8,15 +8,13 @@
 //     intentionally invokes git/npm from PATH; inputs are not attacker-controlled.
 //
 // Usage (PowerShell), needs a USER token with "Administer Security Hotspots":
-//   $env:SONAR_TOKEN = (a user token); node scripts/sonar-hotspots-safe.mjs
-const HOST = process.env.SONAR_HOST_URL || 'http://localhost:9000';
-const TOKEN = process.env.SONAR_TOKEN;
+//   node scripts/sonar-hotspots-safe.mjs   (token from SONAR_TOKEN or packages/.env; host from SONAR_HOST_URL_LOCAL)
+import { resolveSonarHost, resolveSonarToken } from './sonar-token.mjs';
+
+const HOST = resolveSonarHost();
+const TOKEN = resolveSonarToken();
 const PROJECT = 'shadcn-angular';
 
-if (!TOKEN) {
-  console.error('SONAR_TOKEN not set.');
-  process.exit(1);
-}
 const auth = { Authorization: 'Bearer ' + TOKEN };
 
 const COMMENTS = {

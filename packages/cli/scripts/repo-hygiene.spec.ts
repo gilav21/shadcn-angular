@@ -304,8 +304,7 @@ function sonarEnvOffenders(file: string, text: string): string[] {
 }
 
 describe('sonar helpers', () => {
-    // RED until Task 6 — flip to it() there.
-    it.fails('resolveSonarHost prefers SONAR_HOST_URL_LOCAL, falls back to localhost:9000, strips a trailing slash, and ignores SONAR_HOST_URL', () => {
+    it('resolveSonarHost prefers SONAR_HOST_URL_LOCAL, falls back to localhost:9000, strips a trailing slash, and ignores SONAR_HOST_URL', () => {
         const docker = 'http://host.docker.internal:9000';
         expect([
             resolveSonarHost({}),
@@ -315,8 +314,7 @@ describe('sonar helpers', () => {
         ]).toEqual(['http://localhost:9000', 'http://localhost:9000', 'http://sonar.lan:9001', 'http://127.0.0.1:9000']);
     });
 
-    // RED until Task 6 — flip to it() there.
-    it.fails('only sonar-token.mjs names SONAR_TOKEN and only sonar.mjs names SONAR_HOST_URL', () => {
+    it('only sonar-token.mjs names SONAR_TOKEN and only sonar.mjs names SONAR_HOST_URL', () => {
         const scripts = TRACKED.filter((p) => p.startsWith('scripts/') && CODE_FILE.test(p));
         const offenders = scripts.flatMap((p) => sonarEnvOffenders(p, read(p)));
 
