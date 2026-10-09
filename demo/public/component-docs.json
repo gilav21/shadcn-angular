@@ -446,7 +446,7 @@
             {
               "name": "series",
               "type": "ChartSeries[]",
-              "description": "One filled area per series. Points are matched across series **by position**, not by name: the x axis categories are taken from the *first* series' `data[].name`, so every series should carry the same number of points in the same order. Each entry's `color` overrides the palette colour picked from the series index; `id` (falling back to `name`) is the key used by the legend and {@link toggleSeries}, so give series unique names when they have no `id`. Array order is paint order — and when {@link stacked} is on, stack order: the first series sits at the bottom. The y domain always starts at 0 and is nice-rounded over the *visible* series, so negative values fall outside the plot.",
+              "description": "One filled area per series. Points are matched across series **by position**, not by name: the x axis categories are taken from the *first* series' `data[].name`, so every series should carry the same number of points in the same order. Each entry's `color` overrides the palette colour picked from the series index; `id` (falling back to `name`) is the key used by the legend and {@link toggleSeries}, so give series unique names when they have no `id`. Array order is paint order — and when {@link stacked} is on, stack order: the first series sits at the bottom. The y domain always starts at 0 and is nice-rounded over the *visible* series, so negative values fall outside the plot. A missing value (`NaN`, `null`, `undefined` or infinite) is a gap in an overlapping area and counts as 0 in a stacked one.",
               "required": true
             },
             {
@@ -10637,7 +10637,7 @@
             {
               "name": "series",
               "type": "ChartSeries[]",
-              "description": "One poly-line per series. Points are matched across series **by position**, not by name: the x axis categories are taken from the *first* series' `data[].name`, so every series should carry the same number of points in the same order. Each entry's `color` overrides the palette colour picked from the series index; `id` (falling back to `name`) is the key used by the legend and {@link toggleSeries}, so give series unique names when they have no `id`. The y domain is nice-rounded over the *visible* series and always includes 0, so hiding a series via the legend rescales the axis.",
+              "description": "One poly-line per series. Points are matched across series **by position**, not by name: the x axis categories are taken from the *first* series' `data[].name`, so every series should carry the same number of points in the same order. Each entry's `color` overrides the palette colour picked from the series index; `id` (falling back to `name`) is the key used by the legend and {@link toggleSeries}, so give series unique names when they have no `id`. The y domain is nice-rounded over the *visible* series and always includes 0, so hiding a series via the legend rescales the axis. A missing value (`NaN`, `null`, `undefined` or infinite) is a gap: the line breaks there and no marker is drawn for it.",
               "required": true
             },
             {

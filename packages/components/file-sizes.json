@@ -166,8 +166,8 @@
       "lines": 294
     },
     "area-chart/area-chart.component.ts": {
-      "bytes": 14527,
-      "lines": 349
+      "bytes": 14709,
+      "lines": 353
     },
     "area-chart/area-chart.stories.ts": {
       "bytes": 5302,
@@ -390,8 +390,8 @@
       "lines": 456
     },
     "bar-race-chart/bar-race-chart.component.ts": {
-      "bytes": 13099,
-      "lines": 383
+      "bytes": 13118,
+      "lines": 384
     },
     "bar-race-chart/bar-race-chart.locales.ts": {
       "bytes": 1604,
@@ -470,8 +470,8 @@
       "lines": 367
     },
     "boxplot/boxplot.component.ts": {
-      "bytes": 16333,
-      "lines": 418
+      "bytes": 16336,
+      "lines": 419
     },
     "boxplot/boxplot.stories.ts": {
       "bytes": 5284,
@@ -554,7 +554,7 @@
       "lines": 303
     },
     "bubble-chart/bubble-chart.component.ts": {
-      "bytes": 12416,
+      "bytes": 12357,
       "lines": 318
     },
     "bubble-chart/bubble-chart.stories.ts": {
@@ -574,7 +574,7 @@
       "lines": 205
     },
     "bullet-chart/bullet-chart.component.ts": {
-      "bytes": 5284,
+      "bytes": 5315,
       "lines": 116
     },
     "bullet-chart/bullet-chart.stories.ts": {
@@ -666,7 +666,7 @@
       "lines": 113
     },
     "calendar-heatmap/calendar-heatmap.component.ts": {
-      "bytes": 8766,
+      "bytes": 8742,
       "lines": 217
     },
     "calendar-heatmap/calendar-heatmap.stories.ts": {
@@ -714,7 +714,7 @@
       "lines": 417
     },
     "candlestick/candlestick.component.ts": {
-      "bytes": 14453,
+      "bytes": 14457,
       "lines": 358
     },
     "candlestick/candlestick.stories.ts": {
@@ -1154,8 +1154,8 @@
       "lines": 283
     },
     "column-range-chart/column-range-chart.component.ts": {
-      "bytes": 10237,
-      "lines": 293
+      "bytes": 10261,
+      "lines": 294
     },
     "column-range-chart/column-range-chart.stories.ts": {
       "bytes": 3828,
@@ -1178,8 +1178,8 @@
       "lines": 388
     },
     "combo-chart/combo-chart.component.ts": {
-      "bytes": 14908,
-      "lines": 372
+      "bytes": 14890,
+      "lines": 373
     },
     "combo-chart/combo-chart.stories.ts": {
       "bytes": 3723,
@@ -2398,7 +2398,7 @@
       "lines": 262
     },
     "funnel-chart/funnel-chart.component.ts": {
-      "bytes": 10160,
+      "bytes": 10153,
       "lines": 243
     },
     "funnel-chart/funnel-chart.stories.ts": {
@@ -2462,8 +2462,8 @@
       "lines": 197
     },
     "heatmap/heatmap.component.ts": {
-      "bytes": 10217,
-      "lines": 253
+      "bytes": 10159,
+      "lines": 252
     },
     "heatmap/heatmap.stories.ts": {
       "bytes": 3350,
@@ -2482,8 +2482,8 @@
       "lines": 319
     },
     "histogram/histogram.component.ts": {
-      "bytes": 12275,
-      "lines": 304
+      "bytes": 12302,
+      "lines": 305
     },
     "histogram/histogram.stories.ts": {
       "bytes": 5374,
@@ -2494,12 +2494,12 @@
       "lines": 31
     },
     "histogram/histogram.utils.spec.ts": {
-      "bytes": 7660,
-      "lines": 181
+      "bytes": 9277,
+      "lines": 201
     },
     "histogram/histogram.utils.ts": {
-      "bytes": 4716,
-      "lines": 125
+      "bytes": 4218,
+      "lines": 108
     },
     "histogram/histogram.utils.workload.spec.ts": {
       "bytes": 1695,
@@ -3374,20 +3374,20 @@
       "lines": 31
     },
     "line-chart/line-chart.component.html": {
-      "bytes": 3051,
+      "bytes": 3050,
       "lines": 115
     },
     "line-chart/line-chart.component.spec.ts": {
-      "bytes": 12569,
-      "lines": 289
+      "bytes": 13822,
+      "lines": 311
     },
     "line-chart/line-chart.component.ts": {
-      "bytes": 13199,
-      "lines": 328
+      "bytes": 13484,
+      "lines": 333
     },
     "line-chart/line-chart.stories.ts": {
-      "bytes": 4121,
-      "lines": 105
+      "bytes": 4583,
+      "lines": 118
     },
     "magnetic.directive.spec.ts": {
       "bytes": 4946,
@@ -3734,7 +3734,7 @@
       "lines": 220
     },
     "org-chart/org-chart.component.ts": {
-      "bytes": 12462,
+      "bytes": 12480,
       "lines": 369
     },
     "org-chart/org-chart.stories.ts": {
@@ -4046,7 +4046,7 @@
       "lines": 93
     },
     "radar-chart/radar-chart.component.ts": {
-      "bytes": 8017,
+      "bytes": 8010,
       "lines": 195
     },
     "radar-chart/radar-chart.stories.ts": {
@@ -5110,8 +5110,8 @@
       "lines": 200
     },
     "scatter-chart/scatter-chart.component.ts": {
-      "bytes": 11945,
-      "lines": 305
+      "bytes": 11943,
+      "lines": 306
     },
     "scatter-chart/scatter-chart.stories.ts": {
       "bytes": 3240,
@@ -6562,8 +6562,8 @@
       "lines": 350
     },
     "waterfall-chart/waterfall-chart.component.ts": {
-      "bytes": 12089,
-      "lines": 287
+      "bytes": 12071,
+      "lines": 286
     },
     "waterfall-chart/waterfall-chart.stories.ts": {
       "bytes": 4175,
@@ -6664,12 +6664,12 @@
       "lines": 91
     },
     "chart-path.spec.ts": {
-      "bytes": 3642,
-      "lines": 92
+      "bytes": 5867,
+      "lines": 138
     },
     "chart-path.ts": {
-      "bytes": 4992,
-      "lines": 146
+      "bytes": 6362,
+      "lines": 182
     },
     "chart-polar.spec.ts": {
       "bytes": 1461,
@@ -6688,24 +6688,24 @@
       "lines": 32
     },
     "chart-scale.spec.ts": {
-      "bytes": 5364,
-      "lines": 154
+      "bytes": 13937,
+      "lines": 362
     },
     "chart-scale.ts": {
-      "bytes": 6089,
-      "lines": 202
+      "bytes": 9234,
+      "lines": 261
     },
     "chart.types.ts": {
       "bytes": 4931,
       "lines": 205
     },
     "chart.utils.spec.ts": {
-      "bytes": 5250,
-      "lines": 158
+      "bytes": 17655,
+      "lines": 421
     },
     "chart.utils.ts": {
-      "bytes": 7606,
-      "lines": 249
+      "bytes": 12470,
+      "lines": 336
     },
     "code-highlight.spec.ts": {
       "bytes": 20673,

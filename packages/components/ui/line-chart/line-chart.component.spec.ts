@@ -286,4 +286,26 @@ describe('LineChartComponent', () => {
         expect(root.classList).toContain('my-chart');
         expect(root.classList).toContain('w-full');
     });
+
+    // T-8 (UC-7)
+    it('draws a gap at a missing value and no marker for it', () => {
+        const missing = [
+            { name: 'A', value: 3 },
+            { name: 'B', value: Number.NaN },
+            { name: 'C', value: 5 },
+            { name: 'D', value: undefined },
+            { name: 'E', value: 7 },
+        ] as unknown as ChartSeries['data'];
+        fixture.componentRef.setInput('series', [{ name: 'Gappy', data: missing }, { name: 'Null', data: [{ name: 'A', value: null }] }] as unknown as ChartSeries[]);
+        fixture.detectChanges();
+
+        const root = fixture.nativeElement as HTMLElement;
+        const path = root.querySelector('path[data-slot="line-series"]')!.getAttribute('d')!;
+        expect(path.match(/M /g)).toHaveLength(3);
+        const gridLabels = Array.from(root.querySelectorAll('text')).map(t => t.textContent?.trim());
+        expect(gridLabels.some(t => t === 'NaN')).toBe(false);
+        expect(root.querySelectorAll('circle[aria-label^="Gappy"]')).toHaveLength(3);
+        const attributes = Array.from(root.querySelectorAll('svg *')).flatMap(el => Array.from(el.attributes).map(a => a.value));
+        expect(attributes.filter(v => v.includes('NaN') || v.includes('Infinity'))).toEqual([]);
+    });
 });

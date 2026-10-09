@@ -35,6 +35,8 @@ interface LinePoint {
     y: number;
     value: number;
     name: string;
+    /** Position in the series data, which stays stable when a missing value drops its marker. */
+    index: number;
 }
 
 interface SeriesPath {
@@ -74,6 +76,9 @@ export class LineChartComponent implements AfterViewInit {
      * the legend and {@link toggleSeries}, so give series unique names when they
      * have no `id`. The y domain is nice-rounded over the *visible* series and
      * always includes 0, so hiding a series via the legend rescales the axis.
+     *
+     * A missing value (`NaN`, `null`, `undefined` or infinite) is a gap: the
+     * line breaks there and no marker is drawn for it.
      */
     readonly series = input.required<ChartSeries[]>();
     /**
@@ -223,13 +228,14 @@ export class LineChartComponent implements AfterViewInit {
                 y: ys.scale(d.value),
                 value: d.value,
                 name: d.name,
+                index: idx,
             }));
             return {
                 key: this.seriesKey(s),
                 name: s.name,
                 color: getChartColor(i, s.color),
                 path: linePath(points.map(p => ({ x: p.x, y: p.y })), this.curve()),
-                points,
+                points: points.filter(p => Number.isFinite(p.y)),
             };
         });
     });

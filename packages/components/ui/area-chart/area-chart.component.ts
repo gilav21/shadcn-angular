@@ -26,7 +26,7 @@ import {
     extent,
 } from '../../lib/chart.utils';
 import { linearScale, niceDomain } from '../../lib/chart-scale';
-import { linePath, areaPath, bandAreaPath, stackSeries, CurveType } from '../../lib/chart-path';
+import { linePath, areaPath, bandAreaPath, stackSeries, finiteOrZero, CurveType } from '../../lib/chart-path';
 import { nearestPointX, pointerToSvg } from '../../lib/chart-interaction';
 import { ChartTooltipComponent, ChartTooltipRow } from '../chart-tooltip';
 import { ChartLegendComponent, ChartLegendItem } from '../chart-legend';
@@ -70,6 +70,9 @@ export class AreaChartComponent implements AfterViewInit {
      * {@link stacked} is on, stack order: the first series sits at the bottom.
      * The y domain always starts at 0 and is nice-rounded over the *visible*
      * series, so negative values fall outside the plot.
+     *
+     * A missing value (`NaN`, `null`, `undefined` or infinite) is a gap in an
+     * overlapping area and counts as 0 in a stacked one.
      */
     readonly series = input.required<ChartSeries[]>();
     /**
@@ -192,7 +195,7 @@ export class AreaChartComponent implements AfterViewInit {
             const n = this.categories().length;
             let max = 0;
             for (let c = 0; c < n; c++) {
-                const total = vis.reduce((sum, { s }) => sum + (s.data[c]?.value ?? 0), 0);
+                const total = vis.reduce((sum, { s }) => sum + finiteOrZero(s.data[c]?.value), 0);
                 max = Math.max(max, total);
             }
             return max;

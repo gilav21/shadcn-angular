@@ -75,18 +75,18 @@
 
     @if (showPoints()) {
       @for (sp of seriesPaths(); track sp.key; let si = $index) {
-        @for (p of sp.points; track p.name; let pi = $index) {
+        @for (p of sp.points; track p.index) {
           <circle
             [attr.cx]="p.x"
             [attr.cy]="p.y"
-            [attr.r]="hoveredIndex() === pi ? 4 : 2.5"
+            [attr.r]="hoveredIndex() === p.index ? 4 : 2.5"
             [attr.fill]="sp.color"
             class="cursor-pointer transition-[r]"
             tabindex="0"
             role="button"
             [attr.aria-label]="sp.name + ', ' + p.name + ': ' + p.value"
-            (click)="onPointClick(si, pi)"
-            (keydown.enter)="onPointClick(si, pi)"
+            (click)="onPointClick(si, p.index)"
+            (keydown.enter)="onPointClick(si, p.index)"
           />
         }
       }
