@@ -226,6 +226,27 @@ export default tseslint.config(
     },
   },
 
+  {
+    // `Math.min(...arr)` passes one argument per element and V8 throws a
+    // RangeError past ~100k of them. Chart data is caller-sized, so ranges go
+    // through `extent()` in lib/chart.utils.ts.
+    files: [
+      'packages/components/ui/*chart*/**/*.ts',
+      'packages/components/ui/{boxplot,candlestick,heatmap,calendar-heatmap,histogram,treemap}/**/*.ts',
+      'packages/components/lib/chart*.ts',
+    ],
+    ignores: ['**/*.spec.ts', '**/*.stories.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "CallExpression[callee.object.name='Math'][callee.property.name=/^(min|max)$/] > SpreadElement",
+          message: 'Math.min/max(...array) throws RangeError on large arrays; use extent() from lib/chart.utils.',
+        },
+      ],
+    },
+  },
+
   // --- Test / story / demo scaffolding: relax non-shipped-code rules ---
   {
     files: [

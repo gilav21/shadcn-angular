@@ -22,6 +22,7 @@ import {
     getChartColor,
     formatChartValue,
     getChartSummary,
+    extent,
 } from '../../lib/chart.utils';
 import { linearScale, niceDomain } from '../../lib/chart-scale';
 import { linePath, CurveType } from '../../lib/chart-path';
@@ -176,10 +177,8 @@ export class LineChartComponent implements AfterViewInit {
 
     private readonly yDomain = computed<[number, number]>(() => {
         const values = this.visibleSeries().flatMap(({ s }) => s.data.map(d => d.value));
-        if (values.length === 0) return [0, 1];
-        const max = Math.max(...values);
-        const min = Math.min(0, ...values);
-        return niceDomain(min, max, 5);
+        const range = extent(values);
+        return range ? niceDomain(Math.min(0, range[0]), range[1], 5) : [0, 1];
     });
 
     protected readonly area = computed(() => {

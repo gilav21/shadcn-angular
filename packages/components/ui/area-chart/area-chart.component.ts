@@ -23,6 +23,7 @@ import {
     getChartColor,
     formatChartValue,
     getChartSummary,
+    extent,
 } from '../../lib/chart.utils';
 import { linearScale, niceDomain } from '../../lib/chart-scale';
 import { linePath, areaPath, bandAreaPath, stackSeries, CurveType } from '../../lib/chart-path';
@@ -196,7 +197,7 @@ export class AreaChartComponent implements AfterViewInit {
             }
             return max;
         }
-        return Math.max(...vis.flatMap(({ s }) => s.data.map(d => d.value)));
+        return extent(vis.flatMap(({ s }) => s.data.map(d => d.value)))?.[1] ?? 0;
     });
 
     protected readonly area = computed(() => {

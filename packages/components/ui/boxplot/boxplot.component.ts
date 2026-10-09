@@ -17,6 +17,7 @@ import {
     getChartColor,
     formatChartValue,
     getChartSummary,
+    extent,
 } from '../../lib/chart.utils';
 import { bandScale, linearScale, niceDomain } from '../../lib/chart-scale';
 import { ChartTooltipComponent, ChartTooltipRow } from '../chart-tooltip';
@@ -203,8 +204,8 @@ export class BoxplotComponent implements AfterViewInit {
             stats.q3,
             ...stats.outliers,
         ]);
-        if (all.length === 0) return [0, 1];
-        return niceDomain(Math.min(...all), Math.max(...all), 5);
+        const range = extent(all);
+        return range ? niceDomain(range[0], range[1], 5) : [0, 1];
     });
 
     private readonly valueScale = computed(() => {

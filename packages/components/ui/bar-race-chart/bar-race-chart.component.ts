@@ -20,6 +20,7 @@ import {
   getChartColor,
   formatChartValue,
   getChartSummary,
+    extent,
 } from '../../lib/chart.utils';
 
 interface RaceBar {
@@ -212,7 +213,7 @@ export class BarRaceChartComponent implements OnDestroy, AfterViewInit {
   maxValue = computed(() => {
     const frame = this.currentFrame();
     if (frame.length === 0) return 100;
-    return Math.max(...frame.map(d => d.value)) * 1.1;
+    return (extent(frame.map(d => d.value))?.[1] ?? 0) * 1.1;
   });
 
   displayBars = computed((): RaceBar[] => {

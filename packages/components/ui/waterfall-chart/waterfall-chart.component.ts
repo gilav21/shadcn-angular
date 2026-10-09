@@ -14,7 +14,7 @@ import {
 import { cn, isRtl } from '../../lib/utils';
 import { observeChartWidth } from '../../lib/chart-responsive';
 import { WaterfallBar, ChartClickEvent, ChartDirection } from '../../lib/chart.types';
-import { formatChartValue, getChartSummary } from '../../lib/chart.utils';
+import { formatChartValue, getChartSummary, extent } from '../../lib/chart.utils';
 import { linearScale, niceDomain, bandScale } from '../../lib/chart-scale';
 import { nearestPointX, pointerToSvg } from '../../lib/chart-interaction';
 import { ChartTooltipComponent, ChartTooltipRow } from '../chart-tooltip';
@@ -167,8 +167,7 @@ export class WaterfallChartComponent implements AfterViewInit {
         const a = this.area();
         const levels = this.levels();
         const all = levels.flatMap(l => [l.from, l.to]).concat(0);
-        const min = Math.min(...all);
-        const max = Math.max(...all);
+        const [min, max] = extent(all) ?? [0, 0];
         return linearScale(niceDomain(min, max, 5), [a.bottom, a.top]);
     });
 

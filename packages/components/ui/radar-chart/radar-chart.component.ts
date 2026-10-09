@@ -7,7 +7,7 @@ import {
 } from '@angular/core';
 import { cn } from '../../lib/utils';
 import { ChartSeries, ChartDirection } from '../../lib/chart.types';
-import { getChartColor, getChartSummary } from '../../lib/chart.utils';
+import { getChartColor, getChartSummary, extent } from '../../lib/chart.utils';
 import { radarPoint, polygonPath } from '../../lib/chart-polar';
 import { ChartLegendComponent, ChartLegendItem } from '../chart-legend';
 
@@ -134,7 +134,7 @@ export class RadarChartComponent {
         const explicit = this.maxValueInput();
         if (explicit !== undefined) return explicit;
         const values = this.series().flatMap(s => s.data.map(d => d.value));
-        return values.length ? Math.max(...values) : 1;
+        return extent(values)?.[1] ?? 1;
     });
 
     readonly rings = computed(() => {
