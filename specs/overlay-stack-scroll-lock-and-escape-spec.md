@@ -809,3 +809,20 @@ one jsdom-safe wiring test that sends a real `keydown` through the panel; every
 `body.style.overflow/paddingRight = ''` reset (35 lines in 7 files); the three
 `hasOverlayAbove` tests (rewritten as T-4…T-6); the two date-picker
 "outside is a detached `div`" tests (now another picker of the same kind).
+
+### Tasks 2-8 — implemented on `wave-1-integration` (2026-10-09, lead, no independent review-gate)
+
+- **Task 2** `OverlayStackService` v2 (`register` / `isTopmost` / `bindOverlayLayer`), state keyed on the document under `Symbol.for('@gilav21/shadcn-angular/overlay-stack@1')`, one bubble-phase Escape listener per document, lock derived from modal layers and saved/restored per longhand. `dialog`, `sheet`, `drawer`, `alert-dialog` (now locks) and `popover` migrated; their own lock and Escape code deleted.
+- **Task 3** select, dropdown-menu, menubar, context-menu, split-button, emoji-picker, eyedropper (fallback sampler) and both date pickers register non-modal layers. The date-picker popup now stops propagation for every key except Escape. The handler is written `key === 'Escape' || stopPropagation()` because Angular calls `preventDefault()` on a handler that returns `false`, which made the dispatcher skip the key.
+- **Task 4** `tabbableElements` / `trapTabKey` / `focusFirstTabbable` in `lib/a11y.ts`; the four modal content components use them and read `DOCUMENT`.
+- **Tasks 5-7** focus return for select, dropdown-menu, menubar and split-button; select closes on outside click only when open; each date picker tests its own wrapper.
+- **Task 8** e2e `overlay-stack` (`EXPLICIT_SPECS` entry), all 14 existing harnesses green, `verify:portable` green (100% lines) for every touched component, `test-visual` 631 files green.
+
+Deviations and findings:
+
+- **Deferred focus.** Dropdown `hide()` and menubar item activation hand focus back after the key event (`setTimeout`). Done synchronously, Enter's default action clicks the trigger focus just landed on and reopens the menu. The menubar's Escape path stays synchronous (`closeAndFocusTrigger`); activation uses `closeAfterActivation`.
+- **jsdom lock leak.** Restoring only `overflow-x/-y` left the lock's `overflow: hidden` behind under jsdom, which keeps the shorthand apart from the longhands. `unlockBody` removes the shorthand first. Caught by the shipped dialog spec in `verify:portable`.
+- **`DropdownMenuService.focusTrigger()`** focuses the control inside the registered trigger wrapper; it used to focus the wrapper, which is not focusable when it wraps a button.
+- **Shipped-spec coverage.** The portable 100% floor needed new rows for the dialog close button, the dropdown Escape focus return, and Escape on emoji-picker and both date pickers.
+- **Not done:** independent review-gate score; `pkg-data-table` / `pkg-rte` / `pkg-mixed` e2e (needs the packages staged); the single Sonar scan (run on the merged branch).
+- **Package releases needed** (both packages bundle this closure): `@gilav21/shadcn-angular-rte` and `@gilav21/shadcn-angular-data-table`. No CLI publish required.
