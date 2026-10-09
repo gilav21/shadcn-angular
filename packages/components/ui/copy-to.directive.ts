@@ -8,8 +8,8 @@ import {
 	NgZone,
 	OnDestroy,
 } from '@angular/core';
-import { type LocaleInput, createLocaleSelector } from '../../lib/i18n';
-import { COMMON_LOCALES, type CommonLocale } from '../../lib/i18n/common.locales';
+import { type LocaleInput, createLocaleSelector } from '../lib/i18n';
+import { COMMON_LOCALES, type CommonLocale } from '../lib/i18n/common.locales';
 
 @Directive({
 	selector: '[uiCopyTo]',

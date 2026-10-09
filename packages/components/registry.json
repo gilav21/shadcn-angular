@@ -4306,7 +4306,7 @@
       "copy-to-clipboard"
     ],
     "files": [
-      "directives/copy-to.directive.ts"
+      "copy-to.directive.ts"
     ],
     "libFiles": [
       "i18n/common.locales.ts",
@@ -4316,6 +4316,10 @@
       "i18n/index.ts"
     ],
     "testFiles": [
+      "copy-to.directive.spec.ts"
+    ],
+    "obsoleteFiles": [
+      "directives/copy-to.directive.ts",
       "directives/copy-to.directive.spec.ts"
     ]
   },

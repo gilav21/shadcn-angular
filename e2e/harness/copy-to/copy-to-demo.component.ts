@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
-import { CopyToDirective } from '@/components/ui/directives/copy-to.directive';
+import { CopyToDirective } from '@/components/ui/copy-to.directive';
 
 /** Harness for the `copy-to` directive (click-to-clipboard). */
 @Component({

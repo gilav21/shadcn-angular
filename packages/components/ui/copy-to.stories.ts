@@ -1,5 +1,5 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
-import { CopyToDirective } from './directives/copy-to.directive';
+import { CopyToDirective } from './copy-to.directive';
 
 // CopyToDirective has no `component` metadata target since it's a directive;
 // every input is still exposed via argTypes so the Controls panel drives it live.

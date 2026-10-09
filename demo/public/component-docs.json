@@ -4731,7 +4731,7 @@
       "description": "Directive that copies a string to the clipboard on click and shows a localized \"Copied!\" indicator.",
       "category": "utility",
       "install": "npx @gilav21/shadcn-angular@latest add copy-to",
-      "importStatement": "import { CopyToDirective } from '@/components/ui/directives/copy-to.directive';",
+      "importStatement": "import { CopyToDirective } from '@/components/ui/copy-to.directive';",
       "selector": "[uiCopyTo]",
       "dependencies": [],
       "npmDependencies": [],
@@ -4742,7 +4742,7 @@
       "api": [
         {
           "className": "CopyToDirective",
-          "file": "packages/components/ui/directives/copy-to.directive.ts",
+          "file": "packages/components/ui/copy-to.directive.ts",
           "kind": "directive",
           "selector": "[uiCopyTo]",
           "description": "",

@@ -18,7 +18,7 @@ import {
 import { Component, ChangeDetectionStrategy, output, input, signal } from '@angular/core';
 import { InputComponent } from '../input';
 import { ContextMenuComponent, ContextMenuTriggerDirective, ContextMenuContentComponent, ContextMenuItemComponent, ContextMenuShortcutComponent, ContextMenuSeparatorComponent, ContextMenuItem } from '../context-menu';
-import { ContextMenuIntegrations } from '../context-menu-integrations';
+import { DataTableContextMenuDirective as FlatDataTableContextMenuDirective } from '../data-table-context-menu.directive';
 import { DataTableDateFilterComponent, dateFilterFn } from './sub/data-table-date-filter.component';
 import { DataTableDateRangeFilterComponent, dateRangeFilterFn } from './sub/data-table-date-range-filter.component';
 import { DateRange } from '../calendar';
@@ -1083,7 +1083,7 @@ export const WithContextMenu: Story = {
                 ContextMenuItemComponent,
                 ContextMenuShortcutComponent,
                 ContextMenuSeparatorComponent,
-                ...ContextMenuIntegrations
+                FlatDataTableContextMenuDirective
             ]
         },
         template: `

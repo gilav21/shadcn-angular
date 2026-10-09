@@ -8,7 +8,7 @@ import {
 } from '../../../packages/components/ui/context-menu';
 import {
   ContextMenuAttachDirective
-} from '../../../packages/components/ui/context-menu-integrations';
+} from '../../../packages/components/ui/context-menu-attach.directive';
 import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 

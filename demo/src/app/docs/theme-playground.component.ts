@@ -16,7 +16,7 @@ import {
     SwitchComponent,
 } from '../../../../packages/components/ui';
 // Not re-exported by the `ui` barrel — the flat directives are imported by path.
-import { CopyToDirective } from '../../../../packages/components/ui/directives/copy-to.directive';
+import { CopyToDirective } from '../../../../packages/components/ui/copy-to.directive';
 import { UI_LOCALE_ID } from '../../../../packages/components/lib/i18n';
 import { DOCS_LOCALES } from './docs.locales';
 import {

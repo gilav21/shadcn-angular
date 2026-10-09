@@ -3084,7 +3084,7 @@ _No generated snippet: required input `contextMenuData: T` needs application dat
 Directive that copies a string to the clipboard on click and shows a localized "Copied!" indicator.
 
 - Install: `npx @gilav21/shadcn-angular@latest add copy-to`
-- Import: `import { CopyToDirective } from '@/components/ui/directives/copy-to.directive';`
+- Import: `import { CopyToDirective } from '@/components/ui/copy-to.directive';`
 - Selector: `[uiCopyTo]`
 - Category: utility
 - Depends on: none

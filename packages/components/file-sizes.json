@@ -1325,10 +1325,6 @@
       "bytes": 10467,
       "lines": 273
     },
-    "context-menu-integrations.ts": {
-      "bytes": 1139,
-      "lines": 20
-    },
     "context-menu/context-menu.component.browser.spec.ts": {
       "bytes": 6939,
       "lines": 142
@@ -1397,8 +1393,16 @@
       "bytes": 3461,
       "lines": 95
     },
+    "copy-to.directive.spec.ts": {
+      "bytes": 3986,
+      "lines": 135
+    },
+    "copy-to.directive.ts": {
+      "bytes": 3485,
+      "lines": 105
+    },
     "copy-to.stories.ts": {
-      "bytes": 6606,
+      "bytes": 6595,
       "lines": 169
     },
     "currency-input/currency-input.component.css": {
@@ -1626,7 +1630,7 @@
       "lines": 56
     },
     "data-table/data-table.stories.ts": {
-      "bytes": 77977,
+      "bytes": 78035,
       "lines": 1936
     },
     "data-table/data-table.types.ts": {
@@ -1816,14 +1820,6 @@
     "dialog/sub/dialog-trigger.component.ts": {
       "bytes": 1802,
       "lines": 58
-    },
-    "directives/copy-to.directive.spec.ts": {
-      "bytes": 3986,
-      "lines": 135
-    },
-    "directives/copy-to.directive.ts": {
-      "bytes": 3491,
-      "lines": 105
     },
     "dock/dock.component.browser.spec.ts": {
       "bytes": 2707,
@@ -2574,8 +2570,8 @@
       "lines": 2
     },
     "index.ts": {
-      "bytes": 5887,
-      "lines": 175
+      "bytes": 6172,
+      "lines": 182
     },
     "infinite-canvas/addons/node-editor-context-menu/index.ts": {
       "bytes": 156,
@@ -6450,7 +6446,7 @@
       "lines": 503
     },
     "tree/tree.stories.ts": {
-      "bytes": 14424,
+      "bytes": 14425,
       "lines": 380
     },
     "treemap/index.ts": {

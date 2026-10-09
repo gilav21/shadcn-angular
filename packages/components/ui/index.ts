@@ -80,7 +80,11 @@ export * from './tree-select';
 export * from './infinite-canvas';
 export * from './infinite-canvas/addons/node-editor';
 export * from './virtual-scroll';
-export * from './context-menu-integrations';
+export * from './context-menu-attach.directive';
+export * from './tree-context-menu.directive';
+export * from './table-context-menu.directive';
+export * from './data-table-context-menu.directive';
+export * from './copy-to.directive';
 export * from './shortcut-binding.service';
 
 export * from './rating';
@@ -105,6 +109,9 @@ export * from './component-outlet.directive';
 export * from './icon';
 export * from './comparison-slider';
 export * from './sortable';
+export * from './bento-grid';
+export * from './field-mapper';
+export * from './rich-text-view';
 
 export * from './bar-chart';
 export * from './bar-chart-drilldown';

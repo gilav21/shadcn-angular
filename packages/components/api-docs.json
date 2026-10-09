@@ -4243,6 +4243,35 @@
       "methods": []
     },
     {
+      "name": "CopyToDirective",
+      "file": "packages/components/ui/copy-to.directive.ts",
+      "kind": "directive",
+      "selector": "[uiCopyTo]",
+      "description": "",
+      "projectsContent": false,
+      "inputs": [
+        {
+          "name": "locale",
+          "type": "LocaleInput<CommonLocale>",
+          "description": "Locale used for the floating \"Copied\" confirmation label. Accepts a built-in locale key or a partial override object; falls back to the library default when omitted."
+        },
+        {
+          "name": "uiCopyTo",
+          "type": "string",
+          "description": "Text written to the system clipboard when the host element is clicked. Evaluated at click time, so a signal/binding here can supply a value that changes between clicks.",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "copied",
+          "type": "void",
+          "description": "Emitted after the clipboard write succeeds, just before the confirmation badge appears. Never emits if the write is rejected (e.g. no permission or a non-secure origin)."
+        }
+      ],
+      "methods": []
+    },
+    {
       "name": "CurrencyInputComponent",
       "file": "packages/components/ui/currency-input/currency-input.component.ts",
       "kind": "component",
@@ -5893,35 +5922,6 @@
       "projectsContent": false,
       "inputs": [],
       "outputs": [],
-      "methods": []
-    },
-    {
-      "name": "CopyToDirective",
-      "file": "packages/components/ui/directives/copy-to.directive.ts",
-      "kind": "directive",
-      "selector": "[uiCopyTo]",
-      "description": "",
-      "projectsContent": false,
-      "inputs": [
-        {
-          "name": "locale",
-          "type": "LocaleInput<CommonLocale>",
-          "description": "Locale used for the floating \"Copied\" confirmation label. Accepts a built-in locale key or a partial override object; falls back to the library default when omitted."
-        },
-        {
-          "name": "uiCopyTo",
-          "type": "string",
-          "description": "Text written to the system clipboard when the host element is clicked. Evaluated at click time, so a signal/binding here can supply a value that changes between clicks.",
-          "required": true
-        }
-      ],
-      "outputs": [
-        {
-          "name": "copied",
-          "type": "void",
-          "description": "Emitted after the clipboard write succeeds, just before the confirmation badge appears. Never emits if the write is rejected (e.g. no permission or a non-secure origin)."
-        }
-      ],
       "methods": []
     },
     {

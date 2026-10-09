@@ -1544,9 +1544,10 @@ export const registry = defineRegistry({
     category: 'utility',
     description: 'Directive that copies a string to the clipboard on click and shows a localized "Copied!" indicator.',
     tags: ['copy', 'clipboard', 'directive', 'copy-to-clipboard'],
-    files: ['directives/copy-to.directive.ts'],
+    files: ['copy-to.directive.ts'],
     libFiles: ['i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
-    testFiles: ['directives/copy-to.directive.spec.ts'],
+    testFiles: ['copy-to.directive.spec.ts'],
+    obsoleteFiles: ['directives/copy-to.directive.ts', 'directives/copy-to.directive.spec.ts'],
   },
   'card-accordion': {
     name: 'card-accordion',

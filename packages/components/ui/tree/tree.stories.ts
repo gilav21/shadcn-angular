@@ -11,7 +11,7 @@ import {
     ContextMenuShortcutComponent,
     ContextMenuSeparatorComponent,
 } from '../context-menu';
-import { ContextMenuIntegrations } from '../context-menu-integrations';
+import { TreeContextMenuDirective } from '../tree-context-menu.directive';
 
 const meta: Meta<TreeComponent> = {
     title: 'UI/Tree',
@@ -229,7 +229,7 @@ export const WithContextMenu: Story = {
                 ContextMenuItemComponent,
                 ContextMenuShortcutComponent,
                 ContextMenuSeparatorComponent,
-                ...ContextMenuIntegrations
+                TreeContextMenuDirective
             ]
         },
         template: `

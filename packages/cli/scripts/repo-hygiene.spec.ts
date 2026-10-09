@@ -460,8 +460,7 @@ describe('ui layout', () => {
         expect(uiBarrelGaps(uiPaths, (p) => files[p] ?? '')).toEqual(['card/index.ts', 'copy-to.directive.ts']);
     });
 
-    // RED until Task 9 — flip to it() there.
-    it.fails('directives are flat and ui/index.ts exports every barrel and directive', () => {
+    it('directives are flat and ui/index.ts exports every barrel and directive', () => {
         const UI = 'packages/components/ui/';
         const uiPaths = TRACKED.filter((p) => p.startsWith(UI)).map((p) => p.slice(UI.length));
 
