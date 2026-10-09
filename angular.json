@@ -97,13 +97,7 @@
           "options": {
             "configDir": ".storybook",
             "browserTarget": "demo:build",
-            "compodoc": true,
-            "compodocArgs": [
-              "-e",
-              "json",
-              "-d",
-              "."
-            ],
+            "compodoc": false,
             "port": 6006
           }
         },
@@ -112,13 +106,7 @@
           "options": {
             "configDir": ".storybook",
             "browserTarget": "demo:build",
-            "compodoc": true,
-            "compodocArgs": [
-              "-e",
-              "json",
-              "-d",
-              "."
-            ],
+            "compodoc": false,
             "outputDir": "storybook-static"
           }
         }

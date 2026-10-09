@@ -409,8 +409,7 @@ describe('one runner, one regeneration path', () => {
         expect(regenGaps(scripts)).toEqual(['gen-theme-presets.ts']);
     });
 
-    // RED until Task 8 — flip to it() there.
-    it.fails('docs:regen covers every generator docs:check verifies, and storybook runs compodoc once', () => {
+    it('docs:regen covers every generator docs:check verifies, and storybook runs compodoc once', () => {
         const architect = readJson<AngularJson>('angular.json').projects['demo']?.architect ?? {};
 
         expect({
