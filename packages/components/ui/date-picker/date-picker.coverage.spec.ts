@@ -136,6 +136,12 @@ describe('computePopupStyles', () => {
   });
 });
 
+/**
+ * Task-1 scaffolding, removed by Task 7: vitest runs the test as an expected
+ * failure; the jest leg this spec also ships to has no `it.fails`, so skips it.
+ */
+const pendingUntilTask7 = (it as unknown as { fails?: typeof it }).fails ?? it.skip;
+
 describe('DatePickerComponent', () => {
   let fixture: ComponentFixture<DatePickerComponent>;
   let component: DatePickerComponent;
@@ -279,19 +285,18 @@ describe('DatePickerComponent', () => {
     expect(component.internalValue()).toBeNull();
   });
 
-  it('closes on an outside document click and stays open for inside clicks', () => {
+  pendingUntilTask7('stays open for clicks on its own trigger and closes for a click on another date picker', () => {
+    const other = TestBed.createComponent(DatePickerComponent);
+    other.detectChanges();
     component.toggleOpen();
+    fixture.detectChanges();
+
+    const ownTrigger: HTMLElement = fixture.nativeElement.querySelector('button');
+    component.onDocumentClick({ target: ownTrigger } as unknown as MouseEvent);
     expect(component.isOpen()).toBe(true);
 
-    const inside = document.createElement('div');
-    inside.setAttribute('data-slot', 'date-picker');
-    const child = document.createElement('span');
-    inside.appendChild(child);
-    component.onDocumentClick({ target: child } as unknown as MouseEvent);
-    expect(component.isOpen()).toBe(true);
-
-    const outside = document.createElement('div');
-    component.onDocumentClick({ target: outside } as unknown as MouseEvent);
+    const otherTrigger: HTMLElement = other.nativeElement.querySelector('button');
+    component.onDocumentClick({ target: otherTrigger } as unknown as MouseEvent);
     expect(component.isOpen()).toBe(false);
   });
 
@@ -499,15 +504,18 @@ describe('DateRangePickerComponent', () => {
     expect(emitted).toBe(range);
   });
 
-  it('closes on an outside document click and stays open for inside clicks', () => {
+  pendingUntilTask7('stays open for clicks on its own trigger and closes for a click on another range picker', () => {
+    const other = TestBed.createComponent(DateRangePickerComponent);
+    other.detectChanges();
     component.toggleOpen();
-    const inside = document.createElement('div');
-    inside.setAttribute('data-slot', 'date-range-picker');
-    component.onDocumentClick({ target: inside } as unknown as MouseEvent);
+    fixture.detectChanges();
+
+    const ownTrigger: HTMLElement = fixture.nativeElement.querySelector('button');
+    component.onDocumentClick({ target: ownTrigger } as unknown as MouseEvent);
     expect(component.isOpen()).toBe(true);
 
-    const outside = document.createElement('div');
-    component.onDocumentClick({ target: outside } as unknown as MouseEvent);
+    const otherTrigger: HTMLElement = other.nativeElement.querySelector('button');
+    component.onDocumentClick({ target: otherTrigger } as unknown as MouseEvent);
     expect(component.isOpen()).toBe(false);
   });
 

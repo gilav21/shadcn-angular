@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { hasInteractiveContent } from './a11y';
+import * as a11y from './a11y';
+
+const { hasInteractiveContent } = a11y;
 
 /**
  * Builds the shape every trigger/close wrapper renders: a host element whose
@@ -53,5 +55,67 @@ describe('hasInteractiveContent', () => {
     it('is false for a null or undefined host', () => {
         expect(hasInteractiveContent(null)).toBe(false);
         expect(hasInteractiveContent(undefined)).toBe(false);
+    });
+});
+
+/** Task-1 scaffolding: `tabbableElements` lands in Task 4; this lookup becomes a named import then. */
+const { tabbableElements } = a11y as unknown as { tabbableElements: (container: HTMLElement) => HTMLElement[] };
+
+describe('tabbableElements', () => {
+    const FORM = `
+        <button id="enabled" type="button">Save</button>
+        <button id="disabled" type="button" disabled>Delete</button>
+        <fieldset disabled><legend>Billing</legend><input id="in-disabled-fieldset" aria-label="Card number"></fieldset>
+        <button id="roving" type="button" tabindex="-1">3</button>
+        <div id="focusable-div" tabindex="0">Order summary</div>
+        <a id="link" href="#terms">Terms</a>
+        <a id="placeholder-link">Not a link</a>
+        <input id="hidden-attr" hidden aria-label="Coupon">
+        <input id="hidden-type" type="hidden" value="42">
+        <button id="display-none" type="button" style="display: none">Advanced</button>
+        <button id="visibility-hidden" type="button" style="visibility: hidden">Undo</button>
+        <div inert><button id="inert" type="button">Behind the sheet</button></div>
+        <input id="size-s" type="radio" name="size" value="s" aria-label="Small">
+        <input id="size-m" type="radio" name="size" value="m" aria-label="Medium" checked>
+        <input id="size-l" type="radio" name="size" value="l" aria-label="Large">
+        <input id="ship-standard" type="radio" name="ship" value="standard" aria-label="Standard">
+        <input id="ship-express" type="radio" name="ship" value="express" aria-label="Express">
+        <div id="notes" contenteditable="true">Notes</div>
+    `;
+
+    function mountForm(): HTMLElement {
+        const panel = document.createElement('div');
+        panel.innerHTML = FORM;
+        document.body.appendChild(panel);
+        return panel;
+    }
+
+    it.fails('tabbableElements keeps only what Tab can reach', () => {
+        const panel = mountForm();
+        try {
+            expect(tabbableElements(panel).map(el => el.id)).toEqual([
+                'enabled', 'focusable-div', 'link', 'size-m', 'ship-standard', 'notes',
+            ]);
+        } finally {
+            panel.remove();
+        }
+    });
+
+    it.fails('treats every element as visible where checkVisibility does not exist (jsdom)', () => {
+        const panel = mountForm();
+        const native = Object.getOwnPropertyDescriptor(Element.prototype, 'checkVisibility');
+        Object.defineProperty(Element.prototype, 'checkVisibility', { configurable: true, value: undefined });
+        try {
+            // Layout-hidden controls stay in the ring (nothing can measure them); an attribute-only
+            // filter such as `[hidden]` is allowed either way, so that element is not asserted.
+            const ids = tabbableElements(panel).map(el => el.id).filter(id => id !== 'hidden-attr');
+            expect(ids).toEqual([
+                'enabled', 'focusable-div', 'link', 'display-none', 'visibility-hidden',
+                'size-m', 'ship-standard', 'notes',
+            ]);
+        } finally {
+            if (native) Object.defineProperty(Element.prototype, 'checkVisibility', native);
+            panel.remove();
+        }
     });
 });

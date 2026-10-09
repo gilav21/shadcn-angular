@@ -55,11 +55,6 @@ describe('SheetComponent', () => {
         fixture.detectChanges();
     });
 
-    afterEach(() => {
-        document.body.style.overflow = '';
-        document.body.style.paddingRight = '';
-    });
-
     it('should show when show() is called', () => {
         component.show();
         expect(component.open()).toBe(true);
@@ -91,11 +86,6 @@ describe('Sheet Integration', () => {
         fixture = TestBed.createComponent(TestHostComponent);
         component = fixture.componentInstance;
         fixture.detectChanges();
-    });
-
-    afterEach(() => {
-        document.body.style.overflow = '';
-        document.body.style.paddingRight = '';
     });
 
     it('should not show content when closed', () => {
@@ -276,11 +266,6 @@ describe('Sheet Trigger / Close keyboard activation', () => {
         await fixture.whenStable();
     });
 
-    afterEach(() => {
-        document.body.style.overflow = '';
-        document.body.style.paddingRight = '';
-    });
-
     it('toggles the sheet when Enter is pressed on the trigger', async () => {
         const triggerEl = fixture.debugElement.query(By.css('[data-slot="sheet-trigger"]'));
         triggerEl.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
@@ -350,7 +335,6 @@ class TrapHostComponent { }
 describe('Sheet Content focus trap & close button', () => {
     let fixture: ComponentFixture<TrapHostComponent>;
     let mockSheet: MockSheet;
-    let contentComp: SheetContentComponent;
 
     beforeEach(async () => {
         mockSheet = { open: signal(true), hide: vi.fn() };
@@ -361,12 +345,6 @@ describe('Sheet Content focus trap & close button', () => {
         fixture = TestBed.createComponent(TrapHostComponent);
         fixture.detectChanges();
         await fixture.whenStable();
-        contentComp = fixture.debugElement.query(By.directive(SheetContentComponent)).componentInstance as SheetContentComponent;
-    });
-
-    afterEach(() => {
-        document.body.style.overflow = '';
-        document.body.style.paddingRight = '';
     });
 
     function focusables(): HTMLElement[] {
@@ -381,46 +359,17 @@ describe('Sheet Content focus trap & close button', () => {
         expect(document.activeElement).toBe(first);
     });
 
-    it('wraps focus to the first element when Tab is pressed on the last element', () => {
+    it('routes Tab and Shift+Tab on the panel through the focus trap', () => {
         const els = focusables();
         const first = els[0];
         const last = els.at(-1) as HTMLElement;
+
         last.focus();
-
-        contentComp.onKeydown(keyEvent('Tab', last, last));
-
+        last.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
         expect(document.activeElement).toBe(first);
-    });
 
-    it('wraps focus to the last element when Shift+Tab is pressed on the first element', () => {
-        const els = focusables();
-        const first = els[0];
-        const last = els.at(-1) as HTMLElement;
-        first.focus();
-
-        contentComp.onKeydown(keyEvent('Tab', first, first, true));
-
+        first.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true }));
         expect(document.activeElement).toBe(last);
-    });
-
-    it('does not move focus when Tab is pressed from a middle element', () => {
-        const els = focusables();
-        const middle = els[1];
-        middle.focus();
-
-        contentComp.onKeydown(keyEvent('Tab', middle, middle));
-
-        expect(document.activeElement).toBe(middle);
-    });
-
-    it('does not move focus when Shift+Tab is pressed from a middle element', () => {
-        const els = focusables();
-        const middle = els[1];
-        middle.focus();
-
-        contentComp.onKeydown(keyEvent('Tab', middle, middle, true));
-
-        expect(document.activeElement).toBe(middle);
     });
 
     it('hides the sheet via the X close button click (close())', () => {
@@ -442,8 +391,6 @@ describe('Sheet Content — falls back to focusing the container', () => {
 
     afterEach(() => {
         vi.useRealTimers();
-        document.body.style.overflow = '';
-        document.body.style.paddingRight = '';
     });
 
     it('focuses the content container when no focusable child exists', async () => {

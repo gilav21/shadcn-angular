@@ -7,7 +7,7 @@ import {
 } from './index';
 import { Component } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 function flushMicrotimers(): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, 10));
@@ -51,11 +51,6 @@ describe('Drawer trigger keyboard handling', () => {
         }).compileComponents();
         fixture = TestBed.createComponent(FocusTrapHostComponent);
         fixture.detectChanges();
-    });
-
-    afterEach(() => {
-        document.body.style.overflow = '';
-        document.body.style.paddingRight = '';
     });
 
     it('opens the drawer when Enter is pressed on the trigger itself', () => {
@@ -117,9 +112,6 @@ describe('Drawer close keyboard handling', () => {
 
         expect(enter.defaultPrevented).toBe(false);
         expect(fixture.nativeElement.querySelector('[data-slot="drawer-content"]')).not.toBeNull();
-
-        document.body.style.overflow = '';
-        document.body.style.paddingRight = '';
     });
 
     it('hides the drawer through a close bound to a real drawer', async () => {
@@ -152,18 +144,10 @@ describe('Drawer close keyboard handling', () => {
 
         expect(preventDefault).toHaveBeenCalledTimes(1);
         expect(drawer.open()).toBe(false);
-
-        document.body.style.overflow = '';
-        document.body.style.paddingRight = '';
     });
 });
 
 describe('DrawerContent focus + direction fallback', () => {
-    afterEach(() => {
-        document.body.style.overflow = '';
-        document.body.style.paddingRight = '';
-    });
-
     it('falls back to "bottom" direction when there is no parent drawer', async () => {
         @Component({
             template: `<ui-drawer-content>orphan</ui-drawer-content>`,
@@ -218,95 +202,22 @@ describe('DrawerContent focus + direction fallback', () => {
 });
 
 describe('DrawerContent Tab focus trap', () => {
-    let fixture: ComponentFixture<FocusTrapHostComponent>;
-    let content: DrawerContentComponent;
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [FocusTrapHostComponent],
-        }).compileComponents();
-        fixture = TestBed.createComponent(FocusTrapHostComponent);
+    it('routes Tab and Shift+Tab on the panel through the focus trap', async () => {
+        await TestBed.configureTestingModule({ imports: [FocusTrapHostComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(FocusTrapHostComponent);
         fixture.detectChanges();
-
-        const drawer = fixture.debugElement.query(By.directive(DrawerComponent))
-            .componentInstance as DrawerComponent;
-        drawer.show();
+        (fixture.debugElement.query(By.directive(DrawerComponent)).componentInstance as DrawerComponent).show();
         fixture.detectChanges();
-
-        // Let the effect's setTimeout run so focusFirstElement sets contentEl.
         await flushMicrotimers();
         fixture.detectChanges();
 
-        content = fixture.debugElement.query(By.directive(DrawerContentComponent))
-            .componentInstance as DrawerContentComponent;
-    });
-
-    afterEach(() => {
-        document.body.style.overflow = '';
-        document.body.style.paddingRight = '';
-    });
-
-    function makeTab(shiftKey: boolean) {
-        const preventDefault = vi.fn();
-        return {
-            event: { key: 'Tab', shiftKey, preventDefault } as unknown as KeyboardEvent,
-            preventDefault,
-        };
-    }
-
-    it('wraps to the last element on Shift+Tab from the first element', () => {
         const first = fixture.nativeElement.querySelector('#first') as HTMLElement;
         const last = fixture.nativeElement.querySelector('#last') as HTMLElement;
-        const lastFocus = vi.spyOn(last, 'focus');
-        first.focus();
-        expect(document.activeElement).toBe(first);
-
-        const { event, preventDefault } = makeTab(true);
-        content.onKeydown(event);
-
-        expect(preventDefault).toHaveBeenCalledTimes(1);
-        expect(lastFocus).toHaveBeenCalledTimes(1);
-    });
-
-    it('does nothing on Shift+Tab when focus is not on the first element', () => {
-        const middle = fixture.nativeElement.querySelector('#middle') as HTMLElement;
-        middle.focus();
-        expect(document.activeElement).toBe(middle);
-
-        const { event, preventDefault } = makeTab(true);
-        content.onKeydown(event);
-
-        expect(preventDefault).not.toHaveBeenCalled();
-    });
-
-    it('wraps to the first element on Tab from the last element', () => {
-        const first = fixture.nativeElement.querySelector('#first') as HTMLElement;
-        const last = fixture.nativeElement.querySelector('#last') as HTMLElement;
-        const firstFocus = vi.spyOn(first, 'focus');
         last.focus();
-        expect(document.activeElement).toBe(last);
-
-        const { event, preventDefault } = makeTab(false);
-        content.onKeydown(event);
-
-        expect(preventDefault).toHaveBeenCalledTimes(1);
-        expect(firstFocus).toHaveBeenCalledTimes(1);
-    });
-
-    it('does nothing on Tab when focus is not on the last element', () => {
-        const first = fixture.nativeElement.querySelector('#first') as HTMLElement;
-        first.focus();
+        last.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
         expect(document.activeElement).toBe(first);
 
-        const { event, preventDefault } = makeTab(false);
-        content.onKeydown(event);
-
-        expect(preventDefault).not.toHaveBeenCalled();
-    });
-
-    it('ignores non-Escape, non-Tab keys', () => {
-        const preventDefault = vi.fn();
-        content.onKeydown({ key: 'a', shiftKey: false, preventDefault } as unknown as KeyboardEvent);
-        expect(preventDefault).not.toHaveBeenCalled();
+        first.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true }));
+        expect(document.activeElement).toBe(last);
     });
 });

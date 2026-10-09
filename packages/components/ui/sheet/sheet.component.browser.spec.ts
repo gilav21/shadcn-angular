@@ -45,8 +45,6 @@ async function openSheet(dir: 'ltr' | 'rtl', side: 'left' | 'right'): Promise<HT
 describe('Sheet side docking (browser)', () => {
     afterEach(async () => {
         await emulateTouch(false);
-        document.body.style.overflow = '';
-        document.body.style.paddingRight = '';
     });
 
     async function panelRect(dir: 'ltr' | 'rtl', side: 'left' | 'right'): Promise<DOMRect> {

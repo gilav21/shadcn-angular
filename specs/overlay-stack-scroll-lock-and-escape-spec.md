@@ -741,3 +741,71 @@ genuine false positive appears.
 *(Append one entry per task as it completes — never edit or delete an earlier
 entry. Superseded decisions are marked superseded with a link to the entry that
 replaced them.)*
+
+### Task 1 — failing tests first
+
+Tests that cannot pass before their task are run as expected failures
+(`it.fails`): the `PENDING` label set in `dialog/overlay-nesting.browser.spec.ts`,
+`PENDING_PAIRS` in `date-picker.component.browser.spec.ts`, and `it.fails`
+directly in the service, a11y, select and date-picker coverage specs. Each task
+drops the markers of the rows it fixes. Observed with every marker removed, at
+14216e9b:
+
+| Test | Row(s) | How it failed |
+|---|---|---|
+| T-1…T-6 | all | `register is not a function` — the v2 API does not exist |
+| T-12 | both | `tabbableElements is not a function` |
+| T-7 | sheet + created dialog, nested dialog, destroyed sheet, alert dialog alone | `overflow` `''`, expected `hidden` (F-1, F-2, F-4) |
+| T-7 | drawer over consumer `overflow-y`; closed drawer + sheet created | consumer `overflow-y: scroll` / whole inline style erased (F-2) |
+| T-8 | 11 of 13 rows | the modal panel is gone after one Escape (F-5) |
+| T-8 | date-picker | Escape in the calendar did nothing; the popup stayed (F-6) |
+| T-9 | dropdown submenu | the second Escape closed the root menu **and** the dialog |
+| T-9 | context-menu submenu | the third Escape did not close the dialog: focus had fallen to `<body>` (UC-10) |
+| T-10 | 6 edge rows | focus left the panel (F-8) |
+| T-11 | 4 rows | focus stayed on the trigger / disabled button outside the panel (F-9) |
+| T-13 | select, dropdown, menubar | focus on `<body>` (F-10) |
+| T-13 | split-button | the dialog had already closed with the menu (F-5) |
+| T-14 | both modes | `touched` true after a click elsewhere (F-11) |
+| T-15 | single/single, range/range | picker A stayed open (F-7); the mixed pairs already pass |
+
+Rows that already pass and run as plain tests: T-7 alert dialog in a sheet (the
+alert dialog never touched the lock), T-8 popover in a sheet, T-10 all-enabled
+dialog, T-11 dialog in dialog, T-15 mixed pairs.
+
+Deviations from §2.3, deliberate:
+
+- **T-7 row 4** is split: "alert dialog in a sheet, opened then closed" (passes
+  today) and "alert dialog alone" (fails today — F-4, it never locks). The
+  combined row could not show the alert dialog's own lock.
+- **T-10 roving row** uses `ui-tabs` (active tab `tabindex="0"`, the others
+  `-1`) instead of `ui-calendar`: the calendar's day buttons are `ui-button`s
+  disabled outside the month, not a roving `tabindex` — there is no roving
+  control in it to sample.
+- **T-10** asserts that every tab stop is visited, not only that focus stays
+  inside, so a trap that swallows Tab without moving focus fails.
+- **T-9** focuses the submenu's first entry by hand after opening it: moving
+  focus into a context submenu is the sibling keyboard spec's work.
+- **T-2's runner scrollbar measurement** is recorded with Task 2, where the
+  service first measures it on the real document. T-2's body has inline
+  `padding-right: 1rem` against a computed `16px`, so adding the scrollbar to
+  the inline string instead of the computed value fails it.
+- **Shipped specs** (`select.component.spec.ts`, `date-picker.coverage.spec.ts`
+  also run under jest, which has no `it.fails`) use a local
+  `pendingUntilTask6/7` that is `it.fails` under vitest and `it.skip` under
+  jest; the task that fixes the behaviour replaces it with `it`.
+- **Body-style fixtures:** `overlay-nesting.browser.spec.ts` and the service
+  spec's scroll-lock block restore the body's `style` attribute after each test
+  because several rows *set* consumer inline styles as their input. This is
+  restoring input, not hiding a lock leak — every lock row asserts the restored
+  state itself before the hook runs.
+- **Spec inconsistency for Task 2:** §3.2 says "save `body.style.overflow`".
+  That shorthand reads `''` when only `overflow-y` is set, so restoring it
+  would erase a consumer's `overflow-y: scroll` (UC-4, T-7 row 5). The save and
+  restore must be per longhand: `overflow-x`, `overflow-y`, `padding-right`.
+
+Removed per §2.4: the hand-built-event and all-enabled trap tests of dialog
+(7 tests), sheet (4), drawer (5) and alert-dialog (4), each component left with
+one jsdom-safe wiring test that sends a real `keydown` through the panel; every
+`body.style.overflow/paddingRight = ''` reset (35 lines in 7 files); the three
+`hasOverlayAbove` tests (rewritten as T-4…T-6); the two date-picker
+"outside is a detached `div`" tests (now another picker of the same kind).
