@@ -11397,7 +11397,7 @@
             {
               "name": "step",
               "type": "number",
-              "description": "Increment used by {@link increment}/{@link decrement}; its decimal count also sets the rounding precision, avoiding float drift like `0.30000000000000004`.",
+              "description": "Grid spacing for {@link increment}/{@link decrement}, the arrow keys and the wheel. Steps follow native `<input type=number>` `stepUp`/`stepDown`: the grid is `min + k·step` (based at 0 when {@link min} is unset), an off-grid value moves to the next grid point in that direction (`2.4` ↑ `3`, `2.4` ↓ `2`), an on-grid one moves a whole step, and results are exact decimals at the precision of `min` and `step` — no `0.30000000000000004`. Typed text is never snapped. One deviation from native: stepping from an out-of-range typed value clamps into range.",
               "default": "1"
             },
             {
@@ -16809,14 +16809,13 @@
             },
             {
               "name": "defaultValue",
-              "type": "number",
-              "description": "Starting value, read once in the constructor — later changes to this input do not move the thumb.",
-              "default": "0"
+              "type": "number | undefined",
+              "description": "Starting value for an uncontrolled slider, applied once on init and snapped to the grid — later changes to this input do not move the thumb. Silent: it neither emits {@link value} nor dirties a form. A value supplied by `[value]` / `[(value)]` or by a form wins over it; a bound `[value]` of exactly `0` is indistinguishable from \"unset\" and lets the default apply."
             },
             {
               "name": "disabled",
               "type": "boolean",
-              "description": "Dims the slider and blocks pointer events, and short-circuits every keyboard and drag handler.",
+              "description": "Dims the slider and blocks pointer events, and short-circuits every keyboard and drag handler. OR-ed with the state a form pushes through {@link setDisabledState}, so a reactive-forms `disable()` also wins.",
               "default": "false"
             },
             {
@@ -16845,7 +16844,7 @@
             {
               "name": "value",
               "type": "number",
-              "description": "The slider position, as a two-way `model()`. Emits on every value change from dragging, tapping the track or keyboard input — including each intermediate value during a drag. Being a `ModelSignal` is what makes this component a valid Signal Forms `FormValueControl`, and it doubles as the `valueChange` output: Angular derives the output from the model, so there is no separate declaration.",
+              "description": "The slider position, as a two-way `model()`. Emits on every value change from dragging, tapping the track or keyboard input — including each intermediate value during a drag. Being a `ModelSignal` is what makes this component a valid Signal Forms `FormValueControl`, and it doubles as the `valueChange` output: Angular derives the output from the model, so there is no separate declaration. A write from outside — `writeValue` from a form, or the {@link defaultValue} seed — stays silent; only a user change emits. Note that after a `writeValue` from a reactive form, or a {@link defaultValue} seed, this still reads the earlier value — the rendered value is {@link rendered}. A consequence: a user change back to exactly that earlier value reaches the form but emits no `valueChange`, because the model already holds it.",
               "default": "0"
             }
           ],
@@ -16853,7 +16852,7 @@
             {
               "name": "value",
               "type": "number",
-              "description": "The slider position, as a two-way `model()`. Emits on every value change from dragging, tapping the track or keyboard input — including each intermediate value during a drag. Being a `ModelSignal` is what makes this component a valid Signal Forms `FormValueControl`, and it doubles as the `valueChange` output: Angular derives the output from the model, so there is no separate declaration.",
+              "description": "The slider position, as a two-way `model()`. Emits on every value change from dragging, tapping the track or keyboard input — including each intermediate value during a drag. Being a `ModelSignal` is what makes this component a valid Signal Forms `FormValueControl`, and it doubles as the `valueChange` output: Angular derives the output from the model, so there is no separate declaration. A write from outside — `writeValue` from a form, or the {@link defaultValue} seed — stays silent; only a user change emits. Note that after a `writeValue` from a reactive form, or a {@link defaultValue} seed, this still reads the earlier value — the rendered value is {@link rendered}. A consequence: a user change back to exactly that earlier value reaches the form but emits no `valueChange`, because the model already holds it.",
               "default": "0"
             }
           ],

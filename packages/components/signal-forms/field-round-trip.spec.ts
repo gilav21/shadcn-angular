@@ -363,15 +363,19 @@ describe('T-5: converted controls round-trip through a Signal Forms FieldTree', 
     it('ui-slider', async () => {
         const fixture = TestBed.createComponent(SliderFieldHost);
         await settle(fixture);
-        const control: SliderComponent = fixture.debugElement.query(By.directive(SliderComponent)).componentInstance;
+        // A CVA control: `FormField` writes through `writeValue`, which leaves the
+        // `value` model behind, so the field-to-control leg is read off the DOM
+        // and the control-to-field leg is driven the way a user drives it.
+        const range: HTMLInputElement = fixture.debugElement.query(By.directive(SliderComponent))
+            .nativeElement.querySelector('input[type="range"]');
 
         fixture.componentInstance.field().value.set(30);
         await settle(fixture);
-        expect(control.value()).toBe(30);
+        expect(range.value).toBe('30');
 
-        control.value.set(70);
+        range.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
         await settle(fixture);
-        expect(fixture.componentInstance.model()).toBe(70);
+        expect(fixture.componentInstance.model()).toBe(31);
     });
 
     it('ui-toggle-group', async () => {

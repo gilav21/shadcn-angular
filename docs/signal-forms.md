@@ -95,7 +95,7 @@ readonly field = form(this.model, path => {
 ## Two behaviours worth knowing
 
 **A `ControlValueAccessor` wins over the model.** When a control provides
-`NG_VALUE_ACCESSOR` — which all of these except `ui-input-otp`, `ui-slider` and
+`NG_VALUE_ACCESSOR` — which all of these except `ui-input-otp` and
 `ui-toggle-group` do — `FormField` binds through the CVA and registers its
 `onChange` into the field state. The value model still matters (it is what
 makes the component conform, and it carries the non-CVA controls), but the

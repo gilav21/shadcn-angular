@@ -3658,12 +3658,12 @@
       "lines": 19
     },
     "number-input/number-input.component.spec.ts": {
-      "bytes": 19471,
-      "lines": 540
+      "bytes": 21275,
+      "lines": 576
     },
     "number-input/number-input.component.ts": {
-      "bytes": 10490,
-      "lines": 253
+      "bytes": 10758,
+      "lines": 258
     },
     "number-input/number-input.stories.ts": {
       "bytes": 3004,
@@ -4106,12 +4106,12 @@
       "lines": 95
     },
     "rating/rating.component.spec.ts": {
-      "bytes": 25838,
-      "lines": 641
+      "bytes": 26648,
+      "lines": 660
     },
     "rating/rating.component.ts": {
-      "bytes": 14270,
-      "lines": 396
+      "bytes": 14353,
+      "lines": 397
     },
     "rating/rating.locales.ts": {
       "bytes": 1501,
@@ -5534,20 +5534,20 @@
       "lines": 13
     },
     "slider/slider.component.html": {
-      "bytes": 1373,
-      "lines": 37
+      "bytes": 1436,
+      "lines": 39
     },
     "slider/slider.component.spec.ts": {
-      "bytes": 14915,
-      "lines": 378
+      "bytes": 30558,
+      "lines": 710
     },
     "slider/slider.component.ts": {
-      "bytes": 9448,
-      "lines": 253
+      "bytes": 14853,
+      "lines": 374
     },
     "slider/slider.stories.ts": {
-      "bytes": 2864,
-      "lines": 77
+      "bytes": 4831,
+      "lines": 115
     },
     "sortable/index.ts": {
       "bytes": 223,
@@ -6110,12 +6110,12 @@
       "lines": 60
     },
     "time-picker/time-picker.component.spec.ts": {
-      "bytes": 17852,
-      "lines": 498
+      "bytes": 19786,
+      "lines": 537
     },
     "time-picker/time-picker.component.ts": {
-      "bytes": 13775,
-      "lines": 404
+      "bytes": 14242,
+      "lines": 413
     },
     "time-picker/time-picker.format.spec.ts": {
       "bytes": 9138,
@@ -6786,6 +6786,14 @@
     "media.ts": {
       "bytes": 562,
       "lines": 14
+    },
+    "numeric-step.spec.ts": {
+      "bytes": 3328,
+      "lines": 72
+    },
+    "numeric-step.ts": {
+      "bytes": 3918,
+      "lines": 97
     },
     "observers.ts": {
       "bytes": 1259,

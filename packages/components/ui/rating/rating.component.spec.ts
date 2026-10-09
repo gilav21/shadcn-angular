@@ -417,6 +417,25 @@ describe('RatingComponent', () => {
             expect(component.value()).toBe(2.5);
         });
 
+        it('keyboard steps from an off-grid value land on the precision grid', async () => {
+            const stepFrom = async (precision: 0.5 | 1, key: string): Promise<number> => {
+                component.precision.set(precision);
+                component.value.set(2.3);
+                fixture.detectChanges();
+                await fixture.whenStable();
+                rangeInput().dispatchEvent(new KeyboardEvent('keydown', { key }));
+                fixture.detectChanges();
+                await fixture.whenStable();
+                return component.value();
+            };
+
+            expect([
+                await stepFrom(0.5, 'ArrowRight'),
+                await stepFrom(0.5, 'ArrowLeft'),
+                await stepFrom(1, 'ArrowRight'),
+            ]).toEqual([2.5, 2, 3]);
+        });
+
         it('reports empty fill below the half threshold', async () => {
             component.value.set(2);
             fixture.detectChanges();

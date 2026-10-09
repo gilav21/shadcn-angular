@@ -2133,7 +2133,7 @@ Draggable slider for selecting a value or range from a numeric scale.
 - Category: form
 - Depends on: none
 - npm dependencies: none
-- Inputs: `ariaLabel: string | undefined`, `ariaLabelledby: string | undefined`, `class: string = ''`, `defaultValue: number = 0`, `disabled: boolean = false`, `locale: string`, `max: number | undefined = DEFAULT_MAX`, `min: number | undefined = DEFAULT_MIN`, `step: number = 1`, `value: number = 0`
+- Inputs: `ariaLabel: string | undefined`, `ariaLabelledby: string | undefined`, `class: string = ''`, `defaultValue: number | undefined`, `disabled: boolean = false`, `locale: string`, `max: number | undefined = DEFAULT_MAX`, `min: number | undefined = DEFAULT_MIN`, `step: number = 1`, `value: number = 0`
 - Outputs: `value: number`
 
 ```html

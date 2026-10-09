@@ -10,12 +10,14 @@
     [min]="resolvedMin()"
     [max]="resolvedMax()"
     [step]="step()"
-    [value]="value()"
-    [disabled]="disabled()"
+    [value]="rendered()"
+    [disabled]="isDisabled()"
     [attr.aria-label]="ariaLabel()"
     [attr.aria-labelledby]="ariaLabelledby()"
     [attr.aria-valuetext]="valueText()"
     (keydown)="onKeyDown($event)"
+    (input)="onNativeInput($event)"
+    (blur)="onBlur()"
   />
   <div data-slot="slider-track" class="relative w-full grow overflow-hidden rounded-full bg-primary/20 cursor-pointer">
     <div

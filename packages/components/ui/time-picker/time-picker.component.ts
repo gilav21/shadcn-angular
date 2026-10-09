@@ -208,15 +208,26 @@ export class TimePickerComponent implements ControlValueAccessor {
 
   constructor() {
     /*
-     * `untracked`, because `render` reads the segment signals to recognise an
-     * echo of our own commit — and an effect that tracked them would re-run
-     * whenever a segment changed, holding a `value` that had not caught up
-     * yet, and clear the field it had just filled in. The dependency this
-     * effect is meant to have is `value`, and only `value`.
+     * `untracked`, because the guard reads the segment signals to recognise
+     * an echo of our own commit — and an effect that tracked them would
+     * re-run whenever a segment changed, holding a `value` that had not
+     * caught up yet, and clear the field it had just filled in. The
+     * dependency this effect is meant to have is `value`, and only `value`.
      */
     effect(() => {
       const incoming = this.value();
-      untracked(() => this.render(incoming));
+      untracked(() => {
+        /*
+         * A value the segments already represent is not a write to render.
+         *
+         * Without this, typing an hour and no minute wipes the hour: the
+         * commit emits `null` (an hour alone is not a time), `value` becomes
+         * `null`, and this effect renders that `null` straight back over the
+         * digit that was just typed. Only this path can carry an echo of our
+         * own commit — `writeValue` never does, so it renders unconditionally.
+         */
+        if (incoming !== this.asValue()) this.render(incoming);
+      });
     });
   }
 
@@ -273,7 +284,16 @@ export class TimePickerComponent implements ControlValueAccessor {
     this.onTouched();
   }
 
-  /** Renders a form value as-is, without emitting. */
+  /**
+   * Renders a form value as-is, without emitting — always, even `null` over a
+   * half-typed time, so `form.reset()` clears every segment. A form write is
+   * never an echo of our own commit.
+   *
+   * Known limitation: through a `[(value)]` binding, setting the bound signal
+   * to `null` while it already holds `null` (which a half-typed time emits) is
+   * a no-op by signal equality and cannot clear the typed digits; reset
+   * through a form, or set a complete time.
+   */
   writeValue(value: string | null): void {
     this.render(value);
   }
@@ -356,17 +376,6 @@ export class TimePickerComponent implements ControlValueAccessor {
    * from looking like a user typing — Risk R-3.
    */
   private render(value: string | null): void {
-    /*
-     * A value the segments already represent is not a write to render.
-     *
-     * Without this, typing an hour and no minute wipes the hour: the commit
-     * emits `null` (an hour alone is not a time), `value` becomes `null`, and
-     * the effect renders that `null` straight back over the digit that was
-     * just typed. Comparing against what the segments would emit tells an
-     * echo of our own commit apart from a form genuinely clearing the field.
-     */
-    if (value === this.asValue()) return;
-
     const parts = parseTimeValue(value);
     if (parts === null) {
       this._hours.set(null);

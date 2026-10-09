@@ -15,6 +15,7 @@ import { cn, isRtl } from '../../lib/utils';
 import { createLocaleBindings, interpolate, type LocaleInput } from '../../lib/i18n';
 import { RATING_LOCALES, type RatingLocale } from './rating.locales';
 import { isTouchDevice } from '../../lib/touch';
+import { stepFrom } from '../../lib/numeric-step';
 
 /** Star count used when {@link RatingComponent.max} is left unset. */
 const DEFAULT_MAX_RATING = 5;
@@ -290,8 +291,8 @@ export class RatingComponent implements ControlValueAccessor {
   onKeydown(event: KeyboardEvent): void {
     if (this.isDisabled() || this.readonly()) return;
 
-    const step = this.precision();
-    let newValue = this.value();
+    const grid = { min: 0, max: this.resolvedMax(), step: this.precision() };
+    let newValue: number;
 
     const incrementKey = this.isRtl() ? 'ArrowLeft' : 'ArrowRight';
     const decrementKey = this.isRtl() ? 'ArrowRight' : 'ArrowLeft';
@@ -300,12 +301,12 @@ export class RatingComponent implements ControlValueAccessor {
       case incrementKey:
       case 'ArrowUp':
         event.preventDefault();
-        newValue = Math.min(this.resolvedMax(), newValue + step);
+        newValue = stepFrom(this.value(), 1, 1, grid);
         break;
       case decrementKey:
       case 'ArrowDown':
         event.preventDefault();
-        newValue = Math.max(0, newValue - step);
+        newValue = stepFrom(this.value(), -1, 1, grid);
         break;
       case 'Home':
         event.preventDefault();
