@@ -2177,10 +2177,6 @@
       "bytes": 78,
       "lines": 2
     },
-    "field-mapper/field-mapper-locales.ts": {
-      "bytes": 14452,
-      "lines": 249
-    },
     "field-mapper/field-mapper.component.browser.spec.ts": {
       "bytes": 17156,
       "lines": 358
@@ -2200,6 +2196,10 @@
     "field-mapper/field-mapper.component.ts": {
       "bytes": 35554,
       "lines": 868
+    },
+    "field-mapper/field-mapper.locales.ts": {
+      "bytes": 14452,
+      "lines": 249
     },
     "field-mapper/field-mapper.stories.ts": {
       "bytes": 7439,
@@ -3269,10 +3269,6 @@
       "bytes": 436,
       "lines": 9
     },
-    "kanban/kanban-locales.ts": {
-      "bytes": 26302,
-      "lines": 635
-    },
     "kanban/kanban.component.browser.spec.ts": {
       "bytes": 5231,
       "lines": 120
@@ -3284,6 +3280,10 @@
     "kanban/kanban.component.ts": {
       "bytes": 50655,
       "lines": 1043
+    },
+    "kanban/kanban.locales.ts": {
+      "bytes": 26302,
+      "lines": 635
     },
     "kanban/kanban.stories.ts": {
       "bytes": 25617,
@@ -4985,10 +4985,6 @@
       "bytes": 34591,
       "lines": 789
     },
-    "rich-text-editor/rich-text-locales.ts": {
-      "bytes": 34824,
-      "lines": 888
-    },
     "rich-text-editor/rich-text-markdown.roundtrip.spec.ts": {
       "bytes": 77188,
       "lines": 1468
@@ -5032,6 +5028,10 @@
     "rich-text-editor/rich-text-sanitizer.workload.spec.ts": {
       "bytes": 2949,
       "lines": 48
+    },
+    "rich-text-editor/rich-text.locales.ts": {
+      "bytes": 34824,
+      "lines": 888
     },
     "rich-text-editor/sub/rich-text-toolbar.component.browser.spec.ts": {
       "bytes": 11336,
@@ -5557,10 +5557,6 @@
       "bytes": 223,
       "lines": 5
     },
-    "sortable/sortable-locales.ts": {
-      "bytes": 5073,
-      "lines": 93
-    },
     "sortable/sortable.component.browser.spec.ts": {
       "bytes": 7385,
       "lines": 174
@@ -5576,6 +5572,10 @@
     "sortable/sortable.component.ts": {
       "bytes": 48953,
       "lines": 1172
+    },
+    "sortable/sortable.locales.ts": {
+      "bytes": 5073,
+      "lines": 93
     },
     "sortable/sortable.nested.spec.ts": {
       "bytes": 14827,

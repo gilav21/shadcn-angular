@@ -21,7 +21,7 @@ import { ButtonComponent } from '../../button';
 import { KANBAN } from '../kanban.component';
 import { KanbanCardComponent } from './kanban-card.component';
 import { KanbanColumnHeaderComponent } from './kanban-column-header.component';
-import { type KanbanLocale, KANBAN_LOCALES } from '../kanban-locales';
+import { type KanbanLocale, KANBAN_LOCALES } from '../kanban.locales';
 
 export const KANBAN_COLUMN = new InjectionToken<KanbanColumnComponent>('KANBAN_COLUMN');
 

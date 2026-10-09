@@ -9,7 +9,7 @@ import {
     type ToolbarItem,
 } from './rich-text-toolbar.component';
 import { RichTextToolbarViewContext } from '../rich-text-editor.host';
-import { RICH_TEXT_LOCALES } from '../rich-text-locales';
+import { RICH_TEXT_LOCALES } from '../rich-text.locales';
 
 @Component({
     standalone: true,

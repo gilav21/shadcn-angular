@@ -265,8 +265,7 @@ function propertyValue(properties: string, key: string): string {
 }
 
 describe('locale dictionaries', () => {
-    // RED until Task 5 — flip to it() there.
-    it.fails('locale dictionaries use one name and the coverage/CPD globs match exactly it', () => {
+    it('locale dictionaries use one name and the coverage/CPD globs match exactly it', () => {
         expect(TRACKED.filter((p) => p.startsWith('packages/components/') && p.endsWith('-locales.ts'))).toEqual([]);
         const globs = {
             'vitest.config.ts': coverageExcludes(read('vitest.config.ts')),

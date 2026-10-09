@@ -30,7 +30,7 @@ import {
     ContextMenuSubContentComponent,
 } from '../context-menu';
 import { ShortcutBindingService, ShortcutComponentHandle } from '../../lib/shortcut-binding.service';
-import { type KanbanLocale, KANBAN_LOCALES } from './kanban-locales';
+import { type KanbanLocale, KANBAN_LOCALES } from './kanban.locales';
 import { createLocaleBindings, provideComponentLocale, type LocaleInput } from '../../lib/i18n';
 import { KanbanColumnComponent } from './sub/kanban-column.component';
 import { KanbanCardDialogComponent } from './sub/kanban-card-dialog.component';

@@ -16,7 +16,7 @@ import { NgComponentOutlet } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { cn } from '../../../lib/utils';
 import { SeparatorComponent } from '../../separator';
-import { RichTextLocale, RICH_TEXT_LOCALES } from '../rich-text-locales';
+import { RichTextLocale, RICH_TEXT_LOCALES } from '../rich-text.locales';
 import { RichTextToolbarViewContext, type RichTextToolbarSlot } from '../rich-text-editor.host';
 
 /**

@@ -6,7 +6,7 @@ import { RichTextMentionsDirective, type MentionItem, type TagItem } from './add
 import { RichTextViewComponent } from '../rich-text-view';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 import { RichTextMarkdownService } from './rich-text-markdown.service';
-import { RICH_TEXT_LOCALES } from './rich-text-locales';
+import { RICH_TEXT_LOCALES } from './rich-text.locales';
 import { FormsModule, ReactiveFormsModule, FormControl, FormGroup } from '@angular/forms';
 import { AfterViewInit, Component, Input, ViewChild } from '@angular/core';
 import { JsonPipe } from '@angular/common';

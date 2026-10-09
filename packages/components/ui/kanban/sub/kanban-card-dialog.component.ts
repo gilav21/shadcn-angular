@@ -21,7 +21,7 @@ import {
     DialogTitleComponent,
     DialogFooterComponent,
 } from '../../dialog';
-import { type KanbanLocale, KANBAN_LOCALES } from '../kanban-locales';
+import { type KanbanLocale, KANBAN_LOCALES } from '../kanban.locales';
 import { type KanbanCard, type KanbanCardAddEvent } from '../kanban.component';
 
 const LABEL_PRESETS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#6b7280'];
