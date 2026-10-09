@@ -34,3 +34,14 @@ export function resolveSonarToken() {
   console.error('  - bash:     SONAR_TOKEN=<token> npm run sonar');
   process.exit(1);
 }
+
+/**
+ * Host-side SonarQube URL for helper scripts that call the web API.
+ * Stub — implemented in Task 6 of specs/repo-hygiene-and-docs-drift-spec.md.
+ *
+ * @param {Record<string, string | undefined>} [env]
+ * @returns {string}
+ */
+export function resolveSonarHost(env = process.env) {
+  return env.SONAR_HOST_URL ?? 'http://localhost:9000';
+}
