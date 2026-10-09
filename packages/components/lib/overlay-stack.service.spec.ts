@@ -1,29 +1,14 @@
 import { DOCUMENT } from '@angular/common';
 import { Injector } from '@angular/core';
 import { afterEach, describe, expect, it } from 'vitest';
-import { OverlayStackService } from './overlay-stack.service';
-
-/**
- * Task-1 scaffolding: the stack's v2 surface (`register` / `isTopmost` and the
- * `OverlayLayer` shape) lands in Task 2 of
- * specs/overlay-stack-scroll-lock-and-escape-spec.md, which replaces this
- * interface with the real exports.
- */
-interface OverlayLayer {
-    readonly dismiss: () => void;
-    readonly modal: boolean;
-}
-interface StackV2 {
-    register(layer: OverlayLayer): () => void;
-    isTopmost(layer: OverlayLayer): boolean;
-}
+import { OverlayLayer, OverlayStackService } from './overlay-stack.service';
 
 /** A service instance of its own, bound to `doc` — what a second bundled copy of the class amounts to. */
-function stackOn(doc: Document): StackV2 {
+function stackOn(doc: Document): OverlayStackService {
     const injector = Injector.create({
         providers: [OverlayStackService, { provide: DOCUMENT, useValue: doc }],
     });
-    return injector.get(OverlayStackService) as unknown as StackV2;
+    return injector.get(OverlayStackService);
 }
 
 /** A layer that records its own dismissal into `log` under `name`. */
@@ -55,7 +40,7 @@ describe('OverlayStackService — scroll lock', () => {
         else document.body.setAttribute('style', originalBodyStyle);
     });
 
-    it.fails.each([
+    it.each([
         { name: 'consumer inline overflow and padding', inline: 'overflow: clip; padding-right: 12px' },
         { name: 'no inline styles', inline: '' },
     ])('locks the body while any modal layer is registered and restores its prior inline styles after the last ($name)', ({ inline }) => {
@@ -83,7 +68,7 @@ describe('OverlayStackService — scroll lock', () => {
         expect(log).toEqual([]);
     });
 
-    it.fails.each([
+    it.each([
         { name: '17px classic scrollbar', clientWidth: 1263, expected: '33px' },
         { name: 'overlay scrollbar', clientWidth: 1280, expected: '1rem' },
     ])('adds the scrollbar width to the existing right padding, and nothing when there is no scrollbar ($name)', ({ clientWidth, expected }) => {
@@ -110,7 +95,7 @@ describe('OverlayStackService — scroll lock', () => {
         expect(doc.body.style.overflow).toBe('');
     });
 
-    it.fails('locks and unlocks against a document with no defaultView', () => {
+    it('locks and unlocks against a document with no defaultView', () => {
         const serverDoc = document.implementation.createHTMLDocument('server');
         expect(serverDoc.defaultView).toBeNull();
         const original = Object.getOwnPropertyDescriptor(globalThis, 'innerWidth');
@@ -147,7 +132,7 @@ describe('OverlayStackService — Escape', () => {
         return root;
     }
 
-    it.fails('Escape dismisses exactly the top layer, wherever focus is', () => {
+    it('Escape dismisses exactly the top layer, wherever focus is', () => {
         const root = mount(`
             <section data-layer="dialog"><input aria-label="Name"></section>
             <section data-layer="popover"><button type="button">Details</button></section>
@@ -178,7 +163,7 @@ describe('OverlayStackService — Escape', () => {
         unregister.forEach(fn => fn());
     });
 
-    it.fails('Escape that was preventDefault-ed, or arrives mid-composition, dismisses nothing', () => {
+    it('Escape that was preventDefault-ed, or arrives mid-composition, dismisses nothing', () => {
         const root = mount(`<div data-submenu><button type="button">Export as…</button></div>`);
         const submenu = root.querySelector<HTMLElement>('[data-submenu]')!;
         const item = submenu.querySelector('button')!;
@@ -205,7 +190,7 @@ describe('OverlayStackService — Escape', () => {
         unregister();
     });
 
-    it.fails('two service instances on one document share one stack and one lock', () => {
+    it('two service instances on one document share one stack and one lock', () => {
         const before = bodyInline(document);
         const app = stackOn(document);
         const packaged = stackOn(document);

@@ -5,6 +5,7 @@ import {
     InjectionToken,
     forwardRef,
 } from '@angular/core';
+import { bindOverlayLayer } from '../../lib/overlay-stack.service';
 
 export const ALERT_DIALOG = new InjectionToken<AlertDialogComponent>('ALERT_DIALOG');
 
@@ -23,6 +24,11 @@ export class AlertDialogComponent {
      * your own code can.
      */
     open = model(false);
+
+    constructor() {
+        // Modal: locks page scroll while open, and Escape reaches only the innermost layer.
+        bindOverlayLayer(() => this.open(), { modal: true, dismiss: () => this.hide() });
+    }
 
     /** Opens the alert dialog. Equivalent to setting {@link open} to `true`. */
     show(): void {

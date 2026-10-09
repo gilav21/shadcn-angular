@@ -1,14 +1,11 @@
 import {
     Component,
     ChangeDetectionStrategy,
-    DestroyRef,
-    effect,
-    inject,
     model,
     InjectionToken,
     forwardRef,
 } from '@angular/core';
-import { OverlayStackService } from '../../lib/overlay-stack.service';
+import { bindOverlayLayer } from '../../lib/overlay-stack.service';
 
 export const DIALOG = new InjectionToken<DialogComponent>('DIALOG');
 
@@ -28,15 +25,9 @@ export class DialogComponent {
      */
     open = model(false);
 
-    /** Registers this dialog as an overlay layer while open, so Escape reaches only the innermost one. */
-    private readonly layers = inject(OverlayStackService);
-
     constructor() {
-        effect(() => {
-            if (this.open()) this.layers.push(this);
-            else this.layers.remove(this);
-        });
-        inject(DestroyRef).onDestroy(() => this.layers.remove(this));
+        // Modal: locks page scroll while open, and Escape reaches only the innermost layer.
+        bindOverlayLayer(() => this.open(), { modal: true, dismiss: () => this.hide() });
     }
 
     /** Opens the dialog. Equivalent to setting {@link open} to `true`. */

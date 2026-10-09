@@ -179,18 +179,12 @@ export class AlertDialogContentComponent implements AfterViewInit {
     }
 
     /**
-     * Key handler on the modal wrapper: Escape closes the dialog, Tab/Shift+Tab
+     * Key handler on the modal wrapper: Tab/Shift+Tab
      * wrap focus so it stays trapped inside the panel. There is deliberately no
      * backdrop-click dismissal — an alert dialog demands an explicit choice. The
      * panel renders inline at `z-50`, not in the native top layer.
      */
     onKeydown(event: KeyboardEvent): void {
-        if (event.key === 'Escape') {
-            event.preventDefault();
-            this.alertDialog?.hide();
-            return;
-        }
-
         if (event.key === 'Tab' && this.contentEl) {
             const focusableElements = this.contentEl.querySelectorAll(
                 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'

@@ -12,7 +12,6 @@ import { cn } from '../../../lib/utils';
 import { createLocaleBindings, type LocaleInput } from '../../../lib/i18n';
 import { COMMON_LOCALES, type CommonLocale } from '../../../lib/i18n/common.locales';
 import { DIALOG } from '../dialog.component';
-import { OverlayStackService } from '../../../lib/overlay-stack.service';
 import { DialogHeaderComponent } from './dialog-header.component';
 import { DialogTitleComponent } from './dialog-title.component';
 import { DialogDescriptionComponent } from './dialog-description.component';
@@ -31,7 +30,6 @@ import { DialogDescriptionComponent } from './dialog-description.component';
 })
 export class DialogContentComponent implements AfterViewInit {
     readonly dialog = inject(DIALOG, { optional: true });
-    private readonly layers = inject(OverlayStackService);
     private readonly el = inject(ElementRef);
     /**
      * Extra classes merged onto the centred panel (not the backdrop). Overrides
@@ -66,21 +64,15 @@ export class DialogContentComponent implements AfterViewInit {
     private previousActiveElement?: Element | null;
 
     constructor() {
-        effect((onCleanup) => {
+        effect(() => {
             if (this.dialog?.open()) {
                 this.previousActiveElement = document.activeElement;
-                document.body.style.overflow = 'hidden';
                 setTimeout(() => this.focusFirstElement(), 0);
             } else {
-                document.body.style.overflow = '';
                 if (this.previousActiveElement instanceof HTMLElement) {
                     this.previousActiveElement.focus();
                 }
             }
-
-            onCleanup(() => {
-                document.body.style.overflow = '';
-            });
         });
     }
 
@@ -116,7 +108,7 @@ export class DialogContentComponent implements AfterViewInit {
 
     /**
      * Closes the owning `ui-dialog`. Bound to the built-in corner close button
-     * and reused by the Escape branch of {@link onKeydown}; a no-op when this
+     * and reused by the overlay stack on Escape; a no-op when this
      * content is used outside a `ui-dialog`.
      */
     close(): void {
@@ -124,20 +116,11 @@ export class DialogContentComponent implements AfterViewInit {
     }
 
     /**
-     * Panel key handler: Escape closes, Tab/Shift+Tab wrap focus so it stays
+     * Panel key handler: Tab/Shift+Tab wrap focus so it stays
      * trapped inside the panel. The panel renders in normal stacking context at
      * `z-50`, not the native top layer, so it can be covered by higher-z UI.
      */
     onKeydown(event: KeyboardEvent): void {
-        if (event.key === 'Escape') {
-            // One Escape, one layer -- the innermost. An overlay opened after
-            // this dialog (a popover inside it, a nested dialog) owns the key.
-            if (this.layers.hasOverlayAbove(this.dialog)) return;
-            event.preventDefault();
-            this.close();
-            return;
-        }
-
         if (event.key === 'Tab' && this.contentEl) {
             const focusableElements = this.contentEl.querySelectorAll(
                 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'

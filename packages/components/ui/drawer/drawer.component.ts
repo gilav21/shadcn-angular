@@ -2,16 +2,12 @@ import {
     Component,
     ChangeDetectionStrategy,
     input,
-    inject,
-    OnDestroy,
-    effect,
     model,
     InjectionToken,
     forwardRef,
 } from '@angular/core';
-import { DOCUMENT } from '@angular/common';
 import { cva, type VariantProps } from 'class-variance-authority';
-import { OverlayStackService } from '../../lib/overlay-stack.service';
+import { bindOverlayLayer } from '../../lib/overlay-stack.service';
 
 export const drawerVariants = cva(
     'fixed z-50 flex flex-col bg-background overflow-y-auto',
@@ -44,8 +40,7 @@ export const DRAWER = new InjectionToken<DrawerComponent>('DRAWER');
         '[attr.data-slot]': '"drawer"',
     },
 })
-export class DrawerComponent implements OnDestroy {
-    private readonly document = inject(DOCUMENT);
+export class DrawerComponent {
 
     /**
      * Two-way bound visibility. While `true` the body is scroll-locked (with
@@ -61,40 +56,9 @@ export class DrawerComponent implements OnDestroy {
      */
     direction = input<DrawerDirection>('bottom');
 
-    private readonly scrollbarWidth: number = 0;
-
     constructor() {
-        this.scrollbarWidth = globalThis.window.innerWidth - this.document.documentElement.clientWidth;
-
-        effect(() => {
-            if (this.open()) {
-                this.lockScroll();
-                this.layers.push(this);
-            } else {
-                this.unlockScroll();
-                this.layers.remove(this);
-            }
-        });
-    }
-
-    /** Registers this drawer as an overlay layer while open, so Escape reaches only the innermost one. */
-    private readonly layers = inject(OverlayStackService);
-
-    ngOnDestroy(): void {
-        this.unlockScroll();
-        this.layers.remove(this);
-    }
-
-    private lockScroll(): void {
-        const body = this.document.body;
-        body.style.overflow = 'hidden';
-        body.style.paddingRight = `${this.scrollbarWidth}px`;
-    }
-
-    private unlockScroll(): void {
-        const body = this.document.body;
-        body.style.overflow = '';
-        body.style.paddingRight = '';
+        // Modal: locks page scroll while open, and Escape reaches only the innermost layer.
+        bindOverlayLayer(() => this.open(), { modal: true, dismiss: () => this.hide() });
     }
 
     /** Opens the drawer and locks body scroll. Equivalent to setting {@link open} to `true`. */

@@ -64,12 +64,6 @@ import { TabsComponent } from '../tabs';
  * the rows it fixes; the set is deleted with the last of them.
  */
 const PENDING = new Set<string>([
-    'T-7 sheet open, closed dialog created',
-    'T-7 dialog, nested dialog opened then closed',
-    'T-7 dialog open, closed sheet destroyed',
-    'T-7 alert dialog alone',
-    'T-7 drawer closed over consumer overflow-y',
-    'T-7 closed drawer and sheet created',
     'T-8 select in sheet',
     'T-8 projected select in dialog',
     'T-8 dropdown-menu in drawer',
@@ -81,8 +75,6 @@ const PENDING = new Set<string>([
     'T-8 split-button in dialog',
     'T-8 emoji-picker in sheet',
     'T-8 eyedropper in dialog',
-    'T-8 alert-dialog in dialog',
-    'T-9 dropdown-menu submenu',
     'T-9 context-menu submenu',
     'T-10 alert-dialog, disabled last control',
     'T-10 alert-dialog, disabled last control (rtl)',

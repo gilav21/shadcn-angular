@@ -139,7 +139,7 @@ describe('Sheet Integration', () => {
         await fixture.whenStable();
 
         const dialog = fixture.debugElement.query(By.css('[role="dialog"]'));
-        dialog.triggerEventHandler('keydown', { key: 'Escape', preventDefault: () => { } });
+        dialog.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
         fixture.detectChanges();
 
         expect(component.isOpen).toBe(false);
