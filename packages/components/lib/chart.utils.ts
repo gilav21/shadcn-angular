@@ -109,6 +109,11 @@ export const easingFunctions = {
     easeOutQuart: (t: number): number => 1 - Math.pow(1 - t, 4),
 } as const;
 
+/**
+ * Tweens `start` → `end`. `onUpdate` only ever receives finite values and the
+ * last one is always `end`: a duration that is not a finite positive number has
+ * nothing to tween over, so the first frame reports `end` and completes.
+ */
 export function animateValue(
     start: number,
     end: number,
@@ -117,13 +122,14 @@ export function animateValue(
     onUpdate: (value: number) => void,
     onComplete?: () => void
 ): () => void {
+    const hasDuration = Number.isFinite(duration) && duration > 0;
     let startTime: number | null = null;
     let animationId: number;
 
     const animate = (timestamp: number): void => {
         startTime ??= timestamp;
         const elapsed = timestamp - startTime;
-        const progress = Math.min(elapsed / duration, 1);
+        const progress = hasDuration ? Math.min(elapsed / duration, 1) : 1;
         const easedProgress = easingFunctions[easing](progress);
         const currentValue = start + (end - start) * easedProgress;
 
@@ -149,6 +155,22 @@ export function animateValue(
 // Number Formatting
 // =============================================================================
 
+const formatters = new Map<string, Intl.NumberFormat>();
+
+/** One formatter per option set: constructing `Intl.NumberFormat` costs ~40x a `format()` call and runs per label per change-detection pass. */
+function numberFormatter(locale: string, decimals: number, compact: boolean): Intl.NumberFormat {
+    const key = `${locale}|${decimals}|${compact}`;
+    let formatter = formatters.get(key);
+    if (!formatter) {
+        formatter = new Intl.NumberFormat(locale, {
+            ...(compact && { notation: 'compact' as const }),
+            maximumFractionDigits: decimals,
+        });
+        formatters.set(key, formatter);
+    }
+    return formatter;
+}
+
 export function formatChartValue(
     value: number,
     options?: {
@@ -158,17 +180,7 @@ export function formatChartValue(
     }
 ): string {
     const { compact = false, decimals = 1, locale = 'en-US' } = options ?? {};
-
-    if (compact && Math.abs(value) >= 1000) {
-        return new Intl.NumberFormat(locale, {
-            notation: 'compact',
-            maximumFractionDigits: decimals,
-        }).format(value);
-    }
-
-    return new Intl.NumberFormat(locale, {
-        maximumFractionDigits: decimals,
-    }).format(value);
+    return numberFormatter(locale, decimals, compact && Math.abs(value) >= 1000).format(value);
 }
 
 export function formatPercentage(value: number, decimals = 1): string {
