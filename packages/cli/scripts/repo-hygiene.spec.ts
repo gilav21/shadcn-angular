@@ -191,6 +191,8 @@ describe('dead and stray files', () => {
  */
 const CONSUMER_DOC_PATHS: Readonly<Record<string, string>> = {
     'tailwind.css': "the consumer's stylesheet `init` writes (from packages/cli/src/templates/styles.ts)",
+    'src/components/': 'where `add` installs components inside e2e/fixture-app during a run; never tracked',
+    'src/app/test-pages/': 'where the run copies the harness page inside e2e/fixture-app; never tracked',
 };
 
 describe('docs name only what exists', () => {
@@ -225,8 +227,7 @@ describe('docs name only what exists', () => {
         });
     });
 
-    // RED until Task 10 — flip to it() there.
-    it.fails('every path and npm script named in .claude/CLAUDE.md and e2e/README.md resolves', () => {
+    it('every path and npm script named in .claude/CLAUDE.md and e2e/README.md resolves', () => {
         const scripts = new Set(Object.keys(ROOT_SCRIPTS));
         const reports = ['.claude/CLAUDE.md', 'e2e/README.md'].map((doc) => {
             const { missingPaths, unknownScripts } = extractDocReferences(read(doc), TRACKED, scripts);
