@@ -5,7 +5,7 @@
  *   npx tsx scripts/test-pixel-perfect.ts <pdf-path> [output-path]
  *
  * Example:
- *   npx tsx scripts/test-pixel-perfect.ts demo/public/DW2-3-Viruses-www.underwar.co.il.pdf D:/tmp/pixel-perfect.html
+ *   npm run pdf:pixel-perfect -- demo/public/examples/invoice.pdf D:/tmp/pixel-perfect.html
  *
  * Then open the output HTML in your browser and compare side-by-side
  * with the pdf2htmlEX output at localhost:8888.
@@ -18,8 +18,8 @@ import { renderPixelPerfectPaged, toStandaloneHtml, setFallbackFontData } from '
 /** Where the fallback font for missing glyph coverage may live, most specific first. */
 export function fontCandidates(repoRoot: string): string[] {
     return [
-        resolve(repoRoot, 'packages', 'components', 'lib', 'fonts', 'NotoSans-Regular.ttf'),
-        resolve(process.cwd(), 'packages', 'components', 'lib', 'fonts', 'NotoSans-Regular.ttf'),
+        resolve(repoRoot, 'packages', 'components', 'lib', 'parsers', 'fonts', 'NotoSans-Regular.ttf'),
+        resolve(process.cwd(), 'packages', 'components', 'lib', 'parsers', 'fonts', 'NotoSans-Regular.ttf'),
     ];
 }
 

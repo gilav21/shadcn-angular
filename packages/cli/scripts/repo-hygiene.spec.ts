@@ -342,8 +342,7 @@ describe('scripts are reachable', () => {
         expect(findUnreachableScripts(entries, corpus).sort(byText)).toEqual(['scripts/orphan.mjs', 'scripts/self-named.mjs']);
     });
 
-    // RED until Task 7 — flip to it() there.
-    it.fails('every script entry point is reachable', () => {
+    it('every script entry point is reachable', () => {
         const isEntry = (p: string) => {
             const dir = path.posix.dirname(p);
             return (dir === 'scripts' || dir === 'packages/cli/scripts')
@@ -363,8 +362,7 @@ describe('scripts are reachable', () => {
         expect(findUnreachableScripts(TRACKED.filter(isEntry), sources(TRACKED.filter(inCorpus)))).toEqual([]);
     });
 
-    // RED until Task 7 — flip to it() there.
-    it.fails('test-pixel-perfect resolves its font from lib/parsers/fonts and demands a PDF argument', async () => {
+    it('test-pixel-perfect resolves its font from lib/parsers/fonts and demands a PDF argument', async () => {
         const { fontCandidates } = await import('../../../scripts/test-pixel-perfect');
         expect(fontCandidates(REPO_ROOT).find((p) => existsSync(p)))
             .toBe(path.join(REPO_ROOT, 'packages', 'components', 'lib', 'parsers', 'fonts', 'NotoSans-Regular.ttf'));
