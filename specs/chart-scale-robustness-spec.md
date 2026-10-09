@@ -48,6 +48,8 @@ the functions (verbatim copies in node probes, and the real TS files through
 | F-13 | `formatChartValue` (`chart.utils.ts:152-172`) builds a new `Intl.NumberFormat` per call (~16µs vs 0.4µs) | ✓ | Measured: **15.6µs/call vs 0.34µs** cached. Called from templates per bar / tick / label on every CD pass (e.g. `bar-chart.component.html:129` → `formatValue` → `formatChartValue`), in 22 chart components. |
 | F-14 | `animateValue` with duration 0 sends `NaN` to `onUpdate` (`chart.utils.ts:126`) | ✓ (⚠️ no in-repo caller) | `elapsed / 0` on the first frame is `0/0 = NaN`; `Math.min(NaN, 1)` is `NaN`; `onUpdate(NaN)` then `onComplete`. The final `end` value is never reported. No component calls it — it is exported lib API for consumers. |
 | F-15 | `calculateAxisTicks` has no direct spec | ✓ | `lib/chart.utils.spec.ts` has only `easingFunctions` and `animateValue` blocks; nothing covers `calculateAxisTicks`, `getDataRange`, `formatChartValue`. |
+| F-16 | — (found in Task 1, 2026-10-04) | ⚠️ **NEW: count 1 on a zero-straddling domain has no fixed point.** | Under the 1/2/5 step rule the ticks of a domain with `min < 0 < max` always include 0, so its span is ≥ 2 steps; with `count = 1` the next step is ≥ span / 1.5 > step, so the domain grows forever (`[-995, 254]` → `[-1000, 1000]` → `[-2000, 2000]` → `[-5000, 5000]` …). Scratch probe of the Option 2 algorithm: 29,992 of 800,000 calls violate T-3, all `count = 1` with mixed-sign bounds. Resolved by the §3.1 amendment below. |
+| F-17 | — (found in Task 1) | ⚠️ **NEW: `computeBinEdges` builds its last edge as `lo + count·width`**, which can land below `hi`. | With the fixed `niceDomain`, `computeBins([0, 0.23, 0.46], { binCount: 50 })` → domain `[0, 0.46]` but last edge `0.45999999999999996`, so 0.46 is dropped (2 of 3 counted). Fixing `niceDomain` alone does not fix F-4 for every bin count. |
 
 **Superseded decision:** `specs/charts-expansion-spec.md` §5.1 said "Do **not**
 modify `calculateAxisTicks`", and `lib/chart-scale.ts:6` says it is "reused,
@@ -175,7 +177,7 @@ and print the seed and the failing input on failure. Each property samples
 | T-8 | `line chart draws a gap at a missing value` (render `ui-line-chart` with a series `[3, NaN, 5, undefined, 7]` (cast through `unknown`) plus a `null`; assert gridline labels finite, the series path has 2+ subpaths, point markers are rendered only for finite values, and no attribute of any SVG descendant contains `NaN`) | UC-7 | component | `ui/line-chart/line-chart.component.spec.ts` |
 | T-9 | `extent returns min and max in one pass and skips non-finite` (1,000,000 values with `NaN`, `null`, `±Infinity` sprinkled → equals a reduce-based reference; `[]` and all-non-finite → `undefined`; single value → `[v, v]`; `getDataRange` of 150,000 points does not throw) | UC-8 | unit | `lib/chart.utils.spec.ts` |
 | T-10 | **lint guard:** `no-restricted-syntax` forbids a spread argument in `Math.min` / `Math.max` in chart files (scope below). Verified by the mutation check: re-introducing `Math.max(...values)` in `scatter-chart.component.ts` makes `npm run lint` fail. | UC-8 | lint | `eslint.config.mjs` |
-| T-11 | `formatChartValue constructs one formatter per option set` (spy on the `Intl.NumberFormat` constructor: 1,000 calls across 3 option sets → ≤ 3 constructions; outputs equal a fresh `Intl.NumberFormat` for `en-US`, `de-DE`, `he-IL`, compact and non-compact, values `0`, `-1234.56`, `1e9`, `0.05`) | UC-9 | unit (measured) | `lib/chart.utils.spec.ts` |
+| T-11 | `formatChartValue constructs one formatter per option set` (spy on the `Intl.NumberFormat` constructor: 1,000 calls across 3 option sets → ≤ 3 constructions (amended to ≤ 4 for a compact set, see §3.1 "Contract amendments"); outputs equal a fresh `Intl.NumberFormat` for `en-US`, `de-DE`, `he-IL`, compact and non-compact, values `0`, `-1234.56`, `1e9`, `0.05`) | UC-9 | unit (measured) | `lib/chart.utils.spec.ts` |
 | T-12 | `animateValue with zero, negative or NaN duration reports end once` (extend the existing fake-rAF `describe('animateValue')` block; durations `0`, `-5`, `NaN`) | UC-10 | unit | `lib/chart.utils.spec.ts` |
 | T-13 | `existing chart e2e harnesses pass` — `npm run e2e:impact -- --base origin/master` then run every listed spec (expected: every chart whose closure includes `chart.utils.ts` / `chart-scale.ts` / `chart-path.ts`) | all (install) | e2e | `e2e/harness/*` (no new harness) |
 
@@ -280,6 +282,44 @@ Documented contracts (JSDoc, verbatim intent):
 - `formatChartValue` — memoised per `(locale, compact, decimals)`.
 - `animateValue` — `duration <= 0` or non-finite → one `onUpdate(end)` on the
   next frame, then `onComplete`.
+
+**Contract amendments (Task 1, 2026-10-04 — see F-16, F-17):**
+
+- `calculateAxisTicks` / `niceDomain`: a domain with `min < 0 < max` treats a
+  count of 1 as 2 (its 0 tick forces two intervals; without this there is no
+  fixed point). The tick cap stays `2·count + 3` of the *requested* (clamped)
+  count.
+- `niceTimeTicks`: `count` is floored and clamped to `[1, 50]` like
+  `calculateAxisTicks`, so the `2·count + 3` cap is a real bound for a huge
+  count; its ticks lie within `[min, max]`.
+- `formatChartValue` memoises per `(locale, effective notation, decimals)`:
+  `compact` formats `|value| < 1000` with the standard notation, so a compact
+  option set may use two formatters (T-11 bound adjusted accordingly).
+- `computeBinEdges` pins its last edge to the nice domain's upper bound.
+- `calculateAxisTicks` also falls back to `[min, max]` when the nice step or an
+  end tick overflows to `±Infinity` (e.g. `(1e307, 1.7e308, 1)` → step
+  `2e308`), not only when the span overflows.
+- `chart.utils.ts` also exports `clampTickCount` (Task 2), so `niceTimeTicks`
+  shares the `[1, 50]` count rule instead of duplicating it — a second new
+  symbol beside `extent` (§3.3).
+- `niceDomain` widens some domains to reach the fixed point — for the PR body:
+  `[0, 15]` → `[0, 20]`, `[1.97, 2.69]` → `[1.8, 2.8]`.
+- `formatChartValue` looks `Intl.NumberFormat` up at call time (T-11 counts
+  constructions with a spy on it, per R-5).
+- T-2 (exact step multiples) samples integer, fractional, negative,
+  mixed-sign, tiny and giant (±1e307) bounds. It leaves out all-equal and
+  non-finite (they return `[]`) and huge-narrow: at `1e20` the double spacing
+  is 16384, so ticks there cannot be exact decimal multiples of a 2e4 step —
+  T-1/T-3/T-6 hold that class to containment, bounds and bounded time instead.
+
+**Failing-first state observed in Task 1 (2026-10-04):** on the pre-fix code
+the huge-narrow rows of T-1/T-3/T-6 do not *time out* — they loop
+synchronously (node probe of the verbatim function: > 5M ticks for
+`(1e20, 1e20+16384)`, `(1e16, 1e16+4)` and count `1e9`), which a vitest
+timeout cannot interrupt, so they were observed failing in a node run with
+those rows filtered out and in the probe. `extent` does not exist yet, so
+`tsc` reports TS2305 on `chart.utils.spec.ts` until Task 3; at runtime the
+T-9 tests fail individually with `extent is not a function`.
 
 Consumer-visible behaviour change (document in the PR body): some nice domains
 widen slightly to reach a fixed point (`[0, 15]` → `[0, 20]` instead of the
@@ -405,8 +445,8 @@ Marking a row Done without all five is a process violation, not a shortcut.
 
 | # | Task | Proves | Status | Completed | Score | Retrospective |
 |---|------|--------|--------|-----------|-------|---------------|
-| 1 | **Write failing tests** T-1…T-6, T-9, T-11, T-12 (lib + histogram utils), with the seeded generator and input classes of §2. Confirm each fails on `master` for the reason named (e.g. T-3 fails on `niceDomain(0,15)`, T-6 times out on `1e20`). | UC-1…UC-6, UC-8…UC-10 | ⬜ Not started | — | — | — |
-| 2 | **Fix the tick/domain math.** Rule: *the nice domain contains every finite value, its ticks are exact step multiples, and degenerate input yields a finite domain in bounded time.* Rewrite `calculateAxisTicks` (index-based, step-precision rounding, ulp/overflow/count guards), `niceDomain` (non-finite handling, fixed point), `linearScale.ticks` (clip to domain), `niceTimeTicks` (non-finite + tick cap). Update the `chart-scale.ts` header comment (superseded decision). Run every consumer (§2.4) and fix only expectations that asserted the bug. T-1, T-2, T-3, T-5, T-6 green. | UC-1, UC-2, UC-3, UC-5, UC-6 | ⬜ Not started | — | — | — |
+| 1 | **Write failing tests** T-1…T-6, T-9, T-11, T-12 (lib + histogram utils), with the seeded generator and input classes of §2. Confirm each fails on `master` for the reason named (e.g. T-3 fails on `niceDomain(0,15)`, T-6 times out on `1e20`). | UC-1…UC-6, UC-8…UC-10 | ✅ Done | 2026-10-04 11:01 | 92 | Seeded property tests over every §2 class surfaced two real gaps the spec missed (F-16 count-1 zero-straddle has no fixed point; F-17 histogram last edge) — worth it. Eight review rounds: deriving T-2's step from a measured gap needed snapping to 1/2/5, not digit rounding; validate a property test against a reference implementation before calling it done. Pre-fix hang rows confirmed by node probe (sync loops cannot time out). Sonar per coordinator: skipped per-agent, run once on the integration branch. |
+| 2 | **Fix the tick/domain math.** Rule: *the nice domain contains every finite value, its ticks are exact step multiples, and degenerate input yields a finite domain in bounded time.* Rewrite `calculateAxisTicks` (index-based, step-precision rounding, ulp/overflow/count guards), `niceDomain` (non-finite handling, fixed point), `linearScale.ticks` (clip to domain), `niceTimeTicks` (non-finite + tick cap). Update the `chart-scale.ts` header comment (superseded decision). Run every consumer (§2.4) and fix only expectations that asserted the bug. T-1, T-2, T-3, T-5, T-6 green. | UC-1, UC-2, UC-3, UC-5, UC-6 | ✅ Done | 2026-10-06 20:40 | 93 | Index-based ticks + fixed-point niceDomain closed every class in one algorithm, and no existing chart expectation changed (all 25 chart folders green). The Task 1 generators sampled only rounded decimals, so the ±1 index corrections survived mutation until a k·s "float-sum" class and a tightness check were added — sample arithmetic-produced values from the start. 16/16 plausible mutants red; one equivalent guard kept for clarity. Lesson: never run mutations while a reviewer or linter reads the same file (round-1 review and a lint crash read mutants). |
 | 3 | **Add `extent()`**, reimplement `getDataRange` on it, replace the private `extent` in `histogram.utils.ts`. Rule: *no range computation spreads an array into `Math.min/max`.* T-4, T-9 green. | UC-4, UC-8 | ⬜ Not started | — | — | — |
 | 4 | **Replace every chart spread** listed in F-12 with `extent()` (preserving each chart's current fallback values — no domain-rule changes here), then add the lint guard T-10: `no-restricted-syntax` with selector `CallExpression[callee.object.name='Math'][callee.property.name=/^(min|max)$/] > SpreadElement`, scoped to `packages/components/ui/{*chart*,boxplot,candlestick,heatmap,calendar-heatmap,histogram,treemap}/**/*.ts` and `packages/components/lib/chart*.ts`, excluding `*.spec.ts`/`*.stories.ts`. Mutation-check it (§2.1 T-10). | UC-8 | ⬜ Not started | — | — | — |
 | 5 | **Write failing tests** T-7 (paths) and T-8 (line chart wiring). | UC-7 | ⬜ Not started | — | — | — |
@@ -436,3 +476,5 @@ Marking a row Done without all five is a process violation, not a shortcut.
 
 | # | Task | Completed | Score | Reviewer rationale |
 |---|------|-----------|-------|--------------------|
+| 1 | Failing tests T-1…T-6, T-9, T-11, T-12 | 2026-10-04 11:01 | 92 | All nine tests use a seeded mulberry32 over every §2 class and print seed + first violating inputs; against a reference Option-2 implementation all chart-scale tests and T-2/T-5 pass, against 14216e9b every new test fails (T-2 alone 1,995 violations). F-16/F-17 amendments and the hang-instead-of-red note are sound; histogram spec stays portable. Nits addressed after scoring: T-11 lower bound, direct fixed-point assertion in T-3, §2.1 T-11 pointer. |
+| 2 | Fix the tick/domain math | 2026-10-06 20:40 | 93 | Follows Option 2 and the amendments; a 280k-case adversarial probe (integer, 2-decimal, k·s, 1e-300…1e300, huge-narrow, non-finite; counts up to 1e9) found zero containment, fixed-point, length-cap or ordering violations, worst niceDomain call 0.37 ms; 200k niceTimeTicks cases clean. Test changes extend existing properties (float-sum class, subnormal row, tightness) rather than adding incident tests. Doc nits (iteration cap, floor naming, YEAR_MS, overflow clause, clampTickCount export) fixed after scoring. |
