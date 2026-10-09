@@ -86,14 +86,49 @@ function rewriteCssSelectors(content: string, newPrefix: string): string {
     );
 }
 
+/** `<ng-content … select="…">`, single- or double-quoted; `[^>]` spans newlines. */
+const NG_CONTENT_SELECT = /(<ng-content\b[^>]*?(?<![\w-])select\s*=\s*)(?:"([^"]*)"|'([^']*)')/g;
+
+/** A `ui-*` element token inside a select list — not an attribute value, class or id. */
+const SELECT_ELEMENT_TOKEN = /(^|[\s,(])ui-([a-z][a-z0-9-]*)(?=$|[\s,.[:)#])/g;
+
+/**
+ * Rewrites element tokens inside `<ng-content select="…">` slots, so a
+ * prefixed `<acme-x>` child still lands in its named slot. Angular never
+ * errors on a `select` that matches nothing, so a miss here is silent.
+ *
+ * Anchored to `<ng-content` for the same reason `rewriteSelectorMetadata` is
+ * anchored to `selector:` — a bare `select="…"` attribute can belong to any
+ * element, and arbitrary attribute values are never ours to rewrite. Inside the
+ * value only element-type tokens change: `[slot=ui-x]`, `.ui-x` and
+ * `nav[data-slot=…]` stay as they are.
+ */
+function rewriteContentSelects(content: string, newPrefix: string): string {
+    return content.replaceAll(
+        NG_CONTENT_SELECT,
+        (_match, head: string, doubleQuoted: string | undefined, singleQuoted: string | undefined) => {
+            const quote = doubleQuoted === undefined ? "'" : '"';
+            const value = (doubleQuoted ?? singleQuoted ?? '').replaceAll(SELECT_ELEMENT_TOKEN, `$1${newPrefix}-$2`);
+            return `${head}${quote}${value}${quote}`;
+        },
+    );
+}
+
 /** Canonical token a prefixed selector collapses to. `@@` cannot appear in a
  *  kebab-case selector, so this can never collide with real source. */
 const NEUTRAL_PREFIX = '@@UI@@-';
 
 /**
- * Map `<prefix>-X` selector occurrences to a fixed canonical token, in the SAME
- * anchored positions `applyPrefixTransforms` rewrites (a TypeScript source's
- * `selector:` metadata and inline-template tags). Unlike `applyPrefixTransforms`
+ * Map `<prefix>-X` selector occurrences to a fixed canonical token in two of
+ * the positions `applyPrefixTransforms` rewrites: `selector:` metadata and
+ * template tags. The installer ALSO rewrites CSS element selectors and
+ * `<ng-content select>` values, and those are NOT neutralized here. So a
+ * pristine copy of such a file installed under a custom prefix canonicalizes
+ * differently from its baseline, and edit-detection conservatively treats it
+ * as user-edited: it is kept, never pruned. Mirroring them would mean
+ * regenerating both baseline files and making `canonicalize` filename-aware
+ * (specs/selector-independent-component-identity-spec.md §D.4 set E, V-5;
+ * recorded there as a follow-up). Unlike `applyPrefixTransforms`
  * this is NOT gated on the default prefix — the canonical form must neutralize
  * `ui-` too, so a default install and a custom-prefix install of the same
  * source collapse to one hash for edit-detection. `prefix` is validated
@@ -120,10 +155,11 @@ export function applyPrefixTransforms(file: string, content: string, newPrefix: 
     if (newPrefix === DEFAULT_PREFIX) return content;
 
     if (file.endsWith('.ts')) {
-        return rewriteTemplateTags(rewriteSelectorMetadata(content, newPrefix), newPrefix);
+        const tagged = rewriteTemplateTags(rewriteSelectorMetadata(content, newPrefix), newPrefix);
+        return rewriteContentSelects(tagged, newPrefix);
     }
     if (file.endsWith('.html')) {
-        return rewriteTemplateTags(content, newPrefix);
+        return rewriteContentSelects(rewriteTemplateTags(content, newPrefix), newPrefix);
     }
     if (file.endsWith('.css')) {
         return rewriteCssSelectors(content, newPrefix);

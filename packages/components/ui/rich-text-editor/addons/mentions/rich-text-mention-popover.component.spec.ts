@@ -1,3 +1,4 @@
+import { ApplicationRef, ComponentRef, EnvironmentInjector, createComponent } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RichTextMentionPopoverComponent } from './rich-text-mention-popover.component';
@@ -133,18 +134,6 @@ describe('RichTextMentionPopoverComponent', () => {
         expect(closeSpy).toHaveBeenCalledTimes(1);
     });
 
-    it('closes when a document click lands outside the popover', () => {
-        const closeSpy = vi.fn();
-        component.closed.subscribe(closeSpy);
-        const outside = document.createElement('button');
-        document.body.appendChild(outside);
-
-        outside.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-
-        expect(closeSpy).toHaveBeenCalledTimes(1);
-        outside.remove();
-    });
-
     it('emits the clicked item', () => {
         fixture.componentRef.setInput('items', USERS);
         fixture.detectChanges();
@@ -189,3 +178,99 @@ describe('RichTextMentionPopoverComponent - listbox ids (fine-comb review)', () 
         }
     });
 });
+
+/**
+ * Mounts the popover under an arbitrary host tag. `TestBed.createComponent`
+ * always uses the selector as the tag, so it can only ever sample the `ui-`
+ * class; a CLI `--prefix` (or a selector rename) gives the host another name.
+ */
+function mountPopover(tag: string, items: (MentionItem | TagItem)[]): ComponentRef<RichTextMentionPopoverComponent> {
+    const hostElement = document.createElement(tag);
+    document.body.appendChild(hostElement);
+    const ref = createComponent(RichTextMentionPopoverComponent, {
+        hostElement,
+        environmentInjector: TestBed.inject(EnvironmentInjector),
+    });
+    TestBed.inject(ApplicationRef).attachView(ref.hostView);
+    ref.setInput('items', items);
+    ref.changeDetectorRef.detectChanges();
+    return ref;
+}
+
+function listboxOf(ref: ComponentRef<RichTextMentionPopoverComponent>): HTMLElement {
+    return (ref.location.nativeElement as HTMLElement).querySelector('[role="listbox"]')!;
+}
+
+function closeCount(ref: ComponentRef<RichTextMentionPopoverComponent>): () => number {
+    let count = 0;
+    ref.instance.closed.subscribe(() => count++);
+    return () => count;
+}
+
+describe.each(['ui-rich-text-mention-popover', 'acme-rich-text-mention-popover'])(
+    'RichTextMentionPopoverComponent outside-click dismissal under host <%s>',
+    (tag) => {
+        let restore: Restore;
+        const mounted: ComponentRef<RichTextMentionPopoverComponent>[] = [];
+        const mount = (items: (MentionItem | TagItem)[]) => {
+            const ref = mountPopover(tag, items);
+            mounted.push(ref);
+            return ref;
+        };
+
+        beforeEach(() => { restore = installStubs(); });
+        afterEach(() => {
+            for (const ref of mounted.splice(0)) {
+                const host = ref.location.nativeElement as HTMLElement;
+                ref.destroy();
+                host.remove();
+            }
+            restore();
+        });
+
+        it('a click inside the panel that is not an option never closes the popover, whatever its host tag', () => {
+            const empty = mount([]);
+            const emptyClosed = closeCount(empty);
+            const emptyState = listboxOf(empty).firstElementChild as HTMLElement;
+            expect(emptyState.textContent?.trim()).toBe('No users found');
+            emptyState.click();
+            listboxOf(empty).click();
+            expect(emptyClosed()).toBe(0);
+
+            const list = mount(USERS);
+            const listClosed = closeCount(list);
+            const selected: (MentionItem | TagItem)[] = [];
+            list.instance.itemSelect.subscribe((item) => selected.push(item));
+            const rowWrapper = listboxOf(list).querySelector<HTMLElement>('.p-1')!;
+            const scrollArea = listboxOf(list).firstElementChild as HTMLElement;
+            rowWrapper.click();
+            scrollArea.click();
+            listboxOf(list).click();
+            expect(listClosed()).toBe(0);
+            expect(selected).toEqual([]);
+
+            rowWrapper.querySelectorAll<HTMLElement>('[role="option"]')[1].click();
+            expect(selected).toEqual([USERS[1]]);
+            expect(listClosed()).toBe(0);
+        });
+
+        it('a click outside closes the popover once, whatever its host tag', () => {
+            const a = mount(USERS);
+            const b = mount(USERS);
+            const aClosed = closeCount(a);
+            const bClosed = closeCount(b);
+            const outside = document.createElement('button');
+            document.body.appendChild(outside);
+
+            outside.click();
+            expect(aClosed()).toBe(1);
+            expect(bClosed()).toBe(1);
+
+            // Two editors, two popovers: a click in A is outside B, never outside A.
+            listboxOf(a).querySelector<HTMLElement>('.p-1')!.click();
+            expect(aClosed()).toBe(1);
+            expect(bClosed()).toBe(2);
+            outside.remove();
+        });
+    },
+);

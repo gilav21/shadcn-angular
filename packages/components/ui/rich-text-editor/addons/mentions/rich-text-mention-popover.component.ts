@@ -82,7 +82,7 @@ export class RichTextMentionPopoverComponent implements AfterViewInit, OnDestroy
 
   /**
    * The user dismissed the list: `Escape`/`Tab`, or a click anywhere outside
-   * the `ui-rich-text-mention-popover` element. The host owns the teardown;
+   * this popover (whatever its host tag). The host owns the teardown;
    * this component stays rendered until it is destroyed.
    */
   readonly closed = output<void>();
@@ -100,9 +100,16 @@ export class RichTextMentionPopoverComponent implements AfterViewInit, OnDestroy
 
   readonly selectedIndex = signal<number>(0);
 
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+
+  /**
+   * Dismisses on a click outside THIS popover. Containment is the host's DOM
+   * subtree, never a selector string: a `--prefix` install or a selector
+   * rename changes the tag, and a tag query also treated a click inside a
+   * second, sibling popover as "inside" this one.
+   */
   private readonly clickListener = (event: MouseEvent): void => {
-    const target = event.target as HTMLElement;
-    if (!target.closest('ui-rich-text-mention-popover')) {
+    if (!(event.target instanceof Node) || !this.host.nativeElement.contains(event.target)) {
       this.closed.emit();
     }
   };

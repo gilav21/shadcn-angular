@@ -14725,7 +14725,7 @@
             {
               "name": "closed",
               "type": "void",
-              "description": "The user dismissed the list: `Escape`/`Tab`, or a click anywhere outside the `ui-rich-text-mention-popover` element. The host owns the teardown; this component stays rendered until it is destroyed."
+              "description": "The user dismissed the list: `Escape`/`Tab`, or a click anywhere outside this popover (whatever its host tag). The host owns the teardown; this component stays rendered until it is destroyed."
             },
             {
               "name": "itemSelect",

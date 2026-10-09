@@ -970,8 +970,8 @@
       "lines": 1
     },
     "chat/chat.component.browser.spec.ts": {
-      "bytes": 2349,
-      "lines": 51
+      "bytes": 4268,
+      "lines": 88
     },
     "chat/chat.component.html": {
       "bytes": 563,
@@ -982,7 +982,7 @@
       "lines": 373
     },
     "chat/chat.component.ts": {
-      "bytes": 3228,
+      "bytes": 3237,
       "lines": 77
     },
     "chat/chat.stories.ts": {
@@ -1726,8 +1726,8 @@
       "lines": 41
     },
     "date-picker/date-picker.component.spec.ts": {
-      "bytes": 3161,
-      "lines": 87
+      "bytes": 4044,
+      "lines": 106
     },
     "date-picker/date-picker.component.ts": {
       "bytes": 11370,
@@ -1766,8 +1766,8 @@
       "lines": 90
     },
     "dialog/dialog.component.spec.ts": {
-      "bytes": 16853,
-      "lines": 428
+      "bytes": 17478,
+      "lines": 442
     },
     "dialog/dialog.component.ts": {
       "bytes": 1606,
@@ -1954,8 +1954,8 @@
       "lines": 74
     },
     "dropdown-menu/dropdown-menu.component.spec.ts": {
-      "bytes": 47075,
-      "lines": 1068
+      "bytes": 47961,
+      "lines": 1084
     },
     "dropdown-menu/dropdown-menu.component.ts": {
       "bytes": 7694,
@@ -2046,8 +2046,8 @@
       "lines": 152
     },
     "emoji-picker/emoji-picker.component.spec.ts": {
-      "bytes": 17732,
-      "lines": 449
+      "bytes": 18267,
+      "lines": 461
     },
     "emoji-picker/emoji-picker.component.ts": {
       "bytes": 22338,
@@ -4286,12 +4286,12 @@
       "lines": 72
     },
     "rich-text-editor/addons/actions/rich-text-actions.directive.spec.ts": {
-      "bytes": 46596,
-      "lines": 901
+      "bytes": 49532,
+      "lines": 957
     },
     "rich-text-editor/addons/actions/rich-text-actions.directive.ts": {
-      "bytes": 26217,
-      "lines": 577
+      "bytes": 26422,
+      "lines": 579
     },
     "rich-text-editor/addons/actions/rich-text-actions.locales.ts": {
       "bytes": 2843,
@@ -4694,12 +4694,12 @@
       "lines": 71
     },
     "rich-text-editor/addons/mentions/rich-text-mention-popover.component.spec.ts": {
-      "bytes": 7536,
-      "lines": 191
+      "bytes": 11130,
+      "lines": 276
     },
     "rich-text-editor/addons/mentions/rich-text-mention-popover.component.ts": {
-      "bytes": 8292,
-      "lines": 236
+      "bytes": 8635,
+      "lines": 243
     },
     "rich-text-editor/addons/mentions/rich-text-mentions.directive.spec.ts": {
       "bytes": 23941,
@@ -6808,8 +6808,8 @@
       "lines": 215
     },
     "overlay-stack.service.ts": {
-      "bytes": 6591,
-      "lines": 171
+      "bytes": 6761,
+      "lines": 173
     },
     "page-builder.types.ts": {
       "bytes": 2523,

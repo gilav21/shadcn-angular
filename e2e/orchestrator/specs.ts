@@ -328,6 +328,14 @@ const EXPLICIT_SPECS: readonly ComponentSpec[] = [
         label: 'prefix-button',
         initArgs: ['init', '--yes', '--prefix', 'acme'],
     },
+    // `--prefix` must reach `<ng-content select>` slots too: installs `result`
+    // under `acme` and proves `<acme-result-detail>` lands in its named slot
+    // rather than falling into the default one.
+    {
+        names: ['result'],
+        label: 'prefix-projection',
+        initArgs: ['init', '--yes', '--prefix', 'acme'],
+    },
     // ── Compiled npm packages ──────────────────────────────────────────────
     //
     // These install a real `npm pack` tarball instead of copying sources, so

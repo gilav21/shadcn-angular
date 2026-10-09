@@ -9,7 +9,7 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { resolveDependencies } from '../src/core/resolve.js';
 import { registry, type ComponentName } from '../src/registry/index.js';
@@ -30,6 +30,9 @@ import {
     toPackageTheme,
 } from './stage-package-lib.js';
 import { REPO_ROOT } from './repo-fixtures.js';
+
+// Staging a whole package tree takes ~1s alone but past the 5s default while the rest of the suite runs.
+vi.setConfig({ testTimeout: 30_000 });
 
 /** Temp dir helper — each fs test gets a throwaway root it fully owns. */
 function withTempDir<T>(fn: (dir: string) => T): T {

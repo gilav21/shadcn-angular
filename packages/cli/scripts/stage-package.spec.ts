@@ -11,11 +11,14 @@
  * safe and is exactly what `build:package` does.
  */
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { REPO_ROOT, runScript } from './repo-fixtures.js';
 
 const SCRIPT = path.join(REPO_ROOT, 'packages/cli/scripts/stage-package.ts');
+
+// Each case spawns a tsx subprocess, which takes ~1s alone but past the 5s default while the rest of the suite runs.
+vi.setConfig({ testTimeout: 30_000 });
 
 describe('stage-package entry contract (T-24)', () => {
     it('exits 1 with usage when no package id is given', () => {

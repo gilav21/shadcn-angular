@@ -423,12 +423,12 @@ assertion at another layer); proves text, not projection.
 
 | # | Task | Proves | Status | Completed | Score | Retrospective |
 |---|------|--------|--------|-----------|-------|---------------|
-| 1 | Write failing tests T-1…T-13 (POP, ACT, CHAT, PFX, GUARD — create `selector-references.ts` with exported, unimplemented function signatures so the spec compiles and fails on assertions) and the e2e skeleton T-14 (§F.6). Record pre-change coverage of every touched file. Confirm each test is red for the intended reason. | all UC | ⬜ Not started | — | — | — |
-| 2 | Mention popover: replace the `closest` query with `ElementRef.contains` (§F.1); update the `closed` JSDoc (`:83-88`) to say "outside this popover". T-1, T-2 green in both legs. | UC-1 | ⬜ Not started | — | — | — |
-| 3 | Actions stylesheet + chat: retarget at `data-slot` (§F.2). T-3, T-4 green in the **browser** leg; `rte-actions` and `chat` e2e green. | UC-2, UC-3 | ⬜ Not started | — | — | — |
-| 4 | CLI: `select` rewrite in `applyPrefixTransforms` (§F.3); JSDoc on `neutralizePrefix` per E-1 (§F.4); README section (UC-8). T-5, T-6 green; existing `prefix.spec.ts`, `baseline.spec.ts`, `clean-reinstall.spec.ts` green. | UC-4, UC-8 | ⬜ Not started | — | — | — |
-| 5 | Guard: implement `selector-references.ts` (§F.5) and its allowlist; T-7…T-13 green on the real repo. | UC-5, UC-6, UC-7 | ⬜ Not started | — | — | — |
-| 6 | e2e: `prefix-projection` explicit spec + harness (§F.6); `npm run e2e -- prefix-projection` green; `npm run e2e -- prefix-button` still green. | UC-9 | ⬜ Not started | — | — | — |
+| 1 | Write failing tests T-1…T-13 (POP, ACT, CHAT, PFX, GUARD — create `selector-references.ts` with exported, unimplemented function signatures so the spec compiles and fails on assertions) and the e2e skeleton T-14 (§F.6). Record pre-change coverage of every touched file. Confirm each test is red for the intended reason. | all UC | ✅ Done (red-first) | 2026-10-04 10:38 | 92 | Every test is red for its stated reason (§G 6–9), including a real prefix simulation for chat via `overrideComponent`. Sonar was scan-only because red tests fail the coverage leg by design. Next time: write the order-insensitive assertions from the start. |
+| 2 | Mention popover: replace the `closest` query with `ElementRef.contains` (§F.1); update the `closed` JSDoc (`:83-88`) to say "outside this popover". T-1, T-2 green in both legs. | UC-1 | ✅ Done | 2026-10-04 11:05 | 93 | A one-line `contains` fixed the prefix bug and the A/B sibling-popover bug together (§G 10). Both mutation checks were killed. Sonar was deferred to the integration run (§G 11). |
+| 3 | Actions stylesheet + chat: retarget at `data-slot` (§F.2). T-3, T-4 green in the **browser** leg; `rte-actions` and `chat` e2e green. | UC-2, UC-3 | ✅ Done | 2026-10-04 20:28 | 92 | Two string edits onto existing `data-slot` hooks. T-3 now also pins the scope: dropping it turns the test red. The first rte-actions e2e attempt died on infrastructure (ng serve timeout); a clean rerun was green. Sonar deferred (§G 11). |
+| 4 | CLI: `select` rewrite in `applyPrefixTransforms` (§F.3); JSDoc on `neutralizePrefix` per E-1 (§F.4); README section (UC-8). T-5, T-6 green; existing `prefix.spec.ts`, `baseline.spec.ts`, `clean-reinstall.spec.ts` green. | UC-4, UC-8 | ✅ Done | 2026-10-04 20:38 | 91 (rounds: 90, 90) | The anchored select rewrite is right on all 9 real sites. Reviewers found three regex-shape gaps (`data-select`, `#id`, mixed quotes); each is now pinned by a T-5 input (§G 12). Next time: probe neighbouring attribute and token classes before the first review. Sonar deferred (§G 11). |
+| 5 | Guard: implement `selector-references.ts` (§F.5) and its allowlist; T-7…T-13 green on the real repo. | UC-5, UC-6, UC-7 | ✅ Done | 2026-10-04 20:57 | 92 (rounds: 86, 90) | The first real run found exactly the Step-0 seed. Adversarial reviews found blind spots in the same class: `[&_ui-x]`, `'UI-X'`, regex literals, and an allowlist that absorbed new uses. Each is fixed and pinned by a mutation-killed input (§G 14–15). Next time: build the probe list from the bug class (every spelling of a selector string) before the first review. Sonar deferred (§G 11). |
+| 6 | e2e: `prefix-projection` explicit spec + harness (§F.6); `npm run e2e -- prefix-projection` green; `npm run e2e -- prefix-button` still green. | UC-9 | ✅ Done | 2026-10-04 21:05 | 93 | Written red-first in Task 1, where it failed with the detail in `result-actions`. After Task 4, prefix-projection (83 s) and prefix-button (12 s) are green. The harness needed no change, which was the payoff of writing it first. Sonar deferred (§G 11). |
 | 7 | Gates: `npm run lint`, `npm run typecheck`, `npm run test-visual` (zero failures, pre-existing included), `npm run test:portable`, `npm run test:cli`, `npm run e2e:impact -- --base origin/master` then every listed spec, `npm run check:registry`, `npm run sonar:gate` (four-point verification, CLAUDE.md §4); run `release-cli` and `release-package` verdicts and record them; add this PR to the pending-releases memory (CLI logic change). | all | ⬜ Not started | — | — | — |
 
 ## Definition of Done (per task)
@@ -613,6 +613,12 @@ list reverse dependents to include in e2e.
    files) — candidate fix: `data-slot` queries in specs, or Option B-2.
 2. V-5 / E-2: filename-aware `canonicalize` that neutralizes CSS element
    selectors and `select` values, plus regenerated baselines.
+3. (added in Task 5) Guard known limits (§G 15). Concatenated or
+   `${}`-stemmed selector strings; an `other-string` scan for `.css`; spaced
+   attribute values that read as element tokens to both the guard and the
+   CLI; allowlist swaps that keep the count; trivia between `selector` and
+   `:` (the CLI regex expects `\s*` only). Candidate: an AST-level check for
+   DOM-query call arguments.
 
 ---
 
@@ -632,7 +638,108 @@ list reverse dependents to include in e2e.
 
 **Corrections found while executing this spec (append-only):**
 
-_(none yet)_
+6. ⚠️ (Task 1) "Chat avatar order: no test asserts the avatar's rendered
+   position" (§0) is false — `chat.component.browser.spec.ts` already asserted
+   the LTR user/assistant avatar position. T-4 therefore **extends** that test
+   (case 2): RTL rows, plus a prefixed variant that renames `AvatarComponent`'s
+   selector to `acme-avatar` and rewrites the chat template's tags via
+   `TestBed.overrideComponent` — the runtime shape of a `--prefix acme`
+   install. That variant is red before Task 3, so T-4 is a red-first test.
+7. ⚠️ (Task 1) T-2's two-popover case is red **under the `ui-` tag too**: B's
+   `closest('ui-rich-text-mention-popover')` matches A's host, so a click
+   inside A never closes B. A pre-existing bug in the same class, fixed by A-1.
+8. (Task 1) Guard contract pinned by the tests, beyond §F.5's wording:
+   (a) `findSelectorReferences` returns `other-string` refs **only for declared
+   tokens** (it takes `declared` for that reason); tag/select/css-element/
+   selector-metadata refs are returned whatever the token, for the STALE check.
+   (b) In `.css` the guard looks only at rule **preludes** (selectors) — a
+   declaration value such as `animation: ui-x-fade 1s` is not a position,
+   although `rewriteCssSelectors` would rewrite it. This is deliberately
+   stricter than the CLI: T-13 needs guard positions ⊆ CLI positions, never
+   the reverse. (c) Finding lines are column-aligned: `kind.padEnd(7) + ' '`
+   (`STALE   …`, `RUNTIME …`), where §D.1 showed two spaces after STALE.
+   (d) The order `findSelectorReferences` returns references in is not part of
+   the contract; the tests compare them sorted. `checkReferences` does keep
+   its input order (RUNTIME/STALE lines first, ALLOW-STALE last).
+9. (Task 1) Pre-change line coverage (`npm run coverage` at 14216e9b sources):
+   `chat.component.ts` 15/15 (100%); `rich-text-actions.directive.ts` 271/272
+   (99.63%, line 339 uncovered); `rich-text-mention-popover.component.ts` 59/59
+   (100%); `packages/cli/src/utils/prefix.ts` 22/25 (88%, lines 30, 31, 131).
+10. (Task 2) §G 7 is fixed under the same invariant: "a popover's identity
+    check never depends on the host tag name". `ElementRef.contains` makes
+    each popover's inside its own subtree, so a click in popover A now
+    closes B. Rendering was checked before choosing `contains` over
+    `composedPath`: the directive appends the host to `overlayAnchor` (no
+    top layer, portal or shadow root). Mutation checks: (a) the base
+    `closest('ui-…')` turns T-1 (acme) and T-2 (both tags) red; (b) the
+    plausible wrong fix `closest(host.localName)` turns T-2 red under both
+    tags.
+11. (process, 2026-10-04) On the human's instruction, relayed by the
+    coordinator, per-task SonarQube runs were dropped from this worktree. One
+    `sonar:gate` runs on the merged integration branch, and findings are
+    routed back. DoD item 4 is therefore deferred to that run for Tasks 2–7.
+12. (Task 4) §F.3's regex shape was adjusted, each change pinned by a T-5
+    input: (a) the value is matched as `"…"` or `'…'` alternatives, not
+    `(["'])([^"']*)\2`, so a value can contain the other quote; (b) `select`
+    must not follow `[\w-]` (`(?<![\w-])select`), so `data-select="ui-x"` on
+    an `<ng-content>` is left alone (`\bselect` matched it); (c) `#` joins
+    the element-token lookahead, so `ui-x#id` is rewritten. (a) is pinned by
+    `select="ui-x[data-kind='summary']"`. Mutations: going back to `\bselect`
+    or to the backreference shape turns T-5 red. Known limit, no real site: a
+    `>` inside an earlier attribute value on the same `<ng-content`
+    (`[class]="a > b"`) ends the match before `select`; T-13 is the backstop
+    for shipped sources.
+13. (Task 5) The guard walks the TypeScript **AST**
+    (`ts.createSourceFile` + `forEachChild`) instead of driving
+    `ts.createScanner` by hand. The rule is the same (only string and
+    template literals are inspected, comments are trivia), but the AST gets
+    regex literals and `${…}` template spans right without a hand-written
+    rescan state machine. `selector-metadata` = a literal that is the
+    initializer of a `selector:` property assignment. Template heads and
+    middles keep their trailing `${` so `ui-x-${n}` is never a whole token.
+    Measured: 1137 files scanned in ≈1.4 s; T-11…T-13 together ≈1.6 s
+    (budget < 5 s). The first real run found exactly the Step-0 seed: 4
+    `localStorage` prefixes, 3 log-label files, and the `ui-icon` host class.
+    Those are allowlisted with reasons; nothing else was found.
+    Mutation checks: (a) renaming `ui-result-detail` in a scratch edit turns
+    T-11 (STALE tag and select) red; (b) restoring the base popover, actions
+    and chat sources turns T-12 red with 6 RUNTIME findings; (c) restoring
+    the base `prefix.ts` turns T-13 red at all 9 select sites. Module line
+    coverage 108/108.
+14. (Task 5, review round 1 → 86) The first guard had blind spots in the
+    same class as V-2. Each is fixed and pinned by a T-9/T-10 input:
+    (a) §F.5's whole-token rule (`not preceded by [\w-]`) hid Tailwind's
+    descendant variant `[&_ui-x]`, where `_` stands for a space, so the left
+    boundary is now `[A-Za-z0-9-]`; (b) upper-cased `tagName`/`nodeName`
+    comparisons (`'UI-X'`) and regex literals (`/^ui-x$/`) are now scanned
+    as `other-string`; (c) **`AllowEntry` gains a required `occurrences`**,
+    a deviation from §F.5's `{file, token, reason}`. A file allowlisted for
+    a log label no longer silently absorbs a new `closest('ui-x')`: any
+    other count is an `ALLOW-COUNT` finding and every occurrence surfaces
+    as RUNTIME. (d) Positioned kinds now use the CLI's own token shape (a
+    letter after `ui-`) and lookarounds no wider than the CLI's (`select`
+    exactly `SELECT_ELEMENT_TOKEN`'s). A backtick `selector:` is a plain
+    string, because the CLI rewrites quoted values only. This makes §G 8(b)'s
+    "guard positions ⊆ CLI positions" true at the regex level, not just on
+    today's repo. (e) The `ui-icon` reason now says the class sits on the
+    inner `<svg>`. Mutations: the old `[\w-]` boundary turns T-9 red; ignoring
+    the count turns T-10 red.
+15. (Task 5, review round 2 → 90) §G 14(d)'s subset claim did not yet hold
+    at the regex level. Now: (a) `.css` tokens are matched on the **raw**
+    text, as the CLI sees it, and then narrowed to rule-prelude text outside
+    comments. `a{…}ui-x{}` and `/*c*/ui-x{` are not positions, because the
+    CLI's lookbehind does not rewrite them. (b) `selector-metadata` requires
+    a `'…'`/`"…"` literal with no quote character inside (the CLI's
+    `([^'"]*)`), inside a decorator call, so a plain-object
+    `{ selector: 'ui-x' }` no longer declares `ui-x`. Each is pinned by a
+    T-7/T-8/T-9 input and killed by a mutation. §G 13's coverage number is
+    superseded: the module is now 131/131 lines. Known limits, recorded and
+    not fixed: concatenation (`'ui-' + name`) and `ui-${n}` stems are never
+    reported; `.css` has no `other-string` scan; an attribute value with a
+    space before the token (`[data-x="a ui-x"]`) reads as an element
+    position to both the guard and the CLI; an allowlist **swap** (one use
+    removed, another added) keeps the count; files outside
+    `.ts`/`.html`/`.css` are out of scope.
 
 ---
 
@@ -640,4 +747,9 @@ _(none yet)_
 
 | Row | Date | Task | Reviewer score | Notes |
 |---|---|---|---|---|
-| — | — | — | — | — |
+| 1 | 2026-10-04 10:38 | Failing tests T-1…T-14 | 92 (round 1: 89) | All red for the intended reason; reviewer confirmed that the CLI leg fails as reported and that §G 6–9 document the deviations. Sonar round 1: 14 open = master's accepted set, 0 in changed files. |
+| 2 | 2026-10-04 11:05 | Popover containment via ElementRef.contains | 93 | Matches §F.1; `contains` is right for the overlayAnchor mount; the A/B case kills `closest(tag)`/`closest(localName)`/shared-attribute fixes. Portable 61/61; browser RTE+view 3275/3276 (T-3 = Task 3). |
+| 3 | 2026-10-04 20:28 | Actions stylesheet + chat retargeted at data-slot | 92 | Matches §F.2 C-1; both anchors verified; browser RTE+view+chat 3298/3298; e2e chat ✓, rte-actions ✓ (rerun after ng-serve timeout). |
+| 4 | 2026-10-04 20:38 | CLI `<ng-content select>` rewrite + neutralizePrefix JSDoc + README | 91 | All 9 V-3 sites correct; deviations pinned by T-5 inputs (§G 12); JSDoc accurate with behaviour unchanged (E-1); README lists four positions + `--include-tests` caveat (T-15). prefix/baseline/clean-reinstall 53/53. |
+| 5 | 2026-10-04 20:57 | Selector-reference guard + allowlist | 92 | Faithful to §F.5, with deviations documented in §G 13–15; positioned kinds use the CLI's token shape and lookarounds; allowlist verified line by line with exact counts. CLI leg 1922/1922; module 131/131 lines; 1137 files in ≈1.4 s (budget < 5 s). |
+| 6 | 2026-10-04 21:05 | e2e prefix-projection | 93 | Entry appended after prefix-button (+8 lines, nothing reordered); assertions are exactly §F.6; an unrewritten select fails three fields of the single `toEqual`. e2e 2/2 green. |

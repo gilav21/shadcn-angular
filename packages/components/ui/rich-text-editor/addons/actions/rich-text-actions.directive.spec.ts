@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { ApplicationRef, Component, EnvironmentInjector, createComponent, inputBinding } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { describe, it, expect, afterEach } from 'vitest';
@@ -897,5 +897,61 @@ describe('RichTextActionsDirective', () => {
             expect(remaining).not.toBeNull();
             expect(remaining?.textContent).toBe('go');
         });
+    });
+});
+
+describe('RichTextActionsDirective marker styles (browser)', () => {
+    const DEFS: RichTextActionDefinition[] = [{ id: 'open-dialog', label: 'Open dialog', triggers: ['click'] }];
+    const cleanups: (() => void)[] = [];
+
+    afterEach(() => {
+        for (const cleanup of cleanups.splice(0)) cleanup();
+    });
+
+    /**
+     * Renders the editor under an arbitrary host tag with the directive
+     * attached — the runtime shape of an install under a CLI `--prefix`, which
+     * `TestBed.createComponent` (host tag = selector) can never produce.
+     */
+    function mountEditorUnder(tag: string): HTMLElement {
+        const hostElement = document.createElement(tag);
+        document.body.appendChild(hostElement);
+        const ref = createComponent(RichTextEditorComponent, {
+            hostElement,
+            environmentInjector: TestBed.inject(EnvironmentInjector),
+            directives: [{ type: RichTextActionsDirective, bindings: [inputBinding('uiRteActions', () => DEFS)] }],
+        });
+        TestBed.inject(ApplicationRef).attachView(ref.hostView);
+        cleanups.push(() => { ref.destroy(); hostElement.remove(); });
+        return hostElement;
+    }
+
+    function markersIn(host: HTMLElement): { span: HTMLElement; img: HTMLImageElement } {
+        const editable = host.querySelector('[data-slot="rich-text-editor"]') as HTMLElement;
+        editable.innerHTML = '<p><span data-action-click="open-dialog">Pricing</span> '
+            + '<img data-action-click="open-dialog" alt="Plans" width="40" height="20"></p>';
+        return { span: editable.querySelector('span')!, img: editable.querySelector('img')! };
+    }
+
+    it('action markers are styled inside the editable, whatever the editor\'s host tag', async (ctx) => {
+        // jsdom does not resolve stylesheet selectors into getComputedStyle reliably.
+        if (navigator.userAgent.includes('jsdom')) return ctx.skip();
+        const fixture = TestBed.createComponent(HostCmp);
+        cleanups.push(() => fixture.destroy());
+        fixture.detectChanges();
+        const prefixed = mountEditorUnder('acme-rich-text-editor');
+        await TestBed.inject(ApplicationRef).whenStable();
+
+        for (const host of [fixture.nativeElement as HTMLElement, prefixed]) {
+            const { span, img } = markersIn(host);
+            expect(getComputedStyle(span).borderBottomStyle, host.localName).toBe('dotted');
+            expect(getComputedStyle(img).outlineStyle, host.localName).toBe('dashed');
+        }
+        // The stylesheet is document-global, so it must stay scoped to editables.
+        const stray = document.createElement('span');
+        stray.dataset['actionClick'] = 'open-dialog';
+        document.body.appendChild(stray);
+        cleanups.push(() => stray.remove());
+        expect(getComputedStyle(stray).borderBottomStyle).not.toBe('dotted');
     });
 });
