@@ -283,6 +283,22 @@ describe('DropdownMenu Keyboard Navigation', () => {
         expect(dropdownComp.componentInstance.open()).toBe(false);
     });
 
+    it('hands focus back to the trigger when Escape closes a menu that held it', async () => {
+        const dropdownComp = fixture.debugElement.query(By.directive(DropdownMenuComponent));
+        dropdownComp.componentInstance.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        const item = fixture.debugElement.query(By.css('[data-slot="dropdown-item"]')).nativeElement as HTMLElement;
+        item.focus();
+        item.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(dropdownComp.componentInstance.open()).toBe(false);
+        expect(document.activeElement).toBe(fixture.debugElement.query(By.css('[data-slot="dropdown-trigger"]')).nativeElement);
+    });
+
     it('should navigate to next item with ArrowDown', async () => {
         const dropdownComp = fixture.debugElement.query(By.directive(DropdownMenuComponent));
         dropdownComp.componentInstance.show();

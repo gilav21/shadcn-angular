@@ -70,6 +70,8 @@ function unlockBody(doc: Document, state: StackState): void {
     if (!saved) return;
     const style = doc.body.style;
     // Longhand: the shorthand reads '' when only one axis is set, and writing it back would erase a consumer's `overflow-y`.
+    // The lock's own shorthand goes first: jsdom keeps it apart from the longhands, so restoring them alone would leave it behind.
+    style.removeProperty('overflow');
     style.setProperty('overflow-x', saved.overflowX);
     style.setProperty('overflow-y', saved.overflowY);
     style.setProperty('padding-right', saved.paddingRight);

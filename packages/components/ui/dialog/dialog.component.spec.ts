@@ -118,6 +118,20 @@ describe('Dialog Integration', () => {
         expect(contentAfter).toBeNull();
     });
 
+    it('should close from the built-in close button', async () => {
+        const dialogComp = fixture.debugElement.query(By.directive(DialogComponent));
+        dialogComp.componentInstance.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        fixture.debugElement.query(By.css('[data-slot="dialog-content"] button[aria-label]')).nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(dialogComp.componentInstance.open()).toBe(false);
+        expect(fixture.debugElement.query(By.css('[data-slot="dialog-content"]'))).toBeNull();
+    });
+
     it('should close on overlay click', async () => {
         const dialogComp = fixture.debugElement.query(By.directive(DialogComponent));
         dialogComp.componentInstance.show();

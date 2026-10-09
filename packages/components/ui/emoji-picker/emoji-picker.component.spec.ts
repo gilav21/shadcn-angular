@@ -96,6 +96,18 @@ describe('EmojiPickerComponent', () => {
         protoWithScroll.scrollTo = originalScrollTo;
     });
 
+    it('closes on Escape through the overlay stack and hands focus back to the trigger', () => {
+        open();
+        const trigger = fixture.debugElement.query(By.css('[data-slot="emoji-picker-trigger"]')).nativeElement as HTMLElement;
+
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+        fixture.detectChanges();
+
+        expect(picker.open()).toBe(false);
+        expect(contentEl()).toBeNull();
+        expect(document.activeElement).toBe(trigger);
+    });
+
     it('opens and closes when the trigger is clicked', () => {
         const triggerSpan = fixture.debugElement
             .query(By.directive(EmojiPickerTriggerComponent))
