@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import * as a11y from './a11y';
 
-const { hasInteractiveContent } = a11y;
+const { hasInteractiveContent, tabbableElements } = a11y;
 
 /**
  * Builds the shape every trigger/close wrapper renders: a host element whose
@@ -58,9 +58,6 @@ describe('hasInteractiveContent', () => {
     });
 });
 
-/** Task-1 scaffolding: `tabbableElements` lands in Task 4; this lookup becomes a named import then. */
-const { tabbableElements } = a11y as unknown as { tabbableElements: (container: HTMLElement) => HTMLElement[] };
-
 describe('tabbableElements', () => {
     const FORM = `
         <button id="enabled" type="button">Save</button>
@@ -90,7 +87,7 @@ describe('tabbableElements', () => {
         return panel;
     }
 
-    it.fails('tabbableElements keeps only what Tab can reach', () => {
+    it('tabbableElements keeps only what Tab can reach', () => {
         const panel = mountForm();
         try {
             expect(tabbableElements(panel).map(el => el.id)).toEqual([
@@ -101,7 +98,7 @@ describe('tabbableElements', () => {
         }
     });
 
-    it.fails('treats every element as visible where checkVisibility does not exist (jsdom)', () => {
+    it('treats every element as visible where checkVisibility does not exist (jsdom)', () => {
         const panel = mountForm();
         const native = Object.getOwnPropertyDescriptor(Element.prototype, 'checkVisibility');
         Object.defineProperty(Element.prototype, 'checkVisibility', { configurable: true, value: undefined });

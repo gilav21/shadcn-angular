@@ -11,7 +11,9 @@ import {
     afterRenderEffect,
     signal,
 } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
 import { cn } from '../../../lib/utils';
+import { focusFirstTabbable, trapTabKey } from '../../../lib/a11y';
 import { createLocaleBindings, type LocaleInput } from '../../../lib/i18n';
 import { COMMON_LOCALES, type CommonLocale } from '../../../lib/i18n/common.locales';
 import { ALERT_DIALOG } from '../alert-dialog.component';
@@ -76,6 +78,7 @@ import { AlertDialogCancelComponent } from './alert-dialog-cancel.component';
 export class AlertDialogContentComponent implements AfterViewInit {
     readonly alertDialog = inject(ALERT_DIALOG, { optional: true });
     private readonly el = inject(ElementRef);
+    private readonly document = inject(DOCUMENT);
     /**
      * Extra classes merged onto the centred panel (not the backdrop). Overrides
      * the default `max-w-[calc(100vw-2rem)] sm:max-w-lg` sizing when you pass a
@@ -138,7 +141,7 @@ export class AlertDialogContentComponent implements AfterViewInit {
     constructor() {
         effect(() => {
             if (this.alertDialog?.open()) {
-                this.previousActiveElement = document.activeElement;
+                this.previousActiveElement = this.document.activeElement;
                 setTimeout(() => this.focusFirstElement(), 0);
             } else if (this.previousActiveElement instanceof HTMLElement) {
                 this.previousActiveElement.focus();
@@ -167,14 +170,7 @@ export class AlertDialogContentComponent implements AfterViewInit {
         const content = this.el.nativeElement.querySelector('[data-slot="alert-dialog-content"]');
         if (content) {
             this.contentEl = content;
-            const focusable = content.querySelector(
-                'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-            ) as HTMLElement;
-            if (focusable) {
-                focusable.focus();
-            } else {
-                content.focus();
-            }
+            focusFirstTabbable(content);
         }
     }
 
@@ -185,24 +181,6 @@ export class AlertDialogContentComponent implements AfterViewInit {
      * panel renders inline at `z-50`, not in the native top layer.
      */
     onKeydown(event: KeyboardEvent): void {
-        if (event.key === 'Tab' && this.contentEl) {
-            const focusableElements = this.contentEl.querySelectorAll(
-                'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-            );
-            if (focusableElements.length === 0) return;
-
-            const firstElement = focusableElements[0] as HTMLElement;
-            const lastElement = Array.from(focusableElements).at(-1) as HTMLElement;
-
-            if (event.shiftKey) {
-                if (document.activeElement === firstElement) {
-                    event.preventDefault();
-                    lastElement?.focus();
-                }
-            } else if (document.activeElement === lastElement) {
-                event.preventDefault();
-                firstElement?.focus();
-            }
-        }
+        if (this.contentEl) trapTabKey(event, this.contentEl);
     }
 }

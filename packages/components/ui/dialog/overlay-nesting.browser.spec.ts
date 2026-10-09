@@ -58,27 +58,7 @@ import { TabsComponent } from '../tabs';
  * Overlays inside overlays, with real components and a real keyboard: the
  * scroll lock, Escape and focus invariants of
  * specs/overlay-stack-scroll-lock-and-escape-spec.md §3.1.
- *
- * Task-1 scaffolding: rows listed in PENDING fail until the task that fixes
- * them lands and are run as expected failures until then. Each task removes
- * the rows it fixes; the set is deleted with the last of them.
  */
-const PENDING = new Set<string>([
-    'T-10 alert-dialog, disabled last control',
-    'T-10 alert-dialog, disabled last control (rtl)',
-    'T-10 drawer, disabled last control',
-    'T-10 dialog, roving tabindex first',
-    'T-10 sheet, disabled first control',
-    'T-10 drawer, hidden last section',
-    'T-11 alert-dialog, first control disabled',
-    'T-11 sheet, first control disabled',
-    'T-11 drawer, first control disabled',
-    'T-11 drawer, only disabled controls',
-]);
-
-function testFor(label: string): typeof it | typeof it.fails {
-    return PENDING.has(label) ? it.fails : it;
-}
 
 const tick = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0));
 
@@ -338,7 +318,7 @@ const LOCK_ROWS: readonly LockRow[] = [
 
 describe('T-7 body scroll lock across modals', () => {
     for (const row of LOCK_ROWS) {
-        testFor(row.label)(`the body lock survives every way a second modal can come and go (${row.label})`, row.run);
+        it(`the body lock survives every way a second modal can come and go (${row.label})`, row.run);
     }
 });
 
@@ -621,7 +601,7 @@ const POPUP_ROWS: readonly PopupRow[] = [
 
 describe('T-8 Escape inside a popup in a modal', () => {
     for (const row of POPUP_ROWS) {
-        testFor(row.label)(`Escape inside a popup closes only that popup, never the modal around it (${row.label})`, async () => {
+        it(`Escape inside a popup closes only that popup, never the modal around it (${row.label})`, async () => {
             if (row.popup === 'eyedropper') vi.stubGlobal('EyeDropper', undefined);
             const fixture = await render(PopupInModalHost, host => {
                 host.modal.set(row.modal);
@@ -726,7 +706,7 @@ const SUBMENU_ROWS: readonly SubmenuRow[] = [
 
 describe('T-9 Escape in a submenu', () => {
     for (const row of SUBMENU_ROWS) {
-        testFor(row.label)(`Escape in a submenu closes only the submenu (${row.label})`, async () => {
+        it(`Escape in a submenu closes only the submenu (${row.label})`, async () => {
             const fixture = await render(SubmenuInDialogHost, host => host.kind.set(row.kind));
             await click(fixture, must('[data-testid="modal-trigger"]'));
             await row.openRoot(fixture);
@@ -931,7 +911,7 @@ const TRAP_ROWS: readonly TrapRow[] = [
 
 describe('T-10 focus trap with a real keyboard', () => {
     for (const row of TRAP_ROWS) {
-        testFor(row.label)(`Tab and Shift+Tab stay inside the modal whatever its edge controls are (${row.label})`, async () => {
+        it(`Tab and Shift+Tab stay inside the modal whatever its edge controls are (${row.label})`, async () => {
             const fixture = await render(FocusFixturesHost, host => {
                 host.fixtureName.set(row.fixture);
                 host.dir.set(row.dir ?? 'ltr');
@@ -969,7 +949,7 @@ const FIRST_FOCUS_ROWS: readonly FirstFocusRow[] = [
 
 describe('T-11 focus on open and close', () => {
     for (const row of FIRST_FOCUS_ROWS) {
-        testFor(row.label)(`opening a modal focuses its first enabled, visible control (${row.label})`, async () => {
+        it(`opening a modal focuses its first enabled, visible control (${row.label})`, async () => {
             const fixture = await render(FocusFixturesHost, host => host.fixtureName.set(row.fixture));
             const trigger = must('[data-testid="modal-trigger"]');
             await click(fixture, trigger);
@@ -982,7 +962,7 @@ describe('T-11 focus on open and close', () => {
         });
     }
 
-    testFor('T-11 dialog in dialog')('closing a nested modal returns focus to the control inside the outer modal that opened it', async () => {
+    it('closing a nested modal returns focus to the control inside the outer modal that opened it', async () => {
         const fixture = await render(FocusFixturesHost, host => host.fixtureName.set('dialog-in-dialog'));
         const outerTrigger = must('[data-testid="modal-trigger"]');
         await click(fixture, outerTrigger);
@@ -1105,7 +1085,7 @@ const COMMIT_ROWS: readonly CommitRow[] = [
 
 describe('T-13 focus after a popup commits or dismisses', () => {
     for (const row of COMMIT_ROWS) {
-        testFor(row.label)(`a popup that held focus returns it to its trigger when committed or dismissed (${row.label})`, async () => {
+        it(`a popup that held focus returns it to its trigger when committed or dismissed (${row.label})`, async () => {
             const fixture = await render(CommitInDialogHost, host => host.popup.set(row.popup));
             await click(fixture, must('[data-testid="modal-trigger"]'));
 

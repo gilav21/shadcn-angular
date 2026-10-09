@@ -8,7 +8,9 @@ import {
     inject,
     input,
 } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
 import { cn } from '../../../lib/utils';
+import { focusFirstTabbable, trapTabKey } from '../../../lib/a11y';
 import { createLocaleBindings, type LocaleInput } from '../../../lib/i18n';
 import { COMMON_LOCALES, type CommonLocale } from '../../../lib/i18n/common.locales';
 import { SHEET, sheetVariants, SheetSide } from '../sheet.component';
@@ -75,6 +77,7 @@ import { SheetDescriptionComponent } from './sheet-description.component';
 export class SheetContentComponent implements AfterViewInit {
     readonly sheet = inject(SHEET, { optional: true });
     private readonly el = inject(ElementRef);
+    private readonly document = inject(DOCUMENT);
 
     /**
      * Edge the panel is docked to. `left`/`right` give a full-height panel
@@ -111,7 +114,7 @@ export class SheetContentComponent implements AfterViewInit {
     constructor() {
         effect(() => {
             if (this.sheet?.open()) {
-                this.previousActiveElement = document.activeElement;
+                this.previousActiveElement = this.document.activeElement;
                 setTimeout(() => this.focusFirstElement(), 0);
             } else if (this.previousActiveElement instanceof HTMLElement) {
                 this.previousActiveElement.focus();
@@ -129,14 +132,7 @@ export class SheetContentComponent implements AfterViewInit {
         const content = this.el.nativeElement.querySelector('[data-slot="sheet-content"]');
         if (content) {
             this.contentEl = content;
-            const focusable = content.querySelector(
-                'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-            ) as HTMLElement;
-            if (focusable) {
-                focusable.focus();
-            } else {
-                content.focus();
-            }
+            focusFirstTabbable(content);
         }
     }
 
@@ -146,23 +142,7 @@ export class SheetContentComponent implements AfterViewInit {
      * at `z-50`, not in the native top layer, so higher-z UI can cover it.
      */
     onKeydown(event: KeyboardEvent): void {
-        if (event.key === 'Tab' && this.contentEl) {
-            const focusableElements = this.contentEl.querySelectorAll(
-                'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-            );
-            const firstElement = focusableElements[0] as HTMLElement;
-            const lastElement = Array.from(focusableElements).at(-1) as HTMLElement;
-
-            if (event.shiftKey) {
-                if (document.activeElement === firstElement) {
-                    event.preventDefault();
-                    lastElement?.focus();
-                }
-            } else if (document.activeElement === lastElement) {
-                    event.preventDefault();
-                    firstElement?.focus();
-                }
-        }
+        if (this.contentEl) trapTabKey(event, this.contentEl);
     }
 
     classes = computed(() =>
