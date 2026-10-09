@@ -87,7 +87,6 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "@analogjs/platform": "^2.5.0",
     "@analogjs/vite-plugin-angular": "^2.5.0",
     "@analogjs/vitest-angular": "^2.5.0",
     "@compodoc/compodoc": "^1.1.32",
