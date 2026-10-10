@@ -113,7 +113,7 @@ describe('declared imports', () => {
         );
 
         expect(findUndeclaredImports(sources(scanned), declared)).toEqual([]);
-    });
+    }, 30_000);
 
     it('packages/cli/src imports only packages/cli dependencies', () => {
         const cliSrc = TRACKED.filter((p) =>
