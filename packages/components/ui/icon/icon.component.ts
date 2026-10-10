@@ -377,7 +377,7 @@ export const DEFAULT_ICONS = {
     'flame': '<path d="M12 3c1 4 6 6 6 11a6 6 0 0 1-12 0c0-2 1-3.5 2-5 .5 1.5 1.5 2 2.5 2C11 8 11 5 12 3z" />',
     'bone': '<path d="m8.5 15.5 7-7" /><circle cx="6.5" cy="15" r="1.8" /><circle cx="9" cy="17.5" r="1.8" /><circle cx="15" cy="6.5" r="1.8" /><circle cx="17.5" cy="9" r="1.8" />',
     'paw-print': '<circle cx="6" cy="10" r="2" /><circle cx="10" cy="5.500" r="2" /><circle cx="15" cy="5.500" r="2" /><circle cx="19" cy="10" r="2" /><path d="M7.500 18c0-3 2-6 4.500-6s4.500 3 4.500 6a2 2 0 0 1-2 2c-1 0-1.500-.500-2.500-.500s-1.500.500-2.500.500a2 2 0 0 1-2-2z" />',
-    'leaf': '<path d="M5 19C5 10 10 5 20 4c0 9-4 15-12 15z" /><path d="M5 19 13 11" />',
+    'leaf': '<g transform="rotate(40 12 12)"><path d="M12 2C19.500 6.500 19.500 14.500 12 19.500 4.500 14.500 4.500 6.500 12 2z" /><path d="M12 22V8" /><path d="m12 12.500 3-3" /><path d="m12 16-3-3" /></g>',
     'sprout': '<path d="M12 21v-9" /><path d="M12 12c0-4-3-6-8-6 0 4 3 6 8 6z" /><path d="M12 14c0-3 2-5 7-5 0 3-2 5-7 5z" />',
     // Arrows extended
     'arrow-big-down': '<path d="M9 3h6v9h4l-7 8-7-8h4z" />',
