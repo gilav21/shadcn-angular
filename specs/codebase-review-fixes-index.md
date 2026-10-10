@@ -86,3 +86,6 @@ Batch the CLI publish once 1–4 have merged, rather than publishing four times.
 |------|------|-------|
 | 2026-10-03 | all | Specs written from the codebase review; Step 0 run per spec. |
 | 2026-10-03 | 14 | Wave 0: CLAUDE.md corrections C-1…C-11, `COMPONENT_GUIDELINES.md` and 7 demo agent-scaffold files deleted. |
+| 2026-10-09 | 9, 11 (Tasks 1-8), 4, 1, 14 | Wave 1 merged into `wave-1-integration` (spec 11 Tasks 3-8 finished by the lead after the agent stopped). |
+| 2026-10-09 | 7 | Overlay stack v2 (Tasks 2-8) on `wave-1-integration`; completion log in the spec. |
+| 2026-10-10 | 6 | Parser resource limits (Tasks 3-10) done on `wave-1-integration`; completion log in the spec. `release:package rte` required. |
