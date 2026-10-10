@@ -46,7 +46,7 @@ export interface ComponentMeta {
     description?: string;
     category: string;
     component: Type<unknown>;
-    icon?: string; // Lucide icon name
+    icon?: string; // icon name
     defaultInputs?: Record<string, unknown>;
     inputs?: InputDefinition[]; // Schema for the property editor
     defaultCols?: number;
