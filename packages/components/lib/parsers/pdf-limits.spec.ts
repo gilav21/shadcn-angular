@@ -397,7 +397,7 @@ describe('PDF text scanning — R3 linear', () => {
             .build();
     }
 
-    it.fails('T-10 unterminated bfchar/bfrange CMap sections scan in linear time', async () => {
+    it('T-10 unterminated bfchar/bfrange CMap sections scan in linear time', async () => {
         for (const section of ['beginbfchar', 'beginbfrange']) {
             const unterminated = `1 ${section}\n<41> <0042>\n`.repeat(33_000);
             const cmap = `/CIDInit /ProcSet findresource begin\n1 begincmap\n${unterminated}`;
@@ -408,7 +408,7 @@ describe('PDF text scanning — R3 linear', () => {
         }
     }, 60_000);
 
-    it.fails('T-11 long font names and long RTL numbered lines scan in linear time', async () => {
+    it('T-11 long font names and long RTL numbered lines scan in linear time', async () => {
         const spacedName = `Arial${'#20'.repeat(40_000)}x`;
         const fontPdf = onePagePdf('BT /F1 12 Tf 72 700 Td (Named) Tj ET', '/Font << /F1 5 0 R >>')
             .obj(5, `/Type /Font /Subtype /Type1 /BaseFont /${spacedName}`)
@@ -418,9 +418,11 @@ describe('PDF text scanning — R3 linear', () => {
         expect(pages).toBe(1);
         expect(fontMs).toBeLessThan(TIME_BUDGET_MS);
 
-        // Byte 0x41 maps to HEBREW LETTER ALEF, so the line is right-to-left.
+        // Byte 0x41 maps to HEBREW LETTER ALEF, so the line is right-to-left. A
+        // run of tabs, because a run of spaces is collapsed before the line
+        // is tested for a list number.
         const hebrewCmap = '1 begincmap\n1 beginbfchar\n<41> <05D0>\nendbfchar\nendcmap';
-        const rtlPdf = onePagePdf(`BT /F1 12 Tf 72 700 Td (AAA${' '.repeat(40_000)}x) Tj ET`, '/Font << /F1 5 0 R >>')
+        const rtlPdf = onePagePdf(`BT /F1 12 Tf 72 700 Td (AAA${'\t'.repeat(100_000)}x) Tj ET`, '/Font << /F1 5 0 R >>')
             .obj(5, `${HELVETICA} /ToUnicode 6 0 R`)
             .streamObj(6, '', latin1Bytes(hebrewCmap))
             .build();

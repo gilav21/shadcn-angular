@@ -657,6 +657,21 @@ function buildFallbackGlyph(
 const SERIF_KEYWORDS = ['times', 'georgia', 'cambria', 'garamond', 'palatino', 'bodoni', 'baskerville', 'bookman', 'century'];
 const MONO_KEYWORDS = ['courier', 'mono', 'consolas', 'menlo', 'lucidaconsole', 'inconsolata'];
 
+const STYLE_SUFFIX = /(?:Bold|Italic|Regular|Medium|Light|Condensed|Black|Heavy|Oblique|Book|Demi|Semi|Ultra|Thin|Extra|PS)$/i;
+
+/**
+ * Drops one trailing style word and the whitespace before it ("Arial Bold" →
+ * "Arial"). Found from the word backwards: a `\s+` regex retried from every
+ * space of a long run of spaces is quadratic.
+ */
+function stripStyleSuffix(name: string): string {
+    const word = STYLE_SUFFIX.exec(name);
+    if (!word) return name;
+    let end = word.index;
+    while (end > 0 && /\s/.test(name.charAt(end - 1))) end--;
+    return end === word.index ? name : name.slice(0, end);
+}
+
 /**
  * Dynamically extract a CSS font-family from any PDF BaseFontName.
  * No static map needed — works for any font by parsing the name.
@@ -684,9 +699,8 @@ function getSystemFontFamily(baseFontName: string): string {
     name = name.replaceAll(/[-_,]+/g, ' ').trim();
 
     // Remove style/weight suffixes (run twice to catch consecutive: "PS Bold" → "")
-    const stylePat = /(?=(\s+))\1(Bold|Italic|Regular|Medium|Light|Condensed|Black|Heavy|Oblique|Book|Demi|Semi|Ultra|Thin|Extra|PS)$/gi;
-    name = name.replaceAll(stylePat, '').trim();
-    name = name.replaceAll(stylePat, '').trim();
+    name = stripStyleSuffix(name).trim();
+    name = stripStyleSuffix(name).trim();
 
     // Title-case all-lowercase names: "arialuni" → "Arialuni"
     if (name === name.toLowerCase() && name.length > 0) {

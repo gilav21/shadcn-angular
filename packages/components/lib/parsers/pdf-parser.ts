@@ -1689,11 +1689,33 @@ function pdfStringToUnicode(
     return { text: result, charCodes };
 }
 
+const WHITESPACE = /\s/;
+
+/**
+ * The text between each `begin` marker (plus the one whitespace character that
+ * must follow it) and the next `end`, in order. Found with indexOf: a lazy
+ * regex retries from every unterminated `begin` and rescans to the end of the
+ * text each time, which is quadratic. Once no `end` is left, no later section
+ * can close either, so the scan stops.
+ */
+function* markedSections(text: string, begin: string, end: string): Generator<string> {
+    let from = 0;
+    for (let start = text.indexOf(begin, from); start !== -1; start = text.indexOf(begin, from)) {
+        const bodyStart = start + begin.length + 1;
+        if (!WHITESPACE.test(text.charAt(bodyStart - 1))) {
+            from = start + 1;
+            continue;
+        }
+        const close = text.indexOf(end, bodyStart);
+        if (close === -1) return;
+        yield text.slice(bodyStart, close);
+        from = close + end.length;
+    }
+}
+
 function parseBfCharEntries(text: string, map: Map<number, string>): void {
-    const bfCharRe = /beginbfchar\s([\s\S]*?)endbfchar/g;
-    let match: RegExpExecArray | null;
-    while ((match = bfCharRe.exec(text)) !== null) {
-        for (const entry of match[1].trim().split('\n')) {
+    for (const section of markedSections(text, 'beginbfchar', 'endbfchar')) {
+        for (const entry of section.trim().split('\n')) {
             const parts = /<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>/.exec(entry.trim());
             if (!parts) continue;
             const srcCode = Number.parseInt(parts[1], 16);
@@ -1743,10 +1765,8 @@ function parseBfRangeEntry(trimmed: string, map: Map<number, string>): void {
 }
 
 function parseBfRangeEntries(text: string, map: Map<number, string>): void {
-    const bfRangeRe = /beginbfrange\s([\s\S]*?)endbfrange/g;
-    let match: RegExpExecArray | null;
-    while ((match = bfRangeRe.exec(text)) !== null) {
-        for (const entry of match[1].trim().split('\n')) {
+    for (const section of markedSections(text, 'beginbfrange', 'endbfrange')) {
+        for (const entry of section.trim().split('\n')) {
             parseBfRangeEntry(entry.trim(), map);
         }
     }
@@ -5197,7 +5217,20 @@ function detectColumns(lines: TextLine[]): { lines: TextLine[]; hasColumns: bool
 const BULLET_PATTERN = /^[\u2022\u2023\u25E6\u2043\u2219\u25CF\u25CB\u25AA\u25AB\u2013\u2014\-*]\s*/;
 const BULLET_CHARS = /^[\u2022\u2023\u25E6\u2043\u2219\u25CF\u25CB\u25AA\u25AB\u2013\u2014\-*]+$/;
 const NUMBERED_PATTERN = /^(\d{1,3})[.)]\s+/;
-const NUMBERED_PATTERN_RTL_END = /(?=(\s+))\1[.)]\d{1,3}$/;
+const RTL_NUMBER_TAIL = /[.)]\d{1,3}$/;
+
+/**
+ * Where a trailing right-to-left list number starts — whitespace, then ".12"
+ * or ")12" at the end of the text — or -1. Matched from the number backwards:
+ * a `\s+` regex retried from every space of a long run is quadratic.
+ */
+function rtlNumberTailStart(text: string): number {
+    const tail = RTL_NUMBER_TAIL.exec(text);
+    if (!tail) return -1;
+    let start = tail.index;
+    while (start > 0 && WHITESPACE.test(text.charAt(start - 1))) start--;
+    return start === tail.index ? -1 : start;
+}
 
 function stripBulletItems(line: TextLine): TextLine {
     const filtered = line.items.filter(item => {
@@ -5231,8 +5264,8 @@ function stripNumberedPrefix(line: TextLine): TextLine {
         items: filtered.map(item => {
             const trimmed = item.text.replace(NUMBERED_PATTERN, '');
             if (trimmed !== item.text) return { ...item, text: trimmed };
-            const trimmedRtl = item.text.replace(NUMBERED_PATTERN_RTL_END, '');
-            if (trimmedRtl !== item.text) return { ...item, text: trimmedRtl };
+            const rtlStart = rtlNumberTailStart(item.text);
+            if (rtlStart >= 0) return { ...item, text: item.text.slice(0, rtlStart) };
             return item;
         }),
         y: line.y,
@@ -5449,7 +5482,7 @@ function appendToParagraph(
 }
 
 function isNumberedLine(lineText: string, rtl: boolean): boolean {
-    return NUMBERED_PATTERN.test(lineText) || (rtl && NUMBERED_PATTERN_RTL_END.test(lineText));
+    return NUMBERED_PATTERN.test(lineText) || (rtl && rtlNumberTailStart(lineText) >= 0);
 }
 
 function processHtmlLine(
