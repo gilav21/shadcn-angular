@@ -856,7 +856,7 @@ export const DEFAULT_ICONS = {
     'audio-waveform': '<path d="M2 12h2l2-6 4 12 4-12 2 6h6" />',
     'badge': '<path d="m12 3 7.8 4.5v9L12 21l-7.8-4.5v-9z" /><path d="m8.5 12 2.5 2.5 4.5-5" />',
     'banana': '<path d="M5 5c-1 8 3 15 14 15 1 0 2-.500 2-1.500-6 0-12-4-13-12" /><path d="M5 5 4 3" /><path d="M5 5c.700 8 5 12 12 13" />',
-    'binoculars': '<circle cx="6.500" cy="16" r="3.500" /><circle cx="17.500" cy="16" r="3.500" /><path d="M10 15.500h4" /><path d="M5 12.500 7 5h3v8" /><path d="M19 12.500 17 5h-3v8" />',
+    'binoculars': '<circle cx="6" cy="17" r="4" /><circle cx="18" cy="17" r="4" /><path d="M4.500 3h4L9.700 13.200" /><path d="M4.500 3 2.300 13.200" /><path d="M19.500 3h-4l-1.200 10.200" /><path d="M19.500 3l2.200 10.200" /><path d="M9.200 9h5.600" />',
     'blend': '<circle cx="9" cy="9" r="6" /><circle cx="15" cy="15" r="6" />',
     'blinds': '<path d="M3 3h18" /><path d="M5 3v14" /><path d="M19 3v14" /><path d="M5 7h14" /><path d="M5 11h14" /><path d="M5 15h14" /><path d="M12 17v4" />',
     'blocks-2': '<rect width="7" height="7" x="14" y="3" rx="1" /><path d="M10 21V8a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5a1 1 0 0 0-1-1H3" /><rect width="7" height="7" x="14" y="14" rx="1" />',
