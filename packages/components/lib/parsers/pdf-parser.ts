@@ -724,6 +724,8 @@ export class PdfReader {
     private trailer: Record<string, PdfObject> | null = null;
     /** References being parsed right now: an object whose /Length leads back to itself must not recurse. */
     private readonly resolving = new Set<string>();
+    /** Arrays and dictionaries open right now in the value being parsed. */
+    private nesting = 0;
     /** What every filtered stream this parse decodes may produce in total. */
     private readonly decodeBudget: DecodeBudget;
 
@@ -1069,7 +1071,7 @@ export class PdfReader {
         const ch2 = pos + 1 < this.text.length ? this.text[pos + 1] : '';
 
         if (ch === '<' && ch2 === '<') {
-            return this.parseDict(pos);
+            return this.parseNested(pos, () => this.parseDict(pos));
         }
         if (ch === '<') {
             return this.parseHexString(pos);
@@ -1081,7 +1083,7 @@ export class PdfReader {
             return this.parseName(pos);
         }
         if (ch === '[') {
-            return this.parseArray(pos);
+            return this.parseNested(pos, () => this.parseArray(pos));
         }
         if (ch === 't' && this.text.substring(pos, pos + 4) === 'true') {
             return { obj: { type: 'boolean', value: true }, endPos: pos + 4 };
@@ -1112,6 +1114,53 @@ export class PdfReader {
             };
         }
         return { obj: { type: 'number', value: num }, endPos: afterNum };
+    }
+
+    /**
+     * Parses the container at `pos` unless it would open past the nesting cap.
+     * One that would is skipped whole and read as null: following it down costs
+     * a stack frame per level, and a file can nest to its own length.
+     */
+    private parseNested(pos: number, parse: () => { obj: PdfObject; endPos: number }): { obj: PdfObject; endPos: number } {
+        if (this.nesting >= this.limits.maxNestingDepth) {
+            return { obj: { type: 'null', value: null }, endPos: this.skipContainer(pos) };
+        }
+        this.nesting++;
+        try {
+            return parse();
+        } finally {
+            this.nesting--;
+        }
+    }
+
+    /** The end of the dictionary or array opening at `pos`, found without recursion. */
+    private skipContainer(pos: number): number {
+        let depth = 0;
+        let i = pos;
+        while (i < this.text.length) {
+            const ch = this.text[i];
+            const pair = ch + this.text.charAt(i + 1);
+            if (ch === '(') {
+                i = this.parseLiteralString(i).endPos;
+            } else if (pair === '<<' || pair === '>>') {
+                depth += pair === '<<' ? 1 : -1;
+                i += 2;
+            } else if (ch === '<') {
+                // Not parseHexString: malformed hex is skipped, not decoded.
+                const close = this.text.indexOf('>', i);
+                i = close === -1 ? this.text.length : close + 1;
+            } else {
+                depth += PdfReader.bracketDelta(ch);
+                i++;
+            }
+            if (depth <= 0) return i;
+        }
+        return i;
+    }
+
+    private static bracketDelta(ch: string): number {
+        if (ch === '[') return 1;
+        return ch === ']' ? -1 : 0;
     }
 
     private parseDict(pos: number): { obj: PdfObject; endPos: number } {

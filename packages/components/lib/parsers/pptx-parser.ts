@@ -1,3 +1,4 @@
+import { DEFAULT_PARSER_LIMITS, type ParserLimits } from './limits';
 import { readZip } from './zip-reader';
 import { isValidImageMagicBytes } from './image-validator';
 
@@ -2463,19 +2464,41 @@ function parseMasterTextStyles(
 
 // --- Slide Parsing ---
 
+/**
+ * Drops group shapes nested deeper than `maxDepth`, contents and all. Groups
+ * nest by the file's say-so, and every level is walked again by the shape
+ * extraction below, so the cap is applied once, up front, without recursion.
+ */
+function pruneDeepGroups(root: Element, maxDepth: number): void {
+    const pending: Array<{ el: Element; depth: number }> = [{ el: root, depth: 0 }];
+    for (let next = pending.pop(); next; next = pending.pop()) {
+        for (const child of Array.from(next.el.children)) {
+            const isGroup = child.namespaceURI === NS_P && child.localName === 'grpSp';
+            const depth = isGroup ? next.depth + 1 : next.depth;
+            if (isGroup && depth > maxDepth) {
+                child.remove();
+            } else {
+                pending.push({ el: child, depth });
+            }
+        }
+    }
+}
+
 function parseSlide(
     slideData: Uint8Array,
     slideIndex: number,
     files: Map<string, Uint8Array>,
-    slideWidth: number,
-    slideHeight: number,
+    slideSize: { readonly width: number; readonly height: number },
     themeColors: ThemeColorMap,
+    maxGroupDepth: number,
 ): PptxSlide {
+    const { width: slideWidth, height: slideHeight } = slideSize;
     const doc = parseXml(new TextDecoder().decode(slideData));
     const mediaRels = getSlideMediaRelationships(files, slideIndex);
 
     const cSld = getChildNS(doc.documentElement, NS_P, 'cSld');
     const slideRoot = cSld ?? doc.documentElement;
+    pruneDeepGroups(slideRoot, maxGroupDepth);
 
     // Bug 1 fix: use fallback chain for background
     const bg = resolveBackgroundWithFallback(slideRoot, slideIndex, files, themeColors, mediaRels);
@@ -2513,9 +2536,9 @@ function parseSlidesFromRIds(
     slideRIds: string[],
     presRels: Map<string, string>,
     files: Map<string, Uint8Array>,
-    width: number,
-    height: number,
+    slideSize: { readonly width: number; readonly height: number },
     themeColors: ThemeColorMap,
+    maxGroupDepth: number,
 ): PptxSlide[] {
     const slides: PptxSlide[] = [];
     for (let i = 0; i < slideRIds.length; i++) {
@@ -2524,41 +2547,42 @@ function parseSlidesFromRIds(
         const slidePath = target.startsWith('/') ? target.substring(1) : `ppt/${target}`;
         const slideData = files.get(slidePath);
         if (!slideData) continue;
-        slides.push(parseSlide(slideData, i, files, width, height, themeColors));
+        slides.push(parseSlide(slideData, i, files, slideSize, themeColors, maxGroupDepth));
     }
     return slides;
 }
 
 function parseSlidesFromFileSystem(
     files: Map<string, Uint8Array>,
-    width: number,
-    height: number,
+    slideSize: { readonly width: number; readonly height: number },
     themeColors: ThemeColorMap,
+    maxGroupDepth: number,
 ): PptxSlide[] {
     const slides: PptxSlide[] = [];
     for (let i = 1; i <= 500; i++) {
         const slidePath = `ppt/slides/slide${i}.xml`;
         const slideData = files.get(slidePath);
         if (!slideData) break;
-        slides.push(parseSlide(slideData, i - 1, files, width, height, themeColors));
+        slides.push(parseSlide(slideData, i - 1, files, slideSize, themeColors, maxGroupDepth));
     }
     return slides;
 }
 
-export function parsePptx(data: Uint8Array): PptxParseResult {
+export function parsePptx(data: Uint8Array, limits: ParserLimits = DEFAULT_PARSER_LIMITS): PptxParseResult {
     const files = readZip(data);
-    const { width, height } = parseSlideSize(files);
+    const slideSize = parseSlideSize(files);
+    const { width, height } = slideSize;
     const themeColors = parseThemeColors(files);
 
     const slideRIds = getSlideList(files);
     const presRels = getSlideRelationships(files);
 
     let slides = slideRIds.length > 0
-        ? parseSlidesFromRIds(slideRIds, presRels, files, width, height, themeColors)
+        ? parseSlidesFromRIds(slideRIds, presRels, files, slideSize, themeColors, limits.maxNestingDepth)
         : [];
 
     if (slides.length === 0) {
-        slides = parseSlidesFromFileSystem(files, width, height, themeColors);
+        slides = parseSlidesFromFileSystem(files, slideSize, themeColors, limits.maxNestingDepth);
     }
 
     return { slides, slideWidth: width, slideHeight: height };

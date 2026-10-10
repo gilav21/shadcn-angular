@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_PARSER_LIMITS } from './limits';
 import { parsePptx } from './pptx-parser';
 import { buildStoredZip } from './zip-test-fixtures';
 import type {
@@ -809,6 +810,24 @@ describe('parsePptx — grouped shapes', () => {
         // scale 1, dx = 952500/9525 = 100; inner x 0 → 100
         expect(shape.x).toBe(Math.round(952500 / 9525));
         expect(shape.y).toBe(Math.round(952500 / 9525));
+    });
+
+    it('T-16 truncates group nesting past the cap', () => {
+        const shapeIn = (depth: number, id: number): string => {
+            let xml = `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="s${id}"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>`
+                + '<p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="952500" cy="952500"/></a:xfrm><a:prstGeom prst="rect"/>'
+                + `<a:solidFill><a:srgbClr val="00000${depth}"/></a:solidFill></p:spPr></p:sp>`;
+            for (let level = 0; level < depth; level++) {
+                xml = `<p:grpSp><p:nvGrpSpPr><p:cNvPr id="${id * 10 + level}" name="g"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>`
+                    + `<p:grpSpPr/>${xml}</p:grpSp>`;
+            }
+            return xml;
+        };
+        const zip = buildSinglePptx(shapeIn(3, 31) + shapeIn(4, 41));
+        const fills = parsePptx(zip, { ...DEFAULT_PARSER_LIMITS, maxNestingDepth: 3 }).slides[0].elements
+            .filter((e): e is PptxShapeElement => e.type === 'shape')
+            .map(e => e.fillColor);
+        expect(fills).toEqual(['#000003']);
     });
 });
 

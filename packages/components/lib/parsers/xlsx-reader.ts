@@ -204,6 +204,9 @@ function parseSheet(
         const row = rows[r];
         const rowIndex = Number.parseInt(row.getAttribute('r') ?? `${r + 1}`, 10) - 1;
 
+        // r is the file's claim: a row past the cap is dropped, not padded out to.
+        if (!(rowIndex >= 0 && rowIndex < maxRows)) continue;
+
         while (data.length <= rowIndex) {
             data.push([]);
         }

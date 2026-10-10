@@ -398,7 +398,7 @@ describe('parseXlsx — fallbacks and limits', () => {
         expect(result.truncated).toBe(true);
     });
 
-    it.fails('T-14 a row index far beyond maxRows yields at most maxRows rows', () => {
+    it('T-14 a row index far beyond maxRows yields at most maxRows rows', () => {
         // Row 5 sits at a five-row cap and is kept; rows 6 and 200,000 are past it.
         const rows = [1, 3, 5, 6, 200_000]
             .map(r => `<row r="${r}"><c r="A${r}" t="inlineStr"><is><t>row ${r}</t></is></c></row>`)

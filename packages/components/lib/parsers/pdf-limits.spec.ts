@@ -442,7 +442,7 @@ function nestingDepth(obj: PdfObject): number {
 }
 
 describe('PDF object nesting — R2 depth cap', () => {
-    it.fails('T-16 nesting past the cap is truncated: PDF arrays and dictionaries', () => {
+    it('T-16 nesting past the cap is truncated: PDF arrays and dictionaries', () => {
         const pdf = onePagePdf('')
             .rawObj(6, '[[[[1]]]]')
             .rawObj(7, '[[[[[[1]]]]]]')
@@ -454,6 +454,22 @@ describe('PDF object nesting — R2 depth cap', () => {
         expect(nestingDepth(resolve(6))).toBe(4);
         expect(nestingDepth(resolve(7))).toBeLessThanOrEqual(4);
         expect(nestingDepth(resolve(8))).toBeLessThanOrEqual(4);
+    });
+
+    it('T-16 a skipped container ends where it closes, strings and hex strings included', () => {
+        // 50 000 levels is past any call stack. The string and the hex string
+        // each hold as many closing brackets as there are levels, then a decoy
+        // /After: a skip that read them as the container's end would resume
+        // inside and let the decoy replace the real value.
+        const levels = 50_000;
+        const decoy = `${']'.repeat(levels)} /After 99`;
+        const body = `${'['.repeat(levels)}(${decoy}) <${decoy}>${']'.repeat(levels)}`;
+        const pdf = onePagePdf('').rawObj(6, `<< /After 7 /Deep ${body} /Last 8 >>`).build();
+        const reader = new PdfReader(pdf);
+        reader.parse();
+        const dict = reader.getDict({ type: 'ref', value: '6 0' });
+        expect(nestingDepth(dict['Deep'])).toBeLessThanOrEqual(DEFAULT_PARSER_LIMITS.maxNestingDepth);
+        expect([reader.getNumber(dict['After']), reader.getNumber(dict['Last'])]).toEqual([7, 8]);
     });
 });
 
