@@ -398,8 +398,11 @@ function decodeCCITTFax(data: Uint8Array, parms: Record<string, PdfObject>, read
     const encodedByteAlign = !!parms['EncodedByteAlign'];
     const blackIs1 = !!parms['BlackIs1'];
 
+    // Columns and Rows are the file's claim, not the image's size: a row that
+    // alone exceeds the pixel cap is refused, and rows stop where the cap does.
+    if (columns <= 0 || columns > reader.limits.maxImagePixels) return new Uint8Array(0);
     const rowBytes = Math.ceil(columns / 8);
-    const maxRows = rows > 0 ? rows : 10000;
+    const maxRows = Math.min(rows > 0 ? rows : 10000, Math.floor(reader.limits.maxImagePixels / columns));
     const output: Uint8Array[] = [];
     const bitReader = new CCITTBitReader(data);
 
@@ -429,7 +432,9 @@ function decodeCCITTGroup3Row(reader: CCITTBitReader, columns: number): Uint8Arr
     const line = new Uint8Array(columns);
     let col = 0;
     let isWhite = true;
-    while (col < columns) {
+    // Past the end of the data every bit reads 0, which is no code at all, so a
+    // row cut short would otherwise alternate zero-length runs forever.
+    while (col < columns && !reader.exhausted) {
         const tree = isWhite ? whiteTree : blackTree;
         const runLen = ccittDecodeRun(reader, tree);
         const fill = isWhite ? 0 : 1;
@@ -4041,6 +4046,18 @@ export function resolveImageFilterName(reader: PdfReader, dict: Record<string, P
     return last.type === 'name' ? last.value as string : '';
 }
 
+const ALLOWED_BITS_PER_COMPONENT: ReadonlySet<number> = new Set([1, 2, 4, 8, 16]);
+
+/**
+ * Whether the declared raster is one we will expand into pixel rows, PNG and
+ * base64 (roughly 24 bytes per source byte). The size is the file's claim, so it
+ * is checked before anything is allocated for it.
+ */
+function isDecodableRaster(reader: PdfReader, width: number, height: number, dict: Record<string, PdfObject>): boolean {
+    const bpc = reader.getNumber(dict['BitsPerComponent']) || 8;
+    return ALLOWED_BITS_PER_COMPONENT.has(bpc) && width * height <= reader.limits.maxImagePixels;
+}
+
 export function buildImageDataUrl(
     filterName: string, xObj: PdfObject, reader: PdfReader,
     width: number, height: number, dict: Record<string, PdfObject>,
@@ -4053,6 +4070,7 @@ export function buildImageDataUrl(
         if (!xObj.stream) return null;
         return `data:image/jp2;base64,${uint8ArrayToBase64(xObj.stream)}`;
     }
+    if (!isDecodableRaster(reader, width, height, dict)) return null;
     const decoded = reader.getStreamData(xObj);
     if (decoded.length === 0) return null;
     const pngData = rawPixelsToPng(decoded, width, height, dict, reader);

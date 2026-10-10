@@ -75,7 +75,7 @@ function twoImagePdf(small: { dict: string; bytes: Uint8Array }, big: { dict: st
 }
 
 describe('PDF images — R1 bounded by bytes', () => {
-    it.fails('T-1 skips an image whose declared pixel count exceeds the cap and keeps the rest of the page', async () => {
+    it('T-1 skips an image whose declared pixel count exceeds the cap and keeps the rest of the page', async () => {
         // 4×4 = 16 px sits exactly at the cap and renders; 4×5 = 20 px is over it.
         const pdf = twoImagePdf(grayImage(4, 4), grayImage(4, 5));
         const result = await parsePdf(pdf, limits({ maxImagePixels: 16 }));
@@ -85,7 +85,7 @@ describe('PDF images — R1 bounded by bytes', () => {
         expect(result.html).not.toContain('width:30pt');
     });
 
-    it.fails('T-2 rejects BitsPerComponent outside 1/2/4/8/16, including fractional', async () => {
+    it('T-2 rejects BitsPerComponent outside 1/2/4/8/16, including fractional', async () => {
         // Each pairs an allowed depth (must render) with a disallowed one (must not).
         for (const [allowed, bpc] of [[16, 3], [1, 2.5]]) {
             const pdf = twoImagePdf(grayImage(8, 8, allowed), grayImage(8, 8, bpc));
@@ -95,7 +95,7 @@ describe('PDF images — R1 bounded by bytes', () => {
         }
     });
 
-    it.fails('T-3 pixel-perfect image path honours the same cap', async () => {
+    it('T-3 pixel-perfect image path honours the same cap', async () => {
         const pdf = twoImagePdf(grayImage(4, 4), grayImage(4, 5));
         const result = await renderPixelPerfectPaged(pdf, undefined, limits({ maxImagePixels: 16 }));
         const html = result.pages[0].html;
@@ -103,7 +103,7 @@ describe('PDF images — R1 bounded by bytes', () => {
         expect(result.pages[0].text).toContain('Caption');
     });
 
-    it.fails('T-4 CCITT decode with oversized Columns/Rows is bounded by the pixel cap', async () => {
+    it('T-4 CCITT decode with oversized Columns/Rows is bounded by the pixel cap', async () => {
         const ccitt = (width: number, height: number, columns: number, rows: number, bytes: number[]): { dict: string; bytes: Uint8Array } => ({
             dict: `/Type /XObject /Subtype /Image /Width ${width} /Height ${height} /ColorSpace /DeviceGray /BitsPerComponent 1 `
                 + `/Filter /CCITTFaxDecode /DecodeParms << /K -1 /Columns ${columns} /Rows ${rows} /BlackIs1 true >>`,
@@ -127,18 +127,26 @@ describe('PDF images — R1 bounded by bytes', () => {
         expect(result.html).toContain('width:40pt');
         expect(wideMs).toBeLessThan(TIME_BUDGET_MS);
 
-        // A 64×8 image (inside the cap) whose parameters claim a million rows,
+        // A 1024×8 image (inside the cap) whose parameters claim a million rows,
         // over 1 MB of data that decodes at two rows per byte: the decoder must
-        // stop at the rows the cap allows (1024 / 64 = 16), not the million the
+        // stop at the rows the cap allows (16384 / 1024 = 16), not the million the
         // file asks for. Truncating to those rows (the image renders) and
         // skipping the image are both allowed; the time is the real assertion.
-        const tall = ccitt(64, 8, 64, 1_000_000, new Array<number>(1024 * 1024).fill(0xff));
+        const tall = ccitt(1024, 8, 1024, 1_000_000, new Array<number>(1024 * 1024).fill(0xff));
         let html = '';
         const ms = await elapsedMs(async () => {
-            html = (await parsePdf(twoImagePdf(valid, tall), limits({ maxImagePixels: 1024 }))).html;
+            html = (await parsePdf(twoImagePdf(valid, tall), limits({ maxImagePixels: 16_384 }))).html;
         });
         expect(html).toContain('width:40pt');
         expect(ms).toBeLessThan(TIME_BUDGET_MS);
+
+        // A Group 3 row whose data ends mid-row: past the end every bit reads 0,
+        // which is no code, so a decoder that keeps reading never advances. A
+        // pre-fix run hangs the thread, which no timeout can interrupt.
+        const truncated = ccitt(64, 8, 64, 8, [0x00]);
+        truncated.dict = truncated.dict.replace('/K -1', '/K 0');
+        const truncatedHtml = (await parsePdf(twoImagePdf(valid, truncated))).html;
+        expect(truncatedHtml).toContain('width:40pt');
     }, 60_000);
 });
 
