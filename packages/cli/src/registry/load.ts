@@ -119,7 +119,7 @@ function printable(text: string): string {
     for (const ch of text) {
         const code = ch.codePointAt(0) ?? 0;
         const control = code < 0x20 || (code >= 0x7f && code < 0xa0);
-        out += control ? `\\u${code.toString(16).padStart(4, '0')}` : ch;
+        out += control ? String.raw`\u${code.toString(16).padStart(4, '0')}` : ch;
     }
     return out;
 }

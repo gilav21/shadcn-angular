@@ -142,13 +142,17 @@ function checkTokens(key: string, entry: Entry): (ManifestViolation | null)[] {
         const attach = asEntry(entry['attach']);
         const imp = attach['import'];
         const symbolOk = typeof imp === 'string' && isIdentifier(parseAttachSymbol(imp));
-        out.push(symbolOk ? null : { entry: key, field: 'attach.import', value: String(imp), reason: IDENTIFIER_REASON });
-        out.push(check(key, 'attach.selector', attach['selector'], isAttachSelector, SELECTOR_REASON));
+        out.push(
+            symbolOk ? null : { entry: key, field: 'attach.import', value: String(imp), reason: IDENTIFIER_REASON },
+            check(key, 'attach.selector', attach['selector'], isAttachSelector, SELECTOR_REASON),
+        );
     }
     asList(entry['shortcutDefinitions']).forEach((sd, i) => {
         const def = asEntry(sd);
-        out.push(check(key, `shortcutDefinitions[${i}].exportName`, def['exportName'], isIdentifier, IDENTIFIER_REASON));
-        out.push(check(key, `shortcutDefinitions[${i}].componentName`, def['componentName'], isComponentKey, KEY_REASON));
+        out.push(
+            check(key, `shortcutDefinitions[${i}].exportName`, def['exportName'], isIdentifier, IDENTIFIER_REASON),
+            check(key, `shortcutDefinitions[${i}].componentName`, def['componentName'], isComponentKey, KEY_REASON),
+        );
     });
     return out;
 }

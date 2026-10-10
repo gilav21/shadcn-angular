@@ -131,7 +131,7 @@ export function linePath(points: Point[], curve: CurveType = 'linear'): string {
 /** Build a closed SVG area path filled down to a baseline; each run of finite points closes separately. */
 export function areaPath(points: Point[], baselineY: number, curve: CurveType = 'linear'): string {
     return runsOf(points, isFinitePoint)
-        .map(run => `${runLine(run, curve)} L ${run[run.length - 1].x} ${baselineY} L ${run[0].x} ${baselineY} Z`)
+        .map(run => `${runLine(run, curve)} L ${(run.at(-1) ?? run[0]).x} ${baselineY} L ${run[0].x} ${baselineY} Z`)
         .join(' ');
 }
 

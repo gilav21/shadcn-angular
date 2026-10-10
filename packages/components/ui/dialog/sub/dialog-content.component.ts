@@ -71,10 +71,8 @@ export class DialogContentComponent implements AfterViewInit {
             if (this.dialog?.open()) {
                 this.previousActiveElement = this.document.activeElement;
                 setTimeout(() => this.focusFirstElement(), 0);
-            } else {
-                if (this.previousActiveElement instanceof HTMLElement) {
-                    this.previousActiveElement.focus();
-                }
+            } else if (this.previousActiveElement instanceof HTMLElement) {
+                this.previousActiveElement.focus();
             }
         });
     }

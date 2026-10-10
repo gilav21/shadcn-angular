@@ -129,7 +129,7 @@ export function trapTabKey(event: KeyboardEvent, container: HTMLElement): void {
         return;
     }
     const first = stops[0];
-    const last = stops[stops.length - 1];
+    const last = stops.at(-1) ?? first;
     const active = container.ownerDocument.activeElement;
     const outside = !active || !container.contains(active);
     // Outside the panel, or past its last stop: back to the first.
