@@ -1125,6 +1125,62 @@ export const SOLID_SUPPORTED_ICONS: ReadonlySet<string> = new Set([
     'circle-minus', 'circle-pause', 'circle-play', 'circle-stop',
 ]);
 
+/** Colour of the details cut out of a filled glyph, so they read as holes against the page. */
+const KNOCKOUT = 'var(--background, #fff)';
+const cut = (inner: string): string => `<g fill="none" stroke-width="2" style="stroke:${KNOCKOUT}">${inner}</g>`;
+const hole = (inner: string): string => `<g stroke="none" style="fill:${KNOCKOUT}">${inner}</g>`;
+const DISC = '<circle cx="12" cy="12" r="9" />';
+const SHIELD = '<path d="M12 3 5 6v5.500c0 4.500 3 8 7 9.500 4-1.500 7-5 7-9.500V6z" />';
+const HEART = '<path d="M12 21C6 17 3 13.500 3 9.500a4.500 4.500 0 0 1 9-1 4.500 4.500 0 0 1 9 1c0 4-3 7.500-9 11.500z" />';
+const FILE = '<path d="M6 3h8l5 5v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" />';
+const BUBBLE = '<path d="M4 5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H9l-5 4z" />';
+const FOLDER = '<path d="M3 6a1 1 0 0 1 1-1h5l2 2.500h9a1 1 0 0 1 1 1V19a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" />';
+
+/**
+ * Filled forms for the `'solid'` weight, for the glyphs whose outline form
+ * carries detail strokes. A fill with no stroke would lose that detail (every
+ * `circle-*` would become the same disc), so these draw it again in the page
+ * background colour.
+ */
+const SOLID_ICONS: Record<string, string> = {
+    'circle-dot': `${DISC}${cut('<path d="M12 12h.01" stroke-width="5" />')}`,
+    'circle-check': `${DISC}${cut('<path d="m8 12.500 2.700 2.700L16 9.500" />')}`,
+    'circle-x': `${DISC}${cut('<path d="m9 9 6 6" /><path d="m15 9-6 6" />')}`,
+    'circle-alert': `${DISC}${cut('<path d="M12 7.500v5" /><path d="M12 16h.01" />')}`,
+    'circle-plus': `${DISC}${cut('<path d="M8 12h8" /><path d="M12 8v8" />')}`,
+    'circle-minus': `${DISC}${cut('<path d="M8 12h8" />')}`,
+    'circle-pause': `${DISC}${cut('<path d="M10 9v6" /><path d="M14 9v6" />')}`,
+    'circle-play': `${DISC}${hole('<path d="m10 8.500 5.500 3.500-5.500 3.500z" />')}`,
+    'circle-stop': `${DISC}${hole('<rect x="9" y="9" width="6" height="6" rx="1" />')}`,
+    'compass': `${DISC}${hole('<path d="m15.500 8.500-2 5-5 2 2-5z" />')}`,
+    'shield-check': `${SHIELD}${cut('<path d="m9 12 2 2 4-4" />')}`,
+    'shield-alert': `${SHIELD}${cut('<path d="M12 8.500v4" /><path d="M12 16h.01" />')}`,
+    'badge-check': `<path d="M12 3l2.500 2h3l.500 3 2.500 2-1 3 1 3-2.500 2-.500 3h-3L12 22l-2.500-2h-3L6 17l-2.500-2 1-3-1-3L6 7l.500-3h3z" />${cut('<path d="m9 12 2 2 4-4" />')}`,
+    'heart-crack': `${HEART}${cut('<path d="m12 8.500-2 3 3 2-1 4" />')}`,
+    'heart-pulse': `${HEART}${cut('<path d="M3.500 12H9l1.500-2.500 2.500 5 1.500-2.500H20.500" />')}`,
+    'message-square-plus': `${BUBBLE}${cut('<path d="M12 7.500v6" /><path d="M9 10.500h6" />')}`,
+    'bookmark-plus': `<path d="M6 3h12v18l-6-4-6 4z" />${cut('<path d="M12 6.500v5" /><path d="M9.500 9h5" />')}`,
+    'folder-plus': `${FOLDER}${cut('<path d="M12 11v6" /><path d="M9 14h6" />')}`,
+    'file': `${FILE}${cut('<path d="M14 3v5h5" />')}`,
+    'file-text': `${FILE}${cut('<path d="M14 3v5h5" /><path d="M8.500 13h7" /><path d="M8.500 17h7" />')}`,
+    'file-plus': `${FILE}${cut('<path d="M14 3v5h5" /><path d="M12 12v6" /><path d="M9 15h6" />')}`,
+    'mail': `<rect x="3" y="5" width="18" height="14" rx="2" />${cut('<path d="m3.500 7 8.500 6 8.500-6" />')}`,
+    'mail-open': `<path d="M3 10v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-8l-9-6z" />${cut('<path d="m3 10 9 6 9-6" />')}`,
+    'camera': `<path d="M4 8h3l1.500-3h7L17 8h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z" />${cut('<circle cx="12" cy="13.500" r="3.500" />')}`,
+    'credit-card': `<rect x="2" y="5" width="20" height="14" rx="2" />${cut('<path d="M2 10h20" /><path d="M6 15h4" />')}`,
+    'home': `<path d="M12 3 3 11h2.500V20h13v-9H21z" />${hole('<path d="M10 20v-6h4v6z" />')}`,
+    'box': `<path d="m12 3 8 4.500v9L12 21l-8-4.500v-9z" />${cut('<path d="m4 7.500 8 4.500 8-4.500" /><path d="M12 12v9" />')}`,
+    'gift': `<rect x="3" y="8" width="18" height="4" rx="1" /><path d="M5 12v8h14v-8z" />${cut('<path d="M12 8v12" />')}<path d="M12 8C10 8 7.500 7 7.500 5.500S10.500 4 12 8c1.500-4 4.500-3 4.500-1.500S14 8 12 8z" />`,
+    'tag': `<path d="M3 12V4h8l10 10-8 8z" />${cut('<path d="M7.500 8h.01" stroke-width="3" />')}`,
+    'map-pin': `<path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z" />${hole('<circle cx="12" cy="10" r="2.500" />')}`,
+    'alert-triangle': `<path d="M12 4 21 20H3z" />${cut('<path d="M12 10v4" /><path d="M12 17h.01" />')}`,
+    'gem': `<path d="M6 4h12l3 5-9 11L3 9z" />${cut('<path d="M3 9h18" /><path d="m9 4-1 5 4 11" /><path d="m15 4 1 5-4 11" />')}`,
+    'thermometer': `<path d="M10 14V5a2 2 0 1 1 4 0v9a4.500 4.500 0 1 1-4 0z" />${cut('<path d="M12 9v7" />')}`,
+    'tent': `<path d="M2 20 12 4l10 16z" />${cut('<path d="M9.500 20 12 14.500l2.500 5.500" />')}`,
+    'lock': `<rect x="5" y="10" width="14" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2" />${cut('<path d="M12 15v2" />')}`,
+    'unlock': `<rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 7.500-2" fill="none" stroke="currentColor" stroke-width="2" />${cut('<path d="M12 15v2" />')}`,
+};
+
 const SIZE_MAP: Record<string, string> = {
     xs: '12',
     sm: '16',
@@ -1206,7 +1262,8 @@ export class IconComponent {
 
     readonly svgContent = computed(() => {
         const iconName = this.name();
-        const rawHtml = this.mergedIcons[iconName] ?? '';
+        const useSolid = this.resolvedWeight() === 'solid' && !this.customIcons?.[iconName];
+        const rawHtml = (useSolid ? SOLID_ICONS[iconName] : undefined) ?? this.mergedIcons[iconName] ?? '';
         return this.sanitizer.bypassSecurityTrustHtml(rawHtml);
     });
 
