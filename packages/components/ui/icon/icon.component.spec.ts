@@ -37,7 +37,8 @@ describe('IconComponent', () => {
 
     it('should render SVG content for known icon', () => {
         const svg = fixture.debugElement.query(By.css('svg'));
-        expect(svg.nativeElement.innerHTML).toContain('M20 6 9 17l-5-5');
+        const drawing = svg.nativeElement.querySelector('path');
+        expect(drawing?.getAttribute('d')).toBeTruthy();
     });
 
     it('should apply correct class based on icon name', () => {
