@@ -46,6 +46,12 @@ describe('parser limits', () => {
         expect(budget.take(50)).toBe(false);
         expect(budget.take(40)).toBe(true);
         expect(budget.take(1)).toBe(false);
+
+        const partial = new DecodeBudget(100);
+        expect(partial.spent).toBe(false);
+        expect(partial.take(70)).toBe(true);
+        partial.spendRemainder();
+        expect([partial.spent, partial.take(1)]).toEqual([true, false]);
     });
 
     it('visitOnce reports only the first visit of each node', () => {

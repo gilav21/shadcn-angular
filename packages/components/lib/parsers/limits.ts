@@ -103,4 +103,18 @@ export class DecodeBudget {
         this.remaining -= bytes;
         return true;
     }
+
+    /** True once nothing is left, so a caller can refuse work before doing it. */
+    get spent(): boolean {
+        return this.remaining <= 0;
+    }
+
+    /**
+     * Gives up what is left. A charge that did not fit means the work it paid
+     * for was already done; spending the rest stops every later decode of the
+     * same size from doing that work again just to be refused.
+     */
+    spendRemainder(): void {
+        this.remaining = 0;
+    }
 }

@@ -458,13 +458,13 @@ describe('PDF object nesting — R2 depth cap', () => {
 });
 
 describe('PDF decode budget — R1 bounded by bytes', () => {
-    it.fails('T-17 repeated references to one stream stay within the total decode budget', async () => {
+    it('T-17 repeated references to one stream stay within the total decode budget', async () => {
         // One FlateDecode stream that inflates to 1 MiB, shared as the ToUnicode
-        // CMap of 600 fonts: each reference decodes it again unless the parse
+        // CMap of 1500 fonts: each reference decodes it again unless the parse
         // bounds what all decodes together may produce. The text font (F1)
         // has no CMap, so a parse that stops decoding still renders the page.
         const compressed = await deflate(new Uint8Array(MIB));
-        const fonts = 600;
+        const fonts = 1500;
         const fontRefs = Array.from({ length: fonts }, (_, i) => `/C${i} ${10 + i} 0 R`).join(' ');
         const pdf = onePagePdf('BT /F1 12 Tf 72 700 Td (Budgeted) Tj ET', `/Font << /F1 5 0 R ${fontRefs} >>`)
             .obj(5, HELVETICA)
@@ -478,7 +478,7 @@ describe('PDF decode budget — R1 bounded by bytes', () => {
         expect(ms).toBeLessThan(TIME_BUDGET_MS);
     }, 60_000);
 
-    it.fails('T-17 distinct streams past the total decode budget are not decoded', async () => {
+    it('T-17 distinct streams past the total decode budget are not decoded', async () => {
         // Six fonts, each with its own 1 MiB CMap mapping byte 0x41 to a different
         // letter. Under a 4.5 MiB budget the first four CMaps decode and the
         // sixth has no budget left, so its font shows the unmapped byte. Caching

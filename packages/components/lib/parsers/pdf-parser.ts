@@ -1,6 +1,6 @@
 import { ByteSink } from './byte-sink';
 import { zlibInflate } from './inflate';
-import { DEFAULT_PARSER_LIMITS, DrawPath, visitOnce, type ParserLimits } from './limits';
+import { DEFAULT_PARSER_LIMITS, DecodeBudget, DrawPath, visitOnce, type ParserLimits } from './limits';
 
 /**
  * Ceiling for a single decoded PDF stream. A stream's filter chain can expand
@@ -724,6 +724,8 @@ export class PdfReader {
     private trailer: Record<string, PdfObject> | null = null;
     /** References being parsed right now: an object whose /Length leads back to itself must not recurse. */
     private readonly resolving = new Set<string>();
+    /** What every filtered stream this parse decodes may produce in total. */
+    private readonly decodeBudget: DecodeBudget;
 
     /**
      * `limits` holds the caps the reader and its renderers apply to what the
@@ -733,6 +735,7 @@ export class PdfReader {
     constructor(buffer: ArrayBuffer, readonly limits: ParserLimits = DEFAULT_PARSER_LIMITS) {
         this.data = new Uint8Array(buffer);
         this.text = new TextDecoder('latin1').decode(this.data);
+        this.decodeBudget = new DecodeBudget(limits.maxDecodedBytesTotal);
     }
 
     parse(): void {
@@ -1419,6 +1422,7 @@ export class PdfReader {
         const filterObj = dict['Filter'];
         if (!filterObj) return rawStream;
 
+        if (this.decodeBudget.spent) return new Uint8Array(0);
         const filters = this.resolveFilterNames(filterObj);
         const decodeParms = this.getDecodeParmsArray(dict, filters.length);
         let result = rawStream;
@@ -1432,7 +1436,13 @@ export class PdfReader {
                 return rawStream;
             }
         }
-        return result;
+        // A stream referenced from many places is decoded again at each one; the
+        // budget is what keeps those repeats from adding up to gigabytes. Past
+        // it the stream reads as empty, and the budget is spent so the next
+        // reference is refused before it decodes anything.
+        if (this.decodeBudget.take(result.length)) return result;
+        this.decodeBudget.spendRemainder();
+        return new Uint8Array(0);
     }
 
     getStreamData(obj: PdfObject): Uint8Array {
