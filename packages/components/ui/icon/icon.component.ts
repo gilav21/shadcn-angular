@@ -271,7 +271,7 @@ export const DEFAULT_ICONS = {
     'megaphone': '<path d="M3 10v4a1 1 0 0 0 1 1h3l9 5V4L7 9H4a1 1 0 0 0-1 1z" /><path d="M19 9a4 4 0 0 1 0 6" /><path d="m7 15 1.5 5" />',
     'pin': '<path d="M12 21v-7" /><path d="M8.5 3h7l-1 6.5L18 14H6l3.5-4.5z" />',
     'map': '<path d="m3 6 6-2 6 2 6-2v14l-6 2-6-2-6 2z" /><path d="M9 4v14" /><path d="M15 6v14" />',
-    'navigation': '<path d="m12 3 8 18-8-4-8 4z" />',
+    'navigation': '<path d="m3 11 18-8-8 18-2-8z" />',
     'plane': '<path d="M12 3c1 0 1.500 1 1.500 2v5l8 4.500v2l-8-2v4l2 1.500V21l-3.500-1-3.500 1v-1.500l2-1.500v-4l-8 2v-2l8-4.500V5c0-1 .500-2 1.500-2z" />',
     // Shapes extended
     'triangle': '<path d="M12 4 21 20H3z" />',
@@ -1070,7 +1070,7 @@ export const DEFAULT_ICONS = {
     'move-up-right': '<path d="M6 18 18 6" /><path d="M10 6h8v8" />',
     'move-vertical': '<path d="M12 3v18" /><path d="m8 7 4-4 4 4" /><path d="m8 17 4 4 4-4" />',
     'navigation-2': '<path d="M12 3 5 20l7-3.500L19 20z" />',
-    'navigation-off': '<path d="m12 3 8 18-8-4-8 4z" /><path d="m3 3 18 18" />',
+    'navigation-off': '<path d="m3 11 18-8-8 18-2-8z" /><path d="m3 3 18 18" />',
     'notebook-pen': '<path d="M13 21H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v6" /><path d="M9 3v18" /><path d="m21.500 14-6.500 6.500-3 .500.500-3 6.500-6.500z" />',
     'notebook-tabs': '<rect x="5" y="3" width="14" height="18" rx="2" /><path d="M9 3v18" /><path d="M19 8h2" /><path d="M19 12h2" /><path d="M19 16h2" />',
     'notebook-text': '<rect x="5" y="3" width="14" height="18" rx="2" /><path d="M9 3v18" /><path d="M12 8h4" /><path d="M12 12h4" /><path d="M12 16h2" />',
