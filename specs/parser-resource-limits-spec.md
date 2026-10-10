@@ -305,16 +305,16 @@ what make the failing-first tests safe to run.
 
 | # | Task | Proves | Status | Completed | Score | Retrospective |
 |---|------|--------|--------|-----------|-------|---------------|
-| 1 | Capture T-19 golden outputs at HEAD; write failing tests T-1…T-18, T-20 with tiny-limit and scaled-time fixtures | all | ⬜ Not started | — | — | — |
-| 2 | Add `lib/parsers/limits.ts` (`ParserLimits`, defaults, `withDepth`/visited helper, decode budget) and thread an internal `limits` param through `parsePdf`, `parsePdfPaged`, `parsePdfReadable`, pixel-perfect, `parseDoc*`, `parsePpt*`, `parseXlsx`; T-20 green | UC-1, UC-6 | ⬜ Not started | — | — | — |
-| 3 | PDF images + CCITT: pixel cap, BPC whitelist, CCITT dims + progress guard (T-1…T-4) | UC-1 | ⬜ Not started | — | — | — |
-| 4 | PDF xref: EOF guard, width-0 rejection, count clamped to remaining bytes; `/Prev` and `/Length` visited sets (T-8, T-9) | UC-4 | ⬜ Not started | — | — | — |
-| 5 | PDF graph traversals: form XObjects in both renderers, page tree, structure tree, outlines, readable font resources (T-5…T-7, T-18) | UC-2, UC-3, UC-12 | ⬜ Not started | — | — | — |
-| 6 | Total decode budget across repeated stream references (T-17) | UC-10 | ⬜ Not started | — | — | — |
-| 7 | OLE2 clamps (sector counts, stream sizes, shared chains, sector size ∈ {512, 4096}) + `.doc` piece-table output cap (T-12, T-13, T-15) | UC-6, UC-8 | ⬜ Not started | — | — | — |
-| 8 | xlsx row clamp; depth caps for PDF arrays, pptx `grpSp` (verify browser XML depth first), doc `findBlipImage` (T-14, T-16) | UC-7, UC-9 | ⬜ Not started | — | — | — |
-| 9 | Linear scanning: CMap bfchar/bfrange via `indexOf`, font style-suffix, `NUMBERED_PATTERN_RTL_END`. Sweep `lib/parsers/**` for any other lazy `[\s\S]*?` or nested-quantifier regex over stream text (T-10, T-11) | UC-5 | ⬜ Not started | — | — | — |
-| 10 | T-19 golden comparison green; perf budget measured; T-21 e2e in `e2e/harness/file-viewer`; JSDoc sentence on exported parsers; `sync-registry --fix`; note `release:package rte` in the PR | UC-11, UC-2 | ⬜ Not started | — | — | — |
+| 1 | Capture T-19 golden outputs at HEAD; write failing tests T-1…T-18, T-20 with tiny-limit and scaled-time fixtures | all | ✅ Done | 2026-10-10 | lead-reviewed (no independent review-gate) | Golden outputs captured at 14216e9b; failing-first tests written with tiny limits and scaled time budgets. |
+| 2 | Add `lib/parsers/limits.ts` (`ParserLimits`, defaults, `withDepth`/visited helper, decode budget) and thread an internal `limits` param through `parsePdf`, `parsePdfPaged`, `parsePdfReadable`, pixel-perfect, `parseDoc*`, `parsePpt*`, `parseXlsx`; T-20 green | UC-1, UC-6 | ✅ Done | 2026-10-10 | lead-reviewed (no independent review-gate) | `limits.ts` plus the internal `limits` argument on the PDF entry points; the OLE2-based parsers got theirs in Task 7. |
+| 3 | PDF images + CCITT: pixel cap, BPC whitelist, CCITT dims + progress guard (T-1…T-4) | UC-1 | ✅ Done | 2026-10-10 | lead-reviewed (no independent review-gate) | One choke point (`isDecodableRaster`) before any pixel allocation; Group 3 rows now stop when the data does. |
+| 4 | PDF xref: EOF guard, width-0 rejection, count clamped to remaining bytes; `/Prev` and `/Length` visited sets (T-8, T-9) | UC-4 | ✅ Done | 2026-10-10 | lead-reviewed (no independent review-gate) | The `/Prev` walk is iterative, so the visited set is the only bound; the claim-vs-bytes clamp needed a trailer-less case to be pinned. |
+| 5 | PDF graph traversals: form XObjects in both renderers, page tree, structure tree, outlines, readable font resources (T-5…T-7, T-18) | UC-2, UC-3, UC-12 | ✅ Done | 2026-10-10 | lead-reviewed (no independent review-gate) | Page tree is iterative too. `DrawPath` carries the form guard through both renderers, one per page. |
+| 6 | Total decode budget across repeated stream references (T-17) | UC-10 | ✅ Done | 2026-10-10 | lead-reviewed (no independent review-gate) | The budget has to refuse before decoding, not after, or every over-budget reference still pays the inflate. |
+| 7 | OLE2 clamps (sector counts, stream sizes, shared chains, sector size ∈ {512, 4096}) + `.doc` piece-table output cap (T-12, T-13, T-15) | UC-6, UC-8 | ✅ Done | 2026-10-10 | lead-reviewed (no independent review-gate) | One `SectorChains` per container gives sharing and a copy budget in the same place; the per-stream cap falls out of the chain bound. |
+| 8 | xlsx row clamp; depth caps for PDF arrays, pptx `grpSp` (verify browser XML depth first), doc `findBlipImage` (T-14, T-16) | UC-7, UC-9 | ✅ Done | 2026-10-10 | lead-reviewed (no independent review-gate) | pptx groups are pruned up front rather than threading a depth through a seven-parameter extractor. |
+| 9 | Linear scanning: CMap bfchar/bfrange via `indexOf`, font style-suffix, `NUMBERED_PATTERN_RTL_END`. Sweep `lib/parsers/**` for any other lazy `[\s\S]*?` or nested-quantifier regex over stream text (T-10, T-11) | UC-5 | ✅ Done | 2026-10-10 | lead-reviewed (no independent review-gate) | T-11 needed tabs: runs of spaces are collapsed before the RTL list-number test, so spaces never reached the regex. |
+| 10 | T-19 golden comparison green; perf budget measured; T-21 e2e in `e2e/harness/file-viewer`; JSDoc sentence on exported parsers; `sync-registry --fix`; note `release:package rte` in the PR | UC-11, UC-2 | ✅ Done | 2026-10-10 | lead-reviewed (no independent review-gate) | The e2e fails at a 40 s timeout without the draw budget and passes in 0.5 s with it; parse time is 12.2 ms against the 13.8-15.2 ms baseline. |
 
 ### Implementation notes and deviations (recorded during implementation)
 
@@ -418,6 +418,49 @@ what make the failing-first tests safe to run.
   local, uncommitted workload spec. The coordinator directed that the
   benchmark carry no assertion, and lint's `sonarjs/assertions-in-tests` would
   reject a committed test without one, so it stays local.
+
+### Completion log (2026-10-10, Tasks 3-10)
+
+- **Where it landed.** Tasks 1-2 were carried over from the stopped worktree
+  agent and committed unchanged; Tasks 3-10 were done on `wave-1-integration`.
+  Every task's guard was mutation-checked: the guard removed or its boundary
+  moved, and a named test turned red.
+- **Weak tests found and strengthened by the mutation checks.**
+  - T-4's tall-rows case passed with the row clamp removed (1 M rows of 64
+    columns is cheap). It now uses 1024 columns: 2.2 s without the clamp.
+  - T-8's oversized-count case passed with the byte clamp removed, because the
+    `trailer` keyword stopped the loop first. A trailer-less table is now a
+    second case.
+  - T-17's repeated-reference case sat 3% over its budget without the early
+    refusal; 1500 fonts instead of 600 makes it 2.6 s.
+  - T-16's skipped-container case needed decoys inside the string and the hex
+    string to tell a correct skip from a wrong end-of-container.
+- **Resource-limit decisions.**
+  - `DecodeBudget` gained `spent` and `spendRemainder()`: a charge that does
+    not fit means the decode already ran, so the rest is spent and the next
+    reference is refused before it inflates.
+  - `maxOle2StreamBytes` bounds the sector chain (and so the mini stream), which
+    is why no second clamp sits in `readStreamBytes`; the mutation that removed it
+    survived, so it was deleted.
+  - OLE2 copies are budgeted at 4x the file size (`COPY_BUDGET_FACTOR`): a
+    well-formed file is copied about once, twice with its mini streams.
+  - `.doc` `ccpText` is clamped to the WordDocument length where it is read,
+    which covers all three piece-table consumers.
+  - pptx: the browser's own XML depth limit was not measured; the up-front prune
+    makes the cap independent of it.
+  - Parameter bundles replaced long lists where a limit had to travel:
+    `PictureSources` in the `.doc` image path, `StructWalk` in the structure tree,
+    `ResourceWalk` for readable font resources, `slideSize` in the pptx slide
+    functions.
+- **Found, not fixed (out of scope).**
+  - `parseHexString` throws a `RangeError` ("Invalid code point NaN") on a hex
+    string with non-hex digits. It is caught by the callers' try/catch; the new
+    `skipContainer` does not call it.
+  - `buildPageObjNumMap` only maps pages that are still refs, but `getPages()`
+    returns resolved objects, so outline `pageIndex` is always -1.
+- **Publish.** `release:package rte` is required (its closure includes
+  `pdf-parser.ts`, `pdf-pixel-perfect.ts`, `pdf-readable/` and the new
+  `limits.ts`). No CLI publish. No data-table release.
 
 ## Definition of Done (per task)
 
