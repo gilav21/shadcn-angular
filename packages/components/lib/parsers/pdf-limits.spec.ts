@@ -286,7 +286,7 @@ function xrefTable(offsets: ReadonlyMap<number, number>, size: number, claimedCo
 }
 
 describe('PDF cross-reference — R1 bounded by bytes', () => {
-    it.fails('T-8 an xref subsection count larger than the file parses in time proportional to its size', async () => {
+    it('T-8 an xref subsection count larger than the file parses in time proportional to its size', async () => {
         const { bytes, offsets } = textPageBody('Counted');
         const tail = `${xrefTable(offsets, 6, 200_000_000)}trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${bytes.length}\n%%EOF`;
         const pdf = concatBytes([bytes, latin1Bytes(tail)]).buffer;
@@ -294,9 +294,18 @@ describe('PDF cross-reference — R1 bounded by bytes', () => {
         const ms = await elapsedMs(async () => { text = (await parsePdf(pdf)).text; });
         expect(text).toBe('Counted');
         expect(ms).toBeLessThan(TIME_BUDGET_MS);
+
+        // The same claim over a table cut off before its trailer: only the bytes
+        // left bound the count, and the file falls back to a scan.
+        const cut = concatBytes([bytes, latin1Bytes(`${xrefTable(offsets, 6, 200_000_000)}startxref
+${bytes.length}
+%%EOF`)]).buffer;
+        const cutMs = await elapsedMs(async () => { text = (await parsePdf(cut)).text; });
+        expect(text).toBe('Counted');
+        expect(cutMs).toBeLessThan(TIME_BUDGET_MS);
     }, 30_000);
 
-    it.fails('T-8 an xref stream with entry width 0 is rejected and the file falls back to a scan', async () => {
+    it('T-8 an xref stream with entry width 0 is rejected and the file falls back to a scan', async () => {
         // Width 0 means no entry consumes a byte, so a million-entry /Index
         // never runs out of stream; each claimed entry costs a map write.
         const { bytes } = textPageBody('Rescanned');
@@ -323,7 +332,7 @@ describe('PDF reference cycles — R2', () => {
             .buildBody();
     }
 
-    it.fails('T-9 self-referencing and 2-cycle /Prev chains keep the xref the file declares', async () => {
+    it('T-9 self-referencing and 2-cycle /Prev chains keep the xref the file declares', async () => {
         const { bytes, offsets } = stalePageBody();
         const selfPrev = concatBytes([bytes, latin1Bytes(
             `${xrefTable(offsets, 6)}trailer\n<< /Size 6 /Root 1 0 R /Prev ${bytes.length} >>\nstartxref\n${bytes.length}\n%%EOF`,
@@ -340,7 +349,7 @@ describe('PDF reference cycles — R2', () => {
         expect((await parsePdf(twoCycle)).text).toBe('Current');
     });
 
-    it.fails('T-9 a /Prev chain deeper than the call stack is followed to its oldest section', async () => {
+    it('T-9 a /Prev chain deeper than the call stack is followed to its oldest section', async () => {
         // 20 000 incremental-update sections, each empty, each pointing at the
         // one before; only the oldest indexes the page. A chain followed by
         // recursion overflows the stack, and catching that overflow loses the
@@ -356,7 +365,7 @@ describe('PDF reference cycles — R2', () => {
         expect((await parsePdf(deepChain)).text).toBe('Current');
     }, 30_000);
 
-    it.fails('T-9 a /Length that resolves to its own stream, or through a 2-cycle, terminates with the stream read by the endstream scan', async () => {
+    it('T-9 a /Length that resolves to its own stream, or through a 2-cycle, terminates with the stream read by the endstream scan', async () => {
         const content = latin1Bytes('BT /F1 12 Tf 72 700 Td (Measured) Tj ET');
         const selfLength = new RawPdf()
             .obj(1, '/Type /Catalog /Pages 2 0 R')

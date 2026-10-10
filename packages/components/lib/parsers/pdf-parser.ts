@@ -1,6 +1,6 @@
 import { ByteSink } from './byte-sink';
 import { zlibInflate } from './inflate';
-import { DEFAULT_PARSER_LIMITS, type ParserLimits } from './limits';
+import { DEFAULT_PARSER_LIMITS, visitOnce, type ParserLimits } from './limits';
 
 /**
  * Ceiling for a single decoded PDF stream. A stream's filter chain can expand
@@ -722,6 +722,8 @@ export class PdfReader {
     private readonly parsedObjects: Map<string, PdfObject> = new Map();
     private readonly compressedObjects: Map<string, { streamObjNum: number; index: number }> = new Map();
     private trailer: Record<string, PdfObject> | null = null;
+    /** References being parsed right now: an object whose /Length leads back to itself must not recurse. */
+    private readonly resolving = new Set<string>();
 
     /**
      * `limits` holds the caps the reader and its renderers apply to what the
@@ -764,12 +766,22 @@ export class PdfReader {
         let match = this.findLastStartxref(this.text.slice(-1024));
         match ??= this.findLastStartxref(this.text.slice(-8192));
         if (!match) throw new Error('Could not find startxref in PDF');
-        const xrefOffset = Number.parseInt(match[1], 10);
+        this.walkXRefChain(Number.parseInt(match[1], 10));
+    }
 
-        if (this.text.substring(xrefOffset, xrefOffset + 4) === 'xref') {
-            this.parseTraditionalXRef(xrefOffset);
-        } else {
-            this.parseXRefStream(xrefOffset);
+    /**
+     * Reads the newest xref section, then each /Prev behind it. A section
+     * already read ends the walk, so a /Prev that points back at itself or at a
+     * later section cannot loop, and the walk needs no call stack however long
+     * the chain of incremental updates is.
+     */
+    private walkXRefChain(newest: number): void {
+        const seen = new Set<number>();
+        let offset: number | null = newest;
+        while (offset !== null && visitOnce(seen, offset)) {
+            offset = this.text.substring(offset, offset + 4) === 'xref'
+                ? this.parseTraditionalXRef(offset)
+                : this.parseXRefStream(offset);
         }
     }
 
@@ -870,22 +882,28 @@ export class PdfReader {
         }
     }
 
-    private parseTrailerDict(offset: number): void {
+    /** Adopts the section's trailer; returns the /Prev offset it names, if any. */
+    private parseTrailerDict(offset: number): number | null {
         const trailerPos = this.text.indexOf('trailer', offset);
-        if (trailerPos === -1) return;
+        if (trailerPos === -1) return null;
         const dictStart = this.text.indexOf('<<', trailerPos);
-        if (dictStart === -1) return;
+        if (dictStart === -1) return null;
         const result = this.parseObjectAt(dictStart);
-        if (result.obj.type !== 'dict') return;
+        if (result.obj.type !== 'dict') return null;
         const dict = result.obj.value as Record<string, PdfObject>;
         this.trailer ??= dict;
-        const prev = dict['Prev'];
-        if (prev?.type === 'number') {
-            this.parseTraditionalXRef(prev.value as number);
-        }
+        return this.prevOffset(dict);
     }
 
-    private parseTraditionalXRef(offset: number): void {
+    private prevOffset(dict: Record<string, PdfObject>): number | null {
+        const prev = dict['Prev'];
+        return prev?.type === 'number' ? prev.value as number : null;
+    }
+
+    /** Smallest an entry can be: 10 + 1 + 5 + 1 + 1 characters, with no terminator. */
+    private static readonly MIN_XREF_ENTRY_CHARS = 18;
+
+    private parseTraditionalXRef(offset: number): number | null {
         let pos = offset + 4;
         pos = this.skipWhitespace(pos);
 
@@ -899,14 +917,17 @@ export class PdfReader {
             pos += headerMatch[0].length;
             pos = this.skipWhitespace(pos);
 
-            for (let i = 0; i < count; i++) {
+            // The count is the file's claim; the bytes left bound what it can hold.
+            const holdable = Math.ceil((this.text.length - pos) / PdfReader.MIN_XREF_ENTRY_CHARS);
+            for (let i = 0; i < Math.min(count, holdable); i++) {
+                if (this.text.startsWith('trailer', pos)) break;
                 this.parseXRefEntry(this.text.substring(pos, pos + 20), startObj, i);
                 pos += 20;
                 while (pos < this.text.length && (this.text[pos] === '\r' || this.text[pos] === '\n' || this.text[pos] === ' ')) pos++;
             }
         }
 
-        this.parseTrailerDict(offset);
+        return this.parseTrailerDict(offset);
     }
 
     private readXRefField(decoded: Uint8Array, bytePos: number, fieldOffset: number, fieldWidth: number): number {
@@ -959,18 +980,15 @@ export class PdfReader {
         }
     }
 
-    private followPrevXRef(dict: Record<string, PdfObject>): void {
-        const prev = dict['Prev'];
-        if (prev?.type !== 'number') return;
-        const prevOffset = prev.value as number;
-        if (this.text.substring(prevOffset, prevOffset + 4) === 'xref') {
-            this.parseTraditionalXRef(prevOffset);
-        } else {
-            this.parseXRefStream(prevOffset);
-        }
+    /** An xref stream entry is three fields of 0-8 bytes; all-zero widths would consume no input. */
+    private static isValidXRefWidths(w: number[]): boolean {
+        return w.length >= 3
+            && w.every(width => Number.isInteger(width) && width >= 0 && width <= 8)
+            && w[0] + w[1] + w[2] > 0;
     }
 
-    private parseXRefStream(offset: number): void {
+    /** Adopts the section's entries and trailer; returns the /Prev offset it names, if any. */
+    private parseXRefStream(offset: number): number | null {
         const result = this.parseObjectAt(offset);
         const obj = result.obj;
         if (obj.type !== 'stream' || !obj.stream) throw new Error('Expected xref stream');
@@ -982,11 +1000,12 @@ export class PdfReader {
         const wArr = dict['W'];
         if (wArr?.type !== 'array') throw new Error('Missing /W in xref stream');
         const w = (wArr.value as PdfObject[]).map(o => o.value as number);
+        if (!PdfReader.isValidXRefWidths(w)) throw new Error('Invalid /W in xref stream');
 
         const indexArr = this.getXRefIndexArray(dict);
         const decoded = this.decodeStreamData(dict, streamData);
         this.processXRefStreamEntries(decoded, w, indexArr);
-        this.followPrevXRef(dict);
+        return this.prevOffset(dict);
     }
 
     private skipWhitespace(pos: number): number {
@@ -997,10 +1016,8 @@ export class PdfReader {
     private resolveStreamLength(dict: Record<string, PdfObject>): number {
         const lengthObj = dict['Length'];
         if (!lengthObj) return 0;
-        if (lengthObj.type === 'ref') {
-            return this.resolveRef(lengthObj).value as number;
-        }
-        return lengthObj.value as number;
+        const length = lengthObj.type === 'ref' ? this.resolveRef(lengthObj) : lengthObj;
+        return typeof length.value === 'number' ? length.value : 0;
     }
 
     private parseObjectAt(offset: number): { obj: PdfObject; endPos: number } {
@@ -1276,9 +1293,15 @@ export class PdfReader {
             return this.parsedObjects.get(key) ?? { type: 'null', value: null };
         }
 
-        const result = this.parseObjectAt(entry.offset);
-        this.parsedObjects.set(key, result.obj);
-        return result.obj;
+        if (this.resolving.has(key)) return { type: 'null', value: null };
+        this.resolving.add(key);
+        try {
+            const result = this.parseObjectAt(entry.offset);
+            this.parsedObjects.set(key, result.obj);
+            return result.obj;
+        } finally {
+            this.resolving.delete(key);
+        }
     }
 
     /**
