@@ -1,3 +1,4 @@
+import { DEFAULT_PARSER_LIMITS, type ParserLimits } from './limits';
 import { readOle2 } from './ole2-reader';
 import type { PptxParseResult, PptxSlide, PptxTextFrame, PptxParagraph } from './pptx-parser';
 
@@ -261,8 +262,8 @@ function buildSlides(
     );
 }
 
-export function parsePpt(data: Uint8Array): PptxParseResult {
-    const ole2 = readOle2(data);
+export function parsePpt(data: Uint8Array, limits: ParserLimits = DEFAULT_PARSER_LIMITS): PptxParseResult {
+    const ole2 = readOle2(data, limits);
     const pptStream = ole2.streams.get('PowerPoint Document');
 
     if (!pptStream) {

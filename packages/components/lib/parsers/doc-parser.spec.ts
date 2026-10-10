@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseDocEnhanced } from './doc-enhanced-parser';
 import { parseDoc } from './doc-parser';
+import { DEFAULT_PARSER_LIMITS } from './limits';
 import {
     buildOle2Doc,
     buildWordDocument,
@@ -285,13 +286,10 @@ describe('parseDoc — error handling', () => {
 });
 
 describe('legacy .doc piece table — resource limits', () => {
-    it.fails.each([
-        ['parseDoc', parseDoc],
-        ['parseDocEnhanced', parseDocEnhanced],
-    ])('T-15 %s: overlapping pieces yield text no longer than the WordDocument stream', (_name, parse) => {
-        // Forty pieces all read the same 64 bytes while ccpText claims 2560
-        // characters: the claim, not the file, used to size the text.
-        const sentence = 'Minutes of the weekly planning meeting, attendance and actions.\r';
+    const sentence = 'Minutes of the weekly planning meeting, attendance and actions.\r';
+
+    /** Forty pieces that all read the same 64 bytes while ccpText claims 2560 characters. */
+    function overlappingPiecesDoc(): { file: Uint8Array; wordDocumentLength: number } {
         const textFc = 0x600;
         const pieces = Array.from({ length: 40 }, (_, i) => ({
             cpStart: i * sentence.length,
@@ -310,12 +308,31 @@ describe('legacy .doc piece table — resource limits', () => {
         writeAnsi(wd, textFc, sentence);
         const table = new Uint8Array(0x40 + clx.length);
         table.set(clx, 0x40);
-
-        const result = parse(buildOle2Doc([
+        const file = buildOle2Doc([
             { name: 'WordDocument', data: wd },
             { name: '0Table', data: table },
-        ]));
+        ]);
+        return { file, wordDocumentLength: wd.length };
+    }
+
+    const parsers = [
+        ['parseDoc', parseDoc],
+        ['parseDocEnhanced', parseDocEnhanced],
+    ] as const;
+
+    it.each(parsers)('T-15 %s: overlapping pieces yield text no longer than the WordDocument stream', (_name, parse) => {
+        // The claim, not the file, used to size the text.
+        const { file, wordDocumentLength } = overlappingPiecesDoc();
+        const result = parse(file);
         expect(result.plainText.startsWith('Minutes of the weekly planning meeting')).toBe(true);
-        expect(result.plainText.length).toBeLessThanOrEqual(wd.length);
+        expect(result.plainText.length).toBeLessThanOrEqual(wordDocumentLength);
+    });
+
+    it.each(parsers)('%s hands its limits to the container read', (_name, parse) => {
+        const { file } = overlappingPiecesDoc();
+        const capped = { ...DEFAULT_PARSER_LIMITS, maxOle2StreamBytes: 512 };
+        // The text sits at 0x600, past the 512 bytes the cap leaves of WordDocument.
+        expect(parse(file).plainText).toContain('Minutes');
+        expect(parse(file, capped).plainText).not.toContain('Minutes');
     });
 });

@@ -1,3 +1,4 @@
+import { DEFAULT_PARSER_LIMITS, type ParserLimits } from './limits';
 import { readOle2 } from './ole2-reader';
 
 export interface DocParagraphElement {
@@ -69,7 +70,8 @@ function parseFibHeader(wordDoc: Uint8Array): FibHeader {
 
     const fcMin = readU32(wordDoc, 24);
     const fcMac = readU32(wordDoc, 28);
-    const ccpText = readU32(wordDoc, 76);
+    // A stream holds at most one character per byte, so the claim is clamped to the stream.
+    const ccpText = Math.min(readU32(wordDoc, 76), wordDoc.length);
 
     const fcClx = readU32(wordDoc, 0x01A2);
     const lcbClx = readU32(wordDoc, 0x01A6);
@@ -338,8 +340,8 @@ function buildPlainText(paragraphs: ReadonlyArray<string>): string {
     return paragraphs.join('\n');
 }
 
-export function parseDoc(data: Uint8Array): DocParseResult {
-    const ole2 = readOle2(data);
+export function parseDoc(data: Uint8Array, limits: ParserLimits = DEFAULT_PARSER_LIMITS): DocParseResult {
+    const ole2 = readOle2(data, limits);
 
     const wordDoc = ole2.streams.get('WordDocument');
     if (!wordDoc) {

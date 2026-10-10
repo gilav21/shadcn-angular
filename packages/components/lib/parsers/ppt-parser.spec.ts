@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_PARSER_LIMITS } from './limits';
 import { parsePpt } from './ppt-parser';
 
 // ---------------------------------------------------------------------------
@@ -299,5 +300,23 @@ describe('parsePpt — malformed input', () => {
         const result = parsePpt(buildPpt(streamBytes));
         expect(result.slides).toHaveLength(1);
         expect(result.slides[0].title).toBe('Good');
+    });
+});
+
+describe('parsePpt — resource limits', () => {
+    it('hands its limits to the container read', () => {
+        // The closing slide starts well past the 512 bytes the cap leaves of the stream.
+        const children = [
+            ...slidePersistAtom(),
+            ...textCharsAtom('Opening title'),
+            ...textCharsAtom('x'.repeat(400)),
+            ...slidePersistAtom(),
+            ...textCharsAtom('Closing title'),
+        ];
+        const file = buildPpt(slideListWithText(children));
+        const titles = (caps: typeof DEFAULT_PARSER_LIMITS): Array<string | undefined> =>
+            parsePpt(file, caps).slides.map(slide => slide.title);
+        expect(titles(DEFAULT_PARSER_LIMITS)).toEqual(['Opening title', 'Closing title']);
+        expect(titles({ ...DEFAULT_PARSER_LIMITS, maxOle2StreamBytes: 512 })).toEqual(['Opening title']);
     });
 });

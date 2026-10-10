@@ -1,3 +1,4 @@
+import { DEFAULT_PARSER_LIMITS, type ParserLimits } from './limits';
 import { readOle2 } from './ole2-reader';
 import { isValidImageMagicBytes } from './image-validator';
 import type {
@@ -128,7 +129,8 @@ function parseExtendedFib(wordDoc: Uint8Array): ExtendedFib {
 
     const fcMin = readU32(wordDoc, 24);
     const fcMac = readU32(wordDoc, 28);
-    const ccpText = readU32(wordDoc, 76);
+    // A stream holds at most one character per byte, so the claim is clamped to the stream.
+    const ccpText = Math.min(readU32(wordDoc, 76), wordDoc.length);
 
     const fcStshf = readU32(wordDoc, 0x00A2);
     const lcbStshf = readU32(wordDoc, 0x00A6);
@@ -1695,16 +1697,16 @@ function uint8ArrayToBase64(bytes: Uint8Array): string {
 
 // ── Section M: Top-Level Orchestration ─────────────────────────────────
 
-export function parseDocEnhanced(data: Uint8Array): DocxParseResult {
+export function parseDocEnhanced(data: Uint8Array, limits: ParserLimits = DEFAULT_PARSER_LIMITS): DocxParseResult {
     try {
-        return parseDocInternal(data);
+        return parseDocInternal(data, limits);
     } catch {
-        return fallbackToBasicParsing(data);
+        return fallbackToBasicParsing(data, limits);
     }
 }
 
-function parseDocInternal(data: Uint8Array): DocxParseResult {
-    const ole2 = readOle2(data);
+function parseDocInternal(data: Uint8Array, limits: ParserLimits): DocxParseResult {
+    const ole2 = readOle2(data, limits);
 
     const wordDoc = ole2.streams.get('WordDocument');
     if (!wordDoc) throw new Error('Invalid DOC: missing WordDocument stream');
@@ -1718,7 +1720,7 @@ function parseDocInternal(data: Uint8Array): DocxParseResult {
 
     // Parse piece table for text + FC mapping
     const pieceResult = parsePieceTable(wordDoc, tableStream, fib);
-    if (!pieceResult) return fallbackToBasicParsing(data);
+    if (!pieceResult) return fallbackToBasicParsing(data, limits);
 
     // Parse supporting structures (each degrades gracefully)
     const fonts = safeParse(() => parseFontTable(tableStream, fib.fcSttbfFfn, fib.lcbSttbfFfn), []);
@@ -1763,8 +1765,8 @@ function safeParse<T>(fn: () => T, fallback: T): T {
     }
 }
 
-function fallbackToBasicParsing(data: Uint8Array): DocxParseResult {
-    const ole2 = readOle2(data);
+function fallbackToBasicParsing(data: Uint8Array, limits: ParserLimits): DocxParseResult {
+    const ole2 = readOle2(data, limits);
     const wordDoc = ole2.streams.get('WordDocument');
     if (!wordDoc) {
         return emptyResult();

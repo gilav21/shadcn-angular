@@ -1,3 +1,4 @@
+import { DEFAULT_PARSER_LIMITS } from './limits';
 import { describe, expect, it } from 'vitest';
 import { readOle2 } from './ole2-reader';
 
@@ -537,7 +538,7 @@ describe('readOle2 — resource limits', () => {
         }
     }
 
-    it.fails('T-12 a header claiming more FAT sectors than the file holds is clamped or rejected', () => {
+    it('T-12 a header claiming more FAT sectors than the file holds is clamped or rejected', () => {
         // ~4 billion FAT sectors claimed by a 2.5 KB file.
         const hugeFat = twoSectorDoc();
         writeU32(hugeFat, 44, 0xfffffff0);
@@ -545,7 +546,7 @@ describe('readOle2 — resource limits', () => {
         if (streams) expect(streams.get('Doc')?.[7]).toBe(49);
     });
 
-    it.fails('T-12 a mini stream claiming more bytes than the mini stream holds is clamped or rejected', () => {
+    it('T-12 a mini stream claiming more bytes than the mini stream holds is clamped or rejected', () => {
         // The entry claims 1 MB; the mini stream holds 128 bytes.
         const miniStream = new Uint8Array(2 * 64).fill(0x5a);
         const miniFat = new Uint8Array(SECTOR).fill(0xff);
@@ -571,13 +572,20 @@ describe('readOle2 — resource limits', () => {
         }
     });
 
-    it.fails('T-12 a sector size other than 512 or 4096 bytes is a malformed header', () => {
+    it('T-12 a stream longer than the per-stream cap is cut to it', () => {
+        const capped = readOle2(twoSectorDoc(), { ...DEFAULT_PARSER_LIMITS, maxOle2StreamBytes: SECTOR }).streams.get('Doc');
+        expect(capped).toHaveLength(SECTOR);
+        expect(capped?.[SECTOR - 1]).toBe(((SECTOR - 1) * 7) & 0xff);
+        expect(readOle2(twoSectorDoc(), { ...DEFAULT_PARSER_LIMITS, maxOle2StreamBytes: 2 * SECTOR }).streams.get('Doc')).toHaveLength(2 * SECTOR);
+    });
+
+    it('T-12 a sector size other than 512 or 4096 bytes is a malformed header', () => {
         const oddSectors = twoSectorDoc();
         writeU16(oddSectors, 30, 7);
         expect(() => readOle2(oddSectors)).toThrow(/^OLE2: /);
     });
 
-    it.fails('T-13 OLE2 directory entries sharing one chain do not each copy it', () => {
+    it('T-13 OLE2 directory entries sharing one chain do not each copy it', () => {
         const payload = new Uint8Array(SECTOR).fill(0x33);
         const file = buildContainer({
             streams: [
@@ -596,5 +604,40 @@ describe('readOle2 — resource limits', () => {
         expect(streams.get('Third')).toEqual(payload.subarray(0, 100));
         expect(streams.get('Second')?.buffer).toBe(first?.buffer);
         expect(streams.get('Third')?.buffer).toBe(first?.buffer);
+    });
+
+    it('T-13 chains that converge on one tail are copied within a multiple of the file size', () => {
+        // Eleven streams, each starting on its own sector, all continuing into
+        // one 100-sector tail: copied in full each, that is ~570 KB out of a 59 KB file.
+        const streamCount = 11;
+        const tailSectors = 100;
+        const firstHead = 4;
+        const tailStart = firstHead + streamCount;
+        const totalSectors = tailStart + tailSectors;
+        const file = new Uint8Array(512 + totalSectors * SECTOR);
+        file.set(makeHeader({ firstDirSector: 1, fatSectors: 1, firstMiniFatSector: END_OF_CHAIN, miniFatSectors: 0 }), 0);
+
+        const fat = new Uint8Array(SECTOR).fill(0xff);
+        const link = (sector: number, next: number): void => writeU32(fat, sector * 4, next);
+        link(0, END_OF_CHAIN);
+        [1, 2].forEach(sector => link(sector, sector + 1));
+        link(3, END_OF_CHAIN);
+        for (let i = 0; i < streamCount; i++) link(firstHead + i, tailStart);
+        for (let sector = tailStart; sector < totalSectors; sector++) {
+            link(sector, sector + 1 < totalSectors ? sector + 1 : END_OF_CHAIN);
+        }
+        file.set(fat, sectorByteOffset(0));
+
+        const size = (tailSectors + 1) * SECTOR;
+        const specs = [
+            { name: 'Root Entry', type: 5, startSector: END_OF_CHAIN, size: 0 },
+            ...Array.from({ length: streamCount }, (_, i) => ({ name: `S${i}`, type: 2, startSector: firstHead + i, size })),
+        ];
+        specs.forEach((spec, i) => file.set(makeDirEntry(spec), sectorByteOffset(1) + i * 128));
+
+        const streams = readOle2(file).streams;
+        const copied = [...streams.values()].reduce((sum, stream) => sum + stream.length, 0);
+        expect(copied).toBeLessThanOrEqual(4 * file.length);
+        expect(streams.get('S0')).toHaveLength(size);
     });
 });
