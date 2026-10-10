@@ -220,7 +220,7 @@ export const DEFAULT_ICONS = {
     'hard-drive': '<rect x="2" y="13" width="20" height="7" rx="2" /><path d="m2.500 13 3-8h13l3 8" /><path d="M6 16.500h.01" /><path d="M10 16.500h.01" />',
     // Status extended
     'shield-alert': '<path d="M12 3 5 6v5.500c0 4.500 3 8 7 9.500 4-1.500 7-5 7-9.500V6z" /><path d="M12 8.500v4" /><path d="M12 16h.01" />',
-    'badge-check': '<path d="M12 3l2.500 2h3l.500 3 2.500 2-1 3 1 3-2.500 2-.500 3h-3L12 22l-2.500-2h-3L6 17l-2.500-2 1-3-1-3L6 7l.500-3h3z" /><path d="m9 12 2 2 4-4" />',
+    'badge-check': '<path d="M12 2.3L15.18 4.33L18.86 5.14L19.67 8.82L21.7 12L19.67 15.18L18.86 18.86L15.18 19.67L12 21.7L8.82 19.67L5.14 18.86L4.33 15.18L2.3 12L4.33 8.82L5.14 5.14L8.82 4.33z" /><path d="m9 12 2 2 4-4" />',
     'hourglass': '<path d="M6 3h12" /><path d="M6 21h12" /><path d="M7 3c0 5 3 6 5 9-2 3-5 4-5 9" /><path d="M17 3c0 5-3 6-5 9 2 3 5 4 5 9" />',
     'timer': '<circle cx="12" cy="13" r="8" /><path d="M12 9v4l2 2" /><path d="M10 2h4" /><path d="m19 6 1.5-1.5" />',
     'alarm-clock': '<circle cx="12" cy="13" r="7.5" /><path d="M12 9v4l2.5 1.5" /><path d="m4 5 3-2" /><path d="m20 5-3-2" />',
@@ -360,8 +360,8 @@ export const DEFAULT_ICONS = {
     'podcast': '<circle cx="12" cy="10" r="2" /><path d="M8 14a5 5 0 1 1 8 0" /><path d="M5.500 17a8 8 0 1 1 13 0" /><path d="M12 13v8" />',
     // More shapes
     'pentagon': '<path d="m12 3 9 6.500-3.500 11h-11L3 9.500z" />',
-    'circle-dashed': '<path d="M12 3h.01" /><path d="M16.500 4.200h.01" /><path d="M19.800 7.500h.01" /><path d="M21 12h.01" /><path d="M19.800 16.500h.01" /><path d="M16.500 19.800h.01" /><path d="M12 21h.01" /><path d="M7.500 19.800h.01" /><path d="M4.200 16.500h.01" /><path d="M3 12h.01" /><path d="M4.200 7.500h.01" /><path d="M7.500 4.200h.01" />',
-    'square-dashed': '<path d="M5 3h.01M9 3h.01M15 3h.01M19 3h.01" /><path d="M3 5v.01M3 9v.01M3 15v.01M3 19v.01" /><path d="M21 5v.01M21 9v.01M21 15v.01M21 19v.01" /><path d="M5 21h.01M9 21h.01M15 21h.01M19 21h.01" />',
+    'circle-dashed': '<circle cx="12" cy="12" r="9" stroke-dasharray="3 4.070" stroke-dashoffset="1.500" />',
+    'square-dashed': '<rect x="3" y="3" width="18" height="18" stroke-dasharray="3.500 5.500" stroke-dashoffset="1.750" />',
     // Accessibility
     'accessibility': '<circle cx="12" cy="4.5" r="1.5" /><path d="M5 8h14" /><path d="M12 8v5" /><path d="m9 21 3-8 3 8" />',
     // More misc
@@ -471,8 +471,8 @@ export const DEFAULT_ICONS = {
     'binary': '<rect x="4" y="3" width="5" height="8" rx="2.500" /><path d="M15 4h2v7" /><path d="M15 11h4" /><path d="M5 14h2v7" /><path d="M5 21h4" /><rect x="14" y="14" width="5" height="7" rx="2.500" />',
     // Commerce extended
     'shopping-basket': '<path d="m5 11 4-7" /><path d="m19 11-4-7" /><path d="M2 11h20" /><path d="M4 11l1.500 8a1.500 1.500 0 0 0 1.500 1.200h10a1.500 1.500 0 0 0 1.500-1.200L20 11" /><path d="M9 14v3" /><path d="M12 14v3" /><path d="M15 14v3" />',
-    'badge-dollar-sign': '<path d="M12 3l2.500 2h3l.500 3 2.500 2-1 3 1 3-2.500 2-.500 3h-3L12 22l-2.500-2h-3L6 17l-2.500-2 1-3-1-3L6 7l.500-3h3z" /><path d="M14.500 9.500c-.500-.700-1.400-1-2.500-1-1.400 0-2.500.600-2.500 1.700s1 1.500 2.500 1.800 2.500.700 2.500 1.800-1.100 1.700-2.500 1.700c-1.100 0-2-.300-2.500-1" /><path d="M12 7v1.500" /><path d="M12 15.500V17" />',
-    'badge-percent': '<path d="M12 3l2.500 2h3l.500 3 2.500 2-1 3 1 3-2.500 2-.500 3h-3L12 22l-2.500-2h-3L6 17l-2.500-2 1-3-1-3L6 7l.500-3h3z" /><path d="m15 9-6 6" /><path d="M9.500 9.500h.01" /><path d="M14.500 14.500h.01" />',
+    'badge-dollar-sign': '<path d="M12 2.3L15.18 4.33L18.86 5.14L19.67 8.82L21.7 12L19.67 15.18L18.86 18.86L15.18 19.67L12 21.7L8.82 19.67L5.14 18.86L4.33 15.18L2.3 12L4.33 8.82L5.14 5.14L8.82 4.33z" /><path d="M14.500 9.500c-.500-.700-1.400-1-2.500-1-1.400 0-2.500.600-2.500 1.700s1 1.500 2.500 1.800 2.500.700 2.500 1.800-1.100 1.700-2.500 1.700c-1.100 0-2-.300-2.500-1" /><path d="M12 7v1.500" /><path d="M12 15.500V17" />',
+    'badge-percent': '<path d="M12 2.3L15.18 4.33L18.86 5.14L19.67 8.82L21.7 12L19.67 15.18L18.86 18.86L15.18 19.67L12 21.7L8.82 19.67L5.14 18.86L4.33 15.18L2.3 12L4.33 8.82L5.14 5.14L8.82 4.33z" /><path d="m15 9-6 6" /><path d="M9.500 9.500h.01" /><path d="M14.500 14.500h.01" />',
     'receipt-text': '<path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z" /><path d="M9 8h6" /><path d="M9 12h6" /><path d="M9 16h3" />',
     'ticket': '<path d="M3 8a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v2a2 2 0 0 0 0 4v2a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2a2 2 0 0 0 0-4z" /><path d="M14 7v10" stroke-dasharray="2 2" />',
     'barcode': '<path d="M3 5v14" /><path d="M7 5v14" /><path d="M11 5v14" /><path d="M14 5v14" /><path d="M18 5v14" /><path d="M21 5v14" />',
@@ -539,11 +539,11 @@ export const DEFAULT_ICONS = {
     'folder-lock': '<path d="M12 21H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5l2 2.500h9a1 1 0 0 1 1 1V10" /><rect x="13" y="15" width="8" height="6" rx="1" /><path d="M15 15v-1.500a2 2 0 0 1 4 0V15" />',
     'folder-tree': '<rect x="3" y="3" width="7" height="5" rx="1" /><rect x="13" y="10" width="8" height="4" rx="1" /><rect x="13" y="17" width="8" height="4" rx="1" /><path d="M6 8v10a1 1 0 0 0 1 1h6" /><path d="M6 12h7" />',
     // Notifications & Status
-    'badge-info': '<path d="M12 3l2.500 2h3l.500 3 2.500 2-1 3 1 3-2.500 2-.500 3h-3L12 22l-2.500-2h-3L6 17l-2.500-2 1-3-1-3L6 7l.500-3h3z" /><path d="M12 16v-4.500" /><path d="M12 8.500h.01" />',
-    'badge-alert': '<path d="M12 3l2.500 2h3l.500 3 2.500 2-1 3 1 3-2.500 2-.500 3h-3L12 22l-2.500-2h-3L6 17l-2.500-2 1-3-1-3L6 7l.500-3h3z" /><path d="M12 8v4.500" /><path d="M12 15.500h.01" />',
-    'badge-x': '<path d="M12 3l2.500 2h3l.500 3 2.500 2-1 3 1 3-2.500 2-.500 3h-3L12 22l-2.500-2h-3L6 17l-2.500-2 1-3-1-3L6 7l.500-3h3z" /><path d="m9.500 9.500 5 5" /><path d="m14.500 9.500-5 5" />',
-    'badge-plus': '<path d="M12 3l2.500 2h3l.500 3 2.500 2-1 3 1 3-2.500 2-.500 3h-3L12 22l-2.500-2h-3L6 17l-2.500-2 1-3-1-3L6 7l.500-3h3z" /><path d="M8.500 12h7" /><path d="M12 8.500v7" />',
-    'badge-minus': '<path d="M12 3l2.500 2h3l.500 3 2.500 2-1 3 1 3-2.500 2-.500 3h-3L12 22l-2.500-2h-3L6 17l-2.500-2 1-3-1-3L6 7l.500-3h3z" /><path d="M8.500 12h7" />',
+    'badge-info': '<path d="M12 2.3L15.18 4.33L18.86 5.14L19.67 8.82L21.7 12L19.67 15.18L18.86 18.86L15.18 19.67L12 21.7L8.82 19.67L5.14 18.86L4.33 15.18L2.3 12L4.33 8.82L5.14 5.14L8.82 4.33z" /><path d="M12 16v-4.500" /><path d="M12 8.500h.01" />',
+    'badge-alert': '<path d="M12 2.3L15.18 4.33L18.86 5.14L19.67 8.82L21.7 12L19.67 15.18L18.86 18.86L15.18 19.67L12 21.7L8.82 19.67L5.14 18.86L4.33 15.18L2.3 12L4.33 8.82L5.14 5.14L8.82 4.33z" /><path d="M12 8v4.500" /><path d="M12 15.500h.01" />',
+    'badge-x': '<path d="M12 2.3L15.18 4.33L18.86 5.14L19.67 8.82L21.7 12L19.67 15.18L18.86 18.86L15.18 19.67L12 21.7L8.82 19.67L5.14 18.86L4.33 15.18L2.3 12L4.33 8.82L5.14 5.14L8.82 4.33z" /><path d="m9.500 9.500 5 5" /><path d="m14.500 9.500-5 5" />',
+    'badge-plus': '<path d="M12 2.3L15.18 4.33L18.86 5.14L19.67 8.82L21.7 12L19.67 15.18L18.86 18.86L15.18 19.67L12 21.7L8.82 19.67L5.14 18.86L4.33 15.18L2.3 12L4.33 8.82L5.14 5.14L8.82 4.33z" /><path d="M8.500 12h7" /><path d="M12 8.500v7" />',
+    'badge-minus': '<path d="M12 2.3L15.18 4.33L18.86 5.14L19.67 8.82L21.7 12L19.67 15.18L18.86 18.86L15.18 19.67L12 21.7L8.82 19.67L5.14 18.86L4.33 15.18L2.3 12L4.33 8.82L5.14 5.14L8.82 4.33z" /><path d="M8.500 12h7" />',
     'siren-alert': '<path d="M7 12a5 5 0 0 1 10 0v6H7v-6z" /><path d="M12 7V3" /><path d="m4.4 10-1.8-1" /><path d="m21.4 9-1.8 1" /><path d="M5 18h14" /><path d="M3 22h18" />',
     'megaphone-off': '<path d="M3 10v4a1 1 0 0 0 1 1h3l9 5V4L7 9H4a1 1 0 0 0-1 1z" /><path d="M19 9a4 4 0 0 1 0 6" /><path d="m7 15 1.500 5" /><path d="m3 3 18 18" />',
     // ──── Batch 2: Expanding to 1000 icons ────
@@ -577,7 +577,7 @@ export const DEFAULT_ICONS = {
     'gallery-vertical': '<rect x="4" y="7" width="16" height="10" rx="2" /><path d="M7 3.500h10" /><path d="M7 20.500h10" />',
     'dock': '<rect x="3" y="4" width="18" height="16" rx="2" /><path d="M6 16h12" />',
     'ratio': '<rect x="3" y="5" width="18" height="14" rx="2" /><path d="M7 15 17 9" />',
-    'scaling': '<rect x="3" y="11" width="10" height="10" rx="1.500" /><path d="M13 11V5h6" /><path d="M13 11l7-7" /><path d="M16 4h4v4" />',
+    'scaling': '<rect x="3" y="10" width="11" height="11" rx="1" /><path d="M16 8l5-5" /><path d="M15 3h6v6" />',
     'move': '<path d="M12 3v18" /><path d="M3 12h18" /><path d="m9 6 3-3 3 3" /><path d="m9 18 3 3 3-3" /><path d="m6 9-3 3 3 3" /><path d="m18 9 3 3-3 3" />',
     'grab': '<path d="M6 15v-4a2 2 0 0 1 4 0" /><path d="M10 11V9.500a2 2 0 0 1 4 0V11" /><path d="M14 11v-.500a2 2 0 0 1 4 0V11" /><path d="M18 12.500a2 2 0 0 1 4 0V14" /><path d="M6 15l-1.300-1.300a1.800 1.800 0 0 0-2.600 2.600L6.500 20.700C8 21.700 9.500 22 11 22h3a8 8 0 0 0 8-8" />',
     // Files extended
@@ -839,7 +839,7 @@ export const DEFAULT_ICONS = {
     'ribbon': '<path d="M12 3c-3 0-5 2-5 4.500S9 12 12 12s5-2 5-4.500S15 3 12 3z" /><path d="m9.500 11.500-2.500 9.500 5-3 5 3-2.500-9.500" />',
     'ruler': '<path d="m4 16 12-12 4 4-12 12z" /><path d="m8 12 2 2" /><path d="m11 9 2 2" /><path d="m14 6 2 2" />',
     'scale': '<path d="M12 3v18" /><path d="M7 21h10" /><path d="M5 7h14" /><path d="m5 7-3 7a3.500 3.500 0 0 0 6 0z" /><path d="m19 7-3 7a3.500 3.500 0 0 0 6 0z" />',
-    'scissors-line-dashed': '<circle cx="5" cy="6.500" r="2.500" /><circle cx="5" cy="17.500" r="2.500" /><path d="M7 8l10 7.500" /><path d="M7 16l10-7.500" /><path d="M20 12h2" />',
+    'scissors-line-dashed': '<circle cx="5" cy="6.500" r="2.500" /><circle cx="5" cy="17.500" r="2.500" /><path d="M7 8l10 6" /><path d="M7 16l10-6" /><path d="M20 12h2" />',
     'shirt': '<path d="M8 3 3 6l2 4 3-1v12h8V9l3 1 2-4-5-3a4 4 0 0 1-8 0z" />',
     'skull': '<path d="M5 11a7 7 0 0 1 14 0c0 2.5-1 4-3 5v3H8v-3c-2-1-3-2.5-3-5z" /><path d="M9.5 12h.01" /><path d="M14.5 12h.01" /><path d="M12 19v-2" />',
     'sparkle': '<path d="m12 3 2 7 7 2-7 2-2 7-2-7-7-2 7-2z" />',
@@ -1155,7 +1155,7 @@ const SOLID_ICONS: Record<string, string> = {
     'compass': `${DISC}${hole('<path d="m15.500 8.500-2 5-5 2 2-5z" />')}`,
     'shield-check': `${SHIELD}${cut('<path d="m9 12 2 2 4-4" />')}`,
     'shield-alert': `${SHIELD}${cut('<path d="M12 8.500v4" /><path d="M12 16h.01" />')}`,
-    'badge-check': `<path d="M12 3l2.500 2h3l.500 3 2.500 2-1 3 1 3-2.500 2-.500 3h-3L12 22l-2.500-2h-3L6 17l-2.500-2 1-3-1-3L6 7l.500-3h3z" />${cut('<path d="m9 12 2 2 4-4" />')}`,
+    'badge-check': `<path d="M12 2.3L15.18 4.33L18.86 5.14L19.67 8.82L21.7 12L19.67 15.18L18.86 18.86L15.18 19.67L12 21.7L8.82 19.67L5.14 18.86L4.33 15.18L2.3 12L4.33 8.82L5.14 5.14L8.82 4.33z" />${cut('<path d="m9 12 2 2 4-4" />')}`,
     'heart-crack': `${HEART}${cut('<path d="m12 8.500-2 3 3 2-1 4" />')}`,
     'heart-pulse': `${HEART}${cut('<path d="M3.500 12H9l1.500-2.500 2.500 5 1.500-2.500H20.500" />')}`,
     'message-square-plus': `${BUBBLE}${cut('<path d="M12 7.500v6" /><path d="M9 10.500h6" />')}`,
