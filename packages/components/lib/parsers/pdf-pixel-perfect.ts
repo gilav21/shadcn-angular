@@ -3449,6 +3449,10 @@ function assemblePageHtml(
 
 // ── Main Entry Point ──────────────────────────────────────────────────
 
+/**
+ * Renders a PDF page by page with absolutely positioned text, for pixel-faithful display.
+ * Input is untrusted; structures exceeding internal limits are skipped.
+ */
 export async function renderPixelPerfectPaged(buffer: ArrayBuffer, options?: PixelPerfectOptions, limits: ParserLimits = DEFAULT_PARSER_LIMITS): Promise<PixelPerfectPagedResult> {
     const header = new Uint8Array(buffer, 0, Math.min(5, buffer.byteLength));
     if (header.length < 5 ||

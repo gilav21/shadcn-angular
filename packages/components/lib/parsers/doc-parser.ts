@@ -340,6 +340,10 @@ function buildPlainText(paragraphs: ReadonlyArray<string>): string {
     return paragraphs.join('\n');
 }
 
+/**
+ * Extracts the text of a legacy Word .doc file.
+ * Input is untrusted; structures exceeding internal limits are skipped.
+ */
 export function parseDoc(data: Uint8Array, limits: ParserLimits = DEFAULT_PARSER_LIMITS): DocParseResult {
     const ole2 = readOle2(data, limits);
 

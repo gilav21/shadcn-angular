@@ -6590,6 +6590,10 @@ function isStructureListItem(type: string): boolean {
 
 // ── Main export ─────────────────────────────────────────────────────────
 
+/**
+ * Parses a PDF into flowing HTML and plain text.
+ * Input is untrusted; structures exceeding internal limits are skipped.
+ */
 export async function parsePdf(buffer: ArrayBuffer, limits: ParserLimits = DEFAULT_PARSER_LIMITS): Promise<PdfParseResult> {
     const header = new Uint8Array(buffer, 0, Math.min(5, buffer.byteLength));
     if (header.length < 5 ||
@@ -6757,6 +6761,10 @@ function extractAllPages(
     return { pages, allTextParts, allHtmlParts, allImageOnly };
 }
 
+/**
+ * Parses a PDF into one HTML fragment per page, plus the outline.
+ * Input is untrusted; structures exceeding internal limits are skipped.
+ */
 export async function parsePdfPaged(buffer: ArrayBuffer, limits: ParserLimits = DEFAULT_PARSER_LIMITS): Promise<PdfParseResultPaged> {
     const header = new Uint8Array(buffer, 0, Math.min(5, buffer.byteLength));
     if (header.length < 5 ||

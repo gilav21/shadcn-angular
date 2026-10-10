@@ -2568,6 +2568,10 @@ function parseSlidesFromFileSystem(
     return slides;
 }
 
+/**
+ * Reads the slides of a .pptx presentation.
+ * Input is untrusted; structures exceeding internal limits are skipped.
+ */
 export function parsePptx(data: Uint8Array, limits: ParserLimits = DEFAULT_PARSER_LIMITS): PptxParseResult {
     const files = readZip(data);
     const slideSize = parseSlideSize(files);

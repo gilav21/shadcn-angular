@@ -1707,6 +1707,10 @@ function uint8ArrayToBase64(bytes: Uint8Array): string {
 
 // ── Section M: Top-Level Orchestration ─────────────────────────────────
 
+/**
+ * Reads a legacy Word .doc file with its formatting, tables and images.
+ * Input is untrusted; structures exceeding internal limits are skipped.
+ */
 export function parseDocEnhanced(data: Uint8Array, limits: ParserLimits = DEFAULT_PARSER_LIMITS): DocxParseResult {
     try {
         return parseDocInternal(data, limits);

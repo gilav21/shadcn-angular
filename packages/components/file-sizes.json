@@ -6824,20 +6824,20 @@
       "lines": 89
     },
     "parsers/doc-enhanced-parser.spec.ts": {
-      "bytes": 47082,
-      "lines": 1076
+      "bytes": 47790,
+      "lines": 1085
     },
     "parsers/doc-enhanced-parser.ts": {
-      "bytes": 64527,
-      "lines": 1927
+      "bytes": 65339,
+      "lines": 1943
     },
     "parsers/doc-parser.spec.ts": {
-      "bytes": 10282,
-      "lines": 284
+      "bytes": 12647,
+      "lines": 338
     },
     "parsers/doc-parser.ts": {
-      "bytes": 10411,
-      "lines": 367
+      "bytes": 10783,
+      "lines": 373
     },
     "parsers/doc-test-fixtures.ts": {
       "bytes": 7565,
@@ -6887,37 +6887,53 @@
       "bytes": 8153,
       "lines": 244
     },
+    "parsers/limits.spec.ts": {
+      "bytes": 2772,
+      "lines": 62
+    },
+    "parsers/limits.ts": {
+      "bytes": 4688,
+      "lines": 120
+    },
     "parsers/ole2-reader.spec.ts": {
-      "bytes": 20589,
-      "lines": 509
+      "bytes": 26955,
+      "lines": 643
     },
     "parsers/ole2-reader.ts": {
-      "bytes": 10459,
-      "lines": 353
+      "bytes": 13123,
+      "lines": 398
+    },
+    "parsers/parser-golden.spec.ts": {
+      "bytes": 11689,
+      "lines": 202
+    },
+    "parsers/pdf-limits.spec.ts": {
+      "bytes": 32195,
+      "lines": 584
     },
     "parsers/pdf-parser.spec.ts": {
       "bytes": 131766,
       "lines": 2878
     },
     "parsers/pdf-parser.ts": {
-      "bytes": 256774,
-      "lines": 6723
+      "bytes": 265826,
+      "lines": 6900
     },
     "parsers/pdf-pixel-perfect.spec.ts": {
       "bytes": 100956,
       "lines": 2135
     },
     "parsers/pdf-pixel-perfect.ts": {
-      "bytes": 140488,
-      "lines": 3502
+      "bytes": 141721,
+      "lines": 3530
     },
     "parsers/pdf-readable/pdf-readable.spec.ts": {
       "bytes": 13463,
       "lines": 289
     },
     "parsers/pdf-readable/pdf-readable.ts": {
-      "bytes": 6459,
-      "lines": 180
+      "bytes": 6690,
+      "lines": 183
     },
     "parsers/pdf-readable/readable-blocks.spec.ts": {
       "bytes": 63684,
@@ -6948,8 +6964,8 @@
       "lines": 54
     },
     "parsers/pdf-readable/readable-extract.ts": {
-      "bytes": 6649,
-      "lines": 195
+      "bytes": 7103,
+      "lines": 206
     },
     "parsers/pdf-readable/readable-lines.ts": {
       "bytes": 5560,
@@ -6996,24 +7012,24 @@
       "lines": 431
     },
     "parsers/pdf-test-fixtures.ts": {
-      "bytes": 6653,
-      "lines": 170
+      "bytes": 10484,
+      "lines": 265
     },
     "parsers/ppt-parser.spec.ts": {
-      "bytes": 12100,
-      "lines": 303
+      "bytes": 13022,
+      "lines": 322
     },
     "parsers/ppt-parser.ts": {
-      "bytes": 8068,
-      "lines": 285
+      "bytes": 8326,
+      "lines": 290
     },
     "parsers/pptx-parser.spec.ts": {
-      "bytes": 70053,
-      "lines": 1463
+      "bytes": 67107,
+      "lines": 1372
     },
     "parsers/pptx-parser.ts": {
-      "bytes": 88117,
-      "lines": 2565
+      "bytes": 89577,
+      "lines": 2593
     },
     "parsers/svg-sanitizer.spec.ts": {
       "bytes": 9078,
@@ -7040,12 +7056,12 @@
       "lines": 582
     },
     "parsers/xlsx-reader.spec.ts": {
-      "bytes": 17802,
-      "lines": 419
+      "bytes": 18466,
+      "lines": 431
     },
     "parsers/xlsx-reader.ts": {
-      "bytes": 8385,
-      "lines": 267
+      "bytes": 8718,
+      "lines": 274
     },
     "parsers/xlsx.spec.ts": {
       "bytes": 4984,
@@ -7062,6 +7078,10 @@
     "parsers/zip-reader.ts": {
       "bytes": 10825,
       "lines": 308
+    },
+    "parsers/zip-test-fixtures.ts": {
+      "bytes": 2246,
+      "lines": 56
     },
     "popover-api-integrity.spec.ts": {
       "bytes": 2298,

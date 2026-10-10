@@ -27,6 +27,7 @@ let importCounter = 0;
  * the original document (fonts, colors, alignment, spacing) without absolute
  * positioning. The returned `fontFaceCss` must be added to the host document
  * (e.g. a `<style>` in `<head>`) for embedded fonts to render.
+ * Input is untrusted; structures exceeding internal limits are skipped.
  */
 export async function parsePdfReadable(
     buffer: ArrayBuffer,

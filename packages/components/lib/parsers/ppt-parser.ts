@@ -262,6 +262,10 @@ function buildSlides(
     );
 }
 
+/**
+ * Reads the slides of a legacy PowerPoint .ppt file.
+ * Input is untrusted; structures exceeding internal limits are skipped.
+ */
 export function parsePpt(data: Uint8Array, limits: ParserLimits = DEFAULT_PARSER_LIMITS): PptxParseResult {
     const ole2 = readOle2(data, limits);
     const pptStream = ole2.streams.get('PowerPoint Document');
