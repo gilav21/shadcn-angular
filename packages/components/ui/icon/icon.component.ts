@@ -579,7 +579,7 @@ export const DEFAULT_ICONS = {
     'ratio': '<rect x="3" y="5" width="18" height="14" rx="2" /><path d="M7 15 17 9" />',
     'scaling': '<rect x="3" y="10" width="11" height="11" rx="1" /><path d="M16 8l5-5" /><path d="M15 3h6v6" />',
     'move': '<path d="M12 3v18" /><path d="M3 12h18" /><path d="m9 6 3-3 3 3" /><path d="m9 18 3 3 3-3" /><path d="m6 9-3 3 3 3" /><path d="m18 9 3 3-3 3" />',
-    'grab': '<path d="M6 15v-4a2 2 0 0 1 4 0" /><path d="M10 11V9.500a2 2 0 0 1 4 0V11" /><path d="M14 11v-.500a2 2 0 0 1 4 0V11" /><path d="M18 12.500a2 2 0 0 1 4 0V14" /><path d="M6 15l-1.300-1.300a1.800 1.800 0 0 0-2.600 2.600L6.500 20.700C8 21.700 9.500 22 11 22h3a8 8 0 0 0 8-8" />',
+    'grab': '<path d="M5 12v-2a2 2 0 0 1 4 0 2 2 0 0 1 4 0 2 2 0 0 1 4 0 2 2 0 0 1 4 0v6a5 5 0 0 1-5 5h-6a5 5 0 0 1-5-5z" /><path d="M9 10v4.500" /><path d="M13 10v4.500" /><path d="M17 10v4.500" />',
     // Files extended
     'file-check': '<path d="M6 3h8l5 5v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" /><path d="M14 3v5h5" /><path d="m9 15 2 2 4-4" />',
     'file-x': '<path d="M6 3h8l5 5v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" /><path d="M14 3v5h5" /><path d="m9.500 12.500 5 5" /><path d="m14.500 12.500-5 5" />',
