@@ -232,6 +232,15 @@ describe('AreaChartComponent', () => {
         expect(component.tooltipRows()[0].value).toContain('200');
     });
 
+    it('shows a dash for a gap in a tooltip row', () => {
+        fixture.componentRef.setInput('series', [
+            { name: 'Gappy', data: [{ name: 'A', value: 1 }, { name: 'B', value: Number.NaN }] },
+        ]);
+        fixture.detectChanges();
+        component.setHover(1);
+        expect(component.tooltipRows().map((r) => r.value)).toEqual(['—']);
+    });
+
     it('exposes the hovered category title and crosshair position', () => {
         component.setHover(0);
         expect(component.hoverTitle()).toBe('Q1');

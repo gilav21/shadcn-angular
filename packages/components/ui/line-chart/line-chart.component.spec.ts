@@ -162,16 +162,16 @@ describe('LineChartComponent', () => {
         expect(component.crosshairX()).toBe(component.categoryTicks()[2].x);
     });
 
-    it('falls back to zero when a series lacks a value at the hovered index', () => {
-        const ragged: ChartSeries[] = [
+    it('shows a dash, not a number, for a series with no value at the hovered index', () => {
+        const ragged = [
             { name: 'Full', data: [{ name: 'A', value: 5 }, { name: 'B', value: 6 }, { name: 'C', value: 7 }] },
             { name: 'Short', data: [{ name: 'A', value: 1 }] },
-        ];
+            { name: 'Gappy', data: [{ name: 'A', value: 1 }, { name: 'B', value: 2 }, { name: 'C', value: Number.NaN }] },
+        ] as ChartSeries[];
         fixture.componentRef.setInput('series', ragged);
         fixture.detectChanges();
         component.setHover(2);
-        const shortRow = component.tooltipRows().find(r => r.label === 'Short')!;
-        expect(shortRow.value).toContain('0');
+        expect(component.tooltipRows().map(r => r.value)).toEqual(['7', '—', '—']);
     });
 
     it('emits pointHover with the hovered category and clears on leave', () => {

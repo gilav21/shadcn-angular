@@ -183,6 +183,20 @@ export function formatChartValue(
     return numberFormatter(locale, decimals, compact && Math.abs(value) >= 1000).format(value);
 }
 
+/** What a tooltip row shows for a series that has no value at the hovered category. */
+export const MISSING_VALUE_LABEL = '—';
+
+/**
+ * {@link formatChartValue}, or {@link MISSING_VALUE_LABEL} when there is no
+ * finite value to format: a gap in the line must not read as `NaN` or `0`.
+ */
+export function formatChartValueOrGap(
+    value: number | null | undefined,
+    options?: Parameters<typeof formatChartValue>[1],
+): string {
+    return typeof value === 'number' && Number.isFinite(value) ? formatChartValue(value, options) : MISSING_VALUE_LABEL;
+}
+
 export function formatPercentage(value: number, decimals = 1): string {
     return `${value.toFixed(decimals)}%`;
 }

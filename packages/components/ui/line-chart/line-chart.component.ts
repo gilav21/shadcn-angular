@@ -20,7 +20,7 @@ import {
 } from '../../lib/chart.types';
 import {
     getChartColor,
-    formatChartValue,
+    formatChartValueOrGap,
     getChartSummary,
     extent,
 } from '../../lib/chart.utils';
@@ -250,7 +250,7 @@ export class LineChartComponent implements AfterViewInit {
         if (i === null) return [];
         return this.visibleSeries().map(({ s, i: si }) => ({
             label: s.name,
-            value: formatChartValue(s.data[i]?.value ?? 0),
+            value: formatChartValueOrGap(s.data[i]?.value),
             color: getChartColor(si, s.color),
         }));
     });

@@ -5,6 +5,8 @@ import {
     calculateAxisTicks,
     extent,
     formatChartValue,
+    formatChartValueOrGap,
+    MISSING_VALUE_LABEL,
     getDataRange,
 } from './chart.utils';
 
@@ -215,6 +217,14 @@ describe('formatChartValue', () => {
             }
         }
         expect(formatChartValue(1234.5)).toBe('1,234.5');
+    });
+
+    it('formatChartValueOrGap formats a finite value and dashes anything else', () => {
+        expect(formatChartValueOrGap(1234.5)).toBe('1,234.5');
+        expect(formatChartValueOrGap(0)).toBe('0');
+        for (const missing of [Number.NaN, Number.POSITIVE_INFINITY, null, undefined]) {
+            expect(formatChartValueOrGap(missing)).toBe(MISSING_VALUE_LABEL);
+        }
     });
 
     it('constructs one formatter per option set', () => {
