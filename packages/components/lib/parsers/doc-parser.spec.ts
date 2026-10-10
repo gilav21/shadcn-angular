@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { parseDocEnhanced } from './doc-enhanced-parser';
 import { parseDoc } from './doc-parser';
 import {
     buildOle2Doc,
@@ -280,5 +281,41 @@ describe('parseDoc — error handling', () => {
         ]));
         // Piece table rejected (out of bounds) -> fallback recovers the text.
         expect(result.plainText).toContain('Bounds');
+    });
+});
+
+describe('legacy .doc piece table — resource limits', () => {
+    it.fails.each([
+        ['parseDoc', parseDoc],
+        ['parseDocEnhanced', parseDocEnhanced],
+    ])('T-15 %s: overlapping pieces yield text no longer than the WordDocument stream', (_name, parse) => {
+        // Forty pieces all read the same 64 bytes while ccpText claims 2560
+        // characters: the claim, not the file, used to size the text.
+        const sentence = 'Minutes of the weekly planning meeting, attendance and actions.\r';
+        const textFc = 0x600;
+        const pieces = Array.from({ length: 40 }, (_, i) => ({
+            cpStart: i * sentence.length,
+            cpEnd: (i + 1) * sentence.length,
+            fc: textFc,
+            compressed: true,
+        }));
+        const clx = buildClx(pieces);
+        const wd = buildWordDocument(textFc + sentence.length + 16, {
+            ccpText: pieces.length * sentence.length,
+            fcClx: 0x40,
+            lcbClx: clx.length,
+            fcMin: textFc,
+            fcMac: textFc + sentence.length,
+        });
+        writeAnsi(wd, textFc, sentence);
+        const table = new Uint8Array(0x40 + clx.length);
+        table.set(clx, 0x40);
+
+        const result = parse(buildOle2Doc([
+            { name: 'WordDocument', data: wd },
+            { name: '0Table', data: table },
+        ]));
+        expect(result.plainText.startsWith('Minutes of the weekly planning meeting')).toBe(true);
+        expect(result.plainText.length).toBeLessThanOrEqual(wd.length);
     });
 });

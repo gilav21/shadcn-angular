@@ -1,5 +1,6 @@
 import { ByteSink } from './byte-sink';
 import { zlibInflate } from './inflate';
+import { DEFAULT_PARSER_LIMITS, type ParserLimits } from './limits';
 
 /**
  * Ceiling for a single decoded PDF stream. A stream's filter chain can expand
@@ -717,7 +718,12 @@ export class PdfReader {
     private readonly compressedObjects: Map<string, { streamObjNum: number; index: number }> = new Map();
     private trailer: Record<string, PdfObject> | null = null;
 
-    constructor(buffer: ArrayBuffer) {
+    /**
+     * `limits` holds the caps the reader and its renderers apply to what the
+     * file declares — image size, nesting, page count, form draws and total
+     * decoded bytes.
+     */
+    constructor(buffer: ArrayBuffer, readonly limits: ParserLimits = DEFAULT_PARSER_LIMITS) {
         this.data = new Uint8Array(buffer);
         this.text = new TextDecoder('latin1').decode(this.data);
     }
@@ -6426,7 +6432,7 @@ function isStructureListItem(type: string): boolean {
 
 // ── Main export ─────────────────────────────────────────────────────────
 
-export async function parsePdf(buffer: ArrayBuffer): Promise<PdfParseResult> {
+export async function parsePdf(buffer: ArrayBuffer, limits: ParserLimits = DEFAULT_PARSER_LIMITS): Promise<PdfParseResult> {
     const header = new Uint8Array(buffer, 0, Math.min(5, buffer.byteLength));
     if (header.length < 5 ||
         header[0] !== 0x25 ||
@@ -6438,7 +6444,7 @@ export async function parsePdf(buffer: ArrayBuffer): Promise<PdfParseResult> {
         throw new Error('Not a valid PDF file.');
     }
 
-    const reader = new PdfReader(buffer);
+    const reader = new PdfReader(buffer, limits);
 
     try {
         reader.parse();
@@ -6593,7 +6599,7 @@ function extractAllPages(
     return { pages, allTextParts, allHtmlParts, allImageOnly };
 }
 
-export async function parsePdfPaged(buffer: ArrayBuffer): Promise<PdfParseResultPaged> {
+export async function parsePdfPaged(buffer: ArrayBuffer, limits: ParserLimits = DEFAULT_PARSER_LIMITS): Promise<PdfParseResultPaged> {
     const header = new Uint8Array(buffer, 0, Math.min(5, buffer.byteLength));
     if (header.length < 5 ||
         header[0] !== 0x25 || header[1] !== 0x50 || header[2] !== 0x44 ||
@@ -6602,7 +6608,7 @@ export async function parsePdfPaged(buffer: ArrayBuffer): Promise<PdfParseResult
         throw new Error('Not a valid PDF file.');
     }
 
-    const reader = new PdfReader(buffer);
+    const reader = new PdfReader(buffer, limits);
     try {
         reader.parse();
     } catch {

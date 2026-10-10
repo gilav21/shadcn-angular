@@ -507,3 +507,94 @@ describe('readOle2 — directory edge cases', () => {
         expect(ole.entries.map(e => e.name)).toEqual(['Root Entry', 'Only']);
     });
 });
+
+describe('readOle2 — resource limits', () => {
+    /** A container whose 'Doc' stream fills sectors 2–3 with a recognisable byte pattern. */
+    function twoSectorDoc(): Uint8Array {
+        const payload = new Uint8Array(2 * SECTOR);
+        for (let i = 0; i < payload.length; i++) payload[i] = (i * 7) & 0xff;
+        return buildContainer({
+            streams: [
+                { name: 'Root Entry', type: 5, startSector: END_OF_CHAIN, size: 0 },
+                { name: 'Doc', type: 2, startSector: 2, size: payload.length, data: payload },
+            ],
+            fatChains: [[2, 3]],
+            totalSectors: 4,
+        });
+    }
+
+    /**
+     * UC-6: a container claiming more than it holds is read partially or
+     * rejected with the reader's own error — never anything else. Returns the
+     * streams when it was read, null when it was rejected.
+     */
+    function readOrReject(file: Uint8Array): ReadonlyMap<string, Uint8Array> | null {
+        try {
+            return readOle2(file).streams;
+        } catch (error) {
+            expect(error instanceof Error ? error.message : String(error)).toMatch(/^OLE2: /);
+            return null;
+        }
+    }
+
+    it.fails('T-12 a header claiming more FAT sectors than the file holds is clamped or rejected', () => {
+        // ~4 billion FAT sectors claimed by a 2.5 KB file.
+        const hugeFat = twoSectorDoc();
+        writeU32(hugeFat, 44, 0xfffffff0);
+        const streams = readOrReject(hugeFat);
+        if (streams) expect(streams.get('Doc')?.[7]).toBe(49);
+    });
+
+    it.fails('T-12 a mini stream claiming more bytes than the mini stream holds is clamped or rejected', () => {
+        // The entry claims 1 MB; the mini stream holds 128 bytes.
+        const miniStream = new Uint8Array(2 * 64).fill(0x5a);
+        const miniFat = new Uint8Array(SECTOR).fill(0xff);
+        writeU32(miniFat, 0, 1);
+        writeU32(miniFat, 4, END_OF_CHAIN);
+        const mini = buildContainer({
+            streams: [
+                { name: 'Root Entry', type: 5, startSector: 2, size: miniStream.length },
+                { name: 'CompObj', type: 2, startSector: 0, size: 1_000_000 },
+            ],
+            fatChains: [[2], [3]],
+            firstMiniFatSector: 3,
+            miniFatSectors: 1,
+            totalSectors: 4,
+        });
+        writeU32(mini, 56, 0xffffffff); // mini-stream cutoff: every stream is "mini"
+        mini.set(miniStream, sectorByteOffset(2));
+        mini.set(miniFat, sectorByteOffset(3));
+        const compObj = readOrReject(mini)?.get('CompObj');
+        if (compObj) {
+            expect(compObj.length).toBeLessThanOrEqual(miniStream.length);
+            expect(compObj[0]).toBe(0x5a);
+        }
+    });
+
+    it.fails('T-12 a sector size other than 512 or 4096 bytes is a malformed header', () => {
+        const oddSectors = twoSectorDoc();
+        writeU16(oddSectors, 30, 7);
+        expect(() => readOle2(oddSectors)).toThrow(/^OLE2: /);
+    });
+
+    it.fails('T-13 OLE2 directory entries sharing one chain do not each copy it', () => {
+        const payload = new Uint8Array(SECTOR).fill(0x33);
+        const file = buildContainer({
+            streams: [
+                { name: 'Root Entry', type: 5, startSector: END_OF_CHAIN, size: 0 },
+                { name: 'First', type: 2, startSector: 2, size: SECTOR, data: payload },
+                { name: 'Second', type: 2, startSector: 2, size: SECTOR },
+                { name: 'Third', type: 2, startSector: 2, size: 100 },
+            ],
+            fatChains: [[2]],
+            totalSectors: 3,
+        });
+        const streams = readOle2(file).streams;
+        const first = streams.get('First');
+        expect(first).toEqual(payload);
+        expect(streams.get('Second')).toEqual(payload);
+        expect(streams.get('Third')).toEqual(payload.subarray(0, 100));
+        expect(streams.get('Second')?.buffer).toBe(first?.buffer);
+        expect(streams.get('Third')?.buffer).toBe(first?.buffer);
+    });
+});

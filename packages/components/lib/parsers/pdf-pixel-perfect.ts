@@ -3,6 +3,7 @@ import { PdfReader, buildFontInfo, getPageMediaBox, buildImageDataUrl, resolveIm
 import { TtfFont } from './ttf-parser';
 import { buildTtf } from './ttf-builder';
 import type { TtfBuilderGlyph } from './ttf-builder';
+import { DEFAULT_PARSER_LIMITS, type ParserLimits } from './limits';
 
 // Fallback font for glyphs missing from embedded PDF fonts.
 // Loaded lazily from bundled NotoSans-Regular.ttf in Node.js environments.
@@ -3425,7 +3426,7 @@ function assemblePageHtml(
 
 // ── Main Entry Point ──────────────────────────────────────────────────
 
-export async function renderPixelPerfectPaged(buffer: ArrayBuffer, options?: PixelPerfectOptions): Promise<PixelPerfectPagedResult> {
+export async function renderPixelPerfectPaged(buffer: ArrayBuffer, options?: PixelPerfectOptions, limits: ParserLimits = DEFAULT_PARSER_LIMITS): Promise<PixelPerfectPagedResult> {
     const header = new Uint8Array(buffer, 0, Math.min(5, buffer.byteLength));
     if (header.length < 5 ||
         header[0] !== 0x25 || header[1] !== 0x50 || header[2] !== 0x44 ||
@@ -3433,7 +3434,7 @@ export async function renderPixelPerfectPaged(buffer: ArrayBuffer, options?: Pix
         throw new Error('Not a valid PDF file.');
     }
 
-    const reader = new PdfReader(buffer);
+    const reader = new PdfReader(buffer, limits);
     try {
         reader.parse();
     } catch {

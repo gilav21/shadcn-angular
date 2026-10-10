@@ -286,7 +286,7 @@ what make the failing-first tests safe to run.
 
 | Risk | Mitigation |
 |---|---|
-| A cap truncates a legitimate large document (a scanned 600-dpi A0 page is ≈ 70 MP) | Pick caps from the largest real file classes; T-19 guards the existing fixtures; document the caps in `limits.ts` JSDoc |
+| A cap truncates a legitimate large document (a scanned 600-dpi A0 page is ≈ 70 MP — ⚠️ **corrected during implementation:** ≈ 70 MP is a 600-dpi **A3** scan; A0 at 600 dpi is ≈ 560 MP. The 50 MP default holds 600-dpi A4/Letter and 300-dpi A2, and skips 600-dpi A3 and larger) | Pick caps from the largest real file classes; T-19 guards the existing fixtures; document the caps in `limits.ts` JSDoc |
 | A visited set wrongly suppresses a legitimately re-drawn shared form (a logo on every page) | Key the visited set by **draw path in progress** (a recursion stack), not "ever drawn"; T-6 asserts that shared nodes still render |
 | Regex rewrite changes matching semantics | T-19 golden outputs, plus a focused equivalence test on real CMaps from the fixtures |
 | A pre-fix test OOMs or hangs the browser runner | Tiny injected limits and scaled time inputs (see QA); never run unscaled proof-of-concept sizes in the suite |
@@ -315,6 +315,109 @@ what make the failing-first tests safe to run.
 | 8 | xlsx row clamp; depth caps for PDF arrays, pptx `grpSp` (verify browser XML depth first), doc `findBlipImage` (T-14, T-16) | UC-7, UC-9 | ⬜ Not started | — | — | — |
 | 9 | Linear scanning: CMap bfchar/bfrange via `indexOf`, font style-suffix, `NUMBERED_PATTERN_RTL_END`. Sweep `lib/parsers/**` for any other lazy `[\s\S]*?` or nested-quantifier regex over stream text (T-10, T-11) | UC-5 | ⬜ Not started | — | — | — |
 | 10 | T-19 golden comparison green; perf budget measured; T-21 e2e in `e2e/harness/file-viewer`; JSDoc sentence on exported parsers; `sync-registry --fix`; note `release:package rte` in the PR | UC-11, UC-2 | ⬜ Not started | — | — | — |
+
+### Implementation notes and deviations (recorded during implementation)
+
+- **Tasks 1 and 2 share one commit.** The failing-first tests import
+  `limits.ts` and pass `limits` to the entry points, so Task 1 cannot compile
+  or run without Task 2's module.
+- **`it.fails` marks each failing-first test until its fix lands.** Every one
+  was first observed failing for the stated reason: an assertion, or a
+  timing of 1.3–4.2 s against the 1 s budget. Marking them keeps the suite
+  green between tasks; the task that fixes one flips it to `it` (an
+  `it.fails` test turns red as soon as its fix lands, so a flip can't be
+  forgotten).
+- **Deferred tests.** The cases that need an injected `limits` argument on a
+  non-PDF parser are written with the task that threads `limits` into that
+  parser, so no commit carries an unused parameter:
+  - T-12's per-stream cap case and `readOle2` threading go with Task 7.
+  - T-16's `.doc` BLIP and pptx `grpSp` cases, with `parseDocEnhanced` and
+    `parsePptx` threading, go with Task 8.
+  - The test-first rule still holds: each was observed failing before its fix.
+  - T-12's no-limit cases, T-13, T-14 and T-15 need no injected limits and
+    are written in Task 1.
+  - `parseXlsx` takes no `limits`: its row cap is the existing `maxRows` option.
+  - `parseDoc` and `parsePpt` get `limits` in Task 7, passed through to
+    `readOle2`.
+  - The PDF side is the exception to "no unused parameter". `PdfReader`
+    stores `limits` from Task 2 on, as a public `readonly` field the PDF fixes
+    in Tasks 3–6 read. This is accepted because the PDF tests T-1…T-18 must
+    inject limits through the entry points now.
+- **Helper names.** The spec's `VisitedSet` / `withDepth()` ship as
+  `visitOnce()` (an ever-visited set, for page tree, structure tree, outlines
+  and font resources) and `DrawPath` (cycle check, depth cap and draw budget
+  for form XObjects). `DrawPath`'s depth is the size of the draw path in
+  progress.
+- **T-4's non-consuming-code case is added with Task 3, not Task 1.** Before
+  the fix, a Group 3 row whose data runs out mid-row loops forever:
+  `readBit` returns 0 past the end and no code is all zeros. That is a hang,
+  not a slow test, so it cannot run in the suite. It was shown in a throwaway
+  Worker probe, which reported `HUNG after 5000ms` and was killed.
+- **`ParserLimits.maxFormDrawsPerPage` is added.** A per-draw-path visited
+  set cuts cycles but cannot bound a shared k^depth form DAG, whose output is
+  k^depth by definition. UC-2/T-6 bound it with a per-page form-draw budget
+  (default 10 000), so shared forms still draw every time below the budget.
+- **T-9 uses a stale-object fixture, not a reduced depth cap.**
+  - The file holds a second, unreferenced copy of the page content after the
+    referenced one. Only a parse that abandoned the xref and re-scanned the
+    file — what catching the stack overflow did — returns the stale copy. No
+    spy is needed.
+  - A third case chains 20 000 distinct `/Prev` sections, and only the oldest
+    indexes the page. A recursive walk that catches its own overflow loses that
+    section, so the case pins R2 against a local `try/catch RangeError` fix.
+  - The `/Prev` walk is therefore iterative. Visiting each distinct offset
+    once bounds it by the file size; it needs no depth cap.
+  - The `/Length` cases pin termination and output only. A caught-overflow
+    fallback would produce the same bytes via the endstream scan, so R2 there
+    rests on the in-progress resolution set, which code review checks.
+- **T-17 bounds decode cost, not render count.** A 1 MiB Flate stream is shared
+  as the ToUnicode CMap of 600 fonts. The test asserts that the page text
+  survives within the time budget, which holds under both a decode budget and
+  decode-once caching. A second T-17 case gives six fonts six distinct 1 MiB
+  CMaps under a 4.5 MiB budget. Only an enforced budget passes it.
+  - The first four must map.
+  - The sixth must not, because no budget is left for it.
+  - The fifth straddles the budget and may be skipped or truncated, as R1
+    allows.
+- **T-18's structure-tree case asserts structure-derived output.** The tagged
+  12pt text must still come out as `<h1>`, so a fix that drops a shared tree
+  fails.
+- **T-12's sector-size case asserts the existing `OLE2: …` error family**, not
+  new wording.
+- **T-12 and T-4 accept every outcome the spec allows.**
+  - T-12's FAT-count and mini-stream cases pass with a partial read or an
+    `OLE2: …` rejection (UC-6). Any other outcome fails, including the bare
+    `RangeError` of an oversized allocation.
+  - T-4's tall-rows case passes whether the image is truncated to the
+    rows the cap allows or skipped. In both T-4 cases the time budget is the
+    binding assertion.
+- **T-6 pins the per-page scope of `maxFormDrawsPerPage`.** Two pages draw
+  the same DAG under a budget that fits exactly one page, and both pages must
+  still draw every leaf.
+- **Why the non-PDF parsers don't get a stored-but-unused `limits` the way
+  `PdfReader` does.** The PDF tests in Task 1 inject limits through the entry
+  points today, which needs the field. No non-PDF Task 1 test injects
+  limits, so threading them now would only add unread parameters.
+- **T-4 also bounds Rows.** A second case claims a million rows on an image
+  inside the cap, over data that decodes at two rows per byte. The decoder
+  must stop at the rows the cap allows, so a fix that bounds only Columns
+  fails it on time.
+- **T-19 covers more than the demo PDFs.** It hashes every PDF entry point on
+  the 5 demo PDFs and a built PDF, and a built .doc, .xlsx, .pptx (nested
+  groups) and .ppt (OLE2). The PDF, .doc and .xlsx hashes were captured twice
+  at 14216e9b, identical both times. The .pptx and .ppt hashes were added
+  later in Task 1, from pptx, ppt and OLE2 sources still identical to
+  14216e9b.
+- **T-4 when `Columns` disagrees with `/Width`.** Refusing the oversized rows
+  and clamping them to `/Width` are both allowed, and they differ in what that
+  image shows. The test therefore pins only what they share: the page and a
+  valid CCITT image inside the cap render, and a 20-million-column claim
+  parses within the time budget. Bounding only Rows fails that budget.
+- **Perf baseline** (largest demo fixture `invoice.pdf`, all four PDF entry
+  points, median of 25): 13.8–15.2 ms at 14216e9b. It is measured with a
+  local, uncommitted workload spec. The coordinator directed that the
+  benchmark carry no assertion, and lint's `sonarjs/assertions-in-tests` would
+  reject a committed test without one, so it stays local.
 
 ## Definition of Done (per task)
 

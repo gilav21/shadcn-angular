@@ -168,3 +168,98 @@ export class PdfBuilder {
         return new TextEncoder().encode(fullPdf).buffer;
     }
 }
+
+/** Latin-1 bytes of a string — PDF syntax is byte-oriented. */
+export function latin1Bytes(s: string): Uint8Array<ArrayBuffer> {
+    const out = new Uint8Array(s.length);
+    for (let i = 0; i < s.length; i++) out[i] = (s.codePointAt(i) ?? 0) & 0xff;
+    return out;
+}
+
+/** Concatenates byte chunks into one buffer. */
+export function concatBytes(chunks: ReadonlyArray<Uint8Array>): Uint8Array<ArrayBuffer> {
+    const out = new Uint8Array(chunks.reduce((sum, c) => sum + c.length, 0));
+    let pos = 0;
+    for (const c of chunks) { out.set(c, pos); pos += c.length; }
+    return out;
+}
+
+interface RawPdfObject {
+    readonly num: number;
+    readonly body: Uint8Array;
+}
+
+/**
+ * Low-level PDF assembler: arbitrary indirect objects (dicts, raw values,
+ * streams) behind a correct traditional xref table and trailer. Use it when a
+ * fixture needs a structure {@link PdfBuilder} cannot express — XObjects,
+ * custom page trees, hostile references. When an object number is added
+ * twice, the xref points at the first copy and the second stays in the file
+ * as an unreferenced body (the shape incremental saves leave behind). The
+ * trailer's /Root is always object 1.
+ */
+export class RawPdf {
+    private readonly objs: RawPdfObject[] = [];
+
+    /** Adds `num 0 obj << dict >> endobj`. */
+    obj(num: number, dict: string): this {
+        return this.rawObj(num, `<< ${dict} >>`);
+    }
+
+    /** Adds `num 0 obj <raw value> endobj`. */
+    rawObj(num: number, raw: string): this {
+        this.objs.push({ num, body: latin1Bytes(`${num} 0 obj\n${raw}\nendobj\n`) });
+        return this;
+    }
+
+    /** Adds a stream object; `/Length` is appended unless `dict` sets its own. */
+    streamObj(num: number, dict: string, bytes: Uint8Array): this {
+        const length = dict.includes('/Length') ? '' : ` /Length ${bytes.length}`;
+        this.objs.push({
+            num,
+            body: concatBytes([
+                latin1Bytes(`${num} 0 obj\n<< ${dict}${length} >>\nstream\n`),
+                bytes,
+                latin1Bytes('\nendstream\nendobj\n'),
+            ]),
+        });
+        return this;
+    }
+
+    /** Header plus every object body, and each object's first byte offset. */
+    buildBody(): { readonly bytes: Uint8Array; readonly offsets: ReadonlyMap<number, number> } {
+        const parts: Uint8Array[] = [latin1Bytes('%PDF-1.5\n%âãÏÓ\n')];
+        let length = parts[0].length;
+        const offsets = new Map<number, number>();
+        for (const o of this.objs) {
+            if (!offsets.has(o.num)) offsets.set(o.num, length);
+            parts.push(o.body);
+            length += o.body.length;
+        }
+        return { bytes: concatBytes(parts), offsets };
+    }
+
+    build(): ArrayBuffer {
+        const { bytes, offsets } = this.buildBody();
+        const size = Math.max(0, ...offsets.keys()) + 1;
+        let xref = `xref\n0 ${size}\n0000000000 65535 f \n`;
+        for (let i = 1; i < size; i++) {
+            const offset = offsets.get(i);
+            xref += offset === undefined ? '0000000000 65535 f \n' : `${String(offset).padStart(10, '0')} 00000 n \n`;
+        }
+        const trailer = `trailer\n<< /Size ${size} /Root 1 0 R >>\nstartxref\n${bytes.length}\n%%EOF`;
+        return concatBytes([bytes, latin1Bytes(xref + trailer)]).buffer;
+    }
+}
+
+/**
+ * Catalog (1, plus `catalogEntries`), page tree (2), one page (3) with
+ * `resources`, and its content stream (4).
+ */
+export function onePagePdf(content: string, resources = '', catalogEntries = ''): RawPdf {
+    return new RawPdf()
+        .obj(1, `/Type /Catalog /Pages 2 0 R ${catalogEntries}`)
+        .obj(2, '/Type /Pages /Kids [3 0 R] /Count 1')
+        .obj(3, `/Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << ${resources} >> /Contents 4 0 R`)
+        .streamObj(4, '', latin1Bytes(content));
+}
