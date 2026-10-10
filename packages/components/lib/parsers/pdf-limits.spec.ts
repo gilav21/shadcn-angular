@@ -205,7 +205,7 @@ function sharedFormDagPdf(fanOut: number, depth: number, pages = 1): ArrayBuffer
 }
 
 describe('PDF form XObjects — R2 bounded traversal', () => {
-    it.fails.each(ENTRY_POINTS)('T-5 $name draws a self-drawing and a mutually-recursive form once per draw path', async ({ text }) => {
+    it.each(ENTRY_POINTS)('T-5 $name draws a self-drawing and a mutually-recursive form once per draw path', async ({ text }) => {
         const loop = await text(selfDrawingFormPdf());
         expect(count(loop, 'Loop')).toBe(1);
 
@@ -214,7 +214,7 @@ describe('PDF form XObjects — R2 bounded traversal', () => {
         expect(count(cycle, 'Beta')).toBe(1);
     });
 
-    it.fails.each(ENTRY_POINTS)('T-6 $name renders every draw of a shared sub-form, and caps a k^depth form DAG', async ({ text }) => {
+    it.each(ENTRY_POINTS)('T-6 $name renders every draw of a shared sub-form, and caps a k^depth form DAG', async ({ text }) => {
         // Shared, not cyclic: 2 draws per level over 4 levels reach 8 leaves, all drawn.
         expect(count(await text(sharedFormDagPdf(2, 4)), 'Leaf')).toBe(8);
         // Those are 1 + 2 + 4 + 8 = 15 form draws: a budget of exactly 15 still draws
@@ -233,7 +233,7 @@ describe('PDF form XObjects — R2 bounded traversal', () => {
 });
 
 describe('PDF page tree — R2 bounded traversal', () => {
-    it.fails('T-7 a cyclic /Kids returns the distinct pages; a fan-out tree is capped', async () => {
+    it('T-7 a cyclic /Kids returns the distinct pages; a fan-out tree is capped', async () => {
         const cyclic = new RawPdf()
             .obj(1, '/Type /Catalog /Pages 2 0 R')
             .obj(2, '/Type /Pages /Kids [3 0 R 2 0 R] /Count 2')
@@ -504,7 +504,7 @@ describe('PDF decode budget — R1 bounded by bytes', () => {
 });
 
 describe('PDF shared document structure — R2 visit once', () => {
-    it.fails('T-18 the structure tree visits a shared element once', async () => {
+    it('T-18 the structure tree visits a shared element once', async () => {
         const depth = 23;
         const pdf = onePagePdf(
             'BT /F1 12 Tf 72 700 Td /H1 << /MCID 0 >> BDC (Tagged) Tj EMC ET', '/Font << /F1 5 0 R >>', '/StructTreeRoot 10 0 R',
@@ -524,7 +524,7 @@ describe('PDF shared document structure — R2 visit once', () => {
         expect(ms).toBeLessThan(TIME_BUDGET_MS);
     }, 60_000);
 
-    it.fails('T-18 outlines visit a shared child list once', async () => {
+    it('T-18 outlines visit a shared child list once', async () => {
         // Every item of every level points at the same next-level list, so a
         // walk that re-enters shared lists yields 3 + 9 + … + 3^10 items.
         const fanOut = 3;
@@ -549,7 +549,7 @@ describe('PDF shared document structure — R2 visit once', () => {
         expect(outline.map(item => item.title)).toEqual(['L0I0', 'L0I1', 'L0I2']);
     });
 
-    it.fails('T-18 readable font resources visit a shared form XObject once', async () => {
+    it('T-18 readable font resources visit a shared form XObject once', async () => {
         const fanOut = 260;
         const names = (num: number): string =>
             Array.from({ length: fanOut }, (_, i) => `/X${i} ${num} 0 R`).join(' ');

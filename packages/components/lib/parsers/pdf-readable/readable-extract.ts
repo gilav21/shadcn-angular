@@ -6,6 +6,7 @@ import {
     extractPageContent,
     parseStructureTree,
 } from '../pdf-parser';
+import { visitOnce } from '../limits';
 import type { FontRegistry } from '../pdf-pixel-perfect';
 import type { ExtractedDocument, FontMapping, PageExtract } from './readable-types';
 
@@ -114,10 +115,20 @@ function registerPageFonts(
     try {
         const pageDict = reader.getDict(pageObj);
         const resources = pageDict['Resources'] ? reader.getDict(pageDict['Resources']) : {};
-        registerResourceFonts(reader, resources, registry, fonts, 0);
+        registerResourceFonts(reader, resources, registry, fonts, { depth: 0, seen: new Set() });
     } catch {
         // A malformed resource dict must not abort the page's text extraction.
     }
+}
+
+/**
+ * Where the walk over form XObjects stands. `seen` holds the resource
+ * dictionaries already registered, so a form reachable by many paths is
+ * registered once instead of once per path.
+ */
+interface ResourceWalk {
+    readonly depth: number;
+    readonly seen: Set<Record<string, PdfObject>>;
 }
 
 function registerResourceFonts(
@@ -125,11 +136,11 @@ function registerResourceFonts(
     resources: Record<string, PdfObject>,
     registry: FontRegistry,
     fonts: Map<string, FontMapping>,
-    depth: number,
+    walk: ResourceWalk,
 ): void {
-    if (depth > MAX_RESOURCE_DEPTH) return;
+    if (walk.depth > MAX_RESOURCE_DEPTH || !visitOnce(walk.seen, resources)) return;
     registerFontDict(reader, resources, registry, fonts);
-    descendIntoXObjects(reader, resources, registry, fonts, depth);
+    descendIntoXObjects(reader, resources, registry, fonts, walk);
 }
 
 function registerFontDict(
@@ -172,13 +183,13 @@ function descendIntoXObjects(
     resources: Record<string, PdfObject>,
     registry: FontRegistry,
     fonts: Map<string, FontMapping>,
-    depth: number,
+    walk: ResourceWalk,
 ): void {
     if (!resources['XObject']) return;
     const xObjects = reader.getDict(resources['XObject']);
     for (const ref of Object.values(xObjects)) {
         const nested = resolveXObjectResources(reader, ref);
-        if (nested) registerResourceFonts(reader, nested, registry, fonts, depth + 1);
+        if (nested) registerResourceFonts(reader, nested, registry, fonts, { depth: walk.depth + 1, seen: walk.seen });
     }
 }
 

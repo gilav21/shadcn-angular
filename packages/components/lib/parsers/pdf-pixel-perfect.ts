@@ -3,7 +3,7 @@ import { PdfReader, buildFontInfo, getPageMediaBox, buildImageDataUrl, resolveIm
 import { TtfFont } from './ttf-parser';
 import { buildTtf } from './ttf-builder';
 import type { TtfBuilderGlyph } from './ttf-builder';
-import { DEFAULT_PARSER_LIMITS, type ParserLimits } from './limits';
+import { DEFAULT_PARSER_LIMITS, DrawPath, type ParserLimits } from './limits';
 
 // Fallback font for glyphs missing from embedded PDF fonts.
 // Loaded lazily from bundled NotoSans-Regular.ttf in Node.js environments.
@@ -2135,6 +2135,8 @@ class PixelPerfectProcessor {
     // Graphics tracking
     private readonly pathRects: PathRect[] = [];
     private readonly imageItems: ImageItem[] = [];
+    /** Form XObjects being drawn on the current page; a fresh one per page. */
+    private formDraws: DrawPath<PdfObject>;
     private pathPoints: number[] = [];
     private readonly generalPathPoints: Array<{ tx: number; ty: number }> = [];
 
@@ -2142,13 +2144,20 @@ class PixelPerfectProcessor {
         this.reader = reader;
         this.fontRegistry = fontRegistry;
         this.zoom = zoom;
+        this.formDraws = this.newFormDraws();
         // general.cc:326-327: text_scale_factor1 = max(zoom, font_size_multiplier)
         this.textScaleFactor1 = Math.max(zoom, FONT_SIZE_MULTIPLIER);
         this.textScaleFactor2 = zoom / this.textScaleFactor1;
     }
 
+    private newFormDraws(): DrawPath<PdfObject> {
+        const { maxNestingDepth, maxFormDrawsPerPage } = this.reader.limits;
+        return new DrawPath(maxNestingDepth, maxFormDrawsPerPage);
+    }
+
     processPage(pageObj: PdfObject, _pageIndex: number): ProcessedPage {
         this.resetState();
+        this.formDraws = this.newFormDraws();
         this.lines.length = 0;
         this.pathRects.length = 0;
         this.imageItems.length = 0;
@@ -3006,13 +3015,13 @@ class PixelPerfectProcessor {
         const subtype = this.reader.getString(objDict['Subtype']);
 
         if (subtype === 'Form') {
-            this.processFormXObject(ref, resources, pageWidth, pageHeight);
+            this.formDraws.enter(this.reader.resolveDeep(ref), () => this.drawFormXObject(ref, resources, pageWidth, pageHeight));
         } else if (subtype === 'Image') {
             this.processImageXObject(ref, objDict);
         }
     }
 
-    private processFormXObject(
+    private drawFormXObject(
         ref: PdfObject,
         parentResources: Record<string, PdfObject>,
         pageWidth: number,

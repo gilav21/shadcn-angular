@@ -1,6 +1,6 @@
 import { ByteSink } from './byte-sink';
 import { zlibInflate } from './inflate';
-import { DEFAULT_PARSER_LIMITS, visitOnce, type ParserLimits } from './limits';
+import { DEFAULT_PARSER_LIMITS, DrawPath, visitOnce, type ParserLimits } from './limits';
 
 /**
  * Ceiling for a single decoded PDF stream. A stream's filter chain can expand
@@ -1482,22 +1482,30 @@ export class PdfReader {
 
     private static readonly INHERITABLE_PAGE_KEYS = ['Resources', 'MediaBox', 'CropBox', 'Rotate'] as const;
 
-    private collectPages(node: PdfObject, inherited: Record<string, PdfObject> = {}): PdfObject[] {
-        const dict = this.getDict(node);
-        const typeObj = dict['Type'];
-        const typeName = typeObj ? this.getString(typeObj) : '';
-        const kids = dict['Kids'];
-
-        if (typeName === 'Page' || (!kids && dict['Contents'])) {
-            this.applyInheritedPageKeys(dict, inherited);
-            return [this.resolveDeep(node)];
-        }
-
-        if (!kids) return [];
-        const nextInherited = this.mergeInheritablePageKeys(dict, inherited);
+    /**
+     * Walks the page tree depth-first, in page order. Each node is visited once,
+     * so a /Kids that lists an ancestor, or the same child many times, yields
+     * every distinct page once; the walk keeps its own stack, so a tree of any
+     * depth costs no call stack.
+     */
+    private collectPages(root: PdfObject): PdfObject[] {
         const pages: PdfObject[] = [];
-        for (const kid of this.getArray(kids)) {
-            pages.push(...this.collectPages(kid, nextInherited));
+        const seen = new Set<PdfObject>();
+        const pending: Array<{ node: PdfObject; inherited: Record<string, PdfObject> }> = [{ node: root, inherited: {} }];
+        for (let next = pending.pop(); next && pages.length < this.limits.maxPages; next = pending.pop()) {
+            const resolved = this.resolveDeep(next.node);
+            if (!visitOnce(seen, resolved)) continue;
+            const dict = this.getDict(resolved);
+            const kids = dict['Kids'];
+
+            if (this.getString(dict['Type']) === 'Page' || (!kids && dict['Contents'])) {
+                this.applyInheritedPageKeys(dict, next.inherited);
+                pages.push(resolved);
+            } else if (kids) {
+                const inherited = this.mergeInheritablePageKeys(dict, next.inherited);
+                // Pushed last-first, so the first kid is popped first.
+                for (const kid of this.getArray(kids).reverse()) pending.push({ node: kid, inherited });
+            }
         }
         return pages;
     }
@@ -3019,9 +3027,16 @@ function buildFormCtm(ctx: ContentExtractionContext, dict: Record<string, PdfObj
     return multiplyMatrix(m, ctx.gs.ctm);
 }
 
+/**
+ * Draws a form XObject unless it is already being drawn higher up (a cycle),
+ * the path is at the nesting cap, or the page's draw budget is spent. A form
+ * shared between sibling draws is drawn every time.
+ */
 function processFormXObject(parentCtx: ContentExtractionContext, formObj: PdfObject): void {
-    if (parentCtx.formDepth >= 10) return;
+    parentCtx.formDraws.enter(formObj, () => drawFormXObject(parentCtx, formObj));
+}
 
+function drawFormXObject(parentCtx: ContentExtractionContext, formObj: PdfObject): void {
     const dict = formObj.value as Record<string, PdfObject>;
     if (!formObj.stream) return;
     const decoded = parentCtx.reader.decodeStreamData(dict, formObj.stream);
@@ -3063,7 +3078,7 @@ function buildFormContext(
             lineCap: parentCtx.gs.lineCap, lineJoin: parentCtx.gs.lineJoin,
         },
         operandStack: [], pageIndex: parentCtx.pageIndex,
-        formDepth: parentCtx.formDepth + 1, compatibilityMode: 0,
+        formDraws: parentCtx.formDraws, compatibilityMode: 0,
         mcidStack: [], ocgOffSet: parentCtx.ocgOffSet ?? new Set<string>(),
         ocgHiddenDepth: 0, perFragment: parentCtx.perFragment,
         patternFillImage: null,
@@ -3590,7 +3605,8 @@ interface ContentExtractionContext {
     gs: GraphicsState;
     operandStack: string[];
     pageIndex: number;
-    formDepth: number;
+    /** Form XObjects being drawn right now on this page, and how many have been. */
+    formDraws: DrawPath<PdfObject>;
     compatibilityMode: number;
     mcidStack: number[];
     ocgOffSet: Set<string>;
@@ -4004,7 +4020,7 @@ function buildExtractionContext(
             dashArray: [], dashPhase: 0, lineCap: 0, lineJoin: 0,
         },
         operandStack: [], pageIndex,
-        formDepth: 0, compatibilityMode: 0,
+        formDraws: new DrawPath(reader.limits.maxNestingDepth, reader.limits.maxFormDrawsPerPage), compatibilityMode: 0,
         mcidStack: [], ocgOffSet: new Set<string>(),
         ocgHiddenDepth: 0, perFragment: options?.perFragment ?? false,
         patternFillImage: null,
@@ -6318,10 +6334,16 @@ function resolvePageIndex(reader: PdfReader, pageRef: PdfObject | undefined, pag
     return findPageIndexByDict(reader, dict, pages);
 }
 
-interface StructKDictOptions {
+/** One walk of the structure tree: `seen` holds the elements already visited. */
+interface StructWalk {
     readonly reader: PdfReader;
-    readonly kDict: Record<string, PdfObject>;
     readonly pages: PdfObject[];
+    readonly seen: Set<PdfObject>;
+}
+
+interface StructKDictOptions {
+    readonly walk: StructWalk;
+    readonly kDict: Record<string, PdfObject>;
     readonly effectivePage: number;
     readonly depth: number;
     readonly mcids: StructureMcidEntry[];
@@ -6330,41 +6352,45 @@ interface StructKDictOptions {
 }
 
 function processStructKDict(opts: StructKDictOptions): void {
-    const { reader, kDict, pages, effectivePage, depth, mcids, children, elemRef } = opts;
+    const { walk, kDict, effectivePage, depth, mcids, children, elemRef } = opts;
     const mcidObj = kDict['MCID'];
     if (mcidObj) {
-        const mcidVal = reader.getNumber(mcidObj);
+        const mcidVal = walk.reader.getNumber(mcidObj);
         const mcidPageRef = kDict['Pg'];
-        const mcidPage = mcidPageRef ? resolvePageIndex(reader, mcidPageRef, pages) : effectivePage;
+        const mcidPage = mcidPageRef ? resolvePageIndex(walk.reader, mcidPageRef, walk.pages) : effectivePage;
         mcids.push({ mcid: mcidVal, page: mcidPage >= 0 ? mcidPage : effectivePage });
     } else {
-        const child = parseStructureElement(reader, elemRef, pages, effectivePage, depth + 1);
+        const child = parseStructureElement(walk, elemRef, effectivePage, depth + 1);
         if (child) children.push(child);
     }
 }
 
 function processStructKArrayItem(
-    reader: PdfReader, item: PdfObject, pages: PdfObject[], effectivePage: number, depth: number,
+    walk: StructWalk, item: PdfObject, effectivePage: number, depth: number,
     mcids: StructureMcidEntry[], children: StructureNode[],
 ): void {
-    const itemResolved = reader.resolveDeep(item);
+    const itemResolved = walk.reader.resolveDeep(item);
     if (itemResolved.type === 'number') {
         mcids.push({ mcid: itemResolved.value as number, page: effectivePage });
     } else if (itemResolved.type === 'dict') {
         const itemDict = itemResolved.value as Record<string, PdfObject>;
-        processStructKDict({ reader, kDict: itemDict, pages, effectivePage, depth, mcids, children, elemRef: item });
+        processStructKDict({ walk, kDict: itemDict, effectivePage, depth, mcids, children, elemRef: item });
     }
 }
 
 function parseStructureElement(
-    reader: PdfReader, elemObj: PdfObject, pages: PdfObject[], parentPageIdx: number, depth: number,
+    walk: StructWalk, elemObj: PdfObject, parentPageIdx: number, depth: number,
 ): StructureNode | null {
     if (depth > 50) return null;
+    const { reader, pages } = walk;
     const resolved = reader.resolveDeep(elemObj);
     if (resolved.type === 'number') {
         return { type: 'MCID', mcids: [{ mcid: resolved.value as number, page: parentPageIdx }], children: [] };
     }
     if (resolved.type !== 'dict') return null;
+    // An element has one parent; a second reference to it is a shared or cyclic
+    // node, and expanding it again costs a copy of its whole subtree each time.
+    if (!visitOnce(walk.seen, resolved)) return null;
     const dict = resolved.value as Record<string, PdfObject>;
     const typeStr = reader.getString(dict['Type']);
     if (typeStr && typeStr !== 'StructElem') return null;
@@ -6386,10 +6412,10 @@ function parseStructureElement(
         mcids.push({ mcid: kResolved.value as number, page: effectivePage });
     } else if (kResolved.type === 'dict') {
         const kDict = kResolved.value as Record<string, PdfObject>;
-        processStructKDict({ reader, kDict, pages, effectivePage, depth, mcids, children, elemRef: kResolved });
+        processStructKDict({ walk, kDict, effectivePage, depth, mcids, children, elemRef: kResolved });
     } else if (kResolved.type === 'array') {
         for (const item of kResolved.value as PdfObject[]) {
-            processStructKArrayItem(reader, item, pages, effectivePage, depth, mcids, children);
+            processStructKArrayItem(walk, item, effectivePage, depth, mcids, children);
         }
     }
 
@@ -6408,10 +6434,8 @@ function collectMcidTypes(node: StructureNode, result: Map<string, string>): voi
     }
 }
 
-function collectMcidTypesFromElement(
-    reader: PdfReader, item: PdfObject, pages: PdfObject[], mcidToType: Map<string, string>,
-): void {
-    const node = parseStructureElement(reader, item, pages, 0, 0);
+function collectMcidTypesFromElement(walk: StructWalk, item: PdfObject, mcidToType: Map<string, string>): void {
+    const node = parseStructureElement(walk, item, 0, 0);
     if (node) collectMcidTypes(node, mcidToType);
 }
 
@@ -6427,14 +6451,15 @@ export function parseStructureTree(reader: PdfReader, pages: PdfObject[]): Struc
         if (!kObj) return emptyResult;
 
         const mcidToType = new Map<string, string>();
+        const walk: StructWalk = { reader, pages, seen: new Set<PdfObject>() };
 
         const kResolved = reader.resolveDeep(kObj);
         if (kResolved.type === 'array') {
             for (const item of kResolved.value as PdfObject[]) {
-                collectMcidTypesFromElement(reader, item, pages, mcidToType);
+                collectMcidTypesFromElement(walk, item, mcidToType);
             }
         } else {
-            collectMcidTypesFromElement(reader, kObj, pages, mcidToType);
+            collectMcidTypesFromElement(walk, kObj, mcidToType);
         }
 
         return { mcidToType, hasStructure: mcidToType.size > 0 };
@@ -6689,7 +6714,7 @@ function parseOutline(reader: PdfReader, pdfPages: PdfObject[]): PdfOutlineItem[
         const firstRef = outlinesDict['First'];
         if (!firstRef) return [];
         const pageMap = buildPageObjNumMap(reader, pdfPages);
-        return parseOutlineItems(reader, firstRef, pageMap, 0);
+        return parseOutlineItems(reader, firstRef, pageMap, 0, new Set<string>());
     } catch {
         return [];
     }
@@ -6736,10 +6761,15 @@ function resolveOutlinePageIndex(reader: PdfReader, item: Record<string, PdfObje
     } catch { return -1; }
 }
 
-function parseOutlineItems(reader: PdfReader, firstRef: PdfObject, pageMap: Map<string, number>, depth: number): PdfOutlineItem[] {
+/**
+ * `visited` spans the whole outline tree, not one sibling list: two items
+ * pointing at the same child list would otherwise each expand it in full.
+ */
+function parseOutlineItems(
+    reader: PdfReader, firstRef: PdfObject, pageMap: Map<string, number>, depth: number, visited: Set<string>,
+): PdfOutlineItem[] {
     if (depth > 10) return [];
     const items: PdfOutlineItem[] = [];
-    const visited = new Set<string>();
     let currentRef: PdfObject | null = firstRef;
 
     while (currentRef) {
@@ -6755,7 +6785,7 @@ function parseOutlineItems(reader: PdfReader, firstRef: PdfObject, pageMap: Map<
             let children: PdfOutlineItem[] = [];
             const childFirst = itemDict['First'];
             if (childFirst) {
-                children = parseOutlineItems(reader, childFirst, pageMap, depth + 1);
+                children = parseOutlineItems(reader, childFirst, pageMap, depth + 1, visited);
             }
 
             items.push({ title, pageIndex, children });
