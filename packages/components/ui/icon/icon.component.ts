@@ -286,7 +286,7 @@ export const DEFAULT_ICONS = {
     'wind': '<path d="M3 8h10a3 3 0 1 0-3-3" /><path d="M3 12h15a3 3 0 1 1-3 3" /><path d="M3 16h6" />',
     'thermometer': '<path d="M9 13.900V5.500a3 3 0 0 1 6 0v8.400a4.500 4.500 0 1 1-6 0z" /><path d="M12 8.500v6.500" /><path d="M18 5.500h2" /><path d="M18 9h2" />',
     'umbrella': '<path d="M3 12a9 9 0 0 1 18 0z" /><path d="M12 12v7a2 2 0 0 0 4 0" /><path d="M12 3v1" />',
-    'snowflake': '<path d="M12 3v18" /><path d="m4.2 7.5 15.6 9" /><path d="m4.2 16.5 15.6-9" /><path d="m9.5 4.5 2.5 2 2.5-2" /><path d="m9.5 19.5 2.5-2 2.5 2" />',
+    'snowflake': '<path d="M12 12L12 2" /><path d="M9.8 3.6L12 5.8L14.2 3.6" /><path d="M12 12L20.66 7" /><path d="M18.17 5.89L17.37 8.9L20.37 9.71" /><path d="M12 12L20.66 17" /><path d="M20.37 14.29L17.37 15.1L18.17 18.11" /><path d="M12 12L12 22" /><path d="M14.2 20.4L12 18.2L9.8 20.4" /><path d="M12 12L3.34 17" /><path d="M5.83 18.11L6.63 15.1L3.63 14.29" /><path d="M12 12L3.34 7" /><path d="M3.63 9.71L6.63 8.9L5.83 5.89" />',
     'droplet': '<path d="M12 3c4 5 6.5 8 6.5 11a6.5 6.5 0 0 1-13 0C5.5 11 8 8 12 3z" />',
     // Calendar extended
     'calendar-days': '<rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18" /><path d="M8 3v4" /><path d="M16 3v4" /><path d="M8 14h.01" /><path d="M12 14h.01" /><path d="M16 14h.01" /><path d="M8 17.500h.01" /><path d="M12 17.500h.01" />',
