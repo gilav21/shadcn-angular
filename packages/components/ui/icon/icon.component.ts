@@ -839,7 +839,7 @@ export const DEFAULT_ICONS = {
     'ribbon': '<path d="M12 3c-3 0-5 2-5 4.500S9 12 12 12s5-2 5-4.500S15 3 12 3z" /><path d="m9.500 11.500-2.500 9.500 5-3 5 3-2.500-9.500" />',
     'ruler': '<path d="m4 16 12-12 4 4-12 12z" /><path d="m8 12 2 2" /><path d="m11 9 2 2" /><path d="m14 6 2 2" />',
     'scale': '<path d="M12 3v18" /><path d="M7 21h10" /><path d="M5 7h14" /><path d="m5 7-3 7a3.500 3.500 0 0 0 6 0z" /><path d="m19 7-3 7a3.500 3.500 0 0 0 6 0z" />',
-    'scissors-line-dashed': '<circle cx="5" cy="6.500" r="2.500" /><circle cx="5" cy="17.500" r="2.500" /><path d="M7 8l10 6" /><path d="M7 16l10-6" /><path d="M20 12h2" />',
+    'scissors-line-dashed': '<circle cx="6" cy="13" r="2.500" /><circle cx="18" cy="13" r="2.500" /><path d="M7.800 11.200 18 3" /><path d="M16.200 11.200 6 3" /><path d="M3 20.500h3" /><path d="M10.500 20.500h3" /><path d="M18 20.500h3" />',
     'shirt': '<path d="M8 3 3 6l2 4 3-1v12h8V9l3 1 2-4-5-3a4 4 0 0 1-8 0z" />',
     'skull': '<path d="M5 11a7 7 0 0 1 14 0c0 2.5-1 4-3 5v3H8v-3c-2-1-3-2.5-3-5z" /><path d="M9.5 12h.01" /><path d="M14.5 12h.01" /><path d="M12 19v-2" />',
     'sparkle': '<path d="m12 3 2 7 7 2-7 2-2 7-2-7-7-2 7-2z" />',
