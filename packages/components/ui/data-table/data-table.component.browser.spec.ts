@@ -482,7 +482,7 @@ describe('DataTableComponent column auto-fit by touch (browser)', () => {
     // UC-13, UC-14. The same gesture a double-click is, for a finger: the column
     // fits its content, the rendered header cell grows to the same width, and the
     // consumer is told once.
-    it.fails('double-tapping a resize handle fits the column exactly like a double-click', async () => {
+    it('double-tapping a resize handle fits the column exactly like a double-click', async () => {
         const mouseResized: unknown[] = [];
         const mouse = renderResizableTable(e => mouseResized.push(e));
         const initial = mouse.headerWidth();

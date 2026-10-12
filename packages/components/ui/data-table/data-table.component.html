@@ -727,6 +727,7 @@
                     col.accessorKey !== "_selection"
                   ) {
                     <div
+                      #resizeHandle
                       class="group/resize absolute top-0 w-4 h-full cursor-col-resize touch-none z-40 select-none"
                       [class.right-0]="!isRtl()"
                       [class.translate-x-1/2]="!isRtl()"
@@ -736,7 +737,7 @@
                       (touchstart)="onResizeTouchStart($event, col)"
                       (dblclick)="onResizeDoubleClick($event, col)"
                       role="separator"
-                      [attr.aria-label]="'Resize ' + col.header + ' column (double-click to auto-fit)'"
+                      [attr.aria-label]="'Resize ' + col.header + ' column (double-click or double-tap to auto-fit)'"
                     >
                       <div
                         [class]="resizeLineClass(col)"

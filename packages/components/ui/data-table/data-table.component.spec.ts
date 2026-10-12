@@ -4740,9 +4740,6 @@ describe('DataTableComponent - flat-mode row drag with sub-rows (depth compatibi
     });
 });
 
-/** RED until spec 8 Task 7: an expected failure under vitest, skipped where `it.fails` does not exist (the jest consumer leg). */
-const redUntilTask7 = Reflect.has(it, 'fails') ? it.fails : it.skip;
-
 describe('DataTableComponent - Column resize drag', () => {
     let fixture: ComponentFixture<DataTableComponent<NumRow>>;
     let component: DataTableComponent<NumRow>;
@@ -4816,7 +4813,7 @@ describe('DataTableComponent - Column resize drag', () => {
     // UC-14. A press that never moved resized nothing, so it reports nothing: one
     // double-click or double-tap auto-fit must reach the consumer once, not as the
     // auto-fit plus a no-op `columnResize` for every press of the gesture.
-    redUntilTask7('reports a resize only for a press that changed the width', () => {
+    it('reports a resize only for a press that changed the width', () => {
         const resizeSpy = vi.fn();
         component.columnResize.subscribe(resizeSpy);
         const idCol = component.enhancedColumns().find((c) => c.accessorKey === 'id')!;
