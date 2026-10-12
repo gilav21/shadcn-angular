@@ -23,6 +23,8 @@ export interface DoctorReport {
     updateAvailable: string[];
     /** Folderized components installed in the legacy flat layout. */
     legacy: string[];
+    /** Installed components whose registry copy could not be fetched: neither healthy nor drifted. */
+    unchecked: string[];
     missingNpmDeps: string[];
     /** Shared lib files behind the registry but safe to refresh. */
     libStale: string[];
@@ -104,7 +106,7 @@ export async function collectDoctorReport(
     const targetDir = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.ui || 'src/components/ui'));
     const installed = await installedComponents(targetDir);
 
-    const { conflicting, toInstall } = await detectConflicts(
+    const { conflicting, toInstall, unchecked } = await detectConflicts(
         new Set(installed), resolveInstallTargets(cwd, config), options, config.aliases.utils, getPrefix(config),
     );
     // Among installed components: "toInstall" means some files are missing
@@ -129,11 +131,12 @@ export async function collectDoctorReport(
     );
     const staleActionable = stale.some(e => e.action === 'prune' || e.action === 'migrate');
 
-    const ok = missingFiles.length === 0 && modified.length === 0
+    const ok = missingFiles.length === 0 && modified.length === 0 && unchecked.length === 0
         && missingNpmDeps.length === 0 && legacy.length === 0
         && lib.stale.length === 0 && lib.missing.length === 0 && !staleActionable;
     return {
         missingFiles, modified, userEdited, updateAvailable, legacy, missingNpmDeps,
+        unchecked: unchecked.map(u => u.name),
         libStale: lib.stale, libMissing: lib.missing, libUserEdited: lib.userEdited, stale, ok,
     };
 }
@@ -359,6 +362,7 @@ function printReport(report: DoctorReport): void {
     printSection('Locally modified (your edits — `update` will 3-way merge upstream changes into them):', report.userEdited, chalk.yellow);
     printSection('Update available (newer registry version):', report.updateAvailable, chalk.cyan);
     printSection('Legacy single-file layout — run `migrate`:', report.legacy, chalk.magenta);
+    printSection('Could not check (registry unreachable):', report.unchecked, chalk.red);
     printSection('Missing npm dependencies:', report.missingNpmDeps, chalk.red);
     printSection('Shared lib files behind the registry:', report.libStale, chalk.cyan);
     printSection('Shared lib files missing:', report.libMissing, chalk.yellow);
@@ -389,7 +393,7 @@ function printFixPlan(plan: DoctorFixPlan): void {
 /** Healthy apart from user edits (which `--fix` deliberately never repairs). */
 function cleanExceptUserEdits(report: DoctorReport): boolean {
     return report.missingFiles.length === 0 && report.updateAvailable.length === 0
-        && report.missingNpmDeps.length === 0 && report.legacy.length === 0
+        && report.unchecked.length === 0 && report.missingNpmDeps.length === 0 && report.legacy.length === 0
         && report.libStale.length === 0 && report.libMissing.length === 0
         && !report.stale.some(e => e.action === 'prune' || e.action === 'migrate');
 }

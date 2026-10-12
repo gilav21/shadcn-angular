@@ -115,7 +115,7 @@ function resetMocks(): void {
 function conflicts(partial: Partial<ConflictCheckResult> = {}): ConflictCheckResult {
   return {
     toInstall: [], toSkip: [], conflicting: [],
-    peerFilesToUpdate: new Set<string>(), contentCache: new Map<string, string>(),
+    peerFilesToUpdate: new Set<string>(), contentCache: new Map<string, string>(), unchecked: [],
     ...partial,
   };
 }
@@ -658,7 +658,7 @@ describe('previewComponentMerges', () => {
     expect(asMock(fetchAndTransform).mock.calls.some(c => c[0] === 'separator/separator.component.ts')).toBe(false);
   });
 
-  it('omits a file whose fetch fails rather than aborting the preview', async () => {
+  it('reports a file whose fetch fails as an error preview rather than aborting or omitting it', async () => {
     asMock(fetchAndTransform).mockImplementation(async (f: string) => {
       if (f.endsWith('.component.ts')) throw new Error('404');
       return `// ${f}`;
@@ -666,6 +666,9 @@ describe('previewComponentMerges', () => {
 
     const previews = await previewComponentMerges(['separator'], conflicts(), { ...base, components: ['separator'] });
 
-    expect(previews.map(p => p.file)).toEqual(['separator/index.ts']);
+    expect(previews).toEqual([
+      { file: 'separator/index.ts', outcome: 'created' },
+      { file: 'separator/separator.component.ts', outcome: 'error', reason: '404' },
+    ]);
   });
 });

@@ -4,7 +4,7 @@ import { fetchAndTransform, fetchLibContent, normalizeContent, type SourceKind }
 import { resolveDependencies } from './resolve.js';
 import {
     detectConflicts, summarizePlan, resolveInstallTargets, kindOf, targetDirFor, contentKey,
-    type AddOptions, type ConflictCheckResult, type InstallPlan, type InstallTargets,
+    type AddOptions, type ConflictCheckResult, type InstallPlan, type InstallTargets, type UncheckedComponent,
 } from './plan.js';
 import { type Config, type TestRunner, getPrefix } from '../utils/config.js';
 import { installPackages } from '../utils/package-manager.js';
@@ -33,6 +33,8 @@ export interface InstallResult {
     warnings: string[];
     /** Per-file merge outcomes (merged/overwritten/skipped/conflicted/fell-back). */
     mergeReport: MergeReport;
+    /** Components whose upstream could not be fetched during the scan: not written, no verdict given. */
+    unchecked: UncheckedComponent[];
 }
 
 interface WriteFilesContext {
@@ -424,7 +426,10 @@ export async function performInstall(input: InstallInput): Promise<InstallResult
     prunePeerFilesForDeclined(declined, finalComponents, result.peerFilesToUpdate);
 
     if (finalComponents.length === 0) {
-        return { installed: [], skipped: result.toSkip, declined, pruned: [], warnings, mergeReport: emptyMergeReport() };
+        return {
+            installed: [], skipped: result.toSkip, declined, pruned: [], warnings,
+            mergeReport: emptyMergeReport(), unchecked: result.unchecked,
+        };
     }
 
     const manifest = await readManifest(input.cwd);
@@ -449,7 +454,7 @@ export async function performInstall(input: InstallInput): Promise<InstallResult
         warnings.push(`Could not write components.lock.json: ${err instanceof Error ? err.message : String(err)}`);
     }
 
-    return { installed, skipped: result.toSkip, declined, pruned, warnings, mergeReport: report };
+    return { installed, skipped: result.toSkip, declined, pruned, warnings, mergeReport: report, unchecked: result.unchecked };
 }
 
 /** What deciding and performing one obsolete-file prune needs. */
@@ -524,7 +529,9 @@ async function pruneObsoleteFile(rel: string, ctx: PruneContext): Promise<boolea
 /** One file's predicted merge outcome for `update --dry-run` (no write, no record). */
 export interface MergePreview {
     readonly file: string;
-    readonly outcome: MergeOutcome;
+    /** `error` when the file's upstream could not be fetched to preview it; see `reason`. */
+    readonly outcome: MergeOutcome | 'error';
+    readonly reason?: string;
 }
 
 /**
@@ -565,9 +572,10 @@ export async function previewComponentMerges(
             try {
                 const decision = await previewMergeFile(file, await mergeContextFor(file, component, ctx, kind));
                 previews.push({ file, outcome: decision.outcome });
-            } catch {
-                // A preview fetch failure is non-fatal — skip the file; the real
-                // run surfaces the error. We only omit it from the preview.
+            } catch (err: unknown) {
+                // Non-fatal for the preview, but never silent: an omitted file would
+                // read as "nothing to do" for it.
+                previews.push({ file, outcome: 'error', reason: err instanceof Error ? err.message : String(err) });
             }
         }
     }

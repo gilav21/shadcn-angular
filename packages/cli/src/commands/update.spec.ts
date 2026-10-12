@@ -364,6 +364,19 @@ describe('update (command)', () => {
     expect(output()).not.toContain('3-way merge the upstream changes');
   });
 
+  it('judges an edited block by the files in the blocks directory', async () => {
+    asMock(scanLayouts).mockResolvedValue({ legacy: [], current: closureOf('login') });
+    asMock(fs.pathExists).mockImplementation(async (p: string) =>
+      /(?:\/src\/blocks\/)|(?:components\.lock\.json$)/.test(String(p).replaceAll('\\', '/')));
+    asMock(fs.readJson).mockResolvedValue(manifestFor('login', 'ORIGINAL', 'abc123'));
+    asMock(fs.readFile).mockResolvedValue('MY LOCAL EDIT');
+    asMock(detectConflicts).mockResolvedValue(conflictResult({ conflicting: ['login'] }));
+
+    await update(['login'], opts({ yes: true }));
+
+    expect(output()).toContain('update will 3-way merge the upstream changes into them');
+  });
+
   it('warns that an edited component WITHOUT a baseline cannot be merged', async () => {
     asMock(fs.pathExists).mockResolvedValue(true);
     asMock(fs.readJson).mockResolvedValue(manifestFor('button', 'ORIGINAL'));

@@ -18,7 +18,7 @@ import { printBreakingUsages } from '../core/breaking-scan.js';
 import { printBindingCodemodReport, rewriteBreakingBindings } from '../core/binding-codemod.js';
 import { scanLayouts } from '../core/layout.js';
 import { readManifest, fileStatus, getComponentRef, type Manifest } from '../core/manifest.js';
-import { reportMergeSummary } from './merge-report.js';
+import { reportMergeSummary, printUnchecked, exitIfIncomplete } from './merge-report.js';
 import { apply } from './apply.js';
 
 export async function resolveUpdateTargets(
@@ -251,6 +251,7 @@ async function detectUpdates(
 }
 
 const PREVIEW_LABELS: Readonly<Partial<Record<MergePreview['outcome'], string>>> = {
+    // `error` is printed with its reason; see printMergePreview.
     'merged-clean': 'would merge cleanly',
     'merged-conflict': 'WOULD CONFLICT (<<<<<<< markers)',
     'fellback-kept': 'would keep your file (no baseline)',
@@ -265,6 +266,10 @@ function printMergePreview(previews: MergePreview[]): void {
     if (previews.length === 0) return;
     console.log(chalk.bold('\nDry-run merge preview (files):'));
     for (const p of previews) {
+        if (p.outcome === 'error') {
+            console.log(chalk.red(`  could not preview: ${p.file} (${p.reason ?? 'unknown error'})`));
+            continue;
+        }
         const label = PREVIEW_LABELS[p.outcome] ?? p.outcome;
         const color = p.outcome === 'merged-conflict' ? chalk.red : chalk.dim;
         console.log(color(`  ${label}: ${p.file}`));
@@ -341,8 +346,11 @@ export async function update(names: string[], options: AddOptions): Promise<void
     const universe = new Set<ComponentName>([...alreadyInstalled, ...(options.yes ? newlyRequired : [])]);
     const conflicts = await detectUpdates(universe, installTargets, options, config);
 
+    printUnchecked(conflicts.unchecked);
     if (conflicts.toInstall.length === 0 && conflicts.conflicting.length === 0) {
-        console.log(chalk.green('Everything is up to date.'));
+        // Components that could not be checked are not "up to date".
+        if (conflicts.unchecked.length === 0) console.log(chalk.green('Everything is up to date.'));
+        exitIfIncomplete({ unchecked: conflicts.unchecked });
         return;
     }
 
@@ -356,6 +364,7 @@ export async function update(names: string[], options: AddOptions): Promise<void
             conflicts.conflicting, conflicts, { components: [...universe], cwd, config, options },
         ));
         console.log(chalk.dim('\n[Dry Run] No changes written.'));
+        exitIfIncomplete({ unchecked: conflicts.unchecked });
         return;
     }
 
@@ -371,4 +380,5 @@ export async function update(names: string[], options: AddOptions): Promise<void
     // In non-interactive runs (CI / --yes) a written conflict must fail the
     // command so a pipeline notices the unresolved markers.
     if (hadConflicts && options.yes) process.exit(1);
+    exitIfIncomplete({ unchecked: result.unchecked });
 }

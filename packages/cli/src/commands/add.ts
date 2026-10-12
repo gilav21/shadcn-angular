@@ -23,7 +23,8 @@ import {
     type InstallSummary,
     type InstallSummaryGroup,
 } from '../core/plan.js';
-import { performInstall, expandForTests } from '../core/install.js';
+import { performInstall, expandForTests, type InstallResult } from '../core/install.js';
+import { printUnchecked, exitIfIncomplete } from './merge-report.js';
 import { resolvePreset, PresetError } from '../core/presets.js';
 import { resolveTestInstall } from '../utils/test-runner.js';
 
@@ -625,6 +626,7 @@ export async function add(components: string[], options: AddOptions): Promise<vo
             componentsToAdd, options, config, cwd, includeTests, preselectedAddons,
         );
     const { toInstall, toSkip, conflicting, contentCache } = conflicts;
+    printUnchecked(conflicts.unchecked);
 
     const uiPath = componentPath ?? aliasToProjectPath(config.aliases.ui || 'src/components/ui');
     const toOverwrite = await promptOverwrite(conflicting, options, targets, contentCache);
@@ -634,18 +636,28 @@ export async function add(components: string[], options: AddOptions): Promise<vo
     const grouping = { requested: componentsToAdd, chosen: extraDeps };
     if (options.dryRun) {
         reportDryRun({ toInstall, toOverwrite, toSkip, declined, grouping, addonHints });
+        exitIfIncomplete({ unchecked: conflicts.unchecked });
         return;
     }
-    if (toInstall.length === 0 && toOverwrite.length === 0) { printNothingToInstall(toSkip, declined); printAvailableAddons(addonHints); return; }
+    if (toInstall.length === 0 && toOverwrite.length === 0) {
+        // "No components to install" would misreport components that could not be checked.
+        if (conflicts.unchecked.length === 0) printNothingToInstall(toSkip, declined);
+        else printSkipSummary(toSkip, declined);
+        printAvailableAddons(addonHints);
+        exitIfIncomplete({ unchecked: conflicts.unchecked });
+        return;
+    }
 
-    await runInstall({
+    const result = await runInstall({
         componentsToAdd, extraDeps, toOverwrite, cwd, config, options,
         componentPath, blocksPath, conflicts, includeTests, runner,
         grouping, addonHints, uiPath,
     });
+    // After the report, and outside runInstall's try: a throw there is reported as an install crash.
+    exitIfIncomplete({ unchecked: result.unchecked });
 }
 
-/** Execute the planned install and report it. Exits 1 on failure. */
+/** Execute the planned install and report it. Exits 1 if the install itself throws. */
 async function runInstall(input: {
     readonly componentsToAdd: ComponentName[];
     readonly extraDeps: ComponentName[];
@@ -662,7 +674,7 @@ async function runInstall(input: {
     readonly addonHints: AddonHint[];
     /** Where the components landed — named in the "what now?" block. */
     readonly uiPath: string;
-}): Promise<void> {
+}): Promise<InstallResult> {
     const spinner = ora('Installing components...').start();
     try {
         const result = await performInstall({
@@ -678,6 +690,7 @@ async function runInstall(input: {
         });
         printInstallResult(result, spinner, input.grouping, input.uiPath);
         printAvailableAddons(input.addonHints);
+        return result;
     } catch (error) {
         spinner.fail('Failed to add components');
         console.error(error);

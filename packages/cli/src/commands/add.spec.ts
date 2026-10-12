@@ -94,7 +94,7 @@ vi.mock('../registry/index.js', async (importOriginal) => {
 const mockedFs = vi.mocked(fs);
 
 const targets = { uiDir: '/project/ui', blocksDir: '/project/blocks' };
-const scanState = () => ({ contentCache: new Map<string, string>(), peerFilesToUpdate: new Set<string>() });
+const scanState = () => ({ contentCache: new Map<string, string>(), peerFilesToUpdate: new Set<string>(), unchecked: [] });
 
 // ---------------------------------------------------------------------------
 // normalizeContent
@@ -243,7 +243,7 @@ describe('checkFileConflict', () => {
     const result = await checkFileConflict(
       'button/button.ts', '/project/ui', 'component', { branch: 'master', remote: true }, '@/lib', cache,
     );
-    expect(result).toBe('missing');
+    expect(result).toEqual({ status: 'missing' });
   });
 
   it('returns "identical" when local and remote content match', async () => {
@@ -258,7 +258,7 @@ describe('checkFileConflict', () => {
     const result = await checkFileConflict(
       'button/button.ts', '/project/ui', 'component', { branch: 'master', remote: true }, '@/lib', cache,
     );
-    expect(result).toBe('identical');
+    expect(result).toEqual({ status: 'identical' });
   });
 
   it('returns "changed" when local and remote content differ', async () => {
@@ -272,7 +272,7 @@ describe('checkFileConflict', () => {
     const result = await checkFileConflict(
       'button/button.ts', '/project/ui', 'component', { branch: 'master', remote: true }, '@/lib', cache,
     );
-    expect(result).toBe('changed');
+    expect(result).toEqual({ status: 'changed' });
   });
 
   it('populates the content cache on successful fetch', async () => {
@@ -307,7 +307,7 @@ describe('classifyComponent', () => {
     const peerFiles = new Set<string>();
 
     const result = await classifyComponent(
-      'badge', targets, { branch: 'master', remote: true }, '@/lib', { contentCache: cache, peerFilesToUpdate: peerFiles },
+      'badge', targets, { branch: 'master', remote: true }, '@/lib', { contentCache: cache, peerFilesToUpdate: peerFiles, unchecked: [] },
     );
     expect(result).toBe('install');
   });
@@ -325,7 +325,7 @@ describe('classifyComponent', () => {
     const peerFiles = new Set<string>();
 
     const result = await classifyComponent(
-      'badge', targets, { branch: 'master', remote: true }, '@/lib', { contentCache: cache, peerFilesToUpdate: peerFiles },
+      'badge', targets, { branch: 'master', remote: true }, '@/lib', { contentCache: cache, peerFilesToUpdate: peerFiles, unchecked: [] },
     );
     expect(result).toBe('skip');
   });
@@ -333,14 +333,14 @@ describe('classifyComponent', () => {
   it('returns "conflict" when own files have changed', async () => {
     mockedFs.pathExists.mockResolvedValue(true as never);
     mockedFs.readFile.mockResolvedValue('// modified locally' as never);
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response('// original remote', { status: 200 }),
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve(new Response('// original remote', { status: 200 })),
     );
     const cache = new Map<string, string>();
     const peerFiles = new Set<string>();
 
     const result = await classifyComponent(
-      'badge', targets, { branch: 'master', remote: true }, '@/lib', { contentCache: cache, peerFilesToUpdate: peerFiles },
+      'badge', targets, { branch: 'master', remote: true }, '@/lib', { contentCache: cache, peerFilesToUpdate: peerFiles, unchecked: [] },
     );
     expect(result).toBe('conflict');
   });
@@ -375,7 +375,7 @@ describe('classifyComponent', () => {
 
     const result = await classifyComponent(
       name as ComponentName, targets, { branch: 'master', remote: true }, '@/lib',
-      { contentCache: cache, peerFilesToUpdate },
+      { contentCache: cache, peerFilesToUpdate, unchecked: [] },
     );
 
     expect(result).toBe('skip');
@@ -426,8 +426,8 @@ describe('detectConflicts', () => {
   it('classifies changed components as conflicting', async () => {
     mockedFs.pathExists.mockResolvedValue(true as never);
     mockedFs.readFile.mockResolvedValue('// modified locally' as never);
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response('// remote content', { status: 200 }),
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve(new Response('// remote content', { status: 200 })),
     );
 
     const components = new Set<ComponentName>(['badge']);
@@ -1235,6 +1235,15 @@ describe('add()', () => {
     expect(output()).toContain('kept local changes');
   });
 
+  it('names the changed files of an edited block in the conflict preview', async () => {
+    filesPresentAndChanged();
+
+    await add(['login'], { branch: 'master', remote: true });
+
+    expect(output()).toContain('have local changes');
+    expect(output()).toContain(registry['login' as ComponentName].files[0]);
+  });
+
   it('installs nothing when every component is already up to date', async () => {
     asMock(fs.pathExists).mockResolvedValue(true);
     asMock(fs.readFile).mockResolvedValue('// REMOTE');
@@ -1662,9 +1671,17 @@ describe('add() on an incomplete run', () => {
     for (const text of listed) expect(output()).toContain(text);
   });
 
-  it('exits 0 when nothing failed', async () => {
+  // Warnings also carry benign notices (a kept file, a lib file that differs),
+  // so a warning alone must never fail the command.
+  it('exits 0 when nothing failed, even with warnings and a kept file', async () => {
+    asMock(performInstall).mockResolvedValue(installResult({
+      warnings: ['Skipped badge/badge.component.ts: locally edited and no recorded baseline to 3-way merge'],
+      mergeReport: { ...emptyMergeReport(), fellBack: ['badge/badge.component.ts'] },
+    }));
+
     await add(['badge'], { branch: 'master', remote: true, yes: true });
 
+    expect(output()).toContain('Skipped badge/badge.component.ts');
     expect(output()).not.toContain('Failed:');
     expect(exitSpy).not.toHaveBeenCalled();
   });
@@ -1680,7 +1697,7 @@ describe('add() on an incomplete run', () => {
     expect(output()).toContain('Conflict markers');
   });
 
-  it('prints the merge summary when it merged with conflicts or kept a file, and leaves an interactive run alone', async () => {
+  it('prints the merge summary when it merged with conflicts or kept a file', async () => {
     process.stdin.isTTY = true;
     asMock(performInstall).mockResolvedValue(installResult({
       mergeReport: {
@@ -1696,6 +1713,16 @@ describe('add() on an incomplete run', () => {
     expect(output()).toContain('Merged with conflicts');
     expect(output()).toContain('dashboard/dashboard.component.html');
     expect(output()).toContain('Conflict markers');
+  });
+
+  it('leaves an interactive run that wrote conflict markers at exit 0', async () => {
+    process.stdin.isTTY = true;
+    asMock(performInstall).mockResolvedValue(installResult({
+      mergeReport: { ...emptyMergeReport(), mergedConflicted: ['dashboard/dashboard.component.ts'] },
+    }));
+
+    await add(['badge'], { branch: 'master', remote: true });
+
     expect(exitSpy).not.toHaveBeenCalled();
   });
 

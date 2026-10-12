@@ -17,7 +17,7 @@ vi.mock('./fetch.js', () => ({
 
 const opts = { branch: 'master' } as const;
 const targets = { uiDir: '/proj/ui', blocksDir: '/proj/blocks' };
-const scanState = (peerFilesToUpdate = new Set<string>()) => ({ contentCache: new Map<string, string>(), peerFilesToUpdate });
+const scanState = (peerFilesToUpdate = new Set<string>()) => ({ contentCache: new Map<string, string>(), peerFilesToUpdate, unchecked: [] });
 
 describe('classifyComponent', () => {
   beforeEach(() => vi.clearAllMocks());

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { performInstall, previewComponentMerges } from './install.js';
+import { performInstall, planInstall, previewComponentMerges } from './install.js';
 import { detectConflicts } from './plan.js';
 import { hashContent } from './manifest.js';
 import { resolveRef, fetchAtRef } from './ref.js';
@@ -194,6 +194,35 @@ describe('a fetch failure during the conflict scan', () => {
         expect(result.conflicting).toEqual([]);
         expect(result.toSkip).toEqual([]);
         expect(result.toInstall).toEqual([]);
+    });
+});
+
+describe('an unchecked component next to installable ones', () => {
+    it('is reported and left alone while the rest of the install proceeds', async () => {
+        const ok = define({ name: 'int-ok', files: ['int-ok/a.ts'] });
+        const bad = define({ name: 'int-bad', files: ['int-bad/a.ts'] });
+        write(path.join(ui, 'int-bad/a.ts'), '// my edit\n');
+        unreachable.add('int-bad/a.ts');
+
+        const result = await install({ components: [ok, bad], overwrite: [ok, bad] });
+
+        expect(result.installed).toEqual([ok]);
+        expect(result.unchecked).toEqual([{ name: bad, file: 'int-bad/a.ts', reason: expect.stringContaining('fetch failed') }]);
+        expect(read(path.join(ui, 'int-ok/a.ts'))).toBe(upstream('component', 'int-ok/a.ts'));
+        expect(read(path.join(ui, 'int-bad/a.ts'))).toBe('// my edit\n');
+    });
+});
+
+describe('the install plan honours the blocks path override', () => {
+    it('judges an edited block in the directory the caller named', async () => {
+        const block = define({ name: 'int-plan-block', type: 'block', files: ['int-plan-block/page.ts'] });
+        write(path.join(project, 'custom', 'blocks', 'int-plan-block/page.ts'), '// my edit\n');
+
+        const plan = await planInstall({
+            components: [block], cwd: project, config: getDefaultConfig(), options: OPTIONS, blocksPath: 'custom/blocks',
+        });
+
+        expect(plan.conflicting).toEqual([block]);
     });
 });
 
