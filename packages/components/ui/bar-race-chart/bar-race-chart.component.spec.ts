@@ -407,10 +407,7 @@ describe('BarRaceChartComponent — autoPlay', () => {
         fixture.componentRef.setInput('autoPlay', true);
         fixture.detectChanges();
 
-        expect(component.isPlaying()).toBe(false);
-
-        vi.advanceTimersByTime(0);
-
+        // Autoplay starts after the first render, not from a constructor timer.
         expect(component.isPlaying()).toBe(true);
         expect(component.currentFrameIndex()).toBe(1);
 
