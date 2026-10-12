@@ -294,11 +294,13 @@ export interface ContextGesture {
 }
 
 /**
- * Whether a `contextmenu` event may be a finger's. Browsers that type it say so;
- * one that does not (a plain `MouseEvent`) cannot be told apart, and counts.
+ * Whether a `contextmenu` event is a finger's. A browser that types it says so.
+ * One that does not (a plain `MouseEvent`: Firefox, older Chromium) cannot, and
+ * is taken for a finger's only when a finger was on this element a moment ago -
+ * a right-click with no touch before it is a mouse's.
  */
-function mayBeTouch(event: MouseEvent): boolean {
-    return !(event instanceof PointerEvent) || event.pointerType === 'touch';
+function isTouchContextMenu(event: MouseEvent, touchedRecently: boolean): boolean {
+    return event instanceof PointerEvent ? event.pointerType === 'touch' : touchedRecently;
 }
 
 /**
@@ -340,7 +342,7 @@ export function onContextGesture(
 
     const onContextMenu = (event: MouseEvent): void => {
         if (claimedGestures.has(event)) return;
-        const viaTouch = mayBeTouch(event);
+        const viaTouch = isTouchContextMenu(event, touch.touchedRecently);
         // A mouse right-click is never the echo of a finger, whatever the finger did a moment ago.
         if (viaTouch && (touch.panGuess || isRecentSameGesture(lastClaimedPress, event.target as Node | null))) {
             claim(event);
@@ -378,6 +380,7 @@ function trackContextTouch(): {
     readonly onMove: (event: TouchEvent) => void;
     readonly onDragStart: () => void;
     readonly panGuess: boolean;
+    readonly touchedRecently: boolean;
     readonly dragged: boolean;
 } {
     let origin: { readonly x: number; readonly y: number } | null = null;
@@ -412,6 +415,9 @@ function trackContextTouch(): {
         },
         get panGuess() {
             return travelled && Date.now() - lastTouchAt < SAME_GESTURE_MS;
+        },
+        get touchedRecently() {
+            return lastTouchAt > 0 && Date.now() - lastTouchAt < SAME_GESTURE_MS;
         },
         get dragged() {
             return dragged;

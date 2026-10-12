@@ -282,6 +282,11 @@ describe('DataTableContextMenuDirective', () => {
 
       cell.dispatchEvent(new PointerEvent('contextmenu', { bubbles: true, cancelable: true, button: 2, pointerType: 'mouse', clientX: 10, clientY: 20 }));
       expect(comp.rowEvents).toHaveLength(1);
+
+      // A browser that types contextmenu as a plain MouseEvent (Firefox): no finger before it, so a mouse's.
+      vi.advanceTimersByTime(2000);
+      contextMenuEventAt(cell, 10, 20);
+      expect(comp.rowEvents).toHaveLength(2);
     } finally {
       vi.useRealTimers();
     }

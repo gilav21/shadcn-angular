@@ -1057,6 +1057,17 @@ describe('KanbanComponent', () => {
             expect(content.textContent).toContain('Custom Card');
         });
 
+        it('keeps the browser menu off a card that has no card data, and opens no menu for it', () => {
+            const card = fixture.debugElement.query(By.css('[data-slot="kanban-card"]')).nativeElement as HTMLElement;
+            const ev = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 });
+
+            card.dispatchEvent(ev);
+            fixture.detectChanges();
+
+            expect(ev.defaultPrevented).toBe(true);
+            expect(openMenuTexts()).toHaveLength(0);
+        });
+
         it('should render kanban data-slot in custom mode', () => {
             const kanban = fixture.debugElement.query(By.css('[data-slot="kanban"]'));
             expect(kanban).toBeTruthy();

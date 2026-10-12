@@ -681,7 +681,7 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
 
     // ── Context Menu ─────────────────────────────────────────────
 
-    /** Opens the card context menu (edit / duplicate / move / priority / delete) at viewport coordinates `x`,`y`. Called by `<ui-kanban-card>` on right-click; call it yourself to expose the same menu from a custom trigger such as a long-press or a kebab button. A right-click, the context-menu key and a long-press on a card already do. */
+    /** Opens the card context menu (edit / duplicate / move / priority / delete) at viewport coordinates `x`,`y`. Called by `<ui-kanban-card>` on right-click; call it yourself to expose the same menu from a custom trigger such as a long-press or a kebab button. A right-click and a long-press on a card already do. */
     showCardContextMenu(x: number, y: number, card: KanbanCard): void {
         this.cardMenuRef()?.show(x, y, card);
     }

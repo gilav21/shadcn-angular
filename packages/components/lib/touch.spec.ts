@@ -623,6 +623,21 @@ describe('onContextGesture', () => {
         expect(handler).toHaveBeenCalledTimes(1);
     });
 
+    // Firefox types contextmenu as a plain MouseEvent: only a finger on the element a moment ago makes it a finger's.
+    it('takes an untyped contextmenu for a finger\'s only when a finger was just on the element', () => {
+        const handler = listen(outer, true);
+
+        const mouse = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 140, clientY: 90 });
+        leaf.dispatchEvent(mouse);
+        vi.advanceTimersByTime(2000);
+        touchDown();
+        const afterFinger = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 60, clientY: 40 });
+        leaf.dispatchEvent(afterFinger);
+
+        expect(handler).toHaveBeenNthCalledWith(1, expect.objectContaining({ source: mouse, viaTouch: false }));
+        expect(handler).toHaveBeenNthCalledWith(2, expect.objectContaining({ source: afterFinger, viaTouch: true }));
+    });
+
     // Hybrid devices: a finger's leftovers never eat a mouse click made a moment later.
     it('honours a mouse right-click made right after a claimed long-press or a pan', () => {
         const handler = listen(outer, true);
