@@ -290,6 +290,6 @@ export class ColumnRangeChartComponent implements AfterViewInit {
 
   /** Like {@link formatValue} but compacted (`1.2K`, `3.4M`), keeping the value-axis tick labels short enough for the fixed axis gutter. */
   formatAxisValue(value: number): string {
-    return formatChartValue(value, { compact: true, decimals: 0 }) + this.unit();
+    return formatChartValue(value, { compact: true, decimals: Number.isInteger(value) ? 0 : 6 }) + this.unit();
   }
 }

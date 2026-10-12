@@ -61,7 +61,7 @@
         <text
             [attr.x]="isRtl() ? chartArea().right + 12 : chartArea().left - 12"
             [attr.y]="bar.animatedY + barHeight() / 2"
-            [attr.text-anchor]="'end'"
+            [attr.text-anchor]="isRtl() ? 'start' : 'end'"
             dominant-baseline="middle"
             class="text-sm fill-foreground font-medium transition-all ease-out"
             [style.transition-duration.ms]="animationDuration()"

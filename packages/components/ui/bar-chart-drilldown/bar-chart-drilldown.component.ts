@@ -366,6 +366,6 @@ export class BarChartDrilldownComponent implements AfterViewInit {
 
   /** Like {@link formatValue} but drops decimals, keeping the value-axis tick labels short enough for the fixed axis gutter. */
   formatAxisValue(value: number): string {
-    return formatChartValue(value, { compact: true, decimals: 0 });
+    return formatChartValue(value, { compact: true, decimals: Number.isInteger(value) ? 0 : 6 });
   }
 }

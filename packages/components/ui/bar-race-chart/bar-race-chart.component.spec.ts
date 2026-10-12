@@ -481,7 +481,7 @@ describe('BarRaceChartComponent zero baseline', () => {
         const growsRight = (bar.value >= 0) !== (dir === 'rtl');
         const freeEnd = growsRight ? bar.x + bar.width : bar.x;
         const startEdge = dir === 'rtl' ? area.right : area.left;
-        const outside = bar.value >= 0 || Math.abs(freeEnd - startEdge) >= 64;
+        const outside = bar.value >= 0 || Math.abs(freeEnd - startEdge) >= 64 || bar.width < 64;
         const towardRight = growsRight === outside;
         expect(bar.labelAnchor).toBe(towardRight ? 'start' : 'end');
         expect(bar.labelX).toBeCloseTo(towardRight ? freeEnd + 12 : freeEnd - 12, 6);

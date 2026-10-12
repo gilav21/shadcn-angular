@@ -461,6 +461,14 @@ describe('PieChartDrilldownComponent non-positive values', () => {
             }
         });
 
+        it(`should lay the wedges end to end around exactly one turn when any value is positive (${className})`, () => {
+            const slices = build(values).componentInstance.currentSlices();
+            if (slices.length === 0) return;
+
+            slices.slice(1).forEach((slice, i) => expect(slice.startAngle).toBeCloseTo(slices[i].endAngle, 9));
+            expect((slices.at(-1) as { endAngle: number }).endAngle - slices[0].startAngle).toBeCloseTo(Math.PI * 2, 9);
+        });
+
         it(`should keep every entry in the legend with its raw value (${className})`, () => {
             const fixture = build(values);
             const rows = Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLElement[];

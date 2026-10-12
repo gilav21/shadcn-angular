@@ -277,7 +277,7 @@ export class BarRaceChartComponent implements OnDestroy, AfterViewInit {
       const freeEnd = growsRight ? x + barWidth : x;
       // A positive label has the side padding to itself; a negative one runs toward the name labels,
       // so when it has no room before them it moves inside the bar end.
-      const outside = point.value >= 0 || Math.abs(freeEnd - startEdge) >= LABEL_ROOM;
+      const outside = point.value >= 0 || Math.abs(freeEnd - startEdge) >= LABEL_ROOM || barWidth < LABEL_ROOM;
 
       return {
         name: point.name,

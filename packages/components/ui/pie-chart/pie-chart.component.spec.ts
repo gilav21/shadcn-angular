@@ -171,6 +171,13 @@ describe('PieChartComponent non-positive values', () => {
         });
     }
 
+    it('should lay the wedges end to end around exactly one turn, skipping entries without a wedge', () => {
+        const slices = build([100, -30, 0, 50]).componentInstance.slices();
+
+        expect(slices[1].startAngle).toBeCloseTo(slices[0].endAngle, 9);
+        expect(slices[1].endAngle - slices[0].startAngle).toBeCloseTo(Math.PI * 2, 9);
+    });
+
     it('should keep each wedge on its own palette colour when an earlier entry has no wedge', () => {
         const slices = build([-30, 40, 60]).componentInstance.slices();
 

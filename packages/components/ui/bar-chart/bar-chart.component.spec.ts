@@ -423,7 +423,8 @@ describe('BarChartComponent zero baseline', () => {
         const growsRight = (bar.value >= 0) !== (dir === 'rtl');
         const freeEnd = growsRight ? bar.x + bar.width : bar.x;
         const room = growsRight ? area.right - freeEnd : freeEnd - area.left;
-        const outside = room >= 48;
+        // Inside only when the bar is long enough to hold the label too.
+        const outside = room >= 48 || bar.width < 48;
         const towardRight = growsRight === outside;
         expect(bar.labelAnchor).toBe(towardRight ? 'start' : 'end');
         expect(bar.labelPosition.x).toBeCloseTo(towardRight ? freeEnd + 6 : freeEnd - 6, 6);
@@ -434,6 +435,14 @@ describe('BarChartComponent zero baseline', () => {
             const component = build(CLASSES[className], 'horizontal', dir);
             for (const bar of component.bars()) expectHorizontalLabel(bar, component.chartArea(), dir);
         }
+    });
+
+    it('should label every tick of an all-zero chart distinctly', () => {
+        const component = build(CLASSES['all-zero'], 'vertical', 'ltr');
+        const labels = component.axisTicks().map(t => component.formatAxisValue(t));
+
+        // Ticks at -1, -0.5, 0, 0.5, 1 must not all collapse to whole numbers.
+        expect(new Set(labels).size).toBe(labels.length);
     });
 
     it('should draw at least two value ticks, all inside the plot, when every value is zero', () => {

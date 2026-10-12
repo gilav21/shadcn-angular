@@ -265,8 +265,9 @@ export class BarChartComponent implements AfterViewInit {
   /**
    * Position and anchor of a horizontal bar's value label: just past its free
    * end, or inside the bar when less than {@link LABEL_ROOM} px remain between
-   * that end and the plot edge (a bar reaching the edge would otherwise print
-   * over the category labels or outside the chart).
+   * that end and the plot edge and the bar is long enough to hold it (a bar
+   * reaching the edge would otherwise print over the category labels or
+   * outside the chart).
    */
   private horizontalLabel(
     area: { left: number; right: number },
@@ -275,7 +276,8 @@ export class BarChartComponent implements AfterViewInit {
     const growsRight = this.growsRight(span.value);
     const freeEnd = growsRight ? span.start + span.length : span.start;
     const room = growsRight ? area.right - freeEnd : freeEnd - area.left;
-    const outside = room >= LABEL_ROOM;
+    // A bar shorter than the label cannot hold it, so a short bar always labels outside.
+    const outside = room >= LABEL_ROOM || span.length < LABEL_ROOM;
     const x = growsRight === outside ? freeEnd + 6 : freeEnd - 6;
     return { x, anchor: growsRight === outside ? 'start' : 'end' };
   }
@@ -344,6 +346,6 @@ export class BarChartComponent implements AfterViewInit {
 
   /** Like {@link formatValue} but drops decimals, keeping the value-axis tick labels short enough for the fixed axis gutter. */
   formatAxisValue(value: number): string {
-    return formatChartValue(value, { compact: true, decimals: 0 });
+    return formatChartValue(value, { compact: true, decimals: Number.isInteger(value) ? 0 : 6 });
   }
 }

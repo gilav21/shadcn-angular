@@ -400,7 +400,7 @@ export class StackedBarChartComponent implements AfterViewInit {
     if (this.stacking() === 'percent') {
       return `${value}%`;
     }
-    return formatChartValue(value, { compact: true, decimals: 0 });
+    return formatChartValue(value, { compact: true, decimals: Number.isInteger(value) ? 0 : 6 });
   }
 
   /**

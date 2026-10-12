@@ -22,7 +22,7 @@
                 [attr.x2]="chartArea().right"
                 [attr.y2]="getTickPosition(tick)"
                 stroke="currentColor"
-                stroke-opacity="0.2"
+                [attr.stroke-opacity]="tick === 0 && valueDomain()[0] < 0 ? 0.7 : 0.2"
                 stroke-dasharray="4 4"
               />
             } @else {
@@ -32,7 +32,7 @@
                 [attr.x2]="getTickPosition(tick)"
                 [attr.y2]="chartArea().bottom"
                 stroke="currentColor"
-                stroke-opacity="0.2"
+                [attr.stroke-opacity]="tick === 0 && valueDomain()[0] < 0 ? 0.7 : 0.2"
                 stroke-dasharray="4 4"
               />
             }
