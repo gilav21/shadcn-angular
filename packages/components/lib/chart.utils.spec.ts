@@ -8,6 +8,8 @@ import {
     formatChartValueOrGap,
     MISSING_VALUE_LABEL,
     getDataRange,
+    describeArc,
+    positiveOrZero,
 } from './chart.utils';
 
 /** Seeded PRNG (mulberry32) so a failing property prints a reproducible input. */
@@ -427,5 +429,33 @@ describe('animateValue', () => {
         // The frame the animation queued is abandoned, so nothing further runs.
         expect(pending).toBe(1);
         expect(onComplete).not.toHaveBeenCalled();
+    });
+});
+
+describe('describeArc terminates and stays finite for every sweep', () => {
+    // A single full turn, 143% of one, a negative sweep and a donut, in both directions.
+    it.each([
+        ['exactly one turn', 0, Math.PI * 2],
+        ['143% of a turn', -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * 1.43],
+        ['several turns', 0, Math.PI * 6],
+        ['a negative full sweep', 0, -Math.PI * 2],
+        ['a negative sweep past a turn', 1, 1 - Math.PI * 3],
+    ])('%s', (_label, start, end) => {
+        for (const innerRadius of [0, 40]) {
+            const path = describeArc(0, 0, 100, innerRadius, start, end);
+            expect(path).not.toMatch(/NaN|Infinity/);
+        }
+    });
+});
+
+describe('positiveOrZero', () => {
+    it.each([
+        [5, 5],
+        [0, 0],
+        [-3, 0],
+        [Number.NaN, 0],
+        [Number.POSITIVE_INFINITY, 0],
+    ])('%s becomes %s', (value, expected) => {
+        expect(positiveOrZero(value)).toBe(expected);
     });
 });

@@ -28,6 +28,16 @@
       [attr.aria-label]="chartAriaLabel()"
     >
       <g [attr.transform]="'translate(' + center() + ',' + center() + ')'">
+        @if (currentSlices().length === 0) {
+          <circle
+            data-slot="pie-empty"
+            [attr.r]="outerRadius()"
+            fill="none"
+            stroke="currentColor"
+            class="text-border"
+            stroke-dasharray="4 4"
+          />
+        }
         @for (slice of currentSlices(); track slice.index) {
           <g
             class="cursor-pointer outline-none"
@@ -68,7 +78,7 @@
 
     @if (showLegend() && legendPosition() !== 'none') {
       <div [class]="legendClasses()">
-        @for (slice of currentSlices(); track slice.index) {
+        @for (slice of currentEntries(); track slice.index) {
           <button
             type="button"
             class="flex items-center gap-2 text-sm hover:opacity-80 transition-opacity"

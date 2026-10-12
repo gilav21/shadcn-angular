@@ -12,6 +12,16 @@
     class="overflow-visible shrink-0"
   >
     <g [attr.transform]="'translate(' + center() + ',' + center() + ')'">
+      @if (slices().length === 0) {
+        <circle
+          data-slot="pie-empty"
+          [attr.r]="outerRadius()"
+          fill="none"
+          stroke="currentColor"
+          class="text-border"
+          stroke-dasharray="4 4"
+        />
+      }
       @for (slice of slices(); track slice.index) {
         <g
           class="cursor-pointer outline-none"
@@ -54,7 +64,7 @@
 
   @if (showLegend() && legendPosition() !== 'none') {
     <div [class]="legendClasses()">
-      @for (slice of slices(); track slice.index) {
+      @for (slice of entries(); track slice.index) {
         <button
           type="button"
           class="flex items-center gap-2 text-sm hover:opacity-80 transition-opacity"
