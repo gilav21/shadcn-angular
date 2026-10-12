@@ -420,7 +420,7 @@ describe('parseDocx — tables', () => {
         const cell = table.rows[0].cells[0];
         expect(cell.colSpan).toBe(2);
         expect(cell.cellStyle?.backgroundColor).toBe('#DDDDDD');
-        expect(cell.cellStyle?.verticalAlign).toBe('center');
+        expect(cell.cellStyle?.verticalAlign).toBe('middle');
         expect(cell.cellStyle?.borders?.left?.color).toBe('#222222');
         expect(cell.cellStyle?.paddings?.top).toBe(5);
         expect(cell.cellStyle?.paddings?.left).toBe(4);
@@ -731,11 +731,12 @@ describe('parseDocx — attribute grammar', () => {
         }
     });
 
-    it('a 3-digit or 8-digit colour is not OOXML and is dropped, not passed through', () => {
-        for (const value of ['FFF', 'FF0000FF']) {
-            const body = `<w:p><w:r><w:rPr><w:color w:val="${value}"/><w:shd w:fill="${value}"/></w:rPr><w:t>x</w:t></w:r></w:p>`;
+    it('a colour that is not six hex digits, or a highlight that only names an Object property, is dropped', () => {
+        for (const value of ['FFF', 'FF0000FF', 'constructor', 'toString']) {
+            const body = `<w:p><w:r><w:rPr><w:color w:val="${value}"/><w:highlight w:val="${value}"/><w:shd w:fill="${value}"/></w:rPr><w:t>x</w:t></w:r></w:p>`;
             const style = paragraphs(parseDocx(docx(body)))[0].runs[0].style;
             expect(style.color).toBeUndefined();
+            expect(style.highlight).toBeUndefined();
             expect(style.backgroundColor).toBeUndefined();
         }
     });

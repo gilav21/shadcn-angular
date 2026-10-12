@@ -95,7 +95,7 @@ describe('renderDocxForEditor — paragraphs and runs', () => {
         })])]));
         expect(html).toContain('color:#FF0000');
         expect(html).toContain('font-size:14pt');
-        expect(html).toContain('font-family:Arial');
+        expect(html).toContain("font-family:'Arial'");
         expect(html).toContain('background-color:#FFFF00');
         expect(html).toContain('letter-spacing:2pt');
         expect(html).toContain('font-variant:small-caps');
@@ -309,7 +309,7 @@ describe('renderDocxForEditor — tables', () => {
             rows: [row([cell([run('c')], {
                 cellStyle: {
                     backgroundColor: '#ABCDEF',
-                    verticalAlign: 'center',
+                    verticalAlign: 'middle',
                     width: 2500,
                     widthUnit: 'pct',
                     paddings: { top: 2, bottom: 2, left: 4, right: 4 },
@@ -319,7 +319,7 @@ describe('renderDocxForEditor — tables', () => {
         const html = renderDocxForEditor(result([table]));
         expect(html).toContain('width:100.0%');
         expect(html).toContain('background-color:#ABCDEF');
-        expect(html).toContain('vertical-align:center');
+        expect(html).toContain('vertical-align:middle');
         expect(html).toContain('width:50.0%');
         expect(html).toContain('padding-top:2pt');
         expect(html).toContain('padding-left:4pt');
@@ -422,6 +422,25 @@ describe('parseDocx + renderDocxForEditor — hostile and valid attribute values
         const cellStyle = doc.querySelector<HTMLElement>('td')!.style;
         expect(cellStyle.verticalAlign).toBe('middle');
         expect(cellStyle.backgroundColor).toBe('rgb(221, 221, 221)');
+    });
+
+    it('a hand-built model with hostile values in every slot renders inert, without relying on the parser', () => {
+        for (const payload of [BREAKOUT, DECLARATION]) {
+            const hostileBorder = { style: 'single', color: payload, size: 1 };
+            const hostileCell = cell([run('cell', { color: payload })], {
+                cellStyle: { backgroundColor: payload, verticalAlign: payload, borders: { top: hostileBorder } },
+            });
+            const html = renderDocxForEditor(result([
+                para([
+                    run('styled', { color: payload, highlight: payload, backgroundColor: payload, fontFamily: payload }),
+                    run('linked', {}, { href: payload }),
+                ], { alignment: payload, shading: payload, borders: { left: hostileBorder } }),
+                { type: 'table', rows: [row([hostileCell])] },
+            ]));
+
+            expect(assertInertMarkup(html, DOCX_POLICY)).toEqual([]);
+            expect(html).toContain('styled');
+        }
     });
 
     it('renders unsafe link schemes as unlinked text and keeps safe schemes and bookmarks as links', () => {

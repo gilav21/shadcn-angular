@@ -34,6 +34,7 @@ export function hostileDocx(payload: string): Uint8Array {
         + `<w:rFonts w:ascii="${p}"/></w:rPr><w:t>hostile run</w:t></w:r>`,
         '<w:r><w:rPr><w:color w:themeColor="accent1" w:themeTint="80"/></w:rPr><w:t>theme srgb</w:t></w:r>',
         '<w:r><w:rPr><w:color w:themeColor="dk1"/></w:rPr><w:t>theme sys</w:t></w:r>',
+        `<w:r><w:rPr><w:color w:themeColor="dk2" w:themeTint="${p}" w:themeShade="${p}"/></w:rPr><w:t>hostile tint</w:t></w:r>`,
         `<w:r><w:rPr><w:color w:val="${CONTROL_COLOR}"/></w:rPr><w:t>control</w:t></w:r>`,
         '<w:hyperlink r:id="rId1"><w:r><w:t>script link</w:t></w:r></w:hyperlink>',
         `<w:hyperlink w:anchor="${p}"><w:r><w:t>${HOSTILE_LINK_TEXT}</w:t></w:r></w:hyperlink>`,
@@ -67,6 +68,7 @@ export function hostileDocx(payload: string): Uint8Array {
             content: `<?xml version="1.0"?><a:theme ${A}><a:themeElements><a:clrScheme name="x">`
                 + `<a:dk1><a:sysClr val="windowText" lastClr="${p}"/></a:dk1>`
                 + `<a:accent1><a:srgbClr val="${p}"/></a:accent1>`
+                + '<a:dk2><a:srgbClr val="336699"/></a:dk2>'
                 + '</a:clrScheme></a:themeElements></a:theme>',
         },
     ]);
