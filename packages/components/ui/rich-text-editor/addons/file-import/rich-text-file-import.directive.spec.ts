@@ -307,16 +307,37 @@ describe('RichTextFileImportDirective', () => {
         expect(sanitizerOf(fixture).sanitize(emitted)).toBe(emitted);
     });
 
-    it('emits the sanitized wrapper for a PDF import, and reports a failure when nothing survives sanitizing', async () => {
+    it('emits the sanitized wrapper for a PDF import', async () => {
         const fixture = createFixture();
         const emitted = await importAndEmitted(fixture, pdfFile('Imported PDF text'));
         expect(emitted).toContain('Imported PDF text');
         expect(sanitizerOf(fixture).sanitize(emitted)).toBe(emitted);
+    });
 
+    // The parsers now emit clean markup themselves, so these two hand the directive
+    // markup a parser would not produce: only the directive's own sanitize can fix it.
+    it('emits what the editor holds for markup that needs sanitizing, not what was handed over', () => {
+        const fixture = createFixture();
+        const { el } = setContent(fixture, '<p>x</p>');
+        caretAtEnd(el);
         const probe = directiveOf(fixture) as unknown as { insertImported(html: string): void };
+
+        probe.insertImported('<p onclick="alert(1)">kept <script>alert(2)</script>text</p>');
+
+        const [emitted] = fixture.componentInstance.completes;
+        expect(emitted).toContain('kept');
+        expect(emitted).not.toMatch(/onclick|<script|alert/);
+        expect(el.innerHTML).toContain(emitted);
+    });
+
+    it('reports a failure, and emits nothing, when nothing survives sanitizing', () => {
+        const fixture = createFixture();
+        const probe = directiveOf(fixture) as unknown as { insertImported(html: string): void };
+
         probe.insertImported('<script>alert(1)</script>');
+
         expect(fixture.componentInstance.errors).toEqual(['Failed to import file. The file may be unsupported or corrupted.']);
-        expect(fixture.componentInstance.completes).toHaveLength(1);
+        expect(fixture.componentInstance.completes).toHaveLength(0);
     });
 
     it('routes a picked image to the image pipeline by its bytes, not its declared type', async () => {
