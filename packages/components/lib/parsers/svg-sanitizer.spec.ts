@@ -248,6 +248,10 @@ describe('sanitizeSvg output parsed as HTML', () => {
 
         expect(parse(payloads['a comment inside text-bearing elements']).querySelector('title')?.textContent).toBe('ab');
         expect(parse(payloads['a CDATA section']).querySelector('text')?.textContent).toBe('<img src=x onerror=alert(3)>');
+        // As escaped text, not as a CDATA section that only some HTML contexts read as text.
+        const output = sanitizeSvg(payloads['a CDATA section'])!;
+        expect(output).not.toContain('CDATA');
+        expect(output).toContain('&lt;img src=x onerror=alert(3)&gt;');
     });
 
     it('removes href values whose scheme is unsafe after the browser strips controls, whitespace and case', () => {
