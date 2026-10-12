@@ -98,7 +98,6 @@ const INITIAL_TREE: TreeNode[] = [
       <section class="space-y-4">
         <h2 id="tree-context-menu" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
         <p class="text-muted-foreground">{{ t().description }}</p>
-        <p class="text-sm rounded-md border border-dashed p-3 text-muted-foreground">{{ t().touchHint }}</p>
       </section>
 
       <section class="space-y-4">

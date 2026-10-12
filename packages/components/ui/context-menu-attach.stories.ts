@@ -217,9 +217,9 @@ export const EventPayload: Story = {
 };
 
 /**
- * Touch devices: the directive listens for `contextmenu` only — it does NOT
- * implement long-press. Pair it with a visible actions button that calls
- * `menu.show(x, y)` so touch users can reach the same menu (CLAUDE.md §6).
+ * Touch devices: a one-finger long-press opens the menu like a right-click and
+ * emits once, on iOS and Android alike. A visible actions button that calls
+ * `menu.show(x, y)` is still a good discoverability aid.
  */
 export const TouchFallback: Story = {
     render: (args) => ({

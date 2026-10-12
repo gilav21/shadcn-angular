@@ -175,6 +175,12 @@ function setupWithNullMenu(): {
   return { fixture, comp, tableEl, dataTable };
 }
 
+/** A contextmenu typed by pointer, as Chromium raises it (older jsdom has no PointerEvent: then it is untyped). */
+function typedContextMenu(pointerType: 'mouse' | 'touch', x: number, y: number): MouseEvent {
+  const init = { bubbles: true, cancelable: true, button: pointerType === 'mouse' ? 2 : 0, clientX: x, clientY: y };
+  return typeof PointerEvent === 'undefined' ? new MouseEvent('contextmenu', init) : new PointerEvent('contextmenu', { ...init, pointerType });
+}
+
 /** A finger held on `target` for the long-press duration (fake timers must be installed). */
 function holdFinger(target: HTMLElement, x: number, y: number): Event {
   const event = new Event('touchstart', { bubbles: true, cancelable: true });
@@ -276,11 +282,12 @@ describe('DataTableContextMenuDirective', () => {
       holdFinger(cell, 10, 20);
       // Android reports the same hold as a contextmenu too: still the table's, not the menu's.
       vi.advanceTimersByTime(100);
-      cell.dispatchEvent(new PointerEvent('contextmenu', { bubbles: true, cancelable: true, pointerType: 'touch', clientX: 10, clientY: 20 }));
+      cell.dispatchEvent(typedContextMenu('touch', 10, 20));
       expect(comp.rowEvents).toHaveLength(0);
       expect(comp.menu.show).not.toHaveBeenCalled();
 
-      cell.dispatchEvent(new PointerEvent('contextmenu', { bubbles: true, cancelable: true, button: 2, pointerType: 'mouse', clientX: 10, clientY: 20 }));
+      vi.advanceTimersByTime(2000);
+      cell.dispatchEvent(typedContextMenu('mouse', 10, 20));
       expect(comp.rowEvents).toHaveLength(1);
 
       // A browser that types contextmenu as a plain MouseEvent (Firefox): no finger before it, so a mouse's.

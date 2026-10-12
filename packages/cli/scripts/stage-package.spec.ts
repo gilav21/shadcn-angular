@@ -48,6 +48,6 @@ describe('stage-package entry contract (T-24)', () => {
     it('stages data-table successfully and prints its file count', () => {
         const run = runScript(SCRIPT, ['data-table']);
         expect(run.status).toBe(0);
-        expect(run.output).toContain('staged 183 files');
+        expect(run.output).toContain('staged 184 files');
     }, 120_000);
 });

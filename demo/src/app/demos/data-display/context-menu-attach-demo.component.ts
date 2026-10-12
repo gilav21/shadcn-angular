@@ -51,8 +51,7 @@ const USAGE_SNIPPET = `<ui-context-menu #itemMenu>
     class="rounded-lg border p-4"
   >
     {{ file.label }}
-    <!-- Touch fallback: the directive has no long-press, so expose the
-         same menu behind a visible button. -->
+    <!-- A visible button next to the long-press and the right-click: the same menu, easier to discover. -->
     <ui-button variant="ghost" size="icon" (click)="openFor(itemMenu, file, $event)">
       <ui-icon name="more-vertical" size="sm" />
     </ui-button>
@@ -86,10 +85,6 @@ openFor(menu: ContextMenuComponent, file: FileItem, event: MouseEvent): void {
       <section class="space-y-4">
         <h2 id="context-menu-attach" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
         <p class="text-muted-foreground">{{ t().description }}</p>
-        <div class="flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 sm:p-4">
-          <ui-icon name="smartphone" size="sm" class="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />
-          <p class="text-sm text-amber-800 dark:text-amber-200">{{ t().touchNote }}</p>
-        </div>
       </section>
 
       <ui-context-menu #itemMenu>

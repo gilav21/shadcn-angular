@@ -3,7 +3,6 @@ import type { LocaleMeta } from '../../../../../packages/components/lib/i18n';
 export interface ContextMenuAttachDemoLocale extends LocaleMeta {
   heading: string;
   description: string;
-  touchNote: string;
   cardsHeading: string;
   cardsDesc: string;
   card1Title: string;
@@ -46,8 +45,6 @@ export const CONTEXT_MENU_ATTACH_DEMO_LOCALES: Record<string, ContextMenuAttachD
     heading: 'Context Menu Attach',
     description:
       'The [uiContextMenuAttach] directive attaches one shared <ui-context-menu> to any element and binds data to it. Right-clicking the host opens the menu at the cursor and emits a ContextMenuEvent with the bound item.',
-    touchNote:
-      'Touch devices: this directive listens for right-click only — it does not implement long-press. Always pair it with a visible actions button (the ⋮ button below) so touch users can reach the same menu.',
     cardsHeading: 'Attached to cards',
     cardsDesc: 'Each card binds its own data object. One menu instance serves all of them.',
     card1Title: 'Quarterly report',
@@ -89,8 +86,6 @@ export const CONTEXT_MENU_ATTACH_DEMO_LOCALES: Record<string, ContextMenuAttachD
     heading: 'חיבור תפריט הקשר',
     description:
       'ההוראה ‎[uiContextMenuAttach]‎ מחברת ‎<ui-context-menu>‎ משותף אחד לכל אלמנט ומקשרת אליו נתונים. לחיצה ימנית על המארח פותחת את התפריט במיקום הסמן ומשדרת ‎ContextMenuEvent‎ עם הפריט המקושר.',
-    touchNote:
-      'מכשירי מגע: ההוראה מאזינה ללחיצה ימנית בלבד — היא אינה מממשת לחיצה ארוכה. יש לשלב תמיד כפתור פעולות גלוי (כפתור ⋮ למטה) כדי שמשתמשי מגע יוכלו להגיע לאותו תפריט.',
     cardsHeading: 'מחובר לכרטיסים',
     cardsDesc: 'כל כרטיס מקשר אובייקט נתונים משלו. מופע תפריט אחד משרת את כולם.',
     card1Title: 'דוח רבעוני',
@@ -132,8 +127,6 @@ export const CONTEXT_MENU_ATTACH_DEMO_LOCALES: Record<string, ContextMenuAttachD
     heading: 'إرفاق قائمة السياق',
     description:
       'يُرفق التوجيه ‎[uiContextMenuAttach]‎ قائمة ‎<ui-context-menu>‎ مشتركة واحدة بأي عنصر ويربط بها البيانات. النقر بالزر الأيمن على العنصر المضيف يفتح القائمة عند المؤشر ويُصدر ‎ContextMenuEvent‎ مع العنصر المرتبط.',
-    touchNote:
-      'أجهزة اللمس: يستمع هذا التوجيه للنقر بالزر الأيمن فقط — وهو لا يدعم الضغط المطوّل. اقرنه دائماً بزر إجراءات مرئي (زر ⋮ أدناه) ليتمكن مستخدمو اللمس من الوصول إلى القائمة نفسها.',
     cardsHeading: 'مرفق بالبطاقات',
     cardsDesc: 'كل بطاقة تربط كائن بيانات خاص بها. نسخة قائمة واحدة تخدمها جميعاً.',
     card1Title: 'التقرير الفصلي',
@@ -174,8 +167,6 @@ export const CONTEXT_MENU_ATTACH_DEMO_LOCALES: Record<string, ContextMenuAttachD
     heading: 'Kontextmenü anhängen',
     description:
       'Die Direktive [uiContextMenuAttach] hängt ein gemeinsames <ui-context-menu> an ein beliebiges Element und bindet Daten daran. Ein Rechtsklick auf das Host-Element öffnet das Menü an der Cursorposition und löst ein ContextMenuEvent mit dem gebundenen Objekt aus.',
-    touchNote:
-      'Touch-Geräte: Diese Direktive reagiert nur auf Rechtsklick — ein langes Drücken wird nicht unterstützt. Ergänzen Sie sie immer um eine sichtbare Aktionsschaltfläche (die ⋮-Schaltfläche unten), damit Touch-Nutzer dasselbe Menü erreichen.',
     cardsHeading: 'An Karten angehängt',
     cardsDesc: 'Jede Karte bindet ihr eigenes Datenobjekt. Eine Menü-Instanz bedient alle.',
     card1Title: 'Quartalsbericht',
@@ -216,8 +207,6 @@ export const CONTEXT_MENU_ATTACH_DEMO_LOCALES: Record<string, ContextMenuAttachD
     heading: 'Attacher un menu contextuel',
     description:
       "La directive [uiContextMenuAttach] attache un <ui-context-menu> partagé à n'importe quel élément et y associe des données. Un clic droit sur l'hôte ouvre le menu au curseur et émet un ContextMenuEvent avec l'élément lié.",
-    touchNote:
-      "Appareils tactiles : cette directive n'écoute que le clic droit — elle n'implémente pas l'appui long. Associez-la toujours à un bouton d'actions visible (le bouton ⋮ ci-dessous) pour que les utilisateurs tactiles accèdent au même menu.",
     cardsHeading: 'Attaché à des cartes',
     cardsDesc: 'Chaque carte lie son propre objet de données. Une seule instance de menu les sert toutes.',
     card1Title: 'Rapport trimestriel',
@@ -258,8 +247,6 @@ export const CONTEXT_MENU_ATTACH_DEMO_LOCALES: Record<string, ContextMenuAttachD
     heading: 'Adjuntar menú contextual',
     description:
       'La directiva [uiContextMenuAttach] adjunta un <ui-context-menu> compartido a cualquier elemento y le vincula datos. Al hacer clic derecho sobre el anfitrión, el menú se abre en el cursor y emite un ContextMenuEvent con el elemento vinculado.',
-    touchNote:
-      'Dispositivos táctiles: esta directiva solo escucha el clic derecho — no implementa la pulsación larga. Combínala siempre con un botón de acciones visible (el botón ⋮ de abajo) para que los usuarios táctiles alcancen el mismo menú.',
     cardsHeading: 'Adjunto a tarjetas',
     cardsDesc: 'Cada tarjeta vincula su propio objeto de datos. Una sola instancia de menú las sirve a todas.',
     card1Title: 'Informe trimestral',
@@ -300,8 +287,6 @@ export const CONTEXT_MENU_ATTACH_DEMO_LOCALES: Record<string, ContextMenuAttachD
     heading: 'コンテキストメニューのアタッチ',
     description:
       '[uiContextMenuAttach] ディレクティブは、共有の <ui-context-menu> を任意の要素にアタッチし、データを紐付けます。ホスト要素を右クリックするとカーソル位置にメニューが開き、紐付けた項目を含む ContextMenuEvent が発行されます。',
-    touchNote:
-      'タッチデバイス: このディレクティブは右クリックのみを検知し、長押しには対応していません。タッチ利用者が同じメニューに到達できるよう、常に表示されるアクションボタン（下の ⋮ ボタン）を必ず併用してください。',
     cardsHeading: 'カードにアタッチ',
     cardsDesc: '各カードが自身のデータオブジェクトを紐付けます。メニューのインスタンスは 1 つで全体をまかないます。',
     card1Title: '四半期レポート',
@@ -342,8 +327,6 @@ export const CONTEXT_MENU_ATTACH_DEMO_LOCALES: Record<string, ContextMenuAttachD
     heading: '上下文菜单附加',
     description:
       '[uiContextMenuAttach] 指令可将一个共享的 <ui-context-menu> 附加到任意元素并绑定数据。右键点击宿主元素会在光标处打开菜单，并发出携带绑定项的 ContextMenuEvent。',
-    touchNote:
-      '触控设备：该指令仅监听右键点击，并未实现长按。请始终搭配一个可见的操作按钮（下方的 ⋮ 按钮），让触控用户也能打开同一个菜单。',
     cardsHeading: '附加到卡片',
     cardsDesc: '每张卡片绑定各自的数据对象。一个菜单实例即可服务全部卡片。',
     card1Title: '季度报告',
@@ -384,8 +367,6 @@ export const CONTEXT_MENU_ATTACH_DEMO_LOCALES: Record<string, ContextMenuAttachD
     heading: 'Привязка контекстного меню',
     description:
       'Директива [uiContextMenuAttach] привязывает общий <ui-context-menu> к любому элементу вместе с данными. Правый клик по элементу-хосту открывает меню в позиции курсора и порождает ContextMenuEvent с привязанным объектом.',
-    touchNote:
-      'Сенсорные устройства: директива слушает только правый клик — долгое нажатие не реализовано. Всегда добавляйте видимую кнопку действий (кнопка ⋮ ниже), чтобы пользователи сенсорных экранов могли открыть то же меню.',
     cardsHeading: 'Привязка к карточкам',
     cardsDesc: 'Каждая карточка привязывает свой объект данных. Один экземпляр меню обслуживает все карточки.',
     card1Title: 'Квартальный отчёт',
@@ -426,8 +407,6 @@ export const CONTEXT_MENU_ATTACH_DEMO_LOCALES: Record<string, ContextMenuAttachD
     heading: 'Anexar menu de contexto',
     description:
       'A diretiva [uiContextMenuAttach] anexa um <ui-context-menu> compartilhado a qualquer elemento e vincula dados a ele. Clicar com o botão direito no hospedeiro abre o menu no cursor e emite um ContextMenuEvent com o item vinculado.',
-    touchNote:
-      'Dispositivos de toque: esta diretiva escuta apenas o clique direito — não implementa pressão longa. Combine-a sempre com um botão de ações visível (o botão ⋮ abaixo) para que usuários de toque alcancem o mesmo menu.',
     cardsHeading: 'Anexado a cartões',
     cardsDesc: 'Cada cartão vincula seu próprio objeto de dados. Uma única instância de menu atende a todos.',
     card1Title: 'Relatório trimestral',

@@ -75,9 +75,9 @@ const meta: Meta = {
                 component: [
                     '`TreeContextMenuDirective` (`ui-tree[uiTreeContextMenu]`) wires a `ui-context-menu` to every node of a `ui-tree`.',
                     '',
-                    'It listens for `contextmenu` on the tree host, walks up from the event target to the nearest `[data-slot="tree-item"]`, extracts that node\'s data from the DOM, emits `nodeContextMenu`, and opens the menu at the cursor.',
+                    'It listens for `contextmenu` on the tree host, walks up from the event target to the nearest `[data-slot="tree-item"]`, extracts that node\'s data from the DOM, emits `nodeContextMenu`, and opens the menu at the cursor or finger.',
                     '',
-                    '**Touch:** the directive is right-click only — it has no built-in long-press. On touch-only devices nothing opens the menu. Until long-press lands in the directive, add a touch fallback yourself with `onLongPress()` from `lib/touch.ts` and call `menu.show(touch.clientX, touch.clientY, node)`. See the demo page for a copy-paste implementation.',
+                    '**Touch and keyboard:** a one-finger long-press (500 ms, at most 10 px of travel) opens the same menu and emits the same `nodeContextMenu` payload as a right-click, once, on iOS and Android alike; so does the context-menu key (Shift+F10) on a focused tree item. The `event` field is the `contextmenu` event, or the `touchstart` that began the long-press; `pointOf(event)` from `lib/touch.ts` reads either.',
                 ].join('\n'),
             },
         },
@@ -110,8 +110,7 @@ const FILE_TREE = `
 
 const HINT = `
     <p class="text-xs text-muted-foreground">
-        Right-click a node to open its menu. Touch devices: the directive has no long-press —
-        see the docs above for the <code>onLongPress()</code> fallback.
+        Right-click a node, or long-press it on a touch device, to open its menu.
     </p>
 `;
 
