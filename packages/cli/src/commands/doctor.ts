@@ -3,12 +3,12 @@ import path from 'node:path';
 import chalk from 'chalk';
 import { getConfig, getPrefix, type Config } from '../utils/config.js';
 import { registry, getComponentNames, type ComponentName } from '../registry/index.js';
-import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
-import { detectConflicts, printBreakingChanges, type AddOptions } from '../core/plan.js';
+import { resolveProjectPath, aliasToProjectPath, PATH_GUARD } from '../utils/paths.js';
+import { detectConflicts, printBreakingChanges, resolveInstallTargets, type AddOptions } from '../core/plan.js';
 import { readManifest, writeManifest, removeFiles, fileStatus, type FileStatus, type Manifest } from '../core/manifest.js';
 import { scanLayouts } from '../core/layout.js';
-import { performInstall } from '../core/install.js';
-import { collectLibDrift, refreshLibFiles } from '../core/lib-reconcile.js';
+import { performInstall, type InstallResult } from '../core/install.js';
+import { collectLibDrift, refreshLibFiles, classifyLibFile } from '../core/lib-reconcile.js';
 import { printBreakingUsages } from '../core/breaking-scan.js';
 import { collectStaleReport, rewriteMovedImports, type StaleEntry } from '../core/clean-reinstall.js';
 import { installPackages } from '../utils/package-manager.js';
@@ -23,6 +23,8 @@ export interface DoctorReport {
     updateAvailable: string[];
     /** Folderized components installed in the legacy flat layout. */
     legacy: string[];
+    /** Installed components whose registry copy could not be fetched: neither healthy nor drifted. */
+    unchecked: string[];
     missingNpmDeps: string[];
     /** Shared lib files behind the registry but safe to refresh. */
     libStale: string[];
@@ -104,8 +106,8 @@ export async function collectDoctorReport(
     const targetDir = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.ui || 'src/components/ui'));
     const installed = await installedComponents(targetDir);
 
-    const { conflicting, toInstall } = await detectConflicts(
-        new Set(installed), targetDir, options, config.aliases.utils, getPrefix(config),
+    const { conflicting, toInstall, unchecked } = await detectConflicts(
+        new Set(installed), resolveInstallTargets(cwd, config), options, config.aliases.utils, getPrefix(config),
     );
     // Among installed components: "toInstall" means some files are missing
     // (partial install); "conflicting" means local files differ from remote.
@@ -129,11 +131,12 @@ export async function collectDoctorReport(
     );
     const staleActionable = stale.some(e => e.action === 'prune' || e.action === 'migrate');
 
-    const ok = missingFiles.length === 0 && modified.length === 0
+    const ok = missingFiles.length === 0 && modified.length === 0 && unchecked.length === 0
         && missingNpmDeps.length === 0 && legacy.length === 0
         && lib.stale.length === 0 && lib.missing.length === 0 && !staleActionable;
     return {
         missingFiles, modified, userEdited, updateAvailable, legacy, missingNpmDeps,
+        unchecked: unchecked.map(u => u.name),
         libStale: lib.stale, libMissing: lib.missing, libUserEdited: lib.userEdited, stale, ok,
     };
 }
@@ -198,6 +201,14 @@ export function buildFixPlan(report: DoctorReport): DoctorFixPlan {
     };
 }
 
+/** An incomplete install as action lines, so `doctor --fix` never loses the cause of a failed file. */
+function describeProblems(result: Pick<InstallResult, 'failures' | 'unchecked'>): string[] {
+    return [
+        ...result.failures.map(f => `Warning: ${f.file ?? f.stage} — ${f.message}`),
+        ...result.unchecked.map(u => `Warning: could not check ${u.name}: ${u.reason}`),
+    ];
+}
+
 /**
  * Apply a fix plan: re-install missing/stale components (overwriting the stale
  * ones) and install missing npm dependencies. User-edited components are never
@@ -220,6 +231,7 @@ export async function doctorFixCore(
         actions.push(`Re-installed ${result.installed.length} component(s): ${result.installed.join(', ')}`);
         if (result.pruned.length > 0) actions.push(`Pruned ${result.pruned.length} obsolete file(s): ${result.pruned.join(', ')}`);
         for (const warning of result.warnings) actions.push(`Warning: ${warning}`);
+        actions.push(...describeProblems(result));
     }
     if (plan.npmDeps.length > 0) {
         await installPackages(plan.npmDeps, { cwd });
@@ -252,6 +264,12 @@ async function migrateOneMove(
         components: [move.toComponent], overwrite: [move.toComponent],
         cwd, config, options: { ...options, yes: true, overwrite: true },
     });
+    const problems = describeProblems(result);
+    if (problems.length > 0) {
+        // The replacement did not fully arrive: keep the old file and its imports.
+        actions.push(`Did not migrate ${move.fromFile} → ${move.toComponent}: the new component was not fully installed.`, ...problems);
+        return;
+    }
     const rewritten = await rewriteMovedImports(cwd, move);
     await fs.remove(path.join(targetDir, move.fromFile));
     actions.push(
@@ -318,28 +336,60 @@ export interface RefreshLibResult {
 }
 
 /**
+ * Split an explicit `files` list by the same rule the drift scan uses: a
+ * customized file is protected unless `force`, however the target set was
+ * chosen (I7). A path that escapes the lib dir stays a target so
+ * `refreshLibFiles` refuses it with its path-guard warning; a file that could
+ * not be read for any other reason is protected, never overwritten blind.
+ */
+async function splitExplicitFiles(
+    files: readonly string[], libDir: string, manifest: Manifest, options: AddOptions, force: boolean | undefined,
+): Promise<{ targets: string[]; protectedFiles: string[] }> {
+    const targets: string[] = [];
+    const protectedFiles: string[] = [];
+    for (const file of files) {
+        if (await isProtectedExplicit(file, libDir, manifest, options, force)) protectedFiles.push(file);
+        else targets.push(file);
+    }
+    return { targets, protectedFiles };
+}
+
+async function isProtectedExplicit(
+    file: string, libDir: string, manifest: Manifest, options: AddOptions, force: boolean | undefined,
+): Promise<boolean> {
+    try {
+        return await classifyLibFile(file, libDir, manifest, options) === 'userEdited' && !force;
+    } catch (err: unknown) {
+        return !(err instanceof Error && err.message.startsWith(PATH_GUARD));
+    }
+}
+
+/**
  * Reconcile shared lib files with the registry. Without `files`, refreshes the
  * safe set (pristine-but-stale + missing) and, with `force`, also the customized
- * ones. An explicit `files` list is treated as user consent to overwrite exactly
- * those. Powers the `refresh_lib` MCP verb so the "lib file differs" warning is
- * actionable through the tooling (report B3).
+ * ones. An explicit `files` list only chooses WHICH files to consider: a
+ * customized one in it is still protected unless `force` — the same contract the
+ * README, `--help` and the MCP description promise. Powers the `refresh_lib` MCP
+ * verb so the "lib file differs" warning is actionable through the tooling
+ * (report B3).
  */
 export async function refreshLibCore(
     cwd: string, config: Config, options: AddOptions, input: RefreshLibInput,
 ): Promise<RefreshLibResult> {
     const targetDir = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.ui || 'src/components/ui'));
-    const installed = await installedComponents(targetDir);
     const libDir = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.utils));
     const manifest = await readManifest(cwd);
-    const drift = await collectLibDrift(libDir, installed, manifest, options);
 
     let targets: string[];
+    let protectedFiles: string[];
     if (input.files && input.files.length > 0) {
-        targets = input.files;
+        ({ targets, protectedFiles } = await splitExplicitFiles(input.files, libDir, manifest, options, input.force));
     } else {
+        const installed = await installedComponents(targetDir);
+        const drift = await collectLibDrift(libDir, installed, manifest, options);
         targets = [...new Set([...drift.stale, ...drift.missing, ...(input.force ? drift.userEdited : [])])];
+        protectedFiles = input.force ? [] : drift.userEdited;
     }
-    const protectedFiles = input.files || input.force ? [] : drift.userEdited;
 
     if (input.dryRun) {
         return { refreshed: [], targets, protectedFiles, warnings: [] };
@@ -359,6 +409,7 @@ function printReport(report: DoctorReport): void {
     printSection('Locally modified (your edits — `update` will 3-way merge upstream changes into them):', report.userEdited, chalk.yellow);
     printSection('Update available (newer registry version):', report.updateAvailable, chalk.cyan);
     printSection('Legacy single-file layout — run `migrate`:', report.legacy, chalk.magenta);
+    printSection('Could not check (registry unreachable):', report.unchecked, chalk.red);
     printSection('Missing npm dependencies:', report.missingNpmDeps, chalk.red);
     printSection('Shared lib files behind the registry:', report.libStale, chalk.cyan);
     printSection('Shared lib files missing:', report.libMissing, chalk.yellow);
@@ -389,7 +440,7 @@ function printFixPlan(plan: DoctorFixPlan): void {
 /** Healthy apart from user edits (which `--fix` deliberately never repairs). */
 function cleanExceptUserEdits(report: DoctorReport): boolean {
     return report.missingFiles.length === 0 && report.updateAvailable.length === 0
-        && report.missingNpmDeps.length === 0 && report.legacy.length === 0
+        && report.unchecked.length === 0 && report.missingNpmDeps.length === 0 && report.legacy.length === 0
         && report.libStale.length === 0 && report.libMissing.length === 0
         && !report.stale.some(e => e.action === 'prune' || e.action === 'migrate');
 }

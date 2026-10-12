@@ -135,7 +135,7 @@ function buildInspectCommands(branchDefault: string): string[] {
     '    ' + chalk.gray('-b, --branch') + ' <branch> GitHub branch to fetch from ' + branchDefault,
     '',
     '  ' + chalk.cyan('refresh-lib') + ' Reconcile the shared lib/ files (utils.ts, i18n, parsers, …) with the registry',
-    '    ' + chalk.gray('--files') + ' <files>      Comma-separated lib file paths (default: stale + missing)',
+    '    ' + chalk.gray('--files') + ' <files>      Comma-separated lib file paths (default: stale + missing; customized ones stay protected)',
     '    ' + chalk.gray('--force') + '              Also overwrite lib files you customized (protected by default)',
     '    ' + chalk.gray('-y, --yes') + '            Skip the --force confirmation prompt',
     '    ' + chalk.gray('--dry-run') + '            Show what would be refreshed without writing',

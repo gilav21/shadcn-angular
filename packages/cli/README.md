@@ -255,12 +255,32 @@ Resolve the markers, then rebuild. Other flags:
   still wins).
 - **`--dry-run`** — preview what would change without writing, including a
   per-file merge prediction (would merge cleanly / WOULD CONFLICT / would keep).
-- **`--yes`** — install any newly-required dependencies without prompting. In CI,
-  `update --yes` exits non-zero whenever it writes conflict markers, so a merge
-  that needs human attention fails the build instead of passing silently.
+- **`--yes`** — install any newly-required dependencies without prompting. Any
+  non-interactive run (`--yes`, or piped / CI stdin) exits non-zero whenever it
+  writes conflict markers, so a merge that needs human attention fails the build
+  instead of passing silently (see [Exit codes](#exit-codes-for-add-update-and-apply)).
 - **`--include-tests` / `--no-tests`** — refresh (or skip) each updated
   component's tests. With `tests.include` persisted in `components.json`, updates
   refresh specs automatically; `--no-tests` skips them for one run.
+
+### Exit codes for `add`, `update` and `apply`
+
+`0` means every file was written and recorded. `1` means something is left for
+you, and it is always listed first:
+
+- a **file, shared lib file, `npm install` or lockfile write failed** — listed
+  under `Failed:`. A component with a failed file is not recorded as updated, so
+  the next `update` still merges the upstream change into your copy;
+- a component **could not be checked** because the registry was unreachable or
+  answered 404 — listed under `Could not check (registry unreachable)`, never
+  offered for overwrite and never written;
+- **conflict markers were written** and nobody can resolve them: `--yes`, or
+  stdin that is not a terminal. An interactive run keeps exit `0` and prints the
+  warning.
+
+The MCP tools `add_component`, `update_component` and `apply_addon` report the
+same conditions as `isError: true` with the usual JSON body, including
+`failures[]` and `unchecked[]`.
 
 ### Refreshing the shared `lib/` files
 
@@ -277,7 +297,9 @@ npx @gilav21/shadcn-angular refresh-lib --force -y  # also overwrite YOUR edits
 
 Lib files you customized are protected and listed, never overwritten, unless you
 pass `--force` (which confirms first — `-y` skips the prompt). This is the same
-routine the MCP `refresh_lib` tool runs.
+routine the MCP `refresh_lib` tool runs. Naming files with `--files` only picks
+*which* files to refresh; a customized one you name is still protected unless you
+also pass `--force`.
 
 ### `components.lock.json`
 

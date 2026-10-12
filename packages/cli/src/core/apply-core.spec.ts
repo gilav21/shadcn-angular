@@ -1,10 +1,17 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import fs from 'fs-extra';
 import os from 'node:os';
 import path from 'node:path';
 import { ApplyError, resolveAddonInfo, wireAddonCore, applyCore } from './apply-core.js';
 import { getDefaultConfig } from '../utils/config.js';
 import { emptyMergeReport } from './merge.js';
+import { performInstall } from './install.js';
+
+// The real installer, except where a test scripts its result.
+vi.mock('./install.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./install.js')>();
+  return { ...actual, performInstall: vi.fn(actual.performInstall) };
+});
 
 describe('resolveAddonInfo', () => {
   it('resolves a real addon entry to its attach metadata', () => {
@@ -115,5 +122,25 @@ describe('applyCore merge reporting', () => {
     // (previously the performInstall result was discarded).
     expect(result.mergeReport).toEqual(emptyMergeReport());
     expect(result.installed).toBe(false);
+  });
+});
+
+describe('applyCore on an install that did not complete', () => {
+  let dir: string;
+  beforeEach(async () => { dir = await fs.mkdtemp(path.join(os.tmpdir(), 'apply-core-incomplete-')); });
+  afterEach(async () => { await fs.remove(dir); });
+
+  it('returns the failure instead of blaming the base for a missing contract file, and wires nothing', async () => {
+    const failure = { stage: 'component', component: 'data-table', file: 'data-table/data-table.host.ts', message: 'ECONNRESET' } as const;
+    vi.mocked(performInstall).mockResolvedValueOnce({
+      installed: [], skipped: [], declined: [], pruned: [], warnings: [],
+      mergeReport: emptyMergeReport(), failures: [failure], unchecked: [],
+    });
+
+    const result = await applyCore('data-table/context-menu', [], { branch: 'master', yes: true }, dir, getDefaultConfig());
+
+    expect(result.failures).toEqual([failure]);
+    expect(result.installed).toBe(false);
+    expect(result.totalWired).toBe(0);
   });
 });

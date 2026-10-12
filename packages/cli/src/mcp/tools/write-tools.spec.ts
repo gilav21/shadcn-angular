@@ -4,7 +4,8 @@ import path from 'node:path';
 import { registerWriteTools } from './write-tools.js';
 import type { ToolHost } from '../serialize.js';
 import type { ToolResult } from './result.js';
-import { performInstall, type InstallResult } from '../../core/install.js';
+import { performInstall, type InstallFailure, type InstallResult } from '../../core/install.js';
+import type { UncheckedComponent } from '../../core/plan.js';
 import { initProject } from '../../core/init-core.js';
 import { applyInitDefaults } from '../../commands/init.js';
 import { applyCore, ApplyError, type ApplyCoreResult } from '../../core/apply-core.js';
@@ -104,9 +105,11 @@ const parsed = <T>(res: ToolResult): T => JSON.parse(text(res)) as T;
 
 const mockPathExists = vi.mocked(fs.pathExists) as unknown as ReturnType<typeof vi.fn>;
 
-const installResult = (mergeReport: MergeReport = emptyMergeReport()): InstallResult => ({
+const installResult = (
+  mergeReport: MergeReport = emptyMergeReport(), extra: Partial<InstallResult> = {},
+): InstallResult => ({
   installed: ['button'] as ComponentName[],
-  skipped: [], declined: [], pruned: [], warnings: [], mergeReport,
+  skipped: [], declined: [], pruned: [], warnings: [], mergeReport, failures: [], unchecked: [], ...extra,
 });
 
 const libResult = (): RefreshLibResult => ({
@@ -127,13 +130,18 @@ const fixPlan = (): DoctorFixPlan => ({
   hasActions: true,
 });
 
-const applyResult = (mergeReport: MergeReport = emptyMergeReport()): ApplyCoreResult => ({
+const applyResult = (
+  mergeReport: MergeReport = emptyMergeReport(), extra: Partial<ApplyCoreResult> = {},
+): ApplyCoreResult => ({
   addon: 'data-table/context-menu',
   installed: true,
   targets: [],
   totalWired: 1,
   mergeReport,
+  failures: [],
+  unchecked: [],
   snippet: { import: 'i', selector: 'uiDtContextMenu', tag: 'ui-data-table' },
+  ...extra,
 });
 
 const conflictedReport = (): MergeReport => ({
@@ -691,6 +699,60 @@ describe('migrate', () => {
     expect(res.isError).toBe(true);
     expect(text(res)).toBe('write failed');
   });
+});
+
+describe('an install that did not complete', () => {
+  const failure: InstallFailure = {
+    stage: 'component', component: 'button', file: 'button/button.component.html',
+    message: 'Could not reach the registry (https://fork.test/r/ui/button/button.component.html): ECONNRESET',
+  };
+  const unchecked: UncheckedComponent = {
+    name: 'button', file: 'button/button.component.ts', reason: 'Could not reach the registry: fetch failed',
+  };
+
+  const arrange: Record<string, (extra: Partial<InstallResult>) => void> = {
+    add_component: extra => vi.mocked(performInstall).mockResolvedValue(installResult(emptyMergeReport(), extra)),
+    update_component: extra => vi.mocked(performInstall).mockResolvedValue(installResult(emptyMergeReport(), extra)),
+    apply_addon: extra => vi.mocked(applyCore).mockResolvedValue(applyResult(emptyMergeReport(), extra)),
+  };
+  const args: Record<string, ToolArgs> = {
+    add_component: { names: ['button'] },
+    update_component: { names: ['button'] },
+    apply_addon: { addon: 'data-table/context-menu' },
+  };
+
+  it.each(['add_component', 'update_component', 'apply_addon'])(
+    '%s flags a recorded failure as isError and keeps the failures in the body', async (tool) => {
+      arrange[tool]({ failures: [failure] });
+
+      const res = await call(tool, args[tool]);
+
+      expect(res.isError).toBe(true);
+      expect(parsed<{ failures: InstallFailure[] }>(res).failures).toEqual([failure]);
+    },
+  );
+
+  it.each(['add_component', 'update_component', 'apply_addon'])(
+    '%s flags a component it could not check as isError', async (tool) => {
+      arrange[tool]({ unchecked: [unchecked] });
+
+      const res = await call(tool, args[tool]);
+
+      expect(res.isError).toBe(true);
+      expect(parsed<{ unchecked: UncheckedComponent[] }>(res).unchecked).toEqual([unchecked]);
+    },
+  );
+
+  it.each(['add_component', 'update_component', 'apply_addon'])(
+    '%s stays a success when only conflict markers were written (hadConflicts is the signal)', async (tool) => {
+      if (tool === 'apply_addon') vi.mocked(applyCore).mockResolvedValue(applyResult(conflictedReport()));
+      else vi.mocked(performInstall).mockResolvedValue(installResult(conflictedReport()));
+
+      const res = await call(tool, args[tool]);
+
+      expect(res.isError).toBeFalsy();
+    },
+  );
 });
 
 describe('apply_addon', () => {

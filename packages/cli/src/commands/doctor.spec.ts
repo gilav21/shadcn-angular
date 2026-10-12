@@ -7,9 +7,10 @@ import {
 import { registry, getComponentNames } from '../registry/index.js';
 import { getConfig, getDefaultConfig, type Config } from '../utils/config.js';
 import { performInstall } from '../core/install.js';
+import { fetchAndTransform } from '../core/fetch.js';
 import { installPackages } from '../utils/package-manager.js';
 import { scanLayouts } from '../core/layout.js';
-import { collectLibDrift, refreshLibFiles } from '../core/lib-reconcile.js';
+import { collectLibDrift, refreshLibFiles, classifyLibFile } from '../core/lib-reconcile.js';
 import { collectStaleReport, rewriteMovedImports } from '../core/clean-reinstall.js';
 import { hashContent, type Manifest } from '../core/manifest.js';
 
@@ -24,7 +25,7 @@ vi.mock('../core/fetch.js', () => ({
   normalizeContent: (s: string) => s.replaceAll('\r\n', '\n').trim(),
 }));
 vi.mock('../core/install.js', () => ({
-  performInstall: vi.fn(async () => ({ installed: ['button', 'card'], skipped: [], declined: [], pruned: [], warnings: [] })),
+  performInstall: vi.fn(async () => ({ installed: ['button', 'card'], skipped: [], declined: [], pruned: [], warnings: [], failures: [], unchecked: [] })),
 }));
 vi.mock('../utils/package-manager.js', () => ({
   installPackages: vi.fn(async () => undefined),
@@ -39,6 +40,7 @@ vi.mock('../core/layout.js', () => ({
 vi.mock('../core/lib-reconcile.js', () => ({
   collectLibDrift: vi.fn(async () => ({ stale: [], missing: [], userEdited: [] })),
   refreshLibFiles: vi.fn(async () => ({ refreshed: [], warnings: [] })),
+  classifyLibFile: vi.fn(async () => 'stale'),
 }));
 vi.mock('../core/clean-reinstall.js', () => ({
   collectStaleReport: vi.fn(async () => ({ entries: [] })),
@@ -65,7 +67,7 @@ beforeEach(() => {
   asMock(getConfig).mockResolvedValue(cfg);
   asMock(installPackages).mockResolvedValue(undefined);
   asMock(performInstall).mockResolvedValue({
-    installed: ['button', 'card'], skipped: [], declined: [], pruned: [], warnings: [],
+    installed: ['button', 'card'], skipped: [], declined: [], pruned: [], warnings: [], failures: [], unchecked: [],
   });
   asMock(scanLayouts).mockResolvedValue({ legacy: [], current: [] });
   asMock(collectLibDrift).mockResolvedValue({ stale: [], missing: [], userEdited: [] });
@@ -85,6 +87,21 @@ describe('collectDoctorReport', () => {
     const report = await collectDoctorReport('/proj', cfg, { branch: 'master' });
     expect(report.modified).toContain('button');
     expect(report.ok).toBe(false);
+  });
+
+  it('does not call an installed component healthy when the registry cannot be reached', async () => {
+    (fs.pathExists as unknown as ReturnType<typeof vi.fn>).mockImplementation(async (p: string) =>
+      String(p).includes('button'));
+    (fs.readFile as unknown as ReturnType<typeof vi.fn>).mockResolvedValue('LOCAL');
+    (fetchAndTransform as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('fetch failed'));
+    try {
+      const report = await collectDoctorReport('/proj', cfg, { branch: 'master' });
+      expect(report.unchecked).toContain('button');
+      expect(report.modified).not.toContain('button');
+      expect(report.ok).toBe(false);
+    } finally {
+      (fetchAndTransform as unknown as ReturnType<typeof vi.fn>).mockResolvedValue('REMOTE');
+    }
   });
 });
 
@@ -186,7 +203,7 @@ describe('doctorFixCore', () => {
 
   it('surfaces install warnings as actions', async () => {
     (performInstall as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      installed: ['button'], skipped: [], declined: [], pruned: [], warnings: ['peer file skipped'],
+      installed: ['button'], skipped: [], declined: [], pruned: [], warnings: ['peer file skipped'], failures: [], unchecked: [],
     });
     const plan = buildFixPlan(makeReport({ missingFiles: ['button'] }));
     const actions = await doctorFixCore('/proj', cfg, { branch: 'master' }, plan);
@@ -231,6 +248,42 @@ describe('doctorFixCore', () => {
     expect(actions.some(a =>
       a.includes('Migrated page-builder/page-renderer.component.ts → page-renderer')
       && a.includes('re-pointed 1 import(s)'))).toBe(true);
+  });
+
+  it('keeps the cause of a failed file in the actions instead of dropping it', async () => {
+    asMock(performInstall).mockResolvedValueOnce({
+      installed: [], skipped: [], declined: [], pruned: [], warnings: [], unchecked: [],
+      failures: [{ stage: 'component', component: 'button', file: 'button/button.component.html', message: 'ECONNRESET' }],
+    });
+
+    const actions = await doctorFixCore(
+      '/proj', cfg, { branch: 'master' }, buildFixPlan(makeReport({ missingFiles: ['button'] })),
+    );
+
+    expect(actions).toContain('Warning: button/button.component.html — ECONNRESET');
+  });
+
+  it('does not delete the old file of a relocated component whose replacement failed to install', async () => {
+    const move = {
+      fromFile: 'page-builder/page-renderer.component.ts',
+      toComponent: 'page-renderer' as const,
+      fromImport: 'page-builder/page-renderer.component',
+      toImport: 'page-renderer',
+    };
+    asMock(collectStaleReport).mockResolvedValue({ entries: [{ file: move.fromFile, action: 'migrate', move }] });
+    asMock(performInstall).mockResolvedValueOnce({
+      installed: [], skipped: [], declined: [], pruned: [], warnings: [], unchecked: [],
+      failures: [{ stage: 'component', component: 'page-renderer', file: 'page-renderer/page-renderer.component.ts', message: 'ECONNRESET' }],
+    });
+
+    const actions = await doctorFixCore(
+      '/proj', cfg, { branch: 'master' },
+      buildFixPlan(makeReport({ stale: [{ file: move.fromFile, action: 'migrate', move }] })),
+    );
+
+    expect(fs.remove).not.toHaveBeenCalledWith(expect.stringContaining('page-renderer.component.ts'));
+    expect(rewriteMovedImports).not.toHaveBeenCalled();
+    expect(actions.some(a => a.startsWith('Did not migrate'))).toBe(true);
   });
 
   it('prunes stale files and drops them from the lockfile', async () => {
@@ -313,13 +366,29 @@ describe('refreshLibCore', () => {
     expect(result.protectedFiles).toEqual(['i18n/i18n.token.ts']);
   });
 
-  it('treats an explicit file list as consent — it overrides the drift scan', async () => {
+  it.each([
+    { row: 'a path that escapes the lib dir stays a target for the guard warning', error: new Error('Path must stay inside the project directory: ../x.ts'), protectedFile: false },
+    { row: 'a file that could not be read is protected, never overwritten blind', error: new Error('EACCES: permission denied'), protectedFile: true },
+  ])('an explicit file that cannot be classified: $row', async ({ error, protectedFile }) => {
+    asMock(classifyLibFile).mockRejectedValue(error);
+
+    const result = await refreshLibCore('/proj', cfg, { branch: 'master' }, { files: ['x.ts'] });
+
+    expect(result.targets).toEqual(protectedFile ? [] : ['x.ts']);
+    expect(result.protectedFiles).toEqual(protectedFile ? ['x.ts'] : []);
+  });
+
+  it('an explicit file list picks which files to consider and still protects a customized one', async () => {
+    asMock(classifyLibFile).mockImplementation(async (f: string) => (f === 'utils.ts' ? 'stale' : 'userEdited'));
+
     const result = await refreshLibCore(
-      '/proj', cfg, { branch: 'master' }, { files: ['i18n/i18n.token.ts'] },
+      '/proj', cfg, { branch: 'master' }, { files: ['utils.ts', 'i18n/i18n.token.ts'] },
     );
-    expect(result.targets).toEqual(['i18n/i18n.token.ts']);
-    expect(result.refreshed).toEqual(['i18n/i18n.token.ts']);
-    expect(result.protectedFiles).toEqual([]);
+
+    expect(result.targets).toEqual(['utils.ts']);
+    expect(result.refreshed).toEqual(['utils.ts']);
+    expect(result.protectedFiles).toEqual(['i18n/i18n.token.ts']);
+    expect(collectLibDrift).not.toHaveBeenCalled();
   });
 });
 
@@ -423,7 +492,7 @@ describe('doctor (command)', () => {
     asMock(fs.readFile).mockImplementation(async () => (repaired ? 'REMOTE' : 'LOCAL EDIT'));
     asMock(performInstall).mockImplementation(async () => {
       repaired = true;
-      return { installed: ['button'], skipped: [], declined: [], pruned: [], warnings: [] };
+      return { installed: ['button'], skipped: [], declined: [], pruned: [], warnings: [], failures: [], unchecked: [] };
     });
 
     await doctor({ branch: 'master', fix: true });
@@ -440,7 +509,7 @@ describe('doctor (command)', () => {
   it('--fix exits 1 when the issue survives the repair', async () => {
     asMock(fs.pathExists).mockImplementation(buttonOnDisk);
     asMock(performInstall).mockResolvedValue({
-      installed: [], skipped: [], declined: ['button'], pruned: [], warnings: [],
+      installed: [], skipped: [], declined: ['button'], pruned: [], warnings: [], failures: [], unchecked: [],
     });
     await expect(doctor({ branch: 'master', fix: true })).rejects.toThrow(ProcessExitError);
     expect(output()).toContain('Some issues remain after fixing:');

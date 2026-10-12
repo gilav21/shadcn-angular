@@ -339,7 +339,7 @@ function installResult(installed: ComponentName[], skipped: string[] = [], warni
     installed, skipped, warnings,
     declined: [] as ComponentName[],
     pruned: [] as string[],
-    mergeReport: emptyMergeReport(),
+    mergeReport: emptyMergeReport(), failures: [], unchecked: [],
   };
 }
 

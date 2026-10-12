@@ -79,6 +79,8 @@ function makeExecution(overrides: Partial<MigrationExecution> = {}): MigrationEx
       pruned: [],
       warnings: [],
       mergeReport: emptyMergeReport(),
+      failures: [],
+      unchecked: [],
     },
     migrated: ['button'] as ComponentName[],
     failed: [] as ComponentName[],
@@ -287,6 +289,27 @@ describe('migrate (command)', () => {
 
     expect(output()).toContain('1 component(s) could not be migrated and were left as legacy: button');
     expect(output()).toContain('Their flat files and imports are untouched.');
+  });
+
+  it('lists the recorded failures, so "fix the errors above" has errors above', async () => {
+    const base = makeExecution();
+    const execution = makeExecution({
+      migrated: [] as ComponentName[],
+      failed: ['button'] as ComponentName[],
+      result: {
+        ...base.result,
+        failures: [
+          { stage: 'component', component: 'button', file: 'button/button.component.html', message: 'ECONNRESET' },
+          { stage: 'npm', component: null, file: null, message: 'Failed to install npm dependencies: EAI_AGAIN' },
+        ],
+      },
+    });
+    mockOutcome({ status: 'migrated', plan, execution });
+
+    await migrate({ branch: 'master' });
+
+    expect(output()).toContain('button/button.component.html — ECONNRESET');
+    expect(output()).toContain('npm install — Failed to install npm dependencies: EAI_AGAIN');
   });
 
   it('says nothing about failures when every component migrated', async () => {

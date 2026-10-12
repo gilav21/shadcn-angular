@@ -41,7 +41,12 @@ vi.mock('../core/layout.js', () => ({
 vi.mock('../core/breaking-scan.js', () => ({
   printBreakingUsages: vi.fn(async () => undefined),
 }));
-vi.mock('./merge-report.js', () => ({ reportMergeSummary: vi.fn(() => false) }));
+// Only the merge-summary printer is stubbed: the exit-code helpers are part of
+// what these tests prove, so they stay real.
+vi.mock('./merge-report.js', async (importOriginal) => ({
+  ...await importOriginal<typeof import('./merge-report.js')>(),
+  reportMergeSummary: vi.fn(() => false),
+}));
 vi.mock('./apply.js', () => ({ apply: vi.fn(async () => undefined) }));
 
 type AnyMock = ReturnType<typeof vi.fn>;
@@ -172,14 +177,14 @@ const closureOf = (name: ComponentName): ComponentName[] => [...resolveDependenc
 function conflictResult(over: Partial<ConflictCheckResult> = {}): ConflictCheckResult {
   return {
     toInstall: [], toSkip: [], conflicting: [],
-    peerFilesToUpdate: new Set<string>(), contentCache: new Map<string, string>(), ...over,
+    peerFilesToUpdate: new Set<string>(), contentCache: new Map<string, string>(), unchecked: [], ...over,
   };
 }
 
 function installResult(over: Partial<InstallResult> = {}): InstallResult {
   return {
     installed: [], skipped: [], declined: [], pruned: [], warnings: [],
-    mergeReport: emptyMergeReport(), ...over,
+    mergeReport: emptyMergeReport(), failures: [], unchecked: [], ...over,
   };
 }
 
@@ -353,6 +358,19 @@ describe('update (command)', () => {
     expect(output()).not.toContain('3-way merge the upstream changes');
   });
 
+  it('judges an edited block by the files in the blocks directory', async () => {
+    asMock(scanLayouts).mockResolvedValue({ legacy: [], current: closureOf('login') });
+    asMock(fs.pathExists).mockImplementation(async (p: string) =>
+      /(?:\/src\/blocks\/)|(?:components\.lock\.json$)/.test(String(p).replaceAll('\\', '/')));
+    asMock(fs.readJson).mockResolvedValue(manifestFor('login', 'ORIGINAL', 'abc123'));
+    asMock(fs.readFile).mockResolvedValue('MY LOCAL EDIT');
+    asMock(detectConflicts).mockResolvedValue(conflictResult({ conflicting: ['login'] }));
+
+    await update(['login'], opts({ yes: true }));
+
+    expect(output()).toContain('update will 3-way merge the upstream changes into them');
+  });
+
   it('warns that an edited component WITHOUT a baseline cannot be merged', async () => {
     asMock(fs.pathExists).mockResolvedValue(true);
     asMock(fs.readJson).mockResolvedValue(manifestFor('button', 'ORIGINAL'));
@@ -364,22 +382,111 @@ describe('update (command)', () => {
     expect(output()).toContain('no recorded baseline — your edited files will be kept and warned');
   });
 
-  it('exits 1 when merge conflicts were written in a non-interactive run (--yes)', async () => {
+  // Nobody is there to resolve markers when the run is unattended: `--yes`, or
+  // stdin that is not a terminal (piped / CI). The reported case is the second.
+  it.each([
+    { yes: true, isTTY: true, wroteMarkers: true, exits: true },
+    { yes: false, isTTY: false, wroteMarkers: true, exits: true },
+    { yes: false, isTTY: true, wroteMarkers: true, exits: false },
+    { yes: true, isTTY: false, wroteMarkers: false, exits: false },
+  ])('conflict markers fail the run only when unattended: yes=$yes tty=$isTTY markers=$wroteMarkers', async ({ yes, isTTY, wroteMarkers, exits }) => {
+    process.stdin.isTTY = isTTY;
     asMock(detectConflicts).mockResolvedValue(conflictResult({ conflicting: ['button'] }));
     asMock(performInstall).mockResolvedValue(installResult({ installed: ['button'] }));
-    asMock(reportMergeSummary).mockReturnValue(true);
+    asMock(reportMergeSummary).mockReturnValue(wroteMarkers);
+
+    const run = update(['button'], opts({ yes }));
+
+    if (exits) {
+      await expect(run).rejects.toThrow(ProcessExitError);
+      expect(exitSpy).toHaveBeenCalledWith(1);
+    } else {
+      await run;
+      expect(exitSpy).not.toHaveBeenCalled();
+    }
+  });
+
+  it('lists every failure and exits 1, even when nothing was left in conflict', async () => {
+    asMock(detectConflicts).mockResolvedValue(conflictResult({ conflicting: ['button'] }));
+    asMock(performInstall).mockResolvedValue(installResult({
+      installed: [],
+      failures: [{
+        stage: 'component', component: 'button', file: 'button/button.component.html',
+        message: 'Could not reach the registry (https://fork.test/r/ui/button/button.component.html): ECONNRESET',
+      }],
+    }));
 
     await expect(update(['button'], opts({ yes: true }))).rejects.toThrow(ProcessExitError);
+
+    expect(output()).toContain('Failed:');
+    expect(output()).toContain('button/button.component.html');
+    expect(output()).toContain('ECONNRESET');
+    expect(output()).toContain('NOT recorded as updated');
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
-  it('does NOT exit on written conflicts in an interactive run (the user can resolve them)', async () => {
+  it('exits 0 when nothing failed and nothing is in conflict', async () => {
     asMock(detectConflicts).mockResolvedValue(conflictResult({ conflicting: ['button'] }));
     asMock(performInstall).mockResolvedValue(installResult({ installed: ['button'] }));
-    asMock(reportMergeSummary).mockReturnValue(true);
 
-    await update(['button'], opts());
+    await update(['button'], opts({ yes: true }));
+
+    expect(output()).not.toContain('Failed:');
     expect(exitSpy).not.toHaveBeenCalled();
+  });
+
+  it('reports a component it could not check instead of calling everything up to date, and exits 1', async () => {
+    asMock(detectConflicts).mockResolvedValue(conflictResult({
+      unchecked: [{ name: 'button', file: 'button/button.component.ts', reason: 'Could not reach the registry (https://fork.test/r/ui/button/button.component.ts): fetch failed' }],
+    }));
+
+    await expect(update(['button'], opts())).rejects.toThrow(ProcessExitError);
+
+    expect(output()).toContain('Could not check (registry unreachable)');
+    expect(output()).toContain('button');
+    expect(output()).toContain('fetch failed');
+    expect(output()).not.toContain('Everything is up to date.');
+    expect(performInstall).not.toHaveBeenCalled();
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it('updates what it could check, then exits 1 for the component it could not', async () => {
+    const unchecked = [{ name: 'ripple' as ComponentName, file: 'ripple.directive.ts', reason: 'fetch failed' }];
+    asMock(detectConflicts).mockResolvedValue(conflictResult({ conflicting: ['button'], unchecked }));
+    asMock(performInstall).mockResolvedValue(installResult({ installed: ['button'], unchecked }));
+
+    await expect(update(['button'], opts({ yes: true }))).rejects.toThrow(ProcessExitError);
+
+    expect(performInstall).toHaveBeenCalled();
+    expect(output()).toContain('Updated 1 component(s).');
+    expect(output()).toContain('Could not check (registry unreachable)');
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it('--dry-run still reports a component it could not check, and exits 1', async () => {
+    asMock(detectConflicts).mockResolvedValue(conflictResult({
+      conflicting: ['button'],
+      unchecked: [{ name: 'ripple', file: 'ripple.directive.ts', reason: 'fetch failed' }],
+    }));
+
+    await expect(update(['button'], opts({ dryRun: true, yes: true }))).rejects.toThrow(ProcessExitError);
+
+    expect(output()).toContain('[Dry Run] No changes written.');
+    expect(output()).toContain('Could not check (registry unreachable)');
+    expect(performInstall).not.toHaveBeenCalled();
+  });
+
+  it('--dry-run names a file it could not preview', async () => {
+    asMock(detectConflicts).mockResolvedValue(conflictResult({ conflicting: ['button'] }));
+    asMock(previewComponentMerges).mockResolvedValue([
+      { file: 'button/button.component.ts', outcome: 'merged-clean' },
+      { file: 'button/button.component.html', outcome: 'error', reason: 'fetch failed' },
+    ]);
+
+    await update(['button'], opts({ dryRun: true }));
+
+    expect(output()).toContain('could not preview: button/button.component.html (fetch failed)');
+    expect(output()).toContain('would merge cleanly: button/button.component.ts');
   });
 
   describe('post-update addon offer', () => {

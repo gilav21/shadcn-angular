@@ -120,21 +120,25 @@ describe('merge report summary', () => {
 
 describe('shouldAdvanceRef (component-level, conservative)', () => {
   it('advances when every file reached the current version', () => {
-    expect(shouldAdvanceRef(['merged-clean', 'refreshed', 'created'])).toBe(true);
+    expect(shouldAdvanceRef(['merged-clean', 'refreshed', 'created'], 0)).toBe(true);
   });
 
   it('advances after a conflict (the baseline advances like a git merge)', () => {
-    expect(shouldAdvanceRef(['merged-conflict', 'skipped'])).toBe(true);
+    expect(shouldAdvanceRef(['merged-conflict', 'skipped'], 0)).toBe(true);
   });
 
   it('does NOT advance when any file fell back (a sibling is still at the old version)', () => {
     // Otherwise the component ref would claim a version the fell-back file isn't at,
     // and a later update would compute BASE at the wrong ref and swallow changes.
-    expect(shouldAdvanceRef(['refreshed', 'fellback-kept', 'created'])).toBe(false);
+    expect(shouldAdvanceRef(['refreshed', 'fellback-kept', 'created'], 0)).toBe(false);
+  });
+
+  it('does NOT advance when any file failed to write, however many others were written', () => {
+    expect(shouldAdvanceRef(['refreshed', 'created', 'merged-clean'], 1)).toBe(false);
   });
 
   it('does NOT advance when nothing was written', () => {
-    expect(shouldAdvanceRef([])).toBe(false);
+    expect(shouldAdvanceRef([], 0)).toBe(false);
   });
 });
 

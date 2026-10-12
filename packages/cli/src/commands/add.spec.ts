@@ -68,6 +68,8 @@ vi.mock('ora', () => ({ default: vi.fn(() => spinner) }));
 
 const mockedFs = vi.mocked(fs);
 
+const targets = { uiDir: '/project/ui', blocksDir: '/project/blocks' };
+
 // ---------------------------------------------------------------------------
 // fetchAndTransform
 // ---------------------------------------------------------------------------
@@ -130,9 +132,9 @@ describe('checkFileConflict', () => {
     const cache = new Map<string, string>();
 
     const result = await checkFileConflict(
-      'button/button.ts', '/project/ui', { branch: 'master', remote: true }, '@/lib', cache,
+      'button/button.ts', '/project/ui', 'component', { branch: 'master', remote: true }, '@/lib', cache,
     );
-    expect(result).toBe('missing');
+    expect(result).toEqual({ status: 'missing' });
   });
 
   it('returns "identical" when local and remote content match', async () => {
@@ -145,9 +147,9 @@ describe('checkFileConflict', () => {
     const cache = new Map<string, string>();
 
     const result = await checkFileConflict(
-      'button/button.ts', '/project/ui', { branch: 'master', remote: true }, '@/lib', cache,
+      'button/button.ts', '/project/ui', 'component', { branch: 'master', remote: true }, '@/lib', cache,
     );
-    expect(result).toBe('identical');
+    expect(result).toEqual({ status: 'identical' });
   });
 
   it('returns "changed" when local and remote content differ', async () => {
@@ -159,24 +161,24 @@ describe('checkFileConflict', () => {
     const cache = new Map<string, string>();
 
     const result = await checkFileConflict(
-      'button/button.ts', '/project/ui', { branch: 'master', remote: true }, '@/lib', cache,
+      'button/button.ts', '/project/ui', 'component', { branch: 'master', remote: true }, '@/lib', cache,
     );
-    expect(result).toBe('changed');
+    expect(result).toEqual({ status: 'changed' });
     // The fetched remote is cached so the later diff preview does not refetch it.
-    expect(cache.get('button/button.ts')).toBe('// remote original version');
+    expect(cache.get('component:button/button.ts')).toBe('// remote original version');
   });
 
-  it('returns "changed" when the remote cannot be fetched, so an offline run never reads as up to date', async () => {
+  it('returns "unchecked", never "changed", when the remote cannot be fetched', async () => {
     mockedFs.pathExists.mockResolvedValue(true as never);
     mockedFs.readFile.mockResolvedValue('// local' as never);
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('fetch failed'));
     const cache = new Map<string, string>();
 
     const result = await checkFileConflict(
-      'button/button.ts', '/project/ui', { branch: 'master', remote: true }, '@/lib', cache,
+      'button/button.ts', '/project/ui', 'component', { branch: 'master', remote: true }, '@/lib', cache,
     );
 
-    expect(result).toBe('changed');
+    expect(result).toEqual({ status: 'unchecked', reason: expect.stringContaining('fetch failed') });
     expect(cache.size).toBe(0);
   });
 });
@@ -202,7 +204,7 @@ describe('detectConflicts', () => {
     );
 
     const result = await detectConflicts(
-      new Set<ComponentName>(['badge', 'skeleton', 'separator']), '/project/ui',
+      new Set<ComponentName>(['badge', 'skeleton', 'separator']), targets,
       { branch: 'master', remote: true }, '@/lib',
     );
 
@@ -603,7 +605,7 @@ describe('add()', () => {
 
   const installResult = (partial: Partial<InstallResult> = {}): InstallResult => ({
     installed: [], skipped: [], declined: [], pruned: [], warnings: [],
-    mergeReport: emptyMergeReport(), ...partial,
+    mergeReport: emptyMergeReport(), failures: [], unchecked: [], ...partial,
   });
 
   const lastInstallCall = (): InstallCall =>
@@ -759,6 +761,15 @@ describe('add()', () => {
     expect(call.overwrite).toEqual(['badge']);
     expect(call.forceOverwrite).toBe(true);
     expect(output()).toContain('kept local changes');
+  });
+
+  it('names the changed files of an edited block in the conflict preview', async () => {
+    filesPresentAndChanged();
+
+    await add(['login'], { branch: 'master', remote: true });
+
+    expect(output()).toContain('have local changes');
+    expect(output()).toContain(registry['login' as ComponentName].files[0]);
   });
 
   it('installs nothing when every component is already up to date', async () => {
@@ -1015,7 +1026,7 @@ describe('add() block destination', () => {
     asMock(getConfig).mockResolvedValue(getDefaultConfig());
     asMock(performInstall).mockResolvedValue({
       installed: ['login'], skipped: [], declined: [], pruned: [], warnings: [],
-      mergeReport: emptyMergeReport(),
+      mergeReport: emptyMergeReport(), failures: [], unchecked: [],
     });
   });
 
@@ -1057,7 +1068,7 @@ describe('add() block destination', () => {
   it('keeps --path as the COMPONENT destination when no block is in the set', async () => {
     asMock(performInstall).mockResolvedValue({
       installed: ['badge'], skipped: [], declined: [], pruned: [], warnings: [],
-      mergeReport: emptyMergeReport(),
+      mergeReport: emptyMergeReport(), failures: [], unchecked: [],
     });
 
     await add(['badge'], { branch: 'master', remote: true, yes: true, path: 'src/ui' });

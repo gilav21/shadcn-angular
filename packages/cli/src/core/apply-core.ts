@@ -11,7 +11,8 @@ import { registry, type ComponentName } from '../registry/index.js';
 import { getPrefix, type Config } from '../utils/config.js';
 import { DEFAULT_PREFIX } from '../utils/prefix.js';
 import { aliasToProjectPath, resolveProjectPath } from '../utils/paths.js';
-import { performInstall } from './install.js';
+import { performInstall, type InstallFailure } from './install.js';
+import type { UncheckedComponent } from './plan.js';
 import { resolveTestInstall } from '../utils/test-runner.js';
 import { emptyMergeReport, type MergeReport } from './merge.js';
 import type { ApplyOptions } from './apply-wire.js';
@@ -226,6 +227,9 @@ export interface ApplyCoreResult {
     readonly totalWired: number;
     /** Per-file merge outcomes from installing the base/addon (conflicts surface here). */
     readonly mergeReport: MergeReport;
+    /** What the install of the base/addon could not do; non-empty means the run is incomplete. */
+    readonly failures: InstallFailure[];
+    readonly unchecked: UncheckedComponent[];
     /** The paste snippet — always available so callers can show manual wiring. */
     readonly snippet: { import: string; selector: string; tag: string };
 }
@@ -241,8 +245,15 @@ export async function applyCore(
     const uiAlias = config.aliases.ui || 'src/components/ui';
     const addon = resolveAddonInfo(addonName, uiAlias, getPrefix(config));
 
+    const snippet = {
+        import: `import { ${addon.symbol} } from '${addon.module}';`,
+        selector: addon.selector,
+        tag: addon.tag,
+    };
     let installed = false;
     let mergeReport = emptyMergeReport();
+    let failures: InstallFailure[] = [];
+    let unchecked: UncheckedComponent[] = [];
     if (!options.dryRun) {
         // Ship the addon's tests when the project opted into shipped tests
         // (persisted by a prior `add --include-tests`), matching `add`.
@@ -250,6 +261,13 @@ export async function applyCore(
         const installResult = await performInstall({ components: [addon.name], cwd, config, options, includeTests, testRunner: runner });
         installed = true;
         mergeReport = installResult.mergeReport;
+        failures = installResult.failures;
+        unchecked = installResult.unchecked;
+        if (failures.length > 0 || unchecked.length > 0) {
+            // Wiring an addon that is only partly on disk would break the app, and the
+            // missing-contract check below would blame the base for what is a failed write.
+            return { addon: addon.name, installed: false, targets: [], totalWired: 0, mergeReport, failures, unchecked, snippet };
+        }
 
         const uiDir = resolveProjectPath(cwd, aliasToProjectPath(uiAlias));
         const missing = missingBaseFilesFor(addon, uiDir);
@@ -272,10 +290,8 @@ export async function applyCore(
         targets: result.targets,
         totalWired: result.totalWired,
         mergeReport,
-        snippet: {
-            import: `import { ${addon.symbol} } from '${addon.module}';`,
-            selector: addon.selector,
-            tag: addon.tag,
-        },
+        failures,
+        unchecked,
+        snippet,
     };
 }
