@@ -99,6 +99,7 @@ describe('resolveTimeoutMs', () => {
         { env: '0', expected: 15_000 },
         { env: '-5', expected: 15_000 },
         { env: '', expected: 15_000 },
+        { env: '99999999999', expected: 2_147_483_647 },
     ])('uses the env budget only when it is a positive number: $env', ({ env, expected }) => {
         expect(resolveTimeoutMs(env)).toBe(expected);
     });

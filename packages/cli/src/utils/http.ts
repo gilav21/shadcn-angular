@@ -45,10 +45,13 @@ export class NetworkError extends Error {
     }
 }
 
-/** The budget in `raw` (the env var's value) when it is a positive integer, else the default. */
+/** The largest delay a timer accepts; `AbortSignal.timeout` throws synchronously beyond its own, larger, limit. */
+const MAX_TIMEOUT_MS = 2_147_483_647;
+
+/** The budget in `raw` (the env var's value) when it is a positive integer, capped at {@link MAX_TIMEOUT_MS}, else the default. */
 export function resolveTimeoutMs(raw: string | undefined): number {
     const parsed = Number.parseInt(raw ?? '', 10);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_TIMEOUT_MS;
+    return Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, MAX_TIMEOUT_MS) : DEFAULT_TIMEOUT_MS;
 }
 
 /** A 5xx or 429 says "try again"; any other status is the server's final answer. */

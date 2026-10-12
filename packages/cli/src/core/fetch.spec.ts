@@ -49,6 +49,21 @@ describe('fetchAndTransform source routing', () => {
   });
 });
 
+describe('fetchLibContent', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('returns the lib file body from the lib base url', async () => {
+    const calls: string[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (u: string) => {
+      calls.push(u);
+      return new Response('export const cn = 1;');
+    }));
+    const body = await fetchLibContent('utils.ts', { branch: 'master', remote: true });
+    expect(body).toBe('export const cn = 1;');
+    expect(calls[0]).toMatch(/\/packages\/components\/lib\/utils\.ts$/);
+  });
+});
+
 describe('fetch errors name the URL in monorepo and consumer mode', () => {
   const REGISTRY = 'http://registry.test';
   const options = { branch: 'master', remote: true, registry: REGISTRY } as const;
