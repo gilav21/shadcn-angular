@@ -416,6 +416,26 @@ describe('ComboChartComponent negative values', () => {
         vi.unstubAllGlobals();
     });
 
+    it.each(Object.keys(CLASSES))('should keep the %s cumulative line inside the plot', className => {
+        const { bars, line } = CLASSES[className];
+        const instance = TestBed.createComponent(ComboChartComponent);
+        const names = bars.map((_, i) => `C${i}`);
+        instance.componentRef.setInput('barSeries', [{ name: 'Bars', data: bars.map((value, i) => ({ name: names[i], value })) }]);
+        instance.componentRef.setInput('lineSeries', [{ name: 'Line', data: line.map((value, i) => ({ name: names[i], value })) }]);
+        instance.componentRef.setInput('showCumulative', true);
+        instance.detectChanges();
+        const component = instance.componentInstance;
+        const ys = component.primaryTicks().map(t => t.y);
+
+        expect(component.lines()).toHaveLength(2);
+        for (const l of component.lines()) {
+            for (const y of pathYs(l.path)) {
+                expect(y).toBeGreaterThanOrEqual(Math.min(...ys) - 0.5);
+                expect(y).toBeLessThanOrEqual(Math.max(...ys) + 0.5);
+            }
+        }
+    });
+
     for (const [className, { bars, line }] of Object.entries(CLASSES)) {
         it(`should keep ${className} bars and line inside the plot, with bars rising from the zero gridline`, () => {
             const component = build(bars, line);

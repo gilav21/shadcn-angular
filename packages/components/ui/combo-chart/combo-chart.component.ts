@@ -106,8 +106,11 @@ export class ComboChartComponent implements AfterViewInit {
     /**
      * Prepend a Pareto-style running-total line, computed from
      * {@link barSeries}[0] only and expressed as a percentage of that series'
-     * total. Turning it on pins the secondary axis to a fixed 0–100 range,
-     * which also rescales any {@link lineSeries} drawn alongside it.
+     * total. Turning it on gives the secondary axis the 0–100 range (wider only
+     * if a {@link lineSeries} value or a negative bar pushes the percentages
+     * outside it), which also rescales any {@link lineSeries} drawn alongside
+     * it. A Pareto chart is defined on non-negative counts; with negative bars
+     * the percentages are still plotted, but they are not a meaningful share.
      */
     readonly showCumulative = input(false);
     /** Name given to the {@link showCumulative} line in the legend and its tooltip row. Ignored while `showCumulative` is false. */
@@ -175,10 +178,16 @@ export class ComboChartComponent implements AfterViewInit {
         zeroBasedDomain(this.barSeries().flatMap(s => s.data.map(d => d.value)), 5),
     );
 
-    /** The secondary (line) axis domain: `[0, 100]` for the cumulative line, else the nice bounds of zero and every line value. */
+    /**
+     * The secondary (line) axis domain: the nice bounds of zero and every value
+     * it draws — each {@link lineSeries} value and, with {@link showCumulative},
+     * the running percentages and the 100% mark, so the cumulative line spans
+     * `[0, 100]` unless negative bars or lines push it outside. With nothing to
+     * draw it is `[0, 100]`.
+     */
     readonly secondaryDomain = computed((): [number, number] => {
-        if (this.showCumulative()) return [0, 100];
         const values = this.lineSeries().flatMap(s => s.data.map(d => d.value));
+        if (this.showCumulative()) values.push(100, ...this.cumulativePercents());
         return extent(values) ? zeroBasedDomain(values, 5) : [0, 100];
     });
 
@@ -207,7 +216,8 @@ export class ComboChartComponent implements AfterViewInit {
     private readonly band = computed(() => {
         const a = this.area();
         const range: [number, number] = a.rtl ? [a.right, a.left] : [a.left, a.right];
-        return bandScale(this.categories(), range, 0.3, 0.15);
+        // Categories are keyed by position, not name: two categories may share a label.
+        return bandScale(this.categories().map((_, i) => String(i)), range, 0.3, 0.15);
     });
 
     private readonly yPrimary = computed(() => {
@@ -227,9 +237,9 @@ export class ComboChartComponent implements AfterViewInit {
 
     readonly categoryCenters = computed(() => {
         const band = this.band();
-        return this.categories().map(name => ({
+        return this.categories().map((name, i) => ({
             name,
-            x: (band.position(name) ?? 0) + band.bandwidth / 2,
+            x: (band.position(String(i)) ?? 0) + band.bandwidth / 2,
         }));
     });
 
@@ -241,7 +251,7 @@ export class ComboChartComponent implements AfterViewInit {
         const subWidth = band.bandwidth / Math.max(1, series.length);
         const result: ComboBar[] = [];
         this.categories().forEach((name, ci) => {
-            const base = band.position(name) ?? 0;
+            const base = band.position(String(ci)) ?? 0;
             series.forEach((s, si) => {
                 const value = s.data[ci]?.value ?? 0;
                 const end = yp.scale(value);
