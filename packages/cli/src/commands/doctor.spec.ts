@@ -10,7 +10,7 @@ import { performInstall } from '../core/install.js';
 import { fetchAndTransform } from '../core/fetch.js';
 import { installPackages } from '../utils/package-manager.js';
 import { scanLayouts } from '../core/layout.js';
-import { collectLibDrift, refreshLibFiles } from '../core/lib-reconcile.js';
+import { collectLibDrift, refreshLibFiles, classifyLibFile } from '../core/lib-reconcile.js';
 import { collectStaleReport, rewriteMovedImports } from '../core/clean-reinstall.js';
 import { hashContent, type Manifest } from '../core/manifest.js';
 
@@ -40,6 +40,7 @@ vi.mock('../core/layout.js', () => ({
 vi.mock('../core/lib-reconcile.js', () => ({
   collectLibDrift: vi.fn(async () => ({ stale: [], missing: [], userEdited: [] })),
   refreshLibFiles: vi.fn(async () => ({ refreshed: [], warnings: [] })),
+  classifyLibFile: vi.fn(async () => 'stale'),
 }));
 vi.mock('../core/clean-reinstall.js', () => ({
   collectStaleReport: vi.fn(async () => ({ entries: [] })),
@@ -343,13 +344,17 @@ describe('refreshLibCore', () => {
     expect(result.protectedFiles).toEqual(['i18n/i18n.token.ts']);
   });
 
-  it('treats an explicit file list as consent — it overrides the drift scan', async () => {
+  it('an explicit file list picks which files to consider and still protects a customized one', async () => {
+    asMock(classifyLibFile).mockImplementation(async (f: string) => (f === 'utils.ts' ? 'stale' : 'userEdited'));
+
     const result = await refreshLibCore(
-      '/proj', cfg, { branch: 'master' }, { files: ['i18n/i18n.token.ts'] },
+      '/proj', cfg, { branch: 'master' }, { files: ['utils.ts', 'i18n/i18n.token.ts'] },
     );
-    expect(result.targets).toEqual(['i18n/i18n.token.ts']);
-    expect(result.refreshed).toEqual(['i18n/i18n.token.ts']);
-    expect(result.protectedFiles).toEqual([]);
+
+    expect(result.targets).toEqual(['utils.ts']);
+    expect(result.refreshed).toEqual(['utils.ts']);
+    expect(result.protectedFiles).toEqual(['i18n/i18n.token.ts']);
+    expect(collectLibDrift).not.toHaveBeenCalled();
   });
 });
 

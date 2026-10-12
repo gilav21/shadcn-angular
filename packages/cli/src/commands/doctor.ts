@@ -8,7 +8,7 @@ import { detectConflicts, printBreakingChanges, resolveInstallTargets, type AddO
 import { readManifest, writeManifest, removeFiles, fileStatus, type FileStatus, type Manifest } from '../core/manifest.js';
 import { scanLayouts } from '../core/layout.js';
 import { performInstall } from '../core/install.js';
-import { collectLibDrift, refreshLibFiles } from '../core/lib-reconcile.js';
+import { collectLibDrift, refreshLibFiles, classifyLibFile } from '../core/lib-reconcile.js';
 import { printBreakingUsages } from '../core/breaking-scan.js';
 import { collectStaleReport, rewriteMovedImports, type StaleEntry } from '../core/clean-reinstall.js';
 import { installPackages } from '../utils/package-manager.js';
@@ -321,28 +321,50 @@ export interface RefreshLibResult {
 }
 
 /**
+ * Split an explicit `files` list by the same rule the drift scan uses: a
+ * customized file is protected unless `force`, however the target set was
+ * chosen (I7). A path that cannot even be classified (it escapes the lib dir)
+ * stays a target so `refreshLibFiles` refuses it with its path-guard warning.
+ */
+async function splitExplicitFiles(
+    files: readonly string[], libDir: string, manifest: Manifest, options: AddOptions, force: boolean | undefined,
+): Promise<{ targets: string[]; protectedFiles: string[] }> {
+    const targets: string[] = [];
+    const protectedFiles: string[] = [];
+    for (const file of files) {
+        const status = await classifyLibFile(file, libDir, manifest, options).catch(() => 'unclassifiable');
+        if (status === 'userEdited' && !force) protectedFiles.push(file);
+        else targets.push(file);
+    }
+    return { targets, protectedFiles };
+}
+
+/**
  * Reconcile shared lib files with the registry. Without `files`, refreshes the
  * safe set (pristine-but-stale + missing) and, with `force`, also the customized
- * ones. An explicit `files` list is treated as user consent to overwrite exactly
- * those. Powers the `refresh_lib` MCP verb so the "lib file differs" warning is
- * actionable through the tooling (report B3).
+ * ones. An explicit `files` list only chooses WHICH files to consider: a
+ * customized one in it is still protected unless `force` — the same contract the
+ * README, `--help` and the MCP description promise. Powers the `refresh_lib` MCP
+ * verb so the "lib file differs" warning is actionable through the tooling
+ * (report B3).
  */
 export async function refreshLibCore(
     cwd: string, config: Config, options: AddOptions, input: RefreshLibInput,
 ): Promise<RefreshLibResult> {
     const targetDir = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.ui || 'src/components/ui'));
-    const installed = await installedComponents(targetDir);
     const libDir = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.utils));
     const manifest = await readManifest(cwd);
-    const drift = await collectLibDrift(libDir, installed, manifest, options);
 
     let targets: string[];
+    let protectedFiles: string[];
     if (input.files && input.files.length > 0) {
-        targets = input.files;
+        ({ targets, protectedFiles } = await splitExplicitFiles(input.files, libDir, manifest, options, input.force));
     } else {
+        const installed = await installedComponents(targetDir);
+        const drift = await collectLibDrift(libDir, installed, manifest, options);
         targets = [...new Set([...drift.stale, ...drift.missing, ...(input.force ? drift.userEdited : [])])];
+        protectedFiles = input.force ? [] : drift.userEdited;
     }
-    const protectedFiles = input.files || input.force ? [] : drift.userEdited;
 
     if (input.dryRun) {
         return { refreshed: [], targets, protectedFiles, warnings: [] };
