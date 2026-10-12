@@ -392,14 +392,20 @@ describe('ChipListComponent — IME composition and duplicate chips', () => {
         const chipTexts = (): (string | undefined)[] =>
             Array.from(fixture.nativeElement.querySelectorAll('ui-badge') as NodeListOf<HTMLElement>)
                 .map(chip => chip.textContent?.trim());
+        const removeChip = (index: number): void => {
+            (fixture.nativeElement.querySelectorAll('[data-slot="chip-remove"]')[index] as HTMLElement).click();
+            fixture.detectChanges();
+        };
         expect(chipTexts()).toEqual(['a', 'b', 'a']);
 
-        // the LAST 'a': removing by value (or by first match) would leave ['b', 'a']
-        (fixture.nativeElement.querySelectorAll('[data-slot="chip-remove"]')[2] as HTMLElement).click();
-        fixture.detectChanges();
+        // Angular checks track keys only while it reconciles an already-rendered list: removing the
+        // middle chip leaves two equal ones, which is where a text key collides (NG0955)
+        removeChip(1);
+        expect(chipTexts()).toEqual(['a', 'a']);
 
-        expect(fixture.componentInstance.chips()).toEqual(['a', 'b']);
-        expect(chipTexts()).toEqual(['a', 'b']);
+        removeChip(1);
+        expect(fixture.componentInstance.chips()).toEqual(['a']);
+        expect(chipTexts()).toEqual(['a']);
         const logged = [...warn.mock.calls, ...error.mock.calls].flat().map(String);
         expect(logged.filter(line => line.includes('NG0955'))).toEqual([]);
         warn.mockRestore();
