@@ -708,6 +708,21 @@ describe('onContextGesture', () => {
         expect(outerHandler).toHaveBeenCalledTimes(1);
     });
 
+    // stopPropagation cannot separate two listeners on one element (a table with both
+    // the directive and the addon), so the claim itself has to.
+    it.each([
+        { gesture: 'right-click', perform: () => { rightClick(leaf); } },
+        { gesture: 'long-press', perform: () => { touchDown(); vi.advanceTimersByTime(500); } },
+    ])('a second handler on the same element does not answer a $gesture the first one claimed', ({ perform }) => {
+        const first = listen(outer, true);
+        const second = listen(outer, true);
+
+        perform();
+
+        expect(first).toHaveBeenCalledTimes(1);
+        expect(second).not.toHaveBeenCalled();
+    });
+
     it('stops answering after cleanup', () => {
         const handler = listen(outer, true);
         for (const dispose of disposers.splice(0)) dispose();
