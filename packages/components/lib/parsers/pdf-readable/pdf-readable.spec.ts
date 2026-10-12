@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { PdfBuilder } from '../pdf-test-fixtures';
 import { parsePdfReadable } from './pdf-readable';
 import { PDF_POLICY, assertInertMarkup } from '../inert-markup-fixtures';
+import { FRAGMENT_LINK_URI } from '../pdf-hostile-fixtures';
 
 describe('parsePdfReadable', () => {
     describe('input validation', () => {
@@ -117,7 +118,7 @@ describe('parsePdfReadable', () => {
                 .addLinkAnnotation(0, [95, 695, 200, 715], 'https://example.com')
                 .build();
             const result = await parsePdfReadable(pdf);
-            expect(result.html).toContain('<a href="https://example.com"');
+            expect(result.html).toContain('<a href="https://example.com/"');
             expect(result.html).toContain('Visit site</');
         });
 
@@ -126,15 +127,17 @@ describe('parsePdfReadable', () => {
                 .addFont('F1', 'Helvetica')
                 .setContent(
                     'BT /F1 12 Tf 100 700 Td (Unsafe link) Tj '
-                    + '0 -40 Td (Safe link) Tj ET')
+                    + '0 -40 Td (Safe link) Tj '
+                    + '0 -40 Td (Anchor link) Tj ET')
                 .addLinkAnnotation(0, [95, 695, 200, 715], 'javascript:alert(3)')
                 .addLinkAnnotation(0, [95, 655, 200, 675], 'https://example.com/ok')
+                .addLinkAnnotation(0, [95, 615, 200, 635], FRAGMENT_LINK_URI)
                 .build();
             const result = await parsePdfReadable(pdf);
 
             const doc = new DOMParser().parseFromString(`<body>${result.html}`, 'text/html');
             const anchors = Array.from(doc.querySelectorAll('a'));
-            expect(anchors.map((a) => [a.getAttribute('href'), a.textContent])).toEqual([['https://example.com/ok', 'Safe link']]);
+            expect(anchors.map((a) => [a.getAttribute('href'), a.textContent])).toEqual([['https://example.com/ok', 'Safe link'], [FRAGMENT_LINK_URI, 'Anchor link']]);
             expect(result.text).toContain('Unsafe link');
             expect(assertInertMarkup(result.html, PDF_POLICY)).toEqual([]);
         });

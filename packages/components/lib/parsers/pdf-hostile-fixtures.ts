@@ -13,6 +13,8 @@ export function pdfName(text: string): string {
 
 export const HOSTILE_PDF_TEXT = 'Hostile run';
 export const SAFE_LINK_URI = 'https://example.com/ok';
+/** A fragment link is kept as written, so its quote has to be escaped by the emitter. */
+export const FRAGMENT_LINK_URI = '#a" onmouseover="alert(4)';
 
 /**
  * Body text in Helvetica, one run in a font whose `/BaseFont` decodes to
@@ -27,8 +29,10 @@ export function hostilePdf(): ArrayBuffer {
             + '0 -20 Td (and carries on with more body text) Tj '
             + `0 -20 Td /F2 12 Tf (${HOSTILE_PDF_TEXT}) Tj `
             + '0 -20 Td /F1 12 Tf (Unsafe link) Tj '
-            + '0 -20 Td (Safe link) Tj ET')
+            + '0 -20 Td (Safe link) Tj '
+            + '0 -20 Td (Anchor link) Tj ET')
         .addLinkAnnotation(0, [95, 635, 200, 655], 'javascript:alert(2)')
         .addLinkAnnotation(0, [95, 615, 200, 635], SAFE_LINK_URI)
+        .addLinkAnnotation(0, [95, 595, 200, 615], FRAGMENT_LINK_URI)
         .build();
 }

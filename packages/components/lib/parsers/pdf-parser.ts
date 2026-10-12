@@ -1,6 +1,7 @@
 import { ByteSink } from './byte-sink';
 import { zlibInflate } from './inflate';
 import { DEFAULT_PARSER_LIMITS, DecodeBudget, DrawPath, visitOnce, type ParserLimits } from './limits';
+import { cssFontFamily, escapeAttribute, safeLinkHref } from './markup-safety';
 
 /**
  * Ceiling for a single decoded PDF stream. A stream's filter chain can expand
@@ -5067,7 +5068,7 @@ function findAnnotationForItem(item: TextItem, annotations: ReadonlyArray<PdfAnn
 function buildItemStyles(item: TextItem, bodyFont: string, bodySize: number): string[] {
     const styles: string[] = [];
     if (!isDefaultColor(item.color)) styles.push(`color: ${item.color}`);
-    if (item.fontFamily && item.fontFamily !== bodyFont) styles.push(`font-family: '${item.fontFamily}'`);
+    if (item.fontFamily && item.fontFamily !== bodyFont) styles.push(`font-family: ${cssFontFamily(item.fontFamily)}`);
     const sizeRatio = bodySize > 0 ? item.fontSize / bodySize : 1;
     if (sizeRatio < 0.85 || sizeRatio > 1.15) {
         const editorSize = Math.round(sizeRatio * 12);
@@ -5090,7 +5091,7 @@ function wrapItemHtml(item: TextItem, text: string, bodyFont: string, bodySize: 
     let fragment = text;
     const styles = buildItemStyles(item, bodyFont, bodySize);
     if (styles.length > 0) {
-        fragment = `<span style="${styles.join('; ')}">${fragment}</span>`;
+        fragment = `<span style="${escapeAttribute(styles.join('; '))}">${fragment}</span>`;
     }
     if (item.textRise > 1) {
         fragment = `<sup>${fragment}</sup>`;
@@ -5099,10 +5100,10 @@ function wrapItemHtml(item: TextItem, text: string, bodyFont: string, bodySize: 
     }
     if (item.italic) fragment = `<em>${fragment}</em>`;
     if (item.bold) fragment = `<strong>${fragment}</strong>`;
-    if (linkUri) {
-        const safeUri = escapeHtml(linkUri);
+    const safeUri = linkUri ? safeLinkHref(linkUri) : undefined;
+    if (safeUri !== undefined) {
         const linkColor = isDefaultColor(item.color) ? '#1a0dab' : item.color;
-        fragment = `<a href="${safeUri}" target="_blank" rel="noopener noreferrer" style="color:${linkColor};text-decoration:underline">${fragment}</a>`;
+        fragment = `<a href="${escapeAttribute(safeUri)}" target="_blank" rel="noopener noreferrer" style="color:${linkColor};text-decoration:underline">${fragment}</a>`;
     }
     return fragment;
 }

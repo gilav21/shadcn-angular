@@ -12,7 +12,7 @@ import {
 } from './pdf-parser';
 import { PdfBuilder } from './pdf-test-fixtures';
 import { PDF_POLICY, TAG_BREAKOUT, assertInertMarkup } from './inert-markup-fixtures';
-import { HOSTILE_PDF_TEXT, SAFE_LINK_URI, hostilePdf, pdfName } from './pdf-hostile-fixtures';
+import { FRAGMENT_LINK_URI, HOSTILE_PDF_TEXT, SAFE_LINK_URI, hostilePdf, pdfName } from './pdf-hostile-fixtures';
 
 function toBuffer(bytes: number[]): ArrayBuffer {
     return new Uint8Array(bytes).buffer;
@@ -1579,7 +1579,7 @@ describe('parsePdf - link annotations', () => {
             .obj(6, '/Type /Annot /Subtype /Link /Rect [95 695 200 715] /A << /S /URI /URI (https://example.com) >>')
             .build();
         const result = await parsePdfPaged(pdf);
-        expect(result.pages[0].html).toContain('href="https://example.com"');
+        expect(result.pages[0].html).toContain('href="https://example.com/"');
         expect(result.pages[0].html).toContain('Click here');
     });
 });
@@ -2893,7 +2893,7 @@ describe('parsePdf / parsePdfPaged — hostile font names and link targets', () 
         expect(hostile?.style.fontFamily).toContain('onerror=alert(1)');
 
         const anchors = Array.from(doc.querySelectorAll('a'));
-        expect(anchors.map((a) => [a.getAttribute('href'), a.textContent])).toEqual([[SAFE_LINK_URI, 'Safe link']]);
+        expect(anchors.map((a) => [a.getAttribute('href'), a.textContent])).toEqual([[SAFE_LINK_URI, 'Safe link'], [FRAGMENT_LINK_URI, 'Anchor link']]);
         expect(doc.body.textContent).toContain('Unsafe link');
     });
 
