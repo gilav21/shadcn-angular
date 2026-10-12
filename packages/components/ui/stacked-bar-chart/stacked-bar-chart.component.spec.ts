@@ -407,14 +407,17 @@ describe('StackedBarChartComponent diverging stacks', () => {
     });
 
     for (const [className, values] of Object.entries(CLASSES)) {
-        it(`should stack ${className} positives up from zero and negatives down from zero without overlap`, () => {
-            const component = build(values, 'absolute');
+        for (const stacking of ['absolute', 'percent'] as const) {
+            it(`should stack ${className} positives up from zero and negatives down from zero without overlap (${stacking})`, () => {
+            const component = build(values, stacking);
 
             component.stackedBars().forEach((bar, c) => {
                 let up = 0;
                 let down = 0;
+                const absoluteTotal = values.reduce((sum, row) => sum + Math.abs(row[c]), 0);
                 bar.segments.forEach((segment, s) => {
-                    const value = values[s][c];
+                    // Percent mode measures every segment as its share of the category's absolute total.
+                    const value = stacking === 'percent' ? (100 * values[s][c]) / absoluteTotal : values[s][c];
                     const near = value >= 0 ? up : down;
                     const far = near + value;
                     // y grows downwards, so the larger value sits at the smaller y.
@@ -424,7 +427,8 @@ describe('StackedBarChartComponent diverging stacks', () => {
                     else down = far;
                 });
             });
-        });
+            });
+        }
 
         it(`should make the ${className} segments of every category span exactly 100% of the scale in percent mode`, () => {
             const component = build(values, 'percent');
@@ -437,6 +441,21 @@ describe('StackedBarChartComponent diverging stacks', () => {
             });
         });
     }
+
+    it.each(['absolute', 'percent'] as const)('should still have a usable axis when every value is zero (%s)', stacking => {
+        const component = build([[0, 0], [0, 0]], stacking);
+        const area = component.chartArea();
+        const ticks = component.axisTicks();
+
+        expect(ticks.length).toBeGreaterThanOrEqual(2);
+        for (const tick of ticks) {
+            expect(component.getTickPosition(tick)).toBeGreaterThanOrEqual(area.top - 0.001);
+            expect(component.getTickPosition(tick)).toBeLessThanOrEqual(area.bottom + 0.001);
+        }
+        for (const segment of component.stackedBars().flatMap(bar => bar.segments)) {
+            expect(Number.isFinite(segment.y) && segment.height === 0).toBe(true);
+        }
+    });
 
     it('should draw ticks only inside the plot when the stacks go negative', () => {
         const component = build(CLASSES['mixed-sign'], 'absolute');

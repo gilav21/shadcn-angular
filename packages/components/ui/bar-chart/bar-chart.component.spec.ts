@@ -265,14 +265,15 @@ describe('BarChartComponent', () => {
         const ticks = component.axisTicks();
         expect(ticks.length).toBeGreaterThan(1);
         expect(ticks[0]).toBe(0);
-        expect(ticks[ticks.length - 1]).toBeGreaterThanOrEqual(30);
+        // The axis ends on the data maximum's nice bound, not on max * 1.1.
+        expect(ticks[ticks.length - 1]).toBe(30);
     });
 
     it('should position a tick along the vertical axis', () => {
         const area = component.chartArea();
         const bottomPos = component.getTickPosition(0);
         expect(bottomPos).toBeCloseTo(area.bottom);
-        const topPos = component.getTickPosition(component.dataRange().max);
+        const topPos = component.getTickPosition(component.axisTicks().at(-1) as number);
         expect(topPos).toBeCloseTo(area.top);
     });
 
@@ -283,7 +284,7 @@ describe('BarChartComponent', () => {
         const area = component.chartArea();
         expect(component.getTickPosition(0)).toBeCloseTo(area.left);
         expect(
-            component.getTickPosition(component.dataRange().max)
+            component.getTickPosition(component.axisTicks().at(-1) as number)
         ).toBeCloseTo(area.right);
     });
 
@@ -329,7 +330,7 @@ describe('BarChartComponent', () => {
             const area = component.chartArea();
             expect(component.getTickPosition(0)).toBeCloseTo(area.right);
             expect(
-                component.getTickPosition(component.dataRange().max)
+                component.getTickPosition(component.axisTicks().at(-1) as number)
             ).toBeCloseTo(area.left);
         });
     });

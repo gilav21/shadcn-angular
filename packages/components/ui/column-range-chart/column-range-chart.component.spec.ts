@@ -282,6 +282,7 @@ describe('ColumnRangeChartComponent range ordering', () => {
         'zero-span': [[7, 7], [-3, -3], [0, 0]],
         negative: [[-50, -10], [-30, -0.5]],
         mixed: [[4, 4], [-8, 12], [20, -15]],
+        'all-zero': [[0, 0], [0, 0], [0, 0]],
     };
 
     function build(ranges: [number, number][]): ColumnRangeChartComponent {
@@ -328,6 +329,7 @@ describe('ColumnRangeChartComponent range ordering', () => {
             const component = build(ranges);
             const area = component.chartArea();
 
+            expect(component.axisTicks().length).toBeGreaterThanOrEqual(2);
             for (const tick of component.axisTicks()) {
                 const pos = component.getTickPosition(tick);
                 expect(pos).toBeGreaterThanOrEqual(area.top - 0.001);

@@ -263,6 +263,8 @@ No new inputs. Behaviour that used to be broken becomes defined:
 <ui-waterfall-chart [data]="[{ name: 'Other', value: 5 }, { name: 'Other', value: -3 }]" />
 ```
 
+Members the tests pin (named in this spec so an implementation does not have to guess them): `valueDomain()` on bar, bar-drilldown and stacked-bar (the `[lo, hi]` value axis), `dataRange()` kept on bar, bar-drilldown and column-range as `{ min, max }`, `baselineX()` on bar-race (the x of value 0), and `radarPoint(cx, cy, radius, axis, axisCount, value, maxValue, minValue = 0)`.
+
 Each chart's `data`/`series` input JSDoc states its negative / zero / duplicate
 semantics (the §1.1 table row), so compodoc's API tables document it.
 
@@ -361,7 +363,7 @@ not run after destroy) **and register teardown with `DestroyRef`.**
 **✅ Chosen: Option 2** — `afterNextRender` is Angular's own "after first
 render, never after destroy" hook, and the `_checkDirection` timeout at `:72`
 moves to the same hook. The colour map becomes a `computed()` over
-`frames()` (first-appearance order across all frames), removing the mutation
+`frames()` (first-appearance order across all frames, each frame walked in rank order — value descending — so the first-ranked name of the first frame takes palette colour 0), removing the mutation
 inside `displayBars`.
 
 #### Tooltip width

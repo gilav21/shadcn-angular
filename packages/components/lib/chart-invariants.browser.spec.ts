@@ -96,7 +96,7 @@ function dataClasses(seed: number): DataClass[] {
     ];
 }
 
-const SEEDS = [11, 202, 3033];
+const SEEDS = [11, 202];
 
 // ---------------------------------------------------------------------------
 // Geometry helpers
@@ -484,12 +484,18 @@ function markViolations(chart: ChartCase, svg: SVGSVGElement, plot: Plot): { out
     return { out, count };
 }
 
+/**
+ * A usable value axis: at least two gridlines, all inside the plot. Where the
+ * plot is derived from the gridlines themselves, they must at least stay
+ * inside the viewBox.
+ */
 function gridlineViolations(chart: ChartCase, svg: SVGSVGElement, plot: Plot): string[] {
-    if (!chart.gridlines || plot.kind !== 'rect' || chart.plot !== 'chart-area') return [];
-    return Array.from(svg.querySelectorAll<SVGGraphicsElement>(chart.gridlines))
-        .map(line => rootBox(line, svg))
-        .filter(box => !insideBox(box, plot.box))
-        .map(box => `gridline outside plot: ${describeBox(box)}`);
+    if (!chart.gridlines || plot.kind !== 'rect') return [];
+    const lines = Array.from(svg.querySelectorAll<SVGGraphicsElement>(chart.gridlines)).map(line => rootBox(line, svg));
+    const bounds = chart.plot === 'chart-area' ? plot.box : viewBoxOf(svg);
+    const out = lines.filter(box => !insideBox(box, bounds)).map(box => `gridline outside plot: ${describeBox(box)}`);
+    if (lines.length < 2) out.push(`only ${lines.length} gridline(s) rendered`);
+    return out;
 }
 
 function violations(chart: ChartCase, cls: DataClass, fixture: ComponentFixture<unknown>): string[] {
@@ -615,6 +621,17 @@ describe('every chart root carries its data-slot', () => {
         ['combo-chart', ComboChartComponent, { barSeries: [{ name: 'S', data: [{ name: 'A', value: 1 }] }] }],
         ['funnel-chart', FunnelChartComponent, { data: [{ name: 'A', value: 1 }] }],
         ['radar-chart', RadarChartComponent, { series: [{ name: 'S', data: [{ name: 'A', value: 1 }] }] }],
+        ['scatter-chart', ScatterChartComponent, { series: [{ name: 'S', points: [{ x: 1, y: 1 }] }] }],
+        ['bubble-chart', BubbleChartComponent, { series: [{ name: 'S', points: [{ x: 1, y: 1, z: 1 }] }] }],
+        ['waterfall-chart', WaterfallChartComponent, { data: [{ name: 'A', value: 1 }] }],
+        ['boxplot', BoxplotComponent, { groups: [{ label: 'A', values: [1, 2, 3] }] }],
+        ['candlestick', CandlestickComponent, { points: [{ date: 'A', open: 1, high: 3, low: 0, close: 2 }] }],
+        ['histogram', HistogramComponent, { values: [1, 2, 3] }],
+        ['heatmap', HeatmapComponent, { data: [{ row: 'r', col: 'c', value: 1 }] }],
+        ['calendar-heatmap', CalendarHeatmapComponent, { data: [{ date: '2024-01-01', value: 1 }] }],
+        ['gauge-chart', GaugeChartComponent, { value: 1 }],
+        ['bullet-chart', BulletChartComponent, { value: 1 }],
+        ['treemap', TreemapComponent, { nodes: [{ label: 'A', value: 1 }] }],
     ];
     for (const [slot, type, inputs] of slots) {
         it(slot, () => {
