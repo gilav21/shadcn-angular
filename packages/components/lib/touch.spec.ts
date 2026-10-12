@@ -637,6 +637,18 @@ describe('onContextGesture', () => {
         expect(handler).toHaveBeenCalledWith({ target: leaf, ...expected, source: key });
     });
 
+    // What Chromium really sends for the key (measured): a PointerEvent with button -1 and
+    // the centre of the focused element. It is a real point and passes through untouched.
+    redUntil('passes the point of a keyboard-initiated contextmenu through as reported', () => {
+        const handler = listen(outer, true);
+
+        const key = new PointerEvent('contextmenu', { bubbles: true, cancelable: true, button: -1, clientX: 260, clientY: 170 });
+        leaf.dispatchEvent(key);
+
+        expect(handler).toHaveBeenCalledWith({ target: leaf, clientX: 260, clientY: 170, source: key });
+        expect(key.defaultPrevented).toBe(true);
+    });
+
     redUntil('stops a pending long-press when the browser starts a drag of the element', () => {
         const handler = listen(outer, true);
 
@@ -724,6 +736,27 @@ describe('dismissOnOutsideTouch', () => {
         expect(onDismiss).toHaveBeenCalledTimes(1);
 
         dispose();
+    });
+
+    // The opening touch can land anywhere - here beside the host - so "not for the
+    // touch that registered it" cannot lean on the inside-the-host check: a listener
+    // added mid-dispatch in the bubble phase would still receive that same event.
+    redUntil('does not fire for an opening touch that landed outside the host either', () => {
+        const beside = document.createElement('div');
+        document.body.appendChild(beside);
+        let dispose = (): void => undefined;
+        beside.addEventListener('touchstart', () => {
+            dispose = dismissOnOutsideTouch(host, onDismiss);
+        }, { once: true });
+
+        beside.dispatchEvent(touchEvent('touchstart', [{ clientX: 1, clientY: 1 }]));
+        expect(onDismiss).not.toHaveBeenCalled();
+
+        beside.dispatchEvent(touchEvent('touchstart', [{ clientX: 1, clientY: 1 }]));
+        expect(onDismiss).toHaveBeenCalledTimes(1);
+
+        dispose();
+        beside.remove();
     });
 
     redUntil('stops listening once cleaned up', () => {

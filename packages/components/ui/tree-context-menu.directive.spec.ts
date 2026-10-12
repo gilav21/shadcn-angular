@@ -89,7 +89,6 @@ function contextMenuEventAt(target: HTMLElement, x: number, y: number): MouseEve
   return event;
 }
 
-
 /** RED until spec 8 Task 5: an expected failure under vitest, skipped where `it.fails` does not exist (the jest consumer leg). */
 const redUntilTask5 = Reflect.has(it, 'fails') ? it.fails : it.skip;
 

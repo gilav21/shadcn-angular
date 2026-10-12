@@ -1351,7 +1351,7 @@ describe('KanbanComponent — long-press opens the context menus', () => {
         document.querySelectorAll('[data-context-menu-portal], [data-context-menu-sub-portal]').forEach(el => el.remove());
     });
 
-    /** One finger held still on `target` for longer than the long-press threshold. */
+    /** One finger held still on `target` for longer than the long-press threshold. Real time: the menus open through effects and frames that fake timers would starve. */
     async function holdFinger(target: Element): Promise<void> {
         const event = new Event('touchstart', { bubbles: true, cancelable: true });
         Object.defineProperty(event, 'touches', { value: [{ clientX: 40, clientY: 60 }] });

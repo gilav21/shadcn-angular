@@ -437,6 +437,8 @@ interface ResizeRow {
 
 /** A table whose last column holds long text, so its auto-fit width is far from the declared 120px. */
 function renderResizableTable(resized: (event: unknown) => void): { host: HTMLElement; handle: HTMLElement; headerWidth: () => number } {
+    // A test renders two tables (mouse, then touch) and compares them: each needs a fresh test module.
+    TestBed.resetTestingModule();
     TestBed.configureTestingModule({ imports: [DataTableComponent] });
     const fixture = TestBed.createComponent(DataTableComponent<ResizeRow>);
     fixture.componentRef.setInput('data', [

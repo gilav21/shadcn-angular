@@ -92,7 +92,6 @@ function query(fixture: ComponentFixture<TableContextMenuHost>, testId: string):
   return el as HTMLElement;
 }
 
-
 /** RED until spec 8 Task 5: an expected failure under vitest, skipped where `it.fails` does not exist (the jest consumer leg). */
 const redUntilTask5 = Reflect.has(it, 'fails') ? it.fails : it.skip;
 

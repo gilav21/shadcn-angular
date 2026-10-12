@@ -16,6 +16,7 @@ interface Row {
 
 interface DataTableStub {
   focusedCell: { set: (value: unknown) => void };
+  enableCellRangeSelection: () => boolean;
   getRenderedRowAt: (index: number) => Row | undefined;
   getRenderedTreeRowAt: (index: number) => unknown;
 }
@@ -23,6 +24,7 @@ interface DataTableStub {
 function createDataTableStub(): DataTableStub {
   return {
     focusedCell: { set: vi.fn() },
+    enableCellRangeSelection: vi.fn(() => false),
     getRenderedRowAt: vi.fn((index: number) => (index === 2 ? { name: 'RowA' } : undefined)),
     getRenderedTreeRowAt: vi.fn((index: number) =>
       index === 2
@@ -173,7 +175,6 @@ function setupWithNullMenu(): {
   return { fixture, comp, tableEl, dataTable };
 }
 
-
 /** RED until spec 8 Task 5: an expected failure under vitest, skipped where `it.fails` does not exist (the jest consumer leg). */
 const redUntilTask5 = Reflect.has(it, 'fails') ? it.fails : it.skip;
 
@@ -258,6 +259,26 @@ describe('DataTableContextMenuDirective', () => {
       expect(comp.headerEvents).toHaveLength(1);
       expect(comp.headerEvents[0].column.id).toBe('col1');
       expect(comp.menu.show).toHaveBeenCalledWith(7, 9, comp.headerEvents[0].column);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // R-4: with range selection on, a long-press on a cell belongs to the table (it starts a
+  // selection); only a right-click opens the menu.
+  it('leaves a long-press to range selection while enableCellRangeSelection is on, and still answers a right-click', () => {
+    vi.useFakeTimers();
+    try {
+      const { comp, tableEl, dataTable } = setupWithDataTable();
+      vi.mocked(dataTable.enableCellRangeSelection).mockReturnValue(true);
+      const cell = tableEl.querySelector<HTMLElement>('[data-row-id="rA"] [data-column="name"]') as HTMLElement;
+
+      holdFinger(cell, 10, 20);
+      expect(comp.rowEvents).toHaveLength(0);
+      expect(comp.menu.show).not.toHaveBeenCalled();
+
+      contextMenuEventAt(cell, 10, 20);
+      expect(comp.rowEvents).toHaveLength(1);
     } finally {
       vi.useRealTimers();
     }
