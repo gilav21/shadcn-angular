@@ -300,9 +300,12 @@ function nextNonEmptyMatch(forward: RegExp, line: string, from: number): { text:
  *   boundary before the `$` in the line, none at the start of the slice). That
  *   spot is decided by testing the slice itself, for a match at its start.
  * - AFTER the cursor every position has the same characters before it either
- *   way, so a forward search on the whole line is the same answer. It is made
- *   once and reused until the cursor reaches its start, which is what keeps the
- *   work per pattern linear in the line.
+ *   way (a lookbehind reaching back past the cursor into the slice's missing
+ *   start is the one case that could differ, and no built-in pattern has one),
+ *   so a forward search on the whole line is the same answer. It is made once
+ *   and reused until the cursor reaches its start, which keeps the work for the
+ *   built-in patterns linear in the line; a caller pattern whose attempts scan
+ *   far and fail costs what it cost before.
  */
 function earliestMatch(
     line: string,

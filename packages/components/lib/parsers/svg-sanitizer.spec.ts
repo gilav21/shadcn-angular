@@ -265,6 +265,13 @@ describe('sanitizeSvg output parsed as HTML', () => {
             expect(assertInertMarkup(output!, SVG_POLICY), JSON.stringify(href)).toEqual([]);
         }
     });
+
+    it('does not carry an xlink:href at all, safe or not', () => {
+        for (const href of ['javascript:alert(1)', 'https://example.com/a.png']) {
+            const output = sanitizeSvg(`<svg ${SVG_NS} xmlns:xlink="http://www.w3.org/1999/xlink"><image xlink:href="${href}" width="1" height="1"/></svg>`);
+            expect(output).not.toContain('href');
+        }
+    });
 });
 
 describe('sanitizeSvg fidelity', () => {
@@ -293,6 +300,7 @@ describe('sanitizeSvg fidelity', () => {
             + '<g transform="translate(1 1)" opacity="0.9" stroke="#333">'
             + '<path d="M3 3v18h18" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/>'
             + '<circle cx="12" cy="12" r="4"/><ellipse cx="6" cy="6" rx="2" ry="1"/>'
+            + '<image x="0" y="0" width="4" height="4" href="https://example.com/a.png"/>'
             + '<line x1="0" y1="0" x2="5" y2="5"/><polyline points="1,1 2,2 3,1"/><polygon points="0,0 4,0 2,4"/></g>'
             + '<text x="2" y="20" dx="1" dy="1" font-size="4" font-family="sans-serif" font-weight="700" text-anchor="middle">Q1 <tspan fill="red">up</tspan> 5</text>'
             + '</svg>';

@@ -162,11 +162,11 @@
       "lines": 102
     },
     "area-chart/area-chart.component.spec.ts": {
-      "bytes": 11287,
-      "lines": 294
+      "bytes": 11656,
+      "lines": 303
     },
     "area-chart/area-chart.component.ts": {
-      "bytes": 14709,
+      "bytes": 14714,
       "lines": 353
     },
     "area-chart/area-chart.stories.ts": {
@@ -1794,8 +1794,8 @@
       "lines": 42
     },
     "dialog/sub/dialog-content.component.ts": {
-      "bytes": 4250,
-      "lines": 122
+      "bytes": 4210,
+      "lines": 120
     },
     "dialog/sub/dialog-description.component.ts": {
       "bytes": 400,
@@ -2350,12 +2350,12 @@
       "lines": 216
     },
     "file-viewer/file-viewer.component.spec.ts": {
-      "bytes": 72685,
-      "lines": 1561
+      "bytes": 73768,
+      "lines": 1578
     },
     "file-viewer/file-viewer.component.ts": {
-      "bytes": 73580,
-      "lines": 1746
+      "bytes": 71603,
+      "lines": 1697
     },
     "file-viewer/file-viewer.stories.ts": {
       "bytes": 6058,
@@ -3382,11 +3382,11 @@
       "lines": 115
     },
     "line-chart/line-chart.component.spec.ts": {
-      "bytes": 13822,
+      "bytes": 13914,
       "lines": 311
     },
     "line-chart/line-chart.component.ts": {
-      "bytes": 13484,
+      "bytes": 13489,
       "lines": 333
     },
     "line-chart/line-chart.stories.ts": {
@@ -4482,12 +4482,12 @@
       "lines": 20
     },
     "rich-text-editor/addons/file-import/rich-text-file-import.directive.spec.ts": {
-      "bytes": 25113,
-      "lines": 557
+      "bytes": 29550,
+      "lines": 635
     },
     "rich-text-editor/addons/file-import/rich-text-file-import.directive.ts": {
-      "bytes": 14946,
-      "lines": 362
+      "bytes": 15311,
+      "lines": 366
     },
     "rich-text-editor/addons/file-import/rich-text-file-import.locales.ts": {
       "bytes": 5549,
@@ -6624,7 +6624,7 @@
       "lines": 118
     },
     "a11y.ts": {
-      "bytes": 6026,
+      "bytes": 6024,
       "lines": 148
     },
     "addon-slots.spec.ts": {
@@ -6672,7 +6672,7 @@
       "lines": 138
     },
     "chart-path.ts": {
-      "bytes": 6362,
+      "bytes": 6365,
       "lines": 182
     },
     "chart-polar.spec.ts": {
@@ -6704,20 +6704,20 @@
       "lines": 205
     },
     "chart.utils.spec.ts": {
-      "bytes": 17655,
-      "lines": 421
+      "bytes": 18096,
+      "lines": 431
     },
     "chart.utils.ts": {
-      "bytes": 12470,
-      "lines": 336
+      "bytes": 13029,
+      "lines": 350
     },
     "code-highlight.spec.ts": {
-      "bytes": 20673,
-      "lines": 453
+      "bytes": 29218,
+      "lines": 636
     },
     "code-highlight.ts": {
-      "bytes": 26638,
-      "lines": 579
+      "bytes": 29951,
+      "lines": 658
     },
     "code-scopes.ts": {
       "bytes": 6744,
@@ -6843,21 +6843,25 @@
       "bytes": 7565,
       "lines": 212
     },
+    "parsers/docx-hostile-fixtures.ts": {
+      "bytes": 4211,
+      "lines": 75
+    },
     "parsers/docx-parser.spec.ts": {
-      "bytes": 33636,
-      "lines": 688
+      "bytes": 37950,
+      "lines": 757
     },
     "parsers/docx-parser.ts": {
-      "bytes": 63210,
-      "lines": 1811
+      "bytes": 64795,
+      "lines": 1840
     },
     "parsers/docx-to-editor-html.spec.ts": {
-      "bytes": 15392,
-      "lines": 369
+      "bytes": 21271,
+      "lines": 466
     },
     "parsers/docx-to-editor-html.ts": {
-      "bytes": 16854,
-      "lines": 494
+      "bytes": 17632,
+      "lines": 501
     },
     "parsers/file-type-detector.spec.ts": {
       "bytes": 12316,
@@ -6879,6 +6883,10 @@
       "bytes": 3237,
       "lines": 93
     },
+    "parsers/inert-markup-fixtures.ts": {
+      "bytes": 9755,
+      "lines": 221
+    },
     "parsers/inflate.spec.ts": {
       "bytes": 8367,
       "lines": 202
@@ -6895,6 +6903,14 @@
       "bytes": 4688,
       "lines": 120
     },
+    "parsers/markup-safety.spec.ts": {
+      "bytes": 2711,
+      "lines": 52
+    },
+    "parsers/markup-safety.ts": {
+      "bytes": 2991,
+      "lines": 69
+    },
     "parsers/ole2-reader.spec.ts": {
       "bytes": 26955,
       "lines": 643
@@ -6907,29 +6923,33 @@
       "bytes": 11689,
       "lines": 202
     },
+    "parsers/pdf-hostile-fixtures.ts": {
+      "bytes": 1775,
+      "lines": 38
+    },
     "parsers/pdf-limits.spec.ts": {
       "bytes": 32195,
       "lines": 584
     },
     "parsers/pdf-parser.spec.ts": {
-      "bytes": 131766,
-      "lines": 2878
+      "bytes": 135339,
+      "lines": 2937
     },
     "parsers/pdf-parser.ts": {
-      "bytes": 265826,
-      "lines": 6900
+      "bytes": 265987,
+      "lines": 6901
     },
     "parsers/pdf-pixel-perfect.spec.ts": {
-      "bytes": 100956,
-      "lines": 2135
+      "bytes": 101690,
+      "lines": 2147
     },
     "parsers/pdf-pixel-perfect.ts": {
       "bytes": 141721,
       "lines": 3530
     },
     "parsers/pdf-readable/pdf-readable.spec.ts": {
-      "bytes": 13463,
-      "lines": 289
+      "bytes": 15968,
+      "lines": 332
     },
     "parsers/pdf-readable/pdf-readable.ts": {
       "bytes": 6690,
@@ -6956,8 +6976,8 @@
       "lines": 162
     },
     "parsers/pdf-readable/readable-emit.ts": {
-      "bytes": 23198,
-      "lines": 587
+      "bytes": 23658,
+      "lines": 595
     },
     "parsers/pdf-readable/readable-extract.spec.ts": {
       "bytes": 2297,
@@ -7032,12 +7052,12 @@
       "lines": 2593
     },
     "parsers/svg-sanitizer.spec.ts": {
-      "bytes": 9078,
-      "lines": 192
+      "bytes": 15826,
+      "lines": 303
     },
     "parsers/svg-sanitizer.ts": {
-      "bytes": 5033,
-      "lines": 141
+      "bytes": 6189,
+      "lines": 161
     },
     "parsers/ttf-builder.spec.ts": {
       "bytes": 17110,

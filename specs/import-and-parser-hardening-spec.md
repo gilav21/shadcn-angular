@@ -438,14 +438,14 @@ re-search from `index + 1`.
 
 | # | Task | Proves | Status | Completed | Score | Retrospective |
 |---|------|--------|--------|-----------|-------|---------------|
-| 1 | Write failing tests T-1…T-18 and the `INERT` helper (§F.2); create `markup-safety.ts` with exported signatures that throw, so specs compile and fail on assertions; capture T-12's golden and T-15's reference oracle **on the unmodified tree**; record pre-change coverage. | all UC | ⬜ Not started | — | — | — |
-| 2 | `markup-safety.ts`: move `cssColor`, `cssFontFamily` (quoted name only), `safeLinkHref`, `imageDataUrl` from file-viewer, add `escapeAttribute`; file-viewer imports them (appends `,sans-serif` at its 3 call sites). T-1…T-3 green; FV specs green. (I-1) | UC-14 | ⬜ Not started | — | — | — |
-| 3 | DOCX (I-1): parse-site validation (§F.3) + emitter escaping/validation (§F.4) + hyperlink scheme check. T-4…T-8 green. | UC-1, UC-2, UC-3 | ⬜ Not started | — | — | — |
-| 4 | PDF (I-1): `pdf-parser.ts` font-family + link (§F.5); `readable-emit.ts` link (§F.5). T-9…T-12 green. | UC-4, UC-5, UC-6 | ⬜ Not started | — | — | — |
-| 5 | File import (I-2): sanitize-then-insert-then-emit (§F.6); JSDoc. Fixed T-13 green; `rte-file-import` e2e green. | UC-7 | ⬜ Not started | — | — | — |
-| 6 | SVG (I-3): node-type walk + URL normalisation (§F.8). T-14, T-18 green; `rich-text-sanitizer.service.spec.ts` and FV green. | UC-8, UC-9, UC-10 | ⬜ Not started | — | — | — |
-| 7 | Tokenizer (I-4): E-1 (§F.7). T-15…T-17 green; code-block, rich-text-editor, rich-text-view specs green. | UC-11, UC-12, UC-13 | ⬜ Not started | — | — | — |
-| 8 | Gates: `npm run lint`, `npm run typecheck`, `npm run test-visual` (zero failures, pre-existing included), `npm run test:portable`, `npm run test:cli`, `sync-registry --fix` + registry check (lazy-import caveat, D.5), `npm run e2e:impact -- --base origin/master` then every listed spec, `npm run stage:package -- rte` + package build, `npm run sonar:gate` (four-point verification, CLAUDE.md §4); run `release-cli` (expect: no publish) and `release-package` (expect: rte pending) and record both; record the follow-ups (§F.9). | all | ⬜ Not started | — | — | — |
+| 1 | Write failing tests T-1…T-18 and the `INERT` helper (§F.2); create `markup-safety.ts` with exported signatures that throw, so specs compile and fail on assertions; capture T-12's golden and T-15's reference oracle **on the unmodified tree**; record pre-change coverage. | all UC | ✅ Done (Sonar deferred to lead's single gate) | 2026-10-12 12:13 | 88 (review of `a4806faf`; its findings were then fixed: helper self-test `inert-markup-fixtures.spec.ts`, safe `href` survives, T-17 landed) | Red set confirmed (21 failing) before any implementation; T-17 could not land red because the old tokenizer never returns on `/x*/`. Pre-change coverage was **not** recorded (contended machine; the lead's `sonar:gate` measures it). |
+| 2 | `markup-safety.ts`: move `cssColor`, `cssFontFamily` (quoted name only), `safeLinkHref`, `imageDataUrl` from file-viewer, add `escapeAttribute`; file-viewer imports them (appends `,sans-serif` at its 3 call sites). T-1…T-3 green; FV specs green. (I-1) | UC-14 | ✅ Done | 2026-10-12 12:13 | 94 (first review 86: nothing guarded the three `,sans-serif` appends; `eaaf36d3` added FV assertions) | A mutation of `[a-z]+` to `[a-z;]+` survived until `red;blue` joined the reject list: test the grammar class, not only its obvious violations. |
+| 3 | DOCX (I-1): parse-site validation (§F.3) + emitter escaping/validation (§F.4) + hyperlink scheme check. T-4…T-8 green. | UC-1, UC-2, UC-3 | ✅ Done | 2026-10-12 12:13 | 93 (first review 72: the file viewer, the model's other consumer, still mapped raw `both`/`center`; fixed in `6925854a` with a test that renders what `parseDocx` produces; later `hexFraction` hex-only) | Changing a model field's vocabulary is a consumer change: found only because the reviewer searched the tree for `docx-parser` imports. |
+| 4 | PDF (I-1): `pdf-parser.ts` font-family + link (§F.5); `readable-emit.ts` link (§F.5). T-9…T-12 green. | UC-4, UC-5, UC-6 | ✅ Done | 2026-10-12 12:13 | 91 (its nit fixed in `a02b5c90`: `readable-emit` built style attributes unescaped, and a font of `&#39&#59…` decoded back into a declaration) | The class is "every style attribute is escaped where it is built", not "this one font path"; fixed in `styleAttr`, the one builder. |
+| 5 | File import (I-2): sanitize-then-insert-then-emit (§F.6); JSDoc. Fixed T-13 green; `rte-file-import` e2e green. | UC-7 | ✅ Done (e2e: see §H) | 2026-10-12 12:13 | 91 (nit fixed in `bfe595fa`: with parsers now clean the T-13 cases could not tell the directive's sanitize from the parser's; two direct `insertImported` cases added) | A test that asserts the output of a layer behind a fix can go vacuous when an earlier layer is fixed too; feed the layer an input only it can repair. |
+| 6 | SVG (I-3): node-type walk + URL normalisation (§F.8). T-14, T-18 green; `rich-text-sanitizer.service.spec.ts` and FV green. | UC-8, UC-9, UC-10 | ✅ Done | 2026-10-12 12:13 | 93 | The spec's F.8 range `[\u0000- \u007f]` strips every ASCII character (a typo); see §G 8. |
+| 7 | Tokenizer (I-4): E-1 (§F.7). T-15…T-17 green; code-block, rich-text-editor, rich-text-view specs green. | UC-11, UC-12, UC-13 | ✅ Done | 2026-10-12 12:13 | 92 | The equivalence test did its job: plain E-1 diverged from the old tokenizer on `5$foo(`; see §G 9. Fresh seeds (1, 777, 424242, 30 000 lines each) agree too. |
+| 8 | Gates: `npm run lint`, `npm run typecheck`, `npm run test-visual` (zero failures, pre-existing included), `npm run test:portable`, `npm run test:cli`, `sync-registry --fix` + registry check (lazy-import caveat, D.5), `npm run e2e:impact -- --base origin/master` then every listed spec, `npm run stage:package -- rte` + package build, `npm run sonar:gate` (four-point verification, CLAUDE.md §4); run `release-cli` (expect: no publish) and `release-package` (expect: rte pending) and record both; record the follow-ups (§F.9). | all | ⚠️ Partial: everything except the Sonar gate and the pkg-* e2e legs (see §H) | 2026-10-12 12:13 | pending | The lead runs one `sonar:gate` on the integration branch. Release verdicts: no CLI publish; rte package release required. |
 
 ## Definition of Done (per task)
 
@@ -637,7 +637,49 @@ inserted); cover it in T-13 (extra case).
 
 **Corrections found while executing this spec (append-only):**
 
-_(none yet)_
+8. ⚠️ F.8's normalisation range `/[\u0000- \u007f]+/g` is a typo: it spans every ASCII
+   character and would reduce any URL to nothing. Implemented as a URL parser behaves:
+   tab, LF and CR are removed anywhere (`urlAsBrowserParses`), leading whitespace is
+   already skipped by `DANGEROUS_URL_PATTERN`'s `\s*`, and the other C0 controls the URL
+   parser would strip cannot occur in a value that came out of an XML parse.
+9. ⚠️ Option E-1 as written (cached global-regex matches only) is **not** equivalent to
+   the old tokenizer, and T-15 proved it: on `5$foo(` the old tokenizer, matching
+   `line.slice(cursor)`, has no boundary before the `$` and emits `$` as text and `foo`
+   as a function, a whole-line search emits `$foo`. The old loop also re-decided a match
+   after emitting the text before it. Implemented: a sticky test on the slice decides
+   what matches AT the cursor, the cached forward global search decides positions after
+   it, and the loop keeps the old two-step shape (D.5 risk row 1 anticipated this).
+   `BOUNDARY_LINES` pin it; three fresh seeds of 30 000 lines agree.
+10. ⚠️ UC-6 / F.5: `safeLinkHref` returns the browser-normalised URL, so a PDF link to a
+    bare origin is now emitted as `https://example.com/` (was `https://example.com`).
+    Two assertions (`pdf-parser.spec.ts` link annotations, `pdf-readable.spec.ts` links)
+    were updated; benign output with a path is byte-identical (T-12).
+11. ⚠️ Changing the DOCX model's `alignment` / `verticalAlign` to CSS keywords made the
+    file viewer (`mapDocxAlignment`, `mapVerticalAlign`) render justified paragraphs
+    left-aligned and centred cells top-aligned. Both now take the CSS keywords. The
+    legacy `.doc` parser already produced `justify`, which the viewer never mapped, so
+    justified `.doc` paragraphs are fixed as a side effect. Existing assertions changed:
+    `verticalAlign: 'center'` is `'middle'`, and `font-family:Arial` is `font-family:'Arial'`.
+12. ⚠️ V-6 said the readable emitter's font path was safe by reading. It built `style`
+    attributes unescaped and `sanitizeFamilyName` does not strip `&`: a font name of
+    `&#39&#59…` (character references without semicolons) decodes in a browser to a
+    quote, a `;` and a further declaration. `styleAttr` now escapes, the one place every
+    style attribute is built.
+13. ⚠️ DOCX parse side effects beyond the spec: an invalid `w:val` colour no longer falls
+    back to the theme colour; a theme colour entry without a hex `srgbClr val` /
+    `sysClr lastClr` is skipped (was `#windowText`-style text); `HIGHLIGHT_COLOR_MAP` is
+    read as own properties (`constructor` was a function value); tint/shade must be one
+    or two hex digits; the DOCX emitter also allow-lists the keywords and requires a
+    base64 image data URL for `<img src>`.
+14. ⚠️ T-17 landed with Task 7, not Task 1 (the old loop never returns on `/x*/`). T-11
+    and T-13 use targeted checks rather than `assertInertMarkup` (pixel-perfect emits a
+    wide style vocabulary; the file-import spec ships with `add --include-tests` and so
+    cannot import lib test fixtures: its hostile `.docx` is built inline). The helper
+    got its own spec (`inert-markup-fixtures.spec.ts`) after review: a helper that cannot
+    fail makes every importer spec vacuous.
+15. ⚠️ Mechanical follow-ons of one new lib file: `stage-package` counts 290 → 291 and
+    291 → 292, `file-sizes.json` regenerated, `markup-safety.ts` added to the file-viewer
+    and file-import `libFiles` (registry.json and the CLI's offline snapshot).
 
 ---
 

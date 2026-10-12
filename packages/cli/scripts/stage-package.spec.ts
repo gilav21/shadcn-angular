@@ -41,7 +41,7 @@ describe('stage-package entry contract (T-24)', () => {
     it('stages rte successfully and prints the file count', () => {
         const run = runScript(SCRIPT, ['rte']);
         expect(run.status).toBe(0);
-        expect(run.output).toContain('staged 291 files');
+        expect(run.output).toContain('staged 292 files');
         expect(run.output).toContain('rte');
     }, 120_000);
 
