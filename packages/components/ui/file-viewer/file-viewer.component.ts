@@ -750,8 +750,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         switch (alignment) {
             case 'right': return 'right';
             case 'center': return 'center';
-            case 'both':
-            case 'distribute': return 'justify';
+            case 'justify': return 'justify';
             default: return 'left';
         }
     }
@@ -908,7 +907,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     }
 
     private mapVerticalAlign(val: string): string {
-        if (val === 'center') return 'middle';
+        if (val === 'middle') return 'middle';
         if (val === 'bottom') return 'bottom';
         return 'top';
     }

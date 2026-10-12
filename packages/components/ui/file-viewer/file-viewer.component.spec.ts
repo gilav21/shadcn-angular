@@ -3,6 +3,7 @@ import { Component } from '@angular/core';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as nodeBuffer from 'node:buffer';
 import { FileViewerComponent, FileViewerToolbarDirective, FileViewerContentDirective } from './file-viewer.component';
+import { parseDocx } from '../../lib/parsers/docx-parser';
 
 /** The shape of every image source the document parsers emit. */
 const PNG_DATA_URL = 'data:image/png;base64,iVBORw0KGgo=';
@@ -575,10 +576,23 @@ describe('FileViewerComponent rendering internals', () => {
             expect(html).toContain('background-color:#eee');
         });
 
+        it('renders the alignments the DOCX parser produces from jc and vAlign', () => {
+            const w = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
+            const body = '<w:p><w:pPr><w:jc w:val="both"/></w:pPr><w:r><w:t>justified</w:t></w:r></w:p>'
+                + '<w:tbl><w:tr><w:tc><w:tcPr><w:vAlign w:val="center"/></w:tcPr><w:p><w:r><w:t>mid</w:t></w:r></w:p></w:tc></w:tr></w:tbl>';
+            const parsed = parseDocx(buildStoredZip([
+                { name: 'word/document.xml', content: `<?xml version="1.0"?><w:document ${w}><w:body>${body}</w:body></w:document>` },
+            ]));
+
+            const html = api.renderDocxToHtml(parsed.elements);
+
+            expect(html).toContain('text-align:justify');
+            expect(html).toContain('vertical-align:middle');
+        });
+
         it('maps alignments', () => {
             expect(api.mapDocxAlignment('right')).toBe('right');
-            expect(api.mapDocxAlignment('both')).toBe('justify');
-            expect(api.mapDocxAlignment('distribute')).toBe('justify');
+            expect(api.mapDocxAlignment('justify')).toBe('justify');
             expect(api.mapDocxAlignment('left')).toBe('left');
         });
 
@@ -601,7 +615,7 @@ describe('FileViewerComponent rendering internals', () => {
                     {
                         cells: [
                             cell({ rowSpan: 2, cellStyle: {
-                                backgroundColor: '#fff', verticalAlign: 'center', width: 1000, widthUnit: 'dxa',
+                                backgroundColor: '#fff', verticalAlign: 'middle', width: 1000, widthUnit: 'dxa',
                                 borders: { top: { size: 1, color: '#000' }, bottom: { size: 1, color: '#000' }, left: { size: 1, color: '#000' }, right: { size: 1, color: '#000' } },
                                 paddings: { top: 1, bottom: 1, left: 1, right: 1 },
                             } }),
@@ -625,7 +639,7 @@ describe('FileViewerComponent rendering internals', () => {
         });
 
         it('maps vertical align', () => {
-            expect(api.mapVerticalAlign('center')).toBe('middle');
+            expect(api.mapVerticalAlign('middle')).toBe('middle');
             expect(api.mapVerticalAlign('bottom')).toBe('bottom');
             expect(api.mapVerticalAlign('top')).toBe('top');
         });

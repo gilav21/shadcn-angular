@@ -14,7 +14,7 @@ import type {
     DocxTableCellStyle,
     DocxTableStyle,
 } from './docx-parser';
-import { cssColor, cssFontFamily, escapeAttribute, safeLinkHref } from './markup-safety';
+import { cssColor, cssFontFamily, escapeAttribute, imageDataUrl, safeLinkHref } from './markup-safety';
 
 /**
  * Renders a DocxParseResult into inline-styled HTML suitable for
@@ -304,10 +304,12 @@ function applyHyperlink(html: string, run: DocxRun): string {
 // --- Image rendering ---
 
 function renderImage(img: DocxImage): string {
+    const src = imageDataUrl(img.dataUrl);
+    if (src === undefined) return '';
     const widthAttr = img.width > 0 ? ` width="${img.width}"` : '';
     const heightAttr = img.height > 0 ? ` height="${img.height}"` : '';
     const alt = escapeAttribute(img.altText || 'image');
-    return `<img src="${escapeAttribute(img.dataUrl)}"${widthAttr}${heightAttr} alt="${alt}">`;
+    return `<img src="${escapeAttribute(src)}"${widthAttr}${heightAttr} alt="${alt}">`;
 }
 
 // --- Table rendering ---

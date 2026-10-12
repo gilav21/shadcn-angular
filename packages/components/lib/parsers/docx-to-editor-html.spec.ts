@@ -250,19 +250,26 @@ describe('renderDocxForEditor — lists', () => {
 });
 
 describe('renderDocxForEditor — images', () => {
-    it('renders an image with width/height/alt and escaped src', () => {
+    it('renders an image with width/height/alt', () => {
         const img: DocxImage = {
             type: 'image',
-            dataUrl: 'data:image/png;base64,AAA"BBB',
+            dataUrl: 'data:image/png;base64,AAAA',
             width: 100,
             height: 50,
             altText: 'My <pic>',
         };
         const html = renderDocxForEditor(result([img]));
-        expect(html).toContain('<img src="data:image/png;base64,AAA&quot;BBB"');
+        expect(html).toContain('<img src="data:image/png;base64,AAAA"');
         expect(html).toContain('width="100"');
         expect(html).toContain('height="50"');
         expect(html).toContain('alt="My &lt;pic&gt;"');
+    });
+
+    it('drops an image whose source is not a base64 image data URL', () => {
+        for (const dataUrl of ['data:image/png;base64,AAA"BBB', 'javascript:alert(1)', 'https://tracker.invalid/p.png']) {
+            const img: DocxImage = { type: 'image', dataUrl, width: 1, height: 1, altText: 'x' };
+            expect(renderDocxForEditor(result([img]))).toBe('');
+        }
     });
 
     it('omits zero width/height and falls back alt to "image"', () => {
