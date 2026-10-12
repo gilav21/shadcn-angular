@@ -16,6 +16,8 @@ vi.mock('./fetch.js', () => ({
 }));
 
 const opts = { branch: 'master' } as const;
+const targets = { uiDir: '/proj/ui', blocksDir: '/proj/blocks' };
+const scanState = (peerFilesToUpdate = new Set<string>()) => ({ contentCache: new Map<string, string>(), peerFilesToUpdate });
 
 describe('classifyComponent', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -23,7 +25,7 @@ describe('classifyComponent', () => {
   it('returns "install" when files are missing', async () => {
     (fs.pathExists as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(false);
     const result = await classifyComponent(
-      'badge', '/proj/ui', opts, '@/lib', new Map(), new Set(),
+      'badge', targets, opts, '@/lib', scanState(),
     );
     expect(result).toBe('install');
   });
@@ -32,7 +34,7 @@ describe('classifyComponent', () => {
     (fs.pathExists as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(true);
     (fs.readFile as unknown as ReturnType<typeof vi.fn>).mockResolvedValue('REMOTE');
     const result = await classifyComponent(
-      'badge', '/proj/ui', opts, '@/lib', new Map(), new Set(),
+      'badge', targets, opts, '@/lib', scanState(),
     );
     expect(result).toBe('skip');
   });
@@ -41,7 +43,7 @@ describe('classifyComponent', () => {
     (fs.pathExists as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(true);
     (fs.readFile as unknown as ReturnType<typeof vi.fn>).mockResolvedValue('LOCAL EDIT');
     const result = await classifyComponent(
-      'badge', '/proj/ui', opts, '@/lib', new Map(), new Set(),
+      'badge', targets, opts, '@/lib', scanState(),
     );
     expect(result).toBe('conflict');
   });
@@ -61,7 +63,7 @@ describe('classifyComponent', () => {
       (fs.pathExists as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(false);
       const peerSet = new Set<string>();
       await classifyComponent(
-        'data-table', '/proj/ui', opts, '@/lib', new Map(), peerSet,
+        'data-table', targets, opts, '@/lib', scanState(peerSet),
       );
       // Before the fix, "missing" peer files were skipped (only "changed" queued),
       // so peer directives never installed and the build broke. All declared peer

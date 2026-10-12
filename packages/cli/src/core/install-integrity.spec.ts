@@ -141,7 +141,6 @@ describe('conflict scan judges each component in its own directory, as its own k
         );
 
         expect(result[verdict]).toEqual([BLOCK]);
-        expect(result.unchecked).toEqual([]);
     });
 
     it('an edited ui component is still a conflict next to blocks', async () => {

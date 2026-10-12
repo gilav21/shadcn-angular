@@ -93,6 +93,9 @@ vi.mock('../registry/index.js', async (importOriginal) => {
 
 const mockedFs = vi.mocked(fs);
 
+const targets = { uiDir: '/project/ui', blocksDir: '/project/blocks' };
+const scanState = () => ({ contentCache: new Map<string, string>(), peerFilesToUpdate: new Set<string>() });
+
 // ---------------------------------------------------------------------------
 // normalizeContent
 // ---------------------------------------------------------------------------
@@ -238,7 +241,7 @@ describe('checkFileConflict', () => {
     const cache = new Map<string, string>();
 
     const result = await checkFileConflict(
-      'button/button.ts', '/project/ui', { branch: 'master', remote: true }, '@/lib', cache,
+      'button/button.ts', '/project/ui', 'component', { branch: 'master', remote: true }, '@/lib', cache,
     );
     expect(result).toBe('missing');
   });
@@ -253,7 +256,7 @@ describe('checkFileConflict', () => {
     const cache = new Map<string, string>();
 
     const result = await checkFileConflict(
-      'button/button.ts', '/project/ui', { branch: 'master', remote: true }, '@/lib', cache,
+      'button/button.ts', '/project/ui', 'component', { branch: 'master', remote: true }, '@/lib', cache,
     );
     expect(result).toBe('identical');
   });
@@ -267,7 +270,7 @@ describe('checkFileConflict', () => {
     const cache = new Map<string, string>();
 
     const result = await checkFileConflict(
-      'button/button.ts', '/project/ui', { branch: 'master', remote: true }, '@/lib', cache,
+      'button/button.ts', '/project/ui', 'component', { branch: 'master', remote: true }, '@/lib', cache,
     );
     expect(result).toBe('changed');
   });
@@ -281,10 +284,10 @@ describe('checkFileConflict', () => {
     const cache = new Map<string, string>();
 
     await checkFileConflict(
-      'button/button.ts', '/project/ui', { branch: 'master', remote: true }, '@/lib', cache,
+      'button/button.ts', '/project/ui', 'component', { branch: 'master', remote: true }, '@/lib', cache,
     );
-    expect(cache.has('button/button.ts')).toBe(true);
-    expect(cache.get('button/button.ts')).toBe('// remote');
+    expect(cache.has('component:button/button.ts')).toBe(true);
+    expect(cache.get('component:button/button.ts')).toBe('// remote');
   });
 });
 
@@ -304,7 +307,7 @@ describe('classifyComponent', () => {
     const peerFiles = new Set<string>();
 
     const result = await classifyComponent(
-      'badge', '/project/ui', { branch: 'master', remote: true }, '@/lib', cache, peerFiles,
+      'badge', targets, { branch: 'master', remote: true }, '@/lib', { contentCache: cache, peerFilesToUpdate: peerFiles },
     );
     expect(result).toBe('install');
   });
@@ -322,7 +325,7 @@ describe('classifyComponent', () => {
     const peerFiles = new Set<string>();
 
     const result = await classifyComponent(
-      'badge', '/project/ui', { branch: 'master', remote: true }, '@/lib', cache, peerFiles,
+      'badge', targets, { branch: 'master', remote: true }, '@/lib', { contentCache: cache, peerFilesToUpdate: peerFiles },
     );
     expect(result).toBe('skip');
   });
@@ -337,7 +340,7 @@ describe('classifyComponent', () => {
     const peerFiles = new Set<string>();
 
     const result = await classifyComponent(
-      'badge', '/project/ui', { branch: 'master', remote: true }, '@/lib', cache, peerFiles,
+      'badge', targets, { branch: 'master', remote: true }, '@/lib', { contentCache: cache, peerFilesToUpdate: peerFiles },
     );
     expect(result).toBe('conflict');
   });
@@ -371,8 +374,8 @@ describe('classifyComponent', () => {
     const peerFilesToUpdate = new Set<string>();
 
     const result = await classifyComponent(
-      name as ComponentName, '/project/ui', { branch: 'master', remote: true }, '@/lib',
-      cache, peerFilesToUpdate,
+      name as ComponentName, targets, { branch: 'master', remote: true }, '@/lib',
+      { contentCache: cache, peerFilesToUpdate },
     );
 
     expect(result).toBe('skip');
@@ -397,7 +400,7 @@ describe('detectConflicts', () => {
     );
 
     const components = new Set<ComponentName>(['badge']);
-    const result = await detectConflicts(components, '/project/ui', { branch: 'master', remote: true }, '@/lib');
+    const result = await detectConflicts(components, targets, { branch: 'master', remote: true }, '@/lib');
 
     expect(result.toInstall).toContain('badge');
     expect(result.conflicting).not.toContain('badge');
@@ -413,7 +416,7 @@ describe('detectConflicts', () => {
     );
 
     const components = new Set<ComponentName>(['badge']);
-    const result = await detectConflicts(components, '/project/ui', { branch: 'master', remote: true }, '@/lib');
+    const result = await detectConflicts(components, targets, { branch: 'master', remote: true }, '@/lib');
 
     expect(result.toSkip).toContain('badge');
     expect(result.toInstall).not.toContain('badge');
@@ -428,7 +431,7 @@ describe('detectConflicts', () => {
     );
 
     const components = new Set<ComponentName>(['badge']);
-    const result = await detectConflicts(components, '/project/ui', { branch: 'master', remote: true }, '@/lib');
+    const result = await detectConflicts(components, targets, { branch: 'master', remote: true }, '@/lib');
 
     expect(result.conflicting).toContain('badge');
     expect(result.toInstall).not.toContain('badge');
@@ -443,7 +446,7 @@ describe('detectConflicts', () => {
     );
 
     const components = new Set<ComponentName>(['badge']);
-    const result = await detectConflicts(components, '/project/ui', { branch: 'master', remote: true }, '@/lib');
+    const result = await detectConflicts(components, targets, { branch: 'master', remote: true }, '@/lib');
 
     expect(result.contentCache.size).toBeGreaterThan(0);
   });
@@ -998,8 +1001,8 @@ describe('install pipeline for a trio + sub/ component', () => {
     );
 
     const result = await classifyComponent(
-      TRIO, '/project/ui', { branch: 'master', remote: true }, '@/lib',
-      new Map(), new Set(),
+      TRIO, targets, { branch: 'master', remote: true }, '@/lib',
+      scanState(),
     );
     expect(result).toBe('install');
   });
@@ -1015,8 +1018,8 @@ describe('install pipeline for a trio + sub/ component', () => {
     );
 
     const result = await classifyComponent(
-      TRIO, '/project/ui', { branch: 'master', remote: true }, '@/components/lib',
-      new Map(), new Set(),
+      TRIO, targets, { branch: 'master', remote: true }, '@/components/lib',
+      scanState(),
     );
     expect(result).toBe('skip');
   });
@@ -1028,7 +1031,7 @@ describe('install pipeline for a trio + sub/ component', () => {
     );
 
     const result = await detectConflicts(
-      new Set<ComponentName>([TRIO]), '/project/ui',
+      new Set<ComponentName>([TRIO]), targets,
       { branch: 'master', remote: true }, '@/lib',
     );
     expect(result.toInstall).toContain(TRIO);

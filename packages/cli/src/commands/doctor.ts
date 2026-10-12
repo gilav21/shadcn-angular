@@ -4,7 +4,7 @@ import chalk from 'chalk';
 import { getConfig, getPrefix, type Config } from '../utils/config.js';
 import { registry, getComponentNames, type ComponentName } from '../registry/index.js';
 import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
-import { detectConflicts, printBreakingChanges, type AddOptions } from '../core/plan.js';
+import { detectConflicts, printBreakingChanges, resolveInstallTargets, type AddOptions } from '../core/plan.js';
 import { readManifest, writeManifest, removeFiles, fileStatus, type FileStatus, type Manifest } from '../core/manifest.js';
 import { scanLayouts } from '../core/layout.js';
 import { performInstall } from '../core/install.js';
@@ -105,7 +105,7 @@ export async function collectDoctorReport(
     const installed = await installedComponents(targetDir);
 
     const { conflicting, toInstall } = await detectConflicts(
-        new Set(installed), targetDir, options, config.aliases.utils, getPrefix(config),
+        new Set(installed), resolveInstallTargets(cwd, config), options, config.aliases.utils, getPrefix(config),
     );
     // Among installed components: "toInstall" means some files are missing
     // (partial install); "conflicting" means local files differ from remote.

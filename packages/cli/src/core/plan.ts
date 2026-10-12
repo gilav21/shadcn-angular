@@ -1,8 +1,10 @@
 import fs from 'fs-extra';
 import path from 'node:path';
 import chalk from 'chalk';
-import { fetchAndTransform, normalizeContent, type FetchOptions } from './fetch.js';
+import { fetchAndTransform, normalizeContent, type FetchOptions, type SourceKind } from './fetch.js';
 import { DEFAULT_PREFIX } from '../utils/prefix.js';
+import { getBlocksAlias, type Config } from '../utils/config.js';
+import { aliasToProjectPath, resolveProjectPath } from '../utils/paths.js';
 import { registry, type BreakingChange, type ComponentDefinition, type ComponentName } from '../registry/index.js';
 
 export interface AddOptions extends FetchOptions {
@@ -35,9 +37,51 @@ export interface ConflictCheckResult {
     contentCache: Map<string, string>;
 }
 
+/**
+ * Where each kind of registry entry installs. Built once by
+ * {@link resolveInstallTargets} and passed to everything that reads or writes
+ * component files, so "which directory is this component judged in" is decided
+ * in exactly one place (I2).
+ */
+export interface InstallTargets {
+    readonly uiDir: string;
+    readonly blocksDir: string;
+}
+
+/** The ui and blocks directories for a project; `path` / `blocksPath` override the aliases. */
+export function resolveInstallTargets(
+    cwd: string, config: Config, overrides: { readonly path?: string; readonly blocksPath?: string } = {},
+): InstallTargets {
+    return {
+        uiDir: resolveProjectPath(cwd, overrides.path ?? aliasToProjectPath(config.aliases.ui || 'src/components/ui')),
+        blocksDir: resolveProjectPath(cwd, overrides.blocksPath ?? aliasToProjectPath(getBlocksAlias(config))),
+    };
+}
+
+/** The source kind a registry entry is fetched as (and so which directory it lives in). */
+export function kindOf(name: ComponentName): SourceKind {
+    return registry[name].type === 'block' ? 'block' : 'component';
+}
+
+export function targetDirFor(targets: InstallTargets, kind: SourceKind): string {
+    return kind === 'block' ? targets.blocksDir : targets.uiDir;
+}
+
+/** Cache key for a fetched file: a component and a block may declare the same relative path. */
+export function contentKey(kind: SourceKind, file: string): string {
+    return `${kind}:${file}`;
+}
+
+/** What one conflict scan accumulates while it walks the components. */
+export interface ScanState {
+    readonly contentCache: Map<string, string>;
+    readonly peerFilesToUpdate: Set<string>;
+}
+
 export async function checkFileConflict(
     file: string,
     targetDir: string,
+    kind: SourceKind,
     options: AddOptions,
     utilsAlias: string,
     contentCache: Map<string, string>,
@@ -48,8 +92,8 @@ export async function checkFileConflict(
 
     const localContent = await fs.readFile(targetPath, 'utf-8');
     try {
-        const remoteContent = await fetchAndTransform(file, options, utilsAlias, prefix);
-        contentCache.set(file, remoteContent);
+        const remoteContent = await fetchAndTransform(file, options, utilsAlias, prefix, kind);
+        contentCache.set(contentKey(kind, file), remoteContent);
         return normalizeContent(localContent) === normalizeContent(remoteContent)
             ? 'identical'
             : 'changed';
@@ -61,42 +105,43 @@ export async function checkFileConflict(
 async function checkPeerFiles(
     component: ComponentDefinition,
     targetDir: string,
+    kind: SourceKind,
     options: AddOptions,
     utilsAlias: string,
-    contentCache: Map<string, string>,
-    peerFilesToUpdate: Set<string>,
+    scan: ScanState,
     prefix: string,
 ): Promise<void> {
     if (!component.peerFiles) return;
     for (const file of component.peerFiles) {
-        const status = await checkFileConflict(file, targetDir, options, utilsAlias, contentCache, prefix);
+        const status = await checkFileConflict(file, targetDir, kind, options, utilsAlias, scan.contentCache, prefix);
         // Install a peer file that's MISSING (a new component version references
         // it but it was never installed) as well as one that's CHANGED. Only an
         // identical, already-present peer file is left alone.
-        if (status === 'missing' || status === 'changed') peerFilesToUpdate.add(file);
+        if (status === 'missing' || status === 'changed') scan.peerFilesToUpdate.add(file);
     }
 }
 
 export async function classifyComponent(
     name: ComponentName,
-    targetDir: string,
+    targets: InstallTargets,
     options: AddOptions,
     utilsAlias: string,
-    contentCache: Map<string, string>,
-    peerFilesToUpdate: Set<string>,
+    scan: ScanState,
     prefix: string = DEFAULT_PREFIX,
 ): Promise<'install' | 'skip' | 'conflict'> {
     const component = registry[name];
+    const kind = kindOf(name);
+    const targetDir = targetDirFor(targets, kind);
     let ownFilesChanged = false;
     let isFullyPresent = true;
 
     for (const file of component.files) {
-        const status = await checkFileConflict(file, targetDir, options, utilsAlias, contentCache, prefix);
+        const status = await checkFileConflict(file, targetDir, kind, options, utilsAlias, scan.contentCache, prefix);
         if (status === 'missing') isFullyPresent = false;
         if (status === 'changed') ownFilesChanged = true;
     }
 
-    await checkPeerFiles(component, targetDir, options, utilsAlias, contentCache, peerFilesToUpdate, prefix);
+    await checkPeerFiles(component, targetDir, kind, options, utilsAlias, scan, prefix);
 
     if (options.overwrite) return isFullyPresent ? 'conflict' : 'install';
     if (isFullyPresent && !ownFilesChanged) return 'skip';
@@ -124,7 +169,7 @@ class ConcurrencyLimiter {
 
 export async function detectConflicts(
     allComponents: Set<ComponentName>,
-    targetDir: string,
+    targets: InstallTargets,
     options: AddOptions,
     utilsAlias: string,
     prefix: string = DEFAULT_PREFIX,
@@ -132,17 +177,15 @@ export async function detectConflicts(
     const toInstall: ComponentName[] = [];
     const toSkip: string[] = [];
     const conflicting: ComponentName[] = [];
-    const peerFilesToUpdate = new Set<string>();
-    const contentCache = new Map<string, string>();
+    const scan: ScanState = { contentCache: new Map<string, string>(), peerFilesToUpdate: new Set<string>() };
+    const { contentCache, peerFilesToUpdate } = scan;
     const limiter = new ConcurrencyLimiter(8);
 
     const results = await Promise.all(
         [...allComponents].map(name =>
             limiter.run(async () => ({
                 name,
-                result: await classifyComponent(
-                    name, targetDir, options, utilsAlias, contentCache, peerFilesToUpdate, prefix,
-                ),
+                result: await classifyComponent(name, targets, options, utilsAlias, scan, prefix),
             })),
         ),
     );

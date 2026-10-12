@@ -471,7 +471,7 @@ describe('performInstall peer files', () => {
 
   it('warns when a peer file cannot be fetched, without failing the component', async () => {
     // The component's own file resolves from the cache; only the peer file is fetched.
-    const contentCache = new Map([['peer-fixture/peer-fixture.component.ts', '// cached']]);
+    const contentCache = new Map([['component:peer-fixture/peer-fixture.component.ts', '// cached']]);
     asMock(fetchAndTransform).mockRejectedValue(new Error('404'));
 
     const result = await performInstall({
@@ -651,7 +651,7 @@ describe('previewComponentMerges', () => {
   });
 
   it('serves THEIRS from the conflict scan\'s content cache instead of re-fetching', async () => {
-    const cached = conflicts({ contentCache: new Map([['separator/separator.component.ts', '// cached']]) });
+    const cached = conflicts({ contentCache: new Map([['component:separator/separator.component.ts', '// cached']]) });
 
     await previewComponentMerges(['separator'], cached, { ...base, components: ['separator'] });
 

@@ -2,8 +2,11 @@ import fs from 'fs-extra';
 import path from 'node:path';
 import { fetchAndTransform, fetchLibContent, normalizeContent, type SourceKind } from './fetch.js';
 import { resolveDependencies } from './resolve.js';
-import { detectConflicts, summarizePlan, type AddOptions, type ConflictCheckResult, type InstallPlan } from './plan.js';
-import { type Config, type TestRunner, getPrefix, getBlocksAlias } from '../utils/config.js';
+import {
+    detectConflicts, summarizePlan, resolveInstallTargets, kindOf, targetDirFor, contentKey,
+    type AddOptions, type ConflictCheckResult, type InstallPlan, type InstallTargets,
+} from './plan.js';
+import { type Config, type TestRunner, getPrefix } from '../utils/config.js';
 import { installPackages } from '../utils/package-manager.js';
 import { transformSpecForRunner, VITEST_COMPAT_LIB_FILE } from '../utils/test-transform.js';
 import { hasJestGlobals } from '../utils/test-runner.js';
@@ -61,7 +64,7 @@ interface WriteFilesContext {
  * scan only covers component source.
  */
 async function fetchTheirs(file: string, ctx: WriteFilesContext, kind: SourceKind, isTest: boolean): Promise<string> {
-    const cached = ctx.contentCache.get(file);
+    const cached = ctx.contentCache.get(contentKey(kind, file));
     if (cached !== undefined) return cached;
     const transformed = await fetchAndTransform(file, ctx.options, ctx.utilsAlias, ctx.prefix, kind);
     return isTest ? transformSpecForRunner(transformed, ctx.testRunner, ctx.utilsAlias) : transformed;
@@ -303,18 +306,15 @@ export function expandForTests(
     return { all: resolveDependencies([...closure, ...testDeps]), testsFor: new Set(closure) };
 }
 
-function resolveTargetDir(input: InstallInput): string {
-    return resolveProjectPath(
-        input.cwd, input.path ?? aliasToProjectPath(input.config.aliases.ui || 'src/components/ui'),
-    );
+function targetsOf(input: InstallInput): InstallTargets {
+    return resolveInstallTargets(input.cwd, input.config, { path: input.path, blocksPath: input.blocksPath });
 }
 
 /** Compute the install plan without writing anything (powers MCP get_install_plan). */
 export async function planInstall(input: InstallInput): Promise<InstallPlan> {
     const all = resolveDependencies([...input.components, ...(input.optionalDeps ?? [])]);
-    const targetDir = resolveTargetDir(input);
     const prefix = getPrefix(input.config);
-    const result = await detectConflicts(all, targetDir, input.options, input.config.aliases.utils, prefix);
+    const result = await detectConflicts(all, targetsOf(input), input.options, input.config.aliases.utils, prefix);
     return summarizePlan(result, all, {
         requested: input.components,
         chosen: input.optionalDeps ?? [],
@@ -337,7 +337,7 @@ function prunePeerFilesForDeclined(declined: ComponentName[], finalComponents: C
 }
 
 async function writeAllComponents(
-    finalComponents: ComponentName[], targetDir: string, blocksBase: string,
+    finalComponents: ComponentName[], targets: InstallTargets,
     ctx: Omit<WriteFilesContext, 'targetDir' | 'kind' | 'forceWholeFile'>,
     peerFilesToUpdate: Set<string>,
     forcedSet: Set<ComponentName>,
@@ -345,9 +345,8 @@ async function writeAllComponents(
     const installed: ComponentName[] = [];
     for (const name of finalComponents) {
         const component = registry[name];
-        const isBlock = component.type === 'block';
-        const dir = isBlock ? blocksBase : targetDir;
-        const kind: SourceKind = isBlock ? 'block' : 'component';
+        const kind = kindOf(name);
+        const dir = targetDirFor(targets, kind);
         await fs.ensureDir(dir);
         const writeCtx: WriteFilesContext = { ...ctx, targetDir: dir, kind, forceWholeFile: forcedSet.has(name) };
         const outcomes: MergeOutcome[] = [];
@@ -404,7 +403,8 @@ async function installTestShim(
 
 export async function performInstall(input: InstallInput): Promise<InstallResult> {
     const warnings: string[] = [];
-    const targetDir = resolveTargetDir(input);
+    const targets = targetsOf(input);
+    const targetDir = targets.uiDir;
     const utilsAlias = input.config.aliases.utils;
     const prefix = getPrefix(input.config);
     const overwriteSet = new Set(input.overwrite ?? []);
@@ -415,7 +415,7 @@ export async function performInstall(input: InstallInput): Promise<InstallResult
     );
 
     const result = input.precomputedConflicts ?? await detectConflicts(
-        all, targetDir, input.options, utilsAlias, prefix,
+        all, targets, input.options, utilsAlias, prefix,
     );
     const toOverwrite = result.conflicting.filter(c => overwriteSet.has(c) || input.options.overwrite);
     const declined = result.conflicting.filter(c => !toOverwrite.includes(c));
@@ -431,12 +431,11 @@ export async function performInstall(input: InstallInput): Promise<InstallResult
     const currentRef = await resolveRef(input.options);
     const report = emptyMergeReport();
     const forcedSet = resolveForcedSet(finalComponents, toOverwrite, input);
-    const blocksBase = resolveProjectPath(input.cwd, input.blocksPath ?? aliasToProjectPath(getBlocksAlias(input.config)));
     const baseCtx = {
         options: input.options, utilsAlias, contentCache: result.contentCache, prefix, warnings,
         manifest, currentRef, report, includeTests, testRunner, testsFor,
     };
-    const installed = await writeAllComponents(finalComponents, targetDir, blocksBase, baseCtx, result.peerFilesToUpdate, forcedSet);
+    const installed = await writeAllComponents(finalComponents, targets, baseCtx, result.peerFilesToUpdate, forcedSet);
 
     const libDir = resolveProjectPath(input.cwd, aliasToProjectPath(utilsAlias));
     await installLibFiles(new Set(finalComponents), libDir, input.options, warnings, manifest);
@@ -538,9 +537,8 @@ export interface MergePreview {
 export async function previewComponentMerges(
     names: ComponentName[], conflicts: ConflictCheckResult, input: InstallInput,
 ): Promise<MergePreview[]> {
-    const targetDir = resolveTargetDir(input);
+    const targets = targetsOf(input);
     const manifest = await readManifest(input.cwd);
-    const blocksBase = resolveProjectPath(input.cwd, aliasToProjectPath(getBlocksAlias(input.config)));
     const base: Omit<WriteFilesContext, 'targetDir' | 'kind'> = {
         options: input.options,
         utilsAlias: input.config.aliases.utils,
@@ -561,9 +559,8 @@ export async function previewComponentMerges(
     const previews: MergePreview[] = [];
     for (const name of names) {
         const component = registry[name];
-        const isBlock = component.type === 'block';
-        const kind: SourceKind = isBlock ? 'block' : 'component';
-        const ctx: WriteFilesContext = { ...base, targetDir: isBlock ? blocksBase : targetDir, kind };
+        const kind = kindOf(name);
+        const ctx: WriteFilesContext = { ...base, targetDir: targetDirFor(targets, kind), kind };
         for (const file of component.files) {
             try {
                 const decision = await previewMergeFile(file, await mergeContextFor(file, component, ctx, kind));

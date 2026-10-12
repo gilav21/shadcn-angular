@@ -9,7 +9,8 @@ import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
 import { resolveDependencies } from '../core/resolve.js';
 import {
     detectConflicts, collectBreakingChanges, collectSuggestedAddons, printBreakingChanges,
-    type AddOptions, type ConflictCheckResult,
+    resolveInstallTargets, kindOf, targetDirFor,
+    type AddOptions, type ConflictCheckResult, type InstallTargets,
 } from '../core/plan.js';
 import { performInstall, previewComponentMerges, type InstallResult, type MergePreview } from '../core/install.js';
 import { resolveTestInstall } from '../utils/test-runner.js';
@@ -219,14 +220,15 @@ function printCustomizedAdvice(buckets: CustomizedBuckets): void {
 }
 
 async function warnCustomized(
-    modified: ComponentName[], cwd: string, targetDir: string, options: AddOptions,
+    modified: ComponentName[], cwd: string, targets: InstallTargets, options: AddOptions,
 ): Promise<void> {
     if (modified.length === 0) return;
     const manifest = await readManifest(cwd);
     const localContent = new Map<string, string>();
     for (const name of modified) {
+        const dir = targetDirFor(targets, kindOf(name));
         for (const file of registry[name].files) {
-            const p = path.join(targetDir, file);
+            const p = path.join(dir, file);
             if (await fs.pathExists(p)) localContent.set(file, await fs.readFile(p, 'utf-8'));
         }
     }
@@ -238,11 +240,11 @@ async function warnCustomized(
 }
 
 async function detectUpdates(
-    universe: Set<ComponentName>, targetDir: string, options: AddOptions, config: Config,
+    universe: Set<ComponentName>, targets: InstallTargets, options: AddOptions, config: Config,
 ): Promise<ConflictCheckResult> {
     const spinner = ora('Checking for updates...').start();
     const conflicts = await detectConflicts(
-        universe, targetDir, options, config.aliases.utils, getPrefix(config),
+        universe, targets, options, config.aliases.utils, getPrefix(config),
     );
     spinner.stop();
     return conflicts;
@@ -319,7 +321,8 @@ export async function update(names: string[], options: AddOptions): Promise<void
     options.overwrite ??= config.update?.overwrite;
     const tests = await resolveTestInstall(config, options, cwd);
 
-    const targetDir = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.ui || 'src/components/ui'));
+    const installTargets = resolveInstallTargets(cwd, config);
+    const targetDir = installTargets.uiDir;
     const scan = await scanLayouts(targetDir, getPrefix(config));
     const targets = await resolveTargetsOrExit(names, cwd, config);
 
@@ -336,7 +339,7 @@ export async function update(names: string[], options: AddOptions): Promise<void
     abortIfNewDepsWithoutConsent(newlyRequired, options);
 
     const universe = new Set<ComponentName>([...alreadyInstalled, ...(options.yes ? newlyRequired : [])]);
-    const conflicts = await detectUpdates(universe, targetDir, options, config);
+    const conflicts = await detectUpdates(universe, installTargets, options, config);
 
     if (conflicts.toInstall.length === 0 && conflicts.conflicting.length === 0) {
         console.log(chalk.green('Everything is up to date.'));
@@ -345,7 +348,7 @@ export async function update(names: string[], options: AddOptions): Promise<void
 
     const touched = [...conflicts.conflicting, ...conflicts.toInstall];
     printUpdatePlan(conflicts.conflicting, conflicts.toInstall);
-    await warnCustomized(conflicts.conflicting, cwd, targetDir, options);
+    await warnCustomized(conflicts.conflicting, cwd, installTargets, options);
     await reportBreaking(touched, cwd, config, options);
 
     if (options.dryRun) {

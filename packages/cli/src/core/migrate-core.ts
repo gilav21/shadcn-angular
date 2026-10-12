@@ -8,7 +8,7 @@ import { resolveDependencies } from './resolve.js';
 import { scanLayouts, type LayoutScan } from './layout.js';
 import { rewriteImports } from './import-rewrite.js';
 import { performInstall, type InstallResult } from './install.js';
-import { detectConflicts, type AddOptions } from './plan.js';
+import { detectConflicts, resolveInstallTargets, type AddOptions } from './plan.js';
 import { readManifest, writeManifest, removeFiles, fileStatus, type Manifest } from './manifest.js';
 import { loadBaselines, isPristine } from './baseline.js';
 
@@ -292,7 +292,7 @@ export async function runMigration(
     // unrelated installed components. `overwrite: true` refreshes shared lib
     // files for the written set.
     const conflicts = await detectConflicts(
-        new Set(plan.writeSet), uiDir, options, config.aliases.utils, getPrefix(config),
+        new Set(plan.writeSet), { ...resolveInstallTargets(cwd, config), uiDir }, options, config.aliases.utils, getPrefix(config),
     );
     const result = await performInstall({
         components: plan.writeSet,

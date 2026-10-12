@@ -5,10 +5,7 @@ import chalk from 'chalk';
 import ora, { type Ora } from 'ora';
 import { getConfig, getPrefix, getBlocksAlias, type Config } from '../utils/config.js';
 import { registry, getComponentNames, isComponentName, type ComponentName } from '../registry/index.js';
-import {
-    resolveProjectPath,
-    aliasToProjectPath,
-} from '../utils/paths.js';
+import { aliasToProjectPath } from '../utils/paths.js';
 import {
     normalizeContent,
 } from '../core/fetch.js';
@@ -16,8 +13,13 @@ import { resolveDependencies } from '../core/resolve.js';
 import {
     detectConflicts,
     buildInstallSummary,
+    resolveInstallTargets,
+    kindOf,
+    targetDirFor,
+    contentKey,
     type AddOptions,
     type ConflictCheckResult,
+    type InstallTargets,
     type InstallSummary,
     type InstallSummaryGroup,
 } from '../core/plan.js';
@@ -307,17 +309,18 @@ function printAvailableAddons(hints: AddonHint[]): void {
 
 function showConflictDiffs(
     conflicting: ComponentName[],
-    targetDir: string,
+    targets: InstallTargets,
     contentCache: Map<string, string>,
 ): void {
     for (const name of conflicting) {
         const component = registry[name];
         const changedFiles: string[] = [];
+        const kind = kindOf(name);
 
         for (const file of component.files) {
-            const remote = contentCache.get(file);
+            const remote = contentCache.get(contentKey(kind, file));
             if (!remote) continue;
-            const localPath = path.join(targetDir, file);
+            const localPath = path.join(targetDirFor(targets, kind), file);
             if (!fs.existsSync(localPath)) continue;
 
             const local = normalizeContent(fs.readFileSync(localPath, 'utf-8'));
@@ -335,7 +338,7 @@ function showConflictDiffs(
 async function promptOverwrite(
     conflicting: ComponentName[],
     options: AddOptions,
-    targetDir: string,
+    targets: InstallTargets,
     contentCache: Map<string, string>,
 ): Promise<ComponentName[]> {
     if (conflicting.length === 0) return [];
@@ -348,7 +351,7 @@ async function promptOverwrite(
     if (options.dryRun) return [];
 
     console.log(chalk.yellow(`\n${conflicting.length} component(s) have local changes or are different from remote:`));
-    showConflictDiffs(conflicting, targetDir, contentCache);
+    showConflictDiffs(conflicting, targets, contentCache);
     console.log(chalk.dim('\n  Use `npx @gilav21/shadcn-angular diff <component>` for full diffs.\n'));
 
     const { selected } = await prompts({
@@ -570,7 +573,7 @@ function resolvePresetOrExit(
 async function resolveComponentsAndConflicts(
     componentsToAdd: ComponentName[], options: AddOptions, config: Config, cwd: string, includeTests: boolean,
     preselectedAddons: readonly ComponentName[] = [],
-): Promise<{ allComponents: Set<ComponentName>; extraDeps: ComponentName[]; componentPath: string | undefined; blocksPath: string | undefined; conflicts: ConflictCheckResult }> {
+): Promise<{ allComponents: Set<ComponentName>; extraDeps: ComponentName[]; componentPath: string | undefined; blocksPath: string | undefined; targets: InstallTargets; conflicts: ConflictCheckResult }> {
     const resolvedComponents = resolveDependencies(componentsToAdd);
     const optionalChoices = await promptOptionalDependencies(resolvedComponents, options);
     const addonChoices = await promptAddons(resolvedComponents, options, preselectedAddons);
@@ -584,13 +587,11 @@ async function resolveComponentsAndConflicts(
     const { all: allComponents } = expandForTests(closure, includeTests);
     const hasBlock = [...allComponents].some(n => registry[n].type === 'block');
     const { componentPath, blocksPath } = await resolveBlockDestination(hasBlock, options, config);
-     
-    const uiBasePath = componentPath ?? aliasToProjectPath(config.aliases.ui || 'src/components/ui');
-    const targetDir = resolveProjectPath(cwd, uiBasePath);
+    const targets = resolveInstallTargets(cwd, config, { path: componentPath, blocksPath });
     const checkSpinner = ora('Checking for conflicts...').start();
-    const conflicts = await detectConflicts(allComponents, targetDir, options, config.aliases.utils, getPrefix(config));
+    const conflicts = await detectConflicts(allComponents, targets, options, config.aliases.utils, getPrefix(config));
     checkSpinner.stop();
-    return { allComponents, extraDeps: extras, componentPath, blocksPath, conflicts };
+    return { allComponents, extraDeps: extras, componentPath, blocksPath, targets, conflicts };
 }
 
 export async function add(components: string[], options: AddOptions): Promise<void> {
@@ -619,15 +620,14 @@ export async function add(components: string[], options: AddOptions): Promise<vo
 
     const { includeTests, runner } = await resolveTestInstall(config, options, cwd);
 
-    const { allComponents, extraDeps, componentPath, blocksPath, conflicts } =
+    const { allComponents, extraDeps, componentPath, blocksPath, targets, conflicts } =
         await resolveComponentsAndConflicts(
             componentsToAdd, options, config, cwd, includeTests, preselectedAddons,
         );
     const { toInstall, toSkip, conflicting, contentCache } = conflicts;
 
     const uiPath = componentPath ?? aliasToProjectPath(config.aliases.ui || 'src/components/ui');
-    const toOverwrite = await promptOverwrite(conflicting, options,
-        resolveProjectPath(cwd, uiPath), contentCache);
+    const toOverwrite = await promptOverwrite(conflicting, options, targets, contentCache);
     const declined = conflicting.filter(c => !toOverwrite.includes(c));
 
     const addonHints = collectAvailableAddons(allComponents);
