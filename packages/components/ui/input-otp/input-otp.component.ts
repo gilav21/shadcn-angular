@@ -79,6 +79,7 @@ function sanitizeCode(text: string, slotCount: number): string {
         (input)="onInput($event)"
         (compositionend)="onInput()"
         (keydown)="onKeydown($event)"
+        (select)="onSelect()"
         (paste)="onPaste($event)"
         (focus)="onFocus()"
         (blur)="onBlur()"
@@ -163,6 +164,10 @@ export class InputOTPComponent implements ControlValueAccessor {
     effect(() => {
       const next = this.value();
       untracked(() => this.followExternalValue(next));
+    });
+    effect(() => {
+      // a disabled input never fires blur, so the highlight would otherwise outlive the focus
+      if (this.isDisabled()) this.focused.set(false);
     });
   }
 
@@ -254,8 +259,9 @@ export class InputOTPComponent implements ControlValueAccessor {
     this.select(code.length);
   }
 
-  /** Arrow keys, Home and End move the highlight (and with it the real selection) between slots; everything else is native editing. */
+  /** Arrow keys, Home and End move the highlight (and with it the real selection) between slots; everything else, including any chord with Ctrl, Alt or Meta, is native. */
   onKeydown(event: KeyboardEvent): void {
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
     const target = this.slotTarget(event.key);
     if (target === null) return;
     event.preventDefault();
@@ -270,6 +276,12 @@ export class InputOTPComponent implements ControlValueAccessor {
       case 'End': return this.value().length;
       default: return null;
     }
+  }
+
+  /** Follows selection changes the browser makes on its own (Ctrl+A, a drag), so the highlight keeps naming the slot the next character lands in. */
+  onSelect(): void {
+    const start = this.hiddenInput.nativeElement.selectionStart ?? 0;
+    this.caret.set(Math.min(start, this.value().length, this.slotCount() - 1));
   }
 
   /** Highlights the first empty slot, or the last slot when the code is full, so typing always has a defined target. */

@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
-import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { InputOTPComponent } from './input-otp.component';
@@ -243,14 +243,20 @@ describe('InputOTPComponent — signal-forms readiness', () => {
       <ui-input-otp
         [formControl]="control"
         [maxLength]="4"
-        (valueChange)="emissions.push($event)"
       />
     `,
     imports: [InputOTPComponent, ReactiveFormsModule],
 })
 class FormOtpHost {
     readonly control = new FormControl<string | null>('AB12');
-    readonly emissions: string[] = [];
+}
+
+@Component({
+    template: `<ui-input-otp [maxLength]="4" [(ngModel)]="code" />`,
+    imports: [InputOTPComponent, FormsModule],
+})
+class NgModelOtpHost {
+    code = '42';
 }
 
 describe('InputOTPComponent forms', () => {
@@ -303,12 +309,38 @@ describe('InputOTPComponent forms', () => {
         expect(hidden(fixture).disabled).toBe(true);
         slots()[1].click();
         expect(document.activeElement).not.toBe(hidden(fixture));
+        expect(slots().some(slot => slot.hasAttribute('data-active'))).toBe(false);
 
         host.control.enable();
         fixture.detectChanges();
         expect(hidden(fixture).disabled).toBe(false);
         slots()[1].click();
         expect(document.activeElement).toBe(hidden(fixture));
+    });
+
+    it('drops the highlight when the field is disabled while focused', () => {
+        const { fixture, host } = setup();
+        hidden(fixture).dispatchEvent(new Event('focus'));
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('[data-active]')).not.toBeNull();
+
+        host.control.disable();
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.querySelector('[data-active]')).toBeNull();
+    });
+
+    it('works with ngModel', async () => {
+        const fixture = TestBed.createComponent(NgModelOtpHost);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(slotText(fixture)).toEqual(['4', '2', '', '']);
+
+        hidden(fixture).value = '4271';
+        hidden(fixture).dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+        expect(fixture.componentInstance.code).toBe('4271');
     });
 
     it('is disabled by the disabled input alone', () => {

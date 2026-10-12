@@ -92,13 +92,14 @@ describe('InputOTPComponent keyboard model (browser)', () => {
         fixture.detectChanges();
         expect(hidden(fixture).value).toBe('93');
 
-        fixture.componentInstance.code.set('7');
+        // a reset to a shorter code than the caret's position
+        fixture.componentInstance.code.set('');
         fixture.detectChanges();
         await fixture.whenStable();
-        expect(activeSlot(fixture)).toBe(1);
+        expect(activeSlot(fixture)).toBe(0);
         await userEvent.keyboard('8');
         fixture.detectChanges();
-        expect(hidden(fixture).value).toBe('78');
+        expect(hidden(fixture).value).toBe('8');
     });
 
     it('renders slot 0 leftmost and maps arrows physically in an RTL page', async () => {
@@ -117,6 +118,17 @@ describe('InputOTPComponent keyboard model (browser)', () => {
         fixture.detectChanges();
         expect(activeSlot(fixture)).toBe(1);
         expect(left(all[activeSlot(fixture)])).toBeLessThan(before);
+    });
+
+    it.each(['ltr', 'rtl'] as const)('rounds the outer corners of each group of slots by physical side (%s)', dir => {
+        const fixture = mount('', dir);
+        const radius = (slot: HTMLElement, corner: string): number =>
+            Number.parseFloat(getComputedStyle(slot).getPropertyValue(`border-${corner}-radius`));
+        const all = slots(fixture);
+
+        // default separator [2]: groups are slots 0-2 and 3-5
+        expect(all.map(slot => radius(slot, 'top-left') > 0)).toEqual([true, false, false, true, false, false]);
+        expect(all.map(slot => radius(slot, 'top-right') > 0)).toEqual([false, false, true, false, false, true]);
     });
 
     it('is a single tab stop', async () => {
