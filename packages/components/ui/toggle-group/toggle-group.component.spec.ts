@@ -246,10 +246,12 @@ describe('ToggleGroupComponent forms', () => {
         expect(single.host.control.value).toBe('');
 
         single.host.emissions.length = 0;
-        single.host.control.setValue('underline');
+        // emitEvent:false silences the write itself, so any valueChanges emission below is an echo
+        single.host.control.setValue('underline', { emitEvent: false });
         single.fixture.detectChanges();
         expect(pressed(single.fixture)).toEqual(['Underline']);
         expect(single.host.emissions).toEqual([]);
+        expect(single.formEmissions).toEqual(['italic', '']);
 
         single.host.control.setValue(null);
         single.fixture.detectChanges();

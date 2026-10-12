@@ -10,6 +10,7 @@ import {
     forwardRef,
     OnInit,
 } from '@angular/core';
+import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cn } from '../../lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { ToggleGroupItemComponent } from './sub/toggle-group-item.component';
@@ -61,16 +62,19 @@ function toArray(value: string | string[]): string[] {
     imports: [forwardRef(() => ToggleGroupItemComponent)],
     templateUrl: './toggle-group.component.html',
     host: { class: 'contents' },
-    providers: [{ provide: TOGGLE_GROUP, useExisting: forwardRef(() => ToggleGroupComponent) }],
+    providers: [
+        { provide: TOGGLE_GROUP, useExisting: forwardRef(() => ToggleGroupComponent) },
+        { provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => ToggleGroupComponent), multi: true },
+    ],
 })
-export class ToggleGroupComponent implements OnInit {
+export class ToggleGroupComponent implements OnInit, ControlValueAccessor {
     /** `single` keeps at most one item on (and re-pressing it clears the selection); `multiple` accumulates. Also decides whether {@link valueChange} carries a string or a string array. */
     type = input<ToggleGroupType>('single');
     /** Item styling, read by each item through the group: `outline` adds borders (one per join between items) plus a shared shadow on the group. */
     variant = input<ToggleGroupVariant>('default');
     /** Item height/min-width preset, read by each item through the group and mirrored to `data-size`. */
     size = input<ToggleGroupSize>('default');
-    /** Disables every item in the group; an item may also disable itself independently. */
+    /** Disables every item in the group; an item may also disable itself independently. A reactive-forms `disable()` disables it too — see {@link isDisabled}. */
     disabled = input(false);
     /** Initially pressed value(s), read once in `ngOnInit` — a bare string is wrapped into an array. Later changes are ignored. */
     defaultValue = input<string | string[] | undefined>(undefined);
@@ -93,7 +97,10 @@ export class ToggleGroupComponent implements OnInit {
      * so that "nobody has written this yet" is distinguishable from "written
      * empty" — otherwise the sync effect, which runs after `ngOnInit`, would
      * clobber the {@link defaultValue} seed. Read {@link selection} for the
-     * current selection; this member is the published surface.
+     * current selection; this member is the published surface. A write from a
+     * form (`formControlName`, `ngModel`) lands in {@link selection} through
+     * {@link writeValue} and leaves this member at its pre-write value, so read
+     * {@link selection} — or the DOM — for what is rendered.
      */
     readonly value = model<string | string[] | undefined>(undefined);
 
@@ -105,6 +112,13 @@ export class ToggleGroupComponent implements OnInit {
      * never leaks into the internals.
      */
     readonly selection = signal<string[]>([]);
+
+    private onChange: (value: string | string[]) => void = () => { };
+    private onTouched: () => void = () => { };
+    private readonly formDisabled = signal(false);
+
+    /** Effective disabled state: the {@link disabled} input OR a reactive `control.disable()` relayed through {@link setDisabledState}. Items read this, never the raw input. */
+    readonly isDisabled = computed(() => this.disabled() || this.formDisabled());
 
     constructor() {
         effect(() => {
@@ -145,7 +159,7 @@ export class ToggleGroupComponent implements OnInit {
 
     /** Flips an item's pressed state honouring {@link type} — replacing the selection in `single` mode, adding/removing in `multiple` — then emits {@link valueChange}. No-op while the group is disabled. */
     toggle(itemValue: string): void {
-        if (this.disabled()) return;
+        if (this.isDisabled()) return;
 
         const current = this.selection();
         let newValue: string[];
@@ -153,12 +167,47 @@ export class ToggleGroupComponent implements OnInit {
         if (this.type() === 'single') {
             newValue = current.includes(itemValue) ? [] : [itemValue];
         } else if (current.includes(itemValue)) {
-                newValue = current.filter(v => v !== itemValue);
-            } else {
-                newValue = [...current, itemValue];
-            }
+            newValue = current.filter(v => v !== itemValue);
+        } else {
+            newValue = [...current, itemValue];
+        }
 
-        this.selection.set(newValue);
-        this.value.set(this.type() === 'single' ? newValue[0] ?? '' : newValue);
+        this.commit(newValue);
+    }
+
+    /** The one place a user edit leaves the component: renders it, tells the form, and publishes it on {@link value}. */
+    private commit(next: string[]): void {
+        const published = this.type() === 'single' ? next[0] ?? '' : next;
+        this.selection.set(next);
+        this.onChange(published);
+        this.value.set(published);
+    }
+
+    /** Marks the control touched when focus leaves the group, not when it moves between two items of it. */
+    onFocusOut(event: FocusEvent): void {
+        const group = event.currentTarget;
+        const next = event.relatedTarget;
+        if (group instanceof Node && next instanceof Node && group.contains(next)) return;
+        this.onTouched();
+    }
+
+    /** `ControlValueAccessor`: renders a form value without emitting — `null`, `undefined` and `''` clear the selection. */
+    writeValue(value: string | string[] | null | undefined): void {
+        this.selection.set(toArray(value ?? ''));
+    }
+
+    /** `ControlValueAccessor`: the callback receives the group's published shape (a string in `single` mode, an array in `multiple`) on every user toggle. */
+    registerOnChange(fn: (value: string | string[]) => void): void {
+        this.onChange = fn;
+    }
+
+    /** `ControlValueAccessor`: invoked by {@link onFocusOut}. */
+    registerOnTouched(fn: () => void): void {
+        this.onTouched = fn;
+    }
+
+    /** `ControlValueAccessor`: relays `control.disable()` / `enable()` into {@link isDisabled}. */
+    setDisabledState(isDisabled: boolean): void {
+        this.formDisabled.set(isDisabled);
     }
 }
