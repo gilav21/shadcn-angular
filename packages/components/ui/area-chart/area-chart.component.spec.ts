@@ -301,3 +301,87 @@ describe('AreaChartComponent', () => {
         expect(labelX('Q1')).toBeGreaterThan(labelX('Q2'));
     });
 });
+
+describe('AreaChartComponent negative values', () => {
+    const CLASSES: Record<string, number[][]> = {
+        'mixed-sign': [
+            [30, -45, 12, 8],
+            [-10, 25, -5, 40],
+        ],
+        'all-negative': [
+            [-30, -45, -12],
+            [-10, -25, -5],
+        ],
+        'all-positive': [
+            [30, 45, 12],
+            [10, 25, 5],
+        ],
+    };
+
+    const MODES = [
+        { label: 'overlaid', inputs: {} },
+        { label: 'stacked', inputs: { stacked: true } },
+        { label: 'percent', inputs: { stacked: true, stackingMode: 'percent' } },
+    ];
+
+    /** Every y coordinate of a path: its numbers come in x, y pairs. */
+    function pathYs(d: string): number[] {
+        const numbers = (d.match(/-?\d+(?:\.\d+)?(?:e[+-]?\d+)?/gi) ?? []).map(Number);
+        return numbers.filter((_, i) => i % 2 === 1);
+    }
+
+    function build(values: number[][], inputs: Record<string, unknown>): AreaChartComponent {
+        const instance = TestBed.createComponent(AreaChartComponent);
+        instance.componentRef.setInput(
+            'series',
+            values.map((row, s) => ({ name: `S${s}`, data: row.map((value, i) => ({ name: `Q${i}`, value })) })),
+        );
+        for (const [name, value] of Object.entries(inputs)) instance.componentRef.setInput(name, value);
+        instance.detectChanges();
+        return instance.componentInstance;
+    }
+
+    beforeEach(() => {
+        vi.stubGlobal('ResizeObserver', ResizeObserverStub);
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    for (const [className, values] of Object.entries(CLASSES)) {
+        for (const mode of MODES) {
+            it(`should draw ${className} ${mode.label} areas and lines between the outermost gridlines`, () => {
+                const component = build(values, mode.inputs);
+                const ys = component.gridLines().map(g => g.y);
+                const [top, bottom] = [Math.min(...ys), Math.max(...ys)];
+
+                expect(component.areaPaths()).toHaveLength(values.length);
+                for (const path of component.areaPaths()) {
+                    for (const y of [...pathYs(path.area), ...pathYs(path.line)]) {
+                        expect(y).toBeGreaterThanOrEqual(top - 0.5);
+                        expect(y).toBeLessThanOrEqual(bottom + 0.5);
+                    }
+                }
+                expect(component.gridLines().some(g => g.value === 0)).toBe(true);
+            });
+        }
+    }
+
+    it('should fill an overlaid area down to the zero gridline, not the plot bottom', () => {
+        const component = build(CLASSES['all-negative'], {});
+        const zeroY = component.gridLines().find(g => g.value === 0)?.y;
+
+        for (const path of component.areaPaths()) {
+            const closing = pathYs(path.area).slice(-2);
+            expect(closing.every(y => Math.abs(y - (zeroY as number)) < 0.001)).toBe(true);
+        }
+    });
+
+    it('should keep the percent axis within +/-100', () => {
+        const component = build(CLASSES['mixed-sign'], { stacked: true, stackingMode: 'percent' });
+        for (const g of component.gridLines()) {
+            expect(Math.abs(g.value)).toBeLessThanOrEqual(100);
+        }
+    });
+});

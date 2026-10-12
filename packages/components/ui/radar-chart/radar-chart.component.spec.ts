@@ -91,3 +91,43 @@ describe('RadarChartComponent', () => {
         expect(component.maxValue()).toBe(1);
     });
 });
+
+describe('RadarChartComponent vertices on their own axis', () => {
+    const CLASSES: Record<string, { values: number[][]; maxValueInput?: number }> = {
+        'mixed sign': { values: [[8, -6, 3, -1], [5, 2, -9, 4]] },
+        'all negative': { values: [[-8, -6, -3, -1], [-5, -2, -9, -4]] },
+        'all zero': { values: [[0, 0, 0], [0, 0, 0]] },
+        'above an explicit maxValue': { values: [[8, 6, 30, 1], [5, 2, 9, 4]], maxValueInput: 10 },
+    };
+
+    function build(values: number[][], maxValueInput?: number): RadarChartComponent {
+        const instance = TestBed.createComponent(RadarChartComponent);
+        const axes = values[0].map((_, i) => `Axis ${i}`);
+        instance.componentRef.setInput(
+            'series',
+            values.map((row, s) => ({ name: `S${s}`, data: row.map((value, i) => ({ name: axes[i], value })) })),
+        );
+        if (maxValueInput !== undefined) instance.componentRef.setInput('maxValueInput', maxValueInput);
+        instance.detectChanges();
+        return instance.componentInstance;
+    }
+
+    for (const [className, { values, maxValueInput }] of Object.entries(CLASSES)) {
+        it(`should place every vertex on its axis ray at R·(v-lo)/(hi-lo), inside the ring (${className})`, () => {
+            const component = build(values, maxValueInput);
+            const lo = Math.min(0, ...values.flat());
+            const hi = maxValueInput ?? Math.max(...values.flat());
+            const center = component.center();
+            const radius = component.radius();
+
+            component.seriesPolygons().forEach((polygon, s) => {
+                polygon.vertices.forEach((vertex, axis) => {
+                    const angle = -Math.PI / 2 + (axis / values[s].length) * Math.PI * 2;
+                    const ratio = hi === lo ? 0 : Math.min(1, Math.max(0, (values[s][axis] - lo) / (hi - lo)));
+                    expect(vertex.x - center).toBeCloseTo(radius * ratio * Math.cos(angle), 6);
+                    expect(vertex.y - center).toBeCloseTo(radius * ratio * Math.sin(angle), 6);
+                });
+            });
+        });
+    }
+});

@@ -23,6 +23,31 @@ describe('radarPoint', () => {
     });
 });
 
+describe('radarPoint on its own axis', () => {
+    const RADIUS = 100;
+    const AXES = 5;
+    const CASES: { label: string; value: number; lo: number; hi: number; distance: number }[] = [
+        { label: 'inside the scale', value: 6, lo: 0, hi: 10, distance: 60 },
+        { label: 'negative on a scale that starts below zero', value: -4, lo: -10, hi: 10, distance: 30 },
+        { label: 'above the ring', value: 25, lo: 0, hi: 10, distance: 100 },
+        { label: 'below the centre', value: -3, lo: 0, hi: 10, distance: 0 },
+        { label: 'a scale of zero width', value: 5, lo: 5, hi: 5, distance: 0 },
+        { label: 'fractional magnitudes', value: 3e-6, lo: -2e-6, hi: 8e-6, distance: 50 },
+    ];
+
+    for (const { label, value, lo, hi, distance } of CASES) {
+        it(`keeps a vertex on its ray at R·(v-lo)/(hi-lo), clamped into the ring (${label})`, () => {
+            for (let axis = 0; axis < AXES; axis++) {
+                const p = radarPoint(200, 150, RADIUS, axis, AXES, value, hi, lo);
+                const angle = -Math.PI / 2 + (axis / AXES) * Math.PI * 2;
+
+                expect(p.x - 200).toBeCloseTo(distance * Math.cos(angle), 6);
+                expect(p.y - 150).toBeCloseTo(distance * Math.sin(angle), 6);
+            }
+        });
+    }
+});
+
 describe('polygonPath', () => {
     it('returns an empty string for no points', () => {
         expect(polygonPath([])).toBe('');

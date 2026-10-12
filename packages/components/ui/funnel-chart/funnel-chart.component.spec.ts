@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component } from '@angular/core';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { FunnelChartComponent } from './funnel-chart.component';
 import { ChartDataPoint, ChartClickEvent } from '../../lib/chart.types';
 
@@ -258,5 +258,66 @@ describe('FunnelChartComponent', () => {
         fixture.componentRef.setInput('class', 'my-funnel');
         fixture.detectChanges();
         expect(component.classes()).toContain('my-funnel');
+    });
+});
+
+describe('FunnelChartComponent non-positive values', () => {
+    const CLASSES: Record<string, number[]> = {
+        'positive with a zero stage': [1000, 600, 0, 120],
+        'a negative stage': [1000, -250, 300, 120],
+        'all zero': [0, 0, 0],
+        'all negative': [-5, -3, -1],
+    };
+
+    function build(values: number[]): ComponentFixture<FunnelChartComponent> {
+        const fixture = TestBed.createComponent(FunnelChartComponent);
+        fixture.componentRef.setInput('data', values.map((value, i) => ({ name: `Stage ${i}`, value })));
+        fixture.componentRef.setInput('width', 440);
+        fixture.detectChanges();
+        return fixture;
+    }
+
+    /** `[topWidth, bottomWidth]` of a rendered trapezoid, read from its points. */
+    function widthsOf(polygon: SVGPolygonElement): [number, number] {
+        const [a, b, c, d] = (polygon.getAttribute('points') ?? '').trim().split(' ').map(p => Number(p.split(',')[0]));
+        return [b - a, c - d];
+    }
+
+    beforeEach(() => {
+        vi.stubGlobal('ResizeObserver', class {
+            observe(): void { /* no-op */ }
+            unobserve(): void { /* no-op */ }
+            disconnect(): void { /* no-op */ }
+        });
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    for (const [className, values] of Object.entries(CLASSES)) {
+        it(`should size each stage by max(0, value) / largest positive value, with finite points (${className})`, () => {
+            const fixture = build(values);
+            const polygons = Array.from(fixture.nativeElement.querySelectorAll('polygon[data-slot="funnel-stage"]')) as SVGPolygonElement[];
+            const largest = Math.max(0, ...values);
+            const inner = 440 - 16;
+            const share = (v: number): number => (largest === 0 ? 0 : Math.max(0, v) / largest);
+
+            expect(polygons).toHaveLength(values.length);
+            polygons.forEach((polygon, i) => {
+                expect(polygon.getAttribute('points')).not.toMatch(/NaN|Infinity/);
+                const [top, bottom] = widthsOf(polygon);
+                expect(top).toBeCloseTo(inner * share(values[i]), 6);
+                expect(bottom).toBeCloseTo(inner * share(values[Math.min(i + 1, values.length - 1)]), 6);
+            });
+        });
+    }
+
+    it('should never print a percentage below zero or NaN', () => {
+        const fixture = build(CLASSES['a negative stage']);
+        for (const stage of fixture.componentInstance.stages()) {
+            expect(stage.percent).toBeGreaterThanOrEqual(0);
+            expect(Number.isFinite(stage.percent)).toBe(true);
+        }
     });
 });

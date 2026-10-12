@@ -342,3 +342,78 @@ describe('BarChartComponent', () => {
         expect(component.bars()[0].color).toBe('#ff0000');
     });
 });
+
+describe('BarChartComponent zero baseline', () => {
+    const CLASSES: Record<string, number[]> = {
+        'all-positive': [1.97, 2.2, 2.4, 2.69],
+        'all-negative': [-50, -10, -0.5],
+        'mixed-sign': [-30, 45.5, -0.01, 12],
+        'all-zero': [0, 0, 0],
+        'single-negative': [-42],
+    };
+
+    function build(values: number[], orientation: 'vertical' | 'horizontal', dir: 'ltr' | 'rtl'): BarChartComponent {
+        const fixture = TestBed.createComponent(BarChartComponent);
+        fixture.componentRef.setInput('data', values.map((value, i) => ({ name: `C${i}`, value })));
+        fixture.componentRef.setInput('orientation', orientation);
+        fixture.componentRef.setInput('dir', dir);
+        fixture.detectChanges();
+        return fixture.componentInstance;
+    }
+
+    /** `[start, end]` of the bar along the value axis, in pixels. */
+    function span(bar: { x: number; y: number; width: number; height: number }, vertical: boolean): [number, number] {
+        return vertical ? [bar.y, bar.y + bar.height] : [bar.x, bar.x + bar.width];
+    }
+
+    beforeEach(() => {
+        (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = ResizeObserverStub;
+    });
+
+    afterEach(() => {
+        (globalThis as unknown as { ResizeObserver?: unknown }).ResizeObserver = originalResizeObserver;
+    });
+
+    for (const [className, values] of Object.entries(CLASSES)) {
+        for (const orientation of ['vertical', 'horizontal'] as const) {
+            for (const dir of ['ltr', 'rtl'] as const) {
+                it(`should grow ${className} bars from the zero gridline (${orientation}, ${dir})`, () => {
+                    const component = build(values, orientation, dir);
+                    const zero = component.getTickPosition(0);
+                    const perUnit = component.getTickPosition(1) - zero;
+                    const bars = component.bars();
+
+                    expect(bars).toHaveLength(values.length);
+                    for (const bar of bars) {
+                        const [a, b] = span(bar, orientation === 'vertical');
+                        const [from, to] = [bar.value * perUnit + zero, zero].sort((p, q) => p - q);
+                        expect(Math.min(a, b)).toBeCloseTo(from, 4);
+                        expect(Math.max(a, b)).toBeCloseTo(to, 4);
+                    }
+                });
+            }
+        }
+    }
+
+    it('should draw at least two value ticks, all inside the plot, when every value is zero', () => {
+        const component = build(CLASSES['all-zero'], 'vertical', 'ltr');
+        const area = component.chartArea();
+        const ticks = component.axisTicks();
+
+        expect(ticks.length).toBeGreaterThanOrEqual(2);
+        for (const tick of ticks) {
+            const pos = component.getTickPosition(tick);
+            expect(pos).toBeGreaterThanOrEqual(area.top - 0.001);
+            expect(pos).toBeLessThanOrEqual(area.bottom + 0.001);
+        }
+    });
+
+    it('should end the first and last tick of positive data on the plot edges', () => {
+        const component = build(CLASSES['all-positive'], 'vertical', 'ltr');
+        const area = component.chartArea();
+        const ticks = component.axisTicks();
+
+        expect(component.getTickPosition(ticks[0])).toBeCloseTo(area.bottom, 4);
+        expect(component.getTickPosition(ticks.at(-1) as number)).toBeCloseTo(area.top, 4);
+    });
+});
