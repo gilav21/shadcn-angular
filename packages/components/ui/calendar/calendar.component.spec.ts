@@ -406,30 +406,24 @@ describe('CalendarComponent', () => {
         const timeEvent = (value: string): Event =>
             ({ target: { value } } as unknown as Event);
 
-        it('parseDate returns a Date for a non-ISO date string (single mode)', () => {
+        it('isSelected parses non-ISO strings, drops unparseable ones, and only matches start and end in range mode', () => {
             fixture.componentRef.setInput('mode', 'single');
             fixture.componentRef.setInput('selected', '2023/03/04');
             fixture.detectChanges();
             expect(component.isSelected(new Date(2023, 2, 4))).toBe(true);
             expect(component.isSelected(new Date(2023, 2, 5))).toBe(false);
-        });
 
-        it('parseDate returns null for an unparseable string, so isSelected is false (single)', () => {
-            fixture.componentRef.setInput('mode', 'single');
             fixture.componentRef.setInput('selected', 'not-a-real-date');
             fixture.detectChanges();
             expect(component.isSelected(new Date(2023, 2, 4))).toBe(false);
-        });
+            expect(component.selectedTimeString()).toBe('');
 
-        it('multi mode ignores an unparseable entry when computing isSelected', () => {
             fixture.componentRef.setInput('mode', 'multi');
             fixture.componentRef.setInput('selected', ['not-a-date', new Date(2023, 4, 8)]);
             fixture.detectChanges();
             expect(component.isSelected(new Date(2023, 4, 8))).toBe(true);
             expect(component.isSelected(new Date(2023, 4, 9))).toBe(false);
-        });
 
-        it('range-mode isSelected returns false for a day that is neither start nor end', () => {
             fixture.componentRef.setInput('mode', 'range');
             fixture.componentRef.setInput('selected', {
                 start: new Date(2023, 0, 10),
@@ -439,9 +433,7 @@ describe('CalendarComponent', () => {
             expect(component.isSelected(new Date(2023, 0, 15))).toBe(false);
             expect(component.isSelected(new Date(2023, 0, 10))).toBe(true);
             expect(component.isSelected(new Date(2023, 0, 20))).toBe(true);
-        });
 
-        it('isSelected falls through to false for an unrecognized mode', () => {
             fixture.componentRef.setInput('mode', 'unknown' as unknown as 'single');
             fixture.componentRef.setInput('selected', new Date(2023, 0, 10));
             fixture.detectChanges();
@@ -457,13 +449,6 @@ describe('CalendarComponent', () => {
             expect(component.getDayClasses(insideDay)).not.toContain('opacity-50');
         });
 
-        it('selectedTimeString is empty when the selection is unparseable', () => {
-            fixture.componentRef.setInput('mode', 'single');
-            fixture.componentRef.setInput('selected', 'garbage-value');
-            fixture.detectChanges();
-            expect(component.selectedTimeString()).toBe('');
-        });
-
         it('label computeds fall back to English defaults when the locale omits them', () => {
             const bareLocale = {
                 code: 'zz',
@@ -477,7 +462,7 @@ describe('CalendarComponent', () => {
             expect(component.endTimeLabel()).toBe('End time');
         });
 
-        it('range time-range pick applies start time when opening a fresh range', () => {
+        it('a range pick applies the start time when opening a fresh range and the end time on a forward end selection', () => {
             fixture.componentRef.setInput('mode', 'range');
             fixture.componentRef.setInput('showTimeSelect', true);
             fixture.componentRef.setInput('timeMode', 'range');
@@ -486,18 +471,12 @@ describe('CalendarComponent', () => {
             fixture.detectChanges();
             component.selectDay(new Date(2023, 0, 12));
             fixture.detectChanges();
-            const range = component.selected() as DateRange;
-            expect(range.start?.getDate()).toBe(12);
-            expect(range.start?.getHours()).toBe(8);
-            expect(range.start?.getMinutes()).toBe(15);
-            expect(range.end).toBeNull();
-        });
+            const fresh = component.selected() as DateRange;
+            expect(fresh.start?.getDate()).toBe(12);
+            expect(fresh.start?.getHours()).toBe(8);
+            expect(fresh.start?.getMinutes()).toBe(15);
+            expect(fresh.end).toBeNull();
 
-        it('range time-range pick applies end time on a forward end selection', () => {
-            fixture.componentRef.setInput('mode', 'range');
-            fixture.componentRef.setInput('showTimeSelect', true);
-            fixture.componentRef.setInput('timeMode', 'range');
-            fixture.componentRef.setInput('selectedTimeRange', { start: '08:15', end: '16:45' });
             fixture.componentRef.setInput('selected', { start: new Date(2023, 0, 10), end: null });
             fixture.detectChanges();
             component.selectDay(new Date(2023, 0, 20));
@@ -509,7 +488,7 @@ describe('CalendarComponent', () => {
             expect(range.end?.getMinutes()).toBe(45);
         });
 
-        it('range pick from a null selection starts a fresh range (nullish fallback)', () => {
+        it('a range pick from a null selection starts a fresh range', () => {
             fixture.componentRef.setInput('mode', 'range');
             fixture.componentRef.setInput('selected', null);
             fixture.detectChanges();
@@ -520,7 +499,7 @@ describe('CalendarComponent', () => {
             expect(range.end).toBeNull();
         });
 
-        it('multi pick from a null selection creates a single-entry array (nullish fallback)', () => {
+        it('a multi pick from a null selection creates a single-entry array', () => {
             fixture.componentRef.setInput('mode', 'multi');
             fixture.componentRef.setInput('selected', null);
             fixture.detectChanges();
@@ -556,19 +535,14 @@ describe('CalendarComponent', () => {
             expect(val.getMinutes()).toBe(22);
         });
 
-        it('updateStartTime ignores an empty value', () => {
+        it('updateStartTime and updateEndTime ignore an empty value', () => {
             component.selectedTimeRange.set({ start: '08:00', end: '16:00' });
             component.updateStartTime(timeEvent(''));
-            expect(component.selectedTimeRange()).toEqual({ start: '08:00', end: '16:00' });
-        });
-
-        it('updateEndTime ignores an empty value', () => {
-            component.selectedTimeRange.set({ start: '08:00', end: '16:00' });
             component.updateEndTime(timeEvent(''));
             expect(component.selectedTimeRange()).toEqual({ start: '08:00', end: '16:00' });
         });
 
-        it('updateStartTime in single mode applies onto the parsed selected date', () => {
+        it('updateStartTime in single mode applies onto the parsed selected date, or the viewed date without a selection', () => {
             fixture.componentRef.setInput('mode', 'single');
             fixture.componentRef.setInput('selected', new Date(2023, 0, 5, 9, 0));
             fixture.detectChanges();
@@ -578,35 +552,24 @@ describe('CalendarComponent', () => {
             expect(val.getDate()).toBe(5);
             expect(val.getHours()).toBe(10);
             expect(val.getMinutes()).toBe(30);
-        });
 
-        it('updateStartTime in single mode falls back to the viewed date without a selection', () => {
-            fixture.componentRef.setInput('mode', 'single');
             fixture.componentRef.setInput('selected', null);
             fixture.detectChanges();
             component.updateStartTime(timeEvent('11:15'));
             fixture.detectChanges();
-            const val = component.selected() as Date;
-            expect(val.getHours()).toBe(11);
-            expect(val.getMinutes()).toBe(15);
+            const viewed = component.selected() as Date;
+            expect(viewed.getHours()).toBe(11);
+            expect(viewed.getMinutes()).toBe(15);
         });
 
-        it('updateStartTime in range mode without a start date only records the time string', () => {
+        it('updateStartTime and updateEndTime in range mode without a date only record the time string', () => {
             fixture.componentRef.setInput('mode', 'range');
             fixture.componentRef.setInput('selected', null);
             fixture.detectChanges();
             component.updateStartTime(timeEvent('09:45'));
-            fixture.detectChanges();
-            expect(component.selectedTimeRange().start).toBe('09:45');
-            expect(component.selected()).toBeNull();
-        });
-
-        it('updateEndTime in range mode without an end date only records the time string', () => {
-            fixture.componentRef.setInput('mode', 'range');
-            fixture.componentRef.setInput('selected', null);
-            fixture.detectChanges();
             component.updateEndTime(timeEvent('19:05'));
             fixture.detectChanges();
+            expect(component.selectedTimeRange().start).toBe('09:45');
             expect(component.selectedTimeRange().end).toBe('19:05');
             expect(component.selected()).toBeNull();
         });

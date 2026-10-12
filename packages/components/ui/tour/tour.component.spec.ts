@@ -83,6 +83,9 @@ afterEach(() => {
     restoreBrowserStubs();
 });
 
+/** `vi.waitFor` polls every 50 ms by default, which dominates a spec that settles dozens of times. */
+const pollFast = <T>(check: () => T): Promise<T> => vi.waitFor(check, { interval: 5 });
+
 async function flush(fixture: ComponentFixture<unknown>): Promise<void> {
     fixture.detectChanges();
     await fixture.whenStable();
@@ -157,70 +160,37 @@ describe('TourComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should not render spotlight or card when inactive', () => {
-        const card = fixture.nativeElement.querySelector('[data-slot="tour-card"]');
-        const spotlight = fixture.nativeElement.querySelector('[data-slot="tour-spotlight"]');
-        expect(card).toBeNull();
-        expect(spotlight).toBeNull();
-    });
+    it('renders nothing while inactive, then the spotlight and a card with the step title, description and counter once active', async () => {
+        expect(fixture.nativeElement.querySelector('[data-slot="tour-card"]')).toBeNull();
+        expect(fixture.nativeElement.querySelector('[data-slot="tour-spotlight"]')).toBeNull();
 
-    it('should render spotlight and card when active and ready', async () => {
         host.active.set(true);
         await flush(fixture);
 
         const card = fixture.nativeElement.querySelector('[data-slot="tour-card"]');
-        const spotlight = fixture.nativeElement.querySelector('[data-slot="tour-spotlight"]');
-        expect(card).not.toBeNull();
-        expect(spotlight).not.toBeNull();
-    });
-
-    it('should show step title and description', async () => {
-        host.active.set(true);
-        await flush(fixture);
-
-        const card = fixture.nativeElement.querySelector('[data-slot="tour-card"]');
+        expect(fixture.nativeElement.querySelector('[data-slot="tour-spotlight"]')).not.toBeNull();
         expect(card.textContent).toContain('Step 1');
         expect(card.textContent).toContain('First step description');
-    });
-
-    it('should show step counter', async () => {
-        host.active.set(true);
-        await flush(fixture);
-
-        const card = fixture.nativeElement.querySelector('[data-slot="tour-card"]');
         expect(card.textContent).toContain('1 / 2');
     });
 
-    it('should emit stepChange(0) when tour starts', () => {
+    it('emits stepChange as it starts, advances with next(), goes back with previous(), and never goes before step 0', async () => {
         host.active.set(true);
-        fixture.detectChanges();
-
+        await flush(fixture);
         expect(host.lastStepChange).toBe(0);
-    });
-
-    it('should advance to index 1 on next()', () => {
-        host.active.set(true);
-        fixture.detectChanges();
 
         const tour = getTour(fixture);
-        tour.next();
+        tour.previous();
+        expect(tour.currentIndex()).toBe(0);
 
+        tour.next();
+        await flush(fixture);
         expect(tour.currentIndex()).toBe(1);
         expect(host.lastStepChange).toBe(1);
-    });
 
-    it('should go back to previous step on previous()', async () => {
-        host.active.set(true);
-        await flush(fixture);
-
-        const tour = getTour(fixture);
-        tour.next();
-        await flush(fixture);
         tour.previous();
         await flush(fixture);
-
-        const card = fixture.nativeElement.querySelector('[data-slot="tour-card"]');
-        expect(card.textContent).toContain('Step 1');
+        expect(fixture.nativeElement.querySelector('[data-slot="tour-card"]').textContent).toContain('Step 1');
         expect(host.lastStepChange).toBe(0);
     });
 
@@ -254,104 +224,49 @@ describe('TourComponent', () => {
         expect(fixture.nativeElement.querySelector('[data-slot="tour-card"]').textContent).toContain('Step 1');
     });
 
-    it('should NOT emit done when parent externally sets active=false', () => {
-        host.active.set(true);
-        fixture.detectChanges();
-
-        host.active.set(false);
-        fixture.detectChanges();
-
-        expect(host.doneCount).toBe(0);
-    });
-
-    it('should reset to step 0 when re-activating', async () => {
+    it('does not emit done when the parent closes the tour, and re-activating resets to step 0', async () => {
         host.active.set(true);
         await flush(fixture);
-
         const tour = getTour(fixture);
         tour.next();
         await flush(fixture);
 
         host.active.set(false);
         fixture.detectChanges();
+        expect(host.doneCount).toBe(0);
 
         host.active.set(true);
         await flush(fixture);
-
         expect(tour.currentIndex()).toBe(0);
     });
 
-    it('should handle Escape key to cancel tour', () => {
+    it('handles ArrowRight and Enter to advance, ArrowLeft to go back, ignores other keys, and closes with done on Escape', async () => {
         host.active.set(true);
-        fixture.detectChanges();
-
+        await flush(fixture);
         const tour = getTour(fixture);
-        const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true });
-        tour.onKeydown(event);
-        fixture.detectChanges();
+        const press = (key: string): KeyboardEvent => {
+            const event = new KeyboardEvent('keydown', { key, bubbles: true });
+            tour.onKeydown(event);
+            return event;
+        };
 
+        const unrelated = press('a');
+        expect(tour.currentIndex()).toBe(0);
+        expect(unrelated.defaultPrevented).toBe(false);
+
+        press('ArrowRight');
+        expect(tour.currentIndex()).toBe(1);
+        await flush(fixture);
+        press('ArrowLeft');
+        expect(tour.currentIndex()).toBe(0);
+        await flush(fixture);
+        press('Enter');
+        expect(tour.currentIndex()).toBe(1);
+
+        press('Escape');
+        fixture.detectChanges();
         expect(host.active()).toBe(false);
         expect(host.doneCount).toBe(1);
-    });
-
-    it('should handle ArrowRight key to advance', () => {
-        host.active.set(true);
-        fixture.detectChanges();
-
-        const tour = getTour(fixture);
-        const event = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true });
-        tour.onKeydown(event);
-
-        expect(tour.currentIndex()).toBe(1);
-    });
-
-    it('should handle Enter key to advance', () => {
-        host.active.set(true);
-        fixture.detectChanges();
-
-        const tour = getTour(fixture);
-        const event = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true });
-        tour.onKeydown(event);
-
-        expect(tour.currentIndex()).toBe(1);
-    });
-
-    it('should ignore unrelated keys', () => {
-        host.active.set(true);
-        fixture.detectChanges();
-
-        const tour = getTour(fixture);
-        const event = new KeyboardEvent('keydown', { key: 'a', bubbles: true });
-        tour.onKeydown(event);
-
-        expect(tour.currentIndex()).toBe(0);
-        expect(event.defaultPrevented).toBe(false);
-    });
-
-    it('should handle ArrowLeft key to go back', async () => {
-        host.active.set(true);
-        await flush(fixture);
-
-        const tour = getTour(fixture);
-        tour.next();
-        await flush(fixture);
-
-        const event = new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true });
-        tour.onKeydown(event);
-        fixture.detectChanges();
-
-        expect(tour.currentIndex()).toBe(0);
-    });
-
-    it('should not go before step 0 on previous() at first step', () => {
-        host.active.set(true);
-        fixture.detectChanges();
-
-        const tour = getTour(fixture);
-        tour.previous();
-        fixture.detectChanges();
-
-        expect(tour.currentIndex()).toBe(0);
     });
 
     it('should re-read the target rect on scroll and resize reposition', async () => {
@@ -374,49 +289,28 @@ describe('TourComponent', () => {
         expect(spotlight().style.top).toBe(`${400 - 6}px`);
     });
 
-    it('should move highlight from previous target when advancing', async () => {
-        host.active.set(true);
-        await flush(fixture);
-
-        const tour = getTour(fixture);
-        tour.next();
-        await flush(fixture);
-
-        const previousTarget = document.getElementById('step1');
-        const currentTarget = document.getElementById('step2');
-        expect(previousTarget?.hasAttribute('data-ui-tour-highlight')).toBe(false);
-        expect(currentTarget?.hasAttribute('data-ui-tour-highlight')).toBe(true);
-    });
-
-    it('should save and restore original inline styles on teardown', async () => {
-        const target = document.getElementById('step1');
-        target!.style.outline = '1px dotted red';
-        target!.style.borderRadius = '99px';
-        const savedOutline = target!.style.outline;
-        const savedRadius = target!.style.borderRadius;
+    it('moves the highlight to the current target, restores original inline styles on close, and clears the highlight on destroy', async () => {
+        const first = document.getElementById('step1')!;
+        const second = document.getElementById('step2')!;
+        first.style.outline = '1px dotted red';
+        first.style.borderRadius = '99px';
+        const savedOutline = first.style.outline;
+        const savedRadius = first.style.borderRadius;
 
         host.active.set(true);
         await flush(fixture);
+        expect(first.style.outline).toContain('2px');
+        expect(first.style.borderRadius).toBe('6px');
 
-        expect(target?.style.outline).toContain('2px');
-        expect(target?.style.borderRadius).toBe('6px');
-
-        host.active.set(false);
-        fixture.detectChanges();
-
-        expect(target?.hasAttribute('data-ui-tour-highlight')).toBe(false);
-        expect(target?.style.outline).toBe(savedOutline);
-        expect(target?.style.borderRadius).toBe(savedRadius);
-    });
-
-    it('should clean up highlight when the component is destroyed', async () => {
-        host.active.set(true);
+        getTour(fixture).next();
         await flush(fixture);
+        expect(first.hasAttribute('data-ui-tour-highlight')).toBe(false);
+        expect(second.hasAttribute('data-ui-tour-highlight')).toBe(true);
+        expect(first.style.outline).toBe(savedOutline);
+        expect(first.style.borderRadius).toBe(savedRadius);
 
         fixture.destroy();
-
-        const target = document.getElementById('step1');
-        expect(target?.hasAttribute('data-ui-tour-highlight')).toBe(false);
+        expect(second.hasAttribute('data-ui-tour-highlight')).toBe(false);
     });
 });
 
@@ -434,32 +328,19 @@ describe('TourComponent — single step', () => {
         fixture.detectChanges();
     });
 
-    it('should show Done button on last step', async () => {
+    it('shows Done and no Skip on the last step, and next() emits done and closes', async () => {
         host.active.set(true);
         await flush(fixture);
 
         const card = fixture.nativeElement.querySelector('[data-slot="tour-card"]');
         expect(card.textContent).toContain('Done');
-    });
+        expect(card.textContent).not.toContain('Skip');
 
-    it('should emit done and set active=false when next() called on last step', () => {
-        host.active.set(true);
-        fixture.detectChanges();
-
-        const tour = getTour(fixture);
-        tour.next();
+        getTour(fixture).next();
         fixture.detectChanges();
 
         expect(host.active()).toBe(false);
         expect(host.doneCount).toBe(1);
-    });
-
-    it('should not show Skip button on last step by default', async () => {
-        host.active.set(true);
-        await flush(fixture);
-
-        const card = fixture.nativeElement.querySelector('[data-slot="tour-card"]');
-        expect(card.textContent).not.toContain('Skip');
     });
 });
 
@@ -519,16 +400,17 @@ describe('TourComponent — positioning', () => {
         // anything has been measured. `isReady` is the real signal — `goToStep`
         // clears it and it is set only after the target rect and card size have
         // both been read.
-        await vi.waitFor(() => {
+        await pollFast(() => {
             fixture.detectChanges();
             expect(tour.isReady()).toBe(true);
         });
         return tour;
     }
 
-    it('places the card below a top-anchored target (default rect)', async () => {
+    it('places the card below a top-anchored target and makes a statically-positioned target relative', async () => {
         const tour = await activateWithRect(makeRect(100, 100, 200, 50));
         expect(tour.cardPos().top).toBeGreaterThan(150);
+        expect(document.getElementById('pt')?.style.position).toBe('relative');
     });
 
     it('places the card above a bottom-anchored target', async () => {
@@ -564,11 +446,6 @@ describe('TourComponent — positioning', () => {
         expect(tour.cardPos().top).toBe(target.top - CARD_OFFSET_HEIGHT - 12);
     });
 
-    it('applies position:relative to a statically-positioned target', async () => {
-        await activateWithRect(makeRect(100, 100, 200, 50));
-        const target = document.getElementById('pt');
-        expect(target?.style.position).toBe('relative');
-    });
 });
 
 @Component({
@@ -701,21 +578,41 @@ describe('TourComponent — skipping a missing step backwards', () => {
         fixture.detectChanges();
     });
 
-    it('reaches an earlier resolvable step instead of bouncing forward', async () => {
+    it('counts only reachable steps as the tour walks past a missing one, and Back reaches an earlier resolvable step', async () => {
         host.active.set(true);
         await flush(fixture);
         const tour = getTour(fixture);
 
+        // Nothing tried past step 0 yet, so all three are still on offer.
+        expect(tour.reachableCount()).toBe(3);
+        expect(tour.reachablePosition()).toBe(1);
+
         tour.next();
         await flush(fixture);
+
+        // Step 1 turned out to be missing — it stops counting.
         expect(tour.currentIndex()).toBe(2);
+        expect(tour.reachableCount()).toBe(2);
+        expect(tour.reachablePosition()).toBe(2);
+        expect(tour.canGoBack()).toBe(true);
+        expect(fixture.nativeElement.querySelector('[data-slot="tour-card"]').textContent).toContain('Previous');
 
         tour.previous();
         await flush(fixture);
-
         expect(tour.currentIndex()).toBe(0);
         expect(host.active()).toBe(true);
         expect(host.skipped).toContainEqual({ index: 1, reason: 'missing-target' });
+
+        // The skipped step counts again once it is reached later in the same run, here by jumping back to it.
+        tour.goTo(2);
+        await flush(fixture);
+        host.showMiddle.set(true);
+        fixture.detectChanges();
+        tour.goTo(1);
+        await flush(fixture);
+        expect(tour.currentIndex()).toBe(1);
+        expect(tour.reachableCount()).toBe(3);
+        expect(tour.reachablePosition()).toBe(2);
     });
 
     it('does not end the tour when a backwards move finds nothing earlier', async () => {
@@ -744,7 +641,7 @@ describe('TourComponent — skipping a missing step backwards', () => {
         ]);
     });
 
-    it('hides the Back button once every earlier step is known unreachable', async () => {
+    it('with every earlier step unreachable: hides Back, drops them from the counter and shows Done rather than Next', async () => {
         host.steps.splice(0, 1);
         host.active.set(true);
         await flush(fixture);
@@ -752,78 +649,12 @@ describe('TourComponent — skipping a missing step backwards', () => {
         expect(tour.currentIndex()).toBe(1);
 
         expect(tour.canGoBack()).toBe(false);
-        const card = fixture.nativeElement.querySelector('[data-slot="tour-card"]');
-        expect(card.textContent).not.toContain('Previous');
-    });
-
-    it('leaves Back available when an earlier step is still reachable', async () => {
-        host.active.set(true);
-        await flush(fixture);
-        const tour = getTour(fixture);
-        tour.next();
-        await flush(fixture);
-
-        expect(tour.currentIndex()).toBe(2);
-        expect(tour.canGoBack()).toBe(true);
-        const card = fixture.nativeElement.querySelector('[data-slot="tour-card"]');
-        expect(card.textContent).toContain('Previous');
-    });
-
-    it('drops skipped steps from the counter instead of promising unreachable ones', async () => {
-        host.steps.splice(0, 1);
-        host.active.set(true);
-        await flush(fixture);
-
-        const card = fixture.nativeElement.querySelector('[data-slot="tour-card"]');
-        expect(card.textContent).toContain('1 / 1');
-        expect(card.textContent).not.toContain('2 / 2');
-    });
-
-    it('shows Done rather than Next when no later step is reachable', async () => {
-        host.steps.splice(0, 1);
-        host.active.set(true);
-        await flush(fixture);
-
-        const tour = getTour(fixture);
         expect(tour.isLastStep()).toBe(true);
         const card = fixture.nativeElement.querySelector('[data-slot="tour-card"]');
+        expect(card.textContent).not.toContain('Previous');
+        expect(card.textContent).toContain('1 / 1');
+        expect(card.textContent).not.toContain('2 / 2');
         expect(card.textContent).toContain('Done');
-    });
-
-    it('shrinks the counter only once a step has actually been tried', async () => {
-        host.active.set(true);
-        await flush(fixture);
-        const tour = getTour(fixture);
-
-        // Nothing tried past step 0 yet, so all three are still on offer.
-        expect(tour.reachableCount()).toBe(3);
-        expect(tour.reachablePosition()).toBe(1);
-
-        tour.next();
-        await flush(fixture);
-
-        // Step 1 turned out to be missing — it stops counting.
-        expect(tour.currentIndex()).toBe(2);
-        expect(tour.reachableCount()).toBe(2);
-        expect(tour.reachablePosition()).toBe(2);
-    });
-
-    it('counts a skipped step again once it is reached later in the same run', async () => {
-        host.active.set(true);
-        await flush(fixture);
-        const tour = getTour(fixture);
-        tour.next();
-        await flush(fixture);
-        expect(tour.reachableCount()).toBe(2);
-
-        host.showMiddle.set(true);
-        fixture.detectChanges();
-        tour.goTo(1);
-        await flush(fixture);
-
-        expect(tour.currentIndex()).toBe(1);
-        expect(tour.reachableCount()).toBe(3);
-        expect(tour.reachablePosition()).toBe(2);
     });
 
     it('re-tests skipped steps on a fresh run', async () => {
@@ -980,7 +811,7 @@ describe('TourComponent — async step hooks', () => {
      * being pending instead.
      */
     async function settle(tour: TourComponent): Promise<void> {
-        await vi.waitFor(() => {
+        await pollFast(() => {
             fixture.detectChanges();
             expect(tour.isPending()).toBe(false);
         });
@@ -1000,7 +831,7 @@ describe('TourComponent — async step hooks', () => {
         await settle(tour);
     }
 
-    it('awaits beforeActivate and waits for the element it renders', async () => {
+    it('awaits beforeActivate and waits for the element it renders, running afterDeactivate first with the travel direction', async () => {
         const tour = await activate();
         expect(tour.currentIndex()).toBe(0);
 
@@ -1009,13 +840,6 @@ describe('TourComponent — async step hooks', () => {
         expect(tour.currentIndex()).toBe(1);
         expect(host.panelOpen()).toBe(true);
         expect(document.getElementById('hook-panel')?.hasAttribute('data-ui-tour-highlight')).toBe(true);
-    });
-
-    it('runs afterDeactivate before the next step activates, with the travel direction', async () => {
-        const tour = await activate();
-
-        await advance(tour);
-
         expect(host.log).toEqual(['after:0:forward', 'before:1:forward']);
     });
 
@@ -1067,7 +891,7 @@ describe('TourComponent — async step hooks', () => {
         expect(fixture.nativeElement.querySelector('[data-slot="tour-scrim"]')).not.toBeNull();
         expect(fixture.nativeElement.querySelector('[data-slot="tour-spotlight"]')).toBeNull();
 
-        await vi.waitFor(() => {
+        await pollFast(() => {
             fixture.detectChanges();
             expect(tour.isPending()).toBe(false);
         });
@@ -1089,7 +913,7 @@ describe('TourComponent — async step hooks', () => {
         const tour = await activate();
 
         tour.next();
-        await vi.waitFor(() => {
+        await pollFast(() => {
             fixture.detectChanges();
             expect(host.skipped.length).toBeGreaterThan(0);
         });
@@ -1103,13 +927,13 @@ describe('TourComponent — async step hooks', () => {
         host.holdHook = true;
 
         tour.next();
-        await vi.waitFor(() => {
+        await pollFast(() => {
             expect(host.log).toContain('before:1:forward');
         });
         tour.skip();
         host.releaseHook();
 
-        await vi.waitFor(() => {
+        await pollFast(() => {
             fixture.detectChanges();
             expect(host.panelOpen()).toBe(true);
         });

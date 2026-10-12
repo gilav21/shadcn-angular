@@ -23,7 +23,7 @@ class HostComponent {
 }
 
 function nextFrame(): Promise<void> {
-  return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+  return new Promise(resolve => requestAnimationFrame(() => resolve()));
 }
 
 const ITEMS: CanvasItem[] = [

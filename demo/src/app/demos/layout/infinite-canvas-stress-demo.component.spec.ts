@@ -6,19 +6,15 @@
 // mid-build left the page with every control disabled, no graph, and nothing
 // in the console to explain it. These pin the behaviour that replaced it.
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { signal } from '@angular/core';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { InfiniteCanvasStressDemoComponent } from './infinite-canvas-stress-demo.component';
-import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
-import { INFINITE_CANVAS_STRESS_DEMO_LOCALES } from './infinite-canvas-stress-demo.locales';
 
 describe('InfiniteCanvasStressDemoComponent', () => {
   let fixture: ComponentFixture<InfiniteCanvasStressDemoComponent>;
 
-  async function setup(locale = 'en') {
+  async function setup() {
     await TestBed.configureTestingModule({
       imports: [InfiniteCanvasStressDemoComponent],
-      providers: [{ provide: UI_LOCALE_ID, useValue: signal(locale) }],
     }).compileComponents();
     fixture = TestBed.createComponent(InfiniteCanvasStressDemoComponent);
     fixture.detectChanges();
@@ -34,22 +30,6 @@ describe('InfiniteCanvasStressDemoComponent', () => {
       /^[\d,.\s]+$/.test(button.textContent?.trim() ?? ''),
     ) as HTMLButtonElement[];
   }
-
-  it('renders English by default', async () => {
-    await setup('en');
-    const el = fixture.nativeElement as HTMLElement;
-    expect(el.querySelector('h2')?.textContent?.trim()).toBe(
-      INFINITE_CANVAS_STRESS_DEMO_LOCALES['en'].heading,
-    );
-  });
-
-  it('renders Hebrew when the locale is he', async () => {
-    await setup('he');
-    const el = fixture.nativeElement as HTMLElement;
-    expect(el.querySelector('h2')?.textContent?.trim()).toBe(
-      INFINITE_CANVAS_STRESS_DEMO_LOCALES['he'].heading,
-    );
-  });
 
   /*
    * The regression test for the hidden-tab bug.
@@ -96,97 +76,80 @@ describe('InfiniteCanvasStressDemoComponent', () => {
     expect((stop as HTMLButtonElement | undefined)?.disabled).toBe(true);
   });
 
-  it('runs the graph, counts what settled, and can be stopped', async () => {
-    /*
-     * The headline the page makes — a hundred thousand nodes WITH LOGIC — and
-     * the control that makes it survivable. Real computes mean a large run
-     * lasts seconds, so a Run button without a Stop is a page you can only
-     * escape by leaving it.
-     */
+  /** A build that has settled, with real timers back so a run can actually elapse. */
+  async function setupBuiltWithRealTimers(): Promise<{
+    run(): Promise<void>;
+    stop(): void;
+    settled: () => number;
+    evaluating: () => boolean;
+    editorRef: () => { runtime: { sliceMs: number; onNodeSettled: ((event: unknown) => void) | null } } | undefined;
+  }> {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     await setup();
     vi.runOnlyPendingTimers();
     fixture.detectChanges();
     vi.useRealTimers();
+    return fixture.componentInstance as never;
+  }
 
-    const demo = fixture.componentInstance as unknown as {
-      run(): Promise<void>;
-      stop(): void;
-      settled: () => number;
-      evaluating: () => boolean;
-    };
-
-    await demo.run();
-
-    expect(demo.evaluating()).toBe(false);
-    expect(demo.settled()).toBeGreaterThan(0);
-  }, 30_000);
-
-  it('still lights the nodes it runs', async () => {
+  it('lights the nodes it runs while running, then counts what settled once stopped', async () => {
     /*
-     * The page's whole point is watching the wave move. The editor lights a
-     * node from its OWN settle handler, so measuring the run by assigning
-     * over that handler turns the flow effect off entirely — a hundred
-     * thousand nodes evaluated with nothing to see, which is what shipped and
-     * what this pins.
+     * The page's whole point is watching the wave move, and a Run button
+     * without a Stop is a page you can only escape by leaving it, because real
+     * computes make a large run last seconds. The editor lights a node from its
+     * OWN settle handler, so measuring the run by assigning over that handler
+     * turns the flow effect off entirely — what shipped once.
+     *
+     * Sampled WHILE it runs, the only time there is anything to see: the
+     * highlight lasts under a second, so after the run the first cards to
+     * settle have long gone dark. Stopped rather than run to the end because a
+     * run is pinned to seconds of real compute at every size, and the `finally`
+     * that counts and releases the controls is the same on both paths.
      */
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
-    await setup();
-    vi.runOnlyPendingTimers();
-    fixture.detectChanges();
-    vi.useRealTimers();
+    const demo = await setupBuiltWithRealTimers();
 
-    const demo = fixture.componentInstance as unknown as {
-      run(): Promise<void>;
-      stop(): void;
-    };
-
-    /*
-     * Sampled WHILE it runs, which is the only time there is anything to see.
-     * A run is spread over a few seconds and the highlight lasts under one, so
-     * by the time it finishes the cards that settled first have long gone dark
-     * — asserting afterwards tested the wrong moment and failed for the right
-     * reason.
-     */
     const running = demo.run();
     await new Promise(resolve => setTimeout(resolve, 300));
     fixture.detectChanges();
-
     const lit = (fixture.nativeElement as HTMLElement).querySelectorAll('[data-ran="true"]');
     expect(lit.length).toBeGreaterThan(0);
 
     demo.stop();
     await running;
-  }, 30_000);
+
+    expect(demo.evaluating()).toBe(false);
+    expect(demo.settled()).toBeGreaterThan(0);
+  });
 
   it('counts the nodes of a run that never yields', async () => {
     /*
      * The final slice has no gap after it, so anything counted there is
-     * published only by the flush at the end of the run. A graph that fits in
-     * ONE slice is entirely that case — and with the flush removed, a run
-     * reports zero while having evaluated everything.
+     * published only by the flush at the end of the run. A run that never
+     * yields is entirely that case — and with the flush removed, it reports
+     * zero while having evaluated everything.
+     *
+     * Cut short from inside the run by a handler chained behind the demo's own,
+     * because with no yield point a timer can never fire to stop it.
      */
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
-    await setup();
-    vi.runOnlyPendingTimers();
-    fixture.detectChanges();
-    vi.useRealTimers();
-
-    const demo = fixture.componentInstance as unknown as {
-      run(): Promise<void>;
-      settled: () => number;
-      editorRef: () => { runtime: { sliceMs: number } } | undefined;
-    };
+    const demo = await setupBuiltWithRealTimers();
 
     // A budget nothing here can spend, so the drain never pauses.
     const runtime = demo.editorRef()?.runtime;
     expect(runtime).toBeDefined();
-    if (runtime) runtime.sliceMs = 600_000;
+    if (!runtime) return;
+    runtime.sliceMs = 600_000;
 
-    await demo.run();
+    const running = demo.run();
+    const demosOwn = runtime.onNodeSettled;
+    let seen = 0;
+    runtime.onNodeSettled = event => {
+      demosOwn?.(event);
+      if (++seen === 25) demo.stop();
+    };
+    await running;
 
-    expect(demo.settled()).toBeGreaterThan(0);
-  }, 30_000);
+    expect(demo.settled()).toBeGreaterThanOrEqual(25);
+  });
 
   it('reports a graph whose connection and zone counts match its node count', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });

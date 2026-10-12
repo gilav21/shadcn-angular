@@ -21,6 +21,10 @@ describe('linePath', () => {
         expect(path).toContain('C');
     });
 
+    it('draws two points as a straight segment even when monotone', () => {
+        expect(linePath([{ x: 0, y: 0 }, { x: 10, y: 10 }], 'monotone')).toBe('M 0 0 L 10 10');
+    });
+
     it('emits stepped segments for step curves', () => {
         const path = linePath([{ x: 0, y: 0 }, { x: 10, y: 10 }], 'step');
         // step goes horizontally to the next x at the current y, then vertically

@@ -19,7 +19,7 @@ describe('searchComponents', () => {
   });
 
   it('respects the result limit', () => {
-    const hits = searchComponents('a', 3);
-    expect(hits.length).toBeLessThanOrEqual(3);
+    // "a" matches far more than three components, so the cap is what bounds the list.
+    expect(searchComponents('a', 3)).toHaveLength(3);
   });
 });

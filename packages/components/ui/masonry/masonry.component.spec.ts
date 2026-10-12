@@ -90,114 +90,66 @@ describe('MasonryComponent', () => {
         fixture.nativeElement.remove();
     });
 
-    // T-13 — UC-14
-    describe('T-13: balances columns with uneven heights', () => {
-        it('lays every item out in one of the requested columns', () => {
-            const starts = new Set(columnStartsOf(masonry));
-            expect(starts.size).toBe(3);
-            expect(itemsOf(masonry)).toHaveLength(UNEVEN.length);
+    // T-13 — UC-14, T-15 — UC-16. One initial layout is read from several sides.
+    it('balances uneven items across the requested columns, keeps DOM order equal to reading order, and honours the gap', () => {
+        const items = itemsOf(masonry);
+        expect(items).toHaveLength(UNEVEN.length);
+        const starts = columnStartsOf(masonry);
+        expect(new Set(starts).size).toBe(3);
+
+        const base = masonry.getBoundingClientRect().top;
+        const bottomByColumn = new Map<number, number>();
+        items.forEach((el, index) => {
+            const bottom = el.getBoundingClientRect().bottom - base;
+            bottomByColumn.set(starts[index], Math.max(bottomByColumn.get(starts[index]) ?? 0, bottom));
         });
+        const bottoms = [...bottomByColumn.values()];
+        const tallestItem = Math.max(...UNEVEN.map((card) => card.height));
+        expect(Math.max(...bottoms) - Math.min(...bottoms)).toBeLessThanOrEqual(tallestItem);
+        expect(masonry.getBoundingClientRect().height).toBeGreaterThanOrEqual(Math.max(...bottoms) - 1);
 
-        it('leaves no trailing gap larger than the tallest single item', () => {
-            const items = itemsOf(masonry);
-            const base = masonry.getBoundingClientRect().top;
-            const bottomByColumn = new Map<number, number>();
+        const columnStarts = [...new Set(starts)].sort((a, b) => a - b);
+        const width = items[0].getBoundingClientRect().width;
+        expect(Math.round(columnStarts[1] - columnStarts[0] - width)).toBe(16);
 
-            const starts = columnStartsOf(masonry);
-            items.forEach((el, index) => {
-                const bottom = el.getBoundingClientRect().bottom - base;
-                const column = starts[index];
-                bottomByColumn.set(column, Math.max(bottomByColumn.get(column) ?? 0, bottom));
-            });
-
-            const heights = [...bottomByColumn.values()];
-            const tallestItem = Math.max(...UNEVEN.map((card) => card.height));
-            expect(Math.max(...heights) - Math.min(...heights)).toBeLessThanOrEqual(tallestItem);
-        });
-
-        it('sizes the container to the tallest column so nothing is clipped', () => {
-            const items = itemsOf(masonry);
-            const base = masonry.getBoundingClientRect().top;
-            const lowest = Math.max(...items.map((el) => el.getBoundingClientRect().bottom - base));
-            expect(masonry.getBoundingClientRect().height).toBeGreaterThanOrEqual(lowest - 1);
-        });
-
-        it('honours the gap between columns', () => {
-            const starts = [...new Set(columnStartsOf(masonry))].sort((a, b) => a - b);
-            const width = itemsOf(masonry)[0].getBoundingClientRect().width;
-            expect(Math.round(starts[1] - starts[0] - width)).toBe(16);
-        });
-    });
-
-    // T-15 — UC-16
-    describe('T-15: DOM order equals visual reading order', () => {
-        it('keeps the projected items in source order in the DOM', () => {
-            expect(itemsOf(masonry).map((el) => el.dataset['cardId'])).toEqual(
-                UNEVEN.map((card) => String(card.id))
-            );
-        });
-
-        it('never places a later item above an earlier one', () => {
-            const tops = topsOf(masonry);
-            for (let i = 1; i < tops.length; i++) {
-                expect(tops[i]).toBeGreaterThanOrEqual(tops[i - 1]);
-            }
-        });
+        expect(items.map((el) => el.dataset['cardId'])).toEqual(UNEVEN.map((card) => String(card.id)));
+        const tops = topsOf(masonry);
+        for (let i = 1; i < tops.length; i++) {
+            expect(tops[i]).toBeGreaterThanOrEqual(tops[i - 1]);
+        }
     });
 
     // T-14 — UC-15. Breakpoints are resolved against the CONTAINER's width, so
     // 1100px is `lg`, 700px is `sm`, and 400px falls back to `base`.
-    describe('T-14: reflows column count on resize', () => {
-        it('drops to fewer columns when the container narrows', async () => {
-            fixture.componentInstance.columns.set({ base: 1, sm: 2, lg: 3 });
-            fixture.componentInstance.viewportWidth.set(1100);
+    it('reflows the column count as the container narrows from lg to sm to base', async () => {
+        fixture.componentInstance.columns.set({ base: 1, sm: 2, lg: 3 });
+        for (const [width, count] of [[1100, 3], [700, 2], [400, 1]]) {
+            fixture.componentInstance.viewportWidth.set(width);
             fixture.detectChanges();
             await settle(fixture);
-            expect(new Set(columnStartsOf(masonry)).size).toBe(3);
-
-            fixture.componentInstance.viewportWidth.set(400);
-            fixture.detectChanges();
-            await settle(fixture);
-            expect(new Set(columnStartsOf(masonry)).size).toBe(1);
-        });
-
-        it('uses the sm count at an in-between width', async () => {
-            fixture.componentInstance.columns.set({ base: 1, sm: 2, lg: 3 });
-            fixture.componentInstance.viewportWidth.set(700);
-            fixture.detectChanges();
-            await settle(fixture);
-            expect(new Set(columnStartsOf(masonry)).size).toBe(2);
-        });
+            expect(new Set(columnStartsOf(masonry)).size, `${width}px`).toBe(count);
+        }
     });
 
     // T-16 — UC-17
-    describe('T-16: re-balances on item add/remove without full re-render', () => {
-        it('keeps the existing element instances when an item is appended', async () => {
-            const before = itemsOf(masonry);
-            fixture.componentInstance.cards.update((cards) => [...cards, { id: 99, height: 70 }]);
-            fixture.detectChanges();
-            await settle(fixture);
+    it('re-balances on an append without re-rendering the existing items', async () => {
+        const before = itemsOf(masonry);
+        fixture.componentInstance.cards.update((cards) => [...cards, { id: 99, height: 70 }]);
+        fixture.detectChanges();
+        await settle(fixture);
 
-            const after = itemsOf(masonry);
-            expect(after).toHaveLength(before.length + 1);
-            // Reference identity, not `toEqual`: deep equality on elements falls
-            // back to isEqualNode, which a destroyed-and-recreated element with
-            // identical markup would still satisfy — exactly the failure UC-17
-            // is about.
-            before.forEach((element, index) => expect(after[index]).toBe(element));
-        });
+        const after = itemsOf(masonry);
+        expect(after).toHaveLength(before.length + 1);
+        // Reference identity, not `toEqual`: deep equality on elements falls
+        // back to isEqualNode, which a destroyed-and-recreated element with
+        // identical markup would still satisfy — exactly the failure UC-17
+        // is about.
+        before.forEach((element, index) => expect(after[index]).toBe(element));
 
-        it('re-balances after an append', async () => {
-            fixture.componentInstance.cards.update((cards) => [...cards, { id: 99, height: 70 }]);
-            fixture.detectChanges();
-            await settle(fixture);
-
-            const tops = topsOf(masonry);
-            for (let i = 1; i < tops.length; i++) {
-                expect(tops[i]).toBeGreaterThanOrEqual(tops[i - 1]);
-            }
-        });
-
+        const tops = topsOf(masonry);
+        for (let i = 1; i < tops.length; i++) {
+            expect(tops[i]).toBeGreaterThanOrEqual(tops[i - 1]);
+        }
     });
 
     // Edge cases — 2.2

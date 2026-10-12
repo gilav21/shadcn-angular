@@ -10,7 +10,7 @@ import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 function flushMicrotimers(): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, 10));
+    return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 // Host that starts open so DrawerContentComponent.ngAfterViewInit sees an

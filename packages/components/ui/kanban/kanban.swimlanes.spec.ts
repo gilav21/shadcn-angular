@@ -88,56 +88,39 @@ describe('KanbanComponent — swimlanes', () => {
         expect(fixture.nativeElement.querySelector('[data-slot="kanban"]')).not.toBeNull();
     });
 
-    it('counts the cards in each lane', () => {
+    it('groups the board into one lane per grouping value, each column scoped to its lane', () => {
         expect(board.swimlanes()).toEqual([
             { id: 'ada', label: 'ada', count: 2 },
             { id: 'grace', label: 'grace', count: 1 },
             { id: '', label: 'Unassigned', count: 1 },
         ]);
         expect(laneEls()).toHaveLength(3);
-    });
+        expect(fixture.nativeElement.querySelectorAll('[data-slot="kanban-column"]')).toHaveLength(3 * COLUMNS.length);
 
-    it('scopes each column to its own lane', () => {
         expect(board.getCardsForColumn('todo', 'ada').map(c => c.id)).toEqual(['a1']);
         expect(board.getCardsForColumn('todo', 'grace').map(c => c.id)).toEqual(['g1']);
         expect(board.getCardsForColumn('todo', '').map(c => c.id)).toEqual(['u1']);
         expect(board.getCardsForColumn('doing', 'grace')).toEqual([]);
-    });
-
-    it('keeps the un-scoped call returning the whole column, as before', () => {
         expect(board.getCardsForColumn('todo').map(c => c.id)).toEqual(['a1', 'g1', 'u1']);
     });
 
-    it('renders one column instance per lane', () => {
-        const columns = fixture.nativeElement.querySelectorAll('[data-slot="kanban-column"]');
-        expect(columns).toHaveLength(3 * COLUMNS.length);
-    });
-
-    it('accepts a derived lane function as well as a property name', () => {
+    it('accepts a derived lane function and a custom label function, drops lanes emptied by the search, and renders none for an empty board', () => {
         host.swimlaneBy.set((c: KanbanCard) => (c.columnId === 'todo' ? 'left' : 'right'));
         fixture.detectChanges();
-
         expect(board.swimlanes().map(l => l.id)).toEqual(['left', 'right']);
-    });
 
-    it('honours a custom label function', () => {
+        host.swimlaneBy.set('assignee');
         host.swimlaneLabel.set(id => (id === '' ? 'Nobody' : id.toUpperCase()));
         fixture.detectChanges();
-
         expect(board.swimlanes().map(l => l.label)).toEqual(['ADA', 'GRACE', 'Nobody']);
-    });
 
-    it('drops a lane whose every card is filtered out by the search', () => {
         host.searchTerm.set('g1');
         fixture.detectChanges();
-
         expect(board.swimlanes().map(l => l.id)).toEqual(['grace']);
-    });
 
-    it('renders no lane at all for an empty board', () => {
+        host.searchTerm.set('');
         host.cards.set([]);
         fixture.detectChanges();
-
         expect(board.swimlanes()).toEqual([]);
         expect(laneEls()).toHaveLength(0);
     });
@@ -162,7 +145,8 @@ describe('KanbanComponent — swimlane collapse', () => {
         return Array.from(fixture.nativeElement.querySelectorAll('[data-slot="kanban-swimlane-header"]'));
     }
 
-    it('collapses each lane independently', () => {
+    it('collapses each lane independently, removing only its columns, and toggles back open', () => {
+        const before = fixture.nativeElement.querySelectorAll('[data-slot="kanban-column"]').length;
         board.toggleSwimlane('ada');
         fixture.detectChanges();
 
@@ -170,21 +154,10 @@ describe('KanbanComponent — swimlane collapse', () => {
         expect(board.isSwimlaneCollapsed('grace')).toBe(false);
         expect(headers()[0].getAttribute('aria-expanded')).toBe('false');
         expect(headers()[1].getAttribute('aria-expanded')).toBe('true');
-    });
-
-    it('removes only the collapsed lane columns from the DOM', () => {
-        const before = fixture.nativeElement.querySelectorAll('[data-slot="kanban-column"]').length;
-        board.toggleSwimlane('ada');
-        fixture.detectChanges();
-
         expect(fixture.nativeElement.querySelectorAll('[data-slot="kanban-column"]')).toHaveLength(before - COLUMNS.length);
-    });
 
-    it('toggles back open', () => {
-        board.toggleSwimlane('ada');
         board.toggleSwimlane('ada');
         fixture.detectChanges();
-
         expect(board.isSwimlaneCollapsed('ada')).toBe(false);
     });
 
@@ -237,15 +210,13 @@ describe('KanbanComponent — dragging within and across swimlanes', () => {
         });
     });
 
-    it('reassigns the grouping field when a card crosses lanes', () => {
+    it('reassigns the grouping field when a card crosses lanes, including into the unnamed lane', () => {
         board.moveCard('a1', 'todo', 0, 'grace');
         fixture.detectChanges();
 
         expect((host.lastCards.find(c => c.id === 'a1') as AssignedCard).assignee).toBe('grace');
         expect(host.moves.at(-1)).toMatchObject({ fromSwimlaneId: 'ada', toSwimlaneId: 'grace' });
-    });
 
-    it('can drop a card into the unnamed lane', () => {
         board.moveCard('a1', 'todo', 0, '');
         fixture.detectChanges();
 

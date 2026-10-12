@@ -65,7 +65,7 @@ const START_B = { x: 215, y: 0 };
 
 function nextFrame(): Promise<void> {
     return new Promise(resolve =>
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        requestAnimationFrame(() => resolve()),
     );
 }
 
@@ -163,7 +163,6 @@ describe('NodeEditorComponent', () => {
         host = fixture.componentInstance;
         await settle();
         root = fixture.nativeElement.querySelector('[data-slot="node-editor"]') as HTMLElement;
-        await settle();
     });
 
     afterEach(() => fixture.destroy());

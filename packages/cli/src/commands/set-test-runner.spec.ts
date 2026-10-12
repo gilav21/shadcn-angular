@@ -38,7 +38,9 @@ describe('setTestRunnerCore', () => {
     const shimExists = (): Promise<boolean> => fs.pathExists(path.join(libDir, SHIM_REL));
     const readConfig = async (): Promise<Config> => await getConfig(dir) as Config;
 
-    it('switches vitest → jest: rewrites the import, installs the shim, persists the runner', async () => {
+    it('switches vitest → jest: rewrites the import, keeps local spec edits, installs the shim, persists the runner', async () => {
+        await fs.writeFile(path.join(uiDir, SPEC_REL), SPEC_SRC.replace("it('works'", "it('is edited'"));
+
         const result = await setTestRunnerCore('jest', dir, OPTIONS);
 
         expect(result.runner).toBe('jest');
@@ -46,6 +48,7 @@ describe('setTestRunnerCore', () => {
         expect(result.shim).toBe('installed');
         expect(await readSpec()).toContain("from '@/components/lib/testing/vitest-compat'");
         expect(await readSpec()).not.toContain("from 'vitest'");
+        expect(await readSpec()).toContain("it('is edited'");
         expect(await shimExists()).toBe(true);
         expect((await readConfig()).tests).toEqual({ include: true, runner: 'jest' });
     });
@@ -66,15 +69,6 @@ describe('setTestRunnerCore', () => {
         const result = await setTestRunnerCore('vitest', dir, OPTIONS);
         expect(result.rewritten).toEqual([]);
         expect(await readSpec()).toBe(SPEC_SRC);
-    });
-
-    it('preserves local spec edits through a switch', async () => {
-        const edited = SPEC_SRC.replace("it('works'", "it('is edited'");
-        await fs.writeFile(path.join(uiDir, SPEC_REL), edited);
-        await setTestRunnerCore('jest', dir, OPTIONS);
-        const out = await readSpec();
-        expect(out).toContain("it('is edited'");
-        expect(out).toContain('vitest-compat');
     });
 
     it('dry-run writes nothing', async () => {

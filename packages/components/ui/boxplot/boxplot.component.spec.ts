@@ -272,6 +272,10 @@ describe('BoxplotComponent', () => {
             fixture.componentRef.setInput('dir', 'rtl');
             fixture.detectChanges();
             expect(component.boxes()[0].x).toBeGreaterThan(ltrFirst);
+
+            fixture.componentRef.setInput('dir', 'ltr');
+            fixture.detectChanges();
+            expect(component.boxes()[0].x).toBe(ltrFirst);
         });
     });
 

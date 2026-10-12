@@ -2372,32 +2372,37 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         }
     });
 
-    it('does not let redo resurrect a branch the user typed over', async () => {
+    it('does not let redo resurrect a branch the user typed over', () => {
         // The commonest editing sequence there is: type, undo, type something
         // different, then hit redo out of habit. Redo must be dead at that
         // point — the forward branch was abandoned the moment new input landed.
-        fixture.componentRef.setInput('history', { debounceMs: 10 });
-        component.writeValue('');
-        fixture.detectChanges();
+        vi.useFakeTimers();
+        try {
+            fixture.componentRef.setInput('history', { debounceMs: 10 });
+            component.writeValue('');
+            fixture.detectChanges();
 
-        const type = async (text: string) => {
-            editor.textContent = (editor.textContent ?? '') + text;
-            component.onInput({ target: editor } as unknown as Event);
-            await new Promise(r => setTimeout(r, 40));
-        };
+            const type = (text: string) => {
+                editor.textContent = (editor.textContent ?? '') + text;
+                component.onInput({ target: editor } as unknown as Event);
+                vi.advanceTimersByTime(40);
+            };
 
-        await type('A');
-        await type('B');
-        expect(editor.textContent).toBe('AB');
+            type('A');
+            type('B');
+            expect(editor.textContent).toBe('AB');
 
-        component.undo();
-        expect(editor.textContent).toBe('A');
+            component.undo();
+            expect(editor.textContent).toBe('A');
 
-        await type('C');
-        expect(editor.textContent).toBe('AC');
+            type('C');
+            expect(editor.textContent).toBe('AC');
 
-        component.redo();
-        expect(editor.textContent).toBe('AC');
+            component.redo();
+            expect(editor.textContent).toBe('AC');
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it('does not pull a following paragraph into a table cell on delete', () => {

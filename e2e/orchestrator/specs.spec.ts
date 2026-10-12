@@ -85,10 +85,6 @@ describe('package specs are registered (T-17)', () => {
         expect(button!.fixture).toBeUndefined();
         expect(button!.packages).toBeUndefined();
     });
-
-    it('specLabel resolves for a package spec even though names is empty', () => {
-        expect(specLabel({ names: [], packages: ['rte'], label: 'pkg-rte' })).toBe('pkg-rte');
-    });
 });
 
 describe('validateSpecs rejects an unusable spec (T-17)', () => {

@@ -11,13 +11,12 @@ describe('detectTheme', () => {
         expect(detectTheme('oklch(0.5 0.2 200)', null, undefined)).toBe('custom');
     });
 
-    it.each(['red', 'rose', 'blue', 'yellow', 'amber', 'slate', 'stone', 'gray'] as const)(
-        'detects the %s preset from its --primary value',
-        (theme) => {
-            const primary = themeColors[theme].light['--primary'];
-            expect(detectTheme(primary, null, undefined)).toBe(theme);
-        },
-    );
+    it('detects each preset with a distinctive --primary from that value alone', () => {
+        // A preset that shared its --primary with another would be reported as the wrong theme.
+        for (const theme of ['red', 'rose', 'blue', 'yellow', 'amber', 'slate', 'stone', 'gray'] as const) {
+            expect(detectTheme(themeColors[theme].light['--primary'], null, undefined), theme).toBe(theme);
+        }
+    });
 
     describe('zinc/neutral ambiguity (identical --primary)', () => {
         const primary = themeColors.zinc.light['--primary'];

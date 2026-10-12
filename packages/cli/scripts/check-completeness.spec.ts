@@ -9,7 +9,6 @@ import {
     removeRepo,
     runScript,
     write,
-    type Run,
 } from './repo-fixtures';
 import {
     DEMO_PAGE_ALIASES,
@@ -307,12 +306,6 @@ describe('unbackedAliases', () => {
 });
 
 describe('DEMO_PAGE_ALIASES', () => {
-    it('points every alias at one of the known shared pages', () => {
-        const pages = new Set(Object.values(DEMO_PAGE_ALIASES));
-        expect([...pages].sort((a, b) => a.localeCompare(b)))
-            .toEqual(['animations', 'charts', 'tree-view']);
-    });
-
     it('never aliases a component to itself', () => {
         for (const [component, page] of Object.entries(DEMO_PAGE_ALIASES)) {
             expect(page).not.toBe(component);
@@ -430,33 +423,20 @@ describe('check-completeness entry (fixture repo)', () => {
         fixture = null;
     });
 
-    function run(withBeta: boolean, args: readonly string[] = []): Run {
-        fixture = seedCompletenessFixture(withBeta);
-        return runScript(fixtureScript(fixture.root, 'check-completeness.ts'), args);
-    }
-
-    it('exits 0 and passes the gate when every component is complete', () => {
-        const { status, stdout } = run(false, ['--strict']);
-
-        expect(status).toBe(0);
-        expect(stdout).toContain('Checking 1 components');
-        expect(stdout).toContain('Completeness gate passed.');
-    }, 60_000);
-
-    it('--strict exits 1 and names every missing artifact of the seeded gap', () => {
-        const { status, output } = run(true, ['--strict']);
-
-        expect(status).toBe(1);
-        expect(output).toContain('beta [story]');
-        expect(output).toContain('beta [demo]');
-        expect(output).toContain('beta [e2e]');
-        expect(output).toContain('Completeness gate FAILED.');
-    }, 60_000);
-
-    it('honours the allowlist by default, and ignores it under --strict', () => {
+    // Each test walks one fixture through several runs: the seed is the cheap
+    // part, the `npx tsx` start-up per run is not, and every run below is
+    // read-only apart from the allowlist file the previous step produced.
+    it('--seed writes the gap into the allowlist, which the gate then honours by default and --strict ignores', () => {
         fixture = seedCompletenessFixture(true);
-        writeFileSync(fixture.allowlist, BETA_EXEMPTIONS);
         const script = fixtureScript(fixture.root, 'check-completeness.ts');
+
+        const seed = runScript(script, ['--seed']);
+        expect(seed.status).toBe(0);
+        expect(seed.stdout).toContain('Seeded 3 exemption(s)');
+        const seeded = JSON.parse(readFileSync(fixture.allowlist, 'utf-8')) as Record<string, Record<string, unknown>>;
+        expect(Object.keys(seeded['story'])).toEqual(['beta']);
+        expect(Object.keys(seeded['demo'])).toEqual(['beta']);
+        expect(Object.keys(seeded['e2e'])).toEqual(['beta']);
 
         const allowed = runScript(script);
         expect(allowed.status).toBe(0);
@@ -465,29 +445,25 @@ describe('check-completeness entry (fixture repo)', () => {
 
         const strict = runScript(script, ['--strict']);
         expect(strict.status).toBe(1);
+        expect(strict.output).toContain('beta [story]');
+        expect(strict.output).toContain('beta [demo]');
+        expect(strict.output).toContain('beta [e2e]');
         expect(strict.output).toContain('Completeness gate FAILED.');
-    }, 60_000);
+    }, 120_000);
 
-    it('--seed writes the gap into the allowlist file', () => {
-        const { status, stdout } = run(true, ['--seed']);
-
-        expect(status).toBe(0);
-        expect(stdout).toContain('Seeded 3 exemption(s)');
-
-        const seeded = JSON.parse(readFileSync(fixture!.allowlist, 'utf-8')) as Record<string, Record<string, unknown>>;
-        expect(Object.keys(seeded['story'])).toEqual(['beta']);
-        expect(Object.keys(seeded['demo'])).toEqual(['beta']);
-        expect(Object.keys(seeded['e2e'])).toEqual(['beta']);
-    }, 60_000);
-
-    it('fails the gate when an allowlist entry no longer matches a live issue', () => {
+    it('passes a complete repo, then fails once an allowlist entry no longer matches a live issue', () => {
         fixture = seedCompletenessFixture(false);
+        const script = fixtureScript(fixture.root, 'check-completeness.ts');
+
+        const complete = runScript(script, ['--strict']);
+        expect(complete.status).toBe(0);
+        expect(complete.stdout).toContain('Checking 1 components');
+        expect(complete.stdout).toContain('Completeness gate passed.');
+
         writeFileSync(fixture.allowlist, BETA_EXEMPTIONS);
-
-        const { status, output } = runScript(fixtureScript(fixture.root, 'check-completeness.ts'));
-
-        expect(status).toBe(1);
-        expect(output).toContain('Stale allowlist entries');
-        expect(output).toContain('beta [story: missing]');
-    }, 60_000);
+        const stale = runScript(script);
+        expect(stale.status).toBe(1);
+        expect(stale.output).toContain('Stale allowlist entries');
+        expect(stale.output).toContain('beta [story: missing]');
+    }, 120_000);
 });

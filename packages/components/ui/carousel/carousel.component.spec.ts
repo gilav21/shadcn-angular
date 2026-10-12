@@ -301,6 +301,15 @@ describe('Carousel Vertical Orientation', () => {
         expect(carousel.currentIndex()).toBe(2);
     });
 
+    it('leaves the index untouched when item height is 0', async () => {
+        await flushSetup(fixture);
+        const carousel = getCarousel(fixture);
+        setMetrics(getScrollEl(fixture), { scrollTop: 50, scrollHeight: 300, clientHeight: 100 });
+        setMetrics(getItems(fixture)[0], { offsetHeight: 0 });
+        carousel.updateScrollState();
+        expect(carousel.currentIndex()).toBe(0);
+    });
+
     it('scrolls along the top axis with arrow up/down', async () => {
         await flushSetup(fixture);
         const carousel = getCarousel(fixture);

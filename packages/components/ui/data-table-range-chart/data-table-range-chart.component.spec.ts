@@ -109,6 +109,7 @@ describe('DataTableRangeChartComponent', () => {
     expect(component.barData()).toEqual([]);
     expect(component.stackedSeries()).toEqual([]);
     expect(component.categories()).toEqual([]);
+    expect(component.hasMultipleSeries()).toBe(false);
   });
 
   it('maps categories from a populated payload', () => {

@@ -223,7 +223,7 @@ describe('RichTextFileImportDirective', () => {
         } as unknown as DragEvent;
     }
 
-    const wait = (ms = 50): Promise<void> => new Promise((r) => setTimeout(r, ms));
+    const wait = (ms = 20): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
     // Parsing lazily `import()`s the docx/pdf chunks, which can take well over a
     // fixed 50ms under parallel test load — poll until the condition holds.

@@ -59,14 +59,6 @@ describe('InfiniteCanvasDemoComponent — run history is only recorded when aske
     fixture.detectChanges();
   }
 
-  it('records a run while the addon is on', () => {
-    setHistory(true);
-    demo.onRunStarted(started);
-    demo.onRunFinished(finished);
-
-    expect(demo.history.runs()).toHaveLength(1);
-  });
-
   it('records nothing while the addon is off', () => {
     setHistory(false);
     demo.onRunStarted(started);
@@ -83,7 +75,7 @@ describe('InfiniteCanvasDemoComponent — run history is only recorded when aske
     expect(demo.history.openCount).toBe(0);
   });
 
-  it('gives back what it recorded when the addon is switched off', () => {
+  it('records a run while the addon is on, and gives it back when the addon is switched off', () => {
     setHistory(true);
     demo.onRunStarted(started);
     demo.onRunFinished(finished);

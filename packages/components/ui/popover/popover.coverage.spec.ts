@@ -76,18 +76,14 @@ describe('PopoverComponent dismissal behavior', () => {
         expect(popover.open()).toBe(false);
     });
 
-    it('ignores clicks inside the popover host', () => {
+    it('ignores clicks inside the popover host or inside a registered portal element', () => {
         popover.show();
         fixture.detectChanges();
         // The absolute panel renders inside the host; a click in it reaches the document listener.
         const panel = fixture.nativeElement.querySelector('[data-slot="popover-content"]') as HTMLElement;
         panel.dispatchEvent(new MouseEvent('click', { bubbles: true }));
         expect(popover.open()).toBe(true);
-    });
 
-    it('ignores clicks inside a registered portal element', () => {
-        popover.show();
-        fixture.detectChanges();
         const portal = document.createElement('div');
         const inner = document.createElement('span');
         portal.appendChild(inner);
@@ -201,44 +197,35 @@ describe('Popover keyboard activation', () => {
         fixture.nativeElement.remove();
     });
 
-    it('toggles from the trigger wrapper on Enter', () => {
-        const wrapper = fixture.nativeElement.querySelector('[data-slot="popover-trigger"]') as HTMLElement;
-        wrapper.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-        fixture.detectChanges();
+    it('toggles from the trigger wrapper on Enter, but ignores keydown bubbling from projected content', () => {
         const popover = fixture.debugElement.query(By.directive(PopoverComponent)).componentInstance as PopoverComponent;
-        expect(popover.open()).toBe(true);
-    });
-
-    it('ignores keydown that bubbles up from projected content on the trigger', () => {
         const inner = fixture.nativeElement.querySelector('.inner-trigger') as HTMLElement;
         inner.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
         fixture.detectChanges();
-        const popover = fixture.debugElement.query(By.directive(PopoverComponent)).componentInstance as PopoverComponent;
         expect(popover.open()).toBe(false);
-    });
 
-    it('closes from the close wrapper on Enter', async () => {
-        host.open.set(true);
-        fixture.detectChanges();
-        await fixture.whenStable();
-        fixture.detectChanges();
-        const wrapper = document.querySelector('[data-slot="popover-close"]') as HTMLElement;
+        const wrapper = fixture.nativeElement.querySelector('[data-slot="popover-trigger"]') as HTMLElement;
         wrapper.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
         fixture.detectChanges();
-        const popover = fixture.debugElement.query(By.directive(PopoverComponent)).componentInstance as PopoverComponent;
-        expect(popover.open()).toBe(false);
+        expect(popover.open()).toBe(true);
     });
 
-    it('ignores keydown bubbling from projected content on the close wrapper', async () => {
+    it('closes from the close wrapper on Enter, but ignores keydown bubbling from projected content', async () => {
         host.open.set(true);
         fixture.detectChanges();
         await fixture.whenStable();
         fixture.detectChanges();
+        const popover = fixture.debugElement.query(By.directive(PopoverComponent)).componentInstance as PopoverComponent;
+
         const inner = document.querySelector('.inner-close') as HTMLElement;
         inner.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
         fixture.detectChanges();
-        const popover = fixture.debugElement.query(By.directive(PopoverComponent)).componentInstance as PopoverComponent;
         expect(popover.open()).toBe(true);
+
+        const wrapper = document.querySelector('[data-slot="popover-close"]') as HTMLElement;
+        wrapper.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        fixture.detectChanges();
+        expect(popover.open()).toBe(false);
     });
 });
 
@@ -328,6 +315,7 @@ describe('PopoverContent fixed strategy (Popover API path)', () => {
     });
 
     afterEach(() => {
+        vi.useRealTimers();
         fixture.nativeElement.remove();
         document.querySelectorAll('[data-popover-portal],[data-slot="popover-content"]').forEach((n) => n.remove());
         vi.restoreAllMocks();
@@ -354,7 +342,7 @@ describe('PopoverContent fixed strategy (Popover API path)', () => {
         expect(styles).toContain('top:96px');
     });
 
-    it('adjustFixedPosition clamps when overflowing the viewport', async () => {
+    it('clamps fixed content into the viewport with an 8px margin, via adjustFixedPosition and calculatePosition (white-box: fixed placement never routes through calculatePosition)', async () => {
         host.open.set(true);
         await flush();
         const c = content();
@@ -373,17 +361,10 @@ describe('PopoverContent fixed strategy (Popover API path)', () => {
         expect(el.style.left).toBe('42px');
         expect(el.style.top).toBe('72px');
         expect(el.style.transform).toBe('none');
-    });
 
-    it('calculatePosition clamps a fixed content element in place (white-box: unreachable through the public API, fixed placement never routes through calculatePosition)', async () => {
-        host.open.set(true);
-        await flush();
-        const c = content();
-        Object.defineProperty(globalThis, 'innerWidth', { configurable: true, value: 150 });
-        Object.defineProperty(globalThis, 'innerHeight', { configurable: true, value: 120 });
         priv(c).calculatePosition();
-        const el = priv(c).contentEl!.nativeElement;
-        expect([el.style.left, el.style.top, el.style.transform]).toEqual(['42px', '72px', 'none']);
+        const own = priv(c).contentEl!.nativeElement;
+        expect([own.style.left, own.style.top, own.style.transform]).toEqual(['42px', '72px', 'none']);
     });
 
     it('has no fixed position styles when the popover has no trigger', async () => {
@@ -398,43 +379,37 @@ describe('PopoverContent fixed strategy (Popover API path)', () => {
         noTrigger.nativeElement.remove();
     });
 
-    function frames(count: number): Promise<void> {
-        return new Promise<void>((resolve) => {
-            const step = (left: number): void => {
-                if (left === 0) {
-                    resolve();
-                    return;
-                }
-                requestAnimationFrame(() => step(left - 1));
-            };
-            step(count);
-        });
+    // The retry loop is paced in animation frames; a fake frame clock replaces waiting them out.
+    function frames(count: number): void {
+        vi.advanceTimersByTime(count * 16);
     }
 
     function panel(): HTMLElement {
         return document.querySelector('[data-slot="popover-content"]') as HTMLElement;
     }
 
-    it('opened while detached, waits for attachment and then promotes the panel to the top layer in place', async () => {
+    it('opened while detached, waits for attachment and then promotes the panel to the top layer in place', () => {
+        vi.useFakeTimers();
         fixture.nativeElement.remove();
         host.open.set(true);
         fixture.detectChanges();
-        await frames(3);
+        frames(3);
         expect(panel()).toBeNull();
 
         document.body.appendChild(fixture.nativeElement);
-        await frames(3);
+        frames(3);
 
         expect(panel().getAttribute('popover')).toBe('manual');
         expect(panel().closest('ui-popover')).not.toBeNull();
         expect(document.querySelector('[data-popover-portal]')).toBeNull();
     });
 
-    it('falls back to a body portal when the panel is still detached once its retries run out', async () => {
+    it('falls back to a body portal when the panel is still detached once its retries run out', () => {
+        vi.useFakeTimers();
         fixture.nativeElement.remove();
         host.open.set(true);
         fixture.detectChanges();
-        await frames(14);
+        frames(14);
 
         const portal = document.querySelector('[data-popover-portal]');
         expect(portal?.contains(panel())).toBe(true);

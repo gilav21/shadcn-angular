@@ -77,18 +77,9 @@ describe('SpeedDial disabled behaviour', () => {
         sd = getSpeedDial(fixture);
     });
 
-    it('toggle() does nothing when disabled', () => {
+    it('toggle(), show() and showAt() do nothing when disabled', () => {
         sd.toggle();
-        expect(sd.open()).toBe(false);
-    });
-
-    it('show() does nothing when disabled', () => {
         sd.show();
-        expect(sd.open()).toBe(false);
-        expect(sd.contextPosition()).toBeNull();
-    });
-
-    it('showAt() does nothing when disabled', () => {
         sd.showAt(10, 20);
         expect(sd.open()).toBe(false);
         expect(sd.contextPosition()).toBeNull();
@@ -190,35 +181,29 @@ describe('SpeedDial showAt + clampToContainer', () => {
         expect(visible).toEqual([true]);
     });
 
-    it('clamps y downward for linear "up" direction (radius margin)', () => {
-        host.direction.set('up');
-        fixture.detectChanges();
-        sd.showAt(30, 0);
-        // r = radius(80) + 24 = 104; up clamps absY to >= r + 8 = 112
-        expect(sd.contextPosition()).toEqual({ x: 30, y: 112 });
-    });
-
-    it('clamps x for linear "right" direction against viewport width', () => {
-        host.direction.set('right');
-        fixture.detectChanges();
-        sd.showAt(5000, 40);
-        // vw(1024) - r(104) - 8 = 912
-        expect(sd.contextPosition()).toEqual({ x: 912, y: 40 });
-    });
-
-    it('clamps for linear "left" and "down" directions', () => {
+    it('clamps the context position inside the viewport by direction: linear up/right/down-left and circular types', () => {
+        // r = radius(80) + 24 = 104, and every clamp keeps r + 8 = 112 from the edge.
+        // Rendered before any context position exists, so the menu falls back to the "up" layout.
         host.direction.set('down-left');
         fixture.detectChanges();
         sd.showAt(0, 5000);
         // left clamps x >= 112, down clamps y <= 768 - 112 = 656
         expect(sd.contextPosition()).toEqual({ x: 112, y: 656 });
-    });
 
-    it('clamps both axes for circular types', () => {
+        host.direction.set('up');
+        fixture.detectChanges();
+        sd.showAt(30, 0);
+        expect(sd.contextPosition()).toEqual({ x: 30, y: 112 });
+
+        host.direction.set('right');
+        fixture.detectChanges();
+        sd.showAt(5000, 40);
+        // vw(1024) - r(104) - 8 = 912
+        expect(sd.contextPosition()).toEqual({ x: 912, y: 40 });
+
         host.type.set('circle');
         fixture.detectChanges();
         sd.showAt(-1000, -1000);
-        // circle clamps both to >= r + 8 = 112
         expect(sd.contextPosition()).toEqual({ x: 112, y: 112 });
     });
 });
@@ -236,18 +221,15 @@ describe('SpeedDialTrigger keyboard activation', () => {
         span = fixture.debugElement.query(By.css('[data-slot="speed-dial-trigger"]')).nativeElement;
     });
 
-    it('toggles when the wrapper itself receives Enter', () => {
-        span.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-        fixture.detectChanges();
-        expect(sd.open()).toBe(true);
-    });
-
-    it('ignores keydown that bubbles from a nested control', () => {
+    it('toggles when the wrapper itself receives Enter, but ignores keydown that bubbles from a nested control', () => {
         const inner = span.querySelector('button') as HTMLElement;
         inner.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
         fixture.detectChanges();
-        // target !== currentTarget -> early return, stays closed
         expect(sd.open()).toBe(false);
+
+        span.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        fixture.detectChanges();
+        expect(sd.open()).toBe(true);
     });
 });
 
@@ -276,92 +258,42 @@ describe('SpeedDialItem circular positioning', () => {
         sd = getSpeedDial(fixture);
     });
 
-    it('positions full-circle items around the radius', () => {
+    it('circle: collapses to the origin when closed, then spreads items around the radius with a staggered delay, and drops transitions while repositioning', () => {
+        host.type.set('circle');
+        fixture.detectChanges();
+        expect(transformOf(0)).toBe('translate(0px, 0px)');
+
         configure('circle', 'up');
         // circle: itemCount = totalItems(2), step 180deg, idx0 angle 0 -> (80, 0)
         expect(transformOf(0)).toContain('translate(80px');
         expect(transformOf(1)).toContain('translate(-80px');
-    });
+        const staggered = getItems(fixture)[1].positionStyle() as Record<string, string>;
+        expect(staggered['transition-delay']).toBe('80ms');
+        expect(staggered['left']).toBe('50%');
 
-    it('applies transition-delay for staggered open of circular items', () => {
-        configure('circle', 'up');
-        const style = getItems(fixture)[1].positionStyle() as Record<string, string>;
-        expect(style['transition-delay']).toBe('80ms');
-        expect(style['left']).toBe('50%');
-    });
-
-    it('disables transitions while repositioning a circular menu', () => {
-        configure('circle', 'up');
         sd.isRepositioning.set(true);
         const style = getItems(fixture)[0].positionStyle() as Record<string, string>;
         expect(style['transition']).toBe('none');
         expect(style['transition-delay']).toBe('0ms');
     });
 
-    it('collapses circular items to origin when closed', () => {
-        host.type.set('circle');
-        fixture.detectChanges();
-        expect(transformOf(0)).toBe('translate(0px, 0px)');
-    });
-
-    it('resolves semi-circle up angles', () => {
-        configure('semi-circle', 'up');
-        // start -180, itemCount = max(2-1,1)=1, step 180; idx0 angle -180 -> x -80
-        expect(transformOf(0)).toContain('translate(-80px');
-    });
-
-    it('resolves semi-circle down angles', () => {
-        configure('semi-circle', 'down');
-        // start 0, step 180; idx0 angle 0 -> x 80
-        expect(transformOf(0)).toContain('translate(80px');
-    });
-
-    it('resolves semi-circle left angles', () => {
-        configure('semi-circle', 'left');
-        // start 90; idx0 angle 90 -> x ~0, y +80
-        expect(transformOf(0)).toContain(', 80px)');
-    });
-
-    it('resolves semi-circle right angles', () => {
-        configure('semi-circle', 'right');
-        // start -90; idx0 angle -90 -> x ~0, y -80
-        expect(transformOf(0)).toContain(', -80px)');
-    });
-
-    it('resolves semi-circle default angles for diagonal direction', () => {
-        configure('semi-circle', 'up-left');
-        // default branch: start 180 -> idx0 x -80
-        expect(transformOf(0)).toContain('translate(-80px');
-    });
-
-    it('resolves quarter-circle up-right angles', () => {
-        configure('quarter-circle', 'up-right');
-        // start 270 -> idx0 x ~0, y -80
-        expect(transformOf(0)).toContain('-80px)');
-    });
-
-    it('resolves quarter-circle up-left angles', () => {
-        configure('quarter-circle', 'up-left');
-        // start 180 -> idx0 x -80
-        expect(transformOf(0)).toContain('translate(-80px');
-    });
-
-    it('resolves quarter-circle down-right angles', () => {
-        configure('quarter-circle', 'down-right');
-        // start 0 -> idx0 x 80
-        expect(transformOf(0)).toContain('translate(80px');
-    });
-
-    it('resolves quarter-circle down-left angles', () => {
-        configure('quarter-circle', 'down-left');
-        // start 90 -> idx0 y +80
-        expect(transformOf(0)).toContain(', 80px)');
-    });
-
-    it('resolves quarter-circle default angles for a non-diagonal direction', () => {
-        configure('quarter-circle', 'up');
-        // default branch: start 270 -> idx0 y -80
-        expect(transformOf(0)).toContain('-80px)');
+    it('resolves the first item angle for every semi- and quarter-circle direction, including the default branches', () => {
+        const cases: [SpeedDialType, SpeedDialDirection, string][] = [
+            ['semi-circle', 'up', 'translate(-80px'],
+            ['semi-circle', 'down', 'translate(80px'],
+            ['semi-circle', 'left', ', 80px)'],
+            ['semi-circle', 'right', ', -80px)'],
+            ['semi-circle', 'up-left', 'translate(-80px'], // default branch: start 180
+            ['quarter-circle', 'up-right', '-80px)'],
+            ['quarter-circle', 'up-left', 'translate(-80px'],
+            ['quarter-circle', 'down-right', 'translate(80px'],
+            ['quarter-circle', 'down-left', ', 80px)'],
+            ['quarter-circle', 'up', '-80px)'], // default branch: start 270
+        ];
+        for (const [type, direction, expected] of cases) {
+            configure(type, direction);
+            expect(transformOf(0), type + ' ' + direction).toContain(expected);
+        }
     });
 });
 
@@ -431,16 +363,14 @@ describe('SpeedDialContextTrigger component', () => {
         expect(sd.open()).toBe(true);
     });
 
-    it('closes on a subsequent plain click when open', () => {
+    it('closes on a subsequent plain click when open, and leaves a closed dial untouched', () => {
+        area.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        expect(sd.open()).toBe(false);
+
         sd.showAt(10, 10);
         vi.advanceTimersByTime(0);
         expect(sd.open()).toBe(true);
 
-        area.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-        expect(sd.open()).toBe(false);
-    });
-
-    it('leaves a closed dial untouched on click', () => {
         area.dispatchEvent(new MouseEvent('click', { bubbles: true }));
         expect(sd.open()).toBe(false);
     });
@@ -497,16 +427,14 @@ describe('SpeedDialContextTrigger directive', () => {
         expect(sd.contextPosition()).not.toBeNull();
     });
 
-    it('closes on a plain click while open', () => {
+    it('closes on a plain click while open, and does nothing on click while closed', () => {
+        surface.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        expect(sd.open()).toBe(false);
+
         sd.showAt(50, 50);
         vi.advanceTimersByTime(0);
         expect(sd.open()).toBe(true);
 
-        surface.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-        expect(sd.open()).toBe(false);
-    });
-
-    it('does nothing on click while closed', () => {
         surface.dispatchEvent(new MouseEvent('click', { bubbles: true }));
         expect(sd.open()).toBe(false);
     });
