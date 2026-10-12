@@ -27,6 +27,9 @@ import {
 } from '../../lib/chart.utils';
 import { linearScale, zeroBasedDomain } from '../../lib/chart-scale';
 
+/** Room, in px, a horizontal bar's value label needs between the bar end and the plot edge. */
+const LABEL_ROOM = 48;
+
 @Component({
   selector: 'ui-bar-chart',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -207,6 +210,7 @@ export class BarChartComponent implements AfterViewInit {
         color,
         value: point.value,
         labelPosition: { x: pos.labelX, y: pos.labelY },
+        labelAnchor: pos.labelAnchor,
       };
     });
   });
@@ -228,28 +232,52 @@ export class BarChartComponent implements AfterViewInit {
 
   private computeBarPosition(
     isVert: boolean,
-    area: { left: number; right: number; top: number },
+    area: { left: number; right: number; top: number; bottom: number },
     gap: number,
     barSize: number,
     span: { start: number; length: number; value: number },
     index: number
-  ): { x: number; y: number; width: number; height: number; labelX: number; labelY: number } {
+  ): { x: number; y: number; width: number; height: number; labelX: number; labelY: number; labelAnchor: BarRect['labelAnchor'] } {
     const offset = index * (barSize + gap);
     if (isVert) {
       const x = this.isRtl() ? area.right - offset - barSize : area.left + offset;
-      // A negative bar hangs below the baseline, so its label goes under the free end.
-      const labelY = span.value >= 0 ? span.start - 6 : span.start + span.length + 14;
-      return { x, y: span.start, width: barSize, height: span.length, labelX: x + barSize / 2, labelY };
+      return {
+        x, y: span.start, width: barSize, height: span.length,
+        labelX: x + barSize / 2, labelY: this.verticalLabelY(area, span), labelAnchor: 'middle',
+      };
     }
     const y = area.top + offset;
-    const labelX = this.growsRight(span.value) ? span.start + span.length + 6 : span.start - 6;
-    return { x: span.start, y, width: span.length, height: barSize, labelX, labelY: y + barSize / 2 };
+    const label = this.horizontalLabel(area, span);
+    return { x: span.start, y, width: span.length, height: barSize, labelX: label.x, labelY: y + barSize / 2, labelAnchor: label.anchor };
   }
 
-  /** SVG `text-anchor` of a bar's value label: centred over a column, outward from the free end of a horizontal bar. */
-  labelAnchor(bar: BarRect): 'start' | 'middle' | 'end' {
-    if (this.isVertical()) return 'middle';
-    return this.growsRight(bar.value) ? 'start' : 'end';
+  /**
+   * Baseline of a column's value label: above a positive column, below a
+   * negative one. A negative column that reaches the axis labels at the bottom
+   * of the plot has no room under it, so its label moves inside the bar end.
+   */
+  private verticalLabelY(area: { bottom: number }, span: { start: number; length: number; value: number }): number {
+    if (span.value >= 0) return span.start - 6;
+    const below = span.start + span.length + 14;
+    return below <= area.bottom + 2 ? below : span.start + span.length - 6;
+  }
+
+  /**
+   * Position and anchor of a horizontal bar's value label: just past its free
+   * end, or inside the bar when less than {@link LABEL_ROOM} px remain between
+   * that end and the plot edge (a bar reaching the edge would otherwise print
+   * over the category labels or outside the chart).
+   */
+  private horizontalLabel(
+    area: { left: number; right: number },
+    span: { start: number; length: number; value: number },
+  ): { x: number; anchor: 'start' | 'end' } {
+    const growsRight = this.growsRight(span.value);
+    const freeEnd = growsRight ? span.start + span.length : span.start;
+    const room = growsRight ? area.right - freeEnd : freeEnd - area.left;
+    const outside = room >= LABEL_ROOM;
+    const x = growsRight === outside ? freeEnd + 6 : freeEnd - 6;
+    return { x, anchor: growsRight === outside ? 'start' : 'end' };
   }
 
   hoveredBar = computed(() => {

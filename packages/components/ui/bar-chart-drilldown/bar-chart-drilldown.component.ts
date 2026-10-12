@@ -240,8 +240,11 @@ export class BarChartDrilldownComponent implements AfterViewInit {
         : area.left + index * (barWidth + gap);
 
       const color = getChartColor(index, point.color);
-      // A negative column hangs below the baseline, so its label goes under the free end.
-      const labelY = point.value >= 0 ? y - 6 : y + barHeight + 14;
+      // A negative column hangs below the baseline, so its label goes under the free end,
+      // or inside the bar end when it reaches the axis labels at the bottom of the plot.
+      const below = y + barHeight + 14;
+      let labelY = y - 6;
+      if (point.value < 0) labelY = below <= area.bottom + 2 ? below : y + barHeight - 6;
 
       return {
         index,
@@ -253,6 +256,7 @@ export class BarChartDrilldownComponent implements AfterViewInit {
         color,
         value: point.value,
         labelPosition: { x: x + barWidth / 2, y: labelY },
+        labelAnchor: 'middle',
       };
     });
   });

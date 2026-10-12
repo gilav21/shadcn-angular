@@ -396,6 +396,33 @@ describe('BarChartComponent zero baseline', () => {
         }
     }
 
+    it.each(['all-negative', 'mixed-sign', 'all-positive'])('should keep %s vertical value labels clear of the axis labels', className => {
+        const component = build(CLASSES[className], 'vertical', 'ltr');
+        const area = component.chartArea();
+
+        for (const bar of component.bars()) {
+            if (bar.value >= 0) {
+                expect(bar.labelPosition.y).toBeLessThan(bar.y);
+            } else {
+                // The category labels start 16px under the plot; a label may not sit down there.
+                expect(bar.labelPosition.y).toBeLessThanOrEqual(area.bottom + 2);
+            }
+        }
+    });
+
+    it.each(['all-negative', 'mixed-sign', 'all-positive'])('should leave room for %s horizontal value labels on the side they face', className => {
+        for (const dir of ['ltr', 'rtl'] as const) {
+            const component = build(CLASSES[className], 'horizontal', dir);
+            const area = component.chartArea();
+
+            for (const bar of component.bars()) {
+                const room = bar.labelAnchor === 'start' ? area.right - bar.labelPosition.x : bar.labelPosition.x - area.left;
+                // A label is a few characters wide; it never starts closer than this to the plot edge it runs toward.
+                expect(room).toBeGreaterThanOrEqual(42);
+            }
+        }
+    });
+
     it('should draw at least two value ticks, all inside the plot, when every value is zero', () => {
         const component = build(CLASSES['all-zero'], 'vertical', 'ltr');
         const area = component.chartArea();

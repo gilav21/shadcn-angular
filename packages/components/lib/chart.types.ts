@@ -168,6 +168,8 @@ export interface BarRect {
     color: string;
     value: number;
     labelPosition: { x: number; y: number };
+    /** SVG `text-anchor` of the value label at {@link labelPosition}. */
+    labelAnchor: 'start' | 'middle' | 'end';
 }
 
 export interface RaceFrame {
