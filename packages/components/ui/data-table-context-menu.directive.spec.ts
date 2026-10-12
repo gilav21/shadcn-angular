@@ -16,6 +16,7 @@ interface Row {
 
 interface DataTableStub {
   focusedCell: { set: (value: unknown) => void };
+  enableCellRangeSelection: () => boolean;
   getRenderedRowAt: (index: number) => Row | undefined;
   getRenderedTreeRowAt: (index: number) => unknown;
 }
@@ -23,6 +24,7 @@ interface DataTableStub {
 function createDataTableStub(): DataTableStub {
   return {
     focusedCell: { set: vi.fn() },
+    enableCellRangeSelection: vi.fn(() => false),
     getRenderedRowAt: vi.fn((index: number) => (index === 2 ? { name: 'RowA' } : undefined)),
     getRenderedTreeRowAt: vi.fn((index: number) =>
       index === 2
@@ -173,6 +175,29 @@ function setupWithNullMenu(): {
   return { fixture, comp, tableEl, dataTable };
 }
 
+/** A contextmenu typed by pointer, as Chromium raises it (older jsdom has no PointerEvent: then it is untyped). */
+function typedContextMenu(pointerType: 'mouse' | 'touch', x: number, y: number): MouseEvent {
+  const init = { bubbles: true, cancelable: true, button: pointerType === 'mouse' ? 2 : 0, clientX: x, clientY: y };
+  return typeof PointerEvent === 'undefined' ? new MouseEvent('contextmenu', init) : new PointerEvent('contextmenu', { ...init, pointerType });
+}
+
+/** A finger held on `target` for the long-press duration (fake timers must be installed). */
+function holdFinger(target: HTMLElement, x: number, y: number): Event {
+  const event = new Event('touchstart', { bubbles: true, cancelable: true });
+  Object.defineProperty(event, 'touches', { value: [{ clientX: x, clientY: y }] });
+  target.dispatchEvent(event);
+  vi.advanceTimersByTime(500);
+  return event;
+}
+
+/** The contextmenu Android raises after the hold, a moment later. */
+function androidEcho(target: HTMLElement, x: number, y: number): MouseEvent {
+  vi.advanceTimersByTime(100);
+  const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: x, clientY: y });
+  target.dispatchEvent(event);
+  return event;
+}
+
 describe('DataTableContextMenuDirective', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -198,6 +223,96 @@ describe('DataTableContextMenuDirective', () => {
       20,
       expect.objectContaining({ row: { name: 'RowA' }, depth: 1, isLeaf: true }),
     );
+  });
+
+  it('opens the menu at the finger and emits what a right-click emits on a long-press of the same cell', () => {
+    vi.useFakeTimers();
+    try {
+      const { comp, tableEl } = setupWithDataTable();
+      const cell = tableEl.querySelector<HTMLElement>('[data-row-id="rA"] [data-column="name"]') as HTMLElement;
+      contextMenuEventAt(cell, 10, 20);
+
+      // A second, later gesture: within the same instant it would be taken for the right-click's own echo.
+      vi.advanceTimersByTime(1000);
+
+      const touch = holdFinger(cell, 10, 20);
+      androidEcho(cell, 10, 20);
+
+      expect(comp.rowEvents).toHaveLength(2);
+      expect({ ...comp.rowEvents[1], event: undefined }).toEqual({ ...comp.rowEvents[0], event: undefined });
+      expect(comp.rowEvents[1].event).toBe(touch);
+      expect(comp.menu.show).toHaveBeenCalledTimes(2);
+      expect(comp.menu.show).toHaveBeenLastCalledWith(
+        10,
+        20,
+        expect.objectContaining({ row: { name: 'RowA' }, depth: 1, isLeaf: true }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('opens the header menu on a long-press of a header when headers are allowed', () => {
+    vi.useFakeTimers();
+    try {
+      const { comp, fixture, tableEl } = setupWithoutDataTable();
+      comp.rowsOnly.set(false);
+      fixture.detectChanges();
+      const header = tableEl.querySelector<HTMLElement>('[data-column-id="col1"]') as HTMLElement;
+
+      holdFinger(header, 7, 9);
+
+      expect(comp.headerEvents).toHaveLength(1);
+      expect(comp.headerEvents[0].column.id).toBe('col1');
+      expect(comp.menu.show).toHaveBeenCalledWith(7, 9, comp.headerEvents[0].column);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // R-4: with range selection on, a long-press on a cell belongs to the table (it starts a
+  // selection); only a right-click opens the menu.
+  it('leaves a long-press to range selection while enableCellRangeSelection is on, and still answers a right-click', () => {
+    vi.useFakeTimers();
+    try {
+      const { comp, tableEl, dataTable } = setupWithDataTable();
+      vi.mocked(dataTable.enableCellRangeSelection).mockReturnValue(true);
+      const cell = tableEl.querySelector<HTMLElement>('[data-row-id="rA"] [data-column="name"]') as HTMLElement;
+
+      holdFinger(cell, 10, 20);
+      // Android reports the same hold as a contextmenu too: still the table's, not the menu's.
+      vi.advanceTimersByTime(100);
+      cell.dispatchEvent(typedContextMenu('touch', 10, 20));
+      expect(comp.rowEvents).toHaveLength(0);
+      expect(comp.menu.show).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(2000);
+      cell.dispatchEvent(typedContextMenu('mouse', 10, 20));
+      expect(comp.rowEvents).toHaveLength(1);
+
+      // A browser that types contextmenu as a plain MouseEvent (Firefox): no finger before it, so a mouse's.
+      vi.advanceTimersByTime(2000);
+      contextMenuEventAt(cell, 10, 20);
+      expect(comp.rowEvents).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does nothing on a long-press when contextMenuDisabled is true', () => {
+    vi.useFakeTimers();
+    try {
+      const { comp, fixture, tableEl } = setupWithDataTable();
+      comp.disabled.set(true);
+      fixture.detectChanges();
+
+      holdFinger(tableEl.querySelector<HTMLElement>('[data-row-id="rA"] [data-column="name"]') as HTMLElement, 1, 2);
+
+      expect(comp.rowEvents).toHaveLength(0);
+      expect(comp.menu.show).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('does not focus the cell when the column key is the selection column', () => {

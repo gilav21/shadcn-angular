@@ -5,7 +5,6 @@ export interface TreeContextMenuDemoLocale extends LocaleMeta {
   description: string;
   explorerHeading: string;
   explorerDesc: string;
-  touchHint: string;
   menuFolderLabel: string;
   menuFileLabel: string;
   menuOpen: string;
@@ -55,7 +54,6 @@ export const TREE_CONTEXT_MENU_DEMO_LOCALES: Record<string, TreeContextMenuDemoL
       'The uiTreeContextMenu directive wires a ui-context-menu to every node of a ui-tree. Right-clicking a node opens the menu at the cursor and emits TreeContextMenuEvent with the node that was hit.',
     explorerHeading: 'File explorer',
     explorerDesc: 'Right-click any file or folder. The menu adapts: folders can spawn children, files can be opened.',
-    touchHint: 'Touch device? The directive is right-click only — this page adds a 500 ms long-press fallback with onLongPress() from lib/touch.',
     menuFolderLabel: 'Folder',
     menuFileLabel: 'File',
     menuOpen: 'Open',
@@ -104,7 +102,6 @@ export const TREE_CONTEXT_MENU_DEMO_LOCALES: Record<string, TreeContextMenuDemoL
       'ההנחיה uiTreeContextMenu מחברת ui-context-menu לכל צומת של ui-tree. לחיצה ימנית על צומת פותחת את התפריט במיקום הסמן ומשדרת TreeContextMenuEvent עם הצומת שנלחץ.',
     explorerHeading: 'סייר קבצים',
     explorerDesc: 'לחצו לחיצה ימנית על קובץ או תיקייה. התפריט מתאים את עצמו: בתיקיות אפשר ליצור פריטים, קבצים אפשר לפתוח.',
-    touchHint: 'במכשיר מגע? ההנחיה תומכת בלחיצה ימנית בלבד — הדף הזה מוסיף לחיצה ארוכה של 500 מ״ש באמצעות onLongPress() מ-lib/touch.',
     menuFolderLabel: 'תיקייה',
     menuFileLabel: 'קובץ',
     menuOpen: 'פתיחה',
@@ -153,7 +150,6 @@ export const TREE_CONTEXT_MENU_DEMO_LOCALES: Record<string, TreeContextMenuDemoL
       'يربط التوجيه uiTreeContextMenu قائمة ui-context-menu بكل عقدة في ui-tree. النقر بالزر الأيمن على عقدة يفتح القائمة عند المؤشر ويُصدر TreeContextMenuEvent مع العقدة المحددة.',
     explorerHeading: 'مستكشف الملفات',
     explorerDesc: 'انقر بالزر الأيمن على أي ملف أو مجلد. تتكيف القائمة: المجلدات تقبل عناصر جديدة، والملفات يمكن فتحها.',
-    touchHint: 'جهاز لمس؟ التوجيه يدعم النقر بالزر الأيمن فقط — تضيف هذه الصفحة بديل الضغط المطوّل (500 مللي ثانية) عبر onLongPress() من lib/touch.',
     menuFolderLabel: 'مجلد',
     menuFileLabel: 'ملف',
     menuOpen: 'فتح',
@@ -201,7 +197,6 @@ export const TREE_CONTEXT_MENU_DEMO_LOCALES: Record<string, TreeContextMenuDemoL
       'Die Direktive uiTreeContextMenu verbindet ein ui-context-menu mit jedem Knoten eines ui-tree. Ein Rechtsklick auf einen Knoten öffnet das Menü an der Cursorposition und löst TreeContextMenuEvent mit dem getroffenen Knoten aus.',
     explorerHeading: 'Datei-Explorer',
     explorerDesc: 'Rechtsklick auf eine Datei oder einen Ordner. Das Menü passt sich an: Ordner können Kinder erhalten, Dateien lassen sich öffnen.',
-    touchHint: 'Touch-Gerät? Die Direktive kennt nur Rechtsklick — diese Seite ergänzt einen 500-ms-Langdruck über onLongPress() aus lib/touch.',
     menuFolderLabel: 'Ordner',
     menuFileLabel: 'Datei',
     menuOpen: 'Öffnen',
@@ -249,7 +244,6 @@ export const TREE_CONTEXT_MENU_DEMO_LOCALES: Record<string, TreeContextMenuDemoL
       'La directive uiTreeContextMenu relie un ui-context-menu à chaque nœud d’un ui-tree. Un clic droit sur un nœud ouvre le menu au curseur et émet TreeContextMenuEvent avec le nœud ciblé.',
     explorerHeading: 'Explorateur de fichiers',
     explorerDesc: 'Faites un clic droit sur un fichier ou un dossier. Le menu s’adapte : les dossiers acceptent de nouveaux éléments, les fichiers s’ouvrent.',
-    touchHint: 'Appareil tactile ? La directive ne gère que le clic droit — cette page ajoute un appui long de 500 ms via onLongPress() de lib/touch.',
     menuFolderLabel: 'Dossier',
     menuFileLabel: 'Fichier',
     menuOpen: 'Ouvrir',
@@ -297,7 +291,6 @@ export const TREE_CONTEXT_MENU_DEMO_LOCALES: Record<string, TreeContextMenuDemoL
       'La directiva uiTreeContextMenu conecta un ui-context-menu con cada nodo de un ui-tree. Al hacer clic derecho en un nodo se abre el menú en el cursor y se emite TreeContextMenuEvent con el nodo alcanzado.',
     explorerHeading: 'Explorador de archivos',
     explorerDesc: 'Haz clic derecho en cualquier archivo o carpeta. El menú se adapta: las carpetas admiten nuevos elementos y los archivos se pueden abrir.',
-    touchHint: '¿Dispositivo táctil? La directiva solo admite clic derecho: esta página añade una pulsación larga de 500 ms con onLongPress() de lib/touch.',
     menuFolderLabel: 'Carpeta',
     menuFileLabel: 'Archivo',
     menuOpen: 'Abrir',
@@ -345,7 +338,6 @@ export const TREE_CONTEXT_MENU_DEMO_LOCALES: Record<string, TreeContextMenuDemoL
       'uiTreeContextMenu ディレクティブは ui-context-menu を ui-tree の各ノードに接続します。ノードを右クリックするとカーソル位置にメニューが開き、対象ノードを含む TreeContextMenuEvent が発行されます。',
     explorerHeading: 'ファイルエクスプローラー',
     explorerDesc: 'ファイルやフォルダーを右クリックしてください。メニューは対象に応じて変化します（フォルダーには追加、ファイルは開く）。',
-    touchHint: 'タッチ端末の場合：ディレクティブは右クリックのみ対応です。このページでは lib/touch の onLongPress() で 500 ミリ秒の長押しを補っています。',
     menuFolderLabel: 'フォルダー',
     menuFileLabel: 'ファイル',
     menuOpen: '開く',
@@ -393,7 +385,6 @@ export const TREE_CONTEXT_MENU_DEMO_LOCALES: Record<string, TreeContextMenuDemoL
       'uiTreeContextMenu 指令将 ui-context-menu 绑定到 ui-tree 的每个节点。右键点击节点会在光标处打开菜单，并发出携带命中节点的 TreeContextMenuEvent。',
     explorerHeading: '文件资源管理器',
     explorerDesc: '右键点击任意文件或文件夹。菜单会自动适配：文件夹可新建子项，文件可以打开。',
-    touchHint: '触摸设备？该指令仅支持右键点击——本页使用 lib/touch 的 onLongPress() 补充了 500 毫秒长按。',
     menuFolderLabel: '文件夹',
     menuFileLabel: '文件',
     menuOpen: '打开',
@@ -441,7 +432,6 @@ export const TREE_CONTEXT_MENU_DEMO_LOCALES: Record<string, TreeContextMenuDemoL
       'Директива uiTreeContextMenu связывает ui-context-menu с каждым узлом ui-tree. Правый клик по узлу открывает меню у курсора и генерирует TreeContextMenuEvent с выбранным узлом.',
     explorerHeading: 'Файловый проводник',
     explorerDesc: 'Кликните правой кнопкой по файлу или папке. Меню подстраивается: в папках можно создавать элементы, файлы можно открывать.',
-    touchHint: 'Сенсорное устройство? Директива работает только по правому клику — эта страница добавляет долгое нажатие 500 мс через onLongPress() из lib/touch.',
     menuFolderLabel: 'Папка',
     menuFileLabel: 'Файл',
     menuOpen: 'Открыть',
@@ -489,7 +479,6 @@ export const TREE_CONTEXT_MENU_DEMO_LOCALES: Record<string, TreeContextMenuDemoL
       'A diretiva uiTreeContextMenu liga um ui-context-menu a cada nó de uma ui-tree. Clicar com o botão direito num nó abre o menu no cursor e emite TreeContextMenuEvent com o nó atingido.',
     explorerHeading: 'Explorador de ficheiros',
     explorerDesc: 'Clique com o botão direito num ficheiro ou pasta. O menu adapta-se: pastas aceitam novos itens, ficheiros podem ser abertos.',
-    touchHint: 'Dispositivo tátil? A diretiva só reage ao botão direito — esta página acrescenta um toque longo de 500 ms com onLongPress() de lib/touch.',
     menuFolderLabel: 'Pasta',
     menuFileLabel: 'Ficheiro',
     menuOpen: 'Abrir',

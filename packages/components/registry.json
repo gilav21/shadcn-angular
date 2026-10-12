@@ -577,6 +577,7 @@
       "context-menu/sub/context-menu-trigger.directive.ts"
     ],
     "libFiles": [
+      "menu-activation.ts",
       "overlay-stack.service.ts",
       "theme-presets.ts",
       "touch.ts"
@@ -1359,6 +1360,7 @@
     ],
     "libFiles": [
       "a11y.ts",
+      "menu-activation.ts",
       "overlay-stack.service.ts",
       "touch.ts"
     ],
@@ -1725,6 +1727,7 @@
       "menubar/sub/menubar-trigger.component.ts"
     ],
     "libFiles": [
+      "menu-activation.ts",
       "overlay-stack.service.ts",
       "touch.ts"
     ],
@@ -3980,6 +3983,9 @@
     "files": [
       "context-menu-attach.directive.ts"
     ],
+    "libFiles": [
+      "touch.ts"
+    ],
     "dependencies": [
       "context-menu"
     ],
@@ -4000,6 +4006,9 @@
     ],
     "files": [
       "tree-context-menu.directive.ts"
+    ],
+    "libFiles": [
+      "touch.ts"
     ],
     "dependencies": [
       "context-menu"
@@ -4025,6 +4034,9 @@
     "files": [
       "table-context-menu.directive.ts"
     ],
+    "libFiles": [
+      "touch.ts"
+    ],
     "dependencies": [
       "context-menu"
     ],
@@ -4045,6 +4057,9 @@
     ],
     "files": [
       "data-table-context-menu.directive.ts"
+    ],
+    "libFiles": [
+      "touch.ts"
     ],
     "dependencies": [
       "context-menu",

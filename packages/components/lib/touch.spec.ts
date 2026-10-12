@@ -1,5 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { isTouchDevice, hasHover, onLongPress, onDoubleTap, onPointerDrag } from './touch';
+import {
+    isTouchDevice,
+    hasHover,
+    onLongPress,
+    onDoubleTap,
+    onPointerDrag,
+    onContextGesture,
+    dismissOnOutsideTouch,
+    pointOf,
+    type ContextGesture,
+} from './touch';
 import { prefersReducedMotion } from './media';
 
 type TouchCallback = (event: TouchEvent) => void;
@@ -484,5 +494,445 @@ describe('onPointerDrag', () => {
 
         expect(onMove).not.toHaveBeenCalled();
         expect(onEnd).not.toHaveBeenCalled();
+    });
+});
+
+describe('pointOf', () => {
+    it('reads the point of a mouse event and of the first finger of a touch event', () => {
+        const click = new MouseEvent('contextmenu', { clientX: 12, clientY: 34 });
+        const hold = touchEvent('touchstart', [{ clientX: 56, clientY: 78 }, { clientX: 1, clientY: 1 }]);
+        const lift = touchEvent('touchend', [], [{ clientX: 9, clientY: 8 }]);
+
+        expect([pointOf(click), pointOf(hold), pointOf(lift), pointOf(touchEvent('touchcancel'))]).toEqual([
+            { x: 12, y: 34 },
+            { x: 56, y: 78 },
+            { x: 9, y: 8 },
+            { x: 0, y: 0 },
+        ]);
+    });
+});
+
+/** What a browser raises for a mouse right-click: a PointerEvent typed 'mouse'. */
+function rightClick(target: Element, point = { clientX: 140, clientY: 90 }): MouseEvent {
+    const event = new PointerEvent('contextmenu', { bubbles: true, cancelable: true, button: 2, pointerType: 'mouse', ...point });
+    target.dispatchEvent(event);
+    return event;
+}
+
+/** What Android raises for a held finger: the same event, typed 'touch'. */
+function touchContextMenu(target: Element, point: { clientX: number; clientY: number }): MouseEvent {
+    const event = new PointerEvent('contextmenu', { bubbles: true, cancelable: true, button: 0, pointerType: 'touch', ...point });
+    target.dispatchEvent(event);
+    return event;
+}
+
+describe('onContextGesture', () => {
+    let outer: HTMLElement;
+    let inner: HTMLElement;
+    let leaf: HTMLElement;
+    let disposers: Array<() => void>;
+
+    /** Registers on `element` and returns the recorder; `claims` is what the handler answers. */
+    function listen(element: HTMLElement, claims = true): ReturnType<typeof vi.fn<(gesture: ContextGesture) => boolean>> {
+        const handler = vi.fn<(gesture: ContextGesture) => boolean>(() => claims);
+        disposers.push(onContextGesture(element, handler, 500));
+        return handler;
+    }
+
+    beforeEach(() => {
+        vi.useFakeTimers();
+        disposers = [];
+        outer = document.createElement('div');
+        inner = document.createElement('div');
+        leaf = document.createElement('span');
+        inner.appendChild(leaf);
+        outer.appendChild(inner);
+        document.body.appendChild(outer);
+    });
+
+    afterEach(() => {
+        for (const dispose of disposers) dispose();
+        outer.remove();
+        vi.useRealTimers();
+    });
+
+    const finger = { clientX: 60, clientY: 40 };
+
+    /** A finger lands on the leaf. */
+    function touchDown(points = [finger]): TouchEvent {
+        const event = touchEvent('touchstart', points, points);
+        leaf.dispatchEvent(event);
+        return event;
+    }
+
+    it('answers a right-click once, with the point, the target and the event itself', () => {
+        const handler = listen(outer, true);
+
+        const event = rightClick(leaf, { clientX: 140, clientY: 90 });
+
+        expect(handler).toHaveBeenCalledTimes(1);
+        expect(handler).toHaveBeenCalledWith({ target: leaf, clientX: 140, clientY: 90, source: event, viaTouch: false });
+        expect(event.defaultPrevented).toBe(true);
+    });
+
+    it('leaves the native menu alone when the handler does not claim the gesture', () => {
+        listen(outer, false);
+
+        expect(rightClick(leaf).defaultPrevented).toBe(false);
+    });
+
+    it('answers a one-finger long-press once, at the finger, with the touchstart as source', () => {
+        const handler = listen(outer, true);
+
+        const start = touchDown();
+        vi.advanceTimersByTime(499);
+        expect(handler).not.toHaveBeenCalled();
+        vi.advanceTimersByTime(1);
+
+        expect(handler).toHaveBeenCalledTimes(1);
+        expect(handler).toHaveBeenCalledWith({ target: leaf, clientX: 60, clientY: 40, source: start, viaTouch: true });
+    });
+
+    // Android raises its own contextmenu for a held finger; iOS does not. One
+    // gesture must reach the handler once on both.
+    it('swallows the contextmenu Android raises after a claimed long-press, but not a later right-click', () => {
+        const handler = listen(outer, true);
+
+        touchDown();
+        vi.advanceTimersByTime(500);
+        vi.advanceTimersByTime(100);
+        const echo = touchContextMenu(leaf, finger);
+
+        expect(handler).toHaveBeenCalledTimes(1);
+        expect(echo.defaultPrevented).toBe(true);
+
+        vi.advanceTimersByTime(1000);
+        rightClick(leaf);
+        expect(handler).toHaveBeenCalledTimes(2);
+    });
+
+    // Releasing the finger can still raise a click on the element that was held (iOS does, and so does
+    // Chromium's touch emulation); it would close the menu the hold just opened, or activate the target.
+    it('swallows the click that follows the release of a claimed long-press, and only that one', () => {
+        const handler = listen(outer, true);
+        const reached = vi.fn<() => void>();
+        document.addEventListener('click', reached, true);
+        try {
+            touchDown();
+            vi.advanceTimersByTime(900);
+            expect(handler).toHaveBeenCalledTimes(1);
+
+            leaf.dispatchEvent(touchEvent('touchend', [], [finger]));
+            vi.advanceTimersByTime(50);
+            const release = new MouseEvent('click', { bubbles: true, cancelable: true });
+            leaf.dispatchEvent(release);
+            expect(reached).not.toHaveBeenCalled();
+            expect(release.defaultPrevented).toBe(true);
+
+            leaf.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+            expect(reached).toHaveBeenCalledTimes(1);
+        } finally {
+            document.removeEventListener('click', reached, true);
+        }
+    });
+
+    // Android raises no release click, and a quick tap on a menu item right after lifting the finger is a real one.
+    it('swallows only a click that lands on the held element, and nothing when the hold never ends or a newer one replaces it', () => {
+        listen(outer, true);
+        const reached = vi.fn<() => void>();
+        const elsewhere = document.createElement('button');
+        document.body.appendChild(elsewhere);
+        document.addEventListener('click', reached, true);
+        try {
+            touchDown();
+            vi.advanceTimersByTime(600);
+            // No touchend: nothing is armed, so an unrelated click goes through.
+            elsewhere.click();
+            expect(reached).toHaveBeenCalledTimes(1);
+
+            // Released: a click somewhere else (a tap on a menu item) is still not the release click...
+            leaf.dispatchEvent(touchEvent('touchend', [], [finger]));
+            elsewhere.click();
+            expect(reached).toHaveBeenCalledTimes(2);
+            // ...and the one on the held element still is.
+            leaf.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+            expect(reached).toHaveBeenCalledTimes(2);
+
+            // Two holds, one release: only one guard was ever waiting, so only one click is taken.
+            vi.advanceTimersByTime(1000);
+            touchDown();
+            vi.advanceTimersByTime(600);
+            touchDown();
+            vi.advanceTimersByTime(600);
+            leaf.dispatchEvent(touchEvent('touchend', [], [finger]));
+            leaf.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+            leaf.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+            expect(reached).toHaveBeenCalledTimes(3);
+        } finally {
+            document.removeEventListener('click', reached, true);
+            elsewhere.remove();
+        }
+    });
+
+    it('lets a click through that comes long after the release, or after a long-press nobody claimed', () => {
+        const handler = listen(outer, false);
+        const reached = vi.fn<() => void>();
+        document.addEventListener('click', reached, true);
+        try {
+            touchDown();
+            vi.advanceTimersByTime(600);
+            leaf.dispatchEvent(touchEvent('touchend', [], [finger]));
+            leaf.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+            expect(handler).toHaveBeenCalledTimes(1);
+            expect(reached).toHaveBeenCalledTimes(1);
+        } finally {
+            document.removeEventListener('click', reached, true);
+        }
+
+        const claimingHandler = listen(inner, true);
+        document.addEventListener('click', reached, true);
+        try {
+            touchDown();
+            vi.advanceTimersByTime(600);
+            leaf.dispatchEvent(touchEvent('touchend', [], [finger]));
+            vi.advanceTimersByTime(2000);
+            leaf.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+            expect(claimingHandler).toHaveBeenCalledTimes(1);
+            expect(reached).toHaveBeenCalledTimes(2);
+        } finally {
+            document.removeEventListener('click', reached, true);
+        }
+    });
+
+    // The echo is not always late: the browser's own hold timer can beat ours.
+    it('answers the gesture once when the browser contextmenu arrives before the hold completes', () => {
+        const handler = listen(outer, true);
+
+        touchDown();
+        vi.advanceTimersByTime(450);
+        touchContextMenu(leaf, finger);
+        vi.advanceTimersByTime(1000);
+
+        expect(handler).toHaveBeenCalledTimes(1);
+    });
+
+    // Firefox types contextmenu as a plain MouseEvent: only a finger on the element a moment ago makes it a finger's.
+    it('takes an untyped contextmenu for a finger\'s only when a finger was just on the element', () => {
+        const handler = listen(outer, true);
+
+        const mouse = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 140, clientY: 90 });
+        leaf.dispatchEvent(mouse);
+        vi.advanceTimersByTime(2000);
+        touchDown();
+        const afterFinger = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 60, clientY: 40 });
+        leaf.dispatchEvent(afterFinger);
+
+        expect(handler).toHaveBeenNthCalledWith(1, expect.objectContaining({ source: mouse, viaTouch: false }));
+        expect(handler).toHaveBeenNthCalledWith(2, expect.objectContaining({ source: afterFinger, viaTouch: true }));
+    });
+
+    // Hybrid devices: a finger's leftovers never eat a mouse click made a moment later.
+    it('honours a mouse right-click made right after a claimed long-press or a pan', () => {
+        const handler = listen(outer, true);
+
+        touchDown();
+        vi.advanceTimersByTime(500);
+        rightClick(leaf);
+        expect(handler).toHaveBeenCalledTimes(2);
+
+        vi.advanceTimersByTime(2000);
+        touchDown();
+        leaf.dispatchEvent(touchEvent('touchmove', [{ clientX: 160, clientY: 40 }]));
+        rightClick(leaf);
+        expect(handler).toHaveBeenCalledTimes(3);
+    });
+
+    // The swallow is for a gesture somebody answered. A long-press the handler
+    // declined leaves the browser's own contextmenu a genuine second chance.
+    it('hands the contextmenu after a declined long-press to the handler instead of swallowing it', () => {
+        const handler = listen(outer, false);
+
+        touchDown();
+        vi.advanceTimersByTime(600);
+        const echo = touchContextMenu(leaf, finger);
+
+        expect(handler).toHaveBeenCalledTimes(2);
+        expect(handler).toHaveBeenLastCalledWith(expect.objectContaining({ viaTouch: true, source: echo }));
+        expect(echo.defaultPrevented).toBe(false);
+    });
+
+    it.each([
+        { name: 'the finger travels 15px', gesture: () => leaf.dispatchEvent(touchEvent('touchmove', [{ clientX: 75, clientY: 40 }])) },
+        { name: 'a second finger joins', gesture: () => touchDown([finger, { clientX: 200, clientY: 40 }]) },
+        { name: 'the finger lifts', gesture: () => leaf.dispatchEvent(touchEvent('touchend', [], [finger])) },
+    ])('never opens when $name before the hold completes', ({ gesture }) => {
+        const handler = listen(outer, true);
+
+        touchDown();
+        vi.advanceTimersByTime(200);
+        gesture();
+        vi.advanceTimersByTime(1000);
+
+        expect(handler).not.toHaveBeenCalled();
+    });
+
+    // The platform's own long-press arriving in the middle of a pan: the finger
+    // travelled, so it is not a press, and the browser's guess must lose.
+    it('ignores and suppresses the contextmenu a browser raises mid-pan', () => {
+        const handler = listen(outer, true);
+
+        touchDown();
+        leaf.dispatchEvent(touchEvent('touchmove', [{ clientX: 120, clientY: 40 }]));
+        vi.advanceTimersByTime(300);
+        const midPan = touchContextMenu(leaf, { clientX: 120, clientY: 40 });
+
+        expect(handler).not.toHaveBeenCalled();
+        expect(midPan.defaultPrevented).toBe(true);
+    });
+
+    // What Chromium really sends for the key (measured): a PointerEvent with button -1 and
+    // the centre of the focused element. It is a real point and passes through untouched.
+    it('passes the point of a keyboard-initiated contextmenu through as reported', () => {
+        const handler = listen(outer, true);
+
+        const key = new PointerEvent('contextmenu', { bubbles: true, cancelable: true, button: -1, clientX: 260, clientY: 170 });
+        leaf.dispatchEvent(key);
+
+        expect(handler).toHaveBeenCalledWith({ target: leaf, clientX: 260, clientY: 170, source: key, viaTouch: false });
+        expect(key.defaultPrevented).toBe(true);
+    });
+
+    it('stops a pending long-press when the browser starts a drag of the element', () => {
+        const handler = listen(outer, true);
+
+        touchDown();
+        vi.advanceTimersByTime(200);
+        leaf.dispatchEvent(new Event('dragstart', { bubbles: true }));
+        vi.advanceTimersByTime(1000);
+
+        expect(handler).not.toHaveBeenCalled();
+    });
+
+    // Nested targets: the innermost one that acts owns the gesture, for the
+    // right-click and for the long-press alike.
+    it.each([
+        { gesture: 'right-click', perform: () => { rightClick(leaf); } },
+        { gesture: 'long-press', perform: () => { touchDown(); vi.advanceTimersByTime(500); } },
+    ])('the innermost claiming target owns a $gesture', ({ perform }) => {
+        const outerHandler = listen(outer, true);
+        const innerHandler = listen(inner, true);
+
+        perform();
+
+        expect(innerHandler).toHaveBeenCalledTimes(1);
+        expect(outerHandler).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        { gesture: 'right-click', perform: () => { rightClick(leaf); } },
+        { gesture: 'long-press', perform: () => { touchDown(); vi.advanceTimersByTime(500); } },
+    ])('the outer target answers a $gesture the inner one declined', ({ perform }) => {
+        const outerHandler = listen(outer, true);
+        const innerHandler = listen(inner, false);
+
+        perform();
+
+        expect(innerHandler).toHaveBeenCalledTimes(1);
+        expect(outerHandler).toHaveBeenCalledTimes(1);
+    });
+
+    // stopPropagation cannot separate two listeners on one element (a table with both
+    // the directive and the addon), so the claim itself has to.
+    it.each([
+        { gesture: 'right-click', perform: () => { rightClick(leaf); } },
+        { gesture: 'long-press', perform: () => { touchDown(); vi.advanceTimersByTime(500); } },
+    ])('a second handler on the same element does not answer a $gesture the first one claimed', ({ perform }) => {
+        const first = listen(outer, true);
+        const second = listen(outer, true);
+
+        perform();
+
+        expect(first).toHaveBeenCalledTimes(1);
+        expect(second).not.toHaveBeenCalled();
+    });
+
+    it('stops answering after cleanup', () => {
+        const handler = listen(outer, true);
+        for (const dispose of disposers.splice(0)) dispose();
+
+        rightClick(leaf);
+        touchDown();
+        vi.advanceTimersByTime(1000);
+
+        expect(handler).not.toHaveBeenCalled();
+    });
+});
+
+describe('dismissOnOutsideTouch', () => {
+    let host: HTMLElement;
+    let inside: HTMLElement;
+    let onDismiss: ReturnType<typeof vi.fn<() => void>>;
+
+    beforeEach(() => {
+        host = document.createElement('div');
+        inside = document.createElement('button');
+        host.appendChild(inside);
+        document.body.appendChild(host);
+        onDismiss = vi.fn<() => void>();
+    });
+
+    afterEach(() => {
+        host.remove();
+    });
+
+    // The tooltip opens on a touchstart and registers its dismissal inside that
+    // very touch; a listener added mid-dispatch fires for the event in flight
+    // unless it is in a phase that has already passed.
+    it('does not fire for the touch that registered it, then fires once for a touch outside', () => {
+        let dispose = (): void => undefined;
+        host.addEventListener('touchstart', () => {
+            dispose = dismissOnOutsideTouch(host, onDismiss);
+        }, { once: true });
+
+        inside.dispatchEvent(touchEvent('touchstart', [{ clientX: 1, clientY: 1 }]));
+        expect(onDismiss).not.toHaveBeenCalled();
+
+        inside.dispatchEvent(touchEvent('touchstart', [{ clientX: 1, clientY: 1 }]));
+        expect(onDismiss).not.toHaveBeenCalled();
+
+        document.body.dispatchEvent(touchEvent('touchstart', [{ clientX: 300, clientY: 300 }]));
+        expect(onDismiss).toHaveBeenCalledTimes(1);
+
+        dispose();
+    });
+
+    // The opening touch can land anywhere - here beside the host - so "not for the
+    // touch that registered it" cannot lean on the inside-the-host check: a listener
+    // added mid-dispatch in the bubble phase would still receive that same event.
+    it('does not fire for an opening touch that landed outside the host either', () => {
+        const beside = document.createElement('div');
+        document.body.appendChild(beside);
+        let dispose = (): void => undefined;
+        beside.addEventListener('touchstart', () => {
+            dispose = dismissOnOutsideTouch(host, onDismiss);
+        }, { once: true });
+
+        beside.dispatchEvent(touchEvent('touchstart', [{ clientX: 1, clientY: 1 }]));
+        expect(onDismiss).not.toHaveBeenCalled();
+
+        beside.dispatchEvent(touchEvent('touchstart', [{ clientX: 1, clientY: 1 }]));
+        expect(onDismiss).toHaveBeenCalledTimes(1);
+
+        dispose();
+        beside.remove();
+    });
+
+    it('stops listening once cleaned up', () => {
+        const dispose = dismissOnOutsideTouch(host, onDismiss);
+        dispose();
+
+        document.body.dispatchEvent(touchEvent('touchstart', [{ clientX: 300, clientY: 300 }]));
+
+        expect(onDismiss).not.toHaveBeenCalled();
     });
 });

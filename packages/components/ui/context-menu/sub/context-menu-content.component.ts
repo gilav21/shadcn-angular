@@ -18,6 +18,15 @@ import { cn } from '../../../lib/utils';
 import { inheritThemeTokens } from '../../../lib/theme-presets';
 import { CONTEXT_MENU } from '../context-menu.component';
 
+type RingMove = 'next' | 'prev' | 'first' | 'last';
+
+const RING_MOVES: ReadonlyMap<string, RingMove> = new Map<string, RingMove>([
+    ['ArrowDown', 'next'],
+    ['ArrowUp', 'prev'],
+    ['Home', 'first'],
+    ['End', 'last'],
+]);
+
 @Component({
     selector: 'ui-context-menu-content',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -32,6 +41,9 @@ import { CONTEXT_MENU } from '../context-menu.component';
         [style.z-index]="9999"
         [attr.data-state]="contextMenu?.open() ? 'open' : 'closed'"
         [attr.data-slot]="'context-menu-content'"
+        role="menu"
+        tabindex="-1"
+        (keydown)="onKeydown($event)"
       >
         <ng-content />
       </div>
@@ -62,6 +74,7 @@ export class ContextMenuContentComponent implements OnDestroy {
     private readonly viewContainerRef = inject(ViewContainerRef);
     private embeddedViewRef: EmbeddedViewRef<unknown> | null = null;
     private portalHost: HTMLElement | null = null;
+    private returnFocusTo: HTMLElement | null = null;
 
     adjustedPosition = signal({ x: 0, y: 0 });
 
@@ -83,6 +96,8 @@ export class ContextMenuContentComponent implements OnDestroy {
     }
 
     private showContent(): void {
+        // Opening again from another focusable target while already open: hand focus back to that one.
+        if (!this.focusBelongsToMenu()) this.returnFocusTo = this.activeElement();
         if (this.embeddedViewRef) return;
 
         this.portalHost = this.document.createElement('div');
@@ -100,15 +115,83 @@ export class ContextMenuContentComponent implements OnDestroy {
         });
     }
 
+    /**
+     * Closes the portal and hands focus back to where it was before the menu
+     * opened. Only when focus is still the menu's own (inside a panel, or lost to
+     * `<body>` when the panel's item was clicked away from): a user who moved on
+     * to another field keeps it.
+     */
     private hideContent(): void {
+        const returnTo = this.focusBelongsToMenu() ? this.returnFocusTo : null;
+        this.teardown();
+        if (returnTo?.isConnected) returnTo.focus({ preventScroll: true });
+    }
+
+    private teardown(): void {
+        this.returnFocusTo = null;
         this.embeddedViewRef?.destroy();
         this.embeddedViewRef = null;
         this.portalHost?.remove();
         this.portalHost = null;
     }
 
+    /** Destroying the menu with the page or view it lives in is not the user closing it: focus is not moved. */
     ngOnDestroy(): void {
-        this.hideContent();
+        this.teardown();
+    }
+
+    private activeElement(): HTMLElement | null {
+        const active = this.document.activeElement;
+        return active instanceof HTMLElement && active !== this.document.body ? active : null;
+    }
+
+    private focusBelongsToMenu(): boolean {
+        const active = this.activeElement();
+        return !active || active.closest('[data-context-menu-portal], [data-context-menu-sub-portal]') !== null;
+    }
+
+    /** The panel's arrow-key ring: its own enabled items, sub-menu triggers included, in DOM order. */
+    private ringItems(panel: HTMLElement): HTMLElement[] {
+        return Array.from(panel.querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'))
+            .filter(item => item.closest('[role="menu"]') === panel);
+    }
+
+    /** Opening a menu moves focus to its first enabled item, or to the panel when every item is disabled. */
+    private focusInitial(panel: HTMLElement): void {
+        if (panel.contains(this.document.activeElement)) return;
+        (this.ringItems(panel)[0] ?? panel).focus({ preventScroll: true });
+    }
+
+    /**
+     * Keyboard map for the open menu: ArrowDown/ArrowUp walk the enabled items
+     * with wrap-around, Home/End jump to the ends, Tab closes the menu and
+     * returns focus to where it was. Enter, Space and the sub-menu arrows belong
+     * to the item that has focus. Escape is the overlay stack's.
+     */
+    onKeydown(event: KeyboardEvent): void {
+        if (event.ctrlKey || event.altKey || event.metaKey) return;
+        if (event.key === 'Tab') {
+            event.preventDefault();
+            this.contextMenu?.close();
+            return;
+        }
+        const move = RING_MOVES.get(event.key);
+        if (!move) return;
+        event.preventDefault();
+        this.focusRing(event.currentTarget as HTMLElement, move);
+    }
+
+    private focusRing(panel: HTMLElement, move: RingMove): void {
+        const items = this.ringItems(panel);
+        const current = items.indexOf(this.document.activeElement as HTMLElement);
+        const last = items.length - 1;
+        const index = {
+            next: current === last ? 0 : current + 1,
+            prev: current <= 0 ? last : current - 1,
+            first: 0,
+            last,
+        }[move];
+        items[index]?.focus();
     }
 
     private calculatePosition(): void {
@@ -142,10 +225,11 @@ export class ContextMenuContentComponent implements OnDestroy {
         this.adjustedPosition.set({ x, y });
         // The signal write alone never re-renders this relocated view: the clamp never reached the panel.
         this.embeddedViewRef?.detectChanges();
+        this.focusInitial(content);
     }
 
     classes = computed(() => cn(
-        'min-w-[8rem] max-w-[calc(100vw-16px)] max-h-[calc(100vh-16px)] overflow-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
+        'min-w-[8rem] outline-none focus-visible:ring-1 focus-visible:ring-ring max-w-[calc(100vw-16px)] max-h-[calc(100vh-16px)] overflow-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
         'animate-in fade-in-0 zoom-in-95',
         this.class()
     ));

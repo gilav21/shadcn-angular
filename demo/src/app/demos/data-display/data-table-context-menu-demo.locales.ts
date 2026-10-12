@@ -3,8 +3,6 @@ import type { LocaleMeta } from '../../../../../packages/components/lib/i18n';
 export interface DataTableContextMenuDemoLocale extends LocaleMeta {
   heading: string;
   description: string;
-  touchTitle: string;
-  touchHint: string;
   tableHeading: string;
   tableDesc: string;
   colCustomer: string;
@@ -52,9 +50,6 @@ export const DATA_TABLE_CONTEXT_MENU_DEMO_LOCALES: Record<string, DataTableConte
     heading: 'Data Table Context Menu',
     description:
       'A directive that attaches a context menu to <ui-data-table>. Right-click a row to act on it, and right-click a column header to sort, pin or hide that column. Both outputs tell you exactly which row or which column was hit.',
-    touchTitle: 'Touch devices',
-    touchHint:
-      'This directive listens for right-click only — it has no long-press fallback. On touch devices use the ⋮ button at the end of each row, which opens the very same menu.',
     tableHeading: 'Rows and column headers',
     tableDesc:
       'Right-click a row for Edit / Duplicate / Delete. Right-click a column header for Sort, Pin and Hide. Every action is applied to the table below.',
@@ -102,9 +97,6 @@ export const DATA_TABLE_CONTEXT_MENU_DEMO_LOCALES: Record<string, DataTableConte
     heading: 'תפריט הקשר לטבלת נתונים',
     description:
       'דירקטיבה המחברת תפריט הקשר ל-<ui-data-table>. לחיצה ימנית על שורה מאפשרת לפעול עליה, ולחיצה ימנית על כותרת עמודה מאפשרת מיון, נעיצה או הסתרה. שני הפלטים מדווחים בדיוק על איזו שורה או עמודה נלחץ.',
-    touchTitle: 'מכשירי מגע',
-    touchHint:
-      'הדירקטיבה מאזינה ללחיצה ימנית בלבד — אין לה חלופת לחיצה ארוכה. במכשירי מגע השתמשו בכפתור ⋮ בסוף כל שורה, שפותח בדיוק את אותו התפריט.',
     tableHeading: 'שורות וכותרות עמודות',
     tableDesc:
       'לחיצה ימנית על שורה: עריכה / שכפול / מחיקה. לחיצה ימנית על כותרת עמודה: מיון, נעיצה והסתרה. כל פעולה מוחלת על הטבלה שלמטה.',
@@ -152,9 +144,6 @@ export const DATA_TABLE_CONTEXT_MENU_DEMO_LOCALES: Record<string, DataTableConte
     heading: 'قائمة سياق جدول البيانات',
     description:
       'موجّه يربط قائمة سياق بـ <ui-data-table>. انقر بزر الفأرة الأيمن على صف للتعامل معه، وانقر على رأس عمود للفرز أو التثبيت أو الإخفاء. يخبرك المخرجان بالضبط أي صف أو أي عمود تم النقر عليه.',
-    touchTitle: 'أجهزة اللمس',
-    touchHint:
-      'يستمع هذا الموجّه للنقر بالزر الأيمن فقط — لا يوجد بديل للضغط المطوّل. على أجهزة اللمس استخدم زر ⋮ في نهاية كل صف، فهو يفتح القائمة نفسها.',
     tableHeading: 'الصفوف ورؤوس الأعمدة',
     tableDesc:
       'انقر بالزر الأيمن على صف للتحرير / التكرار / الحذف. انقر على رأس عمود للفرز والتثبيت والإخفاء. تُطبَّق كل عملية على الجدول أدناه.',
@@ -201,9 +190,6 @@ export const DATA_TABLE_CONTEXT_MENU_DEMO_LOCALES: Record<string, DataTableConte
     heading: 'Datentabellen-Kontextmenü',
     description:
       'Eine Direktive, die ein Kontextmenü an <ui-data-table> anfügt. Rechtsklick auf eine Zeile, um sie zu bearbeiten, Rechtsklick auf eine Spaltenüberschrift zum Sortieren, Anheften oder Ausblenden. Beide Outputs melden genau, welche Zeile oder Spalte getroffen wurde.',
-    touchTitle: 'Touch-Geräte',
-    touchHint:
-      'Diese Direktive reagiert nur auf Rechtsklick — es gibt keinen Langdruck-Fallback. Verwenden Sie auf Touch-Geräten die ⋮-Schaltfläche am Ende jeder Zeile; sie öffnet dasselbe Menü.',
     tableHeading: 'Zeilen und Spaltenüberschriften',
     tableDesc:
       'Rechtsklick auf eine Zeile für Bearbeiten / Duplizieren / Löschen. Rechtsklick auf eine Spaltenüberschrift für Sortieren, Anheften und Ausblenden. Jede Aktion wirkt sich auf die Tabelle unten aus.',
@@ -250,9 +236,6 @@ export const DATA_TABLE_CONTEXT_MENU_DEMO_LOCALES: Record<string, DataTableConte
     heading: 'Menu contextuel du tableau de données',
     description:
       'Une directive qui attache un menu contextuel à <ui-data-table>. Clic droit sur une ligne pour agir dessus, clic droit sur un en-tête de colonne pour trier, épingler ou masquer. Les deux sorties indiquent précisément quelle ligne ou colonne a été visée.',
-    touchTitle: 'Appareils tactiles',
-    touchHint:
-      'Cette directive n\'écoute que le clic droit — il n\'y a pas de repli par appui long. Sur les appareils tactiles, utilisez le bouton ⋮ à la fin de chaque ligne : il ouvre exactement le même menu.',
     tableHeading: 'Lignes et en-têtes de colonnes',
     tableDesc:
       'Clic droit sur une ligne pour Modifier / Dupliquer / Supprimer. Clic droit sur un en-tête pour Trier, Épingler et Masquer. Chaque action est appliquée au tableau ci-dessous.',
@@ -299,9 +282,6 @@ export const DATA_TABLE_CONTEXT_MENU_DEMO_LOCALES: Record<string, DataTableConte
     heading: 'Menú contextual de la tabla de datos',
     description:
       'Una directiva que adjunta un menú contextual a <ui-data-table>. Haz clic derecho en una fila para actuar sobre ella y en una cabecera de columna para ordenar, fijar u ocultar. Ambas salidas indican exactamente qué fila o columna se ha pulsado.',
-    touchTitle: 'Dispositivos táctiles',
-    touchHint:
-      'Esta directiva solo escucha el clic derecho: no tiene alternativa de pulsación larga. En dispositivos táctiles usa el botón ⋮ al final de cada fila, que abre el mismo menú.',
     tableHeading: 'Filas y cabeceras de columna',
     tableDesc:
       'Clic derecho en una fila para Editar / Duplicar / Eliminar. Clic derecho en una cabecera para Ordenar, Fijar y Ocultar. Cada acción se aplica a la tabla de abajo.',
@@ -348,9 +328,6 @@ export const DATA_TABLE_CONTEXT_MENU_DEMO_LOCALES: Record<string, DataTableConte
     heading: 'データテーブルのコンテキストメニュー',
     description:
       '<ui-data-table> にコンテキストメニューを付与するディレクティブです。行を右クリックして操作し、列ヘッダーを右クリックして並べ替え・固定・非表示を行います。2 つの出力は、どの行・どの列が対象かを正確に通知します。',
-    touchTitle: 'タッチデバイス',
-    touchHint:
-      'このディレクティブは右クリックのみを検知し、長押しの代替手段はありません。タッチデバイスでは各行末尾の ⋮ ボタンを使用してください。まったく同じメニューが開きます。',
     tableHeading: '行と列ヘッダー',
     tableDesc:
       '行を右クリックすると編集／複製／削除。列ヘッダーを右クリックすると並べ替え・固定・非表示。すべての操作は下のテーブルに反映されます。',
@@ -397,9 +374,6 @@ export const DATA_TABLE_CONTEXT_MENU_DEMO_LOCALES: Record<string, DataTableConte
     heading: '数据表格右键菜单',
     description:
       '一个为 <ui-data-table> 附加右键菜单的指令。右键单击行可对其操作，右键单击列标题可排序、固定或隐藏该列。两个输出会准确告知命中的是哪一行或哪一列。',
-    touchTitle: '触摸设备',
-    touchHint:
-      '该指令仅监听右键单击，没有长按回退方案。在触摸设备上请使用每行末尾的 ⋮ 按钮，它会打开完全相同的菜单。',
     tableHeading: '行与列标题',
     tableDesc: '右键单击行可进行编辑／复制／删除。右键单击列标题可排序、固定和隐藏。每个操作都会应用到下方的表格。',
     colCustomer: '客户',
@@ -445,9 +419,6 @@ export const DATA_TABLE_CONTEXT_MENU_DEMO_LOCALES: Record<string, DataTableConte
     heading: 'Контекстное меню таблицы данных',
     description:
       'Директива, добавляющая контекстное меню к <ui-data-table>. Щёлкните правой кнопкой по строке, чтобы выполнить действие над ней, или по заголовку столбца — чтобы отсортировать, закрепить или скрыть его. Оба выхода точно сообщают, какая строка или столбец были задействованы.',
-    touchTitle: 'Сенсорные устройства',
-    touchHint:
-      'Директива реагирует только на правый клик — запасного варианта с долгим нажатием нет. На сенсорных устройствах используйте кнопку ⋮ в конце каждой строки: она открывает то же самое меню.',
     tableHeading: 'Строки и заголовки столбцов',
     tableDesc:
       'Правый клик по строке — Изменить / Дублировать / Удалить. Правый клик по заголовку — Сортировка, Закрепление и Скрытие. Каждое действие применяется к таблице ниже.',
@@ -494,9 +465,6 @@ export const DATA_TABLE_CONTEXT_MENU_DEMO_LOCALES: Record<string, DataTableConte
     heading: 'Menu de contexto da tabela de dados',
     description:
       'Uma diretiva que anexa um menu de contexto a <ui-data-table>. Clique com o botão direito numa linha para agir sobre ela e num cabeçalho de coluna para ordenar, fixar ou ocultar. As duas saídas informam exatamente qual linha ou coluna foi atingida.',
-    touchTitle: 'Dispositivos de toque',
-    touchHint:
-      'Esta diretiva escuta apenas o clique direito — não há alternativa por toque longo. Em dispositivos de toque, use o botão ⋮ no fim de cada linha, que abre exatamente o mesmo menu.',
     tableHeading: 'Linhas e cabeçalhos de coluna',
     tableDesc:
       'Clique com o botão direito numa linha para Editar / Duplicar / Excluir. No cabeçalho, para Ordenar, Fixar e Ocultar. Cada ação é aplicada à tabela abaixo.',

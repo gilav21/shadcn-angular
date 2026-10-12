@@ -4,7 +4,6 @@ export interface TableContextMenuDemoLocale extends LocaleMeta {
   heading: string;
   description: string;
   rightClickHint: string;
-  touchHint: string;
   headerNote: string;
   caption: string;
   colInvoice: string;
@@ -44,8 +43,6 @@ export const TABLE_CONTEXT_MENU_DEMO_LOCALES: Record<string, TableContextMenuDem
     description:
       'The uiTableContextMenu directive attaches a context menu to a plain table. Right-clicking a body cell opens the menu at the pointer and emits the row payload (read from data-row) plus the column key (read from data-column).',
     rightClickHint: 'Right-click any row to open the actions menu.',
-    touchHint:
-      'On touch devices there is no right-click: the directive listens to contextmenu only, so use the row actions button (⋯) on the right of each row — it opens the very same menu.',
     headerNote:
       'Header cells are not handled by this directive — right-clicking a header falls through to the browser menu.',
     caption: 'Recent invoices — right-click a row for actions.',
@@ -85,8 +82,6 @@ export const TABLE_CONTEXT_MENU_DEMO_LOCALES: Record<string, TableContextMenuDem
     description:
       'ההנחיה uiTableContextMenu מחברת תפריט הקשר לטבלה רגילה. לחיצה ימנית על תא בגוף הטבלה פותחת את התפריט במיקום הסמן ומשדרת את נתוני השורה (מתוך data-row) יחד עם מפתח העמודה (מתוך data-column).',
     rightClickHint: 'לחצו לחיצה ימנית על שורה כדי לפתוח את תפריט הפעולות.',
-    touchHint:
-      'במכשירי מגע אין לחיצה ימנית: ההנחיה מאזינה רק לאירוע contextmenu, ולכן השתמשו בכפתור הפעולות (⋯) שבצד כל שורה — הוא פותח בדיוק את אותו תפריט.',
     headerNote: 'תאי הכותרת אינם מטופלים על ידי ההנחיה — לחיצה ימנית על כותרת תפתח את תפריט הדפדפן.',
     caption: 'חשבוניות אחרונות — לחצו לחיצה ימנית על שורה לפעולות.',
     colInvoice: 'חשבונית',
@@ -125,8 +120,6 @@ export const TABLE_CONTEXT_MENU_DEMO_LOCALES: Record<string, TableContextMenuDem
     description:
       'يربط التوجيه uiTableContextMenu قائمة سياق بجدول عادي. النقر بالزر الأيمن على خلية في جسم الجدول يفتح القائمة عند المؤشر ويُصدر بيانات الصف (من data-row) مع مفتاح العمود (من data-column).',
     rightClickHint: 'انقر بالزر الأيمن على أي صف لفتح قائمة الإجراءات.',
-    touchHint:
-      'لا يوجد نقر بالزر الأيمن على أجهزة اللمس: يستمع التوجيه إلى حدث contextmenu فقط، لذا استخدم زر إجراءات الصف (⋯) بجانب كل صف — فهو يفتح القائمة نفسها.',
     headerNote: 'لا يعالج هذا التوجيه خلايا الرأس — النقر بالزر الأيمن على الرأس يفتح قائمة المتصفح.',
     caption: 'أحدث الفواتير — انقر بالزر الأيمن على صف لعرض الإجراءات.',
     colInvoice: 'الفاتورة',
@@ -164,8 +157,6 @@ export const TABLE_CONTEXT_MENU_DEMO_LOCALES: Record<string, TableContextMenuDem
     description:
       'Die Direktive uiTableContextMenu hängt ein Kontextmenü an eine einfache Tabelle. Ein Rechtsklick auf eine Zelle im Tabellenkörper öffnet das Menü an der Zeigerposition und gibt die Zeilendaten (aus data-row) sowie den Spaltenschlüssel (aus data-column) aus.',
     rightClickHint: 'Klicken Sie mit der rechten Maustaste auf eine Zeile, um das Aktionsmenü zu öffnen.',
-    touchHint:
-      'Auf Touch-Geräten gibt es keinen Rechtsklick: Die Direktive lauscht nur auf contextmenu. Nutzen Sie daher die Aktionsschaltfläche (⋯) am Zeilenende — sie öffnet genau dasselbe Menü.',
     headerNote:
       'Kopfzellen werden von dieser Direktive nicht behandelt — ein Rechtsklick auf den Kopf öffnet das Browsermenü.',
     caption: 'Aktuelle Rechnungen — Rechtsklick auf eine Zeile für Aktionen.',
@@ -204,8 +195,6 @@ export const TABLE_CONTEXT_MENU_DEMO_LOCALES: Record<string, TableContextMenuDem
     description:
       "La directive uiTableContextMenu attache un menu contextuel à un tableau simple. Un clic droit sur une cellule du corps ouvre le menu à l'emplacement du pointeur et émet les données de la ligne (lues dans data-row) ainsi que la clé de colonne (lue dans data-column).",
     rightClickHint: 'Faites un clic droit sur une ligne pour ouvrir le menu d’actions.',
-    touchHint:
-      "Sur les appareils tactiles, il n'y a pas de clic droit : la directive n'écoute que l'événement contextmenu. Utilisez donc le bouton d'actions (⋯) au bout de chaque ligne — il ouvre exactement le même menu.",
     headerNote:
       "Les cellules d'en-tête ne sont pas gérées par cette directive — un clic droit sur l'en-tête ouvre le menu du navigateur.",
     caption: 'Factures récentes — clic droit sur une ligne pour les actions.',
@@ -244,8 +233,6 @@ export const TABLE_CONTEXT_MENU_DEMO_LOCALES: Record<string, TableContextMenuDem
     description:
       'La directiva uiTableContextMenu asocia un menú contextual a una tabla sencilla. Al hacer clic derecho en una celda del cuerpo, el menú se abre en el puntero y emite los datos de la fila (leídos de data-row) junto con la clave de la columna (leída de data-column).',
     rightClickHint: 'Haz clic derecho en cualquier fila para abrir el menú de acciones.',
-    touchHint:
-      'En dispositivos táctiles no hay clic derecho: la directiva solo escucha el evento contextmenu, así que usa el botón de acciones (⋯) al final de cada fila — abre exactamente el mismo menú.',
     headerNote:
       'Esta directiva no gestiona las celdas de encabezado: el clic derecho sobre el encabezado abre el menú del navegador.',
     caption: 'Facturas recientes: haz clic derecho en una fila para ver las acciones.',
@@ -284,8 +271,6 @@ export const TABLE_CONTEXT_MENU_DEMO_LOCALES: Record<string, TableContextMenuDem
     description:
       'uiTableContextMenu ディレクティブは、通常のテーブルにコンテキストメニューを取り付けます。本文セルを右クリックするとポインター位置にメニューが開き、行データ（data-row から読み取り）と列キー（data-column から読み取り）を発行します。',
     rightClickHint: '行を右クリックするとアクションメニューが開きます。',
-    touchHint:
-      'タッチ端末には右クリックがありません。このディレクティブは contextmenu イベントのみを監視するため、各行の右端にあるアクションボタン（⋯）を使ってください。まったく同じメニューが開きます。',
     headerNote:
       'ヘッダーセルはこのディレクティブの対象外です。ヘッダーを右クリックするとブラウザーのメニューが表示されます。',
     caption: '最近の請求書 — 行を右クリックするとアクションが表示されます。',
@@ -324,8 +309,6 @@ export const TABLE_CONTEXT_MENU_DEMO_LOCALES: Record<string, TableContextMenuDem
     description:
       'uiTableContextMenu 指令为普通表格附加上下文菜单。右键点击表体单元格会在指针处打开菜单，并发出行数据（从 data-row 读取）以及列键（从 data-column 读取）。',
     rightClickHint: '右键点击任意行即可打开操作菜单。',
-    touchHint:
-      '触摸设备没有右键：该指令只监听 contextmenu 事件，因此请使用每行右侧的操作按钮（⋯）——它会打开完全相同的菜单。',
     headerNote: '该指令不处理表头单元格——右键点击表头会打开浏览器自带菜单。',
     caption: '最近的发票 — 右键点击某一行查看操作。',
     colInvoice: '发票',
@@ -363,8 +346,6 @@ export const TABLE_CONTEXT_MENU_DEMO_LOCALES: Record<string, TableContextMenuDem
     description:
       'Директива uiTableContextMenu добавляет контекстное меню к обычной таблице. Щелчок правой кнопкой по ячейке тела таблицы открывает меню в позиции указателя и передаёт данные строки (из data-row) вместе с ключом столбца (из data-column).',
     rightClickHint: 'Щёлкните правой кнопкой по строке, чтобы открыть меню действий.',
-    touchHint:
-      'На сенсорных устройствах правого щелчка нет: директива слушает только событие contextmenu, поэтому используйте кнопку действий (⋯) справа от каждой строки — она открывает то же самое меню.',
     headerNote:
       'Ячейки заголовка эта директива не обрабатывает — щелчок правой кнопкой по заголовку откроет меню браузера.',
     caption: 'Последние счета — щёлкните строку правой кнопкой для действий.',
@@ -403,8 +384,6 @@ export const TABLE_CONTEXT_MENU_DEMO_LOCALES: Record<string, TableContextMenuDem
     description:
       'A diretiva uiTableContextMenu anexa um menu de contexto a uma tabela simples. Clicar com o botão direito numa célula do corpo abre o menu na posição do ponteiro e emite os dados da linha (lidos de data-row) e a chave da coluna (lida de data-column).',
     rightClickHint: 'Clique com o botão direito numa linha para abrir o menu de ações.',
-    touchHint:
-      'Em dispositivos de toque não há clique com o botão direito: a diretiva escuta apenas o evento contextmenu, portanto use o botão de ações (⋯) no fim de cada linha — ele abre exatamente o mesmo menu.',
     headerNote:
       'As células de cabeçalho não são tratadas por esta diretiva — clicar com o botão direito no cabeçalho abre o menu do navegador.',
     caption: 'Faturas recentes — clique com o botão direito numa linha para ver as ações.',

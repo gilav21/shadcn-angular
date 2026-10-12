@@ -386,19 +386,22 @@ export class TreeComponent {
      * visible node that has children. The expand/collapse arrows are direction-aware
      * ({@link isRtl}): in LTR, Right expands a collapsed parent then steps into its first
      * child, and Left collapses an open node or otherwise walks up to the parent; RTL swaps
-     * the two. There is no typeahead. Note it calls `preventDefault()` on every keydown it
-     * receives, including keys it does not handle.
+     * the two. There is no typeahead. It cancels only the keys it handles, and not those
+     * pressed with Ctrl, Alt or Meta: Tab, F10 / Shift+F10 and the context-menu key stay the
+     * browser's, so a keyboard user can leave the tree and open a menu on a focused node.
      */
     onKeydown(event: KeyboardEvent): void {
         const items = this.getVisibleItems();
         if (items.length === 0) return;
 
+        const expandKey = this.isRtl() ? 'ArrowLeft' : 'ArrowRight';
+        const collapseKey = this.isRtl() ? 'ArrowRight' : 'ArrowLeft';
+        const handled = ['ArrowDown', 'ArrowUp', 'Enter', ' ', 'Home', 'End', '*', expandKey, collapseKey];
+        if (!handled.includes(event.key) || event.ctrlKey || event.altKey || event.metaKey) return;
+
         const currentFocus = this.focusedKey();
         const itemValues = items.map(i => i.value());
         const currentIndex = currentFocus ? itemValues.indexOf(currentFocus) : -1;
-
-        const expandKey = this.isRtl() ? 'ArrowLeft' : 'ArrowRight';
-        const collapseKey = this.isRtl() ? 'ArrowRight' : 'ArrowLeft';
 
         event.preventDefault();
         this.dispatchKeyAction(event.key, { items, itemValues, currentFocus, currentIndex, expandKey, collapseKey });

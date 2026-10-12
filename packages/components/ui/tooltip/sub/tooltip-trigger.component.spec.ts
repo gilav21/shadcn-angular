@@ -64,9 +64,9 @@ describe('TooltipTriggerComponent', () => {
         spanEl().dispatchEvent(new Event(type, { bubbles: true }));
     }
 
-    /** Non-bubbling so the document-level dismiss listener added mid-dispatch is skipped. */
+    /** A finger landing on the trigger, as a browser dispatches it: bubbling, through the document. */
     function fireTouchStart(): TouchEvent {
-        const event = new Event('touchstart', { bubbles: false, cancelable: true }) as TouchEvent;
+        const event = new Event('touchstart', { bubbles: true, cancelable: true }) as TouchEvent;
         spanEl().dispatchEvent(event);
         return event;
     }
@@ -156,10 +156,10 @@ describe('TooltipTriggerComponent', () => {
             expect(tooltip().open()).toBe(true);
         });
 
-        it('shows on touchstart and preventDefaults', () => {
+        it('shows on touchstart and leaves the tap to the wrapped control', () => {
             const event = fireTouchStart();
             expect(tooltip().open()).toBe(true);
-            expect(event.defaultPrevented).toBe(true);
+            expect(event.defaultPrevented).toBe(false);
         });
 
         it('toggles off on a second touchstart', () => {
@@ -179,7 +179,7 @@ describe('TooltipTriggerComponent', () => {
         it('dismisses when a touchstart is dispatched elsewhere on the document', () => {
             fireTouchStart();
             expect(tooltip().open()).toBe(true);
-            document.dispatchEvent(new Event('touchstart', { bubbles: true }));
+            document.body.dispatchEvent(new Event('touchstart', { bubbles: true }));
             expect(tooltip().open()).toBe(false);
         });
     });
@@ -196,7 +196,7 @@ describe('TooltipTriggerComponent', () => {
         removeTrigger();
         tooltip().show();
         // A leaked listener or auto-dismiss timer would close the still-live tooltip.
-        document.dispatchEvent(new Event('touchstart', { bubbles: true }));
+        document.body.dispatchEvent(new Event('touchstart', { bubbles: true }));
         vi.advanceTimersByTime(2500);
         expect(tooltip().open()).toBe(true);
     });
@@ -249,5 +249,50 @@ describe('TooltipTriggerComponent — no tooltip parent', () => {
         restoreTouch = setTouchDevice(true);
         const event = new Event('touchstart', { bubbles: false, cancelable: true }) as TouchEvent;
         expect(() => spanEl().dispatchEvent(event)).not.toThrow();
+    });
+});
+
+/** The shape every tooltip story uses: a real control inside the trigger. */
+@Component({
+    template: `
+        <ui-tooltip>
+            <ui-tooltip-trigger><button type="button" (click)="saved = saved + 1">Save</button></ui-tooltip-trigger>
+        </ui-tooltip>
+    `,
+    imports: [TooltipComponent, TooltipTriggerComponent],
+})
+class WrappedControlHost {
+    saved = 0;
+}
+
+describe('TooltipTriggerComponent — a control wrapped in the trigger, on touch', () => {
+    let restoreTouch: (() => void) | null = null;
+
+    afterEach(() => {
+        vi.clearAllTimers();
+        vi.useRealTimers();
+        restoreTouch?.();
+    });
+
+    // UC-7, UC-8. A browser turns an un-prevented touch into the control's click;
+    // the trigger must show the tooltip without cancelling it, and the tooltip it
+    // shows must outlive the tap that opened it.
+    it('shows on tap, keeps the tooltip, and leaves the control its tap', async () => {
+        vi.useFakeTimers();
+        restoreTouch = setTouchDevice(true);
+        await TestBed.configureTestingModule({ imports: [WrappedControlHost] }).compileComponents();
+        const fixture = TestBed.createComponent(WrappedControlHost);
+        fixture.detectChanges();
+        const tooltip: TooltipComponent = fixture.debugElement.query(By.directive(TooltipComponent)).componentInstance;
+        const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+
+        const touchstart = new Event('touchstart', { bubbles: true, cancelable: true }) as TouchEvent;
+        button.dispatchEvent(touchstart);
+        button.dispatchEvent(new Event('touchend', { bubbles: true, cancelable: true }));
+        if (!touchstart.defaultPrevented) button.click();
+
+        expect(touchstart.defaultPrevented).toBe(false);
+        expect(fixture.componentInstance.saved).toBe(1);
+        expect(tooltip.open()).toBe(true);
     });
 });

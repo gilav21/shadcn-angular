@@ -410,7 +410,7 @@
       "lines": 5
     },
     "bento-grid/bento-grid.component.html": {
-      "bytes": 12579,
+      "bytes": 12041,
       "lines": 187
     },
     "bento-grid/bento-grid.component.spec.ts": {
@@ -1314,24 +1314,24 @@
       "lines": 167
     },
     "context-menu-attach.directive.spec.ts": {
-      "bytes": 4108,
-      "lines": 131
+      "bytes": 6111,
+      "lines": 187
     },
     "context-menu-attach.directive.ts": {
-      "bytes": 1460,
-      "lines": 54
+      "bytes": 1949,
+      "lines": 56
     },
     "context-menu-attach.stories.ts": {
-      "bytes": 10467,
-      "lines": 273
+      "bytes": 10498,
+      "lines": 274
     },
     "context-menu/context-menu.component.browser.spec.ts": {
-      "bytes": 6939,
-      "lines": 142
+      "bytes": 11994,
+      "lines": 262
     },
     "context-menu/context-menu.component.spec.ts": {
-      "bytes": 20492,
-      "lines": 499
+      "bytes": 33066,
+      "lines": 787
     },
     "context-menu/context-menu.component.ts": {
       "bytes": 6724,
@@ -1350,12 +1350,12 @@
       "lines": 11
     },
     "context-menu/sub/context-menu-content.component.ts": {
-      "bytes": 5264,
-      "lines": 152
+      "bytes": 8848,
+      "lines": 236
     },
     "context-menu/sub/context-menu-item.component.ts": {
-      "bytes": 2980,
-      "lines": 70
+      "bytes": 3895,
+      "lines": 91
     },
     "context-menu/sub/context-menu-label.component.ts": {
       "bytes": 916,
@@ -1374,8 +1374,8 @@
       "lines": 304
     },
     "context-menu/sub/context-menu-sub-content.component.ts": {
-      "bytes": 10102,
-      "lines": 260
+      "bytes": 10580,
+      "lines": 264
     },
     "context-menu/sub/context-menu-sub-trigger.component.ts": {
       "bytes": 5251,
@@ -1470,15 +1470,15 @@
       "lines": 46
     },
     "data-table-context-menu.directive.spec.ts": {
-      "bytes": 14139,
-      "lines": 377
+      "bytes": 18980,
+      "lines": 492
     },
     "data-table-context-menu.directive.ts": {
-      "bytes": 4980,
-      "lines": 145
+      "bytes": 5376,
+      "lines": 140
     },
     "data-table-context-menu.stories.ts": {
-      "bytes": 9095,
+      "bytes": 9060,
       "lines": 248
     },
     "data-table-range-chart/data-table-range-chart.component.html": {
@@ -1502,12 +1502,12 @@
       "lines": 1
     },
     "data-table/addons/context-menu/context-menu.directive.spec.ts": {
-      "bytes": 18526,
-      "lines": 486
+      "bytes": 19542,
+      "lines": 509
     },
     "data-table/addons/context-menu/context-menu.directive.ts": {
-      "bytes": 8343,
-      "lines": 223
+      "bytes": 8245,
+      "lines": 213
     },
     "data-table/addons/context-menu/index.ts": {
       "bytes": 42,
@@ -1590,24 +1590,24 @@
       "lines": 190
     },
     "data-table/data-table.component.browser.spec.ts": {
-      "bytes": 22707,
-      "lines": 431
+      "bytes": 27247,
+      "lines": 529
     },
     "data-table/data-table.component.css": {
       "bytes": 4243,
       "lines": 132
     },
     "data-table/data-table.component.html": {
-      "bytes": 69502,
-      "lines": 1530
+      "bytes": 69552,
+      "lines": 1531
     },
     "data-table/data-table.component.spec.ts": {
-      "bytes": 289095,
-      "lines": 6511
+      "bytes": 290433,
+      "lines": 6533
     },
     "data-table/data-table.component.ts": {
-      "bytes": 226191,
-      "lines": 6245
+      "bytes": 227510,
+      "lines": 6269
     },
     "data-table/data-table.coverage.spec.ts": {
       "bytes": 19823,
@@ -1954,8 +1954,8 @@
       "lines": 74
     },
     "dropdown-menu/dropdown-menu.component.spec.ts": {
-      "bytes": 47961,
-      "lines": 1084
+      "bytes": 52711,
+      "lines": 1202
     },
     "dropdown-menu/dropdown-menu.component.ts": {
       "bytes": 7694,
@@ -1978,8 +1978,8 @@
       "lines": 9
     },
     "dropdown-menu/sub/dropdown-menu-item.component.ts": {
-      "bytes": 2843,
-      "lines": 84
+      "bytes": 3442,
+      "lines": 95
     },
     "dropdown-menu/sub/dropdown-menu-label.component.ts": {
       "bytes": 382,
@@ -3282,12 +3282,12 @@
       "lines": 120
     },
     "kanban/kanban.component.spec.ts": {
-      "bytes": 58032,
-      "lines": 1324
+      "bytes": 61589,
+      "lines": 1398
     },
     "kanban/kanban.component.ts": {
-      "bytes": 50655,
-      "lines": 1043
+      "bytes": 51038,
+      "lines": 1050
     },
     "kanban/kanban.locales.ts": {
       "bytes": 26302,
@@ -3310,8 +3310,8 @@
       "lines": 269
     },
     "kanban/sub/kanban-card.component.ts": {
-      "bytes": 6841,
-      "lines": 163
+      "bytes": 7283,
+      "lines": 177
     },
     "kanban/sub/kanban-column-dialog.component.ts": {
       "bytes": 6818,
@@ -3322,8 +3322,8 @@
       "lines": 23
     },
     "kanban/sub/kanban-column.component.ts": {
-      "bytes": 15160,
-      "lines": 321
+      "bytes": 15594,
+      "lines": 336
     },
     "kanban/sub/kanban-delete-column-dialog.component.ts": {
       "bytes": 7024,
@@ -3474,8 +3474,8 @@
       "lines": 10
     },
     "menubar/menubar.component.spec.ts": {
-      "bytes": 34693,
-      "lines": 842
+      "bytes": 38158,
+      "lines": 925
     },
     "menubar/menubar.component.ts": {
       "bytes": 3738,
@@ -3494,8 +3494,8 @@
       "lines": 9
     },
     "menubar/sub/menubar-item.component.ts": {
-      "bytes": 2970,
-      "lines": 86
+      "bytes": 4204,
+      "lines": 109
     },
     "menubar/sub/menubar-menu.component.ts": {
       "bytes": 2357,
@@ -5942,16 +5942,16 @@
       "lines": 111
     },
     "table-context-menu.directive.spec.ts": {
-      "bytes": 8919,
-      "lines": 256
+      "bytes": 11154,
+      "lines": 313
     },
     "table-context-menu.directive.ts": {
-      "bytes": 3604,
-      "lines": 114
+      "bytes": 3398,
+      "lines": 89
     },
     "table-context-menu.stories.ts": {
-      "bytes": 13677,
-      "lines": 356
+      "bytes": 13760,
+      "lines": 357
     },
     "table/index.ts": {
       "bytes": 395,
@@ -6302,20 +6302,20 @@
       "lines": 41
     },
     "tooltip/sub/tooltip-trigger.component.spec.ts": {
-      "bytes": 8873,
-      "lines": 253
+      "bytes": 10807,
+      "lines": 298
     },
     "tooltip/sub/tooltip-trigger.component.ts": {
-      "bytes": 4071,
-      "lines": 136
+      "bytes": 3961,
+      "lines": 133
     },
     "tooltip/sub/tooltip.directive.spec.ts": {
-      "bytes": 14530,
-      "lines": 375
+      "bytes": 14240,
+      "lines": 371
     },
     "tooltip/sub/tooltip.directive.ts": {
-      "bytes": 8068,
-      "lines": 240
+      "bytes": 8023,
+      "lines": 237
     },
     "tooltip/tooltip.component.browser.spec.ts": {
       "bytes": 2660,
@@ -6362,15 +6362,15 @@
       "lines": 40
     },
     "tree-context-menu.directive.spec.ts": {
-      "bytes": 6912,
-      "lines": 197
+      "bytes": 9080,
+      "lines": 254
     },
     "tree-context-menu.directive.ts": {
-      "bytes": 2905,
-      "lines": 96
+      "bytes": 2924,
+      "lines": 82
     },
     "tree-context-menu.stories.ts": {
-      "bytes": 19285,
+      "bytes": 19314,
       "lines": 423
     },
     "tree-select/index.ts": {
@@ -6450,12 +6450,12 @@
       "lines": 35
     },
     "tree/tree.component.spec.ts": {
-      "bytes": 26706,
-      "lines": 678
+      "bytes": 28151,
+      "lines": 705
     },
     "tree/tree.component.ts": {
-      "bytes": 18846,
-      "lines": 503
+      "bytes": 19185,
+      "lines": 506
     },
     "tree/tree.stories.ts": {
       "bytes": 14425,
@@ -6798,6 +6798,14 @@
     "media.ts": {
       "bytes": 562,
       "lines": 14
+    },
+    "menu-activation.spec.ts": {
+      "bytes": 3101,
+      "lines": 88
+    },
+    "menu-activation.ts": {
+      "bytes": 2081,
+      "lines": 47
     },
     "numeric-step.spec.ts": {
       "bytes": 3328,
@@ -7164,12 +7172,12 @@
       "lines": 163
     },
     "touch.spec.ts": {
-      "bytes": 17723,
-      "lines": 488
+      "bytes": 36378,
+      "lines": 938
     },
     "touch.ts": {
-      "bytes": 11890,
-      "lines": 323
+      "bytes": 23651,
+      "lines": 594
     },
     "utils.ts": {
       "bytes": 2463,

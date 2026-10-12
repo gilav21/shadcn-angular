@@ -611,15 +611,15 @@
 
   <ui-context-menu #opsContextMenu>
     <ui-context-menu-content class="w-56">
-      <ui-context-menu-item (click)="opsGrid.copyCellToClipboard()" (keydown.enter)="opsGrid.copyCellToClipboard()">
+      <ui-context-menu-item (click)="opsGrid.copyCellToClipboard()">
         Copy Cell
         <ui-context-menu-shortcut>&#8984;C</ui-context-menu-shortcut>
       </ui-context-menu-item>
       <ui-context-menu-separator />
-      <ui-context-menu-item (click)="opsExp.exportToCsv('incidents')" (keydown.enter)="opsExp.exportToCsv('incidents')">
+      <ui-context-menu-item (click)="opsExp.exportToCsv('incidents')">
         Export CSV
       </ui-context-menu-item>
-      <ui-context-menu-item (click)="opsExp.exportToExcel('incidents')" (keydown.enter)="opsExp.exportToExcel('incidents')">
+      <ui-context-menu-item (click)="opsExp.exportToExcel('incidents')">
         Export Excel
       </ui-context-menu-item>
     </ui-context-menu-content>
@@ -760,34 +760,34 @@
         </ui-context-menu-label>
         <ui-context-menu-separator />
         @if (!ctx.isLeaf) {
-          <ui-context-menu-item (click)="treeTable.expandSubRow(ctx.row)" (keydown.enter)="treeTable.expandSubRow(ctx.row)">
+          <ui-context-menu-item (click)="treeTable.expandSubRow(ctx.row)">
             Expand
           </ui-context-menu-item>
-          <ui-context-menu-item (click)="treeTable.collapseSubRow(ctx.row)" (keydown.enter)="treeTable.collapseSubRow(ctx.row)">
+          <ui-context-menu-item (click)="treeTable.collapseSubRow(ctx.row)">
             Collapse
           </ui-context-menu-item>
-          <ui-context-menu-item (click)="treeTable.selectChildren(ctx.row)" (keydown.enter)="treeTable.selectChildren(ctx.row)">
+          <ui-context-menu-item (click)="treeTable.selectChildren(ctx.row)">
             Select All Children
           </ui-context-menu-item>
-          <ui-context-menu-item (click)="treeTable.deselectChildren(ctx.row)" (keydown.enter)="treeTable.deselectChildren(ctx.row)">
+          <ui-context-menu-item (click)="treeTable.deselectChildren(ctx.row)">
             Deselect All Children
           </ui-context-menu-item>
           <ui-context-menu-separator />
         }
         @if (ctx.depth === 0) {
-          <ui-context-menu-item (click)="treeTable.expandAllSubRows(-1)" (keydown.enter)="treeTable.expandAllSubRows(-1)">
+          <ui-context-menu-item (click)="treeTable.expandAllSubRows(-1)">
             Expand Entire Tree
           </ui-context-menu-item>
-          <ui-context-menu-item (click)="treeTable.collapseAllSubRows()" (keydown.enter)="treeTable.collapseAllSubRows()">
+          <ui-context-menu-item (click)="treeTable.collapseAllSubRows()">
             Collapse Entire Tree
           </ui-context-menu-item>
           <ui-context-menu-separator />
         }
-        <ui-context-menu-item (click)="treeTable.copyCellToClipboard()" (keydown.enter)="treeTable.copyCellToClipboard()">
+        <ui-context-menu-item (click)="treeTable.copyCellToClipboard()">
           Copy Cell
           <ui-context-menu-shortcut>Ctrl+C</ui-context-menu-shortcut>
         </ui-context-menu-item>
-        <ui-context-menu-item (click)="onTreeTableAction('view', ctx)" (keydown.enter)="onTreeTableAction('view', ctx)">
+        <ui-context-menu-item (click)="onTreeTableAction('view', ctx)">
           View Details
         </ui-context-menu-item>
       }

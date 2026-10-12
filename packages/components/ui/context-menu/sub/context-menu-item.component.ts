@@ -4,7 +4,10 @@ import {
     input,
     computed,
     inject,
+    ElementRef,
+    DestroyRef,
 } from '@angular/core';
+import { activateAsClick, blockDisabledActivation } from '../../../lib/menu-activation';
 import { cn } from '../../../lib/utils';
 import { CONTEXT_MENU } from '../context-menu.component';
 
@@ -22,11 +25,18 @@ import { CONTEXT_MENU } from '../context-menu.component';
         '[attr.data-slot]': '"context-menu-item"',
         '[attr.data-inset]': 'inset()',
         '[attr.data-variant]': 'variant()',
+        '[attr.data-disabled]': 'disabled() || null',
+        '[attr.aria-disabled]': 'disabled() || null',
+        '[attr.role]': '"menuitem"',
+        '[attr.tabindex]': '"-1"',
         '(click)': 'onClick()',
+        '(keydown.enter)': 'activate($event)',
+        '(keydown.space)': 'activate($event)',
     },
 })
 export class ContextMenuItemComponent {
     private readonly contextMenu = inject(CONTEXT_MENU, { optional: true });
+    private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
 
     /** Extra classes merged after the defaults on the host element (the item is its own host, there is no inner wrapper). */
     class = input('');
@@ -35,16 +45,20 @@ export class ContextMenuItemComponent {
     /** `'destructive'` paints the label and its focus/hover background in the destructive palette; reflected as `data-variant` for custom styling. */
     variant = input<'default' | 'destructive'>('default');
     /**
-     * Greys the item to 50% and sets `pointer-events: none`, so neither hover
-     * nor a click reaches it and {@link onClick} never runs. Note it emits no
-     * `aria-disabled`/`data-disabled` attribute and the item carries no
-     * `role="menuitem"`, so a disabled item is invisible to assistive tech —
-     * and no item participates in the sub-menu arrow-key ring, which only
-     * walks `[role="menuitem"]:not([data-disabled])`.
+     * Greys the item to 50% and sets `pointer-events: none`. It is exposed as
+     * `aria-disabled="true"` and `data-disabled`, drops out of the menu's
+     * arrow-key ring, and no activation reaches it by any route: a click from
+     * assistive technology or a programmatic `.click()` is stopped before your
+     * own `(click)` sees it, and Enter and Space do nothing.
      */
     disabled = input(false);
     /** Accelerator hint rendered end-aligned in muted small caps (e.g. `'⌘C'`). Display only — it binds no key handler; wire the shortcut yourself. */
     shortcut = input('');
+
+    constructor() {
+        const unblock = blockDisabledActivation(this.host, () => this.disabled());
+        inject(DestroyRef).onDestroy(unblock);
+    }
 
     classes = computed(() => cn(
         'relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors',
@@ -60,11 +74,18 @@ export class ContextMenuItemComponent {
     /**
      * Host click handler: dismisses the enclosing menu unless
      * {@link disabled}. It does not emit anything — bind your own `(click)` on
-     * the element for the action; yours runs first, then the menu closes.
+     * the element for the action; yours and the close run from the same click,
+     * whether it came from the pointer, from Enter or Space, or from assistive
+     * technology.
      */
     onClick(): void {
         if (!this.disabled()) {
             this.contextMenu?.close();
         }
+    }
+
+    /** Enter or Space on the item: one click, and the page behind the menu does not scroll. Nothing happens while {@link disabled}. */
+    activate(event: Event): void {
+        activateAsClick(event, this.host, this.disabled());
     }
 }

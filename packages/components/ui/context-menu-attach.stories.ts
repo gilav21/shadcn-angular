@@ -1,5 +1,6 @@
 import { JsonPipe } from '@angular/common';
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
+import { pointOf } from '../lib/touch';
 import { ContextMenuAttachDirective, type ContextMenuEvent } from './context-menu-attach.directive';
 import {
   ContextMenuComponent,
@@ -191,8 +192,8 @@ export const EventPayload: Story = {
             state.last = {
                 item: payload.item,
                 index: payload.index ?? null,
-                x: Math.round(payload.event.clientX),
-                y: Math.round(payload.event.clientY),
+                x: Math.round(pointOf(payload.event).x),
+                y: Math.round(pointOf(payload.event).y),
             };
         };
         return {
@@ -216,9 +217,9 @@ export const EventPayload: Story = {
 };
 
 /**
- * Touch devices: the directive listens for `contextmenu` only — it does NOT
- * implement long-press. Pair it with a visible actions button that calls
- * `menu.show(x, y)` so touch users can reach the same menu (CLAUDE.md §6).
+ * Touch devices: a one-finger long-press opens the menu like a right-click and
+ * emits once, on iOS and Android alike. A visible actions button that calls
+ * `menu.show(x, y)` is still a good discoverability aid.
  */
 export const TouchFallback: Story = {
     render: (args) => ({

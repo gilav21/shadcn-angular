@@ -432,6 +432,29 @@ describe('DataTableContextMenuDirective', () => {
     expect(emitted).toEqual([{ row: { id: '1', name: 'Alice' }, index: 0, selected: false }]);
   });
 
+  // Android raises its own contextmenu for a held finger; iOS does not. The
+  // table's row-menu output is analytics for consumers: one gesture, one emission.
+  it('opens a row menu once when the platform echoes a contextmenu after the long-press', async () => {
+    const { comp, fixture, directive } = setup(host);
+    comp.actions.set(() => [{ label: 'Edit' }]);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const emitted: RowActionContext<Row>[] = [];
+    directive.rowMenuOpen.subscribe((ctx) => emitted.push(ctx));
+
+    vi.useFakeTimers();
+    const cell = directiveEl(fixture).querySelector<HTMLElement>('.cm-cell');
+    cell?.dispatchEvent(touchStartAt(30, 40));
+    vi.advanceTimersByTime(500);
+    vi.advanceTimersByTime(100);
+    const echo = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 30, clientY: 40 });
+    cell?.dispatchEvent(echo);
+    vi.useRealTimers();
+
+    expect(emitted).toHaveLength(1);
+    expect(echo.defaultPrevented).toBe(true);
+  });
+
   it('ignores long-press when no rowActions is configured', async () => {
     const { fixture, directive } = setup(host);
     await fixture.whenStable();

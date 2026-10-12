@@ -8,8 +8,12 @@ import {
     QueryList,
     AfterContentInit,
     inject,
+    effect,
+    viewChild,
+    ElementRef,
 } from '@angular/core';
 import { cn } from '../../../lib/utils';
+import { onContextGesture, type ContextGesture } from '../../../lib/touch';
 import { readableForeground } from '../../../lib/color';
 import { BadgeComponent } from '../../badge';
 import { AvatarComponent } from '../../avatar';
@@ -24,13 +28,13 @@ import { type KanbanCard } from '../kanban.component';
     imports: [BadgeComponent, AvatarComponent],
     template: `
         <div
+            #surface
             [class]="classes()"
             [attr.data-slot]="'kanban-card'"
             [attr.data-card-id]="cardId()"
             [attr.draggable]="'true'"
             (dragstart)="onDragStart($event)"
             (dragend)="onDragEnd()"
-            (contextmenu)="onContextMenu($event)"
         >
             @if (hasCustomContent()) {
                 <ng-content />
@@ -75,6 +79,13 @@ import { type KanbanCard } from '../kanban.component';
 export class KanbanCardComponent implements AfterContentInit {
     private readonly kanban = inject(KANBAN, { optional: true });
     private readonly column = inject(KANBAN_COLUMN, { optional: true });
+    private readonly surface = viewChild.required<ElementRef<HTMLElement>>('surface');
+
+    constructor() {
+        effect((onCleanup) => {
+            onCleanup(onContextGesture(this.surface().nativeElement, (gesture) => this.openMenu(gesture)));
+        });
+    }
 
     /** Extra classes merged onto the card surface, after the priority border and drag-dim classes so they can override them. */
     class = input('');
@@ -133,8 +144,8 @@ export class KanbanCardComponent implements AfterContentInit {
     /**
      * HTML5 `dragstart` handler: puts the card id on the `dataTransfer` as
      * `text/plain` and tells the board a drag is in progress. Mouse/pointer only
-     * — `dragstart` never fires on touch, so touch users must use the card
-     * context menu's "Move to" submenu instead.
+     * — `dragstart` never fires on touch, so touch users move cards with the card
+     * context menu's "Move to" submenu, opened by a long-press.
      */
     onDragStart(event: DragEvent): void {
         const id = this.resolvedCardId();
@@ -151,13 +162,16 @@ export class KanbanCardComponent implements AfterContentInit {
         this.kanban?.endDrag();
     }
 
-    /** Opens the board's card context menu at the pointer and stops propagation so the column and board menus do not also fire. Requires {@link card} — a card rendering only projected content shows no menu. Right-click only; there is no long-press fallback. */
-    onContextMenu(event: MouseEvent): void {
-        event.preventDefault();
-        event.stopPropagation();
+    /**
+     * Opens the board's card context menu at the pointer or finger - a
+     * right-click, the context-menu key or a long-press - and claims the gesture
+     * so the column and board menus do not also open. Requires {@link card}: a
+     * card rendering only projected content shows no menu, but still keeps the
+     * browser's own menu away from its surface.
+     */
+    private openMenu(gesture: ContextGesture): boolean {
         const c = this.card();
-        if (c) {
-            this.kanban?.showCardContextMenu(event.clientX, event.clientY, c);
-        }
+        if (c) this.kanban?.showCardContextMenu(gesture.clientX, gesture.clientY, c);
+        return true;
     }
 }
