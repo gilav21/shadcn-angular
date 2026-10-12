@@ -67,6 +67,38 @@ describe('InputOTPComponent keyboard model (browser)', () => {
         await userEvent.keyboard('3');
         partial.detectChanges();
         expect(hidden(partial).value).toBe('123');
+
+        const rejected = mount('123');
+        await userEvent.click(slots(rejected)[1]);
+        await userEvent.keyboard('!');
+        rejected.detectChanges();
+        expect(hidden(rejected).value).toBe('123');
+        expect(rejected.componentInstance.emissions).toEqual([]);
+        expect(activeSlot(rejected)).toBe(1);
+    });
+
+    it('Backspace, Home and End move the highlight with the real caret, and an outside write re-aims it', async () => {
+        const fixture = mount('123');
+        await userEvent.click(slots(fixture)[1]);
+        await userEvent.keyboard('{Backspace}');
+        fixture.detectChanges();
+        expect(hidden(fixture).value).toBe('13');
+        expect(activeSlot(fixture)).toBe(1);
+
+        await userEvent.keyboard('{End}');
+        fixture.detectChanges();
+        expect(activeSlot(fixture)).toBe(2);
+        await userEvent.keyboard('{Home}9');
+        fixture.detectChanges();
+        expect(hidden(fixture).value).toBe('93');
+
+        fixture.componentInstance.code.set('7');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(activeSlot(fixture)).toBe(1);
+        await userEvent.keyboard('8');
+        fixture.detectChanges();
+        expect(hidden(fixture).value).toBe('78');
     });
 
     it('renders slot 0 leftmost and maps arrows physically in an RTL page', async () => {
@@ -123,12 +155,13 @@ describe('InputOTPComponent paste (browser)', () => {
     };
 
     it.each([
-        ['an empty field', '', '987654', '987654'],
-        ['a partly filled field', '123', '987654', '987654'],
-        ['a full field', '123456', '987654', '987654'],
-        ['a code with a dash and a space', '', 'ab-12 34', 'AB1234'],
-        ['a code longer than the field', '', '12345678', '123456'],
-    ])('a paste replaces the code in %s', async (_name, initial, pasted, expected) => {
+        ['an empty field', '', '987654', '987654', 5],
+        ['a partly filled field', '123', '987654', '987654', 5],
+        ['a full field', '123456', '987654', '987654', 5],
+        ['a code with a dash and a space', '', 'ab-12 34', 'AB1234', 5],
+        ['a code longer than the field', '', '12345678', '123456', 5],
+        ['a short code into a full field', '123456', '78', '78', 2],
+    ])('a paste replaces the code in %s', async (_name, initial, pasted, expected, active) => {
         const fixture = mount(initial);
         await userEvent.click(slots(fixture)[0]);
         fixture.componentInstance.emissions.length = 0;
@@ -138,5 +171,6 @@ describe('InputOTPComponent paste (browser)', () => {
         expect(hidden(fixture).value).toBe(expected);
         expect(fixture.componentInstance.code()).toBe(expected);
         expect(fixture.componentInstance.emissions).toEqual([expected]);
+        expect(activeSlot(fixture)).toBe(active);
     });
 });

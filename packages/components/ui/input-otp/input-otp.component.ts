@@ -8,6 +8,8 @@ import {
   ViewChild,
   model,
   forwardRef,
+  effect,
+  untracked,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cn } from '../../lib/utils';
@@ -74,7 +76,8 @@ function sanitizeCode(text: string, slotCount: number): string {
         [disabled]="isDisabled()"
         [attr.aria-label]="resolvedAriaLabel()"
         [attr.aria-labelledby]="ariaLabelledby()"
-        (input)="onInput()"
+        (input)="onInput($event)"
+        (compositionend)="onInput()"
         (keydown)="onKeydown($event)"
         (paste)="onPaste($event)"
         (focus)="onFocus()"
@@ -156,6 +159,26 @@ export class InputOTPComponent implements ControlValueAccessor {
     this.activeIndex() === idx && 'z-10 ring-2 ring-ring',
   );
 
+  constructor() {
+    effect(() => {
+      const next = this.value();
+      untracked(() => this.followExternalValue(next));
+    });
+  }
+
+  /**
+   * A value written from outside (a form `reset()`, a `[(value)]` parent) while
+   * the field is focused leaves the browser caret at the end of the text and
+   * `caret` pointing at the old slot; this re-aims both at the end of the new
+   * code. Edits made here already match the field, so they fall through.
+   */
+  private followExternalValue(next: string): void {
+    const field = this.hiddenInput?.nativeElement;
+    if (!field || !this.focused() || field.value === next) return;
+    field.value = next;
+    this.select(next.length);
+  }
+
   /** Character shown in the slot at `idx`, or `''` when the code is not that long yet. */
   getValue(idx: number): string {
     return this.value()[idx] || '';
@@ -182,9 +205,24 @@ export class InputOTPComponent implements ControlValueAccessor {
     this.hiddenInput.nativeElement.setSelectionRange(slot, slot < length ? slot + 1 : slot);
   }
 
-  /** Reads what native editing produced (typing, Backspace, autofill, dictation), sanitises it, publishes it and re-selects the slot after the edit. */
-  onInput(): void {
+  /**
+   * Reads what native editing produced (typing, Backspace, autofill, dictation),
+   * sanitises it, publishes it and re-selects the slot after the edit.
+   *
+   * Two guards keep the sanitiser from destroying what the user did not mean to
+   * remove: an insertion made only of rejected characters is undone (typing
+   * `!` over a selected slot must not delete that slot's digit), and nothing is
+   * touched while an IME composition is open (moving the selection mid-composition
+   * cancels it) — the closing `compositionend` calls this again.
+   */
+  onInput(event?: Event): void {
     const field = this.hiddenInput.nativeElement;
+    if (event instanceof InputEvent && event.isComposing) return;
+    if (event instanceof InputEvent && this.isRejectedInsertion(event)) {
+      field.value = this.value();
+      this.select(this.caret());
+      return;
+    }
     const raw = field.value;
     const next = sanitizeCode(raw, this.slotCount());
     const caretAfter = sanitizeCode(raw.slice(0, field.selectionStart ?? raw.length), this.slotCount()).length;
@@ -193,6 +231,10 @@ export class InputOTPComponent implements ControlValueAccessor {
       this.commit(next);
     }
     this.select(caretAfter);
+  }
+
+  private isRejectedInsertion(event: InputEvent): boolean {
+    return event.inputType.startsWith('insert') && !!event.data && !sanitizeCode(event.data, this.slotCount());
   }
 
   /**

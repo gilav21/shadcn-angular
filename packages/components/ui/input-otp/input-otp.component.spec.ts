@@ -102,6 +102,20 @@ describe('InputOTPComponent', () => {
         expect(hiddenInput.nativeElement.value).toBe('A1B2C3');
     });
 
+    it('leaves an open IME composition alone and commits it at compositionend', () => {
+        fixture.detectChanges();
+        const hiddenInput: HTMLInputElement = fixture.nativeElement.querySelector('input');
+
+        hiddenInput.value = 'a1';
+        hiddenInput.dispatchEvent(new InputEvent('input', { inputType: 'insertCompositionText', data: 'a1', isComposing: true }));
+        fixture.detectChanges();
+        expect(host.otpValue()).toBe('');
+
+        hiddenInput.dispatchEvent(new CompositionEvent('compositionend', { data: 'a1' }));
+        fixture.detectChanges();
+        expect(host.otpValue()).toBe('A1');
+    });
+
     it('should render a caret in the focused empty slot and separator dots', () => {
         host.otpValue.set('1');
         fixture.detectChanges();
