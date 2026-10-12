@@ -180,11 +180,11 @@ describe('AreaChartComponent', () => {
         expect(points(mobile).slice(0, 2)).not.toEqual(desktopTop);
     });
 
-    it('falls back to a domain of 1 when all series are hidden', () => {
+    it('keeps a usable [-1, 1] axis when all series are hidden', () => {
         component.toggleSeries('Desktop');
         component.toggleSeries('Mobile');
         fixture.detectChanges();
-        expect(component.yDomain()).toEqual([0, 1]);
+        expect(component.yDomain()).toEqual([-1, 1]);
         expect(
             fixture.nativeElement.querySelectorAll('path[data-slot="area-series"]'),
         ).toHaveLength(0);

@@ -73,7 +73,7 @@
             [attr.y]="bar.animatedY + barHeight() / 2"
             [attr.text-anchor]="bar.labelAnchor"
             dominant-baseline="middle"
-            class="text-sm fill-muted-foreground transition-all ease-out"
+            class="text-sm fill-muted-foreground stroke-background stroke-[3px] [paint-order:stroke] transition-all ease-out"
             [style.transition-duration.ms]="animationDuration()"
           >
             {{ formatValue(bar.value) }}

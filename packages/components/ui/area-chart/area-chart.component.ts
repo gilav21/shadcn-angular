@@ -196,7 +196,6 @@ export class AreaChartComponent implements AfterViewInit {
      */
     readonly yDomain = computed((): [number, number] => {
         const vis = this.visibleSeries();
-        if (vis.length === 0) return [0, 1];
         if (this.stacked()) {
             const bands = stackSeries(vis.map(v => v.s), this.stackingMode());
             return zeroBasedDomain(bands.flatMap(band => band.flatMap(b => [b.lower, b.upper])), 5);

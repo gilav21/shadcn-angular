@@ -124,7 +124,7 @@
               [attr.y]="bar.labelPosition.y"
               [attr.text-anchor]="bar.labelAnchor"
               [attr.dominant-baseline]="isVertical() ? 'auto' : 'middle'"
-              class="text-xs font-medium pointer-events-none"
+              class="text-xs font-medium pointer-events-none stroke-background stroke-[3px] [paint-order:stroke]"
               [class.fill-foreground]="true"
             >
               {{ formatValue(bar.value) }}

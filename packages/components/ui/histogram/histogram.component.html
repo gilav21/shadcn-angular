@@ -43,7 +43,7 @@
         >{{ g.value }}</text>
       }
 
-      @for (t of edgeTicks(); track t.value) {
+      @for (t of edgeTicks(); track $index) {
         <text
           [attr.x]="t.x"
           [attr.y]="height() - 10"

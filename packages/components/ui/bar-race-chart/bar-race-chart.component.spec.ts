@@ -571,6 +571,20 @@ describe('BarRaceChartComponent lifetime', () => {
         expect(emitted).toHaveLength(before);
     });
 
+    it('should give a name that first appears in a later frame the next palette colour', () => {
+        const fixture = TestBed.createComponent(BarRaceChartComponent);
+        fixture.componentRef.setInput('frames', [
+            [{ name: 'A', value: 5 }],
+            [{ name: 'B', value: 9 }, { name: 'A', value: 1 }],
+        ]);
+        fixture.detectChanges();
+        fixture.componentInstance.goToFrame(1);
+
+        const colors = Object.fromEntries(fixture.componentInstance.displayBars().map(b => [b.name, b.color]));
+        // A is first seen in frame 0, B only in frame 1: palette order follows first appearance, not rank.
+        expect(colors).toEqual({ A: CHART_COLORS[0], B: CHART_COLORS[1] });
+    });
+
     it('should colour the first-ranked name from the palette start when frames are replaced', () => {
         const fixture = TestBed.createComponent(BarRaceChartComponent);
         fixture.componentRef.setInput('frames', [[{ name: 'X', value: 10 }, { name: 'Y', value: 5 }]]);

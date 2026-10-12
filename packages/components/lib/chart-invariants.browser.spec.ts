@@ -636,6 +636,20 @@ describe('duplicate labels and values give one mark per point at its own positio
         }));
     }
 
+    it('histogram logs no NG0955 for repeated bin edges', () => expectNoDuplicateKeys(async () => {
+        const inputs = (): Record<string, unknown> => ({ values: [1, 2, 6, 7, 9], binEdges: [0, 5, 5, 10] });
+        const fixture = await render({ label: 'histogram', type: HistogramComponent, inputs, marks: [], plot: 'view-box' }, ALL_EQUAL);
+        rerender(fixture, inputs());
+    }));
+
+    it('calendar-heatmap logs no NG0955 for repeated dates', () => expectNoDuplicateKeys(async () => {
+        const inputs = (): Record<string, unknown> => ({
+            data: [{ date: '2024-01-03', value: 1 }, { date: '2024-01-03', value: 2 }, { date: '2024-01-04', value: 3 }],
+        });
+        const fixture = await render({ label: 'calendar-heatmap', type: CalendarHeatmapComponent, inputs, marks: [], plot: 'view-box' }, ALL_EQUAL);
+        rerender(fixture, inputs());
+    }));
+
     it('heatmap keeps the cells ("a-b", "c") and ("a", "b-c") apart without NG0955', () => expectNoDuplicateKeys(async () => {
         const data = (): { row: string; col: string; value: number }[] => [
             { row: 'a-b', col: 'c', value: 1 },

@@ -366,6 +366,8 @@ moves to the same hook. The colour map becomes a `computed()` over
 `frames()` (first-appearance order across all frames, each frame walked in rank order — value descending — so the first-ranked name of the first frame takes palette colour 0), removing the mutation
 inside `displayBars`.
 
+**Task 7 as built:** `ngOnDestroy` keeps clearing the playback timer (that timer only exists after `play()`, and `play()` can no longer be started by a destroyed component), so `DestroyRef` registration was not needed. The colour walk includes names beyond `maxBars`, so a name that first shows up in a later frame takes the next palette entry (positive-only data whose early frames already name every bar sees no change). Value labels moved to an explicit `labelX` / `labelAnchor`: the old template anchored RTL labels at `start` so they ran over their own bar; they now anchor `end` on the outer side. A negative bar's label moves inside the bar end when under 64px remain before the name labels (`LABEL_ROOM`, about the width of a six-character value plus the 12px gap).
+
 #### Tooltip width
 
 **Option 1 — Migrate the six inline tooltips to `ui-chart-tooltip`.** Cons:
