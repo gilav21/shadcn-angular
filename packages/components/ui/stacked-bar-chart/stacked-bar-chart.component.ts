@@ -22,8 +22,8 @@ import {
   formatChartValue,
   formatPercentage,
   getChartSummary,
-  calculateAxisTicks,
 } from '../../lib/chart.utils';
+import { linearScale, zeroBasedDomain } from '../../lib/chart-scale';
 
 interface StackedBar {
   categoryIndex: number;
@@ -57,7 +57,7 @@ export class StackedBarChartComponent implements AfterViewInit {
    * Layout direction. `'auto'` (default) resolves from the host element's
    * inherited DOM direction after view init; `'ltr'`/`'rtl'` force it. RTL
    * mirrors the category order and moves the value-axis gutter to the
-   * right-hand edge; segments always stack upward. See {@link isRtl}.
+   * right-hand edge; positive segments always stack upward. See {@link isRtl}.
    */
   dir = input<ChartDirection>('auto');
   private readonly el = inject(ElementRef);
@@ -88,7 +88,13 @@ export class StackedBarChartComponent implements AfterViewInit {
    * {@link categories} **by index, not by `name`** — `data[i]` is the segment
    * in category `i`, and a missing or short entry contributes 0. The optional
    * `color` overrides the palette colour picked from the series index; `id` (or
-   * `name` as fallback) is the legend's track key, so keep it unique.
+   * `name` as fallback) is the legend's track key — give series an `id` to
+   * toggle same-named series separately.
+   *
+   * Stacks diverge from zero: positive segments stack upward in array order and
+   * negative ones downward, so a stack can extend on both sides of the
+   * baseline. In `'percent'` mode a segment's share is `|v| / Σ|v|` of its
+   * category, sign kept.
    */
   series = input.required<ChartSeries[]>();
   /**
@@ -181,28 +187,52 @@ export class StackedBarChartComponent implements AfterViewInit {
     };
   });
 
-  maxValue = computed(() => {
-    const cats = this.categories();
-    const seriesData = this.series();
+  /** The raw value of every series in a category; a missing or short entry counts as 0. */
+  private rawValues(catIndex: number): number[] {
+    return this.series().map(s => s.data[catIndex]?.value ?? 0);
+  }
 
-    if (this.stacking() === 'percent') return 100;
+  /**
+   * What each segment adds to its stack, per category then series: the raw
+   * value, or in percent mode its share of the category's absolute total
+   * (`100 · v / Σ|v|`, sign kept; all zeros stay zero).
+   */
+  private readonly stackUnits = computed((): number[][] => {
+    const percent = this.stacking() === 'percent';
+    return this.categories().map((_, catIndex) => {
+      const raw = this.rawValues(catIndex);
+      if (!percent) return raw;
+      const absoluteTotal = raw.reduce((sum, v) => sum + Math.abs(v), 0);
+      return raw.map(v => (absoluteTotal === 0 ? 0 : (100 * v) / absoluteTotal));
+    });
+  });
 
-    let max = 0;
-    for (let i = 0; i < cats.length; i++) {
-      let total = 0;
-      for (const s of seriesData) {
-        total += s.data[i]?.value ?? 0;
-      }
-      max = Math.max(max, total);
+  /**
+   * The value-axis domain. Positive segments stack up from zero and negative
+   * ones down from it, so it spans the tallest positive stack and the deepest
+   * negative one. Percent mode with no negatives is the fixed `[0, 100]`.
+   */
+  readonly valueDomain = computed((): [number, number] => {
+    let up = 0;
+    let down = 0;
+    for (const units of this.stackUnits()) {
+      up = Math.max(up, units.reduce((sum, v) => sum + Math.max(0, v), 0));
+      down = Math.min(down, units.reduce((sum, v) => sum + Math.min(0, v), 0));
     }
-    return max * 1.1;
+    if (this.stacking() === 'percent' && down === 0) return [0, 100];
+    return zeroBasedDomain([up, down], 5);
+  });
+
+  private readonly valueScale = computed(() => {
+    const area = this.chartArea();
+    return linearScale(this.valueDomain(), [area.bottom, area.top]);
   });
 
   axisTicks = computed(() => {
-    if (this.stacking() === 'percent') {
+    if (this.stacking() === 'percent' && this.valueDomain()[0] === 0) {
       return [0, 25, 50, 75, 100];
     }
-    return calculateAxisTicks(0, this.maxValue(), 5);
+    return this.valueScale().ticks(5);
   });
 
   stackedBars = computed((): StackedBar[] => {
@@ -213,45 +243,39 @@ export class StackedBarChartComponent implements AfterViewInit {
     const barCount = cats.length;
     const totalGaps = (barCount - 1) * gap;
     const barWidth = (area.width - totalGaps) / barCount;
-    const isPercent = this.stacking() === 'percent';
-    const maxVal = this.maxValue();
+    const scale = this.valueScale();
+    const units = this.stackUnits();
 
     return cats.map((category, catIndex) => {
       const x = this.isRtl()
         ? area.right - catIndex * (barWidth + gap) - barWidth
         : area.left + catIndex * (barWidth + gap);
-      let total = 0;
+      const raw = this.rawValues(catIndex);
+      const total = raw.reduce((sum, v) => sum + v, 0);
+      const absoluteTotal = raw.reduce((sum, v) => sum + Math.abs(v), 0);
+      let up = 0;
+      let down = 0;
 
-      for (const s of seriesData) {
-        total += s.data[catIndex]?.value ?? 0;
-      }
+      const segments = seriesData.map((s, sIdx): StackedSegment => {
+        const unit = units[catIndex][sIdx];
+        const near = unit >= 0 ? up : down;
+        const far = near + unit;
+        if (unit >= 0) up = far;
+        else down = far;
+        const top = scale.scale(Math.max(near, far));
 
-      let currentY = area.bottom;
-      const segments: StackedSegment[] = [];
-
-      for (let sIdx = 0; sIdx < seriesData.length; sIdx++) {
-        const s = seriesData[sIdx];
-        const value = s.data[catIndex]?.value ?? 0;
-        const percentage = total > 0 ? (value / total) * 100 : 0;
-
-        const scaledValue = maxVal > 0 ? value / maxVal : 0;
-        const normalizedValue = isPercent ? percentage / 100 : scaledValue;
-        const segmentHeight = normalizedValue * area.height;
-
-        segments.push({
+        return {
           seriesIndex: sIdx,
           seriesName: s.name,
-          value,
-          percentage,
+          value: raw[sIdx],
+          percentage: absoluteTotal > 0 ? (raw[sIdx] / absoluteTotal) * 100 : 0,
           x,
-          y: currentY - segmentHeight,
+          y: top,
           width: barWidth,
-          height: Math.max(0, segmentHeight),
+          height: scale.scale(Math.min(near, far)) - top,
           color: getChartColor(sIdx, s.color),
-        });
-
-        currentY -= segmentHeight;
-      }
+        };
+      });
 
       return {
         categoryIndex: catIndex,
@@ -281,10 +305,7 @@ export class StackedBarChartComponent implements AfterViewInit {
    * mode the scale maximum is a flat 100, so the ticks read as percentages.
    */
   getTickPosition(tick: number): number {
-    const maxVal = this.maxValue();
-    const area = this.chartArea();
-    const normalized = tick / maxVal;
-    return area.bottom - normalized * area.height;
+    return this.valueScale().scale(tick);
   }
 
   /**
@@ -299,13 +320,12 @@ export class StackedBarChartComponent implements AfterViewInit {
   }
 
   /**
-   * SVG `y` of the top of a stack — the `y` of its last (topmost) segment — so
-   * the {@link showTotal} caption can sit just above it. Returns `0` for a
-   * stack with no series.
+   * SVG `y` of the top of a stack — the smallest `y` of its segments, which
+   * with diverging stacks is not the last one — so the {@link showTotal}
+   * caption can sit just above it. Returns `0` for a stack with no series.
    */
   getBarTopY(bar: StackedBar): number {
-    const topSegment = bar.segments.at(-1);
-    return topSegment?.y ?? 0;
+    return bar.segments.reduce((top, segment) => Math.min(top, segment.y), bar.segments[0]?.y ?? 0);
   }
 
   /**
@@ -380,7 +400,7 @@ export class StackedBarChartComponent implements AfterViewInit {
     if (this.stacking() === 'percent') {
       return `${value}%`;
     }
-    return formatChartValue(value, { compact: true, decimals: 0 });
+    return formatChartValue(value, { compact: true, decimals: Number.isInteger(value) ? 0 : 6 });
   }
 
   /**

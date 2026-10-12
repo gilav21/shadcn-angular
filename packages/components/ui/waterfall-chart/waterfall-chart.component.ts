@@ -60,7 +60,8 @@ export class WaterfallChartComponent implements AfterViewInit {
      * up to `value` and *resets* the running total to that value, so its `value`
      * must be the subtotal you want (it is not computed for you — an
      * inconsistent number silently breaks the bridge). `name` labels the
-     * category axis and is the band key, so names must be unique; the optional
+     * category axis; bars are positioned by array index, so two bars may share
+     * a name and each is drawn at its own position; the optional
      * `color` overrides {@link positiveColor} / {@link negativeColor} /
      * {@link totalColor} for that bar alone.
      */
@@ -174,7 +175,8 @@ export class WaterfallChartComponent implements AfterViewInit {
     private readonly band = computed(() => {
         const a = this.area();
         const range: [number, number] = this.isRtl() ? [a.right, a.left] : [a.left, a.right];
-        return bandScale(this.data().map(d => d.name), range, 0.3, 0.15);
+        // Bars are keyed by position, not name: two bars may share a label.
+        return bandScale(this.data().map((_, i) => String(i)), range, 0.3, 0.15);
     });
 
     readonly yTicks = computed(() => {
@@ -190,7 +192,7 @@ export class WaterfallChartComponent implements AfterViewInit {
             const { from, to } = levels[i];
             const yFrom = ys.scale(from);
             const yTo = ys.scale(to);
-            const x = band.position(bar.name) ?? 0;
+            const x = band.position(String(i)) ?? 0;
             return {
                 name: bar.name,
                 value: bar.value,

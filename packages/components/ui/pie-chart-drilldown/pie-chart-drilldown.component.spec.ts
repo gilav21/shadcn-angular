@@ -428,3 +428,61 @@ describe('PieChartDrilldownComponent', () => {
         });
     });
 });
+
+describe('PieChartDrilldownComponent non-positive values', () => {
+    const CLASSES: Record<string, number[]> = {
+        'positive with a refund and a zero': [100, -30, 0, 50],
+        'positive and negative that sum to zero': [50, -50],
+        'all zero': [0, 0],
+        'a single negative': [-5],
+    };
+
+    function build(values: number[]): ComponentFixture<PieChartDrilldownComponent> {
+        const fixture = TestBed.createComponent(PieChartDrilldownComponent);
+        fixture.componentRef.setInput('data', values.map((value, i) => ({ name: `Item ${i}`, value })));
+        fixture.detectChanges();
+        return fixture;
+    }
+
+    for (const [className, values] of Object.entries(CLASSES)) {
+        const positive = values.filter(v => v > 0);
+
+        it(`should draw a wedge only for each positive value (${className})`, () => {
+            const fixture = build(values);
+            const slices = fixture.componentInstance.currentSlices();
+            const total = positive.reduce((sum, v) => sum + v, 0);
+
+            expect(slices.map(s => s.data.value)).toEqual(positive);
+            slices.forEach((slice, i) => expect(slice.percentage).toBeCloseTo((positive[i] / total) * 100, 9));
+            expect(fixture.nativeElement.querySelectorAll('g[role="button"]')).toHaveLength(positive.length);
+            if (positive.length > 0) {
+                const shown = slices.reduce((sum, s) => sum + s.percentage, 0);
+                expect(Math.abs(shown - 100)).toBeLessThan(0.05);
+            }
+        });
+
+        it(`should lay the wedges end to end around exactly one turn when any value is positive (${className})`, () => {
+            const slices = build(values).componentInstance.currentSlices();
+            if (slices.length === 0) return;
+
+            slices.slice(1).forEach((slice, i) => expect(slice.startAngle).toBeCloseTo(slices[i].endAngle, 9));
+            expect((slices.at(-1) as { endAngle: number }).endAngle - slices[0].startAngle).toBeCloseTo(Math.PI * 2, 9);
+        });
+
+        it(`should keep every entry in the legend with its raw value (${className})`, () => {
+            const fixture = build(values);
+            const rows = Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLElement[];
+            const cells = (row: HTMLElement): string[] =>
+                Array.from(row.querySelectorAll('span')).slice(1).map(s => s.textContent?.trim() ?? '');
+
+            expect(rows.map(cells)).toEqual(values.map((v, i) => [`Item ${i}`, String(v)]));
+        });
+
+        it(`should show the empty state only when no value is positive (${className})`, () => {
+            const fixture = build(values);
+            const empty = fixture.nativeElement.querySelector('[data-slot="pie-empty"]');
+
+            expect(empty !== null).toBe(positive.length === 0);
+        });
+    }
+});

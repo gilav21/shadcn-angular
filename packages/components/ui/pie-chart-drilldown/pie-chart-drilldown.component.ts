@@ -19,7 +19,7 @@ import {
   getChartColor,
   describeArc,
   getSliceCentroid,
-  sumValues,
+  positiveOrZero,
   formatChartValue,
   formatPercentage,
   getChartSummary,
@@ -37,8 +37,11 @@ import {
 export class PieChartDrilldownComponent {
   /**
    * The top-level slices, laid out clockwise in array order from 12 o'clock.
-   * Each `value` is a weight — the slice angle is `value / sum(values)` — and
-   * the optional `color` overrides the palette colour picked from the index.
+   * Each `value` is a weight — the wedge angle is `value / sum(positive
+   * values)` — and the optional `color` overrides the palette colour picked
+   * from the index. A zero, negative or non-finite value gets no wedge and no
+   * share but is still listed in the legend; with no positive value the empty
+   * ring (`data-slot="pie-empty"`) is drawn instead.
    * A point whose `drilldown` holds the `id` of an entry in
    * {@link drilldownSeries} becomes navigable: clicking it swaps the chart to
    * that series. A `drilldown` id with no matching series is inert, and gets
@@ -143,24 +146,30 @@ export class PieChartDrilldownComponent {
     return this.title() ?? 'Overview';
   });
 
-  currentTotal = computed(() => sumValues(this.currentData()));
+  /** The sum of the displayed series' positive values, which is what every share is measured against. */
+  currentTotal = computed(() => this.currentData().reduce((sum, point) => sum + positiveOrZero(point.value), 0));
 
-  currentSlices = computed((): PieSlice[] => {
+  /**
+   * One entry per point of the displayed series, in order. A non-positive (or
+   * non-finite) value has a zero share and a zero sweep: no wedge, but the
+   * legend still lists it with its raw value.
+   */
+  currentEntries = computed((): PieSlice[] => {
     const data = this.currentData();
     const total = this.currentTotal();
-    if (total === 0 || data.length === 0) return [];
 
     const outerR = this.outerRadius();
     const innerR = this.innerRadiusPixels();
     let currentAngle = -Math.PI / 2;
 
     return data.map((point, index) => {
-      const percentage = (point.value / total) * 100;
-      const sliceAngle = (point.value / total) * Math.PI * 2;
+      const share = total === 0 ? 0 : positiveOrZero(point.value) / total;
+      const percentage = share * 100;
+      const sliceAngle = share * Math.PI * 2;
       const startAngle = currentAngle;
       const endAngle = currentAngle + sliceAngle;
 
-      const path = describeArc(0, 0, outerR, innerR, startAngle, endAngle);
+      const path = share > 0 ? describeArc(0, 0, outerR, innerR, startAngle, endAngle) : '';
       const centroid = getSliceCentroid(0, 0, outerR, startAngle, endAngle);
       const labelPos = getSliceCentroid(0, 0, outerR * 1.15, startAngle, endAngle);
 
@@ -179,6 +188,9 @@ export class PieChartDrilldownComponent {
       };
     });
   });
+
+  /** The drawn wedges: the {@link currentEntries} with a positive share. Only these are focusable. */
+  currentSlices = computed((): PieSlice[] => this.currentEntries().filter(entry => entry.percentage > 0));
 
   hoveredSlice = computed(() => {
     const idx = this.hoveredIndex();

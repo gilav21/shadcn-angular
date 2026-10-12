@@ -110,6 +110,20 @@ export const CustomColors: Story = {
     render,
 };
 
+/** A refund line and a zero entry get no wedge; the legend still lists them. */
+export const NegativeAndZeroValues: Story = {
+    args: {
+        data: [
+            { name: 'Subscriptions', value: 6200 },
+            { name: 'Refunds', value: -800 },
+            { name: 'Services', value: 2400 },
+            { name: 'Pending', value: 0 },
+        ] as ChartDataPoint[],
+        title: 'Revenue',
+    },
+    render,
+};
+
 export const SmallSize: Story = {
     args: { size: 180, legendPosition: 'bottom' },
     render,

@@ -1,5 +1,6 @@
 <div
   [class]="containerClasses()"
+  [attr.data-slot]="'bar-chart'"
 >
   <svg
     role="group"
@@ -21,8 +22,9 @@
                 [attr.x2]="chartArea().right"
                 [attr.y2]="getTickPosition(tick)"
                 stroke="currentColor"
-                stroke-opacity="0.2"
-                stroke-dasharray="4 4"
+                [attr.stroke-opacity]="tick === 0 && valueDomain()[0] < 0 ? 1 : 0.2"
+                [attr.stroke-dasharray]="tick === 0 && valueDomain()[0] < 0 ? null : '4 4'"
+                [class.text-muted-foreground]="tick === 0 && valueDomain()[0] < 0"
               />
             } @else {
               <line
@@ -31,8 +33,9 @@
                 [attr.x2]="getTickPosition(tick)"
                 [attr.y2]="chartArea().bottom"
                 stroke="currentColor"
-                stroke-opacity="0.2"
-                stroke-dasharray="4 4"
+                [attr.stroke-opacity]="tick === 0 && valueDomain()[0] < 0 ? 1 : 0.2"
+                [attr.stroke-dasharray]="tick === 0 && valueDomain()[0] < 0 ? null : '4 4'"
+                [class.text-muted-foreground]="tick === 0 && valueDomain()[0] < 0"
               />
             }
         }
@@ -121,9 +124,9 @@
             <text
               [attr.x]="bar.labelPosition.x"
               [attr.y]="bar.labelPosition.y"
-              [attr.text-anchor]="isVertical() ? 'middle' : (isRtl() ? 'start' : 'start')"
+              [attr.text-anchor]="bar.labelAnchor"
               [attr.dominant-baseline]="isVertical() ? 'auto' : 'middle'"
-              class="text-xs font-medium pointer-events-none"
+              class="text-xs font-medium pointer-events-none stroke-background stroke-2 [paint-order:stroke]"
               [class.fill-foreground]="true"
             >
               {{ formatValue(bar.value) }}
@@ -159,7 +162,7 @@
 
   @if (hoveredBar() && showTooltip()) {
     <div
-      class="absolute z-50 px-3 py-2 text-sm bg-popover text-popover-foreground rounded-md shadow-lg border pointer-events-none"
+      class="absolute z-50 px-3 py-2 text-sm bg-popover text-popover-foreground rounded-md shadow-lg border pointer-events-none max-w-[calc(100vw-2rem)] break-words"
       [style.left.px]="tooltipPosition().x"
       [style.top.px]="tooltipPosition().y"
     >

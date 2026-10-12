@@ -116,15 +116,14 @@ describe('StackedBarChartComponent', () => {
 
             expect(first.y + first.height).toBeCloseTo(265, 5);
             expect(second.y + second.height).toBeCloseTo(first.y, 5);
-            expect(first.height).toBeCloseTo((10 / 49.5) * 245, 5);
-            expect(second.height).toBeCloseTo((15 / 49.5) * 245, 5);
+            expect(first.height).toBeCloseTo((10 / 50) * 245, 5);
+            expect(second.height).toBeCloseTo((15 / 50) * 245, 5);
         });
     });
 
     describe('absolute stacking mode', () => {
-        it('should calculate maxValue as max total * 1.1', () => {
-            const maxTotal = 45;
-            expect(component.maxValue()).toBeCloseTo(maxTotal * 1.1, 5);
+        it('should end the value domain on the nice bound above the largest total', () => {
+            expect(component.valueDomain()).toEqual([0, 50]);
         });
 
         it('should use calculated axis ticks', () => {
@@ -143,8 +142,8 @@ describe('StackedBarChartComponent', () => {
             fixture.detectChanges();
         });
 
-        it('should return 100 as maxValue', () => {
-            expect(component.maxValue()).toBe(100);
+        it('should span 0 to 100 when every value is positive', () => {
+            expect(component.valueDomain()).toEqual([0, 100]);
         });
 
         it('should return [0, 25, 50, 75, 100] as axisTicks', () => {
@@ -366,5 +365,118 @@ describe('StackedBarChartComponent', () => {
             expect(bar.segments[0].percentage).toBe(0);
             expect(bar.segments[0].height).toBe(0);
         });
+    });
+});
+
+describe('StackedBarChartComponent diverging stacks', () => {
+    const CLASSES: Record<string, number[][]> = {
+        'mixed-sign': [
+            [10, -5, 0],
+            [-20, 15, 7],
+            [5, -10, 3],
+        ],
+        'all-negative': [
+            [-3, -1, -0.5],
+            [-2, -4, -6],
+        ],
+        'all-positive': [
+            [1.97, 2.2, 2.4],
+            [2.69, 1.5, 0.3],
+        ],
+    };
+
+    function build(values: number[][], stacking: 'absolute' | 'percent'): StackedBarChartComponent {
+        const fixture = TestBed.createComponent(StackedBarChartComponent);
+        const categories = values[0].map((_, i) => `Q${i + 1}`);
+        fixture.componentRef.setInput(
+            'series',
+            values.map((row, s) => ({ name: `S${s}`, data: row.map((value, i) => ({ name: categories[i], value })) })),
+        );
+        fixture.componentRef.setInput('categories', categories);
+        fixture.componentRef.setInput('stacking', stacking);
+        fixture.detectChanges();
+        return fixture.componentInstance;
+    }
+
+    beforeEach(() => {
+        (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = ResizeObserverStub;
+    });
+
+    afterEach(() => {
+        (globalThis as unknown as { ResizeObserver?: unknown }).ResizeObserver = originalResizeObserver;
+    });
+
+    for (const [className, values] of Object.entries(CLASSES)) {
+        for (const stacking of ['absolute', 'percent'] as const) {
+            it(`should stack ${className} positives up from zero and negatives down from zero without overlap (${stacking})`, () => {
+                const component = build(values, stacking);
+
+                component.stackedBars().forEach((bar, c) => {
+                    let up = 0;
+                    let down = 0;
+                    const absoluteTotal = values.reduce((sum, row) => sum + Math.abs(row[c]), 0);
+                    bar.segments.forEach((segment, s) => {
+                        // Percent mode measures every segment as its share of the category's absolute total.
+                        const value = stacking === 'percent' ? (100 * values[s][c]) / absoluteTotal : values[s][c];
+                        const near = value >= 0 ? up : down;
+                        const far = near + value;
+                        // y grows downwards, so the larger value sits at the smaller y.
+                        expect(segment.y).toBeCloseTo(component.getTickPosition(Math.max(near, far)), 4);
+                        expect(segment.y + segment.height).toBeCloseTo(component.getTickPosition(Math.min(near, far)), 4);
+                        if (value >= 0) up = far;
+                        else down = far;
+                    });
+                });
+            });
+        }
+
+        it(`should make the ${className} segments of every category span exactly 100% of the scale in percent mode`, () => {
+            const component = build(values, 'percent');
+            const perUnit = Math.abs(component.getTickPosition(1) - component.getTickPosition(0));
+
+            component.stackedBars().forEach((bar, c) => {
+                const absoluteTotal = values.reduce((sum, row) => sum + Math.abs(row[c]), 0);
+                const lengths = bar.segments.reduce((sum, segment) => sum + segment.height, 0);
+                expect(lengths).toBeCloseTo(absoluteTotal === 0 ? 0 : 100 * perUnit, 4);
+            });
+        });
+    }
+
+    it.each(['absolute', 'percent'] as const)('should still have a usable axis when every value is zero (%s)', stacking => {
+        const component = build([[0, 0], [0, 0]], stacking);
+        const area = component.chartArea();
+        const ticks = component.axisTicks();
+
+        expect(ticks.length).toBeGreaterThanOrEqual(2);
+        for (const tick of ticks) {
+            expect(component.getTickPosition(tick)).toBeGreaterThanOrEqual(area.top - 0.001);
+            expect(component.getTickPosition(tick)).toBeLessThanOrEqual(area.bottom + 0.001);
+        }
+        for (const segment of component.stackedBars().flatMap(bar => bar.segments)) {
+            expect(Number.isFinite(segment.y) && segment.height === 0).toBe(true);
+        }
+    });
+
+    it.each(['mixed-sign', 'all-negative'])('should put the %s total label above the highest segment edge, not above the last segment', name => {
+        const values = CLASSES[name];
+        const component = build(values, 'absolute');
+
+        component.stackedBars().forEach((bar, c) => {
+            const highest = values.reduce((sum, row) => sum + Math.max(0, row[c]), 0);
+            // With no positive segment the stack hangs from the zero line, which is then its top.
+            expect(component.getBarTopY(bar)).toBeCloseTo(component.getTickPosition(highest), 4);
+        });
+    });
+
+    it('should draw ticks only inside the plot when the stacks go negative', () => {
+        const component = build(CLASSES['mixed-sign'], 'absolute');
+        const area = component.chartArea();
+
+        for (const tick of component.axisTicks()) {
+            const pos = component.getTickPosition(tick);
+            expect(pos).toBeGreaterThanOrEqual(area.top - 0.001);
+            expect(pos).toBeLessThanOrEqual(area.bottom + 0.001);
+        }
+        expect(component.axisTicks()).toContain(0);
     });
 });

@@ -3109,6 +3109,7 @@
     ],
     "libFiles": [
       "chart-responsive.ts",
+      "chart-scale.ts",
       "chart.types.ts",
       "chart.utils.ts",
       "observers.ts"
@@ -3135,6 +3136,7 @@
     ],
     "libFiles": [
       "chart-responsive.ts",
+      "chart-scale.ts",
       "chart.types.ts",
       "chart.utils.ts",
       "observers.ts"
@@ -3161,6 +3163,7 @@
     ],
     "libFiles": [
       "chart-responsive.ts",
+      "chart-scale.ts",
       "chart.types.ts",
       "chart.utils.ts",
       "observers.ts"
@@ -3187,6 +3190,7 @@
     ],
     "libFiles": [
       "chart-responsive.ts",
+      "chart-scale.ts",
       "chart.types.ts",
       "chart.utils.ts",
       "observers.ts"
@@ -3214,6 +3218,7 @@
     ],
     "libFiles": [
       "chart-responsive.ts",
+      "chart-scale.ts",
       "chart.types.ts",
       "chart.utils.ts",
       "i18n/i18n.token.ts",

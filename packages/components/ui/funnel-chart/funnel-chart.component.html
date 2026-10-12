@@ -5,7 +5,7 @@
   [attr.aria-label]="ariaLabel()"
 >
   <svg [attr.viewBox]="viewBox()" width="100%" [attr.height]="height()" class="block w-full">
-    @for (stage of stages(); track stage.name) {
+    @for (stage of stages(); track stage.index) {
       <polygon
         [attr.data-slot]="'funnel-stage'"
         [attr.points]="stage.points"
@@ -22,7 +22,7 @@
         (click)="onStageClick(stage.index)"
         (keydown.enter)="onStageClick(stage.index)"
       />
-      @if (showValues()) {
+      @if (showValues() && stage.topWidth > 0) {
         <text
           [attr.x]="stage.centerX"
           [attr.y]="stage.midY"

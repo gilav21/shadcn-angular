@@ -1,5 +1,5 @@
 <div [class]="classes()" [attr.data-slot]="'chart-legend'">
-  @for (item of items(); track item.key) {
+  @for (item of items(); track $index) {
     <span
       [attr.data-slot]="'chart-legend-item'"
       [class]="'inline-flex items-center gap-1.5 ' + (interactive() ? 'cursor-pointer select-none ' : '') + (isHidden(item.key) ? 'opacity-70' : '')"

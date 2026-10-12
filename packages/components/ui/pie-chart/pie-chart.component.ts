@@ -17,7 +17,7 @@ import {
   getChartColor,
   describeArc,
   getSliceCentroid,
-  sumValues,
+  positiveOrZero,
   formatChartValue,
   formatPercentage,
   getChartSummary,
@@ -36,10 +36,12 @@ export class PieChartComponent {
   /**
    * One slice per entry, laid out clockwise in array order starting at 12
    * o'clock. `name` labels the slice in the legend and tooltip, `value` is a
-   * share of the total (each slice's angle is `value / sum(values)`, so the
-   * values are weights, not angles), and the optional `color` overrides the
-   * palette colour otherwise picked from the entry's index. Values are assumed
-   * non-negative; a total of `0` renders no slices at all.
+   * share of the positive total (each wedge's angle is `value / sum(positive
+   * values)`, so the values are weights, not angles), and the optional `color`
+   * overrides the palette colour otherwise picked from the entry's index. A
+   * zero, negative or non-finite value gets no wedge and no share, but the
+   * legend still lists it with its raw value; a dataset with no positive value
+   * draws the empty ring (`data-slot="pie-empty"`) instead of wedges.
    */
   data = input.required<ChartDataPoint[]>();
   /**
@@ -101,27 +103,33 @@ export class PieChartComponent {
 
   center = computed(() => this.size() / 2);
   viewBox = computed(() => `0 0 ${this.size()} ${this.size()}`);
-  total = computed(() => sumValues(this.data()));
+  /** The sum of the positive values, which is what every share is measured against. */
+  total = computed(() => this.data().reduce((sum, point) => sum + positiveOrZero(point.value), 0));
 
   outerRadius = computed(() => this.size() / 2 - 10);
   innerRadiusPixels = computed(() => this.outerRadius() * this.innerRadius());
 
-  slices = computed((): PieSlice[] => {
+  /**
+   * One entry per data point, in order. A non-positive (or non-finite) value
+   * has a zero share and a zero sweep: it has no wedge but stays here so the
+   * legend can still list it with its raw value.
+   */
+  entries = computed((): PieSlice[] => {
     const data = this.data();
     const total = this.total();
-    if (total === 0 || data.length === 0) return [];
 
     const outerR = this.outerRadius();
     const innerR = this.innerRadiusPixels();
     let currentAngle = -Math.PI / 2;
 
     return data.map((point, index) => {
-      const percentage = (point.value / total) * 100;
-      const sliceAngle = (point.value / total) * Math.PI * 2;
+      const share = total === 0 ? 0 : positiveOrZero(point.value) / total;
+      const percentage = share * 100;
+      const sliceAngle = share * Math.PI * 2;
       const startAngle = currentAngle;
       const endAngle = currentAngle + sliceAngle;
 
-      const path = describeArc(0, 0, outerR, innerR, startAngle, endAngle);
+      const path = share > 0 ? describeArc(0, 0, outerR, innerR, startAngle, endAngle) : '';
       const centroid = getSliceCentroid(0, 0, outerR, startAngle, endAngle);
       const labelPos = getSliceCentroid(0, 0, outerR * 1.15, startAngle, endAngle);
 
@@ -140,6 +148,9 @@ export class PieChartComponent {
       };
     });
   });
+
+  /** The drawn wedges: the {@link entries} with a positive share. Only these are focusable. */
+  slices = computed((): PieSlice[] => this.entries().filter(entry => entry.percentage > 0));
 
   hoveredSlice = computed(() => {
     const idx = this.hoveredIndex();

@@ -23,10 +23,9 @@ import {
     getChartColor,
     formatChartValueOrGap,
     getChartSummary,
-    extent,
 } from '../../lib/chart.utils';
-import { linearScale, niceDomain } from '../../lib/chart-scale';
-import { linePath, areaPath, bandAreaPath, stackSeries, finiteOrZero, CurveType } from '../../lib/chart-path';
+import { linearScale, zeroBasedDomain } from '../../lib/chart-scale';
+import { linePath, areaPath, bandAreaPath, stackSeries, CurveType } from '../../lib/chart-path';
 import { nearestPointX, pointerToSvg } from '../../lib/chart-interaction';
 import { ChartTooltipComponent, ChartTooltipRow } from '../chart-tooltip';
 import { ChartLegendComponent, ChartLegendItem } from '../chart-legend';
@@ -65,11 +64,16 @@ export class AreaChartComponent implements AfterViewInit {
      * series' `data[].name`, so every series should carry the same number of
      * points in the same order. Each entry's `color` overrides the palette
      * colour picked from the series index; `id` (falling back to `name`) is the
-     * key used by the legend and {@link toggleSeries}, so give series unique
-     * names when they have no `id`. Array order is paint order — and when
+     * key used by the legend and {@link toggleSeries}, so give series an `id`
+     * to toggle same-named series separately (they are always drawn
+     * separately). Two categories may share a name: points are positioned by
+     * index. Array order is paint order — and when
      * {@link stacked} is on, stack order: the first series sits at the bottom.
-     * The y domain always starts at 0 and is nice-rounded over the *visible*
-     * series, so negative values fall outside the plot.
+     * The y domain is nice-rounded over zero and the *visible* series, so
+     * negative values are drawn below a visible zero line and an overlapping
+     * area fills to that line. In a stacked area, positives and negatives
+     * accumulate in array order; `'percent'` mode scales a category by its
+     * absolute total (`|v| / Σ|v|`).
      *
      * A missing value (`NaN`, `null`, `undefined` or infinite) is a gap in an
      * overlapping area and counts as 0 in a stacked one.
@@ -187,20 +191,18 @@ export class AreaChartComponent implements AfterViewInit {
             .filter(({ s }) => !this._hidden().includes(this.seriesKey(s))),
     );
 
-    readonly yDomainMax = computed(() => {
+    /**
+     * The y domain: the nice bounds of zero and every value the visible series
+     * draw — their raw values when overlapping, every stacked band edge when
+     * {@link stacked} (so negative values and percent stacks are included).
+     */
+    readonly yDomain = computed((): [number, number] => {
         const vis = this.visibleSeries();
-        if (vis.length === 0) return 1;
-        if (this.stacked() && this.stackingMode() === 'percent') return 100;
         if (this.stacked()) {
-            const n = this.categories().length;
-            let max = 0;
-            for (let c = 0; c < n; c++) {
-                const total = vis.reduce((sum, { s }) => sum + finiteOrZero(s.data[c]?.value), 0);
-                max = Math.max(max, total);
-            }
-            return max;
+            const bands = stackSeries(vis.map(v => v.s), this.stackingMode());
+            return zeroBasedDomain(bands.flatMap(band => band.flatMap(b => [b.lower, b.upper])), 5);
         }
-        return extent(vis.flatMap(({ s }) => s.data.map(d => d.value)))?.[1] ?? 0;
+        return zeroBasedDomain(vis.flatMap(({ s }) => s.data.map(d => d.value)), 5);
     });
 
     protected readonly area = computed(() => {
@@ -222,7 +224,7 @@ export class AreaChartComponent implements AfterViewInit {
 
     private readonly yScale = computed(() => {
         const a = this.area();
-        return linearScale(niceDomain(0, this.yDomainMax(), 5), [a.bottom, a.top]);
+        return linearScale(this.yDomain(), [a.bottom, a.top]);
     });
 
     readonly yTicks = computed(() => this.yScale().ticks(5));

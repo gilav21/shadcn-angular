@@ -53,11 +53,13 @@ export function describeArc(
     const isFullCircle = Math.abs(endAngle - startAngle) >= Math.PI * 2 - 0.001;
 
     if (isFullCircle) {
-        const halfAngle = startAngle + Math.PI;
+        // Two half turns from the start: splitting at `end` instead would recurse forever for a sweep past 2π.
+        const direction = endAngle < startAngle ? -1 : 1;
+        const halfAngle = startAngle + direction * Math.PI;
         return (
             describeArc(x, y, outerRadius, innerRadius, startAngle, halfAngle) +
             ' ' +
-            describeArc(x, y, outerRadius, innerRadius, halfAngle, endAngle)
+            describeArc(x, y, outerRadius, innerRadius, halfAngle, startAngle + direction * Math.PI * 2)
         );
     }
 
@@ -207,6 +209,11 @@ export function formatPercentage(value: number, decimals = 1): string {
 
 export function sumValues(data: { value: number }[]): number {
     return data.reduce((sum, item) => sum + item.value, 0);
+}
+
+/** `value` when it is a finite number above zero, else 0: a share, a wedge or a width never goes negative. */
+export function positiveOrZero(value: number): number {
+    return Number.isFinite(value) && value > 0 ? value : 0;
 }
 
 /**

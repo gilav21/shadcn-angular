@@ -40,7 +40,7 @@
       >{{ g.value }}</text>
     }
 
-    @for (c of categoryCenters(); track c.name) {
+    @for (c of categoryCenters(); track $index) {
       <text
         [attr.x]="c.x"
         [attr.y]="height() - 10"
@@ -49,7 +49,7 @@
       >{{ c.name }}</text>
     }
 
-    @for (b of bars(); track b.key; let i = $index) {
+    @for (b of bars(); track $index; let i = $index) {
       <rect
         [attr.data-slot]="'combo-bar'"
         [attr.x]="b.x"
@@ -76,7 +76,7 @@
       />
     }
 
-    @for (l of lines(); track l.key) {
+    @for (l of lines(); track $index) {
       <path
         [attr.data-slot]="'combo-line'"
         [attr.d]="l.path"

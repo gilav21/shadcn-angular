@@ -400,15 +400,16 @@ describe('BarChartDrilldownComponent', () => {
 
         it('should size bars from the plot area and mirror their x under rtl', () => {
             // Plot = width - 90 (70 axis + 20 edge) wide, 300 - 55 = 245 tall;
-            // domain max 55 (50 * 1.1); two bars share the width minus one 8px
-            // gap. The width is the measured host width (500 in jsdom).
+            // the nice value domain is [0, 50], so the 50 bar fills the plot;
+            // two bars share the width minus one 8px gap. The width is the
+            // measured host width (500 in jsdom).
             const width = component.svgWidth();
             const barWidth = (width - 90 - 8) / 2;
             const geometry = () =>
                 component.bars().map(b => ({ x: b.x, width: b.width, height: b.height }));
             expect(geometry()).toEqual([
-                { x: 70, width: barWidth, height: expect.closeTo(222.727, 3) },
-                { x: 70 + barWidth + 8, width: barWidth, height: expect.closeTo(133.636, 3) },
+                { x: 70, width: barWidth, height: expect.closeTo(245, 3) },
+                { x: 70 + barWidth + 8, width: barWidth, height: expect.closeTo(147, 3) },
             ]);
 
             fixture.componentRef.setInput('dir', 'rtl');
@@ -433,5 +434,72 @@ describe('BarChartDrilldownComponent', () => {
 
             expect(component.currentSeriesName()).toBe('My Chart');
         });
+    });
+});
+
+describe('BarChartDrilldownComponent zero baseline', () => {
+    const CLASSES: Record<string, number[]> = {
+        'all-positive': [1.97, 2.2, 2.4, 2.69],
+        'all-negative': [-50, -10, -0.5],
+        'mixed-sign': [-30, 45.5, -0.01, 12],
+        'all-zero': [0, 0, 0],
+        'single-negative': [-42],
+    };
+
+    function build(values: number[], dir: 'ltr' | 'rtl'): BarChartDrilldownComponent {
+        const fixture = TestBed.createComponent(BarChartDrilldownComponent);
+        fixture.componentRef.setInput('data', values.map((value, i) => ({ name: `C${i}`, value })));
+        fixture.componentRef.setInput('dir', dir);
+        fixture.detectChanges();
+        return fixture.componentInstance;
+    }
+
+    for (const [className, values] of Object.entries(CLASSES)) {
+        for (const dir of ['ltr', 'rtl'] as const) {
+            it(`should grow ${className} bars from the zero gridline (${dir})`, () => {
+                const component = build(values, dir);
+                const zero = component.getTickPosition(0);
+                const perUnit = component.getTickPosition(1) - zero;
+                const bars = component.bars();
+
+                expect(bars).toHaveLength(values.length);
+                for (const bar of bars) {
+                    const [from, to] = [bar.value * perUnit + zero, zero].sort((p, q) => p - q);
+                    expect(bar.y).toBeCloseTo(from, 4);
+                    expect(bar.y + bar.height).toBeCloseTo(to, 4);
+                }
+            });
+        }
+    }
+
+    it.each(['all-negative', 'mixed-sign', 'all-positive'])('should keep %s value labels clear of the axis labels', className => {
+        const component = build(CLASSES[className], 'ltr');
+        const area = component.chartArea();
+
+        for (const bar of component.bars()) {
+            const end = bar.y + bar.height;
+            if (bar.value >= 0) {
+                expect(bar.labelPosition.y).toBeCloseTo(bar.y - 6, 6);
+            } else if (end + 14 <= area.bottom + 2) {
+                expect(bar.labelPosition.y).toBeCloseTo(end + 14, 6);
+            } else {
+                // No room under the column before the category labels: inside the bar end.
+                expect(bar.labelPosition.y).toBeCloseTo(end - 6, 6);
+            }
+            expect(bar.labelAnchor).toBe('middle');
+        }
+    });
+
+    it('should draw at least two value ticks, all inside the plot, when every value is zero', () => {
+        const component = build(CLASSES['all-zero'], 'ltr');
+        const area = component.chartArea();
+        const ticks = component.axisTicks();
+
+        expect(ticks.length).toBeGreaterThanOrEqual(2);
+        for (const tick of ticks) {
+            const pos = component.getTickPosition(tick);
+            expect(pos).toBeGreaterThanOrEqual(area.top - 0.001);
+            expect(pos).toBeLessThanOrEqual(area.bottom + 0.001);
+        }
     });
 });

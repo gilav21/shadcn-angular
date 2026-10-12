@@ -9,7 +9,7 @@
       <text [attr.x]="0" [attr.y]="wl.y" class="fill-muted-foreground text-[9px]">{{ wl.label }}</text>
     }
 
-    @for (cell of cells(); track cell.day.date) {
+    @for (cell of cells(); track $index) {
       <rect
         [attr.data-slot]="'calendar-day'"
         [attr.x]="cell.x"

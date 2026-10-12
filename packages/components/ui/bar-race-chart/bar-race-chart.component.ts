@@ -10,6 +10,7 @@ import {
   inject,
   AfterViewInit,
   DestroyRef,
+  afterNextRender,
 } from '@angular/core';
 import { cn, isRtl } from '../../lib/utils';
 import { observeChartWidth } from '../../lib/chart-responsive';
@@ -20,8 +21,9 @@ import {
   getChartColor,
   formatChartValue,
   getChartSummary,
-    extent,
+  extent,
 } from '../../lib/chart.utils';
+import { linearScale } from '../../lib/chart-scale';
 
 interface RaceBar {
   name: string;
@@ -35,6 +37,16 @@ interface RaceBar {
   height: number;
   animatedY: number;
   animatedWidth: number;
+  labelX: number;
+  labelAnchor: 'start' | 'end';
+}
+
+/** Room, in px, a negative bar's value label needs between the bar end and the name labels at the start edge. */
+const LABEL_ROOM = 64;
+
+/** A frame's points, one per name (the last entry for a name wins), highest value first. */
+function rankFrame(frame: ChartDataPoint[]): ChartDataPoint[] {
+  return [...new Map(frame.map(point => [point.name, point])).values()].sort((a, b) => b.value - a.value);
 }
 
 @Component({
@@ -70,7 +82,6 @@ export class BarRaceChartComponent implements OnDestroy, AfterViewInit {
 
   ngAfterViewInit(): void {
     this._checkDirection();
-    setTimeout(() => this._checkDirection(), 0);
   }
 
   private _checkDirection(): void {
@@ -85,9 +96,11 @@ export class BarRaceChartComponent implements OnDestroy, AfterViewInit {
    * bars re-order as values change. Names are the identity across frames: a
    * point keeps its palette colour (assigned on first sight, or from its own
    * `color`) and its `track` identity for the CSS transition, so reusing the
-   * same names between frames is what makes bars slide instead of pop. The
-   * value axis is rescaled per frame to 110% of that frame's largest value, so
-   * lengths are relative within a frame, not across the race.
+   * same names between frames is what makes bars slide instead of pop; two
+   * entries with one name in a frame are one bar, the last winning. The value
+   * axis is rescaled per frame to 110% of that frame's largest (and lowest)
+   * value, so lengths are relative within a frame, not across the race. Bars
+   * grow from the zero baseline: negative values extend toward the start edge.
    */
   frames = input.required<ChartDataPoint[][]>();
   /**
@@ -168,7 +181,20 @@ export class BarRaceChartComponent implements OnDestroy, AfterViewInit {
   currentFrameIndex = signal(0);
   isPlaying = signal(false);
   private animationTimer: ReturnType<typeof setTimeout> | null = null;
-  private readonly colorMap = new Map<string, string>();
+  /**
+   * Palette colour per name, in first-appearance order over all frames (each
+   * walked in rank order), or the point's own `color`. Pure in {@link frames},
+   * so replacing the frames restarts the palette.
+   */
+  private readonly colorMap = computed(() => {
+    const colors = new Map<string, string>();
+    for (const frame of this.frames()) {
+      for (const point of rankFrame(frame)) {
+        if (!colors.has(point.name)) colors.set(point.name, getChartColor(colors.size, point.color));
+      }
+    }
+    return colors;
+  });
 
   svgWidth = computed(() => this._measuredWidth() ?? this.width());
   svgHeight = computed(() => this.height());
@@ -210,52 +236,63 @@ export class BarRaceChartComponent implements OnDestroy, AfterViewInit {
     return labels[idx] ?? `Frame ${idx + 1}`;
   });
 
+  /** The positive end of the value axis: the frame's largest value plus 10% headroom for its label (100 for an empty frame). */
   maxValue = computed(() => {
     const frame = this.currentFrame();
     if (frame.length === 0) return 100;
-    return (extent(frame.map(d => d.value))?.[1] ?? 0) * 1.1;
+    return Math.max(0, extent(frame.map(d => d.value))?.[1] ?? 0) * 1.1;
   });
+
+  /** The negative end of the value axis: the frame's lowest value plus 10% headroom, or 0 when nothing is negative. */
+  minValue = computed(() => Math.min(0, extent(this.currentFrame().map(d => d.value))?.[0] ?? 0) * 1.1);
+
+  private readonly valueScale = computed(() => {
+    const area = this.chartArea();
+    const range: [number, number] = this.isRtl() ? [area.right, area.left] : [area.left, area.right];
+    return linearScale([this.minValue(), this.maxValue()], range);
+  });
+
+  /** The x of the value 0, where every bar is anchored: the start edge unless the frame has negative values. */
+  baselineX = computed(() => this.valueScale().scale(0));
 
   displayBars = computed((): RaceBar[] => {
     const frame = this.currentFrame();
     if (frame.length === 0) return [];
 
-    const area = this.chartArea();
-    const maxVal = this.maxValue();
-    const maxB = this.maxBars();
+    const scale = this.valueScale();
+    const baseline = this.baselineX();
+    const colors = this.colorMap();
     const bHeight = this.barHeight();
     const gap = this.barGap();
+    const area = this.chartArea();
+    const startEdge = this.isRtl() ? area.right : area.left;
 
-    const sorted = [...frame]
-      .sort((a, b) => b.value - a.value)
-      .slice(0, maxB);
-
-    return sorted.map((point, rank) => {
-      if (!this.colorMap.has(point.name)) {
-        this.colorMap.set(point.name, getChartColor(this.colorMap.size, point.color));
-      }
-
-      // colorMap.set is called just above if the key is missing, so get() is guaranteed to return a string
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const color = this.colorMap.get(point.name)!;
-      const normalizedValue = point.value / maxVal;
-      const barWidth = normalizedValue * area.width;
+    return rankFrame(frame).slice(0, this.maxBars()).map((point, rank) => {
+      const end = scale.scale(point.value);
+      const barWidth = Math.abs(end - baseline);
       const y = area.top + rank * (bHeight + gap);
-
-      const x = this.isRtl() ? area.right - barWidth : area.left;
+      // Positive values grow away from the start edge, negative ones toward it.
+      const growsRight = (point.value >= 0) !== this.isRtl();
+      const x = Math.min(baseline, end);
+      const freeEnd = growsRight ? x + barWidth : x;
+      // A positive label has the side padding to itself; a negative one runs toward the name labels,
+      // so when it has no room before them it moves inside the bar end.
+      const outside = point.value >= 0 || Math.abs(freeEnd - startEdge) >= LABEL_ROOM;
 
       return {
         name: point.name,
         value: point.value,
         rank,
         previousRank: rank,
-        color,
+        color: colors.get(point.name) ?? getChartColor(rank, point.color),
         x,
         y,
         width: barWidth,
         height: bHeight,
         animatedY: y,
         animatedWidth: barWidth,
+        labelX: growsRight === outside ? freeEnd + 12 : freeEnd - 12,
+        labelAnchor: growsRight === outside ? 'start' : 'end',
       };
     });
   });
@@ -267,7 +304,9 @@ export class BarRaceChartComponent implements OnDestroy, AfterViewInit {
   containerClasses = computed(() => cn('relative block w-full', this.class()));
 
   constructor() {
-    setTimeout(() => {
+    // Runs after the first render and never after destroy, unlike a timer started here.
+    afterNextRender(() => {
+      this._checkDirection();
       if (this.autoPlay()) {
         this.play();
       }

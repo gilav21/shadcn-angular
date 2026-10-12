@@ -9,7 +9,7 @@
     @if (title()) {
       <div class="mb-1 font-medium">{{ title() }}</div>
     }
-    @for (row of rows(); track row.label) {
+    @for (row of rows(); track $index) {
       <div class="flex items-center gap-2">
         @if (row.color) {
           <span class="inline-block size-2 shrink-0 rounded-full" [style.background]="row.color"></span>

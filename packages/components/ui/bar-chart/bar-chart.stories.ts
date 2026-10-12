@@ -103,6 +103,7 @@ export const WithoutValues: Story = {
     render,
 };
 
+/** Bars grow from a zero baseline: gains rise, losses fall, and the axis includes both. */
 export const NegativeAndPositiveValues: Story = {
     args: {
         data: [

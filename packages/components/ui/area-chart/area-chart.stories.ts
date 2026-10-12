@@ -103,6 +103,20 @@ export const StackedPercent: Story = {
     render,
 };
 
+/** The axis grows to include values below zero and the area fills to the zero line. */
+export const NegativeAndMixedValues: Story = {
+    args: {
+        series: [
+            { name: 'Profit', data: [{ name: 'Jan', value: 40 }, { name: 'Feb', value: -25 }, { name: 'Mar', value: 30 }, { name: 'Apr', value: -45 }, { name: 'May', value: 60 }] },
+            { name: 'Forecast', data: [{ name: 'Jan', value: 10 }, { name: 'Feb', value: 15 }, { name: 'Mar', value: -5 }, { name: 'Apr', value: -20 }, { name: 'May', value: 25 }] },
+        ] as ChartSeries[],
+        width: 560,
+        height: 320,
+        curve: 'linear',
+    },
+    render,
+};
+
 export const Curves: Story = {
     render: (args) => ({
         props: { ...args, series },

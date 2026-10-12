@@ -446,7 +446,7 @@
             {
               "name": "series",
               "type": "ChartSeries[]",
-              "description": "One filled area per series. Points are matched across series **by position**, not by name: the x axis categories are taken from the *first* series' `data[].name`, so every series should carry the same number of points in the same order. Each entry's `color` overrides the palette colour picked from the series index; `id` (falling back to `name`) is the key used by the legend and {@link toggleSeries}, so give series unique names when they have no `id`. Array order is paint order — and when {@link stacked} is on, stack order: the first series sits at the bottom. The y domain always starts at 0 and is nice-rounded over the *visible* series, so negative values fall outside the plot. A missing value (`NaN`, `null`, `undefined` or infinite) is a gap in an overlapping area and counts as 0 in a stacked one.",
+              "description": "One filled area per series. Points are matched across series **by position**, not by name: the x axis categories are taken from the *first* series' `data[].name`, so every series should carry the same number of points in the same order. Each entry's `color` overrides the palette colour picked from the series index; `id` (falling back to `name`) is the key used by the legend and {@link toggleSeries}, so give series an `id` to toggle same-named series separately (they are always drawn separately). Two categories may share a name: points are positioned by index. Array order is paint order — and when {@link stacked} is on, stack order: the first series sits at the bottom. The y domain is nice-rounded over zero and the *visible* series, so negative values are drawn below a visible zero line and an overlapping area fills to that line. In a stacked area, positives and negatives accumulate in array order; `'percent'` mode scales a category by its absolute total (`|v| / Σ|v|`). A missing value (`NaN`, `null`, `undefined` or infinite) is a gap in an overlapping area and counts as 0 in a stacked one.",
               "required": true
             },
             {
@@ -928,7 +928,7 @@
             {
               "name": "data",
               "type": "ChartDataPoint[]",
-              "description": "One bar per entry, drawn in array order (left-to-right, or right-to-left when {@link isRtl} resolves true). `name` is the category label under the axis, `value` the bar length, and the optional `color` overrides the palette colour that would otherwise be picked from the entry's index. Values are assumed non-negative: the scale is anchored at 0 and only the maximum is derived from the data, so negative values fall outside the plot.",
+              "description": "One bar per entry, drawn in array order (left-to-right, or right-to-left when {@link isRtl} resolves true). `name` is the category label under the axis, `value` the bar length, and the optional `color` overrides the palette colour that would otherwise be picked from the entry's index. Bars grow from a zero baseline: a positive value rises (or extends toward the end edge), a negative one falls (or extends toward the start edge, mirrored in RTL), and the axis covers both signs. An all-zero dataset draws zero-length bars on the baseline. Entries sharing a `name` are separate bars, one per array position.",
               "required": true
             },
             {
@@ -1055,7 +1055,7 @@
             {
               "name": "data",
               "type": "DrilldownDataPoint[]",
-              "description": "The top-level series: one column per entry, drawn in array order (mirrored in RTL). `name` labels the category axis, `value` is the column height, and the optional `color` overrides the palette colour picked from the index. An entry whose `drilldown` holds the `id` of an entry in {@link drilldownSeries} becomes clickable and navigates into that series — a `drilldown` id with no matching series is inert (see {@link hasDrilldown}). Values are assumed non-negative: the scale is anchored at 0.",
+              "description": "The top-level series: one column per entry, drawn in array order (mirrored in RTL). `name` labels the category axis, `value` is the column height, and the optional `color` overrides the palette colour picked from the index. An entry whose `drilldown` holds the `id` of an entry in {@link drilldownSeries} becomes clickable and navigates into that series — a `drilldown` id with no matching series is inert (see {@link hasDrilldown}). Columns grow from a zero baseline: a negative value hangs below it and the axis covers both signs; an all-zero series draws zero-height columns. Entries sharing a `name` are separate columns, one per array position.",
               "required": true
             },
             {
@@ -1204,7 +1204,7 @@
             {
               "name": "frames",
               "type": "ChartDataPoint[][]",
-              "description": "The whole race: one entry per time step, each holding that step's `{ name, value, color? }` points. Only the frame at {@link currentFrameIndex} is drawn — it is sorted by `value` descending and cut to {@link maxBars}, so array order within a frame is irrelevant and bars re-order as values change. Names are the identity across frames: a point keeps its palette colour (assigned on first sight, or from its own `color`) and its `track` identity for the CSS transition, so reusing the same names between frames is what makes bars slide instead of pop. The value axis is rescaled per frame to 110% of that frame's largest value, so lengths are relative within a frame, not across the race.",
+              "description": "The whole race: one entry per time step, each holding that step's `{ name, value, color? }` points. Only the frame at {@link currentFrameIndex} is drawn — it is sorted by `value` descending and cut to {@link maxBars}, so array order within a frame is irrelevant and bars re-order as values change. Names are the identity across frames: a point keeps its palette colour (assigned on first sight, or from its own `color`) and its `track` identity for the CSS transition, so reusing the same names between frames is what makes bars slide instead of pop; two entries with one name in a frame are one bar, the last winning. The value axis is rescaled per frame to 110% of that frame's largest (and lowest) value, so lengths are relative within a frame, not across the race. Bars grow from the zero baseline: negative values extend toward the start edge.",
               "required": true
             },
             {
@@ -3826,7 +3826,7 @@
             {
               "name": "data",
               "type": "RangeDataPoint[]",
-              "description": "One floating column per entry, drawn in array order (right-to-left when {@link isRtl} resolves true). Each {@link RangeDataPoint} spans `low` to `high` rather than starting at zero — temperature bands, min/max ranges, confidence intervals — so the value axis is derived from both ends and need not include 0 (see {@link dataRange}). `name` is the category label under the axis and the optional `color` overrides the palette colour picked from the entry's index. A `low` above its `high` inverts the bar's height; it is clamped to 1px rather than flipped, so pass the ends the right way round.",
+              "description": "One floating column per entry, drawn in array order (right-to-left when {@link isRtl} resolves true). Each {@link RangeDataPoint} spans `low` to `high` rather than starting at zero — temperature bands, min/max ranges, confidence intervals — so the value axis is derived from both ends and need not include 0 (see {@link dataRange}). `name` is the category label under the axis and the optional `color` overrides the palette colour picked from the entry's index. The two ends may come in either order (the column spans `min(low, high)` to `max(low, high)`), and a zero-span range is drawn as a 1px line at its value. Entries sharing a `name` are separate columns, one per array position.",
               "required": true
             },
             {
@@ -3915,7 +3915,7 @@
             {
               "name": "barSeries",
               "type": "ChartSeries[]",
-              "description": "The bar half of the chart, read against the **primary** (left) axis, which is anchored at 0 and auto-scaled to the largest value across all bar series — so negative values fall outside the plot. The **first** series is privileged: its `data[].name`s define the category axis ({@link categories}) and its values feed {@link cumulativePercents}. Further series are grouped side by side inside each category band and are indexed positionally, so every series must list its values in the same category order; a missing slot is drawn as 0.",
+              "description": "The bar half of the chart, read against the **primary** (left) axis, which is nice-rounded over zero and every bar value: bars rise from the zero gridline and negative bars fall below it. The **first** series is privileged: its `data[].name`s define the category axis ({@link categories}) and its values feed {@link cumulativePercents}. Further series are grouped side by side inside each category band and are indexed positionally, so every series must list its values in the same category order; a missing slot is drawn as 0.",
               "required": true
             },
             {
@@ -3951,7 +3951,7 @@
             {
               "name": "showCumulative",
               "type": "boolean",
-              "description": "Prepend a Pareto-style running-total line, computed from {@link barSeries}[0] only and expressed as a percentage of that series' total. Turning it on pins the secondary axis to a fixed 0–100 range, which also rescales any {@link lineSeries} drawn alongside it.",
+              "description": "Prepend a Pareto-style running-total line, computed from {@link barSeries}[0] only and expressed as a percentage of that series' total. Turning it on gives the secondary axis the 0–100 range (wider only if a {@link lineSeries} value or a negative bar pushes the percentages outside it), which also rescales any {@link lineSeries} drawn alongside it. A Pareto chart is defined on non-negative counts; with negative bars the percentages are still plotted, but they are not a meaningful share.",
               "default": "false"
             },
             {
@@ -8042,7 +8042,7 @@
             {
               "name": "data",
               "type": "ChartDataPoint[]",
-              "description": "One funnel stage per entry, top to bottom in array order — pass them already sorted from widest to narrowest, since nothing re-sorts them and a rising value simply draws a stage that flares outwards. Each stage's top edge is `value / max` of the available width and its bottom edge is the *next* stage's width, which is what produces the taper; the last stage repeats its own width, so it renders as a rectangle rather than a point. `name` labels the stage, and the optional `color` overrides the palette colour picked from the entry's index. Percentages are derived separately — see {@link percentageMode}.",
+              "description": "One funnel stage per entry, top to bottom in array order — pass them already sorted from widest to narrowest, since nothing re-sorts them and a rising value simply draws a stage that flares outwards. Each stage's top edge is `max(0, value) / largest positive value` of the available width (zero when no stage is positive: a zero or negative stage is drawn with no width) and its bottom edge is the *next* stage's width, which is what produces the taper; the last stage repeats its own width, so it renders as a rectangle rather than a point. `name` labels the stage, and the optional `color` overrides the palette colour picked from the entry's index. Percentages are derived separately — see {@link percentageMode}.",
               "required": true
             },
             {
@@ -8285,7 +8285,7 @@
             {
               "name": "data",
               "type": "HeatmapCell[]",
-              "description": "Flat list of `{ row, col, value }` cells — not a 2-D array. The axes are derived from the data itself: {@link rows} and {@link cols} are the distinct `row`/`col` strings in **first-appearance order**, never sorted, so the array order is what controls the grid layout. A `(row, col)` pair that is absent simply leaves a blank gap — cells are not back-filled. `value` is mapped onto the {@link fromColor}→{@link toColor} ramp across the data's own min/max (see {@link valueDomain}), so the colours are relative to this chart, not to any absolute scale.",
+              "description": "Flat list of `{ row, col, value }` cells — not a 2-D array. The axes are derived from the data itself: {@link rows} and {@link cols} are the distinct `row`/`col` strings in **first-appearance order**, never sorted, so the array order is what controls the grid layout. A `(row, col)` pair that is absent simply leaves a blank gap — cells are not back-filled, and a `(row, col)` pair listed twice is drawn twice at the same spot, the later entry on top. Negative values are fine; equal values draw one flat colour. `value` is mapped onto the {@link fromColor}→{@link toColor} ramp across the data's own min/max (see {@link valueDomain}), so the colours are relative to this chart, not to any absolute scale.",
               "required": true
             },
             {
@@ -10648,7 +10648,7 @@
             {
               "name": "series",
               "type": "ChartSeries[]",
-              "description": "One poly-line per series. Points are matched across series **by position**, not by name: the x axis categories are taken from the *first* series' `data[].name`, so every series should carry the same number of points in the same order. Each entry's `color` overrides the palette colour picked from the series index; `id` (falling back to `name`) is the key used by the legend and {@link toggleSeries}, so give series unique names when they have no `id`. The y domain is nice-rounded over the *visible* series and always includes 0, so hiding a series via the legend rescales the axis. A missing value (`NaN`, `null`, `undefined` or infinite) is a gap: the line breaks there and no marker is drawn for it.",
+              "description": "One poly-line per series. Points are matched across series **by position**, not by name: the x axis categories are taken from the *first* series' `data[].name`, so every series should carry the same number of points in the same order. Each entry's `color` overrides the palette colour picked from the series index; `id` (falling back to `name`) is the key used by the legend and {@link toggleSeries}, so give series an `id` to toggle same-named series separately (they are always drawn separately). Two categories may share a name: points are positioned by index. The y domain is nice-rounded over the *visible* series and always includes 0, so hiding a series via the legend rescales the axis. A missing value (`NaN`, `null`, `undefined` or infinite) is a gap: the line breaks there and no marker is drawn for it.",
               "required": true
             },
             {
@@ -12276,7 +12276,7 @@
             {
               "name": "data",
               "type": "ChartDataPoint[]",
-              "description": "One slice per entry, laid out clockwise in array order starting at 12 o'clock. `name` labels the slice in the legend and tooltip, `value` is a share of the total (each slice's angle is `value / sum(values)`, so the values are weights, not angles), and the optional `color` overrides the palette colour otherwise picked from the entry's index. Values are assumed non-negative; a total of `0` renders no slices at all.",
+              "description": "One slice per entry, laid out clockwise in array order starting at 12 o'clock. `name` labels the slice in the legend and tooltip, `value` is a share of the positive total (each wedge's angle is `value / sum(positive values)`, so the values are weights, not angles), and the optional `color` overrides the palette colour otherwise picked from the entry's index. A zero, negative or non-finite value gets no wedge and no share, but the legend still lists it with its raw value; a dataset with no positive value draws the empty ring (`data-slot=\"pie-empty\"`) instead of wedges.",
               "required": true
             },
             {
@@ -12373,7 +12373,7 @@
             {
               "name": "data",
               "type": "DrilldownDataPoint[]",
-              "description": "The top-level slices, laid out clockwise in array order from 12 o'clock. Each `value` is a weight — the slice angle is `value / sum(values)` — and the optional `color` overrides the palette colour picked from the index. A point whose `drilldown` holds the `id` of an entry in {@link drilldownSeries} becomes navigable: clicking it swaps the chart to that series. A `drilldown` id with no matching series is inert, and gets no chevron in the legend.",
+              "description": "The top-level slices, laid out clockwise in array order from 12 o'clock. Each `value` is a weight — the wedge angle is `value / sum(positive values)` — and the optional `color` overrides the palette colour picked from the index. A zero, negative or non-finite value gets no wedge and no share but is still listed in the legend; with no positive value the empty ring (`data-slot=\"pie-empty\"`) is drawn instead. A point whose `drilldown` holds the `id` of an entry in {@link drilldownSeries} becomes navigable: clicking it swaps the chart to that series. A `drilldown` id with no matching series is inert, and gets no chevron in the legend.",
               "required": true
             },
             {
@@ -12690,7 +12690,7 @@
             {
               "name": "series",
               "type": "ChartSeries[]",
-              "description": "One filled polygon per series, coloured by its index in this array unless the series carries its own `color`. Every series must repeat the same `data[].name` values in the same order: the axis ring comes from the **first** series alone (see {@link axes}) and each later series' points are matched to axes positionally, so a shorter or re-ordered series is plotted against the wrong spokes. Series with an `id` use it as their legend/visibility key, otherwise `name` is the key — give duplicate names distinct `id`s or toggling one hides both. All series share one radial scale (see {@link maxValue}).",
+              "description": "One filled polygon per series, coloured by its index in this array unless the series carries its own `color`. Every series must repeat the same `data[].name` values in the same order: the axis ring comes from the **first** series alone (see {@link axes}) and each later series' points are matched to axes positionally, so a shorter or re-ordered series is plotted against the wrong spokes. Series with an `id` use it as their legend/visibility key, otherwise `name` is the key — give duplicate names distinct `id`s or toggling one hides both. All series share one radial scale: the centre is {@link minValue} (zero, or the lowest value when any is negative) and the outer ring is {@link maxValue}; a value beyond either end is clamped onto it, so a vertex always lies on its own axis.",
               "required": true
             },
             {
@@ -17574,7 +17574,7 @@
             {
               "name": "dir",
               "type": "ChartDirection",
-              "description": "Layout direction. `'auto'` (default) resolves from the host element's inherited DOM direction after view init; `'ltr'`/`'rtl'` force it. RTL mirrors the category order and moves the value-axis gutter to the right-hand edge; segments always stack upward. See {@link isRtl}.",
+              "description": "Layout direction. `'auto'` (default) resolves from the host element's inherited DOM direction after view init; `'ltr'`/`'rtl'` force it. RTL mirrors the category order and moves the value-axis gutter to the right-hand edge; positive segments always stack upward. See {@link isRtl}.",
               "default": "'auto'"
             },
             {
@@ -17586,7 +17586,7 @@
             {
               "name": "series",
               "type": "ChartSeries[]",
-              "description": "One stack layer per series, stacked bottom-to-top in array order, and one legend swatch per series. Each series' `data` is matched to {@link categories} **by index, not by `name`** — `data[i]` is the segment in category `i`, and a missing or short entry contributes 0. The optional `color` overrides the palette colour picked from the series index; `id` (or `name` as fallback) is the legend's track key, so keep it unique.",
+              "description": "One stack layer per series, stacked bottom-to-top in array order, and one legend swatch per series. Each series' `data` is matched to {@link categories} **by index, not by `name`** — `data[i]` is the segment in category `i`, and a missing or short entry contributes 0. The optional `color` overrides the palette colour picked from the series index; `id` (or `name` as fallback) is the legend's track key — give series an `id` to toggle same-named series separately. Stacks diverge from zero: positive segments stack upward in array order and negative ones downward, so a stack can extend on both sides of the baseline. In `'percent'` mode a segment's share is `|v| / Σ|v|` of its category, sign kept.",
               "required": true
             },
             {
@@ -20030,7 +20030,7 @@
             {
               "name": "data",
               "type": "WaterfallBar[]",
-              "description": "The bridge, in left-to-right order — order is the story here, since each bar is stacked on the running total left by the one before it. A bar with `type` omitted or `'relative'` is a delta: it spans from the running total to `running + value`, so a negative `value` draws downward. A bar with `type: 'total'` is a checkpoint: it is drawn from the zero baseline up to `value` and *resets* the running total to that value, so its `value` must be the subtotal you want (it is not computed for you — an inconsistent number silently breaks the bridge). `name` labels the category axis and is the band key, so names must be unique; the optional `color` overrides {@link positiveColor} / {@link negativeColor} / {@link totalColor} for that bar alone.",
+              "description": "The bridge, in left-to-right order — order is the story here, since each bar is stacked on the running total left by the one before it. A bar with `type` omitted or `'relative'` is a delta: it spans from the running total to `running + value`, so a negative `value` draws downward. A bar with `type: 'total'` is a checkpoint: it is drawn from the zero baseline up to `value` and *resets* the running total to that value, so its `value` must be the subtotal you want (it is not computed for you — an inconsistent number silently breaks the bridge). `name` labels the category axis; bars are positioned by array index, so two bars may share a name and each is drawn at its own position; the optional `color` overrides {@link positiveColor} / {@link negativeColor} / {@link totalColor} for that bar alone.",
               "required": true
             },
             {

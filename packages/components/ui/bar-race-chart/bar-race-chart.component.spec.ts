@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { BarRaceChartComponent } from './bar-race-chart.component';
 import { ChartDataPoint } from '../../lib/chart.types';
+import { CHART_COLORS } from '../../lib/chart.utils';
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 
 class ResizeObserverStub {
@@ -406,10 +407,7 @@ describe('BarRaceChartComponent — autoPlay', () => {
         fixture.componentRef.setInput('autoPlay', true);
         fixture.detectChanges();
 
-        expect(component.isPlaying()).toBe(false);
-
-        vi.advanceTimersByTime(0);
-
+        // Autoplay starts after the first render, not from a constructor timer.
         expect(component.isPlaying()).toBe(true);
         expect(component.currentFrameIndex()).toBe(1);
 
@@ -452,5 +450,164 @@ describe('BarRaceChartComponent — i18n integration', () => {
         const buttons = fixture.nativeElement.querySelectorAll('button');
         expect(buttons[0].getAttribute('aria-label')).toBe('Lecture');
         expect(buttons[1].getAttribute('aria-label')).toBe('Réinitialiser');
+    });
+});
+
+describe('BarRaceChartComponent zero baseline', () => {
+    const CLASSES: Record<string, number[]> = {
+        'mixed sign': [30, -20, 10, 0],
+        'all negative': [-50, -10, -0.5],
+        'all zero': [0, 0, 0],
+        'all positive': [1.97, 2.2, 2.4, 2.69],
+    };
+
+    function build(values: number[], dir: 'ltr' | 'rtl'): BarRaceChartComponent {
+        const fixture = TestBed.createComponent(BarRaceChartComponent);
+        fixture.componentRef.setInput('frames', [values.map((value, i) => ({ name: `N${i}`, value }))]);
+        fixture.componentRef.setInput('dir', dir);
+        fixture.detectChanges();
+        return fixture.componentInstance;
+    }
+
+    /**
+     * A value label sits 12px past the bar's free end, except that a negative bar with under 64px before
+     * the name labels keeps its value inside the bar end.
+     */
+    function expectLabel(
+        bar: { value: number; x: number; width: number; labelX: number; labelAnchor: string },
+        area: { left: number; right: number },
+        dir: 'ltr' | 'rtl',
+    ): void {
+        const growsRight = (bar.value >= 0) !== (dir === 'rtl');
+        const freeEnd = growsRight ? bar.x + bar.width : bar.x;
+        const startEdge = dir === 'rtl' ? area.right : area.left;
+        const outside = bar.value >= 0 || Math.abs(freeEnd - startEdge) >= 64;
+        const towardRight = growsRight === outside;
+        expect(bar.labelAnchor).toBe(towardRight ? 'start' : 'end');
+        expect(bar.labelX).toBeCloseTo(towardRight ? freeEnd + 12 : freeEnd - 12, 6);
+    }
+
+    for (const [className, values] of Object.entries(CLASSES)) {
+        for (const dir of ['ltr', 'rtl'] as const) {
+            it(`should grow ${className} bars from the zero baseline toward the sign side, inside the plot (${dir})`, () => {
+                const component = build(values, dir);
+                const area = component.chartArea();
+                const baseline = component.baselineX();
+                // Positive values grow away from the start edge, negative ones toward it.
+                const anchorsAtLeft = (value: number): boolean => (dir === 'ltr') === (value >= 0);
+                const unitLengths = component.displayBars()
+                    .filter(b => b.value !== 0)
+                    .map(b => b.width / Math.abs(b.value));
+
+                for (const bar of component.displayBars()) {
+                    expect(Number.isFinite(bar.x) && Number.isFinite(bar.width)).toBe(true);
+                    expect(anchorsAtLeft(bar.value) ? bar.x : bar.x + bar.width).toBeCloseTo(baseline, 6);
+                    expect(bar.x).toBeGreaterThanOrEqual(area.left - 0.5);
+                    expect(bar.x + bar.width).toBeLessThanOrEqual(area.right + 0.5);
+                }
+                for (const bar of component.displayBars()) expectLabel(bar, area, dir);
+                for (const length of unitLengths) {
+                    expect(length).toBeCloseTo(unitLengths[0], 6);
+                }
+                for (const bar of component.displayBars().filter(b => b.value === 0)) {
+                    expect(bar.width).toBe(0);
+                }
+            });
+        }
+    }
+
+    it.each([['ltr', 'end'], ['rtl', 'start']] as const)('should anchor the name labels away from the bars (%s: %s)', (dir, anchor) => {
+        const fixture = TestBed.createComponent(BarRaceChartComponent);
+        fixture.componentRef.setInput('frames', [[{ name: 'Alpha', value: 3 }, { name: 'Beta', value: 1 }]]);
+        fixture.componentRef.setInput('dir', dir);
+        fixture.detectChanges();
+
+        const names = Array.from(fixture.nativeElement.querySelectorAll('svg text') as NodeListOf<SVGTextElement>)
+            .filter(t => ['Alpha', 'Beta'].includes(t.textContent?.trim() ?? ''));
+        expect(names).toHaveLength(2);
+        for (const name of names) expect(name.getAttribute('text-anchor')).toBe(anchor);
+    });
+
+    it('should keep one bar per name in a frame, taking the last value', () => {
+        const fixture = TestBed.createComponent(BarRaceChartComponent);
+        fixture.componentRef.setInput('frames', [[
+            { name: 'A', value: 5 },
+            { name: 'B', value: 3 },
+            { name: 'A', value: 9 },
+        ]]);
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.displayBars().map(b => [b.name, b.value])).toEqual([['A', 9], ['B', 3]]);
+    });
+});
+
+describe('BarRaceChartComponent lifetime', () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it('should emit no frameChange after being destroyed before its first autoplay tick', () => {
+        const fixture = TestBed.createComponent(BarRaceChartComponent);
+        const emitted: number[] = [];
+        fixture.componentInstance.frameChange.subscribe(i => emitted.push(i));
+        fixture.componentRef.setInput('frames', [[{ name: 'A', value: 1 }], [{ name: 'A', value: 2 }], [{ name: 'A', value: 3 }]]);
+        fixture.componentRef.setInput('autoPlay', true);
+        fixture.componentRef.setInput('loop', true);
+        fixture.componentRef.setInput('animationDuration', 100);
+        fixture.destroy();
+
+        vi.advanceTimersByTime(1000);
+
+        expect(emitted).toEqual([]);
+    });
+
+    it('should stop a running playback when destroyed', () => {
+        const fixture = TestBed.createComponent(BarRaceChartComponent);
+        const emitted: number[] = [];
+        fixture.componentInstance.frameChange.subscribe(i => emitted.push(i));
+        fixture.componentRef.setInput('frames', [[{ name: 'A', value: 1 }], [{ name: 'A', value: 2 }], [{ name: 'A', value: 3 }]]);
+        fixture.componentRef.setInput('loop', true);
+        fixture.componentRef.setInput('animationDuration', 100);
+        fixture.detectChanges();
+        fixture.componentInstance.play();
+        vi.advanceTimersByTime(250);
+        const before = emitted.length;
+        fixture.destroy();
+
+        vi.advanceTimersByTime(1000);
+
+        expect(emitted).toHaveLength(before);
+    });
+
+    it('should give a name that first appears in a later frame the next palette colour', () => {
+        const fixture = TestBed.createComponent(BarRaceChartComponent);
+        fixture.componentRef.setInput('frames', [
+            [{ name: 'A', value: 5 }],
+            [{ name: 'B', value: 9 }, { name: 'A', value: 1 }],
+        ]);
+        fixture.detectChanges();
+        fixture.componentInstance.goToFrame(1);
+
+        const colors = Object.fromEntries(fixture.componentInstance.displayBars().map(b => [b.name, b.color]));
+        // A is first seen in frame 0, B only in frame 1: palette order follows first appearance, not rank.
+        expect(colors).toEqual({ A: CHART_COLORS[0], B: CHART_COLORS[1] });
+    });
+
+    it('should colour the first-ranked name from the palette start when frames are replaced', () => {
+        const fixture = TestBed.createComponent(BarRaceChartComponent);
+        fixture.componentRef.setInput('frames', [[{ name: 'X', value: 10 }, { name: 'Y', value: 5 }]]);
+        fixture.detectChanges();
+        expect(fixture.componentInstance.displayBars()[0].color).toBe(CHART_COLORS[0]);
+
+        fixture.componentRef.setInput('frames', [[{ name: 'P', value: 3 }, { name: 'Q', value: 9 }]]);
+        fixture.detectChanges();
+
+        const bars = fixture.componentInstance.displayBars();
+        expect(bars.map(b => b.name)).toEqual(['Q', 'P']);
+        expect(bars.map(b => b.color)).toEqual([CHART_COLORS[0], CHART_COLORS[1]]);
     });
 });
