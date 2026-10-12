@@ -45,27 +45,44 @@ describe('blockDisabledActivation', () => {
 });
 
 describe('activateAsClick', () => {
-    it('clicks the target once and cancels the default action, so Space does not scroll', () => {
-        const target = document.createElement('div');
-        const onClick = vi.fn<() => void>();
-        target.addEventListener('click', onClick);
-        const key = new KeyboardEvent('keydown', { key: ' ', cancelable: true });
+    let target: HTMLElement;
+    let nested: HTMLElement;
+    let onClick: ReturnType<typeof vi.fn<() => void>>;
 
-        activateAsClick(key, target, false);
+    /** A key pressed on `source`, as the item's keydown handler sees it after bubbling. */
+    function keyOn(source: HTMLElement, key: string, isDisabled: boolean): KeyboardEvent {
+        const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+        target.addEventListener('keydown', (e) => activateAsClick(e, target, isDisabled), { once: true });
+        source.dispatchEvent(event);
+        return event;
+    }
+
+    beforeEach(() => {
+        target = document.createElement('div');
+        nested = document.createElement('button');
+        target.appendChild(nested);
+        onClick = vi.fn<() => void>();
+        target.addEventListener('click', onClick);
+    });
+
+    it('clicks the target once and cancels the default action, so Space does not scroll', () => {
+        const key = keyOn(target, ' ', false);
 
         expect(onClick).toHaveBeenCalledTimes(1);
         expect(key.defaultPrevented).toBe(true);
     });
 
     it('clicks nothing for a disabled item but still cancels the default action', () => {
-        const target = document.createElement('div');
-        const onClick = vi.fn<() => void>();
-        target.addEventListener('click', onClick);
-        const key = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true });
-
-        activateAsClick(key, target, true);
+        const key = keyOn(target, 'Enter', true);
 
         expect(onClick).not.toHaveBeenCalled();
         expect(key.defaultPrevented).toBe(true);
+    });
+
+    it('leaves a key pressed on a control nested in the item to that control', () => {
+        const key = keyOn(nested, 'Enter', false);
+
+        expect(onClick).not.toHaveBeenCalled();
+        expect(key.defaultPrevented).toBe(false);
     });
 });

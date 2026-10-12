@@ -33,10 +33,15 @@ export function blockDisabledActivation(host: HTMLElement, isDisabled: () => boo
 
 /**
  * Enter or Space on a menu item: dispatches one native `click` on `target`
- * unless the item is disabled. The default action is always cancelled — Space
- * would otherwise scroll the page behind the menu.
+ * unless the item is disabled. The default action is cancelled — Space would
+ * otherwise scroll the page behind the menu.
+ *
+ * Only a key pressed on the item itself counts. One that bubbles up from a
+ * control nested inside it (a switch, a button, an input) belongs to that
+ * control and is left untouched.
  */
 export function activateAsClick(event: Event, target: HTMLElement, isDisabled: boolean): void {
+    if (event.target !== target) return;
     event.preventDefault();
     if (!isDisabled) target.click();
 }
