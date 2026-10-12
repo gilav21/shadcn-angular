@@ -611,6 +611,61 @@ describe('onContextGesture', () => {
         expect(handler).toHaveBeenCalledTimes(2);
     });
 
+    // Releasing the finger can still raise a click on the element that was held (iOS does, and so does
+    // Chromium's touch emulation); it would close the menu the hold just opened, or activate the target.
+    it('swallows the click that follows the release of a claimed long-press, and only that one', () => {
+        const handler = listen(outer, true);
+        const reached = vi.fn<() => void>();
+        document.addEventListener('click', reached, true);
+        try {
+            touchDown();
+            vi.advanceTimersByTime(900);
+            expect(handler).toHaveBeenCalledTimes(1);
+
+            leaf.dispatchEvent(touchEvent('touchend', [], [finger]));
+            vi.advanceTimersByTime(50);
+            const release = new MouseEvent('click', { bubbles: true, cancelable: true });
+            leaf.dispatchEvent(release);
+            expect(reached).not.toHaveBeenCalled();
+            expect(release.defaultPrevented).toBe(true);
+
+            leaf.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+            expect(reached).toHaveBeenCalledTimes(1);
+        } finally {
+            document.removeEventListener('click', reached, true);
+        }
+    });
+
+    it('lets a click through that comes long after the release, or after a long-press nobody claimed', () => {
+        const handler = listen(outer, false);
+        const reached = vi.fn<() => void>();
+        document.addEventListener('click', reached, true);
+        try {
+            touchDown();
+            vi.advanceTimersByTime(600);
+            leaf.dispatchEvent(touchEvent('touchend', [], [finger]));
+            leaf.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+            expect(handler).toHaveBeenCalledTimes(1);
+            expect(reached).toHaveBeenCalledTimes(1);
+        } finally {
+            document.removeEventListener('click', reached, true);
+        }
+
+        const claimingHandler = listen(inner, true);
+        document.addEventListener('click', reached, true);
+        try {
+            touchDown();
+            vi.advanceTimersByTime(600);
+            leaf.dispatchEvent(touchEvent('touchend', [], [finger]));
+            vi.advanceTimersByTime(2000);
+            leaf.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+            expect(claimingHandler).toHaveBeenCalledTimes(1);
+            expect(reached).toHaveBeenCalledTimes(2);
+        } finally {
+            document.removeEventListener('click', reached, true);
+        }
+    });
+
     // The echo is not always late: the browser's own hold timer can beat ours.
     it('answers the gesture once when the browser contextmenu arrives before the hold completes', () => {
         const handler = listen(outer, true);

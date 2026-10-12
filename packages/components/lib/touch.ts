@@ -340,6 +340,7 @@ export function onContextGesture(
         if (!handler({ target, clientX: finger.clientX, clientY: finger.clientY, source: event, viaTouch: true })) return;
         claimedGestures.add(event);
         lastClaimedPress = { at: Date.now(), target };
+        swallowReleaseClick();
     };
 
     const onContextMenu = (event: MouseEvent): void => {
@@ -458,6 +459,54 @@ let lastClaimedContext: ClaimedAt | null = null;
 function isRecentSameGesture(claimed: ClaimedAt | null, hit: Node | null): boolean {
     if (!claimed || Date.now() - claimed.at >= SAME_GESTURE_MS) return false;
     return !hit || claimed.target.contains(hit) || hit.contains(claimed.target);
+}
+
+/** How long after the finger lifts the click of a claimed long-press can still arrive. */
+const RELEASE_CLICK_WINDOW_MS = 400;
+
+/** Undoes the release-click guard of the previous claimed long-press, if it is still waiting. */
+let cancelReleaseClickGuard: (() => void) | null = null;
+
+/**
+ * Keeps the click that follows the release of a claimed long-press from reaching
+ * anything: it would close the menu the hold just opened (every outside-click
+ * dismissal sees it) or activate the element that was held. iOS raises it, and so
+ * does Chromium's touch emulation; Android Chrome does not, and then the listener
+ * simply expires.
+ *
+ * Armed by the release, not by the hold, so a hold that never reports its end
+ * cannot leave a listener behind that eats an unrelated click; and a newer hold
+ * replaces an older guard, so at most one is ever waiting. It sits on `window` in
+ * the capture phase, ahead of the document-level listeners the menus use, and
+ * takes exactly one click.
+ */
+function swallowReleaseClick(): void {
+    const win = globalThis.window;
+    if (!win) return;
+    cancelReleaseClickGuard?.();
+
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const swallow = (event: Event): void => {
+        event.stopImmediatePropagation();
+        event.preventDefault();
+        cancel();
+    };
+    const onRelease = (): void => {
+        win.removeEventListener('touchend', onRelease, true);
+        win.removeEventListener('touchcancel', onRelease, true);
+        win.addEventListener('click', swallow, true);
+        timer = setTimeout(cancel, RELEASE_CLICK_WINDOW_MS);
+    };
+    function cancel(): void {
+        clearTimeout(timer);
+        win.removeEventListener('touchend', onRelease, true);
+        win.removeEventListener('touchcancel', onRelease, true);
+        win.removeEventListener('click', swallow, true);
+        if (cancelReleaseClickGuard === cancel) cancelReleaseClickGuard = null;
+    }
+    cancelReleaseClickGuard = cancel;
+    win.addEventListener('touchend', onRelease, true);
+    win.addEventListener('touchcancel', onRelease, true);
 }
 
 /** Takes the event from the browser and from every other `onContextGesture` handler. */
