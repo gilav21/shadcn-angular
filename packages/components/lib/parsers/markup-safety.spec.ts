@@ -7,7 +7,7 @@ describe('cssColor', () => {
         const accepted = ['#abc', '#abcd', '#aabbcc', '#aabbccdd', 'rgb(1, 2, 3)', 'rgba(1 2 3 / 50%)', 'hsl(120 50% 50%)', 'red'];
         for (const colour of accepted) expect(cssColor(colour)).toBe(colour);
 
-        const rejected = [BREAKOUT, DECLARATION, 'red;x:y', 'url(x)', 'expression(1)', "'red'", '#fff;x:y', 'rgb(1,2,3);x:y', '', undefined];
+        const rejected = [BREAKOUT, DECLARATION, 'red;x:y', 'url(x)', 'expression(1)', "'red'", 'red;blue', '#fff;x:y', 'rgb(1,2,3);x:y', '', undefined];
         for (const value of rejected) expect(cssColor(value)).toBeUndefined();
     });
 });

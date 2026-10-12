@@ -16,6 +16,7 @@ import {
 import { DomSanitizer, type SafeHtml, type SafeUrl } from '@angular/platform-browser';
 import type { PixelPerfectPage } from '../../lib/parsers/pdf-pixel-perfect';
 import { cn } from '../../lib/utils';
+import { cssColor, cssFontFamily, imageDataUrl, safeLinkHref } from '../../lib/parsers/markup-safety';
 import { SpinnerComponent } from '../spinner';
 import type { FileViewerType, FileTypeResult } from '../../lib/parsers/file-type-detector';
 import type {
@@ -52,58 +53,9 @@ const TWIPS_PER_PT = 20;
  * document values and handing it to `bypassSecurityTrustHtml`. Angular's own
  * sanitizer cannot be used instead: it strips every `style` attribute, and the
  * rendering is made of inline styles. So every document-controlled value is made
- * safe here, for the context it lands in, before it reaches the markup.
+ * safe (`lib/parsers/markup-safety`), for the context it lands in, before it
+ * reaches the markup.
  */
-
-/** Hex, functional `rgb()/rgba()/hsl()/hsla()` with numeric arguments, or a bare keyword. */
-const CSS_COLOR = /^(?:#[\da-f]{3,8}|(?:rgba?|hsla?)\([\d\s.,%/+-]*\)|[a-z]+)$/i;
-const IMAGE_DATA_URL = /^data:image\/[\w.+-]+;base64,[\w+/=]*$/;
-const SAFE_LINK_PROTOCOLS: ReadonlySet<string> = new Set(['http:', 'https:', 'mailto:']);
-
-/**
- * A document colour when it is plain colour syntax, else `undefined`. The syntax
- * admits no `;`, quote or `url(`, so the value cannot add a declaration or fetch.
- */
-function cssColor(value: string | undefined): string | undefined {
-    return value && CSS_COLOR.test(value) ? value : undefined;
-}
-
-/**
- * A document font name as a quoted CSS string plus a generic fallback. Quotes and
- * backslashes are escaped and control characters dropped, because any of them
- * could end the string and let the name write further declarations.
- */
-function cssFontFamily(name: string): string {
-    let quoted = '';
-    for (const ch of name) {
-        const code = ch.codePointAt(0) ?? 0;
-        if (code < 0x20 || code === 0x7f) continue;
-        quoted += ch === '\\' || ch === "'" ? `\\${ch}` : ch;
-    }
-    return `'${quoted}',sans-serif`;
-}
-
-/** The value when it is a base64 image data URL — the only image source the parsers produce — else `undefined`. */
-function imageDataUrl(value: string | undefined): string | undefined {
-    return value && IMAGE_DATA_URL.test(value) ? value : undefined;
-}
-
-/**
- * A link target the viewer may render: an in-document `#fragment`, or an absolute
- * http, https or mailto URL (returned as the browser will parse it, so the scheme
- * checked is the scheme followed). Anything else — `javascript:`, `data:`, relative
- * paths — yields `undefined` and the text renders unlinked.
- */
-function safeLinkHref(href: string): string | undefined {
-    if (href.startsWith('#')) return href;
-    try {
-        const url = new URL(href);
-        return SAFE_LINK_PROTOCOLS.has(url.protocol) ? url.href : undefined;
-    } catch {
-        // Not an absolute URL; relative targets are not rendered as links.
-        return undefined;
-    }
-}
 
 /** A border shorthand; an unusable document colour falls back to `currentColor`. */
 function cssBorder(side: string, size: number, color: string): string {
@@ -700,7 +652,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         const color = cssColor(style.color);
         if (color) parts.push(`color:${color}`);
         if (style.fontSize) parts.push(`font-size:${style.fontSize}pt`);
-        if (style.fontFamily) parts.push(`font-family:${cssFontFamily(style.fontFamily)}`);
+        if (style.fontFamily) parts.push(`font-family:${cssFontFamily(style.fontFamily)},sans-serif`);
         const background = cssColor(style.highlight) ?? cssColor(style.backgroundColor);
         if (background) parts.push(`background-color:${background}`);
         if (style.doubleStrikethrough) parts.push('text-decoration-style:double');
@@ -1137,7 +1089,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
 
         const styles: string[] = [];
         if (run.fontSize) styles.push(`font-size:${run.fontSize}pt`);
-        if (run.fontFamily) styles.push(`font-family:${cssFontFamily(run.fontFamily)}`);
+        if (run.fontFamily) styles.push(`font-family:${cssFontFamily(run.fontFamily)},sans-serif`);
 
         this.applyRunFillStyles(run, styles);
         this.applyRunDecorationStyles(run, styles);
@@ -1237,7 +1189,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         const styles: string[] = ['display:inline-block', 'min-width:1.5em', 'margin-right:0.25em'];
         const color = cssColor(bullet.color);
         if (color) styles.push(`color:${color}`);
-        if (bullet.fontFamily) styles.push(`font-family:${cssFontFamily(bullet.fontFamily)}`);
+        if (bullet.fontFamily) styles.push(`font-family:${cssFontFamily(bullet.fontFamily)},sans-serif`);
         if (bullet.sizePoints) styles.push(`font-size:${bullet.sizePoints}pt`);
 
         return `<span${this.styleAttr(styles.join(';'))}>${this.escapeHtml(text)}</span>`;
