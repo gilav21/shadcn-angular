@@ -390,7 +390,7 @@ describe('ChipListComponent — IME composition and duplicate chips', () => {
         fixture.componentInstance.writeValue(['a', 'a', 'b']);
         fixture.detectChanges();
         const chipTexts = (): (string | undefined)[] =>
-            Array.from(fixture.nativeElement.querySelectorAll('[data-slot="chip"]') as NodeListOf<HTMLElement>)
+            Array.from(fixture.nativeElement.querySelectorAll('ui-badge') as NodeListOf<HTMLElement>)
                 .map(chip => chip.textContent?.trim());
         expect(chipTexts()).toEqual(['a', 'a', 'b']);
 
