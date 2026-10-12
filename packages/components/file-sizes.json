@@ -162,16 +162,16 @@
       "lines": 102
     },
     "area-chart/area-chart.component.spec.ts": {
-      "bytes": 11287,
-      "lines": 294
+      "bytes": 15009,
+      "lines": 388
     },
     "area-chart/area-chart.component.ts": {
-      "bytes": 14709,
-      "lines": 353
+      "bytes": 14962,
+      "lines": 354
     },
     "area-chart/area-chart.stories.ts": {
-      "bytes": 5302,
-      "lines": 132
+      "bytes": 5949,
+      "lines": 146
     },
     "area-chart/index.ts": {
       "bytes": 40,
@@ -334,16 +334,16 @@
       "lines": 154
     },
     "bar-chart-drilldown/bar-chart-drilldown.component.html": {
-      "bytes": 4230,
+      "bytes": 4318,
       "lines": 131
     },
     "bar-chart-drilldown/bar-chart-drilldown.component.spec.ts": {
-      "bytes": 16096,
-      "lines": 433
+      "bytes": 19043,
+      "lines": 501
     },
     "bar-chart-drilldown/bar-chart-drilldown.component.ts": {
-      "bytes": 12826,
-      "lines": 358
+      "bytes": 13535,
+      "lines": 371
     },
     "bar-chart-drilldown/bar-chart-drilldown.stories.ts": {
       "bytes": 5766,
@@ -358,20 +358,20 @@
       "lines": 29
     },
     "bar-chart/bar-chart.component.html": {
-      "bytes": 5285,
-      "lines": 170
+      "bytes": 5315,
+      "lines": 171
     },
     "bar-chart/bar-chart.component.spec.ts": {
-      "bytes": 12391,
-      "lines": 344
+      "bytes": 17954,
+      "lines": 460
     },
     "bar-chart/bar-chart.component.ts": {
-      "bytes": 10848,
-      "lines": 311
+      "bytes": 12920,
+      "lines": 349
     },
     "bar-chart/bar-chart.stories.ts": {
-      "bytes": 4875,
-      "lines": 133
+      "bytes": 4967,
+      "lines": 134
     },
     "bar-chart/index.ts": {
       "bytes": 39,
@@ -382,16 +382,16 @@
       "lines": 37
     },
     "bar-race-chart/bar-race-chart.component.html": {
-      "bytes": 4013,
+      "bytes": 4003,
       "lines": 106
     },
     "bar-race-chart/bar-race-chart.component.spec.ts": {
-      "bytes": 15835,
-      "lines": 456
+      "bytes": 21940,
+      "lines": 587
     },
     "bar-race-chart/bar-race-chart.component.ts": {
-      "bytes": 13118,
-      "lines": 384
+      "bytes": 15454,
+      "lines": 423
     },
     "bar-race-chart/bar-race-chart.locales.ts": {
       "bytes": 1604,
@@ -462,7 +462,7 @@
       "lines": 1
     },
     "boxplot/boxplot.component.html": {
-      "bytes": 5064,
+      "bytes": 5059,
       "lines": 164
     },
     "boxplot/boxplot.component.spec.ts": {
@@ -926,7 +926,7 @@
       "lines": 1
     },
     "chart-legend/chart-legend.component.html": {
-      "bytes": 844,
+      "bytes": 842,
       "lines": 20
     },
     "chart-legend/chart-legend.component.spec.ts": {
@@ -950,7 +950,7 @@
       "lines": 69
     },
     "chart-tooltip/chart-tooltip.component.html": {
-      "bytes": 648,
+      "bytes": 645,
       "lines": 22
     },
     "chart-tooltip/chart-tooltip.component.spec.ts": {
@@ -1146,16 +1146,16 @@
       "lines": 53
     },
     "column-range-chart/column-range-chart.component.html": {
-      "bytes": 3669,
+      "bytes": 3746,
       "lines": 117
     },
     "column-range-chart/column-range-chart.component.spec.ts": {
-      "bytes": 10520,
-      "lines": 283
+      "bytes": 13609,
+      "lines": 355
     },
     "column-range-chart/column-range-chart.component.ts": {
-      "bytes": 10261,
-      "lines": 294
+      "bytes": 10666,
+      "lines": 295
     },
     "column-range-chart/column-range-chart.stories.ts": {
       "bytes": 3828,
@@ -1170,16 +1170,16 @@
       "lines": 39
     },
     "combo-chart/combo-chart.component.html": {
-      "bytes": 2788,
+      "bytes": 2790,
       "lines": 106
     },
     "combo-chart/combo-chart.component.spec.ts": {
-      "bytes": 14450,
-      "lines": 388
+      "bytes": 18360,
+      "lines": 469
     },
     "combo-chart/combo-chart.component.ts": {
-      "bytes": 14890,
-      "lines": 373
+      "bytes": 15799,
+      "lines": 384
     },
     "combo-chart/combo-chart.stories.ts": {
       "bytes": 3723,
@@ -1794,8 +1794,8 @@
       "lines": 42
     },
     "dialog/sub/dialog-content.component.ts": {
-      "bytes": 4250,
-      "lines": 122
+      "bytes": 4210,
+      "lines": 120
     },
     "dialog/sub/dialog-description.component.ts": {
       "bytes": 400,
@@ -2394,16 +2394,16 @@
       "lines": 32
     },
     "funnel-chart/funnel-chart.component.html": {
-      "bytes": 1492,
+      "bytes": 1493,
       "lines": 46
     },
     "funnel-chart/funnel-chart.component.spec.ts": {
-      "bytes": 10718,
-      "lines": 262
+      "bytes": 13502,
+      "lines": 324
     },
     "funnel-chart/funnel-chart.component.ts": {
-      "bytes": 10153,
-      "lines": 243
+      "bytes": 10604,
+      "lines": 248
     },
     "funnel-chart/funnel-chart.stories.ts": {
       "bytes": 3063,
@@ -2458,7 +2458,7 @@
       "lines": 1
     },
     "heatmap/heatmap.component.html": {
-      "bytes": 2022,
+      "bytes": 1993,
       "lines": 69
     },
     "heatmap/heatmap.component.spec.ts": {
@@ -3382,11 +3382,11 @@
       "lines": 115
     },
     "line-chart/line-chart.component.spec.ts": {
-      "bytes": 13822,
+      "bytes": 13914,
       "lines": 311
     },
     "line-chart/line-chart.component.ts": {
-      "bytes": 13484,
+      "bytes": 13489,
       "lines": 333
     },
     "line-chart/line-chart.stories.ts": {
@@ -3730,7 +3730,7 @@
       "lines": 1
     },
     "org-chart/org-chart.component.html": {
-      "bytes": 2947,
+      "bytes": 2978,
       "lines": 77
     },
     "org-chart/org-chart.component.spec.ts": {
@@ -3938,16 +3938,16 @@
       "lines": 55
     },
     "pie-chart-drilldown/pie-chart-drilldown.component.html": {
-      "bytes": 4518,
-      "lines": 112
+      "bytes": 4903,
+      "lines": 122
     },
     "pie-chart-drilldown/pie-chart-drilldown.component.spec.ts": {
-      "bytes": 17453,
-      "lines": 430
+      "bytes": 19811,
+      "lines": 480
     },
     "pie-chart-drilldown/pie-chart-drilldown.component.ts": {
-      "bytes": 12377,
-      "lines": 315
+      "bytes": 13176,
+      "lines": 327
     },
     "pie-chart-drilldown/pie-chart-drilldown.stories.ts": {
       "bytes": 5078,
@@ -3958,20 +3958,20 @@
       "lines": 1
     },
     "pie-chart/pie-chart.component.html": {
-      "bytes": 3273,
-      "lines": 89
+      "bytes": 3623,
+      "lines": 100
     },
     "pie-chart/pie-chart.component.spec.ts": {
-      "bytes": 4475,
-      "lines": 122
+      "bytes": 7101,
+      "lines": 180
     },
     "pie-chart/pie-chart.component.ts": {
-      "bytes": 8891,
-      "lines": 242
+      "bytes": 9618,
+      "lines": 253
     },
     "pie-chart/pie-chart.stories.ts": {
-      "bytes": 3926,
-      "lines": 116
+      "bytes": 4349,
+      "lines": 130
     },
     "popover/index.ts": {
       "bytes": 182,
@@ -4042,20 +4042,20 @@
       "lines": 1
     },
     "radar-chart/radar-chart.component.html": {
-      "bytes": 1740,
+      "bytes": 1734,
       "lines": 68
     },
     "radar-chart/radar-chart.component.spec.ts": {
-      "bytes": 4047,
-      "lines": 93
+      "bytes": 6154,
+      "lines": 133
     },
     "radar-chart/radar-chart.component.ts": {
-      "bytes": 8010,
-      "lines": 195
+      "bytes": 8671,
+      "lines": 202
     },
     "radar-chart/radar-chart.stories.ts": {
-      "bytes": 4051,
-      "lines": 115
+      "bytes": 4582,
+      "lines": 131
     },
     "radio-group/index.ts": {
       "bytes": 91,
@@ -5762,20 +5762,20 @@
       "lines": 1
     },
     "stacked-bar-chart/stacked-bar-chart.component.html": {
-      "bytes": 4157,
+      "bytes": 4225,
       "lines": 128
     },
     "stacked-bar-chart/stacked-bar-chart.component.spec.ts": {
-      "bytes": 13896,
-      "lines": 370
+      "bytes": 19178,
+      "lines": 482
     },
     "stacked-bar-chart/stacked-bar-chart.component.ts": {
-      "bytes": 13443,
-      "lines": 394
+      "bytes": 14966,
+      "lines": 414
     },
     "stacked-bar-chart/stacked-bar-chart.stories.ts": {
-      "bytes": 5108,
-      "lines": 146
+      "bytes": 5767,
+      "lines": 159
     },
     "stagger-children/index.ts": {
       "bytes": 46,
@@ -6558,7 +6558,7 @@
       "lines": 43
     },
     "waterfall-chart/waterfall-chart.component.html": {
-      "bytes": 2418,
+      "bytes": 2416,
       "lines": 76
     },
     "waterfall-chart/waterfall-chart.component.spec.ts": {
@@ -6566,8 +6566,8 @@
       "lines": 350
     },
     "waterfall-chart/waterfall-chart.component.ts": {
-      "bytes": 12071,
-      "lines": 286
+      "bytes": 12157,
+      "lines": 287
     },
     "waterfall-chart/waterfall-chart.stories.ts": {
       "bytes": 4175,
@@ -6624,7 +6624,7 @@
       "lines": 118
     },
     "a11y.ts": {
-      "bytes": 6026,
+      "bytes": 6024,
       "lines": 148
     },
     "addon-slots.spec.ts": {
@@ -6667,21 +6667,25 @@
       "bytes": 2876,
       "lines": 91
     },
+    "chart-invariants.browser.spec.ts": {
+      "bytes": 38203,
+      "lines": 731
+    },
     "chart-path.spec.ts": {
-      "bytes": 5867,
-      "lines": 138
+      "bytes": 6694,
+      "lines": 152
     },
     "chart-path.ts": {
-      "bytes": 6362,
-      "lines": 182
+      "bytes": 6551,
+      "lines": 186
     },
     "chart-polar.spec.ts": {
-      "bytes": 1461,
-      "lines": 38
+      "bytes": 2764,
+      "lines": 63
     },
     "chart-polar.ts": {
-      "bytes": 1251,
-      "lines": 37
+      "bytes": 1623,
+      "lines": 41
     },
     "chart-responsive.spec.ts": {
       "bytes": 1211,
@@ -6692,24 +6696,24 @@
       "lines": 32
     },
     "chart-scale.spec.ts": {
-      "bytes": 13937,
-      "lines": 362
+      "bytes": 14582,
+      "lines": 376
     },
     "chart-scale.ts": {
-      "bytes": 9234,
-      "lines": 261
+      "bytes": 9707,
+      "lines": 271
     },
     "chart.types.ts": {
-      "bytes": 4931,
-      "lines": 205
+      "bytes": 5050,
+      "lines": 207
     },
     "chart.utils.spec.ts": {
-      "bytes": 17655,
-      "lines": 421
+      "bytes": 19104,
+      "lines": 461
     },
     "chart.utils.ts": {
-      "bytes": 12470,
-      "lines": 336
+      "bytes": 13470,
+      "lines": 357
     },
     "code-highlight.spec.ts": {
       "bytes": 20673,

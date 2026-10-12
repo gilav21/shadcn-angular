@@ -1107,7 +1107,7 @@ export const registry = defineRegistry({
     description: 'Bar chart comparing categorical values with horizontal or vertical bars.',
     tags: ['bar-chart', 'bar', 'column', 'chart', 'comparison'],
     files: ['bar-chart/bar-chart.component.html', 'bar-chart/bar-chart.component.ts', 'bar-chart/index.ts'],
-    libFiles: ['chart-responsive.ts', 'chart.types.ts', 'chart.utils.ts', 'observers.ts'],
+    libFiles: ['chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts', 'observers.ts'],
     testFiles: ['bar-chart/bar-chart.component.spec.ts'],
   },
   'bar-chart-drilldown': {
@@ -1116,7 +1116,7 @@ export const registry = defineRegistry({
     description: 'Interactive bar chart whose bars drill down into nested detail charts.',
     tags: ['bar-chart-drilldown', 'bar', 'drilldown', 'chart', 'interactive'],
     files: ['bar-chart-drilldown/bar-chart-drilldown.component.html', 'bar-chart-drilldown/bar-chart-drilldown.component.ts', 'bar-chart-drilldown/index.ts'],
-    libFiles: ['chart-responsive.ts', 'chart.types.ts', 'chart.utils.ts', 'observers.ts'],
+    libFiles: ['chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts', 'observers.ts'],
     testFiles: ['bar-chart-drilldown/bar-chart-drilldown.component.spec.ts'],
   },
   'stacked-bar-chart': {
@@ -1125,7 +1125,7 @@ export const registry = defineRegistry({
     description: 'Bar chart that stacks multiple series within each bar to show composition.',
     tags: ['stacked-bar-chart', 'stacked', 'bar', 'chart', 'series'],
     files: ['stacked-bar-chart/index.ts', 'stacked-bar-chart/stacked-bar-chart.component.html', 'stacked-bar-chart/stacked-bar-chart.component.ts'],
-    libFiles: ['chart-responsive.ts', 'chart.types.ts', 'chart.utils.ts', 'observers.ts'],
+    libFiles: ['chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts', 'observers.ts'],
     testFiles: ['stacked-bar-chart/stacked-bar-chart.component.spec.ts'],
   },
   'column-range-chart': {
@@ -1134,7 +1134,7 @@ export const registry = defineRegistry({
     description: 'Column chart plotting a low-to-high range per category as floating bars.',
     tags: ['column-range-chart', 'range', 'column', 'chart', 'min-max'],
     files: ['column-range-chart/column-range-chart.component.html', 'column-range-chart/column-range-chart.component.ts', 'column-range-chart/index.ts'],
-    libFiles: ['chart-responsive.ts', 'chart.types.ts', 'chart.utils.ts', 'observers.ts'],
+    libFiles: ['chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts', 'observers.ts'],
     testFiles: ['column-range-chart/column-range-chart.component.spec.ts'],
   },
   'bar-race-chart': {
@@ -1143,7 +1143,7 @@ export const registry = defineRegistry({
     description: 'Animated racing bar chart showing ranked values changing over time.',
     tags: ['bar-race-chart', 'race', 'animated', 'chart', 'ranking'],
     files: ['bar-race-chart/bar-race-chart.component.html', 'bar-race-chart/bar-race-chart.component.ts', 'bar-race-chart/bar-race-chart.locales.ts', 'bar-race-chart/index.ts'],
-    libFiles: ['chart-responsive.ts', 'chart.types.ts', 'chart.utils.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'observers.ts'],
+    libFiles: ['chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'observers.ts'],
     testFiles: ['bar-race-chart/bar-race-chart.component.spec.ts'],
   },
   'org-chart': {

@@ -243,6 +243,12 @@ const BRUSH_WIDTH = 560;
         </div>
 
         <div class="space-y-4">
+          <h3 class="text-lg font-semibold">{{ t().negativeBarHeading }}</h3>
+          <p class="text-sm text-muted-foreground">{{ t().negativeBarDescription }}</p>
+          <ui-bar-chart [dir]="dir()" [data]="t().negativeBarData" [width]="500" [height]="280" />
+        </div>
+
+        <div class="space-y-4">
           <h3 class="text-lg font-semibold">{{ t().barHorizontalHeading }}</h3>
           <p class="text-sm text-muted-foreground">{{ t().barHorizontalDescription }}</p>
           <ui-bar-chart [dir]="dir()" [data]="t().pieChartData" [width]="500" [height]="280"
