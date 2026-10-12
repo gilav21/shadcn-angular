@@ -498,9 +498,6 @@ describe('ContextMenu sub timer teardown', () => {
     });
 });
 
-/** RED until spec 8 Task 2: an expected failure under vitest, skipped where `it.fails` does not exist (the jest consumer leg). */
-const redUntilTask2 = Reflect.has(it, 'fails') ? it.fails : it.skip;
-
 @Component({
     template: `
         <ui-context-menu>
@@ -561,7 +558,7 @@ describe('ContextMenu item activation is one action however it is made', () => {
     });
 
     // UC-2. The items had no role, no tabindex and no key handling at all.
-    redUntilTask2('Enter and Space run the item action exactly once and close the menu', async () => {
+    it('Enter and Space run the item action exactly once and close the menu', async () => {
         const fixture = await openEditMenu(EditMenuHostComponent);
         const menu = fixture.debugElement.query(By.directive(ContextMenuComponent)).componentInstance as ContextMenuComponent;
 
@@ -582,7 +579,7 @@ describe('ContextMenu item activation is one action however it is made', () => {
 
     // UC-4. .click() stands in for an assistive-technology activation, which
     // bypasses pointer-events.
-    redUntilTask2('a disabled item runs nothing by any route and says so', async () => {
+    it('a disabled item runs nothing by any route and says so', async () => {
         const fixture = await openEditMenu(EditMenuHostComponent);
         const menu = fixture.debugElement.query(By.directive(ContextMenuComponent)).componentInstance as ContextMenuComponent;
         const disabled = menuItemNamed('Paste');
@@ -599,7 +596,7 @@ describe('ContextMenu item activation is one action however it is made', () => {
         expect(menuItemNamed('Cut').hasAttribute('aria-disabled')).toBe(false);
     });
 
-    redUntilTask2('a disabled data-driven item runs nothing by any route and says so', async () => {
+    it('a disabled data-driven item runs nothing by any route and says so', async () => {
         const fixture = await openEditMenu(EditDataMenuHostComponent);
         const disabled = menuItemNamed('Paste');
 

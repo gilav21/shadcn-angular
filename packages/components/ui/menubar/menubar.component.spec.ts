@@ -841,9 +841,6 @@ describe('Menubar submenu timer teardown', () => {
     });
 });
 
-/** RED until spec 8 Task 2: an expected failure under vitest, skipped where `it.fails` does not exist (the jest consumer leg). */
-const redUntilTask2 = Reflect.has(it, 'fails') ? it.fails : it.skip;
-
 @Component({
     template: `
         <ui-menubar>
@@ -893,7 +890,7 @@ describe('Menubar item activation is one action however it is made', () => {
 
     // UC-2, UC-3. The consumer binds (click) on the item the way they do on every
     // other element; a keyboard user must reach it, once, as well as (selected).
-    redUntilTask2('Enter and Space run (click) and (selected) exactly once each', () => {
+    it('Enter and Space run (click) and (selected) exactly once each', () => {
         const host = fixture.componentInstance;
 
         press(menuRow(fixture, 'New'), 'Enter');
@@ -910,7 +907,7 @@ describe('Menubar item activation is one action however it is made', () => {
 
     // UC-4. .click() stands in for an assistive-technology activation, which
     // bypasses pointer-events.
-    redUntilTask2('a disabled item runs nothing by any route and says so', () => {
+    it('a disabled item runs nothing by any route and says so', () => {
         const host = fixture.componentInstance;
         const disabled = menuRow(fixture, 'Save');
 

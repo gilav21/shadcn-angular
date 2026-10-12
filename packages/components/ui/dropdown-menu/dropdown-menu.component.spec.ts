@@ -1053,9 +1053,6 @@ describe('DropdownMenu disabled sub-trigger', () => {
     });
 });
 
-/** RED until spec 8 Task 2: an expected failure under vitest, skipped where `it.fails` does not exist (the jest consumer leg). */
-const redUntilTask2 = Reflect.has(it, 'fails') ? it.fails : it.skip;
-
 type ActionName = 'edit' | 'duplicate' | 'remove';
 
 @Component({
@@ -1137,7 +1134,7 @@ function press(element: HTMLElement, key: string): KeyboardEvent {
 describe('DropdownMenu item activation is one action however it is made', () => {
     // UC-1, UC-2. A keyboard user arrows to "Duplicate" and presses Enter: the
     // consumer's (click) must run, exactly once, and the menu must close.
-    redUntilTask2('Enter and Space run the item action exactly once and close the menu', async () => {
+    it('Enter and Space run the item action exactly once and close the menu', async () => {
         const { fixture, dropdown } = await openMenu(ActionsMenuHostComponent);
         const host = fixture.componentInstance;
 
@@ -1156,7 +1153,7 @@ describe('DropdownMenu item activation is one action however it is made', () => 
         expect(dropdown.open()).toBe(false);
     });
 
-    redUntilTask2('Enter runs the click callback of a data-driven item', async () => {
+    it('Enter runs the click callback of a data-driven item', async () => {
         const { fixture, dropdown } = await openMenu(ActionsDataMenuHostComponent);
 
         press(itemNamed(fixture, 'Edit'), 'Enter');
@@ -1166,7 +1163,7 @@ describe('DropdownMenu item activation is one action however it is made', () => 
         expect(dropdown.open()).toBe(false);
     });
 
-    redUntilTask2('a menu with a single item still runs it on Enter', async () => {
+    it('a menu with a single item still runs it on Enter', async () => {
         const { fixture } = await openMenu(SingleItemMenuHostComponent);
 
         press(itemNamed(fixture, 'Only'), 'Enter');
@@ -1176,7 +1173,7 @@ describe('DropdownMenu item activation is one action however it is made', () => 
 
     // UC-4. A disabled item runs nothing by any route: .click() stands in for an
     // assistive-technology activation, which bypasses pointer-events.
-    redUntilTask2('a disabled item runs nothing by any route and says so', async () => {
+    it('a disabled item runs nothing by any route and says so', async () => {
         const { fixture, dropdown } = await openMenu(ActionsMenuHostComponent);
         const disabled = itemNamed(fixture, 'Delete');
 
@@ -1191,7 +1188,7 @@ describe('DropdownMenu item activation is one action however it is made', () => 
         expect(itemNamed(fixture, 'Edit').hasAttribute('aria-disabled')).toBe(false);
     });
 
-    redUntilTask2('a disabled data-driven item runs nothing by any route and says so', async () => {
+    it('a disabled data-driven item runs nothing by any route and says so', async () => {
         const { fixture } = await openMenu(ActionsDataMenuHostComponent);
         const disabled = itemNamed(fixture, 'Delete');
 

@@ -178,9 +178,8 @@ export class ContextMenuSubContentComponent implements OnDestroy {
      * Moves focus to the first enabled entry of the open flyout — called by
      * {@link ContextMenuSubComponent.focusContent} one tick after the sub opens
      * from the keyboard. A no-op while the portal is unmounted. Only elements
-     * matching `[role="menuitem"]:not([data-disabled])` qualify, which today
-     * means nested `<ui-context-menu-sub-trigger>`s; plain
-     * `<ui-context-menu-item>`s carry no such role and are skipped.
+     * matching `[role="menuitem"]:not([data-disabled])` qualify: plain
+     * `<ui-context-menu-item>`s and nested `<ui-context-menu-sub-trigger>`s.
      */
     focusFirst(): void {
         if (!this.portalHost) return;
