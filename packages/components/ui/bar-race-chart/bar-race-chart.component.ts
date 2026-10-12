@@ -41,6 +41,9 @@ interface RaceBar {
   labelAnchor: 'start' | 'end';
 }
 
+/** Room, in px, a negative bar's value label needs between the bar end and the name labels at the start edge. */
+const LABEL_ROOM = 64;
+
 /** A frame's points, one per name (the last entry for a name wins), highest value first. */
 function rankFrame(frame: ChartDataPoint[]): ChartDataPoint[] {
   return [...new Map(frame.map(point => [point.name, point])).values()].sort((a, b) => b.value - a.value);
@@ -262,6 +265,7 @@ export class BarRaceChartComponent implements OnDestroy, AfterViewInit {
     const bHeight = this.barHeight();
     const gap = this.barGap();
     const area = this.chartArea();
+    const startEdge = this.isRtl() ? area.right : area.left;
 
     return rankFrame(frame).slice(0, this.maxBars()).map((point, rank) => {
       const end = scale.scale(point.value);
@@ -270,6 +274,10 @@ export class BarRaceChartComponent implements OnDestroy, AfterViewInit {
       // Positive values grow away from the start edge, negative ones toward it.
       const growsRight = (point.value >= 0) !== this.isRtl();
       const x = Math.min(baseline, end);
+      const freeEnd = growsRight ? x + barWidth : x;
+      // A positive label has the side padding to itself; a negative one runs toward the name labels,
+      // so when it has no room before them it moves inside the bar end.
+      const outside = point.value >= 0 || Math.abs(freeEnd - startEdge) >= LABEL_ROOM;
 
       return {
         name: point.name,
@@ -283,8 +291,8 @@ export class BarRaceChartComponent implements OnDestroy, AfterViewInit {
         height: bHeight,
         animatedY: y,
         animatedWidth: barWidth,
-        labelX: growsRight ? x + barWidth + 12 : x - 12,
-        labelAnchor: growsRight ? 'start' : 'end',
+        labelX: growsRight === outside ? freeEnd + 12 : freeEnd - 12,
+        labelAnchor: growsRight === outside ? 'start' : 'end',
       };
     });
   });

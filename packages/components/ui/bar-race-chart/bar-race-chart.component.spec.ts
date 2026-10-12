@@ -469,6 +469,24 @@ describe('BarRaceChartComponent zero baseline', () => {
         return fixture.componentInstance;
     }
 
+    /**
+     * A value label sits 12px past the bar's free end, except that a negative bar with under 64px before
+     * the name labels keeps its value inside the bar end.
+     */
+    function expectLabel(
+        bar: { value: number; x: number; width: number; labelX: number; labelAnchor: string },
+        area: { left: number; right: number },
+        dir: 'ltr' | 'rtl',
+    ): void {
+        const growsRight = (bar.value >= 0) !== (dir === 'rtl');
+        const freeEnd = growsRight ? bar.x + bar.width : bar.x;
+        const startEdge = dir === 'rtl' ? area.right : area.left;
+        const outside = bar.value >= 0 || Math.abs(freeEnd - startEdge) >= 64;
+        const towardRight = growsRight === outside;
+        expect(bar.labelAnchor).toBe(towardRight ? 'start' : 'end');
+        expect(bar.labelX).toBeCloseTo(towardRight ? freeEnd + 12 : freeEnd - 12, 6);
+    }
+
     for (const [className, values] of Object.entries(CLASSES)) {
         for (const dir of ['ltr', 'rtl'] as const) {
             it(`should grow ${className} bars from the zero baseline toward the sign side, inside the plot (${dir})`, () => {
@@ -487,6 +505,7 @@ describe('BarRaceChartComponent zero baseline', () => {
                     expect(bar.x).toBeGreaterThanOrEqual(area.left - 0.5);
                     expect(bar.x + bar.width).toBeLessThanOrEqual(area.right + 0.5);
                 }
+                for (const bar of component.displayBars()) expectLabel(bar, area, dir);
                 for (const length of unitLengths) {
                     expect(length).toBeCloseTo(unitLengths[0], 6);
                 }
