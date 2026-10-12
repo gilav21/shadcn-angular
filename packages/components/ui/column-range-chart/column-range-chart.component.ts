@@ -273,13 +273,14 @@ export class ColumnRangeChartComponent implements AfterViewInit {
 
   /**
    * Accessible name for a column's focusable group, phrased as
-   * `"<name>: <low><unit> to <high><unit>"` so screen readers announce both
-   * ends of the range. The numbers are raw, not passed through
+   * `"<name>: <low><unit> to <high><unit>"` (smaller end first, matching the
+   * drawn labels, whichever order the data came in) so screen readers announce
+   * both ends of the range. The numbers are raw, not passed through
    * {@link formatValue} — the unrounded value is read out.
    */
   getBarAriaLabel(bar: RangeBar): string {
     const unit = this.unit();
-    return `${bar.data.name}: ${bar.data.low}${unit} to ${bar.data.high}${unit}`;
+    return `${bar.data.name}: ${bar.lowValue}${unit} to ${bar.highValue}${unit}`;
   }
 
   /** Formats a range end for the low/high labels and the tooltip: rounded to a whole number and suffixed with {@link unit}. Not compacted, so large values print in full. */

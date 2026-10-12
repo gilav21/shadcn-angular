@@ -285,8 +285,11 @@ describe('ColumnRangeChartComponent range ordering', () => {
         'all-zero': [[0, 0], [0, 0], [0, 0]],
     };
 
+    let host: HTMLElement;
+
     function build(ranges: [number, number][]): ColumnRangeChartComponent {
         const fixture = TestBed.createComponent(ColumnRangeChartComponent);
+        host = fixture.nativeElement;
         fixture.componentRef.setInput(
             'data',
             ranges.map(([low, high], i) => ({ name: `P${i}`, low, high })),
@@ -312,7 +315,7 @@ describe('ColumnRangeChartComponent range ordering', () => {
                 const [low, high] = ranges[i];
                 const top = component.getTickPosition(Math.max(low, high));
                 const bottom = component.getTickPosition(Math.min(low, high));
-                if (bottom - top < 1) {
+                if (low === high) {
                     // A zero-span range is a 1px line centred on its value.
                     expect(bar.height).toBe(1);
                     expect(bar.y + bar.height / 2).toBeCloseTo(top, 4);
@@ -323,6 +326,18 @@ describe('ColumnRangeChartComponent range ordering', () => {
                 expect(bar.y).toBeGreaterThanOrEqual(area.top - 0.5);
                 expect(bar.y + bar.height).toBeLessThanOrEqual(area.bottom + 0.5);
             });
+        });
+
+        it(`should label ${className} ranges with the larger end on top and the smaller below`, () => {
+            const component = build(ranges);
+            const labels = Array.from(host.querySelectorAll('g[role="button"] text')).map(t => t.textContent?.trim());
+
+            expect(labels).toEqual(
+                ranges.flatMap(([low, high]) => [component.formatValue(Math.max(low, high)), component.formatValue(Math.min(low, high))]),
+            );
+            expect(component.getBarAriaLabel(component.bars()[0])).toBe(
+                `P0: ${Math.min(...ranges[0])} to ${Math.max(...ranges[0])}`,
+            );
         });
 
         it(`should keep every ${className} tick inside the plot`, () => {

@@ -457,6 +457,17 @@ describe('StackedBarChartComponent diverging stacks', () => {
         }
     });
 
+    it.each(['mixed-sign', 'all-negative'])('should put the %s total label above the highest segment edge, not above the last segment', name => {
+        const values = CLASSES[name];
+        const component = build(values, 'absolute');
+
+        component.stackedBars().forEach((bar, c) => {
+            const highest = values.reduce((sum, row) => sum + Math.max(0, row[c]), 0);
+            // With no positive segment the stack hangs from the zero line, which is then its top.
+            expect(component.getBarTopY(bar)).toBeCloseTo(component.getTickPosition(highest), 4);
+        });
+    });
+
     it('should draw ticks only inside the plot when the stacks go negative', () => {
         const component = build(CLASSES['mixed-sign'], 'absolute');
         const area = component.chartArea();

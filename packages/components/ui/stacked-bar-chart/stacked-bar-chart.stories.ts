@@ -118,6 +118,19 @@ export const WithTotals: Story = {
     render,
 };
 
+/** Positive segments stack up from zero and negative ones stack down from it. */
+export const NegativeAndMixedValues: Story = {
+    args: {
+        series: [
+            { id: 'sales', name: 'Sales', data: [{ name: 'Q1', value: 120 }, { name: 'Q2', value: 90 }, { name: 'Q3', value: 140 }] },
+            { id: 'returns', name: 'Returns', data: [{ name: 'Q1', value: -30 }, { name: 'Q2', value: -55 }, { name: 'Q3', value: -20 }] },
+            { id: 'other', name: 'Other', data: [{ name: 'Q1', value: 25 }, { name: 'Q2', value: -10 }, { name: 'Q3', value: 15 }] },
+        ] as ChartSeries[],
+        categories: ['Q1', 'Q2', 'Q3'],
+    },
+    render,
+};
+
 export const WithoutGrid: Story = {
     args: { showGrid: false },
     render,
