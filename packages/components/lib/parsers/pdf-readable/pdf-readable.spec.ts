@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PdfBuilder } from '../pdf-test-fixtures';
 import { parsePdfReadable } from './pdf-readable';
+import { PDF_POLICY, assertInertMarkup } from '../inert-markup-fixtures';
 
 describe('parsePdfReadable', () => {
     describe('input validation', () => {
@@ -118,6 +119,24 @@ describe('parsePdfReadable', () => {
             const result = await parsePdfReadable(pdf);
             expect(result.html).toContain('<a href="https://example.com"');
             expect(result.html).toContain('Visit site</');
+        });
+
+        it('renders a javascript: link as unlinked text and keeps an https link', async () => {
+            const pdf = new PdfBuilder()
+                .addFont('F1', 'Helvetica')
+                .setContent(
+                    'BT /F1 12 Tf 100 700 Td (Unsafe link) Tj '
+                    + '0 -40 Td (Safe link) Tj ET')
+                .addLinkAnnotation(0, [95, 695, 200, 715], 'javascript:alert(3)')
+                .addLinkAnnotation(0, [95, 655, 200, 675], 'https://example.com/ok')
+                .build();
+            const result = await parsePdfReadable(pdf);
+
+            const doc = new DOMParser().parseFromString(`<body>${result.html}`, 'text/html');
+            const anchors = Array.from(doc.querySelectorAll('a'));
+            expect(anchors.map((a) => [a.getAttribute('href'), a.textContent])).toEqual([['https://example.com/ok', 'Safe link']]);
+            expect(result.text).toContain('Unsafe link');
+            expect(assertInertMarkup(result.html, PDF_POLICY)).toEqual([]);
         });
     });
 

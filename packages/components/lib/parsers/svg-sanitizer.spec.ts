@@ -1,5 +1,33 @@
 import { describe, expect, it } from 'vitest';
 import { sanitizeSvg } from './svg-sanitizer';
+import { assertInertMarkup, svgPolicy } from './inert-markup-fixtures';
+
+const SVG_NS = 'xmlns="http://www.w3.org/2000/svg"';
+
+/** What the sanitizer is documented to keep, lowercased as the HTML parser reports names. */
+const SVG_ELEMENTS: ReadonlySet<string> = new Set([
+    'svg', 'g', 'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'text', 'tspan', 'defs', 'clippath',
+    'mask', 'lineargradient', 'radialgradient', 'stop', 'title', 'desc', 'image',
+]);
+const SVG_ATTRIBUTES: ReadonlySet<string> = new Set([
+    'viewbox', 'width', 'height', 'xmlns', 'fill', 'stroke', 'preserveaspectratio', 'transform', 'opacity', 'd',
+    'stroke-width', 'stroke-linecap', 'stroke-linejoin', 'stroke-dasharray', 'stroke-dashoffset', 'fill-rule',
+    'clip-rule', 'x', 'y', 'rx', 'ry', 'cx', 'cy', 'r', 'x1', 'y1', 'x2', 'y2', 'points', 'dx', 'dy', 'font-size',
+    'font-family', 'font-weight', 'text-anchor', 'dominant-baseline', 'clippathunits', 'maskunits', 'gradientunits',
+    'gradienttransform', 'fx', 'fy', 'offset', 'stop-color', 'stop-opacity', 'href',
+]);
+const SVG_POLICY = svgPolicy(SVG_ELEMENTS, SVG_ATTRIBUTES);
+
+/** An attribute value as XML source that survives attribute-value normalisation (a literal tab would become a space). */
+function xmlValue(value: string): string {
+    return value
+        .replaceAll('&', '&amp;')
+        .replaceAll('"', '&quot;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('\t', '&#9;')
+        .replaceAll('\n', '&#10;')
+        .replaceAll('\r', '&#13;');
+}
 
 describe('sanitizeSvg', () => {
     it('should preserve safe SVG with basic shapes', () => {
@@ -188,5 +216,84 @@ describe('sanitizeSvg', () => {
         expect(result).toContain('My SVG');
         expect(result).toContain('<desc');
         expect(result).toContain('A description');
+    });
+});
+
+describe('sanitizeSvg output parsed as HTML', () => {
+    const rect = '<rect width="1" height="1"/>';
+    const comment = '<!--><img src=x onerror=alert(1)>-->';
+    const instruction = '<?x ><img src=x onerror=alert(2)>?>';
+    const cdata = '<![CDATA[<img src=x onerror=alert(3)>]]>';
+
+    const payloads: Record<string, string> = {
+        'a comment': `<svg ${SVG_NS}>${comment}${rect}</svg>`,
+        'a processing instruction': `<svg ${SVG_NS}>${instruction}${rect}</svg>`,
+        'a CDATA section': `<svg ${SVG_NS}><text>${cdata}</text>${rect}</svg>`,
+        'a comment two levels deep': `<svg ${SVG_NS}><g><g>${comment}${rect}</g></g></svg>`,
+        'a processing instruction two levels deep': `<svg ${SVG_NS}><g><g>${instruction}${rect}</g></g></svg>`,
+        'a CDATA section two levels deep': `<svg ${SVG_NS}><g><g><text>${cdata}</text></g></g></svg>`,
+        'a comment inside text-bearing elements': `<svg ${SVG_NS}><title>a${comment}b</title><text>c${comment}d</text></svg>`,
+    };
+
+    it('is inert for comment, processing-instruction and CDATA payloads at any depth', () => {
+        for (const [name, svg] of Object.entries(payloads)) {
+            const output = sanitizeSvg(svg);
+            expect(output, name).not.toBeNull();
+            expect(assertInertMarkup(output!, SVG_POLICY), name).toEqual([]);
+        }
+    });
+
+    it('keeps text around a removed comment and CDATA content as escaped text', () => {
+        const parse = (svg: string): Document => new DOMParser().parseFromString(`<body>${sanitizeSvg(svg)}`, 'text/html');
+
+        expect(parse(payloads['a comment inside text-bearing elements']).querySelector('title')?.textContent).toBe('ab');
+        expect(parse(payloads['a CDATA section']).querySelector('text')?.textContent).toBe('<img src=x onerror=alert(3)>');
+    });
+
+    it('removes href values whose scheme is unsafe after the browser strips controls, whitespace and case', () => {
+        const unsafe = [
+            'javascript:alert(1)', 'JaVaScRiPt:alert(1)', 'VBSCRIPT:x', 'data:text/html,<script>1</script>',
+            'DATA:image/svg+xml;base64,AAAA', '\tjavascript:alert(1)', ' javascript:alert(1)', 'java\nscript:alert(1)',
+            'jav\tas\rcript:alert(1)', '\n\t vbscript:x',
+        ];
+        for (const href of unsafe) {
+            const output = sanitizeSvg(`<svg ${SVG_NS}><image href="${xmlValue(href)}" width="1" height="1"/></svg>`);
+            expect(assertInertMarkup(output!, SVG_POLICY), JSON.stringify(href)).toEqual([]);
+        }
+    });
+});
+
+describe('sanitizeSvg fidelity', () => {
+    /** Every element with its attributes and trimmed text, in document order. */
+    function inventory(svg: string): string[] {
+        const lines: string[] = [];
+        const walk = (element: Element, path: string): void => {
+            const attributes = Array.from(element.attributes, (a) => `${a.name}=${a.value}`).sort((a, b) => a.localeCompare(b));
+            lines.push(`${path}/${element.localName} [${attributes.join(' ')}]`);
+            for (const node of Array.from(element.childNodes)) {
+                if (node.nodeType === Node.ELEMENT_NODE) walk(node as Element, `${path}/${element.localName}`);
+                else if (node.textContent?.trim()) lines.push(`${path}/${element.localName} text:${node.textContent.trim()}`);
+            }
+        };
+        walk(new DOMParser().parseFromString(svg, 'image/svg+xml').documentElement, '');
+        return lines;
+    }
+
+    it('keeps every allow-listed node and attribute of a real icon', () => {
+        const icon = `<svg ${SVG_NS} viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" preserveAspectRatio="xMidYMid meet">`
+            + '<title>Chart</title><desc>A chart &amp; its legend</desc>'
+            + '<defs><linearGradient id="g" gradientUnits="objectBoundingBox" x1="0" y1="0" x2="1" y2="1">'
+            + '<stop offset="0" stop-color="#f00"/><stop offset="1" stop-color="#00f" stop-opacity="0.5"/></linearGradient>'
+            + '<radialGradient id="r" cx="0.5" cy="0.5" r="0.5" fx="0.5" fy="0.5"><stop offset="0" stop-color="#fff"/></radialGradient>'
+            + '<clipPath id="c"><rect x="0" y="0" width="24" height="24" rx="2" ry="2"/></clipPath></defs>'
+            + '<g transform="translate(1 1)" opacity="0.9" stroke="#333">'
+            + '<path d="M3 3v18h18" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/>'
+            + '<circle cx="12" cy="12" r="4"/><ellipse cx="6" cy="6" rx="2" ry="1"/>'
+            + '<line x1="0" y1="0" x2="5" y2="5"/><polyline points="1,1 2,2 3,1"/><polygon points="0,0 4,0 2,4"/></g>'
+            + '<text x="2" y="20" dx="1" dy="1" font-size="4" font-family="sans-serif" font-weight="700" text-anchor="middle">Q1 <tspan fill="red">up</tspan> 5</text>'
+            + '</svg>';
+
+        const output = sanitizeSvg(icon);
+        expect(inventory(output!)).toEqual(inventory(icon));
     });
 });

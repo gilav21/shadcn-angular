@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { parseDocx } from './docx-parser';
+import { parseDocx, textAlignFromJc, verticalAlignFromVAlign } from './docx-parser';
 import type { DocxParagraph, DocxTable, DocxImage } from './docx-parser';
+import { BREAKOUT, DECLARATION } from './inert-markup-fixtures';
+import { CONTROL_COLOR, hostileDocx } from './docx-hostile-fixtures';
 
 // --- STORED ZIP builder (no compression) with correct CRC32 ---
 
@@ -684,5 +686,57 @@ describe('parseDocx — theme shade, image formats, and content wrappers', () =>
         const res = parseDocx(docx(body));
 
         expect(paragraphs(res)[0].runs[0].text).toBe('Legacy only');
+    });
+});
+
+describe('parseDocx — attribute grammar', () => {
+    it('maps the OOXML jc and vAlign vocabularies to CSS keywords and anything else to nothing', () => {
+        const jc = ['both', 'center', 'left', 'start', 'right', 'end', 'distribute'];
+        expect(jc.map(textAlignFromJc)).toEqual(['justify', 'center', 'left', 'left', 'right', 'right', 'justify']);
+        expect(['top', 'center', 'bottom'].map(verticalAlignFromVAlign)).toEqual(['top', 'middle', 'bottom']);
+        for (const hostile of [BREAKOUT, DECLARATION, 'middle', '']) {
+            expect(textAlignFromJc(hostile)).toBeUndefined();
+            expect(verticalAlignFromVAlign(hostile)).toBeUndefined();
+        }
+    });
+
+    const COLOUR_FIELDS = new Set(['color', 'highlight', 'backgroundColor', 'shading']);
+    const ALIGNMENTS = new Set(['left', 'right', 'center', 'justify']);
+    const VERTICAL_ALIGNMENTS = new Set(['top', 'middle', 'bottom']);
+
+    /** Every value the parser typed as a colour or a CSS keyword, wherever it sits in the result. */
+    function typedFields(node: unknown, found: { colours: string[]; alignments: unknown[]; verticals: unknown[] }): void {
+        if (Array.isArray(node)) {
+            for (const item of node) typedFields(item, found);
+        } else if (node && typeof node === 'object') {
+            for (const [key, value] of Object.entries(node)) {
+                if (COLOUR_FIELDS.has(key) && typeof value === 'string') found.colours.push(value);
+                else if (key === 'alignment') found.alignments.push(value);
+                else if (key === 'verticalAlign') found.verticals.push(value);
+                else typedFields(value, found);
+            }
+        }
+    }
+
+    it('every colour-typed field of a hostile document is undefined or a 6-hex colour; alignment and verticalAlign are CSS keywords or undefined', () => {
+        for (const payload of [BREAKOUT, DECLARATION]) {
+            const found = { colours: [] as string[], alignments: [] as unknown[], verticals: [] as unknown[] };
+            typedFields(parseDocx(hostileDocx(payload)), found);
+
+            // The control run proves the walk reaches colours at all.
+            expect(found.colours).toContain(`#${CONTROL_COLOR}`);
+            for (const colour of found.colours) expect(colour).toMatch(/^#[\dA-Fa-f]{6}$/);
+            for (const alignment of found.alignments) expect(alignment === undefined || ALIGNMENTS.has(alignment as string)).toBe(true);
+            for (const vertical of found.verticals) expect(vertical === undefined || VERTICAL_ALIGNMENTS.has(vertical as string)).toBe(true);
+        }
+    });
+
+    it('a 3-digit or 8-digit colour is not OOXML and is dropped, not passed through', () => {
+        for (const value of ['FFF', 'FF0000FF']) {
+            const body = `<w:p><w:r><w:rPr><w:color w:val="${value}"/><w:shd w:fill="${value}"/></w:rPr><w:t>x</w:t></w:r></w:p>`;
+            const style = paragraphs(parseDocx(docx(body)))[0].runs[0].style;
+            expect(style.color).toBeUndefined();
+            expect(style.backgroundColor).toBeUndefined();
+        }
     });
 });

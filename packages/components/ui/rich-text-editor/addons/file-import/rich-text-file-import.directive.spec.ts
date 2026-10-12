@@ -32,7 +32,7 @@ afterEach(() => {
 import { RichTextFileImportDirective } from './rich-text-file-import.directive';
 import { RichTextFileImportButtonComponent } from './rich-text-file-import-button.component';
 import type { RichTextFileImportButtonContext } from './rich-text-file-import.context';
-import { RichTextEditorComponent } from '../..';
+import { RichTextEditorComponent, RichTextSanitizerService } from '../..';
 
 // Minimal ZIP writer so a real .docx (a ZIP of `word/document.xml`) can be built
 // in-code and driven through the actual docx parser — the same fixture the base
@@ -98,11 +98,28 @@ const makeZip = (files: ReadonlyArray<{ name: string; content: string }>): Uint8
 };
 
 const W = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
-function docxFile(text = 'Imported DOCX text'): File {
+function docxFile(text = 'Imported DOCX text', runProperties = ''): File {
     const documentXml =
-        `<?xml version="1.0"?><w:document ${W}><w:body><w:p><w:r><w:t>${text}</w:t></w:r></w:p></w:body></w:document>`;
+        `<?xml version="1.0"?><w:document ${W}><w:body><w:p><w:r>${runProperties}<w:t>${text}</w:t></w:r></w:p></w:body></w:document>`;
     const bytes = makeZip([{ name: 'word/document.xml', content: documentXml }]);
     return new File([bytes], 'in.docx', { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+}
+
+// A document whose run colour, shading and font carry an attribute breakout and
+// whose hyperlink targets `javascript:`: what the importer must not hand on.
+const R = 'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
+function hostileDocxFile(): File {
+    const breakout = 'x&quot; onmouseover=&quot;alert(1)';
+    const documentXml = `<?xml version="1.0"?><w:document ${W} ${R}><w:body><w:p>`
+        + `<w:r><w:rPr><w:color w:val="${breakout}"/><w:shd w:fill="${breakout}"/><w:rFonts w:ascii="${breakout}"/></w:rPr><w:t>hostile run</w:t></w:r>`
+        + '<w:hyperlink r:id="rId1"><w:r><w:t>script link</w:t></w:r></w:hyperlink></w:p></w:body></w:document>';
+    const rels = '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        + '<Relationship Id="rId1" Type="x" Target="javascript:alert(1)"/></Relationships>';
+    const bytes = makeZip([
+        { name: 'word/document.xml', content: documentXml },
+        { name: 'word/_rels/document.xml.rels', content: rels },
+    ]);
+    return new File([bytes], 'hostile.docx');
 }
 
 // A PNG header plus the start of its IHDR chunk: enough for both the addon's
@@ -249,17 +266,57 @@ describe('RichTextFileImportDirective', () => {
         expect(fixture.debugElement.query(By.directive(RichTextFileImportButtonComponent))).toBeTruthy();
     });
 
-    it('imports a DOCX file and inserts its text, emitting fileImportComplete', async () => {
-        const fixture = createFixture();
+    function sanitizerOf(fixture: ComponentFixture<HostCmp>): RichTextSanitizerService {
+        return fixture.debugElement.query(By.directive(RichTextEditorComponent)).injector.get(RichTextSanitizerService);
+    }
+
+    async function importAndEmitted(fixture: ComponentFixture<HostCmp>, file: File): Promise<string> {
         const { el } = setContent(fixture, '<p>x</p>');
         caretAtEnd(el);
-        buttonContext(fixture).onImport(docxFile());
+        buttonContext(fixture).onImport(file);
         await waitUntil(() => fixture.componentInstance.completes.length > 0);
         fixture.detectChanges();
-
-        expect(el.textContent).toContain('Imported DOCX text');
         expect(fixture.componentInstance.completes).toHaveLength(1);
+        return fixture.componentInstance.completes[0];
+    }
+
+    it('imports a DOCX file and emits the sanitized markup it inserted', async () => {
+        const fixture = createFixture();
+        const emitted = await importAndEmitted(fixture, docxFile('Imported DOCX text', '<w:rPr><w:color w:val="FF0000"/></w:rPr>'));
+
+        expect(editorOf(fixture).el.textContent).toContain('Imported DOCX text');
         expect(fixture.componentInstance.starts).toHaveLength(1);
+        expect(emitted).toContain('Imported DOCX text');
+        expect(sanitizerOf(fixture).sanitize(emitted)).toBe(emitted);
+        const run = Array.from(new DOMParser().parseFromString(emitted, 'text/html').querySelectorAll<HTMLElement>('span'))
+            .find((span) => span.textContent === 'Imported DOCX text');
+        expect(run?.style.color).toBe('rgb(255, 0, 0)');
+    });
+
+    it('emits no handler attribute and no script URL for a hostile DOCX', async () => {
+        const fixture = createFixture();
+        const emitted = await importAndEmitted(fixture, hostileDocxFile());
+
+        const doc = new DOMParser().parseFromString(emitted, 'text/html');
+        const handlers = Array.from(doc.body.querySelectorAll('*'))
+            .flatMap((element) => Array.from(element.attributes).map((a) => a.name))
+            .filter((name) => name.startsWith('on'));
+        expect(handlers).toEqual([]);
+        expect(emitted).not.toMatch(/javascript:/i);
+        expect(emitted).toContain('hostile run');
+        expect(sanitizerOf(fixture).sanitize(emitted)).toBe(emitted);
+    });
+
+    it('emits the sanitized wrapper for a PDF import, and reports a failure when nothing survives sanitizing', async () => {
+        const fixture = createFixture();
+        const emitted = await importAndEmitted(fixture, pdfFile('Imported PDF text'));
+        expect(emitted).toContain('Imported PDF text');
+        expect(sanitizerOf(fixture).sanitize(emitted)).toBe(emitted);
+
+        const probe = directiveOf(fixture) as unknown as { insertImported(html: string): void };
+        probe.insertImported('<script>alert(1)</script>');
+        expect(fixture.componentInstance.errors).toEqual(['Failed to import file. The file may be unsupported or corrupted.']);
+        expect(fixture.componentInstance.completes).toHaveLength(1);
     });
 
     it('routes a picked image to the image pipeline by its bytes, not its declared type', async () => {

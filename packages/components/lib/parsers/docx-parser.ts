@@ -202,6 +202,16 @@ const HIGHLIGHT_COLOR_MAP: Record<string, string> = {
     white: '#FFFFFF',
 };
 
+/** Task 1 scaffold; implemented in Task 3. */
+export function textAlignFromJc(_jc: string): string | undefined {
+    throw new Error('textAlignFromJc: not implemented yet');
+}
+
+/** Task 1 scaffold; implemented in Task 3. */
+export function verticalAlignFromVAlign(_vAlign: string): string | undefined {
+    throw new Error('verticalAlignFromVAlign: not implemented yet');
+}
+
 function parseXml(xmlString: string): Document {
     const parser = new DOMParser();
     return parser.parseFromString(xmlString, 'application/xml');
