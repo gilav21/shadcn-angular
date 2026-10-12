@@ -76,7 +76,7 @@ export class ToggleGroupComponent implements OnInit, ControlValueAccessor {
     size = input<ToggleGroupSize>('default');
     /** Disables every item in the group; an item may also disable itself independently. A reactive-forms `disable()` disables it too — see {@link isDisabled}. */
     disabled = input(false);
-    /** Initially pressed value(s), read once in `ngOnInit` — a bare string is wrapped into an array. Later changes are ignored. */
+    /** Initially pressed value(s), read once in `ngOnInit` — a bare string is wrapped into an array. Later changes are ignored. A value written by a form afterwards — `null` included, which clears — replaces it. */
     defaultValue = input<string | string[] | undefined>(undefined);
     /** Extra classes merged onto the `<fieldset>` that wraps the items. */
     class = input('');
@@ -100,7 +100,9 @@ export class ToggleGroupComponent implements OnInit, ControlValueAccessor {
      * current selection; this member is the published surface. A write from a
      * form (`formControlName`, `ngModel`) lands in {@link selection} through
      * {@link writeValue} and leaves this member at its pre-write value, so read
-     * {@link selection} — or the DOM — for what is rendered.
+     * {@link selection} — or the DOM — for what is rendered. Because this member
+     * keeps its pre-write value, a later user toggle that lands on that same
+     * string does not re-emit `valueChange` (the form still receives it).
      */
     readonly value = model<string | string[] | undefined>(undefined);
 

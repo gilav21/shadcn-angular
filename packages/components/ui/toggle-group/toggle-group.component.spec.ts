@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ToggleGroupComponent, ToggleGroupItem } from './toggle-group.component';
 import { ToggleGroupItemComponent } from './sub/toggle-group-item.component';
 import { Component, signal } from '@angular/core';
-import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach } from 'vitest';
 
@@ -217,6 +217,15 @@ class FormToggleHost {
     readonly emissions: unknown[] = [];
 }
 
+@Component({
+    template: `<ui-toggle-group type="single" [items]="items" [(ngModel)]="picked" />`,
+    imports: [ToggleGroupComponent, FormsModule],
+})
+class NgModelToggleHost {
+    readonly items: ToggleGroupItem[] = [{ value: 'bold', label: 'Bold' }, { value: 'italic', label: 'Italic' }];
+    picked: string | null = 'italic';
+}
+
 describe('ToggleGroupComponent forms', () => {
     const setup = (init: (host: FormToggleHost) => void): { fixture: ComponentFixture<FormToggleHost>; host: FormToggleHost; formEmissions: unknown[] } => {
         const fixture = TestBed.createComponent(FormToggleHost);
@@ -277,6 +286,18 @@ describe('ToggleGroupComponent forms', () => {
         expect(pressed(multiple.fixture)).toEqual([]);
     });
 
+    it('works with ngModel: renders the initial value and reports a toggle', async () => {
+        const fixture = TestBed.createComponent(NgModelToggleHost);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(pressed(fixture)).toEqual(['Italic']);
+
+        buttons(fixture)[0].click();
+        fixture.detectChanges();
+        expect(fixture.componentInstance.picked).toBe('bold');
+    });
+
     it('lets the form value win over defaultValue', () => {
         const { fixture } = setup(host => {
             host.defaultValue.set('bold');
@@ -304,6 +325,11 @@ describe('ToggleGroupComponent forms', () => {
         fixture.detectChanges();
         expect(buttons(fixture).map(b => b.disabled)).toEqual([true, true, true]);
         buttons(fixture)[1].click();
+        fixture.detectChanges();
+        expect(host.control.value).toBe('bold');
+
+        // a native disabled button swallows the click above, so drive the group's own guard directly
+        fixture.debugElement.query(By.directive(ToggleGroupComponent)).componentInstance.toggle('italic');
         fixture.detectChanges();
         expect(host.control.value).toBe('bold');
 
