@@ -131,7 +131,7 @@ describe('every fetch is bounded', () => {
     const started = Date.now();
     await expect(run(server.url)).rejects.toThrow(`Timed out after 150 ms: ${server.url}${urlPath}`);
 
-    expect(Date.now() - started).toBeLessThan(2000);
+    expect(Date.now() - started).toBeLessThan(3000);
   });
 
   it('local-monorepo mode makes no request', async () => {

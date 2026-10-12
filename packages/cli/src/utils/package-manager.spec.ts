@@ -67,6 +67,10 @@ describe('getPackageManager', () => {
             files: { 'package.json': '{"packageManager":"bun@1.2.0"}', 'apps/web/package.json': '{"name":"web"}' }, agent: NPX_AGENT, cwd: 'apps/web', expected: 'bun',
         },
         {
+            name: 'the nearest deciding directory wins: a lockfile beside the project beats a packageManager field at the root',
+            files: { 'package.json': '{"packageManager":"bun@1.2.0"}', 'apps/web/yarn.lock': '' }, agent: NPX_AGENT, cwd: 'apps/web', expected: 'yarn',
+        },
+        {
             name: 'a package.json that is not JSON does not hide the lockfile beside it',
             files: { 'package.json': '{ not json', 'yarn.lock': '' }, agent: NPX_AGENT, cwd: '', expected: 'yarn',
         },
@@ -85,6 +89,27 @@ describe('getPackageManager', () => {
         setAgent(undefined);
 
         expect(await getPackageManager(root)).toBe('npm');
+    });
+
+    it('treats a .git file (git worktree, submodule) as the repository root too', async () => {
+        await fs.outputFile(path.join(sandbox, 'yarn.lock'), '');
+        const root = path.join(sandbox, 'worktree');
+        await fs.outputFile(path.join(root, '.git'), 'gitdir: ../.git/worktrees/w');
+        setAgent(undefined);
+
+        expect(await getPackageManager(root)).toBe('npm');
+    });
+
+    it.each([
+        { files: ['yarn.lock', 'pnpm-lock.yaml'], expected: 'pnpm' },
+        { files: ['bun.lock', 'yarn.lock'], expected: 'yarn' },
+        { files: ['package-lock.json', 'bun.lockb'], expected: 'bun' },
+    ])('breaks a tie between unrelated lockfiles by precedence pnpm, yarn, bun, npm: $files', async ({ files, expected }) => {
+        const root = await repo(Object.fromEntries(files.map((file) => [file, ''])));
+        vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        setAgent(undefined);
+
+        expect(await getPackageManager(root)).toBe(expected);
     });
 
     it('breaks a multi-lockfile tie by user agent, else by precedence with a warning', async () => {

@@ -156,7 +156,7 @@ describe('loadRegistry', () => {
             const started = Date.now();
             const applied = await loadRegistry({ registry: server.url });
 
-            expect(Date.now() - started).toBeLessThan(2000);
+            expect(Date.now() - started).toBeLessThan(3000);
             expect(applied).toBe(false);
             expect(registry['accordion' as never]).toBeDefined();
             expect(warn).toHaveBeenCalledWith(

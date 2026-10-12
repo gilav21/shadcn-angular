@@ -2,6 +2,7 @@ import fs from 'fs-extra';
 import path from 'node:path';
 import { registry, type ComponentName } from '../registry/index.js';
 import { resolveDependencies } from './resolve.js';
+import { fetchText } from '../utils/http.js';
 import {
     getLocalComponentsDir,
     getRegistryBaseUrl,
@@ -98,9 +99,9 @@ async function readFileSizes(options: SizeSourceOptions): Promise<FileSizes | nu
                 return isFileSizes(raw) ? raw : null;
             }
         }
-        const response = await fetch(manifestUrl(options));
+        const response = await fetchText(manifestUrl(options));
         if (!response.ok) return null;
-        const raw: unknown = await response.json();
+        const raw: unknown = JSON.parse(response.text);
         return isFileSizes(raw) ? raw : null;
     } catch {
         // Offline, 404, or malformed JSON — all mean "no size information",

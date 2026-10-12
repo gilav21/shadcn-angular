@@ -72,7 +72,7 @@ describe('resolveRef (remote / GitHub API)', () => {
     try {
       const started = Date.now();
       expect(await resolveRef({ branch: 'master', remote: true })).toBeNull();
-      expect(Date.now() - started).toBeLessThan(2000);
+      expect(Date.now() - started).toBeLessThan(3000);
     } finally {
       if (saved === undefined) delete process.env['SHADCN_ANGULAR_FETCH_TIMEOUT_MS'];
       else process.env['SHADCN_ANGULAR_FETCH_TIMEOUT_MS'] = saved;

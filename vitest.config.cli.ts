@@ -27,6 +27,7 @@ export default defineConfig({
             exclude: [
                 '**/*.spec.ts',
                 '**/*.test.ts',
+                '**/*-fixtures.ts',
                 '**/dist/**',
             ],
             // Ratchet, not aspiration: re-measured 2026-07-13 after covering the

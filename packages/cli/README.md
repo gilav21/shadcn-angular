@@ -410,6 +410,20 @@ next `update`.
 
 - Kanban
 
+## Troubleshooting
+
+### Slow or unreachable network
+
+Every request the CLI makes gives up after 15 seconds and is retried once if the failure looks transient (a dropped connection, a timeout, an HTTP 5xx or 429). The error names the URL that failed. If the live registry cannot be fetched at startup, the CLI warns and continues with the registry bundled in the package. On a slow mirror or a strict CI budget, change the per-request limit (in milliseconds) with `SHADCN_ANGULAR_FETCH_TIMEOUT_MS`:
+
+```bash
+SHADCN_ANGULAR_FETCH_TIMEOUT_MS=45000 npx @gilav21/shadcn-angular update --yes
+```
+
+### Which package manager installs npm dependencies
+
+The CLI installs with the package manager that owns your project: the `packageManager` field of the nearest `package.json`, otherwise the nearest lockfile (`pnpm-lock.yaml`, `yarn.lock`, `bun.lock`, `bun.lockb`, `package-lock.json`) found by walking up to the repository root. Only when the project declares none does it use the tool that launched the CLI, then npm. If several lockfiles sit side by side, the launching tool decides, otherwise pnpm, yarn, bun, npm in that order, with a warning; delete the lockfiles you don't use or set `packageManager`.
+
 ## Documentation
 
 For full documentation and examples, verify usage in your local development environment
