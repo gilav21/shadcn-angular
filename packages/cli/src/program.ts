@@ -21,6 +21,7 @@ import { setTestRunner } from './commands/set-test-runner.js';
 import { changeTheme } from './commands/change-theme.js';
 import { startMcpServer } from './mcp/server.js';
 import { loadRegistry } from './registry/load.js';
+import { readConfiguredRegistry } from './utils/config.js';
 
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8')) as { version: string };
 
@@ -248,6 +249,19 @@ function registerSettingsCommands(program: Command): void {
 }
 
 /**
+ * The registry a command reads from: its `--registry` flag, else the one the
+ * project pins in components.json. Only commands that declare `--registry`
+ * adopt the project's; `init` is excluded because its registry is an output
+ * (written into the new components.json), not an input.
+ */
+async function resolveRegistry(command: Command, flag: string | undefined): Promise<string | undefined> {
+    if (flag !== undefined) return flag;
+    const declaresRegistry = command.options.some(o => o.long === '--registry');
+    if (!declaresRegistry || command.name() === 'init') return undefined;
+    return readConfiguredRegistry(process.cwd());
+}
+
+/**
  * Build the fully-configured commander program.
  *
  * Kept separate from the bin entrypoint (`index.ts`) so the program — its
@@ -269,7 +283,12 @@ export function createProgram(): Command {
     // snapshot (with a warning) when the fetch fails.
     program.hook('preAction', async (_thisCommand, actionCommand) => {
         const opts = actionCommand.opts<{ branch?: string; registry?: string; remote?: boolean }>();
-        await loadRegistry({ branch: opts.branch, registry: opts.registry, remote: opts.remote });
+        const registry = await resolveRegistry(actionCommand, opts.registry);
+        await loadRegistry({ branch: opts.branch, registry, remote: opts.remote });
+        // The action reads its options after this hook, so the same source
+        // reaches the code that fetches the files (I1: manifest and files
+        // always come from one registry).
+        if (registry !== opts.registry) actionCommand.setOptionValue('registry', registry);
     });
 
     registerInstallCommands(program);

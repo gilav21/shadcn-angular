@@ -8,19 +8,24 @@ import { planInstall } from '../../core/install.js';
 import { searchComponents } from '../../core/search.js';
 import { buildComponentRecord } from '../../core/why-core.js';
 import { statusCore } from '../../commands/status.js';
-import { getConfig, getDefaultConfig, getPrefix } from '../../utils/config.js';
+import { getConfig, getDefaultConfig, getPrefix, type Config } from '../../utils/config.js';
 import { getLocalComponentsDir } from '../../utils/paths.js';
 import { json, err } from './result.js';
 import { sourceInputSchema, resolveSource } from './options.js';
 
-function registerSearchTools(server: ToolHost): void {
+/** The project's config, so a tool describes the registry the project is pinned to. */
+async function projectConfig(cwd: string): Promise<Config | undefined> {
+    return (await getConfig(cwd)) ?? undefined;
+}
+
+function registerSearchTools(server: ToolHost, cwd: string): void {
     server.registerTool('list_components', {
         title: 'List components',
         description: 'List every available shadcn-angular component with its category, description and tags.',
         inputSchema: { ...sourceInputSchema },
         annotations: { readOnlyHint: true },
     }, async (source) => {
-        await resolveSource(source);
+        await resolveSource(source, await projectConfig(cwd));
         return json(
             getComponentNames().map(name => {
                 const d = registry[name];
@@ -35,7 +40,7 @@ function registerSearchTools(server: ToolHost): void {
         inputSchema: { query: z.string().describe('Search term, e.g. "date" or "dropdown".'), ...sourceInputSchema },
         annotations: { readOnlyHint: true },
     }, async ({ query, ...source }) => {
-        await resolveSource(source);
+        await resolveSource(source, await projectConfig(cwd));
         return json(searchComponents(query));
     });
 
@@ -45,14 +50,14 @@ function registerSearchTools(server: ToolHost): void {
         inputSchema: { name: z.string().describe('Component name, e.g. "data-table".'), ...sourceInputSchema },
         annotations: { readOnlyHint: true },
     }, async ({ name, ...source }) => {
-        await resolveSource(source);
+        await resolveSource(source, await projectConfig(cwd));
         if (!isComponentName(name)) return err(`Unknown component: ${name}`);
         return json(buildComponentRecord(name));
     });
 
 }
 
-function registerWhyTool(server: ToolHost): void {
+function registerWhyTool(server: ToolHost, cwd: string): void {
     server.registerTool('why', {
         title: 'Why (registry introspection)',
         description: "Explain what component(s) are made of and what depends on them: files, libFiles, peerFiles, direct dependencies, and the transitive reverse-dependents — the blast radius of changing or removing it. Mirrors the `why` CLI command.",
@@ -62,7 +67,7 @@ function registerWhyTool(server: ToolHost): void {
         },
         annotations: { readOnlyHint: true },
     }, async ({ names, ...source }) => {
-        await resolveSource(source);
+        await resolveSource(source, await projectConfig(cwd));
         const invalid = names.filter(n => !isComponentName(n));
         if (invalid.length) {
             const hints = invalid.map(n => {
@@ -158,8 +163,8 @@ function registerStatusTools(server: ToolHost, cwd: string): void {
 }
 
 export function registerReadTools(server: ToolHost, cwd: string): void {
-    registerSearchTools(server);
-    registerWhyTool(server);
+    registerSearchTools(server, cwd);
+    registerWhyTool(server, cwd);
     registerDetailTools(server, cwd);
     registerStatusTools(server, cwd);
 }
