@@ -15,7 +15,7 @@
       />
     }
 
-    @for (spoke of spokes(); track spoke.axis) {
+    @for (spoke of spokes(); track $index) {
       <line
         [attr.x1]="center()"
         [attr.y1]="center()"
@@ -33,7 +33,7 @@
       >{{ spoke.axis }}</text>
     }
 
-    @for (poly of seriesPolygons(); track poly.key) {
+    @for (poly of seriesPolygons(); track $index) {
       <path
         [attr.data-slot]="'radar-series'"
         [attr.d]="poly.path"
@@ -43,7 +43,7 @@
         stroke-width="2"
         stroke-linejoin="round"
       />
-      @for (v of poly.vertices; track v.axis) {
+      @for (v of poly.vertices; track $index) {
         <circle
           [attr.cx]="v.x"
           [attr.cy]="v.y"

@@ -123,7 +123,7 @@
         </g>
 
         @if (showOutliers()) {
-          @for (point of box.outliers; track point.value) {
+          @for (point of box.outliers; track $index) {
             <circle
               data-slot="boxplot-outlier"
               [attr.cx]="point.cx"

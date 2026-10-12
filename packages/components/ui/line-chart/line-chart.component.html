@@ -40,7 +40,7 @@
       >{{ g.value }}</text>
     }
 
-    @for (c of categoryTicks(); track c.name) {
+    @for (c of categoryTicks(); track $index) {
       <text
         [attr.x]="c.x"
         [attr.y]="height() - 10"
@@ -61,7 +61,7 @@
       />
     }
 
-    @for (sp of seriesPaths(); track sp.key) {
+    @for (sp of seriesPaths(); track $index) {
       <path
         [attr.data-slot]="'line-series'"
         [attr.d]="sp.path"
@@ -74,7 +74,7 @@
     }
 
     @if (showPoints()) {
-      @for (sp of seriesPaths(); track sp.key; let si = $index) {
+      @for (sp of seriesPaths(); track $index; let si = $index) {
         @for (p of sp.points; track p.index) {
           <circle
             [attr.cx]="p.x"
