@@ -16,6 +16,9 @@ import { InputComponent } from '../input';
 import { UI_INPUT_GROUP } from '../../lib/input-group.token';
 import { cva, type VariantProps } from 'class-variance-authority';
 
+/** `KeyboardEvent.keyCode` an IME reports while it owns the key. */
+const IME_KEY_CODE = 229;
+
 const chipListVariants = cva(
   'w-full flex-wrap flex items-center gap-1.5 px-1 transition-[color,box-shadow] outline-none min-h-9 has-[input:focus-visible]:ring-[3px]',
   {
@@ -137,6 +140,16 @@ export class ChipListComponent implements ControlValueAccessor {
     return `${heightPx}px`;
   });
 
+  /**
+   * Redirects a key pressed on the container itself to the text field. A key
+   * aimed at a child control (a chip's remove button) is that control's: acting
+   * on it would swallow the button's own Enter/Space activation.
+   */
+  focusFromContainer(event: Event): void {
+    if (event.target !== event.currentTarget) return;
+    this.focusInput();
+  }
+
   /** Moves focus into the inline text field. Also bound to a click/Enter/Space anywhere on the container so the whole chip area behaves like one input. No-op while {@link isDisabled}. */
   focusInput(): void {
     if (this.isDisabled()) return;
@@ -151,10 +164,15 @@ export class ChipListComponent implements ControlValueAccessor {
   /**
    * Keyboard driver for the inline field. Enter or any {@link separatorKeys} key
    * commits the trimmed draft via {@link addChip} (and is swallowed, so Enter
-   * never submits the surrounding form); Backspace on an *empty* field pops the
+   * never submits the surrounding form) — except while an IME composition is
+   * active, when the key belongs to the IME; Backspace on an *empty* field pops the
    * last chip and emits {@link chipRemoved}. Everything else types normally.
    */
   onKeyDown(event: KeyboardEvent): void {
+    // keyCode 229 is Safari: it fires the keydown that confirms a candidate
+    // *after* compositionend, with isComposing already false.
+    if (event.isComposing || event.keyCode === IME_KEY_CODE) return;
+
     const value = this.inputValue().trim();
     const separators = this.separatorKeys();
 

@@ -218,6 +218,15 @@ export default tseslint.config(
     },
   },
   {
+    // Safari fires the Enter that confirms an IME candidate *after*
+    // `compositionend`, with `isComposing` already false; `keyCode === 229` is
+    // the only signal left on that event, and no non-deprecated property carries it.
+    files: ['packages/components/ui/chip-list/chip-list.component.ts'],
+    rules: {
+      'sonarjs/deprecation': 'off',
+    },
+  },
+  {
     // AcceptResult is intentionally `boolean | { ok; reason }`; the bare boolean
     // is the documented shorthand.
     files: ['packages/components/ui/sortable/sortable.component.ts'],

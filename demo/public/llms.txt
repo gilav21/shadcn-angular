@@ -1998,7 +1998,7 @@ Segmented one-time-password input with individual slots and auto-advance.
 - Category: form
 - Depends on: none
 - npm dependencies: none
-- Inputs: `ariaLabel: string | undefined`, `ariaLabelledby: string | undefined`, `class: string = ''`, `maxLength: number | undefined = DEFAULT_OTP_LENGTH`, `separator: number[] = [2]`, `value: string = ''`
+- Inputs: `ariaLabel: string | undefined`, `ariaLabelledby: string | undefined`, `class: string = ''`, `disabled: boolean = false`, `locale: LocaleInput<InputOtpLocale>`, `maxLength: number | undefined = DEFAULT_OTP_LENGTH`, `separator: number[] = [2]`, `value: string = ''`
 - Outputs: `value: string`
 
 ```html

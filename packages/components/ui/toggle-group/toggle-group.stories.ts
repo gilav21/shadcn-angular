@@ -1,6 +1,8 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { ToggleGroupComponent, ToggleGroupItem } from './toggle-group.component';
 import { ToggleGroupItemComponent } from './sub/toggle-group-item.component';
+import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { ButtonComponent } from '../button';
 
 const meta: Meta<ToggleGroupComponent> = {
   title: 'UI/ToggleGroup',
@@ -147,6 +149,28 @@ const dataDrivenWithDisabled: ToggleGroupItem[] = [
   { value: 'italic', label: 'Italic', disabled: true },
   { value: 'underline', label: 'Underline' },
 ];
+
+/** Reactive forms: `formControlName` renders the form value, reports each toggle once, marks touched when focus leaves the group, and honours `disable()`. */
+export const ReactiveForm: Story = {
+  decorators: [moduleMetadata({ imports: [ReactiveFormsModule, ButtonComponent] })],
+  render: (args) => {
+    const form = new FormGroup({ styles: new FormControl<string[]>(['bold']) });
+    return {
+      props: { ...args, form, items: dataDrivenItems },
+      template: `
+        <form [formGroup]="form" class="space-y-3">
+          <ui-toggle-group type="multiple" variant="outline" formControlName="styles" [items]="items" [class]="class" />
+          <p class="text-sm text-muted-foreground">
+            Form value: {{ form.value.styles?.join(', ') }} · touched: {{ form.controls.styles.touched }}
+          </p>
+          <ui-button size="sm" variant="outline"
+            (click)="form.controls.styles.disabled ? form.controls.styles.enable() : form.controls.styles.disable()">
+            Toggle disabled
+          </ui-button>
+        </form>`,
+    };
+  },
+};
 
 export const DataDrivenWithDisabledItem: Story = {
   render: (args) => ({

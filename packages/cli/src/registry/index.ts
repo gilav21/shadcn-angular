@@ -690,7 +690,8 @@ export const registry = defineRegistry({
     category: 'form',
     description: 'Segmented one-time-password input with individual slots and auto-advance.',
     tags: ['input-otp', 'otp', 'pin', 'code', '2fa', 'verification'],
-    files: ['input-otp/index.ts', 'input-otp/input-otp.component.css', 'input-otp/input-otp.component.ts', 'input-otp/sub/input-otp-group.component.ts', 'input-otp/sub/input-otp-separator.component.ts', 'input-otp/sub/input-otp-slot.component.ts'],
+    files: ['input-otp/index.ts', 'input-otp/input-otp.component.css', 'input-otp/input-otp.component.ts', 'input-otp/input-otp.locales.ts', 'input-otp/sub/input-otp-group.component.ts', 'input-otp/sub/input-otp-separator.component.ts', 'input-otp/sub/input-otp-slot.component.ts'],
+    libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     testFiles: ['input-otp/input-otp.component.spec.ts'],
   },
   kbd: {

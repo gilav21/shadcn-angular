@@ -245,13 +245,21 @@ describe('T-5: converted controls round-trip through a Signal Forms FieldTree', 
     it('ui-input-otp', async () => {
         const fixture = TestBed.createComponent(InputOtpFieldHost);
         await settle(fixture);
-        const control: InputOTPComponent = fixture.debugElement.query(By.directive(InputOTPComponent)).componentInstance;
+        // A CVA control: `FormField` writes through `writeValue`, so the
+        // field-to-control leg is read off the rendered slots and the
+        // control-to-field leg is driven the way a user drives it.
+        const hidden: HTMLInputElement = fixture.debugElement.query(By.directive(InputOTPComponent))
+            .nativeElement.querySelector('input');
+        const slotText = (): string[] => Array.from<HTMLElement>(
+            fixture.nativeElement.querySelectorAll('[data-slot="input-otp-slot"]'),
+        ).map(slot => slot.textContent?.trim() ?? '');
 
         fixture.componentInstance.field().value.set('ABC');
         await settle(fixture);
-        expect(control.value()).toBe('ABC');
+        expect(slotText().slice(0, 4)).toEqual(['A', 'B', 'C', '']);
 
-        control.value.set('XYZ');
+        hidden.value = 'XYZ';
+        hidden.dispatchEvent(new Event('input'));
         await settle(fixture);
         expect(fixture.componentInstance.model()).toBe('XYZ');
     });

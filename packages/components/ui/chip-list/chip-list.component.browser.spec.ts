@@ -1,8 +1,8 @@
 import { Component, signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FormsModule } from '@angular/forms';
 import { afterEach, describe, it, expect } from 'vitest';
-import { cdp } from 'vitest/browser';
+import { cdp, userEvent } from 'vitest/browser';
 import { ChipListComponent } from './chip-list.component';
 
 /** Browser-only: asserts resolved padding, which needs real CSS and layout. */
@@ -74,5 +74,61 @@ describe('ChipListComponent remove button (browser)', () => {
         expect([fine.width, fine.height]).toEqual([16, 16]);
         expect(coarse.width).toBeGreaterThanOrEqual(44);
         expect(coarse.height).toBeGreaterThanOrEqual(44);
+    });
+});
+
+@Component({
+    template: `<ui-chip-list [(ngModel)]="chips" />`,
+    imports: [ChipListComponent, FormsModule],
+})
+class RemovableChipsHost {
+    chips = ['a', 'b', 'c'];
+}
+
+describe('ChipListComponent keyboard (browser)', () => {
+    async function mountChips(): Promise<ComponentFixture<RemovableChipsHost>> {
+        const fixture = TestBed.createComponent(RemovableChipsHost);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        return fixture;
+    }
+    const removeButton = (fixture: ComponentFixture<unknown>, index: number): HTMLElement =>
+        (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[data-slot="chip-remove"]')[index];
+
+    it('Enter and Space on a remove button remove that chip', async () => {
+        const fixture = await mountChips();
+
+        removeButton(fixture, 1).focus();
+        await userEvent.keyboard('{Enter}');
+        fixture.detectChanges();
+        expect(fixture.componentInstance.chips).toEqual(['a', 'c']);
+
+        removeButton(fixture, 1).focus();
+        await userEvent.keyboard('{Space}');
+        fixture.detectChanges();
+        expect(fixture.componentInstance.chips).toEqual(['a']);
+    });
+
+    it('still focuses the inner input when the empty area of the container is clicked', async () => {
+        const fixture = await mountChips();
+        const container = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="chip-list"]') as HTMLElement;
+
+        container.click();
+
+        expect(document.activeElement).toBe((fixture.nativeElement as HTMLElement).querySelector('input'));
+    });
+
+    it('Enter and Space aimed at the container itself still move focus to the inner input', async () => {
+        const fixture = await mountChips();
+        const root = fixture.nativeElement as HTMLElement;
+        const container = root.querySelector('[data-slot="chip-list"]') as HTMLElement;
+
+        for (const key of ['{Enter}', '{Space}']) {
+            container.focus();
+            expect(document.activeElement).toBe(container);
+            await userEvent.keyboard(key);
+            expect(document.activeElement).toBe(root.querySelector('input'));
+        }
     });
 });
