@@ -527,7 +527,17 @@ const SNIPPETS: readonly string[] = [
     '#!/bin/bash\n# build\nset -e\necho "building $PROJECT" && npm run build\ngit commit -m \'msg\' $@\ncd "$HOME/dir"; ls -la | grep foo',
 ];
 
-const CORPUS_LINES: readonly string[] = [...REPO_SOURCES, ...SNIPPETS].flatMap((source) => source.split('\n'));
+/**
+ * Lines where a token ends or a text run stops right before a word character.
+ * The old tokenizer matched against `line.slice(cursor)`, which has no character
+ * before it, so `\b` read differently there (`5$foo(` has a boundary before the
+ * `$` in the line, none at the start of the slice). These pin that behaviour.
+ */
+const BOUNDARY_LINES: readonly string[] = [
+    '5$foo(1)', 'x=5$v$v(', "'a'$v(", '1<a$b(', '12ab(3)', 'a1(2)', '"s"b(', '3.5foo(', '<a$b=1>', 'x@d 5@d', '5$v$v(  <a&amp;}',
+];
+
+const CORPUS_LINES: readonly string[] = [...REPO_SOURCES, ...SNIPPETS].flatMap((source) => source.split('\n')).concat(BOUNDARY_LINES);
 
 /** mulberry32: a small seeded generator, so a failing line is reproducible. */
 function seededRandom(seed: number): () => number {
@@ -571,6 +581,37 @@ describe('tokenizeLine equals the reference', () => {
                     expect.fail(`${language}: tokens differ from the reference for line ${JSON.stringify(line)}`);
                 }
             }
+        }
+    });
+});
+
+describe('tokenizeLine with caller-supplied patterns', () => {
+    const covers = (tokens: CodeToken[], line: string): boolean => tokens.map((t) => t.text).join('') === line;
+
+    it('terminates on a pattern that can match the empty string, and still covers the line', () => {
+        const line = 'abxxcxd';
+        const tokens = tokenizeLine(line, [{ type: 'x', regex: /x*/ }]);
+
+        expect(tokens).toEqual([
+            { type: 'text', text: 'ab' }, { type: 'x', text: 'xx' },
+            { type: 'text', text: 'c' }, { type: 'x', text: 'x' }, { type: 'text', text: 'd' },
+        ]);
+        expect(covers(tokens, line)).toBe(true);
+        // Matches only the empty string anywhere in this line (it has no q): the whole line is plain text.
+        expect(tokenizeLine(line, [{ type: 'e', regex: /q*/ }])).toEqual([{ type: 'text', text: line }]);
+    });
+
+    it('treats a pattern that already carries the g or y flag like any other, call after call', () => {
+        const line = 'abcbd';
+        const expected = [
+            { type: 'text', text: 'a' }, { type: 'b', text: 'b' }, { type: 'text', text: 'c' },
+            { type: 'b', text: 'b' }, { type: 'text', text: 'd' },
+        ];
+        for (const regex of [/b/g, /b/y]) {
+            const patterns = [{ type: 'b', regex }];
+            expect(tokenizeLine(line, patterns)).toEqual(expected);
+            expect(tokenizeLine(line, patterns)).toEqual(expected);
+            expect(regex.lastIndex).toBe(0);
         }
     });
 });
