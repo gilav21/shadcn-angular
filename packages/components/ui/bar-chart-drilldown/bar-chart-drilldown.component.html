@@ -41,6 +41,7 @@
             stroke="currentColor"
             [attr.stroke-opacity]="tick === 0 && valueDomain()[0] < 0 ? 1 : 0.2"
             [attr.stroke-dasharray]="tick === 0 && valueDomain()[0] < 0 ? null : '4 4'"
+            [class.text-muted-foreground]="tick === 0 && valueDomain()[0] < 0"
           />
         }
       </g>
@@ -105,7 +106,7 @@
               [attr.x]="bar.x + bar.width / 2"
               [attr.y]="bar.labelPosition.y"
               text-anchor="middle"
-              class="text-xs font-medium fill-foreground pointer-events-none stroke-background stroke-[3px] [paint-order:stroke]"
+              class="text-xs font-medium fill-foreground pointer-events-none stroke-background stroke-2 [paint-order:stroke]"
             >
               {{ formatValue(bar.value) }}
             </text>

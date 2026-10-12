@@ -24,6 +24,7 @@
                 stroke="currentColor"
                 [attr.stroke-opacity]="tick === 0 && valueDomain()[0] < 0 ? 1 : 0.2"
                 [attr.stroke-dasharray]="tick === 0 && valueDomain()[0] < 0 ? null : '4 4'"
+                [class.text-muted-foreground]="tick === 0 && valueDomain()[0] < 0"
               />
             } @else {
               <line
@@ -34,6 +35,7 @@
                 stroke="currentColor"
                 [attr.stroke-opacity]="tick === 0 && valueDomain()[0] < 0 ? 1 : 0.2"
                 [attr.stroke-dasharray]="tick === 0 && valueDomain()[0] < 0 ? null : '4 4'"
+                [class.text-muted-foreground]="tick === 0 && valueDomain()[0] < 0"
               />
             }
         }
@@ -124,7 +126,7 @@
               [attr.y]="bar.labelPosition.y"
               [attr.text-anchor]="bar.labelAnchor"
               [attr.dominant-baseline]="isVertical() ? 'auto' : 'middle'"
-              class="text-xs font-medium pointer-events-none stroke-background stroke-[3px] [paint-order:stroke]"
+              class="text-xs font-medium pointer-events-none stroke-background stroke-2 [paint-order:stroke]"
               [class.fill-foreground]="true"
             >
               {{ formatValue(bar.value) }}

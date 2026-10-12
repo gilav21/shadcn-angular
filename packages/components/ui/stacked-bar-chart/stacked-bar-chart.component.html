@@ -20,6 +20,7 @@
             stroke="currentColor"
             [attr.stroke-opacity]="tick === 0 && valueDomain()[0] < 0 ? 1 : 0.2"
             [attr.stroke-dasharray]="tick === 0 && valueDomain()[0] < 0 ? null : '4 4'"
+            [class.text-muted-foreground]="tick === 0 && valueDomain()[0] < 0"
           />
         }
       </g>
