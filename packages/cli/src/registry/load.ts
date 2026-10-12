@@ -14,6 +14,7 @@
 import fs from 'fs-extra';
 import { registry, __resetRegistryCaches, type ComponentDefinition } from './index.js';
 import { getRegistryManifestUrl, getLocalRegistryJson, DEFAULT_BRANCH } from '../utils/paths.js';
+import { fetchText } from '../utils/http.js';
 import { findManifestViolations, type ManifestViolation } from './manifest-rules.js';
 
 export interface LoadRegistryOptions {
@@ -93,11 +94,11 @@ async function fetchManifest(options: LoadRegistryOptions): Promise<string> {
         return fs.readFile(local, 'utf-8');
     }
     const url = getRegistryManifestUrl(options.branch ?? DEFAULT_BRANCH, options.registry);
-    const response = await fetch(url);
+    const response = await fetchText(url);
     if (!response.ok) {
         throw new Error(`${response.status} ${response.statusText} from ${url}`);
     }
-    return response.text();
+    return response.text;
 }
 
 /** Where {@link fetchManifest} reads the manifest from, for messages — keep the two in sync. */

@@ -18,6 +18,7 @@ import {
     type FileSizes,
 } from './sizes.js';
 import { registry, type ComponentName } from '../registry/index.js';
+import { startServer } from '../utils/http-fixtures.js';
 import { resolveDependencies } from './resolve.js';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
@@ -148,5 +149,20 @@ describe('loadFileSizes', () => {
         expect(url).toContain('/some-branch/packages/components/file-sizes.json');
         expect(url).not.toContain('/ui/');
         spy.mockRestore();
+    });
+
+    it('gives up on a host that never answers and reports no size information', async () => {
+        const server = await startServer(['stall']);
+        const saved = process.env['SHADCN_ANGULAR_FETCH_TIMEOUT_MS'];
+        process.env['SHADCN_ANGULAR_FETCH_TIMEOUT_MS'] = '150';
+        try {
+            const started = Date.now();
+            expect(await loadFileSizes({ remote: true, registry: server.url })).toBeNull();
+            expect(Date.now() - started).toBeLessThan(3000);
+        } finally {
+            if (saved === undefined) delete process.env['SHADCN_ANGULAR_FETCH_TIMEOUT_MS'];
+            else process.env['SHADCN_ANGULAR_FETCH_TIMEOUT_MS'] = saved;
+            await server.close();
+        }
     });
 });
