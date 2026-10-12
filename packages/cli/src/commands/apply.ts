@@ -7,7 +7,7 @@ import { getConfig, getPrefix, type Config } from '../utils/config.js';
 import { aliasToProjectPath, resolveProjectPath } from '../utils/paths.js';
 import { performInstall } from '../core/install.js';
 import { resolveTestInstall } from '../utils/test-runner.js';
-import { reportMergeSummary } from './merge-report.js';
+import { reportMergeSummary, printUnchecked, printFailures, exitIfIncomplete, type RunOutcome } from './merge-report.js';
 import {
     findTemplateInstances,
     insertSelectorAtInstances,
@@ -162,10 +162,11 @@ async function wireTarget(addon: AddonInfo, target: Target, options: ApplyOption
 
 /**
  * Install the addon (+ base) if missing and verify the contract is present.
- * Returns whether the install wrote unresolved conflict markers (an edited base
- * was 3-way merged), so the caller can fail a non-interactive run.
+ * Returns what the install left unresolved (written conflict markers from a
+ * 3-way merge of an edited base, recorded failures, components it could not
+ * check), so the caller can fail the run once the wiring is reported.
  */
-async function installAndCheckCompat(addon: AddonInfo, cwd: string, uiAlias: string, options: ApplyOptions, config: Config): Promise<boolean> {
+async function installAndCheckCompat(addon: AddonInfo, cwd: string, uiAlias: string, options: ApplyOptions, config: Config): Promise<RunOutcome> {
     const spinner = ora(`Installing ${addon.name} if missing...`).start();
     try {
         // Ship the addon's tests too when the project opted into shipped tests
@@ -186,9 +187,12 @@ async function installAndCheckCompat(addon: AddonInfo, cwd: string, uiAlias: str
             process.exit(1);
         }
 
-        spinner.succeed(`${addon.name} installed.`);
+        if (result.failures.length > 0 || result.unchecked.length > 0) spinner.fail(`${addon.name} was not fully installed.`);
+        else spinner.succeed(`${addon.name} installed.`);
         for (const w of result.warnings) console.log(chalk.yellow('  ' + w));
-        return reportMergeSummary(result.mergeReport);
+        printUnchecked(result.unchecked);
+        printFailures(result.failures);
+        return { hadConflicts: reportMergeSummary(result.mergeReport), failures: result.failures, unchecked: result.unchecked };
     } catch (error) {
         spinner.fail('Install failed');
         console.error(error);
@@ -206,7 +210,7 @@ export async function apply(addonName: string, components: string[], options: Ap
     const uiAlias = config.aliases.ui || 'src/components/ui';
     const addon = resolveAddon(addonName, uiAlias, getPrefix(config));
 
-    const hadConflicts = options.dryRun ? false : await installAndCheckCompat(addon, cwd, uiAlias, options, config);
+    const outcome: RunOutcome = options.dryRun ? {} : await installAndCheckCompat(addon, cwd, uiAlias, options, config);
 
     const managed = [config.aliases.ui, config.aliases.blocks]
         .filter((a): a is string => Boolean(a))
@@ -219,7 +223,7 @@ export async function apply(addonName: string, components: string[], options: Ap
         if (total === 0) console.log(chalk.dim('No instances wired (already wired or none selected).'));
     }
 
-    // A merged-with-conflicts base in a non-interactive run must fail the command
-    // so a pipeline notices the unresolved markers (mirrors `update`).
-    if (hadConflicts && options.yes) process.exit(1);
+    // Incomplete installs and unattended conflict markers fail the command so a
+    // pipeline notices (mirrors `add` and `update`).
+    exitIfIncomplete(outcome, options);
 }

@@ -18,7 +18,7 @@ import { printBreakingUsages } from '../core/breaking-scan.js';
 import { printBindingCodemodReport, rewriteBreakingBindings } from '../core/binding-codemod.js';
 import { scanLayouts } from '../core/layout.js';
 import { readManifest, fileStatus, getComponentRef, type Manifest } from '../core/manifest.js';
-import { reportMergeSummary, printUnchecked, exitIfIncomplete } from './merge-report.js';
+import { reportMergeSummary, printUnchecked, printFailures, isNonInteractive, exitIfIncomplete } from './merge-report.js';
 import { apply } from './apply.js';
 
 export async function resolveUpdateTargets(
@@ -70,7 +70,7 @@ function onCancel(): never {
  * the file merge `update` already performs, so when we can't ask, we don't.
  */
 export function shouldOfferAddonApply(env: { readonly yes?: boolean; readonly isTTY: boolean }): boolean {
-    return !env.yes && env.isTTY;
+    return !isNonInteractive(env);
 }
 
 const applyLaterHint = (addonName: string): string =>
@@ -84,8 +84,8 @@ const applyLaterHint = (addonName: string): string =>
  * Deliberately calls the *interactive* `apply()` (not the silent, non-prompting
  * `core/apply-core.ts` `applyCore()`): once the user has opted in here, they
  * still get `apply`'s own per-usage target-selection prompt. This only runs on
- * the interactive path (never `--yes`), so `apply`'s internal
- * `process.exit(hadConflicts && options.yes)` guard can't fire.
+ * the interactive path (a terminal and no `--yes`), where `apply` does not
+ * treat written conflict markers as fatal.
  */
 async function promptApplyAddons(addons: readonly string[], options: AddOptions): Promise<void> {
     if (!shouldOfferAddonApply({ yes: options.yes, isTTY: !!process.stdin.isTTY })) {
@@ -296,6 +296,7 @@ async function applyUpdates(
     });
     console.log(chalk.green(`\nUpdated ${result.installed.length} component(s).`));
     for (const w of result.warnings) console.log(chalk.yellow('  ' + w));
+    printFailures(result.failures);
     return result;
 }
 
@@ -377,8 +378,8 @@ export async function update(names: string[], options: AddOptions): Promise<void
     );
     await promptApplyAddons(uninstalledAddons, options);
 
-    // In non-interactive runs (CI / --yes) a written conflict must fail the
-    // command so a pipeline notices the unresolved markers.
-    if (hadConflicts && options.yes) process.exit(1);
-    exitIfIncomplete({ unchecked: result.unchecked });
+    // After everything is reported (incl. the addon offer): a failure, a component
+    // that could not be checked, or markers nobody can resolve (unattended)
+    // must fail the command so a pipeline notices.
+    exitIfIncomplete({ unchecked: result.unchecked, failures: result.failures, hadConflicts }, options);
 }

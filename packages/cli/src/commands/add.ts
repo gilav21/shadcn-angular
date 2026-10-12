@@ -24,7 +24,8 @@ import {
     type InstallSummaryGroup,
 } from '../core/plan.js';
 import { performInstall, expandForTests, type InstallResult } from '../core/install.js';
-import { printUnchecked, exitIfIncomplete } from './merge-report.js';
+import { printUnchecked, printFailures, reportMergeIfMerged, exitIfIncomplete } from './merge-report.js';
+import { hasUnresolvedConflicts } from '../core/merge.js';
 import { resolvePreset, PresetError } from '../core/presets.js';
 import { resolveTestInstall } from '../utils/test-runner.js';
 
@@ -654,7 +655,11 @@ export async function add(components: string[], options: AddOptions): Promise<vo
         grouping, addonHints, uiPath,
     });
     // After the report, and outside runInstall's try: a throw there is reported as an install crash.
-    exitIfIncomplete({ unchecked: result.unchecked });
+    exitIfIncomplete({
+        unchecked: result.unchecked,
+        failures: result.failures,
+        hadConflicts: hasUnresolvedConflicts(result.mergeReport),
+    }, options);
 }
 
 /** Execute the planned install and report it. Exits 1 if the install itself throws. */
@@ -689,6 +694,8 @@ async function runInstall(input: {
             includeTests: input.includeTests, testRunner: input.runner,
         });
         printInstallResult(result, spinner, input.grouping, input.uiPath);
+        reportMergeIfMerged(result.mergeReport);
+        printFailures(result.failures);
         printAvailableAddons(input.addonHints);
         return result;
     } catch (error) {
