@@ -4,6 +4,9 @@ import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { TooltipDirective } from './tooltip.directive';
 
+/** RED until spec 8 Task 4: an expected failure under vitest, skipped where `it.fails` does not exist (the jest consumer leg). */
+const redUntilTask4 = Reflect.has(it, 'fails') ? it.fails : it.skip;
+
 const TOOLTIP_SELECTOR = 'div.fixed.z-50';
 
 function tooltipNode(): HTMLElement | null {
@@ -300,13 +303,9 @@ describe('TooltipDirective — touch device', () => {
         return fixture.debugElement.query(By.directive(TooltipDirective)).nativeElement;
     }
 
+    /** A finger landing on the host, as a browser dispatches it: bubbling, through the document. */
     function fireTouchStart(): TouchEvent {
-        // Non-bubbling: the directive's own scheduleDismiss adds a document-level
-        // touchstart listener; a bubbling event would immediately reach it and cancel
-        // the just-shown tooltip. Real touches add that listener mid-dispatch (so the
-        // spec skips it for the in-flight event); a non-bubbling synthetic event models
-        // the same end state deterministically.
-        const event = new Event('touchstart', { bubbles: false, cancelable: true }) as TouchEvent;
+        const event = new Event('touchstart', { bubbles: true, cancelable: true }) as TouchEvent;
         buttonEl().dispatchEvent(event);
         return event;
     }
@@ -333,7 +332,7 @@ describe('TooltipDirective — touch device', () => {
         expect(tooltipNode()).toBeNull();
     });
 
-    it('keeps a tapped-open tooltip through the emulated mouseleave', () => {
+    redUntilTask4('keeps a tapped-open tooltip through the emulated mouseleave', () => {
         fireTouchStart();
         buttonEl().dispatchEvent(new Event('mouseleave', { bubbles: true }));
         expect(tooltipNode()).toBeTruthy();
@@ -344,24 +343,24 @@ describe('TooltipDirective — touch device', () => {
         expect(event.defaultPrevented).toBe(false);
     });
 
-    it('toggles the tooltip off on a second touchstart', () => {
+    redUntilTask4('toggles the tooltip off on a second touchstart', () => {
         fireTouchStart();
         expect(tooltipNode()).toBeTruthy();
         fireTouchStart();
         expect(tooltipNode()).toBeNull();
     });
 
-    it('auto-dismisses the tooltip after the touch timeout', () => {
+    redUntilTask4('auto-dismisses the tooltip after the touch timeout', () => {
         fireTouchStart();
         expect(tooltipNode()).toBeTruthy();
         vi.advanceTimersByTime(2500);
         expect(tooltipNode()).toBeNull();
     });
 
-    it('dismisses when a touchstart is dispatched elsewhere on the document', () => {
+    redUntilTask4('dismisses when a touchstart is dispatched elsewhere on the document', () => {
         fireTouchStart();
         expect(tooltipNode()).toBeTruthy();
-        document.dispatchEvent(new Event('touchstart', { bubbles: true }));
+        document.body.dispatchEvent(new Event('touchstart', { bubbles: true }));
         expect(tooltipNode()).toBeNull();
     });
 

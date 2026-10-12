@@ -134,6 +134,14 @@ afterEach(() => {
     vi.unstubAllGlobals();
 });
 
+/** RED until spec 8 Task 6: an expected failure under vitest, skipped where `it.fails` does not exist (the jest consumer leg). */
+const redUntilTask6 = Reflect.has(it, 'fails') ? it.fails : it.skip;
+
+/** The text of every context-menu panel that is open right now (card, column and board menus portal to the body). */
+function openMenuTexts(): string[] {
+    return Array.from(document.querySelectorAll('[data-slot="context-menu-content"]')).map(el => (el.textContent ?? '').replaceAll(/\s+/g, ' ').trim());
+}
+
 describe('KanbanComponent', () => {
     describe('Simple Mode', () => {
         let fixture: ComponentFixture<KanbanSimpleTestHostComponent>;
@@ -807,12 +815,18 @@ describe('KanbanComponent', () => {
             expect(kanban.draggedCardId()).toBeNull();
         });
 
-        it('card contextmenu opens the card context menu', () => {
-            const kanban = getKanban();
-            const spy = vi.spyOn(kanban, 'showCardContextMenu');
-            firstCard().onContextMenu(new MouseEvent('contextmenu', { clientX: 4, clientY: 8 }));
-            expect(spy).toHaveBeenCalled();
-            expect(spy.mock.calls[0][2].id).toBe('card-1');
+        it('right-clicking a card opens the card menu and not the column or board menu', async () => {
+            const card = fixture.debugElement.query(By.css('[data-card-id="card-1"]')).nativeElement as HTMLElement;
+
+            const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 24, clientY: 48 });
+            card.dispatchEvent(event);
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            expect(event.defaultPrevented).toBe(true);
+            expect(openMenuTexts()).toHaveLength(1);
+            expect(openMenuTexts()[0]).toContain('Move to');
+            document.querySelectorAll('[data-context-menu-portal]').forEach(el => el.remove());
         });
     });
 
@@ -1320,5 +1334,57 @@ describe('KanbanDeleteColumnDialogComponent', () => {
         expect(dialog.moveOptions()).toHaveLength(0);
         dialog.onConfirm();
         expect(spy).not.toHaveBeenCalled();
+    });
+});
+
+describe('KanbanComponent — long-press opens the context menus', () => {
+    let fixture: ComponentFixture<KanbanSimpleTestHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [KanbanSimpleTestHostComponent] }).compileComponents();
+        fixture = TestBed.createComponent(KanbanSimpleTestHostComponent);
+        fixture.detectChanges();
+    });
+
+    afterEach(() => {
+        fixture.destroy();
+        document.querySelectorAll('[data-context-menu-portal], [data-context-menu-sub-portal]').forEach(el => el.remove());
+    });
+
+    /** One finger held still on `target` for longer than the long-press threshold. */
+    async function holdFinger(target: Element): Promise<void> {
+        const event = new Event('touchstart', { bubbles: true, cancelable: true });
+        Object.defineProperty(event, 'touches', { value: [{ clientX: 40, clientY: 60 }] });
+        target.dispatchEvent(event);
+        await new Promise(resolve => setTimeout(resolve, 560));
+        fixture.detectChanges();
+        await fixture.whenStable();
+    }
+
+    // UC-10. iOS never raises `contextmenu`; the card menu's "Move to" is the
+    // only way to move a card without a pointer-driven drag.
+    redUntilTask6('a long-press on a card opens the card menu, with Move to, and only that menu', async () => {
+        await holdFinger(fixture.debugElement.query(By.css('[data-card-id="card-1"]')).nativeElement);
+
+        const menus = openMenuTexts();
+        expect(menus).toHaveLength(1);
+        expect(menus[0]).toContain('Move to');
+        expect(menus[0]).toContain('Edit Card');
+    });
+
+    redUntilTask6('a long-press on a column header opens the column menu only', async () => {
+        await holdFinger(fixture.debugElement.queryAll(By.css('[data-slot="kanban-column-header"]'))[1].nativeElement);
+
+        const menus = openMenuTexts();
+        expect(menus).toHaveLength(1);
+        expect(menus[0]).toContain('Rename Column');
+    });
+
+    redUntilTask6('a long-press on empty board space opens the board menu only', async () => {
+        await holdFinger(fixture.debugElement.query(By.css('[data-slot="kanban"]')).nativeElement);
+
+        const menus = openMenuTexts();
+        expect(menus).toHaveLength(1);
+        expect(menus[0]).toContain('Add Column');
     });
 });

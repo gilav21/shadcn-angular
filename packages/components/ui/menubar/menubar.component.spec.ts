@@ -840,3 +840,88 @@ describe('Menubar submenu timer teardown', () => {
         expect(sub.isOpen()).toBe(true);
     });
 });
+
+/** RED until spec 8 Task 2: an expected failure under vitest, skipped where `it.fails` does not exist (the jest consumer leg). */
+const redUntilTask2 = Reflect.has(it, 'fails') ? it.fails : it.skip;
+
+@Component({
+    template: `
+        <ui-menubar>
+            <ui-menubar-menu>
+                <ui-menubar-trigger>File</ui-menubar-trigger>
+                <ui-menubar-content>
+                    <ui-menubar-item (click)="clicked.push('New')" (selected)="selected.push('New')">New</ui-menubar-item>
+                    <ui-menubar-item (click)="clicked.push('Open')" (selected)="selected.push('Open')">Open</ui-menubar-item>
+                    <ui-menubar-item [disabled]="true" (click)="clicked.push('Save')" (selected)="selected.push('Save')">Save</ui-menubar-item>
+                </ui-menubar-content>
+            </ui-menubar-menu>
+        </ui-menubar>
+    `,
+    imports: [MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, MenubarContentComponent, MenubarItemComponent],
+})
+class FileMenuHostComponent {
+    readonly clicked: string[] = [];
+    readonly selected: string[] = [];
+}
+
+function menuRow(fixture: ComponentFixture<unknown>, label: string): HTMLElement {
+    const rows = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[data-slot="menubar-item"]'));
+    const row = rows.find(el => el.textContent?.trim() === label);
+    if (!row) throw new Error(`no menu row "${label}"`);
+    return row;
+}
+
+function press(element: HTMLElement, key: string): KeyboardEvent {
+    const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+    element.dispatchEvent(event);
+    return event;
+}
+
+describe('Menubar item activation is one action however it is made', () => {
+    let fixture: ComponentFixture<FileMenuHostComponent>;
+
+    beforeEach(() => {
+        installStubs();
+        fixture = createFixture(FileMenuHostComponent);
+        openFirstMenu(fixture);
+    });
+
+    afterEach(() => {
+        fixture.destroy();
+        restoreStubs();
+    });
+
+    // UC-2, UC-3. The consumer binds (click) on the item the way they do on every
+    // other element; a keyboard user must reach it, once, as well as (selected).
+    redUntilTask2('Enter and Space run (click) and (selected) exactly once each', () => {
+        const host = fixture.componentInstance;
+
+        press(menuRow(fixture, 'New'), 'Enter');
+        fixture.detectChanges();
+        expect({ clicked: host.clicked, selected: host.selected }).toEqual({ clicked: ['New'], selected: ['New'] });
+
+        openFirstMenu(fixture);
+        const space = press(menuRow(fixture, 'Open'), ' ');
+        fixture.detectChanges();
+        expect({ clicked: host.clicked, selected: host.selected })
+            .toEqual({ clicked: ['New', 'Open'], selected: ['New', 'Open'] });
+        expect(space.defaultPrevented).toBe(true);
+    });
+
+    // UC-4. .click() stands in for an assistive-technology activation, which
+    // bypasses pointer-events.
+    redUntilTask2('a disabled item runs nothing by any route and says so', () => {
+        const host = fixture.componentInstance;
+        const disabled = menuRow(fixture, 'Save');
+
+        disabled.click();
+        press(disabled, 'Enter');
+        press(disabled, ' ');
+        fixture.detectChanges();
+
+        expect({ clicked: host.clicked, selected: host.selected }).toEqual({ clicked: [], selected: [] });
+        expect(menuInstance(fixture).isOpen()).toBe(true);
+        expect(disabled.getAttribute('aria-disabled')).toBe('true');
+        expect(menuRow(fixture, 'New').hasAttribute('aria-disabled')).toBe(false);
+    });
+});

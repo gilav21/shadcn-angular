@@ -1,5 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { isTouchDevice, hasHover, onLongPress, onDoubleTap, onPointerDrag } from './touch';
+import {
+    isTouchDevice,
+    hasHover,
+    onLongPress,
+    onDoubleTap,
+    onPointerDrag,
+    onContextGesture,
+    dismissOnOutsideTouch,
+    type ContextGesture,
+} from './touch';
 import { prefersReducedMotion } from './media';
 
 type TouchCallback = (event: TouchEvent) => void;
@@ -484,5 +493,245 @@ describe('onPointerDrag', () => {
 
         expect(onMove).not.toHaveBeenCalled();
         expect(onEnd).not.toHaveBeenCalled();
+    });
+});
+
+function rightClick(target: Element, point = { clientX: 140, clientY: 90 }): MouseEvent {
+    const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2, ...point });
+    target.dispatchEvent(event);
+    return event;
+}
+
+/** RED until spec 8 Tasks 4-5: the helpers below do not exist yet. */
+const redUntil = it.fails;
+
+describe('onContextGesture', () => {
+    let outer: HTMLElement;
+    let inner: HTMLElement;
+    let leaf: HTMLElement;
+    let disposers: Array<() => void>;
+
+    /** Registers on `element` and returns the recorder; `claims` is what the handler answers. */
+    function listen(element: HTMLElement, claims = true): ReturnType<typeof vi.fn<(gesture: ContextGesture) => boolean>> {
+        const handler = vi.fn<(gesture: ContextGesture) => boolean>(() => claims);
+        disposers.push(onContextGesture(element, handler, 500));
+        return handler;
+    }
+
+    beforeEach(() => {
+        vi.useFakeTimers();
+        disposers = [];
+        outer = document.createElement('div');
+        inner = document.createElement('div');
+        leaf = document.createElement('span');
+        inner.appendChild(leaf);
+        outer.appendChild(inner);
+        document.body.appendChild(outer);
+    });
+
+    afterEach(() => {
+        for (const dispose of disposers) dispose();
+        outer.remove();
+        vi.useRealTimers();
+    });
+
+    const finger = { clientX: 60, clientY: 40 };
+
+    /** A finger lands on the leaf. */
+    function touchDown(points = [finger]): TouchEvent {
+        const event = touchEvent('touchstart', points, points);
+        leaf.dispatchEvent(event);
+        return event;
+    }
+
+    redUntil('answers a right-click once, with the point, the target and the event itself', () => {
+        const handler = listen(outer, true);
+
+        const event = rightClick(leaf, { clientX: 140, clientY: 90 });
+
+        expect(handler).toHaveBeenCalledTimes(1);
+        expect(handler).toHaveBeenCalledWith({ target: leaf, clientX: 140, clientY: 90, source: event });
+        expect(event.defaultPrevented).toBe(true);
+    });
+
+    redUntil('leaves the native menu alone when the handler does not claim the gesture', () => {
+        listen(outer, false);
+
+        expect(rightClick(leaf).defaultPrevented).toBe(false);
+    });
+
+    redUntil('answers a one-finger long-press once, at the finger, with the touchstart as source', () => {
+        const handler = listen(outer, true);
+
+        const start = touchDown();
+        vi.advanceTimersByTime(499);
+        expect(handler).not.toHaveBeenCalled();
+        vi.advanceTimersByTime(1);
+
+        expect(handler).toHaveBeenCalledTimes(1);
+        expect(handler).toHaveBeenCalledWith({ target: leaf, clientX: 60, clientY: 40, source: start });
+    });
+
+    // Android raises its own contextmenu for a held finger; iOS does not. One
+    // gesture must reach the handler once on both.
+    redUntil('swallows the contextmenu Android raises after a claimed long-press, but not a later right-click', () => {
+        const handler = listen(outer, true);
+
+        touchDown();
+        vi.advanceTimersByTime(500);
+        vi.advanceTimersByTime(100);
+        const echo = rightClick(leaf, finger);
+
+        expect(handler).toHaveBeenCalledTimes(1);
+        expect(echo.defaultPrevented).toBe(true);
+
+        vi.advanceTimersByTime(1000);
+        rightClick(leaf);
+        expect(handler).toHaveBeenCalledTimes(2);
+    });
+
+    redUntil.each([
+        { name: 'the finger travels 15px', gesture: () => leaf.dispatchEvent(touchEvent('touchmove', [{ clientX: 75, clientY: 40 }])) },
+        { name: 'a second finger joins', gesture: () => touchDown([finger, { clientX: 200, clientY: 40 }]) },
+        { name: 'the finger lifts', gesture: () => leaf.dispatchEvent(touchEvent('touchend', [], [finger])) },
+    ])('never opens when $name before the hold completes', ({ gesture }) => {
+        const handler = listen(outer, true);
+
+        touchDown();
+        vi.advanceTimersByTime(200);
+        gesture();
+        vi.advanceTimersByTime(1000);
+
+        expect(handler).not.toHaveBeenCalled();
+    });
+
+    // The platform's own long-press arriving in the middle of a pan: the finger
+    // travelled, so it is not a press, and the browser's guess must lose.
+    redUntil('ignores and suppresses the contextmenu a browser raises mid-pan', () => {
+        const handler = listen(outer, true);
+
+        touchDown();
+        leaf.dispatchEvent(touchEvent('touchmove', [{ clientX: 120, clientY: 40 }]));
+        vi.advanceTimersByTime(300);
+        const midPan = rightClick(leaf, { clientX: 120, clientY: 40 });
+
+        expect(handler).not.toHaveBeenCalled();
+        expect(midPan.defaultPrevented).toBe(true);
+    });
+
+    // Chromium reports the centre of the focused element for the context-menu key
+    // and Shift+F10 (measured: a PointerEvent with button -1), so a real point needs
+    // nothing. A browser that reports no point at all gets the target's inline-start
+    // bottom corner, where a menu opened from the keyboard belongs.
+    redUntil.each([
+        { dir: 'ltr', expected: { clientX: 30, clientY: 60 } },
+        { dir: 'rtl', expected: { clientX: 130, clientY: 60 } },
+    ])('opens a keyboard-initiated contextmenu that carries no point at the target corner ($dir)', ({ dir, expected }) => {
+        const handler = listen(outer, true);
+        leaf.dir = dir;
+        vi.spyOn(leaf, 'getBoundingClientRect').mockReturnValue(new DOMRect(30, 20, 100, 40));
+
+        const key = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 0, clientX: 0, clientY: 0 });
+        leaf.dispatchEvent(key);
+
+        expect(handler).toHaveBeenCalledWith({ target: leaf, ...expected, source: key });
+    });
+
+    redUntil('stops a pending long-press when the browser starts a drag of the element', () => {
+        const handler = listen(outer, true);
+
+        touchDown();
+        vi.advanceTimersByTime(200);
+        leaf.dispatchEvent(new Event('dragstart', { bubbles: true }));
+        vi.advanceTimersByTime(1000);
+
+        expect(handler).not.toHaveBeenCalled();
+    });
+
+    // Nested targets: the innermost one that acts owns the gesture, for the
+    // right-click and for the long-press alike.
+    redUntil.each([
+        { gesture: 'right-click', perform: () => { rightClick(leaf); } },
+        { gesture: 'long-press', perform: () => { touchDown(); vi.advanceTimersByTime(500); } },
+    ])('the innermost claiming target owns a $gesture', ({ perform }) => {
+        const outerHandler = listen(outer, true);
+        const innerHandler = listen(inner, true);
+
+        perform();
+
+        expect(innerHandler).toHaveBeenCalledTimes(1);
+        expect(outerHandler).not.toHaveBeenCalled();
+    });
+
+    redUntil.each([
+        { gesture: 'right-click', perform: () => { rightClick(leaf); } },
+        { gesture: 'long-press', perform: () => { touchDown(); vi.advanceTimersByTime(500); } },
+    ])('the outer target answers a $gesture the inner one declined', ({ perform }) => {
+        const outerHandler = listen(outer, true);
+        const innerHandler = listen(inner, false);
+
+        perform();
+
+        expect(innerHandler).toHaveBeenCalledTimes(1);
+        expect(outerHandler).toHaveBeenCalledTimes(1);
+    });
+
+    redUntil('stops answering after cleanup', () => {
+        const handler = listen(outer, true);
+        for (const dispose of disposers.splice(0)) dispose();
+
+        rightClick(leaf);
+        touchDown();
+        vi.advanceTimersByTime(1000);
+
+        expect(handler).not.toHaveBeenCalled();
+    });
+});
+
+describe('dismissOnOutsideTouch', () => {
+    let host: HTMLElement;
+    let inside: HTMLElement;
+    let onDismiss: ReturnType<typeof vi.fn<() => void>>;
+
+    beforeEach(() => {
+        host = document.createElement('div');
+        inside = document.createElement('button');
+        host.appendChild(inside);
+        document.body.appendChild(host);
+        onDismiss = vi.fn<() => void>();
+    });
+
+    afterEach(() => {
+        host.remove();
+    });
+
+    // The tooltip opens on a touchstart and registers its dismissal inside that
+    // very touch; a listener added mid-dispatch fires for the event in flight
+    // unless it is in a phase that has already passed.
+    redUntil('does not fire for the touch that registered it, then fires once for a touch outside', () => {
+        let dispose = (): void => undefined;
+        host.addEventListener('touchstart', () => {
+            dispose = dismissOnOutsideTouch(host, onDismiss);
+        }, { once: true });
+
+        inside.dispatchEvent(touchEvent('touchstart', [{ clientX: 1, clientY: 1 }]));
+        expect(onDismiss).not.toHaveBeenCalled();
+
+        inside.dispatchEvent(touchEvent('touchstart', [{ clientX: 1, clientY: 1 }]));
+        expect(onDismiss).not.toHaveBeenCalled();
+
+        document.body.dispatchEvent(touchEvent('touchstart', [{ clientX: 300, clientY: 300 }]));
+        expect(onDismiss).toHaveBeenCalledTimes(1);
+
+        dispose();
+    });
+
+    redUntil('stops listening once cleaned up', () => {
+        const dispose = dismissOnOutsideTouch(host, onDismiss);
+        dispose();
+
+        document.body.dispatchEvent(touchEvent('touchstart', [{ clientX: 300, clientY: 300 }]));
+
+        expect(onDismiss).not.toHaveBeenCalled();
     });
 });

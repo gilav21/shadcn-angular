@@ -89,6 +89,27 @@ function contextMenuEventAt(target: HTMLElement, x: number, y: number): MouseEve
   return event;
 }
 
+
+/** RED until spec 8 Task 5: an expected failure under vitest, skipped where `it.fails` does not exist (the jest consumer leg). */
+const redUntilTask5 = Reflect.has(it, 'fails') ? it.fails : it.skip;
+
+/** A finger held on `target` for the long-press duration (fake timers must be installed). */
+function holdFinger(target: HTMLElement, x: number, y: number): Event {
+  const event = new Event('touchstart', { bubbles: true, cancelable: true });
+  Object.defineProperty(event, 'touches', { value: [{ clientX: x, clientY: y }] });
+  target.dispatchEvent(event);
+  vi.advanceTimersByTime(500);
+  return event;
+}
+
+/** The contextmenu Android raises after the hold, a moment later. */
+function androidEcho(target: HTMLElement, x: number, y: number): MouseEvent {
+  vi.advanceTimersByTime(100);
+  const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: x, clientY: y });
+  target.dispatchEvent(event);
+  return event;
+}
+
 describe('TreeContextMenuDirective', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -113,6 +134,43 @@ describe('TreeContextMenuDirective', () => {
     expect(emitted.event.clientX).toBe(111);
     expect(emitted.event.clientY).toBe(222);
     expect(comp.menu.show).toHaveBeenCalledWith(111, 222, emitted.node);
+  });
+
+  redUntilTask5('opens the menu at the finger and emits what a right-click emits on a long-press of the same node', () => {
+    vi.useFakeTimers();
+    try {
+      const { comp, item } = setup();
+      const label = item('main').querySelector('[data-slot="tree-label"]') as HTMLElement;
+      contextMenuEventAt(label, 30, 50);
+
+      const touch = holdFinger(label, 30, 50);
+      androidEcho(label, 30, 50);
+
+      expect(comp.events).toHaveLength(2);
+      expect(comp.events[1].node).toEqual(comp.events[0].node);
+      expect(comp.events[1].node).toMatchObject({ key: 'main', label: 'main.ts' });
+      expect(comp.events[1].event).toBe(touch);
+      expect(comp.menu.show).toHaveBeenCalledTimes(2);
+      expect(comp.menu.show).toHaveBeenLastCalledWith(30, 50, comp.events[1].node);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does nothing on a long-press when the context menu is disabled', () => {
+    vi.useFakeTimers();
+    try {
+      const { comp, fixture, item } = setup();
+      comp.disabled.set(true);
+      fixture.detectChanges();
+
+      holdFinger(item('src'), 1, 2);
+
+      expect(comp.events).toHaveLength(0);
+      expect(comp.menu.show).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('prevents default and stops propagation for a tree-item right-click', () => {

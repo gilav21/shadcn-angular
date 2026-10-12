@@ -497,3 +497,118 @@ describe('ContextMenu sub timer teardown', () => {
         expect(sub.isOpen()).toBe(true);
     });
 });
+
+/** RED until spec 8 Task 2: an expected failure under vitest, skipped where `it.fails` does not exist (the jest consumer leg). */
+const redUntilTask2 = Reflect.has(it, 'fails') ? it.fails : it.skip;
+
+@Component({
+    template: `
+        <ui-context-menu>
+            <ui-context-menu-trigger>
+                <div style="width: 200px; height: 60px">Right-click here</div>
+            </ui-context-menu-trigger>
+            <ui-context-menu-content>
+                <ui-context-menu-item (click)="clicked.push('Cut')">Cut</ui-context-menu-item>
+                <ui-context-menu-item (click)="clicked.push('Copy')">Copy</ui-context-menu-item>
+                <ui-context-menu-item [disabled]="true" (click)="clicked.push('Paste')">Paste</ui-context-menu-item>
+            </ui-context-menu-content>
+        </ui-context-menu>
+    `,
+    imports: [ContextMenuComponent, ContextMenuTriggerComponent, ContextMenuContentComponent, ContextMenuItemComponent],
+})
+class EditMenuHostComponent {
+    readonly clicked: string[] = [];
+}
+
+@Component({
+    template: `<ui-context-menu [items]="items"><ui-context-menu-trigger><div>Right-click here</div></ui-context-menu-trigger></ui-context-menu>`,
+    imports: [ContextMenuComponent, ContextMenuTriggerComponent],
+})
+class EditDataMenuHostComponent {
+    readonly clicked: string[] = [];
+    readonly items: ContextMenuItem[] = [
+        { label: 'Cut', click: () => this.clicked.push('Cut') },
+        { label: 'Paste', disabled: true, click: () => this.clicked.push('Paste') },
+    ];
+}
+
+async function openEditMenu<T>(component: new () => T): Promise<ComponentFixture<T>> {
+    await TestBed.configureTestingModule({ imports: [component] }).compileComponents();
+    const fixture = TestBed.createComponent(component);
+    fixture.detectChanges();
+    fixture.debugElement.query(By.directive(ContextMenuComponent)).componentInstance.show(100, 100);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    return fixture;
+}
+
+function menuItemNamed(label: string): HTMLElement {
+    const items = Array.from(document.querySelectorAll<HTMLElement>('[data-slot="context-menu-item"]'));
+    const item = items.find(el => el.textContent?.trim() === label);
+    if (!item) throw new Error(`no menu item "${label}"`);
+    return item;
+}
+
+function keyOn(element: HTMLElement, key: string): KeyboardEvent {
+    const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+    element.dispatchEvent(event);
+    return event;
+}
+
+describe('ContextMenu item activation is one action however it is made', () => {
+    afterEach(() => {
+        document.querySelectorAll('[data-context-menu-portal], [data-context-menu-sub-portal]').forEach(el => el.remove());
+    });
+
+    // UC-2. The items had no role, no tabindex and no key handling at all.
+    redUntilTask2('Enter and Space run the item action exactly once and close the menu', async () => {
+        const fixture = await openEditMenu(EditMenuHostComponent);
+        const menu = fixture.debugElement.query(By.directive(ContextMenuComponent)).componentInstance as ContextMenuComponent;
+
+        keyOn(menuItemNamed('Cut'), 'Enter');
+        fixture.detectChanges();
+        expect(fixture.componentInstance.clicked).toEqual(['Cut']);
+        expect(menu.open()).toBe(false);
+
+        menu.show(100, 100);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const space = keyOn(menuItemNamed('Copy'), ' ');
+        fixture.detectChanges();
+        expect(fixture.componentInstance.clicked).toEqual(['Cut', 'Copy']);
+        expect(space.defaultPrevented).toBe(true);
+        expect(menu.open()).toBe(false);
+    });
+
+    // UC-4. .click() stands in for an assistive-technology activation, which
+    // bypasses pointer-events.
+    redUntilTask2('a disabled item runs nothing by any route and says so', async () => {
+        const fixture = await openEditMenu(EditMenuHostComponent);
+        const menu = fixture.debugElement.query(By.directive(ContextMenuComponent)).componentInstance as ContextMenuComponent;
+        const disabled = menuItemNamed('Paste');
+
+        disabled.click();
+        keyOn(disabled, 'Enter');
+        keyOn(disabled, ' ');
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.clicked).toEqual([]);
+        expect(menu.open()).toBe(true);
+        expect(disabled.getAttribute('aria-disabled')).toBe('true');
+        expect(disabled.getAttribute('role')).toBe('menuitem');
+        expect(menuItemNamed('Cut').hasAttribute('aria-disabled')).toBe(false);
+    });
+
+    redUntilTask2('a disabled data-driven item runs nothing by any route and says so', async () => {
+        const fixture = await openEditMenu(EditDataMenuHostComponent);
+        const disabled = menuItemNamed('Paste');
+
+        disabled.click();
+        keyOn(disabled, 'Enter');
+        keyOn(disabled, ' ');
+        keyOn(menuItemNamed('Cut'), 'Enter');
+
+        expect(fixture.componentInstance.clicked).toEqual(['Cut']);
+        expect(disabled.getAttribute('aria-disabled')).toBe('true');
+    });
+});

@@ -805,36 +805,6 @@ describe('DropdownMenu interactive-trigger + disabled item', () => {
         fixture.detectChanges();
         expect(dropdown.open()).toBe(false);
     });
-
-    it('does not close when a disabled item is activated', async () => {
-        const dropdown = fixture.debugElement.query(By.directive(DropdownMenuComponent)).componentInstance;
-        dropdown.show();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const item = fixture.debugElement.query(By.css('[data-slot="dropdown-item"]')).nativeElement as HTMLElement;
-        item.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-        item.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
-        fixture.detectChanges();
-        expect(dropdown.open()).toBe(true);
-    });
-});
-
-describe('DropdownMenu Space activation closes menu', () => {
-    it('closes when Space activates an enabled item', async () => {
-        await TestBed.configureTestingModule({ imports: [ThreeItemHostComponent] }).compileComponents();
-        const fixture = TestBed.createComponent(ThreeItemHostComponent);
-        fixture.detectChanges();
-        const dropdown = fixture.debugElement.query(By.directive(DropdownMenuComponent)).componentInstance;
-        dropdown.show();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const item = fixture.debugElement.query(By.css('[data-slot="dropdown-item"]')).nativeElement as HTMLElement;
-        item.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
-        fixture.detectChanges();
-        expect(dropdown.open()).toBe(false);
-    });
 });
 
 describe('DropdownMenu data-driven items input', () => {
@@ -1080,5 +1050,156 @@ describe('DropdownMenu disabled sub-trigger', () => {
         triggerRow().dispatchEvent(new MouseEvent('click', { bubbles: true }));
         fixture.detectChanges();
         expect(sub().isOpen()).toBe(false);
+    });
+});
+
+/** RED until spec 8 Task 2: an expected failure under vitest, skipped where `it.fails` does not exist (the jest consumer leg). */
+const redUntilTask2 = Reflect.has(it, 'fails') ? it.fails : it.skip;
+
+type ActionName = 'edit' | 'duplicate' | 'remove';
+
+@Component({
+    template: `
+        <ui-dropdown-menu>
+            <ui-dropdown-menu-trigger>Actions</ui-dropdown-menu-trigger>
+            <ui-dropdown-menu-content>
+                <ui-dropdown-menu-item (click)="run('edit')">Edit</ui-dropdown-menu-item>
+                <ui-dropdown-menu-item (click)="run('duplicate')">Duplicate</ui-dropdown-menu-item>
+                <ui-dropdown-menu-item [disabled]="true" (click)="run('remove')">Delete</ui-dropdown-menu-item>
+                <ui-dropdown-menu-item (click)="run('remove')">Archive</ui-dropdown-menu-item>
+            </ui-dropdown-menu-content>
+        </ui-dropdown-menu>
+    `,
+    imports: [DropdownMenuComponent, DropdownMenuTriggerComponent, DropdownMenuContentComponent, DropdownMenuItemComponent],
+})
+class ActionsMenuHostComponent {
+    readonly counts: Record<ActionName, number> = { edit: 0, duplicate: 0, remove: 0 };
+    run(name: ActionName): void {
+        this.counts[name]++;
+    }
+}
+
+@Component({
+    template: `
+        <ui-dropdown-menu>
+            <ui-dropdown-menu-trigger>Actions</ui-dropdown-menu-trigger>
+            <ui-dropdown-menu-content>
+                <ui-dropdown-menu-item (click)="run()">Only</ui-dropdown-menu-item>
+            </ui-dropdown-menu-content>
+        </ui-dropdown-menu>
+    `,
+    imports: [DropdownMenuComponent, DropdownMenuTriggerComponent, DropdownMenuContentComponent, DropdownMenuItemComponent],
+})
+class SingleItemMenuHostComponent {
+    count = 0;
+    run(): void {
+        this.count++;
+    }
+}
+
+@Component({
+    template: `<ui-dropdown-menu [items]="items"><ui-dropdown-menu-trigger>Actions</ui-dropdown-menu-trigger></ui-dropdown-menu>`,
+    imports: [DropdownMenuComponent, DropdownMenuTriggerComponent],
+})
+class ActionsDataMenuHostComponent {
+    readonly counts: Record<ActionName, number> = { edit: 0, duplicate: 0, remove: 0 };
+    readonly items: DropdownItem[] = [
+        { label: 'Edit', click: () => this.counts.edit++ },
+        { label: 'Duplicate', click: () => this.counts.duplicate++ },
+        { label: 'Delete', disabled: true, click: () => this.counts.remove++ },
+    ];
+}
+
+async function openMenu<T>(component: new () => T): Promise<{ fixture: ComponentFixture<T>; dropdown: DropdownMenuComponent }> {
+    await TestBed.configureTestingModule({ imports: [component] }).compileComponents();
+    const fixture = TestBed.createComponent(component);
+    fixture.detectChanges();
+    const dropdown = fixture.debugElement.query(By.directive(DropdownMenuComponent)).componentInstance as DropdownMenuComponent;
+    dropdown.show();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    return { fixture, dropdown };
+}
+
+function itemNamed(fixture: ComponentFixture<unknown>, label: string): HTMLElement {
+    const items = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[data-slot="dropdown-item"]'));
+    const item = items.find(el => el.textContent?.trim().startsWith(label));
+    if (!item) throw new Error(`no menu item "${label}"`);
+    return item;
+}
+
+function press(element: HTMLElement, key: string): KeyboardEvent {
+    const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+    element.dispatchEvent(event);
+    return event;
+}
+
+describe('DropdownMenu item activation is one action however it is made', () => {
+    // UC-1, UC-2. A keyboard user arrows to "Duplicate" and presses Enter: the
+    // consumer's (click) must run, exactly once, and the menu must close.
+    redUntilTask2('Enter and Space run the item action exactly once and close the menu', async () => {
+        const { fixture, dropdown } = await openMenu(ActionsMenuHostComponent);
+        const host = fixture.componentInstance;
+
+        press(itemNamed(fixture, 'Duplicate'), 'Enter');
+        fixture.detectChanges();
+        expect(host.counts).toEqual({ edit: 0, duplicate: 1, remove: 0 });
+        expect(dropdown.open()).toBe(false);
+
+        dropdown.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const space = press(itemNamed(fixture, 'Archive'), ' ');
+        fixture.detectChanges();
+        expect(host.counts).toEqual({ edit: 0, duplicate: 1, remove: 1 });
+        expect(space.defaultPrevented).toBe(true);
+        expect(dropdown.open()).toBe(false);
+    });
+
+    redUntilTask2('Enter runs the click callback of a data-driven item', async () => {
+        const { fixture, dropdown } = await openMenu(ActionsDataMenuHostComponent);
+
+        press(itemNamed(fixture, 'Edit'), 'Enter');
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.counts).toEqual({ edit: 1, duplicate: 0, remove: 0 });
+        expect(dropdown.open()).toBe(false);
+    });
+
+    redUntilTask2('a menu with a single item still runs it on Enter', async () => {
+        const { fixture } = await openMenu(SingleItemMenuHostComponent);
+
+        press(itemNamed(fixture, 'Only'), 'Enter');
+
+        expect(fixture.componentInstance.count).toBe(1);
+    });
+
+    // UC-4. A disabled item runs nothing by any route: .click() stands in for an
+    // assistive-technology activation, which bypasses pointer-events.
+    redUntilTask2('a disabled item runs nothing by any route and says so', async () => {
+        const { fixture, dropdown } = await openMenu(ActionsMenuHostComponent);
+        const disabled = itemNamed(fixture, 'Delete');
+
+        disabled.click();
+        press(disabled, 'Enter');
+        press(disabled, ' ');
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.counts.remove).toBe(0);
+        expect(dropdown.open()).toBe(true);
+        expect(disabled.getAttribute('aria-disabled')).toBe('true');
+        expect(itemNamed(fixture, 'Edit').hasAttribute('aria-disabled')).toBe(false);
+    });
+
+    redUntilTask2('a disabled data-driven item runs nothing by any route and says so', async () => {
+        const { fixture } = await openMenu(ActionsDataMenuHostComponent);
+        const disabled = itemNamed(fixture, 'Delete');
+
+        disabled.click();
+        press(disabled, 'Enter');
+        press(disabled, ' ');
+
+        expect(fixture.componentInstance.counts.remove).toBe(0);
+        expect(disabled.getAttribute('aria-disabled')).toBe('true');
     });
 });

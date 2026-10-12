@@ -60,6 +60,27 @@ function contextMenuEventAt(target: HTMLElement, x: number, y: number): MouseEve
   return event;
 }
 
+
+/** RED until spec 8 Task 5: an expected failure under vitest, skipped where `it.fails` does not exist (the jest consumer leg). */
+const redUntilTask5 = Reflect.has(it, 'fails') ? it.fails : it.skip;
+
+/** A finger held on `target` for the long-press duration (fake timers must be installed). */
+function holdFinger(target: HTMLElement, x: number, y: number): Event {
+  const event = new Event('touchstart', { bubbles: true, cancelable: true });
+  Object.defineProperty(event, 'touches', { value: [{ clientX: x, clientY: y }] });
+  target.dispatchEvent(event);
+  vi.advanceTimersByTime(500);
+  return event;
+}
+
+/** The contextmenu Android raises after the hold, a moment later. */
+function androidEcho(target: HTMLElement, x: number, y: number): MouseEvent {
+  vi.advanceTimersByTime(100);
+  const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: x, clientY: y });
+  target.dispatchEvent(event);
+  return event;
+}
+
 describe('ContextMenuAttachDirective', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -82,6 +103,42 @@ describe('ContextMenuAttachDirective', () => {
     expect(emitted.index).toBeUndefined();
     expect(comp.stubMenu.show).toHaveBeenCalledTimes(1);
     expect(comp.stubMenu.show).toHaveBeenCalledWith(123, 456);
+  });
+
+  redUntilTask5('opens the menu at the finger and emits what a right-click emits on a long-press, once on Android', () => {
+    vi.useFakeTimers();
+    try {
+      const { comp, hostEl } = setup();
+      contextMenuEventAt(hostEl, 123, 456);
+
+      const touch = holdFinger(hostEl, 123, 456);
+      const echo = androidEcho(hostEl, 123, 456);
+
+      expect(comp.events).toHaveLength(2);
+      expect(comp.events[1].item).toEqual(comp.events[0].item);
+      expect(comp.events[1].event).toBe(touch);
+      expect(comp.stubMenu.show).toHaveBeenCalledTimes(2);
+      expect(comp.stubMenu.show).toHaveBeenLastCalledWith(123, 456);
+      expect(echo.defaultPrevented).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does nothing on a long-press when disabled', () => {
+    vi.useFakeTimers();
+    try {
+      const { comp, fixture, hostEl } = setup();
+      comp.disabled.set(true);
+      fixture.detectChanges();
+
+      holdFinger(hostEl, 1, 2);
+
+      expect(comp.events).toHaveLength(0);
+      expect(comp.stubMenu.show).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('stops propagation of the contextmenu event', () => {

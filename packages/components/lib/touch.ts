@@ -279,6 +279,40 @@ export function onDoubleTap(
     };
 }
 
+/** One context gesture, however it was made. */
+export interface ContextGesture {
+    readonly target: Element;
+    readonly clientX: number;
+    readonly clientY: number;
+    /** The `contextmenu` event, or the long-press's `touchstart`. */
+    readonly source: MouseEvent | TouchEvent;
+}
+
+/**
+ * Calls `handler` once per context gesture on `element`: a right-click, the
+ * keyboard context-menu key, or a one-finger long-press. Return `true` when you
+ * acted on it — the gesture is then claimed: the native menu is suppressed,
+ * ancestor `onContextGesture` handlers for the same gesture are skipped, and the
+ * `contextmenu` a platform raises after a long-press (Android) is swallowed.
+ * @returns cleanup
+ */
+export function onContextGesture(
+    _element: HTMLElement,
+    _handler: (gesture: ContextGesture) => boolean,
+    _duration = 500,
+): () => void {
+    throw new Error('onContextGesture: not implemented');
+}
+
+/**
+ * Calls `onDismiss` on the next touch that starts outside `host`. Safe to call
+ * from inside the touch that opened the UI: it never fires for that touch.
+ * @returns cleanup
+ */
+export function dismissOnOutsideTouch(_host: Element, _onDismiss: () => void): () => void {
+    throw new Error('dismissOnOutsideTouch: not implemented');
+}
+
 /**
  * Unified pointer tracking — handles both mouse and touch move/up events
  * for drag operations. Attaches to `window` so the pointer can leave

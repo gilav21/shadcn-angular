@@ -173,6 +173,27 @@ function setupWithNullMenu(): {
   return { fixture, comp, tableEl, dataTable };
 }
 
+
+/** RED until spec 8 Task 5: an expected failure under vitest, skipped where `it.fails` does not exist (the jest consumer leg). */
+const redUntilTask5 = Reflect.has(it, 'fails') ? it.fails : it.skip;
+
+/** A finger held on `target` for the long-press duration (fake timers must be installed). */
+function holdFinger(target: HTMLElement, x: number, y: number): Event {
+  const event = new Event('touchstart', { bubbles: true, cancelable: true });
+  Object.defineProperty(event, 'touches', { value: [{ clientX: x, clientY: y }] });
+  target.dispatchEvent(event);
+  vi.advanceTimersByTime(500);
+  return event;
+}
+
+/** The contextmenu Android raises after the hold, a moment later. */
+function androidEcho(target: HTMLElement, x: number, y: number): MouseEvent {
+  vi.advanceTimersByTime(100);
+  const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: x, clientY: y });
+  target.dispatchEvent(event);
+  return event;
+}
+
 describe('DataTableContextMenuDirective', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -198,6 +219,64 @@ describe('DataTableContextMenuDirective', () => {
       20,
       expect.objectContaining({ row: { name: 'RowA' }, depth: 1, isLeaf: true }),
     );
+  });
+
+  redUntilTask5('opens the menu at the finger and emits what a right-click emits on a long-press of the same cell', () => {
+    vi.useFakeTimers();
+    try {
+      const { comp, tableEl } = setupWithDataTable();
+      const cell = tableEl.querySelector<HTMLElement>('[data-row-id="rA"] [data-column="name"]') as HTMLElement;
+      contextMenuEventAt(cell, 10, 20);
+
+      const touch = holdFinger(cell, 10, 20);
+      androidEcho(cell, 10, 20);
+
+      expect(comp.rowEvents).toHaveLength(2);
+      expect({ ...comp.rowEvents[1], event: undefined }).toEqual({ ...comp.rowEvents[0], event: undefined });
+      expect(comp.rowEvents[1].event).toBe(touch);
+      expect(comp.menu.show).toHaveBeenCalledTimes(2);
+      expect(comp.menu.show).toHaveBeenLastCalledWith(
+        10,
+        20,
+        expect.objectContaining({ row: { name: 'RowA' }, depth: 1, isLeaf: true }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  redUntilTask5('opens the header menu on a long-press of a header when headers are allowed', () => {
+    vi.useFakeTimers();
+    try {
+      const { comp, fixture, tableEl } = setupWithoutDataTable();
+      comp.rowsOnly.set(false);
+      fixture.detectChanges();
+      const header = tableEl.querySelector<HTMLElement>('[data-column-id="col1"]') as HTMLElement;
+
+      holdFinger(header, 7, 9);
+
+      expect(comp.headerEvents).toHaveLength(1);
+      expect(comp.headerEvents[0].column.id).toBe('col1');
+      expect(comp.menu.show).toHaveBeenCalledWith(7, 9, comp.headerEvents[0].column);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does nothing on a long-press when contextMenuDisabled is true', () => {
+    vi.useFakeTimers();
+    try {
+      const { comp, fixture, tableEl } = setupWithDataTable();
+      comp.disabled.set(true);
+      fixture.detectChanges();
+
+      holdFinger(tableEl.querySelector<HTMLElement>('[data-row-id="rA"] [data-column="name"]') as HTMLElement, 1, 2);
+
+      expect(comp.rowEvents).toHaveLength(0);
+      expect(comp.menu.show).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('does not focus the cell when the column key is the selection column', () => {
