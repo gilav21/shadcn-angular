@@ -512,8 +512,16 @@ describe('pointOf', () => {
     });
 });
 
+/** What a browser raises for a mouse right-click: a PointerEvent typed 'mouse'. */
 function rightClick(target: Element, point = { clientX: 140, clientY: 90 }): MouseEvent {
-    const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2, ...point });
+    const event = new PointerEvent('contextmenu', { bubbles: true, cancelable: true, button: 2, pointerType: 'mouse', ...point });
+    target.dispatchEvent(event);
+    return event;
+}
+
+/** What Android raises for a held finger: the same event, typed 'touch'. */
+function touchContextMenu(target: Element, point: { clientX: number; clientY: number }): MouseEvent {
+    const event = new PointerEvent('contextmenu', { bubbles: true, cancelable: true, button: 0, pointerType: 'touch', ...point });
     target.dispatchEvent(event);
     return event;
 }
@@ -563,7 +571,7 @@ describe('onContextGesture', () => {
         const event = rightClick(leaf, { clientX: 140, clientY: 90 });
 
         expect(handler).toHaveBeenCalledTimes(1);
-        expect(handler).toHaveBeenCalledWith({ target: leaf, clientX: 140, clientY: 90, source: event });
+        expect(handler).toHaveBeenCalledWith({ target: leaf, clientX: 140, clientY: 90, source: event, viaTouch: false });
         expect(event.defaultPrevented).toBe(true);
     });
 
@@ -582,7 +590,7 @@ describe('onContextGesture', () => {
         vi.advanceTimersByTime(1);
 
         expect(handler).toHaveBeenCalledTimes(1);
-        expect(handler).toHaveBeenCalledWith({ target: leaf, clientX: 60, clientY: 40, source: start });
+        expect(handler).toHaveBeenCalledWith({ target: leaf, clientX: 60, clientY: 40, source: start, viaTouch: true });
     });
 
     // Android raises its own contextmenu for a held finger; iOS does not. One
@@ -593,7 +601,7 @@ describe('onContextGesture', () => {
         touchDown();
         vi.advanceTimersByTime(500);
         vi.advanceTimersByTime(100);
-        const echo = rightClick(leaf, finger);
+        const echo = touchContextMenu(leaf, finger);
 
         expect(handler).toHaveBeenCalledTimes(1);
         expect(echo.defaultPrevented).toBe(true);
@@ -609,10 +617,26 @@ describe('onContextGesture', () => {
 
         touchDown();
         vi.advanceTimersByTime(450);
-        rightClick(leaf, finger);
+        touchContextMenu(leaf, finger);
         vi.advanceTimersByTime(1000);
 
         expect(handler).toHaveBeenCalledTimes(1);
+    });
+
+    // Hybrid devices: a finger's leftovers never eat a mouse click made a moment later.
+    it('honours a mouse right-click made right after a claimed long-press or a pan', () => {
+        const handler = listen(outer, true);
+
+        touchDown();
+        vi.advanceTimersByTime(500);
+        rightClick(leaf);
+        expect(handler).toHaveBeenCalledTimes(2);
+
+        vi.advanceTimersByTime(2000);
+        touchDown();
+        leaf.dispatchEvent(touchEvent('touchmove', [{ clientX: 160, clientY: 40 }]));
+        rightClick(leaf);
+        expect(handler).toHaveBeenCalledTimes(3);
     });
 
     // The swallow is for a gesture somebody answered. A long-press the handler
@@ -622,9 +646,10 @@ describe('onContextGesture', () => {
 
         touchDown();
         vi.advanceTimersByTime(600);
-        const echo = rightClick(leaf, finger);
+        const echo = touchContextMenu(leaf, finger);
 
         expect(handler).toHaveBeenCalledTimes(2);
+        expect(handler).toHaveBeenLastCalledWith(expect.objectContaining({ viaTouch: true, source: echo }));
         expect(echo.defaultPrevented).toBe(false);
     });
 
@@ -651,7 +676,7 @@ describe('onContextGesture', () => {
         touchDown();
         leaf.dispatchEvent(touchEvent('touchmove', [{ clientX: 120, clientY: 40 }]));
         vi.advanceTimersByTime(300);
-        const midPan = rightClick(leaf, { clientX: 120, clientY: 40 });
+        const midPan = touchContextMenu(leaf, { clientX: 120, clientY: 40 });
 
         expect(handler).not.toHaveBeenCalled();
         expect(midPan.defaultPrevented).toBe(true);
@@ -665,7 +690,7 @@ describe('onContextGesture', () => {
         const key = new PointerEvent('contextmenu', { bubbles: true, cancelable: true, button: -1, clientX: 260, clientY: 170 });
         leaf.dispatchEvent(key);
 
-        expect(handler).toHaveBeenCalledWith({ target: leaf, clientX: 260, clientY: 170, source: key });
+        expect(handler).toHaveBeenCalledWith({ target: leaf, clientX: 260, clientY: 170, source: key, viaTouch: false });
         expect(key.defaultPrevented).toBe(true);
     });
 

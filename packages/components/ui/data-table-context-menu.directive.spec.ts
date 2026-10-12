@@ -274,10 +274,13 @@ describe('DataTableContextMenuDirective', () => {
       const cell = tableEl.querySelector<HTMLElement>('[data-row-id="rA"] [data-column="name"]') as HTMLElement;
 
       holdFinger(cell, 10, 20);
+      // Android reports the same hold as a contextmenu too: still the table's, not the menu's.
+      vi.advanceTimersByTime(100);
+      cell.dispatchEvent(new PointerEvent('contextmenu', { bubbles: true, cancelable: true, pointerType: 'touch', clientX: 10, clientY: 20 }));
       expect(comp.rowEvents).toHaveLength(0);
       expect(comp.menu.show).not.toHaveBeenCalled();
 
-      contextMenuEventAt(cell, 10, 20);
+      cell.dispatchEvent(new PointerEvent('contextmenu', { bubbles: true, cancelable: true, button: 2, pointerType: 'mouse', clientX: 10, clientY: 20 }));
       expect(comp.rowEvents).toHaveLength(1);
     } finally {
       vi.useRealTimers();

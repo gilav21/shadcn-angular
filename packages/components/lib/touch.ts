@@ -286,6 +286,19 @@ export interface ContextGesture {
     readonly clientY: number;
     /** The `contextmenu` event, or the long-press's `touchstart`. */
     readonly source: MouseEvent | TouchEvent;
+    /**
+     * Whether a finger made it: a long-press, or the `contextmenu` a browser
+     * raises for one. A right-click and the keyboard key are not.
+     */
+    readonly viaTouch: boolean;
+}
+
+/**
+ * Whether a `contextmenu` event may be a finger's. Browsers that type it say so;
+ * one that does not (a plain `MouseEvent`) cannot be told apart, and counts.
+ */
+function mayBeTouch(event: MouseEvent): boolean {
+    return !(event instanceof PointerEvent) || event.pointerType === 'touch';
 }
 
 /**
@@ -320,21 +333,23 @@ export function onContextGesture(
         const target = (event.target as Element | null) ?? element;
         // The browser's own hold timer can beat ours: its contextmenu already answered this press.
         if (isRecentSameGesture(lastClaimedContext, target)) return;
-        if (!handler({ target, clientX: finger.clientX, clientY: finger.clientY, source: event })) return;
+        if (!handler({ target, clientX: finger.clientX, clientY: finger.clientY, source: event, viaTouch: true })) return;
         claimedGestures.add(event);
         lastClaimedPress = { at: Date.now(), target };
     };
 
     const onContextMenu = (event: MouseEvent): void => {
         if (claimedGestures.has(event)) return;
-        if (touch.panGuess || isRecentSameGesture(lastClaimedPress, event.target as Node | null)) {
+        const viaTouch = mayBeTouch(event);
+        // A mouse right-click is never the echo of a finger, whatever the finger did a moment ago.
+        if (viaTouch && (touch.panGuess || isRecentSameGesture(lastClaimedPress, event.target as Node | null))) {
             claim(event);
             return;
         }
         const target = event.target as Element;
-        if (!handler({ target, clientX: event.clientX, clientY: event.clientY, source: event })) return;
+        if (!handler({ target, clientX: event.clientX, clientY: event.clientY, source: event, viaTouch })) return;
         claim(event);
-        lastClaimedContext = { at: Date.now(), target };
+        if (viaTouch) lastClaimedContext = { at: Date.now(), target };
     };
 
     const stopLongPress = onLongPress(element, onPress, duration);

@@ -52,8 +52,8 @@ export class DataTableContextMenuDirective<T = unknown> {
   /** Whether the gesture landed on a row (or an allowed header) and was taken. */
   private open(gesture: ContextGesture): boolean {
     if (this.contextMenuDisabled()) return false;
-    // A long-press on a cell starts a range selection in a table that has one; only a right-click opens the menu there.
-    if (gesture.source.type === 'touchstart' && this.dataTable?.enableCellRangeSelection()) return false;
+    // A finger's hold on a cell starts a range selection in a table that has one (Android also reports it as a contextmenu); only a right-click or the key opens the menu there.
+    if (gesture.viaTouch && this.dataTable?.enableCellRangeSelection()) return false;
 
     const target = gesture.target as HTMLElement;
     const row = target.closest<HTMLElement>('[data-slot="table-row"], [data-slot="data-table-row"], tr[data-row-index]');
