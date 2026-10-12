@@ -6,7 +6,7 @@ import chalk from 'chalk';
 import prompts from 'prompts';
 import { apply } from './apply.js';
 import { resolveAddonInfo } from '../core/apply-core.js';
-import { performInstall } from '../core/install.js';
+import { performInstall, type InstallFailure } from '../core/install.js';
 import { getDefaultConfig } from '../utils/config.js';
 import { emptyMergeReport, type MergeReport } from '../core/merge.js';
 import type { ApplyOptions } from '../core/apply-wire.js';
@@ -63,8 +63,10 @@ export class ${className} {}
 `;
 }
 
-function installResult(mergeReport: MergeReport = emptyMergeReport(), warnings: string[] = []) {
-    return { installed: [], skipped: [], declined: [], pruned: [], warnings, mergeReport };
+function installResult(
+    mergeReport: MergeReport = emptyMergeReport(), warnings: string[] = [], failures: InstallFailure[] = [],
+) {
+    return { installed: [], skipped: [], declined: [], pruned: [], warnings, mergeReport, failures, unchecked: [] };
 }
 
 describe('apply', () => {
@@ -72,6 +74,7 @@ describe('apply', () => {
     let logs: string[];
     let exitSpy: ReturnType<typeof vi.spyOn>;
     let writeSpy: ReturnType<typeof vi.spyOn>;
+    let originalIsTTY: boolean;
 
     const out = () => logs.join('\n');
     const appFile = (name: string) => path.join(dir, 'src', 'app', name);
@@ -91,6 +94,8 @@ describe('apply', () => {
         chalk.level = 0;
         dir = await fs.mkdtemp(path.join(os.tmpdir(), 'apply-cmd-'));
         logs = [];
+        originalIsTTY = process.stdin.isTTY;
+        process.stdin.isTTY = false;
         vi.clearAllMocks();
         spinner.start.mockImplementation(() => spinner);
         installMock.mockResolvedValue(installResult());
@@ -106,6 +111,7 @@ describe('apply', () => {
     });
 
     afterEach(async () => {
+        process.stdin.isTTY = originalIsTTY;
         vi.restoreAllMocks();
         await fs.remove(dir);
     });
@@ -306,7 +312,12 @@ export class LegacyComponent {}
         expect(spinner.fail).toHaveBeenCalledWith('Install failed');
     });
 
-    it('wires, then exits 1 when a merge wrote conflict markers under --yes', async () => {
+    // Unattended = `--yes`, or stdin that is not a terminal; the reported case is the second.
+    it.each([
+        { row: '--yes on a terminal', yes: true, isTTY: true },
+        { row: 'no --yes, piped stdin', yes: false, isTTY: false },
+    ])('wires, then exits 1 when a merge wrote conflict markers unattended: $row', async ({ yes, isTTY }) => {
+        process.stdin.isTTY = isTTY;
         await scaffold();
         const file = appFile('foo.component.ts');
         await fs.outputFile(file, inlineComponent(`<${addonInfo.tag}></${addonInfo.tag}>`, 'FooComponent'));
@@ -314,7 +325,7 @@ export class LegacyComponent {}
             { ...emptyMergeReport(), mergedConflicted: ['data-table/data-table.component.ts'] },
         ));
 
-        await expect(apply(ADDON, [], { ...OPTS, yes: true })).rejects.toThrow(ProcessExit);
+        await expect(apply(ADDON, ['FooComponent'], { ...OPTS, yes })).rejects.toThrow(ProcessExit);
 
         expect(exitSpy).toHaveBeenCalledWith(1);
         expect(out()).toContain('Conflict markers');
@@ -322,7 +333,23 @@ export class LegacyComponent {}
         expect(await read(file)).toContain(addonInfo.selector);
     });
 
+    it('lists every install failure and exits 1', async () => {
+        await scaffold();
+        installMock.mockResolvedValue(installResult(emptyMergeReport(), [], [{
+            stage: 'component', component: 'data-table', file: 'data-table/data-table.component.html',
+            message: 'Could not reach the registry (https://fork.test/r/ui/data-table/data-table.component.html): ECONNRESET',
+        }]));
+
+        await expect(apply(ADDON, [], { ...OPTS, yes: true })).rejects.toThrow(ProcessExit);
+
+        expect(out()).toContain('Failed:');
+        expect(out()).toContain('data-table/data-table.component.html');
+        expect(out()).toContain('ECONNRESET');
+        expect(exitSpy).toHaveBeenCalledWith(1);
+    });
+
     it('does NOT exit on conflict markers in an interactive run (the dev can resolve them)', async () => {
+        process.stdin.isTTY = true;
         await scaffold();
         await fs.outputFile(appFile('foo.component.ts'),
             inlineComponent(`<${addonInfo.tag}></${addonInfo.tag}>`, 'FooComponent'));

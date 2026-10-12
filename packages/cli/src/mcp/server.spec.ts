@@ -430,3 +430,52 @@ describe('MCP get_install_plan summary', () => {
     expect(plan.summary.totalFiles).toBeGreaterThan(plan.summary.requested.files);
   }, 20_000);
 });
+
+describe('MCP read tools in a project pinned to a fork', () => {
+  const FORK = 'https://fork.test/components';
+  let client: Client;
+  let projectDir: string;
+
+  beforeAll(async () => {
+    projectDir = await fs.mkdtemp(path.join(os.tmpdir(), 'shadcn-mcp-fork-'));
+    await fs.writeJson(path.join(projectDir, 'components.json'), { ...getDefaultConfig(), registry: FORK });
+    const server = createMcpServer(projectDir);
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    client = new Client({ name: 'fork', version: '0' });
+    await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+  });
+
+  afterAll(async () => {
+    await client.close();
+    await fs.remove(projectDir);
+  });
+
+  afterEach(async () => {
+    vi.restoreAllMocks();
+    __resetRegistryManifestCache();
+    await loadRegistry({});
+  });
+
+  // The fork's manifest is the only place `fork-only` exists. A read tool that
+  // answers with it, with no registry argument, resolved the source from
+  // components.json exactly like the write tools do.
+  it.each([
+    { tool: 'list_components', args: {} },
+    { tool: 'search_components', args: { query: 'fork' } },
+    { tool: 'get_component', args: { name: 'fork-only' } },
+    { tool: 'why', args: { names: ['fork-only'] } },
+  ])('$tool describes the registry components.json names', async ({ tool, args }) => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url !== `${FORK}/registry.json`) return new Response('', { status: 404 });
+      return new Response(JSON.stringify({
+        'fork-only': { name: 'fork-only', files: ['fork-only/fork-only.component.ts'] },
+      }), { status: 200 });
+    });
+
+    const res = (await client.callTool({ name: tool, arguments: args })) as unknown as ToolCallResult;
+
+    expect(res.isError, firstText(res)).toBeFalsy();
+    expect(firstText(res)).toContain('fork-only');
+  });
+});

@@ -1064,7 +1064,7 @@ describe('add()', () => {
 
   const installResult = (partial: Partial<InstallResult> = {}): InstallResult => ({
     installed: [], skipped: [], declined: [], pruned: [], warnings: [],
-    mergeReport: emptyMergeReport(), ...partial,
+    mergeReport: emptyMergeReport(), failures: [], unchecked: [], ...partial,
   });
 
   const lastInstallCall = (): InstallCall =>
@@ -1522,7 +1522,7 @@ describe('add() block destination', () => {
     asMock(getConfig).mockResolvedValue(getDefaultConfig());
     asMock(performInstall).mockResolvedValue({
       installed: ['login'], skipped: [], declined: [], pruned: [], warnings: [],
-      mergeReport: emptyMergeReport(),
+      mergeReport: emptyMergeReport(), failures: [], unchecked: [],
     });
   });
 
@@ -1564,7 +1564,7 @@ describe('add() block destination', () => {
   it('keeps --path as the COMPONENT destination when no block is in the set', async () => {
     asMock(performInstall).mockResolvedValue({
       installed: ['badge'], skipped: [], declined: [], pruned: [], warnings: [],
-      mergeReport: emptyMergeReport(),
+      mergeReport: emptyMergeReport(), failures: [], unchecked: [],
     });
 
     await add(['badge'], { branch: 'master', remote: true, yes: true, path: 'src/ui' });
@@ -1574,6 +1574,137 @@ describe('add() block destination', () => {
     expect(call.blocksPath).toBeUndefined();
   });
 
+});
+
+// ---------------------------------------------------------------------------
+// add() — an incomplete run is reported and fails the command
+// ---------------------------------------------------------------------------
+
+describe('add() on an incomplete run', () => {
+  let logged: string[] = [];
+  let exitSpy: ReturnType<typeof vi.spyOn>;
+  let originalIsTTY: boolean;
+
+  const output = (): string => logged.join('\n');
+
+  const installResult = (partial: Partial<InstallResult> = {}): InstallResult => ({
+    installed: ['badge'], skipped: [], declined: [], pruned: [], warnings: [],
+    mergeReport: emptyMergeReport(), failures: [], unchecked: [], ...partial,
+  });
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
+    logged = [];
+    originalIsTTY = process.stdin.isTTY;
+    vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => {
+      logged.push(args.map(String).join(' '));
+    });
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
+      throw new ExitError(code ?? 0);
+    }) as never);
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve(new Response('// REMOTE', { status: 200 })),
+    );
+    asMock(fs.pathExists).mockResolvedValue(false);
+    asMock(fs.readFile).mockResolvedValue('');
+    asMock(fs.existsSync).mockReturnValue(false);
+    asMock(fs.readFileSync).mockReturnValue('');
+    asMock(prompts).mockResolvedValue({});
+    asMock(getConfig).mockResolvedValue(getDefaultConfig());
+    asMock(performInstall).mockResolvedValue(installResult());
+  });
+
+  afterEach(() => {
+    process.stdin.isTTY = originalIsTTY;
+    vi.restoreAllMocks();
+  });
+
+  it('does not offer to overwrite a component it could not check, writes nothing, and exits 1', async () => {
+    asMock(fs.pathExists).mockResolvedValue(true);
+    asMock(fs.readFile).mockResolvedValue('// LOCAL EDIT');
+    asMock(fs.existsSync).mockReturnValue(true);
+    asMock(fs.readFileSync).mockReturnValue('// LOCAL EDIT');
+    vi.mocked(globalThis.fetch).mockRejectedValue(new TypeError('fetch failed'));
+
+    await expect(add(['badge'], { branch: 'master', remote: true })).rejects.toMatchObject({ code: 1 });
+
+    expect(output()).toContain('Could not check (registry unreachable)');
+    expect(output()).toContain('badge');
+    expect(output()).toContain('fetch failed');
+    expect(output()).not.toContain('have local changes');
+    expect(prompts).not.toHaveBeenCalled();
+    expect(performInstall).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {
+      row: 'a component file that failed to write',
+      failures: [{
+        stage: 'component', component: 'badge', file: 'badge/badge.component.html',
+        message: 'Could not reach the registry (https://fork.test/r/ui/badge/badge.component.html): ECONNRESET',
+      }],
+      listed: ['Failed:', 'badge/badge.component.html', 'ECONNRESET', 'NOT recorded as updated'],
+    },
+    {
+      row: 'a failed npm install',
+      failures: [{ stage: 'npm', component: null, file: null, message: 'Failed to install npm dependencies: EAI_AGAIN' }],
+      listed: ['Failed:', 'npm install', 'EAI_AGAIN'],
+    },
+  ] as const)('lists every failure and exits 1: $row', async ({ failures, listed }) => {
+    asMock(performInstall).mockResolvedValue(installResult({ failures: [...failures] }));
+
+    await expect(add(['badge'], { branch: 'master', remote: true, yes: true })).rejects.toMatchObject({ code: 1 });
+
+    for (const text of listed) expect(output()).toContain(text);
+  });
+
+  it('exits 0 when nothing failed', async () => {
+    await add(['badge'], { branch: 'master', remote: true, yes: true });
+
+    expect(output()).not.toContain('Failed:');
+    expect(exitSpy).not.toHaveBeenCalled();
+  });
+
+  it('fails a non-interactive run that wrote conflict markers', async () => {
+    process.stdin.isTTY = false;
+    asMock(performInstall).mockResolvedValue(installResult({
+      mergeReport: { ...emptyMergeReport(), mergedConflicted: ['dashboard/dashboard.component.ts'] },
+    }));
+
+    await expect(add(['badge'], { branch: 'master', remote: true })).rejects.toMatchObject({ code: 1 });
+
+    expect(output()).toContain('Conflict markers');
+  });
+
+  it('prints the merge summary when it merged with conflicts or kept a file, and leaves an interactive run alone', async () => {
+    process.stdin.isTTY = true;
+    asMock(performInstall).mockResolvedValue(installResult({
+      mergeReport: {
+        ...emptyMergeReport(),
+        mergedConflicted: ['dashboard/dashboard.component.ts'],
+        fellBack: ['dashboard/dashboard.component.html'],
+      },
+    }));
+
+    await add(['badge'], { branch: 'master', remote: true });
+
+    expect(output()).toContain('Merge summary (files):');
+    expect(output()).toContain('Merged with conflicts');
+    expect(output()).toContain('dashboard/dashboard.component.html');
+    expect(output()).toContain('Conflict markers');
+    expect(exitSpy).not.toHaveBeenCalled();
+  });
+
+  it('prints no merge summary for a plain install', async () => {
+    asMock(performInstall).mockResolvedValue(installResult({
+      mergeReport: { ...emptyMergeReport(), created: ['badge/badge.component.ts'] },
+    }));
+
+    await add(['badge'], { branch: 'master', remote: true, yes: true });
+
+    expect(output()).not.toContain('Merge summary (files):');
+  });
 });
 
 // ---------------------------------------------------------------------------
