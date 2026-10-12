@@ -263,16 +263,17 @@ describe('InputOTPComponent forms', () => {
         expect(host.control.value).toBe('AB19');
         expect(formEmissions).toEqual(['AB19']);
 
-        host.emissions.length = 0;
-        host.control.setValue('9Z');
+        // emitEvent:false silences the write itself, so any valueChanges emission below is an echo
+        host.control.setValue('9Z', { emitEvent: false });
         fixture.detectChanges();
         expect(slotText(fixture)).toEqual(['9', 'Z', '', '']);
-        expect(host.emissions).toEqual([]);
+        expect(formEmissions).toEqual(['AB19']);
 
-        host.control.setValue(null);
+        host.control.setValue(null, { emitEvent: false });
         fixture.detectChanges();
         expect(slotText(fixture)).toEqual(['', '', '', '']);
         expect(hidden(fixture).value).toBe('');
+        expect(formEmissions).toEqual(['AB19']);
 
         expect(host.control.touched).toBe(false);
         hidden(fixture).dispatchEvent(new Event('blur'));

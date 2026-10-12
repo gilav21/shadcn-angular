@@ -7,7 +7,9 @@ import {
   ElementRef,
   ViewChild,
   model,
+  forwardRef,
 } from '@angular/core';
+import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cn } from '../../lib/utils';
 
 /** Slot count used when {@link InputOTPComponent.maxLength} is left unset. */
@@ -16,6 +18,9 @@ const DEFAULT_OTP_LENGTH = 6;
 @Component({
   selector: 'ui-input-otp',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [
+    { provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => InputOTPComponent), multi: true },
+  ],
   template: `
     <div
       [class]="containerClasses()"
@@ -52,6 +57,7 @@ const DEFAULT_OTP_LENGTH = 6;
         inputmode="numeric"
         [attr.maxlength]="slotCount()"
         [value]="value()"
+        [disabled]="isDisabled()"
         [attr.aria-label]="ariaLabel()"
         [attr.aria-labelledby]="ariaLabelledby()"
         (input)="onInput($event)"
@@ -65,7 +71,7 @@ const DEFAULT_OTP_LENGTH = 6;
   styleUrl: './input-otp.component.css',
   host: { class: 'contents' },
 })
-export class InputOTPComponent {
+export class InputOTPComponent implements ControlValueAccessor {
   @ViewChild('hiddenInput') hiddenInput!: ElementRef<HTMLInputElement>;
 
   /** Extra classes merged onto the row that holds the slots, not onto an individual slot. */
@@ -81,11 +87,20 @@ export class InputOTPComponent {
    * unset falls back to {@link DEFAULT_OTP_LENGTH} via {@link slotCount}.
    */
   maxLength = input<number | undefined>(DEFAULT_OTP_LENGTH);
+  /** Disables the field: the hidden input becomes unfocusable and the row dims. A reactive-forms `disable()` disables it too — see {@link isDisabled}. */
+  disabled = input(false);
   /** Zero-based slot indices after which a separator dot is drawn; the flanking slots get rounded outer corners. Default `[2]` splits a 6-digit code into 3+3. */
   separator = input<number[]>([2]);
 
   /** Two-way code. Typed input is stripped to alphanumerics, upper-cased and truncated to {@link maxLength}, so what is written back may differ from what was typed. */
   value = model<string>('');
+
+  private onChange: (value: string) => void = () => { };
+  private onTouched: () => void = () => { };
+  private readonly formDisabled = signal(false);
+
+  /** Effective disabled state: the {@link disabled} input OR a reactive `control.disable()` relayed through {@link setDisabledState}. */
+  readonly isDisabled = computed(() => this.disabled() || this.formDisabled());
   focusedIndex = signal(-1);
 
   /** {@link maxLength} with the default applied — every internal length calculation reads this, never the raw input. */
@@ -115,6 +130,7 @@ export class InputOTPComponent {
 
   /** Click/Enter handler for a slot: focuses the hidden input and moves the caret there, clamped to the end of the code so gaps can't be created. */
   focusSlot(idx: number): void {
+    if (this.isDisabled()) return;
     this.hiddenInput?.nativeElement?.focus();
     this.focusedIndex.set(Math.min(idx, this.value().length));
   }
@@ -123,7 +139,7 @@ export class InputOTPComponent {
   onInput(event: Event): void {
     const input = event.target as HTMLInputElement;
     const newValue = input.value.replaceAll(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, this.slotCount());
-    this.value.set(newValue);
+    this.commit(newValue);
     this.focusedIndex.set(Math.min(newValue.length, this.slotCount() - 1));
     input.value = newValue;
   }
@@ -141,7 +157,7 @@ export class InputOTPComponent {
       const currentValue = this.value();
       if (currentValue.length > 0) {
         const newValue = currentValue.slice(0, -1);
-        this.value.set(newValue);
+        this.commit(newValue);
         this.focusedIndex.set(newValue.length);
         if (this.hiddenInput?.nativeElement) {
           this.hiddenInput.nativeElement.value = newValue;
@@ -160,6 +176,38 @@ export class InputOTPComponent {
   /** Clears the caret highlight on blur so no slot appears active. */
   onBlur(): void {
     this.focusedIndex.set(-1);
+    this.onTouched();
+  }
+
+  /** The one place a user edit leaves the component: tells the form, then publishes it on {@link value}. */
+  private commit(next: string): void {
+    this.onChange(next);
+    this.value.set(next);
+  }
+
+  /**
+   * `ControlValueAccessor`: renders a form value as-is — no sanitising, the
+   * sanitiser filters user input only. `null` clears. The write reaches
+   * {@link value} (so `valueChange` fires when it differs) but never loops back
+   * into the form: only {@link commit} calls the registered change callback.
+   */
+  writeValue(value: string | null): void {
+    this.value.set(value ?? '');
+  }
+
+  /** `ControlValueAccessor`: the callback receives the sanitised code on every user edit. */
+  registerOnChange(fn: (value: string) => void): void {
+    this.onChange = fn;
+  }
+
+  /** `ControlValueAccessor`: invoked when the hidden input loses focus. */
+  registerOnTouched(fn: () => void): void {
+    this.onTouched = fn;
+  }
+
+  /** `ControlValueAccessor`: relays `control.disable()` / `enable()` into {@link isDisabled}. */
+  setDisabledState(isDisabled: boolean): void {
+    this.formDisabled.set(isDisabled);
   }
 
   /** Focuses the field programmatically by focusing the hidden input behind the slots. */
