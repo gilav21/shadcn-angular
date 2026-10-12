@@ -387,14 +387,15 @@ describe('ChipListComponent — IME composition and duplicate chips', () => {
         const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
         const fixture = setup();
         fixture.componentRef.setInput('allowDuplicates', true);
-        fixture.componentInstance.writeValue(['a', 'a', 'b']);
+        fixture.componentInstance.writeValue(['a', 'b', 'a']);
         fixture.detectChanges();
         const chipTexts = (): (string | undefined)[] =>
             Array.from(fixture.nativeElement.querySelectorAll('ui-badge') as NodeListOf<HTMLElement>)
                 .map(chip => chip.textContent?.trim());
-        expect(chipTexts()).toEqual(['a', 'a', 'b']);
+        expect(chipTexts()).toEqual(['a', 'b', 'a']);
 
-        (fixture.nativeElement.querySelectorAll('[data-slot="chip-remove"]')[1] as HTMLElement).click();
+        // the LAST 'a': removing by value (or by first match) would leave ['b', 'a']
+        (fixture.nativeElement.querySelectorAll('[data-slot="chip-remove"]')[2] as HTMLElement).click();
         fixture.detectChanges();
 
         expect(fixture.componentInstance.chips()).toEqual(['a', 'b']);

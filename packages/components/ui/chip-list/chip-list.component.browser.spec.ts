@@ -118,4 +118,17 @@ describe('ChipListComponent keyboard (browser)', () => {
 
         expect(document.activeElement).toBe((fixture.nativeElement as HTMLElement).querySelector('input'));
     });
+
+    it('Enter and Space aimed at the container itself still move focus to the inner input', async () => {
+        const fixture = await mountChips();
+        const root = fixture.nativeElement as HTMLElement;
+        const container = root.querySelector('[data-slot="chip-list"]') as HTMLElement;
+
+        for (const key of ['{Enter}', '{Space}']) {
+            container.focus();
+            expect(document.activeElement).toBe(container);
+            await userEvent.keyboard(key);
+            expect(document.activeElement).toBe(root.querySelector('input'));
+        }
+    });
 });
