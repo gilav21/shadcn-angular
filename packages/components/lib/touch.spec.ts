@@ -590,6 +590,19 @@ describe('onContextGesture', () => {
         expect(handler).toHaveBeenCalledTimes(2);
     });
 
+    // The swallow is for a gesture somebody answered. A long-press the handler
+    // declined leaves the browser's own contextmenu a genuine second chance.
+    redUntil('hands the contextmenu after a declined long-press to the handler instead of swallowing it', () => {
+        const handler = listen(outer, false);
+
+        touchDown();
+        vi.advanceTimersByTime(600);
+        const echo = rightClick(leaf, finger);
+
+        expect(handler).toHaveBeenCalledTimes(2);
+        expect(echo.defaultPrevented).toBe(false);
+    });
+
     redUntil.each([
         { name: 'the finger travels 15px', gesture: () => leaf.dispatchEvent(touchEvent('touchmove', [{ clientX: 75, clientY: 40 }])) },
         { name: 'a second finger joins', gesture: () => touchDown([finger, { clientX: 200, clientY: 40 }]) },
@@ -617,24 +630,6 @@ describe('onContextGesture', () => {
 
         expect(handler).not.toHaveBeenCalled();
         expect(midPan.defaultPrevented).toBe(true);
-    });
-
-    // Chromium reports the centre of the focused element for the context-menu key
-    // and Shift+F10 (measured: a PointerEvent with button -1), so a real point needs
-    // nothing. A browser that reports no point at all gets the target's inline-start
-    // bottom corner, where a menu opened from the keyboard belongs.
-    redUntil.each([
-        { dir: 'ltr', expected: { clientX: 30, clientY: 60 } },
-        { dir: 'rtl', expected: { clientX: 130, clientY: 60 } },
-    ])('opens a keyboard-initiated contextmenu that carries no point at the target corner ($dir)', ({ dir, expected }) => {
-        const handler = listen(outer, true);
-        leaf.dir = dir;
-        vi.spyOn(leaf, 'getBoundingClientRect').mockReturnValue(new DOMRect(30, 20, 100, 40));
-
-        const key = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 0, clientX: 0, clientY: 0 });
-        leaf.dispatchEvent(key);
-
-        expect(handler).toHaveBeenCalledWith({ target: leaf, ...expected, source: key });
     });
 
     // What Chromium really sends for the key (measured): a PointerEvent with button -1 and

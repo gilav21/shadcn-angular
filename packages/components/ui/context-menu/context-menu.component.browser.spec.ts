@@ -302,6 +302,7 @@ describe('ContextMenu focus return (real browser)', () => {
         { how: 'pressing Tab', close: () => pressOnFocused('Tab') },
     ])('closing by $how hands focus back to the target', async ({ close }) => {
         const { fixture } = await openFromTarget(KeyboardHost);
+        // The menu took focus off the target, so there is something to hand back (UC-5 precondition).
         expect(document.activeElement).not.toBe(targetButton());
 
         close();
