@@ -64,8 +64,10 @@ export class AreaChartComponent implements AfterViewInit {
      * series' `data[].name`, so every series should carry the same number of
      * points in the same order. Each entry's `color` overrides the palette
      * colour picked from the series index; `id` (falling back to `name`) is the
-     * key used by the legend and {@link toggleSeries}, so give series unique
-     * names when they have no `id`. Array order is paint order — and when
+     * key used by the legend and {@link toggleSeries}, so give series an `id`
+     * to toggle same-named series separately (they are always drawn
+     * separately). Two categories may share a name: points are positioned by
+     * index. Array order is paint order — and when
      * {@link stacked} is on, stack order: the first series sits at the bottom.
      * The y domain is nice-rounded over zero and the *visible* series, so
      * negative values are drawn below a visible zero line and an overlapping

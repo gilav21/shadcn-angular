@@ -60,7 +60,8 @@ export class WaterfallChartComponent implements AfterViewInit {
      * up to `value` and *resets* the running total to that value, so its `value`
      * must be the subtotal you want (it is not computed for you — an
      * inconsistent number silently breaks the bridge). `name` labels the
-     * category axis and is the band key, so names must be unique; the optional
+     * category axis; bars are positioned by array index, so two bars may share
+     * a name and each is drawn at its own position; the optional
      * `color` overrides {@link positiveColor} / {@link negativeColor} /
      * {@link totalColor} for that bar alone.
      */
