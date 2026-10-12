@@ -147,20 +147,21 @@ describe('AreaChartComponent', () => {
     });
 
     it('uses each series max for the y-domain when not stacked', () => {
-        expect(component.yDomainMax()).toBe(200);
+        expect(component.yDomain()).toEqual([0, 200]);
     });
 
     it('uses category totals for the y-domain when stacked', () => {
         fixture.componentRef.setInput('stacked', true);
         fixture.detectChanges();
-        expect(component.yDomainMax()).toBe(320);
+        // The tallest stack is 100 + 50 = 150 at Q1 and 200 + 120 = 320 at Q2, niced up to 350.
+        expect(component.yDomain()).toEqual([0, 350]);
     });
 
     it('normalizes the stacked percent domain to 100', () => {
         fixture.componentRef.setInput('stacked', true);
         fixture.componentRef.setInput('stackingMode', 'percent');
         fixture.detectChanges();
-        expect(component.yDomainMax()).toBe(100);
+        expect(component.yDomain()).toEqual([0, 100]);
     });
 
     it('stacks the Mobile band on top of the Desktop band', () => {
@@ -183,7 +184,7 @@ describe('AreaChartComponent', () => {
         component.toggleSeries('Desktop');
         component.toggleSeries('Mobile');
         fixture.detectChanges();
-        expect(component.yDomainMax()).toBe(1);
+        expect(component.yDomain()).toEqual([0, 1]);
         expect(
             fixture.nativeElement.querySelectorAll('path[data-slot="area-series"]'),
         ).toHaveLength(0);

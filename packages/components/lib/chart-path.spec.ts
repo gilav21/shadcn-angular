@@ -84,6 +84,20 @@ describe('stackSeries', () => {
         expect(stacked[0][0].upper).toBeCloseTo((10 / 30) * 100, 5);
     });
 
+    it('scales a mixed-sign category by its absolute total in percent mode', () => {
+        const mixed: ChartSeries[] = [
+            { name: 'A', data: [{ name: 'q1', value: 30 }, { name: 'q2', value: 10 }] },
+            { name: 'B', data: [{ name: 'q1', value: -10 }, { name: 'q2', value: -10 }] },
+        ];
+        const stacked = stackSeries(mixed, 'percent');
+        // q1: |30| + |-10| = 40, so A spans 0..75 and B continues from 75 down to 50.
+        expect(stacked[0][0]).toMatchObject({ lower: 0, upper: 75 });
+        expect(stacked[1][0]).toMatchObject({ lower: 75, upper: 50 });
+        // q2: a sum of zero must not divide by zero; the absolute total is 20.
+        expect(stacked[0][1]).toMatchObject({ lower: 0, upper: 50 });
+        expect(stacked[1][1]).toMatchObject({ lower: 50, upper: 0 });
+    });
+
     it('preserves the original value alongside the band', () => {
         const stacked = stackSeries(series, 'absolute');
         expect(stacked[0][0].value).toBe(10);

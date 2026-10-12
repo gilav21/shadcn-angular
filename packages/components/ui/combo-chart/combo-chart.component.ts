@@ -24,7 +24,7 @@ import {
     getChartSummary,
     extent,
 } from '../../lib/chart.utils';
-import { linearScale, niceDomain, bandScale } from '../../lib/chart-scale';
+import { linearScale, zeroBasedDomain, bandScale } from '../../lib/chart-scale';
 import { linePath } from '../../lib/chart-path';
 import { nearestPointX, pointerToSvg } from '../../lib/chart-interaction';
 import { ChartTooltipComponent, ChartTooltipRow } from '../chart-tooltip';
@@ -67,8 +67,8 @@ export class ComboChartComponent implements AfterViewInit {
 
     /**
      * The bar half of the chart, read against the **primary** (left) axis,
-     * which is anchored at 0 and auto-scaled to the largest value across all
-     * bar series — so negative values fall outside the plot. The **first**
+     * which is nice-rounded over zero and every bar value: bars rise from the
+     * zero gridline and negative bars fall below it. The **first**
      * series is privileged: its `data[].name`s define the category axis
      * ({@link categories}) and its values feed {@link cumulativePercents}.
      * Further series are grouped side by side inside each category band and are
@@ -170,15 +170,16 @@ export class ComboChartComponent implements AfterViewInit {
 
     readonly categories = computed(() => this.barSeries()[0]?.data.map(d => d.name) ?? []);
 
-    readonly primaryMax = computed(() => {
-        const values = this.barSeries().flatMap(s => s.data.map(d => d.value));
-        return extent(values)?.[1] ?? 1;
-    });
+    /** The primary (bar) axis domain: the nice bounds of zero and every bar value. */
+    readonly primaryDomain = computed((): [number, number] =>
+        zeroBasedDomain(this.barSeries().flatMap(s => s.data.map(d => d.value)), 5),
+    );
 
-    readonly secondaryMax = computed(() => {
-        if (this.showCumulative()) return 100;
+    /** The secondary (line) axis domain: `[0, 100]` for the cumulative line, else the nice bounds of zero and every line value. */
+    readonly secondaryDomain = computed((): [number, number] => {
+        if (this.showCumulative()) return [0, 100];
         const values = this.lineSeries().flatMap(s => s.data.map(d => d.value));
-        return extent(values)?.[1] ?? 100;
+        return extent(values) ? zeroBasedDomain(values, 5) : [0, 100];
     });
 
     readonly cumulativePercents = computed(() => {
@@ -211,12 +212,12 @@ export class ComboChartComponent implements AfterViewInit {
 
     private readonly yPrimary = computed(() => {
         const a = this.area();
-        return linearScale(niceDomain(0, this.primaryMax(), 5), [a.bottom, a.top]);
+        return linearScale(this.primaryDomain(), [a.bottom, a.top]);
     });
 
     private readonly ySecondary = computed(() => {
         const a = this.area();
-        return linearScale([0, this.secondaryMax()], [a.bottom, a.top]);
+        return linearScale(this.secondaryDomain(), [a.bottom, a.top]);
     });
 
     readonly primaryTicks = computed(() => {
@@ -235,7 +236,7 @@ export class ComboChartComponent implements AfterViewInit {
     readonly bars = computed((): ComboBar[] => {
         const band = this.band();
         const yp = this.yPrimary();
-        const a = this.area();
+        const zeroY = yp.scale(0);
         const series = this.barSeries();
         const subWidth = band.bandwidth / Math.max(1, series.length);
         const result: ComboBar[] = [];
@@ -243,13 +244,13 @@ export class ComboChartComponent implements AfterViewInit {
             const base = band.position(name) ?? 0;
             series.forEach((s, si) => {
                 const value = s.data[ci]?.value ?? 0;
-                const y = yp.scale(value);
+                const end = yp.scale(value);
                 result.push({
                     key: `${s.name}-${name}`,
                     x: base + si * subWidth,
-                    y,
+                    y: Math.min(zeroY, end),
                     width: subWidth,
-                    height: Math.max(0, a.bottom - y),
+                    height: Math.abs(end - zeroY),
                     color: getChartColor(si, s.color),
                 });
             });

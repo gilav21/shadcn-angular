@@ -183,13 +183,13 @@ describe('ComboChartComponent', () => {
             { name: 'Rework', data: [{ name: 'A', value: 20 }, { name: 'B', value: 72 }, { name: 'C', value: 9 }, { name: 'D', value: 3 }] },
         ]);
         fixture.detectChanges();
-        expect(component.primaryMax()).toBe(72);
+        expect(component.primaryDomain()).toEqual([0, 80]);
     });
 
-    it('falls back to a primary max of 1 when the bar data is empty', () => {
+    it('keeps a usable primary axis when the bar data is empty', () => {
         fixture.componentRef.setInput('barSeries', [{ name: 'Empty', data: [] }]);
         fixture.detectChanges();
-        expect(component.primaryMax()).toBe(1);
+        expect(component.primaryDomain()).toEqual([-1, 1]);
         expect(component.categories()).toEqual([]);
     });
 
@@ -222,7 +222,7 @@ describe('ComboChartComponent', () => {
         const cumulative = component.cumulativePercents();
         expect(cumulative.at(-1)).toBeCloseTo(100, 5);
         expect(cumulative[0]).toBeCloseTo(50, 5);
-        expect(component.secondaryMax()).toBe(100);
+        expect(component.secondaryDomain()).toEqual([0, 100]);
         const cumulativeLine = fixture.nativeElement.querySelector(
             'path[data-slot="combo-line"]',
         );
@@ -254,11 +254,11 @@ describe('ComboChartComponent', () => {
         expect(
             fixture.nativeElement.querySelectorAll('path[data-slot="combo-line"]'),
         ).toHaveLength(1);
-        expect(component.secondaryMax()).toBe(40);
+        expect(component.secondaryDomain()).toEqual([0, 40]);
     });
 
-    it('uses a secondary max of 100 when there are no line values', () => {
-        expect(component.secondaryMax()).toBe(100);
+    it('uses a secondary domain of 0 to 100 when there are no line values', () => {
+        expect(component.secondaryDomain()).toEqual([0, 100]);
         expect(component.lines()).toEqual([]);
     });
 
@@ -437,6 +437,13 @@ describe('ComboChartComponent negative values', () => {
                     expect(y).toBeLessThanOrEqual(bottom + 0.5);
                 }
             }
+        });
+
+        it(`should give the ${className} secondary axis a domain that contains zero and every line value`, () => {
+            const [lo, hi] = build(bars, line).secondaryDomain();
+
+            expect(lo).toBeLessThanOrEqual(Math.min(0, ...line));
+            expect(hi).toBeGreaterThanOrEqual(Math.max(0, ...line));
         });
     }
 });
