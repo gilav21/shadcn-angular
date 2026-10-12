@@ -636,6 +636,44 @@ describe('onContextGesture', () => {
         }
     });
 
+    // Android raises no release click, and a quick tap on a menu item right after lifting the finger is a real one.
+    it('swallows only a click that lands on the held element, and nothing when the hold never ends or a newer one replaces it', () => {
+        listen(outer, true);
+        const reached = vi.fn<() => void>();
+        const elsewhere = document.createElement('button');
+        document.body.appendChild(elsewhere);
+        document.addEventListener('click', reached, true);
+        try {
+            touchDown();
+            vi.advanceTimersByTime(600);
+            // No touchend: nothing is armed, so an unrelated click goes through.
+            elsewhere.click();
+            expect(reached).toHaveBeenCalledTimes(1);
+
+            // Released: a click somewhere else (a tap on a menu item) is still not the release click...
+            leaf.dispatchEvent(touchEvent('touchend', [], [finger]));
+            elsewhere.click();
+            expect(reached).toHaveBeenCalledTimes(2);
+            // ...and the one on the held element still is.
+            leaf.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+            expect(reached).toHaveBeenCalledTimes(2);
+
+            // Two holds, one release: only one guard was ever waiting, so only one click is taken.
+            vi.advanceTimersByTime(1000);
+            touchDown();
+            vi.advanceTimersByTime(600);
+            touchDown();
+            vi.advanceTimersByTime(600);
+            leaf.dispatchEvent(touchEvent('touchend', [], [finger]));
+            leaf.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+            leaf.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+            expect(reached).toHaveBeenCalledTimes(3);
+        } finally {
+            document.removeEventListener('click', reached, true);
+            elsewhere.remove();
+        }
+    });
+
     it('lets a click through that comes long after the release, or after a long-press nobody claimed', () => {
         const handler = listen(outer, false);
         const reached = vi.fn<() => void>();

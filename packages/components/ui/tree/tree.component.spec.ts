@@ -311,6 +311,8 @@ describe('TreeComponent leaves unhandled keys to the browser', () => {
         { key: 'ContextMenu', init: {}, prevented: false },
         { key: 'Tab', init: {}, prevented: false },
         { key: 'ArrowDown', init: { ctrlKey: true }, prevented: false },
+        { key: 'ArrowDown', init: { altKey: true }, prevented: false },
+        { key: 'ArrowDown', init: { metaKey: true }, prevented: false },
         { key: 'ArrowDown', init: {}, prevented: true },
         { key: ' ', init: {}, prevented: true },
         { key: '*', init: {}, prevented: true },

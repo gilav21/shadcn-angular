@@ -340,7 +340,7 @@ export function onContextGesture(
         if (!handler({ target, clientX: finger.clientX, clientY: finger.clientY, source: event, viaTouch: true })) return;
         claimedGestures.add(event);
         lastClaimedPress = { at: Date.now(), target };
-        swallowReleaseClick();
+        swallowReleaseClick(target);
     };
 
     const onContextMenu = (event: MouseEvent): void => {
@@ -458,7 +458,12 @@ let lastClaimedContext: ClaimedAt | null = null;
 /** Whether something landing on `hit` just now is the gesture `claimed` already answered. */
 function isRecentSameGesture(claimed: ClaimedAt | null, hit: Node | null): boolean {
     if (!claimed || Date.now() - claimed.at >= SAME_GESTURE_MS) return false;
-    return !hit || claimed.target.contains(hit) || hit.contains(claimed.target);
+    return isRelated(claimed.target, hit);
+}
+
+/** Whether `hit` is `held`, inside it, or around it: the hit test of one finger lands on any of them. */
+function isRelated(held: Node, hit: Node | null): boolean {
+    return !hit || held.contains(hit) || hit.contains(held);
 }
 
 /** How long after the finger lifts the click of a claimed long-press can still arrive. */
@@ -475,18 +480,21 @@ let cancelReleaseClickGuard: (() => void) | null = null;
  * simply expires.
  *
  * Armed by the release, not by the hold, so a hold that never reports its end
- * cannot leave a listener behind that eats an unrelated click; and a newer hold
- * replaces an older guard, so at most one is ever waiting. It sits on `window` in
- * the capture phase, ahead of the document-level listeners the menus use, and
- * takes exactly one click.
+ * cannot leave a listener behind that eats an unrelated click; a newer hold
+ * replaces an older guard, so at most one is ever waiting; and it takes only a
+ * click that lands on the held element (or inside it, or around it), so a quick
+ * tap on a menu item - where no release click follows, as on Android - is never
+ * mistaken for it. It sits on `window` in the capture phase, ahead of the
+ * document-level listeners the menus use, and takes exactly one click.
  */
-function swallowReleaseClick(): void {
+function swallowReleaseClick(held: Node): void {
     const win = globalThis.window;
     if (!win) return;
     cancelReleaseClickGuard?.();
 
     let timer: ReturnType<typeof setTimeout> | undefined;
     const swallow = (event: Event): void => {
+        if (!isRelated(held, event.target as Node | null)) return;
         event.stopImmediatePropagation();
         event.preventDefault();
         cancel();
