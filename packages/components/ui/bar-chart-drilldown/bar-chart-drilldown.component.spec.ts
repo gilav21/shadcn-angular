@@ -468,6 +468,24 @@ describe('BarChartDrilldownComponent zero baseline', () => {
         }
     }
 
+    it.each(['all-negative', 'mixed-sign', 'all-positive'])('should keep %s value labels clear of the axis labels', className => {
+        const component = build(CLASSES[className], 'ltr');
+        const area = component.chartArea();
+
+        for (const bar of component.bars()) {
+            const end = bar.y + bar.height;
+            if (bar.value >= 0) {
+                expect(bar.labelPosition.y).toBeCloseTo(bar.y - 6, 6);
+            } else if (end + 14 <= area.bottom + 2) {
+                expect(bar.labelPosition.y).toBeCloseTo(end + 14, 6);
+            } else {
+                // No room under the column before the category labels: inside the bar end.
+                expect(bar.labelPosition.y).toBeCloseTo(end - 6, 6);
+            }
+            expect(bar.labelAnchor).toBe('middle');
+        }
+    });
+
     it('should draw at least two value ticks, all inside the plot, when every value is zero', () => {
         const component = build(CLASSES['all-zero'], 'ltr');
         const area = component.chartArea();

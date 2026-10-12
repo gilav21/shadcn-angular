@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { BarChartComponent } from './bar-chart.component';
-import { ChartDataPoint } from '../../lib/chart.types';
+import { BarRect, ChartDataPoint } from '../../lib/chart.types';
 import {
     describe,
     it,
@@ -401,25 +401,38 @@ describe('BarChartComponent zero baseline', () => {
         const area = component.chartArea();
 
         for (const bar of component.bars()) {
+            const end = bar.y + bar.height;
             if (bar.value >= 0) {
-                expect(bar.labelPosition.y).toBeLessThan(bar.y);
+                expect(bar.labelPosition.y).toBeCloseTo(bar.y - 6, 6);
+            } else if (end + 14 <= area.bottom + 2) {
+                expect(bar.labelPosition.y).toBeCloseTo(end + 14, 6);
             } else {
-                // The category labels start 16px under the plot; a label may not sit down there.
-                expect(bar.labelPosition.y).toBeLessThanOrEqual(area.bottom + 2);
+                // No room under the bar before the category labels (16px under the plot): inside the bar end.
+                expect(bar.labelPosition.y).toBeCloseTo(end - 6, 6);
             }
         }
     });
 
+    /** A label sits 6px past the bar's free end, or 6px inside it when under 48px remain before the plot edge. */
+    function expectHorizontalLabel(
+        bar: BarRect,
+        area: { left: number; right: number },
+        dir: 'ltr' | 'rtl',
+    ): void {
+        // The free end is the one away from the zero baseline: right for positive in LTR and negative in RTL.
+        const growsRight = (bar.value >= 0) !== (dir === 'rtl');
+        const freeEnd = growsRight ? bar.x + bar.width : bar.x;
+        const room = growsRight ? area.right - freeEnd : freeEnd - area.left;
+        const outside = room >= 48;
+        const towardRight = growsRight === outside;
+        expect(bar.labelAnchor).toBe(towardRight ? 'start' : 'end');
+        expect(bar.labelPosition.x).toBeCloseTo(towardRight ? freeEnd + 6 : freeEnd - 6, 6);
+    }
+
     it.each(['all-negative', 'mixed-sign', 'all-positive'])('should leave room for %s horizontal value labels on the side they face', className => {
         for (const dir of ['ltr', 'rtl'] as const) {
             const component = build(CLASSES[className], 'horizontal', dir);
-            const area = component.chartArea();
-
-            for (const bar of component.bars()) {
-                const room = bar.labelAnchor === 'start' ? area.right - bar.labelPosition.x : bar.labelPosition.x - area.left;
-                // A label is a few characters wide; it never starts closer than this to the plot edge it runs toward.
-                expect(room).toBeGreaterThanOrEqual(42);
-            }
+            for (const bar of component.bars()) expectHorizontalLabel(bar, component.chartArea(), dir);
         }
     });
 
