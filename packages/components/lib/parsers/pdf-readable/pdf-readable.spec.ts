@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { PdfBuilder } from '../pdf-test-fixtures';
 import { parsePdfReadable } from './pdf-readable';
 import { PDF_POLICY, assertInertMarkup } from '../inert-markup-fixtures';
-import { FRAGMENT_LINK_URI } from '../pdf-hostile-fixtures';
+import { FRAGMENT_LINK_URI, pdfName } from '../pdf-hostile-fixtures';
 
 describe('parsePdfReadable', () => {
     describe('input validation', () => {
@@ -107,6 +107,27 @@ describe('parsePdfReadable', () => {
             const result = await parsePdfReadable(pdf);
             expect(result.html).toContain('a&lt;b&amp;c&gt;d');
             expect(result.html).not.toContain('a<b');
+        });
+    });
+
+    describe('font names', () => {
+        it('keeps a font name made of character references from writing a further style declaration', async () => {
+            // `&#39&#59` has no semicolons: the browser still decodes it to `';`.
+            const hostile = 'Evil&#39&#59background:url(//t.invalid/x)';
+            const pdf = new PdfBuilder()
+                .addFont('F1', 'Helvetica')
+                .addFont('F2', pdfName(hostile))
+                .setContent(
+                    'BT /F1 12 Tf 100 700 Td (Body text of the page runs here and on) Tj '
+                    + '0 -14 Td (and carries on with more body text) Tj '
+                    + '0 -14 Td /F2 12 Tf (Hostile run) Tj ET')
+                .build();
+            const result = await parsePdfReadable(pdf);
+
+            expect(assertInertMarkup(result.html, PDF_POLICY)).toEqual([]);
+            const run = Array.from(new DOMParser().parseFromString(`<body>${result.html}`, 'text/html').querySelectorAll<HTMLElement>('span'))
+                .find((span) => span.textContent?.startsWith('Hostile run'));
+            expect(run?.style.fontFamily).toContain('Evil&#39&#59background');
         });
     });
 

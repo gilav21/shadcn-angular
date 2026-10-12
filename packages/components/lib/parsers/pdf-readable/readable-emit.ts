@@ -559,11 +559,17 @@ function colorValue(color: string): string {
     return normalized === '#000000' || normalized === '#000' ? '' : color;
 }
 
+/**
+ * The declarations as the VALUE of a double-quoted `style` attribute. Escaped
+ * here, at the one place every style attribute is built, because a font name
+ * can hold `&#39&#59…` (character references without their semicolon), which a
+ * browser decodes back into a quote and a `;` and so into a further declaration.
+ */
 function styleAttr(pairs: ReadonlyArray<readonly [string, string]>): string {
-    return pairs
+    return escapeHtml(pairs
         .filter(([, value]) => value !== '')
         .map(([prop, value]) => `${prop}:${value}`)
-        .join(';');
+        .join(';'));
 }
 
 function attrString(styleValue: string, dir: string): string {

@@ -427,8 +427,7 @@ function applyTintShade(hex: string, tint: string | null, shade: string | null):
 
 /** `00`-`FF` as 0-1; `undefined` for a value that is not hex, so a bad tint leaves the colour as it was. */
 function hexFraction(value: string): number | undefined {
-    const parsed = Number.parseInt(value, 16) / 255;
-    return Number.isNaN(parsed) ? undefined : parsed;
+    return /^[\dA-Fa-f]{1,2}$/.test(value) ? Number.parseInt(value, 16) / 255 : undefined;
 }
 
 function rgbToHex(r: number, g: number, b: number): string {

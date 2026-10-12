@@ -731,6 +731,20 @@ describe('parseDocx — attribute grammar', () => {
         }
     });
 
+    it('a theme tint or shade that is not one or two hex digits leaves the colour untouched', () => {
+        const theme = {
+            name: 'word/theme/theme1.xml',
+            content: '<?xml version="1.0"?><a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
+                + '<a:themeElements><a:clrScheme name="x"><a:accent1><a:srgbClr val="336699"/></a:accent1>'
+                + '</a:clrScheme></a:themeElements></a:theme>',
+        };
+        // A long hex run is a number to parseInt (Infinity) and would give NaN channels.
+        for (const bad of ['F'.repeat(400), 'zz', '8 ', '-1']) {
+            const body = `<w:p><w:r><w:rPr><w:color w:themeColor="accent1" w:themeTint="${bad}" w:themeShade="${bad}"/></w:rPr><w:t>x</w:t></w:r></w:p>`;
+            expect(paragraphs(parseDocx(docx(body, [theme])))[0].runs[0].style.color).toBe('#336699');
+        }
+    });
+
     it('a colour that is not six hex digits, or a highlight that only names an Object property, is dropped', () => {
         for (const value of ['FFF', 'FF0000FF', 'constructor', 'toString']) {
             const body = `<w:p><w:r><w:rPr><w:color w:val="${value}"/><w:highlight w:val="${value}"/><w:shd w:fill="${value}"/></w:rPr><w:t>x</w:t></w:r></w:p>`;
