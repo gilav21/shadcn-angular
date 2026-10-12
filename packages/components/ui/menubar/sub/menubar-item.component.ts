@@ -6,8 +6,10 @@ import {
   computed,
   inject,
   booleanAttribute,
+  DestroyRef,
+  ElementRef,
 } from '@angular/core';
-import { activateAsClick } from '../../../lib/menu-activation';
+import { activateAsClick, blockDisabledActivation } from '../../../lib/menu-activation';
 import { cn } from '../../../lib/utils';
 import { MENUBAR_MENU, type MenubarMenuComponent } from './menubar-menu.component';
 
@@ -23,7 +25,7 @@ import { MENUBAR_MENU, type MenubarMenuComponent } from './menubar-menu.componen
       [attr.aria-disabled]="disabled() || null"
       role="menuitem"
       tabindex="-1"
-      (click)="onClick($event)"
+      (click)="onClick()"
       (keydown.enter)="activate($event, row)"
       (keydown.space)="activate($event, row)"
     >
@@ -68,6 +70,12 @@ export class MenubarItemComponent {
   selected = output<void>();
   readonly menu = inject(MENUBAR_MENU, { optional: true }) as MenubarMenuComponent | null;
 
+  constructor() {
+    // The host is `display: contents`, so a click anywhere on the row passes through it.
+    const unblock = blockDisabledActivation(inject<ElementRef<HTMLElement>>(ElementRef).nativeElement, () => this.disabled());
+    inject(DestroyRef).onDestroy(unblock);
+  }
+
   classes = computed(() => cn(
     'relative flex cursor-pointer select-none items-center rounded-sm text-sm outline-none',
     'hover:bg-accent hover:text-accent-foreground',
@@ -82,17 +90,16 @@ export class MenubarItemComponent {
    * click on the row): emits {@link selected} and then closes the owning menu,
    * which also tears down any open submenu. The click goes on to bubble to the
    * `<ui-menubar-item>` host, so a `(click)` you bind there runs too, once.
-   * While {@link disabled} it does nothing and — given the click `event` —
-   * stops it here, so that `(click)` never sees it however the click was made.
-   * Items used outside a `ui-menubar-menu` still emit but have no menu to close.
+   * While {@link disabled} it does nothing: the host's capture-phase guard has
+   * already kept the click from every listener, `(click)` included, however it
+   * was made. Items used outside a `ui-menubar-menu` still emit but have no
+   * menu to close.
    */
-  onClick(event?: Event): void {
-    if (this.disabled()) {
-      event?.stopPropagation();
-      return;
+  onClick(): void {
+    if (!this.disabled()) {
+      this.selected.emit();
+      this.menu?.closeAfterActivation();
     }
-    this.selected.emit();
-    this.menu?.closeAfterActivation();
   }
 
   /** Enter or Space on the row: one click, and the page behind the menu does not scroll. Nothing happens while {@link disabled}. */

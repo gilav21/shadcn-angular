@@ -114,21 +114,18 @@ import { TREE_VIEW_DEMO_LOCALES } from './tree-view-demo.locales';
         <ui-context-menu #treeContextMenu>
           <ui-context-menu-content class="w-64">
             <ui-context-menu-item
-              (click)="onTreeContextMenu('open', treeContextMenu.data())"
-              (keydown.enter)="onTreeContextMenu('open', treeContextMenu.data())">
+              (click)="onTreeContextMenu('open', treeContextMenu.data())">
               {{ t().menuOpen }}
               <ui-context-menu-shortcut>&#x23ce;</ui-context-menu-shortcut>
             </ui-context-menu-item>
             <ui-context-menu-item
-              (click)="onTreeContextMenu('properties', treeContextMenu.data())"
-              (keydown.enter)="onTreeContextMenu('properties', treeContextMenu.data())">
+              (click)="onTreeContextMenu('properties', treeContextMenu.data())">
               {{ t().menuProperties }}
               <ui-context-menu-shortcut>&#8984;I</ui-context-menu-shortcut>
             </ui-context-menu-item>
             <ui-context-menu-separator />
             <ui-context-menu-item variant="destructive"
-              (click)="onTreeContextMenu('delete', treeContextMenu.data())"
-              (keydown.enter)="onTreeContextMenu('delete', treeContextMenu.data())">
+              (click)="onTreeContextMenu('delete', treeContextMenu.data())">
               {{ t().menuDelete }}
               <ui-context-menu-shortcut>&#8984;&#9003;</ui-context-menu-shortcut>
             </ui-context-menu-item>

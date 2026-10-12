@@ -912,6 +912,7 @@ describe('Menubar item activation is one action however it is made', () => {
         const disabled = menuRow(fixture, 'Save');
 
         disabled.click();
+        disabled.closest<HTMLElement>('ui-menubar-item')!.click();
         press(disabled, 'Enter');
         press(disabled, ' ');
         fixture.detectChanges();
