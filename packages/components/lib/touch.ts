@@ -307,10 +307,27 @@ export function onContextGesture(
 /**
  * Calls `onDismiss` on the next touch that starts outside `host`. Safe to call
  * from inside the touch that opened the UI: it never fires for that touch.
+ *
+ * The rule it enforces: *the touch that opens a transient UI is never the touch
+ * that dismisses it.* Registering during a `touchstart` in the bubble phase did
+ * not honour it - a listener added to an ancestor while an event is in flight
+ * still receives that event, so a tap-shown tooltip closed in the very tick it
+ * opened. The listener here is in the capture phase of the document, which the
+ * opening touch has already left by the time any handler of it can register.
+ * One-shot: it removes itself once it has dismissed.
+ *
  * @returns cleanup
  */
-export function dismissOnOutsideTouch(_host: Element, _onDismiss: () => void): () => void {
-    throw new Error('dismissOnOutsideTouch: not implemented');
+export function dismissOnOutsideTouch(host: Element, onDismiss: () => void): () => void {
+    const doc = host.ownerDocument;
+    const onTouch = (event: Event): void => {
+        if (event.target instanceof Node && host.contains(event.target)) return;
+        cleanup();
+        onDismiss();
+    };
+    const cleanup = (): void => doc.removeEventListener('touchstart', onTouch, true);
+    doc.addEventListener('touchstart', onTouch, true);
+    return cleanup;
 }
 
 /**

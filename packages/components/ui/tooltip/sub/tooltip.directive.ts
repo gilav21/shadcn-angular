@@ -7,7 +7,7 @@ import {
     OnDestroy,
     Renderer2,
 } from '@angular/core';
-import { isTouchDevice } from '../../../lib/touch';
+import { dismissOnOutsideTouch, isTouchDevice } from '../../../lib/touch';
 import { inheritThemeTokens } from '../../../lib/theme-presets';
 import { TOUCH_AUTO_DISMISS_MS } from '../tooltip.component';
 
@@ -99,13 +99,9 @@ export class TooltipDirective implements OnDestroy {
         }, TOUCH_AUTO_DISMISS_MS);
 
         this.zone.runOutsideAngular(() => {
-            const handler = (): void => {
+            this.removeDismissListener = dismissOnOutsideTouch(this.el.nativeElement, () => {
                 this.zone.run(() => this.dismissTouch());
-            };
-            document.addEventListener('touchstart', handler, { once: true });
-            this.removeDismissListener = () => {
-                document.removeEventListener('touchstart', handler);
-            };
+            });
         });
     }
 

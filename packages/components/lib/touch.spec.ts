@@ -715,7 +715,7 @@ describe('dismissOnOutsideTouch', () => {
     // The tooltip opens on a touchstart and registers its dismissal inside that
     // very touch; a listener added mid-dispatch fires for the event in flight
     // unless it is in a phase that has already passed.
-    redUntil('does not fire for the touch that registered it, then fires once for a touch outside', () => {
+    it('does not fire for the touch that registered it, then fires once for a touch outside', () => {
         let dispose = (): void => undefined;
         host.addEventListener('touchstart', () => {
             dispose = dismissOnOutsideTouch(host, onDismiss);
@@ -736,7 +736,7 @@ describe('dismissOnOutsideTouch', () => {
     // The opening touch can land anywhere - here beside the host - so "not for the
     // touch that registered it" cannot lean on the inside-the-host check: a listener
     // added mid-dispatch in the bubble phase would still receive that same event.
-    redUntil('does not fire for an opening touch that landed outside the host either', () => {
+    it('does not fire for an opening touch that landed outside the host either', () => {
         const beside = document.createElement('div');
         document.body.appendChild(beside);
         let dispose = (): void => undefined;
@@ -754,7 +754,7 @@ describe('dismissOnOutsideTouch', () => {
         beside.remove();
     });
 
-    redUntil('stops listening once cleaned up', () => {
+    it('stops listening once cleaned up', () => {
         const dispose = dismissOnOutsideTouch(host, onDismiss);
         dispose();
 

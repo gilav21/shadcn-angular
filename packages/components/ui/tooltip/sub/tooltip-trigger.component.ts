@@ -4,9 +4,10 @@ import {
     signal,
     inject,
     NgZone,
+    ElementRef,
     OnDestroy,
 } from '@angular/core';
-import { isTouchDevice } from '../../../lib/touch';
+import { dismissOnOutsideTouch, isTouchDevice } from '../../../lib/touch';
 import { TooltipComponent, TOUCH_AUTO_DISMISS_MS } from '../tooltip.component';
 
 @Component({
@@ -16,7 +17,7 @@ import { TooltipComponent, TOUCH_AUTO_DISMISS_MS } from '../tooltip.component';
     <span
       (mouseenter)="onMouseEnter()"
       (mouseleave)="onMouseLeave()"
-      (touchstart)="onTouchStart($event)"
+      (touchstart)="onTouchStart()"
       (focus)="onFocus()"
       (blur)="onBlur()"
       [attr.data-slot]="'tooltip-trigger'"
@@ -29,6 +30,7 @@ import { TooltipComponent, TOUCH_AUTO_DISMISS_MS } from '../tooltip.component';
 export class TooltipTriggerComponent implements OnDestroy {
     private readonly tooltip = inject(TooltipComponent, { optional: true });
     private readonly zone = inject(NgZone);
+    private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
     private delayTimeoutId: ReturnType<typeof setTimeout> | null = null;
     private dismissTimeoutId: ReturnType<typeof setTimeout> | null = null;
     private readonly removeDismissListener = signal<(() => void) | null>(null);
@@ -58,13 +60,12 @@ export class TooltipTriggerComponent implements OnDestroy {
 
     /**
      * Touch alternative to hover: taps toggle the tooltip and an open tooltip
-     * auto-dismisses after `TOUCH_AUTO_DISMISS_MS` or on the next touch anywhere
-     * in the document. Calls `preventDefault()`, which suppresses the synthetic
-     * click the browser would otherwise fire on the projected content.
+     * auto-dismisses after `TOUCH_AUTO_DISMISS_MS` or on the next touch outside
+     * the trigger. The touch itself is left alone, so the browser still turns it
+     * into the click of whatever control the trigger wraps.
      */
-    onTouchStart(event: TouchEvent): void {
+    onTouchStart(): void {
         if (!isTouchDevice()) return;
-        event.preventDefault();
         this.toggleTouch();
     }
 
@@ -100,13 +101,9 @@ export class TooltipTriggerComponent implements OnDestroy {
         }, TOUCH_AUTO_DISMISS_MS);
 
         this.zone.runOutsideAngular(() => {
-            const handler = (): void => {
+            this.removeDismissListener.set(dismissOnOutsideTouch(this.host, () => {
                 this.zone.run(() => this.dismissTouch());
-            };
-            document.addEventListener('touchstart', handler, { once: true });
-            this.removeDismissListener.set(() => {
-                document.removeEventListener('touchstart', handler);
-            });
+            }));
         });
     }
 

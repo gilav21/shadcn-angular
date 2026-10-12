@@ -5,9 +5,6 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { TooltipComponent } from '../tooltip.component';
 import { TooltipTriggerComponent } from './tooltip-trigger.component';
 
-/** RED until spec 8 Task 4: an expected failure under vitest, skipped where `it.fails` does not exist (the jest consumer leg). */
-const redUntilTask4 = Reflect.has(it, 'fails') ? it.fails : it.skip;
-
 /** Force isTouchDevice() (which reads matchMedia('(pointer: coarse)')) to a value. */
 function setTouchDevice(isTouch: boolean): () => void {
     const original = globalThis.window.matchMedia;
@@ -153,33 +150,33 @@ describe('TooltipTriggerComponent', () => {
             expect(tooltip().open()).toBe(false);
         });
 
-        redUntilTask4('keeps a tapped-open tooltip through the emulated mouseleave', () => {
+        it('keeps a tapped-open tooltip through the emulated mouseleave', () => {
             fireTouchStart();
             fire('mouseleave');
             expect(tooltip().open()).toBe(true);
         });
 
-        redUntilTask4('shows on touchstart and leaves the tap to the wrapped control', () => {
+        it('shows on touchstart and leaves the tap to the wrapped control', () => {
             const event = fireTouchStart();
             expect(tooltip().open()).toBe(true);
             expect(event.defaultPrevented).toBe(false);
         });
 
-        redUntilTask4('toggles off on a second touchstart', () => {
+        it('toggles off on a second touchstart', () => {
             fireTouchStart();
             expect(tooltip().open()).toBe(true);
             fireTouchStart();
             expect(tooltip().open()).toBe(false);
         });
 
-        redUntilTask4('auto-dismisses after the touch timeout', () => {
+        it('auto-dismisses after the touch timeout', () => {
             fireTouchStart();
             expect(tooltip().open()).toBe(true);
             vi.advanceTimersByTime(2500);
             expect(tooltip().open()).toBe(false);
         });
 
-        redUntilTask4('dismisses when a touchstart is dispatched elsewhere on the document', () => {
+        it('dismisses when a touchstart is dispatched elsewhere on the document', () => {
             fireTouchStart();
             expect(tooltip().open()).toBe(true);
             document.body.dispatchEvent(new Event('touchstart', { bubbles: true }));
@@ -280,7 +277,7 @@ describe('TooltipTriggerComponent — a control wrapped in the trigger, on touch
     // UC-7, UC-8. A browser turns an un-prevented touch into the control's click;
     // the trigger must show the tooltip without cancelling it, and the tooltip it
     // shows must outlive the tap that opened it.
-    redUntilTask4('shows on tap, keeps the tooltip, and leaves the control its tap', async () => {
+    it('shows on tap, keeps the tooltip, and leaves the control its tap', async () => {
         vi.useFakeTimers();
         restoreTouch = setTouchDevice(true);
         await TestBed.configureTestingModule({ imports: [WrappedControlHost] }).compileComponents();
