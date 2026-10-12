@@ -238,7 +238,7 @@ describe('sanitizeSvg output parsed as HTML', () => {
     it('is inert for comment, processing-instruction and CDATA payloads at any depth', () => {
         for (const [name, svg] of Object.entries(payloads)) {
             const output = sanitizeSvg(svg);
-            expect(output, name).not.toBeNull();
+            expect(output, name).toContain('<svg');
             expect(assertInertMarkup(output!, SVG_POLICY), name).toEqual([]);
         }
     });
@@ -262,6 +262,7 @@ describe('sanitizeSvg output parsed as HTML', () => {
         ];
         for (const href of unsafe) {
             const output = sanitizeSvg(`<svg ${SVG_NS}><image href="${xmlValue(href)}" width="1" height="1"/></svg>`);
+            expect(output, JSON.stringify(href)).toContain('<image');
             expect(assertInertMarkup(output!, SVG_POLICY), JSON.stringify(href)).toEqual([]);
         }
     });
@@ -269,6 +270,7 @@ describe('sanitizeSvg output parsed as HTML', () => {
     it('does not carry an xlink:href at all, safe or not', () => {
         for (const href of ['javascript:alert(1)', 'https://example.com/a.png']) {
             const output = sanitizeSvg(`<svg ${SVG_NS} xmlns:xlink="http://www.w3.org/1999/xlink"><image xlink:href="${href}" width="1" height="1"/></svg>`);
+            expect(output).toContain('<image');
             expect(output).not.toContain('href');
         }
     });
