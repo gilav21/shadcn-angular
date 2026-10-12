@@ -95,11 +95,13 @@ readonly field = form(this.model, path => {
 ## Two behaviours worth knowing
 
 **A `ControlValueAccessor` wins over the model.** When a control provides
-`NG_VALUE_ACCESSOR` — which all of these except `ui-input-otp` and
-`ui-toggle-group` do — `FormField` binds through the CVA and registers its
-`onChange` into the field state. The value model still matters (it is what
-makes the component conform, and it carries the non-CVA controls), but the
-value traffic for those controls flows through `writeValue`/`onChange`.
+`NG_VALUE_ACCESSOR` — every control on this page does — `FormField` binds
+through the CVA and registers its `onChange` into the field state. The value
+model still matters (it is what makes the component conform), but the value
+traffic flows through `writeValue`/`onChange`. On a control with a separate
+internal state (`ui-toggle-group`, `ui-select`) the `value` model can still read
+its pre-write value after a write from the field — read what the control
+renders (`ui-toggle-group`'s `selection()`) instead.
 
 **`valueChange` on a converted control emits `T | undefined`.** A control whose
 value can be empty is a `model<T | undefined>(undefined)`, and Angular derives
