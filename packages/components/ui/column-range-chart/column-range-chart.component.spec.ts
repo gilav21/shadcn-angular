@@ -211,7 +211,7 @@ describe('ColumnRangeChartComponent', () => {
         const texts = (): string[] =>
             Array.from(fixture.nativeElement.querySelectorAll('svg text') as NodeListOf<SVGTextElement>)
                 .map(t => t.textContent?.trim() ?? '');
-        const axisAndCategories = ['-10', '-5', '0', '5', '10', '15', '20', '25', 'Jan', 'Feb', 'Mar'];
+        const axisAndCategories = ['-5', '0', '5', '10', '15', '20', 'Jan', 'Feb', 'Mar'];
         expect(texts()).toEqual([...axisAndCategories, '10', '-5', '12', '-3', '18', '2']);
 
         fixture.componentRef.setInput('showRangeLabels', false);

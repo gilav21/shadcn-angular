@@ -86,7 +86,7 @@
               text-anchor="middle"
               class="text-xs font-medium fill-foreground pointer-events-none"
             >
-              {{ formatValue(bar.data.high) }}
+              {{ formatValue(bar.highValue) }}
             </text>
             <text
               [attr.x]="bar.x + bar.width / 2"
@@ -94,7 +94,7 @@
               text-anchor="middle"
               class="text-xs font-medium fill-foreground pointer-events-none"
             >
-              {{ formatValue(bar.data.low) }}
+              {{ formatValue(bar.lowValue) }}
             </text>
           }
         </g>
@@ -110,7 +110,7 @@
     >
       <div class="font-medium">{{ hoveredBar()!.data.name }}</div>
       <div class="text-muted-foreground">
-        Range: {{ formatValue(hoveredBar()!.data.low) }} – {{ formatValue(hoveredBar()!.data.high) }}
+        Range: {{ formatValue(hoveredBar()!.lowValue) }} – {{ formatValue(hoveredBar()!.highValue) }}
       </div>
     </div>
   }

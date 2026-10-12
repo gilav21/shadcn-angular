@@ -17,13 +17,17 @@ import {
   getChartColor,
   formatChartValue,
   getChartSummary,
-  calculateAxisTicks,
-    extent,
+  extent,
 } from '../../lib/chart.utils';
+import { linearScale, niceDomain } from '../../lib/chart-scale';
 
 interface RangeBar {
   index: number;
   data: RangeDataPoint;
+  /** The smaller end of the range, whatever order `low` and `high` came in. */
+  lowValue: number;
+  /** The larger end of the range. */
+  highValue: number;
   x: number;
   y: number;
   width: number;
@@ -78,8 +82,10 @@ export class ColumnRangeChartComponent implements AfterViewInit {
    * confidence intervals — so the value axis is derived from both ends and need
    * not include 0 (see {@link dataRange}). `name` is the category label under
    * the axis and the optional `color` overrides the palette colour picked from
-   * the entry's index. A `low` above its `high` inverts the bar's height; it is
-   * clamped to 1px rather than flipped, so pass the ends the right way round.
+   * the entry's index. The two ends may come in either order (the column spans
+   * `min(low, high)` to `max(low, high)`), and a zero-span range is drawn as a
+   * 1px line at its value. Entries sharing a `name` are separate columns, one
+   * per array position.
    */
   data = input.required<RangeDataPoint[]>();
   /**
@@ -154,62 +160,60 @@ export class ColumnRangeChartComponent implements AfterViewInit {
     };
   });
 
+  /**
+   * The value-axis domain: the nice bounds of every low and high. Unlike the
+   * bar charts it is not anchored at 0, since a range has no natural baseline.
+   */
   dataRange = computed(() => {
-    const data = this.data();
-    if (data.length === 0) return { min: 0, max: 100 };
-
-    const lows = data.map(d => d.low);
-    const highs = data.map(d => d.high);
-    const min = extent(lows)?.[0] ?? 0;
-    const max = extent(highs)?.[1] ?? 100;
-    const padding = (max - min) * 0.1;
-
-    return { min: min - padding, max: max + padding };
+    const bounds = extent(this.data().flatMap(d => [d.low, d.high]));
+    if (!bounds) return { min: 0, max: 100 };
+    const [min, max] = niceDomain(bounds[0], bounds[1], 5);
+    return { min, max };
   });
 
-  axisTicks = computed(() => {
-    const range = this.dataRange();
-    return calculateAxisTicks(range.min, range.max, 5);
+  private readonly valueScale = computed(() => {
+    const { min, max } = this.dataRange();
+    const area = this.chartArea();
+    return linearScale([min, max], [area.bottom, area.top]);
   });
+
+  axisTicks = computed(() => this.valueScale().ticks(5));
 
   bars = computed((): RangeBar[] => {
     const data = this.data();
     if (data.length === 0) return [];
 
     const area = this.chartArea();
-    const range = this.dataRange();
+    const scale = this.valueScale();
     const gap = this.barGap();
     const barCount = data.length;
     const totalGaps = (barCount - 1) * gap;
     const barWidth = (area.width - totalGaps) / barCount;
 
-    const span = range.max - range.min;
-
     return data.map((point, index) => {
-      const normalizedLow = span > 0 ? (point.low - range.min) / span : 0;
-      const normalizedHigh = span > 0 ? (point.high - range.min) / span : 0;
-
-      const lowY = area.bottom - normalizedLow * area.height;
-      const highY = area.bottom - normalizedHigh * area.height;
-
-
+      const lowValue = Math.min(point.low, point.high);
+      const highValue = Math.max(point.low, point.high);
+      const lowY = scale.scale(lowValue);
+      const highY = scale.scale(highValue);
 
       const x = this.isRtl()
         ? area.right - index * (barWidth + gap) - barWidth
         : area.left + index * (barWidth + gap);
 
-      const y = highY;
-      const height = lowY - highY;
-      const color = getChartColor(index, point.color);
+      // A span under 1px is a line centred on its value, so it never sticks out of the plot by a full pixel.
+      const height = Math.max(1, lowY - highY);
+      const y = lowY - highY < 1 ? (lowY + highY) / 2 - height / 2 : highY;
 
       return {
         index,
         data: point,
+        lowValue,
+        highValue,
         x,
         y,
         width: barWidth,
-        height: Math.max(1, height),
-        color,
+        height,
+        color: getChartColor(index, point.color),
         lowY,
         highY,
       };
@@ -235,11 +239,7 @@ export class ColumnRangeChartComponent implements AfterViewInit {
    * labels to the opposite gutter but leaves these positions unchanged.
    */
   getTickPosition(tick: number): number {
-    const range = this.dataRange();
-    const area = this.chartArea();
-    const span = range.max - range.min;
-    const normalized = span > 0 ? (tick - range.min) / span : 0;
-    return area.bottom - normalized * area.height;
+    return this.valueScale().scale(tick);
   }
 
   /**
