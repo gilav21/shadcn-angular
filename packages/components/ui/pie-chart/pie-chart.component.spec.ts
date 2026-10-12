@@ -145,7 +145,7 @@ describe('PieChartComponent non-positive values', () => {
             const total = positive.reduce((sum, v) => sum + v, 0);
 
             expect(slices.map(s => s.data.value)).toEqual(positive);
-            expect(slices.map(s => s.percentage)).toEqual(positive.map(v => (v / total) * 100));
+            slices.forEach((slice, i) => expect(slice.percentage).toBeCloseTo((positive[i] / total) * 100, 9));
             expect(fixture.nativeElement.querySelectorAll('g[role="button"]')).toHaveLength(positive.length);
             if (positive.length > 0) {
                 const shown = slices.reduce((sum, s) => sum + s.percentage, 0);

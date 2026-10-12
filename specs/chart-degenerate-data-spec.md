@@ -263,7 +263,7 @@ No new inputs. Behaviour that used to be broken becomes defined:
 <ui-waterfall-chart [data]="[{ name: 'Other', value: 5 }, { name: 'Other', value: -3 }]" />
 ```
 
-Members the tests pin (named in this spec so an implementation does not have to guess them): `valueDomain()` on bar, bar-drilldown and stacked-bar (the `[lo, hi]` value axis), `dataRange()` kept on bar, bar-drilldown and column-range as `{ min, max }`, `baselineX()` on bar-race (the x of value 0), and `radarPoint(cx, cy, radius, axis, axisCount, value, maxValue, minValue = 0)`.
+Members the tests pin (named in this spec so an implementation does not have to guess them): `valueDomain()` on bar, bar-drilldown and stacked-bar (the `[lo, hi]` value axis), `dataRange()` kept on bar, bar-drilldown and column-range as `{ min, max }`, `baselineX()` on bar-race (the x of value 0), and `radarPoint(cx, cy, radius, axis, axisCount, value, maxValue, minValue = 0)`. Pie and pie-drilldown render a `[data-slot="pie-empty"]` ring (no text, so nothing to localise) exactly when no value is positive. Stacked-bar percent mode with no negative segment keeps its fixed `[0, 25, 50, 75, 100]` ticks (desktop appearance must not change); with a negative segment its ticks come from `niceDomain`.
 
 Each chart's `data`/`series` input JSDoc states its negative / zero / duplicate
 semantics (the §1.1 table row), so compodoc's API tables document it.

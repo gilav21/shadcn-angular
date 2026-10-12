@@ -409,24 +409,24 @@ describe('StackedBarChartComponent diverging stacks', () => {
     for (const [className, values] of Object.entries(CLASSES)) {
         for (const stacking of ['absolute', 'percent'] as const) {
             it(`should stack ${className} positives up from zero and negatives down from zero without overlap (${stacking})`, () => {
-            const component = build(values, stacking);
+                const component = build(values, stacking);
 
-            component.stackedBars().forEach((bar, c) => {
-                let up = 0;
-                let down = 0;
-                const absoluteTotal = values.reduce((sum, row) => sum + Math.abs(row[c]), 0);
-                bar.segments.forEach((segment, s) => {
-                    // Percent mode measures every segment as its share of the category's absolute total.
-                    const value = stacking === 'percent' ? (100 * values[s][c]) / absoluteTotal : values[s][c];
-                    const near = value >= 0 ? up : down;
-                    const far = near + value;
-                    // y grows downwards, so the larger value sits at the smaller y.
-                    expect(segment.y).toBeCloseTo(component.getTickPosition(Math.max(near, far)), 4);
-                    expect(segment.y + segment.height).toBeCloseTo(component.getTickPosition(Math.min(near, far)), 4);
-                    if (value >= 0) up = far;
-                    else down = far;
+                component.stackedBars().forEach((bar, c) => {
+                    let up = 0;
+                    let down = 0;
+                    const absoluteTotal = values.reduce((sum, row) => sum + Math.abs(row[c]), 0);
+                    bar.segments.forEach((segment, s) => {
+                        // Percent mode measures every segment as its share of the category's absolute total.
+                        const value = stacking === 'percent' ? (100 * values[s][c]) / absoluteTotal : values[s][c];
+                        const near = value >= 0 ? up : down;
+                        const far = near + value;
+                        // y grows downwards, so the larger value sits at the smaller y.
+                        expect(segment.y).toBeCloseTo(component.getTickPosition(Math.max(near, far)), 4);
+                        expect(segment.y + segment.height).toBeCloseTo(component.getTickPosition(Math.min(near, far)), 4);
+                        if (value >= 0) up = far;
+                        else down = far;
+                    });
                 });
-            });
             });
         }
 

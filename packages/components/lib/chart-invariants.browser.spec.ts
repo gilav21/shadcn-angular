@@ -515,9 +515,16 @@ function violations(chart: ChartCase, cls: DataClass, fixture: ComponentFixture<
 // ---------------------------------------------------------------------------
 
 describe('every chart renders every finite data class with marks inside the plot and no NaN', () => {
+    // A class whose values do not depend on the seed (all-zero, all-equal, ...) runs once.
+    const seen = new Set<string>();
     const cases = CHARTS.flatMap(chart =>
         SEEDS.flatMap(seed => dataClasses(seed).map(cls => ({ chart, seed, cls }))),
-    ).filter(({ chart, cls }) => !chart.skip?.(cls));
+    ).filter(({ chart, cls }) => {
+        const key = `${chart.label}|${cls.id}|${JSON.stringify(cls.values)}|${cls.names.join()}`;
+        const fresh = !seen.has(key);
+        seen.add(key);
+        return fresh && !chart.skip?.(cls);
+    });
 
     for (const { chart, seed, cls } of cases) {
         it(`${chart.label} / ${cls.id} / seed ${seed}`, async () => {
@@ -541,14 +548,40 @@ function duplicateKeyWarnings(spy: { mock: { calls: unknown[][] } }): string[] {
     return spy.mock.calls.map(args => args.map(String).join(' ')).filter(text => text.includes('NG0955'));
 }
 
+/**
+ * Angular reports a duplicate `@for` key only when it reconciles against
+ * existing nodes (D-21), so a chart is re-fed fresh arrays and re-checked.
+ */
+function rerender(fixture: ComponentFixture<unknown>, inputs: Record<string, unknown>): void {
+    for (const [name, value] of Object.entries(inputs)) fixture.componentRef.setInput(name, value);
+    fixture.detectChanges();
+}
+
+/** Runs `body` with the console spied and fails if NG0955 was logged. */
+async function expectNoDuplicateKeys(body: () => Promise<void>): Promise<void> {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+        await body();
+        expect([...duplicateKeyWarnings(warn), ...duplicateKeyWarnings(error)]).toEqual([]);
+    } finally {
+        warn.mockRestore();
+        error.mockRestore();
+    }
+}
+
+/** Two series that share one name and have no `id`. */
+const sameNamedSeries = (c: DataClass): { name: string; data: { name: string; value: number }[] }[] => [
+    { name: 'A', data: points(c) },
+    { name: 'A', data: points(c).map(p => ({ name: p.name, value: p.value / 2 })) },
+];
+
 describe('duplicate labels and values give one mark per point at its own position, without NG0955', () => {
     for (const chart of DUPLICATE_CASES) {
         for (const cls of [DUP_LABELS, DUP_VALUES]) {
-            it(`${chart.label} / ${cls.id}`, async () => {
-                const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-                const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-                try {
+            it(`${chart.label} / ${cls.id}`, () => expectNoDuplicateKeys(async () => {
                     const fixture = await render(chart, cls);
+                    rerender(fixture, chart.inputs(cls));
                     const svg = rootSvg(fixture);
                     const marks = Array.from(svg.querySelectorAll<SVGGraphicsElement>(chart.pointMark as string));
                     // A stacked bar draws one segment per series in each category.
@@ -563,12 +596,7 @@ describe('duplicate labels and values give one mark per point at its own positio
                     for (let i = 1; i < centres.length; i++) {
                         expect(rtl ? centres[i] < centres[i - 1] : centres[i] > centres[i - 1]).toBe(true);
                     }
-                    expect([...duplicateKeyWarnings(warn), ...duplicateKeyWarnings(error)]).toEqual([]);
-                } finally {
-                    warn.mockRestore();
-                    error.mockRestore();
-                }
-            });
+            }));
         }
     }
 
@@ -582,24 +610,41 @@ describe('duplicate labels and values give one mark per point at its own positio
         ['heatmap', HeatmapComponent, (c: DataClass) => ({ data: c.values.map((v, i) => ({ row: 'r', col: c.names[i], value: v })) })],
         ['combo', ComboChartComponent, (c: DataClass) => ({ barSeries: [seriesOf(c)[0]] })],
     ] as [string, Type<unknown>, (c: DataClass) => Record<string, unknown>][]) {
-        it(`${label} logs no NG0955 for duplicate labels, duplicate values and equal values`, async () => {
-            const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-            const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-            try {
-                for (const cls of [DUP_LABELS, DUP_VALUES, ALL_EQUAL]) {
-                    const chart: ChartCase = { label, type, inputs, marks: [], plot: 'view-box' };
-                    const fixture = await render(chart, cls);
-                    // A second pass over fresh arrays makes the repeater reconcile rather than only create.
-                    for (const [name, value] of Object.entries(inputs(cls))) fixture.componentRef.setInput(name, value);
-                    fixture.detectChanges();
-                }
-                expect([...duplicateKeyWarnings(warn), ...duplicateKeyWarnings(error)]).toEqual([]);
-            } finally {
-                warn.mockRestore();
-                error.mockRestore();
+        it(`${label} logs no NG0955 for duplicate labels, duplicate values and equal values`, () => expectNoDuplicateKeys(async () => {
+            for (const cls of [DUP_LABELS, DUP_VALUES, ALL_EQUAL]) {
+                const fixture = await render({ label, type, inputs, marks: [], plot: 'view-box' }, cls);
+                rerender(fixture, inputs(cls));
             }
-        });
+        }));
     }
+
+    // Series with one name and no id share a legend key, a tooltip row label and a polygon key.
+    for (const [label, type, inputs] of [
+        ['line', LineChartComponent, (c: DataClass) => ({ series: sameNamedSeries(c) })],
+        ['area', AreaChartComponent, (c: DataClass) => ({ series: sameNamedSeries(c) })],
+        ['radar', RadarChartComponent, (c: DataClass) => ({ series: sameNamedSeries(c) })],
+        ['stacked-bar', StackedBarChartComponent, (c: DataClass) => ({ series: sameNamedSeries(c), categories: c.names })],
+        ['combo', ComboChartComponent, (c: DataClass) => ({ barSeries: sameNamedSeries(c).slice(0, 1), lineSeries: sameNamedSeries(c).slice(1) })],
+    ] as [string, Type<unknown>, (c: DataClass) => Record<string, unknown>][]) {
+        it(`${label} logs no NG0955 for same-named series`, () => expectNoDuplicateKeys(async () => {
+            const fixture = await render({ label, type, inputs, marks: [], plot: 'view-box' }, ALL_EQUAL);
+            // The tooltip lists one row per series, labelled by series name.
+            (fixture.componentInstance as { setHover?: (i: number) => void }).setHover?.(0);
+            fixture.detectChanges();
+            rerender(fixture, inputs(ALL_EQUAL));
+        }));
+    }
+
+    it('heatmap keeps the cells ("a-b", "c") and ("a", "b-c") apart without NG0955', () => expectNoDuplicateKeys(async () => {
+        const data = (): { row: string; col: string; value: number }[] => [
+            { row: 'a-b', col: 'c', value: 1 },
+            { row: 'a', col: 'b-c', value: 2 },
+        ];
+        const chart: ChartCase = { label: 'heatmap', type: HeatmapComponent, inputs: () => ({ data: data() }), marks: [], plot: 'view-box' };
+        const fixture = await render(chart, ALL_EQUAL);
+        rerender(fixture, { data: data() });
+        expect(fixture.nativeElement.querySelectorAll('rect[data-slot="heatmap-cell"]')).toHaveLength(2);
+    }));
 });
 
 // ---------------------------------------------------------------------------
@@ -639,8 +684,10 @@ describe('every chart root carries its data-slot', () => {
             fixtures.push(fixture);
             for (const [name, value] of Object.entries(inputs)) fixture.componentRef.setInput(name, value);
             fixture.detectChanges();
-            const root = (fixture.nativeElement as HTMLElement).querySelector(`[data-slot="${slot}"]`);
-            expect(root, `no element with data-slot="${slot}"`).not.toBeNull();
+            // The root is the host itself or the element it renders around everything else.
+            const host = fixture.nativeElement as HTMLElement;
+            const root = [host, host.firstElementChild].find(el => el?.getAttribute('data-slot') === slot);
+            expect(root, `the root of <${host.localName}> has no data-slot="${slot}"`).toBeDefined();
         });
     }
 });
