@@ -3999,7 +3999,7 @@
       "file": "packages/components/ui/context-menu-attach.directive.ts",
       "kind": "directive",
       "selector": "[uiContextMenuAttach]",
-      "description": "Attach a context menu to any element with data. Right-clicking the host element opens the provided {@link ContextMenuComponent} at the cursor position and emits {@link ContextMenuEvent} with the bound data.",
+      "description": "Attach a context menu to any element with data. Right-clicking, pressing the context-menu key on, or long-pressing the host element opens the provided {@link ContextMenuComponent} at the pointer or finger and emits {@link ContextMenuEvent} with the bound data.",
       "projectsContent": false,
       "inputs": [
         {
@@ -4017,7 +4017,7 @@
         {
           "name": "uiContextMenuAttach",
           "type": "ContextMenuComponent",
-          "description": "The menu to open when the host is right-clicked.",
+          "description": "The menu to open when the host is right-clicked or long-pressed.",
           "required": true
         }
       ],
@@ -4083,7 +4083,7 @@
         {
           "name": "disabled",
           "type": "boolean",
-          "description": "Greys the item to 50% and sets `pointer-events: none`, so neither hover nor a click reaches it and {@link onClick} never runs. Note it emits no `aria-disabled`/`data-disabled` attribute and the item carries no `role=\"menuitem\"`, so a disabled item is invisible to assistive tech — and no item participates in the sub-menu arrow-key ring, which only walks `[role=\"menuitem\"]:not([data-disabled])`.",
+          "description": "Greys the item to 50% and sets `pointer-events: none`. It is exposed as `aria-disabled=\"true\"` and `data-disabled`, drops out of the menu's arrow-key ring, and no activation reaches it by any route: a click from assistive technology or a programmatic `.click()` is stopped before your own `(click)` sees it, and Enter and Space do nothing.",
           "default": "false"
         },
         {
@@ -4406,7 +4406,7 @@
       "file": "packages/components/ui/data-table-context-menu.directive.ts",
       "kind": "directive",
       "selector": "ui-data-table[uiDataTableContextMenu]",
-      "description": "Attach a context menu to a `<ui-data-table>` element. Right-clicking a row opens the provided {@link ContextMenuComponent} and emits {@link TableRowContextMenuEvent}. Right-clicking a header (when `contextMenuRowsOnly` is false) emits {@link DataTableHeaderContextMenuEvent}.",
+      "description": "Attach a context menu to a `<ui-data-table>` element. Right-clicking or long-pressing a row opens the provided {@link ContextMenuComponent} and emits {@link TableRowContextMenuEvent}. Right-clicking a header (when `contextMenuRowsOnly` is false) emits {@link DataTableHeaderContextMenuEvent}.",
       "projectsContent": false,
       "inputs": [
         {
@@ -4502,7 +4502,7 @@
       "file": "packages/components/ui/data-table/addons/context-menu/context-menu.directive.ts",
       "kind": "directive",
       "selector": "[uiDtContextMenu]",
-      "description": "Opt-in context-menu addon for `<ui-data-table>`. Attaches via DI to the `DataTableAddonHost` the base provides, contributes the ⋮ row/header buttons through the host's generic slot registries, and renders menus itself (imperative `ContextMenuComponent`) — the base ships no context-menu code or dependency. Reachable by mouse (`contextmenu`), touch (long-press), and the ⋮ buttons.",
+      "description": "Opt-in context-menu addon for `<ui-data-table>`. Attaches via DI to the `DataTableAddonHost` the base provides, contributes the ⋮ row/header buttons through the host's generic slot registries, and renders menus itself (imperative `ContextMenuComponent`) — the base ships no context-menu code or dependency. Reachable by mouse (`contextmenu`), keyboard (the context-menu key), touch (long-press), and the ⋮ buttons. A long-press that the browser also reports as a `contextmenu` (Android) opens the menu, and emits, once.",
       "projectsContent": false,
       "inputs": [
         {
@@ -9784,7 +9784,7 @@
         {
           "name": "disabled",
           "type": "unknown",
-          "description": "Greys the item to 50% opacity, sets `pointer-events-none` so clicks pass through, suppresses {@link selected}, and — via the `data-disabled` attribute — removes the item from the menu's arrow-key ring entirely (see `MenubarContentComponent.getFocusableItems`). The item is not reachable with Tab either: every menu item carries `tabindex=\"-1\"` per the WAI-ARIA menu pattern, so Tab leaves the menu rather than walking it.",
+          "description": "Greys the item to 50% opacity, sets `pointer-events-none` so clicks pass through, exposes `aria-disabled=\"true\"`, suppresses {@link selected} and keeps a click made any other way (assistive technology, a programmatic `.click()`) from reaching a `(click)` bound on the item, and — via the `data-disabled` attribute — removes the item from the menu's arrow-key ring entirely (see `MenubarContentComponent.getFocusableItems`). The item is not reachable with Tab either: every menu item carries `tabindex=\"-1\"` per the WAI-ARIA menu pattern, so Tab leaves the menu rather than walking it.",
           "default": "false, { transform: booleanAttribute }"
         },
         {
@@ -9804,7 +9804,7 @@
         {
           "name": "selected",
           "type": "void",
-          "description": "Fires when the item is activated by click or Enter, just before the menu is closed. Never fires while {@link disabled}."
+          "description": "Fires when the item is activated by click, Enter or Space, just before the menu is closed. Never fires while {@link disabled}."
         }
       ],
       "methods": []
@@ -16241,7 +16241,7 @@
       "file": "packages/components/ui/table-context-menu.directive.ts",
       "kind": "directive",
       "selector": "table[uiTableContextMenu], [uiTable]",
-      "description": "Attach a context menu to a `<table>` or `[uiTable]` element. Right-clicking a table row or cell opens the provided {@link ContextMenuComponent} and emits {@link TableRowContextMenuEvent} / {@link TableCellContextMenuEvent}.",
+      "description": "Attach a context menu to a `<table>` or `[uiTable]` element. Right-clicking or long-pressing a table row or cell opens the provided {@link ContextMenuComponent} and emits {@link TableRowContextMenuEvent} / {@link TableCellContextMenuEvent}.",
       "projectsContent": false,
       "inputs": [
         {
@@ -16259,7 +16259,7 @@
         {
           "name": "uiTableContextMenu",
           "type": "ContextMenuComponent | null",
-          "description": "The menu to open when a row or cell is right-clicked.",
+          "description": "The menu to open when a row or cell is right-clicked or long-pressed.",
           "default": "null"
         }
       ],
@@ -16267,12 +16267,12 @@
         {
           "name": "cellContextMenu",
           "type": "TableCellContextMenuEvent<T>",
-          "description": "Emits the cell that was right-clicked."
+          "description": "Emits the cell that was right-clicked or long-pressed."
         },
         {
           "name": "rowContextMenu",
           "type": "TableRowContextMenuEvent<T>",
-          "description": "Emits the row that was right-clicked."
+          "description": "Emits the row that was right-clicked or long-pressed."
         }
       ],
       "methods": []
@@ -17535,7 +17535,7 @@
       "file": "packages/components/ui/tree-context-menu.directive.ts",
       "kind": "directive",
       "selector": "ui-tree[uiTreeContextMenu]",
-      "description": "Attach a context menu to a `<ui-tree>` element. Right-clicking a tree item opens the provided {@link ContextMenuComponent} at the cursor position and emits {@link TreeContextMenuEvent} with the node data extracted from the DOM: `{ key, label, expanded, selected, element }`, where `key` is the item's `value` (its `data-key`), `label` its own `<ui-tree-label>` text, and `expanded` / `selected` its current state.",
+      "description": "Attach a context menu to a `<ui-tree>` element. Right-clicking, pressing the context-menu key on, or long-pressing a tree item opens the provided {@link ContextMenuComponent} at the cursor position and emits {@link TreeContextMenuEvent} with the node data extracted from the DOM: `{ key, label, expanded, selected, element }`, where `key` is the item's `value` (its `data-key`), `label` its own `<ui-tree-label>` text, and `expanded` / `selected` its current state.",
       "projectsContent": false,
       "inputs": [
         {
@@ -17547,7 +17547,7 @@
         {
           "name": "uiTreeContextMenu",
           "type": "ContextMenuComponent",
-          "description": "The menu to open when a node is right-clicked.",
+          "description": "The menu to open when a node is right-clicked or long-pressed.",
           "required": true
         }
       ],
@@ -17555,7 +17555,7 @@
         {
           "name": "nodeContextMenu",
           "type": "TreeContextMenuEvent<T>",
-          "description": "Emits the node that was right-clicked."
+          "description": "Emits the node that was right-clicked or long-pressed."
         }
       ],
       "methods": []

@@ -32,12 +32,14 @@ import {
                 (nodeContextMenu)="onNode($event)"
             />
             <p data-testid="node">{{ node() }}</p>
+            <p data-testid="opened">{{ opened() }}</p>
         </main>
     `,
 })
 export class TreeContextMenuDemoComponent {
     readonly menu = viewChild.required<ContextMenuComponent>('menu');
     readonly node = signal('');
+    readonly opened = signal(0);
 
     readonly nodes: TreeNode[] = [
         {
@@ -54,5 +56,6 @@ export class TreeContextMenuDemoComponent {
 
     onNode(event: TreeContextMenuEvent): void {
         this.node.set(JSON.stringify(event.node).slice(0, 60));
+        this.opened.update(n => n + 1);
     }
 }

@@ -32,12 +32,15 @@ import {
                 </ui-dropdown-menu-content>
             </ui-dropdown-menu>
             <p data-testid="selected">{{ selected() }}</p>
+            <p data-testid="count">{{ count() }}</p>
         </main>
     `,
 })
 export class DropdownMenuDemoComponent {
     protected readonly selected = signal('');
+    protected readonly count = signal(0);
     protected pick(name: string): void {
         this.selected.set(name);
+        this.count.update(n => n + 1);
     }
 }

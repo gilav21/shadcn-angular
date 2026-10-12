@@ -16,3 +16,20 @@ test('dropdown menu opens, click item fires action, menu closes', async ({ page 
     await expect(page.getByTestId('selected')).toHaveText('settings');
     await expect(page.getByTestId('item-profile')).toBeHidden();
 });
+
+// UC-1: a keyboard user opens the menu, arrows to an item and presses Enter. The
+// consumer's (click) must run exactly once, the same as for a pointer.
+test('dropdown menu item runs its action once on Enter from the keyboard', async ({ page }) => {
+    await page.goto('/');
+
+    await page.getByRole('button', { name: 'Open menu' }).focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('item-profile')).toBeVisible();
+
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+
+    await expect(page.getByTestId('selected')).toHaveText('settings');
+    await expect(page.getByTestId('count')).toHaveText('1');
+    await expect(page.getByTestId('item-profile')).toBeHidden();
+});

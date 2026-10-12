@@ -1326,12 +1326,12 @@
       "lines": 274
     },
     "context-menu/context-menu.component.browser.spec.ts": {
-      "bytes": 15771,
-      "lines": 347
+      "bytes": 11994,
+      "lines": 262
     },
     "context-menu/context-menu.component.spec.ts": {
-      "bytes": 25314,
-      "lines": 611
+      "bytes": 33066,
+      "lines": 787
     },
     "context-menu/context-menu.component.ts": {
       "bytes": 6724,
@@ -1470,8 +1470,8 @@
       "lines": 46
     },
     "data-table-context-menu.directive.spec.ts": {
-      "bytes": 18647,
-      "lines": 485
+      "bytes": 18980,
+      "lines": 492
     },
     "data-table-context-menu.directive.ts": {
       "bytes": 5376,
@@ -6442,12 +6442,12 @@
       "lines": 35
     },
     "tree/tree.component.spec.ts": {
-      "bytes": 26706,
-      "lines": 678
+      "bytes": 28151,
+      "lines": 705
     },
     "tree/tree.component.ts": {
-      "bytes": 18846,
-      "lines": 503
+      "bytes": 19185,
+      "lines": 506
     },
     "tree/tree.stories.ts": {
       "bytes": 14425,
@@ -7144,12 +7144,12 @@
       "lines": 163
     },
     "touch.spec.ts": {
-      "bytes": 31914,
-      "lines": 845
+      "bytes": 36378,
+      "lines": 938
     },
     "touch.ts": {
-      "bytes": 20912,
-      "lines": 535
+      "bytes": 23651,
+      "lines": 594
     },
     "utils.ts": {
       "bytes": 2463,
