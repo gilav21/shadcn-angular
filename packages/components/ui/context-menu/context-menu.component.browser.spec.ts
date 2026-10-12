@@ -153,7 +153,7 @@ describe('ContextMenu direction (real browser)', () => {
                 </ui-context-menu-trigger>
                 <ui-context-menu-content>
                     <ui-context-menu-item>Cut</ui-context-menu-item>
-                    <ui-context-menu-item (click)="copied = copied + 1">Copy</ui-context-menu-item>
+                    <ui-context-menu-item>Copy</ui-context-menu-item>
                     <ui-context-menu-item [disabled]="true">Paste</ui-context-menu-item>
                     <ui-context-menu-sub>
                         <ui-context-menu-sub-trigger>Share</ui-context-menu-sub-trigger>
@@ -178,22 +178,7 @@ describe('ContextMenu direction (real browser)', () => {
 })
 class KeyboardHost {
     readonly dir = signal<'ltr' | 'rtl'>('ltr');
-    copied = 0;
 }
-
-@Component({
-    template: `
-        <ui-context-menu>
-            <ui-context-menu-trigger><button type="button" data-testid="target">Target</button></ui-context-menu-trigger>
-            <ui-context-menu-content>
-                <ui-context-menu-item [disabled]="true">Cut</ui-context-menu-item>
-                <ui-context-menu-item [disabled]="true">Paste</ui-context-menu-item>
-            </ui-context-menu-content>
-        </ui-context-menu>
-    `,
-    imports: [ContextMenuComponent, ContextMenuTriggerComponent, ContextMenuContentComponent, ContextMenuItemComponent],
-})
-class AllDisabledHost { }
 
 const settle = (ms = 100): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -227,71 +212,32 @@ async function openFromTarget<T>(host: new () => T, prepare?: (instance: T) => v
     return { fixture, open };
 }
 
+// The ring, the focus return and the flyout keys run in jsdom too (context-menu.component.spec.ts); what only a
+// real browser decides is kept here: the inline-end arrow of a right-to-left menu, which needs resolved
+// direction, and a real mouse click, which moves focus to <body> before the menu closes.
 describe('ContextMenu keyboard (real browser)', () => {
     afterEach(() => {
         document.querySelectorAll('[data-context-menu-portal], [data-context-menu-sub-portal]').forEach(el => el.remove());
     });
 
-    // UC-2, UC-5. A menu opened with the context-menu key is a real menu: focus
-    // lands on the first enabled item, arrows wrap past the disabled one, Home and
-    // End jump, the submenu opens with the inline-end arrow, and Space acts.
-    it.each(['ltr', 'rtl'] as const)('an open context menu is a keyboard menu (%s)', async dir => {
-        const { fixture, open } = await openFromTarget(KeyboardHost, host => host.dir.set(dir));
+    it('opens the flyout with the left arrow and closes it with the right arrow in a right-to-left menu', async () => {
+        await openFromTarget(KeyboardHost, host => host.dir.set('rtl'));
 
-        expect(document.querySelector('[data-slot="context-menu-content"]')?.getAttribute('role')).toBe('menu');
-        expect(focusedLabel()).toBe('Cut');
-        expect(document.activeElement?.getAttribute('role')).toBe('menuitem');
-
-        pressOnFocused('ArrowDown');
-        expect(focusedLabel()).toBe('Copy');
-        pressOnFocused('ArrowDown');
-        expect(focusedLabel()).toBe('Share');
-        pressOnFocused('ArrowDown');
-        expect(focusedLabel()).toBe('Cut');
         pressOnFocused('End');
         expect(focusedLabel()).toBe('Share');
-        pressOnFocused('Home');
-        expect(focusedLabel()).toBe('Cut');
-        pressOnFocused('ArrowUp');
+        pressOnFocused('ArrowRight');
+        await settle();
         expect(focusedLabel()).toBe('Share');
 
-        pressOnFocused(dir === 'rtl' ? 'ArrowLeft' : 'ArrowRight');
+        pressOnFocused('ArrowLeft');
         await settle();
         expect(focusedLabel()).toBe('Email');
         pressOnFocused('ArrowDown');
         expect(focusedLabel()).toBe('Link');
-        pressOnFocused('Home');
-        expect(focusedLabel()).toBe('Email');
-        pressOnFocused('End');
-        expect(focusedLabel()).toBe('Link');
 
-        pressOnFocused(dir === 'rtl' ? 'ArrowRight' : 'ArrowLeft');
+        pressOnFocused('ArrowRight');
         await settle();
         expect(focusedLabel()).toBe('Share');
-
-        pressOnFocused('Home');
-        pressOnFocused('ArrowDown');
-        expect(focusedLabel()).toBe('Copy');
-        const space = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true });
-        document.activeElement!.dispatchEvent(space);
-        fixture.detectChanges();
-        expect(fixture.componentInstance.copied).toBe(1);
-        expect(space.defaultPrevented).toBe(true);
-        expect(document.querySelector('[data-slot="context-menu-content"]')).toBeNull();
-
-        await open();
-        expect(focusedLabel()).toBe('Cut');
-    });
-
-    it('a menu whose items are all disabled takes focus on its panel and arrows do nothing', async () => {
-        await openFromTarget(AllDisabledHost);
-        const panel = document.querySelector<HTMLElement>('[data-slot="context-menu-content"]')!;
-
-        expect(document.activeElement).toBe(panel);
-        pressOnFocused('ArrowDown');
-        pressOnFocused('End');
-
-        expect(document.activeElement).toBe(panel);
     });
 });
 
@@ -300,48 +246,17 @@ describe('ContextMenu focus return (real browser)', () => {
         document.querySelectorAll('[data-context-menu-portal], [data-context-menu-sub-portal]').forEach(el => el.remove());
     });
 
-    // UC-6. However the menu closes, focus goes back to the element that had it
-    // before it opened.
-    it.each([
-        { how: 'activating an item with Enter', close: () => pressOnFocused('Enter') },
-        { how: 'clicking outside', close: () => document.body.dispatchEvent(new MouseEvent('click', { bubbles: true })) },
-        // A real click on empty page moves focus to <body> before the menu closes: the menu's own focus is "lost", not moved on.
-        { how: 'clicking empty page with the mouse', close: () => userEvent.click(document.querySelector<HTMLElement>('[data-testid="blank"]')!) },
-        { how: 'pressing Tab', close: () => pressOnFocused('Tab') },
-        {
-            how: 'pressing Tab inside the flyout',
-            close: async () => {
-                pressOnFocused('End');
-                pressOnFocused('ArrowRight');
-                await settle();
-                pressOnFocused('Tab');
-            },
-        },
-    ])('closing by $how hands focus back to the target', async ({ close }) => {
+    // A real click on empty page moves focus to <body> before the menu closes: the menu's own focus is lost, not moved on.
+    it('hands focus back to the target when a real mouse click on empty page closes the menu', async () => {
         const { fixture } = await openFromTarget(KeyboardHost);
-        // The menu took focus off the target, so there is something to hand back (UC-5 precondition).
         expect(document.activeElement).not.toBe(targetButton());
 
-        await close();
+        await userEvent.click(document.querySelector<HTMLElement>('[data-testid="blank"]')!);
         fixture.detectChanges();
         await fixture.whenStable();
         await settle();
 
         expect(document.querySelector('[data-slot="context-menu-content"]')).toBeNull();
         expect(document.activeElement).toBe(targetButton());
-    });
-
-    it('leaves focus alone when the user moved it elsewhere before the menu closed', async () => {
-        const { fixture } = await openFromTarget(KeyboardHost);
-        const outside = document.querySelector<HTMLInputElement>('[data-testid="outside"]')!;
-
-        outside.focus();
-        outside.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-        fixture.detectChanges();
-        await fixture.whenStable();
-        await settle();
-
-        expect(document.querySelector('[data-slot="context-menu-content"]')).toBeNull();
-        expect(document.activeElement).toBe(outside);
     });
 });

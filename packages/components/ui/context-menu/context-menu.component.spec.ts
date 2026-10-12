@@ -609,3 +609,179 @@ describe('ContextMenu item activation is one action however it is made', () => {
         expect(disabled.getAttribute('aria-disabled')).toBe('true');
     });
 });
+
+@Component({
+    template: `
+        <input data-testid="outside" aria-label="Outside field" />
+        <ui-context-menu>
+            <ui-context-menu-trigger><button type="button" data-testid="target">Target</button></ui-context-menu-trigger>
+            <ui-context-menu-content>
+                <ui-context-menu-item>Cut</ui-context-menu-item>
+                <ui-context-menu-item>Copy</ui-context-menu-item>
+                <ui-context-menu-item [disabled]="true">Paste</ui-context-menu-item>
+                <ui-context-menu-sub>
+                    <ui-context-menu-sub-trigger>Share</ui-context-menu-sub-trigger>
+                    <ui-context-menu-sub-content>
+                        <ui-context-menu-item>Email</ui-context-menu-item>
+                        <ui-context-menu-item>Link</ui-context-menu-item>
+                    </ui-context-menu-sub-content>
+                </ui-context-menu-sub>
+            </ui-context-menu-content>
+        </ui-context-menu>
+    `,
+    imports: [ContextMenuComponent, ContextMenuTriggerComponent, ContextMenuContentComponent, ContextMenuItemComponent, ContextMenuSubComponent, ContextMenuSubTriggerComponent, ContextMenuSubContentComponent],
+})
+class KeyboardMenuHostComponent { }
+
+@Component({
+    template: `
+        <ui-context-menu>
+            <ui-context-menu-trigger><button type="button" data-testid="target">Target</button></ui-context-menu-trigger>
+            <ui-context-menu-content>
+                <ui-context-menu-item [disabled]="true">Cut</ui-context-menu-item>
+                <ui-context-menu-item [disabled]="true">Paste</ui-context-menu-item>
+            </ui-context-menu-content>
+        </ui-context-menu>
+    `,
+    imports: [ContextMenuComponent, ContextMenuTriggerComponent, ContextMenuContentComponent, ContextMenuItemComponent],
+})
+class DisabledOnlyMenuHostComponent { }
+
+const settle = (ms = 80): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+
+describe('ContextMenu as a keyboard menu', () => {
+    const target = (): HTMLButtonElement => document.querySelector<HTMLButtonElement>('[data-testid="target"]')!;
+    const focused = (): string => (document.activeElement?.textContent ?? '').trim();
+    const press = (key: string, init: KeyboardEventInit = {}): KeyboardEvent => {
+        const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init });
+        document.activeElement!.dispatchEvent(event);
+        return event;
+    };
+
+    /** The menu opened the way the context-menu key opens it: a contextmenu event on the focused target. */
+    async function openOnTarget<T>(host: new () => T): Promise<ComponentFixture<T>> {
+        await TestBed.configureTestingModule({ imports: [host] }).compileComponents();
+        const fixture = TestBed.createComponent(host);
+        document.body.appendChild(fixture.nativeElement);
+        fixture.detectChanges();
+        target().focus();
+        target().dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 120, clientY: 120 }));
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await settle();
+        return fixture;
+    }
+
+    afterEach(() => {
+        document.querySelectorAll('[data-context-menu-portal], [data-context-menu-sub-portal]').forEach(el => el.remove());
+    });
+
+    // UC-5: focus lands on the first enabled item; arrows wrap past the disabled one; Home and End jump.
+    it('takes focus on its first enabled item and walks the ring, wrapping past disabled items', async () => {
+        await openOnTarget(KeyboardMenuHostComponent);
+
+        expect(document.querySelector('[data-slot="context-menu-content"]')?.getAttribute('role')).toBe('menu');
+        expect(focused()).toBe('Cut');
+        const steps: Array<[string, string]> = [
+            ['ArrowDown', 'Copy'], ['ArrowDown', 'Share'], ['ArrowDown', 'Cut'],
+            ['End', 'Share'], ['Home', 'Cut'], ['ArrowUp', 'Share'],
+        ];
+        for (const [key, expected] of steps) {
+            press(key);
+            expect(focused()).toBe(expected);
+        }
+        const chord = press('ArrowDown', { ctrlKey: true });
+        expect(chord.defaultPrevented).toBe(false);
+        expect(focused()).toBe('Share');
+    });
+
+    it('opens the flyout from the keyboard, walks it with the arrows, Home and End, and closes it back to its trigger', async () => {
+        await openOnTarget(KeyboardMenuHostComponent);
+        press('End');
+
+        press('ArrowRight');
+        await settle();
+        expect(focused()).toBe('Email');
+        press('ArrowDown');
+        expect(focused()).toBe('Link');
+        press('Home');
+        expect(focused()).toBe('Email');
+        press('End');
+        expect(focused()).toBe('Link');
+        press('ArrowUp');
+        expect(focused()).toBe('Email');
+        press('ArrowLeft');
+        await settle();
+        expect(focused()).toBe('Share');
+    });
+
+    // UC-6: however it closes, focus goes back to the element that had it before.
+    it.each([
+        { how: 'Enter on an item', close: () => press('Enter') },
+        { how: 'a click outside', close: () => document.body.dispatchEvent(new MouseEvent('click', { bubbles: true })) },
+        { how: 'Tab', close: () => press('Tab') },
+        {
+            how: 'Tab inside the flyout',
+            close: async () => {
+                press('End');
+                press('ArrowRight');
+                await settle();
+                press('Tab');
+            },
+        },
+    ])('closing with $how hands focus back to the target', async ({ close }) => {
+        const fixture = await openOnTarget(KeyboardMenuHostComponent);
+        expect(document.activeElement).not.toBe(target());
+
+        await close();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await settle();
+
+        expect(document.querySelector('[data-slot="context-menu-content"]')).toBeNull();
+        expect(document.activeElement).toBe(target());
+    });
+
+    it('leaves focus alone when the user moved it elsewhere before the menu closed', async () => {
+        const fixture = await openOnTarget(KeyboardMenuHostComponent);
+        const outside = document.querySelector<HTMLInputElement>('[data-testid="outside"]')!;
+
+        outside.focus();
+        outside.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await settle();
+
+        expect(document.querySelector('[data-slot="context-menu-content"]')).toBeNull();
+        expect(document.activeElement).toBe(outside);
+    });
+
+    it('hands focus back to the newest target when it is opened again from another focusable element', async () => {
+        const fixture = await openOnTarget(KeyboardMenuHostComponent);
+        const outside = document.querySelector<HTMLInputElement>('[data-testid="outside"]')!;
+        const menu = fixture.debugElement.query(By.directive(ContextMenuComponent)).componentInstance as ContextMenuComponent;
+
+        outside.focus();
+        menu.show(30, 30);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await settle();
+        menu.close();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await settle();
+
+        expect(document.activeElement).toBe(outside);
+    });
+
+    it('takes focus on its panel when every item is disabled, and arrows do nothing', async () => {
+        await openOnTarget(DisabledOnlyMenuHostComponent);
+        const panel = document.querySelector<HTMLElement>('[data-slot="context-menu-content"]')!;
+
+        expect(document.activeElement).toBe(panel);
+        press('ArrowDown');
+        press('End');
+
+        expect(document.activeElement).toBe(panel);
+    });
+});
