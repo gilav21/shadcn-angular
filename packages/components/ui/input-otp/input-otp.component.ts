@@ -15,6 +15,20 @@ import { cn } from '../../lib/utils';
 /** Slot count used when {@link InputOTPComponent.maxLength} is left unset. */
 const DEFAULT_OTP_LENGTH = 6;
 
+/** What a user may type: alphanumerics, upper-cased, cut to the slot count. */
+function sanitizeCode(text: string, slotCount: number): string {
+  return text.replaceAll(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, slotCount);
+}
+
+/**
+ * One-time-code field: a row of slots drawn over a single visually hidden text
+ * input that does all the real editing.
+ *
+ * The row is pinned `dir="ltr"`, like `ui-time-picker`: a code is a digit or
+ * Latin run, which the bidi algorithm lays out left to right in every script,
+ * so in an RTL page it still reads `123456` from left to right and the
+ * Left/Right arrows move the highlight left/right on screen.
+ */
 @Component({
   selector: 'ui-input-otp',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -23,30 +37,28 @@ const DEFAULT_OTP_LENGTH = 6;
   ],
   template: `
     <div
+      dir="ltr"
       [class]="containerClasses()"
       [attr.data-slot]="'input-otp'"
-      (keydown)="onKeydown($event)"
-      tabindex="-1"
     >
       @for (i of slots(); track i; let idx = $index) {
         <div
           [class]="slotClasses(idx)"
           [attr.data-slot]="'input-otp-slot'"
+          [attr.data-active]="activeIndex() === idx ? 'true' : null"
+          aria-hidden="true"
+          (mousedown)="$event.preventDefault()"
           (click)="focusSlot(idx)"
-          (keydown.enter)="focusSlot(idx)"
-          tabindex="0"
-          role="button"
-          [attr.aria-label]="'Digit ' + (idx + 1)"
         >
           <span class="text-center">{{ getValue(idx) }}</span>
-          @if (focusedIndex() === idx && !getValue(idx)) {
+          @if (activeIndex() === idx && !getValue(idx)) {
             <div class="pointer-events-none absolute inset-0 flex items-center justify-center">
               <div class="h-4 w-px animate-caret-blink bg-foreground"></div>
             </div>
           }
         </div>
         @if (separatorAfter().includes(idx)) {
-          <div class="flex items-center px-1">
+          <div class="flex items-center px-1" aria-hidden="true">
             <div class="h-1 w-1 rounded-full bg-muted-foreground"></div>
           </div>
         }
@@ -60,7 +72,8 @@ const DEFAULT_OTP_LENGTH = 6;
         [disabled]="isDisabled()"
         [attr.aria-label]="ariaLabel()"
         [attr.aria-labelledby]="ariaLabelledby()"
-        (input)="onInput($event)"
+        (input)="onInput()"
+        (keydown)="onKeydown($event)"
         (focus)="onFocus()"
         (blur)="onBlur()"
         class="sr-only"
@@ -92,19 +105,29 @@ export class InputOTPComponent implements ControlValueAccessor {
   /** Zero-based slot indices after which a separator dot is drawn; the flanking slots get rounded outer corners. Default `[2]` splits a 6-digit code into 3+3. */
   separator = input<number[]>([2]);
 
-  /** Two-way code. Typed input is stripped to alphanumerics, upper-cased and truncated to {@link maxLength}, so what is written back may differ from what was typed. */
+  /**
+   * Two-way code. Typed input is stripped to alphanumerics, upper-cased and
+   * truncated to {@link maxLength}, so what is written back may differ from
+   * what was typed. A write from a form (`formControlName`, `ngModel`) lands
+   * here too and is rendered as-is, without sanitising.
+   */
   value = model<string>('');
 
   private onChange: (value: string) => void = () => { };
   private onTouched: () => void = () => { };
   private readonly formDisabled = signal(false);
+  private readonly focused = signal(false);
+  /** Slot the next character lands in; mirrors the hidden input's selection start. */
+  private readonly caret = signal(0);
 
   /** Effective disabled state: the {@link disabled} input OR a reactive `control.disable()` relayed through {@link setDisabledState}. */
   readonly isDisabled = computed(() => this.disabled() || this.formDisabled());
-  focusedIndex = signal(-1);
 
   /** {@link maxLength} with the default applied — every internal length calculation reads this, never the raw input. */
   readonly slotCount = computed(() => this.maxLength() ?? DEFAULT_OTP_LENGTH);
+
+  /** Index of the highlighted slot — the one the next character replaces or fills — or `-1` while the field is not focused. */
+  readonly activeIndex = computed(() => (this.focused() ? Math.min(this.caret(), this.slotCount() - 1) : -1));
 
   slots = computed(() => Array.from({ length: this.slotCount() }, (_, i) => i));
   separatorAfter = computed(() => this.separator());
@@ -116,11 +139,11 @@ export class InputOTPComponent implements ControlValueAccessor {
 
   slotClasses = (idx: number): string => cn(
     'relative flex items-center justify-center border-y border-r border-input text-sm shadow-sm transition-all cursor-text',
-    idx === 0 && 'ltr:rounded-l-md rtl:rounded-r-md ltr:border-l rtl:border-r',
-    idx === this.slotCount() - 1 && 'ltr:rounded-r-md rtl:rounded-l-md ltr:border-r rtl:border-l',
-    this.separatorAfter().includes(idx) && 'ltr:rounded-r-md rtl:rounded-l-md ltr:border-r rtl:border-l',
-    this.separatorAfter().includes(idx - 1) && 'ltr:rounded-l-md rtl:rounded-r-md ltr:border-l rtl:border-r',
-    this.focusedIndex() === idx && 'z-10 ring-2 ring-ring',
+    idx === 0 && 'rounded-l-md border-l',
+    idx === this.slotCount() - 1 && 'rounded-r-md',
+    this.separatorAfter().includes(idx) && 'rounded-r-md',
+    this.separatorAfter().includes(idx - 1) && 'rounded-l-md border-l',
+    this.activeIndex() === idx && 'z-10 ring-2 ring-ring',
   );
 
   /** Character shown in the slot at `idx`, or `''` when the code is not that long yet. */
@@ -128,54 +151,67 @@ export class InputOTPComponent implements ControlValueAccessor {
     return this.value()[idx] || '';
   }
 
-  /** Click/Enter handler for a slot: focuses the hidden input and moves the caret there, clamped to the end of the code so gaps can't be created. */
+  /** Click/tap handler for a slot: focuses the hidden input and puts the caret on that slot, clamped to the end of the code so gaps can't be created. */
   focusSlot(idx: number): void {
     if (this.isDisabled()) return;
-    this.hiddenInput?.nativeElement?.focus();
-    this.focusedIndex.set(Math.min(idx, this.value().length));
+    this.hiddenInput.nativeElement.focus();
+    this.select(idx);
   }
 
-  /** Sanitizes typed or pasted text (alphanumerics only, upper-cased, truncated to {@link maxLength}), publishes it, advances the caret and writes the cleaned text back to the hidden input. */
-  onInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const newValue = input.value.replaceAll(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, this.slotCount());
-    this.commit(newValue);
-    this.focusedIndex.set(Math.min(newValue.length, this.slotCount() - 1));
-    input.value = newValue;
+  /**
+   * Moves the hidden input's real selection to `index`, clamped to
+   * `[0, min(value.length, slotCount - 1)]`. A slot holding a character is
+   * selected, so typing replaces it natively; the first empty slot gets a
+   * collapsed caret, so typing fills it. Invariant: the highlighted slot is
+   * always where the next character lands.
+   */
+  private select(index: number): void {
+    const length = this.value().length;
+    const slot = Math.max(0, Math.min(index, length, this.slotCount() - 1));
+    this.caret.set(slot);
+    this.hiddenInput.nativeElement.setSelectionRange(slot, slot < length ? slot + 1 : slot);
   }
 
+  /** Reads what native editing produced (typing, Backspace, autofill, dictation), sanitises it, publishes it and re-selects the slot after the edit. */
+  onInput(): void {
+    const field = this.hiddenInput.nativeElement;
+    const raw = field.value;
+    const next = sanitizeCode(raw, this.slotCount());
+    const caretAfter = sanitizeCode(raw.slice(0, field.selectionStart ?? raw.length), this.slotCount()).length;
+    field.value = next;
+    if (next !== this.value()) {
+      this.commit(next);
+    }
+    this.select(caretAfter);
+  }
 
-  /** Arrow keys move the caret between slots; Backspace drops the last character regardless of caret position. All three suppress the browser default. */
+  /** Arrow keys, Home and End move the highlight (and with it the real selection) between slots; everything else is native editing. */
   onKeydown(event: KeyboardEvent): void {
-    if (event.key === 'ArrowLeft') {
-      event.preventDefault();
-      this.focusedIndex.update(i => Math.max(0, i - 1));
-    } else if (event.key === 'ArrowRight') {
-      event.preventDefault();
-      this.focusedIndex.update(i => Math.min(this.value().length, i + 1));
-    } else if (event.key === 'Backspace') {
-      const currentValue = this.value();
-      if (currentValue.length > 0) {
-        const newValue = currentValue.slice(0, -1);
-        this.commit(newValue);
-        this.focusedIndex.set(newValue.length);
-        if (this.hiddenInput?.nativeElement) {
-          this.hiddenInput.nativeElement.value = newValue;
-        }
-      }
-      event.preventDefault();
+    const target = this.slotTarget(event.key);
+    if (target === null) return;
+    event.preventDefault();
+    this.select(target);
+  }
+
+  private slotTarget(key: string): number | null {
+    switch (key) {
+      case 'ArrowLeft': return this.caret() - 1;
+      case 'ArrowRight': return this.caret() + 1;
+      case 'Home': return 0;
+      case 'End': return this.value().length;
+      default: return null;
     }
   }
 
-
-  /** Puts the blinking caret on the first empty slot when the hidden input gains focus. */
+  /** Highlights the first empty slot, or the last slot when the code is full, so typing always has a defined target. */
   onFocus(): void {
-    this.focusedIndex.set(this.value().length);
+    this.focused.set(true);
+    this.select(this.value().length);
   }
 
-  /** Clears the caret highlight on blur so no slot appears active. */
+  /** Clears the highlight so no slot appears active, and marks the form control touched. */
   onBlur(): void {
-    this.focusedIndex.set(-1);
+    this.focused.set(false);
     this.onTouched();
   }
 
