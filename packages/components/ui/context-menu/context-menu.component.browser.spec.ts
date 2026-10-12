@@ -233,7 +233,7 @@ describe('ContextMenu keyboard (real browser)', () => {
     // UC-2, UC-5. A menu opened with the context-menu key is a real menu: focus
     // lands on the first enabled item, arrows wrap past the disabled one, Home and
     // End jump, the submenu opens with the inline-end arrow, and Space acts.
-    it.fails.each(['ltr', 'rtl'] as const)('an open context menu is a keyboard menu (%s)', async dir => {
+    it.each(['ltr', 'rtl'] as const)('an open context menu is a keyboard menu (%s)', async dir => {
         const { fixture, open } = await openFromTarget(KeyboardHost, host => host.dir.set(dir));
 
         expect(document.querySelector('[data-slot="context-menu-content"]')?.getAttribute('role')).toBe('menu');
@@ -277,7 +277,7 @@ describe('ContextMenu keyboard (real browser)', () => {
         expect(focusedLabel()).toBe('Cut');
     });
 
-    it.fails('a menu whose items are all disabled takes focus on its panel and arrows do nothing', async () => {
+    it('a menu whose items are all disabled takes focus on its panel and arrows do nothing', async () => {
         await openFromTarget(AllDisabledHost);
         const panel = document.querySelector<HTMLElement>('[data-slot="context-menu-content"]')!;
 
@@ -296,7 +296,7 @@ describe('ContextMenu focus return (real browser)', () => {
 
     // UC-6. However the menu closes, focus goes back to the element that had it
     // before it opened.
-    it.fails.each([
+    it.each([
         { how: 'activating an item with Enter', close: () => pressOnFocused('Enter') },
         { how: 'clicking outside', close: () => document.body.dispatchEvent(new MouseEvent('click', { bubbles: true })) },
         { how: 'pressing Tab', close: () => pressOnFocused('Tab') },

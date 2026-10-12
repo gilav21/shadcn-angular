@@ -190,7 +190,9 @@ export class ContextMenuSubContentComponent implements OnDestroy {
     /**
      * Keyboard handling for the open flyout. ArrowDown/ArrowUp walk the
      * enabled entries with wrap-around ({@link focusNextItem} /
-     * {@link focusPrevItem}); the closing key is direction-aware — ArrowLeft in
+     * {@link focusPrevItem}); Home and End jump to the ends; Tab closes the
+     * whole menu, returning focus to where it was before it opened; the
+     * closing key is direction-aware — ArrowLeft in
      * LTR, ArrowRight in RTL — and Escape always closes; all three close the
      * flyout and return focus to its trigger. Every key event is stopped from
      * propagating, so the document-level Escape listener on the root menu never
@@ -220,6 +222,12 @@ export class ContextMenuSubContentComponent implements OnDestroy {
         } else if (event.key === 'ArrowUp') {
             event.preventDefault();
             this.focusPrevItem(event.target as HTMLElement);
+        } else if (event.key === 'Home' || event.key === 'End') {
+            event.preventDefault();
+            this.focusEdgeItem(event.target as HTMLElement, event.key === 'Home' ? 'first' : 'last');
+        } else if (event.key === 'Tab') {
+            event.preventDefault();
+            this.contextMenu?.close();
         } else if (event.key === 'Escape') {
             event.preventDefault();
             this.sub.leave();
@@ -255,5 +263,12 @@ export class ContextMenuSubContentComponent implements OnDestroy {
         const index = items.indexOf(currentItem);
         const prevIndex = (index - 1 + items.length) % items.length;
         items[prevIndex]?.focus();
+    }
+
+    /** Home / End: focuses the first or last enabled entry of the flyout `currentItem` is in. */
+    private focusEdgeItem(currentItem: HTMLElement, edge: 'first' | 'last'): void {
+        const div = currentItem.closest<HTMLElement>('[role="menu"]') ?? currentItem;
+        const items = Array.from(div.querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
+        (edge === 'first' ? items[0] : items.at(-1))?.focus();
     }
 }
