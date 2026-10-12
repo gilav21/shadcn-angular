@@ -202,6 +202,7 @@ export class ContextMenuSubContentComponent implements OnDestroy {
      */
     onKeydown(event: KeyboardEvent): void {
         event.stopPropagation();
+        if (event.ctrlKey || event.altKey || event.metaKey) return;
         const closeKey = this.contextMenu?.isRtl() ? 'ArrowRight' : 'ArrowLeft';
         const item = event.target as HTMLElement;
         const actions: Record<string, () => void> = {

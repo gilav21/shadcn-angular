@@ -1,22 +1,24 @@
 import {
+  DestroyRef,
   Directive,
   ElementRef,
-  OnDestroy,
   inject,
   input,
   output,
 } from '@angular/core';
+import { onContextGesture, type ContextGesture } from '../lib/touch';
 import { ContextMenuComponent } from './context-menu';
 import { DataTableComponent } from './data-table';
 import { TableRowContextMenuEvent } from './table-context-menu.directive';
 
 export interface DataTableHeaderContextMenuEvent {
   column: { id: string | null; name: string; element: HTMLElement };
-  event: MouseEvent;
+  /** The `contextmenu` event of a right-click or the keyboard key, or the `touchstart` that began a long-press. */
+  event: MouseEvent | TouchEvent;
 }
 
 /**
- * Attach a context menu to a `<ui-data-table>` element. Right-clicking a row
+ * Attach a context menu to a `<ui-data-table>` element. Right-clicking or long-pressing a row
  * opens the provided {@link ContextMenuComponent} and emits
  * {@link TableRowContextMenuEvent}. Right-clicking a header (when
  * `contextMenuRowsOnly` is false) emits {@link DataTableHeaderContextMenuEvent}.
@@ -25,7 +27,7 @@ export interface DataTableHeaderContextMenuEvent {
   selector: 'ui-data-table[uiDataTableContextMenu]',
   standalone: true,
 })
-export class DataTableContextMenuDirective<T = unknown> implements OnDestroy {
+export class DataTableContextMenuDirective<T = unknown> {
   /** The menu to open when a row or header is right-clicked. */
   uiDataTableContextMenu = input.required<ContextMenuComponent>();
   /** Stops the table from opening the menu. */
@@ -38,43 +40,36 @@ export class DataTableContextMenuDirective<T = unknown> implements OnDestroy {
   /** Emits the column header that was right-clicked. */
   headerContextMenu = output<DataTableHeaderContextMenuEvent>();
 
-  private readonly tableElement = inject(ElementRef<HTMLElement>);
+  private readonly tableElement = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private readonly dataTable = inject<DataTableComponent<T> | null>(DataTableComponent as any, { optional: true });
-  private readonly contextMenuListener = (event: MouseEvent): void => {
-    if (this.contextMenuDisabled()) {
-      return;
-    }
-
-    const target = event.target as HTMLElement;
-
-    const row = target.closest('[data-slot="table-row"], [data-slot="data-table-row"], tr[data-row-index]');
-    if (row) {
-      event.preventDefault();
-      event.stopPropagation();
-      this.handleRowContextMenu(target, event, row as HTMLElement);
-      return;
-    }
-
-    if (!this.contextMenuRowsOnly()) {
-      const header = target.closest('[data-slot="table-head"], [data-slot="data-table-header"], th');
-      if (header) {
-        event.preventDefault();
-        event.stopPropagation();
-        this.handleHeaderContextMenu(event, header as HTMLElement);
-      }
-    }
-  };
 
   constructor() {
-    this.tableElement.nativeElement.addEventListener('contextmenu', this.contextMenuListener);
+    const stop = onContextGesture(this.tableElement, (gesture) => this.open(gesture));
+    inject(DestroyRef).onDestroy(stop);
   }
 
-  ngOnDestroy(): void {
-    this.tableElement.nativeElement.removeEventListener('contextmenu', this.contextMenuListener);
+  /** Whether the gesture landed on a row (or an allowed header) and was taken. */
+  private open(gesture: ContextGesture): boolean {
+    if (this.contextMenuDisabled()) return false;
+    // A long-press on a cell starts a range selection in a table that has one; only a right-click opens the menu there.
+    if (gesture.source.type === 'touchstart' && this.dataTable?.enableCellRangeSelection()) return false;
+
+    const target = gesture.target as HTMLElement;
+    const row = target.closest<HTMLElement>('[data-slot="table-row"], [data-slot="data-table-row"], tr[data-row-index]');
+    if (row) {
+      this.handleRowContextMenu(target, gesture, row);
+      return true;
+    }
+
+    if (this.contextMenuRowsOnly()) return false;
+    const header = target.closest<HTMLElement>('[data-slot="table-head"], [data-slot="data-table-header"], th');
+    if (!header) return false;
+    this.handleHeaderContextMenu(gesture, header);
+    return true;
   }
 
-  private handleRowContextMenu(target: HTMLElement, event: MouseEvent, rowEl: HTMLElement): void {
+  private handleRowContextMenu(target: HTMLElement, gesture: ContextGesture, rowEl: HTMLElement): void {
     const rowData = this.extractDataTableRow(rowEl);
 
     const cell = target.closest<HTMLElement>('[data-slot="table-cell"], td');
@@ -88,7 +83,7 @@ export class DataTableContextMenuDirective<T = unknown> implements OnDestroy {
     this.rowContextMenu.emit({
       row: rowData.data,
       index: rowData.index,
-      event,
+      event: gesture.source,
       depth: treeRow?.depth,
       isLeaf: treeRow?.isLeaf,
       parentRow: treeRow?.parentRow,
@@ -99,21 +94,21 @@ export class DataTableContextMenuDirective<T = unknown> implements OnDestroy {
       const contextData = treeRow
         ? { ...treeRow, row: rowData.data }
         : rowData.data;
-      contextMenu.show(event.clientX, event.clientY, contextData);
+      contextMenu.show(gesture.clientX, gesture.clientY, contextData);
     }
   }
 
-  private handleHeaderContextMenu(event: MouseEvent, headerEl: HTMLElement): void {
+  private handleHeaderContextMenu(gesture: ContextGesture, headerEl: HTMLElement): void {
     const columnData = this.extractHeaderData(headerEl);
 
     this.headerContextMenu.emit({
       column: columnData,
-      event,
+      event: gesture.source,
     });
 
     const contextMenu = this.uiDataTableContextMenu();
     if (contextMenu) {
-      contextMenu.show(event.clientX, event.clientY, columnData);
+      contextMenu.show(gesture.clientX, gesture.clientY, columnData);
     }
   }
 

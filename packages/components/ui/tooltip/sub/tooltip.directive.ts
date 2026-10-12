@@ -73,8 +73,9 @@ export class TooltipDirective implements OnDestroy {
 
     /**
      * Touch alternative to hover: taps toggle the bubble, which then
-     * auto-dismisses after `TOUCH_AUTO_DISMISS_MS` or on the next touch
-     * anywhere in the document. The host's own click/tap behaviour is left
+     * auto-dismisses after `TOUCH_AUTO_DISMISS_MS` or on the next touch outside
+     * the host (a second tap on the host toggles it off). The touch that showed
+     * it never dismisses it, and the host's own click/tap behaviour is left
      * intact.
      */
     onTouchStart(): void {

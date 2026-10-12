@@ -1,4 +1,5 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
+import { pointOf } from '../lib/touch';
 import { TreeComponent, TreeItemComponent, TreeLabelComponent, TreeIconComponent, TreeNode } from './tree';
 import {
     ContextMenuComponent,
@@ -262,8 +263,8 @@ export const EventPayload: Story = {
             nodeName,
             onEvent: (event: TreeContextMenuEvent<TreeContextNode>): void => {
                 state.node = event.node;
-                state.x = event.event.clientX;
-                state.y = event.event.clientY;
+                state.x = pointOf(event.event).x;
+                state.y = pointOf(event.event).y;
             },
         },
         template: `

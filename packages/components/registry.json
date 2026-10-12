@@ -3970,6 +3970,9 @@
     "files": [
       "context-menu-attach.directive.ts"
     ],
+    "libFiles": [
+      "touch.ts"
+    ],
     "dependencies": [
       "context-menu"
     ],
@@ -3990,6 +3993,9 @@
     ],
     "files": [
       "tree-context-menu.directive.ts"
+    ],
+    "libFiles": [
+      "touch.ts"
     ],
     "dependencies": [
       "context-menu"
@@ -4015,6 +4021,9 @@
     "files": [
       "table-context-menu.directive.ts"
     ],
+    "libFiles": [
+      "touch.ts"
+    ],
     "dependencies": [
       "context-menu"
     ],
@@ -4035,6 +4044,9 @@
     ],
     "files": [
       "data-table-context-menu.directive.ts"
+    ],
+    "libFiles": [
+      "touch.ts"
     ],
     "dependencies": [
       "context-menu",

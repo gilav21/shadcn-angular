@@ -10,6 +10,7 @@ import {
   type ContextMenuEvent,
 } from '../../../../../packages/components/ui';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
+import { pointOf } from '../../../../../packages/components/lib/touch';
 import { CONTEXT_MENU_ATTACH_DEMO_LOCALES } from './context-menu-attach-demo.locales';
 
 interface AttachDemoItem {
@@ -296,12 +297,13 @@ export class ContextMenuAttachDemoComponent {
     this.action.set(label);
   }
 
-  private setPayload(item: AttachDemoItem, event: MouseEvent, index: number | undefined): void {
+  private setPayload(item: AttachDemoItem, event: MouseEvent | TouchEvent, index: number | undefined): void {
+    const point = pointOf(event);
     this.payload.set({
       label: item.label,
       index: index === undefined ? '—' : String(index),
-      x: Math.round(event.clientX),
-      y: Math.round(event.clientY),
+      x: Math.round(point.x),
+      y: Math.round(point.y),
     });
   }
 }

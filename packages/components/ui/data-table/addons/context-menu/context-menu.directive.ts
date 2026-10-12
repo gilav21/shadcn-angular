@@ -19,7 +19,7 @@ import {
   type SortDirection,
 } from '../..';
 import { ContextMenuComponent, type ContextMenuItem } from '../../../context-menu';
-import { onLongPress } from '../../../../lib/touch';
+import { onContextGesture, type ContextGesture } from '../../../../lib/touch';
 import { inheritThemeTokens } from '../../../../lib/theme-presets';
 
 /** Builds a consumer-provided row-action menu for a given row context. */
@@ -32,15 +32,13 @@ const SLOT_ID = 'context-menu';
  * `DataTableAddonHost` the base provides, contributes the ⋮ row/header buttons
  * through the host's generic slot registries, and renders menus itself
  * (imperative `ContextMenuComponent`) — the base ships no context-menu code or
- * dependency. Reachable by mouse (`contextmenu`), touch (long-press), and the
- * ⋮ buttons.
+ * dependency. Reachable by mouse (`contextmenu`), keyboard (the context-menu key), touch
+ * (long-press), and the ⋮ buttons. A long-press that the browser also reports
+ * as a `contextmenu` (Android) opens the menu, and emits, once.
  */
 @Directive({
   selector: '[uiDtContextMenu]',
   standalone: true,
-  host: {
-    '(contextmenu)': 'onContextMenu($event)',
-  },
 })
 export class DataTableContextMenuDirective<T = unknown> {
   private readonly host = inject<DataTableAddonHost<T>>(DataTableAddonHost);
@@ -88,7 +86,7 @@ export class DataTableContextMenuDirective<T = unknown> {
     });
 
     afterNextRender(() => {
-      const teardown = onLongPress(this.el.nativeElement, (event) => this.onLongPress(event));
+      const teardown = onContextGesture(this.el.nativeElement, (gesture) => this.openRowMenuFromGesture(gesture));
       destroyRef.onDestroy(teardown);
     });
 
@@ -117,21 +115,13 @@ export class DataTableContextMenuDirective<T = unknown> {
     ];
   }
 
-  /** Right-click handler: open the row menu for the clicked row. */
-  onContextMenu(event: MouseEvent): void {
-    if (!this.rowActions()) return;
-    const context = this.rowContextFromTarget(event.target);
-    if (!context) return;
-    event.preventDefault();
-    this.openRowMenu(event.clientX, event.clientY, context);
-  }
-
-  private onLongPress(event: TouchEvent): void {
-    if (!this.rowActions()) return;
-    const context = this.rowContextFromTarget(event.target);
-    if (!context) return;
-    const touch = event.touches[0];
-    this.openRowMenu(touch?.clientX ?? 0, touch?.clientY ?? 0, context);
+  /** Whether the gesture landed on a rendered row of a table with `rowActions` and was taken. */
+  private openRowMenuFromGesture(gesture: ContextGesture): boolean {
+    if (!this.rowActions()) return false;
+    const context = this.rowContextFromTarget(gesture.target);
+    if (!context) return false;
+    this.openRowMenu(gesture.clientX, gesture.clientY, context);
+    return true;
   }
 
   private rowContextFromTarget(target: EventTarget | null): RowActionContext<T> | null {

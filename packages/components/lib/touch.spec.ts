@@ -7,6 +7,7 @@ import {
     onPointerDrag,
     onContextGesture,
     dismissOnOutsideTouch,
+    pointOf,
     type ContextGesture,
 } from './touch';
 import { prefersReducedMotion } from './media';
@@ -496,14 +497,26 @@ describe('onPointerDrag', () => {
     });
 });
 
+describe('pointOf', () => {
+    it('reads the point of a mouse event and of the first finger of a touch event', () => {
+        const click = new MouseEvent('contextmenu', { clientX: 12, clientY: 34 });
+        const hold = touchEvent('touchstart', [{ clientX: 56, clientY: 78 }, { clientX: 1, clientY: 1 }]);
+        const lift = touchEvent('touchend', [], [{ clientX: 9, clientY: 8 }]);
+
+        expect([pointOf(click), pointOf(hold), pointOf(lift), pointOf(touchEvent('touchcancel'))]).toEqual([
+            { x: 12, y: 34 },
+            { x: 56, y: 78 },
+            { x: 9, y: 8 },
+            { x: 0, y: 0 },
+        ]);
+    });
+});
+
 function rightClick(target: Element, point = { clientX: 140, clientY: 90 }): MouseEvent {
     const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2, ...point });
     target.dispatchEvent(event);
     return event;
 }
-
-/** RED until spec 8 Tasks 4-5: the helpers below do not exist yet. */
-const redUntil = it.fails;
 
 describe('onContextGesture', () => {
     let outer: HTMLElement;
@@ -544,7 +557,7 @@ describe('onContextGesture', () => {
         return event;
     }
 
-    redUntil('answers a right-click once, with the point, the target and the event itself', () => {
+    it('answers a right-click once, with the point, the target and the event itself', () => {
         const handler = listen(outer, true);
 
         const event = rightClick(leaf, { clientX: 140, clientY: 90 });
@@ -554,13 +567,13 @@ describe('onContextGesture', () => {
         expect(event.defaultPrevented).toBe(true);
     });
 
-    redUntil('leaves the native menu alone when the handler does not claim the gesture', () => {
+    it('leaves the native menu alone when the handler does not claim the gesture', () => {
         listen(outer, false);
 
         expect(rightClick(leaf).defaultPrevented).toBe(false);
     });
 
-    redUntil('answers a one-finger long-press once, at the finger, with the touchstart as source', () => {
+    it('answers a one-finger long-press once, at the finger, with the touchstart as source', () => {
         const handler = listen(outer, true);
 
         const start = touchDown();
@@ -574,7 +587,7 @@ describe('onContextGesture', () => {
 
     // Android raises its own contextmenu for a held finger; iOS does not. One
     // gesture must reach the handler once on both.
-    redUntil('swallows the contextmenu Android raises after a claimed long-press, but not a later right-click', () => {
+    it('swallows the contextmenu Android raises after a claimed long-press, but not a later right-click', () => {
         const handler = listen(outer, true);
 
         touchDown();
@@ -590,9 +603,21 @@ describe('onContextGesture', () => {
         expect(handler).toHaveBeenCalledTimes(2);
     });
 
+    // The echo is not always late: the browser's own hold timer can beat ours.
+    it('answers the gesture once when the browser contextmenu arrives before the hold completes', () => {
+        const handler = listen(outer, true);
+
+        touchDown();
+        vi.advanceTimersByTime(450);
+        rightClick(leaf, finger);
+        vi.advanceTimersByTime(1000);
+
+        expect(handler).toHaveBeenCalledTimes(1);
+    });
+
     // The swallow is for a gesture somebody answered. A long-press the handler
     // declined leaves the browser's own contextmenu a genuine second chance.
-    redUntil('hands the contextmenu after a declined long-press to the handler instead of swallowing it', () => {
+    it('hands the contextmenu after a declined long-press to the handler instead of swallowing it', () => {
         const handler = listen(outer, false);
 
         touchDown();
@@ -603,7 +628,7 @@ describe('onContextGesture', () => {
         expect(echo.defaultPrevented).toBe(false);
     });
 
-    redUntil.each([
+    it.each([
         { name: 'the finger travels 15px', gesture: () => leaf.dispatchEvent(touchEvent('touchmove', [{ clientX: 75, clientY: 40 }])) },
         { name: 'a second finger joins', gesture: () => touchDown([finger, { clientX: 200, clientY: 40 }]) },
         { name: 'the finger lifts', gesture: () => leaf.dispatchEvent(touchEvent('touchend', [], [finger])) },
@@ -620,7 +645,7 @@ describe('onContextGesture', () => {
 
     // The platform's own long-press arriving in the middle of a pan: the finger
     // travelled, so it is not a press, and the browser's guess must lose.
-    redUntil('ignores and suppresses the contextmenu a browser raises mid-pan', () => {
+    it('ignores and suppresses the contextmenu a browser raises mid-pan', () => {
         const handler = listen(outer, true);
 
         touchDown();
@@ -634,7 +659,7 @@ describe('onContextGesture', () => {
 
     // What Chromium really sends for the key (measured): a PointerEvent with button -1 and
     // the centre of the focused element. It is a real point and passes through untouched.
-    redUntil('passes the point of a keyboard-initiated contextmenu through as reported', () => {
+    it('passes the point of a keyboard-initiated contextmenu through as reported', () => {
         const handler = listen(outer, true);
 
         const key = new PointerEvent('contextmenu', { bubbles: true, cancelable: true, button: -1, clientX: 260, clientY: 170 });
@@ -644,7 +669,7 @@ describe('onContextGesture', () => {
         expect(key.defaultPrevented).toBe(true);
     });
 
-    redUntil('stops a pending long-press when the browser starts a drag of the element', () => {
+    it('stops a pending long-press when the browser starts a drag of the element', () => {
         const handler = listen(outer, true);
 
         touchDown();
@@ -657,7 +682,7 @@ describe('onContextGesture', () => {
 
     // Nested targets: the innermost one that acts owns the gesture, for the
     // right-click and for the long-press alike.
-    redUntil.each([
+    it.each([
         { gesture: 'right-click', perform: () => { rightClick(leaf); } },
         { gesture: 'long-press', perform: () => { touchDown(); vi.advanceTimersByTime(500); } },
     ])('the innermost claiming target owns a $gesture', ({ perform }) => {
@@ -670,7 +695,7 @@ describe('onContextGesture', () => {
         expect(outerHandler).not.toHaveBeenCalled();
     });
 
-    redUntil.each([
+    it.each([
         { gesture: 'right-click', perform: () => { rightClick(leaf); } },
         { gesture: 'long-press', perform: () => { touchDown(); vi.advanceTimersByTime(500); } },
     ])('the outer target answers a $gesture the inner one declined', ({ perform }) => {
@@ -683,7 +708,7 @@ describe('onContextGesture', () => {
         expect(outerHandler).toHaveBeenCalledTimes(1);
     });
 
-    redUntil('stops answering after cleanup', () => {
+    it('stops answering after cleanup', () => {
         const handler = listen(outer, true);
         for (const dispose of disposers.splice(0)) dispose();
 

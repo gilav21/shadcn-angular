@@ -60,9 +60,6 @@ function contextMenuEventAt(target: HTMLElement, x: number, y: number): MouseEve
   return event;
 }
 
-/** RED until spec 8 Task 5: an expected failure under vitest, skipped where `it.fails` does not exist (the jest consumer leg). */
-const redUntilTask5 = Reflect.has(it, 'fails') ? it.fails : it.skip;
-
 /** A finger held on `target` for the long-press duration (fake timers must be installed). */
 function holdFinger(target: HTMLElement, x: number, y: number): Event {
   const event = new Event('touchstart', { bubbles: true, cancelable: true });
@@ -104,11 +101,14 @@ describe('ContextMenuAttachDirective', () => {
     expect(comp.stubMenu.show).toHaveBeenCalledWith(123, 456);
   });
 
-  redUntilTask5('opens the menu at the finger and emits what a right-click emits on a long-press, once on Android', () => {
+  it('opens the menu at the finger and emits what a right-click emits on a long-press, once on Android', () => {
     vi.useFakeTimers();
     try {
       const { comp, hostEl } = setup();
       contextMenuEventAt(hostEl, 123, 456);
+
+      // A second, later gesture: within the same instant it would be taken for the right-click's own echo.
+      vi.advanceTimersByTime(1000);
 
       const touch = holdFinger(hostEl, 123, 456);
       const echo = androidEcho(hostEl, 123, 456);

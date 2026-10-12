@@ -1,5 +1,6 @@
 import { JsonPipe } from '@angular/common';
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
+import { pointOf } from '../lib/touch';
 import { ContextMenuAttachDirective, type ContextMenuEvent } from './context-menu-attach.directive';
 import {
   ContextMenuComponent,
@@ -191,8 +192,8 @@ export const EventPayload: Story = {
             state.last = {
                 item: payload.item,
                 index: payload.index ?? null,
-                x: Math.round(payload.event.clientX),
-                y: Math.round(payload.event.clientY),
+                x: Math.round(pointOf(payload.event).x),
+                y: Math.round(pointOf(payload.event).y),
             };
         };
         return {

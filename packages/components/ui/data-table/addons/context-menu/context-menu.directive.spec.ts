@@ -164,9 +164,6 @@ function touchStartAt(x: number, y: number): Event {
   return event;
 }
 
-/** RED until spec 8 Task 5: an expected failure under vitest, skipped where `it.fails` does not exist (the jest consumer leg). */
-const redUntilTask5 = Reflect.has(it, 'fails') ? it.fails : it.skip;
-
 describe('DataTableContextMenuDirective', () => {
   let host: FakeHost<Row>;
   let originalRect: typeof Element.prototype.getBoundingClientRect;
@@ -437,7 +434,7 @@ describe('DataTableContextMenuDirective', () => {
 
   // Android raises its own contextmenu for a held finger; iOS does not. The
   // table's row-menu output is analytics for consumers: one gesture, one emission.
-  redUntilTask5('opens a row menu once when the platform echoes a contextmenu after the long-press', async () => {
+  it('opens a row menu once when the platform echoes a contextmenu after the long-press', async () => {
     const { comp, fixture, directive } = setup(host);
     comp.actions.set(() => [{ label: 'Edit' }]);
     fixture.detectChanges();

@@ -89,9 +89,6 @@ function contextMenuEventAt(target: HTMLElement, x: number, y: number): MouseEve
   return event;
 }
 
-/** RED until spec 8 Task 5: an expected failure under vitest, skipped where `it.fails` does not exist (the jest consumer leg). */
-const redUntilTask5 = Reflect.has(it, 'fails') ? it.fails : it.skip;
-
 /** A finger held on `target` for the long-press duration (fake timers must be installed). */
 function holdFinger(target: HTMLElement, x: number, y: number): Event {
   const event = new Event('touchstart', { bubbles: true, cancelable: true });
@@ -130,17 +127,20 @@ describe('TreeContextMenuDirective', () => {
       { key: 'main', label: 'main.ts', expanded: false, selected: false, element: item('main') },
     ]);
     const [emitted] = comp.events;
-    expect(emitted.event.clientX).toBe(111);
-    expect(emitted.event.clientY).toBe(222);
+    expect((emitted.event as MouseEvent).clientX).toBe(111);
+    expect((emitted.event as MouseEvent).clientY).toBe(222);
     expect(comp.menu.show).toHaveBeenCalledWith(111, 222, emitted.node);
   });
 
-  redUntilTask5('opens the menu at the finger and emits what a right-click emits on a long-press of the same node', () => {
+  it('opens the menu at the finger and emits what a right-click emits on a long-press of the same node', () => {
     vi.useFakeTimers();
     try {
       const { comp, item } = setup();
       const label = item('main').querySelector('[data-slot="tree-label"]') as HTMLElement;
       contextMenuEventAt(label, 30, 50);
+
+      // A second, later gesture: within the same instant it would be taken for the right-click's own echo.
+      vi.advanceTimersByTime(1000);
 
       const touch = holdFinger(label, 30, 50);
       androidEcho(label, 30, 50);

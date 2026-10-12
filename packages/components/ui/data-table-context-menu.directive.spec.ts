@@ -175,9 +175,6 @@ function setupWithNullMenu(): {
   return { fixture, comp, tableEl, dataTable };
 }
 
-/** RED until spec 8 Task 5: an expected failure under vitest, skipped where `it.fails` does not exist (the jest consumer leg). */
-const redUntilTask5 = Reflect.has(it, 'fails') ? it.fails : it.skip;
-
 /** A finger held on `target` for the long-press duration (fake timers must be installed). */
 function holdFinger(target: HTMLElement, x: number, y: number): Event {
   const event = new Event('touchstart', { bubbles: true, cancelable: true });
@@ -222,12 +219,15 @@ describe('DataTableContextMenuDirective', () => {
     );
   });
 
-  redUntilTask5('opens the menu at the finger and emits what a right-click emits on a long-press of the same cell', () => {
+  it('opens the menu at the finger and emits what a right-click emits on a long-press of the same cell', () => {
     vi.useFakeTimers();
     try {
       const { comp, tableEl } = setupWithDataTable();
       const cell = tableEl.querySelector<HTMLElement>('[data-row-id="rA"] [data-column="name"]') as HTMLElement;
       contextMenuEventAt(cell, 10, 20);
+
+      // A second, later gesture: within the same instant it would be taken for the right-click's own echo.
+      vi.advanceTimersByTime(1000);
 
       const touch = holdFinger(cell, 10, 20);
       androidEcho(cell, 10, 20);
@@ -246,7 +246,7 @@ describe('DataTableContextMenuDirective', () => {
     }
   });
 
-  redUntilTask5('opens the header menu on a long-press of a header when headers are allowed', () => {
+  it('opens the header menu on a long-press of a header when headers are allowed', () => {
     vi.useFakeTimers();
     try {
       const { comp, fixture, tableEl } = setupWithoutDataTable();

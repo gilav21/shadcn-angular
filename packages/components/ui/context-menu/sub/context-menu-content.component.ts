@@ -96,9 +96,10 @@ export class ContextMenuContentComponent implements OnDestroy {
     }
 
     private showContent(): void {
+        // Opening again from another focusable target while already open: hand focus back to that one.
+        if (!this.focusBelongsToMenu()) this.returnFocusTo = this.activeElement();
         if (this.embeddedViewRef) return;
 
-        this.returnFocusTo = this.activeElement();
         this.portalHost = this.document.createElement('div');
         this.portalHost.dataset['contextMenuPortal'] = 'true';
         this.document.body.appendChild(this.portalHost);

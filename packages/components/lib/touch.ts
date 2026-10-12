@@ -289,6 +289,16 @@ export interface ContextGesture {
 }
 
 /**
+ * Where a mouse event or a touch event happened, in viewport coordinates. For
+ * reading the `event` a context-menu directive hands back, which is the
+ * `contextmenu` of a right-click or the `touchstart` of a long-press.
+ */
+export function pointOf(event: MouseEvent | TouchEvent): { readonly x: number; readonly y: number } {
+    const source = 'touches' in event ? (event.touches[0] ?? event.changedTouches[0]) : event;
+    return { x: source?.clientX ?? 0, y: source?.clientY ?? 0 };
+}
+
+/**
  * Calls `handler` once per context gesture on `element`: a right-click, the
  * keyboard context-menu key, or a one-finger long-press. Return `true` when you
  * acted on it — the gesture is then claimed: the native menu is suppressed,
@@ -297,11 +307,141 @@ export interface ContextGesture {
  * @returns cleanup
  */
 export function onContextGesture(
-    _element: HTMLElement,
-    _handler: (gesture: ContextGesture) => boolean,
-    _duration = 500,
+    element: HTMLElement,
+    handler: (gesture: ContextGesture) => boolean,
+    duration = 500,
 ): () => void {
-    throw new Error('onContextGesture: not implemented');
+    const touch = trackContextTouch();
+
+    const onPress = (event: TouchEvent): void => {
+        if (touch.dragged || claimedGestures.has(event)) return;
+        const finger = event.touches[0] ?? event.changedTouches[0];
+        if (!finger) return;
+        const target = (event.target as Element | null) ?? element;
+        // The browser's own hold timer can beat ours: its contextmenu already answered this press.
+        if (isRecentSameGesture(lastClaimedContext, target)) return;
+        if (!handler({ target, clientX: finger.clientX, clientY: finger.clientY, source: event })) return;
+        claimedGestures.add(event);
+        lastClaimedPress = { at: Date.now(), target };
+    };
+
+    const onContextMenu = (event: MouseEvent): void => {
+        if (claimedGestures.has(event)) return;
+        if (touch.panGuess || isRecentSameGesture(lastClaimedPress, event.target as Node | null)) {
+            claim(event);
+            return;
+        }
+        const target = event.target as Element;
+        if (!handler({ target, clientX: event.clientX, clientY: event.clientY, source: event })) return;
+        claim(event);
+        lastClaimedContext = { at: Date.now(), target };
+    };
+
+    const stopLongPress = onLongPress(element, onPress, duration);
+    element.addEventListener('touchstart', touch.onStart, { passive: true });
+    element.addEventListener('touchmove', touch.onMove, { passive: true });
+    element.addEventListener('dragstart', touch.onDragStart);
+    element.addEventListener('contextmenu', onContextMenu);
+
+    return () => {
+        stopLongPress();
+        element.removeEventListener('touchstart', touch.onStart);
+        element.removeEventListener('touchmove', touch.onMove);
+        element.removeEventListener('dragstart', touch.onDragStart);
+        element.removeEventListener('contextmenu', onContextMenu);
+    };
+}
+
+/**
+ * What `onContextGesture` needs to know about the finger beyond the hold itself:
+ * whether this touch has become a pan (so a browser `contextmenu` that follows is
+ * its own long-press guess, not a menu request) and whether the browser took the
+ * target for a drag.
+ */
+function trackContextTouch(): {
+    readonly onStart: (event: TouchEvent) => void;
+    readonly onMove: (event: TouchEvent) => void;
+    readonly onDragStart: () => void;
+    readonly panGuess: boolean;
+    readonly dragged: boolean;
+} {
+    let origin: { readonly x: number; readonly y: number } | null = null;
+    let travelled = false;
+    let lastTouchAt = 0;
+    let dragged = false;
+
+    return {
+        onStart: (event: TouchEvent): void => {
+            lastTouchAt = Date.now();
+            const finger = event.touches[0];
+            if (event.touches.length !== 1 || !finger) {
+                // A second finger is pan and zoom: the gesture is spent until every finger is up.
+                travelled = true;
+                origin = null;
+                return;
+            }
+            origin = { x: finger.clientX, y: finger.clientY };
+            travelled = false;
+            dragged = false;
+        },
+        onMove: (event: TouchEvent): void => {
+            lastTouchAt = Date.now();
+            const finger = event.touches[0];
+            const multiTouch = event.touches.length !== 1 || !finger;
+            const strayed = !!finger && !!origin && Math.hypot(finger.clientX - origin.x, finger.clientY - origin.y) > CONTEXT_SLOP_PX;
+            if (multiTouch || strayed) travelled = true;
+        },
+        // A draggable target may be picked up by the browser instead; that hold is a drag, not a press.
+        onDragStart: (): void => {
+            dragged = true;
+        },
+        get panGuess() {
+            return travelled && Date.now() - lastTouchAt < SAME_GESTURE_MS;
+        },
+        get dragged() {
+            return dragged;
+        },
+    };
+}
+
+/**
+ * How long after a claimed long-press a `contextmenu` is taken to be the same
+ * gesture, and how long after a pan a browser `contextmenu` is taken to be its
+ * own long-press guess.
+ *
+ * Android raises `contextmenu` for a held finger as well; iOS does not. Without
+ * a window the menu opens twice on one platform and not at all on the other.
+ */
+const SAME_GESTURE_MS = 700;
+
+/** How far a finger may travel and still count as held: the 10px `onLongPress` allows. */
+const CONTEXT_SLOP_PX = 10;
+
+/** Gestures an inner target already answered; ancestors skip them. */
+const claimedGestures = new WeakSet<Event>();
+
+interface ClaimedAt {
+    readonly at: number;
+    readonly target: Node;
+}
+
+/** The last long-press a handler claimed, so the platform's echo of it can be recognised. */
+let lastClaimedPress: ClaimedAt | null = null;
+
+/** The last native contextmenu a handler claimed, so a long-press timer that fires after it is not a second gesture. */
+let lastClaimedContext: ClaimedAt | null = null;
+
+/** Whether something landing on `hit` just now is the gesture `claimed` already answered. */
+function isRecentSameGesture(claimed: ClaimedAt | null, hit: Node | null): boolean {
+    if (!claimed || Date.now() - claimed.at >= SAME_GESTURE_MS) return false;
+    return !hit || claimed.target.contains(hit) || hit.contains(claimed.target);
+}
+
+/** Takes the event from the browser and from every other `onContextGesture` handler. */
+function claim(event: Event): void {
+    claimedGestures.add(event);
+    event.preventDefault();
+    event.stopPropagation();
 }
 
 /**
