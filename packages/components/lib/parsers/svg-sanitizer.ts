@@ -65,24 +65,34 @@ export function sanitizeSvg(svgString: string): string | null {
     return serializer.serializeToString(svgEl);
 }
 
+/**
+ * Keeps allow-listed elements and text, nothing else. Every child NODE is
+ * visited, not only elements: a comment or processing instruction that is inert
+ * in the XML tree serializes to text such as `<!--><img onerror=…>-->` that an
+ * HTML parser reads as a comment ending early, followed by live markup.
+ */
 function processElement(element: Element): void {
-    const children = Array.from(element.children);
-    for (const child of children) {
-        const tag = child.tagName.toLowerCase();
-
-        if (REMOVE_WITH_CHILDREN.has(tag)) {
+    for (const child of Array.from(element.childNodes)) {
+        if (child.nodeType === Node.ELEMENT_NODE) {
+            processChildElement(child as Element);
+        } else if (child.nodeType === Node.CDATA_SECTION_NODE) {
+            // `<![CDATA[` is markup in an XML serialization but not in every HTML context; as text it is escaped.
+            child.replaceWith(element.ownerDocument.createTextNode((child as CDATASection).data));
+        } else if (child.nodeType !== Node.TEXT_NODE) {
             child.remove();
-            continue;
         }
-
-        if (!ALLOWED_ELEMENTS.has(tag)) {
-            child.remove();
-            continue;
-        }
-
-        sanitizeElementAttributes(child, tag);
-        processElement(child);
     }
+}
+
+function processChildElement(child: Element): void {
+    const tag = child.tagName.toLowerCase();
+    if (REMOVE_WITH_CHILDREN.has(tag) || !ALLOWED_ELEMENTS.has(tag)) {
+        child.remove();
+        return;
+    }
+
+    sanitizeElementAttributes(child, tag);
+    processElement(child);
 }
 
 function sanitizeElementAttributes(element: Element, tag: string): void {
@@ -122,8 +132,18 @@ function sanitizeGlobalAttr(element: Element, attr: Attr, name: string): void {
     }
 }
 
+/**
+ * The URL parser removes every tab, line feed and carriage return before it
+ * reads the scheme, so `java\tscript:` is `javascript:` to a browser and has to
+ * be to this check too. (Leading whitespace is already skipped by the pattern;
+ * XML cannot carry the C0 controls the URL parser would also strip.)
+ */
+function urlAsBrowserParses(value: string): string {
+    return value.replaceAll(/[\t\n\r]/g, '');
+}
+
 function sanitizeUrlAttr(element: Element, attr: Attr, name: string): void {
-    if ((name === 'href' || name === 'xlink:href') && DANGEROUS_URL_PATTERN.test(attr.value)) {
+    if ((name === 'href' || name === 'xlink:href') && DANGEROUS_URL_PATTERN.test(urlAsBrowserParses(attr.value))) {
         element.removeAttribute(attr.name);
     }
 }

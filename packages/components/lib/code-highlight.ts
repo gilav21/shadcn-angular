@@ -218,37 +218,116 @@ export function languagePatternsFor(language: string | null | undefined): Langua
 export function tokenizeLine(line: string, patterns: LanguagePattern): CodeToken[] {
     if (!line) return [];
     const tokens: CodeToken[] = [];
+    const upcoming = new Array<PatternMatch | null | undefined>(patterns.length);
     let cursor = 0;
 
     while (cursor < line.length) {
-        const remaining = line.slice(cursor);
-        const best = findBestMatch(remaining, patterns);
-
-        if (best?.index === 0) {
+        const best = earliestMatch(line, patterns, upcoming, cursor);
+        if (!best) {
+            tokens.push({ type: 'text', text: line.slice(cursor) });
+            break;
+        }
+        if (best.index === cursor) {
             tokens.push({ type: best.type, text: best.text });
             cursor += best.text.length;
-        } else if (best) {
-            tokens.push({ type: 'text', text: remaining.slice(0, best.index) });
-            cursor += best.index;
         } else {
-            tokens.push({ type: 'text', text: remaining });
-            cursor += remaining.length;
+            // Not straight on to the token: the match is decided again once the
+            // cursor stands on it, because there it has no character before it
+            // (see earliestMatch) and the answer can differ.
+            tokens.push({ type: 'text', text: line.slice(cursor, best.index) });
+            cursor = best.index;
         }
     }
 
     return tokens;
 }
 
-function findBestMatch(
-    remaining: string,
+interface PatternMatch {
+    readonly type: string;
+    readonly text: string;
+    readonly index: number;
+}
+
+/**
+ * Two private clones of a caller's regex, so neither search mutates the caller's
+ * own `lastIndex` and a caller regex that already carries `g` or `y` behaves
+ * like any other: `forward` finds the next match anywhere after a position,
+ * `atStart` tests for a match at the very start of a string.
+ */
+interface Searcher {
+    readonly forward: RegExp;
+    readonly atStart: RegExp;
+}
+
+const SEARCHERS = new WeakMap<RegExp, Searcher>();
+
+function searcherOf(regex: RegExp): Searcher {
+    let searcher = SEARCHERS.get(regex);
+    if (!searcher) {
+        const flags = regex.flags.replaceAll(/[gy]/g, '');
+        searcher = { forward: new RegExp(regex.source, `${flags}g`), atStart: new RegExp(regex.source, `${flags}y`) };
+        SEARCHERS.set(regex, searcher);
+    }
+    return searcher;
+}
+
+/**
+ * The first non-empty match of `forward` at or after `from`, or `null`. An empty
+ * match cannot advance the cursor, so it counts as "no match here" and the
+ * search resumes one character on.
+ */
+function nextNonEmptyMatch(forward: RegExp, line: string, from: number): { text: string; index: number } | null {
+    let start = from;
+    while (start <= line.length) {
+        forward.lastIndex = start;
+        const match = forward.exec(line);
+        if (!match) return null;
+        if (match[0] !== '') return { text: match[0], index: match.index };
+        start = match.index + 1;
+    }
+    return null;
+}
+
+/**
+ * The match that starts first at or after `cursor`; the earlier pattern wins a
+ * tie.
+ *
+ * Two searches per pattern give exactly the tokens of the quadratic tokenizer
+ * this replaced, which matched against `line.slice(cursor)`:
+ *
+ * - AT the cursor the slice has no character before it, so `\b`, `^` and
+ *   lookbehind read differently there than in the whole line (`5$foo(` has a
+ *   boundary before the `$` in the line, none at the start of the slice). That
+ *   spot is decided by testing the slice itself, for a match at its start.
+ * - AFTER the cursor every position has the same characters before it either
+ *   way (a lookbehind reaching back past the cursor into the slice's missing
+ *   start is the one case that could differ, and no built-in pattern has one),
+ *   so a forward search on the whole line is the same answer. It is made once
+ *   and reused until the cursor reaches its start, which keeps the work for the
+ *   built-in patterns linear in the line; a caller pattern whose attempts scan
+ *   far and fail costs what it cost before.
+ */
+function earliestMatch(
+    line: string,
     patterns: LanguagePattern,
-): { type: string; text: string; index: number } | null {
-    let best: { type: string; text: string; index: number } | null = null;
-    for (const pattern of patterns) {
-        const match = pattern.regex.exec(remaining);
-        if (match && (best === null || match.index < best.index)) {
-            best = { type: pattern.type, text: match[0], index: match.index };
+    upcoming: (PatternMatch | null | undefined)[],
+    cursor: number,
+): PatternMatch | null {
+    const rest = line.slice(cursor);
+    let best: PatternMatch | null = null;
+    for (const [i, pattern] of patterns.entries()) {
+        const { forward, atStart } = searcherOf(pattern.regex);
+        atStart.lastIndex = 0;
+        const head = atStart.exec(rest);
+        if (head && head[0] !== '') return { type: pattern.type, text: head[0], index: cursor };
+
+        let match = upcoming[i];
+        if (match === undefined || (match !== null && match.index <= cursor)) {
+            const found = nextNonEmptyMatch(forward, line, cursor + 1);
+            match = found && { type: pattern.type, ...found };
+            upcoming[i] = match;
         }
+        if (match && (best === null || match.index < best.index)) best = match;
     }
     return best;
 }

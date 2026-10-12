@@ -202,6 +202,36 @@ const HIGHLIGHT_COLOR_MAP: Record<string, string> = {
     white: '#FFFFFF',
 };
 
+/**
+ * OOXML `ST_HexColor`: exactly six hex digits (`auto` and anything else is not a
+ * colour). The model's colour fields hold only this form, so a value read out of
+ * the document can never carry a quote, a `;` or a `url(` into the markup.
+ */
+function hexColor(raw: string | null | undefined): string | undefined {
+    return raw && /^[\dA-Fa-f]{6}$/.test(raw) ? `#${raw}` : undefined;
+}
+
+const TEXT_ALIGN_BY_JC: ReadonlyMap<string, string> = new Map([
+    ['both', 'justify'], ['distribute', 'justify'],
+    ['center', 'center'],
+    ['left', 'left'], ['start', 'left'],
+    ['right', 'right'], ['end', 'right'],
+]);
+
+const VERTICAL_ALIGN_BY_VALIGN: ReadonlyMap<string, string> = new Map([
+    ['top', 'top'], ['center', 'middle'], ['bottom', 'bottom'],
+]);
+
+/** The CSS `text-align` keyword for an OOXML `w:jc` value, or `undefined` for a value outside the vocabulary. */
+export function textAlignFromJc(jc: string): string | undefined {
+    return TEXT_ALIGN_BY_JC.get(jc);
+}
+
+/** The CSS `vertical-align` keyword for an OOXML `w:vAlign` value, or `undefined` for a value outside the vocabulary. */
+export function verticalAlignFromVAlign(vAlign: string): string | undefined {
+    return VERTICAL_ALIGN_BY_VALIGN.get(vAlign);
+}
+
 function parseXml(xmlString: string): Document {
     const parser = new DOMParser();
     return parser.parseFromString(xmlString, 'application/xml');
@@ -351,7 +381,7 @@ function parseFontSizeAndColor(
 
 function parseColorElement(color: Element, themeColors?: ThemeColorMap): string | undefined {
     const val = getAttrVal(color, NS_W, 'val');
-    if (val && val !== 'auto') return `#${val}`;
+    if (val && val !== 'auto') return hexColor(val);
     if (!themeColors) return undefined;
     const themeColor = getAttrVal(color, NS_W, 'themeColor');
     if (!themeColor) return undefined;
@@ -374,8 +404,8 @@ function applyTintShade(hex: string, tint: string | null, shade: string | null):
     const g = Number.parseInt(hex.substring(3, 5), 16);
     const b = Number.parseInt(hex.substring(5, 7), 16);
 
-    if (tint) {
-        const t = Number.parseInt(tint, 16) / 255;
+    const t = tint ? hexFraction(tint) : undefined;
+    if (t !== undefined) {
         return rgbToHex(
             Math.round(r + (255 - r) * t),
             Math.round(g + (255 - g) * t),
@@ -383,8 +413,8 @@ function applyTintShade(hex: string, tint: string | null, shade: string | null):
         );
     }
 
-    if (shade) {
-        const s = Number.parseInt(shade, 16) / 255;
+    const s = shade ? hexFraction(shade) : undefined;
+    if (s !== undefined) {
         return rgbToHex(
             Math.round(r * s),
             Math.round(g * s),
@@ -393,6 +423,11 @@ function applyTintShade(hex: string, tint: string | null, shade: string | null):
     }
 
     return hex;
+}
+
+/** `00`-`FF` as 0-1; `undefined` for a value that is not hex, so a bad tint leaves the colour as it was. */
+function hexFraction(value: string): number | undefined {
+    return /^[\dA-Fa-f]{1,2}$/.test(value) ? Number.parseInt(value, 16) / 255 : undefined;
 }
 
 function rgbToHex(r: number, g: number, b: number): string {
@@ -422,15 +457,15 @@ function parseHighlightAndShading(rPr: Element, result: { highlight?: string; ba
     const highlightEl = getChildNS(rPr, NS_W, 'highlight');
     if (highlightEl) {
         const val = getAttrVal(highlightEl, NS_W, 'val');
-        if (val && val !== 'none') {
-            result.highlight = HIGHLIGHT_COLOR_MAP[val] ?? `#${val}`;
-        }
+        // An own-property lookup: `constructor` and `__proto__` are not highlight names.
+        const highlight = val && Object.hasOwn(HIGHLIGHT_COLOR_MAP, val) ? HIGHLIGHT_COLOR_MAP[val] : hexColor(val);
+        if (highlight) result.highlight = highlight;
     }
 
     const shd = getChildNS(rPr, NS_W, 'shd');
     if (shd) {
-        const fill = getAttrVal(shd, NS_W, 'fill');
-        if (fill && fill !== 'auto') result.backgroundColor = `#${fill}`;
+        const fill = hexColor(getAttrVal(shd, NS_W, 'fill'));
+        if (fill) result.backgroundColor = fill;
     }
 }
 
@@ -551,8 +586,8 @@ function parseParagraphBordersAndShading(pPr: Element): {
 
     const shd = getChildNS(pPr, NS_W, 'shd');
     if (shd) {
-        const fill = getAttrVal(shd, NS_W, 'fill');
-        if (fill && fill !== 'auto') result.shading = `#${fill}`;
+        const fill = hexColor(getAttrVal(shd, NS_W, 'fill'));
+        if (fill) result.shading = fill;
     }
 
     const pBdr = getChildNS(pPr, NS_W, 'pBdr');
@@ -585,8 +620,7 @@ function parseBorderSet(borderParent: Element): DocxParagraphBorders {
 
 function parseSingleBorder(el: Element): DocxBorder {
     const style = getAttrVal(el, NS_W, 'val') ?? 'single';
-    const colorVal = getAttrVal(el, NS_W, 'color');
-    const color = colorVal && colorVal !== 'auto' ? `#${colorVal}` : '#000000';
+    const color = hexColor(getAttrVal(el, NS_W, 'color')) ?? '#000000';
     const sizeVal = getAttrVal(el, NS_W, 'sz');
     const size = sizeVal ? Number.parseInt(sizeVal, 10) / 8 : 1;
     return { style, color, size };
@@ -636,8 +670,8 @@ function parseBidiAndAlignment(pPr: Element): { rtl?: boolean; alignment?: strin
 
     const jcEl = getChildNS(pPr, NS_W, 'jc');
     if (jcEl) {
-        const val = getAttrVal(jcEl, NS_W, 'val');
-        if (val) result.alignment = val;
+        const alignment = textAlignFromJc(getAttrVal(jcEl, NS_W, 'val') ?? '');
+        if (alignment) result.alignment = alignment;
     }
 
     return result;
@@ -1115,14 +1149,14 @@ function buildCellStyle(tcPr: Element): DocxTableCellStyle | undefined {
 
     const shd = getChildNS(tcPr, NS_W, 'shd');
     if (shd) {
-        const fill = getAttrVal(shd, NS_W, 'fill');
-        if (fill && fill !== 'auto') { style.backgroundColor = `#${fill}`; hasStyle = true; }
+        const fill = hexColor(getAttrVal(shd, NS_W, 'fill'));
+        if (fill) { style.backgroundColor = fill; hasStyle = true; }
     }
 
     const vAlign = getChildNS(tcPr, NS_W, 'vAlign');
     if (vAlign) {
-        const val = getAttrVal(vAlign, NS_W, 'val');
-        if (val) { style.verticalAlign = val; hasStyle = true; }
+        const verticalAlign = verticalAlignFromVAlign(getAttrVal(vAlign, NS_W, 'val') ?? '');
+        if (verticalAlign) { style.verticalAlign = verticalAlign; hasStyle = true; }
     }
 
     const tcW = getChildNS(tcPr, NS_W, 'tcW');
@@ -1418,14 +1452,9 @@ function parseThemeColors(files: Map<string, Uint8Array>): ThemeColorMap {
         if (!el) continue;
 
         const srgb = getChildNS(el, NS_A, 'srgbClr');
-        if (srgb) {
-            map.set(name, `#${srgb.getAttribute('val') ?? '000000'}`);
-            continue;
-        }
         const sys = getChildNS(el, NS_A, 'sysClr');
-        if (sys) {
-            map.set(name, `#${sys.getAttribute('lastClr') ?? sys.getAttribute('val') ?? '000000'}`);
-        }
+        const hex = hexColor(srgb ? srgb.getAttribute('val') : sys?.getAttribute('lastClr'));
+        if (hex) map.set(name, hex);
     }
 
     return map;
@@ -1630,8 +1659,8 @@ function extractParagraphStyleProps(pPr: Element | undefined): {
 
     const jcEl = getChildNS(pPr, NS_W, 'jc');
     if (jcEl) {
-        const val = getAttrVal(jcEl, NS_W, 'val');
-        if (val) result.alignment = val;
+        const alignment = textAlignFromJc(getAttrVal(jcEl, NS_W, 'val') ?? '');
+        if (alignment) result.alignment = alignment;
     }
 
     extractSpacingProps(pPr, result);
