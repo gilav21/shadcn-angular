@@ -11,6 +11,8 @@ import {
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cn } from '../../lib/utils';
+import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
+import { INPUT_OTP_LOCALES, type InputOtpLocale } from './input-otp.locales';
 
 /** Slot count used when {@link InputOTPComponent.maxLength} is left unset. */
 const DEFAULT_OTP_LENGTH = 6;
@@ -70,7 +72,7 @@ function sanitizeCode(text: string, slotCount: number): string {
         [attr.maxlength]="slotCount()"
         [value]="value()"
         [disabled]="isDisabled()"
-        [attr.aria-label]="ariaLabel()"
+        [attr.aria-label]="resolvedAriaLabel()"
         [attr.aria-labelledby]="ariaLabelledby()"
         (input)="onInput()"
         (keydown)="onKeydown($event)"
@@ -90,10 +92,14 @@ export class InputOTPComponent implements ControlValueAccessor {
 
   /** Extra classes merged onto the row that holds the slots, not onto an individual slot. */
   class = input('');
-  /** `aria-label` for the visually hidden input that actually receives typing — without it or {@link ariaLabelledby} the field is unnamed. */
+  /** `aria-label` for the visually hidden input that actually receives typing. Falls back to the locale's `label` unless {@link ariaLabelledby} names the field instead. */
   ariaLabel = input<string | undefined>(undefined);
   /** `aria-labelledby` for the visually hidden input, when an external element already labels the field. */
   ariaLabelledby = input<string | undefined>(undefined);
+  /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
+  readonly locale = input<LocaleInput<InputOtpLocale>>();
+  private readonly i18n = createLocaleBindings(this.locale, INPUT_OTP_LOCALES);
+  private readonly t = this.i18n.t;
   /**
    * Number of slots rendered, and the hard cap on {@link value}'s length.
    * Accepts `undefined` so a Signal Forms `[field]` binding can push the
@@ -123,6 +129,9 @@ export class InputOTPComponent implements ControlValueAccessor {
 
   /** Effective disabled state: the {@link disabled} input OR a reactive `control.disable()` relayed through {@link setDisabledState}. */
   readonly isDisabled = computed(() => this.disabled() || this.formDisabled());
+
+  /** The hidden input's `aria-label`: an explicit {@link ariaLabel} wins, an {@link ariaLabelledby} suppresses the default, otherwise the locale's `label`. */
+  readonly resolvedAriaLabel = computed(() => this.ariaLabel() ?? (this.ariaLabelledby() ? null : this.t().label));
 
   /** {@link maxLength} with the default applied — every internal length calculation reads this, never the raw input. */
   readonly slotCount = computed(() => this.maxLength() ?? DEFAULT_OTP_LENGTH);
