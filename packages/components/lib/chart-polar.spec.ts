@@ -3,21 +3,21 @@ import { radarPoint, polygonPath } from './chart-polar';
 
 describe('radarPoint', () => {
     it('places the first axis straight up from the center', () => {
-        const p = radarPoint(100, 100, 50, 0, 4, 10, 10);
+        const p = radarPoint(100, 100, 50, 0, 4, 10, [0, 10]);
         expect(p.x).toBeCloseTo(100, 5);
         expect(p.y).toBeCloseTo(50, 5); // full value -> radius 50 above center
     });
 
     it('scales the radius by value / maxValue', () => {
-        const full = radarPoint(0, 0, 100, 0, 4, 10, 10);
-        const half = radarPoint(0, 0, 100, 0, 4, 5, 10);
+        const full = radarPoint(0, 0, 100, 0, 4, 10, [0, 10]);
+        const half = radarPoint(0, 0, 100, 0, 4, 5, [0, 10]);
         expect(Math.hypot(full.x, full.y)).toBeCloseTo(100, 5);
         expect(Math.hypot(half.x, half.y)).toBeCloseTo(50, 5);
     });
 
     it('distributes axes evenly around the circle', () => {
         // axis 1 of 4 is to the right (90 degrees clockwise from up)
-        const p = radarPoint(0, 0, 50, 1, 4, 10, 10);
+        const p = radarPoint(0, 0, 50, 1, 4, 10, [0, 10]);
         expect(p.x).toBeCloseTo(50, 5);
         expect(p.y).toBeCloseTo(0, 5);
     });
@@ -38,7 +38,7 @@ describe('radarPoint on its own axis', () => {
     for (const { label, value, lo, hi, distance } of CASES) {
         it(`keeps a vertex on its ray at R·(v-lo)/(hi-lo), clamped into the ring (${label})`, () => {
             for (let axis = 0; axis < AXES; axis++) {
-                const p = radarPoint(200, 150, RADIUS, axis, AXES, value, hi, lo);
+                const p = radarPoint(200, 150, RADIUS, axis, AXES, value, [lo, hi]);
                 const angle = -Math.PI / 2 + (axis / AXES) * Math.PI * 2;
 
                 expect(p.x - 200).toBeCloseTo(distance * Math.cos(angle), 6);

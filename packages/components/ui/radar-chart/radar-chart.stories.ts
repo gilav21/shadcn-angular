@@ -88,6 +88,22 @@ export const CustomMaxValue: Story = {
     render,
 };
 
+/** The centre is the lowest value (or zero), so a negative score still has its own radius on its axis. */
+export const NegativeAndMixedValues: Story = {
+    args: {
+        series: [
+            {
+                name: 'Variance',
+                data: [
+                    { name: 'Revenue', value: 6 }, { name: 'Cost', value: -4 }, { name: 'Margin', value: 3 },
+                    { name: 'Churn', value: -7 }, { name: 'Growth', value: 8 },
+                ],
+            },
+        ] as ChartSeries[],
+    },
+    render,
+};
+
 export const HighFillOpacity: Story = {
     args: { series, fillOpacity: 0.6 },
     render,

@@ -300,7 +300,8 @@ describe('FunnelChartComponent non-positive values', () => {
             const fixture = build(values);
             const polygons = Array.from(fixture.nativeElement.querySelectorAll('polygon[data-slot="funnel-stage"]')) as SVGPolygonElement[];
             const largest = Math.max(0, ...values);
-            const inner = 440 - 16;
+            // The measured host width wins over the `width` input when the host has a box; 8px of padding each side.
+            const inner = fixture.componentInstance.svgWidth() - 16;
             const share = (v: number): number => (largest === 0 ? 0 : Math.max(0, v) / largest);
 
             expect(polygons).toHaveLength(values.length);

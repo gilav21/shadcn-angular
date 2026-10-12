@@ -27,6 +27,9 @@ interface AxisSpoke {
     labelY: number;
 }
 
+/** A `[0, 1]` scale, for the rings and spokes, which sit at full radius. */
+const UNIT_SCALE: readonly [number, number] = [0, 1];
+
 @Component({
     selector: 'ui-radar-chart',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -46,7 +49,9 @@ export class RadarChartComponent {
      * plotted against the wrong spokes. Series with an `id` use it as their
      * legend/visibility key, otherwise `name` is the key — give duplicate names
      * distinct `id`s or toggling one hides both. All series share one radial
-     * scale (see {@link maxValue}).
+     * scale: the centre is {@link minValue} (zero, or the lowest value when any
+     * is negative) and the outer ring is {@link maxValue}; a value beyond either
+     * end is clamped onto it, so a vertex always lies on its own axis.
      */
     readonly series = input.required<ChartSeries[]>();
     /**
@@ -130,12 +135,13 @@ export class RadarChartComponent {
             .filter(({ s }) => !this._hidden().includes(this.seriesKey(s))),
     );
 
-    readonly maxValue = computed(() => {
-        const explicit = this.maxValueInput();
-        if (explicit !== undefined) return explicit;
-        const values = this.series().flatMap(s => s.data.map(d => d.value));
-        return extent(values)?.[1] ?? 1;
-    });
+    private readonly allValues = computed(() => this.series().flatMap(s => s.data.map(d => d.value)));
+
+    /** The value at the outer ring: {@link maxValueInput}, else the largest value across all series. */
+    readonly maxValue = computed(() => this.maxValueInput() ?? extent(this.allValues())?.[1] ?? 1);
+
+    /** The value at the centre: zero, or the smallest value when any is negative, so a negative score keeps its own radius. */
+    readonly minValue = computed(() => Math.min(0, extent(this.allValues())?.[0] ?? 0));
 
     readonly rings = computed(() => {
         const axisCount = this.axes().length;
@@ -144,7 +150,7 @@ export class RadarChartComponent {
         for (let level = 1; level <= levels; level++) {
             const r = (this.radius() * level) / levels;
             const points = this.axes()
-                .map((_, i) => radarPoint(this.center(), this.center(), r, i, axisCount, 1, 1))
+                .map((_, i) => radarPoint(this.center(), this.center(), r, i, axisCount, 1, UNIT_SCALE))
                 .map(p => `${p.x},${p.y}`)
                 .join(' ');
             result.push(points);
@@ -155,8 +161,8 @@ export class RadarChartComponent {
     readonly spokes = computed((): AxisSpoke[] => {
         const axisCount = this.axes().length;
         return this.axes().map((axis, i) => {
-            const outer = radarPoint(this.center(), this.center(), this.radius(), i, axisCount, 1, 1);
-            const label = radarPoint(this.center(), this.center(), this.radius() + 18, i, axisCount, 1, 1);
+            const outer = radarPoint(this.center(), this.center(), this.radius(), i, axisCount, 1, UNIT_SCALE);
+            const label = radarPoint(this.center(), this.center(), this.radius() + 18, i, axisCount, 1, UNIT_SCALE);
             return { axis, x: outer.x, y: outer.y, labelX: label.x, labelY: label.y };
         });
     });
@@ -164,9 +170,10 @@ export class RadarChartComponent {
     readonly seriesPolygons = computed((): RadarPolygon[] => {
         const axisCount = this.axes().length;
         const max = this.maxValue();
+        const min = this.minValue();
         return this.visibleSeries().map(({ s, i }) => {
             const vertices = s.data.map((d, ai) => {
-                const p = radarPoint(this.center(), this.center(), this.radius(), ai, axisCount, d.value, max);
+                const p = radarPoint(this.center(), this.center(), this.radius(), ai, axisCount, d.value, [min, max]);
                 return { x: p.x, y: p.y, axis: d.name, value: d.value };
             });
             return {

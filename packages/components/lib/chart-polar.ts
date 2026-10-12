@@ -9,9 +9,12 @@
 import { polarToCartesian } from './chart.utils';
 
 /**
- * Place a radar vertex for `axisIndex` of `axisCount`, at a radius scaled by
- * `value / maxValue`. The first axis points straight up; axes are evenly
- * distributed clockwise.
+ * Place a radar vertex for `axisIndex` of `axisCount`, at the radius
+ * `radius · (value − min) / (max − min)` for the `[min, max]` scale, clamped
+ * into `[0, radius]` so the vertex always lies on its own axis ray between the
+ * centre and the outer ring: a value below `min` sits at the centre, one above
+ * `max` on the ring. A scale of zero width puts every vertex at the centre.
+ * The first axis points straight up; axes are evenly distributed clockwise.
  */
 export function radarPoint(
     centerX: number,
@@ -20,9 +23,10 @@ export function radarPoint(
     axisIndex: number,
     axisCount: number,
     value: number,
-    maxValue: number,
+    [min, max]: readonly [min: number, max: number],
 ): { x: number; y: number } {
-    const ratio = maxValue === 0 ? 0 : value / maxValue;
+    const span = max - min;
+    const ratio = span > 0 ? Math.min(1, Math.max(0, (value - min) / span)) : 0;
     const angle = -Math.PI / 2 + (axisIndex / axisCount) * Math.PI * 2;
     return polarToCartesian(centerX, centerY, radius * ratio, angle);
 }
