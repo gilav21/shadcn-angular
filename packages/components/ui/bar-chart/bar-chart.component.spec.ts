@@ -413,7 +413,7 @@ describe('BarChartComponent zero baseline', () => {
         }
     });
 
-    /** A label sits 6px past the bar's free end, or 6px inside it when under 48px remain before the plot edge. */
+    /** A label sits 6px past the bar's free end, or 6px inside it when under 32px remain before the plot edge. */
     function expectHorizontalLabel(
         bar: BarRect,
         area: { left: number; right: number },
@@ -423,8 +423,7 @@ describe('BarChartComponent zero baseline', () => {
         const growsRight = (bar.value >= 0) !== (dir === 'rtl');
         const freeEnd = growsRight ? bar.x + bar.width : bar.x;
         const room = growsRight ? area.right - freeEnd : freeEnd - area.left;
-        // Inside only when the bar is long enough to hold the label too.
-        const outside = room >= 48 || bar.width < 48;
+        const outside = room >= 32;
         const towardRight = growsRight === outside;
         expect(bar.labelAnchor).toBe(towardRight ? 'start' : 'end');
         expect(bar.labelPosition.x).toBeCloseTo(towardRight ? freeEnd + 6 : freeEnd - 6, 6);

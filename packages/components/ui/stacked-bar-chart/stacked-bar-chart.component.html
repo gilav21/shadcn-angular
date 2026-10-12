@@ -18,8 +18,8 @@
             [attr.x2]="chartArea().right"
             [attr.y2]="getTickPosition(tick)"
             stroke="currentColor"
-            [attr.stroke-opacity]="tick === 0 && valueDomain()[0] < 0 ? 0.7 : 0.2"
-            stroke-dasharray="4 4"
+            [attr.stroke-opacity]="tick === 0 && valueDomain()[0] < 0 ? 1 : 0.2"
+            [attr.stroke-dasharray]="tick === 0 && valueDomain()[0] < 0 ? null : '4 4'"
           />
         }
       </g>

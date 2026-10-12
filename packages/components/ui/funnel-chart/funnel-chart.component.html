@@ -22,7 +22,7 @@
         (click)="onStageClick(stage.index)"
         (keydown.enter)="onStageClick(stage.index)"
       />
-      @if (showValues()) {
+      @if (showValues() && stage.topWidth > 0) {
         <text
           [attr.x]="stage.centerX"
           [attr.y]="stage.midY"

@@ -481,7 +481,7 @@ describe('BarRaceChartComponent zero baseline', () => {
         const growsRight = (bar.value >= 0) !== (dir === 'rtl');
         const freeEnd = growsRight ? bar.x + bar.width : bar.x;
         const startEdge = dir === 'rtl' ? area.right : area.left;
-        const outside = bar.value >= 0 || Math.abs(freeEnd - startEdge) >= 64 || bar.width < 64;
+        const outside = bar.value >= 0 || Math.abs(freeEnd - startEdge) >= 64;
         const towardRight = growsRight === outside;
         expect(bar.labelAnchor).toBe(towardRight ? 'start' : 'end');
         expect(bar.labelX).toBeCloseTo(towardRight ? freeEnd + 12 : freeEnd - 12, 6);
@@ -515,6 +515,18 @@ describe('BarRaceChartComponent zero baseline', () => {
             });
         }
     }
+
+    it.each([['ltr', 'end'], ['rtl', 'start']] as const)('should anchor the name labels away from the bars (%s: %s)', (dir, anchor) => {
+        const fixture = TestBed.createComponent(BarRaceChartComponent);
+        fixture.componentRef.setInput('frames', [[{ name: 'Alpha', value: 3 }, { name: 'Beta', value: 1 }]]);
+        fixture.componentRef.setInput('dir', dir);
+        fixture.detectChanges();
+
+        const names = Array.from(fixture.nativeElement.querySelectorAll('svg text') as NodeListOf<SVGTextElement>)
+            .filter(t => ['Alpha', 'Beta'].includes(t.textContent?.trim() ?? ''));
+        expect(names).toHaveLength(2);
+        for (const name of names) expect(name.getAttribute('text-anchor')).toBe(anchor);
+    });
 
     it('should keep one bar per name in a frame, taking the last value', () => {
         const fixture = TestBed.createComponent(BarRaceChartComponent);

@@ -220,6 +220,16 @@ export class ColumnRangeChartComponent implements AfterViewInit {
     });
   });
 
+  /**
+   * Baseline of a column's low label: under the column, or just inside its
+   * bottom end when it reaches the plot floor and the category labels (16px
+   * under the plot) would otherwise touch it.
+   */
+  lowLabelY(bar: RangeBar): number {
+    const below = bar.lowY + 14;
+    return below <= this.chartArea().bottom + 2 ? below : bar.lowY - 6;
+  }
+
   hoveredBar = computed(() => {
     const idx = this.hoveredIndex();
     if (idx === null) return null;

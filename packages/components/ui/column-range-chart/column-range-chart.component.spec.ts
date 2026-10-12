@@ -340,6 +340,16 @@ describe('ColumnRangeChartComponent range ordering', () => {
             );
         });
 
+        it(`should keep the ${className} low labels off the category labels`, () => {
+            const component = build(ranges);
+
+            for (const bar of component.bars()) {
+                const below = bar.lowY + 14;
+                // Under the column while it fits above the category labels, else just inside its bottom end.
+                expect(component.lowLabelY(bar)).toBeCloseTo(below <= component.chartArea().bottom + 2 ? below : bar.lowY - 6, 6);
+            }
+        });
+
         it(`should keep every ${className} tick inside the plot`, () => {
             const component = build(ranges);
             const area = component.chartArea();

@@ -28,7 +28,7 @@ import {
 import { linearScale, zeroBasedDomain } from '../../lib/chart-scale';
 
 /** Room, in px, a horizontal bar's value label needs between the bar end and the plot edge. */
-const LABEL_ROOM = 48;
+const LABEL_ROOM = 32;
 
 @Component({
   selector: 'ui-bar-chart',
@@ -265,9 +265,10 @@ export class BarChartComponent implements AfterViewInit {
   /**
    * Position and anchor of a horizontal bar's value label: just past its free
    * end, or inside the bar when less than {@link LABEL_ROOM} px remain between
-   * that end and the plot edge and the bar is long enough to hold it (a bar
-   * reaching the edge would otherwise print over the category labels or
-   * outside the chart).
+   * that end and the plot edge (a bar reaching the edge would otherwise print
+   * over the category labels or outside the chart). The room is a few
+   * characters wide, so a short bar whose free end still has that much space
+   * before the edge keeps its label outside.
    */
   private horizontalLabel(
     area: { left: number; right: number },
@@ -276,8 +277,7 @@ export class BarChartComponent implements AfterViewInit {
     const growsRight = this.growsRight(span.value);
     const freeEnd = growsRight ? span.start + span.length : span.start;
     const room = growsRight ? area.right - freeEnd : freeEnd - area.left;
-    // A bar shorter than the label cannot hold it, so a short bar always labels outside.
-    const outside = room >= LABEL_ROOM || span.length < LABEL_ROOM;
+    const outside = room >= LABEL_ROOM;
     const x = growsRight === outside ? freeEnd + 6 : freeEnd - 6;
     return { x, anchor: growsRight === outside ? 'start' : 'end' };
   }
