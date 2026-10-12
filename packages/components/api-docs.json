@@ -8899,13 +8899,13 @@
       "file": "packages/components/ui/input-otp/input-otp.component.ts",
       "kind": "component",
       "selector": "ui-input-otp",
-      "description": "",
+      "description": "One-time-code field: a row of slots drawn over a single visually hidden text input that does all the real editing. The row is pinned `dir=\"ltr\"`, like `ui-time-picker`: a code is a digit or Latin run, which the bidi algorithm lays out left to right in every script, so in an RTL page it still reads `123456` from left to right and the Left/Right arrows move the highlight left/right on screen.",
       "projectsContent": false,
       "inputs": [
         {
           "name": "ariaLabel",
           "type": "string | undefined",
-          "description": "`aria-label` for the visually hidden input that actually receives typing — without it or {@link ariaLabelledby} the field is unnamed."
+          "description": "`aria-label` for the visually hidden input that actually receives typing. Falls back to the locale's `label` unless {@link ariaLabelledby} names the field instead."
         },
         {
           "name": "ariaLabelledby",
@@ -8917,6 +8917,17 @@
           "type": "string",
           "description": "Extra classes merged onto the row that holds the slots, not onto an individual slot.",
           "default": "''"
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "description": "Disables the field: the hidden input becomes unfocusable and the row dims. A reactive-forms `disable()` disables it too — see {@link isDisabled}.",
+          "default": "false"
+        },
+        {
+          "name": "locale",
+          "type": "LocaleInput<InputOtpLocale>",
+          "description": "Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set."
         },
         {
           "name": "maxLength",
@@ -8933,7 +8944,7 @@
         {
           "name": "value",
           "type": "string",
-          "description": "Two-way code. Typed input is stripped to alphanumerics, upper-cased and truncated to {@link maxLength}, so what is written back may differ from what was typed.",
+          "description": "Two-way code. Typed input is stripped to alphanumerics, upper-cased and truncated to {@link maxLength}, so what is written back may differ from what was typed. A write from a form (`formControlName`, `ngModel`) lands here too and is rendered as-is, without sanitising.",
           "default": "''"
         }
       ],
@@ -8941,7 +8952,7 @@
         {
           "name": "value",
           "type": "string",
-          "description": "Two-way code. Typed input is stripped to alphanumerics, upper-cased and truncated to {@link maxLength}, so what is written back may differ from what was typed.",
+          "description": "Two-way code. Typed input is stripped to alphanumerics, upper-cased and truncated to {@link maxLength}, so what is written back may differ from what was typed. A write from a form (`formControlName`, `ngModel`) lands here too and is rendered as-is, without sanitising.",
           "default": "''"
         }
       ],
@@ -17136,12 +17147,12 @@
         {
           "name": "defaultValue",
           "type": "string | string[] | undefined",
-          "description": "Initially pressed value(s), read once in `ngOnInit` — a bare string is wrapped into an array. Later changes are ignored."
+          "description": "Initially pressed value(s), read once in `ngOnInit` — a bare string is wrapped into an array. Later changes are ignored. A value written by a form afterwards — `null` included, which clears — replaces it."
         },
         {
           "name": "disabled",
           "type": "boolean",
-          "description": "Disables every item in the group; an item may also disable itself independently.",
+          "description": "Disables every item in the group; an item may also disable itself independently. A reactive-forms `disable()` disables it too — see {@link isDisabled}.",
           "default": "false"
         },
         {
@@ -17165,7 +17176,7 @@
         {
           "name": "value",
           "type": "string | string[] | undefined",
-          "description": "The selection, as a two-way `model()`, in the shape this component has always emitted: the single selected value (`''` when cleared) in `single` mode, the full array in `multiple` mode. Being a `ModelSignal` is what makes this component a valid Signal Forms `FormValueControl`, and it doubles as the `valueChange` output: Angular derives the output from the model, so there is no separate declaration. A write from outside is normalised into {@link selection} and stays silent; only a user toggle emits. It starts `undefined` rather than empty so that \"nobody has written this yet\" is distinguishable from \"written empty\" — otherwise the sync effect, which runs after `ngOnInit`, would clobber the {@link defaultValue} seed. Read {@link selection} for the current selection; this member is the published surface."
+          "description": "The selection, as a two-way `model()`, in the shape this component has always emitted: the single selected value (`''` when cleared) in `single` mode, the full array in `multiple` mode. Being a `ModelSignal` is what makes this component a valid Signal Forms `FormValueControl`, and it doubles as the `valueChange` output: Angular derives the output from the model, so there is no separate declaration. A write from outside is normalised into {@link selection} and stays silent; only a user toggle emits. It starts `undefined` rather than empty so that \"nobody has written this yet\" is distinguishable from \"written empty\" — otherwise the sync effect, which runs after `ngOnInit`, would clobber the {@link defaultValue} seed. Read {@link selection} for the current selection; this member is the published surface. A write from a form (`formControlName`, `ngModel`) lands in {@link selection} through {@link writeValue} and leaves this member at its pre-write value, so read {@link selection} — or the DOM — for what is rendered. Because this member keeps its pre-write value, a later user toggle that lands on that same string does not re-emit `valueChange` (the form still receives it)."
         },
         {
           "name": "variant",
@@ -17178,7 +17189,7 @@
         {
           "name": "value",
           "type": "string | string[] | undefined",
-          "description": "The selection, as a two-way `model()`, in the shape this component has always emitted: the single selected value (`''` when cleared) in `single` mode, the full array in `multiple` mode. Being a `ModelSignal` is what makes this component a valid Signal Forms `FormValueControl`, and it doubles as the `valueChange` output: Angular derives the output from the model, so there is no separate declaration. A write from outside is normalised into {@link selection} and stays silent; only a user toggle emits. It starts `undefined` rather than empty so that \"nobody has written this yet\" is distinguishable from \"written empty\" — otherwise the sync effect, which runs after `ngOnInit`, would clobber the {@link defaultValue} seed. Read {@link selection} for the current selection; this member is the published surface."
+          "description": "The selection, as a two-way `model()`, in the shape this component has always emitted: the single selected value (`''` when cleared) in `single` mode, the full array in `multiple` mode. Being a `ModelSignal` is what makes this component a valid Signal Forms `FormValueControl`, and it doubles as the `valueChange` output: Angular derives the output from the model, so there is no separate declaration. A write from outside is normalised into {@link selection} and stays silent; only a user toggle emits. It starts `undefined` rather than empty so that \"nobody has written this yet\" is distinguishable from \"written empty\" — otherwise the sync effect, which runs after `ngOnInit`, would clobber the {@link defaultValue} seed. Read {@link selection} for the current selection; this member is the published surface. A write from a form (`formControlName`, `ngModel`) lands in {@link selection} through {@link writeValue} and leaves this member at its pre-write value, so read {@link selection} — or the DOM — for what is rendered. Because this member keeps its pre-write value, a later user toggle that lands on that same string does not re-emit `valueChange` (the form still receives it)."
         }
       ],
       "methods": []

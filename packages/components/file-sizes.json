@@ -162,11 +162,11 @@
       "lines": 102
     },
     "area-chart/area-chart.component.spec.ts": {
-      "bytes": 11287,
-      "lines": 294
+      "bytes": 11656,
+      "lines": 303
     },
     "area-chart/area-chart.component.ts": {
-      "bytes": 14709,
+      "bytes": 14714,
       "lines": 353
     },
     "area-chart/area-chart.stories.ts": {
@@ -1030,20 +1030,20 @@
       "lines": 1
     },
     "chip-list/chip-list.component.browser.spec.ts": {
-      "bytes": 2941,
-      "lines": 78
+      "bytes": 5196,
+      "lines": 134
     },
     "chip-list/chip-list.component.html": {
-      "bytes": 2417,
-      "lines": 69
+      "bytes": 2592,
+      "lines": 70
     },
     "chip-list/chip-list.component.spec.ts": {
-      "bytes": 13955,
-      "lines": 345
+      "bytes": 17136,
+      "lines": 414
     },
     "chip-list/chip-list.component.ts": {
-      "bytes": 9873,
-      "lines": 243
+      "bytes": 10625,
+      "lines": 261
     },
     "chip-list/chip-list.stories.ts": {
       "bytes": 6647,
@@ -1794,8 +1794,8 @@
       "lines": 42
     },
     "dialog/sub/dialog-content.component.ts": {
-      "bytes": 4250,
-      "lines": 122
+      "bytes": 4210,
+      "lines": 120
     },
     "dialog/sub/dialog-description.component.ts": {
       "bytes": 400,
@@ -3206,24 +3206,32 @@
       "lines": 100
     },
     "input-otp/index.ts": {
-      "bytes": 189,
-      "lines": 4
+      "bytes": 226,
+      "lines": 5
+    },
+    "input-otp/input-otp.component.browser.spec.ts": {
+      "bytes": 8030,
+      "lines": 188
     },
     "input-otp/input-otp.component.css": {
       "bytes": 207,
       "lines": 9
     },
     "input-otp/input-otp.component.spec.ts": {
-      "bytes": 12708,
-      "lines": 336
+      "bytes": 14882,
+      "lines": 380
     },
     "input-otp/input-otp.component.ts": {
-      "bytes": 6714,
-      "lines": 169
+      "bytes": 13732,
+      "lines": 334
+    },
+    "input-otp/input-otp.locales.ts": {
+      "bytes": 990,
+      "lines": 25
     },
     "input-otp/input-otp.stories.ts": {
-      "bytes": 2212,
-      "lines": 72
+      "bytes": 3931,
+      "lines": 111
     },
     "input-otp/sub/input-otp-group.component.ts": {
       "bytes": 260,
@@ -3382,11 +3390,11 @@
       "lines": 115
     },
     "line-chart/line-chart.component.spec.ts": {
-      "bytes": 13822,
+      "bytes": 13914,
       "lines": 311
     },
     "line-chart/line-chart.component.ts": {
-      "bytes": 13484,
+      "bytes": 13489,
       "lines": 333
     },
     "line-chart/line-chart.stories.ts": {
@@ -6226,7 +6234,7 @@
       "lines": 18
     },
     "toggle-group/sub/toggle-group-item.component.html": {
-      "bytes": 354,
+      "bytes": 356,
       "lines": 13
     },
     "toggle-group/sub/toggle-group-item.component.ts": {
@@ -6238,20 +6246,20 @@
       "lines": 58
     },
     "toggle-group/toggle-group.component.html": {
-      "bytes": 481,
-      "lines": 20
+      "bytes": 515,
+      "lines": 21
     },
     "toggle-group/toggle-group.component.spec.ts": {
-      "bytes": 6876,
-      "lines": 190
+      "bytes": 13197,
+      "lines": 340
     },
     "toggle-group/toggle-group.component.ts": {
-      "bytes": 7263,
-      "lines": 164
+      "bytes": 9955,
+      "lines": 215
     },
     "toggle-group/toggle-group.stories.ts": {
-      "bytes": 5342,
-      "lines": 163
+      "bytes": 6535,
+      "lines": 187
     },
     "toggle/index.ts": {
       "bytes": 36,
@@ -6624,7 +6632,7 @@
       "lines": 118
     },
     "a11y.ts": {
-      "bytes": 6026,
+      "bytes": 6024,
       "lines": 148
     },
     "addon-slots.spec.ts": {
@@ -6672,7 +6680,7 @@
       "lines": 138
     },
     "chart-path.ts": {
-      "bytes": 6362,
+      "bytes": 6365,
       "lines": 182
     },
     "chart-polar.spec.ts": {
@@ -6704,12 +6712,12 @@
       "lines": 205
     },
     "chart.utils.spec.ts": {
-      "bytes": 17655,
-      "lines": 421
+      "bytes": 18096,
+      "lines": 431
     },
     "chart.utils.ts": {
-      "bytes": 12470,
-      "lines": 336
+      "bytes": 13029,
+      "lines": 350
     },
     "code-highlight.spec.ts": {
       "bytes": 20673,
