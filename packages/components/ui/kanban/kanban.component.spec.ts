@@ -134,9 +134,6 @@ afterEach(() => {
     vi.unstubAllGlobals();
 });
 
-/** RED until spec 8 Task 6: an expected failure under vitest, skipped where `it.fails` does not exist (the jest consumer leg). */
-const redUntilTask6 = Reflect.has(it, 'fails') ? it.fails : it.skip;
-
 /** The text of every context-menu panel that is open right now (card, column and board menus portal to the body). */
 function openMenuTexts(): string[] {
     return Array.from(document.querySelectorAll('[data-slot="context-menu-content"]')).map(el => (el.textContent ?? '').replaceAll(/\s+/g, ' ').trim());
@@ -625,7 +622,7 @@ describe('KanbanComponent', () => {
                 .componentInstance as ContextMenuComponent;
         }
 
-        it('onBoardContextMenu shows the board menu when not on a column, and its Add Column item opens the add-column dialog', () => {
+        it('right-clicking empty board space shows the board menu, and its Add Column item opens the add-column dialog', () => {
             const boardEl = fixture.debugElement.query(By.css('[data-slot="kanban"]')).nativeElement as HTMLElement;
             const ev = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 });
             boardEl.dispatchEvent(ev);
@@ -708,7 +705,7 @@ describe('KanbanComponent', () => {
             expect(deleteDialog.cardCount()).toBe(2);
         });
 
-        it('onBoardContextMenu bails out when the target is inside a column', () => {
+        it('right-clicking inside a column leaves the board menu to the column', () => {
             const emptyState = fixture.debugElement.query(By.css('[data-slot="kanban-empty-state"]')).nativeElement as HTMLElement;
             const ev = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 });
             emptyState.dispatchEvent(ev);
@@ -1363,7 +1360,7 @@ describe('KanbanComponent — long-press opens the context menus', () => {
 
     // UC-10. iOS never raises `contextmenu`; the card menu's "Move to" is the
     // only way to move a card without a pointer-driven drag.
-    redUntilTask6('a long-press on a card opens the card menu, with Move to, and only that menu', async () => {
+    it('a long-press on a card opens the card menu, with Move to, and only that menu', async () => {
         await holdFinger(fixture.debugElement.query(By.css('[data-card-id="card-1"]')).nativeElement);
 
         const menus = openMenuTexts();
@@ -1372,7 +1369,7 @@ describe('KanbanComponent — long-press opens the context menus', () => {
         expect(menus[0]).toContain('Edit Card');
     });
 
-    redUntilTask6('a long-press on a column header opens the column menu only', async () => {
+    it('a long-press on a column header opens the column menu only', async () => {
         await holdFinger(fixture.debugElement.queryAll(By.css('[data-slot="kanban-column-header"]'))[1].nativeElement);
 
         const menus = openMenuTexts();
@@ -1380,7 +1377,7 @@ describe('KanbanComponent — long-press opens the context menus', () => {
         expect(menus[0]).toContain('Rename Column');
     });
 
-    redUntilTask6('a long-press on empty board space opens the board menu only', async () => {
+    it('a long-press on empty board space opens the board menu only', async () => {
         await holdFinger(fixture.debugElement.query(By.css('[data-slot="kanban"]')).nativeElement);
 
         const menus = openMenuTexts();

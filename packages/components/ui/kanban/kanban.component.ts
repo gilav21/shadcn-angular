@@ -16,6 +16,7 @@ import {
     viewChild,
     OnDestroy,
     untracked,
+    ElementRef,
 } from '@angular/core';
 import { cn } from '../../lib/utils';
 import { ButtonComponent } from '../button';
@@ -31,6 +32,7 @@ import {
 } from '../context-menu';
 import { ShortcutBindingService, ShortcutComponentHandle } from '../../lib/shortcut-binding.service';
 import { type KanbanLocale, KANBAN_LOCALES } from './kanban.locales';
+import { onContextGesture, type ContextGesture } from '../../lib/touch';
 import { createLocaleBindings, provideComponentLocale, type LocaleInput } from '../../lib/i18n';
 import { KanbanColumnComponent } from './sub/kanban-column.component';
 import { KanbanCardDialogComponent } from './sub/kanban-card-dialog.component';
@@ -152,11 +154,11 @@ export const KANBAN = new InjectionToken<KanbanComponent>('KANBAN');
     template: `
         <div [dir]="isRtl() ? 'rtl' : 'ltr'">
             @if (hasCustomColumns()) {
-                <div [class]="classes()" [attr.data-slot]="'kanban'" (contextmenu)="onBoardContextMenu($event)">
+                <div #boardSurface [class]="classes()" [attr.data-slot]="'kanban'">
                     <ng-content />
                 </div>
             } @else if (hasSwimlanes()) {
-                <div class="flex flex-col" [attr.data-slot]="'kanban-swimlanes'" (contextmenu)="onBoardContextMenu($event)">
+                <div #boardSurface class="flex flex-col" [attr.data-slot]="'kanban-swimlanes'">
                     @for (lane of swimlanes(); track lane.id) {
                         <section
                             class="border-b last:border-b-0"
@@ -198,7 +200,7 @@ export const KANBAN = new InjectionToken<KanbanComponent>('KANBAN');
                     }
                 </div>
             } @else {
-                <div [class]="classes()" [attr.data-slot]="'kanban'" (contextmenu)="onBoardContextMenu($event)">
+                <div #boardSurface [class]="classes()" [attr.data-slot]="'kanban'">
                     @for (col of sortedColumns(); track col.id) {
                         <ui-kanban-column
                             [columnId]="col.id"
@@ -406,6 +408,11 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
     private readonly cardMenuRef = viewChild<ContextMenuComponent>('cardMenu');
     private readonly columnMenuRef = viewChild<ContextMenuComponent>('columnMenu');
     private readonly boardMenuRef = viewChild<ContextMenuComponent>('boardMenu');
+    private readonly boardSurface = viewChild<ElementRef<HTMLElement>>('boardSurface');
+    private readonly registerBoardMenu = effect((onCleanup) => {
+        const surface = this.boardSurface()?.nativeElement;
+        if (surface) onCleanup(onContextGesture(surface, (gesture) => this.openBoardMenu(gesture)));
+    });
     private readonly cardDialogRef = viewChild(KanbanCardDialogComponent);
     private readonly columnDialogRef = viewChild(KanbanColumnDialogComponent);
     private readonly deleteColumnDialogRef = viewChild(KanbanDeleteColumnDialogComponent);
@@ -609,7 +616,8 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
      * Marks a card as being dragged so columns accept drops and the source card
      * dims. Called by `<ui-kanban-card>` from the HTML5 `dragstart` handler —
      * there is no touch equivalent, so drag-and-drop is mouse/pointer only;
-     * touch users move cards through the card context menu's "Move to" submenu.
+     * touch users move cards through the card context menu's "Move to" submenu,
+     * which a long-press on the card opens.
      */
     startDrag(cardId: string, columnId: string): void {
         this.draggedCardId.set(cardId);
@@ -673,7 +681,7 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
 
     // ── Context Menu ─────────────────────────────────────────────
 
-    /** Opens the card context menu (edit / duplicate / move / priority / delete) at viewport coordinates `x`,`y`. Called by `<ui-kanban-card>` on right-click; call it yourself to expose the same menu from a custom trigger such as a long-press or a kebab button. */
+    /** Opens the card context menu (edit / duplicate / move / priority / delete) at viewport coordinates `x`,`y`. Called by `<ui-kanban-card>` on right-click; call it yourself to expose the same menu from a custom trigger such as a long-press or a kebab button. A right-click, the context-menu key and a long-press on a card already do. */
     showCardContextMenu(x: number, y: number, card: KanbanCard): void {
         this.cardMenuRef()?.show(x, y, card);
     }
@@ -683,12 +691,11 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         this.columnMenuRef()?.show(x, y, column);
     }
 
-    /** Host `contextmenu` handler that opens the board menu ("Add column") only on empty board space — right-clicks inside a column bubble up but are ignored here so the column menu wins. */
-    onBoardContextMenu(event: MouseEvent): void {
-        const target = event.target as HTMLElement;
-        if (target.closest('[data-slot="kanban-column"]')) return;
-        event.preventDefault();
-        this.boardMenuRef()?.show(event.clientX, event.clientY);
+    /** Opens the board menu ("Add column") on a right-click, the context-menu key or a long-press of empty board space. Gestures inside a column are left to the column and card menus. */
+    private openBoardMenu(gesture: ContextGesture): boolean {
+        if (gesture.target.closest('[data-slot="kanban-column"]')) return false;
+        this.boardMenuRef()?.show(gesture.clientX, gesture.clientY);
+        return true;
     }
 
     /** Whether `column` is leftmost in `order` and so cannot move further left. Returns `true` for `undefined` (the menu's data before it is populated) so the action stays disabled. */
