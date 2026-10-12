@@ -189,11 +189,29 @@ describe('a fetch failure during the conflict scan', () => {
             new Set([same, changed]), { uiDir: ui, blocksDir: blocks }, OPTIONS, UTILS_ALIAS,
         );
 
-        expect(result.unchecked.map(u => u.name).sort((a, b) => a.localeCompare(b))).toEqual([changed, same]);
+        // Reported in name order however the concurrent scan finished.
+        expect(result.unchecked.map(u => u.name)).toEqual([changed, same]);
         for (const u of result.unchecked) expect(u.reason).toMatch(reason);
         expect(result.conflicting).toEqual([]);
         expect(result.toSkip).toEqual([]);
         expect(result.toInstall).toEqual([]);
+    });
+});
+
+describe('a component with an unreachable peer file', () => {
+    it('is unchecked and leaves none of its peer files queued for writing', async () => {
+        const w = define({
+            name: 'int-peers', files: ['int-peers/a.ts'], peerFiles: ['int-peers/p1.ts', 'int-peers/p2.ts'],
+        });
+        write(path.join(ui, 'int-peers/a.ts'), upstream('component', 'int-peers/a.ts'));
+        write(path.join(ui, 'int-peers/p1.ts'), '// my edit\n');
+        write(path.join(ui, 'int-peers/p2.ts'), '// my edit\n');
+        unreachable.add('int-peers/p2.ts');
+
+        const result = await detectConflicts(new Set([w]), { uiDir: ui, blocksDir: blocks }, OPTIONS, UTILS_ALIAS);
+
+        expect(result.unchecked).toEqual([{ name: w, file: 'int-peers/p2.ts', reason: expect.stringContaining('fetch failed') }]);
+        expect(result.peerFilesToUpdate.size).toBe(0);
     });
 });
 

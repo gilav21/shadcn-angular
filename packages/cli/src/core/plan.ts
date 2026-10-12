@@ -131,6 +131,7 @@ async function checkPeerFiles(
     prefix: string,
 ): Promise<UncheckedComponent | undefined> {
     let unchecked: UncheckedComponent | undefined;
+    const needed: string[] = [];
     for (const file of registry[name].peerFiles ?? []) {
         const check = await checkFileConflict(file, targetDir, kind, options, utilsAlias, scan.contentCache, prefix);
         if (check.status === 'unchecked') {
@@ -139,9 +140,11 @@ async function checkPeerFiles(
             // Install a peer file that's MISSING (a new component version references
             // it but it was never installed) as well as one that's CHANGED. Only an
             // identical, already-present peer file is left alone.
-            scan.peerFilesToUpdate.add(file);
+            needed.push(file);
         }
     }
+    // An unchecked component is not written, so it must not leave its peers queued.
+    if (!unchecked) for (const file of needed) scan.peerFilesToUpdate.add(file);
     return unchecked;
 }
 

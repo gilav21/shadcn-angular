@@ -1599,6 +1599,9 @@ describe('add() on an incomplete run', () => {
 
   const output = (): string => logged.join('\n');
 
+  const lastInstallCall = (): InstallCall =>
+    asMock(performInstall).mock.calls.at(-1)![0] as InstallCall;
+
   const installResult = (partial: Partial<InstallResult> = {}): InstallResult => ({
     installed: ['badge'], skipped: [], declined: [], pruned: [], warnings: [],
     mergeReport: emptyMergeReport(), failures: [], unchecked: [], ...partial,
@@ -1646,6 +1649,35 @@ describe('add() on an incomplete run', () => {
     expect(output()).toContain('fetch failed');
     expect(output()).not.toContain('have local changes');
     expect(prompts).not.toHaveBeenCalled();
+    expect(performInstall).not.toHaveBeenCalled();
+  });
+
+  it('installs what it could check, then exits 1 for the component it could not', async () => {
+    // badge is new; its dependency skeleton is installed but its upstream is unreachable.
+    asMock(fs.pathExists).mockImplementation(async (p: string) => String(p).includes('skeleton'));
+    vi.mocked(globalThis.fetch).mockImplementation(async (input) => {
+      if (String(input).includes('skeleton')) throw new TypeError('fetch failed');
+      return new Response('// REMOTE', { status: 200 });
+    });
+    const unchecked = [{ name: 'skeleton', file: 'skeleton/skeleton.component.ts', reason: 'fetch failed' }];
+    asMock(performInstall).mockResolvedValue(installResult({ unchecked }));
+
+    await expect(add(['badge'], { branch: 'master', remote: true, yes: true })).rejects.toMatchObject({ code: 1 });
+
+    expect(performInstall).toHaveBeenCalled();
+    expect(lastInstallCall().components).toEqual(['badge']);
+    expect(output()).toContain('Could not check (registry unreachable)');
+    expect(output()).toContain('skeleton');
+  });
+
+  it('--dry-run reports the components it could not check and exits 1', async () => {
+    asMock(fs.pathExists).mockImplementation(async (p: string) => String(p).includes('skeleton'));
+    vi.mocked(globalThis.fetch).mockRejectedValue(new TypeError('fetch failed'));
+
+    await expect(add(['badge'], { branch: 'master', remote: true, dryRun: true })).rejects.toMatchObject({ code: 1 });
+
+    expect(output()).toContain('[Dry Run] No changes will be made.');
+    expect(output()).toContain('Could not check (registry unreachable)');
     expect(performInstall).not.toHaveBeenCalled();
   });
 

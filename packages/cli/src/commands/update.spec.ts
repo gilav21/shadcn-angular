@@ -456,6 +456,32 @@ describe('update (command)', () => {
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
+  it('updates what it could check, then exits 1 for the component it could not', async () => {
+    const unchecked = [{ name: 'ripple' as ComponentName, file: 'ripple.directive.ts', reason: 'fetch failed' }];
+    asMock(detectConflicts).mockResolvedValue(conflictResult({ conflicting: ['button'], unchecked }));
+    asMock(performInstall).mockResolvedValue(installResult({ installed: ['button'], unchecked }));
+
+    await expect(update(['button'], opts({ yes: true }))).rejects.toThrow(ProcessExitError);
+
+    expect(performInstall).toHaveBeenCalled();
+    expect(output()).toContain('Updated 1 component(s).');
+    expect(output()).toContain('Could not check (registry unreachable)');
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it('--dry-run still reports a component it could not check, and exits 1', async () => {
+    asMock(detectConflicts).mockResolvedValue(conflictResult({
+      conflicting: ['button'],
+      unchecked: [{ name: 'ripple', file: 'ripple.directive.ts', reason: 'fetch failed' }],
+    }));
+
+    await expect(update(['button'], opts({ dryRun: true, yes: true }))).rejects.toThrow(ProcessExitError);
+
+    expect(output()).toContain('[Dry Run] No changes written.');
+    expect(output()).toContain('Could not check (registry unreachable)');
+    expect(performInstall).not.toHaveBeenCalled();
+  });
+
   it('--dry-run names a file it could not preview', async () => {
     asMock(detectConflicts).mockResolvedValue(conflictResult({ conflicting: ['button'] }));
     asMock(previewComponentMerges).mockResolvedValue([

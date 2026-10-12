@@ -7,6 +7,7 @@ import {
 import { registry, getComponentNames } from '../registry/index.js';
 import { getConfig, getDefaultConfig, type Config } from '../utils/config.js';
 import { performInstall } from '../core/install.js';
+import { fetchAndTransform } from '../core/fetch.js';
 import { installPackages } from '../utils/package-manager.js';
 import { scanLayouts } from '../core/layout.js';
 import { collectLibDrift, refreshLibFiles } from '../core/lib-reconcile.js';
@@ -93,6 +94,21 @@ describe('collectDoctorReport', () => {
     const report = await collectDoctorReport('/proj', cfg, { branch: 'master' });
     expect(report.modified).toContain('button');
     expect(report.ok).toBe(false);
+  });
+
+  it('does not call an installed component healthy when the registry cannot be reached', async () => {
+    (fs.pathExists as unknown as ReturnType<typeof vi.fn>).mockImplementation(async (p: string) =>
+      String(p).includes('button'));
+    (fs.readFile as unknown as ReturnType<typeof vi.fn>).mockResolvedValue('LOCAL');
+    (fetchAndTransform as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('fetch failed'));
+    try {
+      const report = await collectDoctorReport('/proj', cfg, { branch: 'master' });
+      expect(report.unchecked).toContain('button');
+      expect(report.modified).not.toContain('button');
+      expect(report.ok).toBe(false);
+    } finally {
+      (fetchAndTransform as unknown as ReturnType<typeof vi.fn>).mockResolvedValue('REMOTE');
+    }
   });
 });
 
