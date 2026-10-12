@@ -124,12 +124,14 @@ function tally(report: MergeReport, file: string, outcome: MergeOutcome): void {
  * The ref is per-component but outcomes are per-file, so advancing while ANY
  * file fell back (kept its old version) would record a ref the fell-back file
  * isn't actually at — a later update would then compute BASE at the wrong ref
- * and could silently swallow interim upstream changes. So advance only when at
- * least one file was written and NONE fell back (per-file refs would lift this
- * conservatism — see the spec's ref-granularity open decision).
+ * and could silently swallow interim upstream changes. A file that FAILED to
+ * write is the same case without an outcome: it never reached the new ref
+ * either. So advance only when at least one file was written and NONE fell back
+ * or failed (per-file refs would lift this conservatism — see the spec's
+ * ref-granularity open decision).
  */
-export function shouldAdvanceRef(outcomes: readonly MergeOutcome[]): boolean {
-    return outcomes.length > 0 && !outcomes.includes('fellback-kept');
+export function shouldAdvanceRef(outcomes: readonly MergeOutcome[], failed: number): boolean {
+    return failed === 0 && outcomes.length > 0 && !outcomes.includes('fellback-kept');
 }
 
 export interface MergeWriteContext {

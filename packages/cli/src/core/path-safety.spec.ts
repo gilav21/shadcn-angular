@@ -83,11 +83,15 @@ describe('registry-fed write and delete sinks', () => {
         expect(read(path.join(root, '.env'))).toBe('ROOT_SECRET=1\n');
         expect(read(path.join(project, '.env'))).toBe('PROJECT_SECRET=1\n');
         expect(read(path.join(project, 'property-editor.component.ts'))).toBe(published);
-        const refused = result.warnings.filter(w => w.includes(GUARD));
+        // A refused file to write or lib file is a failure (the install is incomplete);
+        // a refused prune only leaves a file in place, so it stays a warning.
+        const refused = [...result.failures.map(f => f.message), ...result.warnings].filter(m => m.includes(GUARD));
         expect(refused).toHaveLength(4);
         for (const rel of ['escape.ts', 'escape-lib.ts', '.env', 'property-editor.component.ts']) {
             expect(refused).toContainEqual(expect.stringContaining(`${GUARD}: ../../../${rel}`));
         }
+        expect(result.failures.map(f => f.stage).sort((a, b) => a.localeCompare(b))).toEqual(['component', 'lib']);
+        expect(result.installed).not.toContain('x');
     });
 
     it('refreshLibFiles refuses a lib path that escapes the lib dir', async () => {
