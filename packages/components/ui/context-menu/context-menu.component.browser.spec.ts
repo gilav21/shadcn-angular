@@ -2,6 +2,7 @@ import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { afterEach, describe, it, expect } from 'vitest';
+import { userEvent } from 'vitest/browser';
 import {
     ContextMenuComponent,
     ContextMenuTriggerComponent,
@@ -145,6 +146,7 @@ describe('ContextMenu direction (real browser)', () => {
     template: `
         <div [attr.dir]="dir()">
             <input data-testid="outside" aria-label="Outside field" />
+            <div data-testid="blank" style="position: fixed; right: 0; bottom: 0; width: 24px; height: 24px"></div>
             <ui-context-menu>
                 <ui-context-menu-trigger>
                     <button type="button" data-testid="target">Target</button>
@@ -258,6 +260,10 @@ describe('ContextMenu keyboard (real browser)', () => {
         expect(focusedLabel()).toBe('Email');
         pressOnFocused('ArrowDown');
         expect(focusedLabel()).toBe('Link');
+        pressOnFocused('Home');
+        expect(focusedLabel()).toBe('Email');
+        pressOnFocused('End');
+        expect(focusedLabel()).toBe('Link');
 
         pressOnFocused(dir === 'rtl' ? 'ArrowRight' : 'ArrowLeft');
         await settle();
@@ -299,13 +305,24 @@ describe('ContextMenu focus return (real browser)', () => {
     it.each([
         { how: 'activating an item with Enter', close: () => pressOnFocused('Enter') },
         { how: 'clicking outside', close: () => document.body.dispatchEvent(new MouseEvent('click', { bubbles: true })) },
+        // A real click on empty page moves focus to <body> before the menu closes: the menu's own focus is "lost", not moved on.
+        { how: 'clicking empty page with the mouse', close: () => userEvent.click(document.querySelector<HTMLElement>('[data-testid="blank"]')!) },
         { how: 'pressing Tab', close: () => pressOnFocused('Tab') },
+        {
+            how: 'pressing Tab inside the flyout',
+            close: async () => {
+                pressOnFocused('End');
+                pressOnFocused('ArrowRight');
+                await settle();
+                pressOnFocused('Tab');
+            },
+        },
     ])('closing by $how hands focus back to the target', async ({ close }) => {
         const { fixture } = await openFromTarget(KeyboardHost);
         // The menu took focus off the target, so there is something to hand back (UC-5 precondition).
         expect(document.activeElement).not.toBe(targetButton());
 
-        close();
+        await close();
         fixture.detectChanges();
         await fixture.whenStable();
         await settle();

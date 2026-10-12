@@ -18,6 +18,15 @@ import { cn } from '../../../lib/utils';
 import { inheritThemeTokens } from '../../../lib/theme-presets';
 import { CONTEXT_MENU } from '../context-menu.component';
 
+type RingMove = 'next' | 'prev' | 'first' | 'last';
+
+const RING_MOVES: ReadonlyMap<string, RingMove> = new Map<string, RingMove>([
+    ['ArrowDown', 'next'],
+    ['ArrowUp', 'prev'],
+    ['Home', 'first'],
+    ['End', 'last'],
+]);
+
 @Component({
     selector: 'ui-context-menu-content',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -125,6 +134,7 @@ export class ContextMenuContentComponent implements OnDestroy {
         this.portalHost = null;
     }
 
+    /** Destroying the menu with the page or view it lives in is not the user closing it: focus is not moved. */
     ngOnDestroy(): void {
         this.teardown();
     }
@@ -158,24 +168,29 @@ export class ContextMenuContentComponent implements OnDestroy {
      * to the item that has focus. Escape is the overlay stack's.
      */
     onKeydown(event: KeyboardEvent): void {
-        const panel = event.currentTarget as HTMLElement;
-        const items = this.ringItems(panel);
-        const current = items.indexOf(this.document.activeElement as HTMLElement);
-        const last = items.length - 1;
-        const target: Record<string, number> = {
-            ArrowDown: current === last ? 0 : current + 1,
-            ArrowUp: current <= 0 ? last : current - 1,
-            Home: 0,
-            End: last,
-        };
-
+        if (event.ctrlKey || event.altKey || event.metaKey) return;
         if (event.key === 'Tab') {
             event.preventDefault();
             this.contextMenu?.close();
-        } else if (Object.hasOwn(target, event.key)) {
-            event.preventDefault();
-            items[target[event.key]]?.focus();
+            return;
         }
+        const move = RING_MOVES.get(event.key);
+        if (!move) return;
+        event.preventDefault();
+        this.focusRing(event.currentTarget as HTMLElement, move);
+    }
+
+    private focusRing(panel: HTMLElement, move: RingMove): void {
+        const items = this.ringItems(panel);
+        const current = items.indexOf(this.document.activeElement as HTMLElement);
+        const last = items.length - 1;
+        const index = {
+            next: current === last ? 0 : current + 1,
+            prev: current <= 0 ? last : current - 1,
+            first: 0,
+            last,
+        }[move];
+        items[index]?.focus();
     }
 
     private calculatePosition(): void {
@@ -213,7 +228,7 @@ export class ContextMenuContentComponent implements OnDestroy {
     }
 
     classes = computed(() => cn(
-        'min-w-[8rem] outline-none max-w-[calc(100vw-16px)] max-h-[calc(100vh-16px)] overflow-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
+        'min-w-[8rem] outline-none focus-visible:ring-1 focus-visible:ring-ring max-w-[calc(100vw-16px)] max-h-[calc(100vh-16px)] overflow-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
         'animate-in fade-in-0 zoom-in-95',
         this.class()
     ));

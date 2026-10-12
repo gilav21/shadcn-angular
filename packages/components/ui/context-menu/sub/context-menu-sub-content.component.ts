@@ -202,37 +202,26 @@ export class ContextMenuSubContentComponent implements OnDestroy {
      */
     onKeydown(event: KeyboardEvent): void {
         event.stopPropagation();
-        const rtl = this.contextMenu?.isRtl() ?? false;
+        const closeKey = this.contextMenu?.isRtl() ? 'ArrowRight' : 'ArrowLeft';
+        const item = event.target as HTMLElement;
+        const actions: Record<string, () => void> = {
+            [closeKey]: () => this.closeToTrigger(),
+            Escape: () => this.closeToTrigger(),
+            ArrowDown: () => this.focusNextItem(item),
+            ArrowUp: () => this.focusPrevItem(item),
+            Home: () => this.focusEdgeItem(item, 'first'),
+            End: () => this.focusEdgeItem(item, 'last'),
+            Tab: () => this.contextMenu?.close(),
+        };
 
-        if (event.key === 'ArrowLeft') {
-            if (!rtl) {
-                event.preventDefault();
-                this.sub.leave();
-                this.sub.focusTrigger();
-            }
-        } else if (event.key === 'ArrowRight') {
-            if (rtl) {
-                event.preventDefault();
-                this.sub.leave();
-                this.sub.focusTrigger();
-            }
-        } else if (event.key === 'ArrowDown') {
-            event.preventDefault();
-            this.focusNextItem(event.target as HTMLElement);
-        } else if (event.key === 'ArrowUp') {
-            event.preventDefault();
-            this.focusPrevItem(event.target as HTMLElement);
-        } else if (event.key === 'Home' || event.key === 'End') {
-            event.preventDefault();
-            this.focusEdgeItem(event.target as HTMLElement, event.key === 'Home' ? 'first' : 'last');
-        } else if (event.key === 'Tab') {
-            event.preventDefault();
-            this.contextMenu?.close();
-        } else if (event.key === 'Escape') {
-            event.preventDefault();
-            this.sub.leave();
-            this.sub.focusTrigger();
-        }
+        if (!Object.hasOwn(actions, event.key)) return;
+        event.preventDefault();
+        actions[event.key]();
+    }
+
+    private closeToTrigger(): void {
+        this.sub.leave();
+        this.sub.focusTrigger();
     }
 
     /**
