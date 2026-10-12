@@ -1,4 +1,4 @@
-<div [class]="containerClasses()">
+<div [class]="containerClasses()" [attr.data-slot]="'bar-chart-drilldown'">
   @if (isDrilledDown() && showBreadcrumb()) {
     <div class="flex items-center gap-2 mb-4">
       <button
@@ -117,7 +117,7 @@
 
   @if (hoveredBar() && showTooltip()) {
     <div
-      class="absolute z-50 px-3 py-2 text-sm bg-popover text-popover-foreground rounded-md shadow-lg border pointer-events-none"
+      class="absolute z-50 px-3 py-2 text-sm bg-popover text-popover-foreground rounded-md shadow-lg border pointer-events-none max-w-[calc(100vw-2rem)] break-words"
       [style.left.px]="tooltipPosition().x"
       [style.top.px]="tooltipPosition().y"
     >

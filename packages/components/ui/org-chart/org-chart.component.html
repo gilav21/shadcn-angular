@@ -1,4 +1,4 @@
-<div [class]="containerClasses()">
+<div [class]="containerClasses()" [attr.data-slot]="'org-chart'">
   <svg
     [attr.viewBox]="'0 0 ' + svgWidth() + ' ' + svgHeight()"
     [attr.width]="'100%'"

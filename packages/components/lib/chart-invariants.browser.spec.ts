@@ -588,7 +588,8 @@ describe('duplicate labels and values give one mark per point at its own positio
                     const perCategory = chart.label.startsWith('stacked-bar') ? 2 : 1;
                     expect(marks).toHaveLength(cls.values.length * perCategory);
 
-                    const rtl = chart.label.includes('RTL');
+                    // RTL mirrors a category axis that runs along x; a vertical one still runs top to bottom.
+                    const rtl = chart.label.includes('RTL') && chart.categoryAxis !== 'y';
                     const centres = marks
                         .filter((_, i) => i % perCategory === 0)
                         .map(m => centerOf(rootBox(m, svg)))

@@ -1,4 +1,4 @@
-<div [class]="containerClasses()">
+<div [class]="containerClasses()" [attr.data-slot]="'column-range-chart'">
   <svg
     [attr.viewBox]="'0 0 ' + svgWidth() + ' ' + svgHeight()"
     [attr.width]="'100%'"
@@ -104,7 +104,7 @@
 
   @if (hoveredBar()) {
     <div
-      class="absolute z-50 px-3 py-2 text-sm bg-popover text-popover-foreground rounded-md shadow-lg border pointer-events-none"
+      class="absolute z-50 px-3 py-2 text-sm bg-popover text-popover-foreground rounded-md shadow-lg border pointer-events-none max-w-[calc(100vw-2rem)] break-words"
       [style.left.px]="tooltipPosition().x"
       [style.top.px]="tooltipPosition().y"
     >
