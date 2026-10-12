@@ -14166,7 +14166,7 @@
             {
               "name": "fileImportComplete",
               "type": "string",
-              "description": "Emits the inserted HTML when an import completes."
+              "description": "Emits the sanitized HTML that was inserted when an import completes — the same markup the editor now holds."
             },
             {
               "name": "fileImportError",
