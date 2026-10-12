@@ -536,6 +536,7 @@ describe('FileViewerComponent rendering internals', () => {
             expect(html).toContain('<a href="https://example.com/report"');
             expect(html).toContain('dir="rtl"');
             expect(html).toContain('<ins');
+            expect(html).toContain("font-family:'Arial',sans-serif");
             expect(html).toContain('<del');
         });
 
@@ -707,6 +708,8 @@ describe('FileViewerComponent rendering internals', () => {
             expect(html).toContain('transform:scale(0.5)');
             expect(html).toContain('dir="rtl"');
             expect(html).toContain('word');
+            // The bullet and the run each carry the quoted name plus the viewer's own generic fallback.
+            expect(html.split("font-family:'Arial',sans-serif")).toHaveLength(3);
         });
 
         it('renders empty paragraph as line break', () => {
