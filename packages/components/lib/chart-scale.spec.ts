@@ -8,6 +8,7 @@ import {
     niceTimeTicks,
     sequentialColorScale,
     toEpochMs,
+    zeroBasedDomain,
 } from './chart-scale';
 import { calculateAxisTicks } from './chart.utils';
 
@@ -217,6 +218,19 @@ describe('niceDomain', () => {
 // T-6 (UC-6) — each call must return. The 1,000 ms timeout fails a slow call
 // that does return; it cannot interrupt a synchronous runaway loop, which
 // stalls the file instead (that is how the pre-fix code fails these rows).
+describe('zeroBasedDomain', () => {
+    it.each([
+        ['positive values start at zero', [1.97, 2.2, 2.69], [0, 3]],
+        ['negative values end at zero', [-50, -10, -0.5], [-50, 0]],
+        ['mixed values span both sides', [-30, 45.5, -0.01, 12], [-40, 60]],
+        ['all zeros still have an axis', [0, 0, 0], [-1, 1]],
+        ['no values still have an axis', [], [-1, 1]],
+        ['non-finite entries are ignored', [Number.NaN, 4, Number.POSITIVE_INFINITY, null, undefined], [0, 4]],
+    ])('%s', (_label, values, expected) => {
+        expect(zeroBasedDomain(values as number[])).toEqual(expected);
+    });
+});
+
 describe('scale helpers return a bounded tick list in bounded time', () => {
     const cap = (count: number): number => 2 * Math.min(50, Math.max(1, Math.floor(count))) + 3;
 

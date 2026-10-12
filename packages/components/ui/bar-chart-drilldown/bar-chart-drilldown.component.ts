@@ -25,9 +25,8 @@ import {
   formatChartValue,
   getChartSummary,
   getPointAriaLabel,
-  calculateAxisTicks,
-  getDataRange,
 } from '../../lib/chart.utils';
+import { linearScale, zeroBasedDomain } from '../../lib/chart-scale';
 
 @Component({
   selector: 'ui-bar-chart-drilldown',
@@ -74,7 +73,9 @@ export class BarChartDrilldownComponent implements AfterViewInit {
    * An entry whose `drilldown` holds the `id` of an entry in
    * {@link drilldownSeries} becomes clickable and navigates into that series —
    * a `drilldown` id with no matching series is inert (see {@link hasDrilldown}).
-   * Values are assumed non-negative: the scale is anchored at 0.
+   * Columns grow from a zero baseline: a negative value hangs below it and the
+   * axis covers both signs; an all-zero series draws zero-height columns.
+   * Entries sharing a `name` are separate columns, one per array position.
    */
   data = input.required<DrilldownDataPoint[]>();
   /**
@@ -199,37 +200,48 @@ export class BarChartDrilldownComponent implements AfterViewInit {
     };
   });
 
+  /**
+   * The value-axis domain of the displayed series: the nice bounds of its
+   * values and zero, so columns of either sign and an all-zero series fit.
+   */
+  readonly valueDomain = computed(() => zeroBasedDomain(this.currentData().map(d => d.value), 5));
+
   dataRange = computed(() => {
-    const range = getDataRange(this.currentData());
-    return { min: 0, max: range.max * 1.1 };
+    const [min, max] = this.valueDomain();
+    return { min, max };
   });
 
-  axisTicks = computed(() => {
-    const range = this.dataRange();
-    return calculateAxisTicks(range.min, range.max, 5);
+  private readonly valueScale = computed(() => {
+    const area = this.chartArea();
+    return linearScale(this.valueDomain(), [area.bottom, area.top]);
   });
+
+  axisTicks = computed(() => this.valueScale().ticks(5));
 
   bars = computed((): BarRect[] => {
     const data = this.currentData();
     if (data.length === 0) return [];
 
     const area = this.chartArea();
-    const range = this.dataRange();
+    const scale = this.valueScale();
     const gap = this.barGap();
     const barCount = data.length;
     const totalGaps = (barCount - 1) * gap;
     const barWidth = (area.width - totalGaps) / barCount;
+    const zero = scale.scale(0);
 
     return data.map((point, index) => {
-      const normalizedValue = (point.value - range.min) / (range.max - range.min);
-      const barHeight = normalizedValue * area.height;
+      const end = scale.scale(point.value);
+      const y = Math.min(zero, end);
+      const barHeight = Math.abs(end - zero);
 
       const x = this.isRtl()
         ? area.right - index * (barWidth + gap) - barWidth
         : area.left + index * (barWidth + gap);
 
-      const y = area.bottom - barHeight;
       const color = getChartColor(index, point.color);
+      // A negative column hangs below the baseline, so its label goes under the free end.
+      const labelY = point.value >= 0 ? y - 6 : y + barHeight + 14;
 
       return {
         index,
@@ -237,10 +249,10 @@ export class BarChartDrilldownComponent implements AfterViewInit {
         x,
         y,
         width: barWidth,
-        height: Math.max(0, barHeight),
+        height: barHeight,
         color,
         value: point.value,
-        labelPosition: { x: x + barWidth / 2, y: y - 6 },
+        labelPosition: { x: x + barWidth / 2, y: labelY },
       };
     });
   });
@@ -273,10 +285,7 @@ export class BarChartDrilldownComponent implements AfterViewInit {
    * derived from the *currently displayed* series, so it rescales on drilldown.
    */
   getTickPosition(tick: number): number {
-    const range = this.dataRange();
-    const area = this.chartArea();
-    const normalized = (tick - range.min) / (range.max - range.min);
-    return area.bottom - normalized * area.height;
+    return this.valueScale().scale(tick);
   }
 
   /**

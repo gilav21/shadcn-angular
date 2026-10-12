@@ -8,7 +8,7 @@
  * noise, lost maximum and runaway loops lived in it, so it is fixed in place.
  */
 
-import { calculateAxisTicks, clampTickCount } from './chart.utils';
+import { calculateAxisTicks, clampTickCount, extent } from './chart.utils';
 
 export interface LinearScale {
     scale(value: number): number;
@@ -105,6 +105,16 @@ export function niceDomain(min: number, max: number, count = 5): [number, number
         domain = next;
     }
     return domain;
+}
+
+/**
+ * {@link niceDomain} over the finite `values` and zero: the domain of any chart
+ * whose marks grow from a zero baseline (bars, areas). No finite value gives
+ * `[-1, 1]`, so an all-zero or empty dataset still has an axis with ticks.
+ */
+export function zeroBasedDomain(values: Iterable<number | null | undefined>, count = 5): [number, number] {
+    const [lo, hi] = extent(values) ?? [0, 0];
+    return niceDomain(Math.min(0, lo), Math.max(0, hi), count);
 }
 
 /** Categorical band scale (evenly spaced bands with optional padding). */

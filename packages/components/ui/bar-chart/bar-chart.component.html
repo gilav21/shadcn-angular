@@ -121,7 +121,7 @@
             <text
               [attr.x]="bar.labelPosition.x"
               [attr.y]="bar.labelPosition.y"
-              [attr.text-anchor]="isVertical() ? 'middle' : (isRtl() ? 'start' : 'start')"
+              [attr.text-anchor]="labelAnchor(bar)"
               [attr.dominant-baseline]="isVertical() ? 'auto' : 'middle'"
               class="text-xs font-medium pointer-events-none"
               [class.fill-foreground]="true"
