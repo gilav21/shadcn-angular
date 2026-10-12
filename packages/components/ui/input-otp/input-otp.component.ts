@@ -74,6 +74,7 @@ function sanitizeCode(text: string, slotCount: number): string {
         [attr.aria-labelledby]="ariaLabelledby()"
         (input)="onInput()"
         (keydown)="onKeydown($event)"
+        (paste)="onPaste($event)"
         (focus)="onFocus()"
         (blur)="onBlur()"
         class="sr-only"
@@ -183,6 +184,23 @@ export class InputOTPComponent implements ControlValueAccessor {
       this.commit(next);
     }
     this.select(caretAfter);
+  }
+
+  /**
+   * A paste replaces the code: the browser's own paste would insert at the
+   * selection, which appends to a partial code and does nothing at all in a full
+   * field (`maxlength`). Invariant: after a paste the field holds exactly the
+   * pasted code, sanitised and cut to the slot count.
+   */
+  onPaste(event: ClipboardEvent): void {
+    event.preventDefault();
+    const code = sanitizeCode(event.clipboardData?.getData('text') ?? '', this.slotCount());
+    if (!code) return;
+    this.hiddenInput.nativeElement.value = code;
+    if (code !== this.value()) {
+      this.commit(code);
+    }
+    this.select(code.length);
   }
 
   /** Arrow keys, Home and End move the highlight (and with it the real selection) between slots; everything else is native editing. */
