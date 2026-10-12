@@ -3,11 +3,11 @@ import path from 'node:path';
 import chalk from 'chalk';
 import { getConfig, getPrefix, type Config } from '../utils/config.js';
 import { registry, getComponentNames, type ComponentName } from '../registry/index.js';
-import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
+import { resolveProjectPath, aliasToProjectPath, PATH_GUARD } from '../utils/paths.js';
 import { detectConflicts, printBreakingChanges, resolveInstallTargets, type AddOptions } from '../core/plan.js';
 import { readManifest, writeManifest, removeFiles, fileStatus, type FileStatus, type Manifest } from '../core/manifest.js';
 import { scanLayouts } from '../core/layout.js';
-import { performInstall } from '../core/install.js';
+import { performInstall, type InstallResult } from '../core/install.js';
 import { collectLibDrift, refreshLibFiles, classifyLibFile } from '../core/lib-reconcile.js';
 import { printBreakingUsages } from '../core/breaking-scan.js';
 import { collectStaleReport, rewriteMovedImports, type StaleEntry } from '../core/clean-reinstall.js';
@@ -201,6 +201,14 @@ export function buildFixPlan(report: DoctorReport): DoctorFixPlan {
     };
 }
 
+/** An incomplete install as action lines, so `doctor --fix` never loses the cause of a failed file. */
+function describeProblems(result: Pick<InstallResult, 'failures' | 'unchecked'>): string[] {
+    return [
+        ...result.failures.map(f => `Warning: ${f.file ?? f.stage} — ${f.message}`),
+        ...result.unchecked.map(u => `Warning: could not check ${u.name}: ${u.reason}`),
+    ];
+}
+
 /**
  * Apply a fix plan: re-install missing/stale components (overwriting the stale
  * ones) and install missing npm dependencies. User-edited components are never
@@ -223,6 +231,7 @@ export async function doctorFixCore(
         actions.push(`Re-installed ${result.installed.length} component(s): ${result.installed.join(', ')}`);
         if (result.pruned.length > 0) actions.push(`Pruned ${result.pruned.length} obsolete file(s): ${result.pruned.join(', ')}`);
         for (const warning of result.warnings) actions.push(`Warning: ${warning}`);
+        actions.push(...describeProblems(result));
     }
     if (plan.npmDeps.length > 0) {
         await installPackages(plan.npmDeps, { cwd });
@@ -255,6 +264,12 @@ async function migrateOneMove(
         components: [move.toComponent], overwrite: [move.toComponent],
         cwd, config, options: { ...options, yes: true, overwrite: true },
     });
+    const problems = describeProblems(result);
+    if (problems.length > 0) {
+        // The replacement did not fully arrive: keep the old file and its imports.
+        actions.push(`Did not migrate ${move.fromFile} → ${move.toComponent}: the new component was not fully installed.`, ...problems);
+        return;
+    }
     const rewritten = await rewriteMovedImports(cwd, move);
     await fs.remove(path.join(targetDir, move.fromFile));
     actions.push(
@@ -323,8 +338,9 @@ export interface RefreshLibResult {
 /**
  * Split an explicit `files` list by the same rule the drift scan uses: a
  * customized file is protected unless `force`, however the target set was
- * chosen (I7). A path that cannot even be classified (it escapes the lib dir)
- * stays a target so `refreshLibFiles` refuses it with its path-guard warning.
+ * chosen (I7). A path that escapes the lib dir stays a target so
+ * `refreshLibFiles` refuses it with its path-guard warning; a file that could
+ * not be read for any other reason is protected, never overwritten blind.
  */
 async function splitExplicitFiles(
     files: readonly string[], libDir: string, manifest: Manifest, options: AddOptions, force: boolean | undefined,
@@ -332,11 +348,20 @@ async function splitExplicitFiles(
     const targets: string[] = [];
     const protectedFiles: string[] = [];
     for (const file of files) {
-        const status = await classifyLibFile(file, libDir, manifest, options).catch(() => 'unclassifiable');
-        if (status === 'userEdited' && !force) protectedFiles.push(file);
+        if (await isProtectedExplicit(file, libDir, manifest, options, force)) protectedFiles.push(file);
         else targets.push(file);
     }
     return { targets, protectedFiles };
+}
+
+async function isProtectedExplicit(
+    file: string, libDir: string, manifest: Manifest, options: AddOptions, force: boolean | undefined,
+): Promise<boolean> {
+    try {
+        return await classifyLibFile(file, libDir, manifest, options) === 'userEdited' && !force;
+    } catch (err: unknown) {
+        return !(err instanceof Error && err.message.startsWith(PATH_GUARD));
+    }
 }
 
 /**

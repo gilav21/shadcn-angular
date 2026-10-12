@@ -245,6 +245,11 @@ export async function applyCore(
     const uiAlias = config.aliases.ui || 'src/components/ui';
     const addon = resolveAddonInfo(addonName, uiAlias, getPrefix(config));
 
+    const snippet = {
+        import: `import { ${addon.symbol} } from '${addon.module}';`,
+        selector: addon.selector,
+        tag: addon.tag,
+    };
     let installed = false;
     let mergeReport = emptyMergeReport();
     let failures: InstallFailure[] = [];
@@ -258,6 +263,11 @@ export async function applyCore(
         mergeReport = installResult.mergeReport;
         failures = installResult.failures;
         unchecked = installResult.unchecked;
+        if (failures.length > 0 || unchecked.length > 0) {
+            // Wiring an addon that is only partly on disk would break the app, and the
+            // missing-contract check below would blame the base for what is a failed write.
+            return { addon: addon.name, installed: false, targets: [], totalWired: 0, mergeReport, failures, unchecked, snippet };
+        }
 
         const uiDir = resolveProjectPath(cwd, aliasToProjectPath(uiAlias));
         const missing = missingBaseFilesFor(addon, uiDir);
@@ -282,10 +292,6 @@ export async function applyCore(
         mergeReport,
         failures,
         unchecked,
-        snippet: {
-            import: `import { ${addon.symbol} } from '${addon.module}';`,
-            selector: addon.selector,
-            tag: addon.tag,
-        },
+        snippet,
     };
 }

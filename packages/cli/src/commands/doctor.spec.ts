@@ -25,7 +25,7 @@ vi.mock('../core/fetch.js', () => ({
   normalizeContent: (s: string) => s.replaceAll('\r\n', '\n').trim(),
 }));
 vi.mock('../core/install.js', () => ({
-  performInstall: vi.fn(async () => ({ installed: ['button', 'card'], skipped: [], declined: [], pruned: [], warnings: [] })),
+  performInstall: vi.fn(async () => ({ installed: ['button', 'card'], skipped: [], declined: [], pruned: [], warnings: [], failures: [], unchecked: [] })),
 }));
 vi.mock('../utils/package-manager.js', () => ({
   installPackages: vi.fn(async () => undefined),
@@ -67,7 +67,7 @@ beforeEach(() => {
   asMock(getConfig).mockResolvedValue(cfg);
   asMock(installPackages).mockResolvedValue(undefined);
   asMock(performInstall).mockResolvedValue({
-    installed: ['button', 'card'], skipped: [], declined: [], pruned: [], warnings: [],
+    installed: ['button', 'card'], skipped: [], declined: [], pruned: [], warnings: [], failures: [], unchecked: [],
   });
   asMock(scanLayouts).mockResolvedValue({ legacy: [], current: [] });
   asMock(collectLibDrift).mockResolvedValue({ stale: [], missing: [], userEdited: [] });
@@ -217,7 +217,7 @@ describe('doctorFixCore', () => {
 
   it('surfaces install warnings as actions', async () => {
     (performInstall as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      installed: ['button'], skipped: [], declined: [], pruned: [], warnings: ['peer file skipped'],
+      installed: ['button'], skipped: [], declined: [], pruned: [], warnings: ['peer file skipped'], failures: [], unchecked: [],
     });
     const plan = buildFixPlan(makeReport({ missingFiles: ['button'] }));
     const actions = await doctorFixCore('/proj', cfg, { branch: 'master' }, plan);
@@ -262,6 +262,42 @@ describe('doctorFixCore', () => {
     expect(actions.some(a =>
       a.includes('Migrated page-builder/page-renderer.component.ts → page-renderer')
       && a.includes('re-pointed 1 import(s)'))).toBe(true);
+  });
+
+  it('keeps the cause of a failed file in the actions instead of dropping it', async () => {
+    asMock(performInstall).mockResolvedValueOnce({
+      installed: [], skipped: [], declined: [], pruned: [], warnings: [], unchecked: [],
+      failures: [{ stage: 'component', component: 'button', file: 'button/button.component.html', message: 'ECONNRESET' }],
+    });
+
+    const actions = await doctorFixCore(
+      '/proj', cfg, { branch: 'master' }, buildFixPlan(makeReport({ missingFiles: ['button'] })),
+    );
+
+    expect(actions).toContain('Warning: button/button.component.html — ECONNRESET');
+  });
+
+  it('does not delete the old file of a relocated component whose replacement failed to install', async () => {
+    const move = {
+      fromFile: 'page-builder/page-renderer.component.ts',
+      toComponent: 'page-renderer' as const,
+      fromImport: 'page-builder/page-renderer.component',
+      toImport: 'page-renderer',
+    };
+    asMock(collectStaleReport).mockResolvedValue({ entries: [{ file: move.fromFile, action: 'migrate', move }] });
+    asMock(performInstall).mockResolvedValueOnce({
+      installed: [], skipped: [], declined: [], pruned: [], warnings: [], unchecked: [],
+      failures: [{ stage: 'component', component: 'page-renderer', file: 'page-renderer/page-renderer.component.ts', message: 'ECONNRESET' }],
+    });
+
+    const actions = await doctorFixCore(
+      '/proj', cfg, { branch: 'master' },
+      buildFixPlan(makeReport({ stale: [{ file: move.fromFile, action: 'migrate', move }] })),
+    );
+
+    expect(fs.remove).not.toHaveBeenCalledWith(expect.stringContaining('page-renderer.component.ts'));
+    expect(rewriteMovedImports).not.toHaveBeenCalled();
+    expect(actions.some(a => a.startsWith('Did not migrate'))).toBe(true);
   });
 
   it('prunes stale files and drops them from the lockfile', async () => {
@@ -342,6 +378,18 @@ describe('refreshLibCore', () => {
     expect(result.refreshed).toEqual([]);
     expect(result.targets).toContain('utils.ts');
     expect(result.protectedFiles).toEqual(['i18n/i18n.token.ts']);
+  });
+
+  it.each([
+    { row: 'a path that escapes the lib dir stays a target for the guard warning', error: new Error('Path must stay inside the project directory: ../x.ts'), protectedFile: false },
+    { row: 'a file that could not be read is protected, never overwritten blind', error: new Error('EACCES: permission denied'), protectedFile: true },
+  ])('an explicit file that cannot be classified: $row', async ({ error, protectedFile }) => {
+    asMock(classifyLibFile).mockRejectedValue(error);
+
+    const result = await refreshLibCore('/proj', cfg, { branch: 'master' }, { files: ['x.ts'] });
+
+    expect(result.targets).toEqual(protectedFile ? [] : ['x.ts']);
+    expect(result.protectedFiles).toEqual(protectedFile ? ['x.ts'] : []);
   });
 
   it('an explicit file list picks which files to consider and still protects a customized one', async () => {
@@ -458,7 +506,7 @@ describe('doctor (command)', () => {
     asMock(fs.readFile).mockImplementation(async () => (repaired ? 'REMOTE' : 'LOCAL EDIT'));
     asMock(performInstall).mockImplementation(async () => {
       repaired = true;
-      return { installed: ['button'], skipped: [], declined: [], pruned: [], warnings: [] };
+      return { installed: ['button'], skipped: [], declined: [], pruned: [], warnings: [], failures: [], unchecked: [] };
     });
 
     await doctor({ branch: 'master', fix: true });
@@ -475,7 +523,7 @@ describe('doctor (command)', () => {
   it('--fix exits 1 when the issue survives the repair', async () => {
     asMock(fs.pathExists).mockImplementation(buttonOnDisk);
     asMock(performInstall).mockResolvedValue({
-      installed: [], skipped: [], declined: ['button'], pruned: [], warnings: [],
+      installed: [], skipped: [], declined: ['button'], pruned: [], warnings: [], failures: [], unchecked: [],
     });
     await expect(doctor({ branch: 'master', fix: true })).rejects.toThrow(ProcessExitError);
     expect(output()).toContain('Some issues remain after fixing:');

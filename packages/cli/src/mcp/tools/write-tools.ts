@@ -435,7 +435,7 @@ function registerDoctorTool(server: ToolHost, cwd: string): void {
 function registerApplyAddonTool(server: ToolHost, cwd: string): void {
     server.registerTool('apply_addon', {
         title: 'Apply an addon',
-        description: 'Install an addon (and its base if missing) and wire it into your app non-interactively: adds the directive import + the attribute on the base component\'s usage. Target by component class name(s), or omit to wire every app-code usage. Returns per-target wiring counts and a paste snippet for anything it could not auto-wire. If the base had local edits it is 3-way merged; check hadConflicts / mergeReport.mergedConflicted for files written with <<<<<<< conflict markers before reporting success.',
+        description: 'Install an addon (and its base if missing) and wire it into your app non-interactively: adds the directive import + the attribute on the base component\'s usage. Target by component class name(s), or omit to wire every app-code usage. Returns per-target wiring counts and a paste snippet for anything it could not auto-wire. If the base had local edits it is 3-way merged; check hadConflicts / mergeReport.mergedConflicted for files written with <<<<<<< conflict markers before reporting success. Returns isError with `failures[]` / `unchecked[]` (and wires nothing) when the install of the addon or its base did not complete.',
         inputSchema: {
             addon: z.string().describe('Addon key, e.g. "data-table/context-menu".'),
             components: z.array(z.string()).optional().describe('Component class name(s) to wire into (e.g. ["UsersTableComponent"]). Omit to scan all app-code usages.'),

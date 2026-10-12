@@ -184,6 +184,9 @@ async function installAndCheckCompat(addon: AddonInfo, cwd: string, uiAlias: str
                 `Your ${addon.parent} predates the ${addon.name} addon — it is missing the contract file(s): ${missing.join(', ')}.\n` +
                 `Run \`npx @gilav21/shadcn-angular update ${addon.parent}\` (you own the source — review the changes), then re-run apply.`,
             );
+            // A contract file that is missing because its write failed must not hide that cause.
+            printUnchecked(result.unchecked);
+            printFailures(result.failures);
             process.exit(1);
         }
 
@@ -211,6 +214,13 @@ export async function apply(addonName: string, components: string[], options: Ap
     const addon = resolveAddon(addonName, uiAlias, getPrefix(config));
 
     const outcome: RunOutcome = options.dryRun ? {} : await installAndCheckCompat(addon, cwd, uiAlias, options, config);
+
+    if ((outcome.failures?.length ?? 0) > 0 || (outcome.unchecked?.length ?? 0) > 0) {
+        // Wiring a directive into app code whose addon is only partly on disk would break the build.
+        console.log(chalk.dim('Not wiring: the install above did not complete.'));
+        exitIfIncomplete(outcome, options);
+        return;
+    }
 
     const managed = [config.aliases.ui, config.aliases.blocks]
         .filter((a): a is string => Boolean(a))
