@@ -41,7 +41,7 @@ describe('resolveRef (remote / GitHub API)', () => {
   });
 
   it('parses the commit SHA from the GitHub commits API', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ sha: 'deadbeefcafe' }) } as unknown as Response)));
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ sha: 'deadbeefcafe' })));
     const sha = await resolveRef({ branch: 'master', remote: true });
     expect(sha).toBe('deadbeefcafe');
   });
@@ -50,7 +50,7 @@ describe('resolveRef (remote / GitHub API)', () => {
     const calls: string[] = [];
     vi.stubGlobal('fetch', vi.fn(async (u: string) => {
       calls.push(u);
-      return { ok: true, json: async () => ({ sha: 'abc' }) } as unknown as Response;
+      return Response.json({ sha: 'abc' });
     }));
     await resolveRef({ branch: 'feature-x', remote: true });
     expect(calls[0]).toContain('api.github.com/repos/');
@@ -58,8 +58,25 @@ describe('resolveRef (remote / GitHub API)', () => {
   });
 
   it('returns null on a non-OK API response', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, statusText: 'Not Found' } as unknown as Response)));
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 404, statusText: 'Not Found' })));
     expect(await resolveRef({ branch: 'master', remote: true })).toBeNull();
+  });
+
+  it('returns null when the API host accepts the connection and never answers', async () => {
+    // A faithful stall: settles only if the caller handed fetch an AbortSignal and it fires.
+    vi.stubGlobal('fetch', vi.fn((_url: string, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(init.signal?.reason));
+    })));
+    const saved = process.env['SHADCN_ANGULAR_FETCH_TIMEOUT_MS'];
+    process.env['SHADCN_ANGULAR_FETCH_TIMEOUT_MS'] = '150';
+    try {
+      const started = Date.now();
+      expect(await resolveRef({ branch: 'master', remote: true })).toBeNull();
+      expect(Date.now() - started).toBeLessThan(2000);
+    } finally {
+      if (saved === undefined) delete process.env['SHADCN_ANGULAR_FETCH_TIMEOUT_MS'];
+      else process.env['SHADCN_ANGULAR_FETCH_TIMEOUT_MS'] = saved;
+    }
   });
 
   it('returns null when the API fetch throws (offline)', async () => {
@@ -100,7 +117,7 @@ describe('fetchAtRef', () => {
     const calls: string[] = [];
     vi.stubGlobal('fetch', vi.fn(async (u: string) => {
       calls.push(u);
-      return { ok: true, text: async () => '// content' } as unknown as Response;
+      return new Response('// content');
     }));
     const content = await fetchAtRef('button/button.component.ts', 'sha789', { branch: 'master', remote: true }, '@/lib', 'ui', 'component');
     expect(content).toBe('// content');
@@ -108,7 +125,7 @@ describe('fetchAtRef', () => {
   });
 
   it('returns null when the remote fetch fails', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, statusText: 'gone' } as unknown as Response)));
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 410, statusText: 'gone' })));
     expect(await fetchAtRef('button/button.component.ts', 'sha789', { branch: 'master', remote: true }, '@/lib')).toBeNull();
   });
 

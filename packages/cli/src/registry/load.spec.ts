@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
 import { loadRegistry, isValidRegistryShape, __resetRegistryManifestCache } from './load.js';
+import { startServer } from '../utils/http-fixtures.js';
 import { registry, __resetRegistryCaches, getReverseDependents, type ComponentDefinition } from './index.js';
 
 const mutable = registry as unknown as Record<string, ComponentDefinition>;
@@ -137,13 +138,36 @@ describe('loadRegistry', () => {
 
     it('keeps the bundled snapshot and warns when the fetch fails', async () => {
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-        stubFetch({ ok: false, status: 500, statusText: 'Server Error' });
+        vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 500, statusText: 'Server Error' })));
 
         const applied = await loadRegistry({ remote: true, branch: 'master' });
 
         expect(applied).toBe(false);
         expect(registry['accordion' as never]).toBeDefined();
         expect(warn).toHaveBeenCalledOnce();
+    });
+
+    it('falls back to the bundled registry within the budget when the manifest host stalls', async () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        const server = await startServer(['stall']);
+        const saved = process.env['SHADCN_ANGULAR_FETCH_TIMEOUT_MS'];
+        process.env['SHADCN_ANGULAR_FETCH_TIMEOUT_MS'] = '150';
+        try {
+            const started = Date.now();
+            const applied = await loadRegistry({ registry: server.url });
+
+            expect(Date.now() - started).toBeLessThan(2000);
+            expect(applied).toBe(false);
+            expect(registry['accordion' as never]).toBeDefined();
+            expect(warn).toHaveBeenCalledWith(
+                `⚠ Could not fetch the live component registry (Timed out after 150 ms: ${server.url}/registry.json); ` +
+                'using the bundled copy, which may be stale.',
+            );
+        } finally {
+            if (saved === undefined) delete process.env['SHADCN_ANGULAR_FETCH_TIMEOUT_MS'];
+            else process.env['SHADCN_ANGULAR_FETCH_TIMEOUT_MS'] = saved;
+            await server.close();
+        }
     });
 
     it('loadRegistry warns with the violation and applies the bundled snapshot', async () => {
